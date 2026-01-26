@@ -1,0 +1,46 @@
+.select-wrapper {
+  display: block;
+  margin-top: 12px;
+}
+
+.select-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.select:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.select-error {
+  border-color: #ef4444;
+}
+
+.select-error-text {
+  display: block;
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}

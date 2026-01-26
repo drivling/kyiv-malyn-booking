@@ -1,0 +1,30 @@
+.alert {
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 12px;
+  border-left: 4px solid;
+}
+
+.alert-success {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #10b981;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #ef4444;
+}
+
+.alert-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #f59e0b;
+}
+
+.alert-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #2563eb;
+}

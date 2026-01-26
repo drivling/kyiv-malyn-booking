@@ -1,0 +1,38 @@
+.input-wrapper {
+  display: block;
+  margin-top: 12px;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.input-error {
+  border-color: #ef4444;
+}
+
+.input-error-text {
+  display: block;
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}
