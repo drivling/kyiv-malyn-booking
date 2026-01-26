@@ -242,6 +242,20 @@ app.get('/bookings', async (_req, res) => {
   res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' }}));
 });
 
+// Пошук останнього бронювання по телефону
+app.get('/bookings/by-phone/:phone', async (req, res) => {
+  const { phone } = req.params;
+  try {
+    const lastBooking = await prisma.booking.findFirst({
+      where: { phone },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(lastBooking || null);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to find booking' });
+  }
+});
+
 app.delete('/bookings/:id', async (req, res) => {
   const { id } = req.params;
   try {

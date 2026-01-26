@@ -90,6 +90,10 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  async findLastBookingByPhone(phone: string): Promise<Booking | null> {
+    return this.request<Booking | null>(`/bookings/by-phone/${encodeURIComponent(phone)}`);
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

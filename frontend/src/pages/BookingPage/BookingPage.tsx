@@ -20,6 +20,7 @@ export const BookingPage: React.FC = () => {
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [warning, setWarning] = useState('');
@@ -50,6 +51,31 @@ export const BookingPage: React.FC = () => {
 
     loadSchedules();
   }, [route]);
+
+  // Пошук клієнта по телефону
+  useEffect(() => {
+    if (!phone || phone.length < 10) {
+      return;
+    }
+
+    const searchCustomer = async () => {
+      setLoadingCustomer(true);
+      try {
+        const lastBooking = await apiClient.findLastBookingByPhone(phone);
+        if (lastBooking && lastBooking.name) {
+          setName(lastBooking.name);
+        }
+      } catch (err) {
+        // Якщо не вдалося знайти, просто ігноруємо
+      } finally {
+        setLoadingCustomer(false);
+      }
+    };
+
+    // Затримка для уникнення занадто частих запитів
+    const timeoutId = setTimeout(searchCustomer, 500);
+    return () => clearTimeout(timeoutId);
+  }, [phone]);
 
   // Перевірка доступності при зміні часу або дати
   useEffect(() => {
@@ -188,6 +214,24 @@ export const BookingPage: React.FC = () => {
           </div>
 
           <Input
+            label="Телефон"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="0501234567"
+            required
+          />
+          {loadingCustomer && <span className="loading" style={{ fontSize: '12px', marginTop: '4px' }}>Пошук клієнта...</span>}
+
+          <Input
+            label="Імʼя"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+
+          <Input
             label="Дата"
             type="date"
             value={date}
@@ -202,22 +246,6 @@ export const BookingPage: React.FC = () => {
             onChange={(e) => setSeats(Number(e.target.value))}
             min={1}
             max={8}
-            required
-          />
-
-          <Input
-            label="Імʼя"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Телефон"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
             required
           />
 
