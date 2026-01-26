@@ -1,0 +1,197 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Бронювання маршрутки Київ ↔ Малин</title>
+  <style>
+    body { font-family: system-ui; background:#f5f7fa; }
+    .container { max-width:420px;margin:40px auto;background:#fff;padding:24px;border-radius:12px }
+    label { display:block;margin-top:12px }
+    input,select,button { width:100%;padding:10px;margin-top:6px;box-sizing:border-box;border:1px solid #ddd;border-radius:4px }
+    button { background:#2563eb;color:#fff;border:0;cursor:pointer;font-weight:500 }
+    button:hover { background:#1d4ed8 }
+    button:disabled { background:#9ca3af;cursor:not-allowed }
+    .success { display:none;color:green;margin-top:16px }
+    .error { display:none;color:red;margin-top:16px }
+    .warning { display:none;background:#fef3c7;color:#92400e;padding:12px;border-radius:6px;margin-top:12px;border-left:4px solid #f59e0b }
+    .info { display:none;background:#dbeafe;color:#1e40af;padding:12px;border-radius:6px;margin-top:12px;border-left:4px solid #2563eb }
+    .loading { color:#6b7280;font-size:14px }
+    .availability-info { font-size:14px;margin-top:8px;color:#6b7280 }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Бронювання маршрутки</h2>
+    <form id="form">
+      <label>Напрямок
+        <select name="route" id="route" required>
+          <option value="">Оберіть напрямок</option>
+          <option value="Kyiv-Malyn-Irpin">Київ → Малин (через Ірпінь)</option>
+          <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
+          <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
+          <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+        </select>
+      </label>
+      <label>Час відправлення
+        <select name="departureTime" id="departureTime" required disabled>
+          <option value="">Спочатку оберіть напрямок</option>
+        </select>
+        <span class="loading" id="loading" style="display:none">Завантаження...</span>
+        <div class="availability-info" id="availabilityInfo"></div>
+      </label>
+      <label>Дата <input type="date" name="date" id="date" required /></label>
+      <label>Місця <input type="number" name="seats" value="1" min="1" max="8" required /></label>
+      <label>Імʼя <input type="text" name="name" required /></label>
+      <label>Телефон <input type="tel" name="phone" required /></label>
+      <button>Забронювати</button>
+    </form>
+    <div class="success" id="success">✅ Заявку прийнято</div>
+    <div class="error" id="error"></div>
+    <div class="warning" id="warning"></div>
+    <div class="info" id="info"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const routeSelect = document.getElementById('route');
+    const departureTimeSelect = document.getElementById('departureTime');
+    const dateInput = document.getElementById('date');
+    const loading = document.getElementById('loading');
+    const success = document.getElementById('success');
+    const error = document.getElementById('error');
+    const warning = document.getElementById('warning');
+    const info = document.getElementById('info');
+    const availabilityInfo = document.getElementById('availabilityInfo');
+
+    // Завантаження розкладу при зміні маршруту
+    routeSelect.addEventListener('change', async () => {
+      const route = routeSelect.value;
+      departureTimeSelect.disabled = true;
+      departureTimeSelect.innerHTML = '<option value="">Завантаження...</option>';
+      
+      if (!route) {
+        departureTimeSelect.innerHTML = '<option value="">Спочатку оберіть напрямок</option>';
+        return;
+      }
+
+      loading.style.display = 'block';
+      error.style.display = 'none';
+
+      try {
+        const res = await fetch(`http://localhost:3000/schedules/${route}`);
+        if (res.ok) {
+          const schedules = await res.json();
+          departureTimeSelect.innerHTML = schedules.length > 0 
+            ? schedules.map(s => `<option value="${s.departureTime}">${s.departureTime}</option>`).join('')
+            : '<option value="">Немає доступних рейсів</option>';
+          departureTimeSelect.disabled = schedules.length === 0;
+          
+          // Якщо дата вже вибрана, перевіряємо доступність
+          if (dateInput.value && schedules.length > 0) {
+            setTimeout(checkAvailability, 100);
+          }
+        } else {
+          departureTimeSelect.innerHTML = '<option value="">Помилка завантаження</option>';
+        }
+      } catch (err) {
+        departureTimeSelect.innerHTML = '<option value="">Помилка завантаження</option>';
+        error.textContent = 'Не вдалося завантажити розклад';
+        error.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    });
+
+    // Перевірка доступності місць при зміні часу або дати
+    async function checkAvailability() {
+      const route = routeSelect.value;
+      const departureTime = departureTimeSelect.value;
+      const date = dateInput.value;
+
+      // Очищаємо попередні повідомлення
+      warning.style.display = 'none';
+      info.style.display = 'none';
+      availabilityInfo.textContent = '';
+
+      if (!route || !departureTime || !date) {
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `http://localhost:3000/schedules/${route}/${departureTime}/availability?date=${date}`
+        );
+
+        if (res.ok) {
+          const availability = await res.json();
+          
+          if (!availability.isAvailable) {
+            warning.textContent = `⚠️ Місця закінчились! Доступно місць: 0 з ${availability.maxSeats}`;
+            warning.style.display = 'block';
+            availabilityInfo.textContent = '';
+            form.querySelector('button').disabled = true;
+          } else {
+            availabilityInfo.textContent = `Доступно місць: ${availability.availableSeats} з ${availability.maxSeats}`;
+            
+            if (availability.availableSeats <= 5) {
+              info.textContent = `ℹ️ Залишилось мало місць: ${availability.availableSeats}`;
+              info.style.display = 'block';
+            }
+            
+            form.querySelector('button').disabled = false;
+          }
+        }
+      } catch (err) {
+        // Якщо не вдалося перевірити, все одно дозволяємо бронювання
+        availabilityInfo.textContent = '';
+      }
+    }
+
+    // Обробники змін
+    departureTimeSelect.addEventListener('change', checkAvailability);
+    dateInput.addEventListener('change', checkAvailability);
+
+    // Відправка форми
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      success.style.display = 'none';
+      error.style.display = 'none';
+
+      const data = Object.fromEntries(new FormData(form).entries());
+      
+      if (!data.departureTime) {
+        error.textContent = 'Оберіть час відправлення';
+        error.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:3000/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          form.reset();
+          departureTimeSelect.innerHTML = '<option value="">Спочатку оберіть напрямок</option>';
+          departureTimeSelect.disabled = true;
+          warning.style.display = 'none';
+          info.style.display = 'none';
+          availabilityInfo.textContent = '';
+          success.style.display = 'block';
+        } else {
+          const errorData = await res.json();
+          error.textContent = errorData.error || 'Помилка при створенні бронювання';
+          error.style.display = 'block';
+        }
+      } catch (err) {
+        error.textContent = 'Помилка з\'єднання з сервером';
+        error.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

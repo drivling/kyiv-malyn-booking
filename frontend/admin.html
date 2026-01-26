@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Адмін панель - Бронювання</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      background: #f5f7fa; 
+      color: #1f2937;
+    }
+    .header {
+      background: #2563eb;
+      color: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header h1 { font-size: 24px; }
+    .header a {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .header a:hover { opacity: 1; }
+    .container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-card h3 {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .stat-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #2563eb;
+    }
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .controls select,
+    .controls input {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .controls button {
+      padding: 8px 16px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .controls button:hover { background: #1d4ed8; }
+    .controls button.secondary {
+      background: #6b7280;
+    }
+    .controls button.secondary:hover { background: #4b5563; }
+    .table-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead {
+      background: #f9fafb;
+    }
+    th {
+      text-align: left;
+      padding: 16px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #374151;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    td {
+      padding: 16px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+    }
+    tr:hover { background: #f9fafb; }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-kyiv-malyn {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .badge-malyn-kyiv {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .btn-delete {
+      padding: 6px 12px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn-delete:hover { background: #dc2626; }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #6b7280;
+    }
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6b7280;
+    }
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .tab {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    .tab:hover {
+      color: #2563eb;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .btn-edit {
+      padding: 6px 12px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: 8px;
+    }
+    .btn-edit:hover { background: #059669; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .modal-header h2 {
+      font-size: 20px;
+      color: #1f2937;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6b7280;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .close-btn:hover {
+      color: #1f2937;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #374151;
+    }
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    .btn-cancel {
+      padding: 10px 20px;
+      background: #e5e7eb;
+      color: #374151;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-cancel:hover {
+      background: #d1d5db;
+    }
+    .btn-save {
+      padding: 10px 20px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-save:hover {
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 Адмін панель</h1>
+    <a href="index.html">← Повернутися до бронювання</a>
+  </div>
+
+  <div class="container">
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('bookings')">📋 Бронювання</button>
+      <button class="tab" onclick="switchTab('schedules')">🕐 Графіки</button>
+    </div>
+
+    <!-- Секція бронювань -->
+    <div id="bookingsTab" class="tab-content active">
+      <div class="stats">
+        <div class="stat-card">
+          <h3>Всього бронювань</h3>
+          <div class="value" id="totalBookings">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Київ → Малин</h3>
+          <div class="value" id="kyivMalyn">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Малин → Київ</h3>
+          <div class="value" id="malynKyiv">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Всього місць</h3>
+          <div class="value" id="totalSeats">0</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <select id="filterRoute">
+          <option value="">Всі маршрути</option>
+          <option value="Kyiv-Malyn-Irpin">Київ → Малин (через Ірпінь)</option>
+          <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
+          <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
+          <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+        </select>
+        <input type="date" id="filterDate" placeholder="Фільтр по даті">
+        <input type="text" id="searchInput" placeholder="Пошук по імені або телефону...">
+        <button onclick="loadBookings()">🔄 Оновити</button>
+        <button class="secondary" onclick="clearFilters()">Очистити фільтри</button>
+      </div>
+
+      <div class="table-container">
+        <div id="loading" class="loading">Завантаження...</div>
+        <div id="empty" class="empty" style="display: none;">
+          <div class="empty-icon">📭</div>
+          <div>Немає бронювань</div>
+        </div>
+        <table id="bookingsTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Маршрут</th>
+              <th>Дата</th>
+              <th>Час</th>
+              <th>Місця</th>
+              <th>Ім'я</th>
+              <th>Телефон</th>
+              <th>Створено</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody id="bookingsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Секція графіків -->
+    <div id="schedulesTab" class="tab-content">
+      <div class="controls">
+        <select id="scheduleFilterRoute">
+          <option value="">Всі маршрути</option>
+          <option value="Kyiv-Malyn-Irpin">Київ → Малин (через Ірпінь)</option>
+          <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
+          <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
+          <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+        </select>
+        <button onclick="loadSchedules()">🔄 Оновити</button>
+        <button onclick="openScheduleModal()">➕ Додати рейс</button>
+      </div>
+
+      <div class="table-container">
+        <div id="schedulesLoading" class="loading">Завантаження...</div>
+        <div id="schedulesEmpty" class="empty" style="display: none;">
+          <div class="empty-icon">🕐</div>
+          <div>Немає графіків</div>
+        </div>
+        <table id="schedulesTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Маршрут</th>
+              <th>Час відправлення</th>
+              <th>Макс. місць</th>
+              <th>Створено</th>
+              <th>Оновлено</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody id="schedulesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальне вікно для створення/редагування графіку -->
+  <div id="scheduleModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle">Додати рейс</h2>
+        <button class="close-btn" onclick="closeScheduleModal()">&times;</button>
+      </div>
+      <form id="scheduleForm" onsubmit="saveSchedule(event)">
+        <div class="form-group">
+          <label>Маршрут *</label>
+          <select id="modalRoute" required>
+            <option value="">Оберіть маршрут</option>
+            <option value="Kyiv-Malyn-Irpin">Київ → Малин (через Ірпінь)</option>
+            <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
+            <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
+            <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Час відправлення * (формат HH:MM)</label>
+          <input type="text" id="modalDepartureTime" placeholder="08:00" required pattern="^([0-1][0-9]|2[0-3]):[0-5][0-9]$">
+        </div>
+        <div class="form-group">
+          <label>Максимальна кількість місць *</label>
+          <input type="number" id="modalMaxSeats" placeholder="20" min="1" max="100" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeScheduleModal()">Скасувати</button>
+          <button type="submit" class="btn-save">Зберегти</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000';
+    let allBookings = [];
+    let allSchedules = [];
+    let editingScheduleId = null;
+
+    // Функції для роботи з маршрутами
+    function getRouteLabel(route) {
+      const routes = {
+        'Kyiv-Malyn-Irpin': 'Київ → Малин (через Ірпінь)',
+        'Malyn-Kyiv-Irpin': 'Малин → Київ (через Ірпінь)',
+        'Kyiv-Malyn-Bucha': 'Київ → Малин (через Бучу)',
+        'Malyn-Kyiv-Bucha': 'Малин → Київ (через Бучу)'
+      };
+      return routes[route] || route;
+    }
+
+    function getRouteBadgeClass(route) {
+      if (route.includes('Kyiv-Malyn')) {
+        return 'badge-kyiv-malyn';
+      } else if (route.includes('Malyn-Kyiv')) {
+        return 'badge-malyn-kyiv';
+      }
+      return 'badge-kyiv-malyn';
+    }
+
+    // Перемикання табів
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      if (tabName === 'bookings') {
+        document.querySelector('.tab[onclick="switchTab(\'bookings\')"]').classList.add('active');
+        document.getElementById('bookingsTab').classList.add('active');
+      } else {
+        document.querySelector('.tab[onclick="switchTab(\'schedules\')"]').classList.add('active');
+        document.getElementById('schedulesTab').classList.add('active');
+        loadSchedules();
+      }
+    }
+
+    // Завантаження бронювань
+    async function loadBookings() {
+      const loading = document.getElementById('loading');
+      const table = document.getElementById('bookingsTable');
+      const empty = document.getElementById('empty');
+      const error = document.getElementById('error');
+      
+      loading.style.display = 'block';
+      table.style.display = 'none';
+      empty.style.display = 'none';
+      error.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_URL}/bookings`);
+        if (!res.ok) throw new Error('Помилка завантаження');
+        
+        allBookings = await res.json();
+        applyFilters();
+      } catch (err) {
+        error.textContent = `Помилка: ${err.message}`;
+        error.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+
+    // Застосування фільтрів
+    function applyFilters() {
+      const routeFilter = document.getElementById('filterRoute').value;
+      const dateFilter = document.getElementById('filterDate').value;
+      const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+
+      let filtered = allBookings.filter(booking => {
+        if (routeFilter && booking.route !== routeFilter) return false;
+        if (dateFilter) {
+          const bookingDate = new Date(booking.date).toISOString().split('T')[0];
+          if (bookingDate !== dateFilter) return false;
+        }
+        if (searchQuery) {
+          const searchIn = `${booking.name} ${booking.phone}`.toLowerCase();
+          if (!searchIn.includes(searchQuery)) return false;
+        }
+        return true;
+      });
+
+      displayBookings(filtered);
+      updateStats(filtered);
+    }
+
+    // Відображення бронювань
+    function displayBookings(bookings) {
+      const tbody = document.getElementById('bookingsBody');
+      const table = document.getElementById('bookingsTable');
+      const empty = document.getElementById('empty');
+
+      if (bookings.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      table.style.display = 'table';
+      empty.style.display = 'none';
+
+      tbody.innerHTML = bookings.map(booking => {
+        const date = new Date(booking.date);
+        const createdAt = new Date(booking.createdAt);
+        const routeLabel = getRouteLabel(booking.route);
+        const badgeClass = getRouteBadgeClass(booking.route);
+
+        return `
+          <tr>
+            <td>#${booking.id}</td>
+            <td><span class="badge ${badgeClass}">${routeLabel}</span></td>
+            <td>${date.toLocaleDateString('uk-UA')}</td>
+            <td><strong>${booking.departureTime}</strong></td>
+            <td>${booking.seats}</td>
+            <td>${booking.name}</td>
+            <td>${booking.phone}</td>
+            <td>${createdAt.toLocaleString('uk-UA')}</td>
+            <td>
+              <button class="btn-delete" onclick="deleteBooking(${booking.id})">Видалити</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Оновлення статистики
+    function updateStats(bookings) {
+      document.getElementById('totalBookings').textContent = bookings.length;
+      document.getElementById('kyivMalyn').textContent = 
+        bookings.filter(b => b.route.includes('Kyiv-Malyn')).length;
+      document.getElementById('malynKyiv').textContent = 
+        bookings.filter(b => b.route.includes('Malyn-Kyiv')).length;
+      document.getElementById('totalSeats').textContent = 
+        bookings.reduce((sum, b) => sum + b.seats, 0);
+    }
+
+    // Видалення бронювання
+    async function deleteBooking(id) {
+      if (!confirm('Ви впевнені, що хочете видалити це бронювання?')) return;
+
+      try {
+        const res = await fetch(`${API_URL}/bookings/${id}`, {
+          method: 'DELETE'
+        });
+
+        if (res.ok || res.status === 204) {
+          loadBookings();
+        } else {
+          const error = await res.json();
+          alert(`Помилка: ${error.error || 'Не вдалося видалити бронювання'}`);
+        }
+      } catch (err) {
+        alert(`Помилка: ${err.message}`);
+      }
+    }
+
+    // Очищення фільтрів
+    function clearFilters() {
+      document.getElementById('filterRoute').value = '';
+      document.getElementById('filterDate').value = '';
+      document.getElementById('searchInput').value = '';
+      applyFilters();
+    }
+
+    // Обробники подій
+    document.getElementById('filterRoute').addEventListener('change', applyFilters);
+    document.getElementById('filterDate').addEventListener('change', applyFilters);
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+    // Завантаження графіків
+    async function loadSchedules() {
+      const loading = document.getElementById('schedulesLoading');
+      const table = document.getElementById('schedulesTable');
+      const empty = document.getElementById('schedulesEmpty');
+      const error = document.getElementById('error');
+      
+      loading.style.display = 'block';
+      table.style.display = 'none';
+      empty.style.display = 'none';
+      error.style.display = 'none';
+
+      try {
+        const routeFilter = document.getElementById('scheduleFilterRoute').value;
+        const url = routeFilter ? `${API_URL}/schedules?route=${routeFilter}` : `${API_URL}/schedules`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Помилка завантаження');
+        
+        allSchedules = await res.json();
+        displaySchedules(allSchedules);
+      } catch (err) {
+        error.textContent = `Помилка: ${err.message}`;
+        error.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+
+    // Відображення графіків
+    function displaySchedules(schedules) {
+      const tbody = document.getElementById('schedulesBody');
+      const table = document.getElementById('schedulesTable');
+      const empty = document.getElementById('schedulesEmpty');
+
+      if (schedules.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      // Сортування: спочатку по маршруту, потім по часу відправлення
+      const sortedSchedules = [...schedules].sort((a, b) => {
+        // Спочатку сортуємо по маршруту
+        if (a.route !== b.route) {
+          return a.route.localeCompare(b.route);
+        }
+        // Якщо маршрути однакові, сортуємо по часу відправлення
+        return a.departureTime.localeCompare(b.departureTime);
+      });
+
+      table.style.display = 'table';
+      empty.style.display = 'none';
+
+      tbody.innerHTML = sortedSchedules.map(schedule => {
+        const createdAt = new Date(schedule.createdAt);
+        const updatedAt = new Date(schedule.updatedAt);
+        const routeLabel = getRouteLabel(schedule.route);
+        const badgeClass = getRouteBadgeClass(schedule.route);
+
+        return `
+          <tr>
+            <td>#${schedule.id}</td>
+            <td><span class="badge ${badgeClass}">${routeLabel}</span></td>
+            <td><strong>${schedule.departureTime}</strong></td>
+            <td><strong>${schedule.maxSeats || 20}</strong></td>
+            <td>${createdAt.toLocaleString('uk-UA')}</td>
+            <td>${updatedAt.toLocaleString('uk-UA')}</td>
+            <td>
+              <button class="btn-edit" onclick="editSchedule(${schedule.id})">Редагувати</button>
+              <button class="btn-delete" onclick="deleteSchedule(${schedule.id})">Видалити</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Відкриття модального вікна для створення
+    function openScheduleModal() {
+      editingScheduleId = null;
+      document.getElementById('modalTitle').textContent = 'Додати рейс';
+      document.getElementById('scheduleForm').reset();
+      document.getElementById('scheduleModal').classList.add('active');
+    }
+
+    // Відкриття модального вікна для редагування
+    function editSchedule(id) {
+      const schedule = allSchedules.find(s => s.id === id);
+      if (!schedule) return;
+
+      editingScheduleId = id;
+      document.getElementById('modalTitle').textContent = 'Редагувати рейс';
+      document.getElementById('modalRoute').value = schedule.route;
+      document.getElementById('modalDepartureTime').value = schedule.departureTime;
+      document.getElementById('modalMaxSeats').value = schedule.maxSeats || 20;
+      document.getElementById('scheduleModal').classList.add('active');
+    }
+
+    // Закриття модального вікна
+    function closeScheduleModal() {
+      document.getElementById('scheduleModal').classList.remove('active');
+      editingScheduleId = null;
+      document.getElementById('scheduleForm').reset();
+    }
+
+    // Збереження графіку
+    async function saveSchedule(event) {
+      event.preventDefault();
+      const route = document.getElementById('modalRoute').value;
+      const departureTime = document.getElementById('modalDepartureTime').value;
+      const maxSeats = document.getElementById('modalMaxSeats').value;
+
+      if (!route || !departureTime || !maxSeats) {
+        alert('Заповніть всі поля');
+        return;
+      }
+
+      // Валідація формату часу
+      const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(departureTime)) {
+        alert('Невірний формат часу. Використовуйте HH:MM (наприклад, 08:00)');
+        return;
+      }
+
+      if (Number(maxSeats) < 1 || Number(maxSeats) > 100) {
+        alert('Кількість місць повинна бути від 1 до 100');
+        return;
+      }
+
+      try {
+        const url = editingScheduleId 
+          ? `${API_URL}/schedules/${editingScheduleId}`
+          : `${API_URL}/schedules`;
+        const method = editingScheduleId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ route, departureTime, maxSeats: Number(maxSeats) })
+        });
+
+        if (res.ok) {
+          closeScheduleModal();
+          loadSchedules();
+        } else {
+          const error = await res.json();
+          alert(`Помилка: ${error.error || 'Не вдалося зберегти графік'}`);
+        }
+      } catch (err) {
+        alert(`Помилка: ${err.message}`);
+      }
+    }
+
+    // Видалення графіку
+    async function deleteSchedule(id) {
+      if (!confirm('Ви впевнені, що хочете видалити цей рейс?')) return;
+
+      try {
+        const res = await fetch(`${API_URL}/schedules/${id}`, {
+          method: 'DELETE'
+        });
+
+        if (res.ok || res.status === 204) {
+          loadSchedules();
+        } else {
+          const error = await res.json();
+          alert(`Помилка: ${error.error || 'Не вдалося видалити графік'}`);
+        }
+      } catch (err) {
+        alert(`Помилка: ${err.message}`);
+      }
+    }
+
+    // Обробник фільтра графіків
+    document.getElementById('scheduleFilterRoute').addEventListener('change', loadSchedules);
+
+    // Закриття модального вікна при кліку поза ним
+    document.getElementById('scheduleModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeScheduleModal();
+      }
+    });
+
+    // Завантаження при старті
+    loadBookings();
+  </script>
+</body>
+</html>

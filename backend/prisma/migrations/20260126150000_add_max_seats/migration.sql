@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Schedule" ADD COLUMN "maxSeats" INTEGER NOT NULL DEFAULT 20;
