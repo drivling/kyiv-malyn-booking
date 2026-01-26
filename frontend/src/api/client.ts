@@ -3,9 +3,29 @@ import type { Schedule, Booking, Availability, BookingFormData, ScheduleFormData
 
 class ApiClient {
   private baseUrl: string;
+  private authToken: string | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    // Завантажуємо токен з localStorage при ініціалізації
+    if (typeof window !== 'undefined') {
+      this.authToken = localStorage.getItem('adminToken');
+    }
+  }
+
+  setAuthToken(token: string | null) {
+    this.authToken = token;
+    if (typeof window !== 'undefined') {
+      if (token) {
+        localStorage.setItem('adminToken', token);
+      } else {
+        localStorage.removeItem('adminToken');
+      }
+    }
+  }
+
+  getAuthToken(): string | null {
+    return this.authToken;
   }
 
   private async request<T>(
@@ -13,12 +33,19 @@ class ApiClient {
     options?: RequestInit
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    };
+
+    // Додаємо токен авторизації для адмін endpoints
+    if (this.authToken) {
+      headers['Authorization'] = this.authToken;
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -93,6 +120,18 @@ class ApiClient {
 
   async findLastBookingByPhone(phone: string): Promise<Booking | null> {
     return this.request<Booking | null>(`/bookings/by-phone/${encodeURIComponent(phone)}`);
+  }
+
+  // Admin auth
+  async adminLogin(password: string): Promise<{ token: string; success: boolean }> {
+    return this.request<{ token: string; success: boolean }>('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+  }
+
+  async checkAdminAuth(): Promise<{ authenticated: boolean }> {
+    return this.request<{ authenticated: boolean }>('/admin/check');
   }
 }
 

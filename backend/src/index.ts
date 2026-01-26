@@ -9,7 +9,36 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// Простий токен для авторизації (в продакшені використовуйте JWT)
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_TOKEN = 'admin-authenticated';
+
+// Middleware для перевірки авторизації адміна
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const token = req.headers.authorization;
+  if (token === ADMIN_TOKEN) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+};
+
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Авторизація адміна
+app.post('/admin/login', async (req, res) => {
+  const { password } = req.body;
+  if (password === ADMIN_PASSWORD) {
+    res.json({ token: ADMIN_TOKEN, success: true });
+  } else {
+    res.status(401).json({ error: 'Невірний пароль' });
+  }
+});
+
+// Перевірка авторизації
+app.get('/admin/check', requireAdmin, (_req, res) => {
+  res.json({ authenticated: true });
+});
 
 // Schedule CRUD endpoints
 app.get('/schedules', async (req, res) => {
@@ -88,7 +117,7 @@ app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
   }
 });
 
-app.post('/schedules', async (req, res) => {
+app.post('/schedules', requireAdmin, async (req, res) => {
   const { route, departureTime, maxSeats } = req.body;
   if (!route || !departureTime) {
     return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
@@ -117,7 +146,7 @@ app.post('/schedules', async (req, res) => {
   }
 });
 
-app.put('/schedules/:id', async (req, res) => {
+app.put('/schedules/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { route, departureTime, maxSeats } = req.body;
 
@@ -152,7 +181,7 @@ app.put('/schedules/:id', async (req, res) => {
   }
 });
 
-app.delete('/schedules/:id', async (req, res) => {
+app.delete('/schedules/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.schedule.delete({
@@ -238,7 +267,7 @@ app.post('/bookings', async (req, res) => {
   res.status(201).json(booking);
 });
 
-app.get('/bookings', async (_req, res) => {
+app.get('/bookings', requireAdmin, async (_req, res) => {
   res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' }}));
 });
 
@@ -256,7 +285,7 @@ app.get('/bookings/by-phone/:phone', async (req, res) => {
   }
 });
 
-app.delete('/bookings/:id', async (req, res) => {
+app.delete('/bookings/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.booking.delete({
