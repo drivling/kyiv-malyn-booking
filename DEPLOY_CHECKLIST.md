@@ -30,14 +30,14 @@
 - [ ] Додано змінну `NODE_ENV=production`
 - [ ] Backend успішно задеплоєний
 - [ ] Перевірено логи - немає помилок
-- [ ] Скопійовано backend URL для frontend
+- [x] Скопійовано backend URL для frontend: `https://backend-production-9b26.up.railway.app`
 
 ## Крок 4: Frontend сервіс
 
 - [ ] Створено frontend сервіс
 - [ ] Встановлено Root Directory: `frontend`
 - [ ] Встановлено Start Command: `npm start`
-- [ ] Додано змінну `VITE_API_URL` з backend URL
+- [ ] Додано змінну `VITE_API_URL=https://backend-production-9b26.up.railway.app`
 - [ ] Frontend успішно задеплоєний
 - [ ] Перевірено логи - немає помилок
 

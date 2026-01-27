@@ -18,12 +18,15 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('Attempting login to:', apiClient['baseUrl']);
       const result = await apiClient.adminLogin(password);
+      console.log('Login result:', result);
       if (result.success && result.token) {
         apiClient.setAuthToken(result.token);
         navigate('/admin');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Помилка авторизації');
     } finally {
       setLoading(false);
