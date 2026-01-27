@@ -46,7 +46,7 @@ Please choose a name for your bot.
 Good. Now let's choose a username for your bot. 
 It must end in `bot`. Like this, for example: TetrisBot or tetris_bot.
 
-Ви: kyiv_malyn_booking_bot
+Ви: malin_kiev_ua_bot
 
 🤖 BotFather:
 Done! Congratulations on your new bot. You will find it at 
