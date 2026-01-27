@@ -170,7 +170,7 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         if (matchingBookings.length === 0) {
             await bot.sendMessage(chatId, `❌ Бронювання з номером ${phoneInput} не знайдено.\n\n` +
                 `Спочатку створіть бронювання на сайті:\n` +
-                `https://frontend-production-34cd.up.railway.app\n\n` +
+                `https://malin.kiev.ua\n\n` +
                 `Після цього поверніться сюди і надішліть цей же номер телефону.`);
             return;
         }
@@ -228,7 +228,7 @@ function setupBotCommands() {
 /help - показати довідку
 
 🌐 <b>Забронювати новий квиток:</b>
-https://frontend-production-34cd.up.railway.app
+https://malin.kiev.ua
       `.trim();
             await bot?.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
         }
@@ -250,7 +250,7 @@ https://frontend-production-34cd.up.railway.app
 /help - показати довідку
 
 🌐 <b>Забронювати квиток:</b>
-https://frontend-production-34cd.up.railway.app
+https://malin.kiev.ua
       `.trim();
             // Додаємо кнопку для швидкого надсилання контакту
             const keyboard = {
@@ -289,7 +289,7 @@ https://frontend-production-34cd.up.railway.app
 • Надсилаю підтвердження після бронювання
 • Нагадую за день до поїздки
 
-🌐 Сайт: https://frontend-production-34cd.up.railway.app
+🌐 Сайт: https://malin.kiev.ua
       `.trim();
             await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
         }
@@ -311,7 +311,7 @@ https://frontend-production-34cd.up.railway.app
 • 380501234567
 • 0501234567
 
-🌐 Сайт: https://frontend-production-34cd.up.railway.app
+🌐 Сайт: https://malin.kiev.ua
       `.trim();
             await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
         }
@@ -371,7 +371,7 @@ https://frontend-production-34cd.up.railway.app
             if (myBookings.length === 0) {
                 await bot?.sendMessage(chatId, `📋 <b>У вас поки немає активних бронювань</b>\n\n` +
                     `Створіть бронювання на сайті:\n` +
-                    `https://frontend-production-34cd.up.railway.app`, { parse_mode: 'HTML' });
+                    `https://malin.kiev.ua`, { parse_mode: 'HTML' });
                 return;
             }
             let message = `📋 <b>Ваші бронювання:</b>\n\n`;
