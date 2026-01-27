@@ -10,6 +10,24 @@ const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
 let bot: TelegramBot | null = null;
 
 /**
+ * Нормалізація номера телефону
+ * Перетворює всі формати в 380XXXXXXXXX
+ */
+const normalizePhone = (phone: string): string => {
+  // Видаляємо всі символи крім цифр
+  let cleaned = phone.replace(/\D/g, '');
+  
+  // Якщо починається з 0 (наприклад 0679551952) -> додаємо 38
+  if (cleaned.startsWith('0')) {
+    cleaned = '38' + cleaned;
+  }
+  
+  // Якщо починається з 380 - залишаємо як є
+  // Якщо інший формат - повертаємо як є
+  return cleaned;
+};
+
+/**
  * Форматування дати для українського формату
  */
 const formatDate = (date: Date): string => {
@@ -180,15 +198,17 @@ function setupBotCommands() {
 
 🎫 <b>Як отримувати нотифікації:</b>
 1. При бронюванні на сайті вкажіть свій номер телефону
-2. Напишіть мені команду:
-   <code>/subscribe +380XXXXXXXXX</code>
+2. Напишіть мені команду з будь-яким форматом номера:
+   <code>/subscribe +380501234567</code>
+   <code>/subscribe 380501234567</code>
+   <code>/subscribe 0501234567</code>
 3. Після цього ви отримуватимете:
    ✅ Підтвердження бронювання
    🔔 Нагадування за день до поїздки
 
 📋 <b>Доступні команди:</b>
-/subscribe +380XXXXXXXXX - підписатися на нотифікації
-/booking +380XXXXXXXXX - перевірити свої бронювання
+/subscribe НОМЕР - підписатися на нотифікації
+/booking НОМЕР - перевірити свої бронювання
 /help - показати цю довідку
 
 🌐 <b>Забронювати квиток:</b>
@@ -206,9 +226,15 @@ https://kyiv-malyn-booking.up.railway.app
 📚 <b>Довідка по командах:</b>
 
 /start - почати роботу з ботом
-/subscribe +380XXXXXXXXX - підписатися на нотифікації
-/booking +380XXXXXXXXX - переглянути свої бронювання
+/subscribe НОМЕР - підписатися на нотифікації
+/booking НОМЕР - переглянути свої бронювання
 /help - показати цю довідку
+
+📱 <b>Формати номера:</b>
+Можна використати будь-який:
+• <code>/subscribe +380501234567</code>
+• <code>/subscribe 380501234567</code>
+• <code>/subscribe 0501234567</code>
 
 💡 <b>Як це працює:</b>
 1. Зайдіть на сайт та створіть бронювання
@@ -224,45 +250,68 @@ https://kyiv-malyn-booking.up.railway.app
   // Команда /subscribe +380XXXXXXXXX
   bot.onText(/\/subscribe (.+)/, async (msg, match) => {
     const chatId = msg.chat.id.toString();
-    const phone = match?.[1]?.trim();
+    const phoneInput = match?.[1]?.trim();
     
-    if (!phone) {
-      await bot?.sendMessage(chatId, '❌ Будь ласка, вкажіть номер телефону:\n<code>/subscribe +380501234567</code>', { parse_mode: 'HTML' });
+    if (!phoneInput) {
+      await bot?.sendMessage(
+        chatId, 
+        '❌ Будь ласка, вкажіть номер телефону:\n\n' +
+        'Можна використати будь-який формат:\n' +
+        '<code>/subscribe +380501234567</code>\n' +
+        '<code>/subscribe 380501234567</code>\n' +
+        '<code>/subscribe 0501234567</code>', 
+        { parse_mode: 'HTML' }
+      );
       return;
     }
     
     try {
-      // Знаходимо останнє бронювання по телефону
-      const booking = await prisma.booking.findFirst({
-        where: { phone },
+      // Нормалізуємо номер який ввів користувач
+      const normalizedInputPhone = normalizePhone(phoneInput);
+      
+      // Знаходимо всі бронювання і перевіряємо нормалізовані номери
+      const allBookings = await prisma.booking.findMany({
         orderBy: { createdAt: 'desc' }
       });
       
-      if (!booking) {
+      // Шукаємо бронювання з відповідним номером (після нормалізації)
+      const matchingBookings = allBookings.filter(b => 
+        normalizePhone(b.phone) === normalizedInputPhone
+      );
+      
+      if (matchingBookings.length === 0) {
         await bot?.sendMessage(
           chatId,
-          `❌ Бронювання з номером ${phone} не знайдено.\n\n` +
-          `Спочатку створіть бронювання на сайті:\nhttps://kyiv-malyn-booking.up.railway.app`,
+          `❌ Бронювання з номером ${phoneInput} не знайдено.\n\n` +
+          `Спробуйте інший формат:\n` +
+          `• <code>/subscribe +380${phoneInput.replace(/\D/g, '').slice(-9)}</code>\n` +
+          `• <code>/subscribe 0${phoneInput.replace(/\D/g, '').slice(-9)}</code>\n\n` +
+          `Або створіть бронювання на сайті:\nhttps://kyiv-malyn-booking.up.railway.app`,
           { parse_mode: 'HTML' }
         );
         return;
       }
       
-      // Оновлюємо всі бронювання цього клієнта
-      await prisma.booking.updateMany({
-        where: { phone },
-        data: { telegramChatId: chatId }
-      });
+      // Оновлюємо всі знайдені бронювання
+      const phoneNumbers = [...new Set(matchingBookings.map(b => b.phone))];
+      
+      for (const phone of phoneNumbers) {
+        await prisma.booking.updateMany({
+          where: { phone },
+          data: { telegramChatId: chatId }
+        });
+      }
       
       await bot?.sendMessage(
         chatId,
         `✅ <b>Підписка активована!</b>\n\n` +
-        `Ви отримуватимете повідомлення про бронювання на номер ${phone}.\n\n` +
+        `Знайдено бронювань: ${matchingBookings.length}\n` +
+        `Ви отримуватимете повідомлення про всі бронювання на номер ${phoneInput}.\n\n` +
         `🔔 Ви також отримаєте нагадування за день до поїздки.`,
         { parse_mode: 'HTML' }
       );
       
-      console.log(`✅ Клієнт ${phone} підписався на нотифікації (chat_id: ${chatId})`);
+      console.log(`✅ Клієнт ${phoneInput} (normalized: ${normalizedInputPhone}) підписався на нотифікації (chat_id: ${chatId})`);
     } catch (error) {
       console.error('❌ Помилка підписки:', error);
       await bot?.sendMessage(chatId, '❌ Помилка при підписці. Спробуйте пізніше.');
@@ -272,35 +321,50 @@ https://kyiv-malyn-booking.up.railway.app
   // Команда /booking +380XXXXXXXXX
   bot.onText(/\/booking (.+)/, async (msg, match) => {
     const chatId = msg.chat.id.toString();
-    const phone = match?.[1]?.trim();
+    const phoneInput = match?.[1]?.trim();
     
-    if (!phone) {
-      await bot?.sendMessage(chatId, '❌ Будь ласка, вкажіть номер телефону:\n<code>/booking +380501234567</code>', { parse_mode: 'HTML' });
+    if (!phoneInput) {
+      await bot?.sendMessage(
+        chatId, 
+        '❌ Будь ласка, вкажіть номер телефону:\n\n' +
+        'Можна використати будь-який формат:\n' +
+        '<code>/booking +380501234567</code>\n' +
+        '<code>/booking 380501234567</code>\n' +
+        '<code>/booking 0501234567</code>', 
+        { parse_mode: 'HTML' }
+      );
       return;
     }
     
     try {
-      const bookings = await prisma.booking.findMany({
+      // Нормалізуємо введений номер
+      const normalizedInputPhone = normalizePhone(phoneInput);
+      
+      // Отримуємо всі майбутні бронювання
+      const allBookings = await prisma.booking.findMany({
         where: {
-          phone,
-          date: { gte: new Date() } // Тільки майбутні бронювання
+          date: { gte: new Date() }
         },
-        orderBy: { date: 'asc' },
-        take: 5
+        orderBy: { date: 'asc' }
       });
       
-      if (bookings.length === 0) {
+      // Фільтруємо по нормалізованому номеру
+      const matchingBookings = allBookings
+        .filter(b => normalizePhone(b.phone) === normalizedInputPhone)
+        .slice(0, 5);
+      
+      if (matchingBookings.length === 0) {
         await bot?.sendMessage(
           chatId,
-          `❌ Активних бронювань для номера ${phone} не знайдено.\n\n` +
-          `Створіть бронювання на сайті:\nhttps://kyiv-malyn-booking.up.railway.app`
+          `❌ Активних бронювань для номера ${phoneInput} не знайдено.\n\n` +
+          `Спробуйте інший формат або створіть бронювання на сайті:\nhttps://kyiv-malyn-booking.up.railway.app`
         );
         return;
       }
       
-      let message = `📋 <b>Ваші бронювання (${phone}):</b>\n\n`;
+      let message = `📋 <b>Ваші бронювання (${phoneInput}):</b>\n\n`;
       
-      bookings.forEach((booking, index) => {
+      matchingBookings.forEach((booking, index) => {
         message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>\n`;
         message += `   🚌 ${getRouteName(booking.route)}\n`;
         message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
@@ -330,19 +394,26 @@ if (token) {
 }
 
 /**
- * Отримання chat_id по номеру телефону
+ * Отримання chat_id по номеру телефону (з нормалізацією)
  */
 export const getChatIdByPhone = async (phone: string): Promise<string | null> => {
   try {
-    const booking = await prisma.booking.findFirst({
+    const normalizedPhone = normalizePhone(phone);
+    
+    // Отримуємо всі бронювання з chat_id
+    const bookings = await prisma.booking.findMany({
       where: { 
-        phone,
         telegramChatId: { not: null }
       },
       orderBy: { createdAt: 'desc' }
     });
     
-    return booking?.telegramChatId || null;
+    // Шукаємо по нормалізованому номеру
+    const matchingBooking = bookings.find(b => 
+      normalizePhone(b.phone) === normalizedPhone
+    );
+    
+    return matchingBooking?.telegramChatId || null;
   } catch (error) {
     console.error('❌ Помилка отримання chat_id:', error);
     return null;
