@@ -10,7 +10,11 @@ import './BookingPage.css';
 export const BookingPage: React.FC = () => {
   const [direction, setDirection] = useState<BaseDirection | ''>('');
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
-  const [date, setDate] = useState('');
+  // Встановлюємо сьогоднішню дату за замовчуванням
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
   const [seats, setSeats] = useState(1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -168,7 +172,9 @@ export const BookingPage: React.FC = () => {
       // Очищення форми через 1 секунду щоб користувач побачив повідомлення
       setTimeout(() => {
         setDirection('');
-        setDate('');
+        // Залишаємо дату встановленою на сьогодні
+        const today = new Date();
+        setDate(today.toISOString().split('T')[0]);
         setSelectedSchedule(null);
         setSeats(1);
         setName('');
@@ -229,6 +235,14 @@ export const BookingPage: React.FC = () => {
             required
           />
 
+          <Input
+            label="Дата"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+
           <div className="select-wrapper">
             <span className="select-label">Час відправлення</span>
             {loadingSchedules && <span className="loading">Завантаження...</span>}
@@ -268,14 +282,6 @@ export const BookingPage: React.FC = () => {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            required
-          />
-
-          <Input
-            label="Дата"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
             required
           />
 
