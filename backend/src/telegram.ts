@@ -199,7 +199,14 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       normalizePhone(b.phone) === normalizedPhone
     );
     
-    if (matchingBookings.length === 0) {
+    // Також шукаємо бронювання з таким же telegramUserId (створені через Telegram Login)
+    const userIdBookings = await prisma.booking.findMany({
+      where: { telegramUserId: userId }
+    });
+    
+    const totalBookings = matchingBookings.length + userIdBookings.length;
+    
+    if (totalBookings === 0) {
       await bot.sendMessage(
         chatId,
         `❌ Бронювання з номером ${phoneInput} не знайдено.\n\n` +
@@ -210,7 +217,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       return;
     }
     
-    // Оновлюємо всі бронювання з цим номером, додаючи telegramUserId та chatId
+    // 1. Оновлюємо всі бронювання з цим номером, додаючи telegramUserId та chatId
     const phoneNumbers = [...new Set(matchingBookings.map(b => b.phone))];
     
     for (const phone of phoneNumbers) {
@@ -223,11 +230,25 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       });
     }
     
+    // 2. Оновлюємо всі бронювання з цим telegramUserId, додаючи chatId
+    // (це для тих що були створені через Telegram Login на сайті)
+    await prisma.booking.updateMany({
+      where: { 
+        telegramUserId: userId,
+        telegramChatId: null // Оновлюємо тільки ті що ще не мають chatId
+      },
+      data: { 
+        telegramChatId: chatId
+      }
+    });
+    
+    console.log(`✅ Оновлено telegramChatId для ${totalBookings} бронювань користувача ${userId}`);
+    
     await bot.sendMessage(
       chatId,
       `✅ <b>Вітаємо! Ваш акаунт підключено!</b>\n\n` +
       `📱 Номер телефону: ${phoneInput}\n` +
-      `🎫 Знайдено бронювань: ${matchingBookings.length}\n\n` +
+      `🎫 Знайдено бронювань: ${totalBookings}\n\n` +
       `Тепер ви будете отримувати:\n` +
       `• ✅ Підтвердження при створенні бронювання\n` +
       `• 🔔 Нагадування за день до поїздки\n\n` +
@@ -260,7 +281,19 @@ function setupBotCommands() {
     });
     
     if (existingBooking) {
-      // Користувач вже зареєстрований
+      // Користувач вже зареєстрований - оновлюємо telegramChatId якщо потрібно
+      await prisma.booking.updateMany({
+        where: { 
+          telegramUserId: userId,
+          telegramChatId: null // Оновлюємо тільки ті що ще не мають chatId
+        },
+        data: { 
+          telegramChatId: chatId
+        }
+      });
+      
+      console.log(`✅ Оновлено telegramChatId для користувача ${userId} при /start`);
+      
       const welcomeMessage = `
 👋 Привіт знову, ${firstName}!
 
@@ -421,6 +454,17 @@ https://malin.kiev.ua
     const userId = msg.from?.id.toString() || '';
     
     try {
+      // Оновлюємо telegramChatId для користувача (якщо потрібно)
+      await prisma.booking.updateMany({
+        where: { 
+          telegramUserId: userId,
+          telegramChatId: null
+        },
+        data: { 
+          telegramChatId: chatId
+        }
+      });
+      
       // Шукаємо бронювання по Telegram User ID (безпечно!)
       const myBookings = await prisma.booking.findMany({
         where: {
