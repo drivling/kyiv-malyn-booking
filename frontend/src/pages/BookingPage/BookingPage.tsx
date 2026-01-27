@@ -235,36 +235,38 @@ export const BookingPage: React.FC = () => {
             required
           />
 
-          <Input
-            label="Дата"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
-
-          <div className="select-wrapper">
-            <span className="select-label">Час відправлення</span>
-            {loadingSchedules && <span className="loading">Завантаження...</span>}
-            <Select
-              options={
-                timeOptions.length > 0
-                  ? [
-                      { value: '', label: 'Оберіть час' },
-                      ...timeOptions
-                    ]
-                  : [{ value: '', label: 'Спочатку оберіть напрямок' }]
-              }
-              value={selectedSchedule?.id.toString() || ''}
-              onChange={(e) => handleTimeChange(e.target.value)}
-              disabled={!direction || loadingSchedules || schedules.length === 0}
+          <div className="date-time-row">
+            <Input
+              label="Дата"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
               required
             />
-            {availability && (
-              <div className="availability-info">
-                Доступно місць: {availability.availableSeats} з {availability.maxSeats}
-              </div>
-            )}
+
+            <div className="select-wrapper">
+              <span className="select-label">Час відправлення</span>
+              {loadingSchedules && <span className="loading">Завантаження...</span>}
+              <Select
+                options={
+                  timeOptions.length > 0
+                    ? [
+                        { value: '', label: 'Оберіть час' },
+                        ...timeOptions
+                      ]
+                    : [{ value: '', label: 'Спочатку оберіть напрямок' }]
+                }
+                value={selectedSchedule?.id.toString() || ''}
+                onChange={(e) => handleTimeChange(e.target.value)}
+                disabled={!direction || loadingSchedules || schedules.length === 0}
+                required
+              />
+              {availability && (
+                <div className="availability-info">
+                  Доступно місць: {availability.availableSeats} з {availability.maxSeats}
+                </div>
+              )}
+            </div>
           </div>
 
           <Input

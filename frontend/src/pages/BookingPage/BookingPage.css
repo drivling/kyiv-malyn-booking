@@ -41,6 +41,16 @@
   gap: 20px;
 }
 
+.date-time-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.date-time-row > * {
+  flex: 1;
+}
+
 .loading {
   color: #666666;
   font-size: 13px;
@@ -332,6 +342,11 @@
 
 /* Адаптивність для мобільних */
 @media (max-width: 768px) {
+  .date-time-row {
+    flex-direction: column;
+    gap: 20px;
+  }
+
   .telegram-info-block {
     flex-direction: column;
     text-align: center;
