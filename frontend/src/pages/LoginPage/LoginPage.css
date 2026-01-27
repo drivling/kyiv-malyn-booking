@@ -66,34 +66,60 @@
 .telegram-login-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 .login-description {
-  color: #666;
+  color: #2563eb;
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
   margin: 0;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
 }
 
 .telegram-login-options {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+}
+
+.login-option {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.option-hint {
+  font-size: 13px;
+  color: #666;
+  margin: 0;
 }
 
 .telegram-widget-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px 0;
+  padding: 16px 0;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #d1d5db;
 }
 
 .divider {
   position: relative;
   text-align: center;
-  margin: 10px 0;
+  margin: 8px 0;
 }
 
 .divider::before {
@@ -114,6 +140,8 @@
   color: #999;
   font-size: 14px;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .manual-phone-login {

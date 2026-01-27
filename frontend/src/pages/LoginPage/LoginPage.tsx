@@ -110,35 +110,43 @@ export const LoginPage: React.FC = () => {
         ) : (
           <div className="telegram-login-section">
             <p className="login-description">
-              Увійдіть через Telegram щоб автоматично заповнювати номер телефону при бронюванні
+              💡 Після входу ваш номер автоматично заповнюватиметься при бронюванні
             </p>
             
             <div className="telegram-login-options">
-              <div className="telegram-widget-container">
-                <TelegramLoginButton
-                  botUsername={TELEGRAM_BOT_USERNAME}
-                  onAuth={handleTelegramAuth}
-                  buttonSize="large"
-                  requestAccess={true}
-                />
+              <div className="login-option">
+                <h3 className="option-title">🔐 Вхід через Telegram</h3>
+                <p className="option-hint">Безпечний та швидкий спосіб</p>
+                <div className="telegram-widget-container">
+                  <TelegramLoginButton
+                    botUsername={TELEGRAM_BOT_USERNAME}
+                    onAuth={handleTelegramAuth}
+                    buttonSize="large"
+                    requestAccess={true}
+                  />
+                </div>
               </div>
               
               <div className="divider">
                 <span>або</span>
               </div>
               
-              <div className="manual-phone-login">
-                <Input
-                  label="Номер телефону"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+380501234567"
-                  pattern="^[\+\d\s\-\(\)]{10,}$"
-                />
-                <Button onClick={handlePhoneLogin}>
-                  Увійти з номером
-                </Button>
+              <div className="login-option">
+                <h3 className="option-title">📱 Вхід з номером телефону</h3>
+                <p className="option-hint">Введіть номер вручну</p>
+                <div className="manual-phone-login">
+                  <Input
+                    label="Номер телефону"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+380501234567"
+                    pattern="^[\+\d\s\-\(\)]{10,}$"
+                  />
+                  <Button onClick={handlePhoneLogin}>
+                    Увійти
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
