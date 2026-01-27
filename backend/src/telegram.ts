@@ -465,30 +465,70 @@ https://malin.kiev.ua
         }
       });
       
-      // Шукаємо бронювання по Telegram User ID (безпечно!)
-      const myBookings = await prisma.booking.findMany({
+      // Спочатку шукаємо ВСІ бронювання користувача (для діагностики)
+      const allUserBookings = await prisma.booking.findMany({
+        where: {
+          telegramUserId: userId
+        },
+        orderBy: { date: 'desc' }
+      });
+      
+      console.log(`🔍 Користувач ${userId} має ${allUserBookings.length} бронювань (всього)`);
+      
+      if (allUserBookings.length > 0) {
+        allUserBookings.forEach(b => {
+          console.log(`  - Booking #${b.id}: ${b.date.toISOString().split('T')[0]} (telegramChatId: ${b.telegramChatId})`);
+        });
+      }
+      
+      // Тепер фільтруємо тільки майбутні бронювання
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Початок дня
+      
+      const futureBookings = await prisma.booking.findMany({
         where: {
           telegramUserId: userId,
-          date: { gte: new Date() }
+          date: { gte: today }
         },
         orderBy: { date: 'asc' },
         take: 10
       });
       
-      if (myBookings.length === 0) {
-        await bot?.sendMessage(
-          chatId,
-          `📋 <b>У вас поки немає активних бронювань</b>\n\n` +
-          `Створіть бронювання на сайті:\n` +
-          `https://malin.kiev.ua`,
-          { parse_mode: 'HTML' }
-        );
+      console.log(`📅 Майбутніх бронювань: ${futureBookings.length} (від ${today.toISOString().split('T')[0]})`);
+      
+      if (futureBookings.length === 0) {
+        // Якщо немає майбутніх - покажемо останні 3 минулих для діагностики
+        if (allUserBookings.length > 0) {
+          const recentPast = allUserBookings.slice(0, 3);
+          let message = `📋 <b>Активних бронювань немає</b>\n\n`;
+          message += `Але знайдено ${allUserBookings.length} минулих:\n\n`;
+          
+          recentPast.forEach((booking, index) => {
+            message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
+            message += `   🚌 ${getRouteName(booking.route)}\n`;
+            message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
+            message += `   🎫 Місць: ${booking.seats}\n`;
+            message += `   👤 ${booking.name}\n\n`;
+          });
+          
+          message += `\n💡 Створіть нове бронювання:\nhttps://malin.kiev.ua`;
+          
+          await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
+        } else {
+          await bot?.sendMessage(
+            chatId,
+            `📋 <b>У вас поки немає бронювань</b>\n\n` +
+            `Створіть бронювання на сайті:\n` +
+            `https://malin.kiev.ua`,
+            { parse_mode: 'HTML' }
+          );
+        }
         return;
       }
       
-      let message = `📋 <b>Ваші бронювання:</b>\n\n`;
+      let message = `📋 <b>Ваші майбутні бронювання:</b>\n\n`;
       
-      myBookings.forEach((booking, index) => {
+      futureBookings.forEach((booking, index) => {
         message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>\n`;
         message += `   🚌 ${getRouteName(booking.route)}\n`;
         message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
@@ -500,7 +540,7 @@ https://malin.kiev.ua
       
       await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
       
-      console.log(`✅ Користувач ${userId} переглянув свої бронювання (${myBookings.length})`);
+      console.log(`✅ Користувач ${userId} переглянув свої бронювання (майбутніх: ${futureBookings.length})`);
     } catch (error) {
       console.error('❌ Помилка отримання бронювань:', error);
       await bot?.sendMessage(chatId, '❌ Помилка при отриманні бронювань. Спробуйте пізніше.');
