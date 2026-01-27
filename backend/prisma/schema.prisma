@@ -28,6 +28,7 @@ model Booking {
   name          String
   phone         String
   telegramChatId String? // Telegram Chat ID для відправки повідомлень
+  telegramUserId String? // Telegram User ID для ідентифікації користувача
   scheduleId    Int?     // Посилання на графік (опціонально)
   createdAt     DateTime @default(now())
 }

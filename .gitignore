@@ -20,10 +20,6 @@ node_modules/
 .env
 .env.test
 
-# Database dumps
-*.sql
-dump.sql
-
 # Next.js build output
 .next/
 out/
