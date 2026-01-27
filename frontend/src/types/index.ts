@@ -45,6 +45,7 @@ export interface BookingFormData {
   seats: number;
   name: string;
   phone: string;
+  telegramUserId?: string; // Опціонально - для прив'язки до Telegram
 }
 
 export interface ScheduleFormData {

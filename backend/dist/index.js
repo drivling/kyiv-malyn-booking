@@ -183,7 +183,7 @@ app.delete('/schedules/:id', requireAdmin, async (req, res) => {
 });
 // Booking endpoints
 app.post('/bookings', async (req, res) => {
-    const { route, date, departureTime, seats, name, phone, scheduleId } = req.body;
+    const { route, date, departureTime, seats, name, phone, scheduleId, telegramUserId } = req.body;
     if (!route || !date || !departureTime || !seats || !name || !phone) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -234,7 +234,7 @@ app.post('/bookings', async (req, res) => {
     // Шукаємо попередні бронювання з цим номером телефону
     // Якщо користувач вже підписувався - автоматично копіюємо його Telegram дані
     let telegramChatId = null;
-    let telegramUserId = null;
+    let bookingTelegramUserId = telegramUserId || null; // Використовуємо переданий з frontend
     try {
         const normalizedPhone = (0, telegram_1.normalizePhone)(phone);
         // Отримуємо всі бронювання і шукаємо по нормалізованому номеру
@@ -248,13 +248,20 @@ app.post('/bookings', async (req, res) => {
         const previousBooking = allBookings.find(b => (0, telegram_1.normalizePhone)(b.phone) === normalizedPhone);
         if (previousBooking) {
             telegramChatId = previousBooking.telegramChatId;
-            telegramUserId = previousBooking.telegramUserId;
-            console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (userId: ${telegramUserId})`);
+            // Якщо не було передано з frontend - беремо з попереднього бронювання
+            if (!bookingTelegramUserId) {
+                bookingTelegramUserId = previousBooking.telegramUserId;
+            }
+            console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (userId: ${bookingTelegramUserId})`);
+        }
+        else if (bookingTelegramUserId) {
+            // Якщо це перше бронювання але є telegramUserId з frontend
+            console.log(`✅ Перше бронювання для ${phone} з Telegram Login (userId: ${bookingTelegramUserId})`);
         }
     }
     catch (error) {
         console.error('❌ Помилка пошуку попередніх бронювань:', error);
-        // Продовжуємо без Telegram даних
+        // Продовжуємо з тим що є
     }
     const booking = await prisma.booking.create({
         data: {
@@ -266,7 +273,7 @@ app.post('/bookings', async (req, res) => {
             phone,
             scheduleId: scheduleId ? Number(scheduleId) : null,
             telegramChatId,
-            telegramUserId
+            telegramUserId: bookingTelegramUserId
         }
     });
     // Відправка повідомлень в Telegram (якщо налаштовано)

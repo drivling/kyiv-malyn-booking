@@ -187,6 +187,16 @@ export const BookingPage: React.FC = () => {
 
     setLoading(true);
     try {
+      // Якщо користувач Telegram і ввів номер - зберігаємо в userState перед відправкою
+      const currentUser = userState.get();
+      let telegramUserId: string | undefined;
+      
+      if (currentUser?.type === 'telegram' && phone) {
+        userState.loginTelegram(currentUser.user, phone);
+        telegramUserId = currentUser.user.id.toString();
+        console.log('✅ Прив\'язано номер телефону до Telegram акаунту:', phone, 'userId:', telegramUserId);
+      }
+
       const formData: BookingFormData = {
         route: selectedSchedule.route,
         date,
@@ -194,11 +204,15 @@ export const BookingPage: React.FC = () => {
         seats,
         name,
         phone,
+        telegramUserId, // Передаємо Telegram User ID для першого бронювання
       };
 
       await apiClient.createBooking(formData);
       setSuccess(true);
       setShowTelegramInfo(true);
+      
+      // Зберігаємо номер телефону для Telegram користувачів
+      const shouldKeepPhone = userState.isTelegramUser();
       
       // Очищення форми через 1 секунду щоб користувач побачив повідомлення
       setTimeout(() => {
@@ -209,7 +223,10 @@ export const BookingPage: React.FC = () => {
         setSelectedSchedule(null);
         setSeats(1);
         setName('');
-        setPhone('');
+        // НЕ очищаємо номер для Telegram користувачів
+        if (!shouldKeepPhone) {
+          setPhone('');
+        }
         setAvailability(null);
         setWarning('');
       }, 1000);
