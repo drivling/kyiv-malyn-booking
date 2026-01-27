@@ -13,6 +13,10 @@ export default defineConfig({
   server: {
     port: Number(process.env.PORT) || 5173,
     host: '0.0.0.0',
+    allowedHosts: [
+      '.railway.app',
+      'frontend-production-34cd.up.railway.app',
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -24,5 +28,9 @@ export default defineConfig({
   preview: {
     port: Number(process.env.PORT) || 5173,
     host: '0.0.0.0',
+    allowedHosts: [
+      '.railway.app',
+      'frontend-production-34cd.up.railway.app',
+    ],
   },
 })
