@@ -2,7 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, isTelegramEnabled } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder } from './telegram';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -265,9 +265,10 @@ app.post('/bookings', async (req, res) => {
     }
   });
 
-  // Відправка повідомлення адміну в Telegram (якщо налаштовано)
+  // Відправка повідомлень в Telegram (якщо налаштовано)
   if (isTelegramEnabled()) {
     try {
+      // Повідомлення адміну
       await sendBookingNotificationToAdmin({
         id: booking.id,
         route: booking.route,
@@ -277,6 +278,19 @@ app.post('/bookings', async (req, res) => {
         name: booking.name,
         phone: booking.phone,
       });
+      
+      // Повідомлення клієнту (якщо він підписаний)
+      const customerChatId = await getChatIdByPhone(booking.phone);
+      if (customerChatId) {
+        await sendBookingConfirmationToCustomer(customerChatId, {
+          id: booking.id,
+          route: booking.route,
+          date: booking.date,
+          departureTime: booking.departureTime,
+          seats: booking.seats,
+          name: booking.name,
+        });
+      }
     } catch (error) {
       console.error('Помилка відправки Telegram повідомлення:', error);
       // Не блокуємо бронювання якщо Telegram не працює
@@ -317,6 +331,73 @@ app.delete('/bookings/:id', requireAdmin, async (req, res) => {
     }
     res.status(500).json({ error: 'Failed to delete booking' });
   }
+});
+
+// Відправка нагадувань про поїздки на завтра (admin endpoint)
+app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
+  if (!isTelegramEnabled()) {
+    return res.status(400).json({ error: 'Telegram bot не налаштовано' });
+  }
+
+  try {
+    // Знаходимо всі бронювання на завтра
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfDay = new Date(tomorrow);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(tomorrow);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        telegramChatId: { not: null }
+      }
+    });
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const booking of bookings) {
+      if (booking.telegramChatId) {
+        try {
+          await sendTripReminder(booking.telegramChatId, {
+            route: booking.route,
+            date: booking.date,
+            departureTime: booking.departureTime,
+            name: booking.name
+          });
+          sent++;
+        } catch (error) {
+          console.error(`❌ Не вдалося надіслати нагадування для booking #${booking.id}:`, error);
+          failed++;
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Нагадування відправлено: ${sent}, помилок: ${failed}`,
+      total: bookings.length,
+      sent,
+      failed
+    });
+  } catch (error) {
+    console.error('❌ Помилка відправки нагадувань:', error);
+    res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
+// Тестовий endpoint для перевірки Telegram підключення
+app.get('/telegram/status', requireAdmin, (_req, res) => {
+  res.json({
+    enabled: isTelegramEnabled(),
+    adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ? 'configured' : 'not configured',
+    botToken: process.env.TELEGRAM_BOT_TOKEN ? 'configured' : 'not configured'
+  });
 });
 
 const PORT = process.env.PORT || 3000;
