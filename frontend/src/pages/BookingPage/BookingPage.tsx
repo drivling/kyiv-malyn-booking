@@ -23,6 +23,7 @@ export const BookingPage: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [warning, setWarning] = useState('');
+  const [showTelegramInfo, setShowTelegramInfo] = useState(false);
 
   // Завантаження розкладу при зміні напрямку
   useEffect(() => {
@@ -162,16 +163,19 @@ export const BookingPage: React.FC = () => {
 
       await apiClient.createBooking(formData);
       setSuccess(true);
+      setShowTelegramInfo(true);
       
-      // Очищення форми
-      setDirection('');
-      setDate('');
-      setSelectedSchedule(null);
-      setSeats(1);
-      setName('');
-      setPhone('');
-      setAvailability(null);
-      setWarning('');
+      // Очищення форми через 1 секунду щоб користувач побачив повідомлення
+      setTimeout(() => {
+        setDirection('');
+        setDate('');
+        setSelectedSchedule(null);
+        setSeats(1);
+        setName('');
+        setPhone('');
+        setAvailability(null);
+        setWarning('');
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка при створенні бронювання');
     } finally {
@@ -295,6 +299,85 @@ export const BookingPage: React.FC = () => {
         {warning && <Alert variant="warning">{warning}</Alert>}
         {availability && availability.availableSeats <= 5 && availability.isAvailable && (
           <Alert variant="info">ℹ️ Залишилось мало місць: {availability.availableSeats}</Alert>
+        )}
+
+        {/* Telegram нотифікації - інформаційний блок */}
+        <div className="telegram-info-block">
+          <div className="telegram-icon">📱</div>
+          <div className="telegram-content">
+            <h3>Отримуйте нотифікації в Telegram!</h3>
+            <p>Підтвердження бронювання та нагадування за день до поїздки</p>
+            <div className="telegram-steps">
+              <div className="step">
+                <span className="step-number">1</span>
+                <span>Знайдіть бота: <strong>@kyiv_malyn_booking_bot</strong></span>
+              </div>
+              <div className="step">
+                <span className="step-number">2</span>
+                <span>Напишіть: <code>/subscribe {phone || 'ВАШ_НОМЕР'}</code></span>
+              </div>
+              <div className="step">
+                <span className="step-number">3</span>
+                <span>Готово! Отримуйте повідомлення автоматично ✅</span>
+              </div>
+            </div>
+            <a 
+              href={`https://t.me/kyiv_malyn_booking_bot?start=subscribe`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="telegram-button"
+            >
+              <span className="telegram-button-icon">✈️</span>
+              Відкрити Telegram бота
+            </a>
+          </div>
+        </div>
+
+        {/* Спливаюче повідомлення після успішного бронювання */}
+        {showTelegramInfo && (
+          <div className="telegram-success-modal">
+            <div className="telegram-success-content">
+              <button 
+                className="telegram-close"
+                onClick={() => setShowTelegramInfo(false)}
+              >
+                ×
+              </button>
+              <div className="telegram-success-icon">🎉</div>
+              <h3>Бронювання створено!</h3>
+              <p className="telegram-success-text">
+                Хочете отримувати автоматичні повідомлення про ваші поїздки?
+              </p>
+              <div className="telegram-success-steps">
+                <p><strong>Підпишіться на нашого Telegram бота:</strong></p>
+                <div className="telegram-command">
+                  <code>/subscribe {phone}</code>
+                  <button 
+                    className="copy-button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`/subscribe ${phone}`);
+                    }}
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+              <a 
+                href={`https://t.me/kyiv_malyn_booking_bot?start=subscribe`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="telegram-success-button"
+              >
+                Відкрити бота в Telegram
+              </a>
+              <button 
+                className="telegram-skip"
+                onClick={() => setShowTelegramInfo(false)}
+              >
+                Пропустити
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
