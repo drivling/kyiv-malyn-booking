@@ -72,16 +72,18 @@ function NavBar() {
         ) : isTelegramUser ? (
           <>
             <span className="nav-user-info">
-              📱 {currentUser?.type === 'telegram' && currentUser.phone 
-                ? currentUser.phone 
-                : currentUser?.type === 'telegram' && currentUser.user.first_name
-                  ? currentUser.user.first_name
-                  : 'Telegram User'}
+              {currentUser?.type === 'telegram' && currentUser.phone ? (
+                <>📱 {currentUser.phone}</>
+              ) : currentUser?.type === 'telegram' && currentUser.user.first_name ? (
+                <>👤 {currentUser.user.first_name}</>
+              ) : (
+                <>👤 Telegram User</>
+              )}
             </span>
             <button 
               onClick={handleLogout} 
               className="nav-link nav-button"
-              title="Вийти з акаунту"
+              title="Вийти з Telegram акаунту"
             >
               Вийти
             </button>

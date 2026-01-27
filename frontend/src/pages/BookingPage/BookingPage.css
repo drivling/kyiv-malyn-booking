@@ -94,6 +94,38 @@
   white-space: nowrap;
 }
 
+.telegram-status-success,
+.telegram-status-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.telegram-status-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.telegram-status-success svg {
+  color: #059669;
+}
+
+.telegram-status-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.telegram-status-warning svg {
+  color: #d97706;
+}
+
 .loading {
   color: #666666;
   font-size: 13px;

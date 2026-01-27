@@ -41,15 +41,21 @@ export const LoginPage: React.FC = () => {
   const handleTelegramAuth = (user: TelegramUser) => {
     console.log('Telegram user authenticated:', user);
     
-    // Якщо номер телефону вже вказаний
-    if (phone) {
-      userState.loginTelegram(user, phone);
-      navigate('/', { state: { telegramPhone: phone } });
+    // Пробуємо отримати номер з різних джерел
+    const userPhone = phone || user.phone || '';
+    
+    if (userPhone) {
+      // Якщо номер є - зберігаємо і перенаправляємо
+      userState.loginTelegram(user, userPhone);
+      navigate('/', { state: { telegramPhone: userPhone } });
     } else {
-      // Перенаправляємо на головну з даними користувача
-      // Користувач має ввести номер на сторінці бронювання
+      // Якщо номера немає - зберігаємо користувача без номера
+      // і показуємо повідомлення що потрібно ввести номер
       userState.loginTelegram(user, '');
-      navigate('/', { state: { telegramUser: user } });
+      navigate('/', { state: { 
+        telegramUser: user,
+        needPhone: true 
+      } });
     }
   };
 
