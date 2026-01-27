@@ -11,7 +11,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: Number(process.env.PORT) || 5173,
+    host: '0.0.0.0',
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
@@ -19,5 +20,9 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
+  },
+  preview: {
+    port: Number(process.env.PORT) || 5173,
+    host: '0.0.0.0',
   },
 })
