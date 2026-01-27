@@ -179,7 +179,10 @@ export const BookingPage: React.FC = () => {
   return (
     <div className="booking-page">
       <div className="booking-container">
-        <h2>Бронювання маршрутки</h2>
+        <div className="booking-header">
+          <h2>Бронювання маршрутки</h2>
+          <p className="booking-subtitle">Київ ↔ Малин</p>
+        </div>
         <form onSubmit={handleSubmit}>
           <Select
             label="Напрямок"

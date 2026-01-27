@@ -1,46 +1,65 @@
 .select-wrapper {
   display: block;
-  margin-top: 12px;
 }
 
 .select-label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-weight: 500;
-  color: #374151;
+  color: #1a1a1a;
+  font-size: 14px;
 }
 
 .select {
   width: 100%;
-  padding: 10px;
-  margin-top: 6px;
+  padding: 14px 16px;
+  margin-top: 0;
   box-sizing: border-box;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  background: white;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  font-size: 16px;
+  background: #ffffff;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  color: #1a1a1a;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23666666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
 }
 
 .select:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: #00AFF5;
+  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.1);
+}
+
+.select:hover:not(:disabled) {
+  border-color: #cccccc;
 }
 
 .select:disabled {
-  background: #f3f4f6;
+  background: #f5f5f5;
   cursor: not-allowed;
   opacity: 0.6;
+  color: #999999;
 }
 
 .select-error {
-  border-color: #ef4444;
+  border-color: #ff4444;
+}
+
+.select-error:focus {
+  border-color: #ff4444;
+  box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1);
 }
 
 .select-error-text {
   display: block;
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 4px;
+  color: #ff4444;
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 400;
 }

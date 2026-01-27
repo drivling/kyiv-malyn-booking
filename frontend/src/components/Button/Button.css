@@ -1,42 +1,56 @@
 .btn {
-  padding: 10px 20px;
+  padding: 14px 28px;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: background-color 0.2s;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .btn:disabled {
-  background: #9ca3af;
+  background: #cccccc;
   cursor: not-allowed;
   opacity: 0.6;
+  box-shadow: none;
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: #00AFF5;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #0099d6;
+  box-shadow: 0 4px 12px rgba(0, 175, 245, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-secondary {
-  background: #6b7280;
+  background: #666666;
   color: white;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #4b5563;
+  background: #555555;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .btn-danger {
-  background: #ef4444;
+  background: #ff4444;
   color: white;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: #e63333;
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+  transform: translateY(-1px);
 }
