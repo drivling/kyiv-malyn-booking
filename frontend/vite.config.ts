@@ -16,6 +16,8 @@ export default defineConfig({
     allowedHosts: [
       '.railway.app',
       'frontend-production-34cd.up.railway.app',
+      'malin.kiev.ua',
+      'www.malin.kiev.ua',
     ],
     proxy: {
       '/api': {
@@ -31,6 +33,8 @@ export default defineConfig({
     allowedHosts: [
       '.railway.app',
       'frontend-production-34cd.up.railway.app',
+      'malin.kiev.ua',
+      'www.malin.kiev.ua',
     ],
   },
 })
