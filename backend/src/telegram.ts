@@ -13,7 +13,7 @@ let bot: TelegramBot | null = null;
  * Нормалізація номера телефону
  * Перетворює всі формати в 380XXXXXXXXX
  */
-const normalizePhone = (phone: string): string => {
+export const normalizePhone = (phone: string): string => {
   // Видаляємо всі символи крім цифр
   let cleaned = phone.replace(/\D/g, '');
   

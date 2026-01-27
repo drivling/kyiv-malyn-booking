@@ -231,6 +231,31 @@ app.post('/bookings', async (req, res) => {
     catch (error) {
         // Якщо графік не знайдено, все одно дозволяємо бронювання
     }
+    // Шукаємо попередні бронювання з цим номером телефону
+    // Якщо користувач вже підписувався - автоматично копіюємо його Telegram дані
+    let telegramChatId = null;
+    let telegramUserId = null;
+    try {
+        const normalizedPhone = (0, telegram_1.normalizePhone)(phone);
+        // Отримуємо всі бронювання і шукаємо по нормалізованому номеру
+        const allBookings = await prisma.booking.findMany({
+            where: {
+                telegramUserId: { not: null } // Тільки ті що мають Telegram прив'язку
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        // Шукаємо бронювання з таким же нормалізованим номером
+        const previousBooking = allBookings.find(b => (0, telegram_1.normalizePhone)(b.phone) === normalizedPhone);
+        if (previousBooking) {
+            telegramChatId = previousBooking.telegramChatId;
+            telegramUserId = previousBooking.telegramUserId;
+            console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (userId: ${telegramUserId})`);
+        }
+    }
+    catch (error) {
+        console.error('❌ Помилка пошуку попередніх бронювань:', error);
+        // Продовжуємо без Telegram даних
+    }
     const booking = await prisma.booking.create({
         data: {
             route,
@@ -239,7 +264,9 @@ app.post('/bookings', async (req, res) => {
             seats: Number(seats),
             name,
             phone,
-            scheduleId: scheduleId ? Number(scheduleId) : null
+            scheduleId: scheduleId ? Number(scheduleId) : null,
+            telegramChatId,
+            telegramUserId
         }
     });
     // Відправка повідомлень в Telegram (якщо налаштовано)

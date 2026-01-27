@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendBookingNotificationToAdmin = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendBookingNotificationToAdmin = exports.normalizePhone = void 0;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
@@ -26,6 +26,7 @@ const normalizePhone = (phone) => {
     // Якщо інший формат - повертаємо як є
     return cleaned;
 };
+exports.normalizePhone = normalizePhone;
 /**
  * Форматування дати для українського формату
  */
@@ -160,12 +161,12 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         return;
     try {
         // Нормалізуємо номер
-        const normalizedPhone = normalizePhone(phoneInput);
+        const normalizedPhone = (0, exports.normalizePhone)(phoneInput);
         // Перевіряємо чи вже є бронювання з цим номером
         const allBookings = await prisma.booking.findMany({
             orderBy: { createdAt: 'desc' }
         });
-        const matchingBookings = allBookings.filter(b => normalizePhone(b.phone) === normalizedPhone);
+        const matchingBookings = allBookings.filter(b => (0, exports.normalizePhone)(b.phone) === normalizedPhone);
         if (matchingBookings.length === 0) {
             await bot.sendMessage(chatId, `❌ Бронювання з номером ${phoneInput} не знайдено.\n\n` +
                 `Спочатку створіть бронювання на сайті:\n` +
@@ -407,7 +408,7 @@ else {
  */
 const getChatIdByPhone = async (phone) => {
     try {
-        const normalizedPhone = normalizePhone(phone);
+        const normalizedPhone = (0, exports.normalizePhone)(phone);
         // Отримуємо всі бронювання з chat_id та userId
         const bookings = await prisma.booking.findMany({
             where: {
@@ -417,7 +418,7 @@ const getChatIdByPhone = async (phone) => {
             orderBy: { createdAt: 'desc' }
         });
         // Шукаємо по нормалізованому номеру
-        const matchingBooking = bookings.find(b => normalizePhone(b.phone) === normalizedPhone);
+        const matchingBooking = bookings.find(b => (0, exports.normalizePhone)(b.phone) === normalizedPhone);
         return matchingBooking?.telegramChatId || null;
     }
     catch (error) {

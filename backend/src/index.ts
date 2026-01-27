@@ -2,7 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone } from './telegram';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -253,6 +253,37 @@ app.post('/bookings', async (req, res) => {
     // Якщо графік не знайдено, все одно дозволяємо бронювання
   }
 
+  // Шукаємо попередні бронювання з цим номером телефону
+  // Якщо користувач вже підписувався - автоматично копіюємо його Telegram дані
+  let telegramChatId: string | null = null;
+  let telegramUserId: string | null = null;
+  
+  try {
+    const normalizedPhone = normalizePhone(phone);
+    
+    // Отримуємо всі бронювання і шукаємо по нормалізованому номеру
+    const allBookings = await prisma.booking.findMany({
+      where: {
+        telegramUserId: { not: null } // Тільки ті що мають Telegram прив'язку
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    // Шукаємо бронювання з таким же нормалізованим номером
+    const previousBooking = allBookings.find(b => 
+      normalizePhone(b.phone) === normalizedPhone
+    );
+    
+    if (previousBooking) {
+      telegramChatId = previousBooking.telegramChatId;
+      telegramUserId = previousBooking.telegramUserId;
+      console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (userId: ${telegramUserId})`);
+    }
+  } catch (error) {
+    console.error('❌ Помилка пошуку попередніх бронювань:', error);
+    // Продовжуємо без Telegram даних
+  }
+
   const booking = await prisma.booking.create({
     data: {
       route,
@@ -261,7 +292,9 @@ app.post('/bookings', async (req, res) => {
       seats: Number(seats),
       name,
       phone,
-      scheduleId: scheduleId ? Number(scheduleId) : null
+      scheduleId: scheduleId ? Number(scheduleId) : null,
+      telegramChatId,
+      telegramUserId
     }
   });
 
