@@ -26,7 +26,7 @@ Telegram Bot автоматично надсилає вам повідомлен
    ```
 6. Потім BotFather попросить вказати username (має закінчуватись на `bot`):
    ```
-   Приклад: kyiv_malyn_booking_bot
+   Приклад: malin_kiev_ua_bot
    ```
 7. **Важливо!** BotFather надішле вам токен, виглядає так:
    ```
@@ -50,7 +50,7 @@ It must end in `bot`. Like this, for example: TetrisBot or tetris_bot.
 
 🤖 BotFather:
 Done! Congratulations on your new bot. You will find it at 
-t.me/kyiv_malyn_booking_bot. You can now add a description...
+t.me/malin_kiev_ua_bot. You can now add a description...
 
 Use this token to access the HTTP API:
 123456789:ABCdefGHIjklMNOpqrsTUVwxyz-1234567890

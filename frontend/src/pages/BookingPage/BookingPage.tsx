@@ -310,7 +310,7 @@ export const BookingPage: React.FC = () => {
             <div className="telegram-steps">
               <div className="step">
                 <span className="step-number">1</span>
-                <span>Знайдіть бота: <strong>@kyiv_malyn_booking_bot</strong></span>
+                <span>Знайдіть бота: <strong>@malin_kiev_ua_bot</strong></span>
               </div>
               <div className="step">
                 <span className="step-number">2</span>
@@ -322,7 +322,7 @@ export const BookingPage: React.FC = () => {
               </div>
             </div>
             <a 
-              href={`https://t.me/kyiv_malyn_booking_bot?start=subscribe`}
+              href={`https://t.me/malin_kiev_ua_bot?start=subscribe`}
               target="_blank"
               rel="noopener noreferrer"
               className="telegram-button"
@@ -363,7 +363,7 @@ export const BookingPage: React.FC = () => {
                 </div>
               </div>
               <a 
-                href={`https://t.me/kyiv_malyn_booking_bot?start=subscribe`}
+                href={`https://t.me/malin_kiev_ua_bot?start=subscribe`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="telegram-success-button"

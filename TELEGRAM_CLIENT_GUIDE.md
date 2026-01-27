@@ -22,7 +22,7 @@
 ### Крок 2: Знайдіть нашого бота в Telegram
 
 1. Відкрийте Telegram
-2. У пошуку знайдіть: **@kyiv_malyn_booking_bot** (або ваша назва бота)
+2. У пошуку знайдіть: **@malin_kiev_ua_bot**
 3. Натисніть **Start**
 
 ### Крок 3: Підпишіться на нотифікації
@@ -206,7 +206,7 @@
 https://kyiv-malyn-booking.up.railway.app
 
 **Telegram Bot:**
-@kyiv_malyn_booking_bot
+@malin_kiev_ua_bot
 
 **Підтримка:**
 Напишіть боту або зателефонуйте за номером на сайті.
