@@ -2,7 +2,39 @@
   "hash": "25fe58d4",
   "configHash": "452d1fff",
   "lockfileHash": "60a99770",
-  "browserHash": "d4fa00a1",
-  "optimized": {},
-  "chunks": {}
+  "browserHash": "bf9c9b2e",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "88cb6a4e",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "9966e80d",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "9d4ca811",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "4d701b81",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-3MDXY62U": {
+      "file": "chunk-3MDXY62U.js"
+    },
+    "chunk-YFGLSBDS": {
+      "file": "chunk-YFGLSBDS.js"
+    }
+  }
 }

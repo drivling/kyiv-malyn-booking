@@ -33,14 +33,15 @@ class ApiClient {
     options?: RequestInit
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    };
+    const headers = new Headers(options?.headers);
+    // За замовчуванням працюємо з JSON, але не ламаємо вже заданий Content-Type
+    if (!headers.has('Content-Type') && !(options?.body instanceof FormData)) {
+      headers.set('Content-Type', 'application/json');
+    }
 
     // Додаємо токен авторизації для адмін endpoints
     if (this.authToken) {
-      headers['Authorization'] = this.authToken;
+      headers.set('Authorization', this.authToken);
     }
 
     const response = await fetch(url, {

@@ -4,14 +4,13 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Route, Schedule, Availability, BookingFormData } from '@/types';
-import { ROUTES } from '@/utils/constants';
+import type { Route, BaseDirection, Schedule, Availability, BookingFormData } from '@/types';
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
-  const [route, setRoute] = useState<Route | ''>('');
+  const [direction, setDirection] = useState<BaseDirection | ''>('');
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [date, setDate] = useState('');
-  const [departureTime, setDepartureTime] = useState('');
   const [seats, setSeats] = useState(1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -25,11 +24,11 @@ export const BookingPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [warning, setWarning] = useState('');
 
-  // Завантаження розкладу при зміні маршруту
+  // Завантаження розкладу при зміні напрямку
   useEffect(() => {
-    if (!route) {
+    if (!direction) {
       setSchedules([]);
-      setDepartureTime('');
+      setSelectedSchedule(null);
       return;
     }
 
@@ -37,10 +36,22 @@ export const BookingPage: React.FC = () => {
       setLoadingSchedules(true);
       setError('');
       try {
-        const data = await apiClient.getSchedulesByRoute(route);
-        setSchedules(data);
-        if (data.length === 0) {
-          setDepartureTime('');
+        // Завантажуємо графіки для обох маршрутів (Ірпінь та Буча)
+        const irpinRoute = `${direction}-Irpin` as Route;
+        const buchaRoute = `${direction}-Bucha` as Route;
+        
+        const [irpinData, buchaData] = await Promise.all([
+          apiClient.getSchedulesByRoute(irpinRoute).catch(() => []),
+          apiClient.getSchedulesByRoute(buchaRoute).catch(() => []),
+        ]);
+        
+        const allSchedules = [...irpinData, ...buchaData];
+        // Сортуємо по часу
+        allSchedules.sort((a, b) => a.departureTime.localeCompare(b.departureTime));
+        setSchedules(allSchedules);
+        
+        if (allSchedules.length === 0) {
+          setSelectedSchedule(null);
         }
       } catch (err) {
         setError('Не вдалося завантажити розклад');
@@ -50,7 +61,7 @@ export const BookingPage: React.FC = () => {
     };
 
     loadSchedules();
-  }, [route]);
+  }, [direction]);
 
   // Пошук клієнта по телефону
   useEffect(() => {
@@ -79,7 +90,7 @@ export const BookingPage: React.FC = () => {
 
   // Перевірка доступності при зміні часу або дати
   useEffect(() => {
-    if (!route || !departureTime || !date) {
+    if (!selectedSchedule || !date) {
       setAvailability(null);
       setWarning('');
       return;
@@ -87,7 +98,11 @@ export const BookingPage: React.FC = () => {
 
     const checkAvailability = async () => {
       try {
-        const data = await apiClient.checkAvailability(route, departureTime, date);
+        const data = await apiClient.checkAvailability(
+          selectedSchedule.route, 
+          selectedSchedule.departureTime, 
+          date
+        );
         setAvailability(data);
         if (!data.isAvailable) {
           setWarning(`⚠️ Місця закінчились! Доступно місць: 0 з ${data.maxSeats}`);
@@ -101,7 +116,7 @@ export const BookingPage: React.FC = () => {
     };
 
     checkAvailability();
-  }, [route, departureTime, date]);
+  }, [selectedSchedule, date]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,11 +124,11 @@ export const BookingPage: React.FC = () => {
     setSuccess(false);
 
     // Детальна валідація з конкретними повідомленнями
-    if (!route) {
+    if (!direction) {
       setError('Оберіть напрямок');
       return;
     }
-    if (!departureTime) {
+    if (!selectedSchedule) {
       setError('Оберіть час відправлення');
       return;
     }
@@ -125,21 +140,21 @@ export const BookingPage: React.FC = () => {
       setError('Вкажіть кількість місць (мінімум 1)');
       return;
     }
-    if (!name || name.trim() === '') {
-      setError('Введіть ім\'я');
-      return;
-    }
     if (!phone || phone.trim() === '') {
       setError('Введіть телефон');
+      return;
+    }
+    if (!name || name.trim() === '') {
+      setError('Введіть ім\'я');
       return;
     }
 
     setLoading(true);
     try {
       const formData: BookingFormData = {
-        route: route as Route,
+        route: selectedSchedule.route,
         date,
-        departureTime,
+        departureTime: selectedSchedule.departureTime,
         seats,
         name,
         phone,
@@ -149,9 +164,9 @@ export const BookingPage: React.FC = () => {
       setSuccess(true);
       
       // Очищення форми
-      setRoute('');
+      setDirection('');
       setDate('');
-      setDepartureTime('');
+      setSelectedSchedule(null);
       setSeats(1);
       setName('');
       setPhone('');
@@ -164,15 +179,27 @@ export const BookingPage: React.FC = () => {
     }
   };
 
-  const routeOptions = Object.entries(ROUTES).map(([value, label]) => ({
-    value,
-    label,
-  }));
+  const directionOptions = [
+    { value: 'Kyiv-Malyn', label: 'Київ → Малин' },
+    { value: 'Malyn-Kyiv', label: 'Малин → Київ' },
+  ];
+
+  const getRouteLabel = (route: Route) => {
+    if (route.includes('Irpin')) return 'через Ірпінь';
+    if (route.includes('Bucha')) return 'через Бучу';
+    return '';
+  };
 
   const timeOptions = schedules.map((s) => ({
-    value: s.departureTime,
-    label: s.departureTime,
+    value: s.id.toString(),
+    label: `${s.departureTime} (${getRouteLabel(s.route)})`,
+    schedule: s,
   }));
+
+  const handleTimeChange = (scheduleId: string) => {
+    const schedule = schedules.find(s => s.id.toString() === scheduleId);
+    setSelectedSchedule(schedule || null);
+  };
 
   const isFormDisabled = loading || (availability !== null && !availability.isAvailable);
 
@@ -188,10 +215,13 @@ export const BookingPage: React.FC = () => {
             label="Напрямок"
             options={[
               { value: '', label: 'Оберіть напрямок' },
-              ...routeOptions,
+              ...directionOptions,
             ]}
-            value={route}
-            onChange={(e) => setRoute(e.target.value as Route | '')}
+            value={direction}
+            onChange={(e) => {
+              setDirection(e.target.value as BaseDirection | '');
+              setSelectedSchedule(null);
+            }}
             required
           />
 
@@ -201,12 +231,15 @@ export const BookingPage: React.FC = () => {
             <Select
               options={
                 timeOptions.length > 0
-                  ? timeOptions
+                  ? [
+                      { value: '', label: 'Оберіть час' },
+                      ...timeOptions
+                    ]
                   : [{ value: '', label: 'Спочатку оберіть напрямок' }]
               }
-              value={departureTime}
-              onChange={(e) => setDepartureTime(e.target.value)}
-              disabled={!route || loadingSchedules || schedules.length === 0}
+              value={selectedSchedule?.id.toString() || ''}
+              onChange={(e) => handleTimeChange(e.target.value)}
+              disabled={!direction || loadingSchedules || schedules.length === 0}
               required
             />
             {availability && (

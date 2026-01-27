@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { LoginPage } from '@/pages/LoginPage';
 

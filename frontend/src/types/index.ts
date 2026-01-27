@@ -1,8 +1,13 @@
-export type Route = 
+export type Route =
   | 'Kyiv-Malyn-Irpin'
   | 'Malyn-Kyiv-Irpin'
   | 'Kyiv-Malyn-Bucha'
   | 'Malyn-Kyiv-Bucha';
+
+// Спрощений напрямок для UI бронювання
+export type Direction = 'Kyiv-Malyn' | 'Malyn-Kyiv';
+// Синонім для сумісності зі старим кодом
+export type BaseDirection = Direction;
 
 export interface Schedule {
   id: number;
