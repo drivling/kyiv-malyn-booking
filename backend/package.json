@@ -12,7 +12,8 @@
   "dependencies": {
     "@prisma/client": "^5.8.0",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "node-telegram-bot-api": "^0.67.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

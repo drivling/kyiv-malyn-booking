@@ -45,9 +45,15 @@ git push origin main
 DATABASE_URL=<вставте скопійований DATABASE_URL>
 ADMIN_PASSWORD=ваш_безпечний_пароль_тут
 NODE_ENV=production
+
+# Telegram Bot (опціонально, але рекомендовано)
+TELEGRAM_BOT_TOKEN=ваш_токен_від_BotFather
+TELEGRAM_ADMIN_CHAT_ID=ваш_chat_id
 ```
 
-**Важливо:** Замініть `ваш_безпечний_пароль_тут` на реальний пароль!
+**Важливо:** 
+- Замініть `ваш_безпечний_пароль_тут` на реальний пароль!
+- Для налаштування Telegram Bot дивіться **TELEGRAM_BOT_SETUP.md**
 
 ### 5. Налаштування Frontend
 

@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import { sendBookingNotificationToAdmin, isTelegramEnabled } from './telegram';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -263,6 +264,24 @@ app.post('/bookings', async (req, res) => {
       scheduleId: scheduleId ? Number(scheduleId) : null
     }
   });
+
+  // Відправка повідомлення адміну в Telegram (якщо налаштовано)
+  if (isTelegramEnabled()) {
+    try {
+      await sendBookingNotificationToAdmin({
+        id: booking.id,
+        route: booking.route,
+        date: booking.date,
+        departureTime: booking.departureTime,
+        seats: booking.seats,
+        name: booking.name,
+        phone: booking.phone,
+      });
+    } catch (error) {
+      console.error('Помилка відправки Telegram повідомлення:', error);
+      // Не блокуємо бронювання якщо Telegram не працює
+    }
+  }
 
   res.status(201).json(booking);
 });
