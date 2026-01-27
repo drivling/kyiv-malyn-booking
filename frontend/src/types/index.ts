@@ -52,3 +52,31 @@ export interface ScheduleFormData {
   departureTime: string;
   maxSeats: number;
 }
+
+// Telegram User Data
+export interface TelegramUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+  phone?: string;
+}
+
+// User State
+export type UserType = 'admin' | 'telegram';
+
+export interface AdminUser {
+  type: 'admin';
+  token: string;
+}
+
+export interface TelegramUserState {
+  type: 'telegram';
+  user: TelegramUser;
+  phone: string;
+}
+
+export type UserState = AdminUser | TelegramUserState | null;

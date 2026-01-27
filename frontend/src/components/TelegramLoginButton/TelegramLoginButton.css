@@ -1,0 +1,9 @@
+.telegram-login-button {
+  display: inline-block;
+  margin: 10px 0;
+}
+
+.telegram-login-button iframe {
+  border: none;
+  overflow: hidden;
+}

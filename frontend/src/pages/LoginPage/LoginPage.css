@@ -30,3 +30,94 @@
   flex-direction: column;
   gap: 20px;
 }
+
+.login-mode-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e5e5e5;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #666;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.mode-tab:hover {
+  color: #333;
+  background: #f8f8f8;
+}
+
+.mode-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: #eff6ff;
+}
+
+.telegram-login-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-description {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  margin: 0;
+}
+
+.telegram-login-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.telegram-widget-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e5e5;
+}
+
+.divider span {
+  position: relative;
+  display: inline-block;
+  padding: 0 16px;
+  background: #ffffff;
+  color: #999;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.manual-phone-login {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

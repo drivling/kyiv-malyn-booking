@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
+import { userState } from '@/utils/userState';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
@@ -8,6 +10,9 @@ import type { Route, BaseDirection, Schedule, Availability, BookingFormData } fr
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [direction, setDirection] = useState<BaseDirection | ''>('');
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   // Встановлюємо сьогоднішню дату за замовчуванням
@@ -17,7 +22,12 @@ export const BookingPage: React.FC = () => {
   });
   const [seats, setSeats] = useState(1);
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => {
+    // Автоматично заповнюємо номер телефону з Telegram
+    const savedPhone = userState.getTelegramPhone();
+    const locationPhone = location.state?.telegramPhone;
+    return locationPhone || savedPhone || '';
+  });
 
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [availability, setAvailability] = useState<Availability | null>(null);
@@ -269,15 +279,30 @@ export const BookingPage: React.FC = () => {
             </div>
           </div>
 
-          <Input
-            label="Телефон"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="0501234567"
-            required
-          />
-          {loadingCustomer && <span className="loading" style={{ fontSize: '12px', marginTop: '4px' }}>Пошук клієнта...</span>}
+          <div className="phone-input-group">
+            <Input
+              label="Телефон"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0501234567"
+              required
+            />
+            {!userState.isTelegramUser() && (
+              <button
+                type="button"
+                className="telegram-login-hint"
+                onClick={() => navigate('/login')}
+                title="Увійти через Telegram для автозаповнення"
+              >
+                <svg width="20" height="20" viewBox="0 0 240 240" fill="currentColor">
+                  <path d="M0,120 C0,53.726 53.726,0 120,0 S240,53.726 240,120 240,186.274 186.274,240 120,240 0,186.274 0,120 Z M98.997,126.324 L81.981,181.624 C81.981,181.624 79.326,189.274 86.726,181.624 L113.926,156.699 L145.026,179.024 Z M100.997,121.724 L151.926,89.324 C151.926,89.324 156.226,86.799 155.976,89.324 C155.976,89.324 156.726,89.824 153.976,92.324 L110.476,131.324 L108.851,155.699 Z"/>
+                </svg>
+                <span>Логін через Telegram</span>
+              </button>
+            )}
+            {loadingCustomer && <span className="loading" style={{ fontSize: '12px', marginTop: '4px' }}>Пошук клієнта...</span>}
+          </div>
 
           <Input
             label="Імʼя"
