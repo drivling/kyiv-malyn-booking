@@ -33,8 +33,6 @@ class ApiClient {
     options?: RequestInit
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    console.log(`API Request: ${options?.method || 'GET'} ${url}`);
-    
     const headers = new Headers(options?.headers);
     // За замовчуванням працюємо з JSON, але не ламаємо вже заданий Content-Type
     if (!headers.has('Content-Type') && !(options?.body instanceof FormData)) {
@@ -46,29 +44,21 @@ class ApiClient {
       headers.set('Authorization', this.authToken);
     }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-      console.log(`API Response: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('API Error:', error);
-        throw new Error(error.error || `HTTP error! status: ${response.status}`);
-      }
-
-      if (response.status === 204) {
-        return undefined as T;
-      }
-
-      return response.json();
-    } catch (error) {
-      console.error('Fetch error:', error);
-      throw error;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return response.json();
   }
 
   // Schedule endpoints
