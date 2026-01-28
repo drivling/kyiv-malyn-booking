@@ -25,6 +25,76 @@ const requireAdmin = (req, res, next) => {
     }
 };
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+// Endpoint для виправлення telegramUserId в існуючих бронюваннях
+app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
+    try {
+        console.log('🔧 Початок виправлення telegramUserId...');
+        // 1. Знаходимо всі бронювання де є chatId але немає валідного userId
+        const problematicBookings = await prisma.booking.findMany({
+            where: {
+                telegramChatId: { not: null },
+                OR: [
+                    { telegramUserId: null },
+                    { telegramUserId: '0' },
+                    { telegramUserId: '' }
+                ]
+            }
+        });
+        console.log(`📋 Знайдено ${problematicBookings.length} бронювань з невалідним telegramUserId`);
+        if (problematicBookings.length === 0) {
+            return res.json({
+                success: true,
+                message: 'Всі записи вже правильні!',
+                fixed: 0,
+                skipped: 0,
+                total: 0
+            });
+        }
+        // 2. Виправляємо кожне бронювання
+        let fixed = 0;
+        let skipped = 0;
+        const details = [];
+        for (const booking of problematicBookings) {
+            if (booking.telegramChatId &&
+                booking.telegramChatId !== '0' &&
+                booking.telegramChatId.trim() !== '') {
+                // Для приватних чатів chat_id = user_id
+                await prisma.booking.update({
+                    where: { id: booking.id },
+                    data: {
+                        telegramUserId: booking.telegramChatId
+                    }
+                });
+                const msg = `✅ #${booking.id}: telegramUserId оновлено з '${booking.telegramUserId}' на '${booking.telegramChatId}'`;
+                console.log(msg);
+                details.push(msg);
+                fixed++;
+            }
+            else {
+                const msg = `⚠️ #${booking.id}: пропущено (невалідний chatId: '${booking.telegramChatId}')`;
+                console.log(msg);
+                details.push(msg);
+                skipped++;
+            }
+        }
+        console.log(`📊 Виправлено: ${fixed}, Пропущено: ${skipped}, Всього: ${problematicBookings.length}`);
+        res.json({
+            success: true,
+            message: 'Виправлення завершено!',
+            fixed,
+            skipped,
+            total: problematicBookings.length,
+            details
+        });
+    }
+    catch (error) {
+        console.error('❌ Помилка виправлення:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
 // Авторизація адміна
 app.post('/admin/login', async (req, res) => {
     const { password } = req.body;
@@ -250,9 +320,21 @@ app.post('/bookings', async (req, res) => {
             telegramChatId = previousBooking.telegramChatId;
             // Якщо не було передано з frontend - беремо з попереднього бронювання
             if (!bookingTelegramUserId) {
-                bookingTelegramUserId = previousBooking.telegramUserId;
+                // Валідація: telegramUserId не може бути '0', 0, null, або порожнім
+                if (previousBooking.telegramUserId &&
+                    previousBooking.telegramUserId !== '0' &&
+                    previousBooking.telegramUserId.trim() !== '') {
+                    bookingTelegramUserId = previousBooking.telegramUserId;
+                }
+                else if (previousBooking.telegramChatId &&
+                    previousBooking.telegramChatId !== '0' &&
+                    previousBooking.telegramChatId.trim() !== '') {
+                    // Для приватних чатів chat_id = user_id
+                    bookingTelegramUserId = previousBooking.telegramChatId;
+                    console.log(`⚠️ telegramUserId був невалідний (${previousBooking.telegramUserId}), використовуємо chatId як userId`);
+                }
             }
-            console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (userId: ${bookingTelegramUserId})`);
+            console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (chatId: ${telegramChatId}, userId: ${bookingTelegramUserId})`);
         }
         else if (bookingTelegramUserId) {
             // Якщо це перше бронювання але є telegramUserId з frontend
@@ -262,6 +344,12 @@ app.post('/bookings', async (req, res) => {
     catch (error) {
         console.error('❌ Помилка пошуку попередніх бронювань:', error);
         // Продовжуємо з тим що є
+    }
+    // Фінальна валідація: для приватних чатів chat_id = user_id
+    // Якщо є chatId але немає userId - використовуємо chatId як userId
+    if (telegramChatId && !bookingTelegramUserId) {
+        bookingTelegramUserId = telegramChatId;
+        console.log(`⚠️ Використовуємо telegramChatId як telegramUserId для приватного чату: ${bookingTelegramUserId}`);
     }
     const booking = await prisma.booking.create({
         data: {
