@@ -479,9 +479,66 @@ https://malin.kiev.ua
         allUserBookings.forEach(b => {
           console.log(`  - Booking #${b.id}: ${b.date.toISOString().split('T')[0]} (telegramChatId: ${b.telegramChatId})`);
         });
+        
+        // 🔧 ЗАПЛАТКА: Якщо знайдено бронювання - шукаємо інші з таким же номером але без telegramUserId
+        console.log(`🔧 Перевіряємо чи є інші бронювання з таким же номером без telegramUserId...`);
+        
+        // Отримуємо всі унікальні номери телефонів користувача
+        const userPhones = [...new Set(allUserBookings.map(b => b.phone))];
+        console.log(`📱 Номери телефонів користувача: ${userPhones.join(', ')}`);
+        
+        // Для кожного номера шукаємо бронювання без telegramUserId
+        for (const phone of userPhones) {
+          const normalizedPhone = normalizePhone(phone);
+          
+          // Знаходимо всі бронювання і фільтруємо по нормалізованому номеру
+          const allBookingsForPhone = await prisma.booking.findMany({
+            where: {
+              OR: [
+                { telegramUserId: null },
+                { telegramUserId: '0' },
+                { telegramUserId: '' }
+              ]
+            }
+          });
+          
+          const orphanedBookings = allBookingsForPhone.filter(b => 
+            normalizePhone(b.phone) === normalizedPhone
+          );
+          
+          if (orphanedBookings.length > 0) {
+            console.log(`🔧 Знайдено ${orphanedBookings.length} бронювань з номером ${phone} без telegramUserId`);
+            
+            // Оновлюємо кожне бронювання
+            for (const booking of orphanedBookings) {
+              await prisma.booking.update({
+                where: { id: booking.id },
+                data: { 
+                  telegramUserId: userId,
+                  telegramChatId: chatId
+                }
+              });
+              console.log(`  ✅ Бронювання #${booking.id} оновлено: userId=${userId}, chatId=${chatId}`);
+            }
+            
+            console.log(`✅ Автоматично прив'язано ${orphanedBookings.length} старих бронювань до користувача ${userId}`);
+          }
+        }
+        
+        // Перезавантажуємо всі бронювання після оновлення
+        const updatedAllBookings = await prisma.booking.findMany({
+          where: {
+            telegramUserId: userId
+          },
+          orderBy: { date: 'desc' }
+        });
+        
+        if (updatedAllBookings.length > allUserBookings.length) {
+          console.log(`📊 Після заплатки: ${updatedAllBookings.length} бронювань (+${updatedAllBookings.length - allUserBookings.length})`);
+        }
       }
       
-      // Тепер фільтруємо тільки майбутні бронювання
+      // Тепер фільтруємо тільки майбутні бронювання (після можливих оновлень)
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Початок дня
       
@@ -497,11 +554,17 @@ https://malin.kiev.ua
       console.log(`📅 Майбутніх бронювань: ${futureBookings.length} (від ${today.toISOString().split('T')[0]})`);
       
       if (futureBookings.length === 0) {
+        // Перезавантажуємо allUserBookings після можливих оновлень
+        const finalAllBookings = await prisma.booking.findMany({
+          where: { telegramUserId: userId },
+          orderBy: { date: 'desc' }
+        });
+        
         // Якщо немає майбутніх - покажемо останні 3 минулих для діагностики
-        if (allUserBookings.length > 0) {
-          const recentPast = allUserBookings.slice(0, 3);
+        if (finalAllBookings.length > 0) {
+          const recentPast = finalAllBookings.slice(0, 3);
           let message = `📋 <b>Активних бронювань немає</b>\n\n`;
-          message += `Але знайдено ${allUserBookings.length} минулих:\n\n`;
+          message += `Але знайдено ${finalAllBookings.length} минулих:\n\n`;
           
           recentPast.forEach((booking, index) => {
             message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
