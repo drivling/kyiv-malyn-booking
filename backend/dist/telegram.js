@@ -698,7 +698,7 @@ https://malin.kiev.ua
                     const label = i === 0 ? ' (сьогодні)' : i === 1 ? ' (завтра)' : '';
                     dates.push({
                         text: formatDate(date) + label,
-                        callback_data: `book_date_${direction}_${dateStr}`
+                        callback_data: `book_date_${direction}_${dateStr.replace(/-/g, '_')}`
                     });
                 }
                 const dateKeyboard = {
@@ -719,8 +719,10 @@ https://malin.kiev.ua
             // Вибір дати - показати доступні часи
             if (data.startsWith('book_date_')) {
                 const parts = data.replace('book_date_', '').split('_');
-                const direction = parts[0];
-                const selectedDate = parts.slice(1).join('_');
+                // Дата завжди остання (YYYY-MM-DD = 3 частини)
+                const selectedDate = parts.slice(-3).join('-');
+                // Direction - все що до дати
+                const direction = parts.slice(0, -3).join('-');
                 // Отримати графіки для обраного напрямку
                 const schedules = await prisma.schedule.findMany({
                     where: { route: { startsWith: direction } },
@@ -762,7 +764,7 @@ https://malin.kiev.ua
                     return {
                         text: `${emoji} ${schedule.departureTime}${routeLabel} (${availableSeats}/${schedule.maxSeats})`,
                         callback_data: isAvailable ?
-                            `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate}` :
+                            `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate.replace(/-/g, '_')}` :
                             'book_unavailable'
                     };
                 }));
@@ -786,17 +788,20 @@ https://malin.kiev.ua
             // Вибір часу - запитати кількість місць
             if (data.startsWith('book_time_') && data !== 'book_unavailable') {
                 const parts = data.replace('book_time_', '').split('_');
-                const route = `${parts[0]}-${parts[1]}`;
-                const time = parts[2];
-                const selectedDate = parts.slice(3).join('_');
+                // Формат: route_time_YYYY_MM_DD (дата - останні 3 частини)
+                const selectedDate = parts.slice(-3).join('-');
+                const time = parts[parts.length - 4]; // час перед датою
+                // Route - все що до часу
+                const route = parts.slice(0, -4).join('-');
+                const dateForCallback = selectedDate.replace(/-/g, '_');
                 const seatsKeyboard = {
                     inline_keyboard: [
-                        [{ text: '1 місце', callback_data: `book_seats_${route}_${time}_${selectedDate}_1` }],
-                        [{ text: '2 місця', callback_data: `book_seats_${route}_${time}_${selectedDate}_2` }],
-                        [{ text: '3 місця', callback_data: `book_seats_${route}_${time}_${selectedDate}_3` }],
-                        [{ text: '4 місця', callback_data: `book_seats_${route}_${time}_${selectedDate}_4` }],
+                        [{ text: '1 місце', callback_data: `book_seats_${route}_${time}_${dateForCallback}_1` }],
+                        [{ text: '2 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_2` }],
+                        [{ text: '3 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_3` }],
+                        [{ text: '4 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_4` }],
                         [
-                            { text: '⬅️ Назад', callback_data: `book_date_${route}_${selectedDate}` },
+                            { text: '⬅️ Назад', callback_data: `book_date_${route}_${dateForCallback}` },
                             { text: '❌ Скасувати', callback_data: 'book_cancel' }
                         ]
                     ]
@@ -816,13 +821,15 @@ https://malin.kiev.ua
             // Вибір кількості місць - показати підтвердження
             if (data.startsWith('book_seats_')) {
                 const parts = data.replace('book_seats_', '').split('_');
-                const route = `${parts[0]}-${parts[1]}`;
-                const time = parts[2];
-                const selectedDate = parts.slice(3, -1).join('_');
+                // Формат: route_time_YYYY_MM_DD_seats (останній - seats, перед ним дата)
                 const seats = parts[parts.length - 1];
+                const selectedDate = parts.slice(-4, -1).join('-');
+                const time = parts[parts.length - 5];
+                const route = parts.slice(0, -5).join('-');
+                const dateForCallback = selectedDate.replace(/-/g, '_');
                 const confirmKeyboard = {
                     inline_keyboard: [
-                        [{ text: '✅ Підтвердити бронювання', callback_data: `book_confirm_${route}_${time}_${selectedDate}_${seats}` }],
+                        [{ text: '✅ Підтвердити бронювання', callback_data: `book_confirm_${route}_${time}_${dateForCallback}_${seats}` }],
                         [{ text: '❌ Скасувати', callback_data: 'book_cancel' }]
                     ]
                 };
@@ -842,10 +849,11 @@ https://malin.kiev.ua
             // Підтвердження створення бронювання
             if (data.startsWith('book_confirm_')) {
                 const parts = data.replace('book_confirm_', '').split('_');
-                const route = `${parts[0]}-${parts[1]}`;
-                const time = parts[2];
-                const selectedDate = parts.slice(3, -1).join('_');
+                // Формат: route_time_YYYY_MM_DD_seats
                 const seats = Number(parts[parts.length - 1]);
+                const selectedDate = parts.slice(-4, -1).join('-');
+                const time = parts[parts.length - 5];
+                const route = parts.slice(0, -5).join('-');
                 try {
                     // Отримати інформацію про користувача
                     const userBooking = await prisma.booking.findFirst({
