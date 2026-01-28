@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendBookingNotificationToAdmin = exports.normalizePhone = void 0;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const client_1 = require("@prisma/client");
+const node_fetch_1 = __importDefault(require("node-fetch"));
 const prisma = new client_1.PrismaClient();
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -250,11 +251,13 @@ function setupBotCommands() {
 
 ✅ Ваш акаунт вже підключено до номера: ${existingBooking.phone}
 
-📋 <b>Доступні команди:</b>
-/mybookings - переглянути ТІЛЬКИ мої бронювання
-/help - показати довідку
+🎫 <b>Що можна зробити:</b>
+/book - 🎫 Створити нове бронювання
+/mybookings - 📋 Переглянути мої бронювання
+/cancel - 🚫 Скасувати бронювання
+/help - 📚 Показати довідку
 
-🌐 <b>Забронювати новий квиток:</b>
+🌐 <b>Або забронюйте на сайті:</b>
 https://malin.kiev.ua
       `.trim();
             await bot?.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
@@ -305,16 +308,23 @@ https://malin.kiev.ua
             const helpMessage = `
 📚 <b>Довідка по командах:</b>
 
+🎫 <b>Бронювання:</b>
+/book - створити нове бронювання
+/mybookings - переглянути мої бронювання
+/cancel - скасувати бронювання
+
+📋 <b>Інше:</b>
 /start - головне меню
-/mybookings - переглянути ТІЛЬКИ мої бронювання
 /help - показати цю довідку
 
 ✅ Ваш акаунт підключено до номера: ${existingBooking.phone}
 
 💡 <b>Що я вмію:</b>
-• Показую тільки ваші бронювання (безпечно!)
-• Надсилаю підтвердження після бронювання
-• Нагадую за день до поїздки
+• 🎫 Створювати нові бронювання
+• 📋 Показувати тільки ваші бронювання
+• 🚫 Скасовувати бронювання
+• ✅ Надсилати підтвердження
+• 🔔 Нагадувати за день до поїздки
 
 🌐 Сайт: https://malin.kiev.ua
       `.trim();
@@ -331,7 +341,7 @@ https://malin.kiev.ua
 📱 <b>Як підключитися:</b>
 1. Напишіть /start
 2. Надішліть свій номер телефону (кнопкою або текстом)
-3. Готово! Тепер ви отримуватимете нотифікації
+3. Готово! Тепер можете бронювати через бота
 
 💡 <b>Формати номера:</b>
 • +380501234567
@@ -484,13 +494,14 @@ https://malin.kiev.ua
                         message += `   🎫 Місць: ${booking.seats}\n`;
                         message += `   👤 ${booking.name}\n\n`;
                     });
-                    message += `\n💡 Створіть нове бронювання:\nhttps://malin.kiev.ua`;
+                    message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
                     await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
                 }
                 else {
                     await bot?.sendMessage(chatId, `📋 <b>У вас поки немає бронювань</b>\n\n` +
-                        `Створіть бронювання на сайті:\n` +
-                        `https://malin.kiev.ua`, { parse_mode: 'HTML' });
+                        `Створіть нове бронювання:\n` +
+                        `🎫 /book - через бота\n` +
+                        `🌐 https://malin.kiev.ua - на сайті`, { parse_mode: 'HTML' });
                 }
                 return;
             }
@@ -509,6 +520,411 @@ https://malin.kiev.ua
         catch (error) {
             console.error('❌ Помилка отримання бронювань:', error);
             await bot?.sendMessage(chatId, '❌ Помилка при отриманні бронювань. Спробуйте пізніше.');
+        }
+    });
+    // Команда /cancel - скасування бронювання
+    bot.onText(/\/cancel/, async (msg) => {
+        const chatId = msg.chat.id.toString();
+        const userId = msg.from?.id.toString() || '';
+        try {
+            // Знайти майбутні бронювання користувача
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const futureBookings = await prisma.booking.findMany({
+                where: {
+                    telegramUserId: userId,
+                    date: { gte: today }
+                },
+                orderBy: { date: 'asc' }
+            });
+            if (futureBookings.length === 0) {
+                await bot?.sendMessage(chatId, '❌ <b>У вас немає майбутніх бронювань для скасування</b>\n\n' +
+                    'Створіть нове бронювання:\n' +
+                    '🎫 /book - Забронювати квиток\n' +
+                    '🌐 https://malin.kiev.ua', { parse_mode: 'HTML' });
+                return;
+            }
+            // Створити inline кнопки для кожного бронювання
+            const keyboard = {
+                inline_keyboard: futureBookings.map(b => [{
+                        text: `🎫 #${b.id}: ${getRouteName(b.route)} - ${formatDate(b.date)} о ${b.departureTime}`,
+                        callback_data: `cancel_${b.id}`
+                    }])
+            };
+            await bot?.sendMessage(chatId, '🚫 <b>Скасування бронювання</b>\n\n' +
+                'Оберіть бронювання для скасування:', { parse_mode: 'HTML', reply_markup: keyboard });
+        }
+        catch (error) {
+            console.error('❌ Помилка при отриманні бронювань:', error);
+            await bot?.sendMessage(chatId, '❌ Помилка. Спробуйте пізніше.');
+        }
+    });
+    // Команда /book - створення нового бронювання
+    bot.onText(/\/book/, async (msg) => {
+        const chatId = msg.chat.id.toString();
+        const userId = msg.from?.id.toString() || '';
+        // Перевірка чи є у користувача зареєстрований номер
+        const userBooking = await prisma.booking.findFirst({
+            where: { telegramUserId: userId }
+        });
+        if (!userBooking) {
+            await bot?.sendMessage(chatId, '❌ <b>Спочатку зареєструйте свій номер телефону</b>\n\n' +
+                'Використайте команду /start і надішліть свій номер телефону.\n\n' +
+                'Або створіть бронювання на сайті:\n' +
+                'https://malin.kiev.ua', { parse_mode: 'HTML' });
+            return;
+        }
+        // Крок 1: Вибір напрямку
+        const directionKeyboard = {
+            inline_keyboard: [
+                [{ text: '🚌 Київ → Малин', callback_data: 'book_dir_Kyiv-Malyn' }],
+                [{ text: '🚌 Малин → Київ', callback_data: 'book_dir_Malyn-Kyiv' }]
+            ]
+        };
+        await bot?.sendMessage(chatId, '🎫 <b>Нове бронювання</b>\n\n' +
+            '1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: directionKeyboard });
+    });
+    // Обробка callback query (натискання inline кнопок)
+    bot.on('callback_query', async (query) => {
+        const chatId = query.message?.chat.id.toString();
+        const userId = query.from?.id.toString() || '';
+        const data = query.data;
+        const messageId = query.message?.message_id;
+        if (!chatId || !data)
+            return;
+        try {
+            // Скасування бронювання - показати підтвердження
+            if (data.startsWith('cancel_')) {
+                const bookingId = data.replace('cancel_', '');
+                // Отримати інформацію про бронювання
+                const booking = await prisma.booking.findUnique({
+                    where: { id: Number(bookingId) }
+                });
+                if (!booking) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Бронювання не знайдено' });
+                    return;
+                }
+                const confirmKeyboard = {
+                    inline_keyboard: [
+                        [
+                            { text: '✅ Так, скасувати', callback_data: `confirm_cancel_${bookingId}` },
+                            { text: '❌ Ні, залишити', callback_data: 'cancel_abort' }
+                        ]
+                    ]
+                };
+                await bot?.editMessageText('⚠️ <b>Підтвердження скасування</b>\n\n' +
+                    `🎫 <b>Бронювання #${booking.id}</b>\n` +
+                    `📍 ${getRouteName(booking.route)}\n` +
+                    `📅 ${formatDate(booking.date)} о ${booking.departureTime}\n` +
+                    `🎫 Місць: ${booking.seats}\n` +
+                    `👤 ${booking.name}\n\n` +
+                    'Ви впевнені що хочете скасувати це бронювання?', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: confirmKeyboard
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Підтвердження скасування
+            if (data.startsWith('confirm_cancel_')) {
+                const bookingId = data.replace('confirm_cancel_', '');
+                try {
+                    // Викликати API для видалення
+                    const API_URL = process.env.API_URL || 'http://localhost:3001';
+                    const response = await (0, node_fetch_1.default)(`${API_URL}/bookings/${bookingId}/by-user`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ telegramUserId: userId })
+                    });
+                    if (response.ok) {
+                        const result = await response.json();
+                        await bot?.editMessageText('✅ <b>Бронювання успішно скасовано!</b>\n\n' +
+                            `🎫 Номер: #${result.booking.id}\n` +
+                            `📍 ${getRouteName(result.booking.route)}\n` +
+                            `📅 ${formatDate(new Date(result.booking.date))}\n\n` +
+                            '💡 Ви можете:\n' +
+                            '🎫 /book - Створити нове бронювання\n' +
+                            '📋 /mybookings - Переглянути інші бронювання', {
+                            chat_id: chatId,
+                            message_id: messageId,
+                            parse_mode: 'HTML'
+                        });
+                        await bot?.answerCallbackQuery(query.id, { text: '✅ Бронювання скасовано' });
+                    }
+                    else {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Помилка скасування');
+                    }
+                }
+                catch (error) {
+                    console.error('❌ Помилка скасування:', error);
+                    await bot?.editMessageText('❌ <b>Помилка при скасуванні бронювання</b>\n\n' +
+                        'Можливо бронювання вже видалено або немає доступу.\n\n' +
+                        'Спробуйте команду /mybookings щоб переглянути актуальний список.', {
+                        chat_id: chatId,
+                        message_id: messageId,
+                        parse_mode: 'HTML'
+                    });
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
+                }
+            }
+            // Відміна скасування
+            if (data === 'cancel_abort') {
+                await bot?.editMessageText('✅ <b>Скасування відмінено</b>\n\n' +
+                    'Ваше бронювання збережено.\n\n' +
+                    '📋 /mybookings - Переглянути всі бронювання', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML'
+                });
+                await bot?.answerCallbackQuery(query.id, { text: '✅ Залишено' });
+            }
+            // Вибір напрямку для нового бронювання
+            if (data.startsWith('book_dir_')) {
+                const direction = data.replace('book_dir_', '');
+                // Створити кнопки з датами (наступні 7 днів)
+                const dates = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() + i);
+                    const dateStr = date.toISOString().split('T')[0];
+                    const label = i === 0 ? ' (сьогодні)' : i === 1 ? ' (завтра)' : '';
+                    dates.push({
+                        text: formatDate(date) + label,
+                        callback_data: `book_date_${direction}_${dateStr}`
+                    });
+                }
+                const dateKeyboard = {
+                    inline_keyboard: dates.map(d => [d]).concat([[
+                            { text: '❌ Скасувати', callback_data: 'book_cancel' }
+                        ]])
+                };
+                await bot?.editMessageText('🎫 <b>Нове бронювання</b>\n\n' +
+                    `✅ Напрямок: ${getRouteName(direction)}\n\n` +
+                    '2️⃣ Оберіть дату:', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: dateKeyboard
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Вибір дати - показати доступні часи
+            if (data.startsWith('book_date_')) {
+                const parts = data.replace('book_date_', '').split('_');
+                const direction = parts[0];
+                const selectedDate = parts.slice(1).join('_');
+                // Отримати графіки для обраного напрямку
+                const schedules = await prisma.schedule.findMany({
+                    where: { route: { startsWith: direction } },
+                    orderBy: { departureTime: 'asc' }
+                });
+                if (schedules.length === 0) {
+                    await bot?.editMessageText('❌ <b>Немає доступних рейсів</b>\n\n' +
+                        'Спробуйте інший напрямок або дату.', {
+                        chat_id: chatId,
+                        message_id: messageId,
+                        parse_mode: 'HTML'
+                    });
+                    await bot?.answerCallbackQuery(query.id);
+                    return;
+                }
+                // Перевірити доступність для кожного часу
+                const timeButtons = await Promise.all(schedules.map(async (schedule) => {
+                    // Підрахувати зайняті місця
+                    const startOfDay = new Date(selectedDate);
+                    startOfDay.setHours(0, 0, 0, 0);
+                    const endOfDay = new Date(selectedDate);
+                    endOfDay.setHours(23, 59, 59, 999);
+                    const existingBookings = await prisma.booking.findMany({
+                        where: {
+                            route: schedule.route,
+                            departureTime: schedule.departureTime,
+                            date: {
+                                gte: startOfDay,
+                                lte: endOfDay
+                            }
+                        }
+                    });
+                    const bookedSeats = existingBookings.reduce((sum, b) => sum + b.seats, 0);
+                    const availableSeats = schedule.maxSeats - bookedSeats;
+                    const isAvailable = availableSeats > 0;
+                    const emoji = isAvailable ? '✅' : '❌';
+                    const routeLabel = schedule.route.includes('Irpin') ? ' (Ірпінь)' :
+                        schedule.route.includes('Bucha') ? ' (Буча)' : '';
+                    return {
+                        text: `${emoji} ${schedule.departureTime}${routeLabel} (${availableSeats}/${schedule.maxSeats})`,
+                        callback_data: isAvailable ?
+                            `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate}` :
+                            'book_unavailable'
+                    };
+                }));
+                const timeKeyboard = {
+                    inline_keyboard: timeButtons.map(b => [b]).concat([[
+                            { text: '⬅️ Назад', callback_data: `book_dir_${direction}` },
+                            { text: '❌ Скасувати', callback_data: 'book_cancel' }
+                        ]])
+                };
+                await bot?.editMessageText('🎫 <b>Нове бронювання</b>\n\n' +
+                    `✅ Напрямок: ${getRouteName(direction)}\n` +
+                    `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
+                    '3️⃣ Оберіть час відправлення:', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: timeKeyboard
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Вибір часу - запитати кількість місць
+            if (data.startsWith('book_time_') && data !== 'book_unavailable') {
+                const parts = data.replace('book_time_', '').split('_');
+                const route = `${parts[0]}-${parts[1]}`;
+                const time = parts[2];
+                const selectedDate = parts.slice(3).join('_');
+                const seatsKeyboard = {
+                    inline_keyboard: [
+                        [{ text: '1 місце', callback_data: `book_seats_${route}_${time}_${selectedDate}_1` }],
+                        [{ text: '2 місця', callback_data: `book_seats_${route}_${time}_${selectedDate}_2` }],
+                        [{ text: '3 місця', callback_data: `book_seats_${route}_${time}_${selectedDate}_3` }],
+                        [{ text: '4 місця', callback_data: `book_seats_${route}_${time}_${selectedDate}_4` }],
+                        [
+                            { text: '⬅️ Назад', callback_data: `book_date_${route}_${selectedDate}` },
+                            { text: '❌ Скасувати', callback_data: 'book_cancel' }
+                        ]
+                    ]
+                };
+                await bot?.editMessageText('🎫 <b>Нове бронювання</b>\n\n' +
+                    `✅ Напрямок: ${getRouteName(route)}\n` +
+                    `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
+                    `✅ Час: ${time}\n\n` +
+                    '4️⃣ Скільки місць забронювати?', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: seatsKeyboard
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Вибір кількості місць - показати підтвердження
+            if (data.startsWith('book_seats_')) {
+                const parts = data.replace('book_seats_', '').split('_');
+                const route = `${parts[0]}-${parts[1]}`;
+                const time = parts[2];
+                const selectedDate = parts.slice(3, -1).join('_');
+                const seats = parts[parts.length - 1];
+                const confirmKeyboard = {
+                    inline_keyboard: [
+                        [{ text: '✅ Підтвердити бронювання', callback_data: `book_confirm_${route}_${time}_${selectedDate}_${seats}` }],
+                        [{ text: '❌ Скасувати', callback_data: 'book_cancel' }]
+                    ]
+                };
+                await bot?.editMessageText('🎫 <b>Підтвердження бронювання</b>\n\n' +
+                    `📍 <b>Маршрут:</b> ${getRouteName(route)}\n` +
+                    `📅 <b>Дата:</b> ${formatDate(new Date(selectedDate))}\n` +
+                    `🕐 <b>Час:</b> ${time}\n` +
+                    `🎫 <b>Місць:</b> ${seats}\n\n` +
+                    '⚠️ Підтверджуєте бронювання?', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: confirmKeyboard
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Підтвердження створення бронювання
+            if (data.startsWith('book_confirm_')) {
+                const parts = data.replace('book_confirm_', '').split('_');
+                const route = `${parts[0]}-${parts[1]}`;
+                const time = parts[2];
+                const selectedDate = parts.slice(3, -1).join('_');
+                const seats = Number(parts[parts.length - 1]);
+                try {
+                    // Отримати інформацію про користувача
+                    const userBooking = await prisma.booking.findFirst({
+                        where: { telegramUserId: userId }
+                    });
+                    if (!userBooking) {
+                        throw new Error('Користувач не знайдений');
+                    }
+                    // Викликати API для створення бронювання
+                    const API_URL = process.env.API_URL || 'http://localhost:3001';
+                    const response = await (0, node_fetch_1.default)(`${API_URL}/bookings`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            route,
+                            date: selectedDate,
+                            departureTime: time,
+                            seats,
+                            name: userBooking.name,
+                            phone: userBooking.phone,
+                            telegramUserId: userId
+                        })
+                    });
+                    if (response.ok) {
+                        const booking = await response.json();
+                        await bot?.editMessageText('✅ <b>Бронювання створено!</b>\n\n' +
+                            `🎫 <b>Номер:</b> #${booking.id}\n` +
+                            `📍 <b>Маршрут:</b> ${getRouteName(booking.route)}\n` +
+                            `📅 <b>Дата:</b> ${formatDate(new Date(booking.date))}\n` +
+                            `🕐 <b>Час:</b> ${booking.departureTime}\n` +
+                            `🎫 <b>Місць:</b> ${booking.seats}\n` +
+                            `👤 <b>Пасажир:</b> ${booking.name}\n\n` +
+                            '💡 Корисні команди:\n' +
+                            '📋 /mybookings - Переглянути всі бронювання\n' +
+                            '🚫 /cancel - Скасувати бронювання\n' +
+                            '🎫 /book - Створити ще одне бронювання', {
+                            chat_id: chatId,
+                            message_id: messageId,
+                            parse_mode: 'HTML'
+                        });
+                        await bot?.answerCallbackQuery(query.id, { text: '✅ Бронювання створено!' });
+                    }
+                    else {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Помилка створення');
+                    }
+                }
+                catch (error) {
+                    console.error('❌ Помилка створення бронювання:', error);
+                    await bot?.editMessageText('❌ <b>Помилка при створенні бронювання</b>\n\n' +
+                        'Можливо немає вільних місць або виникла технічна проблема.\n\n' +
+                        'Спробуйте:\n' +
+                        '🎫 /book - Почати заново\n' +
+                        '🌐 https://malin.kiev.ua - Забронювати на сайті', {
+                        chat_id: chatId,
+                        message_id: messageId,
+                        parse_mode: 'HTML'
+                    });
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
+                }
+            }
+            // Скасування процесу бронювання
+            if (data === 'book_cancel') {
+                await bot?.editMessageText('❌ <b>Бронювання скасовано</b>\n\n' +
+                    'Ви можете:\n' +
+                    '🎫 /book - Почати заново\n' +
+                    '📋 /mybookings - Переглянути існуючі бронювання\n' +
+                    '🌐 https://malin.kiev.ua - Забронювати на сайті', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML'
+                });
+                await bot?.answerCallbackQuery(query.id, { text: '❌ Скасовано' });
+            }
+            // Недоступний час
+            if (data === 'book_unavailable') {
+                await bot?.answerCallbackQuery(query.id, {
+                    text: '❌ На цей час немає вільних місць',
+                    show_alert: true
+                });
+            }
+        }
+        catch (error) {
+            console.error('❌ Помилка обробки callback:', error);
+            await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
         }
     });
     console.log('✅ Bot commands налаштовано');

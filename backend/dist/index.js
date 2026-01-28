@@ -453,6 +453,48 @@ app.get('/bookings/by-phone/:phone', async (req, res) => {
         res.status(500).json({ error: 'Failed to find booking' });
     }
 });
+// Скасування бронювання користувачем (через Telegram)
+app.delete('/bookings/:id/by-user', async (req, res) => {
+    const { id } = req.params;
+    const { telegramUserId } = req.body;
+    if (!telegramUserId) {
+        return res.status(400).json({ error: 'telegramUserId is required' });
+    }
+    try {
+        // Перевірка що бронювання належить користувачу
+        const booking = await prisma.booking.findUnique({
+            where: { id: Number(id) }
+        });
+        if (!booking) {
+            return res.status(404).json({ error: 'Бронювання не знайдено' });
+        }
+        if (booking.telegramUserId !== telegramUserId) {
+            return res.status(403).json({ error: 'Це не ваше бронювання' });
+        }
+        // Видалити бронювання
+        await prisma.booking.delete({
+            where: { id: Number(id) }
+        });
+        console.log(`✅ Користувач ${telegramUserId} скасував бронювання #${id}`);
+        res.json({
+            success: true,
+            message: 'Бронювання скасовано',
+            booking: {
+                id: booking.id,
+                route: booking.route,
+                date: booking.date,
+                departureTime: booking.departureTime
+            }
+        });
+    }
+    catch (error) {
+        console.error('❌ Помилка скасування бронювання:', error);
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+        res.status(500).json({ error: 'Failed to cancel booking' });
+    }
+});
 app.delete('/bookings/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     try {
