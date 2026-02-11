@@ -181,7 +181,13 @@ export const BookingPage: React.FC = () => {
       return;
     }
     if (!name || name.trim() === '') {
-      setError('Введіть ім\'я');
+      setError('Введіть ім\'я та прізвище');
+      return;
+    }
+    // Перевірка що введено і ім'я, і прізвище (мінімум 2 слова)
+    const nameParts = name.trim().split(/\s+/);
+    if (nameParts.length < 2) {
+      setError('Будь ласка, введіть ім\'я та прізвище (наприклад: Іван Петренко)');
       return;
     }
 
@@ -362,10 +368,11 @@ export const BookingPage: React.FC = () => {
           </div>
 
           <Input
-            label="Імʼя"
+            label="Ім'я та прізвище"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            placeholder="Іван Петренко"
             required
           />
 
