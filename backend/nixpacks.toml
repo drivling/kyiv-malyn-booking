@@ -1,3 +1,3 @@
-# Примусова збірка TypeScript — щоб Railway не використовував старий dist/
+# Примусова збірка — завжди нова збірка (dist видаляється в npm run build)
 [phases.build]
 cmds = ["npm run build"]

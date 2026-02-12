@@ -2,7 +2,7 @@
   "name": "kyiv-malyn-backend",
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
-    "build": "prisma generate && tsc",
+    "build": "rm -rf dist && prisma generate && tsc",
     "start": "prisma migrate deploy && node dist/index.js",
     "prisma:init": "prisma init",
     "prisma:migrate": "prisma migrate dev",
