@@ -25,7 +25,9 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
   }
 };
 
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/health', (_req, res) =>
+  res.json({ status: 'ok', version: 2, viber: true })
+);
 
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
