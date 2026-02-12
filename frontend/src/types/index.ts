@@ -81,3 +81,26 @@ export interface TelegramUserState {
 }
 
 export type UserState = AdminUser | TelegramUserState | null;
+
+// Viber Listings
+export type ViberListingType = 'driver' | 'passenger';
+
+export interface ViberListing {
+  id: number;
+  rawMessage: string;
+  senderName: string | null;
+  listingType: ViberListingType;
+  route: string;
+  date: string;
+  departureTime: string | null;
+  seats: number | null;
+  phone: string;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ViberListingFormData {
+  rawMessage: string;
+}

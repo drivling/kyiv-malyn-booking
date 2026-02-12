@@ -4,18 +4,20 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, ROUTES } from '@/utils/constants';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules';
+type Tab = 'bookings' | 'schedules' | 'viber';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [viberListings, setViberListings] = useState<ViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   // Фільтри
   const [routeFilter, setRouteFilter] = useState('');
@@ -32,11 +34,18 @@ export const AdminPage: React.FC = () => {
     maxSeats: 20,
   });
 
+  // Viber listings
+  const [isViberModalOpen, setIsViberModalOpen] = useState(false);
+  const [viberMessage, setViberMessage] = useState('');
+  const [viberActiveFilter, setViberActiveFilter] = useState(true);
+
   useEffect(() => {
     if (activeTab === 'bookings') {
       loadBookings();
-    } else {
+    } else if (activeTab === 'schedules') {
       loadSchedules();
+    } else if (activeTab === 'viber') {
+      loadViberListings();
     }
   }, [activeTab]);
 
@@ -68,6 +77,19 @@ export const AdminPage: React.FC = () => {
         return a.departureTime.localeCompare(b.departureTime);
       });
       setSchedules(sorted);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка завантаження');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadViberListings = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiClient.getViberListings(viberActiveFilter);
+      setViberListings(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка завантаження');
     } finally {
@@ -143,6 +165,64 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleCreateViberListing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    try {
+      // Перевіряємо чи це багато повідомлень (містить декілька заголовків)
+      const messageCount = (viberMessage.match(/\[.*?\]/g) || []).length;
+      
+      if (messageCount > 1) {
+        // Масове створення
+        const result = await apiClient.createViberListingsBulk(viberMessage);
+        setSuccess(`✅ Створено ${result.created} оголошень з ${result.total}`);
+      } else {
+        // Одне повідомлення
+        await apiClient.createViberListing({ rawMessage: viberMessage });
+        setSuccess('✅ Оголошення створено!');
+      }
+      
+      setViberMessage('');
+      setIsViberModalOpen(false);
+      loadViberListings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка створення');
+    }
+  };
+
+  const handleDeleteViberListing = async (id: number) => {
+    if (!confirm('Ви впевнені, що хочете видалити це оголошення?')) return;
+    try {
+      await apiClient.deleteViberListing(id);
+      loadViberListings();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Помилка видалення');
+    }
+  };
+
+  const handleDeactivateViberListing = async (id: number) => {
+    try {
+      await apiClient.deactivateViberListing(id);
+      loadViberListings();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Помилка деактивації');
+    }
+  };
+
+  const handleCleanupOldViberListings = async () => {
+    if (!confirm('Деактивувати всі старі оголошення?')) return;
+    setError('');
+    setSuccess('');
+    try {
+      const result = await apiClient.cleanupOldViberListings();
+      setSuccess(result.message);
+      loadViberListings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка очищення');
+    }
+  };
+
   const stats = {
     total: filteredBookings.length,
     kyivMalyn: filteredBookings.filter((b) => b.route.includes('Kyiv-Malyn')).length,
@@ -173,9 +253,16 @@ export const AdminPage: React.FC = () => {
           >
             🕐 Графіки
           </button>
+          <button
+            className={`tab ${activeTab === 'viber' ? 'active' : ''}`}
+            onClick={() => setActiveTab('viber')}
+          >
+            📱 Viber Оголошення
+          </button>
         </div>
 
         {error && <Alert variant="error">{error}</Alert>}
+        {success && <Alert variant="success">{success}</Alert>}
 
         {activeTab === 'bookings' && (
           <div className="tab-content">
@@ -352,6 +439,141 @@ export const AdminPage: React.FC = () => {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Viber оголошення */}
+        {activeTab === 'viber' && (
+          <div className="tab-content">
+            <div className="controls">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={viberActiveFilter}
+                  onChange={(e) => {
+                    setViberActiveFilter(e.target.checked);
+                    loadViberListings();
+                  }}
+                />
+                <span>Тільки активні</span>
+              </label>
+              <Button onClick={loadViberListings}>🔄 Оновити</Button>
+              <Button onClick={() => setIsViberModalOpen(true)}>➕ Додати оголошення</Button>
+              <Button variant="secondary" onClick={handleCleanupOldViberListings}>
+                🧹 Очистити старі
+              </Button>
+            </div>
+
+            {loading ? (
+              <div className="loading">Завантаження...</div>
+            ) : viberListings.length === 0 ? (
+              <div className="empty">📭 Немає оголошень</div>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Тип</th>
+                      <th>Маршрут</th>
+                      <th>Дата</th>
+                      <th>Час</th>
+                      <th>Місця</th>
+                      <th>Телефон</th>
+                      <th>Відправник</th>
+                      <th>Статус</th>
+                      <th>Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viberListings.map((listing) => (
+                      <tr key={listing.id} style={{ opacity: listing.isActive ? 1 : 0.5 }}>
+                        <td>#{listing.id}</td>
+                        <td>
+                          <span className={`badge ${listing.listingType === 'driver' ? 'badge-success' : 'badge-info'}`}>
+                            {listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
+                          </span>
+                        </td>
+                        <td>{listing.route}</td>
+                        <td>{new Date(listing.date).toLocaleDateString('uk-UA')}</td>
+                        <td>{listing.departureTime || '-'}</td>
+                        <td>{listing.seats || '-'}</td>
+                        <td><strong>{listing.phone}</strong></td>
+                        <td>{listing.senderName || '-'}</td>
+                        <td>
+                          <span className={`badge ${listing.isActive ? 'badge-success' : 'badge-secondary'}`}>
+                            {listing.isActive ? 'Активне' : 'Неактивне'}
+                          </span>
+                        </td>
+                        <td>
+                          {listing.isActive && (
+                            <Button
+                              variant="secondary"
+                              onClick={() => handleDeactivateViberListing(listing.id)}
+                              style={{ marginRight: '8px' }}
+                            >
+                              Деактивувати
+                            </Button>
+                          )}
+                          <Button
+                            variant="danger"
+                            onClick={() => handleDeleteViberListing(listing.id)}
+                          >
+                            Видалити
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Модальне вікно для Viber оголошення */}
+        {isViberModalOpen && (
+          <div className="modal" onClick={(e) => e.target === e.currentTarget && setIsViberModalOpen(false)}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Додати Viber оголошення</h2>
+                <button className="close-btn" onClick={() => setIsViberModalOpen(false)}>
+                  &times;
+                </button>
+              </div>
+              <form onSubmit={handleCreateViberListing}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="viberMessage" style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                    Повідомлення з Viber чату *
+                  </label>
+                  <textarea
+                    id="viberMessage"
+                    value={viberMessage}
+                    onChange={(e) => setViberMessage(e.target.value)}
+                    placeholder={'Приклад:\n[ 9 лютого 2026 р. 12:55 ] ⁨Ковальчук Інна⁩: 2 пасажира\nСьогодні (9.02) \nКиїв(академ)-Малин\n18:00-18:30\n0730392680'}
+                    rows={10}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontFamily: 'monospace',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                    💡 Підказка: Можна вставити одразу декілька повідомлень - вони будуть створені автоматично
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <Button type="button" variant="secondary" onClick={() => setIsViberModalOpen(false)}>
+                    Скасувати
+                  </Button>
+                  <Button type="submit">Створити</Button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

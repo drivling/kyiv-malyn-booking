@@ -1,5 +1,5 @@
 import { API_URL } from '@/utils/constants';
-import type { Schedule, Booking, Availability, BookingFormData, ScheduleFormData } from '@/types';
+import type { Schedule, Booking, Availability, BookingFormData, ScheduleFormData, ViberListing, ViberListingFormData } from '@/types';
 
 class ApiClient {
   private baseUrl: string;
@@ -133,6 +133,60 @@ class ApiClient {
 
   async checkAdminAuth(): Promise<{ authenticated: boolean }> {
     return this.request<{ authenticated: boolean }>('/admin/check');
+  }
+
+  // Viber Listings endpoints
+  async getViberListings(active?: boolean): Promise<ViberListing[]> {
+    const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';
+    return this.request<ViberListing[]>(endpoint);
+  }
+
+  async searchViberListings(route: string, date: string): Promise<ViberListing[]> {
+    return this.request<ViberListing[]>(`/viber-listings/search?route=${route}&date=${date}`);
+  }
+
+  async createViberListing(data: ViberListingFormData): Promise<ViberListing> {
+    return this.request<ViberListing>('/viber-listings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createViberListingsBulk(rawMessages: string): Promise<{ 
+    success: boolean; 
+    created: number; 
+    total: number; 
+    listings: ViberListing[] 
+  }> {
+    return this.request('/viber-listings/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ rawMessages }),
+    });
+  }
+
+  async updateViberListing(id: number, data: Partial<ViberListing>): Promise<ViberListing> {
+    return this.request<ViberListing>(`/viber-listings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deactivateViberListing(id: number): Promise<ViberListing> {
+    return this.request<ViberListing>(`/viber-listings/${id}/deactivate`, {
+      method: 'PATCH',
+    });
+  }
+
+  async deleteViberListing(id: number): Promise<void> {
+    return this.request<void>(`/viber-listings/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async cleanupOldViberListings(): Promise<{ success: boolean; deactivated: number; message: string }> {
+    return this.request('/viber-listings/cleanup-old', {
+      method: 'POST',
+    });
   }
 }
 

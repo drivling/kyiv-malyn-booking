@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone } from './telegram';
+import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -627,6 +628,255 @@ app.get('/telegram/status', requireAdmin, (_req, res) => {
     adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ? 'configured' : 'not configured',
     botToken: process.env.TELEGRAM_BOT_TOKEN ? 'configured' : 'not configured'
   });
+});
+
+// ============================================
+// Viber Listings Endpoints
+// ============================================
+
+// Отримати всі активні Viber оголошення
+app.get('/viber-listings', async (req, res) => {
+  const { active } = req.query;
+  const where = active === 'true' ? { isActive: true } : {};
+  
+  try {
+    const listings = await prisma.viberListing.findMany({
+      where,
+      orderBy: [
+        { date: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
+    res.json(listings);
+  } catch (error) {
+    console.error('❌ Помилка отримання Viber оголошень:', error);
+    res.status(500).json({ error: 'Failed to fetch Viber listings' });
+  }
+});
+
+// Отримати Viber оголошення по маршруту та даті
+app.get('/viber-listings/search', async (req, res) => {
+  const { route, date } = req.query;
+  
+  if (!route || !date) {
+    return res.status(400).json({ error: 'Route and date are required' });
+  }
+  
+  try {
+    const searchDate = new Date(date as string);
+    const startOfDay = new Date(searchDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(searchDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const listings = await prisma.viberListing.findMany({
+      where: {
+        route: route as string,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        isActive: true
+      },
+      orderBy: { departureTime: 'asc' }
+    });
+    
+    res.json(listings);
+  } catch (error) {
+    console.error('❌ Помилка пошуку Viber оголошень:', error);
+    res.status(500).json({ error: 'Failed to search Viber listings' });
+  }
+});
+
+// Створити Viber оголошення (Admin)
+app.post('/viber-listings', requireAdmin, async (req, res) => {
+  const { rawMessage } = req.body;
+  
+  if (!rawMessage) {
+    return res.status(400).json({ error: 'rawMessage is required' });
+  }
+  
+  try {
+    // Спроба парсингу повідомлення
+    const parsed = parseViberMessage(rawMessage);
+    
+    if (!parsed) {
+      return res.status(400).json({ 
+        error: 'Не вдалося розпарсити повідомлення. Перевірте формат.' 
+      });
+    }
+    
+    // Створюємо запис
+    const listing = await prisma.viberListing.create({
+      data: {
+        rawMessage,
+        senderName: parsed.senderName,
+        listingType: parsed.listingType,
+        route: parsed.route,
+        date: parsed.date,
+        departureTime: parsed.departureTime,
+        seats: parsed.seats,
+        phone: parsed.phone,
+        notes: parsed.notes,
+        isActive: true
+      }
+    });
+    
+    console.log(`✅ Створено Viber оголошення #${listing.id}:`, {
+      type: listing.listingType,
+      route: listing.route,
+      date: listing.date,
+      phone: listing.phone
+    });
+    
+    res.status(201).json(listing);
+  } catch (error: any) {
+    console.error('❌ Помилка створення Viber оголошення:', error);
+    res.status(500).json({ error: 'Failed to create Viber listing' });
+  }
+});
+
+// Масове створення Viber оголошень з копіювання чату (Admin)
+app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
+  const { rawMessages } = req.body;
+  
+  if (!rawMessages) {
+    return res.status(400).json({ error: 'rawMessages is required' });
+  }
+  
+  try {
+    const parsedMessages = parseViberMessages(rawMessages);
+    
+    if (parsedMessages.length === 0) {
+      return res.status(400).json({ 
+        error: 'Не вдалося розпарсити жодне повідомлення' 
+      });
+    }
+    
+    const created = [];
+    const errors = [];
+    
+    for (let i = 0; i < parsedMessages.length; i++) {
+      const parsed = parsedMessages[i];
+      try {
+        const listing = await prisma.viberListing.create({
+          data: {
+            rawMessage: `Parsed message ${i + 1}`,
+            senderName: parsed.senderName,
+            listingType: parsed.listingType,
+            route: parsed.route,
+            date: parsed.date,
+            departureTime: parsed.departureTime,
+            seats: parsed.seats,
+            phone: parsed.phone,
+            notes: parsed.notes,
+            isActive: true
+          }
+        });
+        created.push(listing);
+      } catch (error) {
+        errors.push({ index: i, error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    }
+    
+    console.log(`✅ Створено ${created.length} Viber оголошень з ${parsedMessages.length}`);
+    
+    res.status(201).json({
+      success: true,
+      created: created.length,
+      total: parsedMessages.length,
+      errors: errors.length > 0 ? errors : undefined,
+      listings: created
+    });
+  } catch (error: any) {
+    console.error('❌ Помилка масового створення Viber оголошень:', error);
+    res.status(500).json({ error: 'Failed to create Viber listings' });
+  }
+});
+
+// Оновити Viber оголошення (Admin)
+app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  
+  try {
+    const listing = await prisma.viberListing.update({
+      where: { id: Number(id) },
+      data: updates
+    });
+    res.json(listing);
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Viber listing not found' });
+    }
+    console.error('❌ Помилка оновлення Viber оголошення:', error);
+    res.status(500).json({ error: 'Failed to update Viber listing' });
+  }
+});
+
+// Деактивувати Viber оголошення (Admin)
+app.patch('/viber-listings/:id/deactivate', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const listing = await prisma.viberListing.update({
+      where: { id: Number(id) },
+      data: { isActive: false }
+    });
+    res.json(listing);
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Viber listing not found' });
+    }
+    console.error('❌ Помилка деактивації Viber оголошення:', error);
+    res.status(500).json({ error: 'Failed to deactivate Viber listing' });
+  }
+});
+
+// Видалити Viber оголошення (Admin)
+app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    await prisma.viberListing.delete({
+      where: { id: Number(id) }
+    });
+    res.status(204).send();
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Viber listing not found' });
+    }
+    console.error('❌ Помилка видалення Viber оголошення:', error);
+    res.status(500).json({ error: 'Failed to delete Viber listing' });
+  }
+});
+
+// Автоматичне деактивування старих оголошень (можна викликати з cron)
+app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
+  try {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(23, 59, 59, 999);
+    
+    const result = await prisma.viberListing.updateMany({
+      where: {
+        date: { lt: yesterday },
+        isActive: true
+      },
+      data: { isActive: false }
+    });
+    
+    console.log(`🧹 Деактивовано ${result.count} старих Viber оголошень`);
+    
+    res.json({
+      success: true,
+      deactivated: result.count,
+      message: `Деактивовано ${result.count} оголошень`
+    });
+  } catch (error) {
+    console.error('❌ Помилка очищення старих Viber оголошень:', error);
+    res.status(500).json({ error: 'Failed to cleanup old listings' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

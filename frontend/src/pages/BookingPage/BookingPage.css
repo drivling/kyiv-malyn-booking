@@ -415,6 +415,215 @@
   color: #666;
 }
 
+/* Viber оголошення */
+.viber-listings-section {
+  margin-top: 40px;
+  padding-top: 40px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.viber-listings-section h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.viber-subtitle {
+  color: #666;
+  font-size: 14px;
+  margin: 0 0 24px 0;
+}
+
+.viber-listings {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.viber-listing-card {
+  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  border: 2px solid #e5e7ff;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.viber-listing-card:hover {
+  border-color: #7c3aed;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.12);
+  transform: translateY(-2px);
+}
+
+.viber-listing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.viber-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.viber-badge-driver {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.viber-badge-passenger {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.viber-sender {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.viber-listing-route {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+.viber-listing-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.viber-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #333;
+}
+
+.viber-icon {
+  font-size: 16px;
+}
+
+.viber-listing-notes {
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(124, 58, 237, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid #7c3aed;
+}
+
+.viber-listing-action {
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7ff;
+}
+
+.viber-phone-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+/* Viber модалка */
+.viber-modal-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 24px 0;
+  text-align: left;
+}
+
+.viber-modal-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.viber-modal-row:last-child {
+  border-bottom: none;
+}
+
+.viber-modal-label {
+  font-weight: 600;
+  color: #666;
+  font-size: 14px;
+}
+
+.viber-modal-value {
+  font-weight: 500;
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+.viber-phone-display {
+  background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.viber-phone-link {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+
+.viber-phone-link:hover {
+  transform: scale(1.05);
+}
+
+.viber-phone-display .copy-button {
+  background: #ffffff;
+  color: #7c3aed;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.viber-phone-display .copy-button:hover {
+  background: #f3f4f6;
+}
+
+.viber-modal-note {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin: 16px 0;
+  padding: 16px;
+  background: #fef3c7;
+  border-radius: 8px;
+  border-left: 4px solid #f59e0b;
+}
+
 /* Адаптивність для мобільних */
 @media (max-width: 768px) {
   .date-time-row {
@@ -437,5 +646,20 @@
   
   .telegram-command {
     flex-direction: column;
+  }
+
+  .viber-listing-details {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .viber-phone-link {
+    font-size: 20px;
+  }
+
+  .viber-modal-row {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
   }
 }

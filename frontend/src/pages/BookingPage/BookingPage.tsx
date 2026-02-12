@@ -6,7 +6,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Route, BaseDirection, Schedule, Availability, BookingFormData } from '@/types';
+import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
@@ -30,6 +30,7 @@ export const BookingPage: React.FC = () => {
   });
 
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [viberListings, setViberListings] = useState<ViberListing[]>([]);
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
@@ -38,12 +39,15 @@ export const BookingPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [warning, setWarning] = useState('');
   const [showTelegramInfo, setShowTelegramInfo] = useState(false);
+  const [selectedViberListing, setSelectedViberListing] = useState<ViberListing | null>(null);
+  const [showViberModal, setShowViberModal] = useState(false);
 
-  // Завантаження розкладу при зміні напрямку
+  // Завантаження розкладу та Viber оголошень при зміні напрямку або дати
   useEffect(() => {
     if (!direction) {
       setSchedules([]);
       setSelectedSchedule(null);
+      setViberListings([]);
       return;
     }
 
@@ -75,8 +79,21 @@ export const BookingPage: React.FC = () => {
       }
     };
 
+    const loadViberListings = async () => {
+      if (!date) return;
+      
+      try {
+        const listings = await apiClient.searchViberListings(direction, date);
+        setViberListings(listings);
+      } catch (err) {
+        console.error('Не вдалося завантажити Viber оголошення:', err);
+        // Не показуємо помилку користувачу - це не критично
+      }
+    };
+
     loadSchedules();
-  }, [direction]);
+    loadViberListings();
+  }, [direction, date]);
 
   // Показати повідомлення якщо потрібен номер після Telegram Login
   useEffect(() => {
@@ -267,6 +284,11 @@ export const BookingPage: React.FC = () => {
 
   const isFormDisabled = loading || (availability !== null && !availability.isAvailable);
 
+  const handleViberListingClick = (listing: ViberListing) => {
+    setSelectedViberListing(listing);
+    setShowViberModal(true);
+  };
+
   return (
     <div className="booking-page">
       <div className="booking-container">
@@ -398,6 +420,59 @@ export const BookingPage: React.FC = () => {
           <Alert variant="info">ℹ️ Залишилось мало місць: {availability.availableSeats}</Alert>
         )}
 
+        {/* Viber оголошення */}
+        {viberListings.length > 0 && (
+          <div className="viber-listings-section">
+            <h3>📱 Також доступні поїздки з Viber</h3>
+            <p className="viber-subtitle">Ці оголошення розміщені в Viber чаті. Для бронювання зателефонуйте за вказаним номером.</p>
+            <div className="viber-listings">
+              {viberListings.map((listing) => (
+                <div 
+                  key={listing.id} 
+                  className="viber-listing-card"
+                  onClick={() => handleViberListingClick(listing)}
+                >
+                  <div className="viber-listing-header">
+                    <span className={`viber-badge ${listing.listingType === 'driver' ? 'viber-badge-driver' : 'viber-badge-passenger'}`}>
+                      {listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
+                    </span>
+                    {listing.senderName && (
+                      <span className="viber-sender">{listing.senderName}</span>
+                    )}
+                  </div>
+                  <div className="viber-listing-route">
+                    {listing.route.replace('Kyiv-Malyn', 'Київ → Малин').replace('Malyn-Kyiv', 'Малин → Київ')}
+                  </div>
+                  <div className="viber-listing-details">
+                    <div className="viber-detail">
+                      <span className="viber-icon">📅</span>
+                      <span>{new Date(listing.date).toLocaleDateString('uk-UA')}</span>
+                    </div>
+                    {listing.departureTime && (
+                      <div className="viber-detail">
+                        <span className="viber-icon">🕐</span>
+                        <span>{listing.departureTime}</span>
+                      </div>
+                    )}
+                    {listing.seats && (
+                      <div className="viber-detail">
+                        <span className="viber-icon">👥</span>
+                        <span>{listing.seats} {listing.listingType === 'driver' ? 'місць' : 'пасажирів'}</span>
+                      </div>
+                    )}
+                  </div>
+                  {listing.notes && (
+                    <div className="viber-listing-notes">{listing.notes}</div>
+                  )}
+                  <div className="viber-listing-action">
+                    <span className="viber-phone-hint">📞 Натисніть щоб подивитись телефон</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Telegram нотифікації - інформаційний блок */}
         <div className="telegram-info-block">
           <div className="telegram-icon">📱</div>
@@ -472,6 +547,101 @@ export const BookingPage: React.FC = () => {
                 onClick={() => setShowTelegramInfo(false)}
               >
                 Пропустити
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Модалка з номером телефону для Viber оголошення */}
+        {showViberModal && selectedViberListing && (
+          <div className="telegram-success-modal">
+            <div className="telegram-success-content">
+              <button 
+                className="telegram-close"
+                onClick={() => {
+                  setShowViberModal(false);
+                  setSelectedViberListing(null);
+                }}
+              >
+                ×
+              </button>
+              <div className="telegram-success-icon">📱</div>
+              <h3>Контакт для бронювання</h3>
+              <div className="viber-modal-info">
+                <div className="viber-modal-row">
+                  <span className="viber-modal-label">Тип:</span>
+                  <span className="viber-modal-value">
+                    {selectedViberListing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
+                  </span>
+                </div>
+                <div className="viber-modal-row">
+                  <span className="viber-modal-label">Маршрут:</span>
+                  <span className="viber-modal-value">
+                    {selectedViberListing.route.replace('Kyiv-Malyn', 'Київ → Малин').replace('Malyn-Kyiv', 'Малин → Київ')}
+                  </span>
+                </div>
+                <div className="viber-modal-row">
+                  <span className="viber-modal-label">Дата:</span>
+                  <span className="viber-modal-value">
+                    {new Date(selectedViberListing.date).toLocaleDateString('uk-UA')}
+                  </span>
+                </div>
+                {selectedViberListing.departureTime && (
+                  <div className="viber-modal-row">
+                    <span className="viber-modal-label">Час:</span>
+                    <span className="viber-modal-value">{selectedViberListing.departureTime}</span>
+                  </div>
+                )}
+                {selectedViberListing.senderName && (
+                  <div className="viber-modal-row">
+                    <span className="viber-modal-label">Відправник:</span>
+                    <span className="viber-modal-value">{selectedViberListing.senderName}</span>
+                  </div>
+                )}
+              </div>
+              <div className="viber-phone-display">
+                {selectedViberListing.phone ? (
+                  <>
+                    <a href={`tel:${selectedViberListing.phone}`} className="viber-phone-link">
+                      📞 {selectedViberListing.phone}
+                    </a>
+                    <button
+                      className="copy-button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedViberListing.phone);
+                        alert('Номер скопійовано!');
+                      }}
+                      title="Скопіювати номер"
+                    >
+                      📋 Копіювати
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <a
+                      href="https://invite.viber.com/?g2=AQAcZm49UP6l%2FEkN%2Flr3iMqCoDYkoJX12FW%2BZtE59xbiYc%2BnCUVsmjZ%2Fu5qn1l4l"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="viber-phone-link"
+                    >
+                      🔗 Відкрити Viber групу
+                    </a>
+                  </>
+                )}
+              </div>
+              <p className="viber-modal-note">
+                {selectedViberListing.phone
+                  ? '⚠️ Це оголошення з Viber чату. Будь ласка, зателефонуйте за вказаним номером для бронювання.'
+                  : '⚠️ В цьому оголошенні немає телефону. Відкрийте Viber групу, щоб подивитись контакти або уточнити деталі.'}
+              </p>
+              <button 
+                className="telegram-skip"
+                onClick={() => {
+                  setShowViberModal(false);
+                  setSelectedViberListing(null);
+                }}
+              >
+                Закрити
               </button>
             </div>
           </div>
