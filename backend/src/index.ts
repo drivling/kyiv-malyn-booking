@@ -29,8 +29,8 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
 
 app.get('/health', (_req, res) =>
   res.json({
-    status: 'ok',
-    version: 2,
+    status: 'failed',
+    version: 3,
     viber: true,
     codeVersion: CODE_VERSION,
     deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
