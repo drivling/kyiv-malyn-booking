@@ -13,7 +13,24 @@ console.log('[KYIV-MALYN-BACKEND] BOOT codeVersion=' + CODE_VERSION + ' build=' 
 const app = express();
 const prisma = new PrismaClient();
 
-app.use(cors());
+// CORS: дозволяємо фронт (malin.kiev.ua + Railway preview)
+const allowedOrigins = [
+  'https://malin.kiev.ua',
+  'https://www.malin.kiev.ua',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.railway.app'))) {
+      cb(null, true);
+    } else {
+      cb(null, true); // для зручності залишаємо приймати всі; за потреби звужте
+    }
+  },
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Простий токен для авторизації (в продакшені використовуйте JWT)

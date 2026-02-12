@@ -98,17 +98,18 @@ VITE_API_URL=https://ваш-backend-url.railway.app
 Після отримання backend домену:
 
 1. Відкрийте frontend → **"Variables"**
-2. Оновіть `VITE_API_URL` на новий домен:
+2. Додайте або оновіть (без слеша в кінці):
    ```
-   VITE_API_URL=https://ваш-backend-домен.railway.app
+   VITE_API_URL=https://kyiv-malyn-booking-production.up.railway.app
    ```
-3. Railway автоматично перезапустить frontend
+   Якщо ваш backend має інший домен — підставте його.
+3. Railway автоматично перезапустить frontend. Деталі: **PRODUCTION.md**
 
 ### 8. Перевірка деплою
 
-1. Відкрийте frontend домен у браузері
-2. Перевірте, що форма бронювання працює
-3. Спробуйте зайти в адмін панель (використовуючи пароль з `ADMIN_PASSWORD`)
+1. Відкрийте frontend: **https://malin.kiev.ua** (або ваш frontend домен Railway)
+2. Перевірте, що форма бронювання працює та API відповідає (бекенд: `kyiv-malyn-booking-production.up.railway.app`)
+3. Спробуйте зайти в адмін панель (пароль з `ADMIN_PASSWORD`)
 
 ## ✅ Чеклист
 
