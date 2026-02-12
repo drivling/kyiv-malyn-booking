@@ -1,9 +1,11 @@
-
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
+
+// Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
+const CODE_VERSION = 'viber-v2-2026';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -26,7 +28,14 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
 };
 
 app.get('/health', (_req, res) =>
-  res.json({ status: 'ok', version: 2, viber: true })
+  res.json({
+    status: 'ok',
+    version: 2,
+    viber: true,
+    codeVersion: CODE_VERSION,
+    deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+    cwd: process.cwd(),
+  })
 );
 
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
@@ -897,4 +906,41 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));
+
+// Збираємо список зареєстрованих роутів для логів (Express 4)
+function getRegisteredRoutes(): string[] {
+  const routes: string[] = [];
+  try {
+    const router = (app as any)._router;
+    const stack = router?.stack ?? [];
+    function walk(layer: any, prefix = '') {
+      if (!layer) return;
+      const path = (prefix + (layer.route?.path ?? layer.path ?? '')).replace(/\/\//g, '/') || '/';
+      if (layer.route) {
+        const methods = Object.keys(layer.route.methods).filter((m: string) => layer.route.methods[m]);
+        methods.forEach((m: string) => routes.push(`${m.toUpperCase()} ${path}`));
+      }
+      if (layer.name === 'router' && layer.handle?.stack) {
+        layer.handle.stack.forEach((l: any) => walk(l, path));
+      }
+    }
+    stack.forEach((layer: any) => walk(layer));
+  } catch (e) {
+    console.warn('[KYIV-MALYN-BACKEND] Could not list routes:', e);
+  }
+  return [...new Set(routes)].sort();
+}
+
+app.listen(PORT, () => {
+  const routes = getRegisteredRoutes();
+  const hasViber = routes.some((r) => r.includes('viber-listings'));
+  console.log('========================================');
+  console.log(`[KYIV-MALYN-BACKEND] CODE_VERSION=${CODE_VERSION}`);
+  console.log(`[KYIV-MALYN-BACKEND] cwd=${process.cwd()}`);
+  console.log(`[KYIV-MALYN-BACKEND] RAILWAY_DEPLOYMENT_ID=${process.env.RAILWAY_DEPLOYMENT_ID ?? 'not set'}`);
+  console.log(`[KYIV-MALYN-BACKEND] /viber-listings registered: ${hasViber ? 'YES' : 'NO'}`);
+  console.log('[KYIV-MALYN-BACKEND] Routes:', routes.filter((r) => r.startsWith('GET ') || r.startsWith('POST ')).slice(0, 25).join(', '));
+  if (!hasViber) console.warn('[KYIV-MALYN-BACKEND] WARNING: Viber routes missing — likely old build/cache');
+  console.log('========================================');
+  console.log(`API on http://localhost:${PORT}`);
+});
