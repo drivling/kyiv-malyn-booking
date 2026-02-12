@@ -50,15 +50,24 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      const text = await response.text();
+      let errorMessage = `Помилка ${response.status}`;
+      try {
+        const error = text ? JSON.parse(text) : {};
+        errorMessage = error.error || error.message || errorMessage;
+      } catch {
+        if (text && text.length < 200) errorMessage = text;
+      }
+      throw new Error(errorMessage);
     }
 
     if (response.status === 204) {
       return undefined as T;
     }
 
-    return response.json();
+    const text = await response.text();
+    if (!text) return undefined as T;
+    return JSON.parse(text) as T;
   }
 
   // Schedule endpoints

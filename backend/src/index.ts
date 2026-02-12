@@ -634,12 +634,21 @@ app.get('/telegram/status', requireAdmin, (_req, res) => {
 // Viber Listings Endpoints
 // ============================================
 
+// Допоміжна функція: серіалізація Viber listing для JSON (дати в ISO рядок)
+function serializeViberListing(row: { date: Date; createdAt: Date; updatedAt: Date; [key: string]: unknown }) {
+  return {
+    ...row,
+    date: row.date instanceof Date ? row.date.toISOString() : row.date,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+  };
+}
+
 // Отримати всі активні Viber оголошення
 app.get('/viber-listings', async (req, res) => {
-  const { active } = req.query;
-  const where = active === 'true' ? { isActive: true } : {};
-  
   try {
+    const { active } = req.query;
+    const where = active === 'true' ? { isActive: true } : {};
     const listings = await prisma.viberListing.findMany({
       where,
       orderBy: [
@@ -647,10 +656,10 @@ app.get('/viber-listings', async (req, res) => {
         { createdAt: 'desc' }
       ]
     });
-    res.json(listings);
+    res.json(listings.map(serializeViberListing));
   } catch (error) {
     console.error('❌ Помилка отримання Viber оголошень:', error);
-    res.status(500).json({ error: 'Failed to fetch Viber listings' });
+    res.status(500).json({ error: 'Не вдалося завантажити Viber оголошення. Перевірте логи сервера.' });
   }
 });
 
@@ -678,13 +687,13 @@ app.get('/viber-listings/search', async (req, res) => {
         },
         isActive: true
       },
-      orderBy: { departureTime: 'asc' }
+      orderBy: [{ date: 'asc' }, { departureTime: 'asc' }]
     });
-    
-    res.json(listings);
+
+    res.json(listings.map(serializeViberListing));
   } catch (error) {
     console.error('❌ Помилка пошуку Viber оголошень:', error);
-    res.status(500).json({ error: 'Failed to search Viber listings' });
+    res.status(500).json({ error: 'Не вдалося пошукати Viber оголошення.' });
   }
 });
 
@@ -877,6 +886,12 @@ app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
     console.error('❌ Помилка очищення старих Viber оголошень:', error);
     res.status(500).json({ error: 'Failed to cleanup old listings' });
   }
+});
+
+// Глобальний обробник помилок — завжди повертаємо JSON
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('❌ Unhandled error:', err);
+  res.status(500).json({ error: 'Помилка сервера' });
 });
 
 const PORT = process.env.PORT || 3000;
