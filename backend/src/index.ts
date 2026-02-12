@@ -7,6 +7,9 @@ import { parseViberMessage, parseViberMessages } from './viber-parser';
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
 
+// Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
+console.log('[KYIV-MALYN-BACKEND] BOOT codeVersion=' + CODE_VERSION + ' build=' + (typeof __dirname !== 'undefined' ? 'node' : 'unknown'));
+
 const app = express();
 const prisma = new PrismaClient();
 
@@ -946,5 +949,5 @@ app.listen(PORT, () => {
   console.log('[KYIV-MALYN-BACKEND] Routes:', routes.filter((r) => r.startsWith('GET ') || r.startsWith('POST ')).slice(0, 25).join(', '));
   if (!hasViber) console.warn('[KYIV-MALYN-BACKEND] WARNING: Viber routes missing — likely old build/cache');
   console.log('========================================');
-  console.log(`API on http://localhost:${PORT}`);
+  console.log(`API on http://localhost:${PORT} [${CODE_VERSION}]`);
 });
