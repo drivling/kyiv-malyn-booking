@@ -27,7 +27,11 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
   }
 };
 
-app.get('/health', (_req, res) =>
+app.get('/health', (_req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma': 'no-cache',
+  });
   res.json({
     status: 'ok',
     version: 3,
@@ -35,8 +39,8 @@ app.get('/health', (_req, res) =>
     codeVersion: CODE_VERSION,
     deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
     cwd: process.cwd(),
-  })
-);
+  });
+});
 
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
