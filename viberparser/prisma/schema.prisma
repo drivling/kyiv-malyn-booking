@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Окрема таблиця для Viber оголошень
+model ViberRide {
+  id              Int      @id @default(autoincrement())
+  
+  // Сирі дані
+  messageId       String   @unique  // ID повідомлення з Viber
+  messageText     String   @db.Text // Повний текст повідомлення
+  senderName      String?  // Ім'я відправника
+  senderId        String?  // ID відправника
+  
+  // Розпарсені дані
+  route           String?  // "Kyiv-Malyn", "Malyn-Kyiv" тощо
+  departureDate   DateTime?  // Дата поїздки
+  departureTime   String?  // Час відправлення "HH:MM"
+  availableSeats  Int?     // Кількість вільних місць
+  price           Int?     // Ціна (якщо вказана)
+  contactPhone    String?  // Телефон для зв'язку
+  contactName     String?  // Ім'я для зв'язку
+  
+  // Метадані
+  isParsed        Boolean  @default(false)  // Чи вдалося розпарсити
+  isActive        Boolean  @default(true)   // Чи активне оголошення
+  parsingErrors   String?  // Помилки парсингу (якщо були)
+  
+  // Часові мітки
+  messageTimestamp DateTime  // Коли повідомлення було відправлене в Viber
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([route, departureDate])
+  @@index([isActive, isParsed])
+  @@index([messageTimestamp])
+}
+
+// Таблиця для відстеження стану парсера
+model ViberParserState {
+  id              Int      @id @default(autoincrement())
+  lastMessageId   String?  // ID останнього обробленого повідомлення
+  lastCheckTime   DateTime @default(now())
+  messagesProcessed Int    @default(0)
+  errors          Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
