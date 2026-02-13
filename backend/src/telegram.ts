@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID | '5072659044';
 
 let bot: TelegramBot | null = null;
 
