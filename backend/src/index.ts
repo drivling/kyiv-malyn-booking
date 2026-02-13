@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -783,8 +783,22 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
       date: listing.date,
       phone: listing.phone
     });
-    
-    res.status(201).json(listing);
+
+    if (isTelegramEnabled()) {
+      sendViberListingNotificationToAdmin({
+        id: listing.id,
+        listingType: listing.listingType,
+        route: listing.route,
+        date: listing.date,
+        departureTime: listing.departureTime,
+        seats: listing.seats,
+        phone: listing.phone,
+        senderName: listing.senderName,
+        notes: listing.notes,
+      }).catch((err) => console.error('Telegram Viber notify:', err));
+    }
+
+    res.status(201).json(serializeViberListing(listing));
   } catch (error: any) {
     console.error('❌ Помилка створення Viber оголошення:', error);
     res.status(500).json({ error: 'Failed to create Viber listing' });
@@ -829,13 +843,26 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
           }
         });
         created.push(listing);
+        if (isTelegramEnabled()) {
+          sendViberListingNotificationToAdmin({
+            id: listing.id,
+            listingType: listing.listingType,
+            route: listing.route,
+            date: listing.date,
+            departureTime: listing.departureTime,
+            seats: listing.seats,
+            phone: listing.phone,
+            senderName: listing.senderName,
+            notes: listing.notes,
+          }).catch((err) => console.error('Telegram Viber notify:', err));
+        }
       } catch (error) {
         errors.push({ index: i, error: error instanceof Error ? error.message : 'Unknown error' });
       }
     }
-    
+
     console.log(`✅ Створено ${created.length} Viber оголошень з ${parsedMessages.length}`);
-    
+
     res.status(201).json({
       success: true,
       created: created.length,

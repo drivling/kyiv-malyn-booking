@@ -95,6 +95,52 @@ export const sendBookingNotificationToAdmin = async (booking: {
 };
 
 /**
+ * Відправка повідомлення адміну про нове Viber оголошення (поїздку з чату)
+ */
+export const sendViberListingNotificationToAdmin = async (listing: {
+  id: number;
+  listingType: string;
+  route: string;
+  date: Date | string;
+  departureTime: string | null;
+  seats: number | null;
+  phone: string;
+  senderName: string | null;
+  notes: string | null;
+}) => {
+  if (!bot || !adminChatId) {
+    console.log('⚠️ Telegram bot або admin chat ID не налаштовано');
+    return;
+  }
+
+  try {
+    const dateStr = listing.date instanceof Date
+      ? formatDate(listing.date)
+      : (listing.date && listing.date.slice(0, 10))
+        ? formatDate(new Date(listing.date))
+        : '—';
+    const typeEmoji = listing.listingType === 'driver' ? '🚗' : '👤';
+    const typeLabel = listing.listingType === 'driver' ? 'Водій' : 'Пасажир';
+    const message = `
+📱 <b>Нове Viber оголошення #${listing.id}</b>
+
+${typeEmoji} <b>Тип:</b> ${typeLabel}
+🛣 <b>Маршрут:</b> ${listing.route}
+📅 <b>Дата:</b> ${dateStr}
+🕐 <b>Час:</b> ${listing.departureTime ?? '—'}
+${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}
+📞 <b>Телефон:</b> ${listing.phone}
+${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
+    `.trim();
+
+    await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
+    console.log(`✅ Telegram: адміну надіслано сповіщення про Viber оголошення #${listing.id}`);
+  } catch (error) {
+    console.error('❌ Помилка відправки Telegram сповіщення про Viber оголошення:', error);
+  }
+};
+
+/**
  * Відправка підтвердження бронювання клієнту
  */
 export const sendBookingConfirmationToCustomer = async (
