@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, ROUTES } from '@/utils/constants';
 import './AdminPage.css';
 
@@ -38,6 +38,19 @@ export const AdminPage: React.FC = () => {
   const [isViberModalOpen, setIsViberModalOpen] = useState(false);
   const [viberMessage, setViberMessage] = useState('');
   const [viberActiveFilter, setViberActiveFilter] = useState(true);
+  const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
+  const [viberEditForm, setViberEditForm] = useState({
+    rawMessage: '',
+    senderName: '',
+    listingType: 'driver' as ViberListingType,
+    route: '',
+    date: '',
+    departureTime: '',
+    seats: '',
+    phone: '',
+    notes: '',
+    isActive: true,
+  });
 
   useEffect(() => {
     if (activeTab === 'bookings') {
@@ -207,6 +220,49 @@ export const AdminPage: React.FC = () => {
       loadViberListings();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Помилка деактивації');
+    }
+  };
+
+  const openEditViberListing = (listing: ViberListing) => {
+    const dateStr = listing.date.slice(0, 10);
+    setViberEditForm({
+      rawMessage: listing.rawMessage,
+      senderName: listing.senderName ?? '',
+      listingType: listing.listingType,
+      route: listing.route,
+      date: dateStr,
+      departureTime: listing.departureTime ?? '',
+      seats: listing.seats != null ? String(listing.seats) : '',
+      phone: listing.phone,
+      notes: listing.notes ?? '',
+      isActive: listing.isActive,
+    });
+    setEditingViberListing(listing);
+  };
+
+  const handleUpdateViberListing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingViberListing) return;
+    setError('');
+    setSuccess('');
+    try {
+      await apiClient.updateViberListing(editingViberListing.id, {
+        rawMessage: viberEditForm.rawMessage,
+        senderName: viberEditForm.senderName || null,
+        listingType: viberEditForm.listingType,
+        route: viberEditForm.route,
+        date: viberEditForm.date,
+        departureTime: viberEditForm.departureTime || null,
+        seats: viberEditForm.seats ? parseInt(viberEditForm.seats, 10) : null,
+        phone: viberEditForm.phone,
+        notes: viberEditForm.notes || null,
+        isActive: viberEditForm.isActive,
+      });
+      setSuccess('✅ Оголошення оновлено!');
+      setEditingViberListing(null);
+      loadViberListings();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка оновлення');
     }
   };
 
@@ -506,6 +562,13 @@ export const AdminPage: React.FC = () => {
                           </span>
                         </td>
                         <td>
+                          <Button
+                            variant="secondary"
+                            onClick={() => openEditViberListing(listing)}
+                            style={{ marginRight: '8px' }}
+                          >
+                            ✏️ Редагувати
+                          </Button>
                           {listing.isActive && (
                             <Button
                               variant="secondary"
@@ -571,6 +634,112 @@ export const AdminPage: React.FC = () => {
                     Скасувати
                   </Button>
                   <Button type="submit">Створити</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Модальне вікно редагування Viber оголошення */}
+        {editingViberListing && (
+          <div className="modal" onClick={(e) => e.target === e.currentTarget && setEditingViberListing(null)}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Редагувати Viber оголошення #{editingViberListing.id}</h2>
+                <button className="close-btn" onClick={() => setEditingViberListing(null)}>
+                  &times;
+                </button>
+              </div>
+              <form onSubmit={handleUpdateViberListing}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Повідомлення (raw)</label>
+                  <textarea
+                    value={viberEditForm.rawMessage}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, rawMessage: e.target.value }))}
+                    rows={3}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <Input
+                    label="Відправник"
+                    value={viberEditForm.senderName}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, senderName: e.target.value }))}
+                  />
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Тип</label>
+                    <Select
+                      value={viberEditForm.listingType}
+                      onChange={(e) => setViberEditForm((f) => ({ ...f, listingType: e.target.value as ViberListingType }))}
+                      options={[
+                        { value: 'driver', label: '🚗 Водій' },
+                        { value: 'passenger', label: '👤 Пасажир' },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <Input
+                    label="Маршрут"
+                    value={viberEditForm.route}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, route: e.target.value }))}
+                  />
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Дата поїздки</label>
+                    <input
+                      type="date"
+                      value={viberEditForm.date}
+                      onChange={(e) => setViberEditForm((f) => ({ ...f, date: e.target.value }))}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <Input
+                    label="Час відправлення"
+                    value={viberEditForm.departureTime}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, departureTime: e.target.value }))}
+                    placeholder="напр. 18:00 або 18:00-18:30"
+                  />
+                  <Input
+                    label="Місця"
+                    type="number"
+                    value={viberEditForm.seats}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, seats: e.target.value }))}
+                    placeholder="—"
+                  />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <Input
+                    label="Телефон *"
+                    value={viberEditForm.phone}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, phone: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Примітки</label>
+                  <textarea
+                    value={viberEditForm.notes}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, notes: e.target.value }))}
+                    rows={2}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <input
+                    type="checkbox"
+                    checked={viberEditForm.isActive}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, isActive: e.target.checked }))}
+                  />
+                  <span>Активне оголошення</span>
+                </label>
+                <div className="form-actions">
+                  <Button type="button" variant="secondary" onClick={() => setEditingViberListing(null)}>
+                    Скасувати
+                  </Button>
+                  <Button type="submit">Зберегти</Button>
                 </div>
               </form>
             </div>

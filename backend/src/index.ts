@@ -849,17 +849,34 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
   }
 });
 
+// Дозволені поля для оновлення Viber оголошення (без id, createdAt, updatedAt)
+const VIBER_LISTING_UPDATE_FIELDS = [
+  'rawMessage', 'senderName', 'listingType', 'route', 'date', 'departureTime', 'seats', 'phone', 'notes', 'isActive'
+] as const;
+
 // Оновити Viber оголошення (Admin)
 app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
-  
+  const body = req.body as Record<string, unknown>;
+  const updates: Record<string, unknown> = {};
+  for (const key of VIBER_LISTING_UPDATE_FIELDS) {
+    if (body[key] !== undefined) {
+      if (key === 'date' && typeof body[key] === 'string') {
+        updates[key] = new Date(body[key] as string);
+      } else {
+        updates[key] = body[key];
+      }
+    }
+  }
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No allowed fields to update' });
+  }
   try {
     const listing = await prisma.viberListing.update({
       where: { id: Number(id) },
       data: updates
     });
-    res.json(listing);
+    res.json(serializeViberListing(listing));
   } catch (error: any) {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Viber listing not found' });
