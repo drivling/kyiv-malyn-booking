@@ -1,9 +1,24 @@
 /**
- * Парсер повідомлень з Viber групи
- * Розпізнає маршрути, дати, час, місця
+ * Парсер для повідомлень з Viber чату.
+ * Формат: [ 9 лютого 2026 р. 12:55 ] ⁨Ім'я⁩: текст повідомлення
+ *
+ * Логіка парсингу (маршрути, дата, час, місця, телефон) узгоджена з backend/src/viber-parser.ts,
+ * щоб окремий сервіс viberparser і основний backend давали однакові результати.
  */
 
-interface ParsedRide {
+export interface ParsedViberMessage {
+  senderName: string | null;
+  listingType: 'driver' | 'passenger';
+  route: string;
+  date: Date;
+  departureTime: string | null;
+  seats: number | null;
+  phone: string;
+  notes: string | null;
+}
+
+// Інтерфейс для сумісності з ViberRide таблицею
+export interface ParsedRide {
   route: string | null;
   departureDate: Date | null;
   departureTime: string | null;
@@ -15,81 +30,337 @@ interface ParsedRide {
   parsingErrors: string | null;
 }
 
+/**
+ * Нормалізує номер телефону - видаляє пробіли, дефіси
+ */
+export function normalizePhoneNumber(phone: string): string {
+  return phone.replace(/[\s\-\(\)]/g, '');
+}
+
+/**
+ * Витягує номер телефону з тексту
+ */
+export function extractPhone(text: string): string | null {
+  // Шукаємо різні формати номерів: 0501234567, +380501234567, 050-123-45-67
+  const phonePatterns = [
+    /\+?380\s?(\d{2})\s?(\d{3})\s?(\d{2})\s?(\d{2})/,  // +380 50 123 45 67
+    /0(\d{2})\s?(\d{3})\s?(\d{2})\s?(\d{2})/,          // 050 123 45 67
+    /0(\d{9})/,                                         // 0501234567
+  ];
+
+  for (const pattern of phonePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return normalizePhoneNumber(match[0]);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Витягує дату з тексту
+ * Підтримує формати: "09.02", "9.02", "сьогодні", "завтра"
+ */
+export function extractDate(text: string, messageDate?: Date): Date {
+  const now = messageDate || new Date();
+  const currentYear = now.getFullYear();
+  
+  // "сьогодні"
+  if (/сьогодні/i.test(text)) {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  
+  // "завтра"
+  if (/завтра/i.test(text)) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+  }
+  
+  // Дата у форматі DD.MM або DD.MM.YY або DD.MM.YYYY
+  const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/);
+  if (dateMatch) {
+    const day = parseInt(dateMatch[1], 10);
+    const month = parseInt(dateMatch[2], 10) - 1; // Місяці в JS з 0
+    let year = currentYear;
+    
+    if (dateMatch[3]) {
+      year = parseInt(dateMatch[3], 10);
+      if (year < 100) {
+        year += 2000; // 26 -> 2026
+      }
+    }
+    
+    return new Date(year, month, day);
+  }
+  
+  // Якщо дата не знайдена - повертаємо сьогодні
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/**
+ * Витягує час з тексту
+ * Формати: "18:00", "18:00-18:30", "о 18:30", "20-45" (дефіс замість двокрапки)
+ */
+export function extractTime(text: string): string | null {
+  // Спочатку шукаємо час у форматі HH:MM або HH:MM-HH:MM
+  let timeMatch = text.match(/(\d{1,2}):(\d{2})(?:\s*-\s*(\d{1,2}):(\d{2}))?/);
+  if (timeMatch) {
+    if (timeMatch[3]) {
+      // Діапазон часу (узгоджено з backend viber-parser.ts)
+      return `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}-${timeMatch[3].padStart(2, '0')}:${timeMatch[4]}`;
+    } else {
+      return `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+    }
+  }
+  
+  // Також шукаємо формат з дефісом замість двокрапки: "20-45"
+  const dashTimeMatch = text.match(/(?:виїзд|о|в)\s+(\d{1,2})-(\d{2})/i);
+  if (dashTimeMatch) {
+    return `${dashTimeMatch[1].padStart(2, '0')}:${dashTimeMatch[2]}`;
+  }
+  
+  return null;
+}
+
+/**
+ * Витягує кількість місць
+ */
+export function extractSeats(text: string): number | null {
+  // "2 пасажира", "3 особи", "є місця", "4 місця"
+  const seatsMatch = text.match(/(\d+)\s*(пасажир|особ|місц)/i);
+  if (seatsMatch) {
+    return parseInt(seatsMatch[1], 10);
+  }
+  
+  return null;
+}
+
+/**
+ * Визначає маршрут
+ */
+export function extractRoute(text: string): string {
+  const normalizedText = text.toLowerCase();
+  
+  // Київ → Малин (узгоджено з backend viber-parser.ts)
+  if (/ки[їєи][вї][а-я]*.*малин|киев.*малин|академ.*малин/i.test(normalizedText)) {
+    return 'Kyiv-Malyn';
+  }
+  
+  // Малин → Київ (узгоджено з backend viber-parser.ts)
+  if (/малин.*ки[їєи][вї][а-я]*|малин.*киев|малин.*академ/i.test(normalizedText)) {
+    return 'Malyn-Kyiv';
+  }
+  
+  // Малин → Житомир
+  if (/малин.*житомир/i.test(normalizedText)) {
+    return 'Malyn-Zhytomyr';
+  }
+  
+  // Житомир → Малин
+  if (/житомир.*малин/i.test(normalizedText)) {
+    return 'Zhytomyr-Malyn';
+  }
+  
+  return 'Unknown';
+}
+
+/**
+ * Визначає тип оголошення (водій чи пасажир)
+ */
+export function extractListingType(text: string): 'driver' | 'passenger' {
+  if (/водій/i.test(text)) {
+    return 'driver';
+  }
+  if (/пасажир/i.test(text)) {
+    return 'passenger';
+  }
+  
+  // За замовчуванням - водій (бо вони частіше пишуть)
+  return 'driver';
+}
+
+/**
+ * Витягує ім'я відправника з заголовка повідомлення
+ */
+export function extractSenderName(text: string): string | null {
+  // Формат: [ дата ] ⁨Ім'я⁩: повідомлення
+  const nameMatch = text.match(/\]\s*⁨([^⁩]+)⁩:/);
+  if (nameMatch) {
+    return nameMatch[1].trim();
+  }
+  
+  return null;
+}
+
+/**
+ * Витягує дату з заголовка повідомлення
+ * Формат: [ 9 лютого 2026 р. 12:55 ]
+ */
+export function extractMessageDate(text: string): Date | null {
+  const dateMatch = text.match(/\[\s*(\d{1,2})\s+([а-яії]+)\s+(\d{4})\s+р\./i);
+  if (dateMatch) {
+    const day = parseInt(dateMatch[1], 10);
+    const monthName = dateMatch[2].toLowerCase();
+    const year = parseInt(dateMatch[3], 10);
+    
+    const months: { [key: string]: number } = {
+      'січня': 0, 'лютого': 1, 'березня': 2, 'квітня': 3,
+      'травня': 4, 'червня': 5, 'липня': 6, 'серпня': 7,
+      'вересня': 8, 'жовтня': 9, 'листопада': 10, 'грудня': 11
+    };
+    
+    const month = months[monthName];
+    if (month !== undefined) {
+      return new Date(year, month, day);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Витягує текст повідомлення (без заголовка)
+ */
+export function extractMessageBody(text: string): string {
+  // Видаляємо заголовок [ дата ] ⁨Ім'я⁩:
+  const bodyMatch = text.match(/\]\s*⁨[^⁩]+⁩:\s*(.+)/s);
+  if (bodyMatch) {
+    return bodyMatch[1].trim();
+  }
+  
+  return text.trim();
+}
+
+/**
+ * Витягує ціну (якщо є)
+ */
+export function extractPrice(text: string): number | null {
+  const priceMatch = text.match(/(\d+)\s*(?:грн|uah|₴)/i);
+  if (priceMatch) {
+    return parseInt(priceMatch[1], 10);
+  }
+  return null;
+}
+
+/**
+ * Основна функція парсингу
+ */
+export function parseViberMessage(rawMessage: string): ParsedViberMessage | null {
+  try {
+    const senderName = extractSenderName(rawMessage);
+    const messageDate = extractMessageDate(rawMessage);
+    const messageBody = extractMessageBody(rawMessage);
+    
+    // Телефон може бути відсутній в повідомленні
+    let phone = extractPhone(messageBody);
+    if (!phone) {
+      console.warn('⚠️ Номер телефону не знайдено у повідомленні');
+      phone = ''; // Порожній рядок замість null
+    }
+    
+    const route = extractRoute(messageBody);
+    if (route === 'Unknown') {
+      console.warn('⚠️ Маршрут не визначено');
+      return null;
+    }
+    
+    const listingType = extractListingType(messageBody);
+    const date = extractDate(messageBody, messageDate || undefined);
+    const departureTime = extractTime(messageBody);
+    const seats = extractSeats(messageBody);
+    
+    // Додаткові примітки (все що не розпарсилось)
+    let notes: string | null = null;
+    const notesPatterns = [
+      /від\s+м\s+\w+/i,
+      /біля\s+\w+/i,
+      /є\s+місця/i,
+    ];
+    
+    for (const pattern of notesPatterns) {
+      const match = messageBody.match(pattern);
+      if (match) {
+        notes = notes ? `${notes}; ${match[0]}` : match[0];
+      }
+    }
+    
+    return {
+      senderName,
+      listingType,
+      route,
+      date,
+      departureTime,
+      seats,
+      phone,
+      notes,
+    };
+  } catch (error) {
+    console.error('❌ Помилка парсингу повідомлення:', error);
+    return null;
+  }
+}
+
+/**
+ * Парсить багато повідомлень одночасно (з копіювання чату)
+ */
+export function parseViberMessages(rawMessages: string): ParsedViberMessage[] {
+  const messages = rawMessages.split(/\n(?=\[)/); // Розділяємо по новим повідомленням
+  const parsed: ParsedViberMessage[] = [];
+  
+  for (const message of messages) {
+    const trimmed = message.trim();
+    if (!trimmed || trimmed.length < 10) continue;
+    
+    const result = parseViberMessage(trimmed);
+    if (result) {
+      parsed.push(result);
+    }
+  }
+  
+  return parsed;
+}
+
+/**
+ * Клас-обгортка для сумісності з попереднім кодом
+ */
 export class MessageParser {
-  // Регулярні вирази для розпізнавання
-  private routePatterns = [
-    // Київ -> Малин/Ірпінь/Буча
-    /(?:київ|киев|kyiv|k)\s*[-–—>→]\s*(?:малин|malyn|m|ірпінь|irpin|буча|bucha)/gi,
-    // Малин -> Київ
-    /(?:малин|malyn|m)\s*[-–—>→]\s*(?:київ|киев|kyiv|k|ірпінь|irpin|буча|bucha)/gi,
-    // Ірпінь -> Київ/Малин
-    /(?:ірпінь|irpin)\s*[-–—>→]\s*(?:київ|киев|kyiv|k|малин|malyn|m)/gi,
-    // Буча -> Київ/Малин
-    /(?:буча|bucha)\s*[-–—>→]\s*(?:київ|киев|kyiv|k|малин|malyn|m)/gi,
-  ];
-
-  private datePatterns = [
-    // 28.01, 28/01, 28-01
-    /(\d{1,2})[\.\/\-](\d{1,2})(?:[\.\/\-](\d{2,4}))?/g,
-    // Завтра, сьогодні
-    /(?:завтра|сьогодні|сегодня|today|tomorrow)/gi,
-    // Дні тижня
-    /(?:понеділок|вівторок|середа|четвер|п'ятниця|субота|неділя|пн|вт|ср|чт|пт|сб|нд)/gi,
-  ];
-
-  private timePatterns = [
-    // 08:00, 8:00, 08.00
-    /(\d{1,2})[:\.،](\d{2})/g,
-    // о 8, о 18
-    /\bо\s*(\d{1,2})\b/gi,
-  ];
-
-  private seatsPatterns = [
-    // "3 місця", "2 места", "1 місце"
-    /(\d+)\s*(?:місц[ья]|місце|мест[оа]|seat[s]?)/gi,
-    // "є 2", "є 3"
-    /є\s*(\d+)/gi,
-  ];
-
-  private pricePatterns = [
-    // "100 грн", "150грн", "$5"
-    /(\d+)\s*(?:грн|uah|₴|\$)/gi,
-  ];
-
-  private phonePatterns = [
-    // Українські номери: +380, 380, 0
-    /(?:\+38|38|0)?\s*\(?\d{2,3}\)?\s*\d{3}[-\s]?\d{2}[-\s]?\d{2}/g,
-  ];
-
   /**
-   * Головний метод парсингу
+   * Парсить повідомлення і повертає у форматі для ViberRide таблиці
    */
   parse(text: string, timestamp: Date): ParsedRide {
     const errors: string[] = [];
     
     try {
-      const route = this.parseRoute(text);
-      const departureDate = this.parseDate(text, timestamp);
-      const departureTime = this.parseTime(text);
-      const availableSeats = this.parseSeats(text);
-      const price = this.parsePrice(text);
-      const contactPhone = this.parsePhone(text);
+      const parsed = parseViberMessage(text);
       
-      const isParsed = !!(route && (departureDate || departureTime));
+      if (!parsed) {
+        return {
+          route: null,
+          departureDate: null,
+          departureTime: null,
+          availableSeats: null,
+          price: null,
+          contactPhone: null,
+          contactName: null,
+          isParsed: false,
+          parsingErrors: 'Failed to parse message',
+        };
+      }
       
-      if (!route) errors.push('Route not found');
-      if (!departureDate && !departureTime) errors.push('Date/time not found');
-
+      const price = extractPrice(text);
+      
       return {
-        route,
-        departureDate,
-        departureTime,
-        availableSeats,
-        price,
-        contactPhone,
-        contactName: null, // Можна додати парсинг імен
-        isParsed,
-        parsingErrors: errors.length > 0 ? errors.join('; ') : null,
+        route: parsed.route !== 'Unknown' ? parsed.route : null,
+        departureDate: parsed.date,
+        departureTime: parsed.departureTime,
+        availableSeats: parsed.seats,
+        price: price,
+        contactPhone: parsed.phone || null,
+        contactName: parsed.senderName,
+        isParsed: true,
+        parsingErrors: null,
       };
     } catch (error) {
       return {
@@ -104,136 +375,5 @@ export class MessageParser {
         parsingErrors: `Parse error: ${error}`,
       };
     }
-  }
-
-  private parseRoute(text: string): string | null {
-    const normalized = text.toLowerCase();
-    
-    for (const pattern of this.routePatterns) {
-      const match = pattern.exec(normalized);
-      if (match) {
-        return this.normalizeRoute(match[0]);
-      }
-    }
-    
-    return null;
-  }
-
-  private normalizeRoute(rawRoute: string): string {
-    const route = rawRoute.toLowerCase()
-      .replace(/[-–—>→]/g, '-')
-      .replace(/\s+/g, '');
-    
-    // Нормалізація назв
-    const cityMap: Record<string, string> = {
-      'київ': 'Kyiv',
-      'киев': 'Kyiv',
-      'kyiv': 'Kyiv',
-      'k': 'Kyiv',
-      'малин': 'Malyn',
-      'malyn': 'Malyn',
-      'm': 'Malyn',
-      'ірпінь': 'Irpin',
-      'irpin': 'Irpin',
-      'буча': 'Bucha',
-      'bucha': 'Bucha',
-    };
-    
-    const parts = route.split('-');
-    const normalized = parts.map(p => cityMap[p] || p).join('-');
-    
-    return normalized.split('-').map(w => 
-      w.charAt(0).toUpperCase() + w.slice(1)
-    ).join('-');
-  }
-
-  private parseDate(text: string, referenceDate: Date): Date | null {
-    // Спроба знайти конкретну дату
-    const dateMatch = /(\d{1,2})[\.\/\-](\d{1,2})/.exec(text);
-    if (dateMatch) {
-      const day = parseInt(dateMatch[1], 10);
-      const month = parseInt(dateMatch[2], 10) - 1; // Місяці в JS з 0
-      const year = referenceDate.getFullYear();
-      
-      if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
-        const date = new Date(year, month, day);
-        
-        // Якщо дата в минулому, додаємо рік
-        if (date < referenceDate) {
-          date.setFullYear(year + 1);
-        }
-        
-        return date;
-      }
-    }
-    
-    // Відносні дати
-    if (/завтра|tomorrow/gi.test(text)) {
-      const tomorrow = new Date(referenceDate);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return tomorrow;
-    }
-    
-    if (/сьогодні|сегодня|today/gi.test(text)) {
-      return new Date(referenceDate);
-    }
-    
-    return null;
-  }
-
-  private parseTime(text: string): string | null {
-    const timeMatch = /(\d{1,2})[:\.،](\d{2})/.exec(text);
-    if (timeMatch) {
-      const hour = parseInt(timeMatch[1], 10);
-      const minute = parseInt(timeMatch[2], 10);
-      
-      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-        return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      }
-    }
-    
-    // "о 8", "о 18"
-    const hourMatch = /\bо\s*(\d{1,2})\b/i.exec(text);
-    if (hourMatch) {
-      const hour = parseInt(hourMatch[1], 10);
-      if (hour >= 0 && hour <= 23) {
-        return `${hour.toString().padStart(2, '0')}:00`;
-      }
-    }
-    
-    return null;
-  }
-
-  private parseSeats(text: string): number | null {
-    const seatsMatch = /(\d+)\s*(?:місц[ья]|місце|мест[оа]|seat)/i.exec(text);
-    if (seatsMatch) {
-      return parseInt(seatsMatch[1], 10);
-    }
-    
-    const hasMatch = /є\s*(\d+)/i.exec(text);
-    if (hasMatch) {
-      return parseInt(hasMatch[1], 10);
-    }
-    
-    return null;
-  }
-
-  private parsePrice(text: string): number | null {
-    const priceMatch = /(\d+)\s*(?:грн|uah|₴)/i.exec(text);
-    if (priceMatch) {
-      return parseInt(priceMatch[1], 10);
-    }
-    
-    return null;
-  }
-
-  private parsePhone(text: string): string | null {
-    const phoneMatch = /(?:\+38|38|0)?\s*\(?\d{2,3}\)?\s*\d{3}[-\s]?\d{2}[-\s]?\d{2}/.exec(text);
-    if (phoneMatch) {
-      // Нормалізація номера
-      return phoneMatch[0].replace(/\s/g, '');
-    }
-    
-    return null;
   }
 }

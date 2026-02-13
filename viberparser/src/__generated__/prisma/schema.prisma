@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/__generated__/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Та сама таблиця, що й на backend — одна БД для оголошень з Viber
+model ViberListing {
+  id            Int      @id @default(autoincrement())
+  rawMessage    String   @db.Text // Оригінальне повідомлення з чату
+  senderName    String? // Ім'я відправника (наприклад "Ковальчук Інна")
+  listingType   String // "driver" або "passenger"
+  route         String // Напрямок (наприклад "Київ-Малин", "Малин-Київ")
+  date          DateTime // Дата поїздки
+  departureTime String? // Час відправлення (може бути діапазон "18:00-18:30")
+  seats         Int? // Кількість місць (для пасажира) або вільних місць (для водія)
+  phone         String // Контактний номер телефону
+  notes         String? // Додаткові примітки (наприклад "від м Почайна")
+  isActive      Boolean  @default(true) // Чи активне оголошення
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
