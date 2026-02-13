@@ -62,6 +62,17 @@ app.get('/health', (_req, res) => {
   });
 });
 
+app.get('/status', (_req, res) => {
+  res.json({
+    status: 'ok',
+    version: 3,
+    viber: true,
+    codeVersion: CODE_VERSION,
+    deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+    cwd: process.cwd(),
+  });
+});
+
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
   try {
