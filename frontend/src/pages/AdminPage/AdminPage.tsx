@@ -38,6 +38,10 @@ export const AdminPage: React.FC = () => {
   const [isViberModalOpen, setIsViberModalOpen] = useState(false);
   const [viberMessage, setViberMessage] = useState('');
   const [viberActiveFilter, setViberActiveFilter] = useState(true);
+  const [viberRouteFilter, setViberRouteFilter] = useState('');
+  const [viberDateFilter, setViberDateFilter] = useState('');
+  const [viberTypeFilter, setViberTypeFilter] = useState<'driver' | 'passenger' | ''>('');
+  const [viberSearchQuery, setViberSearchQuery] = useState('');
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
   const [viberEditForm, setViberEditForm] = useState({
     rawMessage: '',
@@ -101,7 +105,7 @@ export const AdminPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await apiClient.getViberListings(viberActiveFilter);
+      const data = await apiClient.getViberListings(); // завантажуємо всі, фільтрація клієнтська
       setViberListings(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка завантаження');
@@ -109,6 +113,21 @@ export const AdminPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const filteredViberListings = viberListings.filter((listing) => {
+    if (viberActiveFilter && !listing.isActive) return false;
+    if (viberRouteFilter && !listing.route.toLowerCase().includes(viberRouteFilter.toLowerCase())) return false;
+    if (viberDateFilter) {
+      const listingDate = listing.date.slice(0, 10);
+      if (listingDate !== viberDateFilter) return false;
+    }
+    if (viberTypeFilter && listing.listingType !== viberTypeFilter) return false;
+    if (viberSearchQuery) {
+      const searchIn = `${listing.phone} ${listing.senderName ?? ''} ${listing.notes ?? ''} ${listing.rawMessage}`.toLowerCase();
+      if (!searchIn.includes(viberSearchQuery.toLowerCase())) return false;
+    }
+    return true;
+  });
 
   const filteredBookings = bookings.filter((booking) => {
     if (routeFilter && booking.route !== routeFilter) return false;
@@ -501,15 +520,60 @@ export const AdminPage: React.FC = () => {
         {/* Viber оголошення */}
         {activeTab === 'viber' && (
           <div className="tab-content">
+            <div className="stats">
+              <div className="stat-card">
+                <h3>Всього (за фільтром)</h3>
+                <div className="stat-value">{filteredViberListings.length}</div>
+              </div>
+              <div className="stat-card">
+                <h3>Активні</h3>
+                <div className="stat-value">{filteredViberListings.filter((l) => l.isActive).length}</div>
+              </div>
+              <div className="stat-card">
+                <h3>🚗 Водії</h3>
+                <div className="stat-value">{filteredViberListings.filter((l) => l.listingType === 'driver').length}</div>
+              </div>
+              <div className="stat-card">
+                <h3>👤 Пасажири</h3>
+                <div className="stat-value">{filteredViberListings.filter((l) => l.listingType === 'passenger').length}</div>
+              </div>
+            </div>
+
             <div className="controls">
+              <Select
+                options={[
+                  { value: '', label: 'Всі типи' },
+                  { value: 'driver', label: '🚗 Водій' },
+                  { value: 'passenger', label: '👤 Пасажир' },
+                ]}
+                value={viberTypeFilter}
+                onChange={(e) => setViberTypeFilter(e.target.value as 'driver' | 'passenger' | '')}
+              />
+              <input
+                type="text"
+                placeholder="Маршрут..."
+                value={viberRouteFilter}
+                onChange={(e) => setViberRouteFilter(e.target.value)}
+                className="control-input"
+              />
+              <input
+                type="date"
+                value={viberDateFilter}
+                onChange={(e) => setViberDateFilter(e.target.value)}
+                className="control-input"
+              />
+              <input
+                type="text"
+                placeholder="Пошук по телефону, імені..."
+                value={viberSearchQuery}
+                onChange={(e) => setViberSearchQuery(e.target.value)}
+                className="control-input"
+              />
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="checkbox"
                   checked={viberActiveFilter}
-                  onChange={(e) => {
-                    setViberActiveFilter(e.target.checked);
-                    loadViberListings();
-                  }}
+                  onChange={(e) => setViberActiveFilter(e.target.checked)}
                 />
                 <span>Тільки активні</span>
               </label>
@@ -518,11 +582,19 @@ export const AdminPage: React.FC = () => {
               <Button variant="secondary" onClick={handleCleanupOldViberListings}>
                 🧹 Очистити старі
               </Button>
+              <Button variant="secondary" onClick={() => {
+                setViberRouteFilter('');
+                setViberDateFilter('');
+                setViberTypeFilter('');
+                setViberSearchQuery('');
+              }}>
+                Очистити фільтри
+              </Button>
             </div>
 
             {loading ? (
               <div className="loading">Завантаження...</div>
-            ) : viberListings.length === 0 ? (
+            ) : filteredViberListings.length === 0 ? (
               <div className="empty">📭 Немає оголошень</div>
             ) : (
               <div className="table-container">
@@ -542,7 +614,7 @@ export const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {viberListings.map((listing) => (
+                    {filteredViberListings.map((listing) => (
                       <tr key={listing.id} style={{ opacity: listing.isActive ? 1 : 0.5 }}>
                         <td>#{listing.id}</td>
                         <td>
