@@ -15,10 +15,21 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
+function maskDbUrl(url: string | undefined): string {
+  if (!url) return '(не встановлено)';
+  try {
+    const u = new URL(url);
+    return `${u.hostname}${u.pathname ? '***' + u.pathname.slice(-6) : ''}`;
+  } catch {
+    return url.slice(0, 20) + '...';
+  }
+}
+
 async function main() {
   const prisma = new PrismaClient();
-
-  console.log('🔄 Початок міграції даних у Person...\n');
+  const dbUrl = process.env.DATABASE_URL;
+  console.log('🔄 Початок міграції даних у Person...');
+  console.log('📍 Підключення до БД:', maskDbUrl(dbUrl), '\n');
 
   // 1. Збираємо всі унікальні номери з Booking та ViberListing з найкращими даними
   const bookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
@@ -129,6 +140,19 @@ async function main() {
   }
   console.log(`✅ Оновлено ViberListing.personId: ${updatedListings} записів.`);
 
+  // Перевірка: чи дані справді в БД
+  const personCount = await prisma.person.count();
+  const bookingsWithPerson = await prisma.booking.count({ where: { personId: { not: null } } });
+  const listingsWithPerson = await prisma.viberListing.count({ where: { personId: { not: null } } });
+  console.log('\n📊 Перевірка після запису:');
+  console.log(`   Person: ${personCount} записів`);
+  console.log(`   Booking з personId: ${bookingsWithPerson}`);
+  console.log(`   ViberListing з personId: ${listingsWithPerson}`);
+  if (personCount === 0 || (updatedBookings > 0 && bookingsWithPerson === 0)) {
+    console.log('\n⚠️  Увага: очікувані записи не збігаються. Можливо скрипт підключився до іншої БД.');
+    console.log('   Переконайтесь, що запускаєте: cd backend && railway run npm run migrate-to-person');
+    console.log('   і переглядаєте ту саму БД у Railway (Data / Postgres).');
+  }
   console.log('\n✅ Міграція даних у Person завершена.');
   await prisma.$disconnect();
 }
