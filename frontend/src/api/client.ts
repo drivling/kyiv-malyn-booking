@@ -197,6 +197,21 @@ class ApiClient {
       method: 'POST',
     });
   }
+
+  /** Тимчасово: міграція даних у таблицю Person (на проді виконується проти прод-БД). Після виконання — видалити. */
+  async runMigrateToPerson(): Promise<{
+    ok: boolean;
+    dbHost: string;
+    personsFound: number;
+    updatedBookings: number;
+    updatedListings: number;
+    personCount: number;
+    bookingsWithPerson: number;
+    listingsWithPerson: number;
+    error?: string;
+  }> {
+    return this.request('/admin/migrate-to-person', { method: 'POST' });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);
