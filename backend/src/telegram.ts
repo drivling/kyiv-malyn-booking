@@ -131,7 +131,7 @@ ${typeEmoji} <b>Тип:</b> ${typeLabel}
 📅 <b>Дата:</b> ${dateStr}
 🕐 <b>Час:</b> ${listing.departureTime ?? '—'}
 ${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}
-📞 <b>Телефон:</b> ${listing.phone}
+📞 <b>Телефон:</b> <a href="tel:${listing.phone.replace(/\s/g, '')}">${listing.phone}</a>
 ${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
     `.trim();
 
