@@ -959,7 +959,8 @@ https://malin.kiev.ua
           });
           const viberBlock =
             viberListings.length > 0
-              ? '\n\n📱 <b>Поїздки з Viber</b> (можна замовити по телефону):\n\n' +
+              ? '\n\n📱 <b>Поїздки з Viber</b> (можна замовити по телефону):\n' +
+                `🛣 ${getRouteName(direction)}\n\n` +
                 viberListings
                   .map((l) => {
                     const type = l.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
