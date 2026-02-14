@@ -1669,12 +1669,13 @@ https://malin.kiev.ua
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
     
-    // Перевірка чи є у користувача зареєстрований номер
+    // Дозволити якщо є бронювання (telegramUserId) або персона, прив'язана до Telegram (реєстрація через бота)
     const userBooking = await prisma.booking.findFirst({
       where: { telegramUserId: userId }
     });
+    const person = await getPersonByTelegram(userId, chatId);
     
-    if (!userBooking) {
+    if (!userBooking && !person) {
       await bot?.sendMessage(
         chatId,
         '❌ <b>Спочатку зареєструйте свій номер телефону</b>\n\n' +
@@ -2500,13 +2501,17 @@ https://malin.kiev.ua
         const route = parts.slice(0, -5).join('-');
         
         try {
-          // Отримати інформацію про користувача
+          // Дані користувача: з останнього бронювання або з Person (якщо реєструвався тільки через бота)
           const userBooking = await prisma.booking.findFirst({
             where: { telegramUserId: userId }
           });
+          const person = await getPersonByTelegram(userId, chatId);
+          const userName = userBooking?.name ?? person?.fullName?.trim() ?? 'Клієнт';
+          const userPhone = userBooking?.phone ?? person?.phoneNormalized;
+          const userPersonId = userBooking?.personId ?? person?.id;
           
-          if (!userBooking) {
-            throw new Error('Користувач не знайдений');
+          if (!userPhone) {
+            throw new Error('Користувач не знайдений. Напишіть /start і надішліть номер телефону.');
           }
           
           // Перевірити доступність місць
@@ -2551,11 +2556,11 @@ https://malin.kiev.ua
               date: new Date(selectedDate),
               departureTime: time,
               seats,
-              name: userBooking.name,
-              phone: userBooking.phone,
+              name: userName,
+              phone: userPhone,
               telegramChatId: chatId,
               telegramUserId: userId,
-              personId: userBooking.personId ?? undefined,
+              personId: userPersonId ?? undefined,
             },
           });
           

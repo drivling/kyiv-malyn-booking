@@ -1424,11 +1424,12 @@ https://malin.kiev.ua
     bot.onText(/\/book/, async (msg) => {
         const chatId = msg.chat.id.toString();
         const userId = msg.from?.id.toString() || '';
-        // Перевірка чи є у користувача зареєстрований номер
+        // Дозволити якщо є бронювання (telegramUserId) або персона, прив'язана до Telegram (реєстрація через бота)
         const userBooking = await prisma.booking.findFirst({
             where: { telegramUserId: userId }
         });
-        if (!userBooking) {
+        const person = await (0, exports.getPersonByTelegram)(userId, chatId);
+        if (!userBooking && !person) {
             await bot?.sendMessage(chatId, '❌ <b>Спочатку зареєструйте свій номер телефону</b>\n\n' +
                 'Використайте команду /start і надішліть свій номер телефону.\n\n' +
                 'Або створіть бронювання на сайті:\n' +
@@ -2147,12 +2148,16 @@ https://malin.kiev.ua
                 const time = parts[parts.length - 5];
                 const route = parts.slice(0, -5).join('-');
                 try {
-                    // Отримати інформацію про користувача
+                    // Дані користувача: з останнього бронювання або з Person (якщо реєструвався тільки через бота)
                     const userBooking = await prisma.booking.findFirst({
                         where: { telegramUserId: userId }
                     });
-                    if (!userBooking) {
-                        throw new Error('Користувач не знайдений');
+                    const person = await (0, exports.getPersonByTelegram)(userId, chatId);
+                    const userName = userBooking?.name ?? person?.fullName?.trim() ?? 'Клієнт';
+                    const userPhone = userBooking?.phone ?? person?.phoneNormalized;
+                    const userPersonId = userBooking?.personId ?? person?.id;
+                    if (!userPhone) {
+                        throw new Error('Користувач не знайдений. Напишіть /start і надішліть номер телефону.');
                     }
                     // Перевірити доступність місць
                     const startOfDay = new Date(selectedDate);
@@ -2190,11 +2195,11 @@ https://malin.kiev.ua
                             date: new Date(selectedDate),
                             departureTime: time,
                             seats,
-                            name: userBooking.name,
-                            phone: userBooking.phone,
+                            name: userName,
+                            phone: userPhone,
                             telegramChatId: chatId,
                             telegramUserId: userId,
-                            personId: userBooking.personId ?? undefined,
+                            personId: userPersonId ?? undefined,
                         },
                     });
                     console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
