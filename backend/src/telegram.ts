@@ -1439,7 +1439,8 @@ https://malin.kiev.ua
                     const time = l.departureTime || '—';
                     const seats = l.seats != null ? `, ${l.seats} місць` : '';
                     const notes = l.notes != null ? `\n💡 ${l.notes}` : '';
-                    return `${type} ${time}${seats}${notes}\n📞 <a href="tel:${l.phone}">${l.phone}</a>`;
+                    const namePart = l.senderName ? ` — ${l.senderName}` : '';
+                    return `${type} ${time}${seats}${notes}\n📞 <a href="tel:${l.phone.replace(/\s/g, '')}">${l.phone}</a>${namePart}`;
                   })
                   .join('\n\n')
               : '';
