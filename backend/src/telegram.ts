@@ -1330,7 +1330,8 @@ https://malin.kiev.ua
           date: { gte: today }
         },
         orderBy: { date: 'asc' },
-        take: 10
+        take: 10,
+        include: { viberListing: true }
       });
       
       console.log(`📅 Майбутніх бронювань: ${futureBookings.length} (від ${today.toISOString().split('T')[0]})`);
@@ -1339,7 +1340,8 @@ https://malin.kiev.ua
         // Перезавантажуємо allUserBookings після можливих оновлень
         const finalAllBookings = await prisma.booking.findMany({
           where: { telegramUserId: userId },
-          orderBy: { date: 'desc' }
+          orderBy: { date: 'desc' },
+          include: { viberListing: true }
         });
         
         // Якщо немає майбутніх - покажемо останні 3 минулих для діагностики
@@ -1350,11 +1352,16 @@ https://malin.kiev.ua
           
           recentPast.forEach((booking, index) => {
             const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
+            const b = booking as { viberListing?: { senderName: string | null; phone: string } | null };
             message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n`;
             message += `   🚌 ${getRouteName(booking.route)}\n`;
             message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
             message += `   🎫 Місць: ${booking.seats}\n`;
-            message += `   👤 ${booking.name}\n\n`;
+            message += `   👤 ${booking.name}\n`;
+            if (b.viberListing) {
+              message += `   🚗 Водій: ${b.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(b.viberListing.phone)}\n`;
+            }
+            message += '\n';
           });
           
           message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
@@ -1377,11 +1384,16 @@ https://malin.kiev.ua
       
       futureBookings.forEach((booking, index) => {
         const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
+        const b = booking as { viberListing?: { senderName: string | null; phone: string } | null };
         message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n`;
         message += `   🚌 ${getRouteName(booking.route)}\n`;
         message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
         message += `   🎫 Місць: ${booking.seats}\n`;
-        message += `   👤 ${booking.name}\n\n`;
+        message += `   👤 ${booking.name}\n`;
+        if (b.viberListing) {
+          message += `   🚗 Водій: ${b.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(b.viberListing.phone)}\n`;
+        }
+        message += '\n';
       });
       
       message += `\n🔒 <i>Показано тільки ваші бронювання</i>`;
@@ -2508,10 +2520,8 @@ https://malin.kiev.ua
           
           await bot?.answerCallbackQuery(query.id, { text: '✅ Бронювання створено!' });
           
-          // Відправити підтвердження адміну якщо налаштовано
-          if (process.env.ADMIN_TELEGRAM_ID) {
-            await sendBookingNotificationToAdmin(booking);
-          }
+          // Відправити сповіщення адміну (використовується TELEGRAM_ADMIN_CHAT_ID)
+          await sendBookingNotificationToAdmin(booking).catch((err) => console.error('Telegram notify admin:', err));
         } catch (error: any) {
           console.error('❌ Помилка створення бронювання:', error);
           await bot?.editMessageText(

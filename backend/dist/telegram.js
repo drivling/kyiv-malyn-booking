@@ -1155,14 +1155,16 @@ https://malin.kiev.ua
                     date: { gte: today }
                 },
                 orderBy: { date: 'asc' },
-                take: 10
+                take: 10,
+                include: { viberListing: true }
             });
             console.log(`📅 Майбутніх бронювань: ${futureBookings.length} (від ${today.toISOString().split('T')[0]})`);
             if (futureBookings.length === 0) {
                 // Перезавантажуємо allUserBookings після можливих оновлень
                 const finalAllBookings = await prisma.booking.findMany({
                     where: { telegramUserId: userId },
-                    orderBy: { date: 'desc' }
+                    orderBy: { date: 'desc' },
+                    include: { viberListing: true }
                 });
                 // Якщо немає майбутніх - покажемо останні 3 минулих для діагностики
                 if (finalAllBookings.length > 0) {
@@ -1171,11 +1173,16 @@ https://malin.kiev.ua
                     message += `Але знайдено ${finalAllBookings.length} минулих:\n\n`;
                     recentPast.forEach((booking, index) => {
                         const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
+                        const b = booking;
                         message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n`;
                         message += `   🚌 ${getRouteName(booking.route)}\n`;
                         message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
                         message += `   🎫 Місць: ${booking.seats}\n`;
-                        message += `   👤 ${booking.name}\n\n`;
+                        message += `   👤 ${booking.name}\n`;
+                        if (b.viberListing) {
+                            message += `   🚗 Водій: ${b.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(b.viberListing.phone)}\n`;
+                        }
+                        message += '\n';
                     });
                     message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
                     await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
@@ -1191,11 +1198,16 @@ https://malin.kiev.ua
             let message = `📋 <b>Ваші майбутні бронювання:</b>\n\n`;
             futureBookings.forEach((booking, index) => {
                 const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
+                const b = booking;
                 message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n`;
                 message += `   🚌 ${getRouteName(booking.route)}\n`;
                 message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
                 message += `   🎫 Місць: ${booking.seats}\n`;
-                message += `   👤 ${booking.name}\n\n`;
+                message += `   👤 ${booking.name}\n`;
+                if (b.viberListing) {
+                    message += `   🚗 Водій: ${b.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(b.viberListing.phone)}\n`;
+                }
+                message += '\n';
             });
             message += `\n🔒 <i>Показано тільки ваші бронювання</i>`;
             await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
@@ -2151,10 +2163,8 @@ https://malin.kiev.ua
                         parse_mode: 'HTML'
                     });
                     await bot?.answerCallbackQuery(query.id, { text: '✅ Бронювання створено!' });
-                    // Відправити підтвердження адміну якщо налаштовано
-                    if (process.env.ADMIN_TELEGRAM_ID) {
-                        await (0, exports.sendBookingNotificationToAdmin)(booking);
-                    }
+                    // Відправити сповіщення адміну (використовується TELEGRAM_ADMIN_CHAT_ID)
+                    await (0, exports.sendBookingNotificationToAdmin)(booking).catch((err) => console.error('Telegram notify admin:', err));
                 }
                 catch (error) {
                     console.error('❌ Помилка створення бронювання:', error);
