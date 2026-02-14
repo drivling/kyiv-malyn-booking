@@ -440,6 +440,11 @@ export const AdminPage: React.FC = () => {
                           <span className={`badge ${getRouteBadgeClass(booking.route)}`}>
                             {getRouteLabel(booking.route)}
                           </span>
+                          {booking.source === 'viber_match' && (
+                            <span className="badge badge-info" style={{ marginLeft: 6 }} title="Попутка (водій підтвердив)">
+                              🚗 Попутка
+                            </span>
+                          )}
                         </td>
                         <td>{new Date(booking.date).toLocaleDateString('uk-UA')}</td>
                         <td><strong>{booking.departureTime}</strong></td>

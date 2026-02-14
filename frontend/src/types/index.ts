@@ -31,6 +31,8 @@ export interface Booking {
   name: string;
   phone: string;
   scheduleId: number | null;
+  source?: 'schedule' | 'viber_match'; // schedule = маршрутка, viber_match = попутка (водій підтвердив)
+  viberListingId?: number | null;
   createdAt: string;
 }
 

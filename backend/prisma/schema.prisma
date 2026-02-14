@@ -45,9 +45,26 @@ model Booking {
   telegramUserId  String?  // Копія з Person для зворотної сумісності
   scheduleId      Int?     // Посилання на графік (опціонально)
   personId        Int?     // Посилання на людину (єдине джерело імені/телефону/Telegram)
+  source          String   @default("schedule") // "schedule" — маршрутка, "viber_match" — попутка (водій підтвердив)
+  viberListingId  Int?     // Якщо source=viber_match — оголошення водія (ViberListing)
   createdAt       DateTime @default(now())
 
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  person       Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
+  viberListing ViberListing? @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
+}
+
+// Запит пасажира на бронювання у водія (пряме співпадіння). Водій має 1 год на підтвердження.
+model RideShareRequest {
+  id                  Int      @id @default(autoincrement())
+  passengerListingId  Int
+  driverListingId     Int
+  status              String   // "pending" | "confirmed" | "expired" | "rejected"
+  expiresAt           DateTime
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  passengerListing ViberListing @relation("RideShareAsPassenger", fields: [passengerListingId], references: [id], onDelete: Cascade)
+  driverListing    ViberListing @relation("RideShareAsDriver", fields: [driverListingId], references: [id], onDelete: Cascade)
 }
 
 model ViberListing {
@@ -66,5 +83,8 @@ model ViberListing {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  person                   Person?            @relation(fields: [personId], references: [id], onDelete: SetNull)
+  bookingsFromRideShare    Booking[]
+  rideShareRequestsAsPassenger RideShareRequest[] @relation("RideShareAsPassenger")
+  rideShareRequestsAsDriver   RideShareRequest[] @relation("RideShareAsDriver")
 }

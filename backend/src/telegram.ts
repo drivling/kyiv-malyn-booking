@@ -309,10 +309,13 @@ export async function notifyMatchingDriversForNewPassenger(
       const time = d.departureTime ?? '—';
       return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
     }).join('\n');
+    const bookButtons = exactList.map((d) => [
+      { text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
+    ]);
     await bot?.sendMessage(
       passengerChatId,
-      '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут</b>\n\n' + lines,
-      { parse_mode: 'HTML' }
+      '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._',
+      { parse_mode: 'HTML', reply_markup: { inline_keyboard: bookButtons } }
     ).catch(() => {});
   }
   if (passengerChatId && approxList.length > 0) {
@@ -1346,7 +1349,8 @@ https://malin.kiev.ua
           message += `Але знайдено ${finalAllBookings.length} минулих:\n\n`;
           
           recentPast.forEach((booking, index) => {
-            message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
+            const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
+            message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n`;
             message += `   🚌 ${getRouteName(booking.route)}\n`;
             message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
             message += `   🎫 Місць: ${booking.seats}\n`;
@@ -1372,7 +1376,8 @@ https://malin.kiev.ua
       let message = `📋 <b>Ваші майбутні бронювання:</b>\n\n`;
       
       futureBookings.forEach((booking, index) => {
-        message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>\n`;
+        const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
+        message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n`;
         message += `   🚌 ${getRouteName(booking.route)}\n`;
         message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
         message += `   🎫 Місць: ${booking.seats}\n`;
@@ -1918,6 +1923,135 @@ https://malin.kiev.ua
         }
         await bot?.editMessageText('✅ Готово! Запит на поїздку створено.', { chat_id: chatId, message_id: messageId });
         await bot?.answerCallbackQuery(query.id);
+        return;
+      }
+
+      // ---------- Попутка: пасажир натиснув "Забронювати у водія" ----------
+      if (data.startsWith('vibermatch_book_')) {
+        const parts = data.replace('vibermatch_book_', '').split('_');
+        const passengerListingId = parseInt(parts[0], 10);
+        const driverListingId = parseInt(parts[1], 10);
+        if (isNaN(passengerListingId) || isNaN(driverListingId)) {
+          await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка даних' });
+          return;
+        }
+        const [passengerListing, driverListing] = await Promise.all([
+          prisma.viberListing.findUnique({ where: { id: passengerListingId } }),
+          prisma.viberListing.findUnique({ where: { id: driverListingId } })
+        ]);
+        if (!passengerListing || !driverListing || passengerListing.listingType !== 'passenger' || driverListing.listingType !== 'driver') {
+          await bot?.answerCallbackQuery(query.id, { text: '❌ Оголошення не знайдено' });
+          return;
+        }
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 година
+        const request = await prisma.rideShareRequest.create({
+          data: { passengerListingId, driverListingId, status: 'pending', expiresAt }
+        });
+        const driverChatId = await getChatIdByPhone(driverListing.phone);
+        const passengerName = passengerListing.senderName ?? 'Пасажир';
+        if (driverChatId) {
+          const confirmKeyboard = {
+            inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${request.id}` }]]
+          };
+          await bot?.sendMessage(
+            driverChatId,
+            `🎫 <b>Запит на попутку</b>\n\n` +
+              `👤 ${passengerName} хоче поїхати з вами.\n\n` +
+              `🛣 ${getRouteName(driverListing.route)}\n` +
+              `📅 ${formatDate(driverListing.date)}\n` +
+              (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+              `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
+              (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '') +
+              `\n\n_У вас є 1 година на підтвердження._`,
+            { parse_mode: 'HTML', reply_markup: confirmKeyboard }
+          ).catch(() => {});
+        }
+        await bot?.answerCallbackQuery(query.id, { text: 'Запит надіслано водію. Очікуйте підтвердження (1 год).' });
+        await bot?.sendMessage(chatId, '✅ Запит на бронювання надіслано водію. Він отримає сповіщення і матиме 1 годину на підтвердження. Якщо підтвердить — ви побачите поїздку в /mybookings.', { parse_mode: 'HTML' }).catch(() => {});
+        return;
+      }
+
+      // ---------- Попутка: водій натиснув "Підтвердити бронювання" ----------
+      if (data.startsWith('vibermatch_confirm_')) {
+        const requestId = parseInt(data.replace('vibermatch_confirm_', ''), 10);
+        if (isNaN(requestId)) {
+          await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
+          return;
+        }
+        const request = await prisma.rideShareRequest.findUnique({
+          where: { id: requestId },
+          include: { passengerListing: true, driverListing: true }
+        });
+        if (!request) {
+          await bot?.answerCallbackQuery(query.id, { text: '❌ Запит не знайдено' });
+          return;
+        }
+        if (request.status !== 'pending') {
+          await bot?.answerCallbackQuery(query.id, { text: request.status === 'confirmed' ? '✅ Вже підтверджено' : 'Запит не активний' });
+          return;
+        }
+        if (new Date() > request.expiresAt) {
+          await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
+          await bot?.answerCallbackQuery(query.id, { text: '⏱ Час на підтвердження минув' });
+          return;
+        }
+        const { passengerListing, driverListing } = request;
+        await findOrCreatePersonByPhone(passengerListing.phone, { fullName: passengerListing.senderName ?? undefined });
+        const passengerPerson = await getPersonByPhone(passengerListing.phone);
+        const driverPerson = await getPersonByTelegram(userId, chatId);
+        const isDriver = driverPerson && normalizePhone(driverPerson.phoneNormalized) === normalizePhone(driverListing.phone);
+        if (!isDriver) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Це підтвердження лише для водія цієї поїздки' });
+          return;
+        }
+        if (!passengerPerson) {
+          await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка: пасажир не знайдений' });
+          return;
+        }
+        const booking = await prisma.booking.create({
+          data: {
+            route: driverListing.route,
+            date: driverListing.date,
+            departureTime: driverListing.departureTime ?? '—',
+            seats: 1,
+            name: passengerListing.senderName ?? 'Пасажир',
+            phone: passengerListing.phone,
+            personId: passengerPerson.id,
+            telegramChatId: passengerPerson.telegramChatId,
+            telegramUserId: passengerPerson.telegramUserId,
+            source: 'viber_match',
+            viberListingId: driverListing.id
+          }
+        });
+        await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
+        const passengerChatId = passengerPerson.telegramChatId;
+        if (passengerChatId) {
+          await bot?.sendMessage(
+            passengerChatId,
+            `✅ <b>Водій підтвердив ваше бронювання!</b>\n\n` +
+              `🎫 №${booking.id} · 🚗 Попутка\n` +
+              `🛣 ${getRouteName(driverListing.route)}\n` +
+              `📅 ${formatDate(driverListing.date)}\n` +
+              (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+              `👤 Водій: ${driverListing.senderName ?? '—'}\n` +
+              `📞 ${formatPhoneTelLink(driverListing.phone)}\n\n` +
+              `Поїздка з\'явиться у /mybookings.`,
+            { parse_mode: 'HTML' }
+          ).catch(() => {});
+        }
+        await bot?.answerCallbackQuery(query.id, { text: 'Бронювання підтверджено! Пасажир отримав сповіщення.' });
+        await bot?.sendMessage(chatId, '✅ Ви підтвердили бронювання. Пасажир отримав сповіщення.', { parse_mode: 'HTML' }).catch(() => {});
+        if (adminChatId) {
+          await bot?.sendMessage(
+            adminChatId,
+            `🚗 <b>Попутка підтверджена</b>\n\n` +
+              `Бронювання #${booking.id} (viber_match)\n` +
+              `Пасажир: ${booking.name}, ${formatPhoneTelLink(booking.phone)}\n` +
+              `Водій: ${driverListing.senderName ?? '—'}, ${formatPhoneTelLink(driverListing.phone)}\n` +
+              `${getRouteName(driverListing.route)} · ${formatDate(driverListing.date)}`,
+            { parse_mode: 'HTML' }
+          ).catch(() => {});
+        }
         return;
       }
 

@@ -241,7 +241,10 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
             const time = d.departureTime ?? '—';
             return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
-        await bot?.sendMessage(passengerChatId, '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
+        const bookButtons = exactList.map((d) => [
+            { text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
+        ]);
+        await bot?.sendMessage(passengerChatId, '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: bookButtons } }).catch(() => { });
     }
     if (passengerChatId && approxList.length > 0) {
         const lines = approxList.map((d) => {
@@ -419,6 +422,10 @@ const getRouteName = (route) => {
         return 'Малин → Житомир';
     if (route.includes('Zhytomyr-Malyn'))
         return 'Житомир → Малин';
+    if (route.includes('Korosten-Malyn'))
+        return 'Коростень → Малин';
+    if (route.includes('Malyn-Korosten'))
+        return 'Малин → Коростень';
     return route;
 };
 /**
@@ -616,12 +623,20 @@ async function registerUserPhone(chatId, userId, phoneInput) {
             });
             await bot.sendMessage(chatId, `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
                 `📱 ${formatPhoneTelLink(phoneInput)}\n\n` +
-                `Коли ви створите бронювання на сайті з цим номером:\n` +
-                `🌐 https://malin.kiev.ua\n\n` +
-                `ви автоматично будете отримувати:\n` +
-                `• ✅ Підтвердження бронювання\n` +
-                `• 🔔 Нагадування за день до поїздки\n\n` +
-                `Нічого більше робити не потрібно — просто забронюйте квиток на сайті.`, { parse_mode: 'HTML' });
+                `📋 <b>Повна інструкція</b>\n\n` +
+                `1️⃣ <b>Забронювати квиток</b> можна двома способами:\n` +
+                `   • На сайті: 🌐 https://malin.kiev.ua (вкажіть цей номер телефону)\n` +
+                `   • У боті: команда /book — обрати маршрут, дату, час і підтвердити\n\n` +
+                `2️⃣ <b>Що ви будете отримувати автоматично:</b>\n` +
+                `   • ✅ Підтвердження бронювання (на сайті чи в боті)\n` +
+                `   • 🔔 Нагадування за день до поїздки\n\n` +
+                `3️⃣ <b>Корисні команди:</b>\n` +
+                `   /mybookings — переглянути мої бронювання\n` +
+                `   /book — створити нове бронювання в боті\n` +
+                `   /help — повна довідка по всіх командах\n\n` +
+                `   🚗 <b>Водій:</b> /adddriverride — додати поїздку, /mydriverrides — мої поїздки\n` +
+                `   👤 <b>Пасажир:</b> /addpassengerride — шукаю поїздку, /mypassengerrides — мої запити\n\n` +
+                `Нічого більше налаштовувати не потрібно — просто забронюйте квиток на сайті або через /book.`, { parse_mode: 'HTML' });
             console.log(`✅ Додано Person (без бронювань) для ${userId}, номер ${normalizedPhone}`);
             return;
         }
@@ -677,39 +692,12 @@ function setupBotCommands() {
         const existingBooking = await prisma.booking.findFirst({
             where: { telegramUserId: userId },
         });
-        if (person) {
-            await prisma.person.updateMany({
-                where: { id: person.id },
-                data: { telegramChatId: chatId, telegramUserId: userId },
-            });
-        }
-        if (existingBooking) {
-            await prisma.booking.updateMany({
-                where: {
-                    telegramUserId: userId,
-                    telegramChatId: null,
-                },
-                data: { telegramChatId: chatId },
-            });
-            if (person) {
-                await updatePersonAndBookingsTelegram(person.id, chatId, userId);
-            }
-            else {
-                const p = await (0, exports.findOrCreatePersonByPhone)(existingBooking.phone, {
-                    fullName: existingBooking.name,
-                    telegramChatId: chatId,
-                    telegramUserId: userId,
-                });
-                await updatePersonAndBookingsTelegram(p.id, chatId, userId);
-            }
-            console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start`);
-            const displayPhone = existingBooking.phone;
-            const welcomeMessage = `
+        const buildRegisteredWelcome = (displayPhone) => `
 👋 Привіт знову, ${firstName}!
 
-Я бот для бронювання маршруток <b>Київ ↔ Малин</b>.
+Я бот для бронювання маршруток <b>Київ, Житомир, Коростень ↔ Малин</b>.
 
-✅ Ваш акаунт вже підключено до номера: ${formatPhoneTelLink(displayPhone)}
+✅ Ваш акаунт підключено до номера: ${displayPhone}
 
 🎫 <b>Що можна зробити:</b>
 /book - 🎫 Створити нове бронювання
@@ -721,29 +709,59 @@ function setupBotCommands() {
 👤 <b>Пасажир:</b>
 /mypassengerrides - Мої запити на поїздку
 /addpassengerride - Шукаю поїздку (додати запит)
-/help - 📚 Показати довідку
+/help - 📚 Показати повну довідку
 
 🌐 <b>Або забронюйте на сайті:</b>
 https://malin.kiev.ua
-      `.trim();
-            await bot?.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
+    `.trim();
+        if (person) {
+            await prisma.person.updateMany({
+                where: { id: person.id },
+                data: { telegramChatId: chatId, telegramUserId: userId },
+            });
+            if (existingBooking) {
+                await prisma.booking.updateMany({
+                    where: { telegramUserId: userId, telegramChatId: null },
+                    data: { telegramChatId: chatId },
+                });
+                await updatePersonAndBookingsTelegram(person.id, chatId, userId);
+                console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start`);
+            }
+            const displayPhone = person.phoneNormalized ? formatPhoneTelLink(person.phoneNormalized) : (existingBooking ? formatPhoneTelLink(existingBooking.phone) : '');
+            await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), { parse_mode: 'HTML' });
         }
         else {
+            if (existingBooking) {
+                await prisma.booking.updateMany({
+                    where: { telegramUserId: userId, telegramChatId: null },
+                    data: { telegramChatId: chatId },
+                });
+                const p = await (0, exports.findOrCreatePersonByPhone)(existingBooking.phone, {
+                    fullName: existingBooking.name,
+                    telegramChatId: chatId,
+                    telegramUserId: userId,
+                });
+                await updatePersonAndBookingsTelegram(p.id, chatId, userId);
+                console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start (з booking)`);
+                const displayPhone = formatPhoneTelLink(p.phoneNormalized ?? existingBooking.phone);
+                await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), { parse_mode: 'HTML' });
+                return;
+            }
             // Новий користувач - пропонуємо зареєструватися
             const welcomeMessage = `
 👋 Привіт, ${firstName}!
 
-Я бот для бронювання маршруток <b>Київ ↔ Малин</b>.
+Я бот для бронювання маршруток <b>Київ, Житомир, Коростень ↔ Малин</b>.
 
-🎫 <b>Для отримання нотифікацій та перегляду своїх бронювань:</b>
+🎫 <b>Щоб отримувати нотифікації та переглядати свої бронювання:</b>
 
-📱 Надішліть мені свій номер телефону одним з способів:
-   • Використайте кнопку "Поділитися контактом" нижче
-   • Або просто напишіть номер у форматі: +380501234567
+📱 Надішліть мені свій номер телефону:
+   • Кнопкою «Поділитися контактом» нижче
+   • Або напишіть номер: +380501234567
 
-📋 <b>Доступні команди:</b>
-/mybookings - переглянути мої бронювання
-/help - показати довідку
+📋 <b>Команди:</b>
+/help - повна довідка
+/mybookings - мої бронювання (після реєстрації)
 
 🌐 <b>Забронювати квиток:</b>
 https://malin.kiev.ua
@@ -762,17 +780,15 @@ https://malin.kiev.ua
             });
         }
     });
-    // Команда /help
+    // Команда /help — зареєстрований = є в Person (номер уже надано), не тільки по Booking
     bot.onText(/\/help/, async (msg) => {
         const chatId = msg.chat.id.toString();
         const userId = msg.from?.id.toString() || '';
-        // Перевіряємо чи користувач зареєстрований
-        const existingBooking = await prisma.booking.findFirst({
-            where: { telegramUserId: userId }
-        });
-        if (existingBooking) {
+        const person = await (0, exports.getPersonByTelegram)(userId, chatId);
+        if (person) {
+            const displayPhone = person.phoneNormalized ? formatPhoneTelLink(person.phoneNormalized) : '';
             const helpMessage = `
-📚 <b>Довідка по командах:</b>
+📚 <b>Повна довідка по командах</b>
 
 🎫 <b>Бронювання:</b>
 /book - створити нове бронювання
@@ -791,16 +807,15 @@ https://malin.kiev.ua
 /start - головне меню
 /help - показати цю довідку
 
-✅ Ваш акаунт підключено до номера: ${formatPhoneTelLink(existingBooking.phone)}
+✅ Ваш акаунт підключено до номера: ${displayPhone}
 
-💡 <b>Що я вмію:</b>
-• 🎫 Створювати нові бронювання
-• 📋 Показувати тільки ваші бронювання
-• 🚫 Скасовувати бронювання
-• 🚗 Показувати та додавати ваші поїздки як водій
-• 👤 Додавати запити як пасажир (шукаю поїздку) — сповіщення при збігу з водіями
-• ✅ Надсилати підтвердження
-• 🔔 Нагадувати за день до поїздки
+💡 <b>Що робить бот:</b>
+• 🎫 Створює нові бронювання
+• 📋 Показує тільки ваші бронювання
+• 🚫 Дозволяє скасовувати бронювання
+• 🚗 Додавати поїздки як водій та запити як пасажир
+• ✅ Надсилає підтвердження після бронювання на сайті
+• 🔔 Нагадує за день до поїздки
 
 🌐 Сайт: https://malin.kiev.ua
       `.trim();
@@ -808,23 +823,20 @@ https://malin.kiev.ua
         }
         else {
             const helpMessage = `
-📚 <b>Довідка:</b>
+📚 <b>Довідка для нових користувачів</b>
 
 /start - почати роботу з ботом
-/mybookings - переглянути мої бронювання
 /help - показати цю довідку
 
 📱 <b>Як підключитися:</b>
 1. Напишіть /start
-2. Надішліть свій номер телефону (кнопкою або текстом)
-3. Готово! Тепер можете бронювати через бота
+2. Надішліть свій номер телефону кнопкою «Поділитися контактом» або текстом
+3. Після цього зможете бронювати через бота та отримувати сповіщення
 
 💡 <b>Формати номера:</b>
-• +380501234567
-• 380501234567
-• 0501234567
++380501234567 або 0501234567
 
-🌐 Сайт: https://malin.kiev.ua
+🌐 Забронювати квиток: https://malin.kiev.ua
       `.trim();
             await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
         }
@@ -848,6 +860,8 @@ https://malin.kiev.ua
                     [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
                     [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
                     [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+                    [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+                    [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
                     [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
                 ]
             };
@@ -864,6 +878,8 @@ https://malin.kiev.ua
                     [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
                     [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
                     [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+                    [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+                    [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
                     [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
                 ]
             };
@@ -952,6 +968,8 @@ https://malin.kiev.ua
                         [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
                         [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
                         [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+                        [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+                        [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
                         [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
                     ]
                 };
@@ -1026,6 +1044,8 @@ https://malin.kiev.ua
                         [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
                         [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
                         [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+                        [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+                        [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
                         [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
                     ]
                 };
@@ -1150,7 +1170,8 @@ https://malin.kiev.ua
                     let message = `📋 <b>Активних бронювань немає</b>\n\n`;
                     message += `Але знайдено ${finalAllBookings.length} минулих:\n\n`;
                     recentPast.forEach((booking, index) => {
-                        message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
+                        const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
+                        message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n`;
                         message += `   🚌 ${getRouteName(booking.route)}\n`;
                         message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
                         message += `   🎫 Місць: ${booking.seats}\n`;
@@ -1169,7 +1190,8 @@ https://malin.kiev.ua
             }
             let message = `📋 <b>Ваші майбутні бронювання:</b>\n\n`;
             futureBookings.forEach((booking, index) => {
-                message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>\n`;
+                const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
+                message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n`;
                 message += `   🚌 ${getRouteName(booking.route)}\n`;
                 message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
                 message += `   🎫 Місць: ${booking.seats}\n`;
@@ -1295,6 +1317,8 @@ https://malin.kiev.ua
                 [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
                 [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
                 [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+                [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+                [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
                 [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
             ]
         };
@@ -1325,6 +1349,8 @@ https://malin.kiev.ua
                 [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
                 [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
                 [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+                [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+                [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
                 [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
             ]
         };
@@ -1365,7 +1391,9 @@ https://malin.kiev.ua
                 [{ text: '🚌 Київ → Малин', callback_data: 'book_dir_Kyiv-Malyn' }],
                 [{ text: '🚌 Малин → Київ', callback_data: 'book_dir_Malyn-Kyiv' }],
                 [{ text: '🚌 Малин → Житомир', callback_data: 'book_dir_Malyn-Zhytomyr' }],
-                [{ text: '🚌 Житомир → Малин', callback_data: 'book_dir_Zhytomyr-Malyn' }]
+                [{ text: '🚌 Житомир → Малин', callback_data: 'book_dir_Zhytomyr-Malyn' }],
+                [{ text: '🚌 Коростень → Малин', callback_data: 'book_dir_Korosten-Malyn' }],
+                [{ text: '🚌 Малин → Коростень', callback_data: 'book_dir_Malyn-Korosten' }]
             ]
         };
         await bot?.sendMessage(chatId, '🎫 <b>Нове бронювання</b>\n\n' +
@@ -1641,6 +1669,121 @@ https://malin.kiev.ua
                 }
                 await bot?.editMessageText('✅ Готово! Запит на поїздку створено.', { chat_id: chatId, message_id: messageId });
                 await bot?.answerCallbackQuery(query.id);
+                return;
+            }
+            // ---------- Попутка: пасажир натиснув "Забронювати у водія" ----------
+            if (data.startsWith('vibermatch_book_')) {
+                const parts = data.replace('vibermatch_book_', '').split('_');
+                const passengerListingId = parseInt(parts[0], 10);
+                const driverListingId = parseInt(parts[1], 10);
+                if (isNaN(passengerListingId) || isNaN(driverListingId)) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка даних' });
+                    return;
+                }
+                const [passengerListing, driverListing] = await Promise.all([
+                    prisma.viberListing.findUnique({ where: { id: passengerListingId } }),
+                    prisma.viberListing.findUnique({ where: { id: driverListingId } })
+                ]);
+                if (!passengerListing || !driverListing || passengerListing.listingType !== 'passenger' || driverListing.listingType !== 'driver') {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Оголошення не знайдено' });
+                    return;
+                }
+                const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 година
+                const request = await prisma.rideShareRequest.create({
+                    data: { passengerListingId, driverListingId, status: 'pending', expiresAt }
+                });
+                const driverChatId = await (0, exports.getChatIdByPhone)(driverListing.phone);
+                const passengerName = passengerListing.senderName ?? 'Пасажир';
+                if (driverChatId) {
+                    const confirmKeyboard = {
+                        inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${request.id}` }]]
+                    };
+                    await bot?.sendMessage(driverChatId, `🎫 <b>Запит на попутку</b>\n\n` +
+                        `👤 ${passengerName} хоче поїхати з вами.\n\n` +
+                        `🛣 ${getRouteName(driverListing.route)}\n` +
+                        `📅 ${formatDate(driverListing.date)}\n` +
+                        (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+                        `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
+                        (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '') +
+                        `\n\n_У вас є 1 година на підтвердження._`, { parse_mode: 'HTML', reply_markup: confirmKeyboard }).catch(() => { });
+                }
+                await bot?.answerCallbackQuery(query.id, { text: 'Запит надіслано водію. Очікуйте підтвердження (1 год).' });
+                await bot?.sendMessage(chatId, '✅ Запит на бронювання надіслано водію. Він отримає сповіщення і матиме 1 годину на підтвердження. Якщо підтвердить — ви побачите поїздку в /mybookings.', { parse_mode: 'HTML' }).catch(() => { });
+                return;
+            }
+            // ---------- Попутка: водій натиснув "Підтвердити бронювання" ----------
+            if (data.startsWith('vibermatch_confirm_')) {
+                const requestId = parseInt(data.replace('vibermatch_confirm_', ''), 10);
+                if (isNaN(requestId)) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
+                    return;
+                }
+                const request = await prisma.rideShareRequest.findUnique({
+                    where: { id: requestId },
+                    include: { passengerListing: true, driverListing: true }
+                });
+                if (!request) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Запит не знайдено' });
+                    return;
+                }
+                if (request.status !== 'pending') {
+                    await bot?.answerCallbackQuery(query.id, { text: request.status === 'confirmed' ? '✅ Вже підтверджено' : 'Запит не активний' });
+                    return;
+                }
+                if (new Date() > request.expiresAt) {
+                    await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
+                    await bot?.answerCallbackQuery(query.id, { text: '⏱ Час на підтвердження минув' });
+                    return;
+                }
+                const { passengerListing, driverListing } = request;
+                await (0, exports.findOrCreatePersonByPhone)(passengerListing.phone, { fullName: passengerListing.senderName ?? undefined });
+                const passengerPerson = await (0, exports.getPersonByPhone)(passengerListing.phone);
+                const driverPerson = await (0, exports.getPersonByTelegram)(userId, chatId);
+                const isDriver = driverPerson && (0, exports.normalizePhone)(driverPerson.phoneNormalized) === (0, exports.normalizePhone)(driverListing.phone);
+                if (!isDriver) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Це підтвердження лише для водія цієї поїздки' });
+                    return;
+                }
+                if (!passengerPerson) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка: пасажир не знайдений' });
+                    return;
+                }
+                const booking = await prisma.booking.create({
+                    data: {
+                        route: driverListing.route,
+                        date: driverListing.date,
+                        departureTime: driverListing.departureTime ?? '—',
+                        seats: 1,
+                        name: passengerListing.senderName ?? 'Пасажир',
+                        phone: passengerListing.phone,
+                        personId: passengerPerson.id,
+                        telegramChatId: passengerPerson.telegramChatId,
+                        telegramUserId: passengerPerson.telegramUserId,
+                        source: 'viber_match',
+                        viberListingId: driverListing.id
+                    }
+                });
+                await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
+                const passengerChatId = passengerPerson.telegramChatId;
+                if (passengerChatId) {
+                    await bot?.sendMessage(passengerChatId, `✅ <b>Водій підтвердив ваше бронювання!</b>\n\n` +
+                        `🎫 №${booking.id} · 🚗 Попутка\n` +
+                        `🛣 ${getRouteName(driverListing.route)}\n` +
+                        `📅 ${formatDate(driverListing.date)}\n` +
+                        (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+                        `👤 Водій: ${driverListing.senderName ?? '—'}\n` +
+                        `📞 ${formatPhoneTelLink(driverListing.phone)}\n\n` +
+                        `Поїздка з\'явиться у /mybookings.`, { parse_mode: 'HTML' }).catch(() => { });
+                }
+                await bot?.answerCallbackQuery(query.id, { text: 'Бронювання підтверджено! Пасажир отримав сповіщення.' });
+                await bot?.sendMessage(chatId, '✅ Ви підтвердили бронювання. Пасажир отримав сповіщення.', { parse_mode: 'HTML' }).catch(() => { });
+                if (adminChatId) {
+                    await bot?.sendMessage(adminChatId, `🚗 <b>Попутка підтверджена</b>\n\n` +
+                        `Бронювання #${booking.id} (viber_match)\n` +
+                        `Пасажир: ${booking.name}, ${formatPhoneTelLink(booking.phone)}\n` +
+                        `Водій: ${driverListing.senderName ?? '—'}, ${formatPhoneTelLink(driverListing.phone)}\n` +
+                        `${getRouteName(driverListing.route)} · ${formatDate(driverListing.date)}`, { parse_mode: 'HTML' }).catch(() => { });
+                }
                 return;
             }
             // Скасування бронювання - показати підтвердження
