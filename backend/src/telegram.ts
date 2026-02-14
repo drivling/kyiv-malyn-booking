@@ -143,6 +143,59 @@ ${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\
 };
 
 /**
+ * Спроба надіслати автору оголошення повідомлення про публікацію на платформі.
+ * Працює тільки якщо номер телефону вже є в базі (користувач колись брався через сайт/бота і прив’язав Telegram).
+ * Якщо chatId по телефону не знайдено — нічого не відправляємо (без помилок).
+ */
+export const sendViberListingConfirmationToUser = async (
+  phone: string,
+  listing: {
+    id: number;
+    route: string;
+    date: Date | string;
+    departureTime: string | null;
+    seats: number | null;
+    listingType: string;
+  }
+) => {
+  if (!bot) return;
+  const trimmed = phone?.trim();
+  if (!trimmed) return;
+
+  try {
+    const chatId = await getChatIdByPhone(trimmed);
+    if (!chatId) {
+      console.log(`ℹ️ Viber оголошення #${listing.id}: по телефону ${trimmed} Telegram не знайдено, пропускаємо сповіщення`);
+      return;
+    }
+
+    const dateStr = listing.date instanceof Date
+      ? formatDate(listing.date)
+      : (listing.date && String(listing.date).slice(0, 10))
+        ? formatDate(new Date(listing.date))
+        : '—';
+    const routeName = getRouteName(listing.route);
+
+    const message = `
+📱 <b>Ваше оголошення опубліковано на платформі Поїздки Київ, Житомир, Коростень ↔️ Малин</b>
+
+🛣 <b>Маршрут:</b> ${routeName}
+📅 <b>Дата:</b> ${dateStr}
+${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}${listing.seats != null ? `🎫 <b>Місць:</b> ${listing.seats}\n` : ''}
+Інші користувачі зможуть бачити це оголошення та зв’язатися з вами за телефоном.
+
+<i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
+Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
+    `.trim();
+
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано сповіщення про публікацію`);
+  } catch (error) {
+    console.error('❌ Помилка відправки сповіщення автору Viber оголошення:', error);
+  }
+};
+
+/**
  * Відправка підтвердження бронювання клієнту
  */
 export const sendBookingConfirmationToCustomer = async (

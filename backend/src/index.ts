@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -796,6 +796,17 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
         senderName: listing.senderName,
         notes: listing.notes,
       }).catch((err) => console.error('Telegram Viber notify:', err));
+      // Якщо є телефон — спроба надіслати автору оголошення в Telegram (якщо він є в базі)
+      if (listing.phone && listing.phone.trim()) {
+        sendViberListingConfirmationToUser(listing.phone, {
+          id: listing.id,
+          route: listing.route,
+          date: listing.date,
+          departureTime: listing.departureTime,
+          seats: listing.seats,
+          listingType: listing.listingType,
+        }).catch((err) => console.error('Telegram Viber user notify:', err));
+      }
     }
 
     res.status(201).json(serializeViberListing(listing));
@@ -855,6 +866,16 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
             senderName: listing.senderName,
             notes: listing.notes,
           }).catch((err) => console.error('Telegram Viber notify:', err));
+          if (listing.phone && listing.phone.trim()) {
+            sendViberListingConfirmationToUser(listing.phone, {
+              id: listing.id,
+              route: listing.route,
+              date: listing.date,
+              departureTime: listing.departureTime,
+              seats: listing.seats,
+              listingType: listing.listingType,
+            }).catch((err) => console.error('Telegram Viber user notify:', err));
+          }
         }
       } catch (error) {
         errors.push({ index: i, error: error instanceof Error ? error.message : 'Unknown error' });
