@@ -126,16 +126,19 @@ export const findOrCreatePersonByPhone = async (
   options?: { fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null }
 ): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> => {
   const normalized = normalizePhone(phone);
+  const fullName = options?.fullName != null && String(options.fullName).trim() !== ''
+    ? String(options.fullName).trim()
+    : null;
   const person = await prisma.person.upsert({
     where: { phoneNormalized: normalized },
     create: {
       phoneNormalized: normalized,
-      fullName: options?.fullName ?? null,
+      fullName,
       telegramChatId: options?.telegramChatId ?? null,
       telegramUserId: options?.telegramUserId ?? null,
     },
     update: {
-      ...(options?.fullName != null && options.fullName !== '' && { fullName: options.fullName }),
+      ...(fullName != null && { fullName }),
       ...(options?.telegramChatId != null && { telegramChatId: options.telegramChatId }),
       ...(options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
     },

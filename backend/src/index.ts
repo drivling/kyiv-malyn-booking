@@ -382,7 +382,8 @@ app.post('/bookings', async (req, res) => {
   // Прив'язка до Person та пошук Telegram: спочатку Person, потім попередні бронювання
   let telegramChatId: string | null = null;
   let bookingTelegramUserId: string | null = telegramUserId || null;
-  const person = await findOrCreatePersonByPhone(phone, { fullName: name });
+  const fullNameForPerson = typeof name === 'string' && name.trim() ? name.trim() : name;
+  const person = await findOrCreatePersonByPhone(phone, { fullName: fullNameForPerson });
 
   try {
     const normalizedPhone = normalizePhone(phone);
