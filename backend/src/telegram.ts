@@ -542,6 +542,28 @@ export const sendBookingNotificationToAdmin = async (booking: {
 };
 
 /**
+ * Сповіщення адміну про першу реєстрацію в Telegram (ID раніше не був прив'язаний).
+ */
+function sendNewTelegramRegistrationNotificationToAdmin(
+  userId: string,
+  phone: string,
+  name: string | null
+): void {
+  if (!bot || !adminChatId) return;
+  const displayName = name?.trim() || '—';
+  const message = `
+🆕 <b>Нова реєстрація в Telegram</b>
+
+👤 Ім'я: ${displayName}
+📞 Телефон: ${formatPhoneTelLink(phone)}
+🆔 Telegram ID: <code>${userId}</code>
+
+<i>Раніше цей ID не був прив'язаний до жодного акаунту.</i>
+  `.trim();
+  bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' }).catch((err) => console.error('Notify admin new Telegram reg:', err));
+}
+
+/**
  * Відправка повідомлення адміну про нове Viber оголошення (поїздку з чату)
  */
 export const sendViberListingNotificationToAdmin = async (listing: {
@@ -735,6 +757,14 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
   try {
     const normalizedPhone = normalizePhone(phoneInput);
 
+    // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
+    const personByTelegram = await getPersonByTelegram(userId, chatId);
+    const bookingByTelegram = await prisma.booking.findFirst({
+      where: { telegramUserId: userId },
+      select: { id: true },
+    });
+    const hadAccountBefore = !!(personByTelegram || bookingByTelegram);
+
     const allBookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
     const matchingBookings = allBookings.filter((b) => normalizePhone(b.phone) === normalizedPhone);
     const userIdBookings = await prisma.booking.findMany({
@@ -748,6 +778,10 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
         telegramChatId: chatId,
         telegramUserId: userId,
       });
+      if (!hadAccountBefore) {
+        const person = await getPersonByPhone(phoneInput);
+        sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? null);
+      }
       await bot.sendMessage(
         chatId,
         `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
@@ -796,6 +830,11 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       where: { telegramUserId: userId, telegramChatId: null },
       data: { telegramChatId: chatId },
     });
+
+    if (!hadAccountBefore) {
+      const person = await getPersonByPhone(phoneInput);
+      sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? null);
+    }
 
     console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
 

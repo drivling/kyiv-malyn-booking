@@ -459,6 +459,24 @@ const sendBookingNotificationToAdmin = async (booking) => {
 };
 exports.sendBookingNotificationToAdmin = sendBookingNotificationToAdmin;
 /**
+ * Сповіщення адміну про першу реєстрацію в Telegram (ID раніше не був прив'язаний).
+ */
+function sendNewTelegramRegistrationNotificationToAdmin(userId, phone, name) {
+    if (!bot || !adminChatId)
+        return;
+    const displayName = name?.trim() || '—';
+    const message = `
+🆕 <b>Нова реєстрація в Telegram</b>
+
+👤 Ім'я: ${displayName}
+📞 Телефон: ${formatPhoneTelLink(phone)}
+🆔 Telegram ID: <code>${userId}</code>
+
+<i>Раніше цей ID не був прив'язаний до жодного акаунту.</i>
+  `.trim();
+    bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' }).catch((err) => console.error('Notify admin new Telegram reg:', err));
+}
+/**
  * Відправка повідомлення адміну про нове Viber оголошення (поїздку з чату)
  */
 const sendViberListingNotificationToAdmin = async (listing) => {
@@ -609,6 +627,13 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         return;
     try {
         const normalizedPhone = (0, exports.normalizePhone)(phoneInput);
+        // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
+        const personByTelegram = await (0, exports.getPersonByTelegram)(userId, chatId);
+        const bookingByTelegram = await prisma.booking.findFirst({
+            where: { telegramUserId: userId },
+            select: { id: true },
+        });
+        const hadAccountBefore = !!(personByTelegram || bookingByTelegram);
         const allBookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
         const matchingBookings = allBookings.filter((b) => (0, exports.normalizePhone)(b.phone) === normalizedPhone);
         const userIdBookings = await prisma.booking.findMany({
@@ -621,6 +646,10 @@ async function registerUserPhone(chatId, userId, phoneInput) {
                 telegramChatId: chatId,
                 telegramUserId: userId,
             });
+            if (!hadAccountBefore) {
+                const person = await (0, exports.getPersonByPhone)(phoneInput);
+                sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? null);
+            }
             await bot.sendMessage(chatId, `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
                 `📱 ${formatPhoneTelLink(phoneInput)}\n\n` +
                 `📋 <b>Повна інструкція</b>\n\n` +
@@ -663,6 +692,10 @@ async function registerUserPhone(chatId, userId, phoneInput) {
             where: { telegramUserId: userId, telegramChatId: null },
             data: { telegramChatId: chatId },
         });
+        if (!hadAccountBefore) {
+            const person = await (0, exports.getPersonByPhone)(phoneInput);
+            sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? null);
+        }
         console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
         await bot.sendMessage(chatId, `✅ <b>Вітаємо! Ваш акаунт підключено!</b>\n\n` +
             `📱 Номер телефону: ${formatPhoneTelLink(phoneInput)}\n` +
@@ -1863,6 +1896,7 @@ https://malin.kiev.ua
                             await bot?.sendMessage(driverChatId, `🚫 <b>Пасажир скасував бронювання попутки</b>\n\n` +
                                 `🎫 №${bookingData.id}\n` +
                                 `👤 Пасажир: ${booking.name}\n` +
+                                `📞 ${formatPhoneTelLink(booking.phone)}\n` +
                                 `🛣 ${getRouteName(bookingData.route)}\n` +
                                 `📅 ${formatDate(bookingData.date)}\n\n` +
                                 `Місце знову вільне — можете запропонувати його іншим.`, { parse_mode: 'HTML' }).catch((err) => console.error('Notify driver about cancel:', err));

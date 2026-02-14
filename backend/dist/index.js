@@ -459,10 +459,12 @@ app.post('/bookings', async (req, res) => {
 app.get('/bookings', requireAdmin, async (_req, res) => {
     res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } }));
 });
-// Пошук останнього бронювання по телефону (з урахуванням Person та нормалізації номера)
+// Пошук останнього бронювання або персони по телефону (для автозаповнення імені на сторінці бронювання)
 app.get('/bookings/by-phone/:phone', async (req, res) => {
     const { phone } = req.params;
     try {
+        const normalized = (0, telegram_1.normalizePhone)(phone);
+        // 1) Шукаємо Person за телефоном
         const person = await (0, telegram_1.getPersonByPhone)(phone);
         if (person) {
             const byPerson = await prisma.booking.findFirst({
@@ -472,8 +474,12 @@ app.get('/bookings/by-phone/:phone', async (req, res) => {
             if (byPerson) {
                 return res.json(byPerson);
             }
+            // Персона є, але бронювань немає — повертаємо ім'я з Person для автозаповнення
+            if (person.fullName && person.fullName.trim()) {
+                return res.json({ name: person.fullName.trim(), phone: person.phoneNormalized });
+            }
         }
-        const normalized = (0, telegram_1.normalizePhone)(phone);
+        // 2) Шукаємо в таблиці Booking по нормалізованому телефону
         const allRecent = await prisma.booking.findMany({
             orderBy: { createdAt: 'desc' },
             take: 500,
