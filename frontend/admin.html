@@ -126,6 +126,14 @@
       background: #fef3c7;
       color: #92400e;
     }
+    .badge-malyn-zhytomyr {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .badge-zhytomyr-malyn {
+      background: #ede9fe;
+      color: #5b21b6;
+    }
     .btn-delete {
       padding: 6px 12px;
       background: #ef4444;
@@ -330,6 +338,14 @@
           <div class="value" id="malynKyiv">0</div>
         </div>
         <div class="stat-card">
+          <h3>Малин → Житомир</h3>
+          <div class="value" id="malynZhytomyr">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Житомир → Малин</h3>
+          <div class="value" id="zhytomyrMalyn">0</div>
+        </div>
+        <div class="stat-card">
           <h3>Всього місць</h3>
           <div class="value" id="totalSeats">0</div>
         </div>
@@ -342,6 +358,8 @@
           <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
           <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
           <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+          <option value="Malyn-Zhytomyr">Малин → Житомир</option>
+          <option value="Zhytomyr-Malyn">Житомир → Малин</option>
         </select>
         <input type="date" id="filterDate" placeholder="Фільтр по даті">
         <input type="text" id="searchInput" placeholder="Пошук по імені або телефону...">
@@ -383,6 +401,8 @@
           <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
           <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
           <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+          <option value="Malyn-Zhytomyr">Малин → Житомир</option>
+          <option value="Zhytomyr-Malyn">Житомир → Малин</option>
         </select>
         <button onclick="loadSchedules()">🔄 Оновити</button>
         <button onclick="openScheduleModal()">➕ Додати рейс</button>
@@ -428,6 +448,8 @@
             <option value="Malyn-Kyiv-Irpin">Малин → Київ (через Ірпінь)</option>
             <option value="Kyiv-Malyn-Bucha">Київ → Малин (через Бучу)</option>
             <option value="Malyn-Kyiv-Bucha">Малин → Київ (через Бучу)</option>
+            <option value="Malyn-Zhytomyr">Малин → Житомир</option>
+            <option value="Zhytomyr-Malyn">Житомир → Малин</option>
           </select>
         </div>
         <div class="form-group">
@@ -458,17 +480,18 @@
         'Kyiv-Malyn-Irpin': 'Київ → Малин (через Ірпінь)',
         'Malyn-Kyiv-Irpin': 'Малин → Київ (через Ірпінь)',
         'Kyiv-Malyn-Bucha': 'Київ → Малин (через Бучу)',
-        'Malyn-Kyiv-Bucha': 'Малин → Київ (через Бучу)'
+        'Malyn-Kyiv-Bucha': 'Малин → Київ (через Бучу)',
+        'Malyn-Zhytomyr': 'Малин → Житомир',
+        'Zhytomyr-Malyn': 'Житомир → Малин'
       };
       return routes[route] || route;
     }
 
     function getRouteBadgeClass(route) {
-      if (route.includes('Kyiv-Malyn')) {
-        return 'badge-kyiv-malyn';
-      } else if (route.includes('Malyn-Kyiv')) {
-        return 'badge-malyn-kyiv';
-      }
+      if (route.includes('Kyiv-Malyn')) return 'badge-kyiv-malyn';
+      if (route.includes('Malyn-Kyiv')) return 'badge-malyn-kyiv';
+      if (route.includes('Malyn-Zhytomyr')) return 'badge-malyn-zhytomyr';
+      if (route.includes('Zhytomyr-Malyn')) return 'badge-zhytomyr-malyn';
       return 'badge-kyiv-malyn';
     }
 
@@ -578,11 +601,15 @@
     // Оновлення статистики
     function updateStats(bookings) {
       document.getElementById('totalBookings').textContent = bookings.length;
-      document.getElementById('kyivMalyn').textContent = 
+      document.getElementById('kyivMalyn').textContent =
         bookings.filter(b => b.route.includes('Kyiv-Malyn')).length;
-      document.getElementById('malynKyiv').textContent = 
+      document.getElementById('malynKyiv').textContent =
         bookings.filter(b => b.route.includes('Malyn-Kyiv')).length;
-      document.getElementById('totalSeats').textContent = 
+      document.getElementById('malynZhytomyr').textContent =
+        bookings.filter(b => b.route.includes('Malyn-Zhytomyr')).length;
+      document.getElementById('zhytomyrMalyn').textContent =
+        bookings.filter(b => b.route.includes('Zhytomyr-Malyn')).length;
+      document.getElementById('totalSeats').textContent =
         bookings.reduce((sum, b) => sum + b.seats, 0);
     }
 

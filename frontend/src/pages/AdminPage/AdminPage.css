@@ -178,6 +178,18 @@ tr:last-child td {
   border: 1px solid #ffb74d;
 }
 
+.badge-malyn-zhytomyr {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.badge-zhytomyr-malyn {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #ce93d8;
+}
+
 .loading {
   text-align: center;
   padding: 60px 20px;

@@ -52,6 +52,8 @@ const getRouteName = (route: string): string => {
     if (route.includes('Bucha')) return 'Малин → Київ (через Бучу)';
     return 'Малин → Київ';
   }
+  if (route.includes('Malyn-Zhytomyr')) return 'Малин → Житомир';
+  if (route.includes('Zhytomyr-Malyn')) return 'Житомир → Малин';
   return route;
 };
 
@@ -742,7 +744,9 @@ https://malin.kiev.ua
     const directionKeyboard = {
       inline_keyboard: [
         [{ text: '🚌 Київ → Малин', callback_data: 'book_dir_Kyiv-Malyn' }],
-        [{ text: '🚌 Малин → Київ', callback_data: 'book_dir_Malyn-Kyiv' }]
+        [{ text: '🚌 Малин → Київ', callback_data: 'book_dir_Malyn-Kyiv' }],
+        [{ text: '🚌 Малин → Житомир', callback_data: 'book_dir_Malyn-Zhytomyr' }],
+        [{ text: '🚌 Житомир → Малин', callback_data: 'book_dir_Zhytomyr-Malyn' }]
       ]
     };
     
@@ -978,7 +982,7 @@ https://malin.kiev.ua
             const isAvailable = availableSeats > 0;
             
             const emoji = isAvailable ? '✅' : '❌';
-            const routeLabel = schedule.route.includes('Irpin') ? ' (Ірпінь)' : 
+            const routeLabel = schedule.route.includes('Irpin') ? ' (Ірпінь)' :
                               schedule.route.includes('Bucha') ? ' (Буча)' : '';
             
             return {

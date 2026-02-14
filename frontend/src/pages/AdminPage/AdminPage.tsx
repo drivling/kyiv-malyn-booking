@@ -302,6 +302,8 @@ export const AdminPage: React.FC = () => {
     total: filteredBookings.length,
     kyivMalyn: filteredBookings.filter((b) => b.route.includes('Kyiv-Malyn')).length,
     malynKyiv: filteredBookings.filter((b) => b.route.includes('Malyn-Kyiv')).length,
+    malynZhytomyr: filteredBookings.filter((b) => b.route.includes('Malyn-Zhytomyr')).length,
+    zhytomyrMalyn: filteredBookings.filter((b) => b.route.includes('Zhytomyr-Malyn')).length,
     totalSeats: filteredBookings.reduce((sum, b) => sum + b.seats, 0),
   };
 
@@ -353,6 +355,14 @@ export const AdminPage: React.FC = () => {
               <div className="stat-card">
                 <h3>Малин → Київ</h3>
                 <div className="stat-value">{stats.malynKyiv}</div>
+              </div>
+              <div className="stat-card">
+                <h3>Малин → Житомир</h3>
+                <div className="stat-value">{stats.malynZhytomyr}</div>
+              </div>
+              <div className="stat-card">
+                <h3>Житомир → Малин</h3>
+                <div className="stat-value">{stats.zhytomyrMalyn}</div>
               </div>
               <div className="stat-card">
                 <h3>Всього місць</h3>

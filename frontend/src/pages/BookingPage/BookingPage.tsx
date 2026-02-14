@@ -7,6 +7,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
+import { DIRECTION_ROUTES, DIRECTIONS } from '@/utils/constants';
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
@@ -55,20 +56,13 @@ export const BookingPage: React.FC = () => {
       setLoadingSchedules(true);
       setError('');
       try {
-        // Завантажуємо графіки для обох маршрутів (Ірпінь та Буча)
-        const irpinRoute = `${direction}-Irpin` as Route;
-        const buchaRoute = `${direction}-Bucha` as Route;
-        
-        const [irpinData, buchaData] = await Promise.all([
-          apiClient.getSchedulesByRoute(irpinRoute).catch(() => []),
-          apiClient.getSchedulesByRoute(buchaRoute).catch(() => []),
-        ]);
-        
-        const allSchedules = [...irpinData, ...buchaData];
-        // Сортуємо по часу
+        const routes = DIRECTION_ROUTES[direction as BaseDirection] || [];
+        const results = await Promise.all(
+          routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => []))
+        );
+        const allSchedules = results.flat();
         allSchedules.sort((a, b) => a.departureTime.localeCompare(b.departureTime));
         setSchedules(allSchedules);
-        
         if (allSchedules.length === 0) {
           setSelectedSchedule(null);
         }
@@ -260,16 +254,23 @@ export const BookingPage: React.FC = () => {
     }
   };
 
-  const directionOptions = [
-    { value: 'Kyiv-Malyn', label: 'Київ → Малин' },
-    { value: 'Malyn-Kyiv', label: 'Малин → Київ' },
-  ];
+  const directionOptions = (Object.entries(DIRECTIONS) as [BaseDirection, string][]).map(([value, label]) => ({
+    value,
+    label,
+  }));
 
   const getRouteLabel = (route: Route) => {
     if (route.includes('Irpin')) return 'через Ірпінь';
     if (route.includes('Bucha')) return 'через Бучу';
     return '';
   };
+
+  const formatViberRoute = (route: string) =>
+    route
+      .replace('Kyiv-Malyn', 'Київ → Малин')
+      .replace('Malyn-Kyiv', 'Малин → Київ')
+      .replace('Malyn-Zhytomyr', 'Малин → Житомир')
+      .replace('Zhytomyr-Malyn', 'Житомир → Малин');
 
   const timeOptions = schedules.map((s) => ({
     value: s.id.toString(),
@@ -448,7 +449,7 @@ export const BookingPage: React.FC = () => {
                     )}
                   </div>
                   <div className="viber-listing-route">
-                    {listing.route.replace('Kyiv-Malyn', 'Київ → Малин').replace('Malyn-Kyiv', 'Малин → Київ')}
+                    {formatViberRoute(listing.route)}
                   </div>
                   <div className="viber-listing-details">
                     <div className="viber-detail">
@@ -584,7 +585,7 @@ export const BookingPage: React.FC = () => {
                 <div className="viber-modal-row">
                   <span className="viber-modal-label">Маршрут:</span>
                   <span className="viber-modal-value">
-                    {selectedViberListing.route.replace('Kyiv-Malyn', 'Київ → Малин').replace('Malyn-Kyiv', 'Малин → Київ')}
+                    {formatViberRoute(selectedViberListing.route)}
                   </span>
                 </div>
                 <div className="viber-modal-row">
