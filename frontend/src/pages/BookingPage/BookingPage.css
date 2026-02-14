@@ -51,8 +51,28 @@
   flex: 1;
 }
 
-.phone-input-group {
-  position: relative;
+.phone-name-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.phone-name-row__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-name-row__field--phone {
+  flex: 0 0 160px;
+  max-width: 160px;
+}
+
+.phone-name-row__seats {
+  flex: 0 0 80px;
+  min-width: 80px;
+}
+
+.telegram-row {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -629,6 +649,22 @@
   .date-time-row {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .phone-name-row {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .phone-name-row__field--phone {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .phone-name-row__seats {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 120px;
   }
 
   .telegram-info-block {

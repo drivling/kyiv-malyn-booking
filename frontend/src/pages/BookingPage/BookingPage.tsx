@@ -293,8 +293,8 @@ export const BookingPage: React.FC = () => {
     <div className="booking-page">
       <div className="booking-container">
         <div className="booking-header">
-          <h2>Бронювання маршрутки</h2>
-          <p className="booking-subtitle">Київ ↔ Малин</p>
+          <h2>Бронювання поїздок (маршрутки / машини)</h2>
+          <p className="booking-subtitle">Київ, Житомир, Коростень ↔ Малин</p>
         </div>
         <form onSubmit={handleSubmit}>
           <Select
@@ -345,15 +345,41 @@ export const BookingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="phone-input-group">
-            <Input
-              label="Телефон"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="0501234567"
-              required
-            />
+          <div className="phone-name-row">
+            <div className="phone-name-row__field phone-name-row__field--phone">
+              <Input
+                label="Телефон"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0501234567"
+                required
+              />
+            </div>
+            <div className="phone-name-row__field">
+              <Input
+                label="Ім'я та прізвище"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Іван Петренко"
+                required
+              />
+            </div>
+            <div className="phone-name-row__seats">
+              <Input
+                label="Місця"
+                type="number"
+                value={seats}
+                onChange={(e) => setSeats(Number(e.target.value))}
+                min={1}
+                max={8}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="telegram-row">
             {userState.isTelegramUser() ? (
               phone ? (
                 <div className="telegram-status-success">
@@ -388,25 +414,6 @@ export const BookingPage: React.FC = () => {
             )}
             {loadingCustomer && <span className="loading" style={{ fontSize: '12px', marginTop: '4px' }}>Пошук клієнта...</span>}
           </div>
-
-          <Input
-            label="Ім'я та прізвище"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Іван Петренко"
-            required
-          />
-
-          <Input
-            label="Місця"
-            type="number"
-            value={seats}
-            onChange={(e) => setSeats(Number(e.target.value))}
-            min={1}
-            max={8}
-            required
-          />
 
           <Button type="submit" disabled={isFormDisabled}>
             {loading ? 'Обробка...' : 'Забронювати'}
