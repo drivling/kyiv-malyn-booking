@@ -944,9 +944,35 @@ https://malin.kiev.ua
         });
         
         if (schedules.length === 0) {
+          // Запропонувати поїздки з Viber, якщо є
+          const startOfDay = new Date(selectedDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(selectedDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          const viberListings = await prisma.viberListing.findMany({
+            where: {
+              route: direction,
+              date: { gte: startOfDay, lte: endOfDay },
+              isActive: true
+            },
+            orderBy: [{ departureTime: 'asc' }]
+          });
+          const viberBlock =
+            viberListings.length > 0
+              ? '\n\n📱 <b>Поїздки з Viber</b> (можна замовити по телефону):\n\n' +
+                viberListings
+                  .map((l) => {
+                    const type = l.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
+                    const time = l.departureTime || '—';
+                    const seats = l.seats != null ? `, ${l.seats} місць` : '';
+                    return `${type} ${time}${seats}\n📞 <a href="tel:${l.phone}">${l.phone}</a>`;
+                  })
+                  .join('\n\n')
+              : '';
           await bot?.editMessageText(
-            '❌ <b>Немає доступних рейсів</b>\n\n' +
-            'Спробуйте інший напрямок або дату.',
+            '❌ <b>Немає доступних рейсів</b> за розкладом.\n\n' +
+              'Спробуйте інший напрямок або дату.' +
+              viberBlock,
             {
               chat_id: chatId,
               message_id: messageId,
