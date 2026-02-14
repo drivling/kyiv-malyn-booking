@@ -7,9 +7,32 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const client_1 = require("@prisma/client");
 const telegram_1 = require("./telegram");
+const viber_parser_1 = require("./viber-parser");
+// Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
+const CODE_VERSION = 'viber-v2-2026';
+// Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
+console.log('[KYIV-MALYN-BACKEND] BOOT codeVersion=' + CODE_VERSION + ' build=' + (typeof __dirname !== 'undefined' ? 'node' : 'unknown'));
 const app = (0, express_1.default)();
 const prisma = new client_1.PrismaClient();
-app.use((0, cors_1.default)());
+// CORS: дозволяємо фронт (malin.kiev.ua + Railway preview)
+const allowedOrigins = [
+    'https://malin.kiev.ua',
+    'https://www.malin.kiev.ua',
+    'http://localhost:5173',
+    'http://localhost:3000',
+];
+const corsOptions = {
+    origin: (origin, cb) => {
+        if (!origin || allowedOrigins.some((o) => origin === o || origin.endsWith('.railway.app'))) {
+            cb(null, true);
+        }
+        else {
+            cb(null, true); // для зручності залишаємо приймати всі; за потреби звужте
+        }
+    },
+    credentials: true,
+};
+app.use((0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
 // Простий токен для авторизації (в продакшені використовуйте JWT)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -24,7 +47,30 @@ const requireAdmin = (req, res, next) => {
         res.status(401).json({ error: 'Unauthorized' });
     }
 };
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/health', (_req, res) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+    });
+    res.json({
+        status: 'ok',
+        version: 3,
+        viber: true,
+        codeVersion: CODE_VERSION,
+        deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+        cwd: process.cwd(),
+    });
+});
+app.get('/status', (_req, res) => {
+    res.json({
+        status: 'ok',
+        version: 3,
+        viber: true,
+        codeVersion: CODE_VERSION,
+        deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+        cwd: process.cwd(),
+    });
+});
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
     try {
@@ -301,71 +347,44 @@ app.post('/bookings', async (req, res) => {
     catch (error) {
         // Якщо графік не знайдено, все одно дозволяємо бронювання
     }
-    // Шукаємо попередні бронювання з цим номером телефону
-    // Якщо користувач вже підписувався - автоматично копіюємо його Telegram дані
+    // Прив'язка до Person та пошук Telegram: спочатку Person, потім попередні бронювання
     let telegramChatId = null;
-    let bookingTelegramUserId = telegramUserId || null; // Використовуємо переданий з frontend
+    let bookingTelegramUserId = telegramUserId || null;
+    const fullNameForPerson = typeof name === 'string' && name.trim() ? name.trim() : name;
+    const person = await (0, telegram_1.findOrCreatePersonByPhone)(phone, { fullName: fullNameForPerson });
     try {
         const normalizedPhone = (0, telegram_1.normalizePhone)(phone);
-        console.log(`🔍 Пошук попередніх бронювань для номера: ${phone} (нормалізований: ${normalizedPhone})`);
-        // Отримуємо всі бронювання і шукаємо по нормалізованому номеру
-        const allBookings = await prisma.booking.findMany({
-            where: {
-                telegramUserId: {
-                    not: null,
-                    notIn: ['0', '', ' '] // Виключаємо невалідні значення
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-        console.log(`📋 Знайдено ${allBookings.length} бронювань з валідним telegramUserId`);
-        // Шукаємо бронювання з таким же нормалізованим номером
-        const previousBooking = allBookings.find(b => (0, telegram_1.normalizePhone)(b.phone) === normalizedPhone);
-        if (previousBooking) {
-            console.log(`✅ Знайдено попереднє бронювання #${previousBooking.id}:`, {
-                chatId: previousBooking.telegramChatId,
-                userId: previousBooking.telegramUserId
-            });
+        const personRecord = await (0, telegram_1.getPersonByPhone)(phone);
+        if (personRecord?.telegramChatId && personRecord.telegramChatId !== '0' && personRecord.telegramChatId.trim() !== '') {
+            telegramChatId = personRecord.telegramChatId;
         }
-        if (previousBooking) {
-            // Копіюємо chatId тільки якщо він валідний
-            if (previousBooking.telegramChatId &&
-                previousBooking.telegramChatId !== '0' &&
-                previousBooking.telegramChatId.trim() !== '') {
-                telegramChatId = previousBooking.telegramChatId;
-            }
-            else {
-                console.log(`⚠️ Попереднє бронювання має невалідний chatId: ${previousBooking.telegramChatId}`);
-            }
-            // Якщо не було передано з frontend - беремо з попереднього бронювання
-            if (!bookingTelegramUserId) {
-                // Валідація: telegramUserId не може бути '0', 0, null, або порожнім
-                if (previousBooking.telegramUserId &&
-                    previousBooking.telegramUserId !== '0' &&
-                    previousBooking.telegramUserId.trim() !== '') {
+        if (personRecord?.telegramUserId && personRecord.telegramUserId !== '0' && personRecord.telegramUserId.trim() !== '') {
+            bookingTelegramUserId = bookingTelegramUserId || personRecord.telegramUserId;
+        }
+        if (!telegramChatId || !bookingTelegramUserId) {
+            const allBookings = await prisma.booking.findMany({
+                where: {
+                    telegramUserId: { not: null, notIn: ['0', '', ' '] },
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+            const previousBooking = allBookings.find((b) => (0, telegram_1.normalizePhone)(b.phone) === normalizedPhone);
+            if (previousBooking) {
+                if (previousBooking.telegramChatId && previousBooking.telegramChatId !== '0' && previousBooking.telegramChatId.trim() !== '') {
+                    telegramChatId = telegramChatId || previousBooking.telegramChatId;
+                }
+                if (!bookingTelegramUserId && previousBooking.telegramUserId && previousBooking.telegramUserId !== '0' && previousBooking.telegramUserId.trim() !== '') {
                     bookingTelegramUserId = previousBooking.telegramUserId;
                 }
-                else if (previousBooking.telegramChatId &&
-                    previousBooking.telegramChatId !== '0' &&
-                    previousBooking.telegramChatId.trim() !== '') {
-                    // Для приватних чатів chat_id = user_id
+                else if (!bookingTelegramUserId && previousBooking.telegramChatId) {
                     bookingTelegramUserId = previousBooking.telegramChatId;
-                    console.log(`⚠️ telegramUserId був невалідний (${previousBooking.telegramUserId}), використовуємо chatId як userId`);
                 }
             }
-            console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (chatId: ${telegramChatId}, userId: ${bookingTelegramUserId})`);
         }
-        else if (bookingTelegramUserId) {
-            // Якщо це перше бронювання але є telegramUserId з frontend
-            console.log(`✅ Перше бронювання для ${phone} з Telegram Login (userId: ${bookingTelegramUserId})`);
-        }
-        else {
-            console.log(`📋 Попередніх бронювань для ${phone} не знайдено`);
-        }
+        console.log(`🔍 Person id=${person.id}, Telegram: chatId=${telegramChatId}, userId=${bookingTelegramUserId}`);
     }
     catch (error) {
-        console.error('❌ Помилка пошуку попередніх бронювань:', error);
-        // Продовжуємо з тим що є
+        console.error('❌ Помилка пошуку Person/попередніх бронювань:', error);
     }
     // Фінальна валідація: для приватних чатів chat_id = user_id
     // Якщо є chatId але немає userId - використовуємо chatId як userId
@@ -400,8 +419,9 @@ app.post('/bookings', async (req, res) => {
             phone,
             scheduleId: scheduleId ? Number(scheduleId) : null,
             telegramChatId,
-            telegramUserId: bookingTelegramUserId
-        }
+            telegramUserId: bookingTelegramUserId,
+            personId: person.id,
+        },
     });
     // Відправка повідомлень в Telegram (якщо налаштовано)
     if ((0, telegram_1.isTelegramEnabled)()) {
@@ -439,15 +459,27 @@ app.post('/bookings', async (req, res) => {
 app.get('/bookings', requireAdmin, async (_req, res) => {
     res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } }));
 });
-// Пошук останнього бронювання по телефону
+// Пошук останнього бронювання по телефону (з урахуванням Person та нормалізації номера)
 app.get('/bookings/by-phone/:phone', async (req, res) => {
     const { phone } = req.params;
     try {
-        const lastBooking = await prisma.booking.findFirst({
-            where: { phone },
+        const person = await (0, telegram_1.getPersonByPhone)(phone);
+        if (person) {
+            const byPerson = await prisma.booking.findFirst({
+                where: { personId: person.id },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (byPerson) {
+                return res.json(byPerson);
+            }
+        }
+        const normalized = (0, telegram_1.normalizePhone)(phone);
+        const allRecent = await prisma.booking.findMany({
             orderBy: { createdAt: 'desc' },
+            take: 500,
         });
-        res.json(lastBooking || null);
+        const lastBooking = allRecent.find((b) => (0, telegram_1.normalizePhone)(b.phone) === normalized) ?? null;
+        res.json(lastBooking);
     }
     catch (error) {
         res.status(500).json({ error: 'Failed to find booking' });
@@ -572,5 +604,374 @@ app.get('/telegram/status', requireAdmin, (_req, res) => {
         botToken: process.env.TELEGRAM_BOT_TOKEN ? 'configured' : 'not configured'
     });
 });
+// ============================================
+// Viber Listings Endpoints
+// ============================================
+// Допоміжна функція: серіалізація Viber listing для JSON (дати в ISO рядок)
+function serializeViberListing(row) {
+    return {
+        ...row,
+        date: row.date instanceof Date ? row.date.toISOString() : row.date,
+        createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+    };
+}
+// Отримати всі активні Viber оголошення
+app.get('/viber-listings', async (req, res) => {
+    try {
+        const { active } = req.query;
+        const where = active === 'true' ? { isActive: true } : {};
+        const listings = await prisma.viberListing.findMany({
+            where,
+            orderBy: [
+                { date: 'asc' },
+                { createdAt: 'desc' }
+            ]
+        });
+        res.json(listings.map(serializeViberListing));
+    }
+    catch (error) {
+        console.error('❌ Помилка отримання Viber оголошень:', error);
+        res.status(500).json({ error: 'Не вдалося завантажити Viber оголошення. Перевірте логи сервера.' });
+    }
+});
+// Отримати Viber оголошення по маршруту та даті
+app.get('/viber-listings/search', async (req, res) => {
+    const { route, date } = req.query;
+    if (!route || !date) {
+        return res.status(400).json({ error: 'Route and date are required' });
+    }
+    try {
+        const searchDate = new Date(date);
+        const startOfDay = new Date(searchDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(searchDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        const listings = await prisma.viberListing.findMany({
+            where: {
+                route: route,
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                },
+                isActive: true
+            },
+            orderBy: [{ date: 'asc' }, { departureTime: 'asc' }]
+        });
+        res.json(listings.map(serializeViberListing));
+    }
+    catch (error) {
+        console.error('❌ Помилка пошуку Viber оголошень:', error);
+        res.status(500).json({ error: 'Не вдалося пошукати Viber оголошення.' });
+    }
+});
+// Створити Viber оголошення (Admin)
+app.post('/viber-listings', requireAdmin, async (req, res) => {
+    const { rawMessage } = req.body;
+    if (!rawMessage) {
+        return res.status(400).json({ error: 'rawMessage is required' });
+    }
+    try {
+        // Спроба парсингу повідомлення
+        const parsed = (0, viber_parser_1.parseViberMessage)(rawMessage);
+        if (!parsed) {
+            return res.status(400).json({
+                error: 'Не вдалося розпарсити повідомлення. Перевірте формат.'
+            });
+        }
+        const nameFromDb = parsed.phone ? await (0, telegram_1.getNameByPhone)(parsed.phone) : null;
+        const senderName = nameFromDb ?? parsed.senderName;
+        const person = parsed.phone
+            ? await (0, telegram_1.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
+            : null;
+        const listing = await prisma.viberListing.create({
+            data: {
+                rawMessage,
+                senderName,
+                listingType: parsed.listingType,
+                route: parsed.route,
+                date: parsed.date,
+                departureTime: parsed.departureTime,
+                seats: parsed.seats,
+                phone: parsed.phone,
+                notes: parsed.notes,
+                isActive: true,
+                personId: person?.id ?? undefined,
+            },
+        });
+        console.log(`✅ Створено Viber оголошення #${listing.id}:`, {
+            type: listing.listingType,
+            route: listing.route,
+            date: listing.date,
+            phone: listing.phone
+        });
+        if ((0, telegram_1.isTelegramEnabled)()) {
+            (0, telegram_1.sendViberListingNotificationToAdmin)({
+                id: listing.id,
+                listingType: listing.listingType,
+                route: listing.route,
+                date: listing.date,
+                departureTime: listing.departureTime,
+                seats: listing.seats,
+                phone: listing.phone,
+                senderName: listing.senderName,
+                notes: listing.notes,
+            }).catch((err) => console.error('Telegram Viber notify:', err));
+            // Якщо є телефон — спроба надіслати автору оголошення в Telegram (якщо він є в базі)
+            if (listing.phone && listing.phone.trim()) {
+                (0, telegram_1.sendViberListingConfirmationToUser)(listing.phone, {
+                    id: listing.id,
+                    route: listing.route,
+                    date: listing.date,
+                    departureTime: listing.departureTime,
+                    seats: listing.seats,
+                    listingType: listing.listingType,
+                }).catch((err) => console.error('Telegram Viber user notify:', err));
+            }
+            // Сповістити про збіги водій/пасажир — як при додаванні через бота
+            const authorChatId = listing.phone?.trim() ? await (0, telegram_1.getChatIdByPhone)(listing.phone) : null;
+            if (listing.listingType === 'driver') {
+                (0, telegram_1.notifyMatchingPassengersForNewDriver)(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+            }
+            else if (listing.listingType === 'passenger') {
+                (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+            }
+        }
+        res.status(201).json(serializeViberListing(listing));
+    }
+    catch (error) {
+        console.error('❌ Помилка створення Viber оголошення:', error);
+        res.status(500).json({ error: 'Failed to create Viber listing' });
+    }
+});
+// Масове створення Viber оголошень з копіювання чату (Admin)
+app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
+    const { rawMessages } = req.body;
+    if (!rawMessages) {
+        return res.status(400).json({ error: 'rawMessages is required' });
+    }
+    try {
+        const parsedMessages = (0, viber_parser_1.parseViberMessages)(rawMessages);
+        if (parsedMessages.length === 0) {
+            return res.status(400).json({
+                error: 'Не вдалося розпарсити жодне повідомлення'
+            });
+        }
+        const created = [];
+        const errors = [];
+        for (let i = 0; i < parsedMessages.length; i++) {
+            const parsed = parsedMessages[i];
+            try {
+                const nameFromDb = parsed.phone ? await (0, telegram_1.getNameByPhone)(parsed.phone) : null;
+                const senderName = nameFromDb ?? parsed.senderName;
+                const person = parsed.phone
+                    ? await (0, telegram_1.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
+                    : null;
+                const listing = await prisma.viberListing.create({
+                    data: {
+                        rawMessage: `Parsed message ${i + 1}`,
+                        senderName,
+                        listingType: parsed.listingType,
+                        route: parsed.route,
+                        date: parsed.date,
+                        departureTime: parsed.departureTime,
+                        seats: parsed.seats,
+                        phone: parsed.phone,
+                        notes: parsed.notes,
+                        isActive: true,
+                        personId: person?.id ?? undefined,
+                    },
+                });
+                created.push(listing);
+                if ((0, telegram_1.isTelegramEnabled)()) {
+                    (0, telegram_1.sendViberListingNotificationToAdmin)({
+                        id: listing.id,
+                        listingType: listing.listingType,
+                        route: listing.route,
+                        date: listing.date,
+                        departureTime: listing.departureTime,
+                        seats: listing.seats,
+                        phone: listing.phone,
+                        senderName: listing.senderName,
+                        notes: listing.notes,
+                    }).catch((err) => console.error('Telegram Viber notify:', err));
+                    if (listing.phone && listing.phone.trim()) {
+                        (0, telegram_1.sendViberListingConfirmationToUser)(listing.phone, {
+                            id: listing.id,
+                            route: listing.route,
+                            date: listing.date,
+                            departureTime: listing.departureTime,
+                            seats: listing.seats,
+                            listingType: listing.listingType,
+                        }).catch((err) => console.error('Telegram Viber user notify:', err));
+                    }
+                    // Сповістити про збіги водій/пасажир (як при додаванні через бота)
+                    const authorChatId = listing.phone?.trim() ? await (0, telegram_1.getChatIdByPhone)(listing.phone) : null;
+                    if (listing.listingType === 'driver') {
+                        (0, telegram_1.notifyMatchingPassengersForNewDriver)(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+                    }
+                    else if (listing.listingType === 'passenger') {
+                        (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+                    }
+                }
+            }
+            catch (error) {
+                errors.push({ index: i, error: error instanceof Error ? error.message : 'Unknown error' });
+            }
+        }
+        console.log(`✅ Створено ${created.length} Viber оголошень з ${parsedMessages.length}`);
+        res.status(201).json({
+            success: true,
+            created: created.length,
+            total: parsedMessages.length,
+            errors: errors.length > 0 ? errors : undefined,
+            listings: created
+        });
+    }
+    catch (error) {
+        console.error('❌ Помилка масового створення Viber оголошень:', error);
+        res.status(500).json({ error: 'Failed to create Viber listings' });
+    }
+});
+// Дозволені поля для оновлення Viber оголошення (без id, createdAt, updatedAt)
+const VIBER_LISTING_UPDATE_FIELDS = [
+    'rawMessage', 'senderName', 'listingType', 'route', 'date', 'departureTime', 'seats', 'phone', 'notes', 'isActive'
+];
+// Оновити Viber оголошення (Admin)
+app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const body = req.body;
+    const updates = {};
+    for (const key of VIBER_LISTING_UPDATE_FIELDS) {
+        if (body[key] !== undefined) {
+            if (key === 'date' && typeof body[key] === 'string') {
+                updates[key] = new Date(body[key]);
+            }
+            else {
+                updates[key] = body[key];
+            }
+        }
+    }
+    if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No allowed fields to update' });
+    }
+    try {
+        const listing = await prisma.viberListing.update({
+            where: { id: Number(id) },
+            data: updates
+        });
+        res.json(serializeViberListing(listing));
+    }
+    catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Viber listing not found' });
+        }
+        console.error('❌ Помилка оновлення Viber оголошення:', error);
+        res.status(500).json({ error: 'Failed to update Viber listing' });
+    }
+});
+// Деактивувати Viber оголошення (Admin)
+app.patch('/viber-listings/:id/deactivate', requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const listing = await prisma.viberListing.update({
+            where: { id: Number(id) },
+            data: { isActive: false }
+        });
+        res.json(listing);
+    }
+    catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Viber listing not found' });
+        }
+        console.error('❌ Помилка деактивації Viber оголошення:', error);
+        res.status(500).json({ error: 'Failed to deactivate Viber listing' });
+    }
+});
+// Видалити Viber оголошення (Admin)
+app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await prisma.viberListing.delete({
+            where: { id: Number(id) }
+        });
+        res.status(204).send();
+    }
+    catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Viber listing not found' });
+        }
+        console.error('❌ Помилка видалення Viber оголошення:', error);
+        res.status(500).json({ error: 'Failed to delete Viber listing' });
+    }
+});
+// Автоматичне деактивування старих оголошень (можна викликати з cron)
+app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
+    try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(23, 59, 59, 999);
+        const result = await prisma.viberListing.updateMany({
+            where: {
+                date: { lt: yesterday },
+                isActive: true
+            },
+            data: { isActive: false }
+        });
+        console.log(`🧹 Деактивовано ${result.count} старих Viber оголошень`);
+        res.json({
+            success: true,
+            deactivated: result.count,
+            message: `Деактивовано ${result.count} оголошень`
+        });
+    }
+    catch (error) {
+        console.error('❌ Помилка очищення старих Viber оголошень:', error);
+        res.status(500).json({ error: 'Failed to cleanup old listings' });
+    }
+});
+// Глобальний обробник помилок — завжди повертаємо JSON
+app.use((err, _req, res, _next) => {
+    console.error('❌ Unhandled error:', err);
+    res.status(500).json({ error: 'Помилка сервера' });
+});
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));
+// Збираємо список зареєстрованих роутів для логів (Express 4)
+function getRegisteredRoutes() {
+    const routes = [];
+    try {
+        const router = app._router;
+        const stack = router?.stack ?? [];
+        function walk(layer, prefix = '') {
+            if (!layer)
+                return;
+            const path = (prefix + (layer.route?.path ?? layer.path ?? '')).replace(/\/\//g, '/') || '/';
+            if (layer.route) {
+                const methods = Object.keys(layer.route.methods).filter((m) => layer.route.methods[m]);
+                methods.forEach((m) => routes.push(`${m.toUpperCase()} ${path}`));
+            }
+            if (layer.name === 'router' && layer.handle?.stack) {
+                layer.handle.stack.forEach((l) => walk(l, path));
+            }
+        }
+        stack.forEach((layer) => walk(layer));
+    }
+    catch (e) {
+        console.warn('[KYIV-MALYN-BACKEND] Could not list routes:', e);
+    }
+    return [...new Set(routes)].sort();
+}
+app.listen(PORT, () => {
+    const routes = getRegisteredRoutes();
+    const hasViber = routes.some((r) => r.includes('viber-listings'));
+    console.log('========================================');
+    console.log(`[KYIV-MALYN-BACKEND] CODE_VERSION=${CODE_VERSION}`);
+    console.log(`[KYIV-MALYN-BACKEND] cwd=${process.cwd()}`);
+    console.log(`[KYIV-MALYN-BACKEND] RAILWAY_DEPLOYMENT_ID=${process.env.RAILWAY_DEPLOYMENT_ID ?? 'not set'}`);
+    console.log(`[KYIV-MALYN-BACKEND] /viber-listings registered: ${hasViber ? 'YES' : 'NO'}`);
+    console.log('[KYIV-MALYN-BACKEND] Routes:', routes.filter((r) => r.startsWith('GET ') || r.startsWith('POST ')).slice(0, 25).join(', '));
+    if (!hasViber)
+        console.warn('[KYIV-MALYN-BACKEND] WARNING: Viber routes missing — likely old build/cache');
+    console.log('========================================');
+    console.log(`API on http://localhost:${PORT} [${CODE_VERSION}]`);
+});

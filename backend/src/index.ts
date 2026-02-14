@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -795,6 +795,13 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
           listingType: listing.listingType,
         }).catch((err) => console.error('Telegram Viber user notify:', err));
       }
+      // Сповістити про збіги водій/пасажир — як при додаванні через бота
+      const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
+      if (listing.listingType === 'driver') {
+        notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+      } else if (listing.listingType === 'passenger') {
+        notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+      }
     }
 
     res.status(201).json(serializeViberListing(listing));
@@ -869,6 +876,13 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
               seats: listing.seats,
               listingType: listing.listingType,
             }).catch((err) => console.error('Telegram Viber user notify:', err));
+          }
+          // Сповістити про збіги водій/пасажир (як при додаванні через бота)
+          const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
+          if (listing.listingType === 'driver') {
+            notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+          } else if (listing.listingType === 'passenger') {
+            notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
           }
         }
       } catch (error) {
