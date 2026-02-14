@@ -965,7 +965,8 @@ https://malin.kiev.ua
                     const type = l.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
                     const time = l.departureTime || '—';
                     const seats = l.seats != null ? `, ${l.seats} місць` : '';
-                    return `${type} ${time}${seats}\n📞 <a href="tel:${l.phone}">${l.phone}</a>`;
+                    const notes = l.notes != null ? `\n💡 ${l.notes}` : '';
+                    return `${type} ${time}${seats}${notes}\n📞 <a href="tel:${l.phone}">${l.phone}</a>`;
                   })
                   .join('\n\n')
               : '';
