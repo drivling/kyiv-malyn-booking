@@ -202,14 +202,14 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
     if (driverChatId && exactList.length > 0) {
         const lines = exactList.map((p) => {
             const time = p.departureTime ?? '—';
-            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${p.phone}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(driverChatId, '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
     if (driverChatId && approxList.length > 0) {
         const lines = approxList.map((p) => {
             const time = p.departureTime ?? '—';
-            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${p.phone}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(driverChatId, '📌 <b>Приблизне співпадіння (інший час або без часу)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
@@ -224,7 +224,7 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
             (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
             (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
             `👤 ${driverListing.senderName ?? 'Водій'}\n` +
-            `📞 ${driverListing.phone}` +
+            `📞 ${formatPhoneTelLink(driverListing.phone)}` +
             (driverListing.notes ? `\n📝 ${driverListing.notes}` : '');
         await bot?.sendMessage(passengerChatId, msg, { parse_mode: 'HTML' }).catch(() => { });
     }
@@ -239,14 +239,14 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
     if (passengerChatId && exactList.length > 0) {
         const lines = exactList.map((d) => {
             const time = d.departureTime ?? '—';
-            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${d.phone}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(passengerChatId, '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
     if (passengerChatId && approxList.length > 0) {
         const lines = approxList.map((d) => {
             const time = d.departureTime ?? '—';
-            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${d.phone}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(passengerChatId, '📌 <b>Приблизне співпадіння (інший час або без часу)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
@@ -260,7 +260,7 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
             `📅 ${formatDate(passengerListing.date)}\n` +
             (passengerListing.departureTime ? `🕐 ${passengerListing.departureTime}\n` : '') +
             `👤 ${passengerListing.senderName ?? 'Пасажир'}\n` +
-            `📞 ${passengerListing.phone}` +
+            `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
             (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '');
         await bot?.sendMessage(driverChatId, msg, { parse_mode: 'HTML' }).catch(() => { });
     }
@@ -374,6 +374,17 @@ const formatDate = (date) => {
     }).format(date);
 };
 /**
+ * Клікабельний номер телефону для Telegram (HTML): <a href="tel:+38...">...</a>
+ */
+function formatPhoneTelLink(phone) {
+    const p = (phone ?? '').trim();
+    if (!p)
+        return '—';
+    const digits = '+' + (0, exports.normalizePhone)(p);
+    const display = p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<a href="tel:${digits}">${display}</a>`;
+}
+/**
  * Отримання назви маршруту
  */
 const getRouteName = (route) => {
@@ -415,7 +426,7 @@ const sendBookingNotificationToAdmin = async (booking) => {
 🎫 <b>Місць:</b> ${booking.seats}
 
 👤 <b>Клієнт:</b> ${booking.name}
-📞 <b>Телефон:</b> ${booking.phone}
+📞 <b>Телефон:</b> ${formatPhoneTelLink(booking.phone)}
 
 ✅ <i>Бронювання підтверджено</i>
     `.trim();
@@ -451,7 +462,7 @@ ${typeEmoji} <b>Тип:</b> ${typeLabel}
 📅 <b>Дата:</b> ${dateStr}
 🕐 <b>Час:</b> ${listing.departureTime ?? '—'}
 ${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}
-📞 <b>Телефон:</b> <a href="tel:${listing.phone.replace(/\s/g, '')}">${listing.phone}</a>
+📞 <b>Телефон:</b> ${formatPhoneTelLink(listing.phone)}
 ${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
     `.trim();
         await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
@@ -591,7 +602,7 @@ async function registerUserPhone(chatId, userId, phoneInput) {
                 telegramUserId: userId,
             });
             await bot.sendMessage(chatId, `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
-                `📱 ${phoneInput}\n\n` +
+                `📱 ${formatPhoneTelLink(phoneInput)}\n\n` +
                 `Коли ви створите бронювання на сайті з цим номером:\n` +
                 `🌐 https://malin.kiev.ua\n\n` +
                 `ви автоматично будете отримувати:\n` +
@@ -626,7 +637,7 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         });
         console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
         await bot.sendMessage(chatId, `✅ <b>Вітаємо! Ваш акаунт підключено!</b>\n\n` +
-            `📱 Номер телефону: ${phoneInput}\n` +
+            `📱 Номер телефону: ${formatPhoneTelLink(phoneInput)}\n` +
             `🎫 Знайдено бронювань: ${totalBookings}\n\n` +
             `Тепер ви будете отримувати:\n` +
             `• ✅ Підтвердження при створенні бронювання\n` +
@@ -685,7 +696,7 @@ function setupBotCommands() {
 
 Я бот для бронювання маршруток <b>Київ ↔ Малин</b>.
 
-✅ Ваш акаунт вже підключено до номера: ${displayPhone}
+✅ Ваш акаунт вже підключено до номера: ${formatPhoneTelLink(displayPhone)}
 
 🎫 <b>Що можна зробити:</b>
 /book - 🎫 Створити нове бронювання
@@ -767,7 +778,7 @@ https://malin.kiev.ua
 /start - головне меню
 /help - показати цю довідку
 
-✅ Ваш акаунт підключено до номера: ${existingBooking.phone}
+✅ Ваш акаунт підключено до номера: ${formatPhoneTelLink(existingBooking.phone)}
 
 💡 <b>Що я вмію:</b>
 • 🎫 Створювати нові бронювання
@@ -1779,7 +1790,7 @@ https://malin.kiev.ua
                                 const seats = l.seats != null ? `, ${l.seats} місць` : '';
                                 const notes = l.notes != null ? `\n💡 ${l.notes}` : '';
                                 const namePart = l.senderName ? ` — ${l.senderName}` : '';
-                                return `${type} ${time}${seats}${notes}\n📞 <a href="tel:${l.phone.replace(/\s/g, '')}">${l.phone}</a>${namePart}`;
+                                return `${type} ${time}${seats}${notes}\n📞 ${formatPhoneTelLink(l.phone)}${namePart}`;
                             })
                                 .join('\n\n')
                         : '';
