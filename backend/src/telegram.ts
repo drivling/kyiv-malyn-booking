@@ -970,10 +970,18 @@ https://malin.kiev.ua
                   })
                   .join('\n\n')
               : '';
+          const helpBlock =
+            viberListings.length === 0
+              ? '\n\n<b>Ви можете:</b>\n' +
+                '🎫 /book - Почати заново\n' +
+                '📋 /mybookings - Переглянути існуючі бронювання\n' +
+                '🌐 https://malin.kiev.ua - Забронювати на сайті'
+              : '';
           await bot?.editMessageText(
             '❌ <b>Немає доступних рейсів</b> за розкладом.\n\n' +
               'Спробуйте інший напрямок або дату.' +
-              viberBlock,
+              viberBlock +
+              helpBlock,
             {
               chat_id: chatId,
               message_id: messageId,
