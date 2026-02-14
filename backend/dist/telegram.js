@@ -1835,9 +1835,9 @@ https://malin.kiev.ua
             if (data.startsWith('confirm_cancel_')) {
                 const bookingId = data.replace('confirm_cancel_', '');
                 try {
-                    // Видалити бронювання безпосередньо через Prisma
                     const booking = await prisma.booking.findUnique({
-                        where: { id: Number(bookingId) }
+                        where: { id: Number(bookingId) },
+                        include: { viberListing: true }
                     });
                     if (!booking) {
                         throw new Error('Бронювання не знайдено');
@@ -1845,17 +1845,29 @@ https://malin.kiev.ua
                     if (booking.telegramUserId !== userId) {
                         throw new Error('Це не ваше бронювання');
                     }
-                    // Зберегти дані для відображення
                     const bookingData = {
                         id: booking.id,
                         route: booking.route,
                         date: booking.date
                     };
-                    // Видалити бронювання
+                    const isRideShare = booking.source === 'viber_match';
+                    const driverListing = booking.viberListing;
                     await prisma.booking.delete({
                         where: { id: Number(bookingId) }
                     });
                     console.log(`✅ Користувач ${userId} скасував бронювання #${bookingId}`);
+                    // Сповістити водія про скасування попутки
+                    if (isRideShare && driverListing) {
+                        const driverChatId = await (0, exports.getChatIdByPhone)(driverListing.phone);
+                        if (driverChatId) {
+                            await bot?.sendMessage(driverChatId, `🚫 <b>Пасажир скасував бронювання попутки</b>\n\n` +
+                                `🎫 №${bookingData.id}\n` +
+                                `👤 Пасажир: ${booking.name}\n` +
+                                `🛣 ${getRouteName(bookingData.route)}\n` +
+                                `📅 ${formatDate(bookingData.date)}\n\n` +
+                                `Місце знову вільне — можете запропонувати його іншим.`, { parse_mode: 'HTML' }).catch((err) => console.error('Notify driver about cancel:', err));
+                        }
+                    }
                     await bot?.editMessageText('✅ <b>Бронювання успішно скасовано!</b>\n\n' +
                         `🎫 Номер: #${bookingData.id}\n` +
                         `📍 ${getRouteName(bookingData.route)}\n` +

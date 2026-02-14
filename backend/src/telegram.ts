@@ -2114,9 +2114,9 @@ https://malin.kiev.ua
         const bookingId = data.replace('confirm_cancel_', '');
         
         try {
-          // Видалити бронювання безпосередньо через Prisma
           const booking = await prisma.booking.findUnique({
-            where: { id: Number(bookingId) }
+            where: { id: Number(bookingId) },
+            include: { viberListing: true }
           });
           
           if (!booking) {
@@ -2127,19 +2127,37 @@ https://malin.kiev.ua
             throw new Error('Це не ваше бронювання');
           }
           
-          // Зберегти дані для відображення
           const bookingData = {
             id: booking.id,
             route: booking.route,
             date: booking.date
           };
+          const isRideShare = (booking as { source?: string }).source === 'viber_match';
+          const driverListing = (booking as { viberListing?: { phone: string; senderName: string | null } | null }).viberListing;
           
-          // Видалити бронювання
           await prisma.booking.delete({
             where: { id: Number(bookingId) }
           });
           
           console.log(`✅ Користувач ${userId} скасував бронювання #${bookingId}`);
+          
+          // Сповістити водія про скасування попутки
+          if (isRideShare && driverListing) {
+            const driverChatId = await getChatIdByPhone(driverListing.phone);
+            if (driverChatId) {
+              await bot?.sendMessage(
+                driverChatId,
+                `🚫 <b>Пасажир скасував бронювання попутки</b>\n\n` +
+                  `🎫 №${bookingData.id}\n` +
+                  `👤 Пасажир: ${booking.name}\n` +
+                  `📞 ${formatPhoneTelLink(booking.phone)}\n` +
+                  `🛣 ${getRouteName(bookingData.route)}\n` +
+                  `📅 ${formatDate(bookingData.date)}\n\n` +
+                  `Місце знову вільне — можете запропонувати його іншим.`,
+                { parse_mode: 'HTML' }
+              ).catch((err) => console.error('Notify driver about cancel:', err));
+            }
+          }
           
           await bot?.editMessageText(
             '✅ <b>Бронювання успішно скасовано!</b>\n\n' +
