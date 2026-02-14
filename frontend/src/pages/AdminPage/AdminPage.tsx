@@ -42,7 +42,6 @@ export const AdminPage: React.FC = () => {
   const [viberDateFilter, setViberDateFilter] = useState('');
   const [viberTypeFilter, setViberTypeFilter] = useState<'driver' | 'passenger' | ''>('');
   const [viberSearchQuery, setViberSearchQuery] = useState('');
-  const [migratePersonLoading, setMigratePersonLoading] = useState(false);
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
   const [viberEditForm, setViberEditForm] = useState({
     rawMessage: '',
@@ -341,36 +340,6 @@ export const AdminPage: React.FC = () => {
 
         {error && <Alert variant="error">{error}</Alert>}
         {success && <Alert variant="success">{success}</Alert>}
-
-        <div className="admin-utility" style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: 8 }}>
-          <strong>Службові дії:</strong>{' '}
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={migratePersonLoading}
-            onClick={async () => {
-              setMigratePersonLoading(true);
-              setError('');
-              setSuccess('');
-              try {
-                const r = await apiClient.runMigrateToPerson();
-                if (r.ok) {
-                  setSuccess(
-                    `Person: ${r.personCount}, Booking з personId: ${r.bookingsWithPerson}, ViberListing: ${r.listingsWithPerson} (БД: ${r.dbHost})`
-                  );
-                } else {
-                  setError(r.error || 'Помилка міграції');
-                }
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'Помилка');
-              } finally {
-                setMigratePersonLoading(false);
-              }
-            }}
-          >
-            {migratePersonLoading ? 'Виконую…' : 'Запустити міграцію Person'}
-          </Button>
-        </div>
 
         {activeTab === 'bookings' && (
           <div className="tab-content">

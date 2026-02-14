@@ -1,7 +1,8 @@
 /**
  * Одноразова міграція даних: з таблиць Booking та ViberListing у таблицю Person.
- * Можна викликати: ts-node src/migrate-to-person.ts або HTTP POST /admin/migrate-to-person (тільки адмін).
- * Після виконання на проді — ендпоінт можна прибрати.
+ * Запустити після застосування міграції add_person_and_person_id:
+ *   npx prisma migrate deploy
+ *   npx ts-node src/migrate-to-person.ts
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -24,31 +25,15 @@ function maskDbUrl(url: string | undefined): string {
   }
 }
 
-export interface MigrateToPersonResult {
-  ok: boolean;
-  dbHost: string;
-  personsFound: number;
-  updatedBookings: number;
-  updatedListings: number;
-  personCount: number;
-  bookingsWithPerson: number;
-  listingsWithPerson: number;
-  error?: string;
-}
-
-/** Виконує міграцію даних у Person. Можна викликати з HTTP (на Railway буде прод-БД). */
-export async function runMigrateToPerson(options?: { log?: boolean }): Promise<MigrateToPersonResult> {
-  const log = options?.log !== false;
+async function main() {
   const prisma = new PrismaClient();
   const dbUrl = process.env.DATABASE_URL;
-  if (log) {
-    console.log('🔄 Початок міграції даних у Person...');
-    console.log('📍 Підключення до БД:', maskDbUrl(dbUrl), '\n');
-  }
+  console.log('🔄 Початок міграції даних у Person...');
+  console.log('📍 Підключення до БД:', maskDbUrl(dbUrl), '\n');
 
-  try {
-    const bookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
-    const listings = await prisma.viberListing.findMany({ orderBy: { createdAt: 'desc' } });
+  // 1. Збираємо всі унікальні номери з Booking та ViberListing з найкращими даними
+  const bookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
+  const listings = await prisma.viberListing.findMany({ orderBy: { createdAt: 'desc' } });
 
   type PersonData = {
     phoneNormalized: string;
@@ -102,97 +87,74 @@ export async function runMigrateToPerson(options?: { log?: boolean }): Promise<M
     }
   }
 
-    if (log) console.log(`📋 Знайдено ${byPhone.size} унікальних номерів для персон.\n`);
+  console.log(`📋 Знайдено ${byPhone.size} унікальних номерів для персон.\n`);
 
-    const phoneToPersonId = new Map<string, number>();
-    for (const data of byPhone.values()) {
-      const person = await prisma.person.upsert({
-        where: { phoneNormalized: data.phoneNormalized },
-        create: {
-          phoneNormalized: data.phoneNormalized,
-          fullName: data.fullName,
-          telegramChatId: data.telegramChatId,
-          telegramUserId: data.telegramUserId,
-        },
-        update: {
-          ...(data.fullName != null && { fullName: data.fullName }),
-          ...(data.telegramChatId != null && { telegramChatId: data.telegramChatId }),
-          ...(data.telegramUserId != null && { telegramUserId: data.telegramUserId }),
-        },
-      });
-      phoneToPersonId.set(data.phoneNormalized, person.id);
-    }
+  // 2. Створюємо Person та зберігаємо мапу phoneNormalized -> personId
+  const phoneToPersonId = new Map<string, number>();
 
-    let updatedBookings = 0;
-    for (const b of bookings) {
-      const norm = normalizePhone(b.phone);
-      const personId = phoneToPersonId.get(norm);
-      if (personId) {
-        await prisma.booking.update({
-          where: { id: b.id },
-          data: { personId },
-        });
-        updatedBookings++;
-      }
-    }
-    if (log) console.log(`✅ Оновлено Booking.personId: ${updatedBookings} записів.`);
-
-    let updatedListings = 0;
-    for (const l of listings) {
-      const norm = normalizePhone(l.phone);
-      const personId = phoneToPersonId.get(norm);
-      if (personId) {
-        await prisma.viberListing.update({
-          where: { id: l.id },
-          data: { personId },
-        });
-        updatedListings++;
-      }
-    }
-    if (log) console.log(`✅ Оновлено ViberListing.personId: ${updatedListings} записів.`);
-
-    const personCount = await prisma.person.count();
-    const bookingsWithPerson = await prisma.booking.count({ where: { personId: { not: null } } });
-    const listingsWithPerson = await prisma.viberListing.count({ where: { personId: { not: null } } });
-    if (log) {
-      console.log('\n📊 Перевірка після запису:');
-      console.log(`   Person: ${personCount} записів`);
-      console.log(`   Booking з personId: ${bookingsWithPerson}`);
-      console.log(`   ViberListing з personId: ${listingsWithPerson}`);
-      console.log('\n✅ Міграція даних у Person завершена.');
-    }
-    await prisma.$disconnect();
-    return {
-      ok: true,
-      dbHost: maskDbUrl(dbUrl),
-      personsFound: byPhone.size,
-      updatedBookings,
-      updatedListings,
-      personCount,
-      bookingsWithPerson,
-      listingsWithPerson,
-    };
-  } catch (err) {
-    await prisma.$disconnect().catch(() => {});
-    const message = err instanceof Error ? err.message : String(err);
-    if (log) console.error('❌ Помилка міграції:', err);
-    return {
-      ok: false,
-      dbHost: maskDbUrl(dbUrl),
-      personsFound: 0,
-      updatedBookings: 0,
-      updatedListings: 0,
-      personCount: 0,
-      bookingsWithPerson: 0,
-      listingsWithPerson: 0,
-      error: message,
-    };
+  for (const data of byPhone.values()) {
+    const person = await prisma.person.upsert({
+      where: { phoneNormalized: data.phoneNormalized },
+      create: {
+        phoneNormalized: data.phoneNormalized,
+        fullName: data.fullName,
+        telegramChatId: data.telegramChatId,
+        telegramUserId: data.telegramUserId,
+      },
+      update: {
+        ...(data.fullName != null && { fullName: data.fullName }),
+        ...(data.telegramChatId != null && { telegramChatId: data.telegramChatId }),
+        ...(data.telegramUserId != null && { telegramUserId: data.telegramUserId }),
+      },
+    });
+    phoneToPersonId.set(data.phoneNormalized, person.id);
   }
-}
 
-async function main() {
-  const result = await runMigrateToPerson({ log: true });
-  if (!result.ok) process.exit(1);
+  // 3. Оновлюємо Booking.personId
+  let updatedBookings = 0;
+  for (const b of bookings) {
+    const norm = normalizePhone(b.phone);
+    const personId = phoneToPersonId.get(norm);
+    if (personId) {
+      await prisma.booking.update({
+        where: { id: b.id },
+        data: { personId },
+      });
+      updatedBookings++;
+    }
+  }
+  console.log(`✅ Оновлено Booking.personId: ${updatedBookings} записів.`);
+
+  // 4. Оновлюємо ViberListing.personId
+  let updatedListings = 0;
+  for (const l of listings) {
+    const norm = normalizePhone(l.phone);
+    const personId = phoneToPersonId.get(norm);
+    if (personId) {
+      await prisma.viberListing.update({
+        where: { id: l.id },
+        data: { personId },
+      });
+      updatedListings++;
+    }
+  }
+  console.log(`✅ Оновлено ViberListing.personId: ${updatedListings} записів.`);
+
+  // Перевірка: чи дані справді в БД
+  const personCount = await prisma.person.count();
+  const bookingsWithPerson = await prisma.booking.count({ where: { personId: { not: null } } });
+  const listingsWithPerson = await prisma.viberListing.count({ where: { personId: { not: null } } });
+  console.log('\n📊 Перевірка після запису:');
+  console.log(`   Person: ${personCount} записів`);
+  console.log(`   Booking з personId: ${bookingsWithPerson}`);
+  console.log(`   ViberListing з personId: ${listingsWithPerson}`);
+  if (personCount === 0 || (updatedBookings > 0 && bookingsWithPerson === 0)) {
+    console.log('\n⚠️  Увага: очікувані записи не збігаються. Можливо скрипт підключився до іншої БД.');
+    console.log('   Переконайтесь, що запускаєте: cd backend && railway run npm run migrate-to-person');
+    console.log('   і переглядаєте ту саму БД у Railway (Data / Postgres).');
+  }
+  console.log('\n✅ Міграція даних у Person завершена.');
+  await prisma.$disconnect();
 }
 
 main().catch((e) => {

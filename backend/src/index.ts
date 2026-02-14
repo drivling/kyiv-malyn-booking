@@ -3,7 +3,6 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
-import { runMigrateToPerson } from './migrate-to-person';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
@@ -72,17 +71,6 @@ app.get('/status', (_req, res) => {
     deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
     cwd: process.cwd(),
   });
-});
-
-// Тимчасовий ендпоінт: міграція даних у Person (на Railway виконується проти прод-БД). Після виконання — видалити.
-app.post('/admin/migrate-to-person', requireAdmin, async (_req, res) => {
-  try {
-    const result = await runMigrateToPerson({ log: true });
-    res.json(result);
-  } catch (e) {
-    console.error('migrate-to-person:', e);
-    res.status(500).json({ ok: false, error: e instanceof Error ? e.message : String(e) });
-  }
 });
 
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
