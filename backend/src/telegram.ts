@@ -455,14 +455,27 @@ const formatDate = (date: Date): string => {
 };
 
 /**
- * Клікабельний номер телефону для Telegram (HTML): <a href="tel:+38...">...</a>
+ * Формат номера для відображення: +38 050 139 99 10 (для 12 цифр 38...)
+ */
+function formatPhoneDisplay(phone: string | null | undefined): string {
+  const normalized = normalizePhone(phone ?? '');
+  if (normalized.length === 12 && normalized.startsWith('38')) {
+    return `+38 ${normalized.slice(2, 5)} ${normalized.slice(5, 8)} ${normalized.slice(8, 10)} ${normalized.slice(10, 12)}`;
+  }
+  if (normalized.length >= 10) return '+' + normalized;
+  return (phone ?? '').trim() || '—';
+}
+
+/**
+ * Клікабельний номер телефону для Telegram (HTML): <a href="tel:+38...">+38 0XX XXX XX XX</a>
  */
 function formatPhoneTelLink(phone: string | null | undefined): string {
   const p = (phone ?? '').trim();
   if (!p) return '—';
   const digits = '+' + normalizePhone(p);
-  const display = p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return `<a href="tel:${digits}">${display}</a>`;
+  const display = formatPhoneDisplay(p);
+  const displayEscaped = display.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<a href="tel:${digits}">${displayEscaped}</a>`;
 }
 
 /**
