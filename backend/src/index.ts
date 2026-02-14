@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -761,11 +761,13 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
       });
     }
     
-    // Створюємо запис
+    const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
+    const senderName = nameFromDb ?? parsed.senderName;
+    
     const listing = await prisma.viberListing.create({
       data: {
         rawMessage,
-        senderName: parsed.senderName,
+        senderName,
         listingType: parsed.listingType,
         route: parsed.route,
         date: parsed.date,
@@ -839,10 +841,12 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
     for (let i = 0; i < parsedMessages.length; i++) {
       const parsed = parsedMessages[i];
       try {
+        const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
+        const senderName = nameFromDb ?? parsed.senderName;
         const listing = await prisma.viberListing.create({
           data: {
             rawMessage: `Parsed message ${i + 1}`,
-            senderName: parsed.senderName,
+            senderName,
             listingType: parsed.listingType,
             route: parsed.route,
             date: parsed.date,

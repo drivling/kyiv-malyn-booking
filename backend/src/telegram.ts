@@ -55,11 +55,13 @@ async function createDriverListingFromState(
     await bot?.sendMessage(chatId, '❌ Не вистачає даних. Почніть знову: /adddriverride');
     return;
   }
+  const nameFromDb = await getNameByPhone(phone);
+  const resolvedSenderName = nameFromDb ?? senderName;
   const date = new Date(state.date);
   const listing = await prisma.viberListing.create({
     data: {
       rawMessage: `[Бот] ${state.route} ${state.date} ${state.departureTime ?? ''} ${state.seats ?? ''} місць`,
-      senderName,
+      senderName: resolvedSenderName,
       listingType: 'driver',
       route: state.route,
       date,
@@ -93,6 +95,21 @@ async function createDriverListingFromState(
     { parse_mode: 'HTML' }
   );
 }
+
+/**
+ * Отримати ім'я (ім'я + прізвище) з таблиці Booking за номером телефону.
+ * Точніше ніж з Telegram або тексту імпорту — там зберігається повне ім'я з бронювань.
+ */
+export const getNameByPhone = async (phone: string): Promise<string | null> => {
+  const normalized = normalizePhone(phone);
+  const bookings = await prisma.booking.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+    select: { phone: true, name: true }
+  });
+  const match = bookings.find((b) => normalizePhone(b.phone) === normalized);
+  return match?.name?.trim() ?? null;
+};
 
 /**
  * Отримати номер телефону користувача за Telegram (userId або chatId з бронювань)
