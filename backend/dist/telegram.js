@@ -621,8 +621,9 @@ const isTelegramEnabled = () => {
 exports.isTelegramEnabled = isTelegramEnabled;
 /**
  * Реєстрація номера телефону: прив'язка Person до Telegram та синхронізація з бронюваннями.
+ * telegramName — ім'я з профілю Telegram (first_name + last_name), зберігається в Person.fullName.
  */
-async function registerUserPhone(chatId, userId, phoneInput) {
+async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
     if (!bot)
         return;
     try {
@@ -643,12 +644,13 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         if (totalBookings === 0) {
             // Додаємо людину в базу (Person), щоб після бронювання на сайті вона отримувала сповіщення
             await (0, exports.findOrCreatePersonByPhone)(phoneInput, {
+                fullName: telegramName ?? undefined,
                 telegramChatId: chatId,
                 telegramUserId: userId,
             });
             if (!hadAccountBefore) {
                 const person = await (0, exports.getPersonByPhone)(phoneInput);
-                sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? null);
+                sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? telegramName ?? null);
             }
             await bot.sendMessage(chatId, `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
                 `📱 ${formatPhoneTelLink(phoneInput)}\n\n` +
@@ -672,6 +674,7 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         const phoneNumbers = [...new Set(matchingBookings.map((b) => b.phone))];
         for (const phone of phoneNumbers) {
             const person = await (0, exports.findOrCreatePersonByPhone)(phone, {
+                fullName: telegramName ?? undefined,
                 telegramChatId: chatId,
                 telegramUserId: userId,
             });
@@ -694,7 +697,7 @@ async function registerUserPhone(chatId, userId, phoneInput) {
         });
         if (!hadAccountBefore) {
             const person = await (0, exports.getPersonByPhone)(phoneInput);
-            sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? null);
+            sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? telegramName ?? null);
         }
         console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
         await bot.sendMessage(chatId, `✅ <b>Вітаємо! Ваш акаунт підключено!</b>\n\n` +
@@ -919,7 +922,8 @@ https://malin.kiev.ua
             await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
             return;
         }
-        await registerUserPhone(chatId, userId, phoneNumber);
+        const nameFromContact = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
+        await registerUserPhone(chatId, userId, phoneNumber, nameFromContact);
     });
     // Обробка текстових повідомлень (номер телефону або текст поїздки водія)
     bot.on('message', async (msg) => {
@@ -1089,7 +1093,8 @@ https://malin.kiev.ua
         // Перевіряємо чи це схоже на номер телефону
         const phoneRegex = /^[\+\d\s\-\(\)]{10,}$/;
         if (phoneRegex.test(text)) {
-            await registerUserPhone(chatId, userId, text);
+            const nameFromMessage = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
+            await registerUserPhone(chatId, userId, text, nameFromMessage);
         }
         else {
             // Якщо користувач ще не зареєстрований, підказуємо
