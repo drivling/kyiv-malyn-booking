@@ -4,10 +4,12 @@ export type Route =
   | 'Kyiv-Malyn-Bucha'
   | 'Malyn-Kyiv-Bucha'
   | 'Malyn-Zhytomyr'
-  | 'Zhytomyr-Malyn';
+  | 'Zhytomyr-Malyn'
+  | 'Korosten-Malyn'
+  | 'Malyn-Korosten';
 
 // Спрощений напрямок для UI бронювання
-export type Direction = 'Kyiv-Malyn' | 'Malyn-Kyiv' | 'Malyn-Zhytomyr' | 'Zhytomyr-Malyn';
+export type Direction = 'Kyiv-Malyn' | 'Malyn-Kyiv' | 'Malyn-Zhytomyr' | 'Zhytomyr-Malyn' | 'Korosten-Malyn' | 'Malyn-Korosten';
 // Синонім для сумісності зі старим кодом
 export type BaseDirection = Direction;
 

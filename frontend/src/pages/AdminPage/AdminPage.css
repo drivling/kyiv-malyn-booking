@@ -190,6 +190,18 @@ tr:last-child td {
   border: 1px solid #ce93d8;
 }
 
+.badge-korosten-malyn {
+  background: #e0f7fa;
+  color: #006064;
+  border: 1px solid #80deea;
+}
+
+.badge-malyn-korosten {
+  background: #fff8e1;
+  color: #f57f17;
+  border: 1px solid #ffca28;
+}
+
 .loading {
   text-align: center;
   padding: 60px 20px;

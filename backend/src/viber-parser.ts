@@ -149,6 +149,16 @@ export function extractRoute(text: string): string {
     return 'Zhytomyr-Malyn';
   }
   
+  // Коростень → Малин (враховуємо варіанти написання)
+  if (/коростен[ья].*малин|коростень.*малин/i.test(normalizedText)) {
+    return 'Korosten-Malyn';
+  }
+  
+  // Малин → Коростень
+  if (/малин.*коростен[ья]|малин.*коростень/i.test(normalizedText)) {
+    return 'Malyn-Korosten';
+  }
+  
   return 'Unknown';
 }
 

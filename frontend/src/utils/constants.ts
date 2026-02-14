@@ -9,6 +9,8 @@ export const ROUTES: Record<Route, string> = {
   'Malyn-Kyiv-Bucha': 'Малин → Київ (через Бучу)',
   'Malyn-Zhytomyr': 'Малин → Житомир',
   'Zhytomyr-Malyn': 'Житомир → Малин',
+  'Korosten-Malyn': 'Коростень → Малин',
+  'Malyn-Korosten': 'Малин → Коростень',
 };
 
 // Спрощені напрямки для UI бронювання
@@ -17,6 +19,8 @@ export const DIRECTIONS: Record<Direction, string> = {
   'Malyn-Kyiv': 'Малин → Київ',
   'Malyn-Zhytomyr': 'Малин → Житомир',
   'Zhytomyr-Malyn': 'Житомир → Малин',
+  'Korosten-Malyn': 'Коростень → Малин',
+  'Malyn-Korosten': 'Малин → Коростень',
 };
 
 // Маршрути для кожного напрямку
@@ -25,13 +29,15 @@ export const DIRECTION_ROUTES: Record<Direction, Route[]> = {
   'Malyn-Kyiv': ['Malyn-Kyiv-Irpin', 'Malyn-Kyiv-Bucha'],
   'Malyn-Zhytomyr': ['Malyn-Zhytomyr'],
   'Zhytomyr-Malyn': ['Zhytomyr-Malyn'],
+  'Korosten-Malyn': ['Korosten-Malyn'],
+  'Malyn-Korosten': ['Malyn-Korosten'],
 };
 
 // Отримати суфікс маршруту (через Ірпінь/Бучу)
 export const getRouteSuffix = (route: Route): string => {
   if (route.includes('Irpin')) return '(через Ірпінь)';
   if (route.includes('Bucha')) return '(через Бучу)';
-  if (route.includes('Zhytomyr')) return '';
+  if (route.includes('Zhytomyr') || route.includes('Korosten')) return '';
   return '';
 };
 
@@ -44,5 +50,7 @@ export const getRouteBadgeClass = (route: Route): string => {
   if (route.includes('Malyn-Kyiv')) return 'badge-malyn-kyiv';
   if (route.includes('Malyn-Zhytomyr')) return 'badge-malyn-zhytomyr';
   if (route.includes('Zhytomyr-Malyn')) return 'badge-zhytomyr-malyn';
+  if (route.includes('Korosten-Malyn')) return 'badge-korosten-malyn';
+  if (route.includes('Malyn-Korosten')) return 'badge-malyn-korosten';
   return 'badge-kyiv-malyn';
 };

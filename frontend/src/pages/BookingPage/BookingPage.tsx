@@ -270,7 +270,9 @@ export const BookingPage: React.FC = () => {
       .replace('Kyiv-Malyn', 'Київ → Малин')
       .replace('Malyn-Kyiv', 'Малин → Київ')
       .replace('Malyn-Zhytomyr', 'Малин → Житомир')
-      .replace('Zhytomyr-Malyn', 'Житомир → Малин');
+      .replace('Zhytomyr-Malyn', 'Житомир → Малин')
+      .replace('Korosten-Malyn', 'Коростень → Малин')
+      .replace('Malyn-Korosten', 'Малин → Коростень');
 
   const timeOptions = schedules.map((s) => ({
     value: s.id.toString(),

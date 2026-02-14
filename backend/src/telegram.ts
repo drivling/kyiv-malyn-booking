@@ -494,6 +494,8 @@ const getRouteName = (route: string): string => {
   }
   if (route.includes('Malyn-Zhytomyr')) return 'Малин → Житомир';
   if (route.includes('Zhytomyr-Malyn')) return 'Житомир → Малин';
+  if (route.includes('Korosten-Malyn')) return 'Коростень → Малин';
+  if (route.includes('Malyn-Korosten')) return 'Малин → Коростень';
   return route;
 };
 
@@ -1000,6 +1002,8 @@ https://malin.kiev.ua
           [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
           [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
           [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+          [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+          [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
           [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
         ]
       };
@@ -1017,6 +1021,8 @@ https://malin.kiev.ua
           [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
           [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
           [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+          [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+          [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
           [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
         ]
       };
@@ -1108,6 +1114,8 @@ https://malin.kiev.ua
             [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
             [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
             [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+            [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+            [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
             [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
           ]
         };
@@ -1182,6 +1190,8 @@ https://malin.kiev.ua
             [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
             [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
             [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+            [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+            [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
             [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
           ]
         };
@@ -1525,6 +1535,8 @@ https://malin.kiev.ua
         [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
         [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
         [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+        [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+        [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
         [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
       ]
     };
@@ -1560,6 +1572,8 @@ https://malin.kiev.ua
         [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
         [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
         [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+        [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+        [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
         [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
       ]
     };
@@ -1612,7 +1626,9 @@ https://malin.kiev.ua
         [{ text: '🚌 Київ → Малин', callback_data: 'book_dir_Kyiv-Malyn' }],
         [{ text: '🚌 Малин → Київ', callback_data: 'book_dir_Malyn-Kyiv' }],
         [{ text: '🚌 Малин → Житомир', callback_data: 'book_dir_Malyn-Zhytomyr' }],
-        [{ text: '🚌 Житомир → Малин', callback_data: 'book_dir_Zhytomyr-Malyn' }]
+        [{ text: '🚌 Житомир → Малин', callback_data: 'book_dir_Zhytomyr-Malyn' }],
+        [{ text: '🚌 Коростень → Малин', callback_data: 'book_dir_Korosten-Malyn' }],
+        [{ text: '🚌 Малин → Коростень', callback_data: 'book_dir_Malyn-Korosten' }]
       ]
     };
     
