@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -379,77 +379,45 @@ app.post('/bookings', async (req, res) => {
     // Якщо графік не знайдено, все одно дозволяємо бронювання
   }
 
-  // Шукаємо попередні бронювання з цим номером телефону
-  // Якщо користувач вже підписувався - автоматично копіюємо його Telegram дані
+  // Прив'язка до Person та пошук Telegram: спочатку Person, потім попередні бронювання
   let telegramChatId: string | null = null;
-  let bookingTelegramUserId: string | null = telegramUserId || null; // Використовуємо переданий з frontend
-  
+  let bookingTelegramUserId: string | null = telegramUserId || null;
+  const person = await findOrCreatePersonByPhone(phone, { fullName: name });
+
   try {
     const normalizedPhone = normalizePhone(phone);
-    
-    console.log(`🔍 Пошук попередніх бронювань для номера: ${phone} (нормалізований: ${normalizedPhone})`);
-    
-    // Отримуємо всі бронювання і шукаємо по нормалізованому номеру
-    const allBookings = await prisma.booking.findMany({
-      where: {
-        telegramUserId: { 
-          not: null,
-          notIn: ['0', '', ' '] // Виключаємо невалідні значення
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-    
-    console.log(`📋 Знайдено ${allBookings.length} бронювань з валідним telegramUserId`);
-    
-    // Шукаємо бронювання з таким же нормалізованим номером
-    const previousBooking = allBookings.find(b => 
-      normalizePhone(b.phone) === normalizedPhone
-    );
-    
-    if (previousBooking) {
-      console.log(`✅ Знайдено попереднє бронювання #${previousBooking.id}:`, {
-        chatId: previousBooking.telegramChatId,
-        userId: previousBooking.telegramUserId
+    const personRecord = await getPersonByPhone(phone);
+
+    if (personRecord?.telegramChatId && personRecord.telegramChatId !== '0' && personRecord.telegramChatId.trim() !== '') {
+      telegramChatId = personRecord.telegramChatId;
+    }
+    if (personRecord?.telegramUserId && personRecord.telegramUserId !== '0' && personRecord.telegramUserId.trim() !== '') {
+      bookingTelegramUserId = bookingTelegramUserId || personRecord.telegramUserId;
+    }
+
+    if (!telegramChatId || !bookingTelegramUserId) {
+      const allBookings = await prisma.booking.findMany({
+        where: {
+          telegramUserId: { not: null, notIn: ['0', '', ' '] },
+        },
+        orderBy: { createdAt: 'desc' },
       });
-    }
-    
-    if (previousBooking) {
-      // Копіюємо chatId тільки якщо він валідний
-      if (previousBooking.telegramChatId && 
-          previousBooking.telegramChatId !== '0' && 
-          previousBooking.telegramChatId.trim() !== '') {
-        telegramChatId = previousBooking.telegramChatId;
-      } else {
-        console.log(`⚠️ Попереднє бронювання має невалідний chatId: ${previousBooking.telegramChatId}`);
-      }
-      
-      // Якщо не було передано з frontend - беремо з попереднього бронювання
-      if (!bookingTelegramUserId) {
-        // Валідація: telegramUserId не може бути '0', 0, null, або порожнім
-        if (previousBooking.telegramUserId && 
-            previousBooking.telegramUserId !== '0' && 
-            previousBooking.telegramUserId.trim() !== '') {
+      const previousBooking = allBookings.find((b) => normalizePhone(b.phone) === normalizedPhone);
+      if (previousBooking) {
+        if (previousBooking.telegramChatId && previousBooking.telegramChatId !== '0' && previousBooking.telegramChatId.trim() !== '') {
+          telegramChatId = telegramChatId || previousBooking.telegramChatId;
+        }
+        if (!bookingTelegramUserId && previousBooking.telegramUserId && previousBooking.telegramUserId !== '0' && previousBooking.telegramUserId.trim() !== '') {
           bookingTelegramUserId = previousBooking.telegramUserId;
-        } else if (previousBooking.telegramChatId && 
-                   previousBooking.telegramChatId !== '0' && 
-                   previousBooking.telegramChatId.trim() !== '') {
-          // Для приватних чатів chat_id = user_id
+        } else if (!bookingTelegramUserId && previousBooking.telegramChatId) {
           bookingTelegramUserId = previousBooking.telegramChatId;
-          console.log(`⚠️ telegramUserId був невалідний (${previousBooking.telegramUserId}), використовуємо chatId як userId`);
         }
       }
-      
-      console.log(`✅ Знайдено попереднє бронювання для ${phone}, копіюємо Telegram дані (chatId: ${telegramChatId}, userId: ${bookingTelegramUserId})`);
-    } else if (bookingTelegramUserId) {
-      // Якщо це перше бронювання але є telegramUserId з frontend
-      console.log(`✅ Перше бронювання для ${phone} з Telegram Login (userId: ${bookingTelegramUserId})`);
-    } else {
-      console.log(`📋 Попередніх бронювань для ${phone} не знайдено`);
     }
+
+    console.log(`🔍 Person id=${person.id}, Telegram: chatId=${telegramChatId}, userId=${bookingTelegramUserId}`);
   } catch (error) {
-    console.error('❌ Помилка пошуку попередніх бронювань:', error);
-    // Продовжуємо з тим що є
+    console.error('❌ Помилка пошуку Person/попередніх бронювань:', error);
   }
   
   // Фінальна валідація: для приватних чатів chat_id = user_id
@@ -488,8 +456,9 @@ app.post('/bookings', async (req, res) => {
       phone,
       scheduleId: scheduleId ? Number(scheduleId) : null,
       telegramChatId,
-      telegramUserId: bookingTelegramUserId
-    }
+      telegramUserId: bookingTelegramUserId,
+      personId: person.id,
+    },
   });
 
   // Відправка повідомлень в Telegram (якщо налаштовано)
@@ -531,15 +500,27 @@ app.get('/bookings', requireAdmin, async (_req, res) => {
   res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' }}));
 });
 
-// Пошук останнього бронювання по телефону
+// Пошук останнього бронювання по телефону (з урахуванням Person та нормалізації номера)
 app.get('/bookings/by-phone/:phone', async (req, res) => {
   const { phone } = req.params;
   try {
-    const lastBooking = await prisma.booking.findFirst({
-      where: { phone },
+    const person = await getPersonByPhone(phone);
+    if (person) {
+      const byPerson = await prisma.booking.findFirst({
+        where: { personId: person.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (byPerson) {
+        return res.json(byPerson);
+      }
+    }
+    const normalized = normalizePhone(phone);
+    const allRecent = await prisma.booking.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
-    res.json(lastBooking || null);
+    const lastBooking = allRecent.find((b) => normalizePhone(b.phone) === normalized) ?? null;
+    res.json(lastBooking);
   } catch (error) {
     res.status(500).json({ error: 'Failed to find booking' });
   }
@@ -763,7 +744,10 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
     
     const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
     const senderName = nameFromDb ?? parsed.senderName;
-    
+    const person = parsed.phone
+      ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+      : null;
+
     const listing = await prisma.viberListing.create({
       data: {
         rawMessage,
@@ -775,8 +759,9 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
         seats: parsed.seats,
         phone: parsed.phone,
         notes: parsed.notes,
-        isActive: true
-      }
+        isActive: true,
+        personId: person?.id ?? undefined,
+      },
     });
     
     console.log(`✅ Створено Viber оголошення #${listing.id}:`, {
@@ -843,6 +828,9 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
       try {
         const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
         const senderName = nameFromDb ?? parsed.senderName;
+        const person = parsed.phone
+          ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+          : null;
         const listing = await prisma.viberListing.create({
           data: {
             rawMessage: `Parsed message ${i + 1}`,
@@ -854,8 +842,9 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
             seats: parsed.seats,
             phone: parsed.phone,
             notes: parsed.notes,
-            isActive: true
-          }
+            isActive: true,
+            personId: person?.id ?? undefined,
+          },
         });
         created.push(listing);
         if (isTelegramEnabled()) {

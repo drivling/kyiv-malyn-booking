@@ -8,7 +8,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "fix-telegram-ids": "ts-node src/fix-telegram-ids.ts"
+"fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
+    "migrate-to-person": "ts-node src/migrate-to-person.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.8.0",

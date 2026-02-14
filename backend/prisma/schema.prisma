@@ -19,32 +19,52 @@ model Schedule {
   @@unique([route, departureTime])
 }
 
+// Єдина база людей: прив'язка номера до імені та Telegram для всіх сценаріїв
+model Person {
+  id              Int       @id @default(autoincrement())
+  phoneNormalized String    @unique // Нормалізований номер (380XXXXXXXXX)
+  fullName        String?   // Ім'я та прізвище
+  telegramChatId  String?   // Для відправки повідомлень в Telegram
+  telegramUserId  String?   // Ідентифікатор користувача в Telegram
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bookings     Booking[]
+  viberListings ViberListing[]
+}
+
 model Booking {
-  id            Int      @id @default(autoincrement())
-  route         String
-  date          DateTime
-  departureTime String   // Час відправлення у форматі "HH:MM"
-  seats         Int
-  name          String
-  phone         String
-  telegramChatId String? // Telegram Chat ID для відправки повідомлень
-  telegramUserId String? // Telegram User ID для ідентифікації користувача
-  scheduleId    Int?     // Посилання на графік (опціонально)
-  createdAt     DateTime @default(now())
+  id              Int       @id @default(autoincrement())
+  route           String
+  date            DateTime
+  departureTime   String   // Час відправлення у форматі "HH:MM"
+  seats           Int
+  name            String   // Денормалізовано для відображення; джерело істини — Person
+  phone           String   // Денормалізовано; джерело істини — Person.phoneNormalized
+  telegramChatId  String?  // Копія з Person для зворотної сумісності
+  telegramUserId  String?  // Копія з Person для зворотної сумісності
+  scheduleId      Int?     // Посилання на графік (опціонально)
+  personId        Int?     // Посилання на людину (єдине джерело імені/телефону/Telegram)
+  createdAt       DateTime @default(now())
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
 }
 
 model ViberListing {
   id            Int      @id @default(autoincrement())
   rawMessage    String   @db.Text // Оригінальне повідомлення з чату
-  senderName    String?  // Ім'я відправника (наприклад "Ковальчук Інна")
+  senderName    String?  // Ім'я відправника (деноралізовано; джерело — Person)
   listingType   String   // "driver" або "passenger"
   route         String   // Напрямок (наприклад "Київ-Малин", "Малин-Київ")
   date          DateTime // Дата поїздки
   departureTime String?  // Час відправлення (може бути діапазон "18:00-18:30")
   seats         Int?     // Кількість місць (для пасажира) або вільних місць (для водія)
-  phone         String   // Контактний номер телефону
+  phone         String   // Контактний номер (деноралізовано; джерело — Person)
   notes         String?  // Додаткові примітки (наприклад "від м Почайна")
   isActive      Boolean  @default(true) // Чи активне оголошення
+  personId      Int?     // Посилання на людину
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
 }

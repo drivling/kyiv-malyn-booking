@@ -57,6 +57,7 @@ async function createDriverListingFromState(
   }
   const nameFromDb = await getNameByPhone(phone);
   const resolvedSenderName = nameFromDb ?? senderName;
+  const person = await findOrCreatePersonByPhone(phone, { fullName: resolvedSenderName ?? undefined });
   const date = new Date(state.date);
   const listing = await prisma.viberListing.create({
     data: {
@@ -69,8 +70,9 @@ async function createDriverListingFromState(
       seats: state.seats ?? null,
       phone,
       notes,
-      isActive: true
-    }
+      isActive: true,
+      personId: person.id,
+    },
   });
   await sendViberListingNotificationToAdmin({
     id: listing.id,
@@ -96,34 +98,100 @@ async function createDriverListingFromState(
   );
 }
 
+// --- Робота з Person (єдина база людей) ---
+
+/** Знайти людину за нормалізованим номером телефону */
+export const getPersonByPhone = async (phone: string) => {
+  const normalized = normalizePhone(phone);
+  return prisma.person.findUnique({
+    where: { phoneNormalized: normalized }
+  });
+};
+
+/** Знайти людину за Telegram userId або chatId */
+export const getPersonByTelegram = async (userId: string, chatId: string) => {
+  const or: Array<{ telegramUserId: string } | { telegramChatId: string }> = [];
+  if (userId && userId !== '0' && userId.trim() !== '') or.push({ telegramUserId: userId });
+  if (chatId && chatId !== '0' && chatId.trim() !== '') or.push({ telegramChatId: chatId });
+  if (or.length === 0) return null;
+  return prisma.person.findFirst({ where: { OR: or } });
+};
+
 /**
- * Отримати ім'я (ім'я + прізвище) з таблиці Booking за номером телефону.
- * Точніше ніж з Telegram або тексту імпорту — там зберігається повне ім'я з бронювань.
+ * Знайти або створити Person за номером; опційно оновити fullName та Telegram.
+ * Повертає Person (phoneNormalized для відображення можна форматувати окремо).
+ */
+export const findOrCreatePersonByPhone = async (
+  phone: string,
+  options?: { fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null }
+): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> => {
+  const normalized = normalizePhone(phone);
+  const person = await prisma.person.upsert({
+    where: { phoneNormalized: normalized },
+    create: {
+      phoneNormalized: normalized,
+      fullName: options?.fullName ?? null,
+      telegramChatId: options?.telegramChatId ?? null,
+      telegramUserId: options?.telegramUserId ?? null,
+    },
+    update: {
+      ...(options?.fullName != null && options.fullName !== '' && { fullName: options.fullName }),
+      ...(options?.telegramChatId != null && { telegramChatId: options.telegramChatId }),
+      ...(options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
+    },
+  });
+  return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName };
+};
+
+/** Оновити Telegram у Person та у всіх бронюваннях з тим же номером (і привʼязати їх до Person). */
+async function updatePersonAndBookingsTelegram(
+  personId: number,
+  chatId: string,
+  userId: string
+): Promise<void> {
+  await prisma.person.update({
+    where: { id: personId },
+    data: { telegramChatId: chatId, telegramUserId: userId },
+  });
+  const person = await prisma.person.findUnique({ where: { id: personId }, select: { phoneNormalized: true } });
+  if (!person) return;
+  const allBookings = await prisma.booking.findMany({ select: { id: true, phone: true, personId: true } });
+  const samePhone = allBookings.filter((b) => normalizePhone(b.phone) === person.phoneNormalized);
+  for (const b of samePhone) {
+    await prisma.booking.update({
+      where: { id: b.id },
+      data: { telegramChatId: chatId, telegramUserId: userId, personId },
+    });
+  }
+}
+
+/**
+ * Отримати ім'я (ім'я + прізвище): спочатку з Person, інакше з Booking.
  */
 export const getNameByPhone = async (phone: string): Promise<string | null> => {
-  const normalized = normalizePhone(phone);
+  const person = await getPersonByPhone(phone);
+  if (person?.fullName?.trim()) return person.fullName.trim();
   const bookings = await prisma.booking.findMany({
     orderBy: { createdAt: 'desc' },
     take: 500,
-    select: { phone: true, name: true }
+    select: { phone: true, name: true },
   });
-  const match = bookings.find((b) => normalizePhone(b.phone) === normalized);
+  const match = bookings.find((b) => normalizePhone(b.phone) === normalizePhone(phone));
   return match?.name?.trim() ?? null;
 };
 
 /**
- * Отримати номер телефону користувача за Telegram (userId або chatId з бронювань)
+ * Отримати номер телефону користувача: спочатку з Person за Telegram, інакше з Booking.
  */
 export const getPhoneByTelegramUser = async (userId: string, chatId: string): Promise<string | null> => {
+  const person = await getPersonByTelegram(userId, chatId);
+  if (person) return person.phoneNormalized;
   const booking = await prisma.booking.findFirst({
     where: {
-      OR: [
-        { telegramUserId: userId },
-        { telegramChatId: chatId }
-      ]
+      OR: [{ telegramUserId: userId }, { telegramChatId: chatId }],
     },
     orderBy: { createdAt: 'desc' },
-    select: { phone: true }
+    select: { phone: true },
   });
   return booking?.phone ?? null;
 };
@@ -383,82 +451,71 @@ export const isTelegramEnabled = (): boolean => {
 };
 
 /**
- * Реєстрація номера телефону користувача
+ * Реєстрація номера телефону: прив'язка Person до Telegram та синхронізація з бронюваннями.
  */
 async function registerUserPhone(chatId: string, userId: string, phoneInput: string) {
   if (!bot) return;
-  
+
   try {
-    // Нормалізуємо номер
     const normalizedPhone = normalizePhone(phoneInput);
-    
-    // Перевіряємо чи вже є бронювання з цим номером
-    const allBookings = await prisma.booking.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-    
-    const matchingBookings = allBookings.filter(b => 
-      normalizePhone(b.phone) === normalizedPhone
-    );
-    
-    // Також шукаємо бронювання з таким же telegramUserId (створені через Telegram Login)
+
+    const allBookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
+    const matchingBookings = allBookings.filter((b) => normalizePhone(b.phone) === normalizedPhone);
     const userIdBookings = await prisma.booking.findMany({
-      where: { telegramUserId: userId }
+      where: { telegramUserId: userId },
     });
-    
     const totalBookings = matchingBookings.length + userIdBookings.length;
-    
+
     if (totalBookings === 0) {
       await bot.sendMessage(
         chatId,
         `❌ Бронювання з номером ${phoneInput} не знайдено.\n\n` +
-        `Спочатку створіть бронювання на сайті:\n` +
-        `https://malin.kiev.ua\n\n` +
-        `Після цього поверніться сюди і надішліть цей же номер телефону.`
+          `Спочатку створіть бронювання на сайті:\n` +
+          `https://malin.kiev.ua\n\n` +
+          `Після цього поверніться сюди і надішліть цей же номер телефону.`,
+        { parse_mode: 'HTML' }
       );
       return;
     }
-    
-    // 1. Оновлюємо всі бронювання з цим номером, додаючи telegramUserId та chatId
-    const phoneNumbers = [...new Set(matchingBookings.map(b => b.phone))];
-    
+
+    const phoneNumbers = [...new Set(matchingBookings.map((b) => b.phone))];
     for (const phone of phoneNumbers) {
-      await prisma.booking.updateMany({
-        where: { phone },
-        data: { 
-          telegramChatId: chatId,
-          telegramUserId: userId
-        }
-      });
-    }
-    
-    // 2. Оновлюємо всі бронювання з цим telegramUserId, додаючи chatId
-    // (це для тих що були створені через Telegram Login на сайті)
-    await prisma.booking.updateMany({
-      where: { 
+      const person = await findOrCreatePersonByPhone(phone, {
+        telegramChatId: chatId,
         telegramUserId: userId,
-        telegramChatId: null // Оновлюємо тільки ті що ще не мають chatId
-      },
-      data: { 
-        telegramChatId: chatId
+      });
+      await updatePersonAndBookingsTelegram(person.id, chatId, userId);
+      const norm = normalizePhone(phone);
+      const allWithPhone = await prisma.booking.findMany({ where: {} });
+      const toLink = allWithPhone.filter((b) => normalizePhone(b.phone) === norm);
+      for (const b of toLink) {
+        if (b.personId !== person.id) {
+          await prisma.booking.update({
+            where: { id: b.id },
+            data: { personId: person.id, telegramChatId: chatId, telegramUserId: userId },
+          });
+        }
       }
+    }
+
+    await prisma.booking.updateMany({
+      where: { telegramUserId: userId, telegramChatId: null },
+      data: { telegramChatId: chatId },
     });
-    
-    console.log(`✅ Оновлено telegramChatId для ${totalBookings} бронювань користувача ${userId}`);
-    
+
+    console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
+
     await bot.sendMessage(
       chatId,
       `✅ <b>Вітаємо! Ваш акаунт підключено!</b>\n\n` +
-      `📱 Номер телефону: ${phoneInput}\n` +
-      `🎫 Знайдено бронювань: ${totalBookings}\n\n` +
-      `Тепер ви будете отримувати:\n` +
-      `• ✅ Підтвердження при створенні бронювання\n` +
-      `• 🔔 Нагадування за день до поїздки\n\n` +
-      `📋 Використайте /mybookings щоб переглянути свої бронювання`,
+        `📱 Номер телефону: ${phoneInput}\n` +
+        `🎫 Знайдено бронювань: ${totalBookings}\n\n` +
+        `Тепер ви будете отримувати:\n` +
+        `• ✅ Підтвердження при створенні бронювання\n` +
+        `• 🔔 Нагадування за день до поїздки\n\n` +
+        `📋 Використайте /mybookings щоб переглянути свої бронювання`,
       { parse_mode: 'HTML' }
     );
-    
-    console.log(`✅ Користувач ${userId} зареєстрував номер ${normalizedPhone}`);
   } catch (error) {
     console.error('❌ Помилка реєстрації номера:', error);
     await bot.sendMessage(chatId, '❌ Помилка при реєстрації. Спробуйте пізніше.');
@@ -476,32 +533,45 @@ function setupBotCommands() {
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
     const firstName = msg.from?.first_name || 'Друже';
-    
-    // Перевіряємо чи користувач вже зареєстрований
+
+    const person = await getPersonByTelegram(userId, chatId);
     const existingBooking = await prisma.booking.findFirst({
-      where: { telegramUserId: userId }
+      where: { telegramUserId: userId },
     });
-    
-    if (existingBooking) {
-      // Користувач вже зареєстрований - оновлюємо telegramChatId якщо потрібно
-      await prisma.booking.updateMany({
-        where: { 
-          telegramUserId: userId,
-          telegramChatId: null // Оновлюємо тільки ті що ще не мають chatId
-        },
-        data: { 
-          telegramChatId: chatId
-        }
+
+    if (person) {
+      await prisma.person.updateMany({
+        where: { id: person.id },
+        data: { telegramChatId: chatId, telegramUserId: userId },
       });
-      
-      console.log(`✅ Оновлено telegramChatId для користувача ${userId} при /start`);
-      
+    }
+    if (existingBooking) {
+      await prisma.booking.updateMany({
+        where: {
+          telegramUserId: userId,
+          telegramChatId: null,
+        },
+        data: { telegramChatId: chatId },
+      });
+      if (person) {
+        await updatePersonAndBookingsTelegram(person.id, chatId, userId);
+      } else {
+        const p = await findOrCreatePersonByPhone(existingBooking.phone, {
+          fullName: existingBooking.name,
+          telegramChatId: chatId,
+          telegramUserId: userId,
+        });
+        await updatePersonAndBookingsTelegram(p.id, chatId, userId);
+      }
+      console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start`);
+
+      const displayPhone = existingBooking.phone;
       const welcomeMessage = `
 👋 Привіт знову, ${firstName}!
 
 Я бот для бронювання маршруток <b>Київ ↔ Малин</b>.
 
-✅ Ваш акаунт вже підключено до номера: ${existingBooking.phone}
+✅ Ваш акаунт вже підключено до номера: ${displayPhone}
 
 🎫 <b>Що можна зробити:</b>
 /book - 🎫 Створити нове бронювання
@@ -820,19 +890,21 @@ https://malin.kiev.ua
           
           if (orphanedBookings.length > 0) {
             console.log(`🔧 Знайдено ${orphanedBookings.length} бронювань з номером ${phone} без telegramUserId`);
-            
-            // Оновлюємо кожне бронювання
+            const person = await findOrCreatePersonByPhone(phone, {
+              telegramChatId: chatId,
+              telegramUserId: userId,
+            });
             for (const booking of orphanedBookings) {
               await prisma.booking.update({
                 where: { id: booking.id },
-                data: { 
+                data: {
                   telegramUserId: userId,
-                  telegramChatId: chatId
-                }
+                  telegramChatId: chatId,
+                  personId: person.id,
+                },
               });
-              console.log(`  ✅ Бронювання #${booking.id} оновлено: userId=${userId}, chatId=${chatId}`);
+              console.log(`  ✅ Бронювання #${booking.id} оновлено: userId=${userId}, chatId=${chatId}, personId=${person.id}`);
             }
-            
             console.log(`✅ Автоматично прив'язано ${orphanedBookings.length} старих бронювань до користувача ${userId}`);
           }
         }
@@ -1655,7 +1727,7 @@ https://malin.kiev.ua
             throw new Error(`Недостатньо місць. Доступно: ${availableSeats}, запитано: ${seats}`);
           }
           
-          // Створити бронювання
+          // Створити бронювання (прив'язка до Person якщо є)
           const booking = await prisma.booking.create({
             data: {
               route,
@@ -1665,8 +1737,9 @@ https://malin.kiev.ua
               name: userBooking.name,
               phone: userBooking.phone,
               telegramChatId: chatId,
-              telegramUserId: userId
-            }
+              telegramUserId: userId,
+              personId: userBooking.personId ?? undefined,
+            },
           });
           
           console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
@@ -1762,27 +1835,24 @@ if (token) {
 }
 
 /**
- * Отримання chat_id по номеру телефону (з нормалізацією)
+ * Отримання chat_id по номеру телефону: спочатку Person, інакше Booking.
  */
 export const getChatIdByPhone = async (phone: string): Promise<string | null> => {
   try {
-    const normalizedPhone = normalizePhone(phone);
-    
-    // Отримуємо всі бронювання з chat_id та userId
+    const person = await getPersonByPhone(phone);
+    if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
+      return person.telegramChatId;
+    }
     const bookings = await prisma.booking.findMany({
-      where: { 
+      where: {
         telegramChatId: { not: null },
-        telegramUserId: { not: null }
+        telegramUserId: { not: null },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
-    
-    // Шукаємо по нормалізованому номеру
-    const matchingBooking = bookings.find(b => 
-      normalizePhone(b.phone) === normalizedPhone
-    );
-    
-    return matchingBooking?.telegramChatId || null;
+    const normalizedPhone = normalizePhone(phone);
+    const matching = bookings.find((b) => normalizePhone(b.phone) === normalizedPhone);
+    return matching?.telegramChatId ?? null;
   } catch (error) {
     console.error('❌ Помилка отримання chat_id:', error);
     return null;
