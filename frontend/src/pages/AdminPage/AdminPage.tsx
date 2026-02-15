@@ -32,6 +32,7 @@ export const AdminPage: React.FC = () => {
     route: 'Kyiv-Malyn-Irpin',
     departureTime: '',
     maxSeats: 20,
+    supportPhone: '',
   });
 
   // Viber listings
@@ -188,6 +189,7 @@ export const AdminPage: React.FC = () => {
         route: schedule.route,
         departureTime: schedule.departureTime,
         maxSeats: schedule.maxSeats,
+        supportPhone: schedule.supportPhone ?? '',
       });
     } else {
       setEditingSchedule(null);
@@ -195,6 +197,7 @@ export const AdminPage: React.FC = () => {
         route: 'Kyiv-Malyn-Irpin',
         departureTime: '',
         maxSeats: 20,
+        supportPhone: '',
       });
     }
     setIsScheduleModalOpen(true);
@@ -519,6 +522,7 @@ export const AdminPage: React.FC = () => {
                       <th>Маршрут</th>
                       <th>Час відправлення</th>
                       <th>Макс. місць</th>
+                      <th>Телефон підтримки</th>
                       <th>Створено</th>
                       <th>Оновлено</th>
                       <th>Дії</th>
@@ -535,6 +539,7 @@ export const AdminPage: React.FC = () => {
                         </td>
                         <td><strong>{schedule.departureTime}</strong></td>
                         <td><strong>{schedule.maxSeats}</strong></td>
+                        <td>{schedule.supportPhone ?? '—'}</td>
                         <td>{new Date(schedule.createdAt).toLocaleString('uk-UA')}</td>
                         <td>{new Date(schedule.updatedAt).toLocaleString('uk-UA')}</td>
                         <td>
@@ -936,6 +941,13 @@ export const AdminPage: React.FC = () => {
                   value={scheduleForm.maxSeats}
                   onChange={(e) => setScheduleForm({ ...scheduleForm, maxSeats: Number(e.target.value) })}
                   required
+                />
+                <Input
+                  label="Телефон підтримки (напр. +380(93) 170 18 35)"
+                  type="text"
+                  placeholder="+380(93) 170 18 35"
+                  value={scheduleForm.supportPhone ?? ''}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, supportPhone: e.target.value })}
                 />
                 <div className="form-actions">
                   <Button type="button" variant="secondary" onClick={() => setIsScheduleModalOpen(false)}>

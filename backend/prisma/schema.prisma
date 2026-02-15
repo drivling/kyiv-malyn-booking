@@ -13,6 +13,7 @@ model Schedule {
   route         String   // "Kyiv-Malyn-Irpin", "Malyn-Kyiv-Irpin", "Kyiv-Malyn-Bucha", "Malyn-Kyiv-Bucha"
   departureTime String   // Формат "HH:MM" (наприклад "08:00")
   maxSeats      Int      @default(20) // Максимальна кількість місць
+  supportPhone  String?  // Телефон підтримки для уточнення бронювання (напр. +380(93) 170 18 35), для напрямків з Києвом
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

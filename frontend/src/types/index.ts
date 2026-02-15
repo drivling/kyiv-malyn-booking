@@ -18,6 +18,7 @@ export interface Schedule {
   route: Route;
   departureTime: string;
   maxSeats: number;
+  supportPhone: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +59,7 @@ export interface ScheduleFormData {
   route: Route;
   departureTime: string;
   maxSeats: number;
+  supportPhone?: string;
 }
 
 // Telegram User Data

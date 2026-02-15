@@ -100,6 +100,11 @@ class ApiClient {
     });
   }
 
+  /** Телефон підтримки для уточнення бронювання (з графіка; для напрямків з Києвом) */
+  async getSchedulesSupportPhone(): Promise<{ supportPhone: string | null }> {
+    return this.request<{ supportPhone: string | null }>('/schedules-support-phone');
+  }
+
   async checkAvailability(
     route: string,
     departureTime: string,

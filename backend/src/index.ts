@@ -187,6 +187,19 @@ app.get('/schedules/:route', async (req, res) => {
   res.json(schedules);
 });
 
+// Телефон підтримки для уточнення бронювання (з графіка; для напрямків з Києвом)
+app.get('/schedules-support-phone', async (_req, res) => {
+  try {
+    const schedule = await prisma.schedule.findFirst({
+      where: { supportPhone: { not: null } },
+      select: { supportPhone: true }
+    });
+    res.json({ supportPhone: schedule?.supportPhone ?? null });
+  } catch (error) {
+    res.status(500).json({ supportPhone: null });
+  }
+});
+
 // Перевірка доступності місць для конкретного рейсу та дати
 app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
   const { route, departureTime } = req.params;
@@ -244,8 +257,17 @@ app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
   }
 });
 
+/** Телефон підтримки для маршруту з графіка (напрямки з Києвом мають +380(93) 170 18 35) */
+export async function getSupportPhoneForRoute(route: string): Promise<string | null> {
+  const schedule = await prisma.schedule.findFirst({
+    where: { route, supportPhone: { not: null } },
+    select: { supportPhone: true }
+  });
+  return schedule?.supportPhone ?? null;
+}
+
 app.post('/schedules', requireAdmin, async (req, res) => {
-  const { route, departureTime, maxSeats } = req.body;
+  const { route, departureTime, maxSeats, supportPhone } = req.body;
   if (!route || !departureTime) {
     return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
   }
@@ -261,7 +283,8 @@ app.post('/schedules', requireAdmin, async (req, res) => {
       data: { 
         route, 
         departureTime,
-        maxSeats: maxSeats ? Number(maxSeats) : 20
+        maxSeats: maxSeats ? Number(maxSeats) : 20,
+        supportPhone: supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null
       }
     });
     res.status(201).json(schedule);
@@ -275,7 +298,7 @@ app.post('/schedules', requireAdmin, async (req, res) => {
 
 app.put('/schedules/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { route, departureTime, maxSeats } = req.body;
+  const { route, departureTime, maxSeats, supportPhone } = req.body;
 
   if (!route || !departureTime) {
     return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
@@ -293,7 +316,8 @@ app.put('/schedules/:id', requireAdmin, async (req, res) => {
       data: { 
         route, 
         departureTime,
-        maxSeats: maxSeats ? Number(maxSeats) : undefined
+        maxSeats: maxSeats ? Number(maxSeats) : undefined,
+        supportPhone: supportPhone !== undefined ? (supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null) : undefined
       }
     });
     res.json(schedule);
@@ -477,9 +501,10 @@ app.post('/bookings', async (req, res) => {
         source: booking.source,
       });
       
-      // Повідомлення клієнту (якщо він підписаний; тільки для маршруток)
+      // Повідомлення клієнту (якщо він підписаний; тільки для маршруток). Телефон підтримки — з графіка для цього маршруту.
       const customerChatId = await getChatIdByPhone(booking.phone);
       if (customerChatId) {
+        const supportPhone = await getSupportPhoneForRoute(booking.route);
         await sendBookingConfirmationToCustomer(customerChatId, {
           id: booking.id,
           route: booking.route,
@@ -488,6 +513,7 @@ app.post('/bookings', async (req, res) => {
           seats: booking.seats,
           name: booking.name,
           source: booking.source,
+          supportPhone: supportPhone ?? undefined,
         });
       }
     } catch (error) {

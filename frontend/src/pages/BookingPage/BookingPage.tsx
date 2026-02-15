@@ -7,7 +7,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
-import { DIRECTION_ROUTES, DIRECTIONS, BOOKING_CONFIRM_PHONE } from '@/utils/constants';
+import { DIRECTION_ROUTES, DIRECTIONS, supportPhoneToTelLink } from '@/utils/constants';
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
@@ -42,6 +42,12 @@ export const BookingPage: React.FC = () => {
   const [showTelegramInfo, setShowTelegramInfo] = useState(false);
   const [selectedViberListing, setSelectedViberListing] = useState<ViberListing | null>(null);
   const [showViberModal, setShowViberModal] = useState(false);
+  const [supportPhone, setSupportPhone] = useState<string | null>(null);
+
+  // Телефон підтримки з графіка (для напрямків з Києвом)
+  useEffect(() => {
+    apiClient.getSchedulesSupportPhone().then((r) => setSupportPhone(r.supportPhone)).catch(() => {});
+  }, []);
 
   // Завантаження розкладу та Viber оголошень при зміні напрямку або дати
   useEffect(() => {
@@ -426,9 +432,11 @@ export const BookingPage: React.FC = () => {
         {success && (
           <Alert variant="success">
             ✅ Заявку прийнято
-            <p className="booking-confirm-hint">
-              Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={`tel:${BOOKING_CONFIRM_PHONE.replace(/\s/g, '')}`}>{BOOKING_CONFIRM_PHONE}</a>
-            </p>
+            {(supportPhone || selectedSchedule?.supportPhone) && (
+              <p className="booking-confirm-hint">
+                Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{selectedSchedule?.supportPhone ?? supportPhone}</a>
+              </p>
+            )}
           </Alert>
         )}
         {error && <Alert variant="error">{error}</Alert>}
@@ -495,7 +503,7 @@ export const BookingPage: React.FC = () => {
           <div className="telegram-icon">📱</div>
           <div className="telegram-content">
             <h3>Отримуйте нотифікації в Telegram!</h3>
-            <p>Без Telegram ви не дізнаєтесь, що бронювання підтверджене — краще зателефонувати для уточнення: <a href={`tel:${BOOKING_CONFIRM_PHONE.replace(/\s/g, '')}`}>{BOOKING_CONFIRM_PHONE}</a>. У Telegram — підтвердження та нагадування за день до поїздки.</p>
+            <p>Без Telegram ви не дізнаєтесь, що бронювання підтверджене{((selectedSchedule?.supportPhone ?? supportPhone) ? <> — краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{selectedSchedule?.supportPhone ?? supportPhone}</a></> : null)}. У Telegram — підтвердження та нагадування за день до поїздки.</p>
             <div className="telegram-steps">
               <div className="step">
                 <span className="step-number">1</span>
@@ -534,9 +542,11 @@ export const BookingPage: React.FC = () => {
               </button>
               <div className="telegram-success-icon">🎉</div>
               <h3>Бронювання створено!</h3>
-              <p className="telegram-success-text">
-                Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={`tel:${BOOKING_CONFIRM_PHONE.replace(/\s/g, '')}`}>{BOOKING_CONFIRM_PHONE}</a>
-              </p>
+              {(supportPhone || selectedSchedule?.supportPhone) && (
+                <p className="telegram-success-text">
+                  Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{selectedSchedule?.supportPhone ?? supportPhone}</a>
+                </p>
+              )}
               <p className="telegram-success-text">
                 Хочете отримувати повідомлення про ваші поїздки в Telegram?
               </p>

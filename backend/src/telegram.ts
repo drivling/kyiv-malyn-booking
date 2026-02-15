@@ -37,9 +37,6 @@ const PASSENGER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
 
-/** Телефон для уточнення бронювання маршрутки (технічний режим) */
-const BOOKING_CONFIRM_PHONE = '093 170 18 35';
-
 let bot: TelegramBot | null = null;
 
 /**
@@ -708,6 +705,7 @@ export const sendBookingConfirmationToCustomer = async (
     seats: number;
     name: string;
     source?: string;
+    supportPhone?: string | null;
   }
 ) => {
   if (!bot) {
@@ -738,8 +736,7 @@ export const sendBookingConfirmationToCustomer = async (
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
 🎫 <b>Місць:</b> ${booking.seats}
 👤 <b>Пасажир:</b> ${booking.name}
-
-⚠️ Краще уточнити бронювання за телефоном: ${BOOKING_CONFIRM_PHONE}
+${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
     `.trim();
@@ -2708,6 +2705,9 @@ https://malin.kiev.ua
           
           console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
           
+          const supportPhoneLine = schedule.supportPhone
+            ? `\n⚠️ Краще уточнити бронювання за телефоном: ${schedule.supportPhone}\n\n`
+            : '\n\n';
           await bot?.editMessageText(
             '📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
             `🎫 <b>Номер:</b> #${booking.id}\n` +
@@ -2715,8 +2715,8 @@ https://malin.kiev.ua
             `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
             `🕐 <b>Час:</b> ${booking.departureTime}\n` +
             `🎫 <b>Місць:</b> ${booking.seats}\n` +
-            `👤 <b>Пасажир:</b> ${booking.name}\n\n` +
-            `⚠️ Краще уточнити бронювання за телефоном: ${BOOKING_CONFIRM_PHONE}\n\n` +
+            `👤 <b>Пасажир:</b> ${booking.name}` +
+            supportPhoneLine +
             '💡 Корисні команди:\n' +
             '📋 /mybookings - Переглянути всі бронювання\n' +
             '🚫 /cancel - Скасувати бронювання\n' +
@@ -2728,7 +2728,11 @@ https://malin.kiev.ua
             }
           );
           
-          await bot?.answerCallbackQuery(query.id, { text: 'Заявку прийнято. Краще уточнити за тел. ' + BOOKING_CONFIRM_PHONE });
+          await bot?.answerCallbackQuery(query.id, {
+            text: schedule.supportPhone
+              ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
+              : '✅ Заявку прийнято!'
+          });
           
           // Відправити сповіщення адміну (використовується TELEGRAM_ADMIN_CHAT_ID)
           await sendBookingNotificationToAdmin(booking).catch((err) => console.error('Telegram notify admin:', err));
