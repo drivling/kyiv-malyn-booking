@@ -58,6 +58,7 @@ import {
   sendViberListingConfirmationToUser,
   notifyMatchingPassengersForNewDriver,
   notifyMatchingDriversForNewPassenger,
+  getDriverFutureBookingsForMybookings,
 } from './telegram';
 
 // Мок бота для тестів send* — перехоплюємо створення бота
@@ -283,6 +284,64 @@ describe('telegram', () => {
       mockPrisma.booking.findFirst.mockResolvedValue(null);
       const phone = await getPhoneByTelegramUser('user123', 'chat456');
       expect(phone).toBeNull();
+    });
+  });
+
+  describe('getDriverFutureBookingsForMybookings', () => {
+    it('повертає порожній масив якщо Person не знайдено', async () => {
+      mockPrisma.person.findFirst.mockResolvedValue(null);
+      const since = new Date('2025-02-15');
+      since.setHours(0, 0, 0, 0);
+      const result = await getDriverFutureBookingsForMybookings('user123', 'chat456', since);
+      expect(result).toEqual([]);
+      expect(mockPrisma.viberListing.findMany).not.toHaveBeenCalled();
+      expect(mockPrisma.booking.findMany).not.toHaveBeenCalled();
+    });
+
+    it('повертає порожній масив якщо у користувача немає оголошень водія', async () => {
+      mockPrisma.person.findFirst.mockResolvedValue({ id: 1, personId: 1 });
+      mockPrisma.viberListing.findMany.mockResolvedValue([]);
+      const since = new Date('2025-02-15');
+      since.setHours(0, 0, 0, 0);
+      const result = await getDriverFutureBookingsForMybookings('user123', 'chat456', since);
+      expect(result).toEqual([]);
+      expect(mockPrisma.booking.findMany).not.toHaveBeenCalled();
+    });
+
+    it('повертає майбутні бронювання по оголошеннях водія', async () => {
+      mockPrisma.person.findFirst.mockResolvedValue({ id: 5 });
+      mockPrisma.viberListing.findMany.mockResolvedValue([{ id: 10 }, { id: 11 }]);
+      const booking = {
+        id: 100,
+        route: 'Kyiv-Malyn',
+        date: new Date('2025-03-01'),
+        departureTime: '10:00',
+        seats: 2,
+        name: 'Пасажир',
+        phone: '380671112233',
+      };
+      mockPrisma.booking.findMany.mockResolvedValue([booking]);
+      const since = new Date('2025-02-15');
+      since.setHours(0, 0, 0, 0);
+      const result = await getDriverFutureBookingsForMybookings('user123', 'chat456', since);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(100);
+      expect(result[0].name).toBe('Пасажир');
+      expect(result[0].route).toBe('Kyiv-Malyn');
+      expect(mockPrisma.viberListing.findMany).toHaveBeenCalledWith({
+        where: { personId: 5, listingType: 'driver' },
+        select: { id: true },
+      });
+      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            viberListingId: { in: [10, 11] },
+            date: { gte: since },
+          },
+          orderBy: { date: 'asc' },
+          take: 10,
+        })
+      );
     });
   });
 

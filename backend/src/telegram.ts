@@ -365,6 +365,32 @@ export const getPersonByTelegram = async (userId: string, chatId: string) => {
 };
 
 /**
+ * Майбутні бронювання, де у користувача забронювали як у водія (для /mybookings).
+ * Повертає бронювання з source viber_match по оголошеннях водія цього користувача.
+ */
+export const getDriverFutureBookingsForMybookings = async (
+  userId: string,
+  chatId: string,
+  sinceDate: Date
+): Promise<Array<{ id: number; route: string; date: Date; departureTime: string; seats: number; name: string; phone: string }>> => {
+  const person = await getPersonByTelegram(userId, chatId);
+  if (!person) return [];
+  const myDriverListingIds = (await prisma.viberListing.findMany({
+    where: { personId: person.id, listingType: 'driver' },
+    select: { id: true }
+  })).map((l) => l.id);
+  if (myDriverListingIds.length === 0) return [];
+  return prisma.booking.findMany({
+    where: {
+      viberListingId: { in: myDriverListingIds },
+      date: { gte: sinceDate }
+    },
+    orderBy: { date: 'asc' },
+    take: 10
+  });
+};
+
+/**
  * Знайти або створити Person за номером; опційно оновити fullName та Telegram.
  * Повертає Person (phoneNormalized для відображення можна форматувати окремо).
  */
@@ -1377,8 +1403,11 @@ https://malin.kiev.ua
         take: 10,
         include: { viberListing: true }
       });
+
+      // Майбутні поїздки, де у користувача забронювали як у водія (Viber rides)
+      const driverFutureBookings = await getDriverFutureBookingsForMybookings(userId, chatId, today);
       
-      console.log(`📅 Майбутніх бронювань: ${futureBookings.length} (від ${today.toISOString().split('T')[0]})`);
+      console.log(`📅 Майбутніх бронювань: ${futureBookings.length} (від ${today.toISOString().split('T')[0]}), забронювали у водія: ${driverFutureBookings.length})`);
       
       if (futureBookings.length === 0) {
         // Перезавантажуємо allUserBookings після можливих оновлень
@@ -1408,18 +1437,34 @@ https://malin.kiev.ua
             message += '\n';
           });
           
+          if (driverFutureBookings.length > 0) {
+            message += `\n\n🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
+            driverFutureBookings.forEach((booking, index) => {
+              message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
+              message += `   🚌 ${getRouteName(booking.route)}\n`;
+              message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
+              message += `   🎫 Місць: ${booking.seats}\n`;
+              message += `   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+            });
+          }
           message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
           
           await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
         } else {
-          await bot?.sendMessage(
-            chatId,
-            `📋 <b>У вас поки немає бронювань</b>\n\n` +
-            `Створіть нове бронювання:\n` +
-            `🎫 /book - через бота\n` +
-            `🌐 https://malin.kiev.ua - на сайті`,
-            { parse_mode: 'HTML' }
-          );
+          let noBookingsMessage = `📋 <b>У вас поки немає бронювань</b>\n\n`;
+          if (driverFutureBookings.length > 0) {
+            noBookingsMessage += `🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
+            driverFutureBookings.forEach((booking, index) => {
+              noBookingsMessage += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
+              noBookingsMessage += `   🚌 ${getRouteName(booking.route)}\n`;
+              noBookingsMessage += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
+              noBookingsMessage += `   🎫 Місць: ${booking.seats}\n`;
+              noBookingsMessage += `   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+            });
+            noBookingsMessage += '\n';
+          }
+          noBookingsMessage += `Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
+          await bot?.sendMessage(chatId, noBookingsMessage, { parse_mode: 'HTML' });
         }
         return;
       }
@@ -1439,6 +1484,17 @@ https://malin.kiev.ua
         }
         message += '\n';
       });
+
+      if (driverFutureBookings.length > 0) {
+        message += `\n🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
+        driverFutureBookings.forEach((booking, index) => {
+          message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n`;
+          message += `   🚌 ${getRouteName(booking.route)}\n`;
+          message += `   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n`;
+          message += `   🎫 Місць: ${booking.seats}\n`;
+          message += `   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+        });
+      }
       
       message += `\n🔒 <i>Показано тільки ваші бронювання</i>`;
       
