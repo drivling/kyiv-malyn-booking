@@ -169,7 +169,7 @@ async function createPassengerListingFromState(
 }
 
 /** Нормалізує час для порівняння: "18:00" або "18:00-18:30" -> "18:00" */
-function normalizeTimeForMatch(t: string | null): string | null {
+export function normalizeTimeForMatch(t: string | null): string | null {
   if (!t || !t.trim()) return null;
   const part = t.trim().split(/-|\s/)[0];
   const m = part.match(/(\d{1,2}):(\d{2})/);
@@ -180,7 +180,7 @@ function normalizeTimeForMatch(t: string | null): string | null {
 }
 
 /** Чи збігається час: обидва задані і однакові (нормалізовані). */
-function isExactTimeMatch(timeA: string | null, timeB: string | null): boolean {
+export function isExactTimeMatch(timeA: string | null, timeB: string | null): boolean {
   const a = normalizeTimeForMatch(timeA);
   const b = normalizeTimeForMatch(timeB);
   if (!a || !b) return false;
@@ -188,7 +188,7 @@ function isExactTimeMatch(timeA: string | null, timeB: string | null): boolean {
 }
 
 /** Одна дата (YYYY-MM-DD) для порівняння. */
-function toDateKey(d: Date): string {
+export function toDateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
@@ -449,7 +449,7 @@ export const getPhoneByTelegramUser = async (userId: string, chatId: string): Pr
 /**
  * Форматування дати для українського формату
  */
-const formatDate = (date: Date): string => {
+export const formatDate = (date: Date): string => {
   return new Intl.DateTimeFormat('uk-UA', {
     day: '2-digit',
     month: '2-digit',
@@ -484,7 +484,7 @@ function formatPhoneTelLink(phone: string | null | undefined): string {
 /**
  * Отримання назви маршруту
  */
-const getRouteName = (route: string): string => {
+export const getRouteName = (route: string): string => {
   if (route.includes('Kyiv-Malyn')) {
     if (route.includes('Irpin')) return 'Київ → Малин (через Ірпінь)';
     if (route.includes('Bucha')) return 'Київ → Малин (через Бучу)';

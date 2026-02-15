@@ -8,8 +8,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
-"fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
-    "migrate-to-person": "ts-node src/migrate-to-person.ts"
+    "fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
+    "migrate-to-person": "ts-node src/migrate-to-person.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@prisma/client": "^5.8.0",
@@ -21,9 +24,11 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/node-telegram-bot-api": "^0.64.7",
+    "@vitest/coverage-v8": "^4.0.18",
     "prisma": "^5.8.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
   }
 }
