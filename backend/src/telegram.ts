@@ -484,12 +484,13 @@ const formatDate = (date: Date): string => {
 };
 
 /**
- * Формат номера для відображення в Telegram: +380(68)7771590 (без пропусків, оператор у дужках)
+ * Формат номера для відображення в Telegram: +380(67)4476844 (без пропусків, оператор у дужках).
+ * Український формат 380XXXXXXXXX: 38 + 0 (трак) + XX (оператор 2 цифри) + 7 цифр.
  */
 function formatPhoneDisplay(phone: string | null | undefined): string {
   const normalized = normalizePhone(phone ?? '');
   if (normalized.length === 12 && normalized.startsWith('38')) {
-    return `+380(${normalized.slice(2, 4)})${normalized.slice(4)}`;
+    return `+380(${normalized.slice(3, 5)})${normalized.slice(5)}`;
   }
   if (normalized.length >= 10) return '+' + normalized;
   return (phone ?? '').trim() || '—';

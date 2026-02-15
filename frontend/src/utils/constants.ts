@@ -9,12 +9,12 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-/** Формат номера для відображення: +380(68)7771590 (без пропусків, оператор у дужках) */
+/** Формат номера для відображення: +380(67)4476844 (38 + 0 + XX оператор + 7 цифр) */
 export function formatPhoneDisplay(phone: string | null | undefined): string {
   if (!phone?.trim()) return '';
   const normalized = normalizePhone(phone.trim());
   if (normalized.length === 12 && normalized.startsWith('38')) {
-    return `+380(${normalized.slice(2, 4)})${normalized.slice(4)}`;
+    return `+380(${normalized.slice(3, 5)})${normalized.slice(5)}`;
   }
   if (normalized.length >= 10) return '+' + normalized;
   return phone.trim();
