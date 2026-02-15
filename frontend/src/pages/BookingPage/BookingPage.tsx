@@ -7,7 +7,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
-import { DIRECTION_ROUTES, DIRECTIONS } from '@/utils/constants';
+import { DIRECTION_ROUTES, DIRECTIONS, BOOKING_CONFIRM_PHONE } from '@/utils/constants';
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
@@ -423,7 +423,14 @@ export const BookingPage: React.FC = () => {
           </Button>
         </form>
 
-        {success && <Alert variant="success">✅ Заявку прийнято</Alert>}
+        {success && (
+          <Alert variant="success">
+            ✅ Заявку прийнято
+            <p className="booking-confirm-hint">
+              Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={`tel:${BOOKING_CONFIRM_PHONE.replace(/\s/g, '')}`}>{BOOKING_CONFIRM_PHONE}</a>
+            </p>
+          </Alert>
+        )}
         {error && <Alert variant="error">{error}</Alert>}
         {warning && <Alert variant="warning">{warning}</Alert>}
         {availability && availability.availableSeats <= 5 && availability.isAvailable && (
@@ -488,7 +495,7 @@ export const BookingPage: React.FC = () => {
           <div className="telegram-icon">📱</div>
           <div className="telegram-content">
             <h3>Отримуйте нотифікації в Telegram!</h3>
-            <p>Підтвердження бронювання та нагадування за день до поїздки</p>
+            <p>Без Telegram ви не дізнаєтесь, що бронювання підтверджене — краще зателефонувати для уточнення: <a href={`tel:${BOOKING_CONFIRM_PHONE.replace(/\s/g, '')}`}>{BOOKING_CONFIRM_PHONE}</a>. У Telegram — підтвердження та нагадування за день до поїздки.</p>
             <div className="telegram-steps">
               <div className="step">
                 <span className="step-number">1</span>
@@ -528,7 +535,10 @@ export const BookingPage: React.FC = () => {
               <div className="telegram-success-icon">🎉</div>
               <h3>Бронювання створено!</h3>
               <p className="telegram-success-text">
-                Хочете отримувати автоматичні повідомлення про ваші поїздки?
+                Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={`tel:${BOOKING_CONFIRM_PHONE.replace(/\s/g, '')}`}>{BOOKING_CONFIRM_PHONE}</a>
+              </p>
+              <p className="telegram-success-text">
+                Хочете отримувати повідомлення про ваші поїздки в Telegram?
               </p>
               <div className="telegram-success-steps">
                 <p><strong>Підпишіться на нашого Telegram бота:</strong></p>

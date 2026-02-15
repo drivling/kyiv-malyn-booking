@@ -35,6 +35,17 @@
   margin: 0;
 }
 
+.booking-confirm-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+  opacity: 0.95;
+}
+.booking-confirm-hint a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .booking-container form {
   display: flex;
   flex-direction: column;

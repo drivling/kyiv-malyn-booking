@@ -2,6 +2,10 @@ import { Route, Direction } from '@/types';
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+/** Телефон для уточнення бронювання маршрутки */
+export const BOOKING_CONFIRM_PHONE = '093 170 18 35';
+export const BOOKING_CONFIRM_PHONE_RAW = '0931701835';
+
 export const ROUTES: Record<Route, string> = {
   'Kyiv-Malyn-Irpin': 'Київ → Малин (через Ірпінь)',
   'Malyn-Kyiv-Irpin': 'Малин → Київ (через Ірпінь)',

@@ -465,7 +465,7 @@ app.post('/bookings', async (req, res) => {
   // Відправка повідомлень в Telegram (якщо налаштовано)
   if (isTelegramEnabled()) {
     try {
-      // Повідомлення адміну
+      // Повідомлення адміну (тільки для маршруток; source за замовч. "schedule")
       await sendBookingNotificationToAdmin({
         id: booking.id,
         route: booking.route,
@@ -474,9 +474,10 @@ app.post('/bookings', async (req, res) => {
         seats: booking.seats,
         name: booking.name,
         phone: booking.phone,
+        source: booking.source,
       });
       
-      // Повідомлення клієнту (якщо він підписаний)
+      // Повідомлення клієнту (якщо він підписаний; тільки для маршруток)
       const customerChatId = await getChatIdByPhone(booking.phone);
       if (customerChatId) {
         await sendBookingConfirmationToCustomer(customerChatId, {
@@ -486,6 +487,7 @@ app.post('/bookings', async (req, res) => {
           departureTime: booking.departureTime,
           seats: booking.seats,
           name: booking.name,
+          source: booking.source,
         });
       }
     } catch (error) {

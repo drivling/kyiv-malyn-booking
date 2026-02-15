@@ -37,6 +37,9 @@ const PASSENGER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
 
+/** Телефон для уточнення бронювання маршрутки (технічний режим) */
+const BOOKING_CONFIRM_PHONE = '093 170 18 35';
+
 let bot: TelegramBot | null = null;
 
 /**
@@ -529,7 +532,8 @@ const getRouteName = (route: string): string => {
 };
 
 /**
- * Відправка повідомлення про нове бронювання адміністратору
+ * Відправка повідомлення про нове бронювання адміністратору.
+ * Тільки для маршруток (schedule). Для попуток (viber_match) адміну шле окреме повідомлення в обробнику.
  */
 export const sendBookingNotificationToAdmin = async (booking: {
   id: number;
@@ -539,15 +543,17 @@ export const sendBookingNotificationToAdmin = async (booking: {
   seats: number;
   name: string;
   phone: string;
+  source?: string;
 }) => {
   if (!bot || !adminChatId) {
     console.log('⚠️ Telegram bot або admin chat ID не налаштовано');
     return;
   }
+  const isViberRide = booking.source === 'viber_match';
 
   try {
     const message = `
-🎫 <b>Нове бронювання #${booking.id}</b>
+🎫 <b>Нове бронювання #${booking.id}</b>${isViberRide ? ' · 🚗 Попутка' : ''}
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -557,7 +563,7 @@ export const sendBookingNotificationToAdmin = async (booking: {
 👤 <b>Клієнт:</b> ${booking.name}
 📞 <b>Телефон:</b> ${formatPhoneTelLink(booking.phone)}
 
-✅ <i>Бронювання підтверджено</i>
+${isViberRide ? '✅ <i>Попутка підтверджена</i>' : '✅ <i>Заявку прийнято</i> (технічний режим)'}
     `.trim();
 
     await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
@@ -689,7 +695,8 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 };
 
 /**
- * Відправка підтвердження бронювання клієнту
+ * Відправка підтвердження бронювання клієнту.
+ * Тільки для маршруток (schedule). Для попуток (viber_match) пасажиру шле окреме повідомлення "Водій підтвердив ваше бронювання!" в обробнику vibermatch_confirm_.
  */
 export const sendBookingConfirmationToCustomer = async (
   chatId: string,
@@ -700,16 +707,30 @@ export const sendBookingConfirmationToCustomer = async (
     departureTime: string;
     seats: number;
     name: string;
+    source?: string;
   }
 ) => {
   if (!bot) {
     console.log('⚠️ Telegram bot не налаштовано');
     return;
   }
+  const isViberRide = booking.source === 'viber_match';
 
   try {
-    const message = `
-✅ <b>Ваше бронювання підтверджено!</b>
+    const message = isViberRide
+      ? `
+✅ <b>Попутку підтверджено</b>
+
+🎫 <b>Номер:</b> #${booking.id}
+🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
+📅 <b>Дата:</b> ${formatDate(booking.date)}
+🕐 <b>Час:</b> ${booking.departureTime}
+👤 <b>Пасажир:</b> ${booking.name}
+
+<i>Бажаємо приємної подорожі! 🚐</i>
+    `.trim()
+      : `
+📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)
 
 🎫 <b>Номер:</b> #${booking.id}
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
@@ -718,9 +739,9 @@ export const sendBookingConfirmationToCustomer = async (
 🎫 <b>Місць:</b> ${booking.seats}
 👤 <b>Пасажир:</b> ${booking.name}
 
-<i>Бажаємо приємної подорожі! 🚐</i>
+⚠️ Краще уточнити бронювання за телефоном: ${BOOKING_CONFIRM_PHONE}
 
-❓ Якщо у вас є питання, зв'яжіться з нами.
+<i>Бажаємо приємної подорожі! 🚐</i>
     `.trim();
 
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
@@ -2688,13 +2709,14 @@ https://malin.kiev.ua
           console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
           
           await bot?.editMessageText(
-            '✅ <b>Бронювання створено!</b>\n\n' +
+            '📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
             `🎫 <b>Номер:</b> #${booking.id}\n` +
             `📍 <b>Маршрут:</b> ${getRouteName(booking.route)}\n` +
             `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
             `🕐 <b>Час:</b> ${booking.departureTime}\n` +
             `🎫 <b>Місць:</b> ${booking.seats}\n` +
             `👤 <b>Пасажир:</b> ${booking.name}\n\n` +
+            `⚠️ Краще уточнити бронювання за телефоном: ${BOOKING_CONFIRM_PHONE}\n\n` +
             '💡 Корисні команди:\n' +
             '📋 /mybookings - Переглянути всі бронювання\n' +
             '🚫 /cancel - Скасувати бронювання\n' +
@@ -2706,7 +2728,7 @@ https://malin.kiev.ua
             }
           );
           
-          await bot?.answerCallbackQuery(query.id, { text: '✅ Бронювання створено!' });
+          await bot?.answerCallbackQuery(query.id, { text: 'Заявку прийнято. Краще уточнити за тел. ' + BOOKING_CONFIRM_PHONE });
           
           // Відправити сповіщення адміну (використовується TELEGRAM_ADMIN_CHAT_ID)
           await sendBookingNotificationToAdmin(booking).catch((err) => console.error('Telegram notify admin:', err));
