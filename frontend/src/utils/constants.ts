@@ -2,10 +2,28 @@ import { Route, Direction } from '@/types';
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-/** З номера формату +380(93) 170 18 35 отримати посилання tel: (тільки цифри) */
+/** Нормалізація номера до цифр 380XXXXXXXXX */
+function normalizePhone(phone: string): string {
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('0')) cleaned = '38' + cleaned;
+  return cleaned;
+}
+
+/** Формат номера для відображення: +380(68)7771590 (без пропусків, оператор у дужках) */
+export function formatPhoneDisplay(phone: string | null | undefined): string {
+  if (!phone?.trim()) return '';
+  const normalized = normalizePhone(phone.trim());
+  if (normalized.length === 12 && normalized.startsWith('38')) {
+    return `+380(${normalized.slice(2, 4)})${normalized.slice(4)}`;
+  }
+  if (normalized.length >= 10) return '+' + normalized;
+  return phone.trim();
+}
+
+/** З номера отримати посилання tel: (тільки цифри) */
 export function supportPhoneToTelLink(phone: string | null | undefined): string {
   if (!phone) return '';
-  return 'tel:' + phone.replace(/\D/g, '');
+  return 'tel:' + normalizePhone(phone);
 }
 
 export const ROUTES: Record<Route, string> = {

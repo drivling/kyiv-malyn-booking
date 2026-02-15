@@ -257,7 +257,7 @@ app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
   }
 });
 
-/** Телефон підтримки для маршруту з графіка (напрямки з Києвом мають +380(93) 170 18 35) */
+/** Телефон підтримки для маршруту з графіка (формат +380(93)1701835) */
 export async function getSupportPhoneForRoute(route: string): Promise<string | null> {
   const schedule = await prisma.schedule.findFirst({
     where: { route, supportPhone: { not: null } },

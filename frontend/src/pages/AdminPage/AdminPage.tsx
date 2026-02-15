@@ -5,7 +5,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType } from '@/types';
-import { getRouteLabel, getRouteBadgeClass, ROUTES } from '@/utils/constants';
+import { getRouteLabel, getRouteBadgeClass, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
 type Tab = 'bookings' | 'schedules' | 'viber';
@@ -472,7 +472,7 @@ export const AdminPage: React.FC = () => {
                         <td><strong>{booking.departureTime}</strong></td>
                         <td>{booking.seats}</td>
                         <td>{booking.name}</td>
-                        <td>{booking.phone}</td>
+                        <td>{formatPhoneDisplay(booking.phone)}</td>
                         <td>{new Date(booking.createdAt).toLocaleString('uk-UA')}</td>
                         <td>
                           <Button
@@ -539,7 +539,7 @@ export const AdminPage: React.FC = () => {
                         </td>
                         <td><strong>{schedule.departureTime}</strong></td>
                         <td><strong>{schedule.maxSeats}</strong></td>
-                        <td>{schedule.supportPhone ?? '—'}</td>
+                        <td>{schedule.supportPhone ? formatPhoneDisplay(schedule.supportPhone) : '—'}</td>
                         <td>{new Date(schedule.createdAt).toLocaleString('uk-UA')}</td>
                         <td>{new Date(schedule.updatedAt).toLocaleString('uk-UA')}</td>
                         <td>
@@ -714,7 +714,7 @@ export const AdminPage: React.FC = () => {
                           {listing.departureTime ? ` ${listing.departureTime}` : ''}
                         </td>
                         <td>{listing.seats || '-'}</td>
-                        <td><strong>{listing.phone}</strong></td>
+                        <td><strong>{formatPhoneDisplay(listing.phone)}</strong></td>
                         <td>{listing.senderName || '-'}</td>
                         <td>
                           <span className={`badge ${listing.isActive ? 'badge-success' : 'badge-secondary'}`}>
@@ -943,9 +943,9 @@ export const AdminPage: React.FC = () => {
                   required
                 />
                 <Input
-                  label="Телефон підтримки (напр. +380(93) 170 18 35)"
+                  label="Телефон підтримки (напр. +380(93)1701835)"
                   type="text"
-                  placeholder="+380(93) 170 18 35"
+                  placeholder="+380(93)1701835"
                   value={scheduleForm.supportPhone ?? ''}
                   onChange={(e) => setScheduleForm({ ...scheduleForm, supportPhone: e.target.value })}
                 />

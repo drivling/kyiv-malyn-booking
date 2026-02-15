@@ -7,7 +7,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
-import { DIRECTION_ROUTES, DIRECTIONS, supportPhoneToTelLink } from '@/utils/constants';
+import { DIRECTION_ROUTES, DIRECTIONS, supportPhoneToTelLink, formatPhoneDisplay } from '@/utils/constants';
 import './BookingPage.css';
 
 export const BookingPage: React.FC = () => {
@@ -438,7 +438,7 @@ export const BookingPage: React.FC = () => {
             ✅ Заявку прийнято
             {(supportPhone || selectedSchedule?.supportPhone) && (
               <p className="booking-confirm-hint">
-                Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{selectedSchedule?.supportPhone ?? supportPhone}</a>
+                Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{formatPhoneDisplay(selectedSchedule?.supportPhone ?? supportPhone)}</a>
               </p>
             )}
           </Alert>
@@ -507,7 +507,7 @@ export const BookingPage: React.FC = () => {
           <div className="telegram-icon">📱</div>
           <div className="telegram-content">
             <h3>Отримуйте нотифікації в Telegram!</h3>
-            <p>Без Telegram ви не дізнаєтесь, що бронювання підтверджене{((selectedSchedule?.supportPhone ?? supportPhone) ? <> — краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{selectedSchedule?.supportPhone ?? supportPhone}</a></> : null)}. У Telegram — підтвердження та нагадування за день до поїздки.</p>
+            <p>Без Telegram ви не дізнаєтесь, що бронювання підтверджене{((selectedSchedule?.supportPhone ?? supportPhone) ? <> — краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{formatPhoneDisplay(selectedSchedule?.supportPhone ?? supportPhone)}</a></> : null)}. У Telegram — підтвердження та нагадування за день до поїздки.</p>
             <div className="telegram-steps">
               <div className="step">
                 <span className="step-number">1</span>
@@ -548,7 +548,7 @@ export const BookingPage: React.FC = () => {
               <h3>Бронювання створено!</h3>
               {successModalSupportPhone && (
                 <p className="telegram-success-text">
-                  Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(successModalSupportPhone)}>{successModalSupportPhone}</a>
+                  Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(successModalSupportPhone)}>{formatPhoneDisplay(successModalSupportPhone)}</a>
                 </p>
               )}
               <p className="telegram-success-text">
@@ -636,8 +636,8 @@ export const BookingPage: React.FC = () => {
               <div className="viber-phone-display">
                 {selectedViberListing.phone ? (
                   <>
-                    <a href={`tel:${selectedViberListing.phone}`} className="viber-phone-link">
-                      📞 {selectedViberListing.phone}
+                    <a href={supportPhoneToTelLink(selectedViberListing.phone)} className="viber-phone-link">
+                      📞 {formatPhoneDisplay(selectedViberListing.phone)}
                     </a>
                     <button
                       className="copy-button"

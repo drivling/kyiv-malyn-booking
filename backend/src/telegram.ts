@@ -484,19 +484,19 @@ const formatDate = (date: Date): string => {
 };
 
 /**
- * Формат номера для відображення: +38 050 139 99 10 (для 12 цифр 38...)
+ * Формат номера для відображення в Telegram: +380(68)7771590 (без пропусків, оператор у дужках)
  */
 function formatPhoneDisplay(phone: string | null | undefined): string {
   const normalized = normalizePhone(phone ?? '');
   if (normalized.length === 12 && normalized.startsWith('38')) {
-    return `+38 ${normalized.slice(2, 5)} ${normalized.slice(5, 8)} ${normalized.slice(8, 10)} ${normalized.slice(10, 12)}`;
+    return `+380(${normalized.slice(2, 4)})${normalized.slice(4)}`;
   }
   if (normalized.length >= 10) return '+' + normalized;
   return (phone ?? '').trim() || '—';
 }
 
 /**
- * Клікабельний номер телефону для Telegram (HTML): <a href="tel:+38...">+38 0XX XXX XX XX</a>
+ * Клікабельний номер телефону для Telegram (HTML): <a href="tel:+38...">+380(XX)YYYYYYY</a>
  */
 function formatPhoneTelLink(phone: string | null | undefined): string {
   const p = (phone ?? '').trim();
