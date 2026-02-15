@@ -288,21 +288,29 @@ export function parseViberMessage(rawMessage: string): ParsedViberMessage | null
 }
 
 /**
+ * Результат парсингу одного повідомлення з оригінальним текстом (для збереження в rawMessage)
+ */
+export interface ParsedViberMessageWithRaw {
+  parsed: ParsedViberMessage;
+  rawMessage: string;
+}
+
+/**
  * Парсить багато повідомлень одночасно (з копіювання чату)
  */
-export function parseViberMessages(rawMessages: string): ParsedViberMessage[] {
+export function parseViberMessages(rawMessages: string): ParsedViberMessageWithRaw[] {
   const messages = rawMessages.split(/\n(?=\[)/); // Розділяємо по новим повідомленням
-  const parsed: ParsedViberMessage[] = [];
+  const result: ParsedViberMessageWithRaw[] = [];
   
   for (const message of messages) {
     const trimmed = message.trim();
     if (!trimmed || trimmed.length < 10) continue;
     
-    const result = parseViberMessage(trimmed);
-    if (result) {
-      parsed.push(result);
+    const parsed = parseViberMessage(trimmed);
+    if (parsed) {
+      result.push({ parsed, rawMessage: trimmed });
     }
   }
   
-  return parsed;
+  return result;
 }

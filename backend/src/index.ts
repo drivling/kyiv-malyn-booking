@@ -840,7 +840,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
     const errors = [];
     
     for (let i = 0; i < parsedMessages.length; i++) {
-      const parsed = parsedMessages[i];
+      const { parsed, rawMessage: rawText } = parsedMessages[i];
       try {
         const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
         const senderName = nameFromDb ?? parsed.senderName;
@@ -849,7 +849,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
           : null;
         const listing = await prisma.viberListing.create({
           data: {
-            rawMessage: `Parsed message ${i + 1}`,
+            rawMessage: rawText,
             senderName,
             listingType: parsed.listingType,
             route: parsed.route,
