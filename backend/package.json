@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "build": "rm -rf dist && prisma generate && tsc",
-    "start": "npm run build && prisma migrate deploy && node dist/index.js",
+    "start": "prisma migrate deploy && node dist/index.js",
     "prisma:init": "prisma init",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

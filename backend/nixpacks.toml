@@ -1,3 +1,4 @@
-# Примусова збірка — завжди нова збірка (dist видаляється в npm run build)
+# Увага: при builder: RAILPACK (railway.json) цей файл не використовується — збірка задається в railway.json buildCommand.
+# Примусова збірка для Nixpacks — завжди нова збірка (dist видаляється в npm run build)
 [phases.build]
 cmds = ["npm run build"]
