@@ -43,6 +43,8 @@ export const BookingPage: React.FC = () => {
   const [selectedViberListing, setSelectedViberListing] = useState<ViberListing | null>(null);
   const [showViberModal, setShowViberModal] = useState(false);
   const [supportPhone, setSupportPhone] = useState<string | null>(null);
+  /** Телефон підтримки, зафіксований при відкритті модалки «Бронювання створено» (з БД, не хардкод) */
+  const [successModalSupportPhone, setSuccessModalSupportPhone] = useState<string | null>(null);
 
   // Телефон підтримки з графіка (для напрямків з Києвом)
   useEffect(() => {
@@ -233,6 +235,8 @@ export const BookingPage: React.FC = () => {
       await apiClient.createBooking(formData);
       setSuccess(true);
       setShowTelegramInfo(true);
+      // Фіксуємо телефон підтримки з БД для модалки (обраний рейс або глобальний з графіка)
+      setSuccessModalSupportPhone(selectedSchedule?.supportPhone ?? supportPhone ?? null);
       
       // Зберігаємо номер телефону для Telegram користувачів
       const shouldKeepPhone = userState.isTelegramUser();
@@ -536,15 +540,15 @@ export const BookingPage: React.FC = () => {
             <div className="telegram-success-content">
               <button 
                 className="telegram-close"
-                onClick={() => setShowTelegramInfo(false)}
+                onClick={() => { setShowTelegramInfo(false); setSuccessModalSupportPhone(null); }}
               >
                 ×
               </button>
               <div className="telegram-success-icon">🎉</div>
               <h3>Бронювання створено!</h3>
-              {(supportPhone || selectedSchedule?.supportPhone) && (
+              {successModalSupportPhone && (
                 <p className="telegram-success-text">
-                  Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{selectedSchedule?.supportPhone ?? supportPhone}</a>
+                  Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(successModalSupportPhone)}>{successModalSupportPhone}</a>
                 </p>
               )}
               <p className="telegram-success-text">
@@ -574,7 +578,7 @@ export const BookingPage: React.FC = () => {
               </a>
               <button 
                 className="telegram-skip"
-                onClick={() => setShowTelegramInfo(false)}
+                onClick={() => { setShowTelegramInfo(false); setSuccessModalSupportPhone(null); }}
               >
                 Пропустити
               </button>
