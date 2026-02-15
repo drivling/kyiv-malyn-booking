@@ -141,6 +141,15 @@ th {
   letter-spacing: 0.5px;
 }
 
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  color: #333;
+}
+
 td {
   padding: 20px;
   border-bottom: 1px solid #f0f0f0;

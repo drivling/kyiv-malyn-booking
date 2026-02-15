@@ -42,6 +42,10 @@ export const AdminPage: React.FC = () => {
   const [viberDateFilter, setViberDateFilter] = useState('');
   const [viberTypeFilter, setViberTypeFilter] = useState<'driver' | 'passenger' | ''>('');
   const [viberSearchQuery, setViberSearchQuery] = useState('');
+  const [viberNoPhoneFilter, setViberNoPhoneFilter] = useState(false);
+  const [viberNoDepartureTimeFilter, setViberNoDepartureTimeFilter] = useState(false);
+  const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
+  const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
   const [viberEditForm, setViberEditForm] = useState({
     rawMessage: '',
@@ -114,20 +118,35 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const filteredViberListings = viberListings.filter((listing) => {
-    if (viberActiveFilter && !listing.isActive) return false;
-    if (viberRouteFilter && !listing.route.toLowerCase().includes(viberRouteFilter.toLowerCase())) return false;
-    if (viberDateFilter) {
-      const listingDate = listing.date.slice(0, 10);
-      if (listingDate !== viberDateFilter) return false;
-    }
-    if (viberTypeFilter && listing.listingType !== viberTypeFilter) return false;
-    if (viberSearchQuery) {
-      const searchIn = `${listing.phone} ${listing.senderName ?? ''} ${listing.notes ?? ''} ${listing.rawMessage}`.toLowerCase();
-      if (!searchIn.includes(viberSearchQuery.toLowerCase())) return false;
-    }
-    return true;
-  });
+  const filteredViberListings = viberListings
+    .filter((listing) => {
+      if (viberActiveFilter && !listing.isActive) return false;
+      if (viberRouteFilter && !listing.route.toLowerCase().includes(viberRouteFilter.toLowerCase())) return false;
+      if (viberDateFilter) {
+        const listingDate = listing.date.slice(0, 10);
+        if (listingDate !== viberDateFilter) return false;
+      }
+      if (viberTypeFilter && listing.listingType !== viberTypeFilter) return false;
+      if (viberNoPhoneFilter && listing.phone?.trim()) return false;
+      if (viberNoDepartureTimeFilter && listing.departureTime?.trim()) return false;
+      if (viberSearchQuery) {
+        const searchIn = `${listing.phone} ${listing.senderName ?? ''} ${listing.notes ?? ''} ${listing.rawMessage}`.toLowerCase();
+        if (!searchIn.includes(viberSearchQuery.toLowerCase())) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const mult = viberSortOrder === 'asc' ? 1 : -1;
+      if (viberSortBy === 'id') {
+        return (a.id - b.id) * mult;
+      }
+      const dateA = a.date.slice(0, 10);
+      const dateB = b.date.slice(0, 10);
+      if (dateA !== dateB) return (dateA.localeCompare(dateB)) * mult;
+      const timeA = (a.departureTime || '').trim() || '00:00';
+      const timeB = (b.departureTime || '').trim() || '00:00';
+      return (timeA.localeCompare(timeB)) * mult;
+    });
 
   const filteredBookings = bookings.filter((booking) => {
     if (routeFilter && booking.route !== routeFilter) return false;
@@ -602,6 +621,22 @@ export const AdminPage: React.FC = () => {
                 />
                 <span>Тільки активні</span>
               </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={viberNoPhoneFilter}
+                  onChange={(e) => setViberNoPhoneFilter(e.target.checked)}
+                />
+                <span>Без номера телефону</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={viberNoDepartureTimeFilter}
+                  onChange={(e) => setViberNoDepartureTimeFilter(e.target.checked)}
+                />
+                <span>Без часу відправлення</span>
+              </label>
               <Button onClick={loadViberListings}>🔄 Оновити</Button>
               <Button onClick={() => setIsViberModalOpen(true)}>➕ Додати оголошення</Button>
               <Button variant="secondary" onClick={handleCleanupOldViberListings}>
@@ -612,6 +647,10 @@ export const AdminPage: React.FC = () => {
                 setViberDateFilter('');
                 setViberTypeFilter('');
                 setViberSearchQuery('');
+                setViberNoPhoneFilter(false);
+                setViberNoDepartureTimeFilter(false);
+                setViberSortBy('id');
+                setViberSortOrder('desc');
               }}>
                 Очистити фільтри
               </Button>
@@ -626,11 +665,28 @@ export const AdminPage: React.FC = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th>ID</th>
+                      <th
+                        className="sortable"
+                        onClick={() => {
+                          setViberSortBy('id');
+                          setViberSortOrder((o) => (viberSortBy === 'id' ? (o === 'asc' ? 'desc' : 'asc') : 'desc'));
+                        }}
+                        title="Сортувати по ID"
+                      >
+                        ID {viberSortBy === 'id' && (viberSortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th>Тип</th>
                       <th>Маршрут</th>
-                      <th>Дата</th>
-                      <th>Час</th>
+                      <th
+                        className="sortable"
+                        onClick={() => {
+                          setViberSortBy('date');
+                          setViberSortOrder((o) => (viberSortBy === 'date' ? (o === 'asc' ? 'desc' : 'asc') : 'desc'));
+                        }}
+                        title="Сортувати по даті та часу"
+                      >
+                        Дата + час {viberSortBy === 'date' && (viberSortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th>Місця</th>
                       <th>Телефон</th>
                       <th>Відправник</th>
@@ -648,8 +704,10 @@ export const AdminPage: React.FC = () => {
                           </span>
                         </td>
                         <td>{listing.route}</td>
-                        <td>{new Date(listing.date).toLocaleDateString('uk-UA')}</td>
-                        <td>{listing.departureTime || '-'}</td>
+                        <td>
+                          {new Date(listing.date).toLocaleDateString('uk-UA')}
+                          {listing.departureTime ? ` ${listing.departureTime}` : ''}
+                        </td>
                         <td>{listing.seats || '-'}</td>
                         <td><strong>{listing.phone}</strong></td>
                         <td>{listing.senderName || '-'}</td>
