@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = void 0;
 exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
@@ -598,6 +598,30 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
     }
 };
 exports.sendViberListingConfirmationToUser = sendViberListingConfirmationToUser;
+/**
+ * Відправка водію запиту на попутку з кнопкою підтвердження.
+ * Повертає true, якщо повідомлення водію відправлено.
+ */
+const sendRideShareRequestToDriver = async (requestId, driver, passenger) => {
+    if (!bot)
+        return false;
+    const driverChatId = await (0, exports.getChatIdByPhone)(driver.phone);
+    if (!driverChatId)
+        return false;
+    const confirmKeyboard = {
+        inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${requestId}` }]]
+    };
+    await bot.sendMessage(driverChatId, `🎫 <b>Запит на попутку</b>\n\n` +
+        `👤 ${passenger.senderName ?? 'Пасажир'} хоче поїхати з вами.\n\n` +
+        `🛣 ${getRouteName(driver.route)}\n` +
+        `📅 ${formatDate(driver.date)}\n` +
+        (driver.departureTime ? `🕐 ${driver.departureTime}\n` : '') +
+        `📞 ${formatPhoneTelLink(passenger.phone)}` +
+        (passenger.notes ? `\n📝 ${passenger.notes}` : '') +
+        `\n\n_У вас є 1 година на підтвердження._`, { parse_mode: 'HTML', reply_markup: confirmKeyboard });
+    return true;
+};
+exports.sendRideShareRequestToDriver = sendRideShareRequestToDriver;
 /**
  * Відправка підтвердження бронювання клієнту.
  * Тільки для маршруток (schedule). Для попуток (viber_match) пасажиру шле окреме повідомлення "Водій підтвердив ваше бронювання!" в обробнику vibermatch_confirm_.

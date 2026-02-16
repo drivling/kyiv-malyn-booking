@@ -128,3 +128,10 @@ export interface TelegramScenariosResponse {
     view: TelegramScenarioItem;
   };
 }
+
+export interface RideShareRequestFromSiteResponse {
+  success: boolean;
+  requestId: number;
+  message: string;
+  driverNotified: boolean;
+}

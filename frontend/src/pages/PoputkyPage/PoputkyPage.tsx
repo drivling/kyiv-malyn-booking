@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
 import { formatPhoneDisplay, supportPhoneToTelLink } from '@/utils/constants';
+import { userState } from '@/utils/userState';
 import './PoputkyPage.css';
 
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
@@ -46,13 +48,19 @@ const formatTripDate = (date: string): string => {
 };
 
 export const PoputkyPage: React.FC = () => {
+  const navigate = useNavigate();
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [requestError, setRequestError] = useState('');
+  const [requestSuccess, setRequestSuccess] = useState('');
+  const [requestingListingId, setRequestingListingId] = useState<number | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [query, setQuery] = useState('');
   const [tripDate, setTripDate] = useState('');
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
+  const telegramUser = userState.getTelegramUser();
+  const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
 
   const loadPoputky = async () => {
     setLoading(true);
@@ -107,6 +115,25 @@ export const PoputkyPage: React.FC = () => {
 
   const driverCount = filteredListings.filter((item) => item.listingType === 'driver').length;
   const passengerCount = filteredListings.filter((item) => item.listingType === 'passenger').length;
+
+  const handleRequestRide = async (driverListingId: number) => {
+    if (!telegramUser?.id) {
+      navigate('/login');
+      return;
+    }
+
+    setRequestError('');
+    setRequestSuccess('');
+    setRequestingListingId(driverListingId);
+    try {
+      const result = await apiClient.createRideShareRequestFromSite(driverListingId, telegramUser.id.toString());
+      setRequestSuccess(result.message);
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : 'Не вдалося створити запит на попутку');
+    } finally {
+      setRequestingListingId(null);
+    }
+  };
 
   return (
     <div className="poputky-page">
@@ -205,6 +232,13 @@ export const PoputkyPage: React.FC = () => {
         </div>
 
         {error && <Alert variant="error">{error}</Alert>}
+        {requestError && <Alert variant="error">{requestError}</Alert>}
+        {requestSuccess && <Alert variant="success">{requestSuccess}</Alert>}
+        {!isTelegramLoggedIn && (
+          <Alert variant="info">
+            Щоб бронювати попутки прямо на сайті, увійдіть через Telegram.
+          </Alert>
+        )}
 
         {loading ? (
           <div className="poputky-loading">Завантаження попуток...</div>
@@ -240,6 +274,29 @@ export const PoputkyPage: React.FC = () => {
                 <a href={supportPhoneToTelLink(listing.phone)} className="poputky-phone">
                   📞 {formatPhoneDisplay(listing.phone)}
                 </a>
+
+                {listing.listingType === 'driver' && (
+                  <div className="poputky-actions">
+                    {isTelegramLoggedIn ? (
+                      <button
+                        type="button"
+                        className="poputky-action-button"
+                        onClick={() => handleRequestRide(listing.id)}
+                        disabled={requestingListingId === listing.id}
+                      >
+                        {requestingListingId === listing.id ? 'Надсилаємо запит...' : '🎫 Забронювати у водія'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="poputky-action-button poputky-action-button--ghost"
+                        onClick={() => navigate('/login')}
+                      >
+                        🔑 Увійти через Telegram для бронювання
+                      </button>
+                    )}
+                  </div>
+                )}
               </article>
             ))}
           </div>

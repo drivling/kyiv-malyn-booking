@@ -712,6 +712,49 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 };
 
 /**
+ * Відправка водію запиту на попутку з кнопкою підтвердження.
+ * Повертає true, якщо повідомлення водію відправлено.
+ */
+export const sendRideShareRequestToDriver = async (
+  requestId: number,
+  driver: {
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    phone: string;
+    senderName: string | null;
+  },
+  passenger: {
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+  }
+): Promise<boolean> => {
+  if (!bot) return false;
+  const driverChatId = await getChatIdByPhone(driver.phone);
+  if (!driverChatId) return false;
+
+  const confirmKeyboard = {
+    inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${requestId}` }]]
+  };
+
+  await bot.sendMessage(
+    driverChatId,
+    `🎫 <b>Запит на попутку</b>\n\n` +
+      `👤 ${passenger.senderName ?? 'Пасажир'} хоче поїхати з вами.\n\n` +
+      `🛣 ${getRouteName(driver.route)}\n` +
+      `📅 ${formatDate(driver.date)}\n` +
+      (driver.departureTime ? `🕐 ${driver.departureTime}\n` : '') +
+      `📞 ${formatPhoneTelLink(passenger.phone)}` +
+      (passenger.notes ? `\n📝 ${passenger.notes}` : '') +
+      `\n\n_У вас є 1 година на підтвердження._`,
+    { parse_mode: 'HTML', reply_markup: confirmKeyboard }
+  );
+
+  return true;
+};
+
+/**
  * Відправка підтвердження бронювання клієнту.
  * Тільки для маршруток (schedule). Для попуток (viber_match) пасажиру шле окреме повідомлення "Водій підтвердив ваше бронювання!" в обробнику vibermatch_confirm_.
  */

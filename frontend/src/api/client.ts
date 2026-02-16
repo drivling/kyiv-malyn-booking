@@ -8,6 +8,7 @@ import type {
   ViberListing,
   ViberListingFormData,
   TelegramScenariosResponse,
+  RideShareRequestFromSiteResponse,
 } from '@/types';
 
 class ApiClient {
@@ -214,6 +215,13 @@ class ApiClient {
 
   async getTelegramScenarios(): Promise<TelegramScenariosResponse> {
     return this.request<TelegramScenariosResponse>('/telegram/scenarios');
+  }
+
+  async createRideShareRequestFromSite(driverListingId: number, telegramUserId: string): Promise<RideShareRequestFromSiteResponse> {
+    return this.request<RideShareRequestFromSiteResponse>('/rideshare/request', {
+      method: 'POST',
+      body: JSON.stringify({ driverListingId, telegramUserId }),
+    });
   }
 }
 
