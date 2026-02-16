@@ -217,7 +217,12 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
             const time = p.departureTime ?? '—';
             return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
-        await bot?.sendMessage(driverChatId, '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
+        const confirmButtons = exactList.map((p) => ([
+            { text: `🤝 Запропонувати ${p.senderName ?? 'пасажиру'}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
+        ]));
+        await bot?.sendMessage(driverChatId, '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут</b>\n\n' +
+            lines +
+            '\n\n_Натисніть кнопку, щоб надіслати пасажиру запит на підтвердження (1 година)._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: confirmButtons } }).catch(() => { });
     }
     if (driverChatId && approxList.length > 0) {
         const lines = approxList.map((p) => {
@@ -716,6 +721,7 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
                 `   • 🔔 Нагадування за день до поїздки\n\n` +
                 `3️⃣ <b>Корисні команди:</b>\n` +
                 `   /mybookings — переглянути мої бронювання\n` +
+                `   /allrides — переглянути всі попутки та швидкі дії\n` +
                 `   /book — створити нове бронювання в боті\n` +
                 `   /help — повна довідка по всіх командах\n\n` +
                 `   🚗 <b>Водій:</b> /adddriverride — додати поїздку, /mydriverrides — мої поїздки\n` +
@@ -874,6 +880,7 @@ function setupBotCommands() {
 🎫 <b>Що можна зробити:</b>
 /book - 🎫 Створити нове бронювання
 /mybookings - 📋 Переглянути мої бронювання
+/allrides - 🌐 Всі активні попутки
 /cancel - 🚫 Скасувати бронювання
 🚗 <b>Водій:</b>
 /mydriverrides - Мої поїздки (які я пропоную)
@@ -954,6 +961,7 @@ https://malin.kiev.ua
 📋 <b>Команди:</b>
 /help - повна довідка
 /mybookings - мої бронювання (після реєстрації)
+/allrides - всі активні попутки
 
 🌐 <b>Забронювати квиток:</b>
 https://malin.kiev.ua
@@ -987,6 +995,7 @@ https://malin.kiev.ua
 🎫 <b>Бронювання:</b>
 /book - створити нове бронювання
 /mybookings - переглянути мої бронювання
+/allrides - всі активні попутки та швидкі дії
 /cancel - скасувати бронювання
 
 🚗 <b>Водій:</b>
@@ -1000,6 +1009,7 @@ https://malin.kiev.ua
 📋 <b>Інше:</b>
 /start - головне меню
 /help - показати цю довідку
+/allrides - показати всі активні попутки
 
 ✅ Ваш акаунт підключено до номера: ${displayPhone}
 
@@ -1021,6 +1031,7 @@ https://malin.kiev.ua
 
 /start - почати роботу з ботом
 /help - показати цю довідку
+/allrides - подивитися всі активні попутки
 
 📱 <b>Як підключитися:</b>
 1. Напишіть /start
@@ -1038,6 +1049,133 @@ https://malin.kiev.ua
     bot.onText(/\/poputky/, async (msg) => {
         const chatId = msg.chat.id.toString();
         await sendFreeViewInfo(chatId);
+    });
+    // Команда /allrides — всі активні попутки + швидкі дії для зареєстрованого користувача
+    bot.onText(/\/allrides/, async (msg) => {
+        const chatId = msg.chat.id.toString();
+        const userId = msg.from?.id.toString() || '';
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const activeListings = await prisma.viberListing.findMany({
+                where: {
+                    isActive: true,
+                    date: { gte: today },
+                },
+                orderBy: [{ date: 'asc' }, { departureTime: 'asc' }, { createdAt: 'desc' }],
+                take: 80,
+            });
+            if (activeListings.length === 0) {
+                await bot?.sendMessage(chatId, '📭 <b>Зараз немає активних попуток</b>\n\n' +
+                    'Спробуйте пізніше або створіть свою поїздку:\n' +
+                    '🚗 /adddriverride\n' +
+                    '👤 /addpassengerride\n' +
+                    '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML' });
+                return;
+            }
+            const driverListings = activeListings.filter((l) => l.listingType === 'driver');
+            const passengerListings = activeListings.filter((l) => l.listingType === 'passenger');
+            const formatListingRow = (listing) => {
+                const time = listing.departureTime ?? '—';
+                const seats = listing.seats != null ? `, ${listing.seats} місць` : '';
+                const author = listing.senderName ? ` — ${listing.senderName}` : '';
+                return `• #${listing.id} ${getRouteName(listing.route)} · ${formatDate(listing.date)} о ${time}${seats}${author}`;
+            };
+            let message = '🌐 <b>Всі активні попутки</b>\n\n';
+            message += `🚗 Водії: ${driverListings.length}\n`;
+            message += `👤 Пасажири: ${passengerListings.length}\n\n`;
+            if (driverListings.length > 0) {
+                message += '<b>🚗 Водії:</b>\n';
+                message += driverListings.slice(0, 10).map(formatListingRow).join('\n');
+                if (driverListings.length > 10) {
+                    message += `\n… ще ${driverListings.length - 10}`;
+                }
+                message += '\n\n';
+            }
+            if (passengerListings.length > 0) {
+                message += '<b>👤 Пасажири:</b>\n';
+                message += passengerListings.slice(0, 10).map(formatListingRow).join('\n');
+                if (passengerListings.length > 10) {
+                    message += `\n… ще ${passengerListings.length - 10}`;
+                }
+            }
+            const userPhone = await (0, exports.getPhoneByTelegramUser)(userId, chatId);
+            const inlineKeyboard = [];
+            if (userPhone) {
+                const normalizedPhone = (0, exports.normalizePhone)(userPhone);
+                const myDriverListings = driverListings.filter((l) => (0, exports.normalizePhone)(l.phone) === normalizedPhone);
+                const myPassengerListings = passengerListings.filter((l) => (0, exports.normalizePhone)(l.phone) === normalizedPhone);
+                const seenPassengerToDriver = new Set();
+                for (const myPassenger of myPassengerListings.slice(0, 5)) {
+                    const matches = await findMatchingDriversForPassenger({
+                        route: myPassenger.route,
+                        date: myPassenger.date,
+                        departureTime: myPassenger.departureTime,
+                    });
+                    for (const match of matches) {
+                        if (match.matchType !== 'exact')
+                            continue;
+                        if ((0, exports.normalizePhone)(match.listing.phone) === normalizedPhone)
+                            continue;
+                        const key = `${myPassenger.id}_${match.listing.id}`;
+                        if (seenPassengerToDriver.has(key))
+                            continue;
+                        seenPassengerToDriver.add(key);
+                        inlineKeyboard.push([{
+                                text: `🎫 До водія #${match.listing.id} (${match.listing.departureTime ?? 'час не вказано'})`,
+                                callback_data: `vibermatch_book_${myPassenger.id}_${match.listing.id}`,
+                            }]);
+                        if (inlineKeyboard.length >= 10)
+                            break;
+                    }
+                    if (inlineKeyboard.length >= 10)
+                        break;
+                }
+                const seenDriverToPassenger = new Set();
+                for (const myDriver of myDriverListings.slice(0, 5)) {
+                    const matches = await findMatchingPassengersForDriver({
+                        route: myDriver.route,
+                        date: myDriver.date,
+                        departureTime: myDriver.departureTime,
+                    });
+                    for (const match of matches) {
+                        if (match.matchType !== 'exact')
+                            continue;
+                        if ((0, exports.normalizePhone)(match.listing.phone) === normalizedPhone)
+                            continue;
+                        const key = `${myDriver.id}_${match.listing.id}`;
+                        if (seenDriverToPassenger.has(key))
+                            continue;
+                        seenDriverToPassenger.add(key);
+                        inlineKeyboard.push([{
+                                text: `🤝 Запропонувати пасажиру #${match.listing.id}`,
+                                callback_data: `vibermatch_book_driver_${myDriver.id}_${match.listing.id}`,
+                            }]);
+                        if (inlineKeyboard.length >= 20)
+                            break;
+                    }
+                    if (inlineKeyboard.length >= 20)
+                        break;
+                }
+                if (inlineKeyboard.length > 0) {
+                    message += '\n\n🎯 <b>Точні співпадіння для вас:</b>\nНатисніть кнопку нижче — запит буде надісланий другій стороні на підтвердження (1 година).';
+                }
+                else {
+                    message += '\n\nℹ️ Для швидких дій потрібне точне співпадіння по маршруту, даті та часу.';
+                }
+            }
+            else {
+                message += '\n\nℹ️ Щоб отримати персональні кнопки швидкого запиту, зареєструйте номер: /start';
+            }
+            await bot?.sendMessage(chatId, message, {
+                parse_mode: 'HTML',
+                ...(inlineKeyboard.length > 0 ? { reply_markup: { inline_keyboard: inlineKeyboard } } : {}),
+            });
+        }
+        catch (error) {
+            console.error('❌ Помилка /allrides:', error);
+            await bot?.sendMessage(chatId, '❌ Помилка при отриманні списку поїздок. Спробуйте пізніше.');
+        }
     });
     // Команда /addviber — тільки для адміна в адмін-чаті: очікує наступне повідомлення з текстом з Вайберу (як «Додати оголошення» в адмінці)
     bot.onText(/\/addviber/, async (msg) => {
@@ -1549,7 +1687,7 @@ https://malin.kiev.ua
                             message += `   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
                         });
                     }
-                    message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
+                    message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 /allrides - всі активні попутки\n🌐 https://malin.kiev.ua - на сайті`;
                     await bot?.sendMessage(chatId, message, { parse_mode: 'HTML' });
                 }
                 else {
@@ -1565,7 +1703,7 @@ https://malin.kiev.ua
                         });
                         noBookingsMessage += '\n';
                     }
-                    noBookingsMessage += `Створіть нове бронювання:\n🎫 /book - через бота\n🌐 https://malin.kiev.ua - на сайті`;
+                    noBookingsMessage += `Створіть нове бронювання:\n🎫 /book - через бота\n🌐 /allrides - всі активні попутки\n🌐 https://malin.kiev.ua - на сайті`;
                     await bot?.sendMessage(chatId, noBookingsMessage, { parse_mode: 'HTML' });
                 }
                 return;
@@ -1622,6 +1760,7 @@ https://malin.kiev.ua
                 await bot?.sendMessage(chatId, '❌ <b>У вас немає майбутніх бронювань для скасування</b>\n\n' +
                     'Створіть нове бронювання:\n' +
                     '🎫 /book - Забронювати квиток\n' +
+                    '🌐 /allrides - Переглянути всі активні попутки\n' +
                     '🌐 https://malin.kiev.ua', { parse_mode: 'HTML' });
                 return;
             }
@@ -2017,6 +2156,53 @@ https://malin.kiev.ua
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
+            // ---------- Попутка: водій надсилає запит пасажиру (реверс) ----------
+            if (data.startsWith('vibermatch_book_driver_')) {
+                const parts = data.replace('vibermatch_book_driver_', '').split('_');
+                const driverListingId = parseInt(parts[0], 10);
+                const passengerListingId = parseInt(parts[1], 10);
+                if (isNaN(driverListingId) || isNaN(passengerListingId)) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка даних' });
+                    return;
+                }
+                const [driverListing, passengerListing] = await Promise.all([
+                    prisma.viberListing.findUnique({ where: { id: driverListingId } }),
+                    prisma.viberListing.findUnique({ where: { id: passengerListingId } }),
+                ]);
+                if (!driverListing || !passengerListing || driverListing.listingType !== 'driver' || passengerListing.listingType !== 'passenger') {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Оголошення не знайдено' });
+                    return;
+                }
+                const driverPerson = await (0, exports.getPersonByTelegram)(userId, chatId);
+                const isDriverOwner = !!driverPerson && (0, exports.normalizePhone)(driverPerson.phoneNormalized) === (0, exports.normalizePhone)(driverListing.phone);
+                if (!isDriverOwner) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Ця дія доступна тільки водію цього оголошення' });
+                    return;
+                }
+                const passengerChatId = await (0, exports.getChatIdByPhone)(passengerListing.phone);
+                if (!passengerChatId) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Пасажир не підключений до Telegram' });
+                    return;
+                }
+                const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+                const request = await prisma.rideShareRequest.create({
+                    data: { passengerListingId, driverListingId, status: 'pending', expiresAt },
+                });
+                const confirmKeyboard = {
+                    inline_keyboard: [[{ text: '✅ Підтвердити поїздку (1 год)', callback_data: `vibermatch_confirm_passenger_${request.id}` }]],
+                };
+                await bot?.sendMessage(passengerChatId, `🎫 <b>Водій пропонує поїздку</b>\n\n` +
+                    `🚗 ${driverListing.senderName ?? 'Водій'} пропонує вам поїздку.\n\n` +
+                    `🛣 ${getRouteName(driverListing.route)}\n` +
+                    `📅 ${formatDate(driverListing.date)}\n` +
+                    (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+                    `📞 ${formatPhoneTelLink(driverListing.phone)}` +
+                    (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
+                    `\n\n_У вас є 1 година на підтвердження._`, { parse_mode: 'HTML', reply_markup: confirmKeyboard }).catch(() => { });
+                await bot?.answerCallbackQuery(query.id, { text: 'Запит надіслано пасажиру. Очікуйте підтвердження (1 год).' });
+                await bot?.sendMessage(chatId, '✅ Запит надіслано пасажиру. Він отримає сповіщення і матиме 1 годину на підтвердження.', { parse_mode: 'HTML' }).catch(() => { });
+                return;
+            }
             // ---------- Попутка: пасажир натиснув "Забронювати у водія" ----------
             if (data.startsWith('vibermatch_book_')) {
                 const parts = data.replace('vibermatch_book_', '').split('_');
@@ -2112,7 +2298,7 @@ https://malin.kiev.ua
                 return;
             }
             // ---------- Попутка: водій натиснув "Підтвердити бронювання" ----------
-            if (data.startsWith('vibermatch_confirm_')) {
+            if (data.startsWith('vibermatch_confirm_') && !data.startsWith('vibermatch_confirm_passenger_')) {
                 const requestId = parseInt(data.replace('vibermatch_confirm_', ''), 10);
                 if (isNaN(requestId)) {
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
@@ -2179,6 +2365,76 @@ https://malin.kiev.ua
                 await bot?.sendMessage(chatId, '✅ Ви підтвердили бронювання. Пасажир отримав сповіщення.', { parse_mode: 'HTML' }).catch(() => { });
                 if (adminChatId) {
                     await bot?.sendMessage(adminChatId, `🚗 <b>Попутка підтверджена</b>\n\n` +
+                        `Бронювання #${booking.id} (viber_match)\n` +
+                        `Пасажир: ${booking.name}, ${formatPhoneTelLink(booking.phone)}\n` +
+                        `Водій: ${driverListing.senderName ?? '—'}, ${formatPhoneTelLink(driverListing.phone)}\n` +
+                        `${getRouteName(driverListing.route)} · ${formatDate(driverListing.date)}`, { parse_mode: 'HTML' }).catch(() => { });
+                }
+                return;
+            }
+            // ---------- Попутка: пасажир підтверджує запит від водія (реверс) ----------
+            if (data.startsWith('vibermatch_confirm_passenger_')) {
+                const requestId = parseInt(data.replace('vibermatch_confirm_passenger_', ''), 10);
+                if (isNaN(requestId)) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
+                    return;
+                }
+                const request = await prisma.rideShareRequest.findUnique({
+                    where: { id: requestId },
+                    include: { passengerListing: true, driverListing: true },
+                });
+                if (!request) {
+                    await bot?.answerCallbackQuery(query.id, { text: '❌ Запит не знайдено' });
+                    return;
+                }
+                if (request.status !== 'pending') {
+                    await bot?.answerCallbackQuery(query.id, { text: request.status === 'confirmed' ? '✅ Вже підтверджено' : 'Запит не активний' });
+                    return;
+                }
+                if (new Date() > request.expiresAt) {
+                    await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
+                    await bot?.answerCallbackQuery(query.id, { text: '⏱ Час на підтвердження минув' });
+                    return;
+                }
+                const { passengerListing, driverListing } = request;
+                await (0, exports.findOrCreatePersonByPhone)(passengerListing.phone, { fullName: passengerListing.senderName ?? undefined });
+                const passengerPerson = await (0, exports.getPersonByTelegram)(userId, chatId);
+                const isPassenger = !!passengerPerson && (0, exports.normalizePhone)(passengerPerson.phoneNormalized) === (0, exports.normalizePhone)(passengerListing.phone);
+                if (!isPassenger) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Це підтвердження лише для пасажира цього запиту' });
+                    return;
+                }
+                const booking = await prisma.booking.create({
+                    data: {
+                        route: driverListing.route,
+                        date: driverListing.date,
+                        departureTime: driverListing.departureTime ?? '—',
+                        seats: 1,
+                        name: passengerListing.senderName ?? passengerPerson.fullName?.trim() ?? 'Пасажир',
+                        phone: passengerListing.phone,
+                        personId: passengerPerson.id,
+                        telegramChatId: passengerPerson.telegramChatId,
+                        telegramUserId: passengerPerson.telegramUserId,
+                        source: 'viber_match',
+                        viberListingId: driverListing.id,
+                    },
+                });
+                await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
+                const driverChatId = await (0, exports.getChatIdByPhone)(driverListing.phone);
+                if (driverChatId) {
+                    await bot?.sendMessage(driverChatId, `✅ <b>Пасажир підтвердив вашу пропозицію!</b>\n\n` +
+                        `🎫 №${booking.id} · 🚗 Попутка\n` +
+                        `🛣 ${getRouteName(driverListing.route)}\n` +
+                        `📅 ${formatDate(driverListing.date)}\n` +
+                        (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+                        `👤 Пасажир: ${booking.name}\n` +
+                        `📞 ${formatPhoneTelLink(booking.phone)}\n\n` +
+                        `Поїздка з'явиться у /mybookings.`, { parse_mode: 'HTML' }).catch(() => { });
+                }
+                await bot?.answerCallbackQuery(query.id, { text: 'Поїздку підтверджено! Водій отримав сповіщення.' });
+                await bot?.sendMessage(chatId, '✅ Ви підтвердили поїздку. Водій отримав сповіщення.', { parse_mode: 'HTML' }).catch(() => { });
+                if (adminChatId) {
+                    await bot?.sendMessage(adminChatId, `🚗 <b>Попутка підтверджена (реверс)</b>\n\n` +
                         `Бронювання #${booking.id} (viber_match)\n` +
                         `Пасажир: ${booking.name}, ${formatPhoneTelLink(booking.phone)}\n` +
                         `Водій: ${driverListing.senderName ?? '—'}, ${formatPhoneTelLink(driverListing.phone)}\n` +
@@ -2263,6 +2519,7 @@ https://malin.kiev.ua
                         `📅 ${formatDate(bookingData.date)}\n\n` +
                         '💡 Ви можете:\n' +
                         '🎫 /book - Створити нове бронювання\n' +
+                        '🌐 /allrides - Переглянути всі активні попутки\n' +
                         '📋 /mybookings - Переглянути інші бронювання', {
                         chat_id: chatId,
                         message_id: messageId,
@@ -2286,7 +2543,8 @@ https://malin.kiev.ua
             if (data === 'cancel_abort') {
                 await bot?.editMessageText('✅ <b>Скасування відмінено</b>\n\n' +
                     'Ваше бронювання збережено.\n\n' +
-                    '📋 /mybookings - Переглянути всі бронювання', {
+                    '📋 /mybookings - Переглянути всі бронювання\n' +
+                    '🌐 /allrides - Переглянути всі активні попутки', {
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML'
@@ -2367,6 +2625,7 @@ https://malin.kiev.ua
                     const helpBlock = viberListings.length === 0
                         ? '\n\n<b>Ви можете:</b>\n' +
                             '🎫 /book - Почати заново\n' +
+                            '🌐 /allrides - Переглянути всі активні попутки\n' +
                             '📋 /mybookings - Переглянути існуючі бронювання\n' +
                             '🌐 https://malin.kiev.ua - Забронювати на сайті'
                         : '';
@@ -2570,6 +2829,7 @@ https://malin.kiev.ua
                         supportPhoneLine +
                         '💡 Корисні команди:\n' +
                         '📋 /mybookings - Переглянути всі бронювання\n' +
+                        '🌐 /allrides - Переглянути всі активні попутки\n' +
                         '🚫 /cancel - Скасувати бронювання\n' +
                         '🎫 /book - Створити ще одне бронювання', {
                         chat_id: chatId,
@@ -2603,6 +2863,7 @@ https://malin.kiev.ua
                 await bot?.editMessageText('❌ <b>Бронювання скасовано</b>\n\n' +
                     'Ви можете:\n' +
                     '🎫 /book - Почати заново\n' +
+                    '🌐 /allrides - Переглянути всі активні попутки\n' +
                     '📋 /mybookings - Переглянути існуючі бронювання\n' +
                     '🌐 https://malin.kiev.ua - Забронювати на сайті', {
                     chat_id: chatId,
