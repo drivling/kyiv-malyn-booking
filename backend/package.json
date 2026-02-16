@@ -3,6 +3,7 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "build": "rm -rf dist && prisma generate && tsc",
+    "prestart": "node -e \"if(!require('fs').existsSync('dist/index.js')){console.error('\\nERROR: dist/index.js not found. On Railway set Root Directory to \\'backend\\' and ensure build runs (buildCommand: npm install && npm run build).\\n'); process.exit(1)}\"",
     "start": "prisma migrate deploy && node dist/index.js",
     "prisma:init": "prisma init",
     "prisma:migrate": "prisma migrate dev",
