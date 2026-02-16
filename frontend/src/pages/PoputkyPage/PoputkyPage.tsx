@@ -47,6 +47,18 @@ const formatTripDate = (date: string): string => {
   return parsed.toLocaleDateString('uk-UA');
 };
 
+const getTimeMinutes = (time: string | null): number | null => {
+  if (!time) return null;
+  const normalized = time.trim().split('-')[0];
+  const match = normalized.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+};
+
 export const PoputkyPage: React.FC = () => {
   const navigate = useNavigate();
   const [listings, setListings] = useState<ViberListing[]>([]);
@@ -61,6 +73,7 @@ export const PoputkyPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [tripDate, setTripDate] = useState('');
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
+  const [sortByTime, setSortByTime] = useState<'asc' | 'desc'>('asc');
   const telegramUser = userState.getTelegramUser();
   const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
 
@@ -109,11 +122,23 @@ export const PoputkyPage: React.FC = () => {
         return true;
       })
       .sort((a, b) => {
-        const dateTimeA = `${a.date.slice(0, 10)} ${a.departureTime || '23:59'}`;
-        const dateTimeB = `${b.date.slice(0, 10)} ${b.departureTime || '23:59'}`;
-        return dateTimeA.localeCompare(dateTimeB);
+        const timeA = getTimeMinutes(a.departureTime);
+        const timeB = getTimeMinutes(b.departureTime);
+
+        // Записи без часу показуємо в кінці списку
+        if (timeA === null && timeB !== null) return 1;
+        if (timeA !== null && timeB === null) return -1;
+
+        if (timeA !== null && timeB !== null && timeA !== timeB) {
+          return sortByTime === 'asc' ? timeA - timeB : timeB - timeA;
+        }
+
+        // При однаковому часі — додаткове сортування за датою
+        const dateA = a.date.slice(0, 10);
+        const dateB = b.date.slice(0, 10);
+        return dateA.localeCompare(dateB);
       });
-  }, [listings, listingType, tripDate, query]);
+  }, [listings, listingType, tripDate, query, sortByTime]);
 
   const driverCount = filteredListings.filter((item) => item.listingType === 'driver').length;
   const passengerCount = filteredListings.filter((item) => item.listingType === 'passenger').length;
@@ -219,6 +244,13 @@ export const PoputkyPage: React.FC = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <select
+            value={sortByTime}
+            onChange={(e) => setSortByTime(e.target.value as 'asc' | 'desc')}
+          >
+            <option value="asc">🕐 Час: раніше → пізніше</option>
+            <option value="desc">🕐 Час: пізніше → раніше</option>
+          </select>
           <button type="button" onClick={loadPoputky} disabled={loading}>
             {loading ? 'Оновлення...' : 'Оновити'}
           </button>

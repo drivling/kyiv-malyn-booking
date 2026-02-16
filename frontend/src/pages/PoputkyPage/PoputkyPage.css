@@ -94,7 +94,7 @@
 
 .poputky-controls {
   display: grid;
-  grid-template-columns: 180px 180px minmax(240px, 1fr) auto;
+  grid-template-columns: 180px 180px minmax(220px, 1fr) 220px auto;
   gap: 10px;
   margin-bottom: 14px;
 }
