@@ -148,7 +148,7 @@ export const PoputkyPage: React.FC = () => {
       <div className="poputky-container">
         <div className="poputky-header">
           <h1>🚗 Попутки</h1>
-          <p>Окрема сторінка для пошуку поїздок: водії, пасажири та Telegram-інтеграція.</p>
+          <p>Пошук поїздок: водії, пасажири Малин ↔ Київ, Житомир, Коростень</p>
         </div>
 
         <div className="telegram-features-grid">
