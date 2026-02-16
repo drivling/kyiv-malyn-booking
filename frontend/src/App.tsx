@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-do
 import { BookingPage } from '@/pages/BookingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { PoputkyPage } from '@/pages/PoputkyPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
@@ -21,6 +22,7 @@ function AppContent() {
       <NavBar />
       <Routes>
         <Route path="/" element={<BookingPage />} />
+        <Route path="/poputky" element={<PoputkyPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route 
           path="/admin" 
@@ -52,6 +54,9 @@ function NavBar() {
       <div className="nav-left">
         <Link to="/" className="nav-link nav-brand">
           🚐 Бронювання
+        </Link>
+        <Link to="/poputky" className="nav-link">
+          🚗 Попутки
         </Link>
       </div>
 

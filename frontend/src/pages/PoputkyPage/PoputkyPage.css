@@ -1,0 +1,250 @@
+.poputky-page {
+  min-height: calc(100vh - 60px);
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  padding: 32px 16px 48px;
+}
+
+.poputky-container {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.poputky-header {
+  margin-bottom: 20px;
+}
+
+.poputky-header h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+}
+
+.poputky-header p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.telegram-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.feature-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.feature-card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.telegram-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.telegram-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #229ed9;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.telegram-action-button:hover {
+  opacity: 0.9;
+}
+
+.telegram-commands {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.telegram-commands code {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
+.poputky-controls {
+  display: grid;
+  grid-template-columns: 180px 180px minmax(240px, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.poputky-controls select,
+.poputky-controls input,
+.poputky-controls button {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.poputky-controls button {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.poputky-controls button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.poputky-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.stat-card span {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.stat-card strong {
+  font-size: 22px;
+}
+
+.poputky-loading,
+.poputky-empty {
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 20px;
+  color: #6b7280;
+  background: #fff;
+}
+
+.poputky-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.poputky-item {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.poputky-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.poputky-item h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.poputky-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.poputky-badge.driver {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.poputky-badge.passenger {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.poputky-date {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.poputky-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.poputky-notes {
+  margin: 0;
+  color: #374151;
+}
+
+.poputky-phone {
+  align-self: flex-start;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.poputky-phone:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .poputky-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .poputky-header h1 {
+    font-size: 26px;
+  }
+
+  .poputky-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .poputky-stats {
+    grid-template-columns: 1fr;
+  }
+}

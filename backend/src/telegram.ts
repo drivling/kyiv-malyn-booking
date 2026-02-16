@@ -40,8 +40,18 @@ const ADDVIBER_STATE_TTL_MS = 10 * 60 * 1000; // 10 хв
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
+const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
 
 let bot: TelegramBot | null = null;
+
+export function getTelegramScenarioLinks() {
+  return {
+    driver: `https://t.me/${telegramBotUsername}?start=driver`,
+    passenger: `https://t.me/${telegramBotUsername}?start=passenger`,
+    view: `https://t.me/${telegramBotUsername}?start=view`,
+    poputkyWeb: 'https://malin.kiev.ua/poputky',
+  };
+}
 
 /**
  * Нормалізація номера телефону
@@ -913,11 +923,109 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
 function setupBotCommands() {
   if (!bot) return;
 
+  const parseStartScenario = (text?: string): 'driver' | 'passenger' | 'view' | null => {
+    if (!text) return null;
+    const match = text.trim().match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i);
+    const raw = match?.[1]?.trim().toLowerCase();
+    if (!raw) return null;
+    if (raw === 'driver' || raw === 'adddriverride') return 'driver';
+    if (raw === 'passenger' || raw === 'addpassengerride') return 'passenger';
+    if (raw === 'view' || raw === 'poputky' || raw === 'rides') return 'view';
+    return null;
+  };
+
+  const startDriverRideFlow = async (chatId: string, userId: string) => {
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    const routeKeyboard = {
+      inline_keyboard: [
+        [{ text: '🚌 Київ → Малин', callback_data: 'adddriver_route_Kyiv-Malyn' }],
+        [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
+        [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
+        [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
+        [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
+        [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
+        [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
+      ]
+    };
+
+    if (!userPhone) {
+      driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'phone', since: Date.now() });
+      const keyboard = {
+        keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      };
+      await bot?.sendMessage(
+        chatId,
+        '🚗 <b>Додати поїздку (водій)</b>\n\n' +
+        'Спочатку вкажіть номер телефону для контакту:\n' +
+        '• натисніть кнопку нижче або\n' +
+        '• напишіть номер, наприклад 0501234567',
+        { parse_mode: 'HTML', reply_markup: keyboard }
+      );
+      return;
+    }
+
+    driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'route', phone: userPhone, since: Date.now() });
+    await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+  };
+
+  const startPassengerRideFlow = async (chatId: string, userId: string) => {
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    const routeKeyboard = {
+      inline_keyboard: [
+        [{ text: '🚌 Київ → Малин', callback_data: 'addpassenger_route_Kyiv-Malyn' }],
+        [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
+        [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
+        [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
+        [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
+        [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
+        [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
+      ]
+    };
+
+    if (!userPhone) {
+      passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'phone', since: Date.now() });
+      const keyboard = {
+        keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      };
+      await bot?.sendMessage(
+        chatId,
+        '👤 <b>Шукаю поїздку (пасажир)</b>\n\n' +
+        'Спочатку вкажіть номер телефону для контакту:\n' +
+        '• натисніть кнопку нижче або\n' +
+        '• напишіть номер, наприклад 0501234567',
+        { parse_mode: 'HTML', reply_markup: keyboard }
+      );
+      return;
+    }
+
+    passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'route', phone: userPhone, since: Date.now() });
+    await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+  };
+
+  const sendFreeViewInfo = async (chatId: string) => {
+    const links = getTelegramScenarioLinks();
+    await bot?.sendMessage(
+      chatId,
+      '🌐 <b>Вільний перегляд попуток</b>\n\n' +
+      'Без авторизації можна переглядати всі активні поїздки на сайті:\n' +
+      `${links.poputkyWeb}\n\n` +
+      'Швидкий старт у Telegram:\n' +
+      `🚗 Водій: ${links.driver}\n` +
+      `👤 Пасажир: ${links.passenger}`,
+      { parse_mode: 'HTML' }
+    );
+  };
+
   // Команда /start
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
     const firstName = msg.from?.first_name || 'Друже';
+    const startScenario = parseStartScenario(msg.text);
 
     const person = await getPersonByTelegram(userId, chatId);
     const existingBooking = await prisma.booking.findFirst({
@@ -947,6 +1055,22 @@ function setupBotCommands() {
 https://malin.kiev.ua
     `.trim();
 
+    const handleStartScenario = async (): Promise<boolean> => {
+      if (!startScenario) return false;
+      if (startScenario === 'driver') {
+        await bot?.sendMessage(chatId, '🚗 Запускаю сценарій: <b>Запит на поїздку як водій</b>', { parse_mode: 'HTML' });
+        await startDriverRideFlow(chatId, userId);
+        return true;
+      }
+      if (startScenario === 'passenger') {
+        await bot?.sendMessage(chatId, '👤 Запускаю сценарій: <b>Запит на поїздку як пасажир</b>', { parse_mode: 'HTML' });
+        await startPassengerRideFlow(chatId, userId);
+        return true;
+      }
+      await sendFreeViewInfo(chatId);
+      return true;
+    };
+
     if (person) {
       await prisma.person.updateMany({
         where: { id: person.id },
@@ -962,6 +1086,7 @@ https://malin.kiev.ua
       }
       const displayPhone = person.phoneNormalized ? formatPhoneTelLink(person.phoneNormalized) : (existingBooking ? formatPhoneTelLink(existingBooking.phone) : '');
       await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), { parse_mode: 'HTML' });
+      if (await handleStartScenario()) return;
     } else {
       if (existingBooking) {
         await prisma.booking.updateMany({
@@ -977,6 +1102,7 @@ https://malin.kiev.ua
         console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start (з booking)`);
         const displayPhone = formatPhoneTelLink(p.phoneNormalized ?? existingBooking.phone);
         await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), { parse_mode: 'HTML' });
+        if (await handleStartScenario()) return;
         return;
       }
       // Новий користувач - пропонуємо зареєструватися
@@ -1012,6 +1138,7 @@ https://malin.kiev.ua
         parse_mode: 'HTML',
         reply_markup: keyboard
       });
+      if (await handleStartScenario()) return;
     }
   });
 
@@ -1078,6 +1205,11 @@ https://malin.kiev.ua
       
       await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
     }
+  });
+
+  bot.onText(/\/poputky/, async (msg) => {
+    const chatId = msg.chat.id.toString();
+    await sendFreeViewInfo(chatId);
   });
 
   // Команда /addviber — тільки для адміна в адмін-чаті: очікує наступне повідомлення з текстом з Вайберу (як «Додати оголошення» в адмінці)
@@ -1826,74 +1958,14 @@ https://malin.kiev.ua
   bot.onText(/\/adddriverride/, async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
-    const userPhone = await getPhoneByTelegramUser(userId, chatId);
-    const routeKeyboard = {
-      inline_keyboard: [
-        [{ text: '🚌 Київ → Малин', callback_data: 'adddriver_route_Kyiv-Malyn' }],
-        [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
-        [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
-        [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
-        [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
-        [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
-        [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
-      ]
-    };
-    if (!userPhone) {
-      driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'phone', since: Date.now() });
-      const keyboard = {
-        keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
-        resize_keyboard: true,
-        one_time_keyboard: true
-      };
-      await bot?.sendMessage(
-        chatId,
-        '🚗 <b>Додати поїздку (водій)</b>\n\n' +
-        'Спочатку вкажіть номер телефону для контакту:\n' +
-        '• натисніть кнопку нижче або\n' +
-        '• напишіть номер, наприклад 0501234567',
-        { parse_mode: 'HTML', reply_markup: keyboard }
-      );
-      return;
-    }
-    driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'route', phone: userPhone, since: Date.now() });
-    await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+    await startDriverRideFlow(chatId, userId);
   });
 
   // Команда /addpassengerride — шукаю поїздку (пасажир)
   bot.onText(/\/addpassengerride/, async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
-    const userPhone = await getPhoneByTelegramUser(userId, chatId);
-    const routeKeyboard = {
-      inline_keyboard: [
-        [{ text: '🚌 Київ → Малин', callback_data: 'addpassenger_route_Kyiv-Malyn' }],
-        [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
-        [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
-        [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
-        [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
-        [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
-        [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
-      ]
-    };
-    if (!userPhone) {
-      passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'phone', since: Date.now() });
-      const keyboard = {
-        keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
-        resize_keyboard: true,
-        one_time_keyboard: true
-      };
-      await bot?.sendMessage(
-        chatId,
-        '👤 <b>Шукаю поїздку (пасажир)</b>\n\n' +
-        'Спочатку вкажіть номер телефону для контакту:\n' +
-        '• натисніть кнопку нижче або\n' +
-        '• напишіть номер, наприклад 0501234567',
-        { parse_mode: 'HTML', reply_markup: keyboard }
-      );
-      return;
-    }
-    passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'route', phone: userPhone, since: Date.now() });
-    await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+    await startPassengerRideFlow(chatId, userId);
   });
 
   // Команда /book - створення нового бронювання

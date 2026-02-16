@@ -515,11 +515,11 @@ export const BookingPage: React.FC = () => {
               </div>
               <div className="step">
                 <span className="step-number">2</span>
-                <span>Напишіть: <code>/subscribe {phone || 'ВАШ_НОМЕР'}</code></span>
+                <span>Напишіть: <code>/start</code></span>
               </div>
               <div className="step">
                 <span className="step-number">3</span>
-                <span>Готово! Отримуйте повідомлення автоматично ✅</span>
+                <span>Натисніть кнопку «Поділитися номером телефону» ✅</span>
               </div>
             </div>
             <a 
@@ -557,16 +557,9 @@ export const BookingPage: React.FC = () => {
               <div className="telegram-success-steps">
                 <p><strong>Підпишіться на нашого Telegram бота:</strong></p>
                 <div className="telegram-command">
-                  <code>/subscribe {phone}</code>
-                  <button 
-                    className="copy-button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`/subscribe ${phone}`);
-                    }}
-                  >
-                    📋
-                  </button>
+                  <code>/start</code>
                 </div>
+                <p style={{ marginTop: 8, color: '#4b5563' }}>Після цього натисніть кнопку «Поділитися номером телефону» в боті.</p>
               </div>
               <a 
                 href={`https://t.me/malin_kiev_ua_bot?start=subscribe`}

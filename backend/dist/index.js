@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getSupportPhoneForRoute = getSupportPhoneForRoute;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const client_1 = require("@prisma/client");
@@ -173,6 +174,19 @@ app.get('/schedules/:route', async (req, res) => {
     });
     res.json(schedules);
 });
+// Телефон підтримки для уточнення бронювання (з графіка; для напрямків з Києвом)
+app.get('/schedules-support-phone', async (_req, res) => {
+    try {
+        const schedule = await prisma.schedule.findFirst({
+            where: { supportPhone: { not: null } },
+            select: { supportPhone: true }
+        });
+        res.json({ supportPhone: schedule?.supportPhone ?? null });
+    }
+    catch (error) {
+        res.status(500).json({ supportPhone: null });
+    }
+});
 // Перевірка доступності місць для конкретного рейсу та дати
 app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
     const { route, departureTime } = req.params;
@@ -223,8 +237,16 @@ app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
         res.status(500).json({ error: 'Failed to check availability' });
     }
 });
+/** Телефон підтримки для маршруту з графіка (формат +380(93)1701835) */
+async function getSupportPhoneForRoute(route) {
+    const schedule = await prisma.schedule.findFirst({
+        where: { route, supportPhone: { not: null } },
+        select: { supportPhone: true }
+    });
+    return schedule?.supportPhone ?? null;
+}
 app.post('/schedules', requireAdmin, async (req, res) => {
-    const { route, departureTime, maxSeats } = req.body;
+    const { route, departureTime, maxSeats, supportPhone } = req.body;
     if (!route || !departureTime) {
         return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
     }
@@ -238,7 +260,8 @@ app.post('/schedules', requireAdmin, async (req, res) => {
             data: {
                 route,
                 departureTime,
-                maxSeats: maxSeats ? Number(maxSeats) : 20
+                maxSeats: maxSeats ? Number(maxSeats) : 20,
+                supportPhone: supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null
             }
         });
         res.status(201).json(schedule);
@@ -252,7 +275,7 @@ app.post('/schedules', requireAdmin, async (req, res) => {
 });
 app.put('/schedules/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { route, departureTime, maxSeats } = req.body;
+    const { route, departureTime, maxSeats, supportPhone } = req.body;
     if (!route || !departureTime) {
         return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
     }
@@ -267,7 +290,8 @@ app.put('/schedules/:id', requireAdmin, async (req, res) => {
             data: {
                 route,
                 departureTime,
-                maxSeats: maxSeats ? Number(maxSeats) : undefined
+                maxSeats: maxSeats ? Number(maxSeats) : undefined,
+                supportPhone: supportPhone !== undefined ? (supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null) : undefined
             }
         });
         res.json(schedule);
@@ -426,7 +450,7 @@ app.post('/bookings', async (req, res) => {
     // Відправка повідомлень в Telegram (якщо налаштовано)
     if ((0, telegram_1.isTelegramEnabled)()) {
         try {
-            // Повідомлення адміну
+            // Повідомлення адміну (тільки для маршруток; source за замовч. "schedule")
             await (0, telegram_1.sendBookingNotificationToAdmin)({
                 id: booking.id,
                 route: booking.route,
@@ -435,10 +459,12 @@ app.post('/bookings', async (req, res) => {
                 seats: booking.seats,
                 name: booking.name,
                 phone: booking.phone,
+                source: booking.source,
             });
-            // Повідомлення клієнту (якщо він підписаний)
+            // Повідомлення клієнту (якщо він підписаний; тільки для маршруток). Телефон підтримки — з графіка для цього маршруту.
             const customerChatId = await (0, telegram_1.getChatIdByPhone)(booking.phone);
             if (customerChatId) {
+                const supportPhone = await getSupportPhoneForRoute(booking.route);
                 await (0, telegram_1.sendBookingConfirmationToCustomer)(customerChatId, {
                     id: booking.id,
                     route: booking.route,
@@ -446,6 +472,8 @@ app.post('/bookings', async (req, res) => {
                     departureTime: booking.departureTime,
                     seats: booking.seats,
                     name: booking.name,
+                    source: booking.source,
+                    supportPhone: supportPhone ?? undefined,
                 });
             }
         }
@@ -610,6 +638,31 @@ app.get('/telegram/status', requireAdmin, (_req, res) => {
         botToken: process.env.TELEGRAM_BOT_TOKEN ? 'configured' : 'not configured'
     });
 });
+// Публічний опис Telegram-сценаріїв для фронтенду/лендінгу
+app.get('/telegram/scenarios', (_req, res) => {
+    const links = (0, telegram_1.getTelegramScenarioLinks)();
+    res.json({
+        enabled: (0, telegram_1.isTelegramEnabled)(),
+        scenarios: {
+            driver: {
+                title: 'Запит на поїздку як водій',
+                command: '/adddriverride',
+                deepLink: links.driver,
+            },
+            passenger: {
+                title: 'Запит на поїздку як пасажир',
+                command: '/addpassengerride',
+                deepLink: links.passenger,
+            },
+            view: {
+                title: 'Вільний перегляд поїздок',
+                command: '/poputky',
+                deepLink: links.view,
+                webLink: links.poputkyWeb,
+            },
+        },
+    });
+});
 // ============================================
 // Viber Listings Endpoints
 // ============================================
@@ -766,7 +819,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
         const created = [];
         const errors = [];
         for (let i = 0; i < parsedMessages.length; i++) {
-            const parsed = parsedMessages[i];
+            const { parsed, rawMessage: rawText } = parsedMessages[i];
             try {
                 const nameFromDb = parsed.phone ? await (0, telegram_1.getNameByPhone)(parsed.phone) : null;
                 const senderName = nameFromDb ?? parsed.senderName;
@@ -775,7 +828,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
                     : null;
                 const listing = await prisma.viberListing.create({
                     data: {
-                        rawMessage: `Parsed message ${i + 1}`,
+                        rawMessage: rawText,
                         senderName,
                         listingType: parsed.listingType,
                         route: parsed.route,

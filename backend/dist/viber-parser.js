@@ -256,15 +256,15 @@ function parseViberMessage(rawMessage) {
  */
 function parseViberMessages(rawMessages) {
     const messages = rawMessages.split(/\n(?=\[)/); // Розділяємо по новим повідомленням
-    const parsed = [];
+    const result = [];
     for (const message of messages) {
         const trimmed = message.trim();
         if (!trimmed || trimmed.length < 10)
             continue;
-        const result = parseViberMessage(trimmed);
-        if (result) {
-            parsed.push(result);
+        const parsed = parseViberMessage(trimmed);
+        if (parsed) {
+            result.push({ parsed, rawMessage: trimmed });
         }
     }
-    return parsed;
+    return result;
 }

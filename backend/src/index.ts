@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -691,6 +691,32 @@ app.get('/telegram/status', requireAdmin, (_req, res) => {
     enabled: isTelegramEnabled(),
     adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ? 'configured' : 'not configured',
     botToken: process.env.TELEGRAM_BOT_TOKEN ? 'configured' : 'not configured'
+  });
+});
+
+// Публічний опис Telegram-сценаріїв для фронтенду/лендінгу
+app.get('/telegram/scenarios', (_req, res) => {
+  const links = getTelegramScenarioLinks();
+  res.json({
+    enabled: isTelegramEnabled(),
+    scenarios: {
+      driver: {
+        title: 'Запит на поїздку як водій',
+        command: '/adddriverride',
+        deepLink: links.driver,
+      },
+      passenger: {
+        title: 'Запит на поїздку як пасажир',
+        command: '/addpassengerride',
+        deepLink: links.passenger,
+      },
+      view: {
+        title: 'Вільний перегляд поїздок',
+        command: '/poputky',
+        deepLink: links.view,
+        webLink: links.poputkyWeb,
+      },
+    },
   });
 });
 
