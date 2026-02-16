@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { PrismaClient } from '@prisma/client';
-import { extractDate, extractTime } from './viber-parser';
+import { extractDate, extractTime, parseViberMessage, parseViberMessages } from './viber-parser';
 
 const prisma = new PrismaClient();
 
@@ -32,6 +32,10 @@ interface PassengerRideFlowState {
 }
 const passengerRideStateMap = new Map<string, PassengerRideFlowState>();
 const PASSENGER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
+
+/** Очікування тексту оголошення з Вайберу після /addviber (тільки адмін-чат) */
+const addViberAwaitingMap = new Map<string, number>(); // chatId -> since
+const ADDVIBER_STATE_TTL_MS = 10 * 60 * 1000; // 10 хв
 
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -1076,6 +1080,20 @@ https://malin.kiev.ua
     }
   });
 
+  // Команда /addviber — тільки для адміна в адмін-чаті: очікує наступне повідомлення з текстом з Вайберу (як «Додати оголошення» в адмінці)
+  bot.onText(/\/addviber/, async (msg) => {
+    const chatId = msg.chat.id.toString();
+    if (chatId !== adminChatId) return;
+    addViberAwaitingMap.set(chatId, Date.now());
+    await bot?.sendMessage(
+      chatId,
+      '📱 <b>Додати оголошення з Вайберу</b>\n\n' +
+      'Надішліть текст оголошення — такий самий, як вставляєте в адмінці при кнопці «➕ Додати оголошення».\n\n' +
+      'Можна одне повідомлення або кілька (скопіювати блок з чату). Через 10 хв очікування скасується.',
+      { parse_mode: 'HTML' }
+    );
+  });
+
   // Обробка контакту (коли користувач ділиться номером через кнопку)
   bot.on('contact', async (msg) => {
     const chatId = msg.chat.id.toString();
@@ -1141,6 +1159,145 @@ https://malin.kiev.ua
     const text = msg.text?.trim();
     
     if (!text) return;
+
+    // Потік /addviber: адмін надіслав текст оголошення з Вайберу (та сама обробка, що в адмінці)
+    if (chatId === adminChatId && addViberAwaitingMap.has(chatId)) {
+      const since = addViberAwaitingMap.get(chatId)!;
+      addViberAwaitingMap.delete(chatId);
+      if (Date.now() - since > ADDVIBER_STATE_TTL_MS) {
+        await bot?.sendMessage(chatId, '⏱ Час вийшов. Напишіть /addviber знову.');
+        return;
+      }
+      try {
+        const messageCount = (text.match(/\[.*?\]/g) || []).length;
+        if (messageCount > 1) {
+          const parsedMessages = parseViberMessages(text);
+          if (parsedMessages.length === 0) {
+            await bot?.sendMessage(chatId, '❌ Не вдалося розпарсити жодне повідомлення. Перевірте формат.');
+            return;
+          }
+          let created = 0;
+          for (let i = 0; i < parsedMessages.length; i++) {
+            const { parsed, rawMessage: rawText } = parsedMessages[i];
+            try {
+              const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
+              const senderName = nameFromDb ?? parsed.senderName;
+              const person = parsed.phone
+                ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+                : null;
+              const listing = await prisma.viberListing.create({
+                data: {
+                  rawMessage: rawText,
+                  senderName,
+                  listingType: parsed.listingType,
+                  route: parsed.route,
+                  date: parsed.date,
+                  departureTime: parsed.departureTime,
+                  seats: parsed.seats,
+                  phone: parsed.phone,
+                  notes: parsed.notes,
+                  isActive: true,
+                  personId: person?.id ?? undefined,
+                },
+              });
+              created++;
+              if (isTelegramEnabled()) {
+                await sendViberListingNotificationToAdmin({
+                  id: listing.id,
+                  listingType: listing.listingType,
+                  route: listing.route,
+                  date: listing.date,
+                  departureTime: listing.departureTime,
+                  seats: listing.seats,
+                  phone: listing.phone,
+                  senderName: listing.senderName,
+                  notes: listing.notes,
+                }).catch((err) => console.error('Telegram Viber notify:', err));
+                if (listing.phone?.trim()) {
+                  sendViberListingConfirmationToUser(listing.phone, {
+                    id: listing.id,
+                    route: listing.route,
+                    date: listing.date,
+                    departureTime: listing.departureTime,
+                    seats: listing.seats,
+                    listingType: listing.listingType,
+                  }).catch((err) => console.error('Telegram Viber user notify:', err));
+                }
+                const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
+                if (listing.listingType === 'driver') {
+                  notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+                } else if (listing.listingType === 'passenger') {
+                  notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+                }
+              }
+            } catch (err) {
+              console.error(`AddViber bulk item ${i} error:`, err);
+            }
+          }
+          await bot?.sendMessage(chatId, `✅ Створено ${created} оголошень з ${parsedMessages.length}. Адміну надіслано сповіщення.`, { parse_mode: 'HTML' });
+        } else {
+          const parsed = parseViberMessage(text);
+          if (!parsed) {
+            await bot?.sendMessage(chatId, '❌ Не вдалося розпарсити повідомлення. Перевірте формат.');
+            return;
+          }
+          const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
+          const senderName = nameFromDb ?? parsed.senderName;
+          const person = parsed.phone
+            ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+            : null;
+          const listing = await prisma.viberListing.create({
+            data: {
+              rawMessage: text,
+              senderName,
+              listingType: parsed.listingType,
+              route: parsed.route,
+              date: parsed.date,
+              departureTime: parsed.departureTime,
+              seats: parsed.seats,
+              phone: parsed.phone,
+              notes: parsed.notes,
+              isActive: true,
+              personId: person?.id ?? undefined,
+            },
+          });
+          if (isTelegramEnabled()) {
+            await sendViberListingNotificationToAdmin({
+              id: listing.id,
+              listingType: listing.listingType,
+              route: listing.route,
+              date: listing.date,
+              departureTime: listing.departureTime,
+              seats: listing.seats,
+              phone: listing.phone,
+              senderName: listing.senderName,
+              notes: listing.notes,
+            }).catch((err) => console.error('Telegram Viber notify:', err));
+            if (listing.phone?.trim()) {
+              sendViberListingConfirmationToUser(listing.phone, {
+                id: listing.id,
+                route: listing.route,
+                date: listing.date,
+                departureTime: listing.departureTime,
+                seats: listing.seats,
+                listingType: listing.listingType,
+              }).catch((err) => console.error('Telegram Viber user notify:', err));
+            }
+            const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
+            if (listing.listingType === 'driver') {
+              notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+            } else if (listing.listingType === 'passenger') {
+              notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+            }
+          }
+          await bot?.sendMessage(chatId, `✅ Оголошення #${listing.id} створено. Адміну надіслано сповіщення.`, { parse_mode: 'HTML' });
+        }
+      } catch (err) {
+        console.error('AddViber error:', err);
+        await bot?.sendMessage(chatId, '❌ Помилка створення оголошення. Спробуйте /addviber знову.');
+      }
+      return;
+    }
     
     // Потік "додати поїздку (водій)" — введення дати, часу або примітки
     const driverState = driverRideStateMap.get(chatId);
