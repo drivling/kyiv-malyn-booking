@@ -258,6 +258,85 @@
   color: #111827;
 }
 
+.poputky-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(17, 24, 39, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.poputky-modal {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+  padding: 18px;
+  position: relative;
+}
+
+.poputky-modal-close {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.poputky-modal h3 {
+  margin: 4px 24px 8px 0;
+  font-size: 20px;
+}
+
+.poputky-modal-subtitle {
+  margin: 0 0 12px;
+  color: #4b5563;
+}
+
+.poputky-modal-details {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.poputky-modal-call-button {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 10px;
+  background: #059669;
+  color: #fff;
+  font-weight: 700;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.poputky-modal-copy-button {
+  display: block;
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  padding: 10px;
+  cursor: pointer;
+}
+
 @media (max-width: 900px) {
   .poputky-controls {
     grid-template-columns: 1fr 1fr;

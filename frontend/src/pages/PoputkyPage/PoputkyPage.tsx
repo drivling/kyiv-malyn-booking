@@ -55,6 +55,8 @@ export const PoputkyPage: React.FC = () => {
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState('');
   const [requestingListingId, setRequestingListingId] = useState<number | null>(null);
+  const [showDriverContactModal, setShowDriverContactModal] = useState(false);
+  const [driverContactListing, setDriverContactListing] = useState<ViberListing | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [query, setQuery] = useState('');
   const [tripDate, setTripDate] = useState('');
@@ -128,6 +130,12 @@ export const PoputkyPage: React.FC = () => {
     try {
       const result = await apiClient.createRideShareRequestFromSite(driverListingId, telegramUser.id.toString());
       setRequestSuccess(result.message);
+
+      if (!result.driverNotified) {
+        const selectedListing = listings.find((item) => item.id === driverListingId) || null;
+        setDriverContactListing(selectedListing);
+        setShowDriverContactModal(true);
+      }
     } catch (err) {
       setRequestError(err instanceof Error ? err.message : 'Не вдалося створити запит на попутку');
     } finally {
@@ -299,6 +307,55 @@ export const PoputkyPage: React.FC = () => {
                 )}
               </article>
             ))}
+          </div>
+        )}
+
+        {showDriverContactModal && driverContactListing && (
+          <div className="poputky-modal-overlay">
+            <div className="poputky-modal">
+              <button
+                className="poputky-modal-close"
+                onClick={() => {
+                  setShowDriverContactModal(false);
+                  setDriverContactListing(null);
+                }}
+              >
+                ×
+              </button>
+
+              <h3>📞 Водій ще не підключений до Telegram</h3>
+              <p className="poputky-modal-subtitle">
+                Ми створили запит. Щоб не втрачати час, зателефонуйте водію напряму:
+              </p>
+
+              <div className="poputky-modal-details">
+                <div><strong>Маршрут:</strong> {formatRouteLabel(driverContactListing.route)}</div>
+                <div><strong>Дата:</strong> {formatTripDate(driverContactListing.date)}</div>
+                {driverContactListing.departureTime && (
+                  <div><strong>Час:</strong> {driverContactListing.departureTime}</div>
+                )}
+                {driverContactListing.senderName && (
+                  <div><strong>Водій:</strong> {driverContactListing.senderName}</div>
+                )}
+              </div>
+
+              <a
+                href={supportPhoneToTelLink(driverContactListing.phone)}
+                className="poputky-modal-call-button"
+              >
+                📲 Зателефонувати: {formatPhoneDisplay(driverContactListing.phone)}
+              </a>
+
+              <button
+                type="button"
+                className="poputky-modal-copy-button"
+                onClick={() => {
+                  navigator.clipboard.writeText(driverContactListing.phone);
+                }}
+              >
+                📋 Скопіювати номер
+              </button>
+            </div>
           </div>
         )}
       </div>
