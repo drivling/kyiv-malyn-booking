@@ -1,11 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
-import type { ViberListing, ViberListingType } from '@/types';
+import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
 import { formatPhoneDisplay, supportPhoneToTelLink } from '@/utils/constants';
 import './PoputkyPage.css';
 
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
+const DEFAULT_TELEGRAM_SCENARIOS: TelegramScenariosResponse = {
+  enabled: true,
+  scenarios: {
+    driver: {
+      title: 'Запит на поїздку як водій',
+      command: '/adddriverride',
+      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=driver`,
+    },
+    passenger: {
+      title: 'Запит на поїздку як пасажир',
+      command: '/addpassengerride',
+      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=passenger`,
+    },
+    view: {
+      title: 'Вільний перегляд поїздок',
+      command: '/poputky',
+      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=view`,
+      webLink: 'https://malin.kiev.ua/poputky',
+    },
+  },
+};
 
 const formatRouteLabel = (route: string): string =>
   route
@@ -28,6 +49,7 @@ export const PoputkyPage: React.FC = () => {
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [query, setQuery] = useState('');
   const [tripDate, setTripDate] = useState('');
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
@@ -47,6 +69,21 @@ export const PoputkyPage: React.FC = () => {
 
   useEffect(() => {
     loadPoputky();
+  }, []);
+
+  useEffect(() => {
+    const loadTelegramScenarios = async () => {
+      try {
+        const data = await apiClient.getTelegramScenarios();
+        if (data?.scenarios?.driver?.deepLink && data?.scenarios?.passenger?.deepLink && data?.scenarios?.view?.deepLink) {
+          setTelegramScenarios(data);
+        }
+      } catch {
+        // Non-blocking: залишаємо fallback сценарії
+      }
+    };
+
+    loadTelegramScenarios();
   }, []);
 
   const filteredListings = useMemo(() => {
@@ -96,18 +133,34 @@ export const PoputkyPage: React.FC = () => {
 
         <div className="telegram-actions">
           <a
-            href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
+            href={telegramScenarios.scenarios.driver.deepLink}
             target="_blank"
             rel="noopener noreferrer"
             className="telegram-action-button"
           >
-            Відкрити Telegram бота
+            🚗 Я водій
+          </a>
+          <a
+            href={telegramScenarios.scenarios.passenger.deepLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="telegram-action-button"
+          >
+            👤 Я пасажир
+          </a>
+          <a
+            href={telegramScenarios.scenarios.view.webLink || 'https://malin.kiev.ua/poputky'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="telegram-action-button telegram-action-button--secondary"
+          >
+            🌐 Вільний перегляд
           </a>
           <div className="telegram-commands">
             <span>Доступні команди:</span>
-            <code>/start</code>
-            <code>/help</code>
-            <code>/mybookings</code>
+            <code>{telegramScenarios.scenarios.driver.command}</code>
+            <code>{telegramScenarios.scenarios.passenger.command}</code>
+            <code>{telegramScenarios.scenarios.view.command}</code>
           </div>
         </div>
 

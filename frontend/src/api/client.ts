@@ -1,5 +1,14 @@
 import { API_URL } from '@/utils/constants';
-import type { Schedule, Booking, Availability, BookingFormData, ScheduleFormData, ViberListing, ViberListingFormData } from '@/types';
+import type {
+  Schedule,
+  Booking,
+  Availability,
+  BookingFormData,
+  ScheduleFormData,
+  ViberListing,
+  ViberListingFormData,
+  TelegramScenariosResponse,
+} from '@/types';
 
 class ApiClient {
   private baseUrl: string;
@@ -201,6 +210,10 @@ class ApiClient {
     return this.request('/viber-listings/cleanup-old', {
       method: 'POST',
     });
+  }
+
+  async getTelegramScenarios(): Promise<TelegramScenariosResponse> {
+    return this.request<TelegramScenariosResponse>('/telegram/scenarios');
   }
 }
 

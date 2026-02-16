@@ -112,3 +112,19 @@ export interface ViberListing {
 export interface ViberListingFormData {
   rawMessage: string;
 }
+
+export interface TelegramScenarioItem {
+  title: string;
+  command: string;
+  deepLink: string;
+  webLink?: string;
+}
+
+export interface TelegramScenariosResponse {
+  enabled: boolean;
+  scenarios: {
+    driver: TelegramScenarioItem;
+    passenger: TelegramScenarioItem;
+    view: TelegramScenarioItem;
+  };
+}

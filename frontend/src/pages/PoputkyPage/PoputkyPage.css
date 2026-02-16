@@ -72,6 +72,10 @@
   opacity: 0.9;
 }
 
+.telegram-action-button--secondary {
+  background: #111827;
+}
+
 .telegram-commands {
   display: inline-flex;
   align-items: center;
