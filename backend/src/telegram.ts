@@ -344,8 +344,23 @@ export async function notifyMatchingPassengersForNewDriver(
       (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
       `👤 ${driverListing.senderName ?? 'Водій'}\n` +
       `📞 ${formatPhoneTelLink(driverListing.phone)}` +
-      (driverListing.notes ? `\n📝 ${driverListing.notes}` : '');
-    await bot?.sendMessage(passengerChatId, msg, { parse_mode: 'HTML' }).catch(() => {});
+      (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
+      (matchType === 'exact'
+        ? '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 годину на підтвердження._'
+        : '');
+
+    const replyMarkup = matchType === 'exact'
+      ? {
+          inline_keyboard: [[
+            { text: `🎫 Забронювати у ${driverListing.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${p.id}_${driverListing.id}` }
+          ]]
+        }
+      : undefined;
+
+    await bot?.sendMessage(passengerChatId, msg, {
+      parse_mode: 'HTML',
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }).catch(() => {});
   }
 }
 
