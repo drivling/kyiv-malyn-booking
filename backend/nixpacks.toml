@@ -1,3 +1,10 @@
-# Примусова збірка — завжди нова збірка (dist видаляється в npm run build)
+# Node + Python (для Telegram user-sender: send_message.py через Telethon)
+[phases.setup]
+nixPkgs = ["nodejs", "python3", "python3Packages.pip"]
+
+# Збірка: npm + Prisma + tsc; потім встановити Telethon для send_message.py
+[phases.install]
+cmds = ["npm install", "python3 -m pip install --break-system-packages -r telegram-user/requirements.txt"]
+
 [phases.build]
 cmds = ["npm run build"]

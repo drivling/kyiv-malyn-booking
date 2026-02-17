@@ -8,6 +8,8 @@ exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
+const child_process_1 = require("child_process");
+const path_1 = __importDefault(require("path"));
 const client_1 = require("@prisma/client");
 const viber_parser_1 = require("./viber-parser");
 const prisma = new client_1.PrismaClient();
@@ -610,42 +612,124 @@ exports.sendViberListingNotificationToAdmin = sendViberListingNotificationToAdmi
  * Якщо chatId по телефону не знайдено — нічого не відправляємо (без помилок).
  */
 const sendViberListingConfirmationToUser = async (phone, listing) => {
-    if (!bot)
-        return;
     const trimmed = phone?.trim();
     if (!trimmed)
         return;
     try {
         const chatId = await (0, exports.getChatIdByPhone)(trimmed);
-        if (!chatId) {
-            console.log(`ℹ️ Viber оголошення #${listing.id}: по телефону ${trimmed} Telegram не знайдено, пропускаємо сповіщення`);
+        if (chatId && bot) {
+            const message = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: false });
+            await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+            console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано сповіщення про публікацію (бот)`);
             return;
         }
-        const dateStr = listing.date instanceof Date
-            ? formatDate(listing.date)
-            : (listing.date && String(listing.date).slice(0, 10))
-                ? formatDate(new Date(listing.date))
-                : '—';
-        const routeName = getRouteName(listing.route);
-        const message = `
-📱 <b>Ваше оголошення опубліковано на платформі Поїздки Київ, Житомир, Коростень ↔️ Малин</b>
-
-🛣 <b>Маршрут:</b> ${routeName}
-📅 <b>Дата:</b> ${dateStr}
-${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}${listing.seats != null ? `🎫 <b>Місць:</b> ${listing.seats}\n` : ''}
-Інші користувачі зможуть бачити це оголошення та зв’язатися з вами за телефоном.
-
-<i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
-Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
-    `.trim();
-        await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-        console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано сповіщення про публікацію`);
+        if (!chatId) {
+            const person = await (0, exports.getPersonByPhone)(trimmed);
+            if (person && !person.telegramPromoSentAt && isTelegramUserSenderEnabled()) {
+                const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
+                const sent = await sendOneTimePromoViaUserAccount(trimmed, promoMessage);
+                if (sent) {
+                    await prisma.person.update({
+                        where: { id: person.id },
+                        data: { telegramPromoSentAt: new Date() },
+                    });
+                    console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано одноразове промо від вашого акаунта, Person.telegramPromoSentAt оновлено`);
+                }
+                return;
+            }
+            if (!person?.telegramPromoSentAt) {
+                console.log(`ℹ️ Viber оголошення #${listing.id}: по телефону ${trimmed} Telegram не знайдено, пропускаємо сповіщення`);
+            }
+        }
     }
     catch (error) {
         console.error('❌ Помилка відправки сповіщення автору Viber оголошення:', error);
     }
 };
 exports.sendViberListingConfirmationToUser = sendViberListingConfirmationToUser;
+/** Чи налаштовано відправку одноразового промо від вашого акаунта (Telethon): сесія + API */
+function isTelegramUserSenderEnabled() {
+    const session = process.env.TELEGRAM_USER_SESSION_PATH;
+    const apiId = process.env.TELEGRAM_API_ID;
+    const apiHash = process.env.TELEGRAM_API_HASH;
+    return !!(session?.trim() && apiId?.trim() && apiHash?.trim());
+}
+/** Текст сповіщення про публікацію оголошення (спільний для бота та одноразового промо). */
+function buildViberListingConfirmationMessage(listing, options) {
+    const dateStr = listing.date instanceof Date
+        ? formatDate(listing.date)
+        : (listing.date && String(listing.date).slice(0, 10))
+            ? formatDate(new Date(listing.date))
+            : '—';
+    const routeName = getRouteName(listing.route);
+    const links = getTelegramScenarioLinks();
+    let message = `
+📱 <b>Ваше оголошення опубліковано на платформі Поїздки Київ, Житомир, Коростень ↔️ Малин</b>
+
+🛣 <b>Маршрут:</b> ${routeName}
+📅 <b>Дата:</b> ${dateStr}
+${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}${listing.seats != null ? `🎫 <b>Місць:</b> ${listing.seats}\n` : ''}
+Інші користувачі зможуть бачити це оголошення та зв'язатися з вами за телефоном.
+
+<i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
+Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
+  `.trim();
+    if (options.addSubscribeInstruction) {
+        message += `
+
+——
+<b>Щоб надалі отримувати такі сповіщення в Telegram автоматично</b>, один раз натисніть Start у нашому боті:
+• як <b>водій</b>: ${links.driver}
+• як <b>пасажир</b>: ${links.passenger}
+Після реєстрації номера в боті ми більше не надсилатимемо листи на цей чат.`;
+    }
+    return message;
+}
+/**
+ * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону (Python Telethon).
+ * Повертає true, якщо повідомлення доставлено; false — помилка або користувач приховав номер.
+ */
+async function sendOneTimePromoViaUserAccount(phone, message) {
+    const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
+    const scriptDir = sessionPath ? path_1.default.dirname(sessionPath) : '';
+    const scriptPath = path_1.default.join(scriptDir, 'send_message.py');
+    const apiId = process.env.TELEGRAM_API_ID;
+    const apiHash = process.env.TELEGRAM_API_HASH;
+    if (!sessionPath || !apiId || !apiHash)
+        return false;
+    const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
+    return new Promise((resolve) => {
+        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, phone], {
+            env: {
+                ...process.env,
+                TELEGRAM_USER_SESSION_PATH: sessionPath,
+                TELEGRAM_API_ID: apiId,
+                TELEGRAM_API_HASH: apiHash,
+            },
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        let stderr = '';
+        child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
+        child.stdin?.end(message, 'utf8');
+        child.on('close', (code) => {
+            if (code === 0) {
+                resolve(true);
+                return;
+            }
+            if (code === 1) {
+                console.log(`ℹ️ Telegram user-sender: по телефону ${phone} не знайдено або номер приховано (код 1)`);
+            }
+            else {
+                console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
+            }
+            resolve(false);
+        });
+        child.on('error', (err) => {
+            console.error('❌ Telegram user-sender: не вдалося запустити Python:', err.message);
+            resolve(false);
+        });
+    });
+}
 /**
  * Відправка водію запиту на попутку з кнопкою підтвердження.
  * Повертає true, якщо повідомлення водію відправлено.

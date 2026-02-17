@@ -22,13 +22,14 @@ model Schedule {
 
 // Єдина база людей: прив'язка номера до імені та Telegram для всіх сценаріїв
 model Person {
-  id              Int       @id @default(autoincrement())
-  phoneNormalized String    @unique // Нормалізований номер (380XXXXXXXXX)
-  fullName        String?   // Ім'я та прізвище
-  telegramChatId  String?   // Для відправки повідомлень в Telegram
-  telegramUserId  String?   // Ідентифікатор користувача в Telegram
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                    Int       @id @default(autoincrement())
+  phoneNormalized       String    @unique // Нормалізований номер (380XXXXXXXXX)
+  fullName              String?   // Ім'я та прізвище
+  telegramChatId        String?   // Для відправки повідомлень в Telegram
+  telegramUserId        String?   // Ідентифікатор користувача в Telegram
+  telegramPromoSentAt   DateTime? // Коли одноразово відправлено промо від вашого акаунта (щоб не спамити)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   bookings     Booking[]
   viberListings ViberListing[]

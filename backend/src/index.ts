@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
@@ -9,6 +11,21 @@ const CODE_VERSION = 'viber-v2-2026';
 
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
 console.log('[KYIV-MALYN-BACKEND] BOOT codeVersion=' + CODE_VERSION + ' build=' + (typeof __dirname !== 'undefined' ? 'node' : 'unknown'));
+
+// Railway: якщо задано TELEGRAM_USER_SESSION_BASE64 — відновити файл сесії з змінної (щоб не завантажувати файл вручну)
+if (process.env.TELEGRAM_USER_SESSION_BASE64?.trim() && process.env.TELEGRAM_API_ID?.trim() && process.env.TELEGRAM_API_HASH?.trim()) {
+  try {
+    const dir = path.join(process.cwd(), 'telegram-user');
+    const sessionPath = path.join(dir, 'session_telegram_user');
+    const sessionFile = sessionPath + '.session';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(sessionFile, Buffer.from(process.env.TELEGRAM_USER_SESSION_BASE64.trim(), 'base64'));
+    process.env.TELEGRAM_USER_SESSION_PATH = sessionPath;
+    console.log('[KYIV-MALYN-BACKEND] Telegram user session restored from TELEGRAM_USER_SESSION_BASE64');
+  } catch (e) {
+    console.error('[KYIV-MALYN-BACKEND] Failed to restore Telegram user session:', e);
+  }
+}
 
 const app = express();
 const prisma = new PrismaClient();
