@@ -159,6 +159,22 @@ class ApiClient {
     return this.request<{ authenticated: boolean }>('/admin/check');
   }
 
+  /** Персони без Telegram (для одноразової реклами каналу) */
+  async getChannelPromoPersons(): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
+    return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>('/admin/channel-promo-persons');
+  }
+
+  /** Відправити рекламу каналу всім без Telegram. Не змінює telegramPromoSentAt. */
+  async sendChannelPromo(): Promise<{
+    sent: Array<{ phone: string; fullName: string | null }>;
+    notFound: Array<{ phone: string; fullName: string | null }>;
+  }> {
+    return this.request<{ sent: Array<{ phone: string; fullName: string | null }>; notFound: Array<{ phone: string; fullName: string | null }> }>(
+      '/admin/send-channel-promo',
+      { method: 'POST' }
+    );
+  }
+
   // Viber Listings endpoints
   async getViberListings(active?: boolean): Promise<ViberListing[]> {
     const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';

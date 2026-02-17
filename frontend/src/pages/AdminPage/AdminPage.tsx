@@ -8,7 +8,7 @@ import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberLis
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber';
+type Tab = 'bookings' | 'schedules' | 'viber' | 'promo';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -48,7 +48,26 @@ export const AdminPage: React.FC = () => {
   const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
   const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
-  const [viberEditForm, setViberEditForm] = useState({
+  // Реклама каналу (одноразово, без зміни telegramPromoSentAt)
+  const [promoPersons, setPromoPersons] = useState<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>([]);
+  const [promoResults, setPromoResults] = useState<{
+    sent: Array<{ phone: string; fullName: string | null }>;
+    notFound: Array<{ phone: string; fullName: string | null }>;
+  } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState('');
+  const [viberEditForm, setViberEditForm] = useState<{
+    rawMessage: string;
+    senderName: string;
+    listingType: ViberListingType;
+    route: string;
+    date: string;
+    departureTime: string;
+    seats: string;
+    phone: string;
+    notes: string;
+    isActive: boolean;
+  }>({
     rawMessage: '',
     senderName: '',
     listingType: 'driver' as ViberListingType,
@@ -68,8 +87,34 @@ export const AdminPage: React.FC = () => {
       loadSchedules();
     } else if (activeTab === 'viber') {
       loadViberListings();
+    } else if (activeTab === 'promo') {
+      loadPromoPersons();
     }
   }, [activeTab]);
+
+  const loadPromoPersons = async () => {
+    setPromoError('');
+    try {
+      const data = await apiClient.getChannelPromoPersons();
+      setPromoPersons(data);
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : 'Помилка завантаження');
+    }
+  };
+
+  const handleSendChannelPromo = async () => {
+    setPromoLoading(true);
+    setPromoError('');
+    setPromoResults(null);
+    try {
+      const result = await apiClient.sendChannelPromo();
+      setPromoResults(result);
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : 'Помилка відправки');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   const loadBookings = async () => {
     setLoading(true);
@@ -359,6 +404,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('viber')}
           >
             📱 Viber Оголошення
+          </button>
+          <button
+            className={`tab ${activeTab === 'promo' ? 'active' : ''}`}
+            onClick={() => setActiveTab('promo')}
+          >
+            📢 Реклама
           </button>
         </div>
 
@@ -898,6 +949,71 @@ export const AdminPage: React.FC = () => {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Реклама каналу (одноразово) */}
+        {activeTab === 'promo' && (
+          <div className="tab-content">
+            {promoError && <Alert variant="error">{promoError}</Alert>}
+            <p style={{ marginBottom: '12px' }}>
+              Персон без Telegram: <strong>{promoPersons.length}</strong>. Відправити їм рекламу бота/каналу (одноразово, без зміни позначки в БД).
+            </p>
+            <div className="controls" style={{ marginBottom: '16px' }}>
+              <Button
+                onClick={handleSendChannelPromo}
+                disabled={promoLoading || promoPersons.length === 0}
+              >
+                {promoLoading ? 'Відправка...' : 'Відправити рекламу'}
+              </Button>
+              <Button variant="secondary" onClick={loadPromoPersons} disabled={promoLoading}>
+                Оновити список
+              </Button>
+            </div>
+            {promoResults && (
+              <div className="table-container" style={{ marginTop: '16px' }}>
+                <h3 style={{ marginBottom: '8px' }}>Доставлено ({promoResults.sent.length})</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Телефон</th>
+                      <th>Імʼя</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promoResults.sent.map((r, i) => (
+                      <tr key={`sent-${i}`}>
+                        <td>{formatPhoneDisplay(r.phone)}</td>
+                        <td>{r.fullName ?? '—'}</td>
+                      </tr>
+                    ))}
+                    {promoResults.sent.length === 0 && (
+                      <tr><td colSpan={2}>—</td></tr>
+                    )}
+                  </tbody>
+                </table>
+                <h3 style={{ marginTop: '16px', marginBottom: '8px' }}>Не знайдено в Telegram ({promoResults.notFound.length})</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Телефон</th>
+                      <th>Імʼя</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promoResults.notFound.map((r, i) => (
+                      <tr key={`nf-${i}`}>
+                        <td>{formatPhoneDisplay(r.phone)}</td>
+                        <td>{r.fullName ?? '—'}</td>
+                      </tr>
+                    ))}
+                    {promoResults.notFound.length === 0 && (
+                      <tr><td colSpan={2}>—</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

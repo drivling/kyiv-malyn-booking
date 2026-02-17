@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -1236,6 +1236,77 @@ app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
   } catch (error) {
     console.error('❌ Помилка очищення старих Viber оголошень:', error);
     res.status(500).json({ error: 'Failed to cleanup old listings' });
+  }
+});
+
+// ——— Одноразова реклама каналу (Person без Telegram). Без зміни telegramPromoSentAt. ———
+function buildChannelPromoMessage(): string {
+  const links = getTelegramScenarioLinks();
+  const channelLink = process.env.TELEGRAM_CHANNEL_LINK?.trim() || links.poputkyWeb;
+  return `
+📢 <b>Поїздки Київ ↔ Малин ↔ Житомир ↔ Коростень</b>
+
+Підпишіться на наш бот — бронювання маршруток та попуток у один клік:
+• як водій: ${links.driver}
+• як пасажир: ${links.passenger}
+
+Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
+  `.trim();
+}
+
+/** Список Person без Telegram (для реклами каналу) */
+app.get('/admin/channel-promo-persons', requireAdmin, async (_req, res) => {
+  try {
+    const persons = await prisma.person.findMany({
+      where: {
+        OR: [
+          { telegramChatId: null },
+          { telegramChatId: '' },
+          { telegramChatId: '0' },
+        ],
+      },
+      select: { id: true, phoneNormalized: true, fullName: true },
+      orderBy: { id: 'asc' },
+    });
+    res.json(persons);
+  } catch (e) {
+    console.error('❌ channel-promo-persons:', e);
+    res.status(500).json({ error: 'Failed to load persons' });
+  }
+});
+
+/** Відправити рекламу каналу всім Person без Telegram. Не оновлюємо telegramPromoSentAt. */
+app.post('/admin/send-channel-promo', requireAdmin, async (_req, res) => {
+  try {
+    const persons = await prisma.person.findMany({
+      where: {
+        OR: [
+          { telegramChatId: null },
+          { telegramChatId: '' },
+          { telegramChatId: '0' },
+        ],
+      },
+      select: { id: true, phoneNormalized: true, fullName: true },
+      orderBy: { id: 'asc' },
+    });
+    const message = buildChannelPromoMessage();
+    const sent: Array<{ phone: string; fullName: string | null }> = [];
+    const notFound: Array<{ phone: string; fullName: string | null }> = [];
+    for (const p of persons) {
+      const phone = normalizePhone(p.phoneNormalized);
+      if (!phone) continue;
+      const ok = await sendMessageViaUserAccount(phone, message);
+      if (ok) {
+        sent.push({ phone: p.phoneNormalized, fullName: p.fullName });
+      } else {
+        notFound.push({ phone: p.phoneNormalized, fullName: p.fullName });
+      }
+    }
+    console.log(`📢 Channel promo: sent=${sent.length}, notFound=${notFound.length}`);
+    res.json({ sent, notFound });
+  } catch (e) {
+    console.error('❌ send-channel-promo:', e);
+    res.status(500).json({ error: 'Failed to send channel promo' });
   }
 });
 

@@ -744,7 +744,7 @@ export const sendViberListingConfirmationToUser = async (
       if (person && !person.telegramPromoSentAt && isTelegramUserSenderEnabled()) {
         const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
         const phoneForApi = normalizePhone(trimmed);
-        const sent = await sendOneTimePromoViaUserAccount(phoneForApi, promoMessage);
+        const sent = await sendMessageViaUserAccount(phoneForApi, promoMessage);
         if (sent) {
           await prisma.person.update({
             where: { id: person.id },
@@ -816,8 +816,9 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 /**
  * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону (Python Telethon).
  * Повертає true, якщо повідомлення доставлено; false — помилка або користувач приховав номер.
+ * Експортується для одноразової реклами каналу (без оновлення telegramPromoSentAt).
  */
-async function sendOneTimePromoViaUserAccount(phone: string, message: string): Promise<boolean> {
+export async function sendMessageViaUserAccount(phone: string, message: string): Promise<boolean> {
   const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
   const scriptDir = sessionPath ? path.dirname(sessionPath) : '';
   const scriptPath = path.join(scriptDir, 'send_message.py');
