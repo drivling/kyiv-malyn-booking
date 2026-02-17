@@ -47,6 +47,11 @@ const formatTripDate = (date: string): string => {
   return parsed.toLocaleDateString('uk-UA');
 };
 
+const getDateValue = (date: string): number | null => {
+  const value = new Date(`${date.slice(0, 10)}T00:00:00`).getTime();
+  return Number.isNaN(value) ? null : value;
+};
+
 const getTimeMinutes = (time: string | null): number | null => {
   if (!time) return null;
   const normalized = time.trim().split('-')[0];
@@ -125,10 +130,18 @@ export const PoputkyPage: React.FC = () => {
         return true;
       })
       .sort((a, b) => {
+        const dateA = getDateValue(a.date);
+        const dateB = getDateValue(b.date);
+
+        // Сначала сортируем по дате, чтобы корректно учитывать "раньше/позже" во времени поездки
+        if (dateA !== null && dateB !== null && dateA !== dateB) {
+          return sortByTime === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+
         const timeA = getTimeMinutes(a.departureTime);
         const timeB = getTimeMinutes(b.departureTime);
 
-        // Записи без часу показуємо в кінці списку
+        // Записи без времени показываем в конце внутри одной даты
         if (timeA === null && timeB !== null) return 1;
         if (timeA !== null && timeB === null) return -1;
 
@@ -136,10 +149,7 @@ export const PoputkyPage: React.FC = () => {
           return sortByTime === 'asc' ? timeA - timeB : timeB - timeA;
         }
 
-        // При однаковому часі — додаткове сортування за датою
-        const dateA = a.date.slice(0, 10);
-        const dateB = b.date.slice(0, 10);
-        return dateA.localeCompare(dateB);
+        return 0;
       });
   }, [listings, listingType, tripDate, query, sortByTime]);
 
