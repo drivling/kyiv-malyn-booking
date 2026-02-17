@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 COPY telegram-user/requirements.txt ./telegram-user/
-RUN npm ci --omit=dev \
+RUN npm ci \
     && python3 -m pip install --break-system-packages --no-cache-dir -r telegram-user/requirements.txt
 
 # telegram-user (скрипти + файл сесії)
