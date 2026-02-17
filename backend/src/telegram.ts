@@ -743,7 +743,8 @@ export const sendViberListingConfirmationToUser = async (
       const person = await getPersonByPhone(trimmed);
       if (person && !person.telegramPromoSentAt && isTelegramUserSenderEnabled()) {
         const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
-        const sent = await sendOneTimePromoViaUserAccount(trimmed, promoMessage);
+        const phoneForApi = normalizePhone(trimmed);
+        const sent = await sendOneTimePromoViaUserAccount(phoneForApi, promoMessage);
         if (sent) {
           await prisma.person.update({
             where: { id: person.id },

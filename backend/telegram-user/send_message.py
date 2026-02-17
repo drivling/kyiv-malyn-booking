@@ -42,9 +42,14 @@ def get_api_credentials():
 
 
 def normalize_phone(phone: str) -> str:
-    """Нормалізація номера до формату для Telegram (наприклад 380671234567)."""
+    """Нормалізація до міжнародного формату для Telegram: 380XXXXXXXXX (Україна)."""
     digits = "".join(c for c in phone if c.isdigit())
-    if digits.startswith("0"):
+    if not digits:
+        return ""
+    if digits.startswith("0") and len(digits) == 10:
+        # Україна: 0XX XXX XX XX -> 380 XX XXX XX XX
+        digits = "380" + digits[1:]
+    elif digits.startswith("0"):
         digits = "38" + digits
     elif not digits.startswith("38"):
         digits = "38" + digits
@@ -68,6 +73,8 @@ async def main():
     session_path = get_session_path()
     api_id, api_hash = get_api_credentials()
     phone = normalize_phone(phone_arg)
+    # Telegram API очікує міжнародний формат з + (наприклад +380501399910)
+    phone_for_api = ("+" + phone) if phone and not phone.startswith("+") else phone
 
     client = TelegramClient(session_path, api_id, api_hash)
 
@@ -79,7 +86,7 @@ async def main():
 
         # Resolve phone -> user (тільки якщо у користувача не приховано номер)
         try:
-            result = await client(ResolvePhoneRequest(phone))
+            result = await client(ResolvePhoneRequest(phone_for_api))
         except (PhoneNumberInvalidError, ValueError) as e:
             print(f"Номер недійсний або прихований: {e}", file=sys.stderr)
             sys.exit(1)
