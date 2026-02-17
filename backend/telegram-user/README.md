@@ -69,6 +69,8 @@ git push
 
 **Якщо на Railway з’являється помилка `spawn python3 ENOENT`:** сервіс backend має збиратися з **Dockerfile** (у ньому є Node + Python). У налаштуваннях сервісу вкажіть **Root Directory** = `backend` (або той каталог, де лежить `Dockerfile`), щоб Railway використав цей Dockerfile замість Railpack.
 
+**Якщо збірка пройшла, а сервіс не стартує:** у сервісу backend перевірте **Start Command**. При збірці через Docker не потрібно `cd backend` — контейнер уже в корені backend. Краще залишити Start Command **порожнім** (тоді використовується CMD з Dockerfile: `npm start`) або вказати `npm start`.
+
 ---
 
 ## Крок 4: Після деплою
