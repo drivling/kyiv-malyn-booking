@@ -409,6 +409,28 @@ app.post('/bookings', async (req, res) => {
   const fullNameForPerson = typeof name === 'string' && name.trim() ? name.trim() : name;
   const person = await findOrCreatePersonByPhone(phone, { fullName: fullNameForPerson });
 
+  // Оновлюємо ім'я в усіх попередніх бронюваннях та в Viber оголошеннях цієї персони
+  if (fullNameForPerson) {
+    try {
+      const [bookingsUpdated, viberUpdated] = await Promise.all([
+        prisma.booking.updateMany({
+          where: { personId: person.id },
+          data: { name: fullNameForPerson },
+        }),
+        prisma.viberListing.updateMany({
+          where: { personId: person.id },
+          data: { senderName: fullNameForPerson },
+        }),
+      ]);
+      if (bookingsUpdated.count > 0 || viberUpdated.count > 0) {
+        console.log(`📝 Оновлено ім'я персони: booking.count=${bookingsUpdated.count}, viberListing.count=${viberUpdated.count}`);
+      }
+    } catch (err) {
+      console.error('Помилка оновлення імені в бронюваннях/Viber:', err);
+      // Не блокуємо створення бронювання
+    }
+  }
+
   try {
     const normalizedPhone = normalizePhone(phone);
     const personRecord = await getPersonByPhone(phone);
