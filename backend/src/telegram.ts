@@ -182,23 +182,41 @@ async function createPassengerListingFromState(
   await notifyMatchingDriversForNewPassenger(listing, chatId);
 }
 
-/** Нормалізує час для порівняння: "18:00" або "18:00-18:30" -> "18:00" */
-function normalizeTimeForMatch(t: string | null): string | null {
-  if (!t || !t.trim()) return null;
-  const part = t.trim().split(/-|\s/)[0];
-  const m = part.match(/(\d{1,2}):(\d{2})/);
-  if (!m) return null;
-  const h = m[1].padStart(2, '0');
-  const min = m[2];
-  return `${h}:${min}`;
+/** Парсить "HH:MM" у хвилини від початку доби; якщо невалідно — null. */
+function parseClockToMinutes(hoursRaw: string, minutesRaw: string): number | null {
+  const h = Number(hoursRaw);
+  const m = Number(minutesRaw);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
 }
 
-/** Чи збігається час: обидва задані і однакові (нормалізовані). */
+/** Нормалізує час у інтервал [start, end] хвилин; "17:40" => [17:40,17:40], "17:05-18:00" => [17:05,18:00]. */
+function parseTimeRangeForMatch(t: string | null): { start: number; end: number } | null {
+  if (!t || !t.trim()) return null;
+  const normalized = t.trim().replace(/[–—]/g, '-');
+
+  const rangeMatch = normalized.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (rangeMatch) {
+    const start = parseClockToMinutes(rangeMatch[1], rangeMatch[2]);
+    const end = parseClockToMinutes(rangeMatch[3], rangeMatch[4]);
+    if (start == null || end == null) return null;
+    return start <= end ? { start, end } : { start: end, end: start };
+  }
+
+  const pointMatch = normalized.match(/(\d{1,2}):(\d{2})/);
+  if (!pointMatch) return null;
+  const point = parseClockToMinutes(pointMatch[1], pointMatch[2]);
+  if (point == null) return null;
+  return { start: point, end: point };
+}
+
+/** Чи збігається час: обидва задані і їхні часові інтервали перетинаються. */
 function isExactTimeMatch(timeA: string | null, timeB: string | null): boolean {
-  const a = normalizeTimeForMatch(timeA);
-  const b = normalizeTimeForMatch(timeB);
+  const a = parseTimeRangeForMatch(timeA);
+  const b = parseTimeRangeForMatch(timeB);
   if (!a || !b) return false;
-  return a === b;
+  return a.start <= b.end && b.start <= a.end;
 }
 
 /** Одна дата (YYYY-MM-DD) для порівняння. */
@@ -279,7 +297,7 @@ export async function notifyMatchingPassengersForNewDriver(
     ]));
     await bot?.sendMessage(
       driverChatId,
-      '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут</b>\n\n' +
+      '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут (час збігається або перетинається)</b>\n\n' +
         lines +
         '\n\n_Натисніть кнопку, щоб надіслати пасажиру запит на підтвердження (1 година)._',
       { parse_mode: 'HTML', reply_markup: { inline_keyboard: confirmButtons } }
@@ -292,7 +310,7 @@ export async function notifyMatchingPassengersForNewDriver(
     }).join('\n');
     await bot?.sendMessage(
       driverChatId,
-      '📌 <b>Приблизне співпадіння (інший час або без часу)</b>\n\n' + lines,
+      '📌 <b>Приблизне співпадіння (час не перетинається або не вказаний)</b>\n\n' + lines,
       { parse_mode: 'HTML' }
     ).catch(() => {});
   }
@@ -333,7 +351,7 @@ export async function notifyMatchingDriversForNewPassenger(
     ]);
     await bot?.sendMessage(
       passengerChatId,
-      '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._',
+      '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут (час збігається або перетинається)</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._',
       { parse_mode: 'HTML', reply_markup: { inline_keyboard: bookButtons } }
     ).catch(() => {});
   }
@@ -344,7 +362,7 @@ export async function notifyMatchingDriversForNewPassenger(
     }).join('\n');
     await bot?.sendMessage(
       passengerChatId,
-      '📌 <b>Приблизне співпадіння (інший час або без часу)</b>\n\n' + lines,
+      '📌 <b>Приблизне співпадіння (час не перетинається або не вказаний)</b>\n\n' + lines,
       { parse_mode: 'HTML' }
     ).catch(() => {});
   }
@@ -1388,9 +1406,9 @@ https://malin.kiev.ua
         }
 
         if (inlineKeyboard.length > 0) {
-          message += '\n\n🎯 <b>Точні співпадіння для вас:</b>\nНатисніть кнопку нижче — запит буде надісланий другій стороні на підтвердження (1 година).';
+          message += '\n\n🎯 <b>Точні співпадіння для вас:</b>\nНатисніть кнопку нижче — запит буде надісланий другій стороні на підтвердження (1 година).\n<i>Точне співпадіння: маршрут + дата + перетин часу.</i>';
         } else {
-          message += '\n\nℹ️ Для швидких дій потрібне точне співпадіння по маршруту, даті та часу.\n' +
+          message += '\n\nℹ️ Для швидких дій потрібне точне співпадіння по маршруту, даті та часу (однаковий час або перетин інтервалів).\n' +
             'Щоб з\'являлися кнопки швидких дій, додайте себе:\n' +
             '🚗 Як водій: /adddriverride\n' +
             '👤 Як пасажир: /addpassengerride';
