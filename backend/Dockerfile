@@ -10,12 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY package*.json ./
+COPY prisma ./prisma
 COPY telegram-user/requirements.txt ./telegram-user/
 RUN npm ci --omit=dev \
     && python3 -m pip install --break-system-packages --no-cache-dir -r telegram-user/requirements.txt
-
-COPY prisma ./prisma
-RUN npx prisma generate
 
 # telegram-user (скрипти + файл сесії)
 COPY telegram-user ./telegram-user/
