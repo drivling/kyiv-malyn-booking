@@ -652,6 +652,58 @@ app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
         res.status(500).json({ error: 'Failed to send reminders' });
     }
 });
+// Нагадування в день поїздки (сьогодні) — для cron щодня вранці
+app.post('/telegram/send-reminders-today', requireAdmin, async (_req, res) => {
+    if (!(0, telegram_1.isTelegramEnabled)()) {
+        return res.status(400).json({ error: 'Telegram bot не налаштовано' });
+    }
+    try {
+        const today = new Date();
+        const startOfDay = new Date(today);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(today);
+        endOfDay.setHours(23, 59, 59, 999);
+        const bookings = await prisma.booking.findMany({
+            where: {
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                },
+                telegramChatId: { not: null }
+            }
+        });
+        let sent = 0;
+        let failed = 0;
+        for (const booking of bookings) {
+            if (booking.telegramChatId) {
+                try {
+                    await (0, telegram_1.sendTripReminderToday)(booking.telegramChatId, {
+                        route: booking.route,
+                        date: booking.date,
+                        departureTime: booking.departureTime,
+                        name: booking.name
+                    });
+                    sent++;
+                }
+                catch (error) {
+                    console.error(`❌ Не вдалося надіслати нагадування (сьогодні) для booking #${booking.id}:`, error);
+                    failed++;
+                }
+            }
+        }
+        res.json({
+            success: true,
+            message: `Нагадування (сьогодні) відправлено: ${sent}, помилок: ${failed}`,
+            total: bookings.length,
+            sent,
+            failed
+        });
+    }
+    catch (error) {
+        console.error('❌ Помилка відправки нагадувань (сьогодні):', error);
+        res.status(500).json({ error: 'Failed to send reminders (today)' });
+    }
+});
 // Тестовий endpoint для перевірки Telegram підключення
 app.get('/telegram/status', requireAdmin, (_req, res) => {
     res.json({

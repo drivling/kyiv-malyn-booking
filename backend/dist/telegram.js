@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = void 0;
 exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
@@ -742,6 +742,34 @@ const sendTripReminder = async (chatId, booking) => {
     }
 };
 exports.sendTripReminder = sendTripReminder;
+/**
+ * Відправка нагадування в день поїздки (сьогодні)
+ */
+const sendTripReminderToday = async (chatId, booking) => {
+    if (!bot) {
+        console.log('⚠️ Telegram bot не налаштовано');
+        return;
+    }
+    try {
+        const message = `
+🔔 <b>Сьогодні у вас поїздка!</b>
+
+👋 ${booking.name}, нагадуємо:
+
+🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
+📅 <b>Дата:</b> ${formatDate(booking.date)}
+🕐 <b>Час відправлення:</b> ${booking.departureTime}
+
+<i>Не спізніться! ⏰</i>
+    `.trim();
+        await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+        console.log(`✅ Telegram нагадування (сьогодні) надіслано`);
+    }
+    catch (error) {
+        console.error('❌ Помилка відправки Telegram нагадування (сьогодні):', error);
+    }
+};
+exports.sendTripReminderToday = sendTripReminderToday;
 /**
  * Перевірка чи бот налаштований
  */

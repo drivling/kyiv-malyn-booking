@@ -900,6 +900,43 @@ export const sendTripReminder = async (
 };
 
 /**
+ * Відправка нагадування в день поїздки (сьогодні)
+ */
+export const sendTripReminderToday = async (
+  chatId: string,
+  booking: {
+    route: string;
+    date: Date;
+    departureTime: string;
+    name: string;
+  }
+) => {
+  if (!bot) {
+    console.log('⚠️ Telegram bot не налаштовано');
+    return;
+  }
+
+  try {
+    const message = `
+🔔 <b>Сьогодні у вас поїздка!</b>
+
+👋 ${booking.name}, нагадуємо:
+
+🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
+📅 <b>Дата:</b> ${formatDate(booking.date)}
+🕐 <b>Час відправлення:</b> ${booking.departureTime}
+
+<i>Не спізніться! ⏰</i>
+    `.trim();
+
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    console.log(`✅ Telegram нагадування (сьогодні) надіслано`);
+  } catch (error) {
+    console.error('❌ Помилка відправки Telegram нагадування (сьогодні):', error);
+  }
+};
+
+/**
  * Перевірка чи бот налаштований
  */
 export const isTelegramEnabled = (): boolean => {
