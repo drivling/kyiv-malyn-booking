@@ -1496,9 +1496,9 @@ https://malin.kiev.ua
 
       const userPhone = await getPhoneByTelegramUser(userId, chatId);
       const inlineKeyboard: Array<Array<{ text: string; callback_data: string }>> = [];
-      const driverBookingButtons: Array<Array<{ text: string; callback_data: string }>> = [];
 
-      // Додаємо кнопки "Забронювати" лише для водіїв, які підключені до Telegram (по телефону або personId).
+      // Водії, у яких можна забронювати (є Telegram): окремими повідомленнями з кнопкою під кожною пропозицією.
+      const bookableDrivers: typeof visibleDriverListings = [];
       if (visibleDriverListings.length > 0) {
         const chatIds = await Promise.all(visibleDriverListings.map((d) => getChatIdForDriverListing(d)));
         const normalizedUserPhone = userPhone ? normalizePhone(userPhone) : null;
@@ -1506,11 +1506,7 @@ https://malin.kiev.ua
           if (!chatIds[i]) continue;
           const d = visibleDriverListings[i];
           if (normalizedUserPhone && normalizePhone(d.phone) === normalizedUserPhone) continue;
-          driverBookingButtons.push([{
-            text: `🎫 Забронювати у водія #${d.id} (${d.departureTime ?? 'час не вказано'})`,
-            callback_data: `book_viber_${d.id}`,
-          }]);
-          if (driverBookingButtons.length >= 10) break;
+          bookableDrivers.push(d);
         }
       }
 
@@ -1563,32 +1559,48 @@ https://malin.kiev.ua
           if (inlineKeyboard.length >= 20) break;
         }
 
-        if (inlineKeyboard.length > 0) {
-          message += '\n\n🎯 <b>Точні співпадіння для вас:</b>\nНатисніть кнопку нижче — запит буде надісланий другій стороні на підтвердження (1 година).\n<i>Точне співпадіння: маршрут + дата + перетин часу.</i>';
-        } else {
+        if (inlineKeyboard.length === 0) {
           message += '\n\nℹ️ Для швидких дій потрібне точне співпадіння по маршруту, даті та часу (однаковий час або перетин інтервалів).\n' +
             'Щоб з\'являлися кнопки швидких дій, додайте себе:\n' +
             '🚗 Як водій: /adddriverride\n' +
             '👤 Як пасажир: /addpassengerride';
         }
+        // Якщо є точні співпадіння — їхні кнопки підуть окремим повідомленням нижче.
       } else {
         message += '\n\nℹ️ Щоб отримати персональні кнопки швидкого запиту, зареєструйте номер: /start';
       }
 
-      if (driverBookingButtons.length > 0) {
-        message += '\n\n🎫 <b>Бронювання у водіїв з Telegram:</b>\nНатисніть кнопку потрібного водія нижче.';
-      }
-
-      const replyKeyboard = [
+      // Перше повідомлення: тільки список і кнопки фільтрів (без кнопок бронювання — вони окремими повідомленнями).
+      const filterKeyboard = [
         ...getAllridesFilterKeyboard(),
         ...(isFutureView ? getAllridesTimeFilterRow() : []),
-        ...inlineKeyboard,
-        ...driverBookingButtons,
       ];
       await bot?.sendMessage(chatId, message, {
         parse_mode: 'HTML',
-        ...(replyKeyboard.length > 0 ? { reply_markup: { inline_keyboard: replyKeyboard } } : {}),
+        reply_markup: { inline_keyboard: filterKeyboard },
       });
+
+      // Окреме повідомлення для кожного водія з Telegram: картка + одна кнопка «Забронювати» під нею.
+      for (const d of bookableDrivers) {
+        const card = formatListingRow(d);
+        await bot?.sendMessage(chatId, card, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [[
+              { text: `🎫 Забронювати у водія #${d.id}`, callback_data: `book_viber_${d.id}` },
+            ]],
+          },
+        }).catch((err) => console.error('allrides: send driver card', err));
+      }
+
+      // Точні співпадіння — окремим повідомленням з кнопками.
+      if (inlineKeyboard.length > 0) {
+        await bot?.sendMessage(
+          chatId,
+          '🎯 <b>Точні співпадіння для вас:</b>\nНатисніть кнопку — запит буде надісланий другій стороні на підтвердження (1 година).',
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: inlineKeyboard } }
+        ).catch((err) => console.error('allrides: send exact matches', err));
+      }
     } catch (error) {
       console.error('❌ Помилка /allrides:', error);
       await bot?.sendMessage(chatId, '❌ Помилка при отриманні списку поїздок. Спробуйте пізніше.');
