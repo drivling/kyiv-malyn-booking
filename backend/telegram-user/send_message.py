@@ -73,8 +73,11 @@ async def main():
     session_path = get_session_path()
     api_id, api_hash = get_api_credentials()
     phone = normalize_phone(phone_arg)
-    # Telegram API очікує міжнародний формат з + (наприклад +380501399910)
-    phone_for_api = ("+" + phone) if phone and not phone.startswith("+") else phone
+    # Telegram contacts.resolvePhone очікує E.164: обов'язково з + (наприклад +380501399910)
+    if not phone:
+        print("Порожній номер після нормалізації", file=sys.stderr)
+        sys.exit(2)
+    phone_for_api = phone if phone.startswith("+") else ("+" + phone)
 
     client = TelegramClient(session_path, api_id, api_hash)
 
@@ -86,7 +89,7 @@ async def main():
 
         # Resolve phone -> user (тільки якщо у користувача не приховано номер)
         try:
-            result = await client(ResolvePhoneRequest(phone_for_api))
+            result = await client(ResolvePhoneRequest(phone=phone_for_api))
         except (PhoneNumberInvalidError, ValueError) as e:
             print(f"Номер недійсний або прихований: {e}", file=sys.stderr)
             sys.exit(1)
