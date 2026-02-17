@@ -1498,9 +1498,9 @@ https://malin.kiev.ua
       const inlineKeyboard: Array<Array<{ text: string; callback_data: string }>> = [];
       const driverBookingButtons: Array<Array<{ text: string; callback_data: string }>> = [];
 
-      // Додаємо кнопки "Забронювати" лише для водіїв, які підключені до Telegram.
+      // Додаємо кнопки "Забронювати" лише для водіїв, які підключені до Telegram (по телефону або personId).
       if (visibleDriverListings.length > 0) {
-        const chatIds = await Promise.all(visibleDriverListings.map((d) => getChatIdByPhone(d.phone)));
+        const chatIds = await Promise.all(visibleDriverListings.map((d) => getChatIdForDriverListing(d)));
         const normalizedUserPhone = userPhone ? normalizePhone(userPhone) : null;
         for (let i = 0; i < visibleDriverListings.length; i++) {
           if (!chatIds[i]) continue;
@@ -3686,5 +3686,23 @@ export const getChatIdByPhone = async (phone: string): Promise<string | null> =>
     return null;
   }
 };
+
+/**
+ * Chat_id водія для кнопки «Забронювати» в /allrides: по телефону, а якщо не знайдено — по personId оголошення.
+ */
+async function getChatIdForDriverListing(listing: { phone: string; personId: number | null }): Promise<string | null> {
+  const byPhone = await getChatIdByPhone(listing.phone);
+  if (byPhone) return byPhone;
+  if (listing.personId) {
+    const person = await prisma.person.findUnique({
+      where: { id: listing.personId },
+      select: { telegramChatId: true },
+    });
+    if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
+      return person.telegramChatId;
+    }
+  }
+  return null;
+}
 
 export default bot;
