@@ -56,6 +56,10 @@ export const AdminPage: React.FC = () => {
   } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState('');
+  const [promoContactPhone, setPromoContactPhone] = useState('+380931701835');
+  const [promoContactName, setPromoContactName] = useState('Петро Коваленко');
+  const [promoContactSaving, setPromoContactSaving] = useState(false);
+  const [promoContactSuccess, setPromoContactSuccess] = useState('');
   const [viberEditForm, setViberEditForm] = useState<{
     rawMessage: string;
     senderName: string;
@@ -113,6 +117,28 @@ export const AdminPage: React.FC = () => {
       setPromoError(err instanceof Error ? err.message : 'Помилка відправки');
     } finally {
       setPromoLoading(false);
+    }
+  };
+
+  const handleCreatePromoContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const phone = promoContactPhone.trim();
+    const name = promoContactName.trim();
+    if (!phone || !name) {
+      setPromoError('Заповніть телефон та ім\'я');
+      return;
+    }
+    setPromoContactSaving(true);
+    setPromoError('');
+    setPromoContactSuccess('');
+    try {
+      await apiClient.createPerson(phone, name);
+      setPromoContactSuccess('Контакт створено');
+      loadPromoPersons();
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : 'Помилка створення контакту');
+    } finally {
+      setPromoContactSaving(false);
     }
   };
 
@@ -956,6 +982,31 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'promo' && (
           <div className="tab-content">
             {promoError && <Alert variant="error">{promoError}</Alert>}
+            {promoContactSuccess && <Alert variant="success">{promoContactSuccess}</Alert>}
+
+            <h3 style={{ marginBottom: '8px' }}>Створити контакт</h3>
+            <form onSubmit={handleCreatePromoContact} style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+              <Input
+                label="Телефон *"
+                type="text"
+                placeholder="+380931701835"
+                value={promoContactPhone}
+                onChange={(e) => setPromoContactPhone(e.target.value)}
+                required
+              />
+              <Input
+                label="Ім'я *"
+                type="text"
+                placeholder="Петро Коваленко"
+                value={promoContactName}
+                onChange={(e) => setPromoContactName(e.target.value)}
+                required
+              />
+              <Button type="submit" disabled={promoContactSaving}>
+                {promoContactSaving ? 'Збереження...' : 'Створити контакт'}
+              </Button>
+            </form>
+
             <p style={{ marginBottom: '12px' }}>
               Персон без Telegram: <strong>{promoPersons.length}</strong>. Відправити їм рекламу бота/каналу (одноразово, без зміни позначки в БД).
             </p>

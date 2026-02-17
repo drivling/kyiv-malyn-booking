@@ -160,6 +160,14 @@ class ApiClient {
   }
 
   /** Персони без Telegram (для одноразової реклами каналу) */
+  /** Створити контакт (Person): телефон + ім'я. Якщо номер вже є — оновлює ім'я. */
+  async createPerson(phone: string, fullName: string): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> {
+    return this.request<{ id: number; phoneNormalized: string; fullName: string | null }>('/admin/person', {
+      method: 'POST',
+      body: JSON.stringify({ phone: phone.trim(), fullName: fullName.trim() }),
+    });
+  }
+
   async getChannelPromoPersons(): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
     return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>('/admin/channel-promo-persons');
   }

@@ -1254,6 +1254,28 @@ function buildChannelPromoMessage(): string {
   `.trim();
 }
 
+/** Створити контакт (Person) за телефоном та іменем. Якщо номер вже є — оновлює fullName. */
+app.post('/admin/person', requireAdmin, async (req, res) => {
+  try {
+    const { phone, fullName } = req.body as { phone?: string; fullName?: string };
+    const rawPhone = typeof phone === 'string' ? phone.trim() : '';
+    const rawName = typeof fullName === 'string' ? fullName.trim() : '';
+    if (!rawPhone) {
+      res.status(400).json({ error: 'Потрібен номер телефону' });
+      return;
+    }
+    if (!rawName) {
+      res.status(400).json({ error: 'Потрібне ім\'я' });
+      return;
+    }
+    const person = await findOrCreatePersonByPhone(rawPhone, { fullName: rawName });
+    res.json(person);
+  } catch (e) {
+    console.error('❌ POST /admin/person:', e);
+    res.status(500).json({ error: 'Не вдалося створити контакт' });
+  }
+});
+
 /** Список Person без Telegram (для реклами каналу) */
 app.get('/admin/channel-promo-persons', requireAdmin, async (_req, res) => {
   try {
