@@ -6,6 +6,9 @@
 Виклик: python3 send_message.py <phone>
 Текст повідомлення читається з stdin (UTF-8).
 
+Локальна перевірка форматів номерів (без Telegram):
+  python3 send_message.py --test
+
 Змінні середовища:
   TELEGRAM_USER_SESSION_PATH — шлях до файлу сесії (наприклад .../session_telegram_user)
   TELEGRAM_API_ID, TELEGRAM_API_HASH — з https://my.telegram.org/apps
@@ -19,9 +22,6 @@
 import os
 import sys
 import asyncio
-from telethon import TelegramClient
-from telethon.tl.functions.contacts import ResolvePhoneRequest
-from telethon.errors import PhoneNumberInvalidError, NumberBannedError
 
 
 def get_session_path():
@@ -69,7 +69,23 @@ def format_phone_telegram_style(phone: str) -> str:
     return ("+" + digits) if digits else ""
 
 
+def get_phone_formats_for_resolve(phone_normalized: str):
+    """Кілька форматів номера для ResolvePhone — API приймає по-різному залежно від номера."""
+    if not phone_normalized or len(phone_normalized) < 12 or not phone_normalized.startswith("380"):
+        return [("+" + phone_normalized) if phone_normalized else ""]
+    p = phone_normalized
+    return [
+        "+" + p,  # E.164
+        f"+380({p[3:5]}){p[5:]}",  # +380(50)1399910
+        f"+380 {p[3:5]} {p[5:8]} {p[8:10]} {p[10:12]}",  # +380 50 139 99 10
+    ]
+
+
 async def main():
+    from telethon import TelegramClient
+    from telethon.tl.functions.contacts import ResolvePhoneRequest
+    from telethon.errors import PhoneNumberInvalidError
+
     if len(sys.argv) < 2:
         print("Використання: send_message.py <phone>", file=sys.stderr)
         sys.exit(2)
@@ -89,8 +105,6 @@ async def main():
     if not phone:
         print("Порожній номер після нормалізації", file=sys.stderr)
         sys.exit(2)
-    # Формат +380(50)1399910 — як у контактах Telegram
-    phone_for_api = format_phone_telegram_style(phone)
 
     client = TelegramClient(session_path, api_id, api_hash)
 
@@ -100,32 +114,63 @@ async def main():
             print("Сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
             sys.exit(2)
 
-        # Resolve phone -> user (тільки якщо у користувача не приховано номер)
-        try:
-            result = await client(ResolvePhoneRequest(phone=phone_for_api))
-        except (PhoneNumberInvalidError, ValueError) as e:
-            print(f"Номер недійсний або прихований: {e}", file=sys.stderr)
-            sys.exit(1)
-        except Exception as e:
-            print(f"ResolvePhone помилка: {e}", file=sys.stderr)
-            sys.exit(1)
-
-        if not result.users:
-            print("Користувача не знайдено", file=sys.stderr)
+        # Пробуємо кілька форматів — API приймає по-різному (E.164, +380(XX), з пробілами)
+        result = None
+        for phone_for_api in get_phone_formats_for_resolve(phone):
+            if not phone_for_api:
+                continue
+            try:
+                result = await client(ResolvePhoneRequest(phone=phone_for_api))
+                if result and result.users:
+                    break
+            except Exception:
+                continue
+        if not result or not result.users:
+            print("Користувача не знайдено або номер приховано (перепробовано всі формати)", file=sys.stderr)
             sys.exit(1)
         user = result.users[0]
         await client.send_message(user, message, parse_mode="html")
         sys.exit(0)
 
-    except NumberBannedError:
-        print("Номер заблоковано", file=sys.stderr)
-        sys.exit(1)
     except Exception as e:
-        print(f"Помилка: {e}", file=sys.stderr)
+        if "banned" in str(e).lower():
+            print("Номер заблоковано", file=sys.stderr)
+        else:
+            print(f"Помилка: {e}", file=sys.stderr)
         sys.exit(2)
     finally:
         await client.disconnect()
 
 
+def test_phone_formats() -> bool:
+    """Локальна перевірка normalize_phone та format_phone_telegram_style без Telegram."""
+    cases = [
+        # (вхід, очікуваний normalize_phone, очікуваний format_telegram)
+        ("0501399910", "380501399910", "+380(50)1399910"),
+        ("050 139 99 10", "380501399910", "+380(50)1399910"),
+        ("+380501399910", "380501399910", "+380(50)1399910"),
+        ("380501399910", "380501399910", "+380(50)1399910"),
+        ("38 050 139 99 10", "380501399910", "+380(50)1399910"),
+        ("0679551952", "380679551952", "+380(67)9551952"),
+        ("+380 67 955 19 52", "380679551952", "+380(67)9551952"),
+        ("0 50 1 3 9 9 9 1 0", "380501399910", "+380(50)1399910"),
+    ]
+    ok = 0
+    for raw, expected_norm, expected_fmt in cases:
+        norm = normalize_phone(raw)
+        fmt = format_phone_telegram_style(norm)
+        if norm == expected_norm and fmt == expected_fmt:
+            ok += 1
+            print(f"  OK  {raw!r} -> norm={norm!r} -> api={fmt!r}")
+        else:
+            print(f"  FAIL {raw!r} -> norm={norm!r} (expected {expected_norm!r}), api={fmt!r} (expected {expected_fmt!r})")
+    print(f"\nРезультат: {ok}/{len(cases)} тестів пройдено")
+    return ok == len(cases)
+
+
 if __name__ == "__main__":
+    if len(sys.argv) >= 2 and sys.argv[1].strip() in ("--test", "-t"):
+        print("Перевірка форматів номерів (normalize_phone, format_phone_telegram_style):\n")
+        success = test_phone_formats()
+        sys.exit(0 if success else 1)
     asyncio.run(main())
