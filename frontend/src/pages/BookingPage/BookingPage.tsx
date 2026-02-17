@@ -272,7 +272,7 @@ export const BookingPage: React.FC = () => {
   const getRouteLabel = (route: Route) => {
     if (route.includes('Irpin')) return 'через Ірпінь';
     if (route.includes('Bucha')) return 'через Бучу';
-    return '';
+    return 'прямий маршрут';
   };
 
   const formatViberRoute = (route: string) =>
