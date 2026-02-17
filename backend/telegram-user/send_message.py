@@ -56,6 +56,19 @@ def normalize_phone(phone: str) -> str:
     return digits
 
 
+def format_phone_telegram_style(phone: str) -> str:
+    """Формат +380(XX)XXXXXXX для ResolvePhone (Україна)."""
+    digits = "".join(c for c in phone if c.isdigit())
+    if not digits.startswith("+"):
+        digits = normalize_phone(digits) if digits else ""
+    else:
+        digits = digits.lstrip("+")
+    if len(digits) == 12 and digits.startswith("380"):
+        # 380501399910 -> +380(50)1399910
+        return f"+380({digits[3:5]}){digits[5:]}"
+    return ("+" + digits) if digits else ""
+
+
 async def main():
     if len(sys.argv) < 2:
         print("Використання: send_message.py <phone>", file=sys.stderr)
@@ -73,11 +86,11 @@ async def main():
     session_path = get_session_path()
     api_id, api_hash = get_api_credentials()
     phone = normalize_phone(phone_arg)
-    # Telegram contacts.resolvePhone очікує E.164: обов'язково з + (наприклад +380501399910)
     if not phone:
         print("Порожній номер після нормалізації", file=sys.stderr)
         sys.exit(2)
-    phone_for_api = phone if phone.startswith("+") else ("+" + phone)
+    # Формат +380(50)1399910 — як у контактах Telegram
+    phone_for_api = format_phone_telegram_style(phone)
 
     client = TelegramClient(session_path, api_id, api_hash)
 
