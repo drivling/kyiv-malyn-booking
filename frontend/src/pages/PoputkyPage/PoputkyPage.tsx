@@ -65,10 +65,13 @@ export const PoputkyPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [requestError, setRequestError] = useState('');
-  const [requestSuccess, setRequestSuccess] = useState('');
   const [requestingListingId, setRequestingListingId] = useState<number | null>(null);
-  const [showDriverContactModal, setShowDriverContactModal] = useState(false);
-  const [driverContactListing, setDriverContactListing] = useState<ViberListing | null>(null);
+  const [showRequestStatusModal, setShowRequestStatusModal] = useState(false);
+  const [requestStatusData, setRequestStatusData] = useState<{
+    listing: ViberListing;
+    driverNotified: boolean;
+    message: string;
+  } | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [query, setQuery] = useState('');
   const [tripDate, setTripDate] = useState('');
@@ -150,16 +153,17 @@ export const PoputkyPage: React.FC = () => {
     }
 
     setRequestError('');
-    setRequestSuccess('');
     setRequestingListingId(driverListingId);
     try {
       const result = await apiClient.createRideShareRequestFromSite(driverListingId, telegramUser.id.toString());
-      setRequestSuccess(result.message);
-
-      if (!result.driverNotified) {
-        const selectedListing = listings.find((item) => item.id === driverListingId) || null;
-        setDriverContactListing(selectedListing);
-        setShowDriverContactModal(true);
+      const selectedListing = listings.find((item) => item.id === driverListingId) || null;
+      if (selectedListing) {
+        setRequestStatusData({
+          listing: selectedListing,
+          driverNotified: result.driverNotified,
+          message: result.message,
+        });
+        setShowRequestStatusModal(true);
       }
     } catch (err) {
       setRequestError(err instanceof Error ? err.message : 'Не вдалося створити запит на попутку');
@@ -273,7 +277,6 @@ export const PoputkyPage: React.FC = () => {
 
         {error && <Alert variant="error">{error}</Alert>}
         {requestError && <Alert variant="error">{requestError}</Alert>}
-        {requestSuccess && <Alert variant="success">{requestSuccess}</Alert>}
         {!isTelegramLoggedIn && (
           <Alert variant="info">
             Щоб бронювати попутки прямо на сайті, увійдіть через Telegram.
@@ -342,47 +345,58 @@ export const PoputkyPage: React.FC = () => {
           </div>
         )}
 
-        {showDriverContactModal && driverContactListing && (
+        {showRequestStatusModal && requestStatusData && (
           <div className="poputky-modal-overlay">
             <div className="poputky-modal">
               <button
                 className="poputky-modal-close"
                 onClick={() => {
-                  setShowDriverContactModal(false);
-                  setDriverContactListing(null);
+                  setShowRequestStatusModal(false);
+                  setRequestStatusData(null);
                 }}
               >
                 ×
               </button>
 
-              <h3>📞 Водій ще не підключений до Telegram</h3>
+              <h3>{requestStatusData.driverNotified ? '✅ Запит надіслано водію' : '📞 Водій ще не підключений до Telegram'}</h3>
               <p className="poputky-modal-subtitle">
-                Ми створили запит. Щоб не втрачати час, зателефонуйте водію напряму:
+                {requestStatusData.message}
               </p>
 
               <div className="poputky-modal-details">
-                <div><strong>Маршрут:</strong> {formatRouteLabel(driverContactListing.route)}</div>
-                <div><strong>Дата:</strong> {formatTripDate(driverContactListing.date)}</div>
-                {driverContactListing.departureTime && (
-                  <div><strong>Час:</strong> {driverContactListing.departureTime}</div>
+                <div><strong>Маршрут:</strong> {formatRouteLabel(requestStatusData.listing.route)}</div>
+                <div><strong>Дата:</strong> {formatTripDate(requestStatusData.listing.date)}</div>
+                {requestStatusData.listing.departureTime && (
+                  <div><strong>Час:</strong> {requestStatusData.listing.departureTime}</div>
                 )}
-                {driverContactListing.senderName && (
-                  <div><strong>Водій:</strong> {driverContactListing.senderName}</div>
+                {requestStatusData.listing.senderName && (
+                  <div><strong>Водій:</strong> {requestStatusData.listing.senderName}</div>
                 )}
               </div>
 
-              <a
-                href={supportPhoneToTelLink(driverContactListing.phone)}
-                className="poputky-modal-call-button"
-              >
-                📲 Зателефонувати: {formatPhoneDisplay(driverContactListing.phone)}
-              </a>
+              {requestStatusData.driverNotified ? (
+                <a
+                  href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="poputky-modal-call-button"
+                >
+                  📱 Відкрити Telegram та очікувати підтвердження
+                </a>
+              ) : (
+                <a
+                  href={supportPhoneToTelLink(requestStatusData.listing.phone)}
+                  className="poputky-modal-call-button"
+                >
+                  📲 Зателефонувати: {formatPhoneDisplay(requestStatusData.listing.phone)}
+                </a>
+              )}
 
               <button
                 type="button"
                 className="poputky-modal-copy-button"
                 onClick={() => {
-                  navigator.clipboard.writeText(driverContactListing.phone);
+                  navigator.clipboard.writeText(requestStatusData.listing.phone);
                 }}
               >
                 📋 Скопіювати номер
