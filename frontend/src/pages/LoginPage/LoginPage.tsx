@@ -16,7 +16,7 @@ export const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loginMode, setLoginMode] = useState<'admin' | 'telegram'>('admin');
+  const [loginMode, setLoginMode] = useState<'admin' | 'telegram'>('telegram');
   const navigate = useNavigate();
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
@@ -85,16 +85,16 @@ export const LoginPage: React.FC = () => {
         
         <div className="login-mode-tabs">
           <button
-            className={`mode-tab ${loginMode === 'admin' ? 'active' : ''}`}
-            onClick={() => setLoginMode('admin')}
-          >
-            👨‍💼 Адмін панель
-          </button>
-          <button
             className={`mode-tab ${loginMode === 'telegram' ? 'active' : ''}`}
             onClick={() => setLoginMode('telegram')}
           >
             📱 Вхід через Telegram
+          </button>
+          <button
+            className={`mode-tab ${loginMode === 'admin' ? 'active' : ''}`}
+            onClick={() => setLoginMode('admin')}
+          >
+            👨‍💼 Адмін панель
           </button>
         </div>
 
