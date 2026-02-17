@@ -67,6 +67,8 @@ git push
 
 Переконайтеся, що є також: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID` (для бота).
 
+**Якщо на Railway з’являється помилка `spawn python3 ENOENT`:** сервіс backend має збиратися з **Dockerfile** (у ньому є Node + Python). У налаштуваннях сервісу вкажіть **Root Directory** = `backend` (або той каталог, де лежить `Dockerfile`), щоб Railway використав цей Dockerfile замість Railpack.
+
 ---
 
 ## Крок 4: Після деплою
