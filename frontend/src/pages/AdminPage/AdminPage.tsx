@@ -5,7 +5,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType } from '@/types';
-import { getRouteLabel, getRouteBadgeClass, ROUTES, formatPhoneDisplay } from '@/utils/constants';
+import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
 type Tab = 'bookings' | 'schedules' | 'viber';
@@ -460,13 +460,8 @@ export const AdminPage: React.FC = () => {
                         <td>#{booking.id}</td>
                         <td>
                           <span className={`badge ${getRouteBadgeClass(booking.route)}`}>
-                            {getRouteLabel(booking.route)}
+                            {getBookingRouteDisplayLabel(booking.route, booking.source)}
                           </span>
-                          {booking.source === 'viber_match' && (
-                            <span className="badge badge-info" style={{ marginLeft: 6 }} title="Попутка (водій підтвердив)">
-                              🚗 Попутка
-                            </span>
-                          )}
                         </td>
                         <td>{new Date(booking.date).toLocaleDateString('uk-UA')}</td>
                         <td><strong>{booking.departureTime}</strong></td>

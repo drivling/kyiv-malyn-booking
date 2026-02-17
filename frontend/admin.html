@@ -475,16 +475,35 @@
     let editingScheduleId = null;
 
     // Функції для роботи з маршрутами
+    const ROUTES_MAP = {
+      'Kyiv-Malyn-Irpin': 'Київ → Малин (через Ірпінь)',
+      'Malyn-Kyiv-Irpin': 'Малин → Київ (через Ірпінь)',
+      'Kyiv-Malyn-Bucha': 'Київ → Малин (через Бучу)',
+      'Malyn-Kyiv-Bucha': 'Малин → Київ (через Бучу)',
+      'Malyn-Zhytomyr': 'Малин → Житомир',
+      'Zhytomyr-Malyn': 'Житомир → Малин',
+      'Korosten-Malyn': 'Коростень → Малин',
+      'Malyn-Korosten': 'Малин → Коростень'
+    };
+
+    function getDirectionLabel(route) {
+      if (route.includes('Kyiv-Malyn')) return 'Київ → Малин';
+      if (route.includes('Malyn-Kyiv')) return 'Малин → Київ';
+      if (route.includes('Malyn-Zhytomyr')) return 'Малин → Житомир';
+      if (route.includes('Zhytomyr-Malyn')) return 'Житомир → Малин';
+      if (route.includes('Korosten-Malyn')) return 'Коростень → Малин';
+      if (route.includes('Malyn-Korosten')) return 'Малин → Коростень';
+      return route;
+    }
+
     function getRouteLabel(route) {
-      const routes = {
-        'Kyiv-Malyn-Irpin': 'Київ → Малин (через Ірпінь)',
-        'Malyn-Kyiv-Irpin': 'Малин → Київ (через Ірпінь)',
-        'Kyiv-Malyn-Bucha': 'Київ → Малин (через Бучу)',
-        'Malyn-Kyiv-Bucha': 'Малин → Київ (через Бучу)',
-        'Malyn-Zhytomyr': 'Малин → Житомир',
-        'Zhytomyr-Malyn': 'Житомир → Малин'
-      };
-      return routes[route] || route;
+      return ROUTES_MAP[route] || getDirectionLabel(route) || route;
+    }
+
+    /** Одна назва для бронювання: маршрутка — «Київ → Малин (через Ірпінь)», попутка — «Київ → Малин (🚗 Попутка)». */
+    function getBookingRouteDisplayLabel(route, source) {
+      if (source === 'viber_match') return getDirectionLabel(route) + ' (🚗 Попутка)';
+      return getRouteLabel(route);
     }
 
     function getRouteBadgeClass(route) {
@@ -492,6 +511,8 @@
       if (route.includes('Malyn-Kyiv')) return 'badge-malyn-kyiv';
       if (route.includes('Malyn-Zhytomyr')) return 'badge-malyn-zhytomyr';
       if (route.includes('Zhytomyr-Malyn')) return 'badge-zhytomyr-malyn';
+      if (route.includes('Korosten-Malyn')) return 'badge-kyiv-malyn';
+      if (route.includes('Malyn-Korosten')) return 'badge-malyn-kyiv';
       return 'badge-kyiv-malyn';
     }
 
@@ -577,7 +598,7 @@
       tbody.innerHTML = bookings.map(booking => {
         const date = new Date(booking.date);
         const createdAt = new Date(booking.createdAt);
-        const routeLabel = getRouteLabel(booking.route);
+        const routeLabel = getBookingRouteDisplayLabel(booking.route, booking.source);
         const badgeClass = getRouteBadgeClass(booking.route);
 
         return `

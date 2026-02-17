@@ -65,11 +65,33 @@ export const getRouteSuffix = (route: Route): string => {
   return '';
 };
 
-export const getRouteLabel = (route: Route): string => {
-  return ROUTES[route] || route;
+/** Назва напрямку без суфікса (через Ірпінь/Бучу). Підтримує і повний route, і direction (наприклад Kyiv-Malyn). */
+export const getDirectionLabel = (route: string): string => {
+  if (route.includes('Kyiv-Malyn')) return 'Київ → Малин';
+  if (route.includes('Malyn-Kyiv')) return 'Малин → Київ';
+  if (route.includes('Malyn-Zhytomyr')) return 'Малин → Житомир';
+  if (route.includes('Zhytomyr-Malyn')) return 'Житомир → Малин';
+  if (route.includes('Korosten-Malyn')) return 'Коростень → Малин';
+  if (route.includes('Malyn-Korosten')) return 'Малин → Коростень';
+  return route;
 };
 
-export const getRouteBadgeClass = (route: Route): string => {
+export const getRouteLabel = (route: Route | string): string => {
+  return ROUTES[route as Route] || getDirectionLabel(route) || route;
+};
+
+/** Одна назва для адмінки: маршрутка — «Київ → Малин (через Ірпінь)», попутка — «Київ → Малин (🚗 Попутка)». */
+export const getBookingRouteDisplayLabel = (
+  route: string,
+  source?: 'schedule' | 'viber_match'
+): string => {
+  if (source === 'viber_match') {
+    return `${getDirectionLabel(route)} (🚗 Попутка)`;
+  }
+  return getRouteLabel(route);
+};
+
+export const getRouteBadgeClass = (route: Route | string): string => {
   if (route.includes('Kyiv-Malyn')) return 'badge-kyiv-malyn';
   if (route.includes('Malyn-Kyiv')) return 'badge-malyn-kyiv';
   if (route.includes('Malyn-Zhytomyr')) return 'badge-malyn-zhytomyr';
