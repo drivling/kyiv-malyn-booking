@@ -37,6 +37,10 @@ const PASSENGER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
 const addViberAwaitingMap = new Map<string, number>(); // chatId -> since
 const ADDVIBER_STATE_TTL_MS = 10 * 60 * 1000; // 10 хв
 
+/** Очікування вводу дати для фільтра /allrides */
+const allridesAwaitingDateInputMap = new Map<string, number>(); // chatId -> since
+const ALLRIDES_FILTER_INPUT_TTL_MS = 10 * 60 * 1000; // 10 хв
+
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
@@ -217,6 +221,20 @@ function isExactTimeMatch(timeA: string | null, timeB: string | null): boolean {
   const b = parseTimeRangeForMatch(timeB);
   if (!a || !b) return false;
   return a.start <= b.end && b.start <= a.end;
+}
+
+/** Діапазон хвилин від початку доби для фільтра /allrides по часу. */
+const ALLRIDES_TIME_SLOTS = {
+  morning: { start: 0, end: 12 * 60 },           // до 12:00
+  afternoon: { start: 12 * 60, end: 18 * 60 },  // 12:00–18:00
+  evening: { start: 18 * 60, end: 24 * 60 },    // після 18:00
+} as const;
+
+function allridesListingMatchesTimeSlot(departureTime: string | null, slot: keyof typeof ALLRIDES_TIME_SLOTS): boolean {
+  const range = parseTimeRangeForMatch(departureTime);
+  if (!range) return false; // без часу не показуємо в слоті
+  const { start: s, end: e } = ALLRIDES_TIME_SLOTS[slot];
+  return range.start < e && range.end > s;
 }
 
 /** Одна дата (YYYY-MM-DD) для порівняння. */
@@ -1284,39 +1302,143 @@ https://malin.kiev.ua
     await sendFreeViewInfo(chatId);
   });
 
-  // Команда /allrides — всі активні попутки + швидкі дії для зареєстрованого користувача
-  bot.onText(/\/allrides/, async (msg) => {
-    const chatId = msg.chat.id.toString();
-    const userId = msg.from?.id.toString() || '';
+  const parseAllridesDateArg = (raw: string): Date | null => {
+    const value = raw.trim().toLowerCase();
+    if (!value) return null;
 
+    if (value === 'сьогодні' || value === 'сегодня' || value === 'today') {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    if (value === 'завтра' || value === 'tomorrow') {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const year = Number(isoMatch[1]);
+      const month = Number(isoMatch[2]);
+      const day = Number(isoMatch[3]);
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    const dotMatch = value.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
+    if (dotMatch) {
+      const day = Number(dotMatch[1]);
+      const month = Number(dotMatch[2]);
+      let year = dotMatch[3] ? Number(dotMatch[3]) : new Date().getFullYear();
+      if (year < 100) year += 2000;
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    return null;
+  };
+
+  const getAllridesFilterKeyboard = () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return [
+      [
+        { text: '📅 Майбутні', callback_data: 'allrides_filter_future' },
+        { text: '🗂 Усі', callback_data: 'allrides_filter_all' },
+      ],
+      [
+        { text: `🗓 Сьогодні (${formatDate(today)})`, callback_data: 'allrides_filter_today' },
+        { text: `🗓 Завтра (${formatDate(tomorrow)})`, callback_data: 'allrides_filter_tomorrow' },
+      ],
+      [
+        { text: '✏️ Ввести дату', callback_data: 'allrides_filter_custom' },
+      ],
+    ] as Array<Array<{ text: string; callback_data: string }>>;
+  };
+
+  /** Ряд кнопок фільтра по часу для майбутніх попуток. */
+  const getAllridesTimeFilterRow = (): Array<Array<{ text: string; callback_data: string }>> => [
+    [
+      { text: '🕐 Увесь день', callback_data: 'allrides_filter_future' },
+      { text: '🌅 Ранок (до 12)', callback_data: 'allrides_filter_future_morning' },
+      { text: '☀️ День (12–18)', callback_data: 'allrides_filter_future_afternoon' },
+      { text: '🌙 Вечір (18+)', callback_data: 'allrides_filter_future_evening' },
+    ],
+  ];
+
+  type AllridesTimeSlot = keyof typeof ALLRIDES_TIME_SLOTS;
+
+  const sendAllrides = async (
+    chatId: string,
+    userId: string,
+    filterRaw: string = '',
+    timeSlot?: AllridesTimeSlot
+  ): Promise<void> => {
     try {
+      const normalizedFilter = filterRaw.trim().toLowerCase();
+      const showAll =
+        normalizedFilter === 'all' ||
+        normalizedFilter === 'всі' ||
+        normalizedFilter === 'усі' ||
+        normalizedFilter === 'все';
+      const selectedDate = !normalizedFilter || showAll ? null : parseAllridesDateArg(normalizedFilter);
+      if (normalizedFilter && !showAll && !selectedDate) {
+        await bot?.sendMessage(
+          chatId,
+          '❌ Невірний фільтр для /allrides.\n\n' +
+            'Використайте один з варіантів:\n' +
+            '• /allrides — майбутні попутки\n' +
+            '• /allrides all — усі активні\n' +
+            '• /allrides 21.02 або /allrides 2026-02-21 — попутки на дату',
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: getAllridesFilterKeyboard() } }
+        );
+        return;
+      }
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const nextDay = selectedDate ? new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000) : null;
+      const where: { isActive: boolean; date?: { gte?: Date; lt?: Date } } = { isActive: true };
+      if (!showAll && selectedDate) {
+        where.date = { gte: selectedDate, lt: nextDay! };
+      } else if (!showAll) {
+        where.date = { gte: today };
+      }
 
-      const activeListings = await prisma.viberListing.findMany({
-        where: {
-          isActive: true,
-          date: { gte: today },
-        },
+      let activeListings = await prisma.viberListing.findMany({
+        where,
         orderBy: [{ date: 'asc' }, { departureTime: 'asc' }, { createdAt: 'desc' }],
         take: 80,
       });
+
+      const isFutureView = !showAll && !selectedDate;
+      if (isFutureView && timeSlot) {
+        activeListings = activeListings.filter((l) => allridesListingMatchesTimeSlot(l.departureTime, timeSlot));
+      }
 
       if (activeListings.length === 0) {
         await bot?.sendMessage(
           chatId,
           '📭 <b>Зараз немає активних попуток</b>\n\n' +
-            'Спробуйте пізніше або створіть свою поїздку:\n' +
+            'Спробуйте змінити фільтр кнопками нижче або створіть свою поїздку:\n' +
             '🚗 /adddriverride\n' +
             '👤 /addpassengerride\n' +
             '🌐 https://malin.kiev.ua/poputky',
-          { parse_mode: 'HTML' }
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: getAllridesFilterKeyboard() } }
         );
         return;
       }
 
       const driverListings = activeListings.filter((l) => l.listingType === 'driver');
       const passengerListings = activeListings.filter((l) => l.listingType === 'passenger');
+      const visibleDriverListings = driverListings.slice(0, 10);
 
       const formatListingRow = (listing: {
         id: number;
@@ -1324,37 +1446,73 @@ https://malin.kiev.ua
         date: Date;
         departureTime: string | null;
         seats: number | null;
+        phone: string;
         senderName: string | null;
       }) => {
         const time = listing.departureTime ?? '—';
-        const seats = listing.seats != null ? `, ${listing.seats} місць` : '';
-        const author = listing.senderName ? ` — ${listing.senderName}` : '';
-        return `• #${listing.id} ${getRouteName(listing.route)} · ${formatDate(listing.date)} о ${time}${seats}${author}`;
+        const seats = listing.seats != null ? `${listing.seats} місць` : '—';
+        const author = (listing.senderName ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `• <b>#${listing.id}</b> ${getRouteName(listing.route)}\n` +
+          `   📅 ${formatDate(listing.date)} · 🕐 ${time}\n` +
+          `   👤 ${author} · 🎫 ${seats}\n` +
+          `   📞 ${formatPhoneTelLink(listing.phone)}`;
       };
 
-      let message = '🌐 <b>Всі активні попутки</b>\n\n';
-      message += `🚗 Водії: ${driverListings.length}\n`;
-      message += `👤 Пасажири: ${passengerListings.length}\n\n`;
+      const timeSlotLabel =
+        timeSlot === 'morning'
+          ? 'ранок (до 12:00)'
+          : timeSlot === 'afternoon'
+            ? 'день (12:00–18:00)'
+            : timeSlot === 'evening'
+              ? 'вечір (після 18:00)'
+              : null;
+      const filterTitle = showAll
+        ? 'усі активні'
+        : selectedDate
+          ? `дата: ${formatDate(selectedDate)}`
+          : timeSlotLabel
+            ? `майбутні · ${timeSlotLabel}`
+            : 'майбутні';
+      let message = `🌐 <b>Попутки (${filterTitle})</b>\n\n`;
+      message += `🚗 Водії: ${driverListings.length} · 👤 Пасажири: ${passengerListings.length}\n`;
+      message += '—\n\n';
 
       if (driverListings.length > 0) {
-        message += '<b>🚗 Водії:</b>\n';
-        message += driverListings.slice(0, 10).map(formatListingRow).join('\n');
+        message += '<b>🚗 Водії</b>\n\n';
+        message += visibleDriverListings.map(formatListingRow).join('\n\n');
         if (driverListings.length > 10) {
-          message += `\n… ще ${driverListings.length - 10}`;
+          message += `\n\n… ще ${driverListings.length - 10}`;
         }
         message += '\n\n';
       }
 
       if (passengerListings.length > 0) {
-        message += '<b>👤 Пасажири:</b>\n';
-        message += passengerListings.slice(0, 10).map(formatListingRow).join('\n');
+        message += '<b>👤 Пасажири</b>\n\n';
+        message += passengerListings.slice(0, 10).map(formatListingRow).join('\n\n');
         if (passengerListings.length > 10) {
-          message += `\n… ще ${passengerListings.length - 10}`;
+          message += `\n\n… ще ${passengerListings.length - 10}`;
         }
       }
 
       const userPhone = await getPhoneByTelegramUser(userId, chatId);
       const inlineKeyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+      const driverBookingButtons: Array<Array<{ text: string; callback_data: string }>> = [];
+
+      // Додаємо кнопки "Забронювати" лише для водіїв, які підключені до Telegram.
+      if (visibleDriverListings.length > 0) {
+        const chatIds = await Promise.all(visibleDriverListings.map((d) => getChatIdByPhone(d.phone)));
+        const normalizedUserPhone = userPhone ? normalizePhone(userPhone) : null;
+        for (let i = 0; i < visibleDriverListings.length; i++) {
+          if (!chatIds[i]) continue;
+          const d = visibleDriverListings[i];
+          if (normalizedUserPhone && normalizePhone(d.phone) === normalizedUserPhone) continue;
+          driverBookingButtons.push([{
+            text: `🎫 Забронювати у водія #${d.id} (${d.departureTime ?? 'час не вказано'})`,
+            callback_data: `book_viber_${d.id}`,
+          }]);
+          if (driverBookingButtons.length >= 10) break;
+        }
+      }
 
       if (userPhone) {
         const normalizedPhone = normalizePhone(userPhone);
@@ -1417,14 +1575,33 @@ https://malin.kiev.ua
         message += '\n\nℹ️ Щоб отримати персональні кнопки швидкого запиту, зареєструйте номер: /start';
       }
 
+      if (driverBookingButtons.length > 0) {
+        message += '\n\n🎫 <b>Бронювання у водіїв з Telegram:</b>\nНатисніть кнопку потрібного водія нижче.';
+      }
+
+      const replyKeyboard = [
+        ...getAllridesFilterKeyboard(),
+        ...(isFutureView ? getAllridesTimeFilterRow() : []),
+        ...inlineKeyboard,
+        ...driverBookingButtons,
+      ];
       await bot?.sendMessage(chatId, message, {
         parse_mode: 'HTML',
-        ...(inlineKeyboard.length > 0 ? { reply_markup: { inline_keyboard: inlineKeyboard } } : {}),
+        ...(replyKeyboard.length > 0 ? { reply_markup: { inline_keyboard: replyKeyboard } } : {}),
       });
     } catch (error) {
       console.error('❌ Помилка /allrides:', error);
       await bot?.sendMessage(chatId, '❌ Помилка при отриманні списку поїздок. Спробуйте пізніше.');
     }
+  };
+
+  // Команда /allrides — всі активні попутки + швидкі дії для зареєстрованого користувача
+  // Підтримка фільтру: /allrides (майбутні), /allrides all (усі), /allrides DD.MM[.YYYY] або YYYY-MM-DD
+  bot.onText(/^\/allrides(?:@\w+)?(?:\s+(.+))?$/i, async (msg, match) => {
+    const chatId = msg.chat.id.toString();
+    const userId = msg.from?.id.toString() || '';
+    const filterRaw = (match?.[1] ?? '').trim();
+    await sendAllrides(chatId, userId, filterRaw);
   });
 
   // Команда /addviber — тільки для адміна в адмін-чаті: очікує наступне повідомлення з текстом з Вайберу (як «Додати оголошення» в адмінці)
@@ -1643,6 +1820,41 @@ https://malin.kiev.ua
         console.error('AddViber error:', err);
         await bot?.sendMessage(chatId, '❌ Помилка створення оголошення. Спробуйте /addviber знову.');
       }
+      return;
+    }
+
+    // Потік /allrides: користувач обрав "Ввести дату" і надіслав дату текстом
+    if (allridesAwaitingDateInputMap.has(chatId)) {
+      const since = allridesAwaitingDateInputMap.get(chatId)!;
+      if (Date.now() - since > ALLRIDES_FILTER_INPUT_TTL_MS) {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await bot?.sendMessage(chatId, '⏱ Час на введення дати минув. Надішліть /allrides знову.');
+        return;
+      }
+
+      const normalized = text.toLowerCase();
+      if (normalized === 'скасувати' || normalized === 'cancel') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await bot?.sendMessage(chatId, '❌ Введення дати скасовано. Використайте /allrides для перегляду.');
+        return;
+      }
+
+      const customDate = parseAllridesDateArg(text);
+      if (!customDate) {
+        await bot?.sendMessage(
+          chatId,
+          '❌ Не вдалося розпізнати дату.\n\n' +
+            'Введіть, наприклад:\n' +
+            '• 21.02\n' +
+            '• 21.02.2026\n' +
+            '• 2026-02-21\n\n' +
+            'Або напишіть "скасувати".'
+        );
+        return;
+      }
+
+      allridesAwaitingDateInputMap.delete(chatId);
+      await sendAllrides(chatId, userId, customDate.toISOString().slice(0, 10));
       return;
     }
     
@@ -2237,6 +2449,59 @@ https://malin.kiev.ua
     if (!chatId || !data) return;
     
     try {
+      // ---------- /allrides: фільтри списку ----------
+      if (data === 'allrides_filter_future') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await sendAllrides(chatId, userId, '');
+        await bot?.answerCallbackQuery(query.id, { text: 'Показано майбутні попутки' });
+        return;
+      }
+      if (data === 'allrides_filter_future_morning') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await sendAllrides(chatId, userId, '', 'morning');
+        await bot?.answerCallbackQuery(query.id, { text: 'Показано майбутні попутки (ранок)' });
+        return;
+      }
+      if (data === 'allrides_filter_future_afternoon') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await sendAllrides(chatId, userId, '', 'afternoon');
+        await bot?.answerCallbackQuery(query.id, { text: 'Показано майбутні попутки (день)' });
+        return;
+      }
+      if (data === 'allrides_filter_future_evening') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await sendAllrides(chatId, userId, '', 'evening');
+        await bot?.answerCallbackQuery(query.id, { text: 'Показано майбутні попутки (вечір)' });
+        return;
+      }
+      if (data === 'allrides_filter_all') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        await sendAllrides(chatId, userId, 'all');
+        await bot?.answerCallbackQuery(query.id, { text: 'Показано всі активні попутки' });
+        return;
+      }
+      if (data === 'allrides_filter_today' || data === 'allrides_filter_tomorrow') {
+        allridesAwaitingDateInputMap.delete(chatId);
+        const d = data === 'allrides_filter_today' ? new Date() : (() => { const t = new Date(); t.setDate(t.getDate() + 1); return t; })();
+        d.setHours(0, 0, 0, 0);
+        await sendAllrides(chatId, userId, d.toISOString().slice(0, 10));
+        await bot?.answerCallbackQuery(query.id, { text: 'Фільтр за датою застосовано' });
+        return;
+      }
+      if (data === 'allrides_filter_custom') {
+        allridesAwaitingDateInputMap.set(chatId, Date.now());
+        await bot?.sendMessage(
+          chatId,
+          '✏️ Введіть дату для /allrides, наприклад:\n' +
+            '• 21.02\n' +
+            '• 21.02.2026\n' +
+            '• 2026-02-21\n\n' +
+            'Або напишіть "скасувати".'
+        );
+        await bot?.answerCallbackQuery(query.id, { text: 'Очікую дату від вас' });
+        return;
+      }
+
       // ---------- Потік "додати поїздку (водій)" ----------
       if (data === 'adddriver_cancel') {
         driverRideStateMap.delete(chatId);
