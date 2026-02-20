@@ -814,6 +814,46 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 }
 
 /**
+ * Знайти ім'я в Telegram по номеру телефону (Python send_message.py --resolve).
+ * Використовується перед збереженням Viber-оголошення/Person без імені.
+ */
+export async function resolveNameByPhoneFromTelegram(phone: string): Promise<string | null> {
+  const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
+  const scriptDir = sessionPath ? path.dirname(sessionPath) : '';
+  const scriptPath = path.join(scriptDir, 'send_message.py');
+  const apiId = process.env.TELEGRAM_API_ID;
+  const apiHash = process.env.TELEGRAM_API_HASH;
+  if (!sessionPath || !apiId || !apiHash || !phone?.trim()) return null;
+  const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
+  return new Promise((resolve) => {
+    const child = spawn(pythonCmd, [scriptPath, '--resolve', phone.trim()], {
+      env: {
+        ...process.env,
+        TELEGRAM_USER_SESSION_PATH: sessionPath,
+        TELEGRAM_API_ID: apiId,
+        TELEGRAM_API_HASH: apiHash,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.on('close', (code) => {
+      if (code === 0 && stdout.trim()) {
+        resolve(stdout.trim());
+      } else {
+        if (code !== 1) {
+          console.error(`ℹ️ resolveNameByPhone (${phone}): код ${code}`, stderr.slice(0, 200));
+        }
+        resolve(null);
+      }
+    });
+    child.on('error', () => resolve(null));
+  });
+}
+
+/**
  * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону (Python Telethon).
  * Повертає true, якщо повідомлення доставлено; false — помилка або користувач приховав номер.
  * Експортується для одноразової реклами каналу (без оновлення telegramPromoSentAt).
@@ -1878,14 +1918,18 @@ https://malin.kiev.ua
             const { parsed, rawMessage: rawText } = parsedMessages[i];
             try {
               const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-              const senderName = nameFromDb ?? parsed.senderName;
+              let senderName = nameFromDb ?? parsed.senderName ?? null;
+              if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
+                const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
+                if (nameFromTg?.trim()) senderName = nameFromTg.trim();
+              }
               const person = parsed.phone
                 ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
                 : null;
               const listing = await prisma.viberListing.create({
                 data: {
                   rawMessage: rawText,
-                  senderName,
+                  senderName: senderName ?? undefined,
                   listingType: parsed.listingType,
                   route: parsed.route,
                   date: parsed.date,
@@ -1939,14 +1983,18 @@ https://malin.kiev.ua
             return;
           }
           const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-          const senderName = nameFromDb ?? parsed.senderName;
+          let senderName = nameFromDb ?? parsed.senderName ?? null;
+          if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
+            const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
+            if (nameFromTg?.trim()) senderName = nameFromTg.trim();
+          }
           const person = parsed.phone
             ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
             : null;
           const listing = await prisma.viberListing.create({
             data: {
               rawMessage: text,
-              senderName,
+              senderName: senderName ?? undefined,
               listingType: parsed.listingType,
               route: parsed.route,
               date: parsed.date,

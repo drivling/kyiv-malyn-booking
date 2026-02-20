@@ -6,6 +6,10 @@
 Виклик: python3 send_message.py <phone>
 Текст повідомлення читається з stdin (UTF-8).
 
+Тільки пошук імені по номеру (без відправки):
+  python3 send_message.py --resolve <phone>
+  Виводить у stdout ім'я (first_name + last_name) або порожньо. Код виходу 0 — знайдено, 1 — не знайдено.
+
 Локальна перевірка форматів номерів (без Telegram):
   python3 send_message.py --test
 
@@ -81,10 +85,47 @@ def get_phone_formats_for_resolve(phone_normalized: str):
     ]
 
 
+async def resolve_phone_to_name(phone_arg: str) -> str:
+    """Пошук контакту в Telegram по номеру; повертає first_name + last_name або порожній рядок."""
+    from telethon import TelegramClient
+    from telethon.tl.functions.contacts import ResolvePhoneRequest
+
+    session_path = get_session_path()
+    api_id, api_hash = get_api_credentials()
+    phone = normalize_phone(phone_arg)
+    if not phone:
+        return ""
+
+    client = TelegramClient(session_path, api_id, api_hash)
+    try:
+        await client.connect()
+        if not await client.is_user_authorized():
+            return ""
+        result = None
+        for phone_for_api in get_phone_formats_for_resolve(phone):
+            if not phone_for_api:
+                continue
+            try:
+                result = await client(ResolvePhoneRequest(phone=phone_for_api))
+                if result and result.users:
+                    break
+            except Exception:
+                continue
+        if not result or not result.users:
+            return ""
+        user = result.users[0]
+        first = getattr(user, "first_name", "") or ""
+        last = getattr(user, "last_name", "") or ""
+        return f"{first} {last}".strip()
+    except Exception:
+        return ""
+    finally:
+        await client.disconnect()
+
+
 async def main():
     from telethon import TelegramClient
     from telethon.tl.functions.contacts import ResolvePhoneRequest
-    from telethon.errors import PhoneNumberInvalidError
 
     if len(sys.argv) < 2:
         print("Використання: send_message.py <phone>", file=sys.stderr)
@@ -92,6 +133,22 @@ async def main():
 
     phone_arg = sys.argv[1].strip()
     if not phone_arg:
+        sys.exit(2)
+
+    # Режим --resolve: тільки вивести ім'я по номеру
+    if phone_arg in ("--resolve", "-r") and len(sys.argv) >= 3:
+        resolve_phone = sys.argv[2].strip()
+        if not resolve_phone:
+            sys.exit(1)
+        name = await resolve_phone_to_name(resolve_phone)
+        if name:
+            print(name)
+            sys.exit(0)
+        sys.exit(1)
+
+    if phone_arg.startswith("--"):
+        # звичайний режим: перший аргумент — номер
+        print("Використання: send_message.py <phone> або send_message.py --resolve <phone>", file=sys.stderr)
         sys.exit(2)
 
     message = sys.stdin.read()

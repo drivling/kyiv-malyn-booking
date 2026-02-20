@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram } from './telegram';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -976,7 +976,11 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
     }
     
     const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-    const senderName = nameFromDb ?? parsed.senderName;
+    let senderName = nameFromDb ?? parsed.senderName ?? null;
+    if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
+      const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
+      if (nameFromTg?.trim()) senderName = nameFromTg.trim();
+    }
     const person = parsed.phone
       ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
       : null;
@@ -984,7 +988,7 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
     const listing = await prisma.viberListing.create({
       data: {
         rawMessage,
-        senderName,
+        senderName: senderName ?? undefined,
         listingType: parsed.listingType,
         route: parsed.route,
         date: parsed.date,
@@ -1067,14 +1071,18 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
       const { parsed, rawMessage: rawText } = parsedMessages[i];
       try {
         const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-        const senderName = nameFromDb ?? parsed.senderName;
+        let senderName = nameFromDb ?? parsed.senderName ?? null;
+        if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
+          const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
+          if (nameFromTg?.trim()) senderName = nameFromTg.trim();
+        }
         const person = parsed.phone
           ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
           : null;
         const listing = await prisma.viberListing.create({
           data: {
             rawMessage: rawText,
-            senderName,
+            senderName: senderName ?? undefined,
             listingType: parsed.listingType,
             route: parsed.route,
             date: parsed.date,
