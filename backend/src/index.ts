@@ -1276,17 +1276,29 @@ app.post('/admin/person', requireAdmin, async (req, res) => {
   }
 });
 
-/** Список Person без Telegram (для реклами каналу) */
-app.get('/admin/channel-promo-persons', requireAdmin, async (_req, res) => {
+/** База реклами — завжди тільки персони без Telegram бота. filter: no_telegram = всі з бази, no_communication = з бази тільки ті, до кого ще не комунікували. */
+const noTelegramCondition = {
+  OR: [
+    { telegramChatId: null },
+    { telegramChatId: '' },
+    { telegramChatId: '0' },
+  ],
+};
+
+function getChannelPromoWhere(filter: string): object {
+  if (filter === 'no_communication') {
+    return { ...noTelegramCondition, telegramPromoSentAt: null };
+  }
+  return noTelegramCondition;
+}
+
+/** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication */
+app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
   try {
+    const filter = (req.query.filter as string)?.trim() || 'no_telegram';
+    const where = getChannelPromoWhere(filter);
     const persons = await prisma.person.findMany({
-      where: {
-        OR: [
-          { telegramChatId: null },
-          { telegramChatId: '' },
-          { telegramChatId: '0' },
-        ],
-      },
+      where,
       select: { id: true, phoneNormalized: true, fullName: true },
       orderBy: { id: 'asc' },
     });
@@ -1297,17 +1309,13 @@ app.get('/admin/channel-promo-persons', requireAdmin, async (_req, res) => {
   }
 });
 
-/** Відправити рекламу каналу всім Person без Telegram. Не оновлюємо telegramPromoSentAt. */
-app.post('/admin/send-channel-promo', requireAdmin, async (_req, res) => {
+/** Відправити рекламу каналу. Body: { filter?: 'no_telegram'|'no_communication' }. Після успішної відправки проставляє дату комунікації (telegramPromoSentAt). */
+app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
   try {
+    const filter = (req.body?.filter as string)?.trim() || 'no_telegram';
+    const where = getChannelPromoWhere(filter);
     const persons = await prisma.person.findMany({
-      where: {
-        OR: [
-          { telegramChatId: null },
-          { telegramChatId: '' },
-          { telegramChatId: '0' },
-        ],
-      },
+      where,
       select: { id: true, phoneNormalized: true, fullName: true },
       orderBy: { id: 'asc' },
     });
@@ -1320,11 +1328,15 @@ app.post('/admin/send-channel-promo', requireAdmin, async (_req, res) => {
       const ok = await sendMessageViaUserAccount(phone, message);
       if (ok) {
         sent.push({ phone: p.phoneNormalized, fullName: p.fullName });
+        await prisma.person.update({
+          where: { id: p.id },
+          data: { telegramPromoSentAt: new Date() },
+        });
       } else {
         notFound.push({ phone: p.phoneNormalized, fullName: p.fullName });
       }
     }
-    console.log(`📢 Channel promo: sent=${sent.length}, notFound=${notFound.length}`);
+    console.log(`📢 Channel promo (filter=${filter}): sent=${sent.length}, notFound=${notFound.length}`);
     res.json({ sent, notFound });
   } catch (e) {
     console.error('❌ send-channel-promo:', e);

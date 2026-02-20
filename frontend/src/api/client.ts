@@ -159,7 +159,6 @@ class ApiClient {
     return this.request<{ authenticated: boolean }>('/admin/check');
   }
 
-  /** Персони без Telegram (для одноразової реклами каналу) */
   /** Створити контакт (Person): телефон + ім'я. Якщо номер вже є — оновлює ім'я. */
   async createPerson(phone: string, fullName: string): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> {
     return this.request<{ id: number; phoneNormalized: string; fullName: string | null }>('/admin/person', {
@@ -168,18 +167,19 @@ class ApiClient {
     });
   }
 
-  async getChannelPromoPersons(): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
-    return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>('/admin/channel-promo-persons');
+  /** Персони для реклами: база = без Telegram бота. filter: no_telegram = всі з бази, no_communication = до кого ще не комунікували. */
+  async getChannelPromoPersons(filter: 'no_telegram' | 'no_communication' = 'no_telegram'): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
+    return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>(`/admin/channel-promo-persons?filter=${encodeURIComponent(filter)}`);
   }
 
-  /** Відправити рекламу каналу всім без Telegram. Не змінює telegramPromoSentAt. */
-  async sendChannelPromo(): Promise<{
+  /** Відправити рекламу каналу. Після успішної відправки проставляє дату комунікації (telegramPromoSentAt). */
+  async sendChannelPromo(filter: 'no_telegram' | 'no_communication' = 'no_telegram'): Promise<{
     sent: Array<{ phone: string; fullName: string | null }>;
     notFound: Array<{ phone: string; fullName: string | null }>;
   }> {
     return this.request<{ sent: Array<{ phone: string; fullName: string | null }>; notFound: Array<{ phone: string; fullName: string | null }> }>(
       '/admin/send-channel-promo',
-      { method: 'POST' }
+      { method: 'POST', body: JSON.stringify({ filter }) }
     );
   }
 

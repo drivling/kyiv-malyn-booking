@@ -48,7 +48,9 @@ export const AdminPage: React.FC = () => {
   const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
   const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
-  // Реклама каналу (одноразово, без зміни telegramPromoSentAt)
+  // Реклама каналу: база = без Telegram бота; вибір = усі з бази чи тільки до кого не комунікували; при відправці проставляється дата комунікації
+  type PromoFilter = 'no_telegram' | 'no_communication';
+  const [promoFilter, setPromoFilter] = useState<PromoFilter>('no_communication');
   const [promoPersons, setPromoPersons] = useState<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>([]);
   const [promoResults, setPromoResults] = useState<{
     sent: Array<{ phone: string; fullName: string | null }>;
@@ -94,12 +96,12 @@ export const AdminPage: React.FC = () => {
     } else if (activeTab === 'promo') {
       loadPromoPersons();
     }
-  }, [activeTab]);
+  }, [activeTab, promoFilter]);
 
   const loadPromoPersons = async () => {
     setPromoError('');
     try {
-      const data = await apiClient.getChannelPromoPersons();
+      const data = await apiClient.getChannelPromoPersons(promoFilter);
       setPromoPersons(data);
     } catch (err) {
       setPromoError(err instanceof Error ? err.message : 'Помилка завантаження');
@@ -111,8 +113,9 @@ export const AdminPage: React.FC = () => {
     setPromoError('');
     setPromoResults(null);
     try {
-      const result = await apiClient.sendChannelPromo();
+      const result = await apiClient.sendChannelPromo(promoFilter);
       setPromoResults(result);
+      await loadPromoPersons();
     } catch (err) {
       setPromoError(err instanceof Error ? err.message : 'Помилка відправки');
     } finally {
@@ -1007,8 +1010,19 @@ export const AdminPage: React.FC = () => {
               </Button>
             </form>
 
+            <p style={{ marginBottom: '8px' }}>
+              <strong>База для реклами</strong> — тільки персони без Telegram бота. Вибір:{' '}
+              <select
+                value={promoFilter}
+                onChange={(e) => setPromoFilter(e.target.value as PromoFilter)}
+                style={{ marginLeft: '4px', padding: '4px 8px' }}
+              >
+                <option value="no_telegram">Усі з бази (без бота)</option>
+                <option value="no_communication">До кого ще не комунікували</option>
+              </select>
+            </p>
             <p style={{ marginBottom: '12px' }}>
-              Персон без Telegram: <strong>{promoPersons.length}</strong>. Відправити їм рекламу бота/каналу (одноразово, без зміни позначки в БД).
+              Підходить під вибір: <strong>{promoPersons.length}</strong>. Після відправки проставляється дата комунікації.
             </p>
             <div className="controls" style={{ marginBottom: '16px' }}>
               <Button
