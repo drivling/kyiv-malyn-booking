@@ -1317,20 +1317,28 @@ app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
   }
 });
 
-/** Відправити рекламу каналу. Body: { filter?: 'no_telegram'|'no_communication' }. Після успішної відправки проставляє дату комунікації (telegramPromoSentAt). */
+/** Відправити рекламу каналу. Body: { filter?, limit?, delaysMs? }. limit — лише перші N; delaysMs — паузи в мс між відправками [після 1-го, після 2-го, ...]. */
 app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
   try {
     const filter = (req.body?.filter as string)?.trim() || 'no_telegram';
+    const limit = typeof req.body?.limit === 'number' && req.body.limit > 0 ? Math.floor(req.body.limit) : undefined;
+    const delaysMs = Array.isArray(req.body?.delaysMs)
+      ? (req.body.delaysMs as number[]).filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120000))
+      : undefined;
     const where = getChannelPromoWhere(filter);
-    const persons = await prisma.person.findMany({
+    let persons = await prisma.person.findMany({
       where,
       select: { id: true, phoneNormalized: true, fullName: true },
       orderBy: { id: 'asc' },
     });
+    if (limit !== undefined) {
+      persons = persons.slice(0, limit);
+    }
     const message = buildChannelPromoMessage();
     const sent: Array<{ phone: string; fullName: string | null }> = [];
     const notFound: Array<{ phone: string; fullName: string | null }> = [];
-    for (const p of persons) {
+    for (let i = 0; i < persons.length; i++) {
+      const p = persons[i];
       const phone = normalizePhone(p.phoneNormalized);
       if (!phone) continue;
       const ok = await sendMessageViaUserAccount(phone, message);
@@ -1343,8 +1351,12 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
       } else {
         notFound.push({ phone: p.phoneNormalized, fullName: p.fullName });
       }
+      if (delaysMs?.length && i < persons.length - 1) {
+        const delayMs = delaysMs[Math.min(i, delaysMs.length - 1)] ?? 0;
+        if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+      }
     }
-    console.log(`📢 Channel promo (filter=${filter}): sent=${sent.length}, notFound=${notFound.length}`);
+    console.log(`📢 Channel promo (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent.length}, notFound=${notFound.length}`);
     res.json({ sent, notFound });
   } catch (e) {
     console.error('❌ send-channel-promo:', e);

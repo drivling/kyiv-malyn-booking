@@ -113,7 +113,26 @@ export const AdminPage: React.FC = () => {
     setPromoError('');
     setPromoResults(null);
     try {
-      const result = await apiClient.sendChannelPromo(promoFilter);
+      const result = await apiClient.sendChannelPromo({ filter: promoFilter });
+      setPromoResults(result);
+      await loadPromoPersons();
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : 'Помилка відправки');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleSendChannelPromoFirst5 = async () => {
+    setPromoLoading(true);
+    setPromoError('');
+    setPromoResults(null);
+    try {
+      const result = await apiClient.sendChannelPromo({
+        filter: promoFilter,
+        limit: 5,
+        delaysMs: [5000, 10000, 15000, 25000],
+      });
       setPromoResults(result);
       await loadPromoPersons();
     } catch (err) {
@@ -1024,12 +1043,20 @@ export const AdminPage: React.FC = () => {
             <p style={{ marginBottom: '12px' }}>
               Підходить під вибір: <strong>{promoPersons.length}</strong>. Після відправки проставляється дата комунікації.
             </p>
-            <div className="controls" style={{ marginBottom: '16px' }}>
+            <div className="controls" style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               <Button
                 onClick={handleSendChannelPromo}
                 disabled={promoLoading || promoPersons.length === 0}
               >
                 {promoLoading ? 'Відправка...' : 'Відправити рекламу'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleSendChannelPromoFirst5}
+                disabled={promoLoading || promoPersons.length === 0}
+                title="Першим 5 одержувачам з паузою 5, 10, 15, 25 с між відправками"
+              >
+                {promoLoading ? 'Відправка...' : 'Перші 5 (з паузою)'}
               </Button>
               <Button variant="secondary" onClick={loadPromoPersons} disabled={promoLoading}>
                 Оновити список

@@ -172,14 +172,19 @@ class ApiClient {
     return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>(`/admin/channel-promo-persons?filter=${encodeURIComponent(filter)}`);
   }
 
-  /** Відправити рекламу каналу. Після успішної відправки проставляє дату комунікації (telegramPromoSentAt). */
-  async sendChannelPromo(filter: 'no_telegram' | 'no_communication' = 'no_telegram'): Promise<{
+  /** Відправити рекламу каналу. limit — лише перші N; delaysMs — паузи в мс між відправками (напр. [5000,10000,15000,25000]). */
+  async sendChannelPromo(options: {
+    filter: 'no_telegram' | 'no_communication';
+    limit?: number;
+    delaysMs?: number[];
+  }): Promise<{
     sent: Array<{ phone: string; fullName: string | null }>;
     notFound: Array<{ phone: string; fullName: string | null }>;
   }> {
+    const { filter = 'no_telegram', limit, delaysMs } = options;
     return this.request<{ sent: Array<{ phone: string; fullName: string | null }>; notFound: Array<{ phone: string; fullName: string | null }> }>(
       '/admin/send-channel-promo',
-      { method: 'POST', body: JSON.stringify({ filter }) }
+      { method: 'POST', body: JSON.stringify({ filter, limit, delaysMs }) }
     );
   }
 
