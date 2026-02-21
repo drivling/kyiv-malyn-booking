@@ -1293,14 +1293,20 @@ const noTelegramCondition = {
   ],
 };
 
+/** Мінімальна дата-маркер: пробували відправити промо, але номер не знайдено в Telegram. Для подальшої фільтрації. */
+const PROMO_NOT_FOUND_SENTINEL = new Date(0);
+
 function getChannelPromoWhere(filter: string): object {
   if (filter === 'no_communication') {
     return { ...noTelegramCondition, telegramPromoSentAt: null };
   }
+  if (filter === 'promo_not_found') {
+    return { ...noTelegramCondition, telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL };
+  }
   return noTelegramCondition;
 }
 
-/** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication */
+/** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication|promo_not_found */
 app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
   try {
     const filter = (req.query.filter as string)?.trim() || 'no_telegram';
@@ -1321,6 +1327,10 @@ app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
 app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
   try {
     const filter = (req.body?.filter as string)?.trim() || 'no_telegram';
+    if (!['no_telegram', 'no_communication', 'promo_not_found'].includes(filter)) {
+      res.status(400).json({ error: 'Invalid filter' });
+      return;
+    }
     const limit = typeof req.body?.limit === 'number' && req.body.limit > 0 ? Math.floor(req.body.limit) : undefined;
     const delaysMs = Array.isArray(req.body?.delaysMs)
       ? (req.body.delaysMs as number[]).filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120000))
@@ -1350,6 +1360,10 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
         });
       } else {
         notFound.push({ phone: p.phoneNormalized, fullName: p.fullName });
+        await prisma.person.update({
+          where: { id: p.id },
+          data: { telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL },
+        });
       }
       if (delaysMs?.length && i < persons.length - 1) {
         const delayMs = delaysMs[Math.min(i, delaysMs.length - 1)] ?? 0;

@@ -167,14 +167,14 @@ class ApiClient {
     });
   }
 
-  /** Персони для реклами: база = без Telegram бота. filter: no_telegram = всі з бази, no_communication = до кого ще не комунікували. */
-  async getChannelPromoPersons(filter: 'no_telegram' | 'no_communication' = 'no_telegram'): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
+  /** Персони для реклами: база = без Telegram бота. filter: no_telegram, no_communication, promo_not_found (не знайдено в Telegram). */
+  async getChannelPromoPersons(filter: 'no_telegram' | 'no_communication' | 'promo_not_found' = 'no_telegram'): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
     return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>(`/admin/channel-promo-persons?filter=${encodeURIComponent(filter)}`);
   }
 
   /** Відправити рекламу каналу. limit — лише перші N; delaysMs — паузи в мс між відправками (напр. [5000,10000,15000,25000]). */
   async sendChannelPromo(options: {
-    filter: 'no_telegram' | 'no_communication';
+    filter: 'no_telegram' | 'no_communication' | 'promo_not_found';
     limit?: number;
     delaysMs?: number[];
   }): Promise<{

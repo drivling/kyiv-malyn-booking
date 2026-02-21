@@ -48,8 +48,8 @@ export const AdminPage: React.FC = () => {
   const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
   const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
-  // Реклама каналу: база = без Telegram бота; вибір = усі з бази чи тільки до кого не комунікували; при відправці проставляється дата комунікації
-  type PromoFilter = 'no_telegram' | 'no_communication';
+  // Реклама каналу: база = без Telegram бота; вибір = усі / до кого не комунікували / не знайдено в Telegram
+  type PromoFilter = 'no_telegram' | 'no_communication' | 'promo_not_found';
   const [promoFilter, setPromoFilter] = useState<PromoFilter>('no_communication');
   const [promoPersons, setPromoPersons] = useState<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>([]);
   const [promoResults, setPromoResults] = useState<{
@@ -1038,6 +1038,7 @@ export const AdminPage: React.FC = () => {
               >
                 <option value="no_telegram">Усі з бази (без бота)</option>
                 <option value="no_communication">До кого ще не комунікували</option>
+                <option value="promo_not_found">Не знайдено в Telegram</option>
               </select>
             </p>
             <p style={{ marginBottom: '12px' }}>
