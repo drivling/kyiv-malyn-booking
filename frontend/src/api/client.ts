@@ -9,6 +9,8 @@ import type {
   ViberListingFormData,
   TelegramScenariosResponse,
   RideShareRequestFromSiteResponse,
+  Person,
+  PersonWithCounts,
 } from '@/types';
 
 class ApiClient {
@@ -164,6 +166,25 @@ class ApiClient {
     return this.request<{ id: number; phoneNormalized: string; fullName: string | null }>('/admin/person', {
       method: 'POST',
       body: JSON.stringify({ phone: phone.trim(), fullName: fullName.trim() }),
+    });
+  }
+
+  /** Список персон для управління даними. search — пошук по телефону або імені. */
+  async getPersons(search?: string): Promise<PersonWithCounts[]> {
+    const q = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
+    return this.request<PersonWithCounts[]>(`/admin/persons${q}`);
+  }
+
+  /** Одна персона за id. */
+  async getPerson(id: number): Promise<PersonWithCounts> {
+    return this.request<PersonWithCounts>(`/admin/persons/${id}`);
+  }
+
+  /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. */
+  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null }): Promise<Person> {
+    return this.request<Person>(`/admin/persons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 

@@ -269,6 +269,12 @@ tr:last-child td {
   font-weight: 600;
 }
 
+.modal-hint {
+  margin: -8px 0 16px;
+  font-size: 14px;
+  color: #666;
+}
+
 .close-btn {
   background: none;
   border: none;

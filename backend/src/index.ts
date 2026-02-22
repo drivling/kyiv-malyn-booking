@@ -1284,6 +1284,129 @@ app.post('/admin/person', requireAdmin, async (req, res) => {
   }
 });
 
+/** Список Person для управління даними. Query: ?search= — пошук по телефону або імені. */
+app.get('/admin/persons', requireAdmin, async (req, res) => {
+  try {
+    const search = (req.query.search as string)?.trim() || '';
+    const where = search
+      ? {
+          OR: [
+            { phoneNormalized: { contains: search.replace(/\D/g, '') } },
+            { fullName: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+    const persons = await prisma.person.findMany({
+      where,
+      orderBy: { id: 'asc' },
+      include: {
+        _count: { select: { bookings: true, viberListings: true } },
+      },
+    });
+    res.json(persons);
+  } catch (e) {
+    console.error('❌ GET /admin/persons:', e);
+    res.status(500).json({ error: 'Не вдалося завантажити список персон' });
+  }
+});
+
+/** Одна персона за id. */
+app.get('/admin/persons/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+    const person = await prisma.person.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { bookings: true, viberListings: true } },
+      },
+    });
+    if (!person) {
+      res.status(404).json({ error: 'Персону не знайдено' });
+      return;
+    }
+    res.json(person);
+  } catch (e) {
+    console.error('❌ GET /admin/persons/:id:', e);
+    res.status(500).json({ error: 'Не вдалося завантажити персону' });
+  }
+});
+
+/** Оновити персону. При зміні телефону або імені оновлюються пов’язані Booking (phone, name) та ViberListing (phone, senderName). */
+app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+    const body = req.body as {
+      phone?: string;
+      phoneNormalized?: string;
+      fullName?: string | null;
+      telegramChatId?: string | null;
+      telegramUserId?: string | null;
+    };
+    const person = await prisma.person.findUnique({ where: { id } });
+    if (!person) {
+      res.status(404).json({ error: 'Персону не знайдено' });
+      return;
+    }
+    const rawPhone = typeof body.phone === 'string' ? body.phone.trim() : (typeof body.phoneNormalized === 'string' ? body.phoneNormalized.trim() : '');
+    const newPhoneNormalized = rawPhone ? normalizePhone(rawPhone) : person.phoneNormalized;
+    const newFullName = body.fullName !== undefined ? (typeof body.fullName === 'string' ? body.fullName.trim() || null : null) : person.fullName;
+    const newTelegramChatId = body.telegramChatId !== undefined ? (body.telegramChatId === '' ? null : body.telegramChatId) : person.telegramChatId;
+    const newTelegramUserId = body.telegramUserId !== undefined ? (body.telegramUserId === '' ? null : body.telegramUserId) : person.telegramUserId;
+
+    if (!newPhoneNormalized) {
+      res.status(400).json({ error: 'Телефон не може бути порожнім' });
+      return;
+    }
+
+    const phoneChanged = newPhoneNormalized !== person.phoneNormalized;
+    const nameChanged = newFullName !== person.fullName;
+
+    const updated = await prisma.person.update({
+      where: { id },
+      data: {
+        phoneNormalized: newPhoneNormalized,
+        fullName: newFullName,
+        telegramChatId: newTelegramChatId,
+        telegramUserId: newTelegramUserId,
+      },
+    });
+
+    if (phoneChanged || nameChanged) {
+      const bookingData: { phone?: string; name?: string } = {};
+      if (phoneChanged) bookingData.phone = newPhoneNormalized;
+      if (nameChanged) bookingData.name = newFullName ?? '';
+      const viberData: { phone?: string; senderName?: string | null } = {};
+      if (phoneChanged) viberData.phone = newPhoneNormalized;
+      if (nameChanged) viberData.senderName = newFullName;
+
+      const [bookingsUpdated, viberUpdated] = await Promise.all([
+        Object.keys(bookingData).length > 0
+          ? prisma.booking.updateMany({ where: { personId: id }, data: bookingData })
+          : Promise.resolve({ count: 0 }),
+        Object.keys(viberData).length > 0
+          ? prisma.viberListing.updateMany({ where: { personId: id }, data: viberData })
+          : Promise.resolve({ count: 0 }),
+      ]);
+      if (bookingsUpdated.count > 0 || viberUpdated.count > 0) {
+        console.log(`📝 Оновлено персону #${id}: booking.count=${bookingsUpdated.count}, viberListing.count=${viberUpdated.count}`);
+      }
+    }
+
+    res.json(updated);
+  } catch (e) {
+    console.error('❌ PUT /admin/persons/:id:', e);
+    res.status(500).json({ error: 'Не вдалося оновити персону' });
+  }
+});
+
 /** База реклами — завжди тільки персони без Telegram бота. filter: no_telegram = всі з бази, no_communication = з бази тільки ті, до кого ще не комунікували. */
 const noTelegramCondition = {
   OR: [

@@ -4,11 +4,11 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber' | 'promo';
+type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -86,6 +86,18 @@ export const AdminPage: React.FC = () => {
     isActive: true,
   });
 
+  // Управління даними (Person)
+  const [persons, setPersons] = useState<PersonWithCounts[]>([]);
+  const [dataSearchQuery, setDataSearchQuery] = useState('');
+  const [dataLoading, setDataLoading] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<PersonWithCounts | null>(null);
+  const [personEditForm, setPersonEditForm] = useState<{
+    phone: string;
+    fullName: string;
+    telegramChatId: string;
+    telegramUserId: string;
+  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '' });
+
   useEffect(() => {
     if (activeTab === 'bookings') {
       loadBookings();
@@ -95,6 +107,8 @@ export const AdminPage: React.FC = () => {
       loadViberListings();
     } else if (activeTab === 'promo') {
       loadPromoPersons();
+    } else if (activeTab === 'data') {
+      loadPersons();
     }
   }, [activeTab, promoFilter]);
 
@@ -161,6 +175,49 @@ export const AdminPage: React.FC = () => {
       setPromoError(err instanceof Error ? err.message : 'Помилка створення контакту');
     } finally {
       setPromoContactSaving(false);
+    }
+  };
+
+  const loadPersons = async (search?: string) => {
+    setDataLoading(true);
+    setError('');
+    try {
+      const data = await apiClient.getPersons((search !== undefined ? search : dataSearchQuery) || undefined);
+      setPersons(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка завантаження персон');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const openEditPerson = (p: PersonWithCounts) => {
+    setEditingPerson(p);
+    setPersonEditForm({
+      phone: p.phoneNormalized,
+      fullName: p.fullName ?? '',
+      telegramChatId: p.telegramChatId ?? '',
+      telegramUserId: p.telegramUserId ?? '',
+    });
+  };
+
+  const handleUpdatePerson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPerson) return;
+    setError('');
+    setSuccess('');
+    try {
+      await apiClient.updatePerson(editingPerson.id, {
+        phone: personEditForm.phone.trim() || undefined,
+        fullName: personEditForm.fullName.trim() || null,
+        telegramChatId: personEditForm.telegramChatId.trim() || null,
+        telegramUserId: personEditForm.telegramUserId.trim() || null,
+      });
+      setSuccess('Персону оновлено. Пов’язані бронювання та Viber-оголошення оновлено за потреби.');
+      setEditingPerson(null);
+      loadPersons();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка оновлення');
     }
   };
 
@@ -458,6 +515,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('promo')}
           >
             📢 Реклама
+          </button>
+          <button
+            className={`tab ${activeTab === 'data' ? 'active' : ''}`}
+            onClick={() => setActiveTab('data')}
+          >
+            📊 Управління даними
           </button>
         </div>
 
@@ -1105,6 +1168,106 @@ export const AdminPage: React.FC = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'data' && (
+          <div className="tab-content">
+            <div className="controls">
+              <input
+                type="text"
+                placeholder="Пошук по телефону або імені..."
+                value={dataSearchQuery}
+                onChange={(e) => setDataSearchQuery(e.target.value)}
+                className="control-input"
+              />
+              <Button onClick={() => loadPersons()}>Пошук</Button>
+              <Button variant="secondary" onClick={() => loadPersons('')}>Оновити список</Button>
+            </div>
+            {dataLoading ? (
+              <div className="loading">Завантаження...</div>
+            ) : persons.length === 0 ? (
+              <div className="empty">Немає персон. Введіть пошук або натисніть «Оновити список».</div>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Телефон</th>
+                      <th>Ім'я</th>
+                      <th>Telegram ChatId</th>
+                      <th>Telegram UserId</th>
+                      <th>Бронювань</th>
+                      <th>Viber оголош.</th>
+                      <th>Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {persons.map((p) => (
+                      <tr key={p.id}>
+                        <td>#{p.id}</td>
+                        <td>{formatPhoneDisplay(p.phoneNormalized)}</td>
+                        <td>{p.fullName ?? '—'}</td>
+                        <td>{p.telegramChatId ?? '—'}</td>
+                        <td>{p.telegramUserId ?? '—'}</td>
+                        <td>{p._count.bookings}</td>
+                        <td>{p._count.viberListings}</td>
+                        <td>
+                          <Button variant="secondary" onClick={() => openEditPerson(p)}>
+                            Редагувати
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {editingPerson && (
+              <div className="modal" onClick={(e) => e.target === e.currentTarget && setEditingPerson(null)}>
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h2>Редагувати персону #{editingPerson.id}</h2>
+                    <button className="close-btn" onClick={() => setEditingPerson(null)}>&times;</button>
+                  </div>
+                  <p className="modal-hint">При зміні телефону або імені оновляться пов’язані записи в Бронюваннях та Viber-оголошеннях.</p>
+                  <form onSubmit={handleUpdatePerson}>
+                    <Input
+                      label="Телефон (нормалізований)"
+                      type="text"
+                      placeholder="380931701835"
+                      value={personEditForm.phone}
+                      onChange={(e) => setPersonEditForm({ ...personEditForm, phone: e.target.value })}
+                      required
+                    />
+                    <Input
+                      label="Ім'я"
+                      type="text"
+                      placeholder="Іван Петренко"
+                      value={personEditForm.fullName}
+                      onChange={(e) => setPersonEditForm({ ...personEditForm, fullName: e.target.value })}
+                    />
+                    <Input
+                      label="Telegram ChatId"
+                      type="text"
+                      value={personEditForm.telegramChatId}
+                      onChange={(e) => setPersonEditForm({ ...personEditForm, telegramChatId: e.target.value })}
+                    />
+                    <Input
+                      label="Telegram UserId"
+                      type="text"
+                      value={personEditForm.telegramUserId}
+                      onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUserId: e.target.value })}
+                    />
+                    <div className="form-actions">
+                      <Button type="button" variant="secondary" onClick={() => setEditingPerson(null)}>Скасувати</Button>
+                      <Button type="submit">Зберегти</Button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
           </div>

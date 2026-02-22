@@ -135,3 +135,19 @@ export interface RideShareRequestFromSiteResponse {
   message: string;
   driverNotified: boolean;
 }
+
+/** Персона (єдина база людей). Управління даними в адмінці. */
+export interface Person {
+  id: number;
+  phoneNormalized: string;
+  fullName: string | null;
+  telegramChatId: string | null;
+  telegramUserId: string | null;
+  telegramPromoSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonWithCounts extends Person {
+  _count: { bookings: number; viberListings: number };
+}
