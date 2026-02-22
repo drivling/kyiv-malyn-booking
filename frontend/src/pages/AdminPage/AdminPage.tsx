@@ -96,7 +96,8 @@ export const AdminPage: React.FC = () => {
     fullName: string;
     telegramChatId: string;
     telegramUserId: string;
-  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '' });
+    telegramPromoSentAt: string; // ISO або '' для обнулення
+  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '' });
 
   useEffect(() => {
     if (activeTab === 'bookings') {
@@ -191,6 +192,17 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const toDateTimeLocal = (iso: string | null): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day}T${h}:${min}`;
+  };
+
   const openEditPerson = (p: PersonWithCounts) => {
     setEditingPerson(p);
     setPersonEditForm({
@@ -198,6 +210,7 @@ export const AdminPage: React.FC = () => {
       fullName: p.fullName ?? '',
       telegramChatId: p.telegramChatId ?? '',
       telegramUserId: p.telegramUserId ?? '',
+      telegramPromoSentAt: toDateTimeLocal(p.telegramPromoSentAt),
     });
   };
 
@@ -212,6 +225,7 @@ export const AdminPage: React.FC = () => {
         fullName: personEditForm.fullName.trim() || null,
         telegramChatId: personEditForm.telegramChatId.trim() || null,
         telegramUserId: personEditForm.telegramUserId.trim() || null,
+        telegramPromoSentAt: personEditForm.telegramPromoSentAt.trim() ? new Date(personEditForm.telegramPromoSentAt.trim()).toISOString() : null,
       });
       setSuccess('Персону оновлено. Пов’язані бронювання та Viber-оголошення оновлено за потреби.');
       setEditingPerson(null);
@@ -1200,6 +1214,7 @@ export const AdminPage: React.FC = () => {
                       <th>Ім'я</th>
                       <th>Telegram ChatId</th>
                       <th>Telegram UserId</th>
+                      <th>Промо відправлено</th>
                       <th>Бронювань</th>
                       <th>Viber оголош.</th>
                       <th>Дії</th>
@@ -1213,6 +1228,7 @@ export const AdminPage: React.FC = () => {
                         <td>{p.fullName ?? '—'}</td>
                         <td>{p.telegramChatId ?? '—'}</td>
                         <td>{p.telegramUserId ?? '—'}</td>
+                        <td>{p.telegramPromoSentAt ? new Date(p.telegramPromoSentAt).toLocaleString('uk-UA') : '—'}</td>
                         <td>{p._count.bookings}</td>
                         <td>{p._count.viberListings}</td>
                         <td>
@@ -1262,6 +1278,23 @@ export const AdminPage: React.FC = () => {
                       value={personEditForm.telegramUserId}
                       onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUserId: e.target.value })}
                     />
+                    <div className="form-group">
+                      <label>Промо відправлено (telegramPromoSentAt)</label>
+                      <input
+                        type="datetime-local"
+                        className="control-input"
+                        value={personEditForm.telegramPromoSentAt}
+                        onChange={(e) => setPersonEditForm({ ...personEditForm, telegramPromoSentAt: e.target.value })}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setPersonEditForm({ ...personEditForm, telegramPromoSentAt: '' })}
+                        style={{ marginTop: '8px' }}
+                      >
+                        Обнулити (збити контакт для повторної реклами)
+                      </Button>
+                    </div>
                     <div className="form-actions">
                       <Button type="button" variant="secondary" onClick={() => setEditingPerson(null)}>Скасувати</Button>
                       <Button type="submit">Зберегти</Button>

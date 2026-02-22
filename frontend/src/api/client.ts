@@ -180,8 +180,8 @@ class ApiClient {
     return this.request<PersonWithCounts>(`/admin/persons/${id}`);
   }
 
-  /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. */
-  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null }): Promise<Person> {
+  /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. telegramPromoSentAt: null або '' — обнулити. */
+  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramPromoSentAt?: string | null }): Promise<Person> {
     return this.request<Person>(`/admin/persons/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

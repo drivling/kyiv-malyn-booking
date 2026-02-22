@@ -1349,6 +1349,7 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
       fullName?: string | null;
       telegramChatId?: string | null;
       telegramUserId?: string | null;
+      telegramPromoSentAt?: string | null;
     };
     const person = await prisma.person.findUnique({ where: { id } });
     if (!person) {
@@ -1360,6 +1361,15 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
     const newFullName = body.fullName !== undefined ? (typeof body.fullName === 'string' ? body.fullName.trim() || null : null) : person.fullName;
     const newTelegramChatId = body.telegramChatId !== undefined ? (body.telegramChatId === '' ? null : body.telegramChatId) : person.telegramChatId;
     const newTelegramUserId = body.telegramUserId !== undefined ? (body.telegramUserId === '' ? null : body.telegramUserId) : person.telegramUserId;
+    let newTelegramPromoSentAt: Date | null = person.telegramPromoSentAt;
+    if (body.telegramPromoSentAt !== undefined) {
+      if (body.telegramPromoSentAt === null || body.telegramPromoSentAt === '') {
+        newTelegramPromoSentAt = null;
+      } else {
+        const parsed = new Date(body.telegramPromoSentAt as string);
+        newTelegramPromoSentAt = Number.isNaN(parsed.getTime()) ? person.telegramPromoSentAt : parsed;
+      }
+    }
 
     if (!newPhoneNormalized) {
       res.status(400).json({ error: 'Телефон не може бути порожнім' });
@@ -1376,6 +1386,7 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
         fullName: newFullName,
         telegramChatId: newTelegramChatId,
         telegramUserId: newTelegramUserId,
+        telegramPromoSentAt: newTelegramPromoSentAt,
       },
     });
 

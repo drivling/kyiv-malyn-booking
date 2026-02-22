@@ -113,6 +113,17 @@
   box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.1);
 }
 
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #1a1a1a;
+}
+
 .table-container {
   background: white;
   border-radius: 16px;
