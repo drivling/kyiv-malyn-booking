@@ -1,14 +1,14 @@
 .btn {
   padding: 14px 28px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--pb-radius);
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
   transition: all 0.2s ease;
   text-transform: none;
   letter-spacing: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--pb-shadow);
 }
 
 .btn:disabled {
@@ -19,12 +19,12 @@
 }
 
 .btn-primary {
-  background: #00AFF5;
+  background: var(--pb-primary);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0099d6;
+  background: var(--pb-primary-hover);
   box-shadow: 0 4px 12px rgba(0, 175, 245, 0.3);
   transform: translateY(-1px);
 }

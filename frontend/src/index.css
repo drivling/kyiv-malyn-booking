@@ -1,3 +1,4 @@
+/* Стилі в дусі ПриватБанку: чистий фон, акцент #00AFF5, картки з тінями */
 :root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -6,10 +7,33 @@
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ПриватБанк-подібна палітра */
+  --pb-primary: #00AFF5;
+  --pb-primary-hover: #0099d6;
+  --pb-primary-light: #e6f7fc;
+  --pb-bg: #ffffff;
+  --pb-bg-page: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  --pb-card-bg: #ffffff;
+  --pb-border: #e5e5e5;
+  --pb-border-light: #f0f0f0;
+  --pb-text: #1a1a1a;
+  --pb-text-muted: #666666;
+  --pb-text-hint: #999999;
+  --pb-radius: 12px;
+  --pb-radius-lg: 16px;
+  --pb-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --pb-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+html {
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #ffffff;
+  background: var(--pb-bg);
+  color: var(--pb-text);
+  overflow-x: hidden;
 }

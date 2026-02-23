@@ -1,35 +1,35 @@
 .booking-page {
   min-height: calc(100vh - 60px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
-  padding: 60px 20px;
+  background: var(--pb-bg-page);
+  padding: 40px 20px;
 }
 
 .booking-container {
   max-width: 600px;
   margin: 0 auto;
-  background: #ffffff;
+  background: var(--pb-card-bg);
   padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e5e5;
+  border-radius: var(--pb-radius-lg);
+  box-shadow: var(--pb-shadow-card);
+  border: 1px solid var(--pb-border);
 }
 
 .booking-header {
   text-align: center;
   margin-bottom: 40px;
   padding-bottom: 24px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid var(--pb-border-light);
 }
 
 .booking-container h2 {
   margin-bottom: 8px;
-  color: #1a1a1a;
+  color: var(--pb-text);
   font-size: 32px;
   font-weight: 700;
 }
 
 .booking-subtitle {
-  color: #666666;
+  color: var(--pb-text-muted);
   font-size: 16px;
   font-weight: 400;
   margin: 0;
@@ -94,27 +94,27 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: linear-gradient(135deg, #54a9eb 0%, #0088cc 100%);
+  background: var(--pb-primary);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--pb-radius);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 136, 204, 0.2);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 175, 245, 0.25);
   align-self: flex-start;
 }
 
 .telegram-login-hint:hover {
-  background: linear-gradient(135deg, #4a9ee5 0%, #0077b3 100%);
-  box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+  background: var(--pb-primary-hover);
+  box-shadow: 0 4px 12px rgba(0, 175, 245, 0.3);
   transform: translateY(-1px);
 }
 
 .telegram-login-hint:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 136, 204, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 175, 245, 0.2);
 }
 
 .telegram-login-hint svg {
@@ -158,7 +158,7 @@
 }
 
 .loading {
-  color: #666666;
+  color: var(--pb-text-muted);
   font-size: 13px;
   margin-top: 8px;
   font-weight: 400;
@@ -167,7 +167,7 @@
 .availability-info {
   font-size: 13px;
   margin-top: 8px;
-  color: #666666;
+  color: var(--pb-text-muted);
   font-weight: 400;
 }
 
@@ -175,12 +175,12 @@
 .telegram-info-block {
   margin-top: 32px;
   padding: 24px;
-  background: linear-gradient(135deg, #0088cc 0%, #00a8e8 100%);
-  border-radius: 16px;
+  background: linear-gradient(135deg, var(--pb-primary-hover) 0%, var(--pb-primary) 100%);
+  border-radius: var(--pb-radius-lg);
   display: flex;
   gap: 20px;
   align-items: flex-start;
-  box-shadow: 0 4px 16px rgba(0, 136, 204, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 175, 245, 0.25);
   color: #ffffff;
 }
 
@@ -230,7 +230,7 @@
   height: 28px;
   border-radius: 50%;
   background: #ffffff;
-  color: #0088cc;
+  color: var(--pb-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,13 +257,13 @@
   gap: 8px;
   padding: 14px 28px;
   background: #ffffff;
-  color: #0088cc;
-  border-radius: 10px;
+  color: var(--pb-primary);
+  border-radius: var(--pb-radius);
   text-decoration: none;
   font-weight: 600;
   font-size: 16px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .telegram-button:hover {
@@ -302,12 +302,13 @@
 }
 
 .telegram-success-content {
-  background: #ffffff;
-  border-radius: 20px;
+  background: var(--pb-card-bg);
+  border-radius: var(--pb-radius-lg);
   padding: 40px;
   max-width: 500px;
   width: 100%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--pb-border);
   position: relative;
   text-align: center;
   animation: slideUp 0.3s ease;
@@ -356,13 +357,13 @@
   margin: 0 0 12px 0;
   font-size: 28px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--pb-text);
 }
 
 .telegram-success-text {
   margin: 0 0 24px 0;
   font-size: 16px;
-  color: #666;
+  color: var(--pb-text-muted);
   line-height: 1.5;
 }
 
@@ -386,20 +387,20 @@
   gap: 8px;
   background: #ffffff;
   padding: 12px 16px;
-  border-radius: 8px;
-  border: 2px dashed #0088cc;
+  border-radius: var(--pb-radius);
+  border: 2px dashed var(--pb-primary);
   justify-content: center;
 }
 
 .telegram-command code {
   font-family: 'Courier New', monospace;
   font-size: 16px;
-  color: #0088cc;
+  color: var(--pb-primary);
   font-weight: 600;
 }
 
 .copy-button {
-  background: #0088cc;
+  background: var(--pb-primary);
   border: none;
   padding: 6px 12px;
   border-radius: 6px;
@@ -409,27 +410,27 @@
 }
 
 .copy-button:hover {
-  background: #006ba1;
-  transform: scale(1.1);
+  background: var(--pb-primary-hover);
+  transform: scale(1.05);
 }
 
 .telegram-success-button {
   display: inline-block;
   padding: 16px 32px;
-  background: linear-gradient(135deg, #0088cc 0%, #00a8e8 100%);
+  background: linear-gradient(135deg, var(--pb-primary-hover) 0%, var(--pb-primary) 100%);
   color: #ffffff;
-  border-radius: 12px;
+  border-radius: var(--pb-radius);
   text-decoration: none;
   font-weight: 600;
   font-size: 16px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(0, 136, 204, 0.3);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 175, 245, 0.3);
   margin-bottom: 16px;
 }
 
 .telegram-success-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 136, 204, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 175, 245, 0.35);
 }
 
 .telegram-skip {
@@ -456,12 +457,12 @@
 .viber-listings-section h3 {
   font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--pb-text);
   margin: 0 0 8px 0;
 }
 
 .viber-subtitle {
-  color: #666;
+  color: var(--pb-text-muted);
   font-size: 14px;
   margin: 0 0 24px 0;
 }
@@ -655,8 +656,21 @@
   border-left: 4px solid #f59e0b;
 }
 
-/* Адаптивність для мобільних */
+/* Адаптивність для мобільних і планшетів */
 @media (max-width: 768px) {
+  .booking-page {
+    padding: 24px 16px;
+  }
+
+  .booking-container {
+    padding: 28px 20px;
+    border-radius: var(--pb-radius);
+  }
+
+  .booking-container h2 {
+    font-size: 26px;
+  }
+
   .date-time-row {
     flex-direction: column;
     gap: 20px;
@@ -689,10 +703,12 @@
   
   .telegram-success-content {
     padding: 32px 24px;
+    margin: 16px;
   }
   
   .telegram-command {
     flex-direction: column;
+    flex-wrap: wrap;
   }
 
   .viber-listing-details {
@@ -708,5 +724,24 @@
     flex-direction: column;
     gap: 4px;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .booking-page {
+    padding: 16px 12px;
+  }
+
+  .booking-container {
+    padding: 24px 16px;
+  }
+
+  .booking-container h2 {
+    font-size: 22px;
+  }
+
+  .date-time-row,
+  .phone-name-row {
+    gap: 16px;
   }
 }

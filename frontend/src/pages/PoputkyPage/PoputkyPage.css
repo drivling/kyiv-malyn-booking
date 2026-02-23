@@ -1,6 +1,6 @@
 .poputky-page {
   min-height: calc(100vh - 60px);
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  background: var(--pb-bg-page);
   padding: 32px 16px 48px;
 }
 
@@ -31,9 +31,9 @@
 }
 
 .feature-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius);
   padding: 14px;
 }
 
@@ -61,19 +61,20 @@
   align-items: center;
   justify-content: center;
   padding: 10px 16px;
-  border-radius: 10px;
-  background: #229ed9;
+  border-radius: var(--pb-radius);
+  background: var(--pb-primary);
   color: #fff;
   font-weight: 600;
   text-decoration: none;
 }
 
 .telegram-action-button:hover {
-  opacity: 0.9;
+  background: var(--pb-primary-hover);
+  opacity: 1;
 }
 
 .telegram-action-button--secondary {
-  background: #111827;
+  background: var(--pb-text);
 }
 
 .telegram-commands {
@@ -115,9 +116,9 @@
 }
 
 .poputky-controls button {
-  background: #111827;
+  background: var(--pb-primary);
   color: #fff;
-  border-color: #111827;
+  border-color: var(--pb-primary);
   cursor: pointer;
   font-weight: 600;
 }
@@ -243,10 +244,10 @@
 }
 
 .poputky-action-button {
-  border: 1px solid #111827;
-  background: #111827;
+  border: 1px solid var(--pb-primary);
+  background: var(--pb-primary);
   color: #fff;
-  border-radius: 10px;
+  border-radius: var(--pb-radius);
   padding: 9px 12px;
   font-size: 14px;
   font-weight: 600;
@@ -259,8 +260,8 @@
 }
 
 .poputky-action-button--ghost {
-  background: #fff;
-  color: #111827;
+  background: var(--pb-card-bg);
+  color: var(--pb-primary);
 }
 
 .poputky-modal-overlay {

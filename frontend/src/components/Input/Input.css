@@ -6,7 +6,7 @@
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--pb-text);
   font-size: 14px;
 }
 
@@ -14,22 +14,22 @@
   width: 100%;
   padding: 14px 16px;
   box-sizing: border-box;
-  border: 2px solid #e5e5e5;
-  border-radius: 12px;
+  border: 2px solid var(--pb-border);
+  border-radius: var(--pb-radius);
   font-size: 16px;
   transition: all 0.2s ease;
-  background: #ffffff;
-  color: #1a1a1a;
+  background: var(--pb-card-bg);
+  color: var(--pb-text);
   font-family: inherit;
 }
 
 .input::placeholder {
-  color: #999999;
+  color: var(--pb-text-hint);
 }
 
 .input:focus {
   outline: none;
-  border-color: #00AFF5;
+  border-color: var(--pb-primary);
   box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.1);
 }
 
