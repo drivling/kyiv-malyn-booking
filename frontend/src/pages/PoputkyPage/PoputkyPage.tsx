@@ -185,124 +185,101 @@ export const PoputkyPage: React.FC = () => {
   return (
     <div className="poputky-page">
       <div className="poputky-container">
-        <div className="poputky-header">
-          <h1>🚗 Попутки</h1>
-          <p>Пошук поїздок: водії, пасажири Малин ↔ Київ, Житомир, Коростень</p>
-        </div>
-
-        <div className="telegram-features-grid">
-          <article className="feature-card">
-            <h3>🚗 Запит на поїздку як водій</h3>
-            <p>Увійдіть через Telegram, відкрийте бота та опишіть рейс: маршрут, дату, час і кількість місць.</p>
-          </article>
-          <article className="feature-card">
-            <h3>👤 Запит на поїздку як пасажир</h3>
-            <p>Через Telegram залишайте запит із маршрутом і бажаним часом, щоб знайти вільного водія.</p>
-          </article>
-          <article className="feature-card">
-            <h3>🌐 Вільний перегляд без логіну</h3>
-            <p>Нижче доступний відкритий список актуальних попуток без авторизації на сайті.</p>
-          </article>
-        </div>
-
-        <div className="telegram-actions">
-          <a
-            href={telegramScenarios.scenarios.driver.deepLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="telegram-action-button"
-          >
-            🚗 Я водій
-          </a>
-          <a
-            href={telegramScenarios.scenarios.passenger.deepLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="telegram-action-button"
-          >
-            👤 Я пасажир
-          </a>
-          <a
-            href={telegramScenarios.scenarios.view.webLink || 'https://malin.kiev.ua/poputky'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="telegram-action-button telegram-action-button--secondary"
-          >
-            🌐 Вільний перегляд
-          </a>
-          <div className="telegram-commands">
-            <span>Доступні команди:</span>
-            <code>{telegramScenarios.scenarios.driver.command}</code>
-            <code>{telegramScenarios.scenarios.passenger.command}</code>
-            <code>{telegramScenarios.scenarios.view.command}</code>
+        <header className="poputky-hero">
+          <h1 className="poputky-title">Попутки</h1>
+          <p className="poputky-subtitle">Малин ↔ Київ, Житомир, Коростень. Додайте поїздку в Telegram або перегляньте список нижче.</p>
+          <div className="poputky-hero-actions">
+            <a
+              href={telegramScenarios.scenarios.driver.deepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="poputky-hero-btn poputky-hero-btn--primary"
+            >
+              Я водій
+            </a>
+            <a
+              href={telegramScenarios.scenarios.passenger.deepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="poputky-hero-btn poputky-hero-btn--primary"
+            >
+              Я пасажир
+            </a>
+            <a
+              href={telegramScenarios.scenarios.view.webLink || 'https://malin.kiev.ua/poputky'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="poputky-hero-btn poputky-hero-btn--secondary"
+            >
+              Відкрити в Telegram
+            </a>
           </div>
-        </div>
+        </header>
 
-        <div className="poputky-controls">
-          <select
-            value={listingType}
-            onChange={(e) => setListingType(e.target.value as ViberListingType | '')}
-          >
-            <option value="">Всі типи</option>
-            <option value="driver">🚗 Водії</option>
-            <option value="passenger">👤 Пасажири</option>
-          </select>
-          <input
-            type="date"
-            value={tripDate}
-            onChange={(e) => setTripDate(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Пошук: маршрут, ім'я, телефон..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <select
-            value={sortByTime}
-            onChange={(e) => setSortByTime(e.target.value as 'asc' | 'desc')}
-          >
-            <option value="asc">🕐 Час: раніше → пізніше</option>
-            <option value="desc">🕐 Час: пізніше → раніше</option>
-          </select>
-          <button type="button" onClick={loadPoputky} disabled={loading}>
-            {loading ? 'Оновлення...' : 'Оновити'}
-          </button>
-        </div>
-
-        <div className="poputky-stats">
-          <div className="stat-card">
-            <span>Всього</span>
-            <strong>{filteredListings.length}</strong>
+        <section className="poputky-filters-card">
+          <div className="poputky-filters-row">
+            <select
+              value={listingType}
+              onChange={(e) => setListingType(e.target.value as ViberListingType | '')}
+              className="poputky-filter"
+              aria-label="Тип оголошення"
+            >
+              <option value="">Всі</option>
+              <option value="driver">Водії</option>
+              <option value="passenger">Пасажири</option>
+            </select>
+            <input
+              type="date"
+              value={tripDate}
+              onChange={(e) => setTripDate(e.target.value)}
+              className="poputky-filter"
+              aria-label="Дата поїздки"
+            />
+            <input
+              type="text"
+              placeholder="Маршрут, ім'я, телефон..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="poputky-filter poputky-filter--search"
+            />
+            <select
+              value={sortByTime}
+              onChange={(e) => setSortByTime(e.target.value as 'asc' | 'desc')}
+              className="poputky-filter"
+              aria-label="Сортування"
+            >
+              <option value="asc">Спочатку раніші</option>
+              <option value="desc">Спочатку пізніші</option>
+            </select>
+            <button type="button" onClick={loadPoputky} disabled={loading} className="poputky-filter-btn">
+              {loading ? 'Оновлення...' : 'Оновити'}
+            </button>
           </div>
-          <div className="stat-card">
-            <span>Водії</span>
-            <strong>{driverCount}</strong>
+          <div className="poputky-stats-row">
+            <span className="poputky-stat">Всього: <strong>{filteredListings.length}</strong></span>
+            <span className="poputky-stat">Водії: <strong>{driverCount}</strong></span>
+            <span className="poputky-stat">Пасажири: <strong>{passengerCount}</strong></span>
           </div>
-          <div className="stat-card">
-            <span>Пасажири</span>
-            <strong>{passengerCount}</strong>
-          </div>
-        </div>
+        </section>
 
         {error && <Alert variant="error">{error}</Alert>}
         {requestError && <Alert variant="error">{requestError}</Alert>}
         {!isTelegramLoggedIn && (
           <Alert variant="info">
-            Щоб бронювати попутки прямо на сайті, увійдіть через Telegram.
+            Увійдіть через Telegram, щоб бронювати місце у водія прямо на сайті.
           </Alert>
         )}
 
         {loading ? (
-          <div className="poputky-loading">Завантаження попуток...</div>
+          <div className="poputky-state poputky-loading">Завантаження попуток...</div>
         ) : filteredListings.length === 0 ? (
-          <div className="poputky-empty">
-            Зараз немає активних попуток за вибраними фільтрами.
+          <div className="poputky-state poputky-empty">
+            Немає оголошень за вибраними фільтрами. Додайте поїздку в Telegram або змініть умови пошуку.
           </div>
         ) : (
-          <div className="poputky-list">
+          <ul className="poputky-list" aria-label="Список попуток">
             {filteredListings.map((listing) => (
-              <article key={listing.id} className="poputky-item">
+              <li key={listing.id} className="poputky-item">
                 <div className="poputky-item-header">
                   <span className={`poputky-badge ${listing.listingType === 'driver' ? 'driver' : 'passenger'}`}>
                     {listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
@@ -350,9 +327,9 @@ export const PoputkyPage: React.FC = () => {
                     )}
                   </div>
                 )}
-              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
         {showRequestStatusModal && requestStatusData && (

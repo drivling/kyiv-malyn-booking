@@ -42,12 +42,21 @@
   --pb-btn-secondary-hover: #d8d8d8;
   --pb-btn-secondary-text: #1a1a1a;
 
-  /* Радіуси та тіні (як на PB) */
+  /* Радіуси та тіні (як на PB: помірне округлення 6–8px) */
+  --pb-radius-sm: 6px;
   --pb-radius: 8px;
   --pb-radius-lg: 12px;
+  --pb-radius-xl: 16px;
   --pb-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   --pb-shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
   --pb-shadow-hover: 0 4px 12px rgba(0, 168, 107, 0.2);
+
+  /* Відступи як на PB (консистентність інтерфейсу) */
+  --pb-space-xs: 4px;
+  --pb-space-sm: 8px;
+  --pb-space: 16px;
+  --pb-space-lg: 24px;
+  --pb-space-xl: 32px;
 
   /* Розміри типографіки в стилі PB */
   --pb-font-size-sm: 13px;

@@ -1,321 +1,378 @@
+/* Сторінка попуток: логіка як на сайтах бронювань (пошук зверху), стиль як ПриватБанк */
+
 .poputky-page {
   min-height: calc(100vh - 60px);
   background: var(--pb-bg-page);
-  padding: 32px 16px 48px;
+  padding: var(--pb-space-lg) var(--pb-space);
+  padding-bottom: 48px;
 }
 
 .poputky-container {
-  max-width: 1080px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
-.poputky-header {
-  margin-bottom: 20px;
+/* Hero: заголовок + підзаголовок + кнопки дій */
+.poputky-hero {
+  margin-bottom: var(--pb-space-xl);
 }
 
-.poputky-header h1 {
-  margin: 0 0 8px;
-  font-size: 32px;
+.poputky-title {
+  margin: 0 0 var(--pb-space-sm);
+  font-size: var(--pb-font-size-2xl);
+  font-weight: var(--pb-font-weight-bold);
+  color: var(--pb-text);
 }
 
-.poputky-header p {
-  margin: 0;
-  color: #4b5563;
+.poputky-subtitle {
+  margin: 0 0 var(--pb-space-lg);
+  font-size: var(--pb-font-size);
+  color: var(--pb-text-muted);
+  line-height: 1.5;
 }
 
-.telegram-features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.feature-card {
-  background: var(--pb-card-bg);
-  border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius);
-  padding: 14px;
-}
-
-.feature-card h3 {
-  margin: 0 0 8px;
-  font-size: 17px;
-}
-
-.feature-card p {
-  margin: 0;
-  font-size: 14px;
-  color: #4b5563;
-}
-
-.telegram-actions {
+.poputky-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 16px;
-  align-items: center;
-  margin-bottom: 20px;
+  gap: var(--pb-space-sm) var(--pb-space);
 }
 
-.telegram-action-button {
+.poputky-hero-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 16px;
+  padding: 12px 24px;
   border-radius: var(--pb-radius);
+  font-size: var(--pb-font-size);
+  font-weight: var(--pb-font-weight-semibold);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+}
+
+.poputky-hero-btn--primary {
   background: var(--pb-primary);
   color: #fff;
-  font-weight: 600;
-  text-decoration: none;
+  box-shadow: var(--pb-shadow);
 }
 
-.telegram-action-button:hover {
+.poputky-hero-btn--primary:hover {
   background: var(--pb-primary-hover);
-  opacity: 1;
+  box-shadow: var(--pb-shadow-hover);
+  transform: translateY(-1px);
 }
 
-.telegram-action-button--secondary {
-  background: var(--pb-text);
+.poputky-hero-btn--secondary {
+  background: var(--pb-btn-secondary-bg);
+  color: var(--pb-btn-secondary-text);
+  border: 1px solid var(--pb-border);
 }
 
-.telegram-commands {
-  display: inline-flex;
+.poputky-hero-btn--secondary:hover {
+  background: var(--pb-btn-secondary-hover);
+}
+
+/* Одна картка фільтрів (як на сайтах бронювань) */
+.poputky-filters-card {
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-lg);
+  box-shadow: var(--pb-shadow-card);
+  padding: var(--pb-space-lg);
+  margin-bottom: var(--pb-space-lg);
+}
+
+.poputky-filters-row {
+  display: grid;
+  grid-template-columns: 100px 140px minmax(0, 1fr) 160px auto;
+  gap: var(--pb-space-sm);
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 14px;
-  color: #4b5563;
+}
+
+.poputky-filter {
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius);
+  font-size: var(--pb-font-size);
+  font-family: inherit;
+  background: var(--pb-card-bg);
+  color: var(--pb-text);
+}
+
+.poputky-filter:focus {
+  outline: none;
+  border-color: var(--pb-primary);
+  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
+}
+
+.poputky-filter--search {
   min-width: 0;
 }
 
-.telegram-commands code {
-  display: inline-block;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 13px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.poputky-controls {
-  display: grid;
-  grid-template-columns: 180px 180px minmax(220px, 1fr) 220px auto;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.poputky-controls select,
-.poputky-controls input,
-.poputky-controls button {
-  height: 42px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-  padding: 0 12px;
-  font-size: 14px;
-}
-
-.poputky-controls button {
+.poputky-filter-btn {
+  height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--pb-radius);
   background: var(--pb-primary);
   color: #fff;
-  border-color: var(--pb-primary);
+  font-size: var(--pb-font-size);
+  font-weight: var(--pb-font-weight-semibold);
   cursor: pointer;
-  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
-.poputky-controls button:disabled {
+.poputky-filter-btn:hover:not(:disabled) {
+  background: var(--pb-primary-hover);
+  box-shadow: var(--pb-shadow-hover);
+}
+
+.poputky-filter-btn:disabled {
   opacity: 0.65;
-  cursor: default;
+  cursor: not-allowed;
 }
 
-.poputky-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.stat-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px 12px;
+.poputky-stats-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--pb-space) var(--pb-space-lg);
+  margin-top: var(--pb-space);
+  padding-top: var(--pb-space);
+  border-top: 1px solid var(--pb-border-light);
 }
 
-.stat-card span {
-  font-size: 14px;
-  color: #6b7280;
+.poputky-stat {
+  font-size: var(--pb-font-size-sm);
+  color: var(--pb-text-muted);
 }
 
-.stat-card strong {
-  font-size: 22px;
+.poputky-stat strong {
+  color: var(--pb-primary);
+  font-weight: var(--pb-font-weight-semibold);
 }
 
-.poputky-loading,
-.poputky-empty {
-  border: 1px dashed #d1d5db;
-  border-radius: 12px;
-  padding: 20px;
-  color: #6b7280;
-  background: #fff;
-}
-
+/* Список: одна колонка, картки як у PB */
 .poputky-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pb-space);
 }
 
 .poputky-item {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 14px;
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-lg);
+  box-shadow: var(--pb-shadow);
+  padding: var(--pb-space-lg);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--pb-space-sm);
+  transition: box-shadow 0.2s ease;
+}
+
+.poputky-item:hover {
+  box-shadow: var(--pb-shadow-card);
 }
 
 .poputky-item-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-}
-
-.poputky-item h3 {
-  margin: 0;
-  font-size: 18px;
+  gap: var(--pb-space-sm);
+  flex-wrap: wrap;
 }
 
 .poputky-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--pb-font-size-sm);
+  font-weight: var(--pb-font-weight-semibold);
 }
 
 .poputky-badge.driver {
-  background: #ecfdf5;
-  color: #065f46;
+  background: var(--pb-primary-light);
+  color: var(--pb-primary-hover);
 }
 
 .poputky-badge.passenger {
-  background: #eff6ff;
-  color: #1e3a8a;
+  background: var(--pb-bg-secondary);
+  color: var(--pb-text-muted);
+  border: 1px solid var(--pb-border);
 }
 
 .poputky-date {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: var(--pb-font-size-sm);
+  color: var(--pb-text-hint);
+}
+
+.poputky-item h3 {
+  margin: 0;
+  font-size: var(--pb-font-size-lg);
+  font-weight: var(--pb-font-weight-semibold);
+  color: var(--pb-text);
+  line-height: 1.3;
 }
 
 .poputky-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  font-size: 14px;
-  color: #374151;
+  gap: var(--pb-space) var(--pb-space-lg);
+  font-size: var(--pb-font-size-sm);
+  color: var(--pb-text-muted);
 }
 
 .poputky-notes {
   margin: 0;
-  color: #374151;
+  font-size: var(--pb-font-size-sm);
+  color: var(--pb-text-muted);
+  line-height: 1.5;
 }
 
 .poputky-phone {
   align-self: flex-start;
-  color: #2563eb;
+  color: var(--pb-primary);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: var(--pb-font-weight-semibold);
+  font-size: var(--pb-font-size);
 }
 
 .poputky-phone:hover {
   text-decoration: underline;
+  color: var(--pb-primary-hover);
 }
 
 .poputky-actions {
-  margin-top: 4px;
+  margin-top: var(--pb-space-xs);
 }
 
 .poputky-action-button {
-  border: 1px solid var(--pb-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--pb-radius);
+  font-size: var(--pb-font-size);
+  font-weight: var(--pb-font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.poputky-action-button:not(.poputky-action-button--ghost) {
   background: var(--pb-primary);
   color: #fff;
-  border-radius: var(--pb-radius);
-  padding: 9px 12px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
+  box-shadow: var(--pb-shadow);
+}
+
+.poputky-action-button:not(.poputky-action-button--ghost):hover:not(:disabled) {
+  background: var(--pb-primary-hover);
+  box-shadow: var(--pb-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .poputky-action-button:disabled {
   opacity: 0.65;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .poputky-action-button--ghost {
   background: var(--pb-card-bg);
   color: var(--pb-primary);
+  border: 1px solid var(--pb-primary);
 }
 
+.poputky-action-button--ghost:hover {
+  background: var(--pb-primary-light);
+}
+
+/* Пустий стан / завантаження */
+.poputky-state {
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-lg);
+  padding: var(--pb-space-xl);
+  text-align: center;
+  color: var(--pb-text-muted);
+  font-size: var(--pb-font-size);
+}
+
+/* Модалка після запиту */
 .poputky-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(17, 24, 39, 0.6);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: var(--pb-space);
 }
 
 .poputky-modal {
   width: 100%;
-  max-width: 520px;
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
-  padding: 18px;
+  max-width: 440px;
+  background: var(--pb-card-bg);
+  border-radius: var(--pb-radius-lg);
+  border: 1px solid var(--pb-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  padding: var(--pb-space-lg);
   position: relative;
 }
 
 .poputky-modal-close {
   position: absolute;
-  right: 10px;
-  top: 8px;
+  right: var(--pb-space-sm);
+  top: var(--pb-space-sm);
   border: none;
-  background: transparent;
+  background: none;
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--pb-text-hint);
+  padding: var(--pb-space-xs);
+  border-radius: var(--pb-radius-sm);
+}
+
+.poputky-modal-close:hover {
+  color: var(--pb-text);
+  background: var(--pb-bg-secondary);
 }
 
 .poputky-modal h3 {
-  margin: 4px 24px 8px 0;
-  font-size: 20px;
+  margin: 0 32px var(--pb-space-sm) 0;
+  font-size: var(--pb-font-size-lg);
+  font-weight: var(--pb-font-weight-semibold);
+  color: var(--pb-text);
 }
 
 .poputky-modal-subtitle {
-  margin: 0 0 12px;
-  color: #4b5563;
+  margin: 0 0 var(--pb-space);
+  font-size: var(--pb-font-size-sm);
+  color: var(--pb-text-muted);
+  line-height: 1.5;
 }
 
 .poputky-modal-details {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px;
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
+  background: var(--pb-bg-secondary);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius);
+  padding: var(--pb-space);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pb-space-sm);
+  margin-bottom: var(--pb-space);
+  font-size: var(--pb-font-size-sm);
+  color: var(--pb-text);
 }
 
 .poputky-modal-call-button {
@@ -323,46 +380,73 @@
   width: 100%;
   text-align: center;
   text-decoration: none;
-  border-radius: 10px;
-  background: #059669;
+  border-radius: var(--pb-radius);
+  background: var(--pb-primary);
   color: #fff;
-  font-weight: 700;
-  padding: 12px;
-  margin-bottom: 8px;
+  font-weight: var(--pb-font-weight-semibold);
+  padding: 14px;
+  margin-bottom: var(--pb-space-sm);
+  font-size: var(--pb-font-size);
+  transition: all 0.2s ease;
+}
+
+.poputky-modal-call-button:hover {
+  background: var(--pb-primary-hover);
+  box-shadow: var(--pb-shadow-hover);
 }
 
 .poputky-modal-copy-button {
   display: block;
   width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  background: #fff;
-  color: #111827;
-  font-weight: 600;
-  padding: 10px;
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius);
+  background: var(--pb-card-bg);
+  color: var(--pb-text);
+  font-weight: var(--pb-font-weight-semibold);
+  padding: 12px;
   cursor: pointer;
+  font-size: var(--pb-font-size);
+  font-family: inherit;
+  transition: all 0.2s ease;
 }
 
-@media (max-width: 900px) {
-  .poputky-controls {
+.poputky-modal-copy-button:hover {
+  background: var(--pb-bg-secondary);
+}
+
+/* Адаптив */
+@media (max-width: 768px) {
+  .poputky-page {
+    padding: var(--pb-space) var(--pb-space);
+  }
+
+  .poputky-title {
+    font-size: var(--pb-font-size-xl);
+  }
+
+  .poputky-filters-row {
     grid-template-columns: 1fr 1fr;
   }
+
+  .poputky-filter--search {
+    grid-column: 1 / -1;
+  }
+
+  .poputky-filter-btn {
+    grid-column: 1 / -1;
+  }
 }
 
-@media (max-width: 640px) {
-  .poputky-header h1 {
-    font-size: 26px;
-  }
-
-  .poputky-controls {
+@media (max-width: 480px) {
+  .poputky-filters-row {
     grid-template-columns: 1fr;
   }
 
-  .poputky-stats {
-    grid-template-columns: 1fr;
+  .poputky-hero-actions {
+    flex-direction: column;
   }
 
-  .telegram-commands {
+  .poputky-hero-btn {
     width: 100%;
   }
 }

@@ -1,14 +1,14 @@
 .booking-page {
   min-height: calc(100vh - 60px);
   background: var(--pb-bg-page);
-  padding: 40px 20px;
+  padding: var(--pb-space-xl) var(--pb-space);
 }
 
 .booking-container {
   max-width: 600px;
   margin: 0 auto;
   background: var(--pb-card-bg);
-  padding: 40px;
+  padding: var(--pb-space-xl);
   border-radius: var(--pb-radius-lg);
   box-shadow: var(--pb-shadow-card);
   border: 1px solid var(--pb-border);
@@ -16,21 +16,21 @@
 
 .booking-header {
   text-align: center;
-  margin-bottom: 40px;
-  padding-bottom: 24px;
-  border-bottom: 2px solid var(--pb-border-light);
+  margin-bottom: var(--pb-space-xl);
+  padding-bottom: var(--pb-space-lg);
+  border-bottom: 1px solid var(--pb-border-light);
 }
 
 .booking-container h2 {
-  margin-bottom: 8px;
+  margin-bottom: var(--pb-space-sm);
   color: var(--pb-text);
-  font-size: 32px;
-  font-weight: 700;
+  font-size: var(--pb-font-size-2xl);
+  font-weight: var(--pb-font-weight-bold);
 }
 
 .booking-subtitle {
   color: var(--pb-text-muted);
-  font-size: 16px;
+  font-size: var(--pb-font-size);
   font-weight: 400;
   margin: 0;
 }
@@ -49,12 +49,12 @@
 .booking-container form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--pb-space-lg);
 }
 
 .date-time-row {
   display: flex;
-  gap: 16px;
+  gap: var(--pb-space);
   align-items: flex-start;
 }
 

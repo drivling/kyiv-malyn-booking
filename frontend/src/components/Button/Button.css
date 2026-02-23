@@ -1,14 +1,16 @@
+/* Кнопки як на ПриватБанку: округлення 8px, чіткі розміри */
 .btn {
-  padding: 14px 28px;
+  padding: 12px 24px;
   border: none;
   border-radius: var(--pb-radius);
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--pb-font-size);
+  font-weight: var(--pb-font-weight-semibold);
   transition: all 0.2s ease;
   text-transform: none;
   letter-spacing: 0;
   box-shadow: var(--pb-shadow);
+  font-family: inherit;
 }
 
 .btn:disabled {
