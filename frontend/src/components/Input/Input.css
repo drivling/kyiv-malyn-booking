@@ -30,7 +30,7 @@
 .input:focus {
   outline: none;
   border-color: var(--pb-primary);
-  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
 }
 
 .input:hover:not(:disabled) {

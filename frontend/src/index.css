@@ -1,4 +1,7 @@
-/* Стилі в дусі ПриватБанку: чистий фон, акцент #00AFF5, картки з тінями */
+/*
+ * Повна палітра та стилі як на сайті ПриватБанку (privatbank.ua):
+ * зелений бренд, білий фон, сірі кнопки, жовтий акцент для банерів.
+ */
 :root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -8,22 +11,53 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* ПриватБанк-подібна палітра */
-  --pb-primary: #00AFF5;
-  --pb-primary-hover: #0099d6;
-  --pb-primary-light: #e6f7fc;
+  /* Основні кольори ПриватБанку (як на сайті) */
+  --pb-primary: #00A86B;
+  --pb-primary-hover: #009255;
+  --pb-primary-active: #007a47;
+  --pb-primary-light: #E6F7EE;
+  --pb-primary-border: rgba(0, 168, 107, 0.35);
+
+  /* Жовтий акцент (банери, виділення — як на PB) */
+  --pb-yellow: #FFD500;
+  --pb-yellow-dark: #E6C000;
+
+  /* Фони */
   --pb-bg: #ffffff;
-  --pb-bg-page: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  --pb-bg-page: #f5f5f5;
   --pb-card-bg: #ffffff;
-  --pb-border: #e5e5e5;
-  --pb-border-light: #f0f0f0;
+  --pb-bg-secondary: #fafafa;
+
+  /* Текст */
   --pb-text: #1a1a1a;
-  --pb-text-muted: #666666;
-  --pb-text-hint: #999999;
-  --pb-radius: 12px;
-  --pb-radius-lg: 16px;
-  --pb-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  --pb-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --pb-text-muted: #4a4a4a;
+  --pb-text-hint: #737373;
+
+  /* Рамки */
+  --pb-border: #e0e0e0;
+  --pb-border-light: #eeeeee;
+
+  /* Кнопки: сіра друга кнопка (як «Відмовитися») */
+  --pb-btn-secondary-bg: #e8e8e8;
+  --pb-btn-secondary-hover: #d8d8d8;
+  --pb-btn-secondary-text: #1a1a1a;
+
+  /* Радіуси та тіні (як на PB) */
+  --pb-radius: 8px;
+  --pb-radius-lg: 12px;
+  --pb-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --pb-shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --pb-shadow-hover: 0 4px 12px rgba(0, 168, 107, 0.2);
+
+  /* Розміри типографіки в стилі PB */
+  --pb-font-size-sm: 13px;
+  --pb-font-size: 15px;
+  --pb-font-size-lg: 17px;
+  --pb-font-size-xl: 22px;
+  --pb-font-size-2xl: 28px;
+  --pb-font-weight-medium: 500;
+  --pb-font-weight-semibold: 600;
+  --pb-font-weight-bold: 700;
 }
 
 html {
@@ -33,7 +67,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--pb-bg);
+  background: var(--pb-bg-page);
   color: var(--pb-text);
   overflow-x: hidden;
+  font-size: var(--pb-font-size);
 }

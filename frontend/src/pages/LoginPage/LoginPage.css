@@ -80,7 +80,7 @@
   padding: 12px 16px;
   background: var(--pb-primary-light);
   border-radius: var(--pb-radius);
-  border: 1px solid rgba(0, 175, 245, 0.25);
+  border: 1px solid var(--pb-primary-border);
 }
 
 .telegram-login-options {

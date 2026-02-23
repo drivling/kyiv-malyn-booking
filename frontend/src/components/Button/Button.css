@@ -25,7 +25,7 @@
 
 .btn-primary:hover:not(:disabled) {
   background: var(--pb-primary-hover);
-  box-shadow: 0 4px 12px rgba(0, 175, 245, 0.3);
+  box-shadow: var(--pb-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -34,13 +34,13 @@
 }
 
 .btn-secondary {
-  background: #666666;
-  color: white;
+  background: var(--pb-btn-secondary-bg);
+  color: var(--pb-btn-secondary-text);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #555555;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--pb-btn-secondary-hover);
+  box-shadow: var(--pb-shadow);
   transform: translateY(-1px);
 }
 
