@@ -206,7 +206,7 @@ export const PoputkyPage: React.FC = () => {
               Я пасажир
             </a>
             <a
-              href={telegramScenarios.scenarios.view.webLink || 'https://malin.kiev.ua/poputky'}
+              href={telegramScenarios.scenarios.view.deepLink}
               target="_blank"
               rel="noopener noreferrer"
               className="poputky-hero-btn poputky-hero-btn--secondary"
