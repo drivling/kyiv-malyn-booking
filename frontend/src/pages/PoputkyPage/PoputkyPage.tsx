@@ -104,7 +104,8 @@ export const PoputkyPage: React.FC = () => {
   const [announceFrom, setAnnounceFrom] = useState('');
   const [announceTo, setAnnounceTo] = useState('');
   const [announceDate, setAnnounceDate] = useState('');
-  const [announceTime, setAnnounceTime] = useState('');
+  const [announceTimeFrom, setAnnounceTimeFrom] = useState('');
+  const [announceTimeTo, setAnnounceTimeTo] = useState('');
   const [announceComment, setAnnounceComment] = useState('');
   const [announceSubmitting, setAnnounceSubmitting] = useState(false);
   const telegramUser = userState.getTelegramUser();
@@ -203,7 +204,7 @@ export const PoputkyPage: React.FC = () => {
   const handlePublishAnnounce = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!announceFrom || !announceTo) {
-      setRequestError('Оберіть звідки та куди');
+      setRequestError('Оберіть звідки та куди. Маршрути лише з/до Малина.');
       return;
     }
     if (!announceDate) {
@@ -212,13 +213,18 @@ export const PoputkyPage: React.FC = () => {
     }
     setRequestError('');
     setAnnounceSubmitting(true);
+    const timeFrom = announceTimeFrom.trim();
+    const timeTo = announceTimeTo.trim();
+    const timeValue = timeFrom && timeTo
+      ? `${timeFrom}-${timeTo}`
+      : timeFrom || timeTo || undefined;
     try {
       const { deepLink } = await apiClient.createAnnounceDraft({
         role: announceRole,
         from: announceFrom,
         to: announceTo,
         date: announceDate,
-        time: announceTime.trim() || undefined,
+        time: timeValue,
         notes: announceComment.trim() || undefined,
       });
       window.open(deepLink, '_blank', 'noopener,noreferrer');
@@ -417,6 +423,7 @@ export const PoputkyPage: React.FC = () => {
                     <option value="korosten">Коростень</option>
                   </select>
                 </label>
+                <p className="poputky-form-hint poputky-form-hint--inline">Маршрути лише з/до Малина.</p>
                 <label className="poputky-form-label">
                   Дата поїздки:
                   <input
@@ -427,14 +434,29 @@ export const PoputkyPage: React.FC = () => {
                   />
                 </label>
                 <label className="poputky-form-label">
-                  Час (опціонально):
+                  Час З (опціонально):
                   <input
                     type="time"
-                    value={announceTime}
-                    onChange={(e) => setAnnounceTime(e.target.value)}
+                    value={announceTimeFrom}
+                    onChange={(e) => setAnnounceTimeFrom(e.target.value)}
                     className="poputky-form-input"
                   />
                 </label>
+                <label className="poputky-form-label">
+                  Час По (опціонально):
+                  <input
+                    type="time"
+                    value={announceTimeTo}
+                    onChange={(e) => setAnnounceTimeTo(e.target.value)}
+                    className="poputky-form-input"
+                  />
+                </label>
+                {((announceTimeFrom && !announceTimeTo) || (!announceTimeFrom && announceTimeTo)) && (
+                  <p className="poputky-form-hint poputky-form-hint--inline">Одне поле — точний час відправки</p>
+                )}
+                {announceTimeFrom && announceTimeTo && (
+                  <p className="poputky-form-hint poputky-form-hint--inline">Обидва — проміжок {announceTimeFrom}–{announceTimeTo}</p>
+                )}
                 <label className="poputky-form-label">
                   Коментар:
                   <textarea

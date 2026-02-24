@@ -832,15 +832,19 @@ app.post('/poputky/announce-draft', express.json(), (req, res) => {
   }
   const route = mapFromToToRoute(from ?? '', to ?? '');
   if (!route) {
-    return res.status(400).json({ error: 'Оберіть звідки та куди (наприклад Малин ↔ Київ)' });
+    return res.status(400).json({ error: 'Поїздки можуть бути лише з/до Малина. Оберіть звідки та куди (наприклад Малин ↔ Київ).' });
   }
   const dateStr = (date || '').toString().trim().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return res.status(400).json({ error: 'Вкажіть коректну дату поїздки' });
   }
   const departureTime = (time || '').toString().trim() || null;
-  if (departureTime && !/^\d{1,2}:\d{2}$/.test(departureTime)) {
-    return res.status(400).json({ error: 'Час має бути у форматі HH:MM' });
+  if (departureTime) {
+    const singleTime = /^\d{1,2}:\d{2}$/;
+    const timeRange = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/;
+    if (!singleTime.test(departureTime) && !timeRange.test(departureTime)) {
+      return res.status(400).json({ error: 'Час: HH:MM або HH:MM-HH:MM (інтервал)' });
+    }
   }
   const token = crypto.randomBytes(8).toString('hex');
   setAnnounceDraft(token, { role: role as 'driver' | 'passenger', route, date: dateStr, departureTime: departureTime || undefined, notes: (notes || '').trim() || undefined });
