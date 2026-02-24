@@ -53,9 +53,6 @@ function NavBar() {
   return (
     <nav className="app-nav">
       <div className="nav-left">
-        <Link to="/" className="nav-link nav-brand">
-          🚐 Бронювання
-        </Link>
         <Link to="/" className="nav-link">
           🚗 Попутки
         </Link>
