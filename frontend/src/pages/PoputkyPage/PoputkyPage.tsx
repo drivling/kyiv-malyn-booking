@@ -93,6 +93,7 @@ export const PoputkyPage: React.FC = () => {
     driverNotified: boolean;
     message: string;
   } | null>(null);
+  const [alreadyRequestedListing, setAlreadyRequestedListing] = useState<ViberListing | null>(null);
   const [confirmRequestListing, setConfirmRequestListing] = useState<ViberListing | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [routeTab, setRouteTab] = useState<RouteTab>('kyiv');
@@ -195,7 +196,13 @@ export const PoputkyPage: React.FC = () => {
         setShowRequestStatusModal(true);
       }
     } catch (err) {
-      setRequestError(err instanceof Error ? err.message : 'Не вдалося створити запит на попутку');
+      const message = err instanceof Error ? err.message : 'Не вдалося створити запит на попутку';
+      if (message.includes('Ви вже надсилали запит')) {
+        const listing = listings.find((item) => item.id === driverListingId) || null;
+        if (listing) setAlreadyRequestedListing(listing);
+      } else {
+        setRequestError(message);
+      }
     } finally {
       setRequestingListingId(null);
     }
@@ -566,7 +573,10 @@ export const PoputkyPage: React.FC = () => {
             <button
               type="button"
               className="poputky-modal-close"
-              onClick={() => setConfirmRequestListing(null)}
+              onClick={() => {
+                setConfirmRequestListing(null);
+                loadPoputky();
+              }}
               aria-label="Закрити"
             >
               ×
@@ -600,7 +610,10 @@ export const PoputkyPage: React.FC = () => {
               <button
                 type="button"
                 className="poputky-modal-cancel-btn"
-                onClick={() => setConfirmRequestListing(null)}
+                onClick={() => {
+                  setConfirmRequestListing(null);
+                  loadPoputky();
+                }}
               >
                 Скасувати
               </button>
@@ -617,6 +630,7 @@ export const PoputkyPage: React.FC = () => {
               onClick={() => {
                 setShowRequestStatusModal(false);
                 setRequestStatusData(null);
+                loadPoputky();
               }}
             >
               ×
@@ -655,6 +669,51 @@ export const PoputkyPage: React.FC = () => {
               className="poputky-modal-copy-button"
             >
               📞 Подзвонити
+            </a>
+          </div>
+        </div>
+      )}
+
+      {alreadyRequestedListing && (
+        <div className="poputky-modal-overlay">
+          <div className="poputky-modal">
+            <button
+              className="poputky-modal-close"
+              onClick={() => {
+                setAlreadyRequestedListing(null);
+                loadPoputky();
+              }}
+              aria-label="Закрити"
+            >
+              ×
+            </button>
+            <h3>Запит уже надіслано</h3>
+            <p className="poputky-modal-subtitle">
+              Ви вже надсилали запит цьому водію на цей маршрут і дату. Очікуйте підтвердження або перегляньте /mybookings у Telegram.
+            </p>
+            <div className="poputky-modal-details">
+              <div><strong>Маршрут:</strong> {formatRouteLabel(alreadyRequestedListing.route)}</div>
+              <div><strong>Дата:</strong> {formatTripDate(alreadyRequestedListing.date)}</div>
+              {alreadyRequestedListing.departureTime && (
+                <div><strong>Час:</strong> {alreadyRequestedListing.departureTime}</div>
+              )}
+              {alreadyRequestedListing.senderName && (
+                <div><strong>Водій:</strong> {alreadyRequestedListing.senderName}</div>
+              )}
+            </div>
+            <a
+              href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="poputky-modal-call-button"
+            >
+              📱 Перевірити через Telegram
+            </a>
+            <a
+              href={supportPhoneToTelLink(alreadyRequestedListing.phone)}
+              className="poputky-modal-copy-button"
+            >
+              📞 Зателефонувати
             </a>
           </div>
         </div>
