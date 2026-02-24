@@ -1016,7 +1016,18 @@ export const sendTripReminder = async (
   }
 
   try {
+    const schedule = await prisma.schedule.findFirst({
+      where: { route: booking.route, supportPhone: { not: null } },
+      select: { supportPhone: true }
+    });
+    const supportPhone = schedule?.supportPhone ?? null;
+    const supportPhoneLine = supportPhone
+      ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
+      : '';
+
     const message = `
+⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
+
 🔔 <b>Нагадування про поїздку!</b>
 
 👋 ${booking.name}, нагадуємо про вашу поїздку завтра:
@@ -1024,7 +1035,7 @@ export const sendTripReminder = async (
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
-
+${supportPhoneLine}
 <i>Не спізніться! ⏰</i>
     `.trim();
 
@@ -1053,7 +1064,18 @@ export const sendTripReminderToday = async (
   }
 
   try {
+    const schedule = await prisma.schedule.findFirst({
+      where: { route: booking.route, supportPhone: { not: null } },
+      select: { supportPhone: true }
+    });
+    const supportPhone = schedule?.supportPhone ?? null;
+    const supportPhoneLine = supportPhone
+      ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
+      : '';
+
     const message = `
+⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
+
 🔔 <b>Сьогодні у вас поїздка!</b>
 
 👋 ${booking.name}, нагадуємо:
@@ -1061,7 +1083,7 @@ export const sendTripReminderToday = async (
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
-
+${supportPhoneLine}
 <i>Не спізніться! ⏰</i>
     `.trim();
 
