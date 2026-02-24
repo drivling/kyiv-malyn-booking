@@ -300,6 +300,29 @@
   cursor: not-allowed;
 }
 
+.poputky-trip-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.poputky-trip-actions .poputky-trip-detail {
+  flex: 0 1 auto;
+}
+
+.poputky-trip-login-btn {
+  background: transparent !important;
+  color: var(--poputky-blue);
+  border: 1px solid var(--poputky-blue) !important;
+}
+
+.poputky-trip-login-btn:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--poputky-blue);
+}
+
 .poputky-all-link {
   display: inline-block;
   margin-top: 12px;

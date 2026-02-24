@@ -307,14 +307,30 @@ export const PoputkyPage: React.FC = () => {
                           onClick={() => setConfirmRequestListing(listing)}
                           disabled={requestingListingId === listing.id}
                         >
-                          {requestingListingId === listing.id ? 'Надсилаємо...' : 'Деталі >'}
+                          {requestingListingId === listing.id ? 'Надсилаємо...' : 'Бронювання'}
                         </button>
+                      ) : listing.listingType === 'driver' && !isTelegramLoggedIn ? (
+                        <div className="poputky-trip-actions">
+                          <a
+                            href={supportPhoneToTelLink(listing.phone)}
+                            className="poputky-trip-detail"
+                          >
+                            Зателефонувати
+                          </a>
+                          <button
+                            type="button"
+                            className="poputky-trip-detail poputky-trip-detail-btn poputky-trip-login-btn"
+                            onClick={() => navigate('/login')}
+                          >
+                            Залогінитись для бронювання
+                          </button>
+                        </div>
                       ) : (
                         <a
                           href={supportPhoneToTelLink(listing.phone)}
                           className="poputky-trip-detail"
                         >
-                          Деталі &gt;
+                          Зателефонувати
                         </a>
                       )}
                     </li>
