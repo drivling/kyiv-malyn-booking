@@ -136,6 +136,12 @@ export interface RideShareRequestFromSiteResponse {
   driverNotified: boolean;
 }
 
+/** Відповідь API створення чернетки оголошення з сайту (передача даних у Telegram) */
+export interface AnnounceDraftResponse {
+  token: string;
+  deepLink: string;
+}
+
 /** Персона (єдина база людей). Управління даними в адмінці. */
 export interface Person {
   id: number;

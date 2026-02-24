@@ -3,7 +3,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft } from './telegram';
+import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -808,6 +809,44 @@ app.get('/telegram/scenarios', (_req, res) => {
       },
     },
   });
+});
+
+/** Маппінг "звідки–куди" (сайт) → route (бот). Значення: malyn, kyiv, zhytomyr, korosten */
+function mapFromToToRoute(from: string, to: string): string | null {
+  const f = (from || '').toLowerCase().trim();
+  const t = (to || '').toLowerCase().trim();
+  if (f === 'kyiv' && t === 'malyn') return 'Kyiv-Malyn';
+  if (f === 'malyn' && t === 'kyiv') return 'Malyn-Kyiv';
+  if (f === 'zhytomyr' && t === 'malyn') return 'Zhytomyr-Malyn';
+  if (f === 'malyn' && t === 'zhytomyr') return 'Malyn-Zhytomyr';
+  if (f === 'korosten' && t === 'malyn') return 'Korosten-Malyn';
+  if (f === 'malyn' && t === 'korosten') return 'Malyn-Korosten';
+  return null;
+}
+
+// Чернетка оголошення з сайту poputky: зберігає маршрут/дату/час/примітки, повертає посилання на бота з токеном
+app.post('/poputky/announce-draft', express.json(), (req, res) => {
+  const { role, from, to, date, time, notes } = req.body as { role?: string; from?: string; to?: string; date?: string; time?: string; notes?: string };
+  if (!role || (role !== 'driver' && role !== 'passenger')) {
+    return res.status(400).json({ error: 'role має бути driver або passenger' });
+  }
+  const route = mapFromToToRoute(from ?? '', to ?? '');
+  if (!route) {
+    return res.status(400).json({ error: 'Оберіть звідки та куди (наприклад Малин ↔ Київ)' });
+  }
+  const dateStr = (date || '').toString().trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return res.status(400).json({ error: 'Вкажіть коректну дату поїздки' });
+  }
+  const departureTime = (time || '').toString().trim() || null;
+  if (departureTime && !/^\d{1,2}:\d{2}$/.test(departureTime)) {
+    return res.status(400).json({ error: 'Час має бути у форматі HH:MM' });
+  }
+  const token = crypto.randomBytes(8).toString('hex');
+  setAnnounceDraft(token, { role: role as 'driver' | 'passenger', route, date: dateStr, departureTime: departureTime || undefined, notes: (notes || '').trim() || undefined });
+  const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
+  const deepLink = `https://t.me/${botUsername}?start=${role}_${token}`;
+  return res.json({ token, deepLink });
 });
 
 // Створити запит на попутку з сайту (потрібен Telegram login у вебі)

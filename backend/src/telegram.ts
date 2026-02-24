@@ -17,6 +17,10 @@ interface DriverRideFlowState {
   seats?: number | null;
   phone?: string;
   since: number;
+  /** Токен чернетки з сайту — після введення телефону підставляємо route/date/time з чернетки */
+  draftToken?: string;
+  /** Примітка з чернетки (з сайту) — використовується при «Пропустити» на кроці notes */
+  notesFromDraft?: string | null;
 }
 const driverRideStateMap = new Map<string, DriverRideFlowState>();
 const DRIVER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
@@ -31,6 +35,10 @@ interface PassengerRideFlowState {
   departureTime?: string | null;
   phone?: string;
   since: number;
+  /** Токен чернетки з сайту — після введення телефону підставляємо route/date/time з чернетки */
+  draftToken?: string;
+  /** Примітка з чернетки (з сайту) — використовується при «Пропустити» на кроці notes */
+  notesFromDraft?: string | null;
 }
 const passengerRideStateMap = new Map<string, PassengerRideFlowState>();
 const PASSENGER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
@@ -42,6 +50,32 @@ const ADDVIBER_STATE_TTL_MS = 10 * 60 * 1000; // 10 хв
 /** Очікування вводу дати для фільтра /allrides */
 const allridesAwaitingDateInputMap = new Map<string, number>(); // chatId -> since
 const ALLRIDES_FILTER_INPUT_TTL_MS = 10 * 60 * 1000; // 10 хв
+
+/** Чернетка оголошення з сайту (poputky): маршрут, дата, час, примітки. Токен у start=driver_XXX / passenger_XXX */
+export interface AnnounceDraft {
+  role: 'driver' | 'passenger';
+  route: string;
+  date: string; // YYYY-MM-DD
+  departureTime?: string | null;
+  notes?: string | null;
+  since: number;
+}
+const announceDraftsMap = new Map<string, AnnounceDraft>();
+const ANNOUNCE_DRAFT_TTL_MS = 15 * 60 * 1000; // 15 хв
+
+export function setAnnounceDraft(token: string, data: Omit<AnnounceDraft, 'since'>): void {
+  announceDraftsMap.set(token, { ...data, since: Date.now() });
+}
+
+export function getAnnounceDraft(token: string): AnnounceDraft | null {
+  const draft = announceDraftsMap.get(token);
+  if (!draft) return null;
+  if (Date.now() - draft.since > ANNOUNCE_DRAFT_TTL_MS) {
+    announceDraftsMap.delete(token);
+    return null;
+  }
+  return draft;
+}
 
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -1336,6 +1370,39 @@ function setupBotCommands() {
       }
     }
 
+    // Чернетка з сайту poputky: start=driver_TOKEN або passenger_TOKEN — дані вже заповнені, потрібен лише телефон (або публікація одразу)
+    const draftMatch = rawStart.match(/^(driver|passenger)_([a-zA-Z0-9-]{4,32})$/);
+    if (draftMatch) {
+      const role = draftMatch[1] as 'driver' | 'passenger';
+      const draftToken = draftMatch[2];
+      const draft = getAnnounceDraft(draftToken);
+      if (draft && draft.role === role) {
+        const userPhone = await getPhoneByTelegramUser(userId, chatId);
+        const senderName = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
+        if (userPhone) {
+          if (role === 'driver') {
+            const state: DriverRideFlowState = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, phone: userPhone, since: Date.now() };
+            await createDriverListingFromState(chatId, state, draft.notes ?? null, senderName);
+          } else {
+            const state: PassengerRideFlowState = { state: 'passenger_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, phone: userPhone, since: Date.now() };
+            await createPassengerListingFromState(chatId, state, draft.notes ?? null, senderName);
+          }
+          await bot?.sendMessage(chatId, '✅ Дані з сайту прийнято. Оголошення опубліковано!', { parse_mode: 'HTML' });
+          return;
+        }
+        if (role === 'driver') {
+          driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'phone', draftToken, since: Date.now() });
+          const keyboard = { keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]], resize_keyboard: true, one_time_keyboard: true };
+          await bot?.sendMessage(chatId, '📋 <b>Дані з сайту збережені</b> (маршрут, дата, час, примітки).\n\nЗалишилось лише вказати номер телефону для контактів:', { parse_mode: 'HTML', reply_markup: keyboard });
+        } else {
+          passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'phone', draftToken, since: Date.now() });
+          const keyboard = { keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]], resize_keyboard: true, one_time_keyboard: true };
+          await bot?.sendMessage(chatId, '📋 <b>Дані з сайту збережені</b> (маршрут, дата, час, примітки).\n\nЗалишилось лише вказати номер телефону для контактів:', { parse_mode: 'HTML', reply_markup: keyboard });
+        }
+        return;
+      }
+    }
+
     const startScenario = parseStartScenario(msg.text);
     const person = await getPersonByTelegram(userId, chatId);
     const existingBooking = await prisma.booking.findFirst({
@@ -1867,6 +1934,20 @@ https://malin.kiev.ua
     const driverState = driverRideStateMap.get(chatId);
     if (driverState?.state === 'driver_ride_flow' && driverState.step === 'phone') {
       const phone = normalizePhone(phoneNumber);
+      if (driverState.draftToken) {
+        const draft = getAnnounceDraft(driverState.draftToken);
+        if (draft) {
+          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+          const seatsKeyboard = { inline_keyboard: [
+            [{ text: '1', callback_data: 'adddriver_seats_1' }, { text: '2', callback_data: 'adddriver_seats_2' }, { text: '3', callback_data: 'adddriver_seats_3' }],
+            [{ text: '4', callback_data: 'adddriver_seats_4' }, { text: '5', callback_data: 'adddriver_seats_5' }],
+            [{ text: 'Пропустити', callback_data: 'adddriver_seats_skip' }],
+            [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
+          ] };
+          await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\n🎫 Скільки вільних місць?`, { parse_mode: 'HTML', reply_markup: seatsKeyboard });
+          return;
+        }
+      }
       driverRideStateMap.set(chatId, { ...driverState, step: 'route', phone, since: Date.now() });
       const routeKeyboard = {
         inline_keyboard: [
@@ -1886,6 +1967,16 @@ https://malin.kiev.ua
     const passengerState = passengerRideStateMap.get(chatId);
     if (passengerState?.state === 'passenger_ride_flow' && passengerState.step === 'phone') {
       const phone = normalizePhone(phoneNumber);
+      if (passengerState.draftToken) {
+        const draft = getAnnounceDraft(passengerState.draftToken);
+        if (draft) {
+          passengerRideStateMap.set(chatId, { ...passengerState, step: 'notes', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+          const notesKeyboard = { inline_keyboard: [[{ text: 'Пропустити', callback_data: 'addpassenger_notes_skip' }], [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]] };
+          const notesHint = draft.notes ? `\n\nПримітка з сайту: ${draft.notes}\nМожете залишити або змінити:` : '';
+          await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\nДодати примітку (опціонально)? Напишіть текст або натисніть Пропустити.${notesHint}`, { parse_mode: 'HTML', reply_markup: notesKeyboard });
+          return;
+        }
+      }
       passengerRideStateMap.set(chatId, { ...passengerState, step: 'route', phone, since: Date.now() });
       const routeKeyboard = {
         inline_keyboard: [
@@ -2162,6 +2253,20 @@ https://malin.kiev.ua
           return;
         }
         const phone = normalizePhone(text);
+        if (driverState.draftToken) {
+          const draft = getAnnounceDraft(driverState.draftToken);
+          if (draft) {
+            driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+            const seatsKeyboard = { inline_keyboard: [
+              [{ text: '1', callback_data: 'adddriver_seats_1' }, { text: '2', callback_data: 'adddriver_seats_2' }, { text: '3', callback_data: 'adddriver_seats_3' }],
+              [{ text: '4', callback_data: 'adddriver_seats_4' }, { text: '5', callback_data: 'adddriver_seats_5' }],
+              [{ text: 'Пропустити', callback_data: 'adddriver_seats_skip' }],
+              [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
+            ] };
+            await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\n🎫 Скільки вільних місць?`, { parse_mode: 'HTML', reply_markup: seatsKeyboard });
+            return;
+          }
+        }
         driverRideStateMap.set(chatId, { ...driverState, step: 'route', phone, since: Date.now() });
         const routeKeyboard = {
           inline_keyboard: [
@@ -2238,6 +2343,16 @@ https://malin.kiev.ua
           return;
         }
         const phone = normalizePhone(text);
+        if (passengerState.draftToken) {
+          const draft = getAnnounceDraft(passengerState.draftToken);
+          if (draft) {
+            passengerRideStateMap.set(chatId, { ...passengerState, step: 'notes', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+            const notesKeyboard = { inline_keyboard: [[{ text: 'Пропустити', callback_data: 'addpassenger_notes_skip' }], [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]] };
+            const notesHint = draft.notes ? `\n\nПримітка з сайту: ${draft.notes}\nМожете залишити або змінити:` : '';
+            await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\nДодати примітку (опціонально)? Напишіть текст або натисніть Пропустити.${notesHint}`, { parse_mode: 'HTML', reply_markup: notesKeyboard });
+            return;
+          }
+        }
         passengerRideStateMap.set(chatId, { ...passengerState, step: 'route', phone, since: Date.now() });
         const routeKeyboard = {
           inline_keyboard: [
@@ -2871,8 +2986,9 @@ https://malin.kiev.ua
         }
         driverRideStateMap.delete(chatId);
         const senderName = query.from?.first_name ? [query.from.first_name, query.from?.last_name].filter(Boolean).join(' ') : null;
+        const notes = state.notesFromDraft ?? null;
         try {
-          await createDriverListingFromState(chatId, state, null, senderName);
+          await createDriverListingFromState(chatId, state, notes, senderName);
         } catch (err) {
           console.error('Create driver listing error:', err);
           await bot?.sendMessage(chatId, '❌ Помилка збереження. /adddriverride — спробувати знову.');
@@ -3000,8 +3116,9 @@ https://malin.kiev.ua
         }
         passengerRideStateMap.delete(chatId);
         const senderName = query.from?.first_name ? [query.from.first_name, query.from?.last_name].filter(Boolean).join(' ') : null;
+        const notes = state.notesFromDraft ?? null;
         try {
-          await createPassengerListingFromState(chatId, state, null, senderName);
+          await createPassengerListingFromState(chatId, state, notes, senderName);
         } catch (err) {
           console.error('Create passenger listing error:', err);
           await bot?.sendMessage(chatId, '❌ Помилка збереження. /addpassengerride — спробувати знову.');

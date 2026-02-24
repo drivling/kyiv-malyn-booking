@@ -104,7 +104,9 @@ export const PoputkyPage: React.FC = () => {
   const [announceFrom, setAnnounceFrom] = useState('');
   const [announceTo, setAnnounceTo] = useState('');
   const [announceDate, setAnnounceDate] = useState('');
+  const [announceTime, setAnnounceTime] = useState('');
   const [announceComment, setAnnounceComment] = useState('');
+  const [announceSubmitting, setAnnounceSubmitting] = useState(false);
   const telegramUser = userState.getTelegramUser();
   const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
 
@@ -198,12 +200,33 @@ export const PoputkyPage: React.FC = () => {
     }
   };
 
-  const handlePublishAnnounce = (e: React.FormEvent) => {
+  const handlePublishAnnounce = async (e: React.FormEvent) => {
     e.preventDefault();
-    const link = announceRole === 'driver'
-      ? telegramScenarios.scenarios.driver.deepLink
-      : telegramScenarios.scenarios.passenger.deepLink;
-    window.open(link, '_blank', 'noopener,noreferrer');
+    if (!announceFrom || !announceTo) {
+      setRequestError('Оберіть звідки та куди');
+      return;
+    }
+    if (!announceDate) {
+      setRequestError('Вкажіть дату поїздки');
+      return;
+    }
+    setRequestError('');
+    setAnnounceSubmitting(true);
+    try {
+      const { deepLink } = await apiClient.createAnnounceDraft({
+        role: announceRole,
+        from: announceFrom,
+        to: announceTo,
+        date: announceDate,
+        time: announceTime.trim() || undefined,
+        notes: announceComment.trim() || undefined,
+      });
+      window.open(deepLink, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : 'Не вдалося створити оголошення. Спробуйте пізніше.');
+    } finally {
+      setAnnounceSubmitting(false);
+    }
   };
 
   const listRef = React.useRef<HTMLDivElement>(null);
@@ -404,6 +427,15 @@ export const PoputkyPage: React.FC = () => {
                   />
                 </label>
                 <label className="poputky-form-label">
+                  Час (опціонально):
+                  <input
+                    type="time"
+                    value={announceTime}
+                    onChange={(e) => setAnnounceTime(e.target.value)}
+                    className="poputky-form-input"
+                  />
+                </label>
+                <label className="poputky-form-label">
                   Коментар:
                   <textarea
                     value={announceComment}
@@ -413,12 +445,12 @@ export const PoputkyPage: React.FC = () => {
                     placeholder="Додаткова інформація..."
                   />
                 </label>
-                <button type="submit" className="poputky-btn poputky-btn--green poputky-btn--block">
-                  Опублікувати
+                <button type="submit" className="poputky-btn poputky-btn--green poputky-btn--block" disabled={announceSubmitting}>
+                  {announceSubmitting ? 'Готуємо посилання...' : 'Опублікувати'}
                 </button>
               </form>
               <p className="poputky-form-hint">
-                Оголошення публікується через Telegram-бота. Натисніть «Опублікувати» — відкриється діалог з ботом.
+                Дані з форми передаються в Telegram — у боті залишиться лише підтвердити або вказати номер телефону. Посилання діє 15 хв.
               </p>
             </section>
           </div>
