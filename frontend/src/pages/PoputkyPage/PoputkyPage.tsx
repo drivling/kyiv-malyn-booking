@@ -650,13 +650,12 @@ export const PoputkyPage: React.FC = () => {
                 📲 Зателефонувати: {formatPhoneDisplay(requestStatusData.listing.phone)}
               </a>
             )}
-            <button
-              type="button"
+            <a
+              href={supportPhoneToTelLink(requestStatusData.listing.phone)}
               className="poputky-modal-copy-button"
-              onClick={() => navigator.clipboard.writeText(requestStatusData.listing.phone)}
             >
-              📋 Скопіювати номер
-            </button>
+              📞 Подзвонити
+            </a>
           </div>
         </div>
       )}
