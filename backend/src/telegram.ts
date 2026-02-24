@@ -1042,6 +1042,7 @@ export const sendTripReminder = async (
     date: Date;
     departureTime: string;
     name: string;
+    driver?: { senderName: string | null; phone: string };
   }
 ) => {
   if (!bot) {
@@ -1058,6 +1059,9 @@ export const sendTripReminder = async (
     const supportPhoneLine = supportPhone
       ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
       : '';
+    const driverLine = booking.driver
+      ? `\n🚗 <b>Водій:</b> ${booking.driver.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
+      : '';
 
     const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
@@ -1069,7 +1073,7 @@ export const sendTripReminder = async (
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
-${supportPhoneLine}
+${driverLine}${supportPhoneLine}
 <i>Не спізніться! ⏰</i>
     `.trim();
 
@@ -1090,6 +1094,7 @@ export const sendTripReminderToday = async (
     date: Date;
     departureTime: string;
     name: string;
+    driver?: { senderName: string | null; phone: string };
   }
 ) => {
   if (!bot) {
@@ -1106,6 +1111,9 @@ export const sendTripReminderToday = async (
     const supportPhoneLine = supportPhone
       ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
       : '';
+    const driverLine = booking.driver
+      ? `\n🚗 <b>Водій:</b> ${booking.driver.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
+      : '';
 
     const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
@@ -1117,7 +1125,7 @@ export const sendTripReminderToday = async (
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
-${supportPhoneLine}
+${driverLine}${supportPhoneLine}
 <i>Не спізніться! ⏰</i>
     `.trim();
 

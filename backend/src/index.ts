@@ -684,7 +684,8 @@ app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
           lte: endOfDay
         },
         telegramChatId: { not: null }
-      }
+      },
+      include: { viberListing: true }
     });
 
     let sent = 0;
@@ -693,11 +694,15 @@ app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
     for (const booking of bookings) {
       if (booking.telegramChatId) {
         try {
+          const driver = booking.viberListing
+            ? { senderName: booking.viberListing.senderName, phone: booking.viberListing.phone }
+            : undefined;
           await sendTripReminder(booking.telegramChatId, {
             route: booking.route,
             date: booking.date,
             departureTime: booking.departureTime,
-            name: booking.name
+            name: booking.name,
+            driver
           });
           sent++;
         } catch (error) {
@@ -740,7 +745,8 @@ app.post('/telegram/send-reminders-today', requireAdmin, async (_req, res) => {
           lte: endOfDay
         },
         telegramChatId: { not: null }
-      }
+      },
+      include: { viberListing: true }
     });
 
     let sent = 0;
@@ -749,11 +755,15 @@ app.post('/telegram/send-reminders-today', requireAdmin, async (_req, res) => {
     for (const booking of bookings) {
       if (booking.telegramChatId) {
         try {
+          const driver = booking.viberListing
+            ? { senderName: booking.viberListing.senderName, phone: booking.viberListing.phone }
+            : undefined;
           await sendTripReminderToday(booking.telegramChatId, {
             route: booking.route,
             date: booking.date,
             departureTime: booking.departureTime,
-            name: booking.name
+            name: booking.name,
+            driver
           });
           sent++;
         } catch (error) {
