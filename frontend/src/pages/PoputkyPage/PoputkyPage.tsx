@@ -93,6 +93,7 @@ export const PoputkyPage: React.FC = () => {
     driverNotified: boolean;
     message: string;
   } | null>(null);
+  const [confirmRequestListing, setConfirmRequestListing] = useState<ViberListing | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [routeTab, setRouteTab] = useState<RouteTab>('kyiv');
   const [query, setQuery] = useState('');
@@ -303,7 +304,7 @@ export const PoputkyPage: React.FC = () => {
                         <button
                           type="button"
                           className="poputky-trip-detail poputky-trip-detail-btn"
-                          onClick={() => handleRequestRide(listing.id)}
+                          onClick={() => setConfirmRequestListing(listing)}
                           disabled={requestingListingId === listing.id}
                         >
                           {requestingListingId === listing.id ? 'Надсилаємо...' : 'Деталі >'}
@@ -488,6 +489,55 @@ export const PoputkyPage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {confirmRequestListing && (
+        <div className="poputky-modal-overlay">
+          <div className="poputky-modal">
+            <button
+              type="button"
+              className="poputky-modal-close"
+              onClick={() => setConfirmRequestListing(null)}
+              aria-label="Закрити"
+            >
+              ×
+            </button>
+            <h3>Створити заявку на поїздку?</h3>
+            <p className="poputky-modal-subtitle">
+              Водію буде надіслано запит від вашого імені. Переконайтесь, що обрали потрібну поїздку.
+            </p>
+            <div className="poputky-modal-details">
+              <div><strong>Маршрут:</strong> {formatRouteLabel(confirmRequestListing.route)}</div>
+              <div><strong>Дата:</strong> {formatTripDate(confirmRequestListing.date)}</div>
+              {confirmRequestListing.departureTime && (
+                <div><strong>Час:</strong> {confirmRequestListing.departureTime}</div>
+              )}
+              {confirmRequestListing.senderName && (
+                <div><strong>Водій:</strong> {confirmRequestListing.senderName}</div>
+              )}
+            </div>
+            <div className="poputky-modal-actions">
+              <button
+                type="button"
+                className="poputky-btn poputky-btn--green"
+                onClick={async () => {
+                  const id = confirmRequestListing.id;
+                  setConfirmRequestListing(null);
+                  await handleRequestRide(id);
+                }}
+              >
+                Так, створити заявку
+              </button>
+              <button
+                type="button"
+                className="poputky-modal-cancel-btn"
+                onClick={() => setConfirmRequestListing(null)}
+              >
+                Скасувати
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showRequestStatusModal && requestStatusData && (
         <div className="poputky-modal-overlay">

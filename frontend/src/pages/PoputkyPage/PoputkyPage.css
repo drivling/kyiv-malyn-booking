@@ -713,6 +713,35 @@
   background: var(--pb-bg-secondary);
 }
 
+.poputky-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.poputky-modal-actions .poputky-btn {
+  width: 100%;
+}
+
+.poputky-modal-cancel-btn {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--pb-text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.poputky-modal-cancel-btn:hover {
+  background: var(--pb-bg-secondary);
+}
+
 /* Адаптив */
 @media (max-width: 768px) {
   .poputky-hero {
