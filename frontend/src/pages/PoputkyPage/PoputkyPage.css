@@ -1,93 +1,427 @@
-/* Сторінка попуток: логіка як на сайтах бронювань (пошук зверху), стиль як ПриватБанк */
+/* Сторінка Попутники — верстка як на malin.kiev.ua/poputky */
 
-.poputky-page {
-  min-height: calc(100vh - 60px);
-  background: var(--pb-bg-page);
-  padding: var(--pb-space-lg) var(--pb-space);
-  padding-bottom: 48px;
+:root {
+  --poputky-green: #00A86B;
+  --poputky-green-dark: #009255;
+  --poputky-blue: #2563eb;
+  --poputky-blue-active: #1d4ed8;
 }
 
-.poputky-container {
-  max-width: 720px;
+.poputky-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 0;
+}
+
+/* Hero: банер з дорогою, логотип, заголовок */
+.poputky-hero {
+  background: linear-gradient(135deg, #0d5c36 0%, #00A86B 50%, #0d5c36 100%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 200'%3E%3Cpath fill='%2300A86B' fill-opacity='0.3' d='M0 120 Q200 80 400 120 T800 120 L800 200 L0 200 Z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='3' stroke-dasharray='20 10' opacity='0.5' d='M0 100 Q200 60 400 100 T800 100'/%3E%3C/svg%3E"),
+    linear-gradient(160deg, #0a4d2e 0%, #00A86B 45%, #008f52 100%);
+  background-size: cover, 100% 100%;
+  background-position: center, center;
+  color: #fff;
+  padding: 24px 20px 32px;
+  text-align: center;
+  margin: 0;
+}
+
+.poputky-hero-inner {
+  max-width: 900px;
   margin: 0 auto;
 }
 
-/* Hero: заголовок + підзаголовок + кнопки дій */
-.poputky-hero {
-  margin-bottom: var(--pb-space-xl);
+.poputky-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  opacity: 0.95;
 }
 
-.poputky-title {
-  margin: 0 0 var(--pb-space-sm);
-  font-size: var(--pb-font-size-2xl);
-  font-weight: var(--pb-font-weight-bold);
-  color: var(--pb-text);
+.poputky-logo:hover {
+  opacity: 1;
+  color: #fff;
 }
 
-.poputky-subtitle {
-  margin: 0 0 var(--pb-space-lg);
-  font-size: var(--pb-font-size);
-  color: var(--pb-text-muted);
-  line-height: 1.5;
+.poputky-logo-icon {
+  font-size: 20px;
+}
+
+.poputky-hero-title {
+  margin: 0;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Вкладки маршрутів */
+.poputky-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: #fff;
+  border-bottom: 1px solid var(--pb-border);
+  flex-wrap: wrap;
+}
+
+.poputky-tab {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--poputky-blue);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+
+.poputky-tab:hover {
+  background: #f0f4ff;
+}
+
+.poputky-tab--active {
+  background: var(--poputky-blue);
+  color: #fff;
+}
+
+.poputky-tab--active:hover {
+  background: var(--poputky-blue-active);
+  color: #fff;
+}
+
+/* Контейнер і двоколонковий макет */
+.poputky-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+}
+
+.poputky-main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .poputky-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ліва колонка: кнопки + останні поїздки */
+.poputky-sidebar {
+  min-width: 0;
 }
 
 .poputky-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--pb-space-sm) var(--pb-space);
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
-.poputky-hero-btn {
+.poputky-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
-  border-radius: var(--pb-radius);
-  font-size: var(--pb-font-size);
-  font-weight: var(--pb-font-weight-semibold);
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
   text-decoration: none;
-  transition: all 0.2s ease;
-  font-family: inherit;
   border: none;
   cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, transform 0.15s;
 }
 
-.poputky-hero-btn--primary {
-  background: var(--pb-primary);
+.poputky-btn--green {
+  background: var(--poputky-green);
   color: #fff;
-  box-shadow: var(--pb-shadow);
+  box-shadow: 0 2px 6px rgba(0, 168, 107, 0.3);
 }
 
-.poputky-hero-btn--primary:hover {
-  background: var(--pb-primary-hover);
-  box-shadow: var(--pb-shadow-hover);
+.poputky-btn--green:hover {
+  background: var(--poputky-green-dark);
   transform: translateY(-1px);
 }
 
-.poputky-hero-btn--secondary {
-  background: var(--pb-btn-secondary-bg);
-  color: var(--pb-btn-secondary-text);
+.poputky-btn--block {
+  width: 100%;
+}
+
+.poputky-section-title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pb-text);
+}
+
+.poputky-last-trips .poputky-section-title {
+  margin-bottom: 12px;
+}
+
+/* Список поїздок — картки як на макеті */
+.poputky-trip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.poputky-trip-card {
+  background: #fff;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto auto;
+  gap: 8px 12px;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s;
+}
+
+.poputky-trip-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.poputky-trip-card-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.poputky-trip-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--poputky-green);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.poputky-trip-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.poputky-trip-name {
+  font-weight: 700;
+  color: var(--pb-text);
+}
+
+.poputky-trip-arrow {
+  color: var(--pb-text-muted);
+  font-size: 14px;
+}
+
+.poputky-trip-dest {
+  color: var(--pb-text);
+  font-weight: 500;
+}
+
+.poputky-trip-meta {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--pb-text-muted);
+}
+
+.poputky-trip-car {
+  font-size: 13px;
+  color: var(--pb-text-muted);
+}
+
+.poputky-trip-price {
+  font-size: 14px;
+  color: var(--pb-text);
+}
+
+.poputky-trip-price strong {
+  color: var(--poputky-green);
+}
+
+.poputky-trip-detail {
+  grid-column: 1 / -1;
+  justify-self: end;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--poputky-green);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.poputky-trip-detail:hover {
+  background: var(--poputky-green-dark);
+  color: #fff;
+}
+
+.poputky-trip-detail-btn {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+}
+
+.poputky-trip-detail-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.poputky-all-link {
+  display: inline-block;
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: var(--poputky-blue);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: none;
+}
+
+.poputky-all-link:hover {
+  text-decoration: underline;
+}
+
+/* Права колонка: Ваше оголошення */
+.poputky-form-column {
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 900px) {
+  .poputky-form-column {
+    position: static;
+  }
+}
+
+.poputky-announce-card {
+  background: #fff;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.poputky-role-toggle {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
   border: 1px solid var(--pb-border);
 }
 
-.poputky-hero-btn--secondary:hover {
-  background: var(--pb-btn-secondary-hover);
+.poputky-role-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--poputky-blue);
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
 }
 
-/* Одна картка фільтрів (як на сайтах бронювань) */
+.poputky-role-btn:hover {
+  background: #f8fafc;
+}
+
+.poputky-role-btn--active {
+  background: var(--poputky-blue);
+  color: #fff;
+}
+
+.poputky-role-btn--active:hover {
+  background: var(--poputky-blue-active);
+  color: #fff;
+}
+
+.poputky-announce-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.poputky-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pb-text);
+}
+
+.poputky-form-input {
+  padding: 10px 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--pb-text);
+}
+
+.poputky-form-input:focus {
+  outline: none;
+  border-color: var(--poputky-green);
+  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
+}
+
+.poputky-form-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.poputky-form-hint {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--pb-text-muted);
+  line-height: 1.5;
+}
+
+/* Фільтри під колонками */
 .poputky-filters-card {
-  background: var(--pb-card-bg);
+  background: #fff;
   border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow-card);
-  padding: var(--pb-space-lg);
-  margin-bottom: var(--pb-space-lg);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .poputky-filters-row {
   display: grid;
   grid-template-columns: 100px 140px minmax(0, 1fr) 160px auto;
-  gap: var(--pb-space-sm);
+  gap: 10px;
   align-items: center;
 }
 
@@ -95,17 +429,16 @@
   height: 44px;
   padding: 0 14px;
   border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius);
-  font-size: var(--pb-font-size);
+  border-radius: 8px;
+  font-size: 14px;
   font-family: inherit;
-  background: var(--pb-card-bg);
+  background: #fff;
   color: var(--pb-text);
 }
 
 .poputky-filter:focus {
   outline: none;
-  border-color: var(--pb-primary);
-  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
+  border-color: var(--poputky-green);
 }
 
 .poputky-filter--search {
@@ -116,19 +449,18 @@
   height: 44px;
   padding: 0 20px;
   border: none;
-  border-radius: var(--pb-radius);
-  background: var(--pb-primary);
+  border-radius: 8px;
+  background: var(--poputky-green);
   color: #fff;
-  font-size: var(--pb-font-size);
-  font-weight: var(--pb-font-weight-semibold);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
   font-family: inherit;
+  transition: background 0.2s;
 }
 
 .poputky-filter-btn:hover:not(:disabled) {
-  background: var(--pb-primary-hover);
-  box-shadow: var(--pb-shadow-hover);
+  background: var(--poputky-green-dark);
 }
 
 .poputky-filter-btn:disabled {
@@ -139,171 +471,130 @@
 .poputky-stats-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--pb-space) var(--pb-space-lg);
-  margin-top: var(--pb-space);
-  padding-top: var(--pb-space);
+  gap: 16px 24px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--pb-border-light);
 }
 
 .poputky-stat {
-  font-size: var(--pb-font-size-sm);
+  font-size: 13px;
   color: var(--pb-text-muted);
 }
 
 .poputky-stat strong {
-  color: var(--pb-primary);
-  font-weight: var(--pb-font-weight-semibold);
-}
-
-/* Список: одна колонка, картки як у PB */
-.poputky-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--pb-space);
-}
-
-.poputky-item {
-  background: var(--pb-card-bg);
-  border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow);
-  padding: var(--pb-space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--pb-space-sm);
-  transition: box-shadow 0.2s ease;
-}
-
-.poputky-item:hover {
-  box-shadow: var(--pb-shadow-card);
-}
-
-.poputky-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--pb-space-sm);
-  flex-wrap: wrap;
-}
-
-.poputky-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: var(--pb-font-size-sm);
-  font-weight: var(--pb-font-weight-semibold);
-}
-
-.poputky-badge.driver {
-  background: var(--pb-primary-light);
-  color: var(--pb-primary-hover);
-}
-
-.poputky-badge.passenger {
-  background: var(--pb-bg-secondary);
-  color: var(--pb-text-muted);
-  border: 1px solid var(--pb-border);
-}
-
-.poputky-date {
-  font-size: var(--pb-font-size-sm);
-  color: var(--pb-text-hint);
-}
-
-.poputky-item h3 {
-  margin: 0;
-  font-size: var(--pb-font-size-lg);
-  font-weight: var(--pb-font-weight-semibold);
-  color: var(--pb-text);
-  line-height: 1.3;
-}
-
-.poputky-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--pb-space) var(--pb-space-lg);
-  font-size: var(--pb-font-size-sm);
-  color: var(--pb-text-muted);
-}
-
-.poputky-notes {
-  margin: 0;
-  font-size: var(--pb-font-size-sm);
-  color: var(--pb-text-muted);
-  line-height: 1.5;
-}
-
-.poputky-phone {
-  align-self: flex-start;
-  color: var(--pb-primary);
-  text-decoration: none;
-  font-weight: var(--pb-font-weight-semibold);
-  font-size: var(--pb-font-size);
-}
-
-.poputky-phone:hover {
-  text-decoration: underline;
-  color: var(--pb-primary-hover);
-}
-
-.poputky-actions {
-  margin-top: var(--pb-space-xs);
-}
-
-.poputky-action-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 24px;
-  border: none;
-  border-radius: var(--pb-radius);
-  font-size: var(--pb-font-size);
-  font-weight: var(--pb-font-weight-semibold);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-}
-
-.poputky-action-button:not(.poputky-action-button--ghost) {
-  background: var(--pb-primary);
-  color: #fff;
-  box-shadow: var(--pb-shadow);
-}
-
-.poputky-action-button:not(.poputky-action-button--ghost):hover:not(:disabled) {
-  background: var(--pb-primary-hover);
-  box-shadow: var(--pb-shadow-hover);
-  transform: translateY(-1px);
-}
-
-.poputky-action-button:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.poputky-action-button--ghost {
-  background: var(--pb-card-bg);
-  color: var(--pb-primary);
-  border: 1px solid var(--pb-primary);
-}
-
-.poputky-action-button--ghost:hover {
-  background: var(--pb-primary-light);
+  color: var(--poputky-green);
+  font-weight: 600;
 }
 
 /* Пустий стан / завантаження */
 .poputky-state {
-  background: var(--pb-card-bg);
+  background: #fff;
   border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius-lg);
-  padding: var(--pb-space-xl);
+  border-radius: 12px;
+  padding: 32px 24px;
   text-align: center;
   color: var(--pb-text-muted);
-  font-size: var(--pb-font-size);
+  font-size: 15px;
+}
+
+.poputky-last-trips .poputky-state {
+  margin: 0;
+}
+
+/* Футер */
+.poputky-footer {
+  background: #fff;
+  border-top: 1px solid var(--pb-border);
+  padding: 28px 20px 40px;
+  margin-top: 24px;
+}
+
+.poputky-footer-text {
+  max-width: 700px;
+  margin: 0 auto 24px;
+  font-size: 15px;
+  color: var(--pb-text-muted);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.poputky-footer-link {
+  color: var(--poputky-blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.poputky-footer-link:hover {
+  text-decoration: underline;
+}
+
+/* Карта маршрутів (схематична) */
+.poputky-map {
+  max-width: 500px;
+  margin: 0 auto;
+  aspect-ratio: 2 / 1;
+  background: #f8fafc;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.poputky-map-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.poputky-map-city {
+  position: absolute;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pb-text);
+  background: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--pb-border);
+  z-index: 1;
+}
+
+/* Малин в центрі */
+.poputky-map-city--malyn {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Київ на південь, правіше */
+.poputky-map-city--kyiv {
+  right: 18%;
+  bottom: 18%;
+  transform: translate(50%, 50%);
+}
+
+/* Коростень зверху правіше */
+.poputky-map-city--korosten {
+  right: 20%;
+  top: 12%;
+  transform: translate(50%, -50%);
+}
+
+/* Житомир зліва */
+.poputky-map-city--zhytomyr {
+  left: 12%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.poputky-map-routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 /* Модалка після запиту */
@@ -315,32 +606,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--pb-space);
+  padding: 20px;
 }
 
 .poputky-modal {
   width: 100%;
   max-width: 440px;
-  background: var(--pb-card-bg);
-  border-radius: var(--pb-radius-lg);
+  background: #fff;
+  border-radius: 12px;
   border: 1px solid var(--pb-border);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-  padding: var(--pb-space-lg);
+  padding: 24px;
   position: relative;
 }
 
 .poputky-modal-close {
   position: absolute;
-  right: var(--pb-space-sm);
-  top: var(--pb-space-sm);
+  right: 12px;
+  top: 12px;
   border: none;
   background: none;
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
   color: var(--pb-text-hint);
-  padding: var(--pb-space-xs);
-  border-radius: var(--pb-radius-sm);
+  padding: 4px;
+  border-radius: 6px;
 }
 
 .poputky-modal-close:hover {
@@ -349,15 +640,15 @@
 }
 
 .poputky-modal h3 {
-  margin: 0 32px var(--pb-space-sm) 0;
-  font-size: var(--pb-font-size-lg);
-  font-weight: var(--pb-font-weight-semibold);
+  margin: 0 32px 8px 0;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--pb-text);
 }
 
 .poputky-modal-subtitle {
-  margin: 0 0 var(--pb-space);
-  font-size: var(--pb-font-size-sm);
+  margin: 0 0 16px;
+  font-size: 14px;
   color: var(--pb-text-muted);
   line-height: 1.5;
 }
@@ -365,13 +656,13 @@
 .poputky-modal-details {
   background: var(--pb-bg-secondary);
   border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius);
-  padding: var(--pb-space);
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--pb-space-sm);
-  margin-bottom: var(--pb-space);
-  font-size: var(--pb-font-size-sm);
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
   color: var(--pb-text);
 }
 
@@ -380,34 +671,34 @@
   width: 100%;
   text-align: center;
   text-decoration: none;
-  border-radius: var(--pb-radius);
-  background: var(--pb-primary);
+  border-radius: 8px;
+  background: var(--poputky-green);
   color: #fff;
-  font-weight: var(--pb-font-weight-semibold);
+  font-weight: 600;
   padding: 14px;
-  margin-bottom: var(--pb-space-sm);
-  font-size: var(--pb-font-size);
-  transition: all 0.2s ease;
+  margin-bottom: 10px;
+  font-size: 15px;
+  transition: background 0.2s;
 }
 
 .poputky-modal-call-button:hover {
-  background: var(--pb-primary-hover);
-  box-shadow: var(--pb-shadow-hover);
+  background: var(--poputky-green-dark);
+  color: #fff;
 }
 
 .poputky-modal-copy-button {
   display: block;
   width: 100%;
   border: 1px solid var(--pb-border);
-  border-radius: var(--pb-radius);
-  background: var(--pb-card-bg);
+  border-radius: 8px;
+  background: #fff;
   color: var(--pb-text);
-  font-weight: var(--pb-font-weight-semibold);
+  font-weight: 600;
   padding: 12px;
   cursor: pointer;
-  font-size: var(--pb-font-size);
+  font-size: 15px;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: background 0.2s;
 }
 
 .poputky-modal-copy-button:hover {
@@ -416,12 +707,12 @@
 
 /* Адаптив */
 @media (max-width: 768px) {
-  .poputky-page {
-    padding: var(--pb-space) var(--pb-space);
+  .poputky-hero {
+    padding: 20px 16px 28px;
   }
 
-  .poputky-title {
-    font-size: var(--pb-font-size-xl);
+  .poputky-container {
+    padding: 20px 16px 28px;
   }
 
   .poputky-filters-row {
@@ -435,18 +726,35 @@
   .poputky-filter-btn {
     grid-column: 1 / -1;
   }
+
+  .poputky-trip-card {
+    grid-template-columns: auto 1fr;
+  }
+
+  .poputky-trip-detail {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 480px) {
-  .poputky-filters-row {
-    grid-template-columns: 1fr;
-  }
-
   .poputky-hero-actions {
     flex-direction: column;
   }
 
-  .poputky-hero-btn {
+  .poputky-btn {
     width: 100%;
+  }
+
+  .poputky-tabs {
+    padding: 12px 16px;
+  }
+
+  .poputky-tab {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  .poputky-filters-row {
+    grid-template-columns: 1fr;
   }
 }
