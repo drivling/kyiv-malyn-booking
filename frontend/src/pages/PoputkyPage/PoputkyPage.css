@@ -243,6 +243,14 @@
   font-weight: 500;
 }
 
+.poputky-trip-route {
+  grid-column: 1 / -1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pb-text);
+  margin: 2px 0 4px;
+}
+
 .poputky-trip-meta {
   grid-column: 1 / -1;
   font-size: 14px;

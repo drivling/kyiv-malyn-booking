@@ -141,6 +141,7 @@ export const PoputkyPage: React.FC = () => {
   const filteredListings = useMemo(() => {
     return [...listings]
       .filter((listing) => {
+        if (!listing.isActive) return false;
         if (!routeMatchesTab(listing.route, routeTab)) return false;
         if (listingType && listing.listingType !== listingType) return false;
         if (tripDate && listing.date.slice(0, 10) !== tripDate) return false;
@@ -284,11 +285,10 @@ export const PoputkyPage: React.FC = () => {
                         </div>
                         <div className="poputky-trip-info">
                           <span className="poputky-trip-name">{listing.senderName || 'Водій'}</span>
-                          <span className="poputky-trip-arrow">→</span>
-                          <span className="poputky-trip-dest">
-                            {listing.route.includes('Kyiv') ? 'Київ' : listing.route.includes('Zhytomyr') ? 'Житомир' : 'Коростень'}
-                          </span>
                         </div>
+                      </div>
+                      <div className="poputky-trip-route" aria-label="Маршрут">
+                        {formatRouteLabel(listing.route)}
                       </div>
                       <div className="poputky-trip-meta">
                         {formatTripDate(listing.date)}
