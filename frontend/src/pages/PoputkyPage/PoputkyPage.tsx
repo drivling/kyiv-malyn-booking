@@ -288,15 +288,16 @@ export const PoputkyPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="poputky-trip-route" aria-label="Маршрут">
-                        {formatRouteLabel(listing.route)}
+                        {listing.listingType === 'driver' ? (
+                          <>🚗 Авто · {formatRouteLabel(listing.route)}</>
+                        ) : (
+                          <>👤 Пасажир · {formatRouteLabel(listing.route)}</>
+                        )}
                       </div>
                       <div className="poputky-trip-meta">
                         {formatTripDate(listing.date)}
                         {listing.departureTime ? `, ${listing.departureTime}` : ''}
                       </div>
-                      {listing.listingType === 'driver' && (
-                        <div className="poputky-trip-car">🚗 Авто</div>
-                      )}
                       <div className="poputky-trip-price">Ціна: <strong>за домовленістю</strong></div>
                       {listing.listingType === 'driver' && isTelegramLoggedIn ? (
                         <button
