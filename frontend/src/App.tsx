@@ -21,8 +21,9 @@ function AppContent() {
     <div className="app">
       <NavBar />
       <Routes>
-        <Route path="/" element={<BookingPage />} />
+        <Route path="/" element={<PoputkyPage />} />
         <Route path="/poputky" element={<PoputkyPage />} />
+        <Route path="/booking" element={<BookingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route 
           path="/admin" 
@@ -55,8 +56,11 @@ function NavBar() {
         <Link to="/" className="nav-link nav-brand">
           🚐 Бронювання
         </Link>
-        <Link to="/poputky" className="nav-link">
+        <Link to="/" className="nav-link">
           🚗 Попутки
+        </Link>
+        <Link to="/booking" className="nav-link">
+          🚌 Маршрутки
         </Link>
       </div>
 
