@@ -979,6 +979,109 @@ app.post('/rideshare/request', async (req, res) => {
 // Viber Listings Endpoints
 // ============================================
 
+type ViberListingMergeInput = {
+  rawMessage: string;
+  senderName?: string | null;
+  listingType: 'driver' | 'passenger';
+  route: string;
+  date: Date;
+  departureTime: string | null;
+  seats: number | null;
+  phone: string;
+  notes: string | null;
+  isActive: boolean;
+  personId?: number | null;
+};
+
+function hasNonEmptyText(value: string | null | undefined): boolean {
+  return !!value && value.trim().length > 0;
+}
+
+function mergeTextField(oldVal: string | null, newVal: string | null): string | null {
+  if (!hasNonEmptyText(newVal)) return oldVal;
+  if (!hasNonEmptyText(oldVal)) return newVal;
+  const oldTrim = oldVal!.trim();
+  const newTrim = newVal!.trim();
+  if (oldTrim === newTrim) return oldVal;
+  if (newTrim.length > oldTrim.length && !oldTrim.includes(newTrim)) {
+    return `${oldTrim} | ${newTrim}`;
+  }
+  return oldVal;
+}
+
+function mergeSenderName(oldVal: string | null, newVal: string | null): string | null {
+  if (!hasNonEmptyText(oldVal) && hasNonEmptyText(newVal)) return newVal;
+  return oldVal;
+}
+
+function mergeRawMessage(oldRaw: string, newRaw: string): string {
+  const oldTrim = (oldRaw || '').trim();
+  const newTrim = (newRaw || '').trim();
+  if (!newTrim) return oldRaw;
+  if (!oldTrim) return newRaw;
+  if (oldTrim.includes(newTrim)) return oldRaw;
+  if (newTrim.includes(oldTrim)) return newRaw;
+  return `${oldRaw}\n---\n${newRaw}`;
+}
+
+async function createOrMergeViberListing(
+  data: ViberListingMergeInput
+): Promise<{ listing: any; isNew: boolean }> {
+  const personId = data.personId ?? null;
+
+  // Якщо немає personId – немає надійного способу визначити клієнта, просто створюємо запис
+  if (!personId) {
+    const listing = await prisma.viberListing.create({ data });
+    return { listing, isNew: true };
+  }
+
+  const date = data.date;
+  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+  const existing = await prisma.viberListing.findFirst({
+    where: {
+      listingType: data.listingType,
+      personId,
+      route: data.route,
+      isActive: true,
+      date: {
+        gte: startOfDay,
+        lt: endOfDay,
+      },
+      departureTime: data.departureTime ?? null,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!existing) {
+    const listing = await prisma.viberListing.create({ data });
+    return { listing, isNew: true };
+  }
+
+  const mergedNotes = mergeTextField(existing.notes, data.notes);
+  const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
+
+  const updated = await prisma.viberListing.update({
+    where: { id: existing.id },
+    data: {
+      rawMessage: mergeRawMessage(existing.rawMessage, data.rawMessage),
+      senderName: mergedSenderName ?? undefined,
+      seats: data.seats != null ? data.seats : existing.seats,
+      phone: existing.phone || data.phone,
+      notes: mergedNotes,
+      isActive: existing.isActive || data.isActive,
+      personId: existing.personId ?? personId,
+    },
+  });
+
+  console.log(
+    `♻️ Viber listing merged with existing #${existing.id} (client+route+date+time match)`
+  );
+
+  return { listing: updated, isNew: false };
+}
+
 // Допоміжна функція: серіалізація Viber listing для JSON (дати в ISO рядок)
 function serializeViberListing(row: { date: Date; createdAt: Date; updatedAt: Date; [key: string]: unknown }) {
   return {
@@ -1070,20 +1173,18 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
       ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
       : null;
 
-    const listing = await prisma.viberListing.create({
-      data: {
-        rawMessage,
-        senderName: senderName ?? undefined,
-        listingType: parsed.listingType,
-        route: parsed.route,
-        date: parsed.date,
-        departureTime: parsed.departureTime,
-        seats: parsed.seats,
-        phone: parsed.phone,
-        notes: parsed.notes,
-        isActive: true,
-        personId: person?.id ?? undefined,
-      },
+    const { listing } = await createOrMergeViberListing({
+      rawMessage,
+      senderName: senderName ?? undefined,
+      listingType: parsed.listingType,
+      route: parsed.route,
+      date: parsed.date,
+      departureTime: parsed.departureTime,
+      seats: parsed.seats,
+      phone: parsed.phone,
+      notes: parsed.notes,
+      isActive: true,
+      personId: person?.id ?? undefined,
     });
     
     console.log(`✅ Створено Viber оголошення #${listing.id}:`, {
@@ -1164,22 +1265,22 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
         const person = parsed.phone
           ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
           : null;
-        const listing = await prisma.viberListing.create({
-          data: {
-            rawMessage: rawText,
-            senderName: senderName ?? undefined,
-            listingType: parsed.listingType,
-            route: parsed.route,
-            date: parsed.date,
-            departureTime: parsed.departureTime,
-            seats: parsed.seats,
-            phone: parsed.phone,
-            notes: parsed.notes,
-            isActive: true,
-            personId: person?.id ?? undefined,
-          },
+        const { listing, isNew } = await createOrMergeViberListing({
+          rawMessage: rawText,
+          senderName: senderName ?? undefined,
+          listingType: parsed.listingType,
+          route: parsed.route,
+          date: parsed.date,
+          departureTime: parsed.departureTime,
+          seats: parsed.seats,
+          phone: parsed.phone,
+          notes: parsed.notes,
+          isActive: true,
+          personId: person?.id ?? undefined,
         });
-        created.push(listing);
+        if (isNew) {
+          created.push(listing);
+        }
         if (isTelegramEnabled()) {
           sendViberListingNotificationToAdmin({
             id: listing.id,

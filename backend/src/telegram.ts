@@ -6,6 +6,109 @@ import { extractDate, extractTime, parseViberMessage, parseViberMessages } from 
 
 const prisma = new PrismaClient();
 
+type ViberListingMergeInput = {
+  rawMessage: string;
+  senderName?: string | null;
+  listingType: 'driver' | 'passenger';
+  route: string;
+  date: Date;
+  departureTime: string | null;
+  seats: number | null;
+  phone: string;
+  notes: string | null;
+  isActive: boolean;
+  personId?: number | null;
+};
+
+function hasNonEmptyText(value: string | null | undefined): boolean {
+  return !!value && value.trim().length > 0;
+}
+
+function mergeTextField(oldVal: string | null, newVal: string | null): string | null {
+  if (!hasNonEmptyText(newVal)) return oldVal;
+  if (!hasNonEmptyText(oldVal)) return newVal;
+  const oldTrim = oldVal!.trim();
+  const newTrim = newVal!.trim();
+  if (oldTrim === newTrim) return oldVal;
+  if (newTrim.length > oldTrim.length && !oldTrim.includes(newTrim)) {
+    return `${oldTrim} | ${newTrim}`;
+  }
+  return oldVal;
+}
+
+function mergeSenderName(oldVal: string | null, newVal: string | null): string | null {
+  if (!hasNonEmptyText(oldVal) && hasNonEmptyText(newVal)) return newVal;
+  return oldVal;
+}
+
+function mergeRawMessage(oldRaw: string, newRaw: string): string {
+  const oldTrim = (oldRaw || '').trim();
+  const newTrim = (newRaw || '').trim();
+  if (!newTrim) return oldRaw;
+  if (!oldTrim) return newRaw;
+  if (oldTrim.includes(newTrim)) return oldRaw;
+  if (newTrim.includes(oldTrim)) return newRaw;
+  return `${oldRaw}\n---\n${newRaw}`;
+}
+
+async function createOrMergeViberListing(
+  data: ViberListingMergeInput
+): Promise<{ listing: any; isNew: boolean }> {
+  const personId = data.personId ?? null;
+
+  // Якщо немає personId – немає надійного способу визначити клієнта, просто створюємо запис
+  if (!personId) {
+    const listing = await prisma.viberListing.create({ data });
+    return { listing, isNew: true };
+  }
+
+  const date = data.date;
+  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+  const existing = await prisma.viberListing.findFirst({
+    where: {
+      listingType: data.listingType,
+      personId,
+      route: data.route,
+      isActive: true,
+      date: {
+        gte: startOfDay,
+        lt: endOfDay,
+      },
+      departureTime: data.departureTime ?? null,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!existing) {
+    const listing = await prisma.viberListing.create({ data });
+    return { listing, isNew: true };
+  }
+
+  const mergedNotes = mergeTextField(existing.notes, data.notes);
+  const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
+
+  const updated = await prisma.viberListing.update({
+    where: { id: existing.id },
+    data: {
+      rawMessage: mergeRawMessage(existing.rawMessage, data.rawMessage),
+      senderName: mergedSenderName ?? undefined,
+      seats: data.seats != null ? data.seats : existing.seats,
+      phone: existing.phone || data.phone,
+      notes: mergedNotes,
+      isActive: existing.isActive || data.isActive,
+      personId: existing.personId ?? personId,
+    },
+  });
+
+  console.log(
+    `♻️ Viber listing merged with existing #${existing.id} (client+route+date+time match)`
+  );
+
+  return { listing: updated, isNew: false };
+}
+
 /** Кроки потоку "додати поїздку (водій)" */
 type DriverRideStep = 'route' | 'date' | 'time' | 'seats' | 'phone' | 'notes' | 'date_custom' | 'time_custom';
 interface DriverRideFlowState {
@@ -127,20 +230,18 @@ async function createDriverListingFromState(
   const resolvedSenderName = nameFromDb ?? senderName;
   const person = await findOrCreatePersonByPhone(phone, { fullName: resolvedSenderName ?? undefined });
   const date = new Date(state.date);
-  const listing = await prisma.viberListing.create({
-    data: {
-      rawMessage: `[Бот] ${state.route} ${state.date} ${state.departureTime ?? ''} ${state.seats ?? ''} місць`,
-      senderName: resolvedSenderName,
-      listingType: 'driver',
-      route: state.route,
-      date,
-      departureTime: state.departureTime ?? null,
-      seats: state.seats ?? null,
-      phone,
-      notes,
-      isActive: true,
-      personId: person.id,
-    },
+  const { listing } = await createOrMergeViberListing({
+    rawMessage: `[Бот] ${state.route} ${state.date} ${state.departureTime ?? ''} ${state.seats ?? ''} місць`,
+    senderName: resolvedSenderName,
+    listingType: 'driver',
+    route: state.route,
+    date,
+    departureTime: state.departureTime ?? null,
+    seats: state.seats ?? null,
+    phone,
+    notes,
+    isActive: true,
+    personId: person.id,
   });
   await sendViberListingNotificationToAdmin({
     id: listing.id,
@@ -183,20 +284,18 @@ async function createPassengerListingFromState(
   const resolvedSenderName = nameFromDb ?? senderName;
   const person = await findOrCreatePersonByPhone(phone, { fullName: resolvedSenderName ?? undefined });
   const date = new Date(state.date);
-  const listing = await prisma.viberListing.create({
-    data: {
-      rawMessage: `[Бот-пасажир] ${state.route} ${state.date} ${state.departureTime ?? ''}`,
-      senderName: resolvedSenderName,
-      listingType: 'passenger',
-      route: state.route,
-      date,
-      departureTime: state.departureTime ?? null,
-      seats: null,
-      phone,
-      notes,
-      isActive: true,
-      personId: person.id,
-    },
+  const { listing } = await createOrMergeViberListing({
+    rawMessage: `[Бот-пасажир] ${state.route} ${state.date} ${state.departureTime ?? ''}`,
+    senderName: resolvedSenderName,
+    listingType: 'passenger',
+    route: state.route,
+    date,
+    departureTime: state.departureTime ?? null,
+    seats: null,
+    phone,
+    notes,
+    isActive: true,
+    personId: person.id,
   });
   await sendViberListingNotificationToAdmin({
     id: listing.id,
@@ -2047,22 +2146,22 @@ https://malin.kiev.ua
               const person = parsed.phone
                 ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
                 : null;
-              const listing = await prisma.viberListing.create({
-                data: {
-                  rawMessage: rawText,
-                  senderName: senderName ?? undefined,
-                  listingType: parsed.listingType,
-                  route: parsed.route,
-                  date: parsed.date,
-                  departureTime: parsed.departureTime,
-                  seats: parsed.seats,
-                  phone: parsed.phone,
-                  notes: parsed.notes,
-                  isActive: true,
-                  personId: person?.id ?? undefined,
-                },
-              });
-              created++;
+          const { listing, isNew } = await createOrMergeViberListing({
+            rawMessage: rawText,
+            senderName: senderName ?? undefined,
+            listingType: parsed.listingType,
+            route: parsed.route,
+            date: parsed.date,
+            departureTime: parsed.departureTime,
+            seats: parsed.seats,
+            phone: parsed.phone,
+            notes: parsed.notes,
+            isActive: true,
+            personId: person?.id ?? undefined,
+          });
+          if (isNew) {
+            created++;
+          }
               if (isTelegramEnabled()) {
                 await sendViberListingNotificationToAdmin({
                   id: listing.id,
@@ -2112,20 +2211,18 @@ https://malin.kiev.ua
           const person = parsed.phone
             ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
             : null;
-          const listing = await prisma.viberListing.create({
-            data: {
-              rawMessage: text,
-              senderName: senderName ?? undefined,
-              listingType: parsed.listingType,
-              route: parsed.route,
-              date: parsed.date,
-              departureTime: parsed.departureTime,
-              seats: parsed.seats,
-              phone: parsed.phone,
-              notes: parsed.notes,
-              isActive: true,
-              personId: person?.id ?? undefined,
-            },
+          const { listing, isNew } = await createOrMergeViberListing({
+            rawMessage: text,
+            senderName: senderName ?? undefined,
+            listingType: parsed.listingType,
+            route: parsed.route,
+            date: parsed.date,
+            departureTime: parsed.departureTime,
+            seats: parsed.seats,
+            phone: parsed.phone,
+            notes: parsed.notes,
+            isActive: true,
+            personId: person?.id ?? undefined,
           });
           if (isTelegramEnabled()) {
             await sendViberListingNotificationToAdmin({
@@ -2156,7 +2253,8 @@ https://malin.kiev.ua
               notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
             }
           }
-          await bot?.sendMessage(chatId, `✅ Оголошення #${listing.id} створено. Адміну надіслано сповіщення.`, { parse_mode: 'HTML' });
+          const verb = isNew ? 'створено' : 'оновлено';
+          await bot?.sendMessage(chatId, `✅ Оголошення #${listing.id} ${verb}. Адміну надіслано сповіщення.`, { parse_mode: 'HTML' });
         }
       } catch (err) {
         console.error('AddViber error:', err);
@@ -4048,20 +4146,18 @@ async function executeBookViberRideShare(
   if (!person?.phoneNormalized) {
     return { ok: false, error: 'Спочатку надішліть номер телефону: /start' };
   }
-  const passengerListing = await prisma.viberListing.create({
-    data: {
-      rawMessage: `[Бот] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
-      senderName: person.fullName?.trim() ?? passengerDisplayName ?? 'Пасажир',
-      listingType: 'passenger',
-      route: driverListing.route,
-      date: driverListing.date,
-      departureTime: driverListing.departureTime,
-      seats: null,
-      phone: person.phoneNormalized,
-      notes: null,
-      isActive: true,
-      personId: person.id,
-    },
+  const { listing: passengerListing } = await createOrMergeViberListing({
+    rawMessage: `[Бот] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
+    senderName: person.fullName?.trim() ?? passengerDisplayName ?? 'Пасажир',
+    listingType: 'passenger',
+    route: driverListing.route,
+    date: driverListing.date,
+    departureTime: driverListing.departureTime,
+    seats: null,
+    phone: person.phoneNormalized,
+    notes: null,
+    isActive: true,
+    personId: person.id,
   });
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
   const request = await prisma.rideShareRequest.create({
