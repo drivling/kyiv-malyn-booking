@@ -335,6 +335,11 @@ export const PoputkyPage: React.FC = () => {
                         {formatTripDate(listing.date)}
                         {listing.departureTime ? `, ${listing.departureTime}` : ''}
                       </div>
+                      {listing.notes && (
+                        <div className="poputky-trip-notes">
+                          {listing.notes}
+                        </div>
+                      )}
                       <div className="poputky-trip-price">Ціна: <strong>за домовленістю</strong></div>
                       {listing.listingType === 'driver' && isTelegramLoggedIn ? (
                         <button

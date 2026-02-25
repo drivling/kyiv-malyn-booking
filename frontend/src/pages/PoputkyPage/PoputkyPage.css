@@ -257,6 +257,14 @@
   color: var(--pb-text-muted);
 }
 
+.poputky-trip-notes {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--pb-text-muted);
+  margin-top: 2px;
+  white-space: pre-line;
+}
+
 .poputky-trip-car {
   font-size: 13px;
   color: var(--pb-text-muted);
