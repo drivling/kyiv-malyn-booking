@@ -1402,6 +1402,29 @@ function getMainMenuKeyboard(): TelegramBot.ReplyKeyboardMarkup {
   };
 }
 
+/** Клавіатура «Поділитися номером» — єдина дія для користувача без номера. */
+function getSharePhoneKeyboard(): TelegramBot.ReplyKeyboardMarkup {
+  return {
+    keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+}
+
+/** Надіслати повідомлення «спочатку поділіться номером» і кнопку. Використовувати для будь-якої дії без реєстрації. */
+async function sendSharePhoneOnly(chatId: string): Promise<void> {
+  const text =
+    '📱 <b>Спочатку поділіться номером телефону</b>\n\n' +
+    'Щоб користуватися ботом (бронювання, попутки, сповіщення), надішліть номер:\n' +
+    '• натисніть кнопку нижче або\n' +
+    '• напишіть номер, наприклад 0501234567\n\n' +
+    '🌐 Забронювати квиток на сайті: https://malin.kiev.ua';
+  await bot?.sendMessage(chatId, text, {
+    parse_mode: 'HTML',
+    reply_markup: getSharePhoneKeyboard(),
+  });
+}
+
 /**
  * Налаштування обробників команд бота
  */
@@ -1494,7 +1517,7 @@ function setupBotCommands() {
     await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
   };
 
-  const sendFreeViewInfo = async (chatId: string) => {
+  const sendFreeViewInfo = async (chatId: string, replyMarkup?: TelegramBot.ReplyKeyboardMarkup) => {
     const links = getTelegramScenarioLinks();
     await bot?.sendMessage(
       chatId,
@@ -1504,7 +1527,7 @@ function setupBotCommands() {
       'Швидкий старт у Telegram:\n' +
       `🚗 Водій: ${links.driver}\n` +
       `👤 Пасажир: ${links.passenger}`,
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML', ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }
     );
   };
 
@@ -1523,7 +1546,7 @@ function setupBotCommands() {
         if (result.ok) {
           await bot?.sendMessage(chatId, '✅ Запит на бронювання надіслано водію. Він отримає сповіщення і матиме 1 годину на підтвердження. Якщо підтвердить — ви побачите поїздку в /mybookings.', { parse_mode: 'HTML' });
         } else {
-          await bot?.sendMessage(chatId, result.error ?? '❌ Помилка', { parse_mode: 'HTML' });
+          await sendSharePhoneOnly(chatId);
         }
         return;
       }
@@ -1592,7 +1615,8 @@ function setupBotCommands() {
 https://malin.kiev.ua
     `.trim();
 
-    const handleStartScenario = async (): Promise<boolean> => {
+    /** Якщо передано contactKeyboard, при сценарії view зберігаємо кнопку «Поділитися контактом» під повідомленням. */
+    const handleStartScenario = async (contactKeyboard?: TelegramBot.ReplyKeyboardMarkup): Promise<boolean> => {
       if (!startScenario) return false;
       if (startScenario === 'driver') {
         await bot?.sendMessage(chatId, '🚗 Запускаю сценарій: <b>Запит на поїздку як водій</b>', { parse_mode: 'HTML' });
@@ -1604,7 +1628,7 @@ https://malin.kiev.ua
         await startPassengerRideFlow(chatId, userId);
         return true;
       }
-      await sendFreeViewInfo(chatId);
+      await sendFreeViewInfo(chatId, contactKeyboard);
       return true;
     };
 
@@ -1648,41 +1672,25 @@ https://malin.kiev.ua
         if (await handleStartScenario()) return;
         return;
       }
-      // Новий користувач - пропонуємо зареєструватися
+      // Новий користувач — показуємо тільки заклик поділитися номером (без інших команд і сценаріїв)
       const welcomeMessage = `
 👋 Привіт, ${firstName}!
 
 Я бот для бронювання маршруток <b>Київ, Житомир, Коростень ↔ Малин</b>.
 
-🎫 <b>Щоб отримувати нотифікації та переглядати свої бронювання:</b>
+📱 <b>Щоб продовжити, надішліть номер телефону:</b>
+   • кнопкою нижче або
+   • напишіть номер, наприклад 0501234567
 
-📱 Надішліть мені свій номер телефону:
-   • Кнопкою «Поділитися контактом» нижче
-   • Або напишіть номер: +380501234567
+Після цього зʼявиться меню бронювань, попуток та сповіщень.
 
-📋 <b>Команди:</b>
-/help - повна довідка
-/mybookings - мої бронювання (після реєстрації)
-/allrides - всі активні попутки
-
-🌐 <b>Забронювати квиток:</b>
-https://malin.kiev.ua
+🌐 Забронювати квиток на сайті: https://malin.kiev.ua
       `.trim();
-      
-      // Додаємо кнопку для швидкого надсилання контакту
-      const keyboard = {
-        keyboard: [
-          [{ text: '📱 Поділитися номером телефону', request_contact: true }]
-        ],
-        resize_keyboard: true,
-        one_time_keyboard: true
-      };
-      
-      await bot?.sendMessage(chatId, welcomeMessage, { 
+
+      await bot?.sendMessage(chatId, welcomeMessage, {
         parse_mode: 'HTML',
-        reply_markup: keyboard
+        reply_markup: getSharePhoneKeyboard(),
       });
-      if (await handleStartScenario()) return;
     }
   });
 
@@ -1693,6 +1701,12 @@ https://malin.kiev.ua
 
   bot.onText(/\/poputky/, async (msg) => {
     const chatId = msg.chat.id.toString();
+    const userId = msg.from?.id.toString() || '';
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    if (!userPhone) {
+      await sendSharePhoneOnly(chatId);
+      return;
+    }
     await sendFreeViewInfo(chatId);
   });
 
@@ -1776,6 +1790,11 @@ https://malin.kiev.ua
     timeSlot?: AllridesTimeSlot
   ): Promise<void> => {
     try {
+      const userPhone = await getPhoneByTelegramUser(userId, chatId);
+      if (!userPhone) {
+        await sendSharePhoneOnly(chatId);
+        return;
+      }
       const normalizedFilter = filterRaw.trim().toLowerCase();
       const showAll =
         normalizedFilter === 'all' ||
@@ -1888,7 +1907,6 @@ https://malin.kiev.ua
         }
       }
 
-      const userPhone = await getPhoneByTelegramUser(userId, chatId);
       const inlineKeyboard: Array<Array<{ text: string; callback_data: string }>> = [];
 
       // Водії, у яких можна забронювати (є Telegram): окремими повідомленнями з кнопкою під кожною пропозицією.
@@ -2000,14 +2018,9 @@ https://malin.kiev.ua
   };
 
   const handleBook = async (chatId: string, userId: string) => {
-    const userBooking = await prisma.booking.findFirst({ where: { telegramUserId: userId } });
-    const person = await getPersonByTelegram(userId, chatId);
-    if (!userBooking && !person) {
-      await bot?.sendMessage(
-        chatId,
-        '❌ <b>Спочатку зареєструйте свій номер телефону</b>\n\nВикористайте команду /start і надішліть свій номер телефону.\n\nАбо створіть бронювання на сайті:\nhttps://malin.kiev.ua',
-        { parse_mode: 'HTML' }
-      );
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    if (!userPhone) {
+      await sendSharePhoneOnly(chatId);
       return;
     }
     const directionKeyboard = {
@@ -2061,26 +2074,16 @@ https://malin.kiev.ua
 🌐 Сайт: https://malin.kiev.ua`.trim();
       await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
     } else {
-      const helpMessage = `📚 <b>Довідка для нових користувачів</b>
-
-/start - почати роботу з ботом
-/help - показати цю довідку
-/allrides - подивитися всі активні попутки
-
-📱 <b>Як підключитися:</b>
-1. Напишіть /start
-2. Надішліть свій номер телефону кнопкою «Поділитися контактом» або текстом
-3. Після цього зможете бронювати через бота та отримувати сповіщення
-
-💡 <b>Формати номера:</b>
-+380501234567 або 0501234567
-
-🌐 Забронювати квиток: https://malin.kiev.ua`.trim();
-      await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
+      await sendSharePhoneOnly(chatId);
     }
   };
 
   const handleCancel = async (chatId: string, userId: string) => {
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    if (!userPhone) {
+      await sendSharePhoneOnly(chatId);
+      return;
+    }
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -2103,7 +2106,7 @@ https://malin.kiev.ua
   const handleMydriverrides = async (chatId: string, userId: string) => {
     const userPhone = await getPhoneByTelegramUser(userId, chatId);
     if (!userPhone) {
-      await bot?.sendMessage(chatId, '❌ <b>Спочатку підключіть номер телефону</b>\n\nНапишіть /start і надішліть свій номер — тоді зможете переглядати свої поїздки як водій.', { parse_mode: 'HTML' });
+      await sendSharePhoneOnly(chatId);
       return;
     }
     const normalized = normalizePhone(userPhone);
@@ -2124,7 +2127,7 @@ https://malin.kiev.ua
   const handleMypassengerrides = async (chatId: string, userId: string) => {
     const userPhone = await getPhoneByTelegramUser(userId, chatId);
     if (!userPhone) {
-      await bot?.sendMessage(chatId, '❌ <b>Спочатку підключіть номер телефону</b>\n\nНапишіть /start і надішліть свій номер — тоді зможете переглядати свої запити як пасажир.', { parse_mode: 'HTML' });
+      await sendSharePhoneOnly(chatId);
       return;
     }
     const normalized = normalizePhone(userPhone);
@@ -2139,6 +2142,11 @@ https://malin.kiev.ua
   };
 
   const handleMybookings = async (chatId: string, userId: string) => {
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    if (!userPhone) {
+      await sendSharePhoneOnly(chatId);
+      return;
+    }
     try {
       await prisma.booking.updateMany({ where: { telegramUserId: userId, telegramChatId: null }, data: { telegramChatId: chatId } });
       const allUserBookings = await prisma.booking.findMany({ where: { telegramUserId: userId }, orderBy: { date: 'desc' } });
@@ -2220,6 +2228,11 @@ https://malin.kiev.ua
 
   /** Виконання команди з кнопки головного меню (прямий виклик, без emit). */
   const runMenuCommand = async (chatId: string, userId: string, command: string): Promise<void> => {
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    if (!userPhone) {
+      await sendSharePhoneOnly(chatId);
+      return;
+    }
     switch (command) {
       case '/book':
         return handleBook(chatId, userId);
@@ -3238,7 +3251,8 @@ https://malin.kiev.ua
           await bot?.answerCallbackQuery(query.id, { text: 'Запит надіслано водію. Очікуйте підтвердження (1 год).' });
           await bot?.sendMessage(chatId, '✅ Запит на бронювання надіслано водію. Він отримає сповіщення і матиме 1 годину на підтвердження. Якщо підтвердить — ви побачите поїздку в /mybookings.', { parse_mode: 'HTML' }).catch(() => {});
         } else {
-          await bot?.answerCallbackQuery(query.id, { text: result.error ?? '❌ Помилка' });
+          await bot?.answerCallbackQuery(query.id, { text: 'Спочатку поділіться номером телефону' });
+          await sendSharePhoneOnly(chatId);
         }
         return;
       }
