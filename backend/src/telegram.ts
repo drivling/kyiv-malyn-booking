@@ -701,6 +701,24 @@ function formatPhoneDisplay(phone: string | null | undefined): string {
   return (phone ?? '').trim() || '—';
 }
 
+/** Короткий номер для кнопки: 097…5645 (0XX + останні 4 цифри) */
+function formatShortPhoneForButton(phone: string | null | undefined): string {
+  const normalized = normalizePhone(phone ?? '');
+  if (normalized.length >= 7) {
+    const prefix = normalized.startsWith('38') ? '0' + normalized.slice(2, 5) : normalized.slice(0, 3);
+    const last4 = normalized.slice(-4);
+    return `${prefix}…${last4}`;
+  }
+  return normalized ? normalized.slice(-4) || '—' : '—';
+}
+
+/** Обрізати текст для кнопки Telegram (ліміт ~64 байти) */
+function truncateForButton(name: string, maxLen: number = 18): string {
+  const t = (name || '').trim();
+  if (t.length <= maxLen) return t;
+  return t.slice(0, maxLen - 1) + '…';
+}
+
 /**
  * Клікабельний номер телефону для Telegram (HTML): <a href="tel:+38...">+380(XX)YYYYYYY</a>
  */
@@ -1940,8 +1958,11 @@ https://malin.kiev.ua
             const key = `${myPassenger.id}_${match.listing.id}`;
             if (seenPassengerToDriver.has(key)) continue;
             seenPassengerToDriver.add(key);
+            const driverName = truncateForButton(match.listing.senderName ?? 'Водій');
+            const shortPhone = formatShortPhoneForButton(match.listing.phone);
+            const timePart = match.listing.departureTime ?? '—';
             inlineKeyboard.push([{
-              text: `🎫 До водія #${match.listing.id} (${match.listing.departureTime ?? 'час не вказано'})`,
+              text: `🎫 ${driverName} · ${shortPhone} (${timePart})`,
               callback_data: `vibermatch_book_${myPassenger.id}_${match.listing.id}`,
             }]);
             if (inlineKeyboard.length >= 10) break;
@@ -1962,8 +1983,10 @@ https://malin.kiev.ua
             const key = `${myDriver.id}_${match.listing.id}`;
             if (seenDriverToPassenger.has(key)) continue;
             seenDriverToPassenger.add(key);
+            const passengerName = truncateForButton(match.listing.senderName ?? 'Пасажир');
+            const shortPhone = formatShortPhoneForButton(match.listing.phone);
             inlineKeyboard.push([{
-              text: `🤝 Запропонувати пасажиру #${match.listing.id}`,
+              text: `🤝 ${passengerName} · ${shortPhone}`,
               callback_data: `vibermatch_book_driver_${myDriver.id}_${match.listing.id}`,
             }]);
             if (inlineKeyboard.length >= 20) break;
@@ -2122,6 +2145,45 @@ https://malin.kiev.ua
       return `• ${getRouteName(l.route)} — ${formatDate(l.date)} о ${time}${seats}`;
     });
     await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /adddriverride', { parse_mode: 'HTML' });
+
+    // Співпадіння пасажирів для кожної моєї поїздки (прямі + приблизні)
+    for (const myDriver of myListings.slice(0, 5)) {
+      const matches = await findMatchingPassengersForDriver({
+        route: myDriver.route,
+        date: myDriver.date,
+        departureTime: myDriver.departureTime ?? null,
+      });
+      const matchesFiltered = matches.filter((m) => normalizePhone(m.listing.phone) !== normalized);
+      const exactList = matchesFiltered.filter((m) => m.matchType === 'exact').map((m) => m.listing);
+      const approxList = matchesFiltered.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
+      const routeDateLabel = `${getRouteName(myDriver.route)}, ${formatDate(myDriver.date)} о ${myDriver.departureTime ?? '—'}`;
+      if (exactList.length > 0) {
+        const linesExact = exactList.map((p) => {
+          const time = p.departureTime ?? '—';
+          return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+        }).join('\n');
+        const buttons = exactList.map((p) => ([
+          { text: `🤝 ${truncateForButton(p.senderName ?? 'Пасажир')} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
+        ]));
+        await bot?.sendMessage(
+          chatId,
+          `🎯 <b>Пряме співпадіння для поїздки:</b> ${routeDateLabel}\n\n` + linesExact +
+          '\n\n_Натисніть кнопку — запит буде надісланий пасажиру на підтвердження (1 година)._',
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }
+        ).catch((err) => console.error('mydriverrides: exact matches', err));
+      }
+      if (approxList.length > 0) {
+        const linesApprox = approxList.map((p) => {
+          const time = p.departureTime ?? '—';
+          return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+        }).join('\n');
+        await bot?.sendMessage(
+          chatId,
+          `📌 <b>Приблизне співпадіння</b> (поїздка: ${routeDateLabel})\n\n` + linesApprox,
+          { parse_mode: 'HTML' }
+        ).catch((err) => console.error('mydriverrides: approx matches', err));
+      }
+    }
   };
 
   const handleMypassengerrides = async (chatId: string, userId: string) => {
@@ -2139,6 +2201,45 @@ https://malin.kiev.ua
     }
     const lines = myListings.map((l: { route: string; date: Date; departureTime: string | null }) => `• ${getRouteName(l.route)} — ${formatDate(l.date)} о ${l.departureTime ?? '—'}`);
     await bot?.sendMessage(chatId, '👤 <b>Мої запити (пасажир)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /addpassengerride', { parse_mode: 'HTML' });
+
+    // Співпадіння водіїв для кожного мого запиту (прямі + приблизні)
+    for (const myPassenger of myListings.slice(0, 5)) {
+      const matches = await findMatchingDriversForPassenger({
+        route: myPassenger.route,
+        date: myPassenger.date,
+        departureTime: myPassenger.departureTime ?? null,
+      });
+      const matchesFiltered = matches.filter((m) => normalizePhone(m.listing.phone) !== normalized);
+      const exactList = matchesFiltered.filter((m) => m.matchType === 'exact').map((m) => m.listing);
+      const approxList = matchesFiltered.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
+      const routeDateLabel = `${getRouteName(myPassenger.route)}, ${formatDate(myPassenger.date)} о ${myPassenger.departureTime ?? '—'}`;
+      if (exactList.length > 0) {
+        const linesExact = exactList.map((d) => {
+          const time = d.departureTime ?? '—';
+          return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+        }).join('\n');
+        const buttons = exactList.map((d) => ([
+          { text: `🎫 ${truncateForButton(d.senderName ?? 'Водій')} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
+        ]));
+        await bot?.sendMessage(
+          chatId,
+          `🎯 <b>Пряме співпадіння для вашого запиту:</b> ${routeDateLabel}\n\n` + linesExact +
+          '\n\n_Натисніть кнопку — запит буде надісланий водію на підтвердження (1 година)._',
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }
+        ).catch((err) => console.error('mypassengerrides: exact matches', err));
+      }
+      if (approxList.length > 0) {
+        const linesApprox = approxList.map((d) => {
+          const time = d.departureTime ?? '—';
+          return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+        }).join('\n');
+        await bot?.sendMessage(
+          chatId,
+          `📌 <b>Приблизне співпадіння</b> (ваш запит: ${routeDateLabel})\n\n` + linesApprox,
+          { parse_mode: 'HTML' }
+        ).catch((err) => console.error('mypassengerrides: approx matches', err));
+      }
+    }
   };
 
   const handleMybookings = async (chatId: string, userId: string) => {
