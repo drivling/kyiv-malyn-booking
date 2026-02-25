@@ -1285,19 +1285,12 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
           `📋 <b>Повна інструкція</b>\n\n` +
           `1️⃣ <b>Забронювати квиток</b> можна двома способами:\n` +
           `   • На сайті: 🌐 https://malin.kiev.ua (вкажіть цей номер телефону)\n` +
-          `   • У боті: команда /book — обрати маршрут, дату, час і підтвердити\n\n` +
+          `   • У боті: кнопка «🎫 Бронювання» або команда /book\n\n` +
           `2️⃣ <b>Що ви будете отримувати автоматично:</b>\n` +
           `   • ✅ Підтвердження бронювання (на сайті чи в боті)\n` +
           `   • 🔔 Нагадування за день до поїздки\n\n` +
-          `3️⃣ <b>Корисні команди:</b>\n` +
-          `   /mybookings — переглянути мої бронювання\n` +
-          `   /allrides — переглянути всі попутки та швидкі дії\n` +
-          `   /book — створити нове бронювання в боті\n` +
-          `   /help — повна довідка по всіх командах\n\n` +
-          `   🚗 <b>Водій:</b> /adddriverride — додати поїздку, /mydriverrides — мої поїздки\n` +
-          `   👤 <b>Пасажир:</b> /addpassengerride — шукаю поїздку, /mypassengerrides — мої запити\n\n` +
-          `Нічого більше налаштовувати не потрібно — просто забронюйте квиток на сайті або через /book.`,
-        { parse_mode: 'HTML' }
+          `3️⃣ Нижче з\'явилися кнопки меню — користуйтеся ними або командами з довідки /help.`,
+        { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() }
       );
       console.log(`✅ Додано Person (без бронювань) для ${userId}, номер ${normalizedPhone}`);
       return;
@@ -1344,8 +1337,8 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
         `Тепер ви будете отримувати:\n` +
         `• ✅ Підтвердження при створенні бронювання\n` +
         `• 🔔 Нагадування за день до поїздки\n\n` +
-        `📋 Використайте /mybookings щоб переглянути свої бронювання`,
-      { parse_mode: 'HTML' }
+        `📋 Нижче з\'явилися кнопки меню — можна користуватися ними замість команд.`,
+      { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() }
     );
   } catch (error) {
     console.error('❌ Помилка реєстрації номера:', error);
@@ -1353,11 +1346,70 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
   }
 }
 
+/** Список команд для меню бота (кнопка "Menu" зліва від вводу). */
+const CLIENT_BOT_COMMANDS: { command: string; description: string }[] = [
+  { command: 'start', description: 'Головне меню' },
+  { command: 'help', description: 'Довідка' },
+  { command: 'book', description: 'Нове бронювання' },
+  { command: 'mybookings', description: 'Мої бронювання' },
+  { command: 'allrides', description: 'Всі попутки' },
+  { command: 'cancel', description: 'Скасувати бронювання' },
+  { command: 'mydriverrides', description: 'Мої поїздки (водій)' },
+  { command: 'adddriverride', description: 'Додати поїздку' },
+  { command: 'mypassengerrides', description: 'Мої запити (пасажир)' },
+  { command: 'addpassengerride', description: 'Шукаю поїздку' },
+  { command: 'poputky', description: 'Перегляд попуток' },
+];
+
+/** Відображувані назви кнопок головного меню (надсилаються як текст повідомлення). */
+const MAIN_MENU_BUTTONS = {
+  BOOK: '🎫 Бронювання',
+  MY_BOOKINGS: '📋 Мої бронювання',
+  ALL_RIDES: '🌐 Всі попутки',
+  CANCEL: '🚫 Скасувати',
+  MY_DRIVER_RIDES: '🚗 Мої поїздки',
+  MY_PASSENGER_RIDES: '👤 Мої запити',
+  ADD_DRIVER_RIDE: '🚗 Додати поїздку',
+  ADD_PASSENGER_RIDE: '👤 Шукаю поїздку',
+  HELP: '📚 Довідка',
+} as const;
+
+/** Відповідність текстів кнопок командам. */
+const MENU_BUTTON_TO_COMMAND: Record<string, string> = {
+  [MAIN_MENU_BUTTONS.BOOK]: '/book',
+  [MAIN_MENU_BUTTONS.MY_BOOKINGS]: '/mybookings',
+  [MAIN_MENU_BUTTONS.ALL_RIDES]: '/allrides',
+  [MAIN_MENU_BUTTONS.CANCEL]: '/cancel',
+  [MAIN_MENU_BUTTONS.MY_DRIVER_RIDES]: '/mydriverrides',
+  [MAIN_MENU_BUTTONS.MY_PASSENGER_RIDES]: '/mypassengerrides',
+  [MAIN_MENU_BUTTONS.ADD_DRIVER_RIDE]: '/adddriverride',
+  [MAIN_MENU_BUTTONS.ADD_PASSENGER_RIDE]: '/addpassengerride',
+  [MAIN_MENU_BUTTONS.HELP]: '/help',
+};
+
+/** Reply-клавіатура (кнопки під полем вводу), згруповані в підменю. */
+function getMainMenuKeyboard(): TelegramBot.ReplyKeyboardMarkup {
+  return {
+    keyboard: [
+      [{ text: MAIN_MENU_BUTTONS.BOOK }, { text: MAIN_MENU_BUTTONS.MY_BOOKINGS }],
+      [{ text: MAIN_MENU_BUTTONS.ALL_RIDES }, { text: MAIN_MENU_BUTTONS.CANCEL }],
+      [{ text: MAIN_MENU_BUTTONS.MY_DRIVER_RIDES }, { text: MAIN_MENU_BUTTONS.MY_PASSENGER_RIDES }],
+      [{ text: MAIN_MENU_BUTTONS.ADD_DRIVER_RIDE }, { text: MAIN_MENU_BUTTONS.ADD_PASSENGER_RIDE }],
+      [{ text: MAIN_MENU_BUTTONS.HELP }],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+  };
+}
+
 /**
  * Налаштування обробників команд бота
  */
 function setupBotCommands() {
   if (!bot) return;
+
+  // Меню команд (кнопка "Menu" зліва від вводу тексту)
+  bot.setMyCommands(CLIENT_BOT_COMMANDS).catch((err) => console.error('❌ setMyCommands:', err));
 
   const parseStartScenario = (text?: string): 'driver' | 'passenger' | 'view' | null => {
     if (!text) return null;
@@ -1570,7 +1622,10 @@ https://malin.kiev.ua
         console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start`);
       }
       const displayPhone = person.phoneNormalized ? formatPhoneTelLink(person.phoneNormalized) : (existingBooking ? formatPhoneTelLink(existingBooking.phone) : '');
-      await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), { parse_mode: 'HTML' });
+      await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), {
+        parse_mode: 'HTML',
+        reply_markup: getMainMenuKeyboard(),
+      });
       if (await handleStartScenario()) return;
     } else {
       if (existingBooking) {
@@ -1586,7 +1641,10 @@ https://malin.kiev.ua
         await updatePersonAndBookingsTelegram(p.id, chatId, userId);
         console.log(`✅ Оновлено Person/Booking для користувача ${userId} при /start (з booking)`);
         const displayPhone = formatPhoneTelLink(p.phoneNormalized ?? existingBooking.phone);
-        await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), { parse_mode: 'HTML' });
+        await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), {
+          parse_mode: 'HTML',
+          reply_markup: getMainMenuKeyboard(),
+        });
         if (await handleStartScenario()) return;
         return;
       }
@@ -2106,15 +2164,20 @@ https://malin.kiev.ua
 
   // Обробка текстових повідомлень (номер телефону або текст поїздки водія)
   bot.on('message', async (msg) => {
+    const text = msg.text?.trim();
+    // Кнопки головного меню: перетворюємо на команду й даємо обробнику команди (емітуємо повідомлення з текстом команди)
+    if (text && MENU_BUTTON_TO_COMMAND[text] && bot) {
+      (bot as { emit: (event: string, payload: unknown) => boolean }).emit('message', { ...msg, text: MENU_BUTTON_TO_COMMAND[text] });
+      return;
+    }
     // Ігноруємо команди та контакти (вони обробляються окремо)
     if (msg.text?.startsWith('/') || msg.contact) {
       return;
     }
-    
+
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
-    const text = msg.text?.trim();
-    
+
     if (!text) return;
 
     // Потік /addviber: адмін надіслав текст оголошення з Вайберу (та сама обробка, що в адмінці)
