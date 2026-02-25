@@ -86,7 +86,7 @@ export function extractDate(text: string, messageDate?: Date): Date {
 
 /**
  * Витягує час з тексту
- * Формати: "18:00", "18:00-18:30", "о 18:30", "20-45" (дефіс замість двокрапки)
+ * Формати: "18:00", "18:00-18:30", "о 18:30", "20-45" (дефіс замість двокрапки), "в 8.40-8.50" (крапка замість двокрапки)
  */
 export function extractTime(text: string): string | null {
   // Спочатку шукаємо час у форматі HH:MM або HH:MM-HH:MM
@@ -100,13 +100,35 @@ export function extractTime(text: string): string | null {
       return `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
     }
   }
-  
+
+  // Час з крапкою замість двокрапки: "в 8.40-8.50" або "в 8.40" (контекст "в/о" щоб не плутати з датою)
+  // Перевіряємо валідність часу (год 0–23, хв 0–59), щоб не сприймати дату "в 27.02" як час
+  const isValidTime = (h: number, m: number) => h >= 0 && h <= 23 && m >= 0 && m <= 59;
+  const dotRangeMatch = text.match(/(?:в|о|виїзд)\s+(\d{1,2})\.(\d{2})-(\d{1,2})\.(\d{2})/i);
+  if (dotRangeMatch) {
+    const h1 = parseInt(dotRangeMatch[1], 10);
+    const m1 = parseInt(dotRangeMatch[2], 10);
+    const h2 = parseInt(dotRangeMatch[3], 10);
+    const m2 = parseInt(dotRangeMatch[4], 10);
+    if (isValidTime(h1, m1) && isValidTime(h2, m2)) {
+      return `${dotRangeMatch[1].padStart(2, '0')}:${dotRangeMatch[2]}-${dotRangeMatch[3].padStart(2, '0')}:${dotRangeMatch[4]}`;
+    }
+  }
+  const dotTimeMatch = text.match(/(?:в|о|виїзд)\s+(\d{1,2})\.(\d{2})(?=\s|$|,|\.)/i);
+  if (dotTimeMatch) {
+    const h = parseInt(dotTimeMatch[1], 10);
+    const m = parseInt(dotTimeMatch[2], 10);
+    if (isValidTime(h, m)) {
+      return `${dotTimeMatch[1].padStart(2, '0')}:${dotTimeMatch[2]}`;
+    }
+  }
+
   // Також шукаємо формат з дефісом замість двокрапки: "20-45"
   const dashTimeMatch = text.match(/(?:виїзд|о|в)\s+(\d{1,2})-(\d{2})/i);
   if (dashTimeMatch) {
     return `${dashTimeMatch[1].padStart(2, '0')}:${dashTimeMatch[2]}`;
   }
-  
+
   return null;
 }
 
