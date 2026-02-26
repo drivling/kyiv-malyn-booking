@@ -225,6 +225,9 @@ export const PoputkyPage: React.FC = () => {
     setAnnounceSubmitting(true);
     const timeFrom = announceTimeFrom.trim();
     const timeTo = announceTimeTo.trim();
+    const timeValue = timeFrom && timeTo
+      ? `${timeFrom}-${timeTo}`
+      : timeFrom || timeTo || undefined;
     try {
       const { deepLink } = await apiClient.createAnnounceDraft({
         role: announceRole,
@@ -233,12 +236,6 @@ export const PoputkyPage: React.FC = () => {
         date: announceDate,
         time: timeValue,
         priceUah,
-        notes: announceComment.trim() || undefined,
-      });
-      window.open(deepLink, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-        date: announceDate,
-        time: timeValue,
         notes: announceComment.trim() || undefined,
       });
       window.open(deepLink, '_blank', 'noopener,noreferrer');
@@ -486,6 +483,19 @@ export const PoputkyPage: React.FC = () => {
                 )}
                 {announceTimeFrom && announceTimeTo && (
                   <p className="poputky-form-hint poputky-form-hint--inline">Обидва — проміжок {announceTimeFrom}–{announceTimeTo}</p>
+                )}
+                {announceRole === 'driver' && (
+                  <label className="poputky-form-label">
+                    Ціна (грн, опціонально):
+                    <input
+                      type="number"
+                      min={0}
+                      value={announcePrice}
+                      onChange={(e) => setAnnouncePrice(e.target.value)}
+                      className="poputky-form-input"
+                      placeholder="наприклад 150"
+                    />
+                  </label>
                 )}
                 <label className="poputky-form-label">
                   Коментар:

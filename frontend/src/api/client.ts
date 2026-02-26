@@ -325,7 +325,6 @@ class ApiClient {
   }
 
   async createAnnounceDraft(params: { role: 'driver' | 'passenger'; from: string; to: string; date: string; time?: string; priceUah?: number; notes?: string }): Promise<AnnounceDraftResponse> {
-  async createAnnounceDraft(params: { role: 'driver' | 'passenger'; from: string; to: string; date: string; time?: string; notes?: string }): Promise<AnnounceDraftResponse> {
     return this.request<AnnounceDraftResponse>('/poputky/announce-draft', {
       method: 'POST',
       body: JSON.stringify(params),
