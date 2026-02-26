@@ -1272,6 +1272,37 @@ export const AdminPage: React.FC = () => {
                 Оновити список
               </Button>
             </div>
+            <div className="table-container" style={{ marginTop: '16px' }}>
+              <h4 style={{ marginBottom: '8px' }}>Потенційні клієнти ({telegramReminderPersons.length})</h4>
+              {telegramReminderLoading ? (
+                <div className="loading">Завантаження...</div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Телефон</th>
+                      <th>Імʼя</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {telegramReminderPersons.length === 0 ? (
+                      <tr>
+                        <td colSpan={3}>—</td>
+                      </tr>
+                    ) : (
+                      telegramReminderPersons.map((p) => (
+                        <tr key={p.id}>
+                          <td>#{p.id}</td>
+                          <td>{formatPhoneDisplay(p.phoneNormalized)}</td>
+                          <td>{p.fullName ?? '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 
