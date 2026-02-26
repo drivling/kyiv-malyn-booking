@@ -339,6 +339,16 @@ export const PoputkyPage: React.FC = () => {
                         {listing.seats != null && (
                           <div className="poputky-trip-meta poputky-trip-seats">Місць: {listing.seats}</div>
                         )}
+                      </div>
+                      <div className="poputky-trip-card-aside">
+                        <div className="poputky-trip-price">
+                          Ціна: <strong>{listing.priceUah != null ? `${listing.priceUah} грн` : 'за домовленістю'}</strong>
+                        </div>
+                        {listing.notes && (
+                          <div className="poputky-trip-notes">
+                            {listing.notes}
+                          </div>
+                        )}
                         <div className="poputky-trip-card-actions">
                           {listing.listingType === 'driver' && isTelegramLoggedIn ? (
                             <button
@@ -374,16 +384,6 @@ export const PoputkyPage: React.FC = () => {
                             </a>
                           )}
                         </div>
-                      </div>
-                      <div className="poputky-trip-card-aside">
-                        <div className="poputky-trip-price">
-                          Ціна: <strong>{listing.priceUah != null ? `${listing.priceUah} грн` : 'за домовленістю'}</strong>
-                        </div>
-                        {listing.notes && (
-                          <div className="poputky-trip-notes">
-                            {listing.notes}
-                          </div>
-                        )}
                       </div>
                     </li>
                   ))}
