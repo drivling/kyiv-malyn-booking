@@ -181,8 +181,8 @@ class ApiClient {
     return this.request<PersonWithCounts>(`/admin/persons/${id}`);
   }
 
-  /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. telegramPromoSentAt: null або '' — обнулити. */
-  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramPromoSentAt?: string | null }): Promise<Person> {
+  /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. telegramPromoSentAt/telegramReminderSentAt: null або '' — обнулити. */
+  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramPromoSentAt?: string | null; telegramReminderSentAt?: string | null }): Promise<Person> {
     return this.request<Person>(`/admin/persons/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -224,11 +224,38 @@ class ApiClient {
     filter: 'all' | 'no_active_viber' | 'no_reminder_7_days';
     limit?: number;
     delaysMs?: number[];
-  }): Promise<{ success: boolean; total: number; sent: number; failed: number; message: string }> {
+  }): Promise<{
+    success: boolean;
+    total: number;
+    sent: number;
+    failed: number;
+    message: string;
+    blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }>;
+  }> {
     const { filter = 'all', limit, delaysMs } = options;
-    return this.request<{ success: boolean; total: number; sent: number; failed: number; message: string }>(
-      '/admin/send-telegram-reminders',
-      { method: 'POST', body: JSON.stringify({ filter, limit, delaysMs }) }
+    return this.request<{
+      success: boolean;
+      total: number;
+      sent: number;
+      failed: number;
+      message: string;
+      blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }>;
+    }>('/admin/send-telegram-reminders', {
+      method: 'POST',
+      body: JSON.stringify({ filter, limit, delaysMs }),
+    });
+  }
+
+  /** Нагадати від особистого акаунта (тим, хто заблокував бота). Паузи між відправками: 2, 15, 25, 30 с (циклом). */
+  async sendReminderViaUserAccount(phones: string[], delaysSec: number[] = [2, 15, 25, 30]): Promise<{
+    success: boolean;
+    sent: number;
+    failed: number;
+    message: string;
+  }> {
+    return this.request<{ success: boolean; sent: number; failed: number; message: string }>(
+      '/admin/send-reminder-via-user-account',
+      { method: 'POST', body: JSON.stringify({ phones, delaysSec }) }
     );
   }
 

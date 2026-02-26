@@ -188,10 +188,9 @@
   border-radius: 12px;
   padding: 16px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto auto;
-  gap: 8px 12px;
-  align-items: center;
+  grid-template-columns: auto 1fr;
+  gap: 16px 20px;
+  align-items: start;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   transition: box-shadow 0.2s;
 }
@@ -200,11 +199,27 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.poputky-trip-card-top {
+.poputky-trip-card-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.poputky-trip-card-right {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.poputky-trip-card-actions {
   grid-column: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
   align-items: center;
-  gap: 12px;
 }
 
 .poputky-trip-avatar {
@@ -221,16 +236,11 @@
   flex-shrink: 0;
 }
 
-.poputky-trip-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
 .poputky-trip-name {
   font-weight: 700;
   color: var(--pb-text);
+  font-size: 15px;
+  text-align: center;
 }
 
 .poputky-trip-arrow {
@@ -244,24 +254,25 @@
 }
 
 .poputky-trip-route {
-  grid-column: 1 / -1;
   font-size: 15px;
   font-weight: 600;
   color: var(--pb-text);
-  margin: 2px 0 4px;
+  margin: 0;
 }
 
 .poputky-trip-meta {
-  grid-column: 1 / -1;
   font-size: 14px;
   color: var(--pb-text-muted);
 }
 
+.poputky-trip-seats {
+  margin-top: 0;
+}
+
 .poputky-trip-notes {
-  grid-column: 1 / -1;
   font-size: 14px;
   color: var(--pb-text-muted);
-  margin-top: 2px;
+  margin-top: 6px;
   white-space: pre-line;
 }
 
@@ -280,8 +291,6 @@
 }
 
 .poputky-trip-detail {
-  grid-column: 1 / -1;
-  justify-self: end;
   padding: 8px 16px;
   border-radius: 8px;
   background: var(--poputky-green);
@@ -308,15 +317,7 @@
   cursor: not-allowed;
 }
 
-.poputky-trip-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.poputky-trip-actions .poputky-trip-detail {
+.poputky-trip-card-actions .poputky-trip-detail {
   flex: 0 1 auto;
 }
 
@@ -797,10 +798,6 @@
 
   .poputky-trip-card {
     grid-template-columns: auto 1fr;
-  }
-
-  .poputky-trip-detail {
-    grid-column: 2;
   }
 }
 

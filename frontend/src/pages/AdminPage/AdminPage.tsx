@@ -71,6 +71,16 @@ export const AdminPage: React.FC = () => {
   const [telegramReminderLoading, setTelegramReminderLoading] = useState(false);
   const [telegramReminderError, setTelegramReminderError] = useState('');
   const [telegramReminderSummary, setTelegramReminderSummary] = useState('');
+  const [telegramReminderResults, setTelegramReminderResults] = useState<{
+    sent: number;
+    failed: number;
+    total: number;
+    message: string;
+    blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }>;
+  } | null>(null);
+  const [reminderViaUserLoading, setReminderViaUserLoading] = useState(false);
+  const [reminderViaUserMessage, setReminderViaUserMessage] = useState('');
+  const [reminderViaUserError, setReminderViaUserError] = useState('');
   const [viberEditForm, setViberEditForm] = useState<{
     rawMessage: string;
     senderName: string;
@@ -79,6 +89,7 @@ export const AdminPage: React.FC = () => {
     date: string;
     departureTime: string;
     seats: string;
+    priceUah: string;
     phone: string;
     notes: string;
     isActive: boolean;
@@ -90,6 +101,7 @@ export const AdminPage: React.FC = () => {
     date: '',
     departureTime: '',
     seats: '',
+    priceUah: '',
     phone: '',
     notes: '',
     isActive: true,
@@ -106,7 +118,8 @@ export const AdminPage: React.FC = () => {
     telegramChatId: string;
     telegramUserId: string;
     telegramPromoSentAt: string; // ISO або '' для обнулення
-  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '' });
+    telegramReminderSentAt: string; // комунікація через бота (нагадування)
+  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
 
   useEffect(() => {
     if (activeTab === 'bookings') {
@@ -182,9 +195,29 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleSendReminderViaUserAccount = async () => {
+    if (!telegramReminderResults?.blocked?.length) return;
+    setReminderViaUserError('');
+    setReminderViaUserMessage('');
+    setReminderViaUserLoading(true);
+    try {
+      const result = await apiClient.sendReminderViaUserAccount(
+        telegramReminderResults.blocked.map((p) => p.phoneNormalized)
+      );
+      setReminderViaUserMessage(result.message ?? `Відправлено: ${result.sent}, помилок: ${result.failed}`);
+    } catch (err) {
+      setReminderViaUserError(err instanceof Error ? err.message : 'Помилка відправки');
+    } finally {
+      setReminderViaUserLoading(false);
+    }
+  };
+
   const handleSendTelegramReminders = async () => {
     setTelegramReminderError('');
     setTelegramReminderSummary('');
+    setTelegramReminderResults(null);
+    setReminderViaUserMessage('');
+    setReminderViaUserError('');
     setTelegramReminderLoading(true);
     try {
       const result = await apiClient.sendTelegramReminders({ filter: telegramReminderFilter });
@@ -192,6 +225,13 @@ export const AdminPage: React.FC = () => {
         result.message ||
           `Нагадування відправлено: ${result.sent}/${result.total}, помилок: ${result.failed}`
       );
+      setTelegramReminderResults({
+        sent: result.sent,
+        failed: result.failed,
+        total: result.total,
+        message: result.message,
+        blocked: result.blocked ?? [],
+      });
       await loadTelegramReminderPersons();
     } catch (err) {
       setTelegramReminderError(
@@ -256,6 +296,7 @@ export const AdminPage: React.FC = () => {
       telegramChatId: p.telegramChatId ?? '',
       telegramUserId: p.telegramUserId ?? '',
       telegramPromoSentAt: toDateTimeLocal(p.telegramPromoSentAt),
+      telegramReminderSentAt: toDateTimeLocal(p.telegramReminderSentAt),
     });
   };
 
@@ -271,6 +312,7 @@ export const AdminPage: React.FC = () => {
         telegramChatId: personEditForm.telegramChatId.trim() || null,
         telegramUserId: personEditForm.telegramUserId.trim() || null,
         telegramPromoSentAt: personEditForm.telegramPromoSentAt.trim() ? new Date(personEditForm.telegramPromoSentAt.trim()).toISOString() : null,
+        telegramReminderSentAt: personEditForm.telegramReminderSentAt.trim() ? new Date(personEditForm.telegramReminderSentAt.trim()).toISOString() : null,
       });
       setSuccess('Персону оновлено. Пов’язані бронювання та Viber-оголошення оновлено за потреби.');
       setEditingPerson(null);
@@ -483,6 +525,7 @@ export const AdminPage: React.FC = () => {
       date: dateStr,
       departureTime: listing.departureTime ?? '',
       seats: listing.seats != null ? String(listing.seats) : '',
+      priceUah: listing.priceUah != null ? String(listing.priceUah) : '',
       phone: listing.phone,
       notes: listing.notes ?? '',
       isActive: listing.isActive,
@@ -504,6 +547,7 @@ export const AdminPage: React.FC = () => {
         date: viberEditForm.date,
         departureTime: viberEditForm.departureTime || null,
         seats: viberEditForm.seats ? parseInt(viberEditForm.seats, 10) : null,
+        priceUah: viberEditForm.priceUah ? parseInt(viberEditForm.priceUah, 10) : null,
         phone: viberEditForm.phone,
         notes: viberEditForm.notes || null,
         isActive: viberEditForm.isActive,
@@ -909,6 +953,7 @@ export const AdminPage: React.FC = () => {
                         Дата + час {viberSortBy === 'date' && (viberSortOrder === 'asc' ? '↑' : '↓')}
                       </th>
                       <th>Місця</th>
+                      <th>Ціна (грн)</th>
                       <th>Телефон</th>
                       <th>Відправник</th>
                       <th>Статус</th>
@@ -929,7 +974,8 @@ export const AdminPage: React.FC = () => {
                           {new Date(listing.date).toLocaleDateString('uk-UA')}
                           {listing.departureTime ? ` ${listing.departureTime}` : ''}
                         </td>
-                        <td>{listing.seats || '-'}</td>
+                        <td>{listing.seats ?? '-'}</td>
+                        <td>{listing.priceUah != null ? `${listing.priceUah} грн` : '—'}</td>
                         <td><strong>{formatPhoneDisplay(listing.phone)}</strong></td>
                         <td>{listing.senderName || '-'}</td>
                         <td>
@@ -1083,6 +1129,15 @@ export const AdminPage: React.FC = () => {
                     type="number"
                     value={viberEditForm.seats}
                     onChange={(e) => setViberEditForm((f) => ({ ...f, seats: e.target.value }))}
+                    placeholder="—"
+                  />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <Input
+                    label="Ціна (грн)"
+                    type="number"
+                    value={viberEditForm.priceUah}
+                    onChange={(e) => setViberEditForm((f) => ({ ...f, priceUah: e.target.value }))}
                     placeholder="—"
                   />
                 </div>
@@ -1276,6 +1331,49 @@ export const AdminPage: React.FC = () => {
                 Оновити список
               </Button>
             </div>
+            {telegramReminderResults && telegramReminderResults.blocked.length > 0 && (
+              <div className="table-container" style={{ marginTop: '16px', marginBottom: '16px' }}>
+                <h4 style={{ marginBottom: '8px' }}>
+                  Заблоковано бота ({telegramReminderResults.blocked.length})
+                </h4>
+                <p style={{ marginBottom: '8px', color: 'var(--color-text-secondary, #666)' }}>
+                  Ці користувачі заблокували бота — повідомлення не доставлено.
+                </p>
+                <div style={{ marginBottom: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                  <Button
+                    variant="secondary"
+                    onClick={handleSendReminderViaUserAccount}
+                    disabled={reminderViaUserLoading}
+                  >
+                    {reminderViaUserLoading ? 'Відправка...' : 'Нагадати їм від мого імені'}
+                  </Button>
+                  {reminderViaUserMessage && (
+                    <span style={{ color: 'var(--color-success, green)' }}>{reminderViaUserMessage}</span>
+                  )}
+                  {reminderViaUserError && (
+                    <Alert variant="error">{reminderViaUserError}</Alert>
+                  )}
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Телефон</th>
+                      <th>Імʼя</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {telegramReminderResults.blocked.map((p) => (
+                      <tr key={p.id}>
+                        <td>#{p.id}</td>
+                        <td>{formatPhoneDisplay(p.phoneNormalized)}</td>
+                        <td>{p.fullName ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div className="table-container" style={{ marginTop: '16px' }}>
               <h4 style={{ marginBottom: '8px' }}>Потенційні клієнти ({telegramReminderPersons.length})</h4>
               {telegramReminderLoading ? (
@@ -1344,6 +1442,7 @@ export const AdminPage: React.FC = () => {
                       <th>Telegram ChatId</th>
                       <th>Telegram UserId</th>
                       <th>Промо відправлено</th>
+                      <th>Нагадування (бот)</th>
                       <th>Бронювань</th>
                       <th>Viber оголош.</th>
                       <th>Дії</th>
@@ -1358,6 +1457,7 @@ export const AdminPage: React.FC = () => {
                         <td>{p.telegramChatId ?? '—'}</td>
                         <td>{p.telegramUserId ?? '—'}</td>
                         <td>{p.telegramPromoSentAt ? new Date(p.telegramPromoSentAt).toLocaleString('uk-UA') : '—'}</td>
+                        <td>{p.telegramReminderSentAt ? new Date(p.telegramReminderSentAt).toLocaleString('uk-UA') : '—'}</td>
                         <td>{p._count.bookings}</td>
                         <td>{p._count.viberListings}</td>
                         <td>
@@ -1422,6 +1522,23 @@ export const AdminPage: React.FC = () => {
                         style={{ marginTop: '8px' }}
                       >
                         Обнулити (збити контакт для повторної реклами)
+                      </Button>
+                    </div>
+                    <div className="form-group">
+                      <label>Комунікація через бота (нагадування) — telegramReminderSentAt</label>
+                      <input
+                        type="datetime-local"
+                        className="control-input"
+                        value={personEditForm.telegramReminderSentAt}
+                        onChange={(e) => setPersonEditForm({ ...personEditForm, telegramReminderSentAt: e.target.value })}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setPersonEditForm({ ...personEditForm, telegramReminderSentAt: '' })}
+                        style={{ marginTop: '8px' }}
+                      >
+                        Обнулити
                       </Button>
                     </div>
                     <div className="form-actions">

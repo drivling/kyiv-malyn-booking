@@ -16,6 +16,7 @@ type ViberListingMergeInput = {
   seats: number | null;
   phone: string;
   notes: string | null;
+  priceUah?: number | null;
   isActive: boolean;
   personId?: number | null;
 };
@@ -97,6 +98,7 @@ async function createOrMergeViberListing(
       seats: data.seats != null ? data.seats : existing.seats,
       phone: existing.phone || data.phone,
       notes: mergedNotes,
+      priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
       isActive: existing.isActive || data.isActive,
       personId: existing.personId ?? personId,
     },
@@ -110,7 +112,7 @@ async function createOrMergeViberListing(
 }
 
 /** Кроки потоку "додати поїздку (водій)" */
-type DriverRideStep = 'route' | 'date' | 'time' | 'seats' | 'phone' | 'notes' | 'date_custom' | 'time_custom';
+type DriverRideStep = 'route' | 'date' | 'time' | 'seats' | 'price' | 'phone' | 'notes' | 'date_custom' | 'time_custom';
 interface DriverRideFlowState {
   state: 'driver_ride_flow';
   step: DriverRideStep;
@@ -118,6 +120,7 @@ interface DriverRideFlowState {
   date?: string;
   departureTime?: string;
   seats?: number | null;
+  priceUah?: number | null;
   phone?: string;
   since: number;
   /** Токен чернетки з сайту — після введення телефону підставляємо route/date/time з чернетки */
@@ -240,6 +243,7 @@ async function createDriverListingFromState(
     seats: state.seats ?? null,
     phone,
     notes,
+    priceUah: state.priceUah ?? null,
     isActive: true,
     personId: person.id,
   });
@@ -252,7 +256,8 @@ async function createDriverListingFromState(
     seats: listing.seats,
     phone: listing.phone,
     senderName: listing.senderName,
-    notes: listing.notes
+    notes: listing.notes,
+    priceUah: listing.priceUah ?? undefined,
   }).catch((err) => console.error('Telegram Viber notify:', err));
   await bot?.sendMessage(
     chatId,
@@ -261,6 +266,7 @@ async function createDriverListingFromState(
     `📅 ${formatDate(date)}\n` +
     (state.departureTime ? `🕐 ${state.departureTime}\n` : '') +
     (state.seats != null ? `🎫 ${state.seats} місць\n` : '') +
+    (state.priceUah != null ? `💰 ${state.priceUah} грн\n` : '') +
     (notes ? `📝 ${notes}\n` : '') +
     '\nОголошення опубліковано. Адмін отримав сповіщення.',
     { parse_mode: 'HTML' }
@@ -829,6 +835,7 @@ export const sendViberListingNotificationToAdmin = async (listing: {
   phone: string;
   senderName: string | null;
   notes: string | null;
+  priceUah?: number | null;
 }) => {
   if (!bot || !adminChatId) {
     console.log('⚠️ Telegram bot або admin chat ID не налаштовано');
@@ -850,7 +857,7 @@ ${typeEmoji} <b>Тип:</b> ${typeLabel}
 🛣 <b>Маршрут:</b> ${listing.route}
 📅 <b>Дата:</b> ${dateStr}
 🕐 <b>Час:</b> ${listing.departureTime ?? '—'}
-${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}
+${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}${listing.priceUah != null ? `💰 <b>Ціна:</b> ${listing.priceUah} грн\n` : ''}
 📞 <b>Телефон:</b> ${formatPhoneTelLink(listing.phone)}
 ${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
     `.trim();
@@ -876,6 +883,7 @@ export const sendViberListingConfirmationToUser = async (
     departureTime: string | null;
     seats: number | null;
     listingType: string;
+    priceUah?: number | null;
   }
 ) => {
   const trimmed = phone?.trim();
@@ -936,6 +944,7 @@ function buildViberListingConfirmationMessage(
     departureTime: string | null;
     seats: number | null;
     listingType: string;
+    priceUah?: number | null;
   },
   options: { addSubscribeInstruction?: boolean }
 ): string {
@@ -951,7 +960,7 @@ function buildViberListingConfirmationMessage(
 
 🛣 <b>Маршрут:</b> ${routeName}
 📅 <b>Дата:</b> ${dateStr}
-${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}${listing.seats != null ? `🎫 <b>Місць:</b> ${listing.seats}\n` : ''}
+${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}${listing.seats != null ? `🎫 <b>Місць:</b> ${listing.seats}\n` : ''}${listing.priceUah != null ? `💰 <b>Ціна:</b> ${listing.priceUah} грн\n` : ''}
 Інші користувачі зможуть бачити це оголошення та зв'язатися з вами за телефоном.
 
 <i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
@@ -1259,17 +1268,11 @@ ${driverLine}${supportPhoneLine}
 };
 
 /**
- * Нагадування неактивним користувачам: просте повідомлення з посиланнями на сценарії.
+ * Текст нагадування неактивним (з посиланнями на сценарії). Використовується ботом та відправкою від особистого акаунта.
  */
-export const sendInactivityReminder = async (chatId: string) => {
-  if (!bot) {
-    console.log('⚠️ Telegram bot не налаштовано');
-    return;
-  }
-
-  try {
-    const links = getTelegramScenarioLinks();
-    const message = `
+export function buildInactivityReminderMessage(): string {
+  const links = getTelegramScenarioLinks();
+  return `
 👋 <b>Давно не бачилися!</b>
 
 Ми помітили, що ви давно не користувалися сервісом поїздок Київ, Житомир, Коростень ↔️ Малин.
@@ -1281,12 +1284,25 @@ export const sendInactivityReminder = async (chatId: string) => {
 Вільний перегляд поїздок: ${links.poputkyWeb}
 
 <i>Дякуємо, що користуєтесь нашим сервісом! 🚐</i>
-    `.trim();
+  `.trim();
+}
 
+/**
+ * Нагадування неактивним користувачам: просте повідомлення з посиланнями на сценарії.
+ */
+export const sendInactivityReminder = async (chatId: string) => {
+  if (!bot) {
+    console.log('⚠️ Telegram bot не налаштовано');
+    return;
+  }
+
+  try {
+    const message = buildInactivityReminderMessage();
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
     console.log('✅ Telegram inactivity reminder sent');
   } catch (error) {
     console.error('❌ Помилка відправки Telegram inactivity reminder:', error);
+    throw error;
   }
 };
 
@@ -2745,6 +2761,26 @@ https://malin.kiev.ua
         await bot?.sendMessage(chatId, `🕐 Час: ${time}\n\n🎫 Скільки вільних місць?`, { parse_mode: 'HTML', reply_markup: seatsKeyboard });
         return;
       }
+      if (driverState.step === 'price') {
+        const num = parseInt(String(text).trim().replace(/\s/g, ''), 10);
+        if (Number.isNaN(num) || num < 0) {
+          await bot?.sendMessage(chatId, 'Введіть число (ціна в гривнях), наприклад: 150, або натисніть Пропустити.');
+          return;
+        }
+        driverRideStateMap.set(chatId, { ...driverState, step: 'notes', priceUah: num, since: Date.now() });
+        const notesKeyboard = {
+          inline_keyboard: [
+            [{ text: 'Пропустити', callback_data: 'adddriver_notes_skip' }],
+            [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
+          ]
+        };
+        await bot?.sendMessage(
+          chatId,
+          `💰 Ціна: ${num} грн\n\n6️⃣ Додати примітку (опціонально)?\nНапишіть текст або натисніть Пропустити.`,
+          { parse_mode: 'HTML', reply_markup: notesKeyboard }
+        );
+        return;
+      }
       if (driverState.step === 'notes') {
         driverRideStateMap.delete(chatId);
         try {
@@ -3105,7 +3141,29 @@ https://malin.kiev.ua
           return;
         }
         const seats = data === 'adddriver_seats_skip' ? null : parseInt(data.replace('adddriver_seats_', ''), 10);
-        driverRideStateMap.set(chatId, { ...state, step: 'notes', seats: seats ?? undefined, since: Date.now() });
+        driverRideStateMap.set(chatId, { ...state, step: 'price', seats: seats ?? undefined, since: Date.now() });
+        const priceKeyboard = {
+          inline_keyboard: [
+            [{ text: 'Пропустити', callback_data: 'adddriver_price_skip' }],
+            [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
+          ]
+        };
+        await bot?.editMessageText(
+          (state.departureTime ? `🕐 Час: ${state.departureTime}\n` : '') +
+          (seats != null ? `🎫 Місць: ${seats}\n\n` : '') +
+          '5️⃣ Ціна в грн (опціонально)?\nНапишіть число або натисніть Пропустити.',
+          { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: priceKeyboard }
+        );
+        await bot?.answerCallbackQuery(query.id);
+        return;
+      }
+      if (data === 'adddriver_price_skip') {
+        const state = driverRideStateMap.get(chatId);
+        if (!state || state.state !== 'driver_ride_flow' || state.step !== 'price') {
+          await bot?.answerCallbackQuery(query.id);
+          return;
+        }
+        driverRideStateMap.set(chatId, { ...state, step: 'notes', since: Date.now() });
         const notesKeyboard = {
           inline_keyboard: [
             [{ text: 'Пропустити', callback_data: 'adddriver_notes_skip' }],
@@ -3114,8 +3172,8 @@ https://malin.kiev.ua
         };
         await bot?.editMessageText(
           (state.departureTime ? `🕐 Час: ${state.departureTime}\n` : '') +
-          (seats != null ? `🎫 Місць: ${seats}\n\n` : '') +
-          '5️⃣ Додати примітку (опціонально)?\nНапишіть текст або натисніть Пропустити.',
+          (state.seats != null ? `🎫 Місць: ${state.seats}\n` : '') +
+          '\n6️⃣ Додати примітку (опціонально)?\nНапишіть текст або натисніть Пропустити.',
           { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: notesKeyboard }
         );
         await bot?.answerCallbackQuery(query.id);

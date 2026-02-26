@@ -104,6 +104,7 @@ export interface ViberListing {
   seats: number | null;
   phone: string;
   notes: string | null;
+  priceUah?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -150,6 +151,7 @@ export interface Person {
   telegramChatId: string | null;
   telegramUserId: string | null;
   telegramPromoSentAt: string | null;
+  telegramReminderSentAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

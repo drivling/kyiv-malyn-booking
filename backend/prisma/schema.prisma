@@ -81,6 +81,7 @@ model ViberListing {
   seats         Int?     // Кількість місць (для пасажира) або вільних місць (для водія)
   phone         String   // Контактний номер (деноралізовано; джерело — Person)
   notes         String?  // Додаткові примітки (наприклад "від м Почайна")
+  priceUah      Int?     // Ціна в гривнях (опціонально)
   isActive      Boolean  @default(true) // Чи активне оголошення
   personId      Int?     // Посилання на людину
   createdAt     DateTime @default(now())

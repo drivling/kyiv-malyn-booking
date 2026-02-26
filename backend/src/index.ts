@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
@@ -989,6 +989,7 @@ type ViberListingMergeInput = {
   seats: number | null;
   phone: string;
   notes: string | null;
+  priceUah?: number | null;
   isActive: boolean;
   personId?: number | null;
 };
@@ -1070,6 +1071,7 @@ async function createOrMergeViberListing(
       seats: data.seats != null ? data.seats : existing.seats,
       phone: existing.phone || data.phone,
       notes: mergedNotes,
+      priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
       isActive: existing.isActive || data.isActive,
       personId: existing.personId ?? personId,
     },
@@ -1205,6 +1207,7 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
         phone: listing.phone,
         senderName: listing.senderName,
         notes: listing.notes,
+        priceUah: listing.priceUah ?? undefined,
       }).catch((err) => console.error('Telegram Viber notify:', err));
       // Якщо є телефон — спроба надіслати автору оголошення в Telegram (якщо він є в базі)
       if (listing.phone && listing.phone.trim()) {
@@ -1215,6 +1218,7 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
           departureTime: listing.departureTime,
           seats: listing.seats,
           listingType: listing.listingType,
+          priceUah: listing.priceUah ?? undefined,
         }).catch((err) => console.error('Telegram Viber user notify:', err));
       }
       // Сповістити про збіги водій/пасажир — як при додаванні через бота
@@ -1292,6 +1296,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
             phone: listing.phone,
             senderName: listing.senderName,
             notes: listing.notes,
+            priceUah: listing.priceUah ?? undefined,
           }).catch((err) => console.error('Telegram Viber notify:', err));
           if (listing.phone && listing.phone.trim()) {
             sendViberListingConfirmationToUser(listing.phone, {
@@ -1301,6 +1306,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
               departureTime: listing.departureTime,
               seats: listing.seats,
               listingType: listing.listingType,
+              priceUah: listing.priceUah ?? undefined,
             }).catch((err) => console.error('Telegram Viber user notify:', err));
           }
           // Сповістити про збіги водій/пасажир (як при додаванні через бота)
@@ -1333,7 +1339,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
 
 // Дозволені поля для оновлення Viber оголошення (без id, createdAt, updatedAt)
 const VIBER_LISTING_UPDATE_FIELDS = [
-  'rawMessage', 'senderName', 'listingType', 'route', 'date', 'departureTime', 'seats', 'phone', 'notes', 'isActive'
+  'rawMessage', 'senderName', 'listingType', 'route', 'date', 'departureTime', 'seats', 'phone', 'notes', 'priceUah', 'isActive'
 ] as const;
 
 // Оновити Viber оголошення (Admin)
@@ -1345,6 +1351,9 @@ app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
     if (body[key] !== undefined) {
       if (key === 'date' && typeof body[key] === 'string') {
         updates[key] = new Date(body[key] as string);
+      } else if (key === 'priceUah') {
+        const v = body[key];
+        updates[key] = v === null || v === '' ? null : (typeof v === 'number' ? v : parseInt(String(v), 10));
       } else {
         updates[key] = body[key];
       }
@@ -1536,6 +1545,7 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
       telegramChatId?: string | null;
       telegramUserId?: string | null;
       telegramPromoSentAt?: string | null;
+      telegramReminderSentAt?: string | null;
     };
     const person = await prisma.person.findUnique({ where: { id } });
     if (!person) {
@@ -1556,6 +1566,15 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
         newTelegramPromoSentAt = Number.isNaN(parsed.getTime()) ? person.telegramPromoSentAt : parsed;
       }
     }
+    let newTelegramReminderSentAt: Date | null = person.telegramReminderSentAt;
+    if (body.telegramReminderSentAt !== undefined) {
+      if (body.telegramReminderSentAt === null || body.telegramReminderSentAt === '') {
+        newTelegramReminderSentAt = null;
+      } else {
+        const parsed = new Date(body.telegramReminderSentAt as string);
+        newTelegramReminderSentAt = Number.isNaN(parsed.getTime()) ? person.telegramReminderSentAt : parsed;
+      }
+    }
 
     if (!newPhoneNormalized) {
       res.status(400).json({ error: 'Телефон не може бути порожнім' });
@@ -1573,6 +1592,7 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
         telegramChatId: newTelegramChatId,
         telegramUserId: newTelegramUserId,
         telegramPromoSentAt: newTelegramPromoSentAt,
+        telegramReminderSentAt: newTelegramReminderSentAt,
       },
     });
 
@@ -1701,6 +1721,7 @@ app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
     }
     let sent = 0;
     let failed = 0;
+    const blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }> = [];
     for (let i = 0; i < persons.length; i++) {
       const p = persons[i];
       const chatId = p.telegramChatId;
@@ -1715,6 +1736,11 @@ app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
             data: { telegramReminderSentAt: new Date() },
           });
         } catch (err) {
+          const errMsg = String((err as Error)?.message ?? err);
+          const isBlocked = errMsg.includes('blocked by the user') || (errMsg.includes('403') && errMsg.toLowerCase().includes('forbidden'));
+          if (isBlocked) {
+            blocked.push({ id: p.id, phoneNormalized: p.phoneNormalized, fullName: p.fullName });
+          }
           console.error(`❌ send-telegram-reminders person #${p.id}:`, err);
           failed++;
         }
@@ -1727,12 +1753,50 @@ app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
       }
     }
     const total = persons.length;
-    const message = `Нагадування відправлено: ${sent}, помилок: ${failed}, всього в вибірці: ${total}`;
-    console.log(`📢 Telegram reminders (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent}, failed=${failed}, total=${total}`);
-    res.json({ success: true, total, sent, failed, message });
+    const message = `Нагадування відправлено: ${sent}, помилок: ${failed}, всього в вибірці: ${total}${blocked.length > 0 ? `; заблокували бота: ${blocked.length}` : ''}`;
+    console.log(`📢 Telegram reminders (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent}, failed=${failed}, blocked=${blocked.length}, total=${total}`);
+    res.json({ success: true, total, sent, failed, message, blocked });
   } catch (e) {
     console.error('❌ send-telegram-reminders:', e);
     res.status(500).json({ error: 'Failed to send telegram reminders' });
+  }
+});
+
+/** Нагадати від особистого акаунта тим, хто заблокував бота. Body: { phones: string[], delaysSec?: number[] }. */
+app.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res) => {
+  try {
+    const phones = Array.isArray(req.body?.phones) ? (req.body.phones as string[]).map((p) => String(p).trim()).filter(Boolean) : [];
+    if (phones.length === 0) {
+      return res.status(400).json({ error: 'Потрібен масив phones' });
+    }
+    const delaysSec = Array.isArray(req.body?.delaysSec)
+      ? (req.body.delaysSec as number[]).filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120))
+      : [2, 15, 25, 30];
+    const delaysMs = delaysSec.length > 0 ? delaysSec.map((s) => s * 1000) : [];
+    const message = buildInactivityReminderMessage();
+    let sent = 0;
+    let failed = 0;
+    for (let i = 0; i < phones.length; i++) {
+      const rawPhone = phones[i];
+      const phone = normalizePhone(rawPhone);
+      if (!phone) {
+        failed++;
+      } else {
+        const ok = await sendMessageViaUserAccount(phone, message);
+        if (ok) sent++;
+        else failed++;
+      }
+      if (delaysMs.length > 0 && i < phones.length - 1) {
+        const delayMs = delaysMs[i % delaysMs.length] ?? 30000;
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+    const resultMessage = `Відправлено від вашого імені: ${sent}, помилок: ${failed}`;
+    console.log(`📢 Reminder via user account: ${sent} sent, ${failed} failed`);
+    res.json({ success: true, sent, failed, message: resultMessage });
+  } catch (e) {
+    console.error('❌ send-reminder-via-user-account:', e);
+    res.status(500).json({ error: 'Failed to send reminder via user account' });
   }
 });
 
