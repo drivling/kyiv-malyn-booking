@@ -167,8 +167,6 @@ export interface AnnounceDraft {
   priceUah?: number | null;
   since: number;
 }
-  since: number;
-}
 const announceDraftsMap = new Map<string, AnnounceDraft>();
 const ANNOUNCE_DRAFT_TTL_MS = 15 * 60 * 1000; // 15 хв
 
@@ -1634,13 +1632,10 @@ function setupBotCommands() {
       const draft = getAnnounceDraft(draftToken);
       if (draft && draft.role === role) {
         const userPhone = await getPhoneByTelegramUser(userId, chatId);
-          if (role === 'driver') {
-            const state: DriverRideFlowState = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, priceUah: draft.priceUah ?? null, phone: userPhone, since: Date.now() };
-            await createDriverListingFromState(chatId, state, draft.notes ?? null, senderName);
-          } else {
+        const senderName = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
         if (userPhone) {
           if (role === 'driver') {
-            const state: DriverRideFlowState = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, phone: userPhone, since: Date.now() };
+            const state: DriverRideFlowState = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, priceUah: draft.priceUah ?? null, phone: userPhone, since: Date.now() };
             await createDriverListingFromState(chatId, state, draft.notes ?? null, senderName);
           } else {
             const state: PassengerRideFlowState = { state: 'passenger_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, phone: userPhone, since: Date.now() };
@@ -2452,14 +2447,14 @@ https://malin.kiev.ua
       await bot?.sendMessage(chatId, '❌ Не вдалося отримати номер телефону.');
       return;
     }
-    
-          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+
+    const driverState = driverRideStateMap.get(chatId);
     if (driverState?.state === 'driver_ride_flow' && driverState.step === 'phone') {
       const phone = normalizePhone(phoneNumber);
       if (driverState.draftToken) {
         const draft = getAnnounceDraft(driverState.draftToken);
         if (draft) {
-          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
           const seatsKeyboard = { inline_keyboard: [
             [{ text: '1', callback_data: 'adddriver_seats_1' }, { text: '2', callback_data: 'adddriver_seats_2' }, { text: '3', callback_data: 'adddriver_seats_3' }],
             [{ text: '4', callback_data: 'adddriver_seats_4' }, { text: '5', callback_data: 'adddriver_seats_5' }],
@@ -2801,13 +2796,13 @@ https://malin.kiev.ua
         const phoneRegex = /^[\+\d\s\-\(\)]{10,}$/;
         if (!phoneRegex.test(text)) {
           await bot?.sendMessage(chatId, 'Введіть коректний номер телефону, наприклад: 0501234567');
-          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+          return;
         }
         const phone = normalizePhone(text);
         if (driverState.draftToken) {
           const draft = getAnnounceDraft(driverState.draftToken);
           if (draft) {
-            driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+            driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
             const seatsKeyboard = { inline_keyboard: [
               [{ text: '1', callback_data: 'adddriver_seats_1' }, { text: '2', callback_data: 'adddriver_seats_2' }, { text: '3', callback_data: 'adddriver_seats_3' }],
               [{ text: '4', callback_data: 'adddriver_seats_4' }, { text: '5', callback_data: 'adddriver_seats_5' }],
