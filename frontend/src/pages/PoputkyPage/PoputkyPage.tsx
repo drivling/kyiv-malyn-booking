@@ -98,6 +98,7 @@ export const PoputkyPage: React.FC = () => {
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [routeTab, setRouteTab] = useState<RouteTab>('kyiv');
   const [query, setQuery] = useState('');
+  const [announcePrice, setAnnouncePrice] = useState('');
   const [tripDate, setTripDate] = useState('');
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
   const [sortByTime, setSortByTime] = useState<'asc' | 'desc'>('asc');
@@ -218,18 +219,24 @@ export const PoputkyPage: React.FC = () => {
       setRequestError('Вкажіть дату поїздки');
       return;
     }
+    const priceValue = announcePrice.trim();
+    const priceUah = priceValue ? Number.parseInt(priceValue, 10) : undefined;
     setRequestError('');
     setAnnounceSubmitting(true);
     const timeFrom = announceTimeFrom.trim();
     const timeTo = announceTimeTo.trim();
-    const timeValue = timeFrom && timeTo
-      ? `${timeFrom}-${timeTo}`
-      : timeFrom || timeTo || undefined;
     try {
       const { deepLink } = await apiClient.createAnnounceDraft({
         role: announceRole,
         from: announceFrom,
         to: announceTo,
+        date: announceDate,
+        time: timeValue,
+        priceUah,
+        notes: announceComment.trim() || undefined,
+      });
+      window.open(deepLink, '_blank', 'noopener,noreferrer');
+    } catch (err) {
         date: announceDate,
         time: timeValue,
         notes: announceComment.trim() || undefined,

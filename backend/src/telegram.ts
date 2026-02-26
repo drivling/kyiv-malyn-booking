@@ -164,6 +164,9 @@ export interface AnnounceDraft {
   date: string; // YYYY-MM-DD
   departureTime?: string | null;
   notes?: string | null;
+  priceUah?: number | null;
+  since: number;
+}
   since: number;
 }
 const announceDraftsMap = new Map<string, AnnounceDraft>();
@@ -1631,7 +1634,10 @@ function setupBotCommands() {
       const draft = getAnnounceDraft(draftToken);
       if (draft && draft.role === role) {
         const userPhone = await getPhoneByTelegramUser(userId, chatId);
-        const senderName = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
+          if (role === 'driver') {
+            const state: DriverRideFlowState = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, priceUah: draft.priceUah ?? null, phone: userPhone, since: Date.now() };
+            await createDriverListingFromState(chatId, state, draft.notes ?? null, senderName);
+          } else {
         if (userPhone) {
           if (role === 'driver') {
             const state: DriverRideFlowState = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, phone: userPhone, since: Date.now() };
@@ -2447,7 +2453,7 @@ https://malin.kiev.ua
       return;
     }
     
-    const driverState = driverRideStateMap.get(chatId);
+          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
     if (driverState?.state === 'driver_ride_flow' && driverState.step === 'phone') {
       const phone = normalizePhone(phoneNumber);
       if (driverState.draftToken) {
@@ -2795,7 +2801,7 @@ https://malin.kiev.ua
         const phoneRegex = /^[\+\d\s\-\(\)]{10,}$/;
         if (!phoneRegex.test(text)) {
           await bot?.sendMessage(chatId, 'Введіть коректний номер телефону, наприклад: 0501234567');
-          return;
+          driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
         }
         const phone = normalizePhone(text);
         if (driverState.draftToken) {

@@ -836,7 +836,16 @@ function mapFromToToRoute(from: string, to: string): string | null {
 
 // Чернетка оголошення з сайту poputky: зберігає маршрут/дату/час/примітки, повертає посилання на бота з токеном
 app.post('/poputky/announce-draft', express.json(), (req, res) => {
-  const { role, from, to, date, time, notes } = req.body as { role?: string; from?: string; to?: string; date?: string; time?: string; notes?: string };
+  const { role, from, to, date, time, notes, priceUah } = req.body as { role?: string; from?: string; to?: string; date?: string; time?: string; notes?: string; priceUah?: unknown };
+851a
+  let priceUahParsed: number | null | undefined;
+  if (priceUah !== undefined) {
+    const num = Number(priceUah);
+    if (!Number.isFinite(num) || num < 0) {
+      return res.status(400).json({ error: 'Ціна має бути невідcмним числом' });
+    }
+    priceUahParsed = Math.round(num);
+  }
   if (!role || (role !== 'driver' && role !== 'passenger')) {
     return res.status(400).json({ error: 'role має бути driver або passenger' });
   }
@@ -848,7 +857,7 @@ app.post('/poputky/announce-draft', express.json(), (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return res.status(400).json({ error: 'Вкажіть коректну дату поїздки' });
   }
-  const departureTime = (time || '').toString().trim() || null;
+  setAnnounceDraft(token, { role: role as 'driver' | 'passenger', route, date: dateStr, departureTime: departureTime || undefined, notes: (notes || '').trim() || undefined, priceUah: priceUahParsed ?? undefined });
   if (departureTime) {
     const singleTime = /^\d{1,2}:\d{2}$/;
     const timeRange = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/;

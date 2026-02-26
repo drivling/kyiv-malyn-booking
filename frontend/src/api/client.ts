@@ -324,7 +324,7 @@ class ApiClient {
     });
   }
 
-  /** Створити чернетку оголошення з даними форми — повертає посилання на бота з токеном (дані підставляються в Telegram). */
+  async createAnnounceDraft(params: { role: 'driver' | 'passenger'; from: string; to: string; date: string; time?: string; priceUah?: number; notes?: string }): Promise<AnnounceDraftResponse> {
   async createAnnounceDraft(params: { role: 'driver' | 'passenger'; from: string; to: string; date: string; time?: string; notes?: string }): Promise<AnnounceDraftResponse> {
     return this.request<AnnounceDraftResponse>('/poputky/announce-draft', {
       method: 'POST',
