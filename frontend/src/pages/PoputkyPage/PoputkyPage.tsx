@@ -316,13 +316,15 @@ export const PoputkyPage: React.FC = () => {
                 <ul className="poputky-trip-list" aria-label="Список попуток">
                   {filteredListings.map((listing) => (
                     <li key={listing.id} className="poputky-trip-card">
-                      <div className="poputky-trip-card-left">
-                        <div className="poputky-trip-avatar">
-                          {listing.senderName ? listing.senderName.charAt(0).toUpperCase() : '?'}
+                      <div className="poputky-trip-card-main">
+                        <div className="poputky-trip-card-top">
+                          <div className="poputky-trip-avatar">
+                            {listing.senderName ? listing.senderName.charAt(0).toUpperCase() : '?'}
+                          </div>
+                          <div className="poputky-trip-info">
+                            <span className="poputky-trip-name">{listing.senderName || (listing.listingType === 'driver' ? 'Водій' : 'Пасажир')}</span>
+                          </div>
                         </div>
-                        <span className="poputky-trip-name">{listing.senderName || (listing.listingType === 'driver' ? 'Водій' : 'Пасажир')}</span>
-                      </div>
-                      <div className="poputky-trip-card-right">
                         <div className="poputky-trip-route" aria-label="Маршрут">
                           {listing.listingType === 'driver' ? (
                             <>🚗 Авто · {formatRouteLabel(listing.route)}</>
@@ -337,6 +339,43 @@ export const PoputkyPage: React.FC = () => {
                         {listing.seats != null && (
                           <div className="poputky-trip-meta poputky-trip-seats">Місць: {listing.seats}</div>
                         )}
+                        <div className="poputky-trip-card-actions">
+                          {listing.listingType === 'driver' && isTelegramLoggedIn ? (
+                            <button
+                              type="button"
+                              className="poputky-trip-detail poputky-trip-detail-btn"
+                              onClick={() => setConfirmRequestListing(listing)}
+                              disabled={requestingListingId === listing.id}
+                            >
+                              {requestingListingId === listing.id ? 'Надсилаємо...' : 'Бронювання'}
+                            </button>
+                          ) : listing.listingType === 'driver' && !isTelegramLoggedIn ? (
+                            <>
+                              <a
+                                href={supportPhoneToTelLink(listing.phone)}
+                                className="poputky-trip-detail"
+                              >
+                                Зателефонувати
+                              </a>
+                              <button
+                                type="button"
+                                className="poputky-trip-detail poputky-trip-detail-btn poputky-trip-login-btn"
+                                onClick={() => navigate('/login')}
+                              >
+                                Залогінитись для бронювання
+                              </button>
+                            </>
+                          ) : (
+                            <a
+                              href={supportPhoneToTelLink(listing.phone)}
+                              className="poputky-trip-detail"
+                            >
+                              Зателефонувати
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="poputky-trip-card-aside">
                         <div className="poputky-trip-price">
                           Ціна: <strong>{listing.priceUah != null ? `${listing.priceUah} грн` : 'за домовленістю'}</strong>
                         </div>
@@ -345,41 +384,6 @@ export const PoputkyPage: React.FC = () => {
                             {listing.notes}
                           </div>
                         )}
-                      </div>
-                      <div className="poputky-trip-card-actions">
-                      {listing.listingType === 'driver' && isTelegramLoggedIn ? (
-                        <button
-                          type="button"
-                          className="poputky-trip-detail poputky-trip-detail-btn"
-                          onClick={() => setConfirmRequestListing(listing)}
-                          disabled={requestingListingId === listing.id}
-                        >
-                          {requestingListingId === listing.id ? 'Надсилаємо...' : 'Бронювання'}
-                        </button>
-                      ) : listing.listingType === 'driver' && !isTelegramLoggedIn ? (
-                        <>
-                          <a
-                            href={supportPhoneToTelLink(listing.phone)}
-                            className="poputky-trip-detail"
-                          >
-                            Зателефонувати
-                          </a>
-                          <button
-                            type="button"
-                            className="poputky-trip-detail poputky-trip-detail-btn poputky-trip-login-btn"
-                            onClick={() => navigate('/login')}
-                          >
-                            Залогінитись для бронювання
-                          </button>
-                        </>
-                      ) : (
-                        <a
-                          href={supportPhoneToTelLink(listing.phone)}
-                          className="poputky-trip-detail"
-                        >
-                          Зателефонувати
-                        </a>
-                      )}
                       </div>
                     </li>
                   ))}

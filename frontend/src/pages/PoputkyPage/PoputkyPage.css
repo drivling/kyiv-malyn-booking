@@ -188,8 +188,8 @@
   border-radius: 12px;
   padding: 16px;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 16px 20px;
+  grid-template-columns: 1fr auto;
+  gap: 16px 24px;
   align-items: start;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   transition: box-shadow 0.2s;
@@ -199,27 +199,36 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.poputky-trip-card-left {
+.poputky-trip-card-main {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
 }
 
-.poputky-trip-card-right {
+.poputky-trip-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.poputky-trip-card-aside {
+  flex-shrink: 0;
+  min-width: 140px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  gap: 8px;
+  align-items: flex-end;
+  text-align: right;
 }
 
 .poputky-trip-card-actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
   align-items: center;
+  margin-top: 4px;
 }
 
 .poputky-trip-avatar {
@@ -236,11 +245,17 @@
   flex-shrink: 0;
 }
 
+.poputky-trip-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .poputky-trip-name {
   font-weight: 700;
   color: var(--pb-text);
   font-size: 15px;
-  text-align: center;
 }
 
 .poputky-trip-arrow {
@@ -270,10 +285,11 @@
 }
 
 .poputky-trip-notes {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--pb-text-muted);
-  margin-top: 6px;
   white-space: pre-line;
+  max-width: 220px;
+  line-height: 1.4;
 }
 
 .poputky-trip-car {
@@ -319,6 +335,10 @@
 
 .poputky-trip-card-actions .poputky-trip-detail {
   flex: 0 1 auto;
+}
+
+.poputky-trip-card-aside .poputky-trip-price {
+  margin: 0;
 }
 
 .poputky-trip-login-btn {
@@ -797,7 +817,13 @@
   }
 
   .poputky-trip-card {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 1fr;
+  }
+
+  .poputky-trip-card-aside {
+    align-items: flex-start;
+    text-align: left;
+    min-width: 0;
   }
 }
 
