@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
@@ -1601,6 +1601,108 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ PUT /admin/persons/:id:', e);
     res.status(500).json({ error: 'Не вдалося оновити персону' });
+  }
+});
+
+/** База нагадувань — тільки персони з Telegram ботом (мають telegramChatId). filter: all = всі, no_active_viber = без активних Viber оголошень. */
+const hasTelegramReminderBaseCondition = {
+  telegramChatId: {
+    not: null,
+  },
+  NOT: [{ telegramChatId: '' }, { telegramChatId: '0' }],
+};
+
+function getTelegramReminderWhere(filter: string): object {
+  if (filter === 'no_active_viber') {
+    return {
+      ...hasTelegramReminderBaseCondition,
+      viberListings: {
+        none: {
+          isActive: true,
+        },
+      },
+    };
+  }
+  return hasTelegramReminderBaseCondition;
+}
+
+/** Список Person для Telegram-нагадувань (база = з ботом). Query: ?filter=all|no_active_viber */
+app.get('/admin/telegram-reminder-persons', requireAdmin, async (req, res) => {
+  try {
+    const filter = (req.query.filter as string)?.trim() || 'all';
+    const where = getTelegramReminderWhere(filter);
+    const persons = await prisma.person.findMany({
+      where,
+      select: { id: true, phoneNormalized: true, fullName: true, telegramChatId: true },
+      orderBy: { id: 'asc' },
+    });
+    res.json(
+      persons.map((p: { id: number; phoneNormalized: string; fullName: string | null }) => ({
+        id: p.id,
+        phoneNormalized: p.phoneNormalized,
+        fullName: p.fullName,
+      }))
+    );
+  } catch (e) {
+    console.error('❌ telegram-reminder-persons:', e);
+    res.status(500).json({ error: 'Failed to load telegram reminder persons' });
+  }
+});
+
+/** Відправити Telegram-нагадування неактивним користувачам. Body: { filter?, limit?, delaysMs? } */
+app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
+  if (!isTelegramEnabled()) {
+    return res.status(400).json({ error: 'Telegram bot не налаштовано' });
+  }
+  try {
+    const filter = (req.body?.filter as string)?.trim() || 'all';
+    if (!['all', 'no_active_viber'].includes(filter)) {
+      res.status(400).json({ error: 'Invalid filter' });
+      return;
+    }
+    const limit = typeof req.body?.limit === 'number' && req.body.limit > 0 ? Math.floor(req.body.limit) : undefined;
+    const delaysMs = Array.isArray(req.body?.delaysMs)
+      ? (req.body.delaysMs as number[]).filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120000))
+      : undefined;
+    const where = getTelegramReminderWhere(filter);
+    let persons = await prisma.person.findMany({
+      where,
+      select: { id: true, phoneNormalized: true, fullName: true, telegramChatId: true },
+      orderBy: { id: 'asc' },
+    });
+    if (limit !== undefined) {
+      persons = persons.slice(0, limit);
+    }
+    let sent = 0;
+    let failed = 0;
+    for (let i = 0; i < persons.length; i++) {
+      const p = persons[i];
+      const chatId = p.telegramChatId;
+      if (!chatId || chatId === '0' || !chatId.trim()) {
+        failed++;
+      } else {
+        try {
+          await sendInactivityReminder(chatId);
+          sent++;
+        } catch (err) {
+          console.error(`❌ send-telegram-reminders person #${p.id}:`, err);
+          failed++;
+        }
+      }
+      if (delaysMs?.length && i < persons.length - 1) {
+        const delayMs = delaysMs[Math.min(i, delaysMs.length - 1)] ?? 0;
+        if (delayMs > 0) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+    }
+    const total = persons.length;
+    const message = `Нагадування відправлено: ${sent}, помилок: ${failed}, всього в вибірці: ${total}`;
+    console.log(`📢 Telegram reminders (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent}, failed=${failed}, total=${total}`);
+    res.json({ success: true, total, sent, failed, message });
+  } catch (e) {
+    console.error('❌ send-telegram-reminders:', e);
+    res.status(500).json({ error: 'Failed to send telegram reminders' });
   }
 });
 

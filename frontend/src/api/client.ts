@@ -210,6 +210,26 @@ class ApiClient {
     );
   }
 
+  /** Персони з Telegram ботом для нагадувань. filter: all, no_active_viber. */
+  async getTelegramReminderPersons(filter: 'all' | 'no_active_viber' = 'all'): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
+    return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>(
+      `/admin/telegram-reminder-persons?filter=${encodeURIComponent(filter)}`
+    );
+  }
+
+  /** Відправити Telegram-нагадування користувачам. */
+  async sendTelegramReminders(options: {
+    filter: 'all' | 'no_active_viber';
+    limit?: number;
+    delaysMs?: number[];
+  }): Promise<{ success: boolean; total: number; sent: number; failed: number; message: string }> {
+    const { filter = 'all', limit, delaysMs } = options;
+    return this.request<{ success: boolean; total: number; sent: number; failed: number; message: string }>(
+      '/admin/send-telegram-reminders',
+      { method: 'POST', body: JSON.stringify({ filter, limit, delaysMs }) }
+    );
+  }
+
   // Viber Listings endpoints
   async getViberListings(active?: boolean): Promise<ViberListing[]> {
     const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';

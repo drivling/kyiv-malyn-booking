@@ -62,6 +62,15 @@ export const AdminPage: React.FC = () => {
   const [promoContactName, setPromoContactName] = useState('Петро Коваленко');
   const [promoContactSaving, setPromoContactSaving] = useState(false);
   const [promoContactSuccess, setPromoContactSuccess] = useState('');
+  // Нагадування для клієнтів з Telegram ботом
+  type TelegramReminderFilter = 'all' | 'no_active_viber';
+  const [telegramReminderFilter, setTelegramReminderFilter] = useState<TelegramReminderFilter>('all');
+  const [telegramReminderPersons, setTelegramReminderPersons] = useState<
+    Array<{ id: number; phoneNormalized: string; fullName: string | null }>
+  >([]);
+  const [telegramReminderLoading, setTelegramReminderLoading] = useState(false);
+  const [telegramReminderError, setTelegramReminderError] = useState('');
+  const [telegramReminderSummary, setTelegramReminderSummary] = useState('');
   const [viberEditForm, setViberEditForm] = useState<{
     rawMessage: string;
     senderName: string;
@@ -108,10 +117,11 @@ export const AdminPage: React.FC = () => {
       loadViberListings();
     } else if (activeTab === 'promo') {
       loadPromoPersons();
+      loadTelegramReminderPersons();
     } else if (activeTab === 'data') {
       loadPersons();
     }
-  }, [activeTab, promoFilter]);
+  }, [activeTab, promoFilter, telegramReminderFilter]);
 
   const loadPromoPersons = async () => {
     setPromoError('');
@@ -120,6 +130,21 @@ export const AdminPage: React.FC = () => {
       setPromoPersons(data);
     } catch (err) {
       setPromoError(err instanceof Error ? err.message : 'Помилка завантаження');
+    }
+  };
+
+  const loadTelegramReminderPersons = async () => {
+    setTelegramReminderError('');
+    setTelegramReminderLoading(true);
+    try {
+      const data = await apiClient.getTelegramReminderPersons(telegramReminderFilter);
+      setTelegramReminderPersons(data);
+    } catch (err) {
+      setTelegramReminderError(
+        err instanceof Error ? err.message : 'Помилка завантаження Telegram клієнтів'
+      );
+    } finally {
+      setTelegramReminderLoading(false);
     }
   };
 
@@ -154,6 +179,26 @@ export const AdminPage: React.FC = () => {
       setPromoError(err instanceof Error ? err.message : 'Помилка відправки');
     } finally {
       setPromoLoading(false);
+    }
+  };
+
+  const handleSendTelegramReminders = async () => {
+    setTelegramReminderError('');
+    setTelegramReminderSummary('');
+    setTelegramReminderLoading(true);
+    try {
+      const result = await apiClient.sendTelegramReminders({ filter: telegramReminderFilter });
+      setTelegramReminderSummary(
+        result.message ||
+          `Нагадування відправлено: ${result.sent}/${result.total}, помилок: ${result.failed}`
+      );
+      await loadTelegramReminderPersons();
+    } catch (err) {
+      setTelegramReminderError(
+        err instanceof Error ? err.message : 'Помилка відправки нагадувань'
+      );
+    } finally {
+      setTelegramReminderLoading(false);
     }
   };
 
@@ -1184,6 +1229,49 @@ export const AdminPage: React.FC = () => {
                 </table>
               </div>
             )}
+
+            <hr style={{ margin: '24px 0' }} />
+
+            <h3 style={{ marginBottom: '8px' }}>Нагадування для Telegram-клієнтів</h3>
+            {telegramReminderError && <Alert variant="error">{telegramReminderError}</Alert>}
+            {telegramReminderSummary && <Alert variant="success">{telegramReminderSummary}</Alert>}
+            <p style={{ marginBottom: '8px' }}>
+              <strong>База для нагадувань</strong> — тільки персони, які вже підключили Telegram бота.
+              Вибір:{' '}
+              <select
+                value={telegramReminderFilter}
+                onChange={(e) =>
+                  setTelegramReminderFilter(e.target.value as TelegramReminderFilter)
+                }
+                style={{ marginLeft: '4px', padding: '4px 8px' }}
+              >
+                <option value="all">Всі з Telegram ID</option>
+                <option value="no_active_viber">
+                  Тільки ті, в яких зараз немає активних пропозицій у ViberRides
+                </option>
+              </select>
+            </p>
+            <p style={{ marginBottom: '12px' }}>
+              Підходить під вибір: <strong>{telegramReminderPersons.length}</strong>.
+            </p>
+            <div
+              className="controls"
+              style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}
+            >
+              <Button
+                onClick={handleSendTelegramReminders}
+                disabled={telegramReminderLoading || telegramReminderPersons.length === 0}
+              >
+                {telegramReminderLoading ? 'Відправка...' : 'Відправити нагадування'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={loadTelegramReminderPersons}
+                disabled={telegramReminderLoading}
+              >
+                Оновити список
+              </Button>
+            </div>
           </div>
         )}
 

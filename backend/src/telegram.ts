@@ -1254,6 +1254,38 @@ ${driverLine}${supportPhoneLine}
 };
 
 /**
+ * Нагадування неактивним користувачам: просте повідомлення з посиланнями на сценарії.
+ */
+export const sendInactivityReminder = async (chatId: string) => {
+  if (!bot) {
+    console.log('⚠️ Telegram bot не налаштовано');
+    return;
+  }
+
+  try {
+    const links = getTelegramScenarioLinks();
+    const message = `
+👋 <b>Давно не бачилися!</b>
+
+Ми помітили, що ви давно не користувалися сервісом поїздок Київ, Житомир, Коростень ↔️ Малин.
+
+Якщо плануєте дорогу:
+• як <b>водій</b> — створіть нову поїздку: ${links.driver}
+• як <b>пасажир</b> — створіть запит на поїздку: ${links.passenger}
+
+Вільний перегляд поїздок: ${links.poputkyWeb}
+
+<i>Дякуємо, що користуєтесь нашим сервісом! 🚐</i>
+    `.trim();
+
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    console.log('✅ Telegram inactivity reminder sent');
+  } catch (error) {
+    console.error('❌ Помилка відправки Telegram inactivity reminder:', error);
+  }
+};
+
+/**
  * Перевірка чи бот налаштований
  */
 export const isTelegramEnabled = (): boolean => {
