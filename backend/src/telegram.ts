@@ -892,7 +892,12 @@ export const sendViberListingConfirmationToUser = async (
 
     if (!chatId) {
       const person = await getPersonByPhone(trimmed);
-      if (person && !person.telegramPromoSentAt && isTelegramUserSenderEnabled()) {
+      const PROMO_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 днів
+      const shouldSendPromo =
+        person &&
+        isTelegramUserSenderEnabled() &&
+        (!person.telegramPromoSentAt || Date.now() - person.telegramPromoSentAt.getTime() > PROMO_COOLDOWN_MS);
+      if (shouldSendPromo) {
         const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
         const phoneForApi = normalizePhone(trimmed);
         const sent = await sendMessageViaUserAccount(phoneForApi, promoMessage);
