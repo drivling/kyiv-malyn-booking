@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
@@ -11,6 +11,27 @@ import './LoginPage.css';
 
 const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'your_bot_username';
 
+/** Парсинг Telegram user з query-параметрів (редірект після data-auth-url) */
+function parseTelegramUserFromSearchParams(params: URLSearchParams): TelegramUser | null {
+  const id = params.get('id');
+  const authDate = params.get('auth_date');
+  const hash = params.get('hash');
+  const firstName = params.get('first_name');
+  if (!id || !authDate || !hash || !firstName) return null;
+  const idNum = parseInt(id, 10);
+  const authDateNum = parseInt(authDate, 10);
+  if (Number.isNaN(idNum) || Number.isNaN(authDateNum)) return null;
+  return {
+    id: idNum,
+    first_name: firstName,
+    last_name: params.get('last_name') ?? undefined,
+    username: params.get('username') ?? undefined,
+    photo_url: params.get('photo_url') ?? undefined,
+    auth_date: authDateNum,
+    hash,
+  };
+}
+
 export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -18,6 +39,15 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<'admin' | 'telegram'>('telegram');
   const navigate = useNavigate();
+
+  // Обробка повернення з Telegram через redirect (data-auth-url): URL містить ?id=...&first_name=...&hash=...&auth_date=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const telegramUser = parseTelegramUserFromSearchParams(params);
+    if (!telegramUser) return;
+    userState.loginTelegram(telegramUser, telegramUser.phone || '');
+    window.location.replace('/poputky');
+  }, []);
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,18 +75,13 @@ export const LoginPage: React.FC = () => {
     const userPhone = phone || user.phone || '';
     
     if (userPhone) {
-      // Якщо номер є - зберігаємо і перенаправляємо
       userState.loginTelegram(user, userPhone);
-      navigate('/', { state: { telegramPhone: userPhone } });
     } else {
-      // Якщо номера немає - зберігаємо користувача без номера
-      // і показуємо повідомлення що потрібно ввести номер
       userState.loginTelegram(user, '');
-      navigate('/', { state: { 
-        telegramUser: user,
-        needPhone: true 
-      } });
     }
+    // Редірект на сторінку попуток через replace, щоб не залишати /login в історії.
+    // Використовуємо window.location щоб гарантувати повне перезавантаження та оновлення стану в NavBar.
+    window.location.replace('/poputky');
   };
 
   const handlePhoneLogin = () => {
@@ -75,7 +100,7 @@ export const LoginPage: React.FC = () => {
     };
     
     userState.loginTelegram(tempUser, phone);
-    navigate('/', { state: { telegramPhone: phone } });
+    window.location.replace('/poputky');
   };
 
   return (
