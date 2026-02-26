@@ -63,10 +63,10 @@ export const AdminPage: React.FC = () => {
   const [promoContactSaving, setPromoContactSaving] = useState(false);
   const [promoContactSuccess, setPromoContactSuccess] = useState('');
   // Нагадування для клієнтів з Telegram ботом
-  type TelegramReminderFilter = 'all' | 'no_active_viber';
+  type TelegramReminderFilter = 'all' | 'no_active_viber' | 'no_reminder_7_days';
   const [telegramReminderFilter, setTelegramReminderFilter] = useState<TelegramReminderFilter>('all');
   const [telegramReminderPersons, setTelegramReminderPersons] = useState<
-    Array<{ id: number; phoneNormalized: string; fullName: string | null }>
+    Array<{ id: number; phoneNormalized: string; fullName: string | null; telegramReminderSentAt: string | null }>
   >([]);
   const [telegramReminderLoading, setTelegramReminderLoading] = useState(false);
   const [telegramReminderError, setTelegramReminderError] = useState('');
@@ -1249,10 +1249,14 @@ export const AdminPage: React.FC = () => {
                 <option value="no_active_viber">
                   Тільки ті, в яких зараз немає активних пропозицій у ViberRides
                 </option>
+                <option value="no_reminder_7_days">
+                  Тим, кому не слали нагадування 7+ днів (або ніколи)
+                </option>
               </select>
             </p>
             <p style={{ marginBottom: '12px' }}>
-              Підходить під вибір: <strong>{telegramReminderPersons.length}</strong>.
+              Підходить під вибір: <strong>{telegramReminderPersons.length}</strong>. Після відправки
+              проставляється дата комунікації (Нагадування відправлено).
             </p>
             <div
               className="controls"
@@ -1283,12 +1287,13 @@ export const AdminPage: React.FC = () => {
                       <th>ID</th>
                       <th>Телефон</th>
                       <th>Імʼя</th>
+                      <th>Нагадування відправлено</th>
                     </tr>
                   </thead>
                   <tbody>
                     {telegramReminderPersons.length === 0 ? (
                       <tr>
-                        <td colSpan={3}>—</td>
+                        <td colSpan={4}>—</td>
                       </tr>
                     ) : (
                       telegramReminderPersons.map((p) => (
@@ -1296,6 +1301,11 @@ export const AdminPage: React.FC = () => {
                           <td>#{p.id}</td>
                           <td>{formatPhoneDisplay(p.phoneNormalized)}</td>
                           <td>{p.fullName ?? '—'}</td>
+                          <td>
+                            {p.telegramReminderSentAt
+                              ? new Date(p.telegramReminderSentAt).toLocaleString('uk-UA')
+                              : '—'}
+                          </td>
                         </tr>
                       ))
                     )}

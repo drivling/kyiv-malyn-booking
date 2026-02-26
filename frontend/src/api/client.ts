@@ -210,16 +210,18 @@ class ApiClient {
     );
   }
 
-  /** Персони з Telegram ботом для нагадувань. filter: all, no_active_viber. */
-  async getTelegramReminderPersons(filter: 'all' | 'no_active_viber' = 'all'): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null }>> {
-    return this.request<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>(
-      `/admin/telegram-reminder-persons?filter=${encodeURIComponent(filter)}`
-    );
+  /** Персони з Telegram ботом для нагадувань. filter: all, no_active_viber, no_reminder_7_days. */
+  async getTelegramReminderPersons(
+    filter: 'all' | 'no_active_viber' | 'no_reminder_7_days' = 'all'
+  ): Promise<Array<{ id: number; phoneNormalized: string; fullName: string | null; telegramReminderSentAt: string | null }>> {
+    return this.request<
+      Array<{ id: number; phoneNormalized: string; fullName: string | null; telegramReminderSentAt: string | null }>
+    >(`/admin/telegram-reminder-persons?filter=${encodeURIComponent(filter)}`);
   }
 
-  /** Відправити Telegram-нагадування користувачам. */
+  /** Відправити Telegram-нагадування користувачам. Після відправки оновлюється telegramReminderSentAt. */
   async sendTelegramReminders(options: {
-    filter: 'all' | 'no_active_viber';
+    filter: 'all' | 'no_active_viber' | 'no_reminder_7_days';
     limit?: number;
     delaysMs?: number[];
   }): Promise<{ success: boolean; total: number; sent: number; failed: number; message: string }> {

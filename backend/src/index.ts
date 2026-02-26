@@ -1612,6 +1612,8 @@ const hasTelegramReminderBaseCondition = {
   NOT: [{ telegramChatId: '' }, { telegramChatId: '0' }],
 };
 
+const TELEGRAM_REMINDER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 днів
+
 function getTelegramReminderWhere(filter: string): object {
   if (filter === 'no_active_viber') {
     return {
@@ -1623,25 +1625,49 @@ function getTelegramReminderWhere(filter: string): object {
       },
     };
   }
+  if (filter === 'no_reminder_7_days') {
+    const sevenDaysAgo = new Date(Date.now() - TELEGRAM_REMINDER_COOLDOWN_MS);
+    return {
+      ...hasTelegramReminderBaseCondition,
+      OR: [
+        { telegramReminderSentAt: null },
+        { telegramReminderSentAt: { lt: sevenDaysAgo } },
+      ],
+    };
+  }
   return hasTelegramReminderBaseCondition;
 }
 
-/** Список Person для Telegram-нагадувань (база = з ботом). Query: ?filter=all|no_active_viber */
+/** Список Person для Telegram-нагадувань (база = з ботом). Query: ?filter=all|no_active_viber|no_reminder_7_days */
 app.get('/admin/telegram-reminder-persons', requireAdmin, async (req, res) => {
   try {
     const filter = (req.query.filter as string)?.trim() || 'all';
     const where = getTelegramReminderWhere(filter);
     const persons = await prisma.person.findMany({
       where,
-      select: { id: true, phoneNormalized: true, fullName: true, telegramChatId: true },
+      select: {
+        id: true,
+        phoneNormalized: true,
+        fullName: true,
+        telegramChatId: true,
+        telegramReminderSentAt: true,
+      },
       orderBy: { id: 'asc' },
     });
     res.json(
-      persons.map((p: { id: number; phoneNormalized: string; fullName: string | null }) => ({
-        id: p.id,
-        phoneNormalized: p.phoneNormalized,
-        fullName: p.fullName,
-      }))
+      persons.map(
+        (p: {
+          id: number;
+          phoneNormalized: string;
+          fullName: string | null;
+          telegramReminderSentAt: Date | null;
+        }) => ({
+          id: p.id,
+          phoneNormalized: p.phoneNormalized,
+          fullName: p.fullName,
+          telegramReminderSentAt: p.telegramReminderSentAt ? p.telegramReminderSentAt.toISOString() : null,
+        })
+      )
     );
   } catch (e) {
     console.error('❌ telegram-reminder-persons:', e);
@@ -1656,7 +1682,7 @@ app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
   }
   try {
     const filter = (req.body?.filter as string)?.trim() || 'all';
-    if (!['all', 'no_active_viber'].includes(filter)) {
+    if (!['all', 'no_active_viber', 'no_reminder_7_days'].includes(filter)) {
       res.status(400).json({ error: 'Invalid filter' });
       return;
     }
@@ -1684,6 +1710,10 @@ app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
         try {
           await sendInactivityReminder(chatId);
           sent++;
+          await prisma.person.update({
+            where: { id: p.id },
+            data: { telegramReminderSentAt: new Date() },
+          });
         } catch (err) {
           console.error(`❌ send-telegram-reminders person #${p.id}:`, err);
           failed++;
