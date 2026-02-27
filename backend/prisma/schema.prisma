@@ -34,6 +34,7 @@ model Person {
 
   bookings     Booking[]
   viberListings ViberListing[]
+  viberRideEvents ViberRideEvent[]
 }
 
 model Booking {

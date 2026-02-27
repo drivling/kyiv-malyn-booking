@@ -158,6 +158,92 @@
      - `GET /admin/viber-analytics/summary?limit=20&minRides=3`
    - Перевірити вкладку **📢 «Реклама»** в адмінці.
 
+### 6. Автоматизація для сервера (Railway / прод)
+
+#### 6.1. Міграції Prisma
+
+- Міграції вже запускаються в build-процесі (див. розділ «🚀 Деплой на Railway» нижче):
+  - `npm run build` → генерує Prisma Client
+  - `npm run prisma:migrate:deploy` → застосовує міграції
+- Після додавання/зміни `ViberRideEvent` або звʼязків з `Person`:
+  1. Локально створити міграцію `npx prisma migrate dev -n your_migration_name`
+  2. Закомітити зміни в `backend/prisma/migrations` і `schema.prisma`
+  3. Зробити `git push` на `main` — Railway самостійно застосує міграції через `prisma:migrate:deploy`
+
+#### 6.2. Регулярний імпорт історичних ViberRide
+
+Якщо потрібно, щоб імпорт із `ViberRide` в `ViberRideEvent` працював автоматично:
+
+- Налаштуйте **Railway Cron Job** або будь-який інший планувальник, який раз на N хвилин/годин буде викликати:
+
+```bash
+curl -X POST "https://YOUR_BACKEND_URL/admin/viber-analytics/import" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: admin-authenticated"
+```
+
+- Токен `admin-authenticated` — це поточне значення `ADMIN_TOKEN` у backend-коді (простий токен для адміна).
+- Endpoint імпортує тільки **нові** записи, тому його можна викликати часто, це безпечно.
+
+> За потреби авторизацію можна посилити: замінити простий токен на окремий admin API key або JWT.
+
+---
+
+### 7. Локальна розробка й тест для девелопера
+
+#### 7.1. Підготовка backend
+
+```bash
+cd backend
+npm install
+
+# Формат та перевірка схеми
+npx prisma format
+
+# Створити/оновити міграції (dev-середовище)
+npx prisma migrate dev -n add_viber_ride_event
+
+# Сгенерувати Prisma Client (якщо потрібно окремо)
+npx prisma generate
+
+# Запустити backend у dev-режимі
+npm run dev
+```
+
+Переконайтесь, що в `backend/.env` (або в середовищі) є коректний `DATABASE_URL` для локальної PostgreSQL.
+
+#### 7.2. Локальне тестування аналітики
+
+1. **Імпорт історичних ViberRide → ViberRideEvent**
+
+```bash
+curl -X POST "http://localhost:3000/admin/viber-analytics/import" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: admin-authenticated"
+```
+
+2. **Отримати короткі профілі 10–20 клієнтів**
+
+```bash
+curl "http://localhost:3000/admin/viber-analytics/summary?limit=20&minRides=3" \
+  -H "Authorization: admin-authenticated"
+```
+
+3. **Перевірити UI в адмінці**
+
+- Запустити frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+- Відкрити `http://localhost:5173`, залогінитися в адмінку.
+- Перейти на вкладку **📢 «Реклама»**:
+  - натиснути «Імпортувати нові ViberRide в аналітику»
+  - натиснути «Показати 10–20 клієнтів з патернами» і перевірити, що дані відображаються.
+
 ## 🚀 Деплой на Railway
 
 ### Передумови
