@@ -1919,42 +1919,22 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
 // Endpoint: тільки нові записи, щоб можна було викликати кілька разів.
 app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
   try {
-    type LegacyViberRideRow = {
+    // Вихідні дані тепер беремо з таблиці ViberListing (історія оголошень з Viber-чату),
+    // яка вже існує в основній БД backend.
+    type SourceRow = {
       id: number;
-      route: string | null;
-      departureDate: Date | null;
+      route: string;
+      date: Date;
       departureTime: string | null;
-      availableSeats: number | null;
-      price: number | null;
-      contactPhone: string | null;
-      contactName: string | null;
-      isParsed: boolean;
-      parsingErrors: string | null;
-      isActive: boolean | null;
-      createdAt: Date | null;
+      seats: number | null;
+      phone: string;
+      priceUah: number | null;
+      isActive: boolean;
+      createdAt: Date;
+      personId: number | null;
     };
 
-    // Перевіряємо, чи існує таблиця ViberRide у поточній БД
-    const tableCheck = await prisma.$queryRaw<{ exists: boolean }[]>`
-      SELECT EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_name = 'ViberRide'
-      ) AS "exists"
-    `;
-    const hasViberRideTable = tableCheck[0]?.exists === true;
-
-    if (!hasViberRideTable) {
-      return res.json({
-        success: false,
-        totalSource: 0,
-        alreadyImported: 0,
-        importedNow: 0,
-        message:
-          'Таблиця "ViberRide" відсутня у цій базі даних. Імпорт доступний лише там, де сервіс viberparser зберігає історію в цю саму БД.',
-      });
-    }
-
-    // Які ViberRide вже імпортовані
+    // Які ViberListing вже імпортовані в ViberRideEvent (по viberRideId)
     const existing = await (prisma as any).viberRideEvent.findMany({
       select: { viberRideId: true },
     });
@@ -1962,28 +1942,12 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       (existing as Array<{ viberRideId: number }>).map((r) => r.viberRideId),
     );
 
-    // Читаємо всі історичні записи з сирої таблиці ViberRide
-    const rows = await prisma.$queryRaw<LegacyViberRideRow[]>`
-      SELECT
-        "id",
-        "route",
-        "departureDate",
-        "departureTime",
-        "availableSeats",
-        "price",
-        "contactPhone",
-        "contactName",
-        "isParsed",
-        "parsingErrors",
-        "isActive",
-        "createdAt"
-      FROM "ViberRide"
-      ORDER BY "id" ASC
-    `;
+    // Читаємо всі (або більшість) записів з ViberListing
+    const rows = (await prisma.viberListing.findMany({
+      orderBy: { id: 'asc' },
+    })) as unknown as SourceRow[];
 
-    const newRows: LegacyViberRideRow[] = rows.filter(
-      (r: LegacyViberRideRow) => !importedIds.has(r.id),
-    );
+    const newRows: SourceRow[] = rows.filter((r: SourceRow) => !importedIds.has(r.id));
 
     if (newRows.length === 0) {
       return res.json({
@@ -1995,39 +1959,18 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       });
     }
 
-    // Мапимо телефони → personId одним запитом
-    const phoneSet = new Set<string>();
-    for (const r of newRows) {
-      const rawPhone = (r.contactPhone ?? '').trim();
-      if (!rawPhone) continue;
-      const normalized = normalizePhone(rawPhone);
-      if (normalized) phoneSet.add(normalized);
-    }
-
-    const phones = Array.from(phoneSet);
-    const persons = phones.length
-      ? await prisma.person.findMany({
-          where: { phoneNormalized: { in: phones } },
-          select: { id: true, phoneNormalized: true },
-        })
-      : [];
-    const personByPhone = new Map<string, number>();
-    for (const p of persons) {
-      personByPhone.set(p.phoneNormalized, p.id);
-    }
-
     const toInsert: any[] = [];
 
     for (const r of newRows) {
-      const rawPhone = (r.contactPhone ?? '').trim();
+      const rawPhone = (r.phone ?? '').trim();
       const normalized = rawPhone ? normalizePhone(rawPhone) : '';
 
       let weekday: number | null = null;
       let hour: number | null = null;
 
-      if (r.departureDate instanceof Date) {
+      if (r.date instanceof Date) {
         // JS: 0 = неділя ... 6 = субота
-        weekday = r.departureDate.getDay();
+        weekday = r.date.getDay();
       }
 
       if (r.departureTime) {
@@ -2040,7 +1983,7 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       }
 
       const phoneNormalized = normalized || rawPhone || '';
-      const personId = normalized && personByPhone.has(normalized) ? personByPhone.get(normalized)! : null;
+      const personId = r.personId ?? null;
 
       toInsert.push({
         viberRideId: r.id,
@@ -2048,13 +1991,13 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
         phoneNormalized,
         personId,
         route: r.route ?? null,
-        departureDate: r.departureDate ?? null,
+        departureDate: r.date ?? null,
         departureTime: r.departureTime ?? null,
-        availableSeats: r.availableSeats ?? null,
-        priceUah: r.price ?? null,
-        isParsed: r.isParsed,
+        availableSeats: r.seats ?? null,
+        priceUah: r.priceUah ?? null,
+        isParsed: true,
         isActive: r.isActive ?? null,
-        parsingErrors: r.parsingErrors ?? null,
+        parsingErrors: null,
         weekday,
         hour,
         createdAt: r.createdAt ?? new Date(),

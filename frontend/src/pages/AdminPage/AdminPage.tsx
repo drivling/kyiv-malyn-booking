@@ -190,7 +190,12 @@ export const AdminPage: React.FC = () => {
       const msg =
         result.message ||
         `Імпортовано ${result.importedNow} нових записів з ${result.totalSource} (вже було: ${result.alreadyImported}).`;
-      setViberAnalyticsSummary(msg);
+      if (!result.success) {
+        // Якщо імпорт неуспішний (наприклад, немає таблиці ViberRide) — показуємо це як помилку
+        setViberAnalyticsError(msg);
+      } else {
+        setViberAnalyticsSummary(msg);
+      }
     } catch (err) {
       setViberAnalyticsError(err instanceof Error ? err.message : 'Помилка імпорту аналітики ViberRide');
     }
