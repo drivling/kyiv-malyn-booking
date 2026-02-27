@@ -173,3 +173,11 @@ export interface ViberClientBehavior {
   behaviorSummary: string;
   recommendations: string[];
 }
+
+export interface ViberAnalyticsSummaryResponse {
+  clients: ViberClientBehavior[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}

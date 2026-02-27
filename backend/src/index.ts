@@ -2035,32 +2035,61 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
 // Повертає до N клієнтів з найбільшою кількістю поїздок та коротким описом патернів.
 app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
   try {
-    const limitParam = Number(req.query.limit);
+    const pageParam = Number(req.query.page);
+    const pageSizeParam = Number(req.query.pageSize ?? req.query.limit);
     const minRidesParam = Number(req.query.minRides);
-    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(50, Math.floor(limitParam)) : 20;
-    const minRides = Number.isFinite(minRidesParam) && minRidesParam > 0 ? Math.floor(minRidesParam) : 3;
 
-    const topPhones: any[] = await (prisma as any).viberRideEvent.groupBy({
+    const pageSize =
+      Number.isFinite(pageSizeParam) && pageSizeParam > 0
+        ? Math.min(200, Math.max(10, Math.floor(pageSizeParam)))
+        : 50;
+    const requestedPage =
+      Number.isFinite(pageParam) && pageParam > 0 ? Math.floor(pageParam) : 1;
+    const minRides =
+      Number.isFinite(minRidesParam) && minRidesParam > 0
+        ? Math.floor(minRidesParam)
+        : 3;
+
+    const grouped: any[] = await (prisma as any).viberRideEvent.groupBy({
       by: ['phoneNormalized'],
       _count: { _all: true },
-      // Для використання take Prisma вимагає orderBy по полю з "by"
-      orderBy: { phoneNormalized: 'asc' },
       where: {
         phoneNormalized: { not: '' },
         isParsed: true,
       },
-      take: limit * 3, // з запасом, потім відфільтруємо та відсортуємо за minRides
     });
 
-    const filteredTop = topPhones
+    const filteredTop = grouped
       .filter((t: any) => t._count._all >= minRides)
       .sort((a: any, b: any) => b._count._all - a._count._all)
-      .slice(0, limit);
-    if (filteredTop.length === 0) {
-      return res.json({ clients: [] as ViberClientBehavior[] });
+      ;
+
+    const total = filteredTop.length;
+    if (total === 0) {
+      return res.json({
+        clients: [] as ViberClientBehavior[],
+        total: 0,
+        page: 1,
+        pageSize,
+        totalPages: 0,
+      });
     }
 
-    const phones = filteredTop.map((t: any) => t.phoneNormalized as string);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(Math.max(requestedPage, 1), totalPages);
+    const startIndex = (page - 1) * pageSize;
+    const pageSlice = filteredTop.slice(startIndex, startIndex + pageSize);
+    if (pageSlice.length === 0) {
+      return res.json({
+        clients: [] as ViberClientBehavior[],
+        total,
+        page,
+        pageSize,
+        totalPages,
+      });
+    }
+
+    const phones = pageSlice.map((t: any) => t.phoneNormalized as string);
 
     const [events, persons] = await Promise.all([
       (prisma as any).viberRideEvent.findMany({
@@ -2248,7 +2277,7 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       });
     }
 
-    res.json({ clients });
+    res.json({ clients, total, page, pageSize, totalPages });
   } catch (e) {
     console.error('❌ Помилка аналітики ViberRideEvent:', e);
     res.status(500).json({

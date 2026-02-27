@@ -12,7 +12,7 @@ import type {
   AnnounceDraftResponse,
   Person,
   PersonWithCounts,
-  ViberClientBehavior,
+  ViberAnalyticsSummaryResponse,
 } from '@/types';
 
 class ApiClient {
@@ -335,14 +335,16 @@ class ApiClient {
 
   /** Аналітика поведінки клієнтів за ViberRideEvent. Повертає список клієнтів з описом патернів. */
   async getViberAnalyticsSummary(options?: {
-    limit?: number;
+    page?: number;
+    pageSize?: number;
     minRides?: number;
-  }): Promise<{ clients: ViberClientBehavior[] }> {
+  }): Promise<ViberAnalyticsSummaryResponse> {
     const params: string[] = [];
-    if (options?.limit != null) params.push(`limit=${encodeURIComponent(String(options.limit))}`);
+    if (options?.page != null) params.push(`page=${encodeURIComponent(String(options.page))}`);
+    if (options?.pageSize != null) params.push(`pageSize=${encodeURIComponent(String(options.pageSize))}`);
     if (options?.minRides != null) params.push(`minRides=${encodeURIComponent(String(options.minRides))}`);
     const query = params.length ? `?${params.join('&')}` : '';
-    return this.request<{ clients: ViberClientBehavior[] }>(`/admin/viber-analytics/summary${query}`);
+    return this.request<ViberAnalyticsSummaryResponse>(`/admin/viber-analytics/summary${query}`);
   }
 
   async getTelegramScenarios(): Promise<TelegramScenariosResponse> {

@@ -126,7 +126,9 @@ export const AdminPage: React.FC = () => {
   const [viberAnalyticsError, setViberAnalyticsError] = useState('');
   const [viberAnalyticsClients, setViberAnalyticsClients] = useState<ViberClientBehavior[]>([]);
   const [viberAnalyticsSummary, setViberAnalyticsSummary] = useState('');
-  const [viberAnalyticsVisibleCount, setViberAnalyticsVisibleCount] = useState(20);
+  const [viberAnalyticsPage, setViberAnalyticsPage] = useState(0);
+  const [viberAnalyticsTotalPages, setViberAnalyticsTotalPages] = useState(0);
+  const [viberAnalyticsTotalCount, setViberAnalyticsTotalCount] = useState(0);
 
   useEffect(() => {
     if (activeTab === 'bookings') {
@@ -206,13 +208,17 @@ export const AdminPage: React.FC = () => {
     setViberAnalyticsError('');
     setViberAnalyticsLoading(true);
     try {
-      const { clients } = await apiClient.getViberAnalyticsSummary({ limit: 20, minRides: 3 });
-      setViberAnalyticsClients(clients);
-      setViberAnalyticsVisibleCount(Math.min(20, clients.length || 0));
-      if (!clients.length) {
+      const result = await apiClient.getViberAnalyticsSummary({ page: 1, pageSize: 50, minRides: 3 });
+      setViberAnalyticsClients(result.clients);
+      setViberAnalyticsPage(result.page);
+      setViberAnalyticsTotalPages(result.totalPages);
+      setViberAnalyticsTotalCount(result.total);
+      if (!result.clients.length) {
         setViberAnalyticsSummary('Аналітика: поки що немає достатньо даних для побудови поведінкових профілів.');
       } else {
-        setViberAnalyticsSummary(`Аналітика: знайдено ${clients.length} активних клієнтів з історії ViberRide.`);
+        setViberAnalyticsSummary(
+          `Аналітика: знайдено ${result.total} активних клієнтів з історії ViberRide (сторінка ${result.page} з ${result.totalPages}).`,
+        );
       }
     } catch (err) {
       setViberAnalyticsError(err instanceof Error ? err.message : 'Помилка завантаження аналітики ViberRide');
@@ -1354,6 +1360,12 @@ export const AdminPage: React.FC = () => {
             {viberAnalyticsClients.length > 0 && (
               <div className="table-container" style={{ marginTop: '8px' }}>
                 <h4 style={{ marginBottom: '8px' }}>Клієнти з виявленими патернами (історія ViberRide)</h4>
+                {viberAnalyticsTotalCount > 0 && (
+                  <p style={{ marginBottom: '8px', fontSize: '13px', color: 'var(--color-text-secondary, #666)' }}>
+                    Показано {viberAnalyticsClients.length} з {viberAnalyticsTotalCount} клієнтів
+                    {viberAnalyticsTotalPages > 1 ? ` (сторінка ${viberAnalyticsPage} з ${viberAnalyticsTotalPages})` : ''}.
+                  </p>
+                )}
                 <table>
                   <thead>
                     <tr>
@@ -1367,7 +1379,7 @@ export const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {viberAnalyticsClients.slice(0, viberAnalyticsVisibleCount).map((c) => (
+                    {viberAnalyticsClients.map((c) => (
                       <tr key={c.phoneNormalized}>
                         <td>{formatPhoneDisplay(c.phoneNormalized)}</td>
                         <td>{c.fullName ?? '—'}</td>
@@ -1402,15 +1414,31 @@ export const AdminPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-                {viberAnalyticsVisibleCount < viberAnalyticsClients.length && (
+                {viberAnalyticsPage < viberAnalyticsTotalPages && (
                   <div style={{ marginTop: '12px', textAlign: 'center' }}>
                     <Button
                       variant="secondary"
-                      onClick={() =>
-                        setViberAnalyticsVisibleCount((prev) =>
-                          Math.min(prev + 20, viberAnalyticsClients.length),
-                        )
-                      }
+                      onClick={async () => {
+                        try {
+                          setViberAnalyticsLoading(true);
+                          const nextPage = viberAnalyticsPage + 1;
+                          const result = await apiClient.getViberAnalyticsSummary({
+                            page: nextPage,
+                            pageSize: 50,
+                            minRides: 3,
+                          });
+                          setViberAnalyticsClients((prev) => [...prev, ...result.clients]);
+                          setViberAnalyticsPage(result.page);
+                          setViberAnalyticsTotalPages(result.totalPages);
+                          setViberAnalyticsTotalCount(result.total);
+                        } catch (err) {
+                          setViberAnalyticsError(
+                            err instanceof Error ? err.message : 'Помилка завантаження наступної сторінки аналітики',
+                          );
+                        } finally {
+                          setViberAnalyticsLoading(false);
+                        }
+                      }}
                     >
                       Догрузити ще
                     </Button>
