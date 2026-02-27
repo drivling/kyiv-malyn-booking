@@ -3,10 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
 exports.setAnnounceDraft = setAnnounceDraft;
 exports.getAnnounceDraft = getAnnounceDraft;
 exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
+exports.buildBehaviorPromoMessage = buildBehaviorPromoMessage;
+exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
@@ -136,6 +138,108 @@ function getTelegramScenarioLinks() {
         view: `https://t.me/${telegramBotUsername}?start=view`,
         poputkyWeb: 'https://malin.kiev.ua/poputky',
     };
+}
+exports.BEHAVIOR_PROMO_SCENARIO_LABELS = {
+    driver_passengers: 'Пасажири на маршрутах',
+    driver_autocreate: 'Автопідказка оголошень',
+    passenger_notify: 'Сповіщення про водіїв',
+    passenger_quick: 'Швидке бронювання',
+    mixed_unified: 'Блок водій+пасажир',
+    mixed_both: 'Водії й пасажири',
+};
+/** Для якого профілю показувати кнопку: driver | passenger | mixed (обидва типи кнопок для mixed). */
+exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = {
+    driver_passengers: ['driver', 'mixed'],
+    driver_autocreate: ['driver', 'mixed'],
+    passenger_notify: ['passenger', 'mixed'],
+    passenger_quick: ['passenger', 'mixed'],
+    mixed_unified: ['mixed'],
+    mixed_both: ['mixed'],
+};
+/**
+ * Збирає HTML-повідомлення для поведінкової реклами (аналітика ViberRide).
+ * Використовується і в боті, і (після спрощення) при відправці від особистого акаунта.
+ */
+function buildBehaviorPromoMessage(scenarioKey, context) {
+    const links = getTelegramScenarioLinks();
+    const name = context?.fullName?.trim() || 'Друже';
+    const routeHint = context?.mainRoute ? ` (наприклад ${context.mainRoute})` : '';
+    const templates = {
+        driver_passengers: `
+📢 <b>Для вас як водія</b>
+
+Ми бачимо, що ви часто їздите одними маршрутами. На платформі є пасажири, які шукають саме такі поїздки — перегляньте їх і додайте своє оголошення:
+
+🚗 Додати поїздку як водій: ${links.driver}
+🌐 Всі попутки: ${links.poputkyWeb}
+
+<i>Один клік — і пасажири побачать ваше оголошення.</i>
+    `.trim(),
+        driver_autocreate: `
+📢 <b>Швидке повторне оголошення</b>
+
+Ви часто публікуєте поїздки — збережемо ваш час. Створіть оголошення з тим самим маршрутом і часом у кілька кліків:
+
+🚗 Додати поїздку як водій: ${links.driver}
+🌐 Сайт попуток: ${links.poputkyWeb}
+
+<i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
+    `.trim(),
+        passenger_notify: `
+📢 <b>Нові водії на ваших маршрутах</b>
+
+Ми пам’ятаємо ваші поїздки${routeHint}. Підпишіться в боті — тоді ви зможете отримувати сповіщення про нових водіїв на цих напрямках:
+
+👤 Шукаю поїздку (пасажир): ${links.passenger}
+🌐 Вільний перегляд: ${links.poputkyWeb}
+
+<i>Не пропустіть зручну попутку.</i>
+    `.trim(),
+        passenger_quick: `
+📢 <b>Швидке бронювання</b>
+
+На ваших частых напрямках з’являються нові поїздки. Забронюйте місце за 1–2 кліки:
+
+👤 Запит на поїздку: ${links.passenger}
+🌐 Всі попутки: ${links.poputkyWeb}
+
+<i>Київ, Житомир, Коростень ↔️ Малин — одна платформа.</i>
+    `.trim(),
+        mixed_unified: `
+📢 <b>Один блок: водій і пасажир</b>
+
+Ви їздите і як водій, і як пасажир — ми підлаштували підказки під вас. Один блок з двома сценаріями:
+
+🚗 Додати поїздку як водій: ${links.driver}
+👤 Шукаю поїздку як пасажир: ${links.passenger}
+🌐 Всі попутки: ${links.poputkyWeb}
+
+<i>Обирайте роль — ми покажемо відповідні кроки.</i>
+    `.trim(),
+        mixed_both: `
+📢 <b>Водії й пасажири на ваших маршрутах</b>
+
+На ваших основних напрямках є і водії, і ті, хто шукає попутку. Перегляньте всі оголошення та оберіть зручний варіант:
+
+🌐 Вільний перегляд: ${links.poputkyWeb}
+🚗 Я водій: ${links.driver} | 👤 Я пасажир: ${links.passenger}
+
+<i>Дякуємо, що користуєтесь нашим сервісом! 🚐</i>
+    `.trim(),
+    };
+    let text = templates[scenarioKey];
+    if (name && name !== 'Друже') {
+        text = `Привіт, ${name}!\n\n` + text;
+    }
+    return text;
+}
+/** Відправляє поведінкове рекламне повідомлення в Telegram боті (за chatId). */
+async function sendBehaviorPromoMessage(chatId, scenarioKey, context) {
+    if (!bot) {
+        throw new Error('Telegram bot не налаштовано');
+    }
+    const message = buildBehaviorPromoMessage(scenarioKey, context);
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
 }
 /**
  * Нормалізація номера телефону
