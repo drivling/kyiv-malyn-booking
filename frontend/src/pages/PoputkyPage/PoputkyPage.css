@@ -479,13 +479,13 @@
   line-height: 1.5;
 }
 
-/* Фільтри під колонками */
+/* Фільтри в сайдбарі */
 .poputky-filters-card {
   background: #fff;
   border: 1px solid var(--pb-border);
   border-radius: 12px;
   padding: 20px;
-  margin-top: 24px;
+  margin-bottom: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
@@ -494,6 +494,21 @@
   grid-template-columns: 100px 140px minmax(0, 1fr) 160px auto;
   gap: 10px;
   align-items: center;
+}
+
+/* На вузьких екранах — фільтри в два рядки */
+@media (max-width: 768px) {
+  .poputky-filters-row {
+    grid-template-columns: minmax(70px, 1fr) minmax(100px, 1fr) minmax(0, 2fr);
+    grid-template-rows: auto auto;
+    gap: 10px;
+  }
+
+  .poputky-filters-row .poputky-filter:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .poputky-filters-row .poputky-filter:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .poputky-filters-row .poputky-filter:nth-child(3) { grid-column: 3; grid-row: 1; }
+  .poputky-filters-row .poputky-filter:nth-child(4) { grid-column: 1; grid-row: 2; }
+  .poputky-filters-row .poputky-filter-btn { grid-column: 2 / -1; grid-row: 2; }
 }
 
 .poputky-filter {
@@ -815,18 +830,6 @@
     padding: 20px 16px 28px;
   }
 
-  .poputky-filters-row {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .poputky-filter--search {
-    grid-column: 1 / -1;
-  }
-
-  .poputky-filter-btn {
-    grid-column: 1 / -1;
-  }
-
   .poputky-trip-card {
     grid-template-columns: 1fr;
   }
@@ -854,9 +857,5 @@
   .poputky-tab {
     padding: 8px 14px;
     font-size: 14px;
-  }
-
-  .poputky-filters-row {
-    grid-template-columns: 1fr;
   }
 }

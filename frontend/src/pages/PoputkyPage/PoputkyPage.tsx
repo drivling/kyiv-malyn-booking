@@ -299,6 +299,52 @@ export const PoputkyPage: React.FC = () => {
               </a>
             </div>
 
+            <section className="poputky-filters-card">
+              <div className="poputky-filters-row">
+                <select
+                  value={listingType}
+                  onChange={(e) => setListingType(e.target.value as ViberListingType | '')}
+                  className="poputky-filter"
+                  aria-label="Тип оголошення"
+                >
+                  <option value="">Всі</option>
+                  <option value="driver">Водії</option>
+                  <option value="passenger">Пасажири</option>
+                </select>
+                <input
+                  type="date"
+                  value={tripDate}
+                  onChange={(e) => setTripDate(e.target.value)}
+                  className="poputky-filter"
+                  aria-label="Дата поїздки"
+                />
+                <input
+                  type="text"
+                  placeholder="Маршрут, ім'я, телефон..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="poputky-filter poputky-filter--search"
+                />
+                <select
+                  value={sortByTime}
+                  onChange={(e) => setSortByTime(e.target.value as 'asc' | 'desc')}
+                  className="poputky-filter"
+                  aria-label="Сортування"
+                >
+                  <option value="asc">Спочатку раніші</option>
+                  <option value="desc">Спочатку пізніші</option>
+                </select>
+                <button type="button" onClick={loadPoputky} disabled={loading} className="poputky-filter-btn">
+                  {loading ? 'Оновлення...' : 'Оновити'}
+                </button>
+              </div>
+              <div className="poputky-stats-row">
+                <span className="poputky-stat">Всього: <strong>{filteredListings.length}</strong></span>
+                <span className="poputky-stat">Водії: <strong>{driverCount}</strong></span>
+                <span className="poputky-stat">Пасажири: <strong>{passengerCount}</strong></span>
+              </div>
+            </section>
+
             <section className="poputky-last-trips" ref={listRef}>
               <h2 className="poputky-section-title">Останні поїздки</h2>
 
@@ -517,53 +563,6 @@ export const PoputkyPage: React.FC = () => {
             </section>
           </div>
         </div>
-
-        {/* Фільтри (компактно під колонками) */}
-        <section className="poputky-filters-card">
-          <div className="poputky-filters-row">
-            <select
-              value={listingType}
-              onChange={(e) => setListingType(e.target.value as ViberListingType | '')}
-              className="poputky-filter"
-              aria-label="Тип оголошення"
-            >
-              <option value="">Всі</option>
-              <option value="driver">Водії</option>
-              <option value="passenger">Пасажири</option>
-            </select>
-            <input
-              type="date"
-              value={tripDate}
-              onChange={(e) => setTripDate(e.target.value)}
-              className="poputky-filter"
-              aria-label="Дата поїздки"
-            />
-            <input
-              type="text"
-              placeholder="Маршрут, ім'я, телефон..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="poputky-filter poputky-filter--search"
-            />
-            <select
-              value={sortByTime}
-              onChange={(e) => setSortByTime(e.target.value as 'asc' | 'desc')}
-              className="poputky-filter"
-              aria-label="Сортування"
-            >
-              <option value="asc">Спочатку раніші</option>
-              <option value="desc">Спочатку пізніші</option>
-            </select>
-            <button type="button" onClick={loadPoputky} disabled={loading} className="poputky-filter-btn">
-              {loading ? 'Оновлення...' : 'Оновити'}
-            </button>
-          </div>
-          <div className="poputky-stats-row">
-            <span className="poputky-stat">Всього: <strong>{filteredListings.length}</strong></span>
-            <span className="poputky-stat">Водії: <strong>{driverCount}</strong></span>
-            <span className="poputky-stat">Пасажири: <strong>{passengerCount}</strong></span>
-          </div>
-        </section>
       </div>
 
       {/* Футер: текст + карта */}
