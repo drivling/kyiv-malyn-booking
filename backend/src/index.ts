@@ -1934,6 +1934,26 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       createdAt: Date | null;
     };
 
+    // Перевіряємо, чи існує таблиця ViberRide у поточній БД
+    const tableCheck = await prisma.$queryRaw<{ exists: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_name = 'ViberRide'
+      ) AS "exists"
+    `;
+    const hasViberRideTable = tableCheck[0]?.exists === true;
+
+    if (!hasViberRideTable) {
+      return res.json({
+        success: false,
+        totalSource: 0,
+        alreadyImported: 0,
+        importedNow: 0,
+        message:
+          'Таблиця "ViberRide" відсутня у цій базі даних. Імпорт доступний лише там, де сервіс viberparser зберігає історію в цю саму БД.',
+      });
+    }
+
     // Які ViberRide вже імпортовані
     const existing = await (prisma as any).viberRideEvent.findMany({
       select: { viberRideId: true },
