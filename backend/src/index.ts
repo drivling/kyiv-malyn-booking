@@ -2073,6 +2073,27 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       }),
     ]);
 
+    // Мапимо id оголошення ViberListing → тип (водій/пасажир), щоб розрізняти ролі
+    const listingIdsSet = new Set<number>();
+    for (const ev of events as any[]) {
+      if (typeof ev.viberRideId === 'number') {
+        listingIdsSet.add(ev.viberRideId);
+      }
+    }
+    const listingIds = Array.from(listingIdsSet);
+    const listings = listingIds.length
+      ? await prisma.viberListing.findMany({
+          where: { id: { in: listingIds } },
+          select: { id: true, listingType: true },
+        })
+      : [];
+    const listingTypeById = new Map<number, 'driver' | 'passenger'>();
+    for (const l of listings as any[]) {
+      if (l && typeof l.id === 'number' && l.listingType) {
+        listingTypeById.set(l.id, l.listingType as 'driver' | 'passenger');
+      }
+    }
+
     const personByPhone = new Map<string, { id: number; phoneNormalized: string; fullName: string | null }>();
     for (const p of persons) {
       personByPhone.set(p.phoneNormalized, p);
@@ -2137,6 +2158,23 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       }
       const timeOfDayStats = { morning, day, evening, night };
 
+      // Ролі: скільки оголошень як "driver" та "passenger"
+      let driverTrips = 0;
+      let passengerTrips = 0;
+      for (const e of evs as any[]) {
+        const viberRideId = typeof e.viberRideId === 'number' ? e.viberRideId : null;
+        if (!viberRideId) continue;
+        const lt = listingTypeById.get(viberRideId);
+        if (lt === 'driver') driverTrips++;
+        else if (lt === 'passenger') passengerTrips++;
+      }
+      let profileRole: 'driver' | 'passenger' | 'mixed' = 'mixed';
+      if (driverTrips >= passengerTrips * 1.5 && driverTrips > 0) {
+        profileRole = 'driver';
+      } else if (passengerTrips >= driverTrips * 1.5 && passengerTrips > 0) {
+        profileRole = 'passenger';
+      }
+
       const mainRoute = routes[0];
       const person = personByPhone.get(phone) || null;
       const name = person?.fullName ?? null;
@@ -2150,6 +2188,13 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       const weekdayWeekend = weekdayCounts[0] + weekdayCounts[6];
 
       const tags: string[] = [];
+      if (profileRole === 'driver') {
+        tags.push('часто виступає як водій');
+      } else if (profileRole === 'passenger') {
+        tags.push('часті поїздки як пасажир');
+      } else {
+        tags.push('активний як водій і пасажир');
+      }
       if (mainRoute && mainRoute.route !== 'Unknown') {
         tags.push(`часто їздить маршрутом ${mainRoute.route}`);
       }
@@ -2168,11 +2213,26 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
         `${name ?? phone}: ${totalRides} поїздок за весь період (~${ridesPerWeek} на тиждень)` +
         (tags.length ? `. Основні патерни: ${tags.join(', ')}.` : '.');
 
-      const recommendations: string[] = [
-        'Технічна: можна запропонувати автоповідомлення про рейси на його основному маршруті.',
-        'Технічна: можна показувати персональний блок з акціями для найчастіших напрямків.',
-        'Технічна: у майбутньому можна запропонувати фіксоване місце у популярні для нього години.',
-      ];
+      let recommendations: string[];
+      if (profileRole === 'driver') {
+        recommendations = [
+          'Технічна: показувати цьому водію список пасажирів на його типових маршрутах і годинах.',
+          'Технічна: запропонувати автопідказку для повторного створення оголошень з тим самим маршрутом і часом.',
+          'Технічна: можна показувати персональні рекомендації щодо цін/завантаженості поїздок для водія.',
+        ];
+      } else if (profileRole === 'passenger') {
+        recommendations = [
+          'Технічна: запропонувати автосповіщення про нових водіїв на його основних маршрутах і годинах.',
+          'Технічна: додати «швидке бронювання» на часті для нього напрямки (1–2 кліки).',
+          'Технічна: можна показувати персональні акції/знижки на популярні для нього поїздки.',
+        ];
+      } else {
+        recommendations = [
+          'Технічна: для цього користувача поєднати сценарії водія та пасажира в один персональний блок.',
+          'Технічна: показувати йому як пасажирів, так і водіїв на його основних напрямках.',
+          'Технічна: у майбутньому дозволити швидко перемикатися між ролями «Я водій» / «Я пасажир» з урахуванням його історії.',
+        ];
+      }
 
       clients.push({
         phoneNormalized: phone,
