@@ -2043,16 +2043,18 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
     const topPhones: any[] = await (prisma as any).viberRideEvent.groupBy({
       by: ['phoneNormalized'],
       _count: { _all: true },
-      orderBy: { _count: { _all: 'desc' } },
+      // Для використання take Prisma вимагає orderBy по полю з "by"
+      orderBy: { phoneNormalized: 'asc' },
       where: {
         phoneNormalized: { not: '' },
         isParsed: true,
       },
-      take: limit * 3, // з запасом, потім відфільтруємо за minRides
+      take: limit * 3, // з запасом, потім відфільтруємо та відсортуємо за minRides
     });
 
     const filteredTop = topPhones
       .filter((t: any) => t._count._all >= minRides)
+      .sort((a: any, b: any) => b._count._all - a._count._all)
       .slice(0, limit);
     if (filteredTop.length === 0) {
       return res.json({ clients: [] as ViberClientBehavior[] });
