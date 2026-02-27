@@ -13,6 +13,9 @@ import type {
   Person,
   PersonWithCounts,
   ViberAnalyticsSummaryResponse,
+  ViberAnalyticsPromoScenariosResponse,
+  SendPersonPromoResponse,
+  BehaviorPromoScenarioKey,
 } from '@/types';
 
 class ApiClient {
@@ -321,6 +324,8 @@ class ApiClient {
     alreadyImported: number;
     importedNow: number;
     message?: string;
+    totalListings?: number;
+    totalEvents?: number;
   }> {
     return this.request<{
       success: boolean;
@@ -328,6 +333,8 @@ class ApiClient {
       alreadyImported: number;
       importedNow: number;
       message?: string;
+      totalListings?: number;
+      totalEvents?: number;
     }>('/admin/viber-analytics/import', {
       method: 'POST',
     });
@@ -345,6 +352,23 @@ class ApiClient {
     if (options?.minRides != null) params.push(`minRides=${encodeURIComponent(String(options.minRides))}`);
     const query = params.length ? `?${params.join('&')}` : '';
     return this.request<ViberAnalyticsSummaryResponse>(`/admin/viber-analytics/summary${query}`);
+  }
+
+  /** Сценарії реклами для кнопок (ключі по профілю). */
+  async getViberAnalyticsPromoScenarios(): Promise<ViberAnalyticsPromoScenariosResponse> {
+    return this.request<ViberAnalyticsPromoScenariosResponse>('/admin/viber-analytics/promo-scenarios');
+  }
+
+  /** Відправити персональну рекламу клієнту з аналітики (через бота або особистий акаунт). */
+  async sendViberAnalyticsPersonPromo(
+    phoneNormalized: string,
+    scenarioKey: BehaviorPromoScenarioKey,
+    mainRoute?: string
+  ): Promise<SendPersonPromoResponse> {
+    return this.request<SendPersonPromoResponse>('/admin/viber-analytics/send-person-promo', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNormalized, scenarioKey, mainRoute }),
+    });
   }
 
   async getTelegramScenarios(): Promise<TelegramScenariosResponse> {

@@ -160,6 +160,15 @@ export interface PersonWithCounts extends Person {
   _count: { bookings: number; viberListings: number };
 }
 
+// Ключі сценаріїв реклами (поведінкові пропозиції з аналітики ViberRide)
+export type BehaviorPromoScenarioKey =
+  | 'driver_passengers'
+  | 'driver_autocreate'
+  | 'passenger_notify'
+  | 'passenger_quick'
+  | 'mixed_unified'
+  | 'mixed_both';
+
 // Аналітика поведінки клієнта на основі історичних ViberRide подій
 export interface ViberClientBehavior {
   phoneNormalized: string;
@@ -172,6 +181,9 @@ export interface ViberClientBehavior {
   timeOfDayStats: { morning: number; day: number; evening: number; night: number };
   behaviorSummary: string;
   recommendations: string[];
+  hasTelegramBot: boolean;
+  communicationFailed: boolean;
+  profileRole: 'driver' | 'passenger' | 'mixed';
 }
 
 export interface ViberAnalyticsSummaryResponse {
@@ -180,4 +192,19 @@ export interface ViberAnalyticsSummaryResponse {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface ViberAnalyticsPromoScenariosResponse {
+  scenarios: Array<{ key: BehaviorPromoScenarioKey; label: string; profiles: ('driver' | 'passenger' | 'mixed')[] }>;
+  scenarioKeysByProfile: {
+    driver: BehaviorPromoScenarioKey[];
+    passenger: BehaviorPromoScenarioKey[];
+    mixed: BehaviorPromoScenarioKey[];
+  };
+}
+
+export interface SendPersonPromoResponse {
+  success: boolean;
+  sentVia: 'bot' | 'user';
+  error?: string;
 }

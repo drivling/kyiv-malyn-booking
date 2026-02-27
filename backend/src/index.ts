@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
@@ -1841,7 +1841,19 @@ type ViberClientBehavior = {
   timeOfDayStats: { morning: number; day: number; evening: number; night: number };
   behaviorSummary: string;
   recommendations: string[];
+  /** Є прив'язка до Telegram бота (можна слати через бота). */
+  hasTelegramBot: boolean;
+  /** Пробували комунікувати, але не знайдено в Telegram — кнопки реклами неактивні. */
+  communicationFailed: boolean;
+  /** Профіль з аналітики: driver | passenger | mixed (показувати кнопки обох типів). */
+  profileRole: 'driver' | 'passenger' | 'mixed';
 };
+
+/** Сценарії реклами, доступні для профілю (для mixed — водійські + пасажирські + mixed). */
+function getScenarioKeysForProfile(profileRole: 'driver' | 'passenger' | 'mixed'): BehaviorPromoScenarioKey[] {
+  const keys: BehaviorPromoScenarioKey[] = ['driver_passengers', 'driver_autocreate', 'passenger_notify', 'passenger_quick', 'mixed_unified', 'mixed_both'];
+  return keys.filter((k) => BEHAVIOR_PROMO_SCENARIO_PROFILES[k].includes(profileRole));
+}
 
 /** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication|promo_not_found */
 app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
@@ -1950,12 +1962,15 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
     const newRows: SourceRow[] = rows.filter((r: SourceRow) => !importedIds.has(r.id));
 
     if (newRows.length === 0) {
+      const totalEvents = await (prisma as any).viberRideEvent.count();
       return res.json({
         success: true,
         totalSource: rows.length,
         alreadyImported: rows.length,
         importedNow: 0,
         message: 'Нових записів ViberRide немає — все вже імпортовано раніше.',
+        totalListings: rows.length,
+        totalEvents,
       });
     }
 
@@ -2016,11 +2031,15 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       created += result.count;
     }
 
+    const totalEvents = await (prisma as any).viberRideEvent.count();
+
     res.json({
       success: true,
       totalSource: rows.length,
       alreadyImported: rows.length - newRows.length,
       importedNow: created,
+      totalListings: rows.length,
+      totalEvents,
     });
   } catch (e) {
     console.error('❌ Помилка імпорту з ViberRide в ViberRideEvent:', e);
@@ -2098,7 +2117,13 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       }),
       prisma.person.findMany({
         where: { phoneNormalized: { in: phones } },
-        select: { id: true, phoneNormalized: true, fullName: true },
+        select: {
+          id: true,
+          phoneNormalized: true,
+          fullName: true,
+          telegramChatId: true,
+          telegramPromoSentAt: true,
+        },
       }),
     ]);
 
@@ -2263,6 +2288,10 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
         ];
       }
 
+      const hasTelegramBot = !!(person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '');
+      const promoFailedAt = person?.telegramPromoSentAt ? new Date(person.telegramPromoSentAt).getTime() : null;
+      const communicationFailed = !hasTelegramBot && promoFailedAt !== null && promoFailedAt === new Date(0).getTime();
+
       clients.push({
         phoneNormalized: phone,
         fullName: name,
@@ -2274,6 +2303,9 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
         timeOfDayStats,
         behaviorSummary,
         recommendations,
+        hasTelegramBot,
+        communicationFailed,
+        profileRole,
       });
     }
 
@@ -2283,6 +2315,110 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
     res.status(500).json({
       error: 'Не вдалося побудувати аналітику поведінки клієнтів за ViberRideEvent',
       details: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** Сценарії реклами для UI: ключ → лейбл і для якого профілю. */
+const PROMO_SCENARIO_KEYS: BehaviorPromoScenarioKey[] = [
+  'driver_passengers',
+  'driver_autocreate',
+  'passenger_notify',
+  'passenger_quick',
+  'mixed_unified',
+  'mixed_both',
+];
+
+app.get('/admin/viber-analytics/promo-scenarios', requireAdmin, (_req, res) => {
+  res.json({
+    scenarios: PROMO_SCENARIO_KEYS.map((key) => ({
+      key,
+      label: BEHAVIOR_PROMO_SCENARIO_LABELS[key],
+      profiles: BEHAVIOR_PROMO_SCENARIO_PROFILES[key],
+    })),
+    scenarioKeysByProfile: {
+      driver: getScenarioKeysForProfile('driver'),
+      passenger: getScenarioKeysForProfile('passenger'),
+      mixed: getScenarioKeysForProfile('mixed'),
+    },
+  });
+});
+
+/**
+ * Відправити персональну рекламу по клієнту з аналітики ViberRide.
+ * Якщо є Telegram бот — через бота, інакше через особистий акаунт.
+ * При невдалій комунікації (не знайдено в Telegram) проставляється маркер — кнопка стає неактивною.
+ */
+app.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, res) => {
+  try {
+    const { phoneNormalized: rawPhone, scenarioKey, mainRoute } = req.body as {
+      phoneNormalized?: string;
+      scenarioKey?: string;
+      mainRoute?: string;
+    };
+    const phone = rawPhone ? normalizePhone(String(rawPhone).trim()) : '';
+    if (!phone) {
+      return res.status(400).json({ error: 'Потрібен phoneNormalized' });
+    }
+    if (!scenarioKey || !PROMO_SCENARIO_KEYS.includes(scenarioKey as BehaviorPromoScenarioKey)) {
+      return res.status(400).json({ error: 'Невірний scenarioKey' });
+    }
+    const key = scenarioKey as BehaviorPromoScenarioKey;
+
+    const person = await prisma.person.findFirst({
+      where: { phoneNormalized: phone },
+      select: { id: true, fullName: true, telegramChatId: true, telegramPromoSentAt: true },
+    });
+
+    const context = {
+      fullName: person?.fullName ?? null,
+      mainRoute: typeof mainRoute === 'string' ? mainRoute.trim() || undefined : undefined,
+    };
+
+    if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
+      try {
+        await sendBehaviorPromoMessage(person.telegramChatId, key, context);
+        console.log(`📢 Behavior promo (bot) sent to ${phone}, scenario=${key}`);
+        return res.json({ success: true, sentVia: 'bot' as const });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('❌ send-person-promo (bot):', err);
+        return res.status(500).json({ success: false, sentVia: 'bot' as const, error: msg });
+      }
+    }
+
+    const htmlMessage = buildBehaviorPromoMessage(key, context);
+    const plainMessage = htmlMessage
+      .replace(/<b>/g, '')
+      .replace(/<\/b>/g, '')
+      .replace(/<i>/g, '')
+      .replace(/<\/i>/g, '')
+      .replace(/<a href="([^"]+)">[^<]*<\/a>/g, '$1')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+
+    const ok = await sendMessageViaUserAccount(phone, plainMessage);
+    if (ok) {
+      await prisma.person.updateMany({
+        where: { phoneNormalized: phone },
+        data: { telegramPromoSentAt: new Date() },
+      });
+      console.log(`📢 Behavior promo (user) sent to ${phone}, scenario=${key}`);
+      return res.json({ success: true, sentVia: 'user' as const });
+    }
+    await prisma.person.updateMany({
+      where: { phoneNormalized: phone },
+      data: { telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL },
+    });
+    return res.json({
+      success: false,
+      sentVia: 'user' as const,
+      error: 'Не знайдено в Telegram; кнопки реклами для цього контакту будуть неактивні.',
+    });
+  } catch (e) {
+    console.error('❌ send-person-promo:', e);
+    res.status(500).json({
+      error: e instanceof Error ? e.message : 'Помилка відправки реклами',
     });
   }
 });

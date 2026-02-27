@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
@@ -129,6 +129,8 @@ export const AdminPage: React.FC = () => {
   const [viberAnalyticsPage, setViberAnalyticsPage] = useState(0);
   const [viberAnalyticsTotalPages, setViberAnalyticsTotalPages] = useState(0);
   const [viberAnalyticsTotalCount, setViberAnalyticsTotalCount] = useState(0);
+  const [viberAnalyticsPromoScenarios, setViberAnalyticsPromoScenarios] = useState<ViberAnalyticsPromoScenariosResponse | null>(null);
+  const [promoSendStatus, setPromoSendStatus] = useState<{ phoneKey?: string; success?: boolean; error?: string }>({});
 
   useEffect(() => {
     if (activeTab === 'bookings') {
@@ -192,7 +194,10 @@ export const AdminPage: React.FC = () => {
       const result = await apiClient.importViberAnalytics();
       const msg =
         result.message ||
-        `Імпортовано ${result.importedNow} нових записів з ${result.totalSource} (вже було: ${result.alreadyImported}).`;
+        `Імпортовано ${result.importedNow} нових записів з ${result.totalSource} (вже було: ${result.alreadyImported}).` +
+          (typeof result.totalListings === 'number' && typeof result.totalEvents === 'number'
+            ? ` Загалом у ViberListing: ${result.totalListings}, у ViberRideEvent (аналітика): ${result.totalEvents}.`
+            : '');
       if (!result.success) {
         // Якщо імпорт неуспішний (наприклад, немає таблиці ViberRide) — показуємо це як помилку
         setViberAnalyticsError(msg);
@@ -208,11 +213,15 @@ export const AdminPage: React.FC = () => {
     setViberAnalyticsError('');
     setViberAnalyticsLoading(true);
     try {
-      const result = await apiClient.getViberAnalyticsSummary({ page: 1, pageSize: 50, minRides: 3 });
+      const [result, scenarios] = await Promise.all([
+        apiClient.getViberAnalyticsSummary({ page: 1, pageSize: 50, minRides: 3 }),
+        apiClient.getViberAnalyticsPromoScenarios(),
+      ]);
       setViberAnalyticsClients(result.clients);
       setViberAnalyticsPage(result.page);
       setViberAnalyticsTotalPages(result.totalPages);
       setViberAnalyticsTotalCount(result.total);
+      setViberAnalyticsPromoScenarios(scenarios);
       if (!result.clients.length) {
         setViberAnalyticsSummary('Аналітика: поки що немає достатньо даних для побудови поведінкових профілів.');
       } else {
@@ -224,6 +233,24 @@ export const AdminPage: React.FC = () => {
       setViberAnalyticsError(err instanceof Error ? err.message : 'Помилка завантаження аналітики ViberRide');
     } finally {
       setViberAnalyticsLoading(false);
+    }
+  };
+
+  const handleSendPersonPromo = async (client: ViberClientBehavior, scenarioKey: BehaviorPromoScenarioKey) => {
+    const phoneKey = `${client.phoneNormalized}:${scenarioKey}`;
+    setPromoSendStatus({});
+    setSuccess('');
+    try {
+      const mainRoute = client.routes[0]?.route;
+      const result = await apiClient.sendViberAnalyticsPersonPromo(client.phoneNormalized, scenarioKey, mainRoute);
+      if (result.success) {
+        setPromoSendStatus({ phoneKey, success: true });
+        setSuccess(`Реклама відправлена (${result.sentVia === 'bot' ? 'бот' : 'ваш акаунт'}).`);
+      } else {
+        setPromoSendStatus({ phoneKey, error: result.error ?? 'Помилка відправки' });
+      }
+    } catch (err) {
+      setPromoSendStatus({ phoneKey, error: err instanceof Error ? err.message : 'Помилка відправки' });
     }
   };
 
@@ -1376,42 +1403,78 @@ export const AdminPage: React.FC = () => {
                       <th>Основні маршрути</th>
                       <th>Короткий опис поведінки</th>
                       <th>Технічні ідеї, що робити з даними</th>
+                      <th>Реклама</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {viberAnalyticsClients.map((c) => (
-                      <tr key={c.phoneNormalized}>
-                        <td>{formatPhoneDisplay(c.phoneNormalized)}</td>
-                        <td>{c.fullName ?? '—'}</td>
-                        <td>{c.totalRides}</td>
-                        <td>
-                          {c.firstRideDate
-                            ? new Date(c.firstRideDate).toLocaleDateString('uk-UA')
-                            : '—'}{' '}
-                          –{' '}
-                          {c.lastRideDate
-                            ? new Date(c.lastRideDate).toLocaleDateString('uk-UA')
-                            : '—'}
-                        </td>
-                        <td>
-                          {c.routes.slice(0, 3).map((r) => (
-                            <div key={r.route}>
-                              {r.route} ({r.count})
-                            </div>
-                          ))}
-                        </td>
-                        <td style={{ maxWidth: 320 }}>
-                          <span>{c.behaviorSummary}</span>
-                        </td>
-                        <td style={{ maxWidth: 360 }}>
-                          <ul style={{ paddingLeft: '18px', margin: 0 }}>
-                            {c.recommendations.map((rec, idx) => (
-                              <li key={idx}>{rec}</li>
+                    {viberAnalyticsClients.map((c) => {
+                      const scenarioKeys = viberAnalyticsPromoScenarios?.scenarioKeysByProfile[c.profileRole] ?? [];
+                      const canSend = !(c.communicationFailed && !c.hasTelegramBot);
+                      return (
+                        <tr key={c.phoneNormalized}>
+                          <td>{formatPhoneDisplay(c.phoneNormalized)}</td>
+                          <td>{c.fullName ?? '—'}</td>
+                          <td>{c.totalRides}</td>
+                          <td>
+                            {c.firstRideDate
+                              ? new Date(c.firstRideDate).toLocaleDateString('uk-UA')
+                              : '—'}{' '}
+                            –{' '}
+                            {c.lastRideDate
+                              ? new Date(c.lastRideDate).toLocaleDateString('uk-UA')
+                              : '—'}
+                          </td>
+                          <td>
+                            {c.routes.slice(0, 3).map((r) => (
+                              <div key={r.route}>
+                                {r.route} ({r.count})
+                              </div>
                             ))}
-                          </ul>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td style={{ maxWidth: 320 }}>
+                            <span>{c.behaviorSummary}</span>
+                          </td>
+                          <td style={{ maxWidth: 360 }}>
+                            <ul style={{ paddingLeft: '18px', margin: 0 }}>
+                              {c.recommendations.map((rec, idx) => (
+                                <li key={idx}>{rec}</li>
+                              ))}
+                            </ul>
+                          </td>
+                          <td style={{ minWidth: 200 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {scenarioKeys.map((key) => {
+                                const label = viberAnalyticsPromoScenarios?.scenarios.find((s) => s.key === key)?.label ?? key;
+                                const rowKey = `${c.phoneNormalized}:${key}`;
+                                const isSending = promoSendStatus.phoneKey === rowKey && promoSendStatus.success === undefined && !promoSendStatus.error;
+                                const isError = promoSendStatus.phoneKey === rowKey && promoSendStatus.error;
+                                return (
+                                  <span key={key} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                                    <Button
+                                      variant="secondary"
+                                      disabled={!canSend || isSending}
+                                      onClick={() => handleSendPersonPromo(c, key)}
+                                      title={!canSend ? 'Невдала комунікація — контакт не знайдено в Telegram' : undefined}
+                                      style={{ fontSize: '12px', padding: '4px 8px', whiteSpace: 'nowrap' }}
+                                    >
+                                      {isSending ? '…' : label}
+                                    </Button>
+                                    {isError && (
+                                      <span style={{ fontSize: '11px', color: 'var(--color-error, #c00)' }}>{promoSendStatus.error}</span>
+                                    )}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            {!canSend && (
+                              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary, #666)' }} title="Раніше не вдалося доставити повідомлення в Telegram">
+                                Комунікація не вдалася
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 {viberAnalyticsPage < viberAnalyticsTotalPages && (
