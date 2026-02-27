@@ -2148,7 +2148,10 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       }
     }
 
-    const personByPhone = new Map<string, { id: number; phoneNormalized: string; fullName: string | null }>();
+    const personByPhone = new Map<
+      string,
+      { id: number; phoneNormalized: string; fullName: string | null; telegramChatId: string | null; telegramPromoSentAt: Date | null }
+    >();
     for (const p of persons) {
       personByPhone.set(p.phoneNormalized, p);
     }
