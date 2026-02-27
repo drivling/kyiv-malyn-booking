@@ -126,6 +126,7 @@ export const AdminPage: React.FC = () => {
   const [viberAnalyticsError, setViberAnalyticsError] = useState('');
   const [viberAnalyticsClients, setViberAnalyticsClients] = useState<ViberClientBehavior[]>([]);
   const [viberAnalyticsSummary, setViberAnalyticsSummary] = useState('');
+  const [viberAnalyticsVisibleCount, setViberAnalyticsVisibleCount] = useState(20);
 
   useEffect(() => {
     if (activeTab === 'bookings') {
@@ -207,6 +208,7 @@ export const AdminPage: React.FC = () => {
     try {
       const { clients } = await apiClient.getViberAnalyticsSummary({ limit: 20, minRides: 3 });
       setViberAnalyticsClients(clients);
+      setViberAnalyticsVisibleCount(Math.min(20, clients.length || 0));
       if (!clients.length) {
         setViberAnalyticsSummary('Аналітика: поки що немає достатньо даних для побудови поведінкових профілів.');
       } else {
@@ -1365,7 +1367,7 @@ export const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {viberAnalyticsClients.map((c) => (
+                    {viberAnalyticsClients.slice(0, viberAnalyticsVisibleCount).map((c) => (
                       <tr key={c.phoneNormalized}>
                         <td>{formatPhoneDisplay(c.phoneNormalized)}</td>
                         <td>{c.fullName ?? '—'}</td>
@@ -1400,6 +1402,20 @@ export const AdminPage: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+                {viberAnalyticsVisibleCount < viberAnalyticsClients.length && (
+                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        setViberAnalyticsVisibleCount((prev) =>
+                          Math.min(prev + 20, viberAnalyticsClients.length),
+                        )
+                      }
+                    >
+                      Догрузити ще
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
