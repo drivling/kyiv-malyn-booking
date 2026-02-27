@@ -2191,6 +2191,7 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
     console.error('❌ Помилка аналітики ViberRideEvent:', e);
     res.status(500).json({
       error: 'Не вдалося побудувати аналітику поведінки клієнтів за ViberRideEvent',
+      details: e instanceof Error ? e.message : String(e),
     });
   }
 });
