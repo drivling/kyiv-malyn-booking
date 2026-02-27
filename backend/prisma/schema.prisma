@@ -92,3 +92,46 @@ model ViberListing {
   rideShareRequestsAsPassenger RideShareRequest[] @relation("RideShareAsPassenger")
   rideShareRequestsAsDriver   RideShareRequest[] @relation("RideShareAsDriver")
 }
+
+/// Аналітичні події, згенеровані з історичної таблиці "ViberRide" (окремий сервіс парсингу).
+/// Кожен рядок = одна "подія поїздки" з прив'язкою до телефону/Person та часовими ознаками.
+model ViberRideEvent {
+  id              Int       @id @default(autoincrement())
+  /// Первинний ключ з історичної таблиці "ViberRide"
+  viberRideId     Int
+  /// Телефон з вихідних даних (як є)
+  contactPhone    String
+  /// Нормалізований телефон (380XXXXXXXXX) для зв'язку з Person
+  phoneNormalized String
+  /// Зв'язок з єдиною базою людей (може бути відсутній, якщо Person ще не створений)
+  personId        Int?
+
+  /// Напрямок (наприклад "Kyiv-Malyn", "Malyn-Kyiv") — з "ViberRide.route"
+  route           String?
+  /// Дата поїздки
+  departureDate   DateTime?
+  /// Час/інтервал відправлення у вихідному вигляді (наприклад "18:00" або "18:00-18:30")
+  departureTime   String?
+  /// Кількість вільних/потрібних місць
+  availableSeats  Int?
+  /// Ціна в гривнях (якщо вдалося розпарсити)
+  priceUah        Int?
+  /// Чи успішно розпарсено повідомлення
+  isParsed        Boolean
+  /// Чи вважається поїздка "активною" у вихідній таблиці (може бути відсутнє)
+  isActive        Boolean?
+  /// Текстова інформація про помилки парсингу
+  parsingErrors   String?
+
+  /// День тижня (0–6) за датою поїздки, для швидкої аналітики
+  weekday         Int?
+  /// Година відправлення (0–23) — початок інтервалу, якщо був діапазон
+  hour            Int?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  person          Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@unique([viberRideId])
+}

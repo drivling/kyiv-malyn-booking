@@ -12,6 +12,7 @@ import type {
   AnnounceDraftResponse,
   Person,
   PersonWithCounts,
+  ViberClientBehavior,
 } from '@/types';
 
 class ApiClient {
@@ -311,6 +312,37 @@ class ApiClient {
     return this.request('/viber-listings/cleanup-old', {
       method: 'POST',
     });
+  }
+
+  /** Імпорт історичних записів з таблиці ViberRide у ViberRideEvent (аналітика). Тільки нові записи. */
+  async importViberAnalytics(): Promise<{
+    success: boolean;
+    totalSource: number;
+    alreadyImported: number;
+    importedNow: number;
+    message?: string;
+  }> {
+    return this.request<{
+      success: boolean;
+      totalSource: number;
+      alreadyImported: number;
+      importedNow: number;
+      message?: string;
+    }>('/admin/viber-analytics/import', {
+      method: 'POST',
+    });
+  }
+
+  /** Аналітика поведінки клієнтів за ViberRideEvent. Повертає список клієнтів з описом патернів. */
+  async getViberAnalyticsSummary(options?: {
+    limit?: number;
+    minRides?: number;
+  }): Promise<{ clients: ViberClientBehavior[] }> {
+    const params: string[] = [];
+    if (options?.limit != null) params.push(`limit=${encodeURIComponent(String(options.limit))}`);
+    if (options?.minRides != null) params.push(`minRides=${encodeURIComponent(String(options.minRides))}`);
+    const query = params.length ? `?${params.join('&')}` : '';
+    return this.request<{ clients: ViberClientBehavior[] }>(`/admin/viber-analytics/summary${query}`);
   }
 
   async getTelegramScenarios(): Promise<TelegramScenariosResponse> {

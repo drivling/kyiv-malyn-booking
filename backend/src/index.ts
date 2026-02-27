@@ -1830,6 +1830,19 @@ function getChannelPromoWhere(filter: string): object {
   return noTelegramCondition;
 }
 
+type ViberClientBehavior = {
+  phoneNormalized: string;
+  fullName: string | null;
+  totalRides: number;
+  firstRideDate: string | null;
+  lastRideDate: string | null;
+  routes: Array<{ route: string; count: number; share: number }>;
+  weekdayStats: Array<{ weekday: number; count: number }>;
+  timeOfDayStats: { morning: number; day: number; evening: number; night: number };
+  behaviorSummary: string;
+  recommendations: string[];
+};
+
 /** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication|promo_not_found */
 app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
   try {
@@ -1899,6 +1912,323 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ send-channel-promo:', e);
     res.status(500).json({ error: 'Failed to send channel promo' });
+  }
+});
+
+// Історичні дані з окремої таблиці "ViberRide" (сервіс парсингу Viber чату) → аналітична таблиця ViberRideEvent.
+// Endpoint: тільки нові записи, щоб можна було викликати кілька разів.
+app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
+  try {
+    type LegacyViberRideRow = {
+      id: number;
+      route: string | null;
+      departureDate: Date | null;
+      departureTime: string | null;
+      availableSeats: number | null;
+      price: number | null;
+      contactPhone: string | null;
+      contactName: string | null;
+      isParsed: boolean;
+      parsingErrors: string | null;
+      isActive: boolean | null;
+      createdAt: Date | null;
+    };
+
+    // Які ViberRide вже імпортовані
+    const existing = await (prisma as any).viberRideEvent.findMany({
+      select: { viberRideId: true },
+    });
+    const importedIds = new Set(
+      (existing as Array<{ viberRideId: number }>).map((r) => r.viberRideId),
+    );
+
+    // Читаємо всі історичні записи з сирої таблиці ViberRide
+    const rows = await prisma.$queryRaw<LegacyViberRideRow[]>`
+      SELECT
+        "id",
+        "route",
+        "departureDate",
+        "departureTime",
+        "availableSeats",
+        "price",
+        "contactPhone",
+        "contactName",
+        "isParsed",
+        "parsingErrors",
+        "isActive",
+        "createdAt"
+      FROM "ViberRide"
+      ORDER BY "id" ASC
+    `;
+
+    const newRows: LegacyViberRideRow[] = rows.filter(
+      (r: LegacyViberRideRow) => !importedIds.has(r.id),
+    );
+
+    if (newRows.length === 0) {
+      return res.json({
+        success: true,
+        totalSource: rows.length,
+        alreadyImported: rows.length,
+        importedNow: 0,
+        message: 'Нових записів ViberRide немає — все вже імпортовано раніше.',
+      });
+    }
+
+    // Мапимо телефони → personId одним запитом
+    const phoneSet = new Set<string>();
+    for (const r of newRows) {
+      const rawPhone = (r.contactPhone ?? '').trim();
+      if (!rawPhone) continue;
+      const normalized = normalizePhone(rawPhone);
+      if (normalized) phoneSet.add(normalized);
+    }
+
+    const phones = Array.from(phoneSet);
+    const persons = phones.length
+      ? await prisma.person.findMany({
+          where: { phoneNormalized: { in: phones } },
+          select: { id: true, phoneNormalized: true },
+        })
+      : [];
+    const personByPhone = new Map<string, number>();
+    for (const p of persons) {
+      personByPhone.set(p.phoneNormalized, p.id);
+    }
+
+    const toInsert: any[] = [];
+
+    for (const r of newRows) {
+      const rawPhone = (r.contactPhone ?? '').trim();
+      const normalized = rawPhone ? normalizePhone(rawPhone) : '';
+
+      let weekday: number | null = null;
+      let hour: number | null = null;
+
+      if (r.departureDate instanceof Date) {
+        // JS: 0 = неділя ... 6 = субота
+        weekday = r.departureDate.getDay();
+      }
+
+      if (r.departureTime) {
+        const timePart = r.departureTime.split('-')[0].trim();
+        const [hStr] = timePart.split(':');
+        const hNum = parseInt(hStr, 10);
+        if (!Number.isNaN(hNum) && hNum >= 0 && hNum <= 23) {
+          hour = hNum;
+        }
+      }
+
+      const phoneNormalized = normalized || rawPhone || '';
+      const personId = normalized && personByPhone.has(normalized) ? personByPhone.get(normalized)! : null;
+
+      toInsert.push({
+        viberRideId: r.id,
+        contactPhone: rawPhone || phoneNormalized,
+        phoneNormalized,
+        personId,
+        route: r.route ?? null,
+        departureDate: r.departureDate ?? null,
+        departureTime: r.departureTime ?? null,
+        availableSeats: r.availableSeats ?? null,
+        priceUah: r.price ?? null,
+        isParsed: r.isParsed,
+        isActive: r.isActive ?? null,
+        parsingErrors: r.parsingErrors ?? null,
+        weekday,
+        hour,
+        createdAt: r.createdAt ?? new Date(),
+      });
+    }
+
+    let created = 0;
+    const chunkSize = 500;
+    for (let i = 0; i < toInsert.length; i += chunkSize) {
+      const chunk = toInsert.slice(i, i + chunkSize);
+      if (!chunk.length) continue;
+      const result = await (prisma as any).viberRideEvent.createMany({
+        data: chunk,
+        skipDuplicates: true,
+      });
+      created += result.count;
+    }
+
+    res.json({
+      success: true,
+      totalSource: rows.length,
+      alreadyImported: rows.length - newRows.length,
+      importedNow: created,
+    });
+  } catch (e) {
+    console.error('❌ Помилка імпорту з ViberRide в ViberRideEvent:', e);
+    res.status(500).json({
+      error:
+        'Не вдалося імпортувати історичні ViberRide дані. Переконайтеся, що таблиця "ViberRide" існує і має очікувані колонки.',
+    });
+  }
+});
+
+// Аналітика поведінки клієнтів на основі ViberRideEvent.
+// Повертає до N клієнтів з найбільшою кількістю поїздок та коротким описом патернів.
+app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
+  try {
+    const limitParam = Number(req.query.limit);
+    const minRidesParam = Number(req.query.minRides);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(50, Math.floor(limitParam)) : 20;
+    const minRides = Number.isFinite(minRidesParam) && minRidesParam > 0 ? Math.floor(minRidesParam) : 3;
+
+    const topPhones: any[] = await (prisma as any).viberRideEvent.groupBy({
+      by: ['phoneNormalized'],
+      _count: { _all: true },
+      orderBy: { _count: { _all: 'desc' } },
+      where: {
+        phoneNormalized: { not: '' },
+        isParsed: true,
+      },
+      take: limit * 3, // з запасом, потім відфільтруємо за minRides
+    });
+
+    const filteredTop = topPhones
+      .filter((t: any) => t._count._all >= minRides)
+      .slice(0, limit);
+    if (filteredTop.length === 0) {
+      return res.json({ clients: [] as ViberClientBehavior[] });
+    }
+
+    const phones = filteredTop.map((t: any) => t.phoneNormalized as string);
+
+    const [events, persons] = await Promise.all([
+      (prisma as any).viberRideEvent.findMany({
+        where: { phoneNormalized: { in: phones } },
+        orderBy: { departureDate: 'asc' },
+      }),
+      prisma.person.findMany({
+        where: { phoneNormalized: { in: phones } },
+        select: { id: true, phoneNormalized: true, fullName: true },
+      }),
+    ]);
+
+    const personByPhone = new Map<string, { id: number; phoneNormalized: string; fullName: string | null }>();
+    for (const p of persons) {
+      personByPhone.set(p.phoneNormalized, p);
+    }
+
+    const eventsByPhone = new Map<string, typeof events>();
+    for (const ev of events) {
+      if (!ev.phoneNormalized) continue;
+      if (!eventsByPhone.has(ev.phoneNormalized)) {
+        eventsByPhone.set(ev.phoneNormalized, []);
+      }
+      eventsByPhone.get(ev.phoneNormalized)!.push(ev);
+    }
+
+    const clients: ViberClientBehavior[] = [];
+
+    for (const phone of phones) {
+      const evs = eventsByPhone.get(phone) ?? [];
+      if (!evs.length) continue;
+
+      const totalRides = evs.length;
+      const firstRideDate = (evs[0].departureDate ?? evs[0].createdAt) as Date;
+      const lastRideDate = (evs[evs.length - 1].departureDate ?? evs[evs.length - 1].createdAt) as Date;
+
+      // Статистика по маршрутах
+      const routeCounts = new Map<string, number>();
+      for (const e of evs) {
+        const r = e.route || 'Unknown';
+        routeCounts.set(r, (routeCounts.get(r) ?? 0) + 1);
+      }
+      const routes = Array.from(routeCounts.entries())
+        .map(([route, count]) => ({ route, count, share: count / totalRides }))
+        .sort((a, b) => b.count - a.count);
+
+      // Статистика по днях тижня
+      const weekdayCounts = new Array<number>(7).fill(0);
+      for (const e of evs) {
+        const wd =
+          typeof e.weekday === 'number'
+            ? e.weekday
+            : e.departureDate instanceof Date
+            ? e.departureDate.getDay()
+            : null;
+        if (wd != null && wd >= 0 && wd <= 6) {
+          weekdayCounts[wd]++;
+        }
+      }
+      const weekdayStats = weekdayCounts.map((count, weekday) => ({ weekday, count }));
+
+      // Статистика по часу доби
+      let morning = 0;
+      let day = 0;
+      let evening = 0;
+      let night = 0;
+      for (const e of evs) {
+        const h = typeof e.hour === 'number' ? e.hour : null;
+        if (h == null) continue;
+        if (h >= 5 && h < 11) morning++;
+        else if (h >= 11 && h < 17) day++;
+        else if (h >= 17 && h < 23) evening++;
+        else night++;
+      }
+      const timeOfDayStats = { morning, day, evening, night };
+
+      const mainRoute = routes[0];
+      const person = personByPhone.get(phone) || null;
+      const name = person?.fullName ?? null;
+
+      const activeDays =
+        (lastRideDate.getTime() - firstRideDate.getTime()) / (1000 * 60 * 60 * 24) || 1;
+      const ridesPerWeek = (totalRides / (activeDays / 7)).toFixed(1);
+
+      const weekdayWorkdays =
+        weekdayCounts[1] + weekdayCounts[2] + weekdayCounts[3] + weekdayCounts[4] + weekdayCounts[5];
+      const weekdayWeekend = weekdayCounts[0] + weekdayCounts[6];
+
+      const tags: string[] = [];
+      if (mainRoute && mainRoute.route !== 'Unknown') {
+        tags.push(`часто їздить маршрутом ${mainRoute.route}`);
+      }
+      if (weekdayWorkdays > weekdayWeekend * 1.5) {
+        tags.push('переважно їздить у будні дні');
+      } else if (weekdayWeekend > weekdayWorkdays * 1.5) {
+        tags.push('часті поїздки на вихідних');
+      }
+      if (evening > morning && evening > day && evening > night) {
+        tags.push('частіше їздить ввечері');
+      } else if (morning > evening && morning > day && morning > night) {
+        tags.push('частіше їздить зранку');
+      }
+
+      const behaviorSummary =
+        `${name ?? phone}: ${totalRides} поїздок за весь період (~${ridesPerWeek} на тиждень)` +
+        (tags.length ? `. Основні патерни: ${tags.join(', ')}.` : '.');
+
+      const recommendations: string[] = [
+        'Технічна: можна запропонувати автоповідомлення про рейси на його основному маршруті.',
+        'Технічна: можна показувати персональний блок з акціями для найчастіших напрямків.',
+        'Технічна: у майбутньому можна запропонувати фіксоване місце у популярні для нього години.',
+      ];
+
+      clients.push({
+        phoneNormalized: phone,
+        fullName: name,
+        totalRides,
+        firstRideDate: firstRideDate.toISOString(),
+        lastRideDate: lastRideDate.toISOString(),
+        routes,
+        weekdayStats,
+        timeOfDayStats,
+        behaviorSummary,
+        recommendations,
+      });
+    }
+
+    res.json({ clients });
+  } catch (e) {
+    console.error('❌ Помилка аналітики ViberRideEvent:', e);
+    res.status(500).json({
+      error: 'Не вдалося побудувати аналітику поведінки клієнтів за ViberRideEvent',
+    });
   }
 });
 

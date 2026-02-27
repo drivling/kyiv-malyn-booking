@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
@@ -121,6 +121,12 @@ export const AdminPage: React.FC = () => {
     telegramReminderSentAt: string; // комунікація через бота (нагадування)
   }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
 
+  // Аналітика ViberRide / поведінка клієнтів
+  const [viberAnalyticsLoading, setViberAnalyticsLoading] = useState(false);
+  const [viberAnalyticsError, setViberAnalyticsError] = useState('');
+  const [viberAnalyticsClients, setViberAnalyticsClients] = useState<ViberClientBehavior[]>([]);
+  const [viberAnalyticsSummary, setViberAnalyticsSummary] = useState('');
+
   useEffect(() => {
     if (activeTab === 'bookings') {
       loadBookings();
@@ -173,6 +179,38 @@ export const AdminPage: React.FC = () => {
       setPromoError(err instanceof Error ? err.message : 'Помилка відправки');
     } finally {
       setPromoLoading(false);
+    }
+  };
+
+  const handleImportViberAnalytics = async () => {
+    setViberAnalyticsError('');
+    setViberAnalyticsSummary('');
+    try {
+      const result = await apiClient.importViberAnalytics();
+      const msg =
+        result.message ||
+        `Імпортовано ${result.importedNow} нових записів з ${result.totalSource} (вже було: ${result.alreadyImported}).`;
+      setViberAnalyticsSummary(msg);
+    } catch (err) {
+      setViberAnalyticsError(err instanceof Error ? err.message : 'Помилка імпорту аналітики ViberRide');
+    }
+  };
+
+  const handleLoadViberAnalyticsSummary = async () => {
+    setViberAnalyticsError('');
+    setViberAnalyticsLoading(true);
+    try {
+      const { clients } = await apiClient.getViberAnalyticsSummary({ limit: 20, minRides: 3 });
+      setViberAnalyticsClients(clients);
+      if (!clients.length) {
+        setViberAnalyticsSummary('Аналітика: поки що немає достатньо даних для побудови поведінкових профілів.');
+      } else {
+        setViberAnalyticsSummary(`Аналітика: знайдено ${clients.length} активних клієнтів з історії ViberRide.`);
+      }
+    } catch (err) {
+      setViberAnalyticsError(err instanceof Error ? err.message : 'Помилка завантаження аналітики ViberRide');
+    } finally {
+      setViberAnalyticsLoading(false);
     }
   };
 
@@ -1183,6 +1221,9 @@ export const AdminPage: React.FC = () => {
             {promoError && <Alert variant="error">{promoError}</Alert>}
             {promoContactSuccess && <Alert variant="success">{promoContactSuccess}</Alert>}
 
+            {viberAnalyticsError && <Alert variant="error">{viberAnalyticsError}</Alert>}
+            {viberAnalyticsSummary && <Alert variant="success">{viberAnalyticsSummary}</Alert>}
+
             <h3 style={{ marginBottom: '8px' }}>Створити контакт</h3>
             <form onSubmit={handleCreatePromoContact} style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
               <Input
@@ -1286,6 +1327,76 @@ export const AdminPage: React.FC = () => {
             )}
 
             <hr style={{ margin: '24px 0' }} />
+
+            <h3 style={{ marginBottom: '8px' }}>Аналітика історичних ViberRide</h3>
+            <p style={{ marginBottom: '8px', color: 'var(--color-text-secondary, #666)' }}>
+              Тут використовуються історичні дані з таблиці <code>ViberRide</code>, які переносяться в окрему аналітичну таблицю.
+              Спочатку імпортуйте нові записи, потім побудуйте короткі профілі 10–20 клієнтів.
+            </p>
+            <div
+              className="controls"
+              style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}
+            >
+              <Button onClick={handleImportViberAnalytics}>
+                🔄 Імпортувати нові ViberRide в аналітику
+              </Button>
+              <Button onClick={handleLoadViberAnalyticsSummary} disabled={viberAnalyticsLoading}>
+                {viberAnalyticsLoading ? 'Аналіз...' : 'Показати 10–20 клієнтів з патернами'}
+              </Button>
+            </div>
+            {viberAnalyticsClients.length > 0 && (
+              <div className="table-container" style={{ marginTop: '8px' }}>
+                <h4 style={{ marginBottom: '8px' }}>Клієнти з виявленими патернами (історія ViberRide)</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Телефон</th>
+                      <th>Імʼя</th>
+                      <th>Поїздок</th>
+                      <th>Період</th>
+                      <th>Основні маршрути</th>
+                      <th>Короткий опис поведінки</th>
+                      <th>Технічні ідеї, що робити з даними</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viberAnalyticsClients.map((c) => (
+                      <tr key={c.phoneNormalized}>
+                        <td>{formatPhoneDisplay(c.phoneNormalized)}</td>
+                        <td>{c.fullName ?? '—'}</td>
+                        <td>{c.totalRides}</td>
+                        <td>
+                          {c.firstRideDate
+                            ? new Date(c.firstRideDate).toLocaleDateString('uk-UA')
+                            : '—'}{' '}
+                          –{' '}
+                          {c.lastRideDate
+                            ? new Date(c.lastRideDate).toLocaleDateString('uk-UA')
+                            : '—'}
+                        </td>
+                        <td>
+                          {c.routes.slice(0, 3).map((r) => (
+                            <div key={r.route}>
+                              {r.route} ({r.count})
+                            </div>
+                          ))}
+                        </td>
+                        <td style={{ maxWidth: 320 }}>
+                          <span>{c.behaviorSummary}</span>
+                        </td>
+                        <td style={{ maxWidth: 360 }}>
+                          <ul style={{ paddingLeft: '18px', margin: 0 }}>
+                            {c.recommendations.map((rec, idx) => (
+                              <li key={idx}>{rec}</li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <h3 style={{ marginBottom: '8px' }}>Нагадування для Telegram-клієнтів</h3>
             {telegramReminderError && <Alert variant="error">{telegramReminderError}</Alert>}

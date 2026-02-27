@@ -159,3 +159,17 @@ export interface Person {
 export interface PersonWithCounts extends Person {
   _count: { bookings: number; viberListings: number };
 }
+
+// Аналітика поведінки клієнта на основі історичних ViberRide подій
+export interface ViberClientBehavior {
+  phoneNormalized: string;
+  fullName: string | null;
+  totalRides: number;
+  firstRideDate: string | null;
+  lastRideDate: string | null;
+  routes: Array<{ route: string; count: number; share: number }>;
+  weekdayStats: Array<{ weekday: number; count: number }>;
+  timeOfDayStats: { morning: number; day: number; evening: number; night: number };
+  behaviorSummary: string;
+  recommendations: string[];
+}

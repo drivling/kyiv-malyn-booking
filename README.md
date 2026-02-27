@@ -25,6 +25,139 @@
 - ✅ Адмін панель з авторизацією
 - ✅ 4 маршрути: через Ірпінь та Бучу (в обидва боки)
 
+## 📊 Аналітика ViberRide / поведінки клієнтів
+
+Цей блок описує, як працює аналітика історичних поїздок з Viber-групи, щоб було легко змінювати алгоритми або схему БД.
+
+### 1. Структура БД для аналітики
+
+У backend Prisma-схемі (`backend/prisma/schema.prisma`) є таблиця `ViberRideEvent`:
+
+- `viberRideId` — первинний ключ із історичної таблиці `ViberRide` (окремий сервіс `viberparser`)
+- `contactPhone` — сирий телефон з повідомлення
+- `phoneNormalized` — нормалізований телефон (380XXXXXXXXX), використовується для звʼязку з `Person`
+- `personId` — посилання на запис у таблиці `Person` (може бути `null`)
+- `route` — напрямок (`Kyiv-Malyn`, `Malyn-Kyiv`, тощо)
+- `departureDate` — дата поїздки
+- `departureTime` — час / інтервал відправлення (наприклад, `18:00` або `18:00-18:30`)
+- `availableSeats` — кількість вільних/потрібних місць
+- `priceUah` — ціна в гривнях (якщо є)
+- `isParsed` — чи вдалося коректно розпарсити повідомлення
+- `isActive` — чи вважалась поїздка активною в `ViberRide` (може бути `null`)
+- `parsingErrors` — текст помилки парсингу (якщо була)
+- `weekday` — день тижня (0–6) за датою поїздки
+- `hour` — година відправлення (0–23), початок інтервалу, якщо був діапазон
+
+> ⚠️ Якщо змінюєте цю модель, не забудьте оновити міграції Prisma та логіку імпорту / аналітики в `backend/src/index.ts`.
+
+### 2. Імпорт історичних даних з `ViberRide`
+
+У backend (`backend/src/index.ts`) є адмін-ендпоінт:
+
+- **`POST /admin/viber-analytics/import`**
+  - Доступний тільки для авторизованого адміна (через `requireAdmin`)
+  - Читає всі записи з таблиці `ViberRide` (через сирий SQL `SELECT ... FROM "ViberRide"` у спільній БД)
+  - Пропускає ті, що вже були імпортовані (по `viberRideId`)
+  - Нормалізує телефон через `normalizePhone` і намагається привʼязати до `Person` (`personId`)
+  - Рахує `weekday` та `hour` для подальшої аналітики
+  - Пакетно вставляє нові рядки в `ViberRideEvent` (`createMany` з `skipDuplicates`)
+
+Що повертає:
+
+- `success` — `true/false`
+- `totalSource` — скільки всього рядків у `ViberRide`
+- `alreadyImported` — скільки з них вже були в `ViberRideEvent`
+- `importedNow` — скільки нових рядків додано за цей виклик
+- `message` — текстове пояснення (може бути відсутнім)
+
+**Де змінювати логіку імпорту:**  
+Шукати блок коду з коментарем:
+
+- `// Історичні дані з окремої таблиці "ViberRide" (сервіс парсингу Viber чату) → аналітична таблиця ViberRideEvent.`
+
+у файлі `backend/src/index.ts`.
+
+### 3. Аналіз поведінки клієнтів
+
+Там же в `backend/src/index.ts` є ендпоінт:
+
+- **`GET /admin/viber-analytics/summary?limit=&minRides=`**
+
+Що робить зараз:
+
+- вибирає телефони з `ViberRideEvent` з мінімальною кількістю поїздок (`minRides`, за замовчуванням ≥3)
+- будує TOP клієнтів за кількістю поїздок (до `limit`, за замовчуванням 20)
+- для кожного клієнта рахує:
+  - загальну кількість поїздок (`totalRides`)
+  - першу та останню поїздку (`firstRideDate`, `lastRideDate`)
+  - статистику по маршрутах (топ-3, із часткою `share`)
+  - розподіл по днях тижня (`weekdayStats`)
+  - розподіл по часу доби (`timeOfDayStats`: ранок/день/вечір/ніч)
+  - короткий текстовий опис патернів (`behaviorSummary`)
+  - масив технічних рекомендацій (`recommendations`) — ідеї «що можна робити з даними» (легко змінити/видалити)
+
+**Тип відповіді:** використовується TypeScript-інтерфейс `ViberClientBehavior` у `frontend/src/types/index.ts`.
+
+**Де змінювати алгоритм аналізу:**  
+Блок коду з коментарем:
+
+- `// Аналітика поведінки клієнтів на основі ViberRideEvent.`
+
+у файлі `backend/src/index.ts`.
+
+Тут можна:
+
+- поміняти пороги (`minRides`, інші коефіцієнти)
+- змінити формулу для `ridesPerWeek`
+- перерахувати патерни (будні / вихідні, час доби, тощо)
+- змінити текст `behaviorSummary` і `recommendations`
+
+### 4. Інтерфейс в адмінці (Frontend)
+
+На вкладці **📢 «Реклама»** адмінки (`frontend/src/pages/AdminPage/AdminPage.tsx`) додано блок:
+
+- **Кнопка 1:** `Імпортувати нові ViberRide в аналітику`
+  - Викликає `apiClient.importViberAnalytics()` → `POST /admin/viber-analytics/import`
+  - Показує `Alert` з кількістю імпортованих записів
+
+- **Кнопка 2:** `Показати 10–20 клієнтів з патернами`
+  - Викликає `apiClient.getViberAnalyticsSummary({ limit: 20, minRides: 3 })`
+  - Виводить таблицю з 10–20 клієнтами:
+    - телефон, імʼя
+    - кількість поїздок
+    - період (перша/остання поїздка)
+    - основні маршрути
+    - короткий опис поведінки
+    - технічні варіанти «що робити з даними» (щоб планувати далі)
+
+**Де змінювати фронтенд:**
+
+- Типи: `frontend/src/types/index.ts` → `ViberClientBehavior`
+- API-клієнт: `frontend/src/api/client.ts`:
+  - `importViberAnalytics()`
+  - `getViberAnalyticsSummary(...)`
+- UI: `frontend/src/pages/AdminPage/AdminPage.tsx`:
+  - блок під заголовком `Аналітика історичних ViberRide`
+
+### 5. Як оновлювати / розширювати аналітику
+
+1. **Змінити схему аналітики:**
+   - Редагувати `ViberRideEvent` у `backend/prisma/schema.prisma`
+   - Запустити Prisma-міграцію локально / на проді
+
+2. **Оновити імпорт з `ViberRide`:**
+   - Додати / змінити поля в мапінгу в `POST /admin/viber-analytics/import`
+
+3. **Оновити алгоритм аналізу клієнтів:**
+   - Внести зміни в `GET /admin/viber-analytics/summary`
+   - За потреби оновити `ViberClientBehavior` і рендер у адмінці
+
+4. **Тестування:**
+   - Локально викликати:
+     - `POST /admin/viber-analytics/import`
+     - `GET /admin/viber-analytics/summary?limit=20&minRides=3`
+   - Перевірити вкладку **📢 «Реклама»** в адмінці.
+
 ## 🚀 Деплой на Railway
 
 ### Передумови
