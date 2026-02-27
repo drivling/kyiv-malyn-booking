@@ -2312,6 +2312,9 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
       });
     }
 
+    // Сортування: «Комунікація не вдалася» — внизу сторінки
+    clients.sort((a, b) => (a.communicationFailed === b.communicationFailed ? 0 : a.communicationFailed ? 1 : -1));
+
     res.json({ clients, total, page, pageSize, totalPages });
   } catch (e) {
     console.error('❌ Помилка аналітики ViberRideEvent:', e);
