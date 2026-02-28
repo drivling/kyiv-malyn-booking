@@ -507,7 +507,7 @@ export const PoputkyPage: React.FC = () => {
                   />
                 </label>
                 <label className="poputky-form-label">
-                  Час З (опціонально):
+                  Час відправлення:
                   <input
                     type="time"
                     value={announceTimeFrom}
@@ -516,7 +516,7 @@ export const PoputkyPage: React.FC = () => {
                   />
                 </label>
                 <label className="poputky-form-label">
-                  Час По (опціонально):
+                  До (крайній час, опціонально):
                   <input
                     type="time"
                     value={announceTimeTo}
