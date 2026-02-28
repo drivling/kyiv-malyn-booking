@@ -1698,6 +1698,7 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
       where,
       orderBy: { id: 'asc' },
     });
+    console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}`);
     const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | null }> = [];
     let updated = 0;
     let skipped = 0;
@@ -1707,6 +1708,9 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
         const { nameFromBot, nameFromUser } = await getResolvedNameForPerson(p.phoneNormalized, p.telegramChatId);
         const currentName = p.fullName?.trim() || null;
         const { newName, source } = pickBestNameFromCandidates(currentName, nameFromBot, nameFromUser);
+        console.log(
+          `[refresh-names] #${p.id} ${p.phoneNormalized}: поточне="${currentName ?? ''}" | бот="${nameFromBot ?? ''}" | по_номеру="${nameFromUser ?? ''}" → обрано="${newName ?? ''}" (${source ?? '—'})`
+        );
         if (newName !== currentName && newName) {
           await prisma.person.update({
             where: { id: p.id },
@@ -1716,13 +1720,17 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
           await prisma.viberListing.updateMany({ where: { personId: p.id }, data: { senderName: newName } });
           updated++;
           changes.push({ personId: p.id, phone: p.phoneNormalized, oldName: currentName, newName, source });
+          console.log(`[refresh-names] #${p.id} оновлено: "${currentName ?? ''}" → "${newName}" (${source})`);
         } else {
           skipped++;
         }
       } catch (err) {
-        errors.push(`#${p.id} ${p.phoneNormalized}: ${err instanceof Error ? err.message : String(err)}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`#${p.id} ${p.phoneNormalized}: ${msg}`);
+        console.error(`[refresh-names] #${p.id} ${p.phoneNormalized} помилка:`, msg);
       }
     }
+    console.log(`[refresh-names] Підсумок: total=${persons.length}, updated=${updated}, skipped=${skipped}, errors=${errors.length}`);
     res.json({
       total: persons.length,
       updated,
