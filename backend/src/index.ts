@@ -1694,7 +1694,7 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
     const body = (req.body || {}) as { personIds?: number[]; onlyEmpty?: boolean };
     const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
     const onlyEmpty = body.onlyEmpty === true;
-    const emptyNameCondition = { OR: [{ fullName: null }, { fullName: '' }] as const };
+    const emptyNameCondition = { OR: [{ fullName: null }, { fullName: '' }] };
     const where =
       onlyEmpty && personIds && personIds.length > 0
         ? { id: { in: personIds }, ...emptyNameCondition }
