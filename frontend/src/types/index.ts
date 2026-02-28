@@ -160,6 +160,23 @@ export interface PersonWithCounts extends Person {
   _count: { bookings: number; viberListings: number };
 }
 
+/** Результат оновлення імен персон (пошук через Telegram бота або send_message.py). */
+export interface RefreshPersonNamesChange {
+  personId: number;
+  phone: string;
+  oldName: string | null;
+  newName: string | null;
+  source: 'bot' | 'user_account' | null;
+}
+
+export interface RefreshPersonNamesResponse {
+  total: number;
+  updated: number;
+  skipped: number;
+  errors?: string[];
+  changes: RefreshPersonNamesChange[];
+}
+
 // Ключі сценаріїв реклами (поведінкові пропозиції з аналітики ViberRide)
 export type BehaviorPromoScenarioKey =
   | 'driver_passengers'

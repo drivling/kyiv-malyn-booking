@@ -4605,4 +4605,81 @@ async function executeBookViberRideShare(
   return { ok: true };
 }
 
+/**
+ * Отримати ім'я з профілю Telegram по chat_id (бот має доступ до чату).
+ * Для приватного чату повертає first_name + last_name.
+ */
+export async function getTelegramNameByChatId(chatId: string): Promise<string | null> {
+  if (!bot || !chatId?.trim()) return null;
+  try {
+    const chat = await bot.getChat(chatId);
+    if (!chat) return null;
+    const first = (chat as { first_name?: string }).first_name ?? '';
+    const last = (chat as { last_name?: string }).last_name ?? '';
+    const name = `${first} ${last}`.trim();
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Перевірка на наявність кирилиці в рядку */
+export function hasCyrillic(str: string): boolean {
+  return /[\u0400-\u04FF]/.test(str || '');
+}
+
+/**
+ * Зібрати імена: спочатку з бота (по chatId), потім по номеру (ваш акаунт, send_message.py --resolve).
+ */
+export async function getResolvedNameForPerson(
+  phone: string,
+  chatId: string | null
+): Promise<{ nameFromBot: string | null; nameFromUser: string | null }> {
+  const trimChatId = chatId && chatId !== '0' ? chatId.trim() : null;
+  let nameFromBot: string | null = null;
+  let nameFromUser: string | null = null;
+  if (trimChatId) {
+    const fromBot = await getTelegramNameByChatId(trimChatId);
+    if (fromBot?.trim()) nameFromBot = fromBot.trim();
+  }
+  if (phone?.trim()) {
+    const fromUser = await resolveNameByPhoneFromTelegram(phone.trim());
+    if (fromUser?.trim()) nameFromUser = fromUser.trim();
+  }
+  return { nameFromBot, nameFromUser };
+}
+
+/**
+ * Вибрати найкраще ім'я: якщо у нас взагалі не було — заповнити будь-яким першим; далі серед усіх варіантів вибрати найдовше кириличне.
+ */
+export function pickBestNameFromCandidates(
+  currentFullName: string | null,
+  nameFromBot: string | null,
+  nameFromUser: string | null
+): { newName: string | null; source: 'bot' | 'user_account' | null } {
+  const cur = (currentFullName ?? '').trim() || null;
+  const fromBot = (nameFromBot ?? '').trim() || null;
+  const fromUser = (nameFromUser ?? '').trim() || null;
+  const candidates: Array<{ name: string; source: 'bot' | 'user_account' | null }> = [];
+  if (cur) candidates.push({ name: cur, source: null });
+  if (fromBot) candidates.push({ name: fromBot, source: 'bot' });
+  if (fromUser) candidates.push({ name: fromUser, source: 'user_account' });
+  const unique = Array.from(new Map(candidates.map((c) => [c.name, c])).values());
+  if (unique.length === 0) return { newName: cur, source: null };
+  const cyrillic = unique.filter((c) => hasCyrillic(c.name));
+  const byLength = (a: { name: string }, b: { name: string }) => b.name.length - a.name.length;
+  if (cyrillic.length > 0) {
+    cyrillic.sort(byLength);
+    const best = cyrillic[0];
+    return { newName: best.name, source: best.source };
+  }
+  // Якщо поточного не було — заповнити будь-яким отриманим, навіть не кириличним (кирилиці може взагалі не бути).
+  if (!cur) {
+    unique.sort(byLength);
+    const best = unique[0];
+    return { newName: best.name, source: best.source };
+  }
+  return { newName: cur, source: null };
+}
+
 export default bot;

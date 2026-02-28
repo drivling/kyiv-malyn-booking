@@ -12,6 +12,7 @@ import type {
   AnnounceDraftResponse,
   Person,
   PersonWithCounts,
+  RefreshPersonNamesResponse,
   UserProfile,
   ViberAnalyticsSummaryResponse,
   ViberAnalyticsPromoScenariosResponse,
@@ -199,6 +200,14 @@ class ApiClient {
     return this.request<Person>(`/admin/persons/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  /** Оновити імена персон: пошук через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). personIds — опційно, лише ці персони; інакше всі. */
+  async refreshPersonNames(personIds?: number[]): Promise<RefreshPersonNamesResponse> {
+    return this.request<RefreshPersonNamesResponse>('/admin/persons/refresh-names', {
+      method: 'POST',
+      body: JSON.stringify(personIds ? { personIds } : {}),
     });
   }
 

@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
@@ -120,6 +120,8 @@ export const AdminPage: React.FC = () => {
     telegramPromoSentAt: string; // ISO або '' для обнулення
     telegramReminderSentAt: string; // комунікація через бота (нагадування)
   }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
+  const [refreshNamesLoading, setRefreshNamesLoading] = useState(false);
+  const [refreshNamesResult, setRefreshNamesResult] = useState<RefreshPersonNamesResponse | null>(null);
 
   // Аналітика ViberRide / поведінка клієнтів
   const [viberAnalyticsLoading, setViberAnalyticsLoading] = useState(false);
@@ -397,6 +399,27 @@ export const AdminPage: React.FC = () => {
       loadPersons();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка оновлення');
+    }
+  };
+
+  const handleRefreshNames = async () => {
+    setRefreshNamesLoading(true);
+    setError('');
+    setSuccess('');
+    setRefreshNamesResult(null);
+    try {
+      const result = await apiClient.refreshPersonNames();
+      setRefreshNamesResult(result);
+      if (result.updated > 0) {
+        setSuccess(`Оновлено імен: ${result.updated}. Пропущено: ${result.skipped}. Всього перевірено: ${result.total}.`);
+        loadPersons();
+      } else {
+        setSuccess(`Перевірено: ${result.total}. Оновлено: ${result.updated}, пропущено: ${result.skipped}.${result.errors?.length ? ' Помилки: ' + result.errors.length : ''}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка оновлення імен');
+    } finally {
+      setRefreshNamesLoading(false);
     }
   };
 
@@ -1649,7 +1672,20 @@ export const AdminPage: React.FC = () => {
               />
               <Button onClick={() => loadPersons()}>Пошук</Button>
               <Button variant="secondary" onClick={() => loadPersons('')}>Оновити список</Button>
+              <Button
+                onClick={handleRefreshNames}
+                disabled={refreshNamesLoading}
+                title="Пошук імен через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). Оновлює ім'я, якщо нове довше і кирилицею або було пусте."
+              >
+                {refreshNamesLoading ? 'Оновлення…' : '🔄 Оновити дані імен'}
+              </Button>
             </div>
+            {refreshNamesResult && (
+              <div className="data-refresh-summary" style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
+                Статистика: перевірено {refreshNamesResult.total}, оновлено {refreshNamesResult.updated}, пропущено {refreshNamesResult.skipped}.
+                {refreshNamesResult.errors?.length ? ` Помилки: ${refreshNamesResult.errors.length}.` : ''}
+              </div>
+            )}
             {dataLoading ? (
               <div className="loading">Завантаження...</div>
             ) : persons.length === 0 ? (
@@ -1662,6 +1698,7 @@ export const AdminPage: React.FC = () => {
                       <th>ID</th>
                       <th>Телефон</th>
                       <th>Ім'я</th>
+                      <th>Зміни</th>
                       <th>Telegram ChatId</th>
                       <th>Telegram UserId</th>
                       <th>Промо відправлено</th>
@@ -1672,24 +1709,33 @@ export const AdminPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {persons.map((p) => (
-                      <tr key={p.id}>
-                        <td>#{p.id}</td>
-                        <td>{formatPhoneDisplay(p.phoneNormalized)}</td>
-                        <td>{p.fullName ?? '—'}</td>
-                        <td>{p.telegramChatId ?? '—'}</td>
-                        <td>{p.telegramUserId ?? '—'}</td>
-                        <td>{p.telegramPromoSentAt ? new Date(p.telegramPromoSentAt).toLocaleString('uk-UA') : '—'}</td>
-                        <td>{p.telegramReminderSentAt ? new Date(p.telegramReminderSentAt).toLocaleString('uk-UA') : '—'}</td>
-                        <td>{p._count.bookings}</td>
-                        <td>{p._count.viberListings}</td>
-                        <td>
-                          <Button variant="secondary" onClick={() => openEditPerson(p)}>
-                            Редагувати
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {persons.map((p) => {
+                      const change = refreshNamesResult?.changes?.find((c) => c.personId === p.id);
+                      const changeLabel = change
+                        ? `${change.oldName ?? '—'} → ${change.newName ?? '—'}${change.source ? ` (${change.source === 'bot' ? 'бот' : 'ваш акаунт'})` : ''}`
+                        : '—';
+                      return (
+                        <tr key={p.id}>
+                          <td>#{p.id}</td>
+                          <td>{formatPhoneDisplay(p.phoneNormalized)}</td>
+                          <td>{p.fullName ?? '—'}</td>
+                          <td title={changeLabel} style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {changeLabel}
+                          </td>
+                          <td>{p.telegramChatId ?? '—'}</td>
+                          <td>{p.telegramUserId ?? '—'}</td>
+                          <td>{p.telegramPromoSentAt ? new Date(p.telegramPromoSentAt).toLocaleString('uk-UA') : '—'}</td>
+                          <td>{p.telegramReminderSentAt ? new Date(p.telegramReminderSentAt).toLocaleString('uk-UA') : '—'}</td>
+                          <td>{p._count.bookings}</td>
+                          <td>{p._count.viberListings}</td>
+                          <td>
+                            <Button variant="secondary" onClick={() => openEditPerson(p)}>
+                              Редагувати
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

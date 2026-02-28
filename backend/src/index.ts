@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
@@ -1685,6 +1685,54 @@ app.get('/admin/persons', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ GET /admin/persons:', e);
     res.status(500).json({ error: 'Не вдалося завантажити список персон' });
+  }
+});
+
+/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт). Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. */
+app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
+  try {
+    const body = (req.body || {}) as { personIds?: number[] };
+    const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
+    const where = personIds && personIds.length > 0 ? { id: { in: personIds } } : {};
+    const persons = await prisma.person.findMany({
+      where,
+      orderBy: { id: 'asc' },
+    });
+    const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | null }> = [];
+    let updated = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    for (const p of persons) {
+      try {
+        const { nameFromBot, nameFromUser } = await getResolvedNameForPerson(p.phoneNormalized, p.telegramChatId);
+        const currentName = p.fullName?.trim() || null;
+        const { newName, source } = pickBestNameFromCandidates(currentName, nameFromBot, nameFromUser);
+        if (newName !== currentName && newName) {
+          await prisma.person.update({
+            where: { id: p.id },
+            data: { fullName: newName },
+          });
+          await prisma.booking.updateMany({ where: { personId: p.id }, data: { name: newName } });
+          await prisma.viberListing.updateMany({ where: { personId: p.id }, data: { senderName: newName } });
+          updated++;
+          changes.push({ personId: p.id, phone: p.phoneNormalized, oldName: currentName, newName, source });
+        } else {
+          skipped++;
+        }
+      } catch (err) {
+        errors.push(`#${p.id} ${p.phoneNormalized}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    res.json({
+      total: persons.length,
+      updated,
+      skipped,
+      errors: errors.length > 0 ? errors : undefined,
+      changes,
+    });
+  } catch (e) {
+    console.error('❌ POST /admin/persons/refresh-names:', e);
+    res.status(500).json({ error: 'Не вдалося оновити імена' });
   }
 });
 
