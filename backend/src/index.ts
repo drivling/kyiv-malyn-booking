@@ -728,7 +728,7 @@ app.get('/user/profile', async (req, res) => {
   }
 });
 
-/** PUT /user/profile/name — оновити ім'я (fullName) по telegramUserId */
+/** PUT /user/profile/name — оновити ім'я (fullName) по telegramUserId та синхронізувати в бронюваннях і оголошеннях */
 app.put('/user/profile/name', async (req, res) => {
   const { telegramUserId, fullName } = req.body as { telegramUserId?: string; fullName?: string | null };
   if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
@@ -740,10 +740,23 @@ app.put('/user/profile/name', async (req, res) => {
       return res.status(404).json({ error: 'Профіль не знайдено. Підключіть номер телефону в боті.' });
     }
     const newName = fullName != null && String(fullName).trim() !== '' ? String(fullName).trim() : null;
-    await prisma.person.update({
-      where: { id: person.id },
-      data: { fullName: newName },
-    });
+    const displayName = newName ?? '';
+
+    await prisma.$transaction([
+      prisma.person.update({
+        where: { id: person.id },
+        data: { fullName: newName },
+      }),
+      prisma.booking.updateMany({
+        where: { personId: person.id },
+        data: { name: displayName },
+      }),
+      prisma.viberListing.updateMany({
+        where: { personId: person.id },
+        data: { senderName: newName },
+      }),
+    ]);
+
     res.json({ success: true, fullName: newName });
   } catch (error: any) {
     if (error.code === 'P2025') return res.status(404).json({ error: 'Profile not found' });
