@@ -208,3 +208,18 @@ export interface SendPersonPromoResponse {
   sentVia: 'bot' | 'user';
   error?: string;
 }
+
+/** Профіль користувача (GET /user/profile): персона, бронювання маршруток, оголошення попуток */
+export interface UserProfilePerson {
+  id: number;
+  fullName: string | null;
+  phoneNormalized: string;
+  telegramUserId: string | null;
+}
+
+export interface UserProfile {
+  person: UserProfilePerson | null;
+  bookings: Booking[];
+  passengerListings: ViberListing[];
+  driverListings: ViberListing[];
+}

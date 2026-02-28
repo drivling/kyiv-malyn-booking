@@ -12,6 +12,7 @@ import type {
   AnnounceDraftResponse,
   Person,
   PersonWithCounts,
+  UserProfile,
   ViberAnalyticsSummaryResponse,
   ViberAnalyticsPromoScenariosResponse,
   SendPersonPromoResponse,
@@ -147,6 +148,14 @@ class ApiClient {
   async deleteBooking(id: number): Promise<void> {
     return this.request<void>(`/bookings/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  /** Скасувати бронювання від імені користувача (Telegram). */
+  async cancelBookingByUser(id: number, telegramUserId: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(`/bookings/${id}/by-user`, {
+      method: 'DELETE',
+      body: JSON.stringify({ telegramUserId }),
     });
   }
 
@@ -386,6 +395,38 @@ class ApiClient {
     return this.request<AnnounceDraftResponse>('/poputky/announce-draft', {
       method: 'POST',
       body: JSON.stringify(params),
+    });
+  }
+
+  // Профіль користувача (Telegram)
+  async getUserProfile(telegramUserId: string): Promise<UserProfile> {
+    return this.request<UserProfile>(`/user/profile?telegramUserId=${encodeURIComponent(telegramUserId)}`);
+  }
+
+  async updateProfileName(telegramUserId: string, fullName: string | null): Promise<{ success: boolean; fullName: string | null }> {
+    return this.request<{ success: boolean; fullName: string | null }>('/user/profile/name', {
+      method: 'PUT',
+      body: JSON.stringify({ telegramUserId, fullName }),
+    });
+  }
+
+  /** Редагувати оголошення попутки (власником). */
+  async updateViberListingByUser(
+    id: number,
+    telegramUserId: string,
+    data: Partial<Pick<ViberListing, 'route' | 'date' | 'departureTime' | 'seats' | 'notes' | 'priceUah'>>
+  ): Promise<ViberListing> {
+    return this.request<ViberListing>(`/viber-listings/${id}/by-user`, {
+      method: 'PATCH',
+      body: JSON.stringify({ telegramUserId, ...data }),
+    });
+  }
+
+  /** Скасувати оголошення попутки (isActive: false) власником. */
+  async deactivateViberListingByUser(id: number, telegramUserId: string): Promise<ViberListing> {
+    return this.request<ViberListing>(`/viber-listings/${id}/deactivate/by-user`, {
+      method: 'PATCH',
+      body: JSON.stringify({ telegramUserId }),
     });
   }
 }

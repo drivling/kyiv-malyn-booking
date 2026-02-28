@@ -3,7 +3,8 @@ import { BookingPage } from '@/pages/BookingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { PoputkyPage } from '@/pages/PoputkyPage';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { UserPage } from '@/pages/UserPage';
+import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import './App.css';
@@ -24,6 +25,7 @@ function AppContent() {
         <Route path="/" element={<PoputkyPage />} />
         <Route path="/poputky" element={<PoputkyPage />} />
         <Route path="/booking" element={<BookingPage />} />
+        <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route 
           path="/admin" 
@@ -77,7 +79,7 @@ function NavBar() {
           </>
         ) : isTelegramUser ? (
           <>
-            <span className="nav-user-info">
+            <Link to="/user" className="nav-link nav-user-info">
               {currentUser?.type === 'telegram' && currentUser.phone ? (
                 <>📱 {currentUser.phone}</>
               ) : currentUser?.type === 'telegram' && currentUser.user.first_name ? (
@@ -85,7 +87,7 @@ function NavBar() {
               ) : (
                 <>👤 Telegram User</>
               )}
-            </span>
+            </Link>
             <button 
               onClick={handleLogout} 
               className="nav-link nav-button"

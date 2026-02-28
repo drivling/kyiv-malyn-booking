@@ -662,6 +662,168 @@ app.delete('/bookings/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ——— Профіль користувача (Telegram) ———
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/** GET /user/profile?telegramUserId= — профіль: person, поточні бронювання, оголошення як пасажир/водій */
+app.get('/user/profile', async (req, res) => {
+  const telegramUserId = (req.query.telegramUserId as string)?.trim();
+  if (!telegramUserId) {
+    return res.status(400).json({ error: 'telegramUserId is required' });
+  }
+  try {
+    const person = await getPersonByTelegram(telegramUserId, '');
+    const since = startOfToday();
+
+    const [bookings, passengerListings, driverListings] = await Promise.all([
+      prisma.booking.findMany({
+        where: { telegramUserId, date: { gte: since } },
+        orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+      }),
+      person
+        ? prisma.viberListing.findMany({
+            where: { personId: person.id, listingType: 'passenger', isActive: true, date: { gte: since } },
+            orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+          })
+        : [],
+      person
+        ? prisma.viberListing.findMany({
+            where: { personId: person.id, listingType: 'driver', isActive: true, date: { gte: since } },
+            orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+          })
+        : [],
+    ]);
+
+    const profile = {
+      person: person
+        ? {
+            id: person.id,
+            fullName: person.fullName,
+            phoneNormalized: person.phoneNormalized,
+            telegramUserId: person.telegramUserId,
+          }
+        : null,
+      bookings: bookings.map((b) => ({
+        id: b.id,
+        route: b.route,
+        date: b.date instanceof Date ? b.date.toISOString() : b.date,
+        departureTime: b.departureTime,
+        seats: b.seats,
+        name: b.name,
+        phone: b.phone,
+        source: b.source,
+        createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+      })),
+      passengerListings: passengerListings.map((l) => serializeViberListing(l)),
+      driverListings: driverListings.map((l) => serializeViberListing(l)),
+    };
+    res.json(profile);
+  } catch (error) {
+    console.error('❌ GET /user/profile:', error);
+    res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+
+/** PUT /user/profile/name — оновити ім'я (fullName) по telegramUserId */
+app.put('/user/profile/name', async (req, res) => {
+  const { telegramUserId, fullName } = req.body as { telegramUserId?: string; fullName?: string | null };
+  if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
+    return res.status(400).json({ error: 'telegramUserId is required' });
+  }
+  try {
+    const person = await getPersonByTelegram(telegramUserId.trim(), '');
+    if (!person) {
+      return res.status(404).json({ error: 'Профіль не знайдено. Підключіть номер телефону в боті.' });
+    }
+    const newName = fullName != null && String(fullName).trim() !== '' ? String(fullName).trim() : null;
+    await prisma.person.update({
+      where: { id: person.id },
+      data: { fullName: newName },
+    });
+    res.json({ success: true, fullName: newName });
+  } catch (error: any) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Profile not found' });
+    console.error('❌ PUT /user/profile/name:', error);
+    res.status(500).json({ error: 'Failed to update name' });
+  }
+});
+
+/** Перевірка, що оголошення належить користувачу за telegramUserId */
+async function getViberListingForUser(listingId: number, telegramUserId: string) {
+  const person = await getPersonByTelegram(telegramUserId, '');
+  if (!person) return null;
+  const listing = await prisma.viberListing.findFirst({
+    where: { id: listingId, personId: person.id },
+  });
+  return listing;
+}
+
+/** PATCH /viber-listings/:id/by-user — редагування оголошення власником (поля: route, date, departureTime, seats, notes, priceUah) */
+app.patch('/viber-listings/:id/by-user', async (req, res) => {
+  const id = Number(req.params.id);
+  const { telegramUserId, ...body } = req.body as Record<string, unknown>;
+  if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
+    return res.status(400).json({ error: 'telegramUserId is required' });
+  }
+  try {
+    const listing = await getViberListingForUser(id, telegramUserId.trim());
+    if (!listing) {
+      return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
+    }
+    const allowed = ['route', 'date', 'departureTime', 'seats', 'notes', 'priceUah'] as const;
+    const updates: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (body[key] !== undefined) {
+        if (key === 'date') updates[key] = new Date(body[key] as string);
+        else if (key === 'seats' || key === 'priceUah') {
+          const v = body[key];
+          updates[key] = v === null || v === '' ? null : (typeof v === 'number' ? v : parseInt(String(v), 10));
+        } else updates[key] = body[key];
+      }
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No allowed fields to update' });
+    }
+    const updated = await prisma.viberListing.update({
+      where: { id },
+      data: updates,
+    });
+    res.json(serializeViberListing(updated));
+  } catch (error: any) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Listing not found' });
+    console.error('❌ PATCH /viber-listings/:id/by-user:', error);
+    res.status(500).json({ error: 'Failed to update listing' });
+  }
+});
+
+/** PATCH /viber-listings/:id/deactivate/by-user — скасувати оголошення (isActive: false) власником */
+app.patch('/viber-listings/:id/deactivate/by-user', async (req, res) => {
+  const id = Number(req.params.id);
+  const { telegramUserId } = req.body as { telegramUserId?: string };
+  if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
+    return res.status(400).json({ error: 'telegramUserId is required' });
+  }
+  try {
+    const listing = await getViberListingForUser(id, telegramUserId.trim());
+    if (!listing) {
+      return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
+    }
+    const updated = await prisma.viberListing.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    res.json(serializeViberListing(updated));
+  } catch (error: any) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Listing not found' });
+    console.error('❌ PATCH /viber-listings/:id/deactivate/by-user:', error);
+    res.status(500).json({ error: 'Failed to deactivate listing' });
+  }
+});
+
 // Відправка нагадувань про поїздки на завтра (admin endpoint)
 app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
   if (!isTelegramEnabled()) {
