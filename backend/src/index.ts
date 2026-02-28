@@ -1688,17 +1688,29 @@ app.get('/admin/persons', requireAdmin, async (req, res) => {
   }
 });
 
-/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт). Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. */
+/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт). Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. */
 app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
   try {
-    const body = (req.body || {}) as { personIds?: number[] };
+    const body = (req.body || {}) as { personIds?: number[]; onlyEmpty?: boolean };
     const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
-    const where = personIds && personIds.length > 0 ? { id: { in: personIds } } : {};
-    const persons = await prisma.person.findMany({
+    const onlyEmpty = body.onlyEmpty === true;
+    const emptyNameCondition = { OR: [{ fullName: null }, { fullName: '' }] as const };
+    const where =
+      onlyEmpty && personIds && personIds.length > 0
+        ? { id: { in: personIds }, ...emptyNameCondition }
+        : onlyEmpty
+          ? emptyNameCondition
+          : personIds && personIds.length > 0
+            ? { id: { in: personIds } }
+            : {};
+    let persons = await prisma.person.findMany({
       where,
       orderBy: { id: 'asc' },
     });
-    console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}`);
+    if (onlyEmpty) {
+      persons = persons.filter((p) => !p.fullName || !p.fullName.trim());
+    }
+    console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}${onlyEmpty ? ' (лише без імені)' : ''}`);
     const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | null }> = [];
     let updated = 0;
     let skipped = 0;

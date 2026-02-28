@@ -203,11 +203,12 @@ class ApiClient {
     });
   }
 
-  /** Оновити імена персон: пошук через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). personIds — опційно, лише ці персони; інакше всі. */
-  async refreshPersonNames(personIds?: number[]): Promise<RefreshPersonNamesResponse> {
+  /** Оновити імена персон: пошук через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). onlyEmpty: true — лише персони без імені в базі. */
+  async refreshPersonNames(options?: { personIds?: number[]; onlyEmpty?: boolean }): Promise<RefreshPersonNamesResponse> {
+    const body = options?.personIds?.length ? { personIds: options.personIds, onlyEmpty: options.onlyEmpty } : options?.onlyEmpty ? { onlyEmpty: true } : {};
     return this.request<RefreshPersonNamesResponse>('/admin/persons/refresh-names', {
       method: 'POST',
-      body: JSON.stringify(personIds ? { personIds } : {}),
+      body: JSON.stringify(body),
     });
   }
 

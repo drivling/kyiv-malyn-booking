@@ -402,13 +402,13 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleRefreshNames = async () => {
+  const handleRefreshNames = async (onlyEmpty?: boolean) => {
     setRefreshNamesLoading(true);
     setError('');
     setSuccess('');
     setRefreshNamesResult(null);
     try {
-      const result = await apiClient.refreshPersonNames();
+      const result = await apiClient.refreshPersonNames(onlyEmpty ? { onlyEmpty: true } : undefined);
       setRefreshNamesResult(result);
       if (result.updated > 0) {
         setSuccess(`Оновлено імен: ${result.updated}. Пропущено: ${result.skipped}. Всього перевірено: ${result.total}.`);
@@ -1673,11 +1673,18 @@ export const AdminPage: React.FC = () => {
               <Button onClick={() => loadPersons()}>Пошук</Button>
               <Button variant="secondary" onClick={() => loadPersons('')}>Оновити список</Button>
               <Button
-                onClick={handleRefreshNames}
+                onClick={() => handleRefreshNames()}
                 disabled={refreshNamesLoading}
                 title="Пошук імен через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). Оновлює ім'я, якщо нове довше і кирилицею або було пусте."
               >
                 {refreshNamesLoading ? 'Оновлення…' : '🔄 Оновити дані імен'}
+              </Button>
+              <Button
+                onClick={() => handleRefreshNames(true)}
+                disabled={refreshNamesLoading}
+                title="Те саме, але лише для персон без імені в базі (—)."
+              >
+                {refreshNamesLoading ? 'Оновлення…' : 'Онови імена (-)'}
               </Button>
             </div>
             {refreshNamesResult && (
