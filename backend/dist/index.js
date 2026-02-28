@@ -610,6 +610,182 @@ app.delete('/bookings/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to delete booking' });
     }
 });
+// ——— Профіль користувача (Telegram) ———
+const startOfToday = () => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+};
+/** GET /user/profile?telegramUserId= — профіль: person, поточні бронювання, оголошення як пасажир/водій */
+app.get('/user/profile', async (req, res) => {
+    const telegramUserId = req.query.telegramUserId?.trim();
+    if (!telegramUserId) {
+        return res.status(400).json({ error: 'telegramUserId is required' });
+    }
+    try {
+        const person = await (0, telegram_1.getPersonByTelegram)(telegramUserId, '');
+        const since = startOfToday();
+        const [bookings, passengerListings, driverListings] = await Promise.all([
+            prisma.booking.findMany({
+                where: { telegramUserId, date: { gte: since } },
+                orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+            }),
+            person
+                ? prisma.viberListing.findMany({
+                    where: { personId: person.id, listingType: 'passenger', isActive: true, date: { gte: since } },
+                    orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+                })
+                : [],
+            person
+                ? prisma.viberListing.findMany({
+                    where: { personId: person.id, listingType: 'driver', isActive: true, date: { gte: since } },
+                    orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+                })
+                : [],
+        ]);
+        const profile = {
+            person: person
+                ? {
+                    id: person.id,
+                    fullName: person.fullName,
+                    phoneNormalized: person.phoneNormalized,
+                    telegramUserId: person.telegramUserId,
+                }
+                : null,
+            bookings: bookings.map((b) => ({
+                id: b.id,
+                route: b.route,
+                date: b.date instanceof Date ? b.date.toISOString() : b.date,
+                departureTime: b.departureTime,
+                seats: b.seats,
+                name: b.name,
+                phone: b.phone,
+                source: b.source,
+                createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+            })),
+            passengerListings: passengerListings.map((l) => serializeViberListing(l)),
+            driverListings: driverListings.map((l) => serializeViberListing(l)),
+        };
+        res.json(profile);
+    }
+    catch (error) {
+        console.error('❌ GET /user/profile:', error);
+        res.status(500).json({ error: 'Failed to load profile' });
+    }
+});
+/** PUT /user/profile/name — оновити ім'я (fullName) по telegramUserId та синхронізувати в бронюваннях і оголошеннях */
+app.put('/user/profile/name', async (req, res) => {
+    const { telegramUserId, fullName } = req.body;
+    if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
+        return res.status(400).json({ error: 'telegramUserId is required' });
+    }
+    try {
+        const person = await (0, telegram_1.getPersonByTelegram)(telegramUserId.trim(), '');
+        if (!person) {
+            return res.status(404).json({ error: 'Профіль не знайдено. Підключіть номер телефону в боті.' });
+        }
+        const newName = fullName != null && String(fullName).trim() !== '' ? String(fullName).trim() : null;
+        const displayName = newName ?? '';
+        await prisma.$transaction([
+            prisma.person.update({
+                where: { id: person.id },
+                data: { fullName: newName },
+            }),
+            prisma.booking.updateMany({
+                where: { personId: person.id },
+                data: { name: displayName },
+            }),
+            prisma.viberListing.updateMany({
+                where: { personId: person.id },
+                data: { senderName: newName },
+            }),
+        ]);
+        res.json({ success: true, fullName: newName });
+    }
+    catch (error) {
+        if (error.code === 'P2025')
+            return res.status(404).json({ error: 'Profile not found' });
+        console.error('❌ PUT /user/profile/name:', error);
+        res.status(500).json({ error: 'Failed to update name' });
+    }
+});
+/** Перевірка, що оголошення належить користувачу за telegramUserId */
+async function getViberListingForUser(listingId, telegramUserId) {
+    const person = await (0, telegram_1.getPersonByTelegram)(telegramUserId, '');
+    if (!person)
+        return null;
+    const listing = await prisma.viberListing.findFirst({
+        where: { id: listingId, personId: person.id },
+    });
+    return listing;
+}
+/** PATCH /viber-listings/:id/by-user — редагування оголошення власником (поля: route, date, departureTime, seats, notes, priceUah) */
+app.patch('/viber-listings/:id/by-user', async (req, res) => {
+    const id = Number(req.params.id);
+    const { telegramUserId, ...body } = req.body;
+    if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
+        return res.status(400).json({ error: 'telegramUserId is required' });
+    }
+    try {
+        const listing = await getViberListingForUser(id, telegramUserId.trim());
+        if (!listing) {
+            return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
+        }
+        const allowed = ['route', 'date', 'departureTime', 'seats', 'notes', 'priceUah'];
+        const updates = {};
+        for (const key of allowed) {
+            if (body[key] !== undefined) {
+                if (key === 'date')
+                    updates[key] = new Date(body[key]);
+                else if (key === 'seats' || key === 'priceUah') {
+                    const v = body[key];
+                    updates[key] = v === null || v === '' ? null : (typeof v === 'number' ? v : parseInt(String(v), 10));
+                }
+                else
+                    updates[key] = body[key];
+            }
+        }
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'No allowed fields to update' });
+        }
+        const updated = await prisma.viberListing.update({
+            where: { id },
+            data: updates,
+        });
+        res.json(serializeViberListing(updated));
+    }
+    catch (error) {
+        if (error.code === 'P2025')
+            return res.status(404).json({ error: 'Listing not found' });
+        console.error('❌ PATCH /viber-listings/:id/by-user:', error);
+        res.status(500).json({ error: 'Failed to update listing' });
+    }
+});
+/** PATCH /viber-listings/:id/deactivate/by-user — скасувати оголошення (isActive: false) власником */
+app.patch('/viber-listings/:id/deactivate/by-user', async (req, res) => {
+    const id = Number(req.params.id);
+    const { telegramUserId } = req.body;
+    if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
+        return res.status(400).json({ error: 'telegramUserId is required' });
+    }
+    try {
+        const listing = await getViberListingForUser(id, telegramUserId.trim());
+        if (!listing) {
+            return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
+        }
+        const updated = await prisma.viberListing.update({
+            where: { id },
+            data: { isActive: false },
+        });
+        res.json(serializeViberListing(updated));
+    }
+    catch (error) {
+        if (error.code === 'P2025')
+            return res.status(404).json({ error: 'Listing not found' });
+        console.error('❌ PATCH /viber-listings/:id/deactivate/by-user:', error);
+        res.status(500).json({ error: 'Failed to deactivate listing' });
+    }
+});
 // Відправка нагадувань про поїздки на завтра (admin endpoint)
 app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
     if (!(0, telegram_1.isTelegramEnabled)()) {
@@ -1393,6 +1569,73 @@ app.get('/admin/persons', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Не вдалося завантажити список персон' });
     }
 });
+/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт). Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. */
+app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
+    try {
+        const body = (req.body || {});
+        const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
+        const onlyEmpty = body.onlyEmpty === true;
+        const emptyNameCondition = { OR: [{ fullName: null }, { fullName: '' }] };
+        const where = onlyEmpty && personIds && personIds.length > 0
+            ? { id: { in: personIds }, ...emptyNameCondition }
+            : onlyEmpty
+                ? emptyNameCondition
+                : personIds && personIds.length > 0
+                    ? { id: { in: personIds } }
+                    : {};
+        let persons = await prisma.person.findMany({
+            where,
+            orderBy: { id: 'asc' },
+        });
+        if (onlyEmpty) {
+            persons = persons.filter((p) => !p.fullName || !p.fullName.trim());
+        }
+        console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}${onlyEmpty ? ' (лише без імені)' : ''}`);
+        const changes = [];
+        let updated = 0;
+        let skipped = 0;
+        const errors = [];
+        for (const p of persons) {
+            try {
+                const { nameFromBot, nameFromUser } = await (0, telegram_1.getResolvedNameForPerson)(p.phoneNormalized, p.telegramChatId);
+                const currentName = p.fullName?.trim() || null;
+                const { newName, source } = (0, telegram_1.pickBestNameFromCandidates)(currentName, nameFromBot, nameFromUser);
+                console.log(`[refresh-names] #${p.id} ${p.phoneNormalized}: поточне="${currentName ?? ''}" | бот="${nameFromBot ?? ''}" | по_номеру="${nameFromUser ?? ''}" → обрано="${newName ?? ''}" (${source ?? '—'})`);
+                if (newName !== currentName && newName) {
+                    await prisma.person.update({
+                        where: { id: p.id },
+                        data: { fullName: newName },
+                    });
+                    await prisma.booking.updateMany({ where: { personId: p.id }, data: { name: newName } });
+                    await prisma.viberListing.updateMany({ where: { personId: p.id }, data: { senderName: newName } });
+                    updated++;
+                    changes.push({ personId: p.id, phone: p.phoneNormalized, oldName: currentName, newName, source });
+                    console.log(`[refresh-names] #${p.id} оновлено: "${currentName ?? ''}" → "${newName}" (${source})`);
+                }
+                else {
+                    skipped++;
+                }
+            }
+            catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                errors.push(`#${p.id} ${p.phoneNormalized}: ${msg}`);
+                console.error(`[refresh-names] #${p.id} ${p.phoneNormalized} помилка:`, msg);
+            }
+        }
+        console.log(`[refresh-names] Підсумок: total=${persons.length}, updated=${updated}, skipped=${skipped}, errors=${errors.length}`);
+        res.json({
+            total: persons.length,
+            updated,
+            skipped,
+            errors: errors.length > 0 ? errors : undefined,
+            changes,
+        });
+    }
+    catch (e) {
+        console.error('❌ POST /admin/persons/refresh-names:', e);
+        res.status(500).json({ error: 'Не вдалося оновити імена' });
+    }
+});
 /** Одна персона за id. */
 app.get('/admin/persons/:id', requireAdmin, async (req, res) => {
     try {
@@ -2107,6 +2350,8 @@ app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
                 profileRole,
             });
         }
+        // Сортування: «Комунікація не вдалася» — внизу сторінки
+        clients.sort((a, b) => (a.communicationFailed === b.communicationFailed ? 0 : a.communicationFailed ? 1 : -1));
         res.json({ clients, total, page, pageSize, totalPages });
     }
     catch (e) {
