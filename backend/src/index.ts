@@ -1708,16 +1708,19 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
       where,
       orderBy: { id: 'asc' },
     });
+    const totalPersons = persons.length;
     if (onlyEmpty) {
       persons = persons.filter((p) => !p.fullName || !p.fullName.trim());
     }
+    let latinCandidates = 0;
     if (onlyLatin) {
+      latinCandidates = persons.filter((p) => p.fullName && p.fullName.trim() && !hasCyrillic(p.fullName)).length;
       persons = persons.filter((p) => p.fullName && p.fullName.trim() && !hasCyrillic(p.fullName));
     }
     console.log(
-      `[refresh-names] Старт: персон для перевірки: ${persons.length}` +
-        `${onlyEmpty ? ' (лише без імені)' : ''}` +
-        `${onlyLatin ? ' (лише з латинським імʼям)' : ''}`,
+      `[refresh-names] Старт: total=${totalPersons}, latinCandidates=${latinCandidates}, для_перевірки=${persons.length}` +
+        `${onlyEmpty ? ' (onlyEmpty)' : ''}` +
+        `${onlyLatin ? ' (onlyLatin)' : ''}`,
     );
     const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | 'opendatabot' | null }> = [];
     let updated = 0;
