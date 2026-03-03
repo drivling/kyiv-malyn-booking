@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from http.client import IncompleteRead
 from typing import Any, Dict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -17,9 +18,14 @@ def fetch_phone_page(phone: str) -> str:
     """
     url = f"{BASE_URL}{phone}"
     req = Request(url, headers={"User-Agent": "kyiv-malyn-booking/phonecheck"})
-    with urlopen(req, timeout=10) as resp:  # type: ignore[arg-type]
+    with urlopen(req, timeout=15) as resp:  # type: ignore[arg-type]
         charset = resp.headers.get_content_charset() or "utf-8"
-        return resp.read().decode(charset, errors="replace")
+        try:
+            raw = resp.read()
+        except IncompleteRead as exc:
+            # Використовуємо вже отриману частину HTML — для пошуку "Данные не найдены" цього достатньо.
+            raw = exc.partial or b""
+        return raw.decode(charset, errors="replace")
 
 
 def run_lookup(phone: str) -> Dict[str, Any]:
