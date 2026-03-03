@@ -2802,9 +2802,26 @@ https://malin.kiev.ua
             try {
               const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
               let senderName = nameFromDb ?? parsed.senderName ?? null;
-              if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
-                const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
-                if (nameFromTg?.trim()) senderName = nameFromTg.trim();
+              if (parsed.phone?.trim()) {
+                const phone = parsed.phone.trim();
+                const personForChat = await getPersonByPhone(phone);
+                const chatIdForPerson = personForChat?.telegramChatId ?? null;
+                const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
+                  phone,
+                  chatIdForPerson,
+                );
+                const baseCurrentName = nameFromDb;
+                const { newName } = pickBestNameFromCandidates(
+                  baseCurrentName,
+                  nameFromBot,
+                  nameFromUser,
+                  nameFromOpendatabot,
+                );
+                if (newName?.trim()) {
+                  senderName = newName.trim();
+                } else if (!senderName || !String(senderName).trim()) {
+                  senderName = parsed.senderName ?? senderName;
+                }
               }
               const person = parsed.phone
                 ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
@@ -2867,9 +2884,26 @@ https://malin.kiev.ua
           }
           const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
           let senderName = nameFromDb ?? parsed.senderName ?? null;
-          if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
-            const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
-            if (nameFromTg?.trim()) senderName = nameFromTg.trim();
+          if (parsed.phone?.trim()) {
+            const phone = parsed.phone.trim();
+            const personForChat = await getPersonByPhone(phone);
+            const chatIdForPerson = personForChat?.telegramChatId ?? null;
+            const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
+              phone,
+              chatIdForPerson,
+            );
+            const baseCurrentName = nameFromDb;
+            const { newName } = pickBestNameFromCandidates(
+              baseCurrentName,
+              nameFromBot,
+              nameFromUser,
+              nameFromOpendatabot,
+            );
+            if (newName?.trim()) {
+              senderName = newName.trim();
+            } else if (!senderName || !String(senderName).trim()) {
+              senderName = parsed.senderName ?? senderName;
+            }
           }
           const person = parsed.phone
             ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
