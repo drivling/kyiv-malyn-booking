@@ -10,6 +10,7 @@ exports.extractPhone = extractPhone;
 exports.extractDate = extractDate;
 exports.extractTime = extractTime;
 exports.extractSeats = extractSeats;
+exports.extractPrice = extractPrice;
 exports.extractRoute = extractRoute;
 exports.extractListingType = extractListingType;
 exports.extractSenderName = extractSenderName;
@@ -113,6 +114,17 @@ function extractTime(text) {
             return `${dotTimeMatch[1].padStart(2, '0')}:${dotTimeMatch[2]}`;
         }
     }
+    // Діапазон з крапкою без обов'язкового "в/о/виїзд": "5.10-5.20"
+    const genericDotRangeMatch = text.match(/(\d{1,2})\.(\d{2})-(\d{1,2})\.(\d{2})/);
+    if (genericDotRangeMatch) {
+        const h1 = parseInt(genericDotRangeMatch[1], 10);
+        const m1 = parseInt(genericDotRangeMatch[2], 10);
+        const h2 = parseInt(genericDotRangeMatch[3], 10);
+        const m2 = parseInt(genericDotRangeMatch[4], 10);
+        if (isValidTime(h1, m1) && isValidTime(h2, m2)) {
+            return `${genericDotRangeMatch[1].padStart(2, '0')}:${genericDotRangeMatch[2]}-${genericDotRangeMatch[3].padStart(2, '0')}:${genericDotRangeMatch[4]}`;
+        }
+    }
     // Також шукаємо формат з дефісом замість двокрапки: "20-45"
     const dashTimeMatch = text.match(/(?:виїзд|о|в)\s+(\d{1,2})-(\d{2})/i);
     if (dashTimeMatch) {
@@ -128,6 +140,20 @@ function extractSeats(text) {
     const seatsMatch = text.match(/(\d+)\s*(пасажир|особ|місц)/i);
     if (seatsMatch) {
         return parseInt(seatsMatch[1], 10);
+    }
+    return null;
+}
+/**
+ * Витягує ціну поїздки
+ * Підтримує формати: "150 грн", "150грн.", "ціна 200 грн"
+ */
+function extractPrice(text) {
+    const priceMatch = text.match(/(\d{2,4})\s*(?:грн|uah)/i);
+    if (priceMatch) {
+        const value = parseInt(priceMatch[1], 10);
+        if (!Number.isNaN(value) && value > 0) {
+            return value;
+        }
     }
     return null;
 }
@@ -242,6 +268,7 @@ function parseViberMessage(rawMessage) {
         const listingType = extractListingType(messageBody);
         const date = extractDate(messageBody, messageDate || undefined);
         const departureTime = extractTime(messageBody);
+        const price = extractPrice(messageBody);
         const seats = extractSeats(messageBody);
         // Додаткові примітки (все що не розпарсилось)
         let notes = null;
@@ -262,6 +289,7 @@ function parseViberMessage(rawMessage) {
             route,
             date,
             departureTime,
+            price,
             seats,
             phone,
             notes,

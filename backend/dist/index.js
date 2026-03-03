@@ -12,6 +12,7 @@ const client_1 = require("@prisma/client");
 const telegram_1 = require("./telegram");
 const crypto_1 = __importDefault(require("crypto"));
 const viber_parser_1 = require("./viber-parser");
+const phonecheck_1 = require("./phonecheck");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -1569,12 +1570,13 @@ app.get('/admin/persons', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Не вдалося завантажити список персон' });
     }
 });
-/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт). Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. */
+/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт), потім через Opendatabot. Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. onlyLatin: true — лише персони з іменем, де немає кирилиці (латиниця). */
 app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
     try {
         const body = (req.body || {});
         const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
         const onlyEmpty = body.onlyEmpty === true;
+        const onlyLatin = body.onlyLatin === true;
         const emptyNameCondition = { OR: [{ fullName: null }, { fullName: '' }] };
         const where = onlyEmpty && personIds && personIds.length > 0
             ? { id: { in: personIds }, ...emptyNameCondition }
@@ -1587,20 +1589,28 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
             where,
             orderBy: { id: 'asc' },
         });
+        const totalPersons = persons.length;
         if (onlyEmpty) {
             persons = persons.filter((p) => !p.fullName || !p.fullName.trim());
         }
-        console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}${onlyEmpty ? ' (лише без імені)' : ''}`);
+        let latinCandidates = 0;
+        if (onlyLatin) {
+            latinCandidates = persons.filter((p) => p.fullName && p.fullName.trim() && !(0, telegram_1.hasCyrillic)(p.fullName)).length;
+            persons = persons.filter((p) => p.fullName && p.fullName.trim() && !(0, telegram_1.hasCyrillic)(p.fullName));
+        }
+        console.log(`[refresh-names] Старт: total=${totalPersons}, latinCandidates=${latinCandidates}, для_перевірки=${persons.length}` +
+            `${onlyEmpty ? ' (onlyEmpty)' : ''}` +
+            `${onlyLatin ? ' (onlyLatin)' : ''}`);
         const changes = [];
         let updated = 0;
         let skipped = 0;
         const errors = [];
         for (const p of persons) {
             try {
-                const { nameFromBot, nameFromUser } = await (0, telegram_1.getResolvedNameForPerson)(p.phoneNormalized, p.telegramChatId);
+                const { nameFromBot, nameFromUser, nameFromOpendatabot } = await (0, telegram_1.getResolvedNameForPerson)(p.phoneNormalized, p.telegramChatId);
                 const currentName = p.fullName?.trim() || null;
-                const { newName, source } = (0, telegram_1.pickBestNameFromCandidates)(currentName, nameFromBot, nameFromUser);
-                console.log(`[refresh-names] #${p.id} ${p.phoneNormalized}: поточне="${currentName ?? ''}" | бот="${nameFromBot ?? ''}" | по_номеру="${nameFromUser ?? ''}" → обрано="${newName ?? ''}" (${source ?? '—'})`);
+                const { newName, source } = (0, telegram_1.pickBestNameFromCandidates)(currentName, nameFromBot, nameFromUser, nameFromOpendatabot);
+                console.log(`[refresh-names] #${p.id} ${p.phoneNormalized}: поточне="${currentName ?? ''}" | бот="${nameFromBot ?? ''}" | по_номеру="${nameFromUser ?? ''}" | opendatabot="${nameFromOpendatabot ?? ''}" → обрано="${newName ?? ''}" (${source ?? '—'})`);
                 if (newName !== currentName && newName) {
                     await prisma.person.update({
                         where: { id: p.id },
@@ -2106,6 +2116,40 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
         res.status(500).json({
             error: 'Не вдалося імпортувати історичні ViberRide дані. Переконайтеся, що таблиця "ViberRide" існує і має очікувані колонки.',
         });
+    }
+});
+// Аналіз телефонів через phonecheck.top: для кожного телефону дивимося, чи є дані (ігноруємо "Данные не найдены").
+app.post('/admin/phonecheck/analyze', requireAdmin, async (req, res) => {
+    try {
+        const body = (req.body || {});
+        const rawPhones = Array.isArray(body.phones) ? body.phones : [];
+        const uniquePhones = Array.from(new Set(rawPhones
+            .map((p) => (typeof p === 'string' ? p.trim() : ''))
+            .filter((p) => p.length > 0)));
+        if (uniquePhones.length === 0) {
+            return res.status(400).json({ error: 'Потрібен масив phones' });
+        }
+        const results = [];
+        for (const phone of uniquePhones) {
+            const result = await (0, phonecheck_1.runPhoneCheckForPhone)(phone);
+            if (result) {
+                results.push(result);
+            }
+        }
+        const withDataCount = results.filter((r) => r.hasData).length;
+        console.log(`[phonecheck] analyze: totalPhones=${uniquePhones.length}, results=${results.length}, withData=${withDataCount}`);
+        for (const r of results) {
+            console.log(`[phonecheck] ${r.phone}: ${r.hasData ? 'HAS_DATA' : 'NO_DATA'}`);
+        }
+        res.json({
+            total: uniquePhones.length,
+            withData: withDataCount,
+            results,
+        });
+    }
+    catch (e) {
+        console.error('❌ POST /admin/phonecheck/analyze:', e);
+        res.status(500).json({ error: 'Не вдалося виконати аналіз phonecheck.top' });
     }
 });
 // Аналітика поведінки клієнтів на основі ViberRideEvent.

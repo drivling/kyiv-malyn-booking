@@ -12,6 +12,7 @@ exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
+exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
 exports.getTelegramNameByChatId = getTelegramNameByChatId;
@@ -949,6 +950,48 @@ async function resolveNameByPhoneFromTelegram(phone) {
             else {
                 if (code !== 1) {
                     console.error(`ℹ️ resolveNameByPhone (${phone}): код ${code}`, stderr.slice(0, 200));
+                }
+                resolve(null);
+            }
+        });
+        child.on('error', () => resolve(null));
+    });
+}
+/**
+ * Знайти ім'я ФОП за номером телефону через Opendatabot (Python run_opendatabot_phone_lookup.py).
+ * Використовується як додаткове джерело імені при оновленні Person.
+ */
+async function resolveNameByPhoneFromOpendatabot(phone) {
+    if (!phone?.trim())
+        return null;
+    const pythonCmd = process.env.OPENDATABOT_PYTHON?.trim() ||
+        process.env.TELEGRAM_USER_PYTHON?.trim() ||
+        'python3';
+    const scriptPath = path_1.default.join(__dirname, '..', 'opendatabot-fop-parser', 'run_opendatabot_phone_lookup.py');
+    const normalizedPhone = phone.trim().replace(/^\+/, '');
+    return new Promise((resolve) => {
+        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, normalizedPhone], {
+            env: {
+                ...process.env,
+            },
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        let stdout = '';
+        let stderr = '';
+        child.stdout?.on('data', (chunk) => {
+            stdout += chunk.toString();
+        });
+        child.stderr?.on('data', (chunk) => {
+            stderr += chunk.toString();
+        });
+        child.on('close', (code) => {
+            const text = stdout.trim();
+            if (code === 0 && text && text !== 'ФОП не знайдено') {
+                resolve(text);
+            }
+            else {
+                if (code && code !== 0) {
+                    console.error(`ℹ️ resolveNameByPhoneFromOpendatabot (${normalizedPhone}): код ${code}`, stderr.slice(0, 200));
                 }
                 resolve(null);
             }
@@ -2386,10 +2429,19 @@ https://malin.kiev.ua
                         try {
                             const nameFromDb = parsed.phone ? await (0, exports.getNameByPhone)(parsed.phone) : null;
                             let senderName = nameFromDb ?? parsed.senderName ?? null;
-                            if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
-                                const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
-                                if (nameFromTg?.trim())
-                                    senderName = nameFromTg.trim();
+                            if (parsed.phone?.trim()) {
+                                const phone = parsed.phone.trim();
+                                const personForChat = await (0, exports.getPersonByPhone)(phone);
+                                const chatIdForPerson = personForChat?.telegramChatId ?? null;
+                                const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(phone, chatIdForPerson);
+                                const baseCurrentName = nameFromDb;
+                                const { newName } = pickBestNameFromCandidates(baseCurrentName, nameFromBot, nameFromUser, nameFromOpendatabot);
+                                if (newName?.trim()) {
+                                    senderName = newName.trim();
+                                }
+                                else if (!senderName || !String(senderName).trim()) {
+                                    senderName = parsed.senderName ?? senderName;
+                                }
                             }
                             const person = parsed.phone
                                 ? await (0, exports.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
@@ -2455,10 +2507,19 @@ https://malin.kiev.ua
                     }
                     const nameFromDb = parsed.phone ? await (0, exports.getNameByPhone)(parsed.phone) : null;
                     let senderName = nameFromDb ?? parsed.senderName ?? null;
-                    if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
-                        const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
-                        if (nameFromTg?.trim())
-                            senderName = nameFromTg.trim();
+                    if (parsed.phone?.trim()) {
+                        const phone = parsed.phone.trim();
+                        const personForChat = await (0, exports.getPersonByPhone)(phone);
+                        const chatIdForPerson = personForChat?.telegramChatId ?? null;
+                        const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(phone, chatIdForPerson);
+                        const baseCurrentName = nameFromDb;
+                        const { newName } = pickBestNameFromCandidates(baseCurrentName, nameFromBot, nameFromUser, nameFromOpendatabot);
+                        if (newName?.trim()) {
+                            senderName = newName.trim();
+                        }
+                        else if (!senderName || !String(senderName).trim()) {
+                            senderName = parsed.senderName ?? senderName;
+                        }
                     }
                     const person = parsed.phone
                         ? await (0, exports.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
@@ -4070,25 +4131,31 @@ async function getResolvedNameForPerson(phone, chatId) {
     const trimChatId = chatId && chatId !== '0' ? chatId.trim() : null;
     let nameFromBot = null;
     let nameFromUser = null;
+    let nameFromOpendatabot = null;
     if (trimChatId) {
         const fromBot = await getTelegramNameByChatId(trimChatId);
         if (fromBot?.trim())
             nameFromBot = fromBot.trim();
     }
     if (phone?.trim()) {
-        const fromUser = await resolveNameByPhoneFromTelegram(phone.trim());
+        const normalizedPhone = phone.trim();
+        const fromUser = await resolveNameByPhoneFromTelegram(normalizedPhone);
         if (fromUser?.trim())
             nameFromUser = fromUser.trim();
+        const fromOpendatabot = await resolveNameByPhoneFromOpendatabot(normalizedPhone);
+        if (fromOpendatabot?.trim())
+            nameFromOpendatabot = fromOpendatabot.trim();
     }
-    return { nameFromBot, nameFromUser };
+    return { nameFromBot, nameFromUser, nameFromOpendatabot };
 }
 /**
  * Вибрати найкраще ім'я: якщо у нас взагалі не було — заповнити будь-яким першим; далі серед усіх варіантів вибрати найдовше кириличне.
  */
-function pickBestNameFromCandidates(currentFullName, nameFromBot, nameFromUser) {
+function pickBestNameFromCandidates(currentFullName, nameFromBot, nameFromUser, nameFromOpendatabot) {
     const cur = (currentFullName ?? '').trim() || null;
     const fromBot = (nameFromBot ?? '').trim() || null;
     const fromUser = (nameFromUser ?? '').trim() || null;
+    const fromOpendatabot = (nameFromOpendatabot ?? '').trim() || null;
     const candidates = [];
     if (cur)
         candidates.push({ name: cur, source: null });
@@ -4096,6 +4163,8 @@ function pickBestNameFromCandidates(currentFullName, nameFromBot, nameFromUser) 
         candidates.push({ name: fromBot, source: 'bot' });
     if (fromUser)
         candidates.push({ name: fromUser, source: 'user_account' });
+    if (fromOpendatabot)
+        candidates.push({ name: fromOpendatabot, source: 'opendatabot' });
     const unique = Array.from(new Map(candidates.map((c) => [c.name, c])).values());
     if (unique.length === 0)
         return { newName: cur, source: null };
