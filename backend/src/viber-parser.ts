@@ -10,6 +10,7 @@ export interface ParsedViberMessage {
   route: string;
   date: Date;
   departureTime: string | null;
+  price: number | null;
   seats: number | null;
   phone: string;
   notes: string | null;
@@ -123,6 +124,18 @@ export function extractTime(text: string): string | null {
     }
   }
 
+  // Діапазон з крапкою без обов'язкового "в/о/виїзд": "5.10-5.20"
+  const genericDotRangeMatch = text.match(/(\d{1,2})\.(\d{2})-(\d{1,2})\.(\d{2})/);
+  if (genericDotRangeMatch) {
+    const h1 = parseInt(genericDotRangeMatch[1], 10);
+    const m1 = parseInt(genericDotRangeMatch[2], 10);
+    const h2 = parseInt(genericDotRangeMatch[3], 10);
+    const m2 = parseInt(genericDotRangeMatch[4], 10);
+    if (isValidTime(h1, m1) && isValidTime(h2, m2)) {
+      return `${genericDotRangeMatch[1].padStart(2, '0')}:${genericDotRangeMatch[2]}-${genericDotRangeMatch[3].padStart(2, '0')}:${genericDotRangeMatch[4]}`;
+    }
+  }
+
   // Також шукаємо формат з дефісом замість двокрапки: "20-45"
   const dashTimeMatch = text.match(/(?:виїзд|о|в)\s+(\d{1,2})-(\d{2})/i);
   if (dashTimeMatch) {
@@ -142,6 +155,22 @@ export function extractSeats(text: string): number | null {
     return parseInt(seatsMatch[1], 10);
   }
   
+  return null;
+}
+
+/**
+ * Витягує ціну поїздки
+ * Підтримує формати: "150 грн", "150грн.", "ціна 200 грн"
+ */
+export function extractPrice(text: string): number | null {
+  const priceMatch = text.match(/(\d{2,4})\s*(?:грн|uah)/i);
+  if (priceMatch) {
+    const value = parseInt(priceMatch[1], 10);
+    if (!Number.isNaN(value) && value > 0) {
+      return value;
+    }
+  }
+
   return null;
 }
 
@@ -276,6 +305,7 @@ export function parseViberMessage(rawMessage: string): ParsedViberMessage | null
     const listingType = extractListingType(messageBody);
     const date = extractDate(messageBody, messageDate || undefined);
     const departureTime = extractTime(messageBody);
+    const price = extractPrice(messageBody);
     const seats = extractSeats(messageBody);
     
     // Додаткові примітки (все що не розпарсилось)
@@ -299,6 +329,7 @@ export function parseViberMessage(rawMessage: string): ParsedViberMessage | null
       route,
       date,
       departureTime,
+      price,
       seats,
       phone,
       notes,
