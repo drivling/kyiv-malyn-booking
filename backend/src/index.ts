@@ -1688,7 +1688,7 @@ app.get('/admin/persons', requireAdmin, async (req, res) => {
   }
 });
 
-/** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт). Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. */
+  /** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт), потім через Opendatabot. Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. */
 app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
   try {
     const body = (req.body || {}) as { personIds?: number[]; onlyEmpty?: boolean };
@@ -1711,17 +1711,17 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
       persons = persons.filter((p) => !p.fullName || !p.fullName.trim());
     }
     console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}${onlyEmpty ? ' (лише без імені)' : ''}`);
-    const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | null }> = [];
+    const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | 'opendatabot' | null }> = [];
     let updated = 0;
     let skipped = 0;
     const errors: string[] = [];
     for (const p of persons) {
       try {
-        const { nameFromBot, nameFromUser } = await getResolvedNameForPerson(p.phoneNormalized, p.telegramChatId);
+        const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(p.phoneNormalized, p.telegramChatId);
         const currentName = p.fullName?.trim() || null;
-        const { newName, source } = pickBestNameFromCandidates(currentName, nameFromBot, nameFromUser);
+        const { newName, source } = pickBestNameFromCandidates(currentName, nameFromBot, nameFromUser, nameFromOpendatabot);
         console.log(
-          `[refresh-names] #${p.id} ${p.phoneNormalized}: поточне="${currentName ?? ''}" | бот="${nameFromBot ?? ''}" | по_номеру="${nameFromUser ?? ''}" → обрано="${newName ?? ''}" (${source ?? '—'})`
+          `[refresh-names] #${p.id} ${p.phoneNormalized}: поточне="${currentName ?? ''}" | бот="${nameFromBot ?? ''}" | по_номеру="${nameFromUser ?? ''}" | opendatabot="${nameFromOpendatabot ?? ''}" → обрано="${newName ?? ''}" (${source ?? '—'})`
         );
         if (newName !== currentName && newName) {
           await prisma.person.update({

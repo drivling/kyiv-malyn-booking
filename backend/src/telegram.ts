@@ -1150,6 +1150,56 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
 }
 
 /**
+ * Знайти ім'я ФОП за номером телефону через Opendatabot (Python run_opendatabot_phone_lookup.py).
+ * Використовується як додаткове джерело імені при оновленні Person.
+ */
+export async function resolveNameByPhoneFromOpendatabot(phone: string): Promise<string | null> {
+  if (!phone?.trim()) return null;
+  const pythonCmd =
+    process.env.OPENDATABOT_PYTHON?.trim() ||
+    process.env.TELEGRAM_USER_PYTHON?.trim() ||
+    'python3';
+  const scriptPath = path.join(
+    __dirname,
+    '..',
+    'opendatabot-fop-parser',
+    'run_opendatabot_phone_lookup.py',
+  );
+  const normalizedPhone = phone.trim().replace(/^\+/, '');
+  return new Promise((resolve) => {
+    const child = spawn(pythonCmd, [scriptPath, normalizedPhone], {
+      env: {
+        ...process.env,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.on('close', (code) => {
+      const text = stdout.trim();
+      if (code === 0 && text && text !== 'ФОП не знайдено') {
+        resolve(text);
+      } else {
+        if (code && code !== 0) {
+          console.error(
+            `ℹ️ resolveNameByPhoneFromOpendatabot (${normalizedPhone}): код ${code}`,
+            stderr.slice(0, 200),
+          );
+        }
+        resolve(null);
+      }
+    });
+    child.on('error', () => resolve(null));
+  });
+}
+
+/**
  * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону (Python Telethon).
  * Повертає true, якщо повідомлення доставлено; false — помилка або користувач приховав номер.
  * Експортується для одноразової реклами каналу (без оновлення telegramPromoSentAt).
@@ -4634,19 +4684,23 @@ export function hasCyrillic(str: string): boolean {
 export async function getResolvedNameForPerson(
   phone: string,
   chatId: string | null
-): Promise<{ nameFromBot: string | null; nameFromUser: string | null }> {
+): Promise<{ nameFromBot: string | null; nameFromUser: string | null; nameFromOpendatabot: string | null }> {
   const trimChatId = chatId && chatId !== '0' ? chatId.trim() : null;
   let nameFromBot: string | null = null;
   let nameFromUser: string | null = null;
+  let nameFromOpendatabot: string | null = null;
   if (trimChatId) {
     const fromBot = await getTelegramNameByChatId(trimChatId);
     if (fromBot?.trim()) nameFromBot = fromBot.trim();
   }
   if (phone?.trim()) {
-    const fromUser = await resolveNameByPhoneFromTelegram(phone.trim());
+    const normalizedPhone = phone.trim();
+    const fromUser = await resolveNameByPhoneFromTelegram(normalizedPhone);
     if (fromUser?.trim()) nameFromUser = fromUser.trim();
+    const fromOpendatabot = await resolveNameByPhoneFromOpendatabot(normalizedPhone);
+    if (fromOpendatabot?.trim()) nameFromOpendatabot = fromOpendatabot.trim();
   }
-  return { nameFromBot, nameFromUser };
+  return { nameFromBot, nameFromUser, nameFromOpendatabot };
 }
 
 /**
@@ -4655,15 +4709,18 @@ export async function getResolvedNameForPerson(
 export function pickBestNameFromCandidates(
   currentFullName: string | null,
   nameFromBot: string | null,
-  nameFromUser: string | null
-): { newName: string | null; source: 'bot' | 'user_account' | null } {
+  nameFromUser: string | null,
+  nameFromOpendatabot: string | null,
+): { newName: string | null; source: 'bot' | 'user_account' | 'opendatabot' | null } {
   const cur = (currentFullName ?? '').trim() || null;
   const fromBot = (nameFromBot ?? '').trim() || null;
   const fromUser = (nameFromUser ?? '').trim() || null;
-  const candidates: Array<{ name: string; source: 'bot' | 'user_account' | null }> = [];
+  const fromOpendatabot = (nameFromOpendatabot ?? '').trim() || null;
+  const candidates: Array<{ name: string; source: 'bot' | 'user_account' | 'opendatabot' | null }> = [];
   if (cur) candidates.push({ name: cur, source: null });
   if (fromBot) candidates.push({ name: fromBot, source: 'bot' });
   if (fromUser) candidates.push({ name: fromUser, source: 'user_account' });
+  if (fromOpendatabot) candidates.push({ name: fromOpendatabot, source: 'opendatabot' });
   const unique = Array.from(new Map(candidates.map((c) => [c.name, c])).values());
   if (unique.length === 0) return { newName: cur, source: null };
   const cyrillic = unique.filter((c) => hasCyrillic(c.name));
