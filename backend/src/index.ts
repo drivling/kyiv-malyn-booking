@@ -2332,6 +2332,13 @@ app.post('/admin/phonecheck/analyze', requireAdmin, async (req, res) => {
 
     const withDataCount = results.filter((r) => r.hasData).length;
 
+    console.log(
+      `[phonecheck] analyze: totalPhones=${uniquePhones.length}, ` +
+        `uniquePhones=${uniquePhones.length}, results=${results.length}, withData=${withDataCount}`,
+    );
+    console.log('[phonecheck] input phones:', uniquePhones);
+    console.log('[phonecheck] results JSON:', JSON.stringify(results, null, 2));
+
     res.json({
       total: uniquePhones.length,
       withData: withDataCount,
