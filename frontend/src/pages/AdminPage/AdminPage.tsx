@@ -402,13 +402,15 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleRefreshNames = async (onlyEmpty?: boolean) => {
+  const handleRefreshNames = async (onlyEmpty?: boolean, onlyLatin?: boolean) => {
     setRefreshNamesLoading(true);
     setError('');
     setSuccess('');
     setRefreshNamesResult(null);
     try {
-      const result = await apiClient.refreshPersonNames(onlyEmpty ? { onlyEmpty: true } : undefined);
+      const result = await apiClient.refreshPersonNames(
+        onlyEmpty || onlyLatin ? { onlyEmpty: !!onlyEmpty, onlyLatin: !!onlyLatin } : undefined,
+      );
       setRefreshNamesResult(result);
       if (result.updated > 0) {
         setSuccess(`Оновлено імен: ${result.updated}. Пропущено: ${result.skipped}. Всього перевірено: ${result.total}.`);
@@ -1685,6 +1687,13 @@ export const AdminPage: React.FC = () => {
                 title="Те саме, але лише для персон без імені в базі (—)."
               >
                 {refreshNamesLoading ? 'Оновлення…' : 'Онови імена (-)'}
+              </Button>
+              <Button
+                onClick={() => handleRefreshNames(false, true)}
+                disabled={refreshNamesLoading}
+                title="Оновити імена лише для персон, у яких імʼя збережене латиницею (без кирилиці) — наприклад, Tatiana Oks."
+              >
+                {refreshNamesLoading ? 'Оновлення…' : 'Онови імена (латиниця)'}
               </Button>
             </div>
             {refreshNamesResult && (

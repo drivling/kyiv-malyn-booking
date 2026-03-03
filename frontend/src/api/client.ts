@@ -203,9 +203,14 @@ class ApiClient {
     });
   }
 
-  /** Оновити імена персон: пошук через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). onlyEmpty: true — лише персони без імені в базі. */
-  async refreshPersonNames(options?: { personIds?: number[]; onlyEmpty?: boolean }): Promise<RefreshPersonNamesResponse> {
-    const body = options?.personIds?.length ? { personIds: options.personIds, onlyEmpty: options.onlyEmpty } : options?.onlyEmpty ? { onlyEmpty: true } : {};
+  /** Оновити імена персон: пошук через Telegram-бота (якщо підключений), ваш акаунт (send_message.py) та Opendatabot. onlyEmpty: true — лише персони без імені в базі. onlyLatin: true — лише персони з іменем латиницею (без кирилиці). */
+  async refreshPersonNames(options?: { personIds?: number[]; onlyEmpty?: boolean; onlyLatin?: boolean }): Promise<RefreshPersonNamesResponse> {
+    const body =
+      options?.personIds?.length
+        ? { personIds: options.personIds, onlyEmpty: options.onlyEmpty, onlyLatin: options.onlyLatin }
+        : options
+          ? { onlyEmpty: options.onlyEmpty, onlyLatin: options.onlyLatin }
+          : {};
     return this.request<RefreshPersonNamesResponse>('/admin/persons/refresh-names', {
       method: 'POST',
       body: JSON.stringify(body),

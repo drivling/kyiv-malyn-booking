@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 
@@ -1688,12 +1688,13 @@ app.get('/admin/persons', requireAdmin, async (req, res) => {
   }
 });
 
-  /** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт), потім через Opendatabot. Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. */
+  /** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт), потім через Opendatabot. Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. onlyLatin: true — лише персони з іменем, де немає кирилиці (латиниця). */
 app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
   try {
-    const body = (req.body || {}) as { personIds?: number[]; onlyEmpty?: boolean };
+    const body = (req.body || {}) as { personIds?: number[]; onlyEmpty?: boolean; onlyLatin?: boolean };
     const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
     const onlyEmpty = body.onlyEmpty === true;
+    const onlyLatin = body.onlyLatin === true;
     const emptyNameCondition = { OR: [{ fullName: null }, { fullName: '' }] };
     const where =
       onlyEmpty && personIds && personIds.length > 0
@@ -1710,7 +1711,14 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
     if (onlyEmpty) {
       persons = persons.filter((p) => !p.fullName || !p.fullName.trim());
     }
-    console.log(`[refresh-names] Старт: персон для перевірки: ${persons.length}${onlyEmpty ? ' (лише без імені)' : ''}`);
+    if (onlyLatin) {
+      persons = persons.filter((p) => p.fullName && p.fullName.trim() && !hasCyrillic(p.fullName));
+    }
+    console.log(
+      `[refresh-names] Старт: персон для перевірки: ${persons.length}` +
+        `${onlyEmpty ? ' (лише без імені)' : ''}` +
+        `${onlyLatin ? ' (лише з латинським імʼям)' : ''}`,
+    );
     const changes: Array<{ personId: number; phone: string; oldName: string | null; newName: string | null; source: 'bot' | 'user_account' | 'opendatabot' | null }> = [];
     let updated = 0;
     let skipped = 0;
