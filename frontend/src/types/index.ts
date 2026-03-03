@@ -226,6 +226,19 @@ export interface SendPersonPromoResponse {
   error?: string;
 }
 
+export interface PhoneCheckResult {
+  phone: string;
+  url: string;
+  hasData: boolean;
+  html?: string | null;
+}
+
+export interface PhoneCheckAnalyzeResponse {
+  total: number;
+  withData: number;
+  results: PhoneCheckResult[];
+}
+
 /** Профіль користувача (GET /user/profile): персона, бронювання маршруток, оголошення попуток */
 export interface UserProfilePerson {
   id: number;

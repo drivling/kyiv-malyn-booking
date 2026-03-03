@@ -122,6 +122,8 @@ export const AdminPage: React.FC = () => {
   }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
   const [refreshNamesLoading, setRefreshNamesLoading] = useState(false);
   const [refreshNamesResult, setRefreshNamesResult] = useState<RefreshPersonNamesResponse | null>(null);
+  const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
+  const [phoneCheckSummary, setPhoneCheckSummary] = useState('');
 
   // Аналітика ViberRide / поведінка клієнтів
   const [viberAnalyticsLoading, setViberAnalyticsLoading] = useState(false);
@@ -422,6 +424,52 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка оновлення імен');
     } finally {
       setRefreshNamesLoading(false);
+    }
+  };
+
+  const handleAnalyzePhonesViaPhoneCheck = async () => {
+    if (!persons.length) {
+      setError('Немає персон для аналізу. Спочатку завантажте список.');
+      return;
+    }
+    setPhoneCheckLoading(true);
+    setError('');
+    setSuccess('');
+    setPhoneCheckSummary('');
+    try {
+      const phones = persons.map((p) => p.phoneNormalized);
+      const result = await apiClient.analyzePhonesViaPhoneCheck(phones);
+      const withData = result.results.filter((r) => r.hasData).length;
+      setPhoneCheckSummary(
+        `phonecheck.top: перевірено ${result.total} телефонів, дані знайдено для ${withData}.` +
+          (withData > 0 ? ' Файл з відповідями завантажено.' : ' Дані не знайдено.')
+      );
+
+      const dataToDownload = result.results.filter((r) => r.hasData);
+      if (typeof window !== 'undefined' && dataToDownload.length > 0) {
+        const blob = new Blob(
+          [JSON.stringify(dataToDownload, null, 2)],
+          { type: 'application/json;charset=utf-8' }
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+          now.getDate(),
+        ).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(
+          now.getMinutes(),
+        ).padStart(2, '0')}`;
+        a.href = url;
+        a.download = `phonecheck-top-results-${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка аналізу через phonecheck.top');
+    } finally {
+      setPhoneCheckLoading(false);
     }
   };
 
@@ -1695,11 +1743,24 @@ export const AdminPage: React.FC = () => {
               >
                 {refreshNamesLoading ? 'Оновлення…' : 'Онови імена (латиниця)'}
               </Button>
+              <Button
+                variant="secondary"
+                onClick={handleAnalyzePhonesViaPhoneCheck}
+                disabled={phoneCheckLoading || !persons.length}
+                title="Перевірити поточний список телефонів через phonecheck.top та завантажити відповіді (ігноруючи «Данные не найдены»)."
+              >
+                {phoneCheckLoading ? 'Аналіз…' : '📞 Аналіз phonecheck.top'}
+              </Button>
             </div>
             {refreshNamesResult && (
               <div className="data-refresh-summary" style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
                 Статистика: перевірено {refreshNamesResult.total}, оновлено {refreshNamesResult.updated}, пропущено {refreshNamesResult.skipped}.
                 {refreshNamesResult.errors?.length ? ` Помилки: ${refreshNamesResult.errors.length}.` : ''}
+              </div>
+            )}
+            {phoneCheckSummary && (
+              <div className="data-refresh-summary" style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
+                {phoneCheckSummary}
               </div>
             )}
             {dataLoading ? (

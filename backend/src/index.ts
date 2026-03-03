@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
+import { runPhoneCheckForPhone, type PhoneCheckResult } from './phonecheck';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
@@ -2301,6 +2302,44 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       error:
         'Не вдалося імпортувати історичні ViberRide дані. Переконайтеся, що таблиця "ViberRide" існує і має очікувані колонки.',
     });
+  }
+});
+
+// Аналіз телефонів через phonecheck.top: для кожного телефону дивимося, чи є дані (ігноруємо "Данные не найдены").
+app.post('/admin/phonecheck/analyze', requireAdmin, async (req, res) => {
+  try {
+    const body = (req.body || {}) as { phones?: string[] };
+    const rawPhones = Array.isArray(body.phones) ? body.phones : [];
+    const uniquePhones = Array.from(
+      new Set(
+        rawPhones
+          .map((p) => (typeof p === 'string' ? p.trim() : ''))
+          .filter((p) => p.length > 0),
+      ),
+    );
+
+    if (uniquePhones.length === 0) {
+      return res.status(400).json({ error: 'Потрібен масив phones' });
+    }
+
+    const results: PhoneCheckResult[] = [];
+    for (const phone of uniquePhones) {
+      const result = await runPhoneCheckForPhone(phone);
+      if (result) {
+        results.push(result);
+      }
+    }
+
+    const withDataCount = results.filter((r) => r.hasData).length;
+
+    res.json({
+      total: uniquePhones.length,
+      withData: withDataCount,
+      results,
+    });
+  } catch (e) {
+    console.error('❌ POST /admin/phonecheck/analyze:', e);
+    res.status(500).json({ error: 'Не вдалося виконати аналіз phonecheck.top' });
   }
 });
 

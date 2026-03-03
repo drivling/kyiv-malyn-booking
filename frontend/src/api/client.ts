@@ -18,6 +18,7 @@ import type {
   ViberAnalyticsPromoScenariosResponse,
   SendPersonPromoResponse,
   BehaviorPromoScenarioKey,
+  PhoneCheckAnalyzeResponse,
 } from '@/types';
 
 class ApiClient {
@@ -392,6 +393,14 @@ class ApiClient {
     return this.request<SendPersonPromoResponse>('/admin/viber-analytics/send-person-promo', {
       method: 'POST',
       body: JSON.stringify({ phoneNormalized, scenarioKey, mainRoute }),
+    });
+  }
+
+  /** Аналіз телефонів через phonecheck.top (ігнорує "Данные не найдены", повертає результати для завантаження). */
+  async analyzePhonesViaPhoneCheck(phones: string[]): Promise<PhoneCheckAnalyzeResponse> {
+    return this.request<PhoneCheckAnalyzeResponse>('/admin/phonecheck/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ phones }),
     });
   }
 
