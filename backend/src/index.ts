@@ -7,6 +7,7 @@ import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getC
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 import { runPhoneCheckForPhone, type PhoneCheckResult } from './phonecheck';
+import { runInternetSearchForPhone, type InternetSearchResult } from './internet-search';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
@@ -2383,6 +2384,47 @@ app.post('/admin/phonecheck/analyze', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ POST /admin/phonecheck/analyze:', e);
     res.status(500).json({ error: 'Не вдалося виконати аналіз phonecheck.top' });
+  }
+});
+
+// Пошук по інтернету (OLX, AUTO.RIA, DOM.RIA) за номером: для кожного телефону завантажуємо сторінки пошуку і парсимо оголошення.
+app.post('/admin/internet-search/analyze', requireAdmin, async (req, res) => {
+  try {
+    const body = (req.body || {}) as { phones?: string[] };
+    const rawPhones = Array.isArray(body.phones) ? body.phones : [];
+    const uniquePhones = Array.from(
+      new Set(
+        rawPhones
+          .map((p) => (typeof p === 'string' ? p.trim() : ''))
+          .filter((p) => p.length > 0),
+      ),
+    );
+
+    if (uniquePhones.length === 0) {
+      return res.status(400).json({ error: 'Потрібен масив phones' });
+    }
+
+    const results: InternetSearchResult[] = [];
+    for (const phone of uniquePhones) {
+      const result = await runInternetSearchForPhone(phone);
+      if (result) {
+        results.push(result);
+      }
+    }
+
+    const withDataCount = results.filter((r) => r.hasData).length;
+    console.log(
+      `[internet-search] analyze: totalPhones=${uniquePhones.length}, withData=${withDataCount}`,
+    );
+
+    res.json({
+      total: uniquePhones.length,
+      withData: withDataCount,
+      results,
+    });
+  } catch (e) {
+    console.error('❌ POST /admin/internet-search/analyze:', e);
+    res.status(500).json({ error: 'Не вдалося виконати пошук по інтернету' });
   }
 });
 

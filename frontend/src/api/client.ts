@@ -19,6 +19,7 @@ import type {
   SendPersonPromoResponse,
   BehaviorPromoScenarioKey,
   PhoneCheckAnalyzeResponse,
+  InternetSearchAnalyzeResponse,
 } from '@/types';
 
 class ApiClient {
@@ -399,6 +400,14 @@ class ApiClient {
   /** Аналіз телефонів через phonecheck.top (ігнорує "Данные не найдены", повертає результати для завантаження). */
   async analyzePhonesViaPhoneCheck(phones: string[]): Promise<PhoneCheckAnalyzeResponse> {
     return this.request<PhoneCheckAnalyzeResponse>('/admin/phonecheck/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ phones }),
+    });
+  }
+
+  /** Пошук по інтернету (OLX, AUTO.RIA, DOM.RIA) за номерами з поточного списку персон. */
+  async analyzePhonesViaInternetSearch(phones: string[]): Promise<InternetSearchAnalyzeResponse> {
+    return this.request<InternetSearchAnalyzeResponse>('/admin/internet-search/analyze', {
       method: 'POST',
       body: JSON.stringify({ phones }),
     });

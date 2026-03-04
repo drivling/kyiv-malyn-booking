@@ -13,6 +13,7 @@ const telegram_1 = require("./telegram");
 const crypto_1 = __importDefault(require("crypto"));
 const viber_parser_1 = require("./viber-parser");
 const phonecheck_1 = require("./phonecheck");
+const internet_search_1 = require("./internet-search");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -1483,24 +1484,54 @@ app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to delete Viber listing' });
     }
 });
-// Автоматичне деактивування старих оголошень (можна викликати з cron)
+// Повертає «дату по» для оголошення: дата поїздки + кінець часу.
+// departureTime: "15:00" → той день о 15:00; "14:30-16:00" → той день о 16:00; відсутній → 23:59.
+function getViberListingEndDateTime(date, departureTime) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const t = (departureTime ?? '').trim();
+    if (!t) {
+        d.setHours(23, 59, 0, 0);
+        return d;
+    }
+    const rangeMatch = t.match(/^\d{1,2}:\d{2}-(\d{1,2}):(\d{2})$/);
+    const singleMatch = t.match(/^(\d{1,2}):(\d{2})$/);
+    const timeStr = rangeMatch ? `${rangeMatch[1]}:${rangeMatch[2]}` : (singleMatch ? `${singleMatch[1]}:${singleMatch[2]}` : null);
+    if (timeStr) {
+        const [h, m] = timeStr.split(':').map(Number);
+        d.setHours(h, m, 0, 0);
+        return d;
+    }
+    d.setHours(23, 59, 0, 0);
+    return d;
+}
+// Автоматичне деактивування старих оголошень (можна викликати з cron).
+// «Дата по» = date + кінець часу з departureTime (один час "15:00" або кінець діапазону "14:30-16:00" → 16:00).
+// Деактивуємо, якщо дата по < зараз − 3 год.
+const CLEANUP_CUTOFF_HOURS = 3;
 app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
     try {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(23, 59, 59, 999);
-        const result = await prisma.viberListing.updateMany({
-            where: {
-                date: { lt: yesterday },
-                isActive: true
-            },
-            data: { isActive: false }
+        const cutoff = new Date();
+        cutoff.setHours(cutoff.getHours() - CLEANUP_CUTOFF_HOURS);
+        const activeListings = await prisma.viberListing.findMany({
+            where: { isActive: true },
+            select: { id: true, date: true, departureTime: true }
         });
-        console.log(`🧹 Деактивовано ${result.count} старих Viber оголошень`);
+        const idsToDeactivate = activeListings
+            .filter((l) => getViberListingEndDateTime(l.date, l.departureTime) < cutoff)
+            .map((l) => l.id);
+        const count = idsToDeactivate.length;
+        if (count > 0) {
+            await prisma.viberListing.updateMany({
+                where: { id: { in: idsToDeactivate } },
+                data: { isActive: false }
+            });
+        }
+        console.log(`🧹 Деактивовано ${count} старих Viber оголошень (дата по < ${cutoff.toISOString()})`);
         res.json({
             success: true,
-            deactivated: result.count,
-            message: `Деактивовано ${result.count} оголошень`
+            deactivated: count,
+            message: `Деактивовано ${count} оголошень`
         });
     }
     catch (error) {
@@ -2150,6 +2181,37 @@ app.post('/admin/phonecheck/analyze', requireAdmin, async (req, res) => {
     catch (e) {
         console.error('❌ POST /admin/phonecheck/analyze:', e);
         res.status(500).json({ error: 'Не вдалося виконати аналіз phonecheck.top' });
+    }
+});
+// Пошук по інтернету (OLX, AUTO.RIA, DOM.RIA) за номером: для кожного телефону завантажуємо сторінки пошуку і парсимо оголошення.
+app.post('/admin/internet-search/analyze', requireAdmin, async (req, res) => {
+    try {
+        const body = (req.body || {});
+        const rawPhones = Array.isArray(body.phones) ? body.phones : [];
+        const uniquePhones = Array.from(new Set(rawPhones
+            .map((p) => (typeof p === 'string' ? p.trim() : ''))
+            .filter((p) => p.length > 0)));
+        if (uniquePhones.length === 0) {
+            return res.status(400).json({ error: 'Потрібен масив phones' });
+        }
+        const results = [];
+        for (const phone of uniquePhones) {
+            const result = await (0, internet_search_1.runInternetSearchForPhone)(phone);
+            if (result) {
+                results.push(result);
+            }
+        }
+        const withDataCount = results.filter((r) => r.hasData).length;
+        console.log(`[internet-search] analyze: totalPhones=${uniquePhones.length}, withData=${withDataCount}`);
+        res.json({
+            total: uniquePhones.length,
+            withData: withDataCount,
+            results,
+        });
+    }
+    catch (e) {
+        console.error('❌ POST /admin/internet-search/analyze:', e);
+        res.status(500).json({ error: 'Не вдалося виконати пошук по інтернету' });
     }
 });
 // Аналітика поведінки клієнтів на основі ViberRideEvent.

@@ -438,11 +438,11 @@ export const AdminPage: React.FC = () => {
     setPhoneCheckSummary('');
     try {
       const phones = persons.map((p) => p.phoneNormalized);
-      const result = await apiClient.analyzePhonesViaPhoneCheck(phones);
+      const result = await apiClient.analyzePhonesViaInternetSearch(phones);
       const withData = result.results.filter((r) => r.hasData).length;
       setPhoneCheckSummary(
-        `phonecheck.top: перевірено ${result.total} телефонів, дані знайдено для ${withData}.` +
-          (withData > 0 ? ' Файл з відповідями завантажено.' : ' Дані не знайдено.')
+        `Пошук по інтернету (OLX, AUTO.RIA, DOM.RIA): перевірено ${result.total} телефонів, оголошень знайдено для ${withData}.` +
+          (withData > 0 ? ' Файл з результатами завантажено.' : '')
       );
 
       const dataToDownload = result.results.filter((r) => r.hasData);
@@ -460,14 +460,14 @@ export const AdminPage: React.FC = () => {
           now.getMinutes(),
         ).padStart(2, '0')}`;
         a.href = url;
-        a.download = `phonecheck-top-results-${ts}.json`;
+        a.download = `internet-search-results-${ts}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка аналізу через phonecheck.top');
+      setError(err instanceof Error ? err.message : 'Помилка пошуку по інтернету');
     } finally {
       setPhoneCheckLoading(false);
     }
@@ -1747,9 +1747,9 @@ export const AdminPage: React.FC = () => {
                 variant="secondary"
                 onClick={handleAnalyzePhonesViaPhoneCheck}
                 disabled={phoneCheckLoading || !persons.length}
-                title="Перевірити поточний список телефонів через phonecheck.top та завантажити відповіді (ігноруючи «Данные не найдены»)."
+                title="Пошук за номерами на OLX, AUTO.RIA, DOM.RIA. Результати (оголошення) можна завантажити як JSON."
               >
-                {phoneCheckLoading ? 'Аналіз…' : '📞 Аналіз phonecheck.top'}
+                {phoneCheckLoading ? 'Пошук…' : '🌐 Пошук по інтернету'}
               </Button>
             </div>
             {refreshNamesResult && (

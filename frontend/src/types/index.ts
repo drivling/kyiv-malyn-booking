@@ -239,6 +239,27 @@ export interface PhoneCheckAnalyzeResponse {
   results: PhoneCheckResult[];
 }
 
+export interface InternetSearchResultItem {
+  source: string;
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface InternetSearchResult {
+  phone: string;
+  searchUrls: Record<string, string>;
+  hasData: boolean;
+  results: InternetSearchResultItem[];
+  error?: string;
+}
+
+export interface InternetSearchAnalyzeResponse {
+  total: number;
+  withData: number;
+  results: InternetSearchResult[];
+}
+
 /** Профіль користувача (GET /user/profile): персона, бронювання маршруток, оголошення попуток */
 export interface UserProfilePerson {
   id: number;

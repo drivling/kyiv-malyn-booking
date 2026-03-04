@@ -15,11 +15,14 @@ COPY prisma ./prisma
 # Python-залежності:
 # 1) для telegram-user (Telethon)
 # 2) для opendatabot-fop-parser (requests + bs4 + lxml)
+# 3) для internet-phone-search (OLX, AUTO.RIA, DOM.RIA)
 COPY telegram-user/requirements.txt ./telegram-user/
 COPY opendatabot-fop-parser/requirements.txt ./opendatabot-fop-parser/
+COPY internet-phone-search/requirements.txt ./internet-phone-search/
 RUN npm ci \
     && python3 -m pip install --break-system-packages --no-cache-dir -r telegram-user/requirements.txt \
-    && python3 -m pip install --break-system-packages --no-cache-dir -r opendatabot-fop-parser/requirements.txt
+    && python3 -m pip install --break-system-packages --no-cache-dir -r opendatabot-fop-parser/requirements.txt \
+    && python3 -m pip install --break-system-packages --no-cache-dir -r internet-phone-search/requirements.txt
 
 # telegram-user (скрипти + файл сесії)
 COPY telegram-user ./telegram-user/
