@@ -29,7 +29,7 @@ export const BookingPage: React.FC = () => {
   const initialFromTo = useMemo(() => parseFromToFromSearchParams(searchParams), []);
   const [fromCity, setFromCity] = useState<BookingCity | ''>(() => initialFromTo?.from ?? '');
   const [toCity, setToCity] = useState<BookingCity | ''>(() => initialFromTo?.to ?? '');
-  const direction: BaseDirection | '' = fromCity && toCity ? getDirectionFromCities(fromCity, toCity) : '';
+  const direction: BaseDirection | '' = fromCity && toCity ? (getDirectionFromCities(fromCity, toCity) ?? '') : '';
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   // Встановлюємо сьогоднішню дату за замовчуванням
   const [date, setDate] = useState(() => {
