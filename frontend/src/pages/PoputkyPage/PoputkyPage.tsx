@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
@@ -251,14 +251,10 @@ export const PoputkyPage: React.FC = () => {
 
   return (
     <div className="poputky-page">
-      {/* Hero: банер з дорогою та заголовок */}
       <header className="poputky-hero">
         <div className="poputky-hero-inner">
-          <Link to="/" className="poputky-logo">
-            <span className="poputky-logo-icon">🏠</span>
-            <span>malin.kiev.ua</span>
-          </Link>
-          <h1 className="poputky-hero-title">ПОПУТНИКИ Малин - Київ - Житомир - Коростень</h1>
+          <h1 className="poputky-hero-title">Попутки</h1>
+          <p className="poputky-hero-subtitle">Малин · Київ · Житомир · Коростень</p>
         </div>
       </header>
 
@@ -376,11 +372,8 @@ export const PoputkyPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="poputky-trip-route" aria-label="Маршрут">
-                          {listing.listingType === 'driver' ? (
-                            <>🚗 Авто · {formatRouteLabel(listing.route)}</>
-                          ) : (
-                            <>👤 Пасажир · {formatRouteLabel(listing.route)}</>
-                          )}
+                          {listing.listingType === 'driver' ? 'Водій · ' : 'Пасажир · '}
+                          {formatRouteLabel(listing.route)}
                         </div>
                         <div className="poputky-trip-meta">
                           {formatTripDate(listing.date)}
@@ -565,38 +558,16 @@ export const PoputkyPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Футер: текст + карта */}
       <footer className="poputky-footer">
         <p className="poputky-footer-text">
-          Користування сервісом є повністю безкоштовним. Для початку достатньо зареєструватись, створити своє оголошення
-          або вибрати серед уже опублікованих поїздок.
-          </p>
-          <p className="poputky-footer-text">
-          Адміністратор платформи{' '}
+          Користування безкоштовне. Створіть оголошення або оберіть поїздку серед опублікованих.
+        </p>
+        <p className="poputky-footer-text">
+          Адміністратор{' '}
           <a href="https://t.me/sergmeo" target="_blank" rel="noopener noreferrer" className="poputky-footer-link">
             Serg Merenkov
-          </a>{' '}
-          .
+          </a>
         </p>
-        <div className="poputky-map">
-          <div className="poputky-map-inner" aria-hidden>
-            <span className="poputky-map-city poputky-map-city--malyn">Малин</span>
-            <span className="poputky-map-city poputky-map-city--kyiv">Київ</span>
-            <span className="poputky-map-city poputky-map-city--zhytomyr">Житомир</span>
-            <span className="poputky-map-city poputky-map-city--korosten">Коростень</span>
-            <svg className="poputky-map-routes" viewBox="0 0 200 120" preserveAspectRatio="none">
-              {/* Малин (100,60) → Київ (південь правіше), Коростень (зверху правіше), Житомир (зліва) */}
-              <line x1="100" y1="60" x2="155" y2="95" stroke="var(--poputky-green)" strokeWidth="2" markerEnd="url(#arrow)" />
-              <line x1="100" y1="60" x2="155" y2="22" stroke="var(--poputky-green)" strokeWidth="2" markerEnd="url(#arrow)" />
-              <line x1="100" y1="60" x2="35" y2="60" stroke="var(--poputky-green)" strokeWidth="2" markerEnd="url(#arrow)" />
-              <defs>
-                <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 Z" fill="var(--poputky-green)" />
-                </marker>
-              </defs>
-            </svg>
-          </div>
-        </div>
       </footer>
 
       {confirmRequestListing && (
@@ -667,7 +638,7 @@ export const PoputkyPage: React.FC = () => {
             >
               ×
             </button>
-            <h3>{requestStatusData.driverNotified ? '✅ Запит надіслано водію' : '📞 Водій ще не підключений до Telegram'}</h3>
+            <h3>{requestStatusData.driverNotified ? 'Запит надіслано водію' : 'Водій ще не підключений до Telegram'}</h3>
             <p className="poputky-modal-subtitle">{requestStatusData.message}</p>
             <div className="poputky-modal-details">
               <div><strong>Маршрут:</strong> {formatRouteLabel(requestStatusData.listing.route)}</div>
@@ -686,21 +657,21 @@ export const PoputkyPage: React.FC = () => {
                 rel="noopener noreferrer"
                 className="poputky-modal-call-button"
               >
-                📱 Відкрити Telegram та очікувати підтвердження
+                Відкрити Telegram та очікувати підтвердження
               </a>
             ) : (
               <a
                 href={supportPhoneToTelLink(requestStatusData.listing.phone)}
                 className="poputky-modal-call-button"
               >
-                📲 Зателефонувати: {formatPhoneDisplay(requestStatusData.listing.phone)}
+                Зателефонувати: {formatPhoneDisplay(requestStatusData.listing.phone)}
               </a>
             )}
             <a
               href={supportPhoneToTelLink(requestStatusData.listing.phone)}
               className="poputky-modal-copy-button"
             >
-              📞 Подзвонити
+              Подзвонити
             </a>
           </div>
         </div>
@@ -739,13 +710,13 @@ export const PoputkyPage: React.FC = () => {
               rel="noopener noreferrer"
               className="poputky-modal-call-button"
             >
-              📱 Перевірити через Telegram
+              Перевірити через Telegram
             </a>
             <a
               href={supportPhoneToTelLink(alreadyRequestedListing.phone)}
               className="poputky-modal-copy-button"
             >
-              📞 Зателефонувати
+              Зателефонувати
             </a>
           </div>
         </div>

@@ -1,29 +1,16 @@
-/* Сторінка Попутники — верстка як на malin.kiev.ua/poputky */
-
-:root {
-  --poputky-green: #00A86B;
-  --poputky-green-dark: #009255;
-  --poputky-blue: #2563eb;
-  --poputky-blue-active: #1d4ed8;
-}
+/* Попутки — єдиний стиль з Login/User (чистий, один акцент) */
 
 .poputky-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f5f5f5 100px);
   padding-bottom: 0;
 }
 
-/* Hero: банер з дорогою, логотип, заголовок */
 .poputky-hero {
-  background: linear-gradient(135deg, #0d5c36 0%, #00A86B 50%, #0d5c36 100%);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 200'%3E%3Cpath fill='%2300A86B' fill-opacity='0.3' d='M0 120 Q200 80 400 120 T800 120 L800 200 L0 200 Z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='3' stroke-dasharray='20 10' opacity='0.5' d='M0 100 Q200 60 400 100 T800 100'/%3E%3C/svg%3E"),
-    linear-gradient(160deg, #0a4d2e 0%, #00A86B 45%, #008f52 100%);
-  background-size: cover, 100% 100%;
-  background-position: center, center;
+  background: linear-gradient(135deg, #047857 0%, #059669 50%, #00A86B 100%);
   color: #fff;
-  padding: 24px 20px 32px;
+  padding: 28px 20px 32px;
   text-align: center;
-  margin: 0;
 }
 
 .poputky-hero-inner {
@@ -31,42 +18,26 @@
   margin: 0 auto;
 }
 
-.poputky-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #fff;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  opacity: 0.95;
-}
-
-.poputky-logo:hover {
-  opacity: 1;
-  color: #fff;
-}
-
-.poputky-logo-icon {
-  font-size: 20px;
-}
-
 .poputky-hero-title {
   margin: 0;
-  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
   font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.3;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
-/* Вкладки маршрутів */
+.poputky-hero-subtitle {
+  margin: 6px 0 0;
+  font-size: 0.9375rem;
+  opacity: 0.92;
+  font-weight: 500;
+}
+
 .poputky-tabs {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 20px;
+  gap: 0;
+  padding: 12px 20px;
   background: #fff;
   border-bottom: 1px solid var(--pb-border);
   flex-wrap: wrap;
@@ -75,10 +46,10 @@
 .poputky-tab {
   padding: 10px 20px;
   border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--poputky-blue);
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--pb-text-muted);
   background: transparent;
   cursor: pointer;
   font-family: inherit;
@@ -86,20 +57,20 @@
 }
 
 .poputky-tab:hover {
-  background: #f0f4ff;
+  color: var(--pb-text);
+  background: var(--pb-bg-secondary);
 }
 
 .poputky-tab--active {
-  background: var(--poputky-blue);
-  color: #fff;
+  color: var(--pb-primary);
+  background: var(--pb-primary-light);
 }
 
 .poputky-tab--active:hover {
-  background: var(--poputky-blue-active);
-  color: #fff;
+  background: var(--pb-primary-light);
+  color: var(--pb-primary-active);
 }
 
-/* Контейнер і двоколонковий макет */
 .poputky-container {
   max-width: 1100px;
   margin: 0 auto;
@@ -119,7 +90,6 @@
   }
 }
 
-/* Ліва колонка: кнопки + останні поїздки */
 .poputky-sidebar {
   min-width: 0;
 }
@@ -135,26 +105,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 14px 24px;
-  border-radius: 8px;
-  font-size: 15px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 0.9375rem;
   font-weight: 600;
   text-decoration: none;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.2s, transform 0.15s;
+  transition: background 0.2s;
 }
 
 .poputky-btn--green {
-  background: var(--poputky-green);
+  background: var(--pb-primary);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 168, 107, 0.3);
 }
 
 .poputky-btn--green:hover {
-  background: var(--poputky-green-dark);
-  transform: translateY(-1px);
+  background: var(--pb-primary-hover);
 }
 
 .poputky-btn--block {
@@ -163,47 +131,47 @@
 
 .poputky-section-title {
   margin: 0 0 16px;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 1.0625rem;
+  font-weight: 600;
   color: var(--pb-text);
+  letter-spacing: -0.01em;
 }
 
 .poputky-last-trips .poputky-section-title {
   margin-bottom: 12px;
 }
 
-/* Список поїздок — картки як на макеті */
 .poputky-trip-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .poputky-trip-card {
-  background: #fff;
+  background: var(--pb-card-bg);
   border: 1px solid var(--pb-border);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 16px 18px;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 16px 24px;
   align-items: start;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.2s;
 }
 
 .poputky-trip-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .poputky-trip-card-main {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .poputky-trip-card-top {
@@ -225,7 +193,7 @@
 .poputky-trip-card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   justify-content: flex-end;
   align-items: center;
   margin-top: 4px;
@@ -235,12 +203,12 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--poputky-green);
+  background: var(--pb-primary);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -253,30 +221,20 @@
 }
 
 .poputky-trip-name {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--pb-text);
-  font-size: 15px;
-}
-
-.poputky-trip-arrow {
-  color: var(--pb-text-muted);
-  font-size: 14px;
-}
-
-.poputky-trip-dest {
-  color: var(--pb-text);
-  font-weight: 500;
+  font-size: 0.9375rem;
 }
 
 .poputky-trip-route {
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--pb-text);
   margin: 0;
 }
 
 .poputky-trip-meta {
-  font-size: 14px;
+  font-size: 0.8125rem;
   color: var(--pb-text-muted);
 }
 
@@ -285,40 +243,35 @@
 }
 
 .poputky-trip-notes {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--pb-text-muted);
   white-space: pre-line;
   max-width: 220px;
   line-height: 1.4;
 }
 
-.poputky-trip-car {
-  font-size: 13px;
-  color: var(--pb-text-muted);
-}
-
 .poputky-trip-price {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--pb-text);
 }
 
 .poputky-trip-price strong {
-  color: var(--poputky-green);
+  color: var(--pb-primary);
 }
 
 .poputky-trip-detail {
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: var(--poputky-green);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--pb-primary);
   color: #fff;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
   transition: background 0.2s;
 }
 
 .poputky-trip-detail:hover {
-  background: var(--poputky-green-dark);
+  background: var(--pb-primary-hover);
   color: #fff;
 }
 
@@ -331,14 +284,6 @@
 .poputky-trip-detail-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-}
-
-.poputky-trip-card-actions .poputky-trip-detail {
-  flex: 0 1 auto;
-}
-
-.poputky-trip-card-aside .poputky-trip-price {
-  margin: 0;
 }
 
 .poputky-trip-card-aside .poputky-trip-card-actions {
@@ -354,13 +299,13 @@
 
 .poputky-trip-login-btn {
   background: transparent !important;
-  color: var(--poputky-blue);
-  border: 1px solid var(--poputky-blue) !important;
+  color: var(--pb-primary);
+  border: 1px solid var(--pb-primary) !important;
 }
 
 .poputky-trip-login-btn:hover {
-  background: rgba(37, 99, 235, 0.08) !important;
-  color: var(--poputky-blue);
+  background: var(--pb-primary-light) !important;
+  color: var(--pb-primary-hover);
 }
 
 .poputky-all-link {
@@ -368,8 +313,8 @@
   margin-top: 12px;
   background: none;
   border: none;
-  color: var(--poputky-blue);
-  font-size: 15px;
+  color: var(--pb-primary);
+  font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
@@ -381,7 +326,6 @@
   text-decoration: underline;
 }
 
-/* Права колонка: Ваше оголошення */
 .poputky-form-column {
   position: sticky;
   top: 24px;
@@ -394,18 +338,19 @@
 }
 
 .poputky-announce-card {
-  background: #fff;
+  background: var(--pb-card-bg);
   border: 1px solid var(--pb-border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 .poputky-role-toggle {
   display: flex;
   margin-bottom: 20px;
-  border-radius: 8px;
-  overflow: hidden;
+  background: var(--pb-bg-secondary);
+  border-radius: 12px;
+  padding: 4px;
   border: 1px solid var(--pb-border);
 }
 
@@ -413,27 +358,28 @@
   flex: 1;
   padding: 12px 16px;
   border: none;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--poputky-blue);
-  background: #fff;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
   transition: background 0.2s, color 0.2s;
 }
 
 .poputky-role-btn:hover {
-  background: #f8fafc;
+  color: var(--pb-text);
 }
 
 .poputky-role-btn--active {
-  background: var(--poputky-blue);
-  color: #fff;
+  background: var(--pb-card-bg);
+  color: var(--pb-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .poputky-role-btn--active:hover {
-  background: var(--poputky-blue-active);
-  color: #fff;
+  color: var(--pb-primary-hover);
 }
 
 .poputky-announce-form {
@@ -446,24 +392,24 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--pb-text);
 }
 
 .poputky-form-input {
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: 1px solid var(--pb-border);
-  border-radius: 8px;
-  font-size: 15px;
+  border-radius: 10px;
+  font-size: 0.9375rem;
   font-family: inherit;
-  background: #fff;
+  background: var(--pb-card-bg);
   color: var(--pb-text);
 }
 
 .poputky-form-input:focus {
   outline: none;
-  border-color: var(--poputky-green);
+  border-color: var(--pb-primary);
   box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
 }
 
@@ -474,19 +420,18 @@
 
 .poputky-form-hint {
   margin: 14px 0 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--pb-text-muted);
   line-height: 1.5;
 }
 
-/* Фільтри в сайдбарі */
 .poputky-filters-card {
-  background: #fff;
+  background: var(--pb-card-bg);
   border: 1px solid var(--pb-border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
   margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
 .poputky-filters-row {
@@ -496,7 +441,6 @@
   align-items: center;
 }
 
-/* На вузьких екранах — фільтри в два рядки */
 @media (max-width: 768px) {
   .poputky-filters-row {
     grid-template-columns: minmax(70px, 1fr) minmax(100px, 1fr) minmax(0, 2fr);
@@ -515,16 +459,16 @@
   height: 44px;
   padding: 0 14px;
   border: 1px solid var(--pb-border);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 0.875rem;
   font-family: inherit;
-  background: #fff;
+  background: var(--pb-card-bg);
   color: var(--pb-text);
 }
 
 .poputky-filter:focus {
   outline: none;
-  border-color: var(--poputky-green);
+  border-color: var(--pb-primary);
 }
 
 .poputky-filter--search {
@@ -535,10 +479,10 @@
   height: 44px;
   padding: 0 20px;
   border: none;
-  border-radius: 8px;
-  background: var(--poputky-green);
+  border-radius: 10px;
+  background: var(--pb-primary);
   color: #fff;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -546,7 +490,7 @@
 }
 
 .poputky-filter-btn:hover:not(:disabled) {
-  background: var(--poputky-green-dark);
+  background: var(--pb-primary-hover);
 }
 
 .poputky-filter-btn:disabled {
@@ -564,49 +508,51 @@
 }
 
 .poputky-stat {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--pb-text-muted);
 }
 
 .poputky-stat strong {
-  color: var(--poputky-green);
+  color: var(--pb-primary);
   font-weight: 600;
 }
 
-/* Пустий стан / завантаження */
 .poputky-state {
-  background: #fff;
+  background: var(--pb-card-bg);
   border: 1px solid var(--pb-border);
-  border-radius: 12px;
-  padding: 32px 24px;
+  border-radius: 16px;
+  padding: 28px 24px;
   text-align: center;
   color: var(--pb-text-muted);
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .poputky-last-trips .poputky-state {
   margin: 0;
 }
 
-/* Футер */
 .poputky-footer {
-  background: #fff;
+  background: var(--pb-card-bg);
   border-top: 1px solid var(--pb-border);
   padding: 28px 20px 40px;
   margin-top: 24px;
 }
 
 .poputky-footer-text {
-  max-width: 700px;
-  margin: 0 auto 24px;
-  font-size: 15px;
+  max-width: 560px;
+  margin: 0 auto 12px;
+  font-size: 0.9375rem;
   color: var(--pb-text-muted);
-  line-height: 1.6;
+  line-height: 1.5;
   text-align: center;
 }
 
+.poputky-footer-text:last-of-type {
+  margin-bottom: 0;
+}
+
 .poputky-footer-link {
-  color: var(--poputky-blue);
+  color: var(--pb-primary);
   font-weight: 600;
   text-decoration: none;
 }
@@ -615,80 +561,12 @@
   text-decoration: underline;
 }
 
-/* Карта маршрутів (схематична) */
-.poputky-map {
-  max-width: 500px;
-  margin: 0 auto;
-  aspect-ratio: 2 / 1;
-  background: #f8fafc;
-  border: 1px solid var(--pb-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.poputky-map-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.poputky-map-city {
-  position: absolute;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--pb-text);
-  background: #fff;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--pb-border);
-  z-index: 1;
-}
-
-/* Малин в центрі */
-.poputky-map-city--malyn {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-}
-
-/* Київ на південь, правіше */
-.poputky-map-city--kyiv {
-  right: 18%;
-  bottom: 18%;
-  transform: translate(50%, 50%);
-}
-
-/* Коростень зверху правіше */
-.poputky-map-city--korosten {
-  right: 20%;
-  top: 12%;
-  transform: translate(50%, -50%);
-}
-
-/* Житомир зліва */
-.poputky-map-city--zhytomyr {
-  left: 12%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.poputky-map-routes {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-/* Модалка після запиту */
 .poputky-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -698,11 +576,11 @@
 .poputky-modal {
   width: 100%;
   max-width: 440px;
-  background: #fff;
-  border-radius: 12px;
+  background: var(--pb-card-bg);
+  border-radius: 20px;
   border: 1px solid var(--pb-border);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-  padding: 24px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+  padding: 28px;
   position: relative;
 }
 
@@ -712,12 +590,12 @@
   top: 12px;
   border: none;
   background: none;
-  font-size: 24px;
+  font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   color: var(--pb-text-hint);
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .poputky-modal-close:hover {
@@ -727,14 +605,15 @@
 
 .poputky-modal h3 {
   margin: 0 32px 8px 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--pb-text);
+  letter-spacing: -0.02em;
 }
 
 .poputky-modal-subtitle {
   margin: 0 0 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--pb-text-muted);
   line-height: 1.5;
 }
@@ -742,13 +621,13 @@
 .poputky-modal-details {
   background: var(--pb-bg-secondary);
   border: 1px solid var(--pb-border);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--pb-text);
 }
 
@@ -757,18 +636,18 @@
   width: 100%;
   text-align: center;
   text-decoration: none;
-  border-radius: 8px;
-  background: var(--poputky-green);
+  border-radius: 10px;
+  background: var(--pb-primary);
   color: #fff;
   font-weight: 600;
   padding: 14px;
   margin-bottom: 10px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   transition: background 0.2s;
 }
 
 .poputky-modal-call-button:hover {
-  background: var(--poputky-green-dark);
+  background: var(--pb-primary-hover);
   color: #fff;
 }
 
@@ -776,13 +655,13 @@
   display: block;
   width: 100%;
   border: 1px solid var(--pb-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 10px;
+  background: var(--pb-card-bg);
   color: var(--pb-text);
   font-weight: 600;
   padding: 12px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-family: inherit;
   transition: background 0.2s;
 }
@@ -806,10 +685,10 @@
   width: 100%;
   padding: 12px;
   border: 1px solid var(--pb-border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 10px;
+  background: var(--pb-card-bg);
   color: var(--pb-text);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
@@ -820,10 +699,9 @@
   background: var(--pb-bg-secondary);
 }
 
-/* Адаптив */
 @media (max-width: 768px) {
   .poputky-hero {
-    padding: 20px 16px 28px;
+    padding: 24px 16px 28px;
   }
 
   .poputky-container {
@@ -856,6 +734,6 @@
 
   .poputky-tab {
     padding: 8px 14px;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }

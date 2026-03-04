@@ -435,7 +435,7 @@ export const BookingPage: React.FC = () => {
 
         {success && (
           <Alert variant="success">
-            ✅ Заявку прийнято
+            Заявку прийнято
             {(supportPhone || selectedSchedule?.supportPhone) && (
               <p className="booking-confirm-hint">
                 Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{formatPhoneDisplay(selectedSchedule?.supportPhone ?? supportPhone)}</a>
@@ -446,13 +446,13 @@ export const BookingPage: React.FC = () => {
         {error && <Alert variant="error">{error}</Alert>}
         {warning && <Alert variant="warning">{warning}</Alert>}
         {availability && availability.availableSeats <= 5 && availability.isAvailable && (
-          <Alert variant="info">ℹ️ Залишилось мало місць: {availability.availableSeats}</Alert>
+          <Alert variant="info">Залишилось мало місць: {availability.availableSeats}</Alert>
         )}
 
         {/* Viber оголошення */}
         {viberListings.length > 0 && (
           <div className="viber-listings-section">
-            <h3>📱 Також доступні поїздки з Viber</h3>
+            <h3>Також доступні поїздки з Viber</h3>
             <p className="viber-subtitle">Ці оголошення розміщені в Viber чаті. Для бронювання зателефонуйте за вказаним номером.</p>
             <div className="viber-listings">
               {viberListings.map((listing) => (
@@ -463,7 +463,7 @@ export const BookingPage: React.FC = () => {
                 >
                   <div className="viber-listing-header">
                     <span className={`viber-badge ${listing.listingType === 'driver' ? 'viber-badge-driver' : 'viber-badge-passenger'}`}>
-                      {listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
+                      {listing.listingType === 'driver' ? 'Водій' : 'Пасажир'}
                     </span>
                     {listing.senderName && (
                       <span className="viber-sender">{listing.senderName}</span>
@@ -474,7 +474,7 @@ export const BookingPage: React.FC = () => {
                   </div>
                   <div className="viber-listing-details">
                     <div className="viber-detail">
-                      <span className="viber-icon">📅</span>
+                      <span className="viber-icon" aria-hidden>📅</span>
                       <span>{new Date(listing.date).toLocaleDateString('uk-UA')}</span>
                     </div>
                     {listing.departureTime && (
@@ -494,7 +494,7 @@ export const BookingPage: React.FC = () => {
                     <div className="viber-listing-notes">{listing.notes}</div>
                   )}
                   <div className="viber-listing-action">
-                    <span className="viber-phone-hint">📞 Натисніть щоб подивитись телефон</span>
+                    <span className="viber-phone-hint">Натисніть щоб подивитись телефон</span>
                   </div>
                 </div>
               ))}
@@ -504,7 +504,7 @@ export const BookingPage: React.FC = () => {
 
         {/* Telegram нотифікації - інформаційний блок */}
         <div className="telegram-info-block">
-          <div className="telegram-icon">📱</div>
+          <div className="telegram-icon" aria-hidden>📱</div>
           <div className="telegram-content">
             <h3>Отримуйте нотифікації в Telegram!</h3>
             <p>Без Telegram ви не дізнаєтесь, що бронювання підтверджене{((selectedSchedule?.supportPhone ?? supportPhone) ? <> — краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{formatPhoneDisplay(selectedSchedule?.supportPhone ?? supportPhone)}</a></> : null)}. У Telegram — підтвердження та нагадування за день до поїздки.</p>
@@ -519,7 +519,7 @@ export const BookingPage: React.FC = () => {
               </div>
               <div className="step">
                 <span className="step-number">3</span>
-                <span>Натисніть кнопку «Поділитися номером телефону» ✅</span>
+                <span>Натисніть кнопку «Поділитися номером телефону» в боті</span>
               </div>
             </div>
             <a 
@@ -528,7 +528,6 @@ export const BookingPage: React.FC = () => {
               rel="noopener noreferrer"
               className="telegram-button"
             >
-              <span className="telegram-button-icon">✈️</span>
               Відкрити Telegram бота
             </a>
           </div>
@@ -544,7 +543,7 @@ export const BookingPage: React.FC = () => {
               >
                 ×
               </button>
-              <div className="telegram-success-icon">🎉</div>
+              <div className="telegram-success-icon" aria-hidden>🎉</div>
               <h3>Бронювання створено!</h3>
               {successModalSupportPhone && (
                 <p className="telegram-success-text">
@@ -592,13 +591,13 @@ export const BookingPage: React.FC = () => {
               >
                 ×
               </button>
-              <div className="telegram-success-icon">📱</div>
+              <div className="telegram-success-icon viber-modal-icon" aria-hidden>📱</div>
               <h3>Контакт для бронювання</h3>
               <div className="viber-modal-info">
                 <div className="viber-modal-row">
                   <span className="viber-modal-label">Тип:</span>
                   <span className="viber-modal-value">
-                    {selectedViberListing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
+                    {selectedViberListing.listingType === 'driver' ? 'Водій' : 'Пасажир'}
                   </span>
                 </div>
                 <div className="viber-modal-row">
@@ -630,7 +629,7 @@ export const BookingPage: React.FC = () => {
                 {selectedViberListing.phone ? (
                   <>
                     <a href={supportPhoneToTelLink(selectedViberListing.phone)} className="viber-phone-link">
-                      📞 {formatPhoneDisplay(selectedViberListing.phone)}
+                      {formatPhoneDisplay(selectedViberListing.phone)}
                     </a>
                     <button
                       className="copy-button"
@@ -640,7 +639,7 @@ export const BookingPage: React.FC = () => {
                       }}
                       title="Скопіювати номер"
                     >
-                      📋 Копіювати
+                      Копіювати
                     </button>
                   </>
                 ) : (
@@ -651,15 +650,15 @@ export const BookingPage: React.FC = () => {
                       rel="noopener noreferrer"
                       className="viber-phone-link"
                     >
-                      🔗 Відкрити Viber групу
+                      Відкрити Viber групу
                     </a>
                   </>
                 )}
               </div>
               <p className="viber-modal-note">
                 {selectedViberListing.phone
-                  ? '⚠️ Це оголошення з Viber чату. Будь ласка, зателефонуйте за вказаним номером для бронювання.'
-                  : '⚠️ В цьому оголошенні немає телефону. Відкрийте Viber групу, щоб подивитись контакти або уточнити деталі.'}
+                  ? 'Це оголошення з Viber чату. Зателефонуйте за вказаним номером для бронювання.'
+                  : 'В цьому оголошенні немає телефону. Відкрийте Viber групу для контактів.'}
               </p>
               <button 
                 className="telegram-skip"

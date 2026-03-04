@@ -1,6 +1,8 @@
+/* Бронювання — єдиний стиль з Login/User/Попутки */
+
 .booking-page {
   min-height: calc(100vh - 60px);
-  background: var(--pb-bg-page);
+  background: linear-gradient(180deg, #f0fdf4 0%, var(--pb-bg-page) 120px);
   padding: var(--pb-space-xl) var(--pb-space);
 }
 
@@ -9,8 +11,8 @@
   margin: 0 auto;
   background: var(--pb-card-bg);
   padding: var(--pb-space-xl);
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow-card);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.04);
   border: 1px solid var(--pb-border);
 }
 
@@ -26,20 +28,22 @@
   color: var(--pb-text);
   font-size: var(--pb-font-size-2xl);
   font-weight: var(--pb-font-weight-bold);
+  letter-spacing: -0.02em;
 }
 
 .booking-subtitle {
   color: var(--pb-text-muted);
   font-size: var(--pb-font-size);
-  font-weight: 400;
+  font-weight: 500;
   margin: 0;
 }
 
 .booking-confirm-hint {
   margin: 10px 0 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   opacity: 0.95;
 }
+
 .booking-confirm-hint a {
   color: inherit;
   font-weight: 600;
@@ -95,34 +99,18 @@
   gap: 8px;
   padding: 10px 16px;
   background: var(--pb-primary);
-  color: white;
+  color: #fff;
   border: none;
   border-radius: var(--pb-radius);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: var(--pb-shadow-hover);
+  transition: background 0.2s;
   align-self: flex-start;
 }
 
 .telegram-login-hint:hover {
   background: var(--pb-primary-hover);
-  box-shadow: 0 4px 14px rgba(0, 168, 107, 0.3);
-  transform: translateY(-1px);
-}
-
-.telegram-login-hint:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 168, 107, 0.2);
-}
-
-.telegram-login-hint svg {
-  flex-shrink: 0;
-}
-
-.telegram-login-hint span {
-  white-space: nowrap;
 }
 
 .telegram-status-success,
@@ -131,8 +119,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
   font-weight: 500;
   align-self: flex-start;
 }
@@ -140,52 +128,40 @@
 .telegram-status-success {
   background: #d1fae5;
   color: #065f46;
-  border: 1px solid #6ee7b7;
-}
-
-.telegram-status-success svg {
-  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.3);
 }
 
 .telegram-status-warning {
   background: #fef3c7;
   color: #92400e;
-  border: 1px solid #fbbf24;
-}
-
-.telegram-status-warning svg {
-  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .loading {
   color: var(--pb-text-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   margin-top: 8px;
-  font-weight: 400;
 }
 
 .availability-info {
-  font-size: 13px;
+  font-size: 0.8125rem;
   margin-top: 8px;
   color: var(--pb-text-muted);
-  font-weight: 400;
 }
 
-/* Telegram інформаційний блок */
 .telegram-info-block {
   margin-top: 32px;
   padding: 24px;
-  background: linear-gradient(135deg, var(--pb-primary-hover) 0%, var(--pb-primary) 100%);
-  border-radius: var(--pb-radius-lg);
+  background: var(--pb-primary-light);
+  border-radius: 16px;
+  border: 1px solid var(--pb-primary-border);
   display: flex;
   gap: 20px;
   align-items: flex-start;
-  box-shadow: 0 4px 16px rgba(0, 168, 107, 0.25);
-  color: #ffffff;
 }
 
 .telegram-icon {
-  font-size: 48px;
+  font-size: 2.5rem;
   flex-shrink: 0;
 }
 
@@ -194,135 +170,99 @@
 }
 
 .telegram-content h3 {
-  margin: 0 0 8px 0;
-  font-size: 22px;
+  margin: 0 0 8px;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--pb-text);
 }
 
 .telegram-content p {
-  margin: 0 0 20px 0;
-  font-size: 14px;
-  opacity: 0.95;
-  color: #ffffff;
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--pb-text-muted);
+  line-height: 1.5;
 }
 
 .telegram-steps {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .step {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 14px;
-  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.875rem;
+  background: var(--pb-card-bg);
   padding: 12px 16px;
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  border: 1px solid var(--pb-border);
 }
 
 .step-number {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #ffffff;
-  color: var(--pb-primary);
+  background: var(--pb-primary);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 0.875rem;
   flex-shrink: 0;
 }
 
 .step code {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--pb-bg-secondary);
   padding: 4px 8px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-}
-
-.step strong {
-  color: #ffffff;
+  border-radius: 6px;
+  font-size: 0.8125rem;
 }
 
 .telegram-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 28px;
-  background: #ffffff;
-  color: var(--pb-primary);
-  border-radius: var(--pb-radius);
+  padding: 12px 24px;
+  background: var(--pb-primary);
+  color: #fff;
+  border-radius: 10px;
   text-decoration: none;
   font-weight: 600;
-  font-size: 16px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 0.9375rem;
+  transition: background 0.2s;
 }
 
 .telegram-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  background: #f8f9fa;
+  background: var(--pb-primary-hover);
+  color: #fff;
 }
 
-.telegram-button-icon {
-  font-size: 20px;
-}
-
-/* Спливаюче модальне вікно після бронювання */
 .telegram-success-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .telegram-success-content {
   background: var(--pb-card-bg);
-  border-radius: var(--pb-radius-lg);
-  padding: 40px;
-  max-width: 500px;
+  border-radius: 20px;
+  padding: 32px 28px;
+  max-width: 460px;
   width: 100%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--pb-border);
   position: relative;
   text-align: center;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 .telegram-close {
@@ -331,8 +271,8 @@
   right: 16px;
   background: none;
   border: none;
-  font-size: 32px;
-  color: #999;
+  font-size: 1.5rem;
+  color: var(--pb-text-hint);
   cursor: pointer;
   line-height: 1;
   padding: 0;
@@ -341,28 +281,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
+  border-radius: 8px;
+  transition: color 0.2s, background 0.2s;
 }
 
 .telegram-close:hover {
-  color: #333;
+  color: var(--pb-text);
+  background: var(--pb-bg-secondary);
 }
 
 .telegram-success-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.telegram-success-icon.viber-modal-icon {
+  font-size: 2.5rem;
 }
 
 .telegram-success-content h3 {
-  margin: 0 0 12px 0;
-  font-size: 28px;
+  margin: 0 0 12px;
+  font-size: 1.375rem;
   font-weight: 700;
   color: var(--pb-text);
+  letter-spacing: -0.02em;
 }
 
 .telegram-success-text {
-  margin: 0 0 24px 0;
-  font-size: 16px;
+  margin: 0 0 20px;
+  font-size: 0.9375rem;
   color: var(--pb-text-muted);
   line-height: 1.5;
 }
@@ -370,13 +317,14 @@
 .telegram-success-steps {
   background: var(--pb-bg-secondary);
   padding: 20px;
-  border-radius: var(--pb-radius);
-  margin-bottom: 24px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--pb-border);
 }
 
 .telegram-success-steps p {
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  margin: 0 0 12px;
+  font-size: 0.875rem;
   color: var(--pb-text);
   font-weight: 600;
 }
@@ -384,53 +332,51 @@
 .telegram-command {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   background: var(--pb-card-bg);
   padding: 12px 16px;
-  border-radius: var(--pb-radius);
-  border: 2px dashed var(--pb-primary);
-  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--pb-primary-border);
 }
 
 .telegram-command code {
-  font-family: 'Courier New', monospace;
-  font-size: 16px;
+  font-size: 0.9375rem;
   color: var(--pb-primary);
   font-weight: 600;
 }
 
 .copy-button {
   background: var(--pb-primary);
+  color: #fff;
   border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  transition: all 0.2s;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.2s;
 }
 
 .copy-button:hover {
   background: var(--pb-primary-hover);
-  transform: scale(1.05);
 }
 
 .telegram-success-button {
   display: inline-block;
-  padding: 16px 32px;
-  background: linear-gradient(135deg, var(--pb-primary-hover) 0%, var(--pb-primary) 100%);
-  color: #ffffff;
-  border-radius: var(--pb-radius);
+  padding: 14px 28px;
+  background: var(--pb-primary);
+  color: #fff;
+  border-radius: 10px;
   text-decoration: none;
   font-weight: 600;
-  font-size: 16px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(0, 168, 107, 0.3);
-  margin-bottom: 16px;
+  font-size: 0.9375rem;
+  transition: background 0.2s;
+  margin-bottom: 12px;
 }
 
 .telegram-success-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 168, 107, 0.35);
+  background: var(--pb-primary-hover);
+  color: #fff;
 }
 
 .telegram-skip {
@@ -447,149 +393,140 @@
   color: var(--pb-text-muted);
 }
 
-/* Viber оголошення */
 .viber-listings-section {
   margin-top: 40px;
   padding-top: 40px;
-  border-top: 2px solid var(--pb-border-light);
+  border-top: 1px solid var(--pb-border-light);
 }
 
 .viber-listings-section h3 {
-  font-size: 24px;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--pb-text);
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
 }
 
 .viber-subtitle {
   color: var(--pb-text-muted);
-  font-size: 14px;
-  margin: 0 0 24px 0;
+  font-size: 0.875rem;
+  margin: 0 0 20px;
+  line-height: 1.5;
 }
 
 .viber-listings {
   display: grid;
-  gap: 16px;
-  margin-top: 20px;
+  gap: 12px;
 }
 
 .viber-listing-card {
-  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
-  border: 2px solid #e5e7ff;
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: 16px;
+  padding: 18px 20px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
 .viber-listing-card:hover {
-  border-color: #7c3aed;
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.12);
-  transform: translateY(-2px);
+  border-color: var(--pb-primary-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .viber-listing-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .viber-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .viber-badge-driver {
   background: #d1fae5;
   color: #065f46;
-  border: 1px solid #6ee7b7;
+  border: 1px solid rgba(5, 150, 105, 0.3);
 }
 
 .viber-badge-passenger {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #93c5fd;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
 .viber-sender {
-  font-size: 14px;
-  color: #666;
+  font-size: 0.875rem;
+  color: var(--pb-text-muted);
   font-weight: 500;
 }
 
 .viber-listing-route {
-  font-size: 18px;
+  font-size: 1.0625rem;
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 12px;
+  color: var(--pb-text);
+  margin-bottom: 10px;
 }
 
 .viber-listing-details {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .viber-detail {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
-  color: #333;
-}
-
-.viber-icon {
-  font-size: 16px;
+  font-size: 0.875rem;
+  color: var(--pb-text-muted);
 }
 
 .viber-listing-notes {
-  font-size: 13px;
-  color: #666;
+  font-size: 0.8125rem;
+  color: var(--pb-text-muted);
   font-style: italic;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: rgba(124, 58, 237, 0.05);
-  border-radius: 6px;
-  border-left: 3px solid #7c3aed;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  background: var(--pb-bg-secondary);
+  border-radius: 8px;
+  border-left: 3px solid var(--pb-primary);
+  line-height: 1.4;
 }
 
 .viber-listing-action {
-  text-align: center;
-  padding-top: 12px;
-  border-top: 1px dashed #e5e7ff;
+  padding-top: 10px;
+  border-top: 1px solid var(--pb-border-light);
 }
 
 .viber-phone-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: #7c3aed;
-  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--pb-primary);
+  font-weight: 500;
 }
 
-/* Viber модалка */
 .viber-modal-info {
-  background: #f8f9fa;
-  padding: 20px;
+  background: var(--pb-bg-secondary);
+  padding: 16px 20px;
   border-radius: 12px;
-  margin: 24px 0;
+  margin: 20px 0;
   text-align: left;
+  border: 1px solid var(--pb-border);
 }
 
 .viber-modal-row {
   display: flex;
   justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--pb-border-light);
 }
 
 .viber-modal-row:last-child {
@@ -597,66 +534,66 @@
 }
 
 .viber-modal-label {
-  font-weight: 600;
-  color: #666;
-  font-size: 14px;
+  font-weight: 500;
+  color: var(--pb-text-muted);
+  font-size: 0.875rem;
 }
 
 .viber-modal-value {
-  font-weight: 500;
-  color: #1a1a1a;
-  font-size: 14px;
+  font-weight: 600;
+  color: var(--pb-text);
+  font-size: 0.875rem;
 }
 
 .viber-phone-display {
-  background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+  background: var(--pb-primary-light);
   padding: 20px;
   border-radius: 12px;
-  margin: 24px 0;
+  margin: 20px 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
   align-items: center;
+  border: 1px solid var(--pb-primary-border);
 }
 
 .viber-phone-link {
-  font-size: 28px;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--pb-primary);
   text-decoration: none;
-  letter-spacing: 1px;
-  transition: all 0.2s;
+  letter-spacing: 0.02em;
+  transition: color 0.2s;
 }
 
 .viber-phone-link:hover {
-  transform: scale(1.05);
+  color: var(--pb-primary-hover);
 }
 
 .viber-phone-display .copy-button {
-  background: #ffffff;
-  color: #7c3aed;
+  background: var(--pb-primary);
+  color: #fff;
   padding: 10px 20px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .viber-phone-display .copy-button:hover {
-  background: #f3f4f6;
+  background: var(--pb-primary-hover);
 }
 
 .viber-modal-note {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
+  font-size: 0.875rem;
+  color: var(--pb-text-muted);
+  line-height: 1.5;
   margin: 16px 0;
-  padding: 16px;
+  padding: 14px 16px;
   background: #fef3c7;
-  border-radius: 8px;
-  border-left: 4px solid #f59e0b;
+  border-radius: 10px;
+  border-left: 3px solid #f59e0b;
 }
 
-/* Адаптивність для мобільних і планшетів */
 @media (max-width: 768px) {
   .booking-page {
     padding: 24px 16px;
@@ -664,11 +601,11 @@
 
   .booking-container {
     padding: 28px 20px;
-    border-radius: var(--pb-radius);
+    border-radius: 16px;
   }
 
   .booking-container h2 {
-    font-size: 26px;
+    font-size: 1.5rem;
   }
 
   .date-time-row {
@@ -696,19 +633,13 @@
     flex-direction: column;
     text-align: center;
   }
-  
+
   .telegram-icon {
-    font-size: 40px;
+    font-size: 2rem;
   }
-  
+
   .telegram-success-content {
-    padding: 32px 24px;
-    margin: 16px;
-  }
-  
-  .telegram-command {
-    flex-direction: column;
-    flex-wrap: wrap;
+    padding: 28px 20px;
   }
 
   .viber-listing-details {
@@ -717,7 +648,7 @@
   }
 
   .viber-phone-link {
-    font-size: 20px;
+    font-size: 1.25rem;
   }
 
   .viber-modal-row {
@@ -737,7 +668,7 @@
   }
 
   .booking-container h2 {
-    font-size: 22px;
+    font-size: 1.375rem;
   }
 
   .date-time-row,
