@@ -31,6 +31,9 @@ export const BOOKING_POPULAR_ROUTES: { from: BookingCity; to: BookingCity; label
   { from: 'Kyiv', to: 'Malyn', label: 'Київ → Малин' },
   { from: 'Malyn', to: 'Kyiv', label: 'Малин → Київ' },
   { from: 'Malyn', to: 'Zhytomyr', label: 'Малин → Житомир' },
+  { from: 'Zhytomyr', to: 'Malyn', label: 'Житомир → Малин' },
+  { from: 'Korosten', to: 'Malyn', label: 'Коростень → Малин' },
+  { from: 'Malyn', to: 'Korosten', label: 'Малин → Коростень' },
 ];
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
