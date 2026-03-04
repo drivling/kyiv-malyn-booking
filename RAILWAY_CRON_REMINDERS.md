@@ -10,8 +10,9 @@ Railway **не має вбудованого cron**, тому використо
 
 1. **За день до поїздки** — нагадування «завтра у вас поїздка» (щодня ввечері).
 2. **В день поїздки вранці** — нагадування «сьогодні у вас поїздка» (щодня вранці).
+3. **Очищення старих Viber оголошень** — деактивація оголошень, у яких дата по вже минула (наприклад, кожні 1–2 години).
 
-Обидва викликаються через HTTP POST на ваш backend з адмін-заголовком.
+Усі викликаються через HTTP POST на ваш backend з адмін-заголовком.
 
 ---
 
@@ -71,6 +72,15 @@ Authorization: admin-authenticated
    - **Schedule:** щодня о **08:00** (або інший ранковий час).
    - Зберегти.
 
+5. **Очистити старі Viber оголошення (архів):**
+   - **Title:** `Viber: очистити старі оголошення`
+   - **URL:** `https://ВАШ-BACKEND-URL.railway.app/viber-listings/cleanup-old`
+   - **Method:** `POST`
+   - **Request Headers:**  
+     `Authorization` = `admin-authenticated`
+   - **Schedule:** кожні **1 годину** або **2 години** (наприклад `0 * * * *` або `0 */2 * * *`).
+   - Зберегти.
+
 Підставте замість `ВАШ-BACKEND-URL` реальний домен backend з кроку 1.
 
 ---
@@ -91,7 +101,14 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders-tod
   -H "Authorization: admin-authenticated"
 ```
 
-У відповіді очікується JSON, наприклад:
+**Очистити старі Viber оголошення:**
+```bash
+curl -X POST "https://ВАШ-BACKEND-URL.railway.app/viber-listings/cleanup-old" \
+  -H "Authorization: admin-authenticated"
+```
+У відповіді буде JSON, наприклад: `{"success":true,"deactivated":2,"message":"Деактивовано 2 оголошень"}`.
+
+У відповіді на нагадування очікується JSON, наприклад:
 ```json
 {
   "success": true,
@@ -112,6 +129,7 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders-tod
 |----------|--------------------------------|------------|
 | `POST /telegram/send-reminders` | Щодня о 20:00 | Шукає бронювання на **завтра**, відправляє в Telegram нагадування «завтра у вас поїздка». |
 | `POST /telegram/send-reminders-today` | Щодня о 08:00 | Шукає бронювання на **сьогодні**, відправляє нагадування «сьогодні у вас поїздка». |
+| `POST /viber-listings/cleanup-old` | Кожні 1–2 год | Деактивує Viber оголошення, у яких **дата по** (дата + кінець часу) вже минула більш ніж на 3 год. Архів оновлюється автоматично. |
 
 Нагадування отримують тільки бронювання, у яких заповнений `telegramChatId` (користувач підписаний на бота).
 
@@ -128,7 +146,7 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders-tod
 - [ ] Backend задеплоєний на Railway, згенерований публічний URL.
 - [ ] У backend змінні оточення: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID` (див. `RAILWAY_SETUP.md`).
 - [ ] Перевірено вручну: `curl` на обидва endpoint’и з заголовком `Authorization: admin-authenticated`.
-- [ ] На cron-job.org (або аналозі) створено два cronjob’и з правильним URL і заголовком.
+- [ ] На cron-job.org (або аналозі) створено cronjob'и: нагадування за день, нагадування сьогодні, очищення старих Viber оголошень (опціонально, кожні 1–2 год).
 - [ ] Час виклику в налаштуваннях cron відповідає вашому часовому поясу.
 
 Після цього нагадування про поїздки будуть відправлятися автоматично.
