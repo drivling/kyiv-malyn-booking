@@ -177,7 +177,9 @@ export const UserPage: React.FC = () => {
   if (loading) {
     return (
       <div className="user-page">
-        <div className="user-page-loading">Завантаження профілю...</div>
+        <div className="user-page-inner">
+          <div className="user-page-loading">Завантаження профілю...</div>
+        </div>
       </div>
     );
   }
@@ -185,17 +187,20 @@ export const UserPage: React.FC = () => {
   return (
     <div className="user-page">
       <div className="user-page-inner">
-        <h1 className="user-page-title">Сторінка користувача</h1>
-        {error && <Alert variant="error">{error}</Alert>}
-
-        {/* Мої дані */}
-        <section className="user-section user-section-profile">
-          <h2 className="user-section-title">Мої дані</h2>
-          <div className="user-profile-row">
-            <div className="user-avatar">
-              {displayName ? displayName.charAt(0).toUpperCase() : '?'}
+        {/* Профіль: обкладинка + аватар + ім'я + дані */}
+        <header className="user-page-header">
+          <div className="user-page-cover" aria-hidden />
+          <div className="user-page-profile-block">
+            <div className="user-page-avatar-wrap">
+              <div className="user-avatar">
+                {displayName ? displayName.charAt(0).toUpperCase() : '?'}
+              </div>
+              <div className="user-page-name-wrap">
+                <h1 className="user-page-title">{displayName}</h1>
+              </div>
             </div>
-            <div className="user-profile-fields">
+            <div className="user-profile-row">
+              <div className="user-profile-fields">
               <div className="user-field">
                 <span className="user-field-label">Ім'я</span>
                 {editingName ? (
@@ -217,7 +222,7 @@ export const UserPage: React.FC = () => {
                 ) : (
                   <span className="user-field-value">
                     {displayName}
-                    <button type="button" className="user-edit-inline" onClick={() => setEditingName(true)} aria-label="Змінити ім'я">✏️</button>
+                    <button type="button" className="user-edit-inline" onClick={() => setEditingName(true)} aria-label="Змінити ім'я">Змінити</button>
                   </span>
                 )}
               </div>
@@ -237,9 +242,16 @@ export const UserPage: React.FC = () => {
                   )}
                 </span>
               </div>
+              </div>
             </div>
           </div>
-        </section>
+        </header>
+
+        {error && (
+          <div className="alert-wrapper">
+            <Alert variant="error">{error}</Alert>
+          </div>
+        )}
 
         {/* Мої бронювання маршруток */}
         <section className="user-section">

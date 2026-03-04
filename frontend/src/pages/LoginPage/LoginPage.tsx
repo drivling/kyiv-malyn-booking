@@ -106,20 +106,21 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="login-page">
       <div className="login-container">
-        <h2>🔐 Авторизація</h2>
-        
+        <h2>Увійти</h2>
+        <span className="login-subtitle">Оберіть спосіб входу</span>
+
         <div className="login-mode-tabs">
           <button
             className={`mode-tab ${loginMode === 'telegram' ? 'active' : ''}`}
             onClick={() => setLoginMode('telegram')}
           >
-            📱 Вхід через Telegram
+            Telegram
           </button>
           <button
             className={`mode-tab ${loginMode === 'admin' ? 'active' : ''}`}
             onClick={() => setLoginMode('admin')}
           >
-            👨‍💼 Адмін панель
+            Адмін
           </button>
         </div>
 
@@ -141,13 +142,13 @@ export const LoginPage: React.FC = () => {
         ) : (
           <div className="telegram-login-section">
             <p className="login-description">
-              💡 Після входу ваш номер автоматично заповнюватиметься при бронюванні
+              Після входу ваш номер автоматично заповнюватиметься при бронюванні
             </p>
-            
+
             <div className="telegram-login-options">
               <div className="login-option">
-                <h3 className="option-title">🔐 Вхід через Telegram</h3>
-                <p className="option-hint">Безпечний та швидкий спосіб</p>
+                <h3 className="option-title">Вхід через Telegram</h3>
+                <p className="option-hint">Безпечно та швидко</p>
                 <div className="telegram-widget-container">
                   <TelegramLoginButton
                     botUsername={TELEGRAM_BOT_USERNAME}
@@ -163,7 +164,7 @@ export const LoginPage: React.FC = () => {
               </div>
               
               <div className="login-option">
-                <h3 className="option-title">📱 Вхід з номером телефону</h3>
+                <h3 className="option-title">Вхід з номером телефону</h3>
                 <p className="option-hint">Введіть номер вручну</p>
                 <div className="manual-phone-login">
                   <Input
