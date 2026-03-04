@@ -1,5 +1,38 @@
 import { Route, Direction } from '@/types';
 
+/** Міста для бронювання (тільки маршрути через Малин) */
+export type BookingCity = 'Kyiv' | 'Malyn' | 'Zhytomyr' | 'Korosten';
+
+export const BOOKING_CITY_LABELS: Record<BookingCity, string> = {
+  Kyiv: 'Київ',
+  Malyn: 'Малин',
+  Zhytomyr: 'Житомир',
+  Korosten: 'Коростень',
+};
+
+/** Валідні пари «звідки → куди»: лише маршрути через Малин (немає Київ–Коростень тощо) */
+export const BOOKING_FROM_TO: { from: BookingCity; to: BookingCity; direction: Direction }[] = [
+  { from: 'Kyiv', to: 'Malyn', direction: 'Kyiv-Malyn' },
+  { from: 'Malyn', to: 'Kyiv', direction: 'Malyn-Kyiv' },
+  { from: 'Malyn', to: 'Zhytomyr', direction: 'Malyn-Zhytomyr' },
+  { from: 'Zhytomyr', to: 'Malyn', direction: 'Zhytomyr-Malyn' },
+  { from: 'Korosten', to: 'Malyn', direction: 'Korosten-Malyn' },
+  { from: 'Malyn', to: 'Korosten', direction: 'Malyn-Korosten' },
+];
+
+/** За пари (from, to) повернути direction або null */
+export function getDirectionFromCities(from: BookingCity, to: BookingCity): Direction | null {
+  const pair = BOOKING_FROM_TO.find((p) => p.from === from && p.to === to);
+  return pair ? pair.direction : null;
+}
+
+/** Популярні маршрути для швидких кнопок на сторінці бронювання */
+export const BOOKING_POPULAR_ROUTES: { from: BookingCity; to: BookingCity; label: string }[] = [
+  { from: 'Kyiv', to: 'Malyn', label: 'Київ → Малин' },
+  { from: 'Malyn', to: 'Kyiv', label: 'Малин → Київ' },
+  { from: 'Malyn', to: 'Zhytomyr', label: 'Малин → Житомир' },
+];
+
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /** Нормалізація номера до цифр 380XXXXXXXXX */

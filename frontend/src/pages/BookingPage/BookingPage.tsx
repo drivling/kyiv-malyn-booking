@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import { Button } from '@/components/Button';
@@ -7,14 +7,29 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
-import { DIRECTION_ROUTES, DIRECTIONS, supportPhoneToTelLink, formatPhoneDisplay } from '@/utils/constants';
+import { DIRECTION_ROUTES, supportPhoneToTelLink, formatPhoneDisplay, BOOKING_CITY_LABELS, BOOKING_FROM_TO, getDirectionFromCities, BOOKING_POPULAR_ROUTES } from '@/utils/constants';
+import type { BookingCity } from '@/utils/constants';
 import './BookingPage.css';
+
+const VALID_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
+
+function parseFromToFromSearchParams(searchParams: URLSearchParams): { from: BookingCity; to: BookingCity } | null {
+  const from = searchParams.get('from') as BookingCity | null;
+  const to = searchParams.get('to') as BookingCity | null;
+  if (!from || !to || !VALID_CITIES.includes(from) || !VALID_CITIES.includes(to)) return null;
+  if (!getDirectionFromCities(from, to)) return null;
+  return { from, to };
+}
 
 export const BookingPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  const [direction, setDirection] = useState<BaseDirection | ''>('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialFromTo = useMemo(() => parseFromToFromSearchParams(searchParams), []);
+  const [fromCity, setFromCity] = useState<BookingCity | ''>(() => initialFromTo?.from ?? '');
+  const [toCity, setToCity] = useState<BookingCity | ''>(() => initialFromTo?.to ?? '');
+  const direction: BaseDirection | '' = fromCity && toCity ? getDirectionFromCities(fromCity, toCity) : '';
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   // Встановлюємо сьогоднішню дату за замовчуванням
   const [date, setDate] = useState(() => {
@@ -45,6 +60,15 @@ export const BookingPage: React.FC = () => {
   const [supportPhone, setSupportPhone] = useState<string | null>(null);
   /** Телефон підтримки, зафіксований при відкритті модалки «Бронювання створено» (з БД, не хардкод) */
   const [successModalSupportPhone, setSuccessModalSupportPhone] = useState<string | null>(null);
+
+  // Синхронізація from/to з URL (ділитися посиланням на маршрут)
+  useEffect(() => {
+    if (fromCity && toCity) {
+      setSearchParams({ from: fromCity, to: toCity }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [fromCity, toCity, setSearchParams]);
 
   // Телефон підтримки з графіка (для напрямків з Києвом)
   useEffect(() => {
@@ -160,7 +184,7 @@ export const BookingPage: React.FC = () => {
         );
         setAvailability(data);
         if (!data.isAvailable) {
-          setWarning(`⚠️ Місця закінчились! Доступно місць: 0 з ${data.maxSeats}`);
+          setWarning(`Місця закінчились. Доступно: 0 з ${data.maxSeats}`);
         } else {
           setWarning('');
         }
@@ -179,8 +203,8 @@ export const BookingPage: React.FC = () => {
     setSuccess(false);
 
     // Детальна валідація з конкретними повідомленнями
-    if (!direction) {
-      setError('Оберіть напрямок');
+    if (!fromCity || !toCity || !direction) {
+      setError('Оберіть звідки та куди (маршрути тільки через Малин)');
       return;
     }
     if (!selectedSchedule) {
@@ -243,7 +267,8 @@ export const BookingPage: React.FC = () => {
       
       // Очищення форми через 1 секунду щоб користувач побачив повідомлення
       setTimeout(() => {
-        setDirection('');
+        setFromCity('');
+        setToCity('');
         // Залишаємо дату встановленою на сьогодні
         const today = new Date();
         setDate(today.toISOString().split('T')[0]);
@@ -264,10 +289,17 @@ export const BookingPage: React.FC = () => {
     }
   };
 
-  const directionOptions = (Object.entries(DIRECTIONS) as [BaseDirection, string][]).map(([value, label]) => ({
+  const fromCityOptions = (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
     value,
     label,
   }));
+
+  const toCityOptions = fromCity
+    ? BOOKING_FROM_TO.filter((p) => p.from === fromCity).map((p) => ({
+        value: p.to,
+        label: BOOKING_CITY_LABELS[p.to],
+      }))
+    : [];
 
   const getRouteLabel = (route: Route) => {
     if (route.includes('Irpin')) return 'через Ірпінь';
@@ -295,7 +327,17 @@ export const BookingPage: React.FC = () => {
     setSelectedSchedule(schedule || null);
   };
 
-  const isFormDisabled = loading || (availability !== null && !availability.isAvailable);
+  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const isDateInPast = date && date < todayISO;
+  const isFormDisabled = loading || (availability !== null && !availability.isAvailable) || !!isDateInPast;
+
+  const currentStep = !fromCity || !toCity ? 1 : !selectedSchedule ? 2 : 3;
+
+  const handlePopularRoute = (from: BookingCity, to: BookingCity) => {
+    setFromCity(from);
+    setToCity(to);
+    setSelectedSchedule(null);
+  };
 
   const handleViberListingClick = (listing: ViberListing) => {
     setSelectedViberListing(listing);
@@ -306,32 +348,90 @@ export const BookingPage: React.FC = () => {
     <div className="booking-page">
       <div className="booking-container">
         <div className="booking-header">
-          <h2>Бронювання поїздок (маршрутки / машини)</h2>
-          <p className="booking-subtitle">Київ, Житомир, Коростень ↔ Малин</p>
+          <h2>Бронювання поїздки</h2>
+          <p className="booking-subtitle">Маршрути тільки через Малин · Київ, Житомир, Коростень</p>
         </div>
-        <form onSubmit={handleSubmit}>
-          <Select
-            label="Напрямок"
-            options={[
-              { value: '', label: 'Оберіть напрямок' },
-              ...directionOptions,
-            ]}
-            value={direction}
-            onChange={(e) => {
-              setDirection(e.target.value as BaseDirection | '');
-              setSelectedSchedule(null);
-            }}
-            required
-          />
 
+        <nav className="booking-progress" aria-label="Прогрес бронювання">
+          <div className={`booking-progress-step ${currentStep >= 1 ? 'active' : ''} ${currentStep > 1 ? 'done' : ''}`}>
+            <span className="booking-progress-num">1</span>
+            <span className="booking-progress-label">Маршрут</span>
+          </div>
+          <div className="booking-progress-line" aria-hidden />
+          <div className={`booking-progress-step ${currentStep >= 2 ? 'active' : ''} ${currentStep > 2 ? 'done' : ''}`}>
+            <span className="booking-progress-num">2</span>
+            <span className="booking-progress-label">Дата і час</span>
+          </div>
+          <div className="booking-progress-line" aria-hidden />
+          <div className={`booking-progress-step ${currentStep >= 3 ? 'active' : ''}`}>
+            <span className="booking-progress-num">3</span>
+            <span className="booking-progress-label">Контакти</span>
+          </div>
+        </nav>
+
+        <form onSubmit={handleSubmit} className="booking-form">
+          <section className={`booking-step ${currentStep === 1 ? 'current' : ''}`} aria-label="Крок 1: Маршрут">
+            <h3 className="booking-step-title">Маршрут</h3>
+            <div className="booking-quick-routes">
+              <span className="booking-quick-label">Популярні:</span>
+              {BOOKING_POPULAR_ROUTES.map(({ from, to, label }) => (
+                <button
+                  key={`${from}-${to}`}
+                  type="button"
+                  className={`booking-quick-btn ${fromCity === from && toCity === to ? 'active' : ''}`}
+                  onClick={() => handlePopularRoute(from, to)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="booking-route-row">
+              <Select
+                label="Звідки"
+                options={[{ value: '', label: 'Оберіть місто' }, ...fromCityOptions]}
+                value={fromCity}
+                onChange={(e) => {
+                  const next = (e.target.value || '') as BookingCity | '';
+                  setFromCity(next);
+                  setToCity('');
+                  setSelectedSchedule(null);
+                }}
+                required
+              />
+              <span className="booking-route-arrow" aria-hidden>→</span>
+              <Select
+                label="Куди"
+                options={[{ value: '', label: 'Оберіть місто' }, ...toCityOptions]}
+                value={toCity}
+                onChange={(e) => {
+                  setToCity((e.target.value || '') as BookingCity | '');
+                  setSelectedSchedule(null);
+                }}
+                required
+                disabled={!fromCity}
+              />
+            </div>
+            <p className="booking-route-hint">Усі маршрути проходять через Малин</p>
+          </section>
+
+          <section className={`booking-step ${currentStep === 2 ? 'current' : ''}`} aria-label="Крок 2: Дата і час">
+            <h3 className="booking-step-title">Дата і час</h3>
           <div className="date-time-row">
-            <Input
-              label="Дата"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
+            <div className="booking-date-wrap">
+              <Input
+                label="Дата"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                min={todayISO}
+                required
+              />
+              {isDateInPast && (
+                <p className="booking-date-warning" role="alert">
+                  Обрана дата в минулому. Оберіть сьогодні або пізнішу дату.
+                </p>
+              )}
+            </div>
 
             <div className="select-wrapper">
               <span className="select-label">Час відправлення</span>
@@ -343,11 +443,11 @@ export const BookingPage: React.FC = () => {
                         { value: '', label: 'Оберіть час' },
                         ...timeOptions
                       ]
-                    : [{ value: '', label: 'Спочатку оберіть напрямок' }]
+                    : [{ value: '', label: fromCity && toCity ? 'Оберіть час' : 'Спочатку оберіть маршрут' }]
                 }
                 value={selectedSchedule?.id.toString() || ''}
                 onChange={(e) => handleTimeChange(e.target.value)}
-                disabled={!direction || loadingSchedules || schedules.length === 0}
+                disabled={!fromCity || !toCity || loadingSchedules || schedules.length === 0}
                 required
               />
               {availability && (
@@ -357,7 +457,10 @@ export const BookingPage: React.FC = () => {
               )}
             </div>
           </div>
+          </section>
 
+          <section className={`booking-step ${currentStep === 3 ? 'current' : ''}`} aria-label="Крок 3: Контакти">
+            <h3 className="booking-step-title">Контакти</h3>
           <div className="phone-name-row">
             <div className="phone-name-row__field phone-name-row__field--phone">
               <Input
@@ -428,26 +531,29 @@ export const BookingPage: React.FC = () => {
             {loadingCustomer && <span className="loading" style={{ fontSize: '12px', marginTop: '4px' }}>Пошук клієнта...</span>}
           </div>
 
-          <Button type="submit" disabled={isFormDisabled}>
+          <Button type="submit" disabled={isFormDisabled} className="booking-submit-btn">
             {loading ? 'Обробка...' : 'Забронювати'}
           </Button>
+          </section>
         </form>
 
-        {success && (
-          <Alert variant="success">
-            Заявку прийнято
-            {(supportPhone || selectedSchedule?.supportPhone) && (
-              <p className="booking-confirm-hint">
-                Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{formatPhoneDisplay(selectedSchedule?.supportPhone ?? supportPhone)}</a>
-              </p>
-            )}
-          </Alert>
-        )}
-        {error && <Alert variant="error">{error}</Alert>}
-        {warning && <Alert variant="warning">{warning}</Alert>}
-        {availability && availability.availableSeats <= 5 && availability.isAvailable && (
-          <Alert variant="info">Залишилось мало місць: {availability.availableSeats}</Alert>
-        )}
+        <div role="status" aria-live="polite" aria-atomic="true" className="booking-alerts">
+          {success && (
+            <Alert variant="success">
+              Заявку прийнято
+              {(supportPhone || selectedSchedule?.supportPhone) && (
+                <p className="booking-confirm-hint">
+                  Якщо ви не зареєструєтесь в Telegram, ви не дізнаєтесь, що бронювання підтверджене. Краще зателефонувати для уточнення: <a href={supportPhoneToTelLink(selectedSchedule?.supportPhone ?? supportPhone)}>{formatPhoneDisplay(selectedSchedule?.supportPhone ?? supportPhone)}</a>
+                </p>
+              )}
+            </Alert>
+          )}
+          {error && <Alert variant="error">{error}</Alert>}
+          {warning && <Alert variant="warning">{warning}</Alert>}
+          {availability && availability.availableSeats <= 5 && availability.isAvailable && (
+            <Alert variant="info">Залишилось мало місць: {availability.availableSeats}</Alert>
+          )}
+        </div>
 
         {/* Viber оголошення */}
         {viberListings.length > 0 && (
