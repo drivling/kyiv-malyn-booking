@@ -742,41 +742,45 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="admin-page">
+      <header className="admin-header">
+        <div className="admin-header-inner">
+          <h1 className="admin-title">Адмін панель</h1>
+          <p className="admin-subtitle">Бронювання, графіки, оголошення</p>
+        </div>
+      </header>
       <div className="admin-container">
-        <h1>📋 Адмін панель</h1>
-
-        <div className="tabs">
+        <nav className="admin-tabs" aria-label="Розділи">
           <button
-            className={`tab ${activeTab === 'bookings' ? 'active' : ''}`}
+            className={`admin-tab ${activeTab === 'bookings' ? 'active' : ''}`}
             onClick={() => setActiveTab('bookings')}
           >
-            📋 Бронювання
+            Бронювання
           </button>
           <button
-            className={`tab ${activeTab === 'schedules' ? 'active' : ''}`}
+            className={`admin-tab ${activeTab === 'schedules' ? 'active' : ''}`}
             onClick={() => setActiveTab('schedules')}
           >
-            🕐 Графіки
+            Графіки
           </button>
           <button
-            className={`tab ${activeTab === 'viber' ? 'active' : ''}`}
+            className={`admin-tab ${activeTab === 'viber' ? 'active' : ''}`}
             onClick={() => setActiveTab('viber')}
           >
-            📱 Viber Оголошення
+            Viber
           </button>
           <button
-            className={`tab ${activeTab === 'promo' ? 'active' : ''}`}
+            className={`admin-tab ${activeTab === 'promo' ? 'active' : ''}`}
             onClick={() => setActiveTab('promo')}
           >
-            📢 Реклама
+            Реклама
           </button>
           <button
-            className={`tab ${activeTab === 'data' ? 'active' : ''}`}
+            className={`admin-tab ${activeTab === 'data' ? 'active' : ''}`}
             onClick={() => setActiveTab('data')}
           >
-            📊 Управління даними
+            Дані
           </button>
-        </div>
+        </nav>
 
         {error && <Alert variant="error">{error}</Alert>}
         {success && <Alert variant="success">{success}</Alert>}
@@ -818,42 +822,49 @@ export const AdminPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="controls">
-              <Select
-                options={[
-                  { value: '', label: 'Всі маршрути' },
-                  ...routeOptions,
-                ]}
-                value={routeFilter}
-                onChange={(e) => setRouteFilter(e.target.value)}
-              />
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="control-input"
-              />
-              <input
-                type="text"
-                placeholder="Пошук по імені або телефону..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="control-input"
-              />
-              <Button onClick={loadBookings}>🔄 Оновити</Button>
-              <Button variant="secondary" onClick={() => {
-                setRouteFilter('');
-                setDateFilter('');
-                setSearchQuery('');
-              }}>
-                Очистити фільтри
-              </Button>
+            <div className="admin-controls">
+              <div className="admin-controls-filters">
+                <Select
+                  options={[
+                    { value: '', label: 'Всі маршрути' },
+                    ...routeOptions,
+                  ]}
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value)}
+                />
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="control-input"
+                  aria-label="Дата"
+                />
+                <input
+                  type="text"
+                  placeholder="Пошук..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="control-input control-input--search"
+                  aria-label="Пошук по імені або телефону"
+                />
+              </div>
+              <div className="admin-controls-actions">
+                <Button onClick={loadBookings}>Оновити</Button>
+                <Button variant="secondary" onClick={() => { setRouteFilter(''); setDateFilter(''); setSearchQuery(''); }}>
+                  Очистити
+                </Button>
+              </div>
             </div>
 
             {loading ? (
-              <div className="loading">Завантаження...</div>
+              <div className="admin-loading" aria-live="polite">Завантаження...</div>
             ) : filteredBookings.length === 0 ? (
-              <div className="empty">📭 Немає бронювань</div>
+              <div className="admin-empty">
+                <p className="admin-empty-text">Немає бронювань за обраними фільтрами</p>
+                <Button variant="secondary" onClick={() => { setRouteFilter(''); setDateFilter(''); setSearchQuery(''); }}>
+                  Очистити фільтри
+                </Button>
+              </div>
             ) : (
               <div className="table-container">
                 <table>
@@ -904,26 +915,33 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'schedules' && (
           <div className="tab-content">
-            <div className="controls">
-              <Select
-                options={[
-                  { value: '', label: 'Всі маршрути' },
-                  ...routeOptions,
-                ]}
-                value={scheduleRouteFilter}
-                onChange={(e) => {
-                  setScheduleRouteFilter(e.target.value);
-                  loadSchedules();
-                }}
-              />
-              <Button onClick={loadSchedules}>🔄 Оновити</Button>
-              <Button onClick={() => openScheduleModal()}>➕ Додати рейс</Button>
+            <div className="admin-controls">
+              <div className="admin-controls-filters">
+                <Select
+                  options={[
+                    { value: '', label: 'Всі маршрути' },
+                    ...routeOptions,
+                  ]}
+                  value={scheduleRouteFilter}
+                  onChange={(e) => {
+                    setScheduleRouteFilter(e.target.value);
+                    loadSchedules();
+                  }}
+                />
+              </div>
+              <div className="admin-controls-actions">
+                <Button onClick={loadSchedules}>Оновити</Button>
+                <Button onClick={() => openScheduleModal()}>Додати рейс</Button>
+              </div>
             </div>
 
             {loading ? (
-              <div className="loading">Завантаження...</div>
+              <div className="admin-loading" aria-live="polite">Завантаження...</div>
             ) : schedules.length === 0 ? (
-              <div className="empty">🕐 Немає графіків</div>
+              <div className="admin-empty">
+                <p className="admin-empty-text">Ще немає рейсів у графіку</p>
+                <Button onClick={() => openScheduleModal()}>Додати перший рейс</Button>
+              </div>
             ) : (
               <div className="table-container">
                 <table>
@@ -990,92 +1008,60 @@ export const AdminPage: React.FC = () => {
                 <div className="stat-value">{filteredViberListings.filter((l) => l.isActive).length}</div>
               </div>
               <div className="stat-card">
-                <h3>🚗 Водії</h3>
+                <h3>Водії</h3>
                 <div className="stat-value">{filteredViberListings.filter((l) => l.listingType === 'driver').length}</div>
               </div>
               <div className="stat-card">
-                <h3>👤 Пасажири</h3>
+                <h3>Пасажири</h3>
                 <div className="stat-value">{filteredViberListings.filter((l) => l.listingType === 'passenger').length}</div>
               </div>
             </div>
 
-            <div className="controls">
-              <Select
-                options={[
-                  { value: '', label: 'Всі типи' },
-                  { value: 'driver', label: '🚗 Водій' },
-                  { value: 'passenger', label: '👤 Пасажир' },
-                ]}
-                value={viberTypeFilter}
-                onChange={(e) => setViberTypeFilter(e.target.value as 'driver' | 'passenger' | '')}
-              />
-              <input
-                type="text"
-                placeholder="Маршрут..."
-                value={viberRouteFilter}
-                onChange={(e) => setViberRouteFilter(e.target.value)}
-                className="control-input"
-              />
-              <input
-                type="date"
-                value={viberDateFilter}
-                onChange={(e) => setViberDateFilter(e.target.value)}
-                className="control-input"
-              />
-              <input
-                type="text"
-                placeholder="Пошук по телефону, імені..."
-                value={viberSearchQuery}
-                onChange={(e) => setViberSearchQuery(e.target.value)}
-                className="control-input"
-              />
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={viberActiveFilter}
-                  onChange={(e) => setViberActiveFilter(e.target.checked)}
+            <div className="admin-controls admin-controls--viber">
+              <div className="admin-controls-filters">
+                <Select
+                  options={[
+                    { value: '', label: 'Всі типи' },
+                    { value: 'driver', label: 'Водій' },
+                    { value: 'passenger', label: 'Пасажир' },
+                  ]}
+                  value={viberTypeFilter}
+                  onChange={(e) => setViberTypeFilter(e.target.value as 'driver' | 'passenger' | '')}
                 />
-                <span>Тільки активні</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={viberNoPhoneFilter}
-                  onChange={(e) => setViberNoPhoneFilter(e.target.checked)}
-                />
-                <span>Без номера телефону</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={viberNoDepartureTimeFilter}
-                  onChange={(e) => setViberNoDepartureTimeFilter(e.target.checked)}
-                />
-                <span>Без часу відправлення</span>
-              </label>
-              <Button onClick={loadViberListings}>🔄 Оновити</Button>
-              <Button onClick={() => setIsViberModalOpen(true)}>➕ Додати оголошення</Button>
-              <Button variant="secondary" onClick={handleCleanupOldViberListings}>
-                🧹 Очистити старі
-              </Button>
-              <Button variant="secondary" onClick={() => {
-                setViberRouteFilter('');
-                setViberDateFilter('');
-                setViberTypeFilter('');
-                setViberSearchQuery('');
-                setViberNoPhoneFilter(false);
-                setViberNoDepartureTimeFilter(false);
-                setViberSortBy('id');
-                setViberSortOrder('desc');
-              }}>
-                Очистити фільтри
-              </Button>
+                <input type="text" placeholder="Маршрут" value={viberRouteFilter} onChange={(e) => setViberRouteFilter(e.target.value)} className="control-input" aria-label="Маршрут" />
+                <input type="date" value={viberDateFilter} onChange={(e) => setViberDateFilter(e.target.value)} className="control-input" aria-label="Дата" />
+                <input type="text" placeholder="Пошук..." value={viberSearchQuery} onChange={(e) => setViberSearchQuery(e.target.value)} className="control-input control-input--search" aria-label="Пошук" />
+                <label className="admin-checkbox">
+                  <input type="checkbox" checked={viberActiveFilter} onChange={(e) => setViberActiveFilter(e.target.checked)} />
+                  <span>Активні</span>
+                </label>
+                <label className="admin-checkbox">
+                  <input type="checkbox" checked={viberNoPhoneFilter} onChange={(e) => setViberNoPhoneFilter(e.target.checked)} />
+                  <span>Без телефону</span>
+                </label>
+                <label className="admin-checkbox">
+                  <input type="checkbox" checked={viberNoDepartureTimeFilter} onChange={(e) => setViberNoDepartureTimeFilter(e.target.checked)} />
+                  <span>Без часу</span>
+                </label>
+              </div>
+              <div className="admin-controls-actions">
+                <Button onClick={loadViberListings}>Оновити</Button>
+                <Button onClick={() => setIsViberModalOpen(true)}>Додати оголошення</Button>
+                <Button variant="secondary" onClick={handleCleanupOldViberListings}>Очистити старі</Button>
+                <Button variant="secondary" onClick={() => { setViberRouteFilter(''); setViberDateFilter(''); setViberTypeFilter(''); setViberSearchQuery(''); setViberNoPhoneFilter(false); setViberNoDepartureTimeFilter(false); setViberSortBy('id'); setViberSortOrder('desc'); }}>Очистити</Button>
+              </div>
             </div>
 
             {loading ? (
-              <div className="loading">Завантаження...</div>
+              <div className="admin-loading" aria-live="polite">Завантаження...</div>
             ) : filteredViberListings.length === 0 ? (
-              <div className="empty">📭 Немає оголошень</div>
+              <div className="admin-empty">
+                <p className="admin-empty-text">Немає оголошень за фільтрами</p>
+                <Button variant="secondary" onClick={() => { setViberRouteFilter(''); setViberDateFilter(''); setViberTypeFilter(''); setViberSearchQuery(''); setViberNoPhoneFilter(false); setViberNoDepartureTimeFilter(false); }}>
+                  Очистити фільтри
+                </Button>
+                <Button onClick={() => setIsViberModalOpen(true)}>Додати оголошення</Button>
+              </div>
             ) : (
               <div className="table-container">
                 <table>
@@ -1117,7 +1103,7 @@ export const AdminPage: React.FC = () => {
                         <td>#{listing.id}</td>
                         <td>
                           <span className={`badge ${listing.listingType === 'driver' ? 'badge-success' : 'badge-info'}`}>
-                            {listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир'}
+                            {listing.listingType === 'driver' ? 'Водій' : 'Пасажир'}
                           </span>
                         </td>
                         <td>{listing.route}</td>
@@ -1140,7 +1126,7 @@ export const AdminPage: React.FC = () => {
                             onClick={() => openEditViberListing(listing)}
                             style={{ marginRight: '8px' }}
                           >
-                            ✏️ Редагувати
+                            Редагувати
                           </Button>
                           {listing.isActive && (
                             <Button
@@ -1245,8 +1231,8 @@ export const AdminPage: React.FC = () => {
                       value={viberEditForm.listingType}
                       onChange={(e) => setViberEditForm((f) => ({ ...f, listingType: e.target.value as ViberListingType }))}
                       options={[
-                        { value: 'driver', label: '🚗 Водій' },
-                        { value: 'passenger', label: '👤 Пасажир' },
+                        { value: 'driver', label: 'Водій' },
+                        { value: 'passenger', label: 'Пасажир' },
                       ]}
                     />
                   </div>
@@ -1451,7 +1437,7 @@ export const AdminPage: React.FC = () => {
               style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}
             >
               <Button onClick={handleImportViberAnalytics}>
-                🔄 Імпортувати нові ViberRide в аналітику
+                Імпортувати нові ViberRide в аналітику
               </Button>
               <Button onClick={handleLoadViberAnalyticsSummary} disabled={viberAnalyticsLoading}>
                 {viberAnalyticsLoading ? 'Аналіз...' : 'Показати 10–20 клієнтів з патернами'}
@@ -1727,7 +1713,7 @@ export const AdminPage: React.FC = () => {
                 disabled={refreshNamesLoading}
                 title="Пошук імен через Telegram-бота (якщо підключений) або через ваш акаунт (send_message.py). Оновлює ім'я, якщо нове довше і кирилицею або було пусте."
               >
-                {refreshNamesLoading ? 'Оновлення…' : '🔄 Оновити дані імен'}
+                {refreshNamesLoading ? 'Оновлення…' : 'Оновити дані імен'}
               </Button>
               <Button
                 onClick={() => handleRefreshNames(true)}
@@ -1749,7 +1735,7 @@ export const AdminPage: React.FC = () => {
                 disabled={phoneCheckLoading || !persons.length}
                 title="Перевірити поточний список телефонів через phonecheck.top та завантажити відповіді (ігноруючи «Данные не найдены»)."
               >
-                {phoneCheckLoading ? 'Аналіз…' : '📞 Аналіз phonecheck.top'}
+                {phoneCheckLoading ? 'Аналіз…' : 'Аналіз phonecheck.top'}
               </Button>
             </div>
             {refreshNamesResult && (
@@ -1764,9 +1750,13 @@ export const AdminPage: React.FC = () => {
               </div>
             )}
             {dataLoading ? (
-              <div className="loading">Завантаження...</div>
+              <div className="admin-loading" aria-live="polite">Завантаження...</div>
             ) : persons.length === 0 ? (
-              <div className="empty">Немає персон. Введіть пошук або натисніть «Оновити список».</div>
+              <div className="admin-empty">
+                <p className="admin-empty-text">Немає персон за пошуком</p>
+                <Button variant="secondary" onClick={() => setDataSearchQuery('')}>Очистити пошук</Button>
+                <Button onClick={() => loadPersons()}>Оновити список</Button>
+              </div>
             ) : (
               <div className="table-container">
                 <table>

@@ -1,7 +1,36 @@
+/* Адмін панель — той самий стиль, що й решта додатку */
+
 .admin-page {
   min-height: calc(100vh - 60px);
-  background: var(--pb-bg-page);
-  padding: 40px 20px;
+  background: linear-gradient(180deg, #f0fdf4 0%, var(--pb-bg-page) 100px);
+  padding: 0 20px 40px;
+}
+
+.admin-header {
+  background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+  color: #fff;
+  padding: 24px 20px 28px;
+  margin: 0 -20px 0;
+}
+
+.admin-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.admin-subtitle {
+  margin: 6px 0 0;
+  font-size: 0.9375rem;
+  opacity: 0.9;
+  font-weight: 500;
 }
 
 .admin-container {
@@ -11,103 +40,161 @@
   min-width: 0;
 }
 
-.admin-container h1 {
-  margin-bottom: 32px;
-  color: var(--pb-text);
-  font-size: 32px;
-  font-weight: 600;
-}
-
-.tabs {
+.admin-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 32px;
-  background: var(--pb-card-bg);
-  padding: 8px;
-  border-radius: var(--pb-radius);
-  box-shadow: var(--pb-shadow);
+  gap: 0;
+  margin: 24px 0 28px;
+  background: var(--pb-bg-secondary);
+  padding: 5px;
+  border-radius: 14px;
   border: 1px solid var(--pb-border);
   flex-wrap: wrap;
 }
 
-.tab {
-  padding: 12px 24px;
+.admin-tab {
+  padding: 12px 20px;
   background: transparent;
   border: none;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 500;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
   color: var(--pb-text-muted);
-  border-radius: var(--pb-radius);
-  transition: all 0.2s ease;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
 }
 
-.tab.active {
+.admin-tab:hover {
+  color: var(--pb-text);
+  background: var(--pb-card-bg);
+}
+
+.admin-tab.active {
   color: var(--pb-primary);
-  background: var(--pb-primary-light);
+  background: var(--pb-card-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.tab:hover {
-  color: var(--pb-primary);
-  background: var(--pb-primary-light);
+.admin-tab.active:hover {
+  color: var(--pb-primary-hover);
 }
 
+/* Контент табу */
+.tab-content {
+  margin-top: 0;
+}
+
+/* Статистика — картки з акцентом зліва */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stat-card {
   background: var(--pb-card-bg);
-  padding: 24px;
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow);
+  padding: 20px 20px 20px 22px;
+  border-radius: 16px;
   border: 1px solid var(--pb-border);
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s;
+  border-left: 4px solid var(--pb-primary);
 }
 
 .stat-card:hover {
-  box-shadow: var(--pb-shadow-card);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .stat-card h3 {
-  font-size: 13px;
+  font-size: 0.75rem;
   color: var(--pb-text-muted);
-  margin-bottom: 12px;
-  font-weight: 500;
+  margin: 0 0 8px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
 }
 
 .stat-value {
-  font-size: 36px;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--pb-primary);
+  letter-spacing: -0.02em;
 }
 
-.controls {
+/* Панель фільтрів і дій (як у FB/IG: фільтри зліва, дії справа) */
+.controls,
+.admin-controls {
   background: var(--pb-card-bg);
-  padding: 24px;
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow);
+  padding: 16px 20px;
+  border-radius: 16px;
   border: 1px solid var(--pb-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
   margin-bottom: 24px;
   display: flex;
-  gap: 16px;
   flex-wrap: wrap;
   align-items: center;
+  gap: 12px;
+}
+
+.admin-controls {
+  justify-content: space-between;
+}
+
+.admin-controls-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-controls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+  .admin-controls-actions {
+    margin-left: auto;
+  }
+}
+
+.admin-controls--viber .admin-controls-filters {
+  flex-wrap: wrap;
+}
+
+.admin-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--pb-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pb-primary);
 }
 
 .control-input {
-  padding: 12px 16px;
-  border: 2px solid var(--pb-border);
-  border-radius: var(--pb-radius);
-  font-size: 15px;
-  transition: all 0.2s ease;
+  padding: 8px 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 10px;
+  font-size: 0.9375rem;
   font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.control-input--search {
+  min-width: 140px;
 }
 
 .control-input:focus {
@@ -122,132 +209,186 @@
 
 .form-group label {
   display: block;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 8px;
   color: var(--pb-text);
+  font-size: 0.875rem;
 }
 
+/* Таблиці: липкий заголовок при скролі (як у FB/IG) */
 .table-container {
   background: var(--pb-card-bg);
-  border-radius: var(--pb-radius-lg);
-  box-shadow: var(--pb-shadow);
+  border-radius: 16px;
   border: 1px solid var(--pb-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
   overflow: auto;
 }
 
-table {
+.admin-page .tab-content > .table-container {
+  max-height: min(75vh, 600px);
+}
+
+.admin-page table {
   width: 100%;
   border-collapse: collapse;
 }
 
-thead {
-  background: #f8f9fa;
+.admin-page thead {
+  background: var(--pb-bg-secondary);
 }
 
-th {
+.admin-page th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--pb-bg-secondary);
   text-align: left;
-  padding: 20px;
+  padding: 12px 16px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 0.6875rem;
   color: var(--pb-text-muted);
-  border-bottom: 2px solid var(--pb-border);
+  border-bottom: 1px solid var(--pb-border);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
-th.sortable {
+.admin-page th.sortable {
   cursor: pointer;
   user-select: none;
 }
 
-th.sortable:hover {
+.admin-page th.sortable:hover {
   color: var(--pb-text);
 }
 
-td {
-  padding: 20px;
+.admin-page td {
+  padding: 12px 16px;
   border-bottom: 1px solid var(--pb-border-light);
-  font-size: 15px;
+  font-size: 0.875rem;
   color: var(--pb-text);
+  vertical-align: middle;
 }
 
-tr:hover {
-  background: #f8f9fa;
+.admin-page tbody tr:hover {
+  background: var(--pb-bg-secondary);
 }
 
-tr:last-child td {
+.admin-page tbody tr:last-child td {
   border-bottom: none;
 }
 
+/* Бейджі маршрутів — спокійні кольори */
 .badge {
   display: inline-block;
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.02em;
 }
 
 .badge-kyiv-malyn {
-  background: #e3f2fd;
-  color: #1565c0;
-  border: 1px solid #90caf9;
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
 .badge-malyn-kyiv {
-  background: #fff3e0;
-  color: #e65100;
-  border: 1px solid #ffb74d;
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid rgba(251, 146, 60, 0.4);
 }
 
 .badge-malyn-zhytomyr {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #81c784;
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.4);
 }
 
 .badge-zhytomyr-malyn {
-  background: #f3e5f5;
-  color: #7b1fa2;
-  border: 1px solid #ce93d8;
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid rgba(139, 92, 246, 0.4);
 }
 
 .badge-korosten-malyn {
-  background: #e0f7fa;
-  color: #006064;
-  border: 1px solid #80deea;
+  background: #cffafe;
+  color: #0e7490;
+  border: 1px solid rgba(6, 182, 212, 0.4);
 }
 
 .badge-malyn-korosten {
-  background: #fff8e1;
-  color: #f57f17;
-  border: 1px solid #ffca28;
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
-.loading {
-  text-align: center;
-  padding: 60px 20px;
+.badge-success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid rgba(5, 150, 105, 0.4);
+}
+
+.badge-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.badge-secondary {
+  background: var(--pb-bg-secondary);
   color: var(--pb-text-muted);
-  font-size: 15px;
-  font-weight: 500;
+  border: 1px solid var(--pb-border);
 }
 
-.empty {
+/* Завантаження: компактний блок, layout не стрибає */
+.loading,
+.admin-loading {
   text-align: center;
-  padding: 80px 20px;
-  color: var(--pb-text-hint);
-  font-size: 16px;
-  font-weight: 400;
+  padding: 32px 20px;
+  color: var(--pb-text-muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  background: var(--pb-card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--pb-border);
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Пустий стан з CTA (як у FB/IG) */
+.admin-empty {
+  text-align: center;
+  padding: 40px 24px;
+  background: var(--pb-card-bg);
+  border-radius: 16px;
+  border: 1px solid var(--pb-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.admin-empty-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--pb-text-muted);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.admin-empty button {
+  flex-shrink: 0;
+}
+
+/* Модалки — як на User/Попутки */
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -258,135 +399,133 @@ tr:last-child td {
 
 .modal-content {
   background: var(--pb-card-bg);
-  padding: 40px;
-  border-radius: var(--pb-radius-lg);
+  padding: 32px 28px;
+  border-radius: 20px;
   max-width: 520px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
   border: 1px solid var(--pb-border);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--pb-border);
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--pb-border-light);
 }
 
 .modal-header h2 {
-  font-size: 24px;
+  font-size: 1.25rem;
   color: var(--pb-text);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
 }
 
 .modal-hint {
-  margin: -8px 0 16px;
-  font-size: 14px;
+  margin: -4px 0 16px;
+  font-size: 0.875rem;
   color: var(--pb-text-muted);
+  line-height: 1.5;
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: 1.5rem;
   cursor: pointer;
-  color: var(--pb-text-muted);
-  padding: 0;
+  color: var(--pb-text-hint);
+  padding: 6px;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--pb-radius);
-  transition: all 0.2s ease;
+  border-radius: 10px;
+  transition: color 0.2s, background 0.2s;
 }
 
 .close-btn:hover {
   color: var(--pb-text);
-  background: #f5f5f5;
+  background: var(--pb-bg-secondary);
 }
 
 .form-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: flex-end;
   margin-top: 24px;
   flex-wrap: wrap;
 }
 
-/* Адаптив: планшет і телефон */
 @media (max-width: 768px) {
   .admin-page {
-    padding: 24px 16px;
+    padding: 0 16px 28px;
   }
 
-  .admin-container h1 {
-    font-size: 26px;
-    margin-bottom: 24px;
+  .admin-header {
+    margin: 0 -16px 0;
+    padding: 20px 16px 24px;
   }
 
-  .tabs {
-    margin-bottom: 24px;
+  .admin-tabs {
+    margin: 20px 0 24px;
   }
 
-  .tab {
-    padding: 10px 16px;
-    font-size: 14px;
+  .admin-tab {
+    padding: 10px 14px;
+    font-size: 0.875rem;
   }
 
   .stats {
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 12px;
   }
 
   .stat-card {
-    padding: 20px;
+    padding: 16px 16px 16px 18px;
   }
 
   .stat-value {
-    font-size: 28px;
+    font-size: 1.5rem;
   }
 
   .controls {
-    padding: 20px;
+    padding: 16px 20px;
   }
 
-  .table-container {
-    border-radius: var(--pb-radius);
-  }
-
-  th,
-  td {
+  .admin-page th,
+  .admin-page td {
     padding: 12px 16px;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 
   .modal-content {
-    padding: 28px 20px;
+    padding: 24px 20px;
     margin: 16px;
   }
 }
 
 @media (max-width: 480px) {
   .admin-page {
-    padding: 16px 12px;
+    padding: 0 12px 24px;
   }
 
-  .admin-container h1 {
-    font-size: 22px;
+  .admin-header {
+    padding: 18px 12px 22px;
   }
 
   .stats {
     grid-template-columns: 1fr;
   }
 
-  th,
-  td {
+  .admin-page th,
+  .admin-page td {
     padding: 10px 12px;
-    font-size: 13px;
+    font-size: 0.8125rem;
   }
 }
