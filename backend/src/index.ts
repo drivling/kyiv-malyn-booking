@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic, fetchAndImportTelegramGroupMessages } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 import { runPhoneCheckForPhone, type PhoneCheckResult } from './phonecheck';
@@ -898,6 +898,30 @@ app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
   } catch (error) {
     console.error('❌ Помилка відправки нагадувань:', error);
     res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
+// Автоматичне завантаження нових повідомлень з групи PoDoroguem — для cron кожні 2 год
+app.post('/telegram/fetch-group-messages', requireAdmin, async (_req, res) => {
+  try {
+    const result = await fetchAndImportTelegramGroupMessages();
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        created: 0,
+        total: 0,
+      });
+    }
+    res.json({
+      success: true,
+      message: result.created > 0 ? `Імпортовано ${result.created} нових з ${result.total} повідомлень` : 'Немає нових повідомлень',
+      created: result.created,
+      total: result.total,
+    });
+  } catch (error) {
+    console.error('❌ /telegram/fetch-group-messages:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch and import', created: 0, total: 0 });
   }
 });
 

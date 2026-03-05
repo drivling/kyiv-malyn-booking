@@ -13,6 +13,7 @@ exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDri
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
 exports.fetchTelegramGroupMessages = fetchTelegramGroupMessages;
+exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessages;
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
@@ -1065,6 +1066,103 @@ async function fetchTelegramGroupMessages(options) {
         }
     }
     return messagesText || null;
+}
+/**
+ * Завантажити нові повідомлення з групи PoDoroguem і імпортувати їх у Viber listings.
+ * Використовує TelegramFetchState — тільки нові повідомлення.
+ * Для cron: POST /telegram/fetch-group-messages кожні 2 год.
+ */
+async function fetchAndImportTelegramGroupMessages() {
+    const rawText = await fetchTelegramGroupMessages({ limit: 50, fullFetch: false });
+    if (rawText === null) {
+        return { success: false, created: 0, total: 0, error: 'Failed to fetch (check session, API, group access)' };
+    }
+    if (!rawText.trim()) {
+        return { success: true, created: 0, total: 0 };
+    }
+    const parsedMessages = (0, telegram_parser_1.parseTelegramMessages)(rawText);
+    if (parsedMessages.length === 0) {
+        return { success: true, created: 0, total: 0 };
+    }
+    let created = 0;
+    for (let i = 0; i < parsedMessages.length; i++) {
+        const { parsed, rawMessage: rawTextItem, telegramUserId: tgUserId } = parsedMessages[i];
+        try {
+            const nameFromDb = parsed.phone ? await (0, exports.getNameByPhone)(parsed.phone) : null;
+            let senderName = nameFromDb ?? parsed.senderName ?? null;
+            if (parsed.phone?.trim()) {
+                const phone = parsed.phone.trim();
+                const personForChat = await (0, exports.getPersonByPhone)(phone);
+                const chatIdForPerson = personForChat?.telegramChatId ?? null;
+                const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(phone, chatIdForPerson);
+                const baseCurrentName = nameFromDb;
+                const { newName } = pickBestNameFromCandidates(baseCurrentName, nameFromBot, nameFromUser, nameFromOpendatabot);
+                if (newName?.trim())
+                    senderName = newName.trim();
+                else if (!senderName || !String(senderName).trim())
+                    senderName = parsed.senderName ?? senderName;
+            }
+            const person = parsed.phone
+                ? await (0, exports.findOrCreatePersonByPhone)(parsed.phone, {
+                    fullName: senderName ?? undefined,
+                    telegramUserId: tgUserId ?? undefined,
+                    telegramChatId: tgUserId ?? undefined,
+                })
+                : null;
+            const { listing, isNew } = await createOrMergeViberListing({
+                rawMessage: rawTextItem,
+                source: 'telegram1',
+                senderName: senderName ?? undefined,
+                listingType: parsed.listingType,
+                route: parsed.route,
+                date: parsed.date,
+                departureTime: parsed.departureTime,
+                seats: parsed.seats,
+                phone: parsed.phone,
+                notes: parsed.notes,
+                priceUah: parsed.price ?? undefined,
+                isActive: true,
+                personId: person?.id ?? undefined,
+            });
+            if (isNew)
+                created++;
+            if ((0, exports.isTelegramEnabled)()) {
+                await (0, exports.sendViberListingNotificationToAdmin)({
+                    id: listing.id,
+                    listingType: listing.listingType,
+                    route: listing.route,
+                    date: listing.date,
+                    departureTime: listing.departureTime,
+                    seats: listing.seats,
+                    phone: listing.phone,
+                    senderName: listing.senderName,
+                    notes: listing.notes,
+                }).catch((err) => console.error('Telegram notify:', err));
+                if (listing.phone?.trim()) {
+                    (0, exports.sendViberListingConfirmationToUser)(listing.phone, {
+                        id: listing.id,
+                        route: listing.route,
+                        date: listing.date,
+                        departureTime: listing.departureTime,
+                        seats: listing.seats,
+                        listingType: listing.listingType,
+                    }).catch((err) => console.error('Telegram user notify:', err));
+                }
+                const authorChatId = listing.phone?.trim() ? await (0, exports.getChatIdByPhone)(listing.phone) : null;
+                if (listing.listingType === 'driver') {
+                    notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+                }
+                else if (listing.listingType === 'passenger') {
+                    notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+                }
+            }
+        }
+        catch (err) {
+            console.error(`fetchAndImportTelegramGroupMessages item ${i} error:`, err);
+        }
+    }
+    console.log(`📥 Telegram fetch: імпортовано ${created} нових з ${parsedMessages.length} повідомлень`);
+    return { success: true, created, total: parsedMessages.length };
 }
 /**
  * Знайти ім'я ФОП за номером телефону через Opendatabot (Python run_opendatabot_phone_lookup.py).

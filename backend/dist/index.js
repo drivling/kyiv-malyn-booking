@@ -846,6 +846,30 @@ app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
         res.status(500).json({ error: 'Failed to send reminders' });
     }
 });
+// Автоматичне завантаження нових повідомлень з групи PoDoroguem — для cron кожні 2 год
+app.post('/telegram/fetch-group-messages', requireAdmin, async (_req, res) => {
+    try {
+        const result = await (0, telegram_1.fetchAndImportTelegramGroupMessages)();
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.error,
+                created: 0,
+                total: 0,
+            });
+        }
+        res.json({
+            success: true,
+            message: result.created > 0 ? `Імпортовано ${result.created} нових з ${result.total} повідомлень` : 'Немає нових повідомлень',
+            created: result.created,
+            total: result.total,
+        });
+    }
+    catch (error) {
+        console.error('❌ /telegram/fetch-group-messages:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch and import', created: 0, total: 0 });
+    }
+});
 // Нагадування в день поїздки (сьогодні) — для cron щодня вранці
 app.post('/telegram/send-reminders-today', requireAdmin, async (_req, res) => {
     if (!(0, telegram_1.isTelegramEnabled)()) {
