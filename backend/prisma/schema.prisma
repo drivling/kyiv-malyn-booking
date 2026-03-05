@@ -137,3 +137,11 @@ model ViberRideEvent {
 
   @@unique([viberRideId])
 }
+
+/// Останній імпорт з Telegram групи PoDoroguem — щоб парсити тільки нові повідомлення
+model TelegramFetchState {
+  id             Int      @id @default(autoincrement())
+  topicId        Int      @unique // 2, 6, 108
+  lastMessageId  Int      @default(0) // останній оброблений message ID
+  updatedAt      DateTime @updatedAt
+}

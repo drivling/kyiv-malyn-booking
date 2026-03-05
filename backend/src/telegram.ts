@@ -1161,31 +1161,56 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
   });
 }
 
+const TELEGRAM_TOPICS = [2, 6, 108] as const;
+
 /**
  * Завантажити повідомлення з Telegram групи PoDoroguem через особистий акаунт (Telethon).
+ * Зберігає lastMessageId по топиках — парсить тільки нові повідомлення.
  * Повертає текст у форматі "SenderName: text\n---\n" для парсингу parseTelegramMessages.
+ * null = помилка, "" = успіх але немає нових повідомлень.
  */
-export async function fetchTelegramGroupMessages(options?: { limit?: number; hours?: number }): Promise<string | null> {
+export async function fetchTelegramGroupMessages(options?: {
+  limit?: number;
+  hours?: number;
+  fullFetch?: boolean;
+}): Promise<string | null> {
   const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
   const scriptDir = sessionPath ? path.dirname(sessionPath) : '';
   const scriptPath = path.join(scriptDir, 'fetch_telegram_messages.py');
   const apiId = process.env.TELEGRAM_API_ID;
   const apiHash = process.env.TELEGRAM_API_HASH;
   if (!sessionPath || !apiId || !apiHash) return null;
-  const limit = options?.limit ?? 30;
+
+  const limit = options?.limit ?? 50;
   const hours = options?.hours;
+  const fullFetch = options?.fullFetch ?? false;
+
+  let lastIds: Record<string, number> = {};
+  if (!fullFetch) {
+    const states = await prisma.telegramFetchState.findMany();
+    for (const s of states) {
+      lastIds[String(s.topicId)] = s.lastMessageId;
+    }
+    for (const t of TELEGRAM_TOPICS) {
+      if (!(String(t) in lastIds)) lastIds[String(t)] = 0;
+    }
+  } else {
+    lastIds = { '2': 0, '6': 0, '108': 0 };
+  }
+
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
   const args = [scriptPath, '--limit', String(limit)];
-  if (hours != null && hours > 0) {
-    args.push('--hours', String(hours));
-  }
-  return new Promise((resolve) => {
+  if (hours != null && hours > 0) args.push('--hours', String(hours));
+  if (fullFetch) args.push('--full');
+
+  const result = await new Promise<string | null>((resolve) => {
     const child = spawn(pythonCmd, args, {
       env: {
         ...process.env,
         TELEGRAM_USER_SESSION_PATH: sessionPath,
         TELEGRAM_API_ID: apiId,
         TELEGRAM_API_HASH: apiHash,
+        TELEGRAM_LAST_IDS: JSON.stringify(lastIds),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -1194,12 +1219,10 @@ export async function fetchTelegramGroupMessages(options?: { limit?: number; hou
     child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
     child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
     child.on('close', (code) => {
-      if (code === 0 && stdout.trim()) {
-        resolve(stdout.trim());
+      if (code === 0) {
+        resolve(stdout.trim() || null);
       } else {
-        if (code !== 0) {
-          console.error('fetchTelegramGroupMessages:', code, stderr.slice(0, 500));
-        }
+        if (code !== 0) console.error('fetchTelegramGroupMessages:', code, stderr.slice(0, 500));
         resolve(null);
       }
     });
@@ -1208,6 +1231,35 @@ export async function fetchTelegramGroupMessages(options?: { limit?: number; hou
       resolve(null);
     });
   });
+
+  if (result === null) return null;
+
+  const metaIdx = result.indexOf('__LAST_IDS__');
+  let messagesText = result;
+  let newLastIdsJson: string | null = null;
+  if (metaIdx >= 0) {
+    messagesText = result.slice(0, metaIdx).trim();
+    newLastIdsJson = result.slice(metaIdx + 12).trim();
+  }
+
+  if (newLastIdsJson) {
+    try {
+      const newLastIds = JSON.parse(newLastIdsJson) as Record<string, number>;
+      for (const [topicStr, msgId] of Object.entries(newLastIds)) {
+        const topicId = parseInt(topicStr, 10);
+        if (Number.isNaN(topicId) || msgId <= 0) continue;
+        await prisma.telegramFetchState.upsert({
+          where: { topicId },
+          create: { topicId, lastMessageId: msgId },
+          update: { lastMessageId: msgId },
+        });
+      }
+    } catch (e) {
+      console.error('fetchTelegramGroupMessages: parse LAST_IDS', e);
+    }
+  }
+
+  return messagesText || null;
 }
 
 /**
@@ -2747,15 +2799,16 @@ https://malin.kiev.ua
     if (chatId !== adminChatId) return;
     const keyboard = {
       inline_keyboard: [
-        [{ text: '📥 Завантажити з групи', callback_data: 'addtelegram_fetch' }],
+        [{ text: '📥 Завантажити нові', callback_data: 'addtelegram_fetch' }],
+        [{ text: '📥 Завантажити всі (скинути)', callback_data: 'addtelegram_fetch_full' }],
         [{ text: '📋 Вставити текст вручну', callback_data: 'addtelegram_paste' }],
       ],
     };
     await bot?.sendMessage(
       chatId,
       '✈️ <b>Додати оголошення з Telegram (PoDoroguem)</b>\n\n' +
-      'Оберіть спосіб:\n\n' +
-      '• <b>Завантажити з групи</b> — автоматично отримає повідомлення через ваш акаунт (потрібно бути в групі)\n\n' +
+      '• <b>Завантажити нові</b> — тільки повідомлення, які ще не імпортували\n\n' +
+      '• <b>Завантажити всі (скинути)</b> — завантажити всі знову (перший імпорт або скидання)\n\n' +
       '• <b>Вставити текст вручну</b> — переслати або вставити текст',
       { parse_mode: 'HTML', reply_markup: keyboard }
     );
@@ -3447,19 +3500,27 @@ https://malin.kiev.ua
     const messageId = query.message?.message_id;
     
     if (!chatId || !data) return;
-    if (chatId !== adminChatId && (data === 'addtelegram_fetch' || data === 'addtelegram_paste')) return;
+    if (chatId !== adminChatId && (data === 'addtelegram_fetch' || data === 'addtelegram_fetch_full' || data === 'addtelegram_paste')) return;
 
     try {
       // ---------- /addtelegram: завантажити з групи або вставити текст ----------
-      if (data === 'addtelegram_fetch') {
-        await bot?.answerCallbackQuery(query.id, { text: 'Завантажую повідомлення з групи...' });
-        const statusMsg = await bot?.sendMessage(chatId, '⏳ Завантаження повідомлень з PoDoroguem...');
-        const rawText = await fetchTelegramGroupMessages({ limit: 30 });
-        if (!rawText || !rawText.trim()) {
+      if (data === 'addtelegram_fetch' || data === 'addtelegram_fetch_full') {
+        const fullFetch = data === 'addtelegram_fetch_full';
+        await bot?.answerCallbackQuery(query.id, { text: fullFetch ? 'Завантажую всі повідомлення...' : 'Завантажую нові повідомлення...' });
+        const statusMsg = await bot?.sendMessage(chatId, fullFetch ? '⏳ Завантаження всіх повідомлень з PoDoroguem...' : '⏳ Завантаження нових повідомлень з PoDoroguem...');
+        const rawText = await fetchTelegramGroupMessages({ limit: 50, fullFetch });
+        if (rawText === null) {
           await bot?.editMessageText(
             '❌ Не вдалося завантажити повідомлення. Перевірте:\n' +
             '• Ваш акаунт додано в групу https://t.me/PoDoroguem\n' +
             '• TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH налаштовані',
+            { chat_id: chatId, message_id: statusMsg?.message_id }
+          );
+          return;
+        }
+        if (!rawText.trim()) {
+          await bot?.editMessageText(
+            '✅ Немає нових повідомлень для імпорту. Усі вже оброблені.',
             { chat_id: chatId, message_id: statusMsg?.message_id }
           );
           return;

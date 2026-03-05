@@ -44,22 +44,13 @@ function extractPhone(text) {
 }
 /**
  * Витягує дату з тексту
- * Підтримує формати: "09.02", "9.02", "сьогодні", "завтра"
+ * Підтримує формати: "09.02", "9.02", "01.03.2026", "сьогодні", "завтра"
+ * Явна дата (DD.MM) має пріоритет над "сьогодні"/"завтра" — "Сьогодні 18.02" → 18 лютого
  */
 function extractDate(text, messageDate) {
     const now = messageDate || new Date();
     const currentYear = now.getFullYear();
-    // "сьогодні"
-    if (/сьогодні/i.test(text)) {
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    }
-    // "завтра"
-    if (/завтра/i.test(text)) {
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        return new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
-    }
-    // Дата у форматі DD.MM або DD.MM.YY або DD.MM.YYYY
+    // Спочатку шукаємо явну дату DD.MM або DD.MM.YY або DD.MM.YYYY (пріоритет над "сьогодні"/"завтра")
     const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/);
     if (dateMatch) {
         const day = parseInt(dateMatch[1], 10);
@@ -72,6 +63,35 @@ function extractDate(text, messageDate) {
             }
         }
         return new Date(year, month, day);
+    }
+    // Дата з назвою місяця: "18 лютого", "1 березня", "5 квітня 2026"
+    const monthsGenitive = {
+        січня: 0, лютого: 1, березня: 2, квітня: 3, травня: 4, червня: 5,
+        липня: 6, серпня: 7, вересня: 8, жовтня: 9, листопада: 10, грудня: 11,
+    };
+    const monthNameMatch = text.match(/(\d{1,2})\s+(січня|лютого|березня|квітня|травня|червня|липня|серпня|вересня|жовтня|листопада|грудня)(?:\s+(\d{2,4}))?/i);
+    if (monthNameMatch) {
+        const day = parseInt(monthNameMatch[1], 10);
+        const month = monthsGenitive[monthNameMatch[2].toLowerCase()];
+        let year = currentYear;
+        if (monthNameMatch[3]) {
+            year = parseInt(monthNameMatch[3], 10);
+            if (year < 100)
+                year += 2000;
+        }
+        if (month !== undefined) {
+            return new Date(year, month, day);
+        }
+    }
+    // "сьогодні" — тільки якщо немає явної дати
+    if (/сьогодні/i.test(text)) {
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+    // "завтра"
+    if (/завтра/i.test(text)) {
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
     }
     // Якщо дата не знайдена - повертаємо сьогодні
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());

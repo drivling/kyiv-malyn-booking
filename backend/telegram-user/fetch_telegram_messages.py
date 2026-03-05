@@ -9,20 +9,24 @@
   - 108: Малин-Коростень
 
 Виклик:
-  python3 fetch_telegram_messages.py [--limit N] [--topic ID] [--hours H]
+  python3 fetch_telegram_messages.py [--limit N] [--topic ID] [--hours H] [--full]
 
-  --limit N   Кількість повідомлень на топик (за замовч. 30)
+  --limit N   Кількість повідомлень на топик (за замовч. 50)
   --topic ID  Тільки один топик (2, 6 або 108). Без цього — всі три.
   --hours H   Тільки повідомлення за останні H годин (опційно)
+  --full      Ігнорувати TELEGRAM_LAST_IDS — завантажити всі (перший імпорт або скидання)
 
-Вихід: stdout, UTF-8. Кожне повідомлення у форматі:
-  SenderName: текст повідомлення
-  ---
+Змінні середовища:
+  TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH
+  TELEGRAM_LAST_IDS — JSON {"2":123,"6":456,"108":789} останні message ID по топиках
 
-Змінні середовища: TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH
+Вихід: stdout, UTF-8.
+  Повідомлення у форматі: SenderName: текст\n---\n
+  В кінці: __LAST_IDS__{"2":12345,"6":12340,"108":12350}
 """
 
 import os
+import json
 import sys
 import asyncio
 import argparse
@@ -92,11 +96,27 @@ def get_sender_display_name(sender):
     return "Невідомий"
 
 
-async def fetch_messages(limit_per_topic=30, topic_ids=None, hours=None):
+def parse_last_ids(full_fetch=False):
+    """Парсимо TELEGRAM_LAST_IDS з env. Повертає dict {topic_id: min_message_id}."""
+    default = {str(t): 0 for t in TOPICS.keys()}
+    if full_fetch:
+        return default
+    raw = os.environ.get("TELEGRAM_LAST_IDS", "").strip()
+    if not raw:
+        return default
+    try:
+        data = json.loads(raw)
+        return {str(k): int(v) if v else 0 for k, v in data.items()}
+    except (json.JSONDecodeError, ValueError):
+        return default
+
+
+async def fetch_messages(limit_per_topic=50, topic_ids=None, hours=None, full_fetch=False):
     from telethon import TelegramClient
 
     session_path = get_session_path()
     api_id, api_hash = get_api_credentials()
+    last_ids = parse_last_ids(full_fetch)
 
     client = TelegramClient(session_path, api_id, api_hash)
     try:
@@ -112,37 +132,48 @@ async def fetch_messages(limit_per_topic=30, topic_ids=None, hours=None):
 
         lines = []
         seen_ids = set()
+        new_last_ids = dict(last_ids)  # topic_id -> max message id (зберігаємо старі для топиків без нових)
 
         for topic_id in topics_to_fetch:
+            min_id = last_ids.get(str(topic_id), 0)
+            topic_max_id = min_id
             try:
-                async for msg in client.iter_messages(
-                    PODOROGUEM,
-                    reply_to=topic_id,
-                    limit=limit_per_topic,
-                    reverse=False,
-                ):
+                iter_kwargs = {
+                    "reply_to": topic_id,
+                    "limit": limit_per_topic,
+                    "reverse": False,
+                }
+                if min_id > 0:
+                    iter_kwargs["min_id"] = min_id
+
+                async for msg in client.iter_messages(PODOROGUEM, **iter_kwargs):
                     if not msg.text or not msg.text.strip():
                         continue
                     if cutoff_date and msg.date and msg.date.replace(tzinfo=None) < cutoff_date:
                         continue
-                    # Уникаємо дублікати (одне й те саме в кількох топиках)
-                    key = (msg.id, msg.text[:100])
+                    key = (topic_id, msg.id, msg.text[:80])
                     if key in seen_ids:
                         continue
                     seen_ids.add(key)
+                    if msg.id > topic_max_id:
+                        topic_max_id = msg.id
 
                     sender = await msg.get_sender()
                     name = get_sender_display_name(sender)
                     text = msg.text.strip()
                     lines.append(f"{name}: {text}")
                     lines.append("---")
+
+                new_last_ids[str(topic_id)] = topic_max_id
             except Exception as e:
                 print(f"Помилка топику {topic_id}: {e}", file=sys.stderr)
+                new_last_ids[str(topic_id)] = last_ids.get(str(topic_id), 0)
 
         if lines:
             sys.stdout.write("\n".join(lines))
             if not lines[-1].endswith("\n"):
                 sys.stdout.write("\n")
+        sys.stdout.write("__LAST_IDS__" + json.dumps(new_last_ids) + "\n")
         sys.exit(0)
 
     except Exception as e:
@@ -154,9 +185,10 @@ async def fetch_messages(limit_per_topic=30, topic_ids=None, hours=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Отримати повідомлення з PoDoroguem")
-    parser.add_argument("--limit", type=int, default=30, help="Повідомлень на топик")
+    parser.add_argument("--limit", type=int, default=50, help="Повідомлень на топик")
     parser.add_argument("--topic", type=int, choices=[2, 6, 108], help="Тільки один топик")
     parser.add_argument("--hours", type=float, help="Тільки за останні H годин")
+    parser.add_argument("--full", action="store_true", help="Завантажити всі (ігнорувати last IDs)")
     args = parser.parse_args()
 
     topic_ids = [args.topic] if args.topic else None
@@ -164,6 +196,7 @@ def main():
         limit_per_topic=args.limit,
         topic_ids=topic_ids,
         hours=args.hours,
+        full_fetch=args.full,
     ))
 
 
