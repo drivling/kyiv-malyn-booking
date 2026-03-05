@@ -428,6 +428,7 @@
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+  overflow-y: auto;
 }
 
 .telegram-success-content {
@@ -442,10 +443,31 @@
   text-align: center;
 }
 
+.telegram-success-content.booking-listing-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.booking-modal-close-bar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: flex-end;
+  margin: -32px -28px 12px -28px;
+  padding: 12px 12px 0 0;
+  background: var(--pb-card-bg);
+  z-index: 10;
+  border-radius: 20px 20px 0 0;
+}
+
+.booking-listing-modal .booking-modal-close-bar {
+  margin: -32px -28px 12px -28px;
+}
+
 .telegram-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+  position: relative;
+  top: auto;
+  right: auto;
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -589,6 +611,18 @@
   font-size: 0.875rem;
   margin: 0 0 20px;
   line-height: 1.5;
+}
+
+.booking-poputky-link {
+  color: var(--pb-primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.booking-poputky-link:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
 }
 
 .viber-listings {
@@ -830,6 +864,16 @@
 
   .telegram-success-content {
     padding: 28px 20px;
+  }
+
+  .booking-listing-modal-overlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .booking-listing-modal .booking-modal-close-bar {
+    margin: -28px -20px 12px -20px;
+    padding: 12px 12px 0 0;
   }
 
   .viber-listing-details {

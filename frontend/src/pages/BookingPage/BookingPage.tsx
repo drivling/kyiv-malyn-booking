@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import { Button } from '@/components/Button';
@@ -555,11 +555,11 @@ export const BookingPage: React.FC = () => {
           )}
         </div>
 
-        {/* Viber оголошення */}
+        {/* Попутки з розділу Попутки */}
         {viberListings.length > 0 && (
           <div className="viber-listings-section">
-            <h3>Також доступні поїздки з Viber</h3>
-            <p className="viber-subtitle">Ці оголошення розміщені в Viber чаті. Для бронювання зателефонуйте за вказаним номером.</p>
+            <h3>Також доступні поїздки в розділі <Link to="/poputky" className="booking-poputky-link">Попутки</Link></h3>
+            <p className="viber-subtitle">Для бронювання зателефонуйте за вказаним номером. Інші оголошення — у <Link to="/poputky" className="booking-poputky-link">розділі Попутки</Link>.</p>
             <div className="viber-listings">
               {viberListings.map((listing) => (
                 <div 
@@ -684,21 +684,27 @@ export const BookingPage: React.FC = () => {
           </div>
         )}
 
-        {/* Модалка з номером телефону для Viber оголошення */}
+        {/* Модалка з контактом для попутки */}
         {showViberModal && selectedViberListing && (
-          <div className="telegram-success-modal">
-            <div className="telegram-success-content">
-              <button 
-                className="telegram-close"
-                onClick={() => {
-                  setShowViberModal(false);
-                  setSelectedViberListing(null);
-                }}
-              >
-                ×
-              </button>
+          <div
+            className="telegram-success-modal booking-listing-modal-overlay"
+            onClick={(e) => { if (e.target === e.currentTarget) { setShowViberModal(false); setSelectedViberListing(null); } }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-modal-title"
+          >
+            <div className="telegram-success-content booking-listing-modal">
+              <div className="booking-modal-close-bar">
+                <button
+                  className="telegram-close"
+                  onClick={() => { setShowViberModal(false); setSelectedViberListing(null); }}
+                  aria-label="Закрити"
+                >
+                  ×
+                </button>
+              </div>
               <div className="telegram-success-icon viber-modal-icon" aria-hidden>📱</div>
-              <h3>Контакт для бронювання</h3>
+              <h3 id="booking-modal-title">Контакт для бронювання</h3>
               <div className="viber-modal-info">
                 <div className="viber-modal-row">
                   <span className="viber-modal-label">Тип:</span>
@@ -749,29 +755,24 @@ export const BookingPage: React.FC = () => {
                     </button>
                   </>
                 ) : (
-                  <>
-                    <a
-                      href="https://invite.viber.com/?g2=AQAcZm49UP6l%2FEkN%2Flr3iMqCoDYkoJX12FW%2BZtE59xbiYc%2BnCUVsmjZ%2Fu5qn1l4l"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="viber-phone-link"
-                    >
-                      Відкрити Viber групу
-                    </a>
-                  </>
+                  <a
+                    href="https://invite.viber.com/?g2=AQAcZm49UP6l%2FEkN%2Flr3iMqCoDYkoJX12FW%2BZtE59xbiYc%2BnCUVsmjZ%2Fu5qn1l4l"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="viber-phone-link"
+                  >
+                    Відкрити Viber групу
+                  </a>
                 )}
               </div>
               <p className="viber-modal-note">
                 {selectedViberListing.phone
-                  ? 'Це оголошення з Viber чату. Зателефонуйте за вказаним номером для бронювання.'
-                  : 'В цьому оголошенні немає телефону. Відкрийте Viber групу для контактів.'}
+                  ? 'Зателефонуйте за вказаним номером для бронювання.'
+                  : <>В цьому оголошенні немає телефону. <Link to="/poputky" className="booking-poputky-link" onClick={() => { setShowViberModal(false); setSelectedViberListing(null); }}>Подивитись контакти можна в розділі Попутки</Link>.</>}
               </p>
-              <button 
-                className="telegram-skip"
-                onClick={() => {
-                  setShowViberModal(false);
-                  setSelectedViberListing(null);
-                }}
+              <button
+                className="telegram-skip booking-modal-close-btn"
+                onClick={() => { setShowViberModal(false); setSelectedViberListing(null); }}
               >
                 Закрити
               </button>
