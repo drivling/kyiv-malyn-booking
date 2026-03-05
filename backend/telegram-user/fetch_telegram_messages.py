@@ -96,6 +96,19 @@ def get_sender_display_name(sender):
     return "Невідомий"
 
 
+def get_sender_telegram_user_id(sender):
+    """Telegram user ID для прив'язки до Person (тільки для User, не для Channel/Bot)."""
+    if sender is None:
+        return None
+    try:
+        from telethon.tl.types import User
+        if isinstance(sender, User) and not getattr(sender, "bot", False):
+            return sender.id
+    except Exception:
+        pass
+    return None
+
+
 def parse_last_ids(full_fetch=False):
     """Парсимо TELEGRAM_LAST_IDS з env. Повертає dict {topic_id: min_message_id}."""
     default = {str(t): 0 for t in TOPICS.keys()}
@@ -161,7 +174,11 @@ async def fetch_messages(limit_per_topic=50, topic_ids=None, hours=None, full_fe
                     sender = await msg.get_sender()
                     name = get_sender_display_name(sender)
                     text = msg.text.strip()
-                    lines.append(f"{name}: {text}")
+                    tg_user_id = get_sender_telegram_user_id(sender)
+                    if tg_user_id is not None:
+                        lines.append(f"{name}|{tg_user_id}: {text}")
+                    else:
+                        lines.append(f"{name}: {text}")
                     lines.append("---")
 
                 new_last_ids[str(topic_id)] = topic_max_id

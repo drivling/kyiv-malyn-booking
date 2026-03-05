@@ -13,16 +13,24 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractSenderNameTelegram = extractSenderNameTelegram;
+exports.extractTelegramUserId = extractTelegramUserId;
 exports.extractMessageBodyTelegram = extractMessageBodyTelegram;
 exports.parseTelegramMessage = parseTelegramMessage;
 exports.parseTelegramMessages = parseTelegramMessages;
 const viber_parser_1 = require("./viber-parser");
 /**
  * Витягує ім'я відправника з Telegram повідомлення
- * Формати: "Ім'я: текст", "Forwarded from Channel Name: текст"
+ * Формати: "Ім'я: текст", "Ім'я|tgUserId: текст", "Forwarded from Channel Name: текст"
  */
 function extractSenderNameTelegram(text) {
-    // "FirstName LastName: " або "Ім'я: " на початку
+    // "Name|userId: " або "FirstName LastName: " або "Ім'я: " на початку
+    const withTgId = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-']+)\|(\d+):\s*(.*)/s);
+    if (withTgId) {
+        const name = withTgId[1].trim();
+        if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
+            return name;
+        }
+    }
     const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-']+):\s*(.*)/s);
     if (namePrefixMatch) {
         const name = namePrefixMatch[1].trim();
@@ -30,7 +38,6 @@ function extractSenderNameTelegram(text) {
             return name;
         }
     }
-    // "Forwarded from X: текст"
     const forwardedMatch = text.match(/^Forwarded\s+from\s+(.+?):\s*(.*)/is);
     if (forwardedMatch) {
         return forwardedMatch[1].trim();
@@ -38,9 +45,20 @@ function extractSenderNameTelegram(text) {
     return null;
 }
 /**
- * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Forwarded from X: ")
+ * Витягує Telegram user ID з повідомлення (формат "Name|userId: текст" з fetch_telegram_messages.py)
+ */
+function extractTelegramUserId(rawMessage) {
+    const match = rawMessage.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+\|(\d+):\s*/s);
+    return match ? match[1] : null;
+}
+/**
+ * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Ім'я|userId: " або "Forwarded from X: ")
  */
 function extractMessageBodyTelegram(text) {
+    const withTgId = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+\|\d+:\s*(.*)/s);
+    if (withTgId) {
+        return withTgId[1].trim();
+    }
     const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+:\s*(.*)/s);
     if (namePrefixMatch) {
         return namePrefixMatch[1].trim();
@@ -123,7 +141,7 @@ function splitTelegramMessages(rawText) {
     const messages = [];
     let current = [];
     for (const line of lines) {
-        const isNewMessage = /^[А-Яа-яІіЇїЄєA-Za-z\s\-']+:\s*/.test(line.trim());
+        const isNewMessage = /^[А-Яа-яІіЇїЄєA-Za-z\s\-']+(?:\|\d+)?:\s*/.test(line.trim());
         if (isNewMessage && current.length > 0) {
             const joined = current.join('\n').trim();
             if (joined.length >= 10)
@@ -148,7 +166,8 @@ function parseTelegramMessages(rawText) {
     for (const msg of messages) {
         const parsed = parseTelegramMessage(msg);
         if (parsed) {
-            result.push({ parsed, rawMessage: msg });
+            const telegramUserId = extractTelegramUserId(msg);
+            result.push({ parsed, rawMessage: msg, telegramUserId: telegramUserId ?? undefined });
         }
     }
     return result;
