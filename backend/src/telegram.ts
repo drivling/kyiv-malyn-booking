@@ -58,23 +58,15 @@ async function createOrMergeViberListing(
   data: ViberListingMergeInput
 ): Promise<{ listing: any; isNew: boolean }> {
   const personId = data.personId ?? null;
-
-  // Якщо немає personId – немає надійного способу визначити клієнта, просто створюємо запис
-  if (!personId) {
-    const listing = await prisma.viberListing.create({
-      data: { ...data, source: data.source ?? 'Viber1' },
-    });
-    return { listing, isNew: true };
-  }
-
   const date = data.date;
   const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+  const normalizedPhone = data.phone?.trim() ? normalizePhone(data.phone) : '';
 
-  const existing = await prisma.viberListing.findFirst({
+  // Шукаємо існуючий запис за route+date+time+phone (незалежно від source — Viber1 чи telegram1)
+  const candidates = await prisma.viberListing.findMany({
     where: {
       listingType: data.listingType,
-      personId,
       route: data.route,
       isActive: true,
       date: {
@@ -86,6 +78,14 @@ async function createOrMergeViberListing(
     orderBy: { createdAt: 'desc' },
   });
 
+  let existing: (typeof candidates)[0] | null = null;
+  if (normalizedPhone) {
+    existing = candidates.find((c) => normalizePhone(c.phone) === normalizedPhone) ?? null;
+  }
+  if (!existing && personId) {
+    existing = candidates.find((c) => c.personId === personId) ?? null;
+  }
+
   if (!existing) {
     const listing = await prisma.viberListing.create({
       data: { ...data, source: data.source ?? 'Viber1' },
@@ -93,6 +93,7 @@ async function createOrMergeViberListing(
     return { listing, isNew: true };
   }
 
+  // Оновлюємо існуючий — source залишаємо перший (як потрапило в базу)
   const mergedNotes = mergeTextField(existing.notes, data.notes);
   const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
 
@@ -107,11 +108,12 @@ async function createOrMergeViberListing(
       priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
       isActive: existing.isActive || data.isActive,
       personId: existing.personId ?? personId,
+      // source не оновлюємо — залишаємо перший
     },
   });
 
   console.log(
-    `♻️ Viber listing merged with existing #${existing.id} (client+route+date+time match)`
+    `♻️ Listing merged with existing #${existing.id} (route+date+time+phone match, source=${existing.source})`
   );
 
   return { listing: updated, isNew: false };
