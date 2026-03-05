@@ -67,8 +67,8 @@ export function extractDate(text: string, messageDate?: Date): Date {
   const now = messageDate || new Date();
   const currentYear = now.getFullYear();
 
-  // Спочатку шукаємо явну дату DD.MM або DD.MM.YY або DD.MM.YYYY
-  const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/);
+  // Спочатку шукаємо явну дату DD.MM або DD.MM.YY або DD.MM.YYYY (дозволяємо крапку в кінці)
+  const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\.?/);
   if (dateMatch) {
     const day = parseInt(dateMatch[1], 10);
     const month = parseInt(dateMatch[2], 10) - 1;

@@ -46,15 +46,16 @@ export function extractPhone(text: string): string | null {
 
 /**
  * Витягує дату з тексту
- * Підтримує формати: "09.02", "9.02", "01.03.2026", "сьогодні", "завтра"
- * Явна дата (DD.MM) має пріоритет над "сьогодні"/"завтра" — "Сьогодні 18.02" → 18 лютого
+ * Підтримує формати: "09.02", "9.02", "01.03.2026", "Завтра 23.02.", "сьогодні", "завтра"
+ * Явна дата (DD.MM) має пріоритет над "сьогодні"/"завтра" — "Завтра 23.02." → 23 лютого
  */
 export function extractDate(text: string, messageDate?: Date): Date {
   const now = messageDate || new Date();
   const currentYear = now.getFullYear();
 
   // Спочатку шукаємо явну дату DD.MM або DD.MM.YY або DD.MM.YYYY (пріоритет над "сьогодні"/"завтра")
-  const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/);
+  // Дозволяємо крапку в кінці: "23.02." або "23.02.26"
+  const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\.?/);
   if (dateMatch) {
     const day = parseInt(dateMatch[1], 10);
     const month = parseInt(dateMatch[2], 10) - 1; // Місяці в JS з 0
