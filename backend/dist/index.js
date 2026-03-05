@@ -1039,6 +1039,7 @@ app.post('/rideshare/request', async (req, res) => {
         const passengerListing = existingPassenger ?? await prisma.viberListing.create({
             data: {
                 rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
+                source: 'Viber1',
                 senderName: person.fullName?.trim() || 'Пасажир',
                 listingType: 'passenger',
                 route: driverListing.route,
@@ -1127,7 +1128,9 @@ async function createOrMergeViberListing(data) {
     const personId = data.personId ?? null;
     // Якщо немає personId – немає надійного способу визначити клієнта, просто створюємо запис
     if (!personId) {
-        const listing = await prisma.viberListing.create({ data });
+        const listing = await prisma.viberListing.create({
+            data: { ...data, source: data.source ?? 'Viber1' },
+        });
         return { listing, isNew: true };
     }
     const date = data.date;
@@ -1148,7 +1151,9 @@ async function createOrMergeViberListing(data) {
         orderBy: { createdAt: 'desc' },
     });
     if (!existing) {
-        const listing = await prisma.viberListing.create({ data });
+        const listing = await prisma.viberListing.create({
+            data: { ...data, source: data.source ?? 'Viber1' },
+        });
         return { listing, isNew: true };
     }
     const mergedNotes = mergeTextField(existing.notes, data.notes);
@@ -1483,24 +1488,54 @@ app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to delete Viber listing' });
     }
 });
-// Автоматичне деактивування старих оголошень (можна викликати з cron)
+// Повертає «дату по» для оголошення: дата поїздки + кінець часу.
+// departureTime: "15:00" → той день о 15:00; "14:30-16:00" → той день о 16:00; відсутній → 23:59.
+function getViberListingEndDateTime(date, departureTime) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const t = (departureTime ?? '').trim();
+    if (!t) {
+        d.setHours(23, 59, 0, 0);
+        return d;
+    }
+    const rangeMatch = t.match(/^\d{1,2}:\d{2}-(\d{1,2}):(\d{2})$/);
+    const singleMatch = t.match(/^(\d{1,2}):(\d{2})$/);
+    const timeStr = rangeMatch ? `${rangeMatch[1]}:${rangeMatch[2]}` : (singleMatch ? `${singleMatch[1]}:${singleMatch[2]}` : null);
+    if (timeStr) {
+        const [h, m] = timeStr.split(':').map(Number);
+        d.setHours(h, m, 0, 0);
+        return d;
+    }
+    d.setHours(23, 59, 0, 0);
+    return d;
+}
+// Автоматичне деактивування старих оголошень (можна викликати з cron).
+// «Дата по» = date + кінець часу з departureTime (один час "15:00" або кінець діапазону "14:30-16:00" → 16:00).
+// Деактивуємо, якщо дата по < зараз − 3 год.
+const CLEANUP_CUTOFF_HOURS = 3;
 app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
     try {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(23, 59, 59, 999);
-        const result = await prisma.viberListing.updateMany({
-            where: {
-                date: { lt: yesterday },
-                isActive: true
-            },
-            data: { isActive: false }
+        const cutoff = new Date();
+        cutoff.setHours(cutoff.getHours() - CLEANUP_CUTOFF_HOURS);
+        const activeListings = await prisma.viberListing.findMany({
+            where: { isActive: true },
+            select: { id: true, date: true, departureTime: true }
         });
-        console.log(`🧹 Деактивовано ${result.count} старих Viber оголошень`);
+        const idsToDeactivate = activeListings
+            .filter((l) => getViberListingEndDateTime(l.date, l.departureTime) < cutoff)
+            .map((l) => l.id);
+        const count = idsToDeactivate.length;
+        if (count > 0) {
+            await prisma.viberListing.updateMany({
+                where: { id: { in: idsToDeactivate } },
+                data: { isActive: false }
+            });
+        }
+        console.log(`🧹 Деактивовано ${count} старих Viber оголошень (дата по < ${cutoff.toISOString()})`);
         res.json({
             success: true,
-            deactivated: result.count,
-            message: `Деактивовано ${result.count} оголошень`
+            deactivated: count,
+            message: `Деактивовано ${count} оголошень`
         });
     }
     catch (error) {

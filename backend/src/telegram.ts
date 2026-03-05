@@ -3,11 +3,13 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { extractDate, extractTime, parseViberMessage, parseViberMessages } from './viber-parser';
+import { parseTelegramMessage, parseTelegramMessages } from './telegram-parser';
 
 const prisma = new PrismaClient();
 
 type ViberListingMergeInput = {
   rawMessage: string;
+  source?: 'Viber1' | 'telegram1';
   senderName?: string | null;
   listingType: 'driver' | 'passenger';
   route: string;
@@ -59,7 +61,9 @@ async function createOrMergeViberListing(
 
   // Якщо немає personId – немає надійного способу визначити клієнта, просто створюємо запис
   if (!personId) {
-    const listing = await prisma.viberListing.create({ data });
+    const listing = await prisma.viberListing.create({
+      data: { ...data, source: data.source ?? 'Viber1' },
+    });
     return { listing, isNew: true };
   }
 
@@ -83,7 +87,9 @@ async function createOrMergeViberListing(
   });
 
   if (!existing) {
-    const listing = await prisma.viberListing.create({ data });
+    const listing = await prisma.viberListing.create({
+      data: { ...data, source: data.source ?? 'Viber1' },
+    });
     return { listing, isNew: true };
   }
 
@@ -152,6 +158,10 @@ const PASSENGER_RIDE_STATE_TTL_MS = 15 * 60 * 1000; // 15 хв
 /** Очікування тексту оголошення з Вайберу після /addviber (тільки адмін-чат) */
 const addViberAwaitingMap = new Map<string, number>(); // chatId -> since
 const ADDVIBER_STATE_TTL_MS = 10 * 60 * 1000; // 10 хв
+
+/** Очікування тексту оголошення з Telegram (PoDoroguem) після /addtelegram (тільки адмін-чат) */
+const addTelegramAwaitingMap = new Map<string, number>(); // chatId -> since
+const ADDTELEGRAM_STATE_TTL_MS = 10 * 60 * 1000; // 10 хв
 
 /** Очікування вводу дати для фільтра /allrides */
 const allridesAwaitingDateInputMap = new Map<string, number>(); // chatId -> since
@@ -1146,6 +1156,55 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
       }
     });
     child.on('error', () => resolve(null));
+  });
+}
+
+/**
+ * Завантажити повідомлення з Telegram групи PoDoroguem через особистий акаунт (Telethon).
+ * Повертає текст у форматі "SenderName: text\n---\n" для парсингу parseTelegramMessages.
+ */
+export async function fetchTelegramGroupMessages(options?: { limit?: number; hours?: number }): Promise<string | null> {
+  const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
+  const scriptDir = sessionPath ? path.dirname(sessionPath) : '';
+  const scriptPath = path.join(scriptDir, 'fetch_telegram_messages.py');
+  const apiId = process.env.TELEGRAM_API_ID;
+  const apiHash = process.env.TELEGRAM_API_HASH;
+  if (!sessionPath || !apiId || !apiHash) return null;
+  const limit = options?.limit ?? 30;
+  const hours = options?.hours;
+  const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
+  const args = [scriptPath, '--limit', String(limit)];
+  if (hours != null && hours > 0) {
+    args.push('--hours', String(hours));
+  }
+  return new Promise((resolve) => {
+    const child = spawn(pythonCmd, args, {
+      env: {
+        ...process.env,
+        TELEGRAM_USER_SESSION_PATH: sessionPath,
+        TELEGRAM_API_ID: apiId,
+        TELEGRAM_API_HASH: apiHash,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.on('close', (code) => {
+      if (code === 0 && stdout.trim()) {
+        resolve(stdout.trim());
+      } else {
+        if (code !== 0) {
+          console.error('fetchTelegramGroupMessages:', code, stderr.slice(0, 500));
+        }
+        resolve(null);
+      }
+    });
+    child.on('error', (err) => {
+      console.error('fetchTelegramGroupMessages spawn error:', err);
+      resolve(null);
+    });
   });
 }
 
@@ -2680,6 +2739,26 @@ https://malin.kiev.ua
     );
   });
 
+  // Команда /addtelegram — тільки для адміна: завантажити з групи або вставити текст вручну
+  bot.onText(/\/addtelegram/, async (msg) => {
+    const chatId = msg.chat.id.toString();
+    if (chatId !== adminChatId) return;
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: '📥 Завантажити з групи', callback_data: 'addtelegram_fetch' }],
+        [{ text: '📋 Вставити текст вручну', callback_data: 'addtelegram_paste' }],
+      ],
+    };
+    await bot?.sendMessage(
+      chatId,
+      '✈️ <b>Додати оголошення з Telegram (PoDoroguem)</b>\n\n' +
+      'Оберіть спосіб:\n\n' +
+      '• <b>Завантажити з групи</b> — автоматично отримає повідомлення через ваш акаунт (потрібно бути в групі)\n\n' +
+      '• <b>Вставити текст вручну</b> — переслати або вставити текст',
+      { parse_mode: 'HTML', reply_markup: keyboard }
+    );
+  });
+
   // Обробка контакту (коли користувач ділиться номером через кнопку)
   bot.on('contact', async (msg) => {
     const chatId = msg.chat.id.toString();
@@ -2780,6 +2859,107 @@ https://malin.kiev.ua
 
     if (!text) return;
 
+    // Потік /addtelegram: адмін надіслав текст з Telegram групи PoDoroguem
+    if (chatId === adminChatId && addTelegramAwaitingMap.has(chatId)) {
+      const since = addTelegramAwaitingMap.get(chatId)!;
+      addTelegramAwaitingMap.delete(chatId);
+      if (Date.now() - since > ADDTELEGRAM_STATE_TTL_MS) {
+        await bot?.sendMessage(chatId, '⏱ Час вийшов. Напишіть /addtelegram знову.');
+        return;
+      }
+      try {
+        const parsedMessages = parseTelegramMessages(text);
+        if (parsedMessages.length === 0) {
+          await bot?.sendMessage(chatId, '❌ Не вдалося розпарсити жодне повідомлення. Перевірте формат (маршрут, дата, телефон).');
+          return;
+        }
+        let created = 0;
+        for (let i = 0; i < parsedMessages.length; i++) {
+          const { parsed, rawMessage: rawText } = parsedMessages[i];
+          try {
+            const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
+            let senderName = nameFromDb ?? parsed.senderName ?? null;
+            if (parsed.phone?.trim()) {
+              const phone = parsed.phone.trim();
+              const personForChat = await getPersonByPhone(phone);
+              const chatIdForPerson = personForChat?.telegramChatId ?? null;
+              const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
+                phone,
+                chatIdForPerson,
+              );
+              const baseCurrentName = nameFromDb;
+              const { newName } = pickBestNameFromCandidates(
+                baseCurrentName,
+                nameFromBot,
+                nameFromUser,
+                nameFromOpendatabot,
+              );
+              if (newName?.trim()) {
+                senderName = newName.trim();
+              } else if (!senderName || !String(senderName).trim()) {
+                senderName = parsed.senderName ?? senderName;
+              }
+            }
+            const person = parsed.phone
+              ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+              : null;
+            const { listing, isNew } = await createOrMergeViberListing({
+              rawMessage: rawText,
+              source: 'telegram1',
+              senderName: senderName ?? undefined,
+              listingType: parsed.listingType,
+              route: parsed.route,
+              date: parsed.date,
+              departureTime: parsed.departureTime,
+              seats: parsed.seats,
+              phone: parsed.phone,
+              notes: parsed.notes,
+              priceUah: parsed.price ?? undefined,
+              isActive: true,
+              personId: person?.id ?? undefined,
+            });
+            if (isNew) created++;
+            if (isTelegramEnabled()) {
+              await sendViberListingNotificationToAdmin({
+                id: listing.id,
+                listingType: listing.listingType,
+                route: listing.route,
+                date: listing.date,
+                departureTime: listing.departureTime,
+                seats: listing.seats,
+                phone: listing.phone,
+                senderName: listing.senderName,
+                notes: listing.notes,
+              }).catch((err) => console.error('Telegram notify:', err));
+              if (listing.phone?.trim()) {
+                sendViberListingConfirmationToUser(listing.phone, {
+                  id: listing.id,
+                  route: listing.route,
+                  date: listing.date,
+                  departureTime: listing.departureTime,
+                  seats: listing.seats,
+                  listingType: listing.listingType,
+                }).catch((err) => console.error('Telegram user notify:', err));
+                }
+              const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
+              if (listing.listingType === 'driver') {
+                notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+              } else if (listing.listingType === 'passenger') {
+                notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+              }
+            }
+          } catch (err) {
+            console.error(`AddTelegram bulk item ${i} error:`, err);
+          }
+        }
+        await bot?.sendMessage(chatId, `✅ Створено ${created} оголошень з Telegram (з ${parsedMessages.length}).`, { parse_mode: 'HTML' });
+      } catch (err) {
+        console.error('AddTelegram error:', err);
+        await bot?.sendMessage(chatId, '❌ Помилка створення оголошення. Спробуйте /addtelegram знову.');
+      }
+      return;
+    }
+
     // Потік /addviber: адмін надіслав текст оголошення з Вайберу (та сама обробка, що в адмінці)
     if (chatId === adminChatId && addViberAwaitingMap.has(chatId)) {
       const since = addViberAwaitingMap.get(chatId)!;
@@ -2828,6 +3008,7 @@ https://malin.kiev.ua
                 : null;
           const { listing, isNew } = await createOrMergeViberListing({
             rawMessage: rawText,
+            source: 'Viber1',
             senderName: senderName ?? undefined,
             listingType: parsed.listingType,
             route: parsed.route,
@@ -2836,6 +3017,7 @@ https://malin.kiev.ua
             seats: parsed.seats,
             phone: parsed.phone,
             notes: parsed.notes,
+            priceUah: parsed.price ?? undefined,
             isActive: true,
             personId: person?.id ?? undefined,
           });
@@ -2910,6 +3092,7 @@ https://malin.kiev.ua
             : null;
           const { listing, isNew } = await createOrMergeViberListing({
             rawMessage: text,
+            source: 'Viber1',
             senderName: senderName ?? undefined,
             listingType: parsed.listingType,
             route: parsed.route,
@@ -2918,6 +3101,7 @@ https://malin.kiev.ua
             seats: parsed.seats,
             phone: parsed.phone,
             notes: parsed.notes,
+            priceUah: parsed.price ?? undefined,
             isActive: true,
             personId: person?.id ?? undefined,
           });
@@ -3261,8 +3445,124 @@ https://malin.kiev.ua
     const messageId = query.message?.message_id;
     
     if (!chatId || !data) return;
-    
+    if (chatId !== adminChatId && (data === 'addtelegram_fetch' || data === 'addtelegram_paste')) return;
+
     try {
+      // ---------- /addtelegram: завантажити з групи або вставити текст ----------
+      if (data === 'addtelegram_fetch') {
+        await bot?.answerCallbackQuery(query.id, { text: 'Завантажую повідомлення з групи...' });
+        const statusMsg = await bot?.sendMessage(chatId, '⏳ Завантаження повідомлень з PoDoroguem...');
+        const rawText = await fetchTelegramGroupMessages({ limit: 30 });
+        if (!rawText || !rawText.trim()) {
+          await bot?.editMessageText(
+            '❌ Не вдалося завантажити повідомлення. Перевірте:\n' +
+            '• Ваш акаунт додано в групу https://t.me/PoDoroguem\n' +
+            '• TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH налаштовані',
+            { chat_id: chatId, message_id: statusMsg?.message_id }
+          );
+          return;
+        }
+        const parsedMessages = parseTelegramMessages(rawText);
+        if (parsedMessages.length === 0) {
+          await bot?.editMessageText(
+            '❌ Не вдалося розпарсити жодне повідомлення. Спробуйте /addtelegram → Вставити текст вручну.',
+            { chat_id: chatId, message_id: statusMsg?.message_id }
+          );
+          return;
+        }
+        let created = 0;
+        for (let i = 0; i < parsedMessages.length; i++) {
+          const { parsed, rawMessage: rawTextItem } = parsedMessages[i];
+          try {
+            const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
+            let senderName = nameFromDb ?? parsed.senderName ?? null;
+            if (parsed.phone?.trim()) {
+              const phone = parsed.phone.trim();
+              const personForChat = await getPersonByPhone(phone);
+              const chatIdForPerson = personForChat?.telegramChatId ?? null;
+              const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
+                phone,
+                chatIdForPerson,
+              );
+              const baseCurrentName = nameFromDb;
+              const { newName } = pickBestNameFromCandidates(
+                baseCurrentName,
+                nameFromBot,
+                nameFromUser,
+                nameFromOpendatabot,
+              );
+              if (newName?.trim()) senderName = newName.trim();
+              else if (!senderName || !String(senderName).trim()) senderName = parsed.senderName ?? senderName;
+            }
+            const person = parsed.phone
+              ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+              : null;
+            const { listing, isNew } = await createOrMergeViberListing({
+              rawMessage: rawTextItem,
+              source: 'telegram1',
+              senderName: senderName ?? undefined,
+              listingType: parsed.listingType,
+              route: parsed.route,
+              date: parsed.date,
+              departureTime: parsed.departureTime,
+              seats: parsed.seats,
+              phone: parsed.phone,
+              notes: parsed.notes,
+              priceUah: parsed.price ?? undefined,
+              isActive: true,
+              personId: person?.id ?? undefined,
+            });
+            if (isNew) created++;
+            if (isTelegramEnabled()) {
+              await sendViberListingNotificationToAdmin({
+                id: listing.id,
+                listingType: listing.listingType,
+                route: listing.route,
+                date: listing.date,
+                departureTime: listing.departureTime,
+                seats: listing.seats,
+                phone: listing.phone,
+                senderName: listing.senderName,
+                notes: listing.notes,
+              }).catch((err) => console.error('Telegram notify:', err));
+              if (listing.phone?.trim()) {
+                sendViberListingConfirmationToUser(listing.phone, {
+                  id: listing.id,
+                  route: listing.route,
+                  date: listing.date,
+                  departureTime: listing.departureTime,
+                  seats: listing.seats,
+                  listingType: listing.listingType,
+                }).catch((err) => console.error('Telegram user notify:', err));
+              }
+              const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
+              if (listing.listingType === 'driver') {
+                notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+              } else if (listing.listingType === 'passenger') {
+                notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+              }
+            }
+          } catch (err) {
+            console.error(`AddTelegram fetch item ${i} error:`, err);
+          }
+        }
+        await bot?.editMessageText(
+          `✅ Завантажено з групи: створено ${created} оголошень з ${parsedMessages.length}.`,
+          { chat_id: chatId, message_id: statusMsg?.message_id }
+        );
+        return;
+      }
+      if (data === 'addtelegram_paste') {
+        addTelegramAwaitingMap.set(chatId, Date.now());
+        await bot?.sendMessage(
+          chatId,
+          '📋 Надішліть текст оголошення (переслати або вставити). Через 10 хв очікування скасується.',
+          { parse_mode: 'HTML' }
+        );
+        await bot?.answerCallbackQuery(query.id, { text: 'Очікую текст від вас' });
+        return;
+      }
+
       // ---------- /allrides: фільтри списку ----------
       if (data === 'allrides_filter_future') {
         allridesAwaitingDateInputMap.delete(chatId);

@@ -12,6 +12,7 @@ datasource db {
 model ViberListing {
   id            Int      @id @default(autoincrement())
   rawMessage    String   @db.Text
+  source        String   @default("Viber1")
   senderName    String?
   listingType   String
   route         String

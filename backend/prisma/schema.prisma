@@ -74,6 +74,7 @@ model RideShareRequest {
 model ViberListing {
   id            Int      @id @default(autoincrement())
   rawMessage    String   @db.Text // Оригінальне повідомлення з чату
+  source        String   @default("Viber1") // "Viber1" — з Viber, "telegram1" — з Telegram (PoDoroguem)
   senderName    String?  // Ім'я відправника (деноралізовано; джерело — Person)
   listingType   String   // "driver" або "passenger"
   route         String   // Напрямок (наприклад "Київ-Малин", "Малин-Київ")

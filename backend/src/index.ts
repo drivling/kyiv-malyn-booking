@@ -1103,6 +1103,7 @@ app.post('/rideshare/request', async (req, res) => {
     const passengerListing = existingPassenger ?? await prisma.viberListing.create({
       data: {
         rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
+        source: 'Viber1',
         senderName: person.fullName?.trim() || 'Пасажир',
         listingType: 'passenger',
         route: driverListing.route,
@@ -1176,6 +1177,7 @@ type ViberListingMergeInput = {
   priceUah?: number | null;
   isActive: boolean;
   personId?: number | null;
+  source?: 'Viber1' | 'telegram1';
 };
 
 function hasNonEmptyText(value: string | null | undefined): boolean {
@@ -1216,7 +1218,9 @@ async function createOrMergeViberListing(
 
   // Якщо немає personId – немає надійного способу визначити клієнта, просто створюємо запис
   if (!personId) {
-    const listing = await prisma.viberListing.create({ data });
+    const listing = await prisma.viberListing.create({
+      data: { ...data, source: data.source ?? 'Viber1' },
+    });
     return { listing, isNew: true };
   }
 
@@ -1240,7 +1244,9 @@ async function createOrMergeViberListing(
   });
 
   if (!existing) {
-    const listing = await prisma.viberListing.create({ data });
+    const listing = await prisma.viberListing.create({
+      data: { ...data, source: data.source ?? 'Viber1' },
+    });
     return { listing, isNew: true };
   }
 

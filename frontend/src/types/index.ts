@@ -96,6 +96,7 @@ export type ViberListingType = 'driver' | 'passenger';
 export interface ViberListing {
   id: number;
   rawMessage: string;
+  source?: string; // "Viber1" | "telegram1"
   senderName: string | null;
   listingType: ViberListingType;
   route: string;
