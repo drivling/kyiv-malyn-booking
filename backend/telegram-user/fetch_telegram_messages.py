@@ -21,7 +21,7 @@
   TELEGRAM_LAST_IDS — JSON {"2":123,"6":456,"108":789} останні message ID по топиках
 
 Вихід: stdout, UTF-8.
-  Повідомлення у форматі: SenderName: текст\n---\n
+  Повідомлення у форматі: SenderName: текст або SenderName|@username: текст (якщо є username)
   В кінці: __LAST_IDS__{"2":12345,"6":12340,"108":12350}
 """
 
@@ -96,6 +96,16 @@ def get_sender_display_name(sender):
     return "Невідомий"
 
 
+def get_sender_telegram_username(sender):
+    """@username для прив'язки до Person (тільки для User з username)."""
+    if sender is None:
+        return None
+    username = getattr(sender, "username", None)
+    if username and isinstance(username, str) and username.strip():
+        return f"@{username.strip()}"
+    return None
+
+
 def parse_last_ids(full_fetch=False):
     """Парсимо TELEGRAM_LAST_IDS з env. Повертає dict {topic_id: min_message_id}."""
     default = {str(t): 0 for t in TOPICS.keys()}
@@ -161,7 +171,11 @@ async def fetch_messages(limit_per_topic=50, topic_ids=None, hours=None, full_fe
                     sender = await msg.get_sender()
                     name = get_sender_display_name(sender)
                     text = msg.text.strip()
-                    lines.append(f"{name}: {text}")
+                    tg_username = get_sender_telegram_username(sender)
+                    if tg_username is not None:
+                        lines.append(f"{name}|{tg_username}: {text}")
+                    else:
+                        lines.append(f"{name}: {text}")
                     lines.append("---")
 
                 new_last_ids[str(topic_id)] = topic_max_id

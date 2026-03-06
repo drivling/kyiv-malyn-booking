@@ -13,17 +13,25 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractSenderNameTelegram = extractSenderNameTelegram;
+exports.extractTelegramUsername = extractTelegramUsername;
 exports.extractMessageBodyTelegram = extractMessageBodyTelegram;
 exports.parseTelegramMessage = parseTelegramMessage;
 exports.parseTelegramMessages = parseTelegramMessages;
 const viber_parser_1 = require("./viber-parser");
 /**
  * Витягує ім'я відправника з Telegram повідомлення
- * Формати: "Ім'я: текст", "Forwarded from Channel Name: текст"
+ * Формати: "Ім'я: текст", "Ім'я|@username: текст", "Forwarded from Channel Name: текст"
  */
 function extractSenderNameTelegram(text) {
-    // "FirstName LastName: " або "Ім'я: " на початку
-    const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-']+):\s*(.*)/s);
+    // "Name|@username: " або "FirstName LastName: " або "Ім'я: " або "@username: " на початку
+    const withUsername = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@]+)\|(@[a-zA-Z0-9_]+):\s*(.*)/s);
+    if (withUsername) {
+        const name = withUsername[1].trim();
+        if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
+            return name;
+        }
+    }
+    const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@]+):\s*(.*)/s);
     if (namePrefixMatch) {
         const name = namePrefixMatch[1].trim();
         if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
@@ -38,10 +46,21 @@ function extractSenderNameTelegram(text) {
     return null;
 }
 /**
- * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Forwarded from X: ")
+ * Витягує @username з повідомлення (формат "Name|@username: текст" з fetch_telegram_messages.py)
+ */
+function extractTelegramUsername(rawMessage) {
+    const match = rawMessage.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+\|(@[a-zA-Z0-9_]+):\s*/s);
+    return match ? match[1] : null;
+}
+/**
+ * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Ім'я|@username: " або "Forwarded from X: ")
  */
 function extractMessageBodyTelegram(text) {
-    const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+:\s*(.*)/s);
+    const withUsername = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+\|@[a-zA-Z0-9_]+:\s*(.*)/s);
+    if (withUsername) {
+        return withUsername[1].trim();
+    }
+    const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+:\s*(.*)/s);
     if (namePrefixMatch) {
         return namePrefixMatch[1].trim();
     }
@@ -123,7 +142,7 @@ function splitTelegramMessages(rawText) {
     const messages = [];
     let current = [];
     for (const line of lines) {
-        const isNewMessage = /^[А-Яа-яІіЇїЄєA-Za-z\s\-']+:\s*/.test(line.trim());
+        const isNewMessage = /^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+(?:\|@[a-zA-Z0-9_]+)?:\s*/.test(line.trim());
         if (isNewMessage && current.length > 0) {
             const joined = current.join('\n').trim();
             if (joined.length >= 10)
@@ -148,7 +167,8 @@ function parseTelegramMessages(rawText) {
     for (const msg of messages) {
         const parsed = parseTelegramMessage(msg);
         if (parsed) {
-            result.push({ parsed, rawMessage: msg });
+            const telegramUsername = extractTelegramUsername(msg);
+            result.push({ parsed, rawMessage: msg, telegramUsername: telegramUsername ?? undefined });
         }
     }
     return result;

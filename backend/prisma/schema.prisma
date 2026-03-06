@@ -27,6 +27,7 @@ model Person {
   fullName              String?   // Ім'я та прізвище
   telegramChatId        String?   // Для відправки повідомлень в Telegram
   telegramUserId        String?   // Ідентифікатор користувача в Telegram
+  telegramUsername      String?   // @username з Telegram (з групи PoDoroguem)
   telegramPromoSentAt     DateTime? // Коли одноразово відправлено промо від вашого акаунта (щоб не спамити)
   telegramReminderSentAt  DateTime? // Остання дата нагадування/реклами для Telegram-клієнтів (щоб не спамити)
   createdAt               DateTime  @default(now())

@@ -750,7 +750,12 @@ export const getDriverFutureBookingsForMybookings = async (
  */
 export const findOrCreatePersonByPhone = async (
   phone: string,
-  options?: { fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null }
+  options?: {
+    fullName?: string | null;
+    telegramChatId?: string | null;
+    telegramUserId?: string | null;
+    telegramUsername?: string | null;
+  }
 ): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> => {
   const normalized = normalizePhone(phone);
   const fullName = options?.fullName != null && String(options.fullName).trim() !== ''
@@ -763,11 +768,13 @@ export const findOrCreatePersonByPhone = async (
       fullName,
       telegramChatId: options?.telegramChatId ?? null,
       telegramUserId: options?.telegramUserId ?? null,
+      telegramUsername: options?.telegramUsername ?? null,
     },
     update: {
       ...(fullName != null && { fullName }),
       ...(options?.telegramChatId != null && { telegramChatId: options.telegramChatId }),
       ...(options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
+      ...(options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
     },
   });
   return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName };
@@ -1289,7 +1296,7 @@ export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImp
   }
   let created = 0;
   for (let i = 0; i < parsedMessages.length; i++) {
-    const { parsed, rawMessage: rawTextItem, telegramUserId: tgUserId } = parsedMessages[i];
+    const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername } = parsedMessages[i];
     try {
       const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
       let senderName = nameFromDb ?? parsed.senderName ?? null;
@@ -1314,8 +1321,7 @@ export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImp
       const person = parsed.phone
         ? await findOrCreatePersonByPhone(parsed.phone, {
             fullName: senderName ?? undefined,
-            telegramUserId: tgUserId ?? undefined,
-            telegramChatId: tgUserId ?? undefined,
+            telegramUsername: tgUsername ?? undefined,
           })
         : null;
       const { listing, isNew } = await createOrMergeViberListing({
@@ -3043,7 +3049,7 @@ https://malin.kiev.ua
         }
         let created = 0;
         for (let i = 0; i < parsedMessages.length; i++) {
-          const { parsed, rawMessage: rawText } = parsedMessages[i];
+          const { parsed, rawMessage: rawText, telegramUsername: tgUsername } = parsedMessages[i];
           try {
             const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
             let senderName = nameFromDb ?? parsed.senderName ?? null;
@@ -3069,7 +3075,10 @@ https://malin.kiev.ua
               }
             }
             const person = parsed.phone
-              ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+              ? await findOrCreatePersonByPhone(parsed.phone, {
+                  fullName: senderName ?? undefined,
+                  telegramUsername: tgUsername ?? undefined,
+                })
               : null;
             const { listing, isNew } = await createOrMergeViberListing({
               rawMessage: rawText,
@@ -3648,7 +3657,7 @@ https://malin.kiev.ua
         }
         let created = 0;
         for (let i = 0; i < parsedMessages.length; i++) {
-          const { parsed, rawMessage: rawTextItem } = parsedMessages[i];
+          const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername } = parsedMessages[i];
           try {
             const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
             let senderName = nameFromDb ?? parsed.senderName ?? null;
@@ -3671,7 +3680,10 @@ https://malin.kiev.ua
               else if (!senderName || !String(senderName).trim()) senderName = parsed.senderName ?? senderName;
             }
             const person = parsed.phone
-              ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
+              ? await findOrCreatePersonByPhone(parsed.phone, {
+                  fullName: senderName ?? undefined,
+                  telegramUsername: tgUsername ?? undefined,
+                })
               : null;
             const { listing, isNew } = await createOrMergeViberListing({
               rawMessage: rawTextItem,
