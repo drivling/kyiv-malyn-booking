@@ -1453,7 +1453,7 @@ export async function sendMessageViaUserAccount(
       return true;
     }
     // Пауза перед спробою по телефону, щоб не перевищити rate limit
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 10000));
   }
   const sentByPhone = await spawnSendMessage(phone, message, false);
   if (sentByPhone) return true;
