@@ -1931,25 +1931,64 @@ export const AdminPage: React.FC = () => {
                       value={personEditForm.fullName}
                       onChange={(e) => setPersonEditForm({ ...personEditForm, fullName: e.target.value })}
                     />
-                    <Input
-                      label="Telegram ChatId"
-                      type="text"
-                      value={personEditForm.telegramChatId}
-                      onChange={(e) => setPersonEditForm({ ...personEditForm, telegramChatId: e.target.value })}
-                    />
-                    <Input
-                      label="Telegram UserId"
-                      type="text"
-                      value={personEditForm.telegramUserId}
-                      onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUserId: e.target.value })}
-                    />
-                    <Input
-                      label="@username"
-                      type="text"
-                      placeholder="@username"
-                      value={personEditForm.telegramUsername}
-                      onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUsername: e.target.value })}
-                    />
+                    <div className="form-group">
+                      <label>Telegram ChatId</label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          className="control-input"
+                          value={personEditForm.telegramChatId}
+                          onChange={(e) => setPersonEditForm({ ...personEditForm, telegramChatId: e.target.value })}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setPersonEditForm({ ...personEditForm, telegramChatId: '' })}
+                        >
+                          Обнулити
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Telegram UserId</label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          className="control-input"
+                          value={personEditForm.telegramUserId}
+                          onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUserId: e.target.value })}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setPersonEditForm({ ...personEditForm, telegramUserId: '' })}
+                        >
+                          Обнулити
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>@username</label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          className="control-input"
+                          placeholder="@username"
+                          value={personEditForm.telegramUsername}
+                          onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUsername: e.target.value })}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setPersonEditForm({ ...personEditForm, telegramUsername: '' })}
+                        >
+                          Обнулити
+                        </Button>
+                      </div>
+                    </div>
                     <div className="form-group">
                       <label>Промо відправлено (telegramPromoSentAt)</label>
                       <input
