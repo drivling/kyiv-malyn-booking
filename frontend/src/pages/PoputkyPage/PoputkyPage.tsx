@@ -4,6 +4,7 @@ import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
 import { formatPhoneDisplay, supportPhoneToTelLink } from '@/utils/constants';
+import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { userState } from '@/utils/userState';
 import './PoputkyPage.css';
 
@@ -368,7 +369,7 @@ export const PoputkyPage: React.FC = () => {
                             {listing.senderName ? listing.senderName.charAt(0).toUpperCase() : '?'}
                           </div>
                           <div className="poputky-trip-info">
-                            <span className="poputky-trip-name">{listing.senderName || (listing.listingType === 'driver' ? 'Водій' : 'Пасажир')}</span>
+                            <span className="poputky-trip-name">{maskSenderNameForDisplay(listing.senderName) || (listing.listingType === 'driver' ? 'Водій' : 'Пасажир')}</span>
                           </div>
                         </div>
                         <div className="poputky-trip-route" aria-label="Маршрут">
@@ -595,7 +596,7 @@ export const PoputkyPage: React.FC = () => {
                 <div><strong>Час:</strong> {confirmRequestListing.departureTime}</div>
               )}
               {confirmRequestListing.senderName && (
-                <div><strong>Водій:</strong> {confirmRequestListing.senderName}</div>
+                <div><strong>Водій:</strong> {maskSenderNameForDisplay(confirmRequestListing.senderName)}</div>
               )}
             </div>
             <div className="poputky-modal-actions">
@@ -701,7 +702,7 @@ export const PoputkyPage: React.FC = () => {
                 <div><strong>Час:</strong> {alreadyRequestedListing.departureTime}</div>
               )}
               {alreadyRequestedListing.senderName && (
-                <div><strong>Водій:</strong> {alreadyRequestedListing.senderName}</div>
+                <div><strong>Водій:</strong> {maskSenderNameForDisplay(alreadyRequestedListing.senderName)}</div>
               )}
             </div>
             <a

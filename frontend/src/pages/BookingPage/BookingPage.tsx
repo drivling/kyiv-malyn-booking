@@ -8,6 +8,7 @@ import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
 import { DIRECTION_ROUTES, supportPhoneToTelLink, formatPhoneDisplay, BOOKING_CITY_LABELS, BOOKING_FROM_TO, getDirectionFromCities, BOOKING_POPULAR_ROUTES } from '@/utils/constants';
+import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import type { BookingCity } from '@/utils/constants';
 import './BookingPage.css';
 
@@ -572,7 +573,7 @@ export const BookingPage: React.FC = () => {
                       {listing.listingType === 'driver' ? 'Водій' : 'Пасажир'}
                     </span>
                     {listing.senderName && (
-                      <span className="viber-sender">{listing.senderName}</span>
+                      <span className="viber-sender">{maskSenderNameForDisplay(listing.senderName)}</span>
                     )}
                   </div>
                   <div className="viber-listing-route">
