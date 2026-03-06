@@ -117,9 +117,12 @@ export const AdminPage: React.FC = () => {
     fullName: string;
     telegramChatId: string;
     telegramUserId: string;
+    telegramUsername: string;
     telegramPromoSentAt: string; // ISO або '' для обнулення
     telegramReminderSentAt: string; // комунікація через бота (нагадування)
-  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
+  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramUsername: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
+  const [dataSortField, setDataSortField] = useState<string>('id');
+  const [dataSortDir, setDataSortDir] = useState<'asc' | 'desc'>('asc');
   const [refreshNamesLoading, setRefreshNamesLoading] = useState(false);
   const [refreshNamesResult, setRefreshNamesResult] = useState<RefreshPersonNamesResponse | null>(null);
   const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
@@ -377,10 +380,61 @@ export const AdminPage: React.FC = () => {
       fullName: p.fullName ?? '',
       telegramChatId: p.telegramChatId ?? '',
       telegramUserId: p.telegramUserId ?? '',
+      telegramUsername: p.telegramUsername ?? '',
       telegramPromoSentAt: toDateTimeLocal(p.telegramPromoSentAt),
       telegramReminderSentAt: toDateTimeLocal(p.telegramReminderSentAt),
     });
   };
+
+  const toggleDataSort = (field: string) => {
+    if (dataSortField === field) {
+      setDataSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setDataSortField(field);
+      setDataSortDir('asc');
+    }
+  };
+
+  const sortedPersons = [...persons].sort((a, b) => {
+    const dir = dataSortDir === 'asc' ? 1 : -1;
+    let va: string | number | null | undefined;
+    let vb: string | number | null | undefined;
+    if (dataSortField === 'id') {
+      va = a.id;
+      vb = b.id;
+    } else if (dataSortField === 'phoneNormalized') {
+      va = a.phoneNormalized;
+      vb = b.phoneNormalized;
+    } else if (dataSortField === 'fullName') {
+      va = a.fullName ?? '';
+      vb = b.fullName ?? '';
+    } else if (dataSortField === 'telegramChatId') {
+      va = a.telegramChatId ?? '';
+      vb = b.telegramChatId ?? '';
+    } else if (dataSortField === 'telegramUserId') {
+      va = a.telegramUserId ?? '';
+      vb = b.telegramUserId ?? '';
+    } else if (dataSortField === 'telegramUsername') {
+      va = a.telegramUsername ?? '';
+      vb = b.telegramUsername ?? '';
+    } else if (dataSortField === 'telegramPromoSentAt') {
+      va = a.telegramPromoSentAt ?? '';
+      vb = b.telegramPromoSentAt ?? '';
+    } else if (dataSortField === 'telegramReminderSentAt') {
+      va = a.telegramReminderSentAt ?? '';
+      vb = b.telegramReminderSentAt ?? '';
+    } else if (dataSortField === 'bookings') {
+      va = a._count.bookings;
+      vb = b._count.bookings;
+    } else if (dataSortField === 'viberListings') {
+      va = a._count.viberListings;
+      vb = b._count.viberListings;
+    } else {
+      return 0;
+    }
+    const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+    return cmp * dir;
+  });
 
   const handleUpdatePerson = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -393,6 +447,7 @@ export const AdminPage: React.FC = () => {
         fullName: personEditForm.fullName.trim() || null,
         telegramChatId: personEditForm.telegramChatId.trim() || null,
         telegramUserId: personEditForm.telegramUserId.trim() || null,
+        telegramUsername: personEditForm.telegramUsername.trim() || null,
         telegramPromoSentAt: personEditForm.telegramPromoSentAt.trim() ? new Date(personEditForm.telegramPromoSentAt.trim()).toISOString() : null,
         telegramReminderSentAt: personEditForm.telegramReminderSentAt.trim() ? new Date(personEditForm.telegramReminderSentAt.trim()).toISOString() : null,
       });
@@ -1762,21 +1817,42 @@ export const AdminPage: React.FC = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Телефон</th>
-                      <th>Ім'я</th>
+                      <th className="sortable" onClick={() => toggleDataSort('id')} title="Сортувати">
+                        ID {dataSortField === 'id' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('phoneNormalized')} title="Сортувати">
+                        Телефон {dataSortField === 'phoneNormalized' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('fullName')} title="Сортувати">
+                        Ім'я {dataSortField === 'fullName' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
                       <th>Зміни</th>
-                      <th>Telegram ChatId</th>
-                      <th>Telegram UserId</th>
-                      <th>Промо відправлено</th>
-                      <th>Нагадування (бот)</th>
-                      <th>Бронювань</th>
-                      <th>Viber оголош.</th>
+                      <th className="sortable" onClick={() => toggleDataSort('telegramChatId')} title="Сортувати">
+                        Telegram ChatId {dataSortField === 'telegramChatId' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('telegramUserId')} title="Сортувати">
+                        Telegram UserId {dataSortField === 'telegramUserId' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('telegramUsername')} title="Сортувати">
+                        @username {dataSortField === 'telegramUsername' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('telegramPromoSentAt')} title="Сортувати">
+                        Промо відправлено {dataSortField === 'telegramPromoSentAt' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('telegramReminderSentAt')} title="Сортувати">
+                        Нагадування (бот) {dataSortField === 'telegramReminderSentAt' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('bookings')} title="Сортувати">
+                        Бронювань {dataSortField === 'bookings' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="sortable" onClick={() => toggleDataSort('viberListings')} title="Сортувати">
+                        Viber оголош. {dataSortField === 'viberListings' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
                       <th>Дії</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {persons.map((p) => {
+                    {sortedPersons.map((p) => {
                       const change = refreshNamesResult?.changes?.find((c) => c.personId === p.id);
                       const changeLabel = change
                         ? `${change.oldName ?? '—'} → ${change.newName ?? '—'}${change.source ? ` (${change.source === 'bot' ? 'бот' : 'ваш акаунт'})` : ''}`
@@ -1791,6 +1867,7 @@ export const AdminPage: React.FC = () => {
                           </td>
                           <td>{p.telegramChatId ?? '—'}</td>
                           <td>{p.telegramUserId ?? '—'}</td>
+                          <td>{p.telegramUsername ?? '—'}</td>
                           <td>{p.telegramPromoSentAt ? new Date(p.telegramPromoSentAt).toLocaleString('uk-UA') : '—'}</td>
                           <td>{p.telegramReminderSentAt ? new Date(p.telegramReminderSentAt).toLocaleString('uk-UA') : '—'}</td>
                           <td>{p._count.bookings}</td>
@@ -1842,6 +1919,13 @@ export const AdminPage: React.FC = () => {
                       type="text"
                       value={personEditForm.telegramUserId}
                       onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUserId: e.target.value })}
+                    />
+                    <Input
+                      label="@username"
+                      type="text"
+                      placeholder="@username"
+                      value={personEditForm.telegramUsername}
+                      onChange={(e) => setPersonEditForm({ ...personEditForm, telegramUsername: e.target.value })}
                     />
                     <div className="form-group">
                       <label>Промо відправлено (telegramPromoSentAt)</label>

@@ -151,6 +151,7 @@ export interface Person {
   fullName: string | null;
   telegramChatId: string | null;
   telegramUserId: string | null;
+  telegramUsername: string | null;
   telegramPromoSentAt: string | null;
   telegramReminderSentAt: string | null;
   createdAt: string;

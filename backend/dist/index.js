@@ -1752,6 +1752,7 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
         const newFullName = body.fullName !== undefined ? (typeof body.fullName === 'string' ? body.fullName.trim() || null : null) : person.fullName;
         const newTelegramChatId = body.telegramChatId !== undefined ? (body.telegramChatId === '' ? null : body.telegramChatId) : person.telegramChatId;
         const newTelegramUserId = body.telegramUserId !== undefined ? (body.telegramUserId === '' ? null : body.telegramUserId) : person.telegramUserId;
+        const newTelegramUsername = body.telegramUsername !== undefined ? (body.telegramUsername === '' ? null : body.telegramUsername) : person.telegramUsername;
         let newTelegramPromoSentAt = person.telegramPromoSentAt;
         if (body.telegramPromoSentAt !== undefined) {
             if (body.telegramPromoSentAt === null || body.telegramPromoSentAt === '') {
@@ -1785,6 +1786,7 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
                 fullName: newFullName,
                 telegramChatId: newTelegramChatId,
                 telegramUserId: newTelegramUserId,
+                telegramUsername: newTelegramUsername,
                 telegramPromoSentAt: newTelegramPromoSentAt,
                 telegramReminderSentAt: newTelegramReminderSentAt,
             },
