@@ -851,20 +851,64 @@ exports.sendViberListingNotificationToAdmin = sendViberListingNotificationToAdmi
  * Спроба надіслати автору оголошення повідомлення про публікацію на платформі.
  * Працює тільки якщо номер телефону вже є в базі (користувач колись брався через сайт/бота і прив’язав Telegram).
  * Якщо chatId по телефону не знайдено — нічого не відправляємо (без помилок).
+ * При помилці "chat not found" — обнуляємо прив'язку до бота і пробуємо особистий акаунт.
  */
+/** Обнулити прив'язку до бота та параметри останньої комунікації для номера (Person + Bookings). */
+async function resetTelegramBindingForPhone(phone) {
+    const normalized = (0, exports.normalizePhone)(phone);
+    const person = await (0, exports.getPersonByPhone)(phone);
+    if (person) {
+        await prisma.person.update({
+            where: { id: person.id },
+            data: { telegramChatId: null, telegramUserId: null, telegramPromoSentAt: null },
+        });
+        await prisma.booking.updateMany({
+            where: { personId: person.id },
+            data: { telegramChatId: null, telegramUserId: null },
+        });
+    }
+    const bookingsWithTg = await prisma.booking.findMany({
+        where: { telegramChatId: { not: null } },
+        select: { id: true, phone: true },
+    });
+    const idsToClear = bookingsWithTg.filter((b) => (0, exports.normalizePhone)(b.phone) === normalized).map((b) => b.id);
+    if (idsToClear.length > 0) {
+        await prisma.booking.updateMany({
+            where: { id: { in: idsToClear } },
+            data: { telegramChatId: null, telegramUserId: null },
+        });
+    }
+}
 const sendViberListingConfirmationToUser = async (phone, listing) => {
     const trimmed = phone?.trim();
     if (!trimmed)
         return;
     try {
-        const chatId = await (0, exports.getChatIdByPhone)(trimmed);
+        let chatId = await (0, exports.getChatIdByPhone)(trimmed);
+        let botSendFailedChatNotFound = false;
         if (chatId && bot) {
-            const message = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: false });
-            await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-            console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано сповіщення про публікацію (бот)`);
-            return;
+            try {
+                const message = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: false });
+                await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+                console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано сповіщення про публікацію (бот)`);
+                return;
+            }
+            catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                const isChatNotFound = /chat not found|400 Bad Request|bad request: chat|ETELEGRAM/i.test(msg) ||
+                    (msg.includes('400') && msg.toLowerCase().includes('chat'));
+                if (isChatNotFound) {
+                    await resetTelegramBindingForPhone(trimmed);
+                    console.log(`ℹ️ Viber оголошення #${listing.id}: chat not found для ${trimmed}, прив'язку Telegram скинуто, пробуємо особистий акаунт`);
+                    botSendFailedChatNotFound = true;
+                    chatId = null;
+                }
+                else {
+                    throw err;
+                }
+            }
         }
-        if (!chatId) {
+        if (!chatId || botSendFailedChatNotFound) {
             const person = await (0, exports.getPersonByPhone)(trimmed);
             const PROMO_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 днів
             const shouldSendPromo = person &&
