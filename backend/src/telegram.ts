@@ -3648,7 +3648,7 @@ https://malin.kiev.ua
         }
         let created = 0;
         for (let i = 0; i < parsedMessages.length; i++) {
-          const { parsed, rawMessage: rawTextItem, telegramUserId: tgUserId } = parsedMessages[i];
+          const { parsed, rawMessage: rawTextItem } = parsedMessages[i];
           try {
             const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
             let senderName = nameFromDb ?? parsed.senderName ?? null;
@@ -3671,11 +3671,7 @@ https://malin.kiev.ua
               else if (!senderName || !String(senderName).trim()) senderName = parsed.senderName ?? senderName;
             }
             const person = parsed.phone
-              ? await findOrCreatePersonByPhone(parsed.phone, {
-                  fullName: senderName ?? undefined,
-                  telegramUserId: tgUserId ?? undefined,
-                  telegramChatId: tgUserId ?? undefined,
-                })
+              ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
               : null;
             const { listing, isNew } = await createOrMergeViberListing({
               rawMessage: rawTextItem,

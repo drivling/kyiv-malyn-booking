@@ -24,18 +24,10 @@ import {
 
 /**
  * Витягує ім'я відправника з Telegram повідомлення
- * Формати: "Ім'я: текст", "Ім'я|tgUserId: текст", "Forwarded from Channel Name: текст"
+ * Формати: "Ім'я: текст", "Forwarded from Channel Name: текст"
  */
 export function extractSenderNameTelegram(text: string): string | null {
-  // "Name|userId: " або "FirstName LastName: " або "Ім'я: " на початку
-  const withTgId = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-']+)\|(\d+):\s*(.*)/s);
-  if (withTgId) {
-    const name = withTgId[1].trim();
-    if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
-      return name;
-    }
-  }
-
+  // "FirstName LastName: " або "Ім'я: " на початку
   const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-']+):\s*(.*)/s);
   if (namePrefixMatch) {
     const name = namePrefixMatch[1].trim();
@@ -44,6 +36,7 @@ export function extractSenderNameTelegram(text: string): string | null {
     }
   }
 
+  // "Forwarded from X: текст"
   const forwardedMatch = text.match(/^Forwarded\s+from\s+(.+?):\s*(.*)/is);
   if (forwardedMatch) {
     return forwardedMatch[1].trim();
@@ -53,22 +46,9 @@ export function extractSenderNameTelegram(text: string): string | null {
 }
 
 /**
- * Витягує Telegram user ID з повідомлення (формат "Name|userId: текст" з fetch_telegram_messages.py)
- */
-export function extractTelegramUserId(rawMessage: string): string | null {
-  const match = rawMessage.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+\|(\d+):\s*/s);
-  return match ? match[1] : null;
-}
-
-/**
- * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Ім'я|userId: " або "Forwarded from X: ")
+ * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Forwarded from X: ")
  */
 export function extractMessageBodyTelegram(text: string): string {
-  const withTgId = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+\|\d+:\s*(.*)/s);
-  if (withTgId) {
-    return withTgId[1].trim();
-  }
-
   const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-']+:\s*(.*)/s);
   if (namePrefixMatch) {
     return namePrefixMatch[1].trim();
@@ -137,8 +117,6 @@ export function parseTelegramMessage(rawMessage: string): ParsedViberMessage | n
 export interface ParsedTelegramMessageWithRaw {
   parsed: ParsedViberMessage;
   rawMessage: string;
-  /** Telegram user ID автора повідомлення (для прив'язки до Person) */
-  telegramUserId?: string | null;
 }
 
 /**
@@ -168,7 +146,7 @@ function splitTelegramMessages(rawText: string): string[] {
   let current: string[] = [];
 
   for (const line of lines) {
-    const isNewMessage = /^[А-Яа-яІіЇїЄєA-Za-z\s\-']+(?:\|\d+)?:\s*/.test(line.trim());
+    const isNewMessage = /^[А-Яа-яІіЇїЄєA-Za-z\s\-']+:\s*/.test(line.trim());
     if (isNewMessage && current.length > 0) {
       const joined = current.join('\n').trim();
       if (joined.length >= 10) messages.push(joined);
@@ -194,8 +172,7 @@ export function parseTelegramMessages(rawText: string): ParsedTelegramMessageWit
   for (const msg of messages) {
     const parsed = parseTelegramMessage(msg);
     if (parsed) {
-      const telegramUserId = extractTelegramUserId(msg);
-      result.push({ parsed, rawMessage: msg, telegramUserId: telegramUserId ?? undefined });
+      result.push({ parsed, rawMessage: msg });
     }
   }
 
