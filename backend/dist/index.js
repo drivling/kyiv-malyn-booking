@@ -1968,7 +1968,10 @@ app.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res)
                 failed++;
             }
             else {
-                const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message);
+                const person = await (0, telegram_1.getPersonByPhone)(phone);
+                const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
+                    telegramUsername: person?.telegramUsername ?? undefined,
+                });
                 if (ok)
                     sent++;
                 else
@@ -2044,7 +2047,7 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
         const where = getChannelPromoWhere(filter);
         let persons = await prisma.person.findMany({
             where,
-            select: { id: true, phoneNormalized: true, fullName: true },
+            select: { id: true, phoneNormalized: true, fullName: true, telegramUsername: true },
             orderBy: { id: 'asc' },
         });
         if (limit !== undefined) {
@@ -2058,7 +2061,9 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
             const phone = (0, telegram_1.normalizePhone)(p.phoneNormalized);
             if (!phone)
                 continue;
-            const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message);
+            const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
+                telegramUsername: p.telegramUsername ?? undefined,
+            });
             if (ok) {
                 sent.push({ phone: p.phoneNormalized, fullName: p.fullName });
                 await prisma.person.update({
@@ -2509,7 +2514,7 @@ app.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, r
         const key = scenarioKey;
         const person = await prisma.person.findFirst({
             where: { phoneNormalized: phone },
-            select: { id: true, fullName: true, telegramChatId: true, telegramPromoSentAt: true },
+            select: { id: true, fullName: true, telegramChatId: true, telegramPromoSentAt: true, telegramUsername: true },
         });
         const context = {
             fullName: person?.fullName ?? null,
@@ -2536,7 +2541,9 @@ app.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, r
             .replace(/<a href="([^"]+)">[^<]*<\/a>/g, '$1')
             .replace(/<[^>]+>/g, '')
             .trim();
-        const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, plainMessage);
+        const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, plainMessage, {
+            telegramUsername: person?.telegramUsername ?? undefined,
+        });
         if (ok) {
             await prisma.person.updateMany({
                 where: { phoneNormalized: phone },

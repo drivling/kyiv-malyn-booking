@@ -873,7 +873,9 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
             if (shouldSendPromo) {
                 const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
                 const phoneForApi = (0, exports.normalizePhone)(trimmed);
-                const sent = await sendMessageViaUserAccount(phoneForApi, promoMessage);
+                const sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
+                    telegramUsername: person.telegramUsername,
+                });
                 if (sent) {
                     await prisma.person.update({
                         where: { id: person.id },
@@ -1208,21 +1210,37 @@ async function resolveNameByPhoneFromOpendatabot(phone) {
     });
 }
 /**
- * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону (Python Telethon).
- * Повертає true, якщо повідомлення доставлено; false — помилка або користувач приховав номер.
+ * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону або username (Python Telethon).
+ * Спочатку пробує по телефону; якщо не знайдено — по telegramUsername (якщо передано).
+ * Повертає true, якщо повідомлення доставлено; false — помилка або користувач не знайдено.
  * Експортується для одноразової реклами каналу (без оновлення telegramPromoSentAt).
  */
-async function sendMessageViaUserAccount(phone, message) {
+async function sendMessageViaUserAccount(phone, message, options) {
+    const sentByPhone = await spawnSendMessage(phone, message, false);
+    if (sentByPhone)
+        return true;
+    const username = options?.telegramUsername?.trim().replace(/^@/, '');
+    if (username) {
+        const sentByUsername = await spawnSendMessage(username, message, true);
+        if (sentByUsername) {
+            console.log(`ℹ️ Telegram user-sender: по телефону не знайдено, надіслано по @${username}`);
+            return true;
+        }
+    }
+    return false;
+}
+function spawnSendMessage(value, message, isUsername) {
     const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
     const scriptDir = sessionPath ? path_1.default.dirname(sessionPath) : '';
     const scriptPath = path_1.default.join(scriptDir, 'send_message.py');
     const apiId = process.env.TELEGRAM_API_ID;
     const apiHash = process.env.TELEGRAM_API_HASH;
     if (!sessionPath || !apiId || !apiHash)
-        return false;
+        return Promise.resolve(false);
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
+    const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, value];
     return new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, phone], {
+        const child = (0, child_process_1.spawn)(pythonCmd, args, {
             env: {
                 ...process.env,
                 TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1239,10 +1257,10 @@ async function sendMessageViaUserAccount(phone, message) {
                 resolve(true);
                 return;
             }
-            if (code === 1) {
-                console.log(`ℹ️ Telegram user-sender: по телефону ${phone} не знайдено або номер приховано (код 1)`);
+            if (code === 1 && !isUsername) {
+                console.log(`ℹ️ Telegram user-sender: по телефону ${value} не знайдено або номер приховано (код 1)`);
             }
-            else {
+            else if (code !== 1) {
                 console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
             }
             resolve(false);

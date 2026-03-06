@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Відправка одного повідомлення від вашого Telegram-акаунта по номеру телефону.
+Відправка одного повідомлення від вашого Telegram-акаунта по номеру телефону або username.
 Використовується для одноразового промо користувачам, які ще не в боті.
 
-Виклик: python3 send_message.py <phone>
+Виклик:
+  python3 send_message.py <phone>           — відправка по номеру телефону
+  python3 send_message.py --username <user> — відправка по @username (без @)
 Текст повідомлення читається з stdin (UTF-8).
 
 Тільки пошук імені по номеру (без відправки):
@@ -146,9 +148,14 @@ async def main():
             sys.exit(0)
         sys.exit(1)
 
-    if phone_arg.startswith("--"):
-        # звичайний режим: перший аргумент — номер
-        print("Використання: send_message.py <phone> або send_message.py --resolve <phone>", file=sys.stderr)
+    # Режим --username: відправка по @username
+    use_username = False
+    username_arg = ""
+    if phone_arg == "--username" and len(sys.argv) >= 3:
+        use_username = True
+        username_arg = sys.argv[2].strip().lstrip("@")
+    elif phone_arg.startswith("--"):
+        print("Використання: send_message.py <phone> або send_message.py --username <user> або send_message.py --resolve <phone>", file=sys.stderr)
         sys.exit(2)
 
     message = sys.stdin.read()
@@ -158,11 +165,6 @@ async def main():
 
     session_path = get_session_path()
     api_id, api_hash = get_api_credentials()
-    phone = normalize_phone(phone_arg)
-    if not phone:
-        print("Порожній номер після нормалізації", file=sys.stderr)
-        sys.exit(2)
-
     client = TelegramClient(session_path, api_id, api_hash)
 
     try:
@@ -171,23 +173,35 @@ async def main():
             print("Сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
             sys.exit(2)
 
-        # Пробуємо кілька форматів — API приймає по-різному (E.164, +380(XX), з пробілами)
-        result = None
-        for phone_for_api in get_phone_formats_for_resolve(phone):
-            if not phone_for_api:
-                continue
-            try:
-                result = await client(ResolvePhoneRequest(phone=phone_for_api))
-                if result and result.users:
-                    break
-            except Exception:
-                continue
-        if not result or not result.users:
-            print("Користувача не знайдено або номер приховано (перепробовано всі формати)", file=sys.stderr)
-            sys.exit(1)
-        user = result.users[0]
-        await client.send_message(user, message, parse_mode="html")
-        sys.exit(0)
+        if use_username:
+            if not username_arg:
+                print("Порожній username", file=sys.stderr)
+                sys.exit(2)
+            await client.send_message(username_arg, message, parse_mode="html")
+            sys.exit(0)
+        else:
+            phone = normalize_phone(phone_arg)
+            if not phone:
+                print("Порожній номер після нормалізації", file=sys.stderr)
+                sys.exit(2)
+
+            # Пробуємо кілька форматів — API приймає по-різному (E.164, +380(XX), з пробілами)
+            result = None
+            for phone_for_api in get_phone_formats_for_resolve(phone):
+                if not phone_for_api:
+                    continue
+                try:
+                    result = await client(ResolvePhoneRequest(phone=phone_for_api))
+                    if result and result.users:
+                        break
+                except Exception:
+                    continue
+            if not result or not result.users:
+                print("Користувача не знайдено або номер приховано (перепробовано всі формати)", file=sys.stderr)
+                sys.exit(1)
+            user = result.users[0]
+            await client.send_message(user, message, parse_mode="html")
+            sys.exit(0)
 
     except Exception as e:
         if "banned" in str(e).lower():
