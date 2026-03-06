@@ -179,6 +179,11 @@ class ApiClient {
     return this.request<TelegramUserSendError[]>('/admin/telegram-user-send-errors');
   }
 
+  /** Обнулити таблицю помилок user-sender */
+  async clearTelegramUserSendErrors(): Promise<{ deleted: number }> {
+    return this.request<{ deleted: number }>('/admin/telegram-user-send-errors', { method: 'DELETE' });
+  }
+
   async checkAdminAuth(): Promise<{ authenticated: boolean }> {
     return this.request<{ authenticated: boolean }>('/admin/check');
   }

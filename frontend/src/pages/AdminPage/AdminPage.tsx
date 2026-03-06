@@ -129,6 +129,7 @@ export const AdminPage: React.FC = () => {
   const [phoneCheckSummary, setPhoneCheckSummary] = useState('');
   const [userSenderErrors, setUserSenderErrors] = useState<TelegramUserSendError[]>([]);
   const [userSenderErrorsLoading, setUserSenderErrorsLoading] = useState(false);
+  const [userSenderErrorsClearing, setUserSenderErrorsClearing] = useState(false);
 
   // Аналітика ViberRide / поведінка клієнтів
   const [viberAnalyticsLoading, setViberAnalyticsLoading] = useState(false);
@@ -376,6 +377,21 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка завантаження помилок user-sender');
     } finally {
       setUserSenderErrorsLoading(false);
+    }
+  };
+
+  const handleClearUserSenderErrors = async () => {
+    if (!confirm('Видалити всі записи з таблиці помилок user-sender?')) return;
+    setUserSenderErrorsClearing(true);
+    setError('');
+    try {
+      const result = await apiClient.clearTelegramUserSendErrors();
+      setSuccess(`Обнулено: видалено ${result.deleted} записів`);
+      setUserSenderErrors([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка обнулення');
+    } finally {
+      setUserSenderErrorsClearing(false);
     }
   };
 
@@ -2041,9 +2057,19 @@ export const AdminPage: React.FC = () => {
             <p style={{ marginBottom: '12px', color: 'var(--color-text-secondary, #666)' }}>
               Контакти, до яких не вдалося надіслати повідомлення через send_message.py (наприклад PRIVACY_PREMIUM_REQUIRED).
             </p>
-            <Button variant="secondary" onClick={loadUserSenderErrors} disabled={userSenderErrorsLoading} style={{ marginBottom: '16px' }}>
-              {userSenderErrorsLoading ? 'Завантаження...' : 'Оновити'}
-            </Button>
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+              <Button variant="secondary" onClick={loadUserSenderErrors} disabled={userSenderErrorsLoading}>
+                {userSenderErrorsLoading ? 'Завантаження...' : 'Оновити'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleClearUserSenderErrors}
+                disabled={userSenderErrorsClearing || userSenderErrors.length === 0}
+                title="Видалити всі записи"
+              >
+                {userSenderErrorsClearing ? 'Обнулення...' : 'Обнулити'}
+              </Button>
+            </div>
             {userSenderErrorsLoading ? (
               <div className="admin-loading">Завантаження...</div>
             ) : userSenderErrors.length === 0 ? (

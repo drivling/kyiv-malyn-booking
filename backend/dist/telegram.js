@@ -1216,16 +1216,22 @@ async function resolveNameByPhoneFromOpendatabot(phone) {
  * Експортується для одноразової реклами каналу (без оновлення telegramPromoSentAt).
  */
 async function sendMessageViaUserAccount(phone, message, options) {
-    const sentByPhone = await spawnSendMessage(phone, message, false);
-    if (sentByPhone)
-        return true;
     const username = options?.telegramUsername?.trim().replace(/^@/, '');
+    // Якщо є @username — спочатку пробуємо по ньому (1 API call). Інакше ResolvePhone (до 3 викликів) + send = багато запитів підряд → Too many requests.
     if (username) {
         const sentByUsername = await spawnSendMessage(username, message, true);
         if (sentByUsername) {
-            console.log(`ℹ️ Telegram user-sender: по телефону не знайдено, надіслано по @${username}`);
+            console.log(`ℹ️ Telegram user-sender: надіслано по @${username}`);
             return true;
         }
+        // Пауза перед спробою по телефону, щоб не перевищити rate limit
+        await new Promise((r) => setTimeout(r, 10000));
+    }
+    const sentByPhone = await spawnSendMessage(phone, message, false);
+    if (sentByPhone)
+        return true;
+    if (username) {
+        console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
     }
     return false;
 }

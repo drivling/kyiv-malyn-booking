@@ -2041,6 +2041,17 @@ app.get('/admin/telegram-user-send-errors', requireAdmin, async (_req, res) => {
   }
 });
 
+/** Обнулити таблицю помилок user-sender */
+app.delete('/admin/telegram-user-send-errors', requireAdmin, async (_req, res) => {
+  try {
+    const result = await prisma.telegramUserSendError.deleteMany({});
+    res.json({ deleted: result.count });
+  } catch (e) {
+    console.error('❌ DELETE telegram-user-send-errors:', e);
+    res.status(500).json({ error: 'Не вдалося обнулити' });
+  }
+});
+
 /** Відправити Telegram-нагадування неактивним користувачам. Body: { filter?, limit?, delaysMs? } */
 app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
   if (!isTelegramEnabled()) {
