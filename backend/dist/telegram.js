@@ -1113,7 +1113,8 @@ async function fetchTelegramGroupMessages(options) {
             console.error('fetchTelegramGroupMessages: parse LAST_IDS', e);
         }
     }
-    return messagesText || null;
+    // null = помилка, "" = успіх але немає нових повідомлень (не змішувати!)
+    return messagesText;
 }
 /**
  * Завантажити нові повідомлення з групи PoDoroguem і імпортувати їх у Viber listings.

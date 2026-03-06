@@ -1313,7 +1313,8 @@ export async function fetchTelegramGroupMessages(options?: {
     }
   }
 
-  return messagesText || null;
+  // null = помилка, "" = успіх але немає нових повідомлень (не змішувати!)
+  return messagesText;
 }
 
 /** Результат автоматичного імпорту з групи PoDoroguem */
