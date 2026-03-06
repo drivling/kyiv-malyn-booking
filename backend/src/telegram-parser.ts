@@ -93,13 +93,19 @@ export function parseTelegramMessage(rawMessage: string): ParsedViberMessage | n
 
     let phone = extractPhone(messageBody);
     if (!phone) {
-      console.warn('⚠️ Номер телефону не знайдено у Telegram повідомленні');
+      console.warn('⚠️ Номер телефону не знайдено у Telegram повідомленні', {
+        messageBody: messageBody.slice(0, 500),
+        rawMessage: rawMessage.slice(0, 500),
+      });
       phone = '';
     }
 
     const route = extractRoute(messageBody);
     if (route === 'Unknown') {
-      console.warn('⚠️ Маршрут не визначено в Telegram повідомленні');
+      console.warn('⚠️ Маршрут не визначено в Telegram повідомленні', {
+        messageBody: messageBody.slice(0, 500),
+        rawMessage: rawMessage.slice(0, 500),
+      });
       return null;
     }
 
