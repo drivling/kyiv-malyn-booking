@@ -91,6 +91,7 @@ app.get('/status', (_req, res) => {
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
   try {
     console.log('🔧 Початок виправлення telegramUserId...');
+    
     // 1. Знаходимо всі бронювання де є chatId але немає валідного userId
     const problematicBookings = await prisma.booking.findMany({
       where: {
