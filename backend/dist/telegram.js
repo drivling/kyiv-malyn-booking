@@ -1256,9 +1256,18 @@ function spawnSendMessage(value, message, isUsername) {
             stdio: ['pipe', 'pipe', 'pipe'],
         });
         let stderr = '';
-        child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
+        const stderrDone = new Promise((r) => {
+            if (!child.stderr) {
+                r();
+                return;
+            }
+            child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+            child.stderr.once('end', r);
+            child.stderr.once('close', r);
+        });
         child.stdin?.end(message, 'utf8');
-        child.on('close', (code) => {
+        child.on('close', async (code) => {
+            await stderrDone; // Дочекатись повного stderr (close може спрацювати раніше)
             if (code === 0) {
                 resolve(true);
                 return;
@@ -1268,8 +1277,8 @@ function spawnSendMessage(value, message, isUsername) {
             }
             else if (code !== 1) {
                 console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
-                // Зберігаємо повний stderr в БД для аналізу в адмінці (FLOOD_WAIT_X, PRIVACY_PREMIUM_REQUIRED тощо)
-                recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, stderr).catch(() => { });
+                const errorText = stderr.trim() || `(код ${code}, stderr порожній)`;
+                recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, errorText).catch((e) => console.error('❌ recordTelegramUserSendError:', e));
             }
             resolve(false);
         });

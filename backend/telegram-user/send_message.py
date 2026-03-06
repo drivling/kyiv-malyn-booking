@@ -216,6 +216,7 @@ async def main():
                     await asyncio.sleep(wait_sec)
                 else:
                     print(f"Помилка: {e} (FLOOD_WAIT після {max_retries} спроб)", file=sys.stderr)
+                    sys.stderr.flush()
                     sys.exit(2)
             except Exception:
                 raise
@@ -225,6 +226,7 @@ async def main():
             print("Номер заблоковано", file=sys.stderr)
         else:
             print(f"Помилка: {e}", file=sys.stderr)
+        sys.stderr.flush()
         sys.exit(2)
     finally:
         await client.disconnect()
