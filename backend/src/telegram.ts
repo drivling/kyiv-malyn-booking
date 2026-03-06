@@ -1494,8 +1494,8 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
         console.log(`ℹ️ Telegram user-sender: по телефону ${value} не знайдено або номер приховано (код 1)`);
       } else if (code !== 1) {
         console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
-        // Зберігаємо в БД для відображення в адмінці
-        recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, stderr.slice(0, 1000)).catch(() => {});
+        // Зберігаємо повний stderr в БД для аналізу в адмінці (FLOOD_WAIT_X, PRIVACY_PREMIUM_REQUIRED тощо)
+        recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, stderr).catch(() => {});
       }
       resolve(false);
     });

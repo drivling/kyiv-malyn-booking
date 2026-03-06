@@ -173,35 +173,52 @@ async def main():
             print("Сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
             sys.exit(2)
 
-        if use_username:
-            if not username_arg:
-                print("Порожній username", file=sys.stderr)
-                sys.exit(2)
-            await client.send_message(username_arg, message, parse_mode="html")
-            sys.exit(0)
-        else:
-            phone = normalize_phone(phone_arg)
-            if not phone:
-                print("Порожній номер після нормалізації", file=sys.stderr)
-                sys.exit(2)
+        from telethon import errors as tg_errors
 
-            # Пробуємо кілька форматів — API приймає по-різному (E.164, +380(XX), з пробілами)
-            result = None
-            for phone_for_api in get_phone_formats_for_resolve(phone):
-                if not phone_for_api:
-                    continue
-                try:
-                    result = await client(ResolvePhoneRequest(phone=phone_for_api))
-                    if result and result.users:
-                        break
-                except Exception:
-                    continue
-            if not result or not result.users:
-                print("Користувача не знайдено або номер приховано (перепробовано всі формати)", file=sys.stderr)
-                sys.exit(1)
-            user = result.users[0]
-            await client.send_message(user, message, parse_mode="html")
-            sys.exit(0)
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                if use_username:
+                    if not username_arg:
+                        print("Порожній username", file=sys.stderr)
+                        sys.exit(2)
+                    await client.send_message(username_arg, message, parse_mode="html")
+                    sys.exit(0)
+                else:
+                    phone = normalize_phone(phone_arg)
+                    if not phone:
+                        print("Порожній номер після нормалізації", file=sys.stderr)
+                        sys.exit(2)
+
+                    # Пробуємо кілька форматів — API приймає по-різному (E.164, +380(XX), з пробілами)
+                    result = None
+                    for phone_for_api in get_phone_formats_for_resolve(phone):
+                        if not phone_for_api:
+                            continue
+                        try:
+                            result = await client(ResolvePhoneRequest(phone=phone_for_api))
+                            if result and result.users:
+                                break
+                        except Exception:
+                            continue
+                    if not result or not result.users:
+                        print("Користувача не знайдено або номер приховано (перепробовано всі формати)", file=sys.stderr)
+                        sys.exit(1)
+                    user = result.users[0]
+                    await client.send_message(user, message, parse_mode="html")
+                    sys.exit(0)
+            except tg_errors.FloodWaitError as e:
+                wait_sec = getattr(e, "seconds", None) or getattr(e, "value", 60)
+                wait_sec = min(int(wait_sec), 300)  # не більше 5 хв
+                if attempt < max_retries - 1:
+                    print(f"FLOOD_WAIT_{wait_sec}: чекаємо {wait_sec} с, спроба {attempt + 1}/{max_retries}", file=sys.stderr)
+                    await asyncio.sleep(wait_sec)
+                else:
+                    print(f"Помилка: {e} (FLOOD_WAIT після {max_retries} спроб)", file=sys.stderr)
+                    sys.exit(2)
+            except Exception:
+                raise
 
     except Exception as e:
         if "banned" in str(e).lower():

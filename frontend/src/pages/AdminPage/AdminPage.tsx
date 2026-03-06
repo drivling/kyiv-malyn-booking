@@ -2096,8 +2096,20 @@ export const AdminPage: React.FC = () => {
                         <td>{r.contact}</td>
                         <td>{r.contactType}</td>
                         <td>{r.errorCode}</td>
-                        <td title={r.errorText ?? ''} style={{ maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {r.errorText ?? '—'}
+                        <td>
+                          <div
+                            title={r.errorText ?? ''}
+                            style={{
+                              maxWidth: '500px',
+                              maxHeight: '120px',
+                              overflow: 'auto',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              fontSize: '12px',
+                            }}
+                          >
+                            {r.errorText ?? '—'}
+                          </div>
                         </td>
                         <td>{new Date(r.createdAt).toLocaleString('uk-UA')}</td>
                       </tr>
