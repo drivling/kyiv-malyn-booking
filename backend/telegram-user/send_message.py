@@ -218,8 +218,16 @@ async def main():
                     print(f"Помилка: {e} (FLOOD_WAIT після {max_retries} спроб)", file=sys.stderr)
                     sys.stderr.flush()
                     sys.exit(2)
-            except Exception:
-                raise
+            except Exception as e:
+                # "Too many requests" може приходити не як FloodWaitError — чекаємо 60 с і повторюємо
+                err_str = str(e).lower()
+                if "too many requests" in err_str and attempt < max_retries - 1:
+                    wait_sec = 60
+                    print(f"Too many requests: чекаємо {wait_sec} с, спроба {attempt + 1}/{max_retries}", file=sys.stderr)
+                    sys.stderr.flush()
+                    await asyncio.sleep(wait_sec)
+                else:
+                    raise
 
     except Exception as e:
         if "banned" in str(e).lower():
