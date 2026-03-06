@@ -2761,8 +2761,19 @@ app.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, r
         return res.json({ success: true, sentVia: 'bot' as const });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error('❌ send-person-promo (bot):', err);
-        return res.status(500).json({ success: false, sentVia: 'bot' as const, error: msg });
+        const isChatNotFound =
+          /chat not found|400 Bad Request|bad request: chat/i.test(msg) ||
+          (msg.includes('400') && msg.toLowerCase().includes('chat'));
+        if (isChatNotFound && person?.id) {
+          await prisma.person.update({
+            where: { id: person.id },
+            data: { telegramChatId: null, telegramUserId: null },
+          });
+          console.log(`ℹ️ send-person-promo: chat not found для ${phone}, прив'язку Telegram скинуто, пробуємо особистий акаунт`);
+        } else {
+          console.error('❌ send-person-promo (bot):', err);
+          return res.status(500).json({ success: false, sentVia: 'bot' as const, error: msg });
+        }
       }
     }
 
