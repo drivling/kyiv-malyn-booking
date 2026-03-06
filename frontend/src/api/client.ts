@@ -12,6 +12,7 @@ import type {
   AnnounceDraftResponse,
   Person,
   PersonWithCounts,
+  TelegramUserSendError,
   RefreshPersonNamesResponse,
   UserProfile,
   ViberAnalyticsSummaryResponse,
@@ -171,6 +172,11 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ password }),
     });
+  }
+
+  /** Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */
+  async getTelegramUserSendErrors(): Promise<TelegramUserSendError[]> {
+    return this.request<TelegramUserSendError[]>('/admin/telegram-user-send-errors');
   }
 
   async checkAdminAuth(): Promise<{ authenticated: boolean }> {

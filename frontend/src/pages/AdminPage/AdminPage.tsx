@@ -4,11 +4,11 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse } from '@/types';
+import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data';
+type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'userSenderErrors';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -127,6 +127,8 @@ export const AdminPage: React.FC = () => {
   const [refreshNamesResult, setRefreshNamesResult] = useState<RefreshPersonNamesResponse | null>(null);
   const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
   const [phoneCheckSummary, setPhoneCheckSummary] = useState('');
+  const [userSenderErrors, setUserSenderErrors] = useState<TelegramUserSendError[]>([]);
+  const [userSenderErrorsLoading, setUserSenderErrorsLoading] = useState(false);
 
   // Аналітика ViberRide / поведінка клієнтів
   const [viberAnalyticsLoading, setViberAnalyticsLoading] = useState(false);
@@ -151,6 +153,8 @@ export const AdminPage: React.FC = () => {
       loadTelegramReminderPersons();
     } else if (activeTab === 'data') {
       loadPersons();
+    } else if (activeTab === 'userSenderErrors') {
+      loadUserSenderErrors();
     }
   }, [activeTab, promoFilter, telegramReminderFilter]);
 
@@ -359,6 +363,19 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка завантаження персон');
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const loadUserSenderErrors = async () => {
+    setUserSenderErrorsLoading(true);
+    setError('');
+    try {
+      const data = await apiClient.getTelegramUserSendErrors();
+      setUserSenderErrors(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка завантаження помилок user-sender');
+    } finally {
+      setUserSenderErrorsLoading(false);
     }
   };
 
@@ -834,6 +851,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('data')}
           >
             Дані
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'userSenderErrors' ? 'active' : ''}`}
+            onClick={() => setActiveTab('userSenderErrors')}
+          >
+            Помилки user-sender
           </button>
         </nav>
 
@@ -1967,6 +1990,55 @@ export const AdminPage: React.FC = () => {
                     </div>
                   </form>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */}
+        {activeTab === 'userSenderErrors' && (
+          <div className="tab-content">
+            <h3 style={{ marginBottom: '8px' }}>Помилки user-sender (персональний акаунт)</h3>
+            <p style={{ marginBottom: '12px', color: 'var(--color-text-secondary, #666)' }}>
+              Контакти, до яких не вдалося надіслати повідомлення через send_message.py (наприклад PRIVACY_PREMIUM_REQUIRED).
+            </p>
+            <Button variant="secondary" onClick={loadUserSenderErrors} disabled={userSenderErrorsLoading} style={{ marginBottom: '16px' }}>
+              {userSenderErrorsLoading ? 'Завантаження...' : 'Оновити'}
+            </Button>
+            {userSenderErrorsLoading ? (
+              <div className="admin-loading">Завантаження...</div>
+            ) : userSenderErrors.length === 0 ? (
+              <div className="admin-empty">
+                <p className="admin-empty-text">Немає записів</p>
+              </div>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Контакт</th>
+                      <th>Тип</th>
+                      <th>Код</th>
+                      <th>Помилка</th>
+                      <th>Дата</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userSenderErrors.map((r) => (
+                      <tr key={r.id}>
+                        <td>#{r.id}</td>
+                        <td>{r.contact}</td>
+                        <td>{r.contactType}</td>
+                        <td>{r.errorCode}</td>
+                        <td title={r.errorText ?? ''} style={{ maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.errorText ?? '—'}
+                        </td>
+                        <td>{new Date(r.createdAt).toLocaleString('uk-UA')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

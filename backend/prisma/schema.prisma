@@ -139,6 +139,16 @@ model ViberRideEvent {
   @@unique([viberRideId])
 }
 
+/// Помилки відправки через персональний акаунт (send_message.py): PRIVACY_PREMIUM_REQUIRED тощо
+model TelegramUserSendError {
+  id          Int      @id @default(autoincrement())
+  contact     String   // Телефон або @username
+  contactType String   // "phone" | "username"
+  errorCode   Int      // Код виходу Python (2 = PRIVACY_PREMIUM_REQUIRED тощо)
+  errorText   String?  @db.Text // stderr з send_message.py
+  createdAt   DateTime @default(now())
+}
+
 /// Останній імпорт з Telegram групи PoDoroguem — щоб парсити тільки нові повідомлення
 model TelegramFetchState {
   id             Int      @id @default(autoincrement())

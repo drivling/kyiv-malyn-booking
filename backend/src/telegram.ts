@@ -1488,6 +1488,8 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
         console.log(`ℹ️ Telegram user-sender: по телефону ${value} не знайдено або номер приховано (код 1)`);
       } else if (code !== 1) {
         console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
+        // Зберігаємо в БД для відображення в адмінці
+        recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, stderr.slice(0, 1000)).catch(() => {});
       }
       resolve(false);
     });
@@ -1496,6 +1498,22 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
       resolve(false);
     });
   });
+}
+
+async function recordTelegramUserSendError(
+  contact: string,
+  contactType: 'phone' | 'username',
+  errorCode: number,
+  errorText: string
+): Promise<void> {
+  try {
+    const displayContact = contactType === 'username' && !contact.startsWith('@') ? `@${contact}` : contact;
+    await prisma.telegramUserSendError.create({
+      data: { contact: displayContact, contactType, errorCode, errorText: errorText || null },
+    });
+  } catch (e) {
+    console.error('❌ Не вдалося зберегти TelegramUserSendError:', e);
+  }
 }
 
 /**

@@ -1880,6 +1880,20 @@ app.get('/admin/telegram-reminder-persons', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to load telegram reminder persons' });
     }
 });
+/** Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */
+app.get('/admin/telegram-user-send-errors', requireAdmin, async (_req, res) => {
+    try {
+        const rows = await prisma.telegramUserSendError.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+        });
+        res.json(rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })));
+    }
+    catch (e) {
+        console.error('❌ telegram-user-send-errors:', e);
+        res.status(500).json({ error: 'Не вдалося завантажити помилки' });
+    }
+});
 /** Відправити Telegram-нагадування неактивним користувачам. Body: { filter?, limit?, delaysMs? } */
 app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
     if (!(0, telegram_1.isTelegramEnabled)()) {

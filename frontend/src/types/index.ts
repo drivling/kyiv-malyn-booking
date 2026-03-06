@@ -158,6 +158,16 @@ export interface Person {
   updatedAt: string;
 }
 
+/** Помилка відправки через персональний акаунт (send_message.py) */
+export interface TelegramUserSendError {
+  id: number;
+  contact: string;
+  contactType: string;
+  errorCode: number;
+  errorText: string | null;
+  createdAt: string;
+}
+
 export interface PersonWithCounts extends Person {
   _count: { bookings: number; viberListings: number };
 }
