@@ -1,0 +1,70 @@
+{
+  "source": "malyn.media",
+  "parsed_at": "2026-03-07",
+  "description": "Дані з malyn.media та Facebook MalynCityCouncil — маршрути №7, №8, №9, розклади, новини",
+  "fare": {
+    "amount": 10,
+    "currency": "UAH",
+    "note": "Проїзд платний з 2 травня 2022"
+  },
+  "routes": {
+    "7": {
+      "from": "Базарна площа / вул. Миру",
+      "to": "Залізничний вокзал",
+      "scheme": "вул. Степана Бандери → проспект Машинобудівників → вул. Огієнка → Вокзал → вул. Миру (і назад)",
+      "special": "Заїзд до школи №6",
+      "interval_min": 20,
+      "interval_max": 25,
+      "note": "Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської. Можливі зміни.",
+      "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
+    },
+    "8": {
+      "from": "Базарна площа / вул. Миру",
+      "to": "Залізничний вокзал",
+      "scheme": "вул. Степана Бандери → проспект Машинобудівників → вул. Огієнка → Вокзал → вул. Миру (і назад)",
+      "interval_min": 20,
+      "interval_max": 25,
+      "note": "Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської. Можливі зміни.",
+      "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-marshrutok-7-ta-8/"
+    },
+    "9": {
+      "from": "Базарна площа (ТЦ «Промінь»)",
+      "to": "Малинівка, Юрівка, вул. Олекси Тихого, БАМ, «Царське село»",
+      "streets": ["Степана Бандери", "Машинобудівників", "Огієнка", "Малинівський круг"],
+      "schedule": {
+        "from_bazar": "8:10, 9:10, 10:10, 11:10, 12:10, 15:00, 16:10, 17:20",
+        "from_oleksy_tikh": "8:40, 9:40, 10:40, 11:40, 12:40, 15:30, 16:40, 17:40 (кожні 30 хв)",
+        "first_trip": "6:45 з центру → вокзал, залізничний переїзд, Малинівку, БАМ → лікарня 7:50",
+        "to_center": "13:30, 17:40",
+        "lunch_break": "13:30–15:00"
+      },
+      "note": "Тестовий режим з 1 травня 2025. Малинська міська рада опублікувала повний розклад на Facebook.",
+      "source_url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
+    }
+  },
+  "news": [
+    {
+      "date": "2025-05-06",
+      "title": "У Малині оприлюднили розклад нового автобусного маршруту №9",
+      "url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
+    },
+    {
+      "date": "2023-10-04",
+      "title": "У Малині тимчасово змінили схему руху маршруток №7 та №8",
+      "url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
+    },
+    {
+      "date": "2022-04-29",
+      "title": "Змінився графік маршруток, які курсують по Малину. Проїзд 10 грн.",
+      "url": "https://malyn.media/novyny/misto/zminyvsia-hrafik-marshrutok-iaki-kursuiut-po-malynu/"
+    }
+  ],
+  "sources": {
+    "malyn_media": "https://malyn.media/tag/rozklad-rukhu/",
+    "facebook_council": "https://www.facebook.com/MalynCityCouncil"
+  },
+  "contacts": {
+    "autostation": "(068) 77-71-590",
+    "council": "mradazv@ukr.net"
+  }
+}

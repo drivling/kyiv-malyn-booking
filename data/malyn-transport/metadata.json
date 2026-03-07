@@ -1,0 +1,12 @@
+{
+  "dataset_id": "f28ed264-8576-457d-a518-2b637a3c8d36",
+  "title": "Розклад руху громадського транспорту міста Малина",
+  "resources": [
+    {
+      "name": "Перелік рейсів.xlsx",
+      "format": "XSLS",
+      "url": "https://data.gov.ua/dataset/e8cc5430-6833-4f8c-9a9d-693be847f79f/resource/10f07f58-2e0a-44a8-923c-9c7788c90d2a/download/perelik-reisiv-24.xlsx"
+    }
+  ],
+  "downloaded_file": "perelik-reisiv-24.xlsx"
+}

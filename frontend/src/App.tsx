@@ -3,6 +3,7 @@ import { BookingPage } from '@/pages/BookingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { PoputkyPage } from '@/pages/PoputkyPage';
+import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { UserPage } from '@/pages/UserPage';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/api/client';
@@ -25,6 +26,7 @@ function AppContent() {
         <Route path="/" element={<PoputkyPage />} />
         <Route path="/poputky" element={<PoputkyPage />} />
         <Route path="/booking" element={<BookingPage />} />
+        <Route path="/localtransport" element={<LocalTransportPage />} />
         <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route 
@@ -60,6 +62,9 @@ function NavBar() {
         </Link>
         <Link to="/booking" className="nav-link">
           🚌 Маршрутки
+        </Link>
+        <Link to="/localtransport" className="nav-link">
+          🚏 Транспорт Малина
         </Link>
       </div>
 

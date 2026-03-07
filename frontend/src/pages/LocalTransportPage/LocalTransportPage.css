@@ -1,0 +1,280 @@
+/* Місцевий транспорт Малина — стиль у дусі сайту */
+
+.local-transport-page {
+  min-height: calc(100vh - 60px);
+  background: linear-gradient(180deg, #f0fdf4 0%, var(--pb-bg-page) 120px);
+  padding: var(--pb-space-xl) var(--pb-space);
+}
+
+.local-transport-container {
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--pb-card-bg);
+  padding: var(--pb-space-xl);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--pb-border);
+}
+
+.local-transport-header {
+  text-align: center;
+  margin-bottom: var(--pb-space-xl);
+  padding-bottom: var(--pb-space-lg);
+  border-bottom: 1px solid var(--pb-border-light);
+}
+
+.local-transport-header h1 {
+  margin-bottom: var(--pb-space-sm);
+  color: var(--pb-text);
+  font-size: var(--pb-font-size-2xl);
+  font-weight: var(--pb-font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.local-transport-subtitle {
+  color: var(--pb-text-muted);
+  font-size: var(--pb-font-size);
+  font-weight: 500;
+  margin: 0;
+}
+
+.local-transport-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pb-space-lg);
+  margin-bottom: var(--pb-space-xl);
+}
+
+.local-transport-filters .select-wrapper {
+  flex: 1;
+  min-width: 180px;
+}
+
+.local-transport-route-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pb-space-md);
+}
+
+.local-transport-route-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--pb-space-lg);
+  background: var(--pb-bg-secondary);
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.local-transport-route-card:hover {
+  border-color: var(--pb-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.local-transport-route-header {
+  display: flex;
+  align-items: center;
+  gap: var(--pb-space-md);
+  margin-bottom: var(--pb-space-xs);
+}
+
+.local-transport-route-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 8px;
+  background: var(--pb-accent);
+  color: white;
+  font-weight: var(--pb-font-weight-bold);
+  font-size: var(--pb-font-size);
+  border-radius: 8px;
+}
+
+.local-transport-route-path {
+  color: var(--pb-text);
+  font-weight: 600;
+}
+
+.local-transport-arrow {
+  color: var(--pb-text-muted);
+  font-weight: 500;
+}
+
+.local-transport-route-meta {
+  color: var(--pb-text-muted);
+  font-size: 0.875rem;
+}
+
+.local-transport-empty {
+  text-align: center;
+  padding: var(--pb-space-xl);
+  color: var(--pb-text-muted);
+}
+
+.local-transport-empty p {
+  margin: 0 0 var(--pb-space-sm);
+}
+
+.local-transport-loading,
+.local-transport-error {
+  text-align: center;
+  padding: var(--pb-space-xl);
+  color: var(--pb-text-muted);
+}
+
+.local-transport-error-hint {
+  font-size: 0.8125rem;
+  margin-top: var(--pb-space-md);
+  opacity: 0.9;
+}
+
+.local-transport-error-hint code {
+  background: var(--pb-bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Детальний перегляд маршруту */
+.local-transport-detail-view {
+  margin-bottom: var(--pb-space-xl);
+}
+
+.local-transport-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pb-space-xs);
+  margin-bottom: var(--pb-space-lg);
+  padding: var(--pb-space-sm) var(--pb-space-md);
+  background: var(--pb-bg-secondary);
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  color: var(--pb-text);
+  font-size: var(--pb-font-size);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.local-transport-back-btn:hover {
+  border-color: var(--pb-accent);
+  background: var(--pb-bg-page);
+}
+
+.local-transport-route-detail h2 {
+  margin-bottom: var(--pb-space-md);
+  color: var(--pb-text);
+  font-size: var(--pb-font-size-xl);
+  font-weight: var(--pb-font-weight-bold);
+}
+
+.local-transport-route-detail .local-transport-route-num {
+  margin-right: var(--pb-space-xs);
+}
+
+.local-transport-fare {
+  margin-bottom: var(--pb-space-sm);
+}
+
+.local-transport-fare-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--pb-accent);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.local-transport-meta {
+  color: var(--pb-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: var(--pb-space-lg);
+}
+
+.local-transport-supplement {
+  margin-bottom: var(--pb-space-xl);
+  padding: var(--pb-space-lg);
+  background: var(--pb-bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--pb-border-light);
+}
+
+.local-transport-supplement h3 {
+  margin: 0 0 var(--pb-space-md);
+  color: var(--pb-text);
+  font-size: var(--pb-font-size);
+  font-weight: 600;
+}
+
+.local-transport-supplement p {
+  margin: 0 0 var(--pb-space-sm);
+  color: var(--pb-text);
+  font-size: 0.9rem;
+}
+
+.local-transport-supplement ul {
+  margin: 0 0 var(--pb-space-md);
+  padding-left: 1.25rem;
+}
+
+.local-transport-supplement li {
+  margin-bottom: var(--pb-space-xs);
+  color: var(--pb-text);
+  font-size: 0.9rem;
+}
+
+.local-transport-supplement-note {
+  color: var(--pb-text-muted) !important;
+  font-size: 0.85rem !important;
+}
+
+.local-transport-source-link {
+  color: var(--pb-accent) !important;
+  font-weight: 500;
+}
+
+.local-transport-trips-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.local-transport-trips-table th,
+.local-transport-trips-table td {
+  padding: var(--pb-space-sm) var(--pb-space-md);
+  text-align: left;
+  border-bottom: 1px solid var(--pb-border-light);
+}
+
+.local-transport-trips-table th {
+  color: var(--pb-text-muted);
+  font-weight: 600;
+}
+
+.local-transport-dir-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--pb-bg-secondary);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+
+.local-transport-footer {
+  margin-top: var(--pb-space-xl);
+  padding-top: var(--pb-space-lg);
+  border-top: 1px solid var(--pb-border-light);
+  color: var(--pb-text-muted);
+  font-size: 0.8125rem;
+}
+
+.local-transport-footer a {
+  color: var(--pb-accent);
+  text-decoration: none;
+}
+
+.local-transport-footer a:hover {
+  text-decoration: underline;
+}
