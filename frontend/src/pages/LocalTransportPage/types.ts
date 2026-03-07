@@ -26,6 +26,8 @@ export interface SupplementRoute {
     first_trip?: string;
     to_center?: string;
     lunch_break?: string;
+    schedule_entries?: Array<{ label: string; times: string }>;
+    note?: string;
   };
 }
 

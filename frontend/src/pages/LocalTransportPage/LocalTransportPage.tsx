@@ -40,8 +40,8 @@ function buildRoutes(data: TransportData): Array<{
       const sup = supplementRoutes[id] || v.supplement;
       return {
         id,
-        from: v.from,
-        to: v.to,
+        from: (sup?.from ?? v.from) || null,
+        to: (sup?.to ?? v.to) || null,
         trips: v.trips,
         supplement: sup,
       };
@@ -202,6 +202,11 @@ export const LocalTransportPage: React.FC = () => {
                         <strong>Розклад:</strong>
                       </p>
                       <ul>
+                        {detailRoute.supplement.schedule.schedule_entries?.map((entry) => (
+                          <li key={entry.label}>
+                            {entry.label}: {entry.times}
+                          </li>
+                        ))}
                         {detailRoute.supplement.schedule.from_bazar && (
                           <li>З Базарної площі: {detailRoute.supplement.schedule.from_bazar}</li>
                         )}
@@ -218,6 +223,11 @@ export const LocalTransportPage: React.FC = () => {
                         )}
                         {detailRoute.supplement.schedule.lunch_break && (
                           <li>Перерва: {detailRoute.supplement.schedule.lunch_break}</li>
+                        )}
+                        {detailRoute.supplement.schedule.note && (
+                          <li className="local-transport-supplement-note">
+                            {detailRoute.supplement.schedule.note}
+                          </li>
                         )}
                       </ul>
                     </>
