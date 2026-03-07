@@ -1,35 +1,41 @@
-/* Розклад руху — California transit style (LA Metro, 12h AM/PM) */
+/* Розклад руху — єдиний стиль з Booking/Попутки */
 
 .lt-page {
-  --lt-accent: #0274b3;
-  --lt-accent-light: #e8f4fb;
-  --lt-accent-hover: 0 2px 8px rgba(2, 116, 179, 0.12);
   min-height: calc(100vh - 60px);
-  padding: var(--pb-space) var(--pb-space);
-  background: var(--pb-bg-page);
+  background: linear-gradient(180deg, #f0fdf4 0%, var(--pb-bg-page) 120px);
+  padding: var(--pb-space-xl) var(--pb-space);
 }
 
 .lt-container {
-  max-width: 520px;
+  max-width: 600px;
   margin: 0 auto;
+  background: var(--pb-card-bg);
+  padding: var(--pb-space-xl);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--pb-border);
 }
 
-/* Header */
+/* Header — як BookingPage */
 .lt-header {
-  margin-bottom: var(--pb-space-lg);
+  text-align: center;
+  margin-bottom: var(--pb-space-xl);
+  padding-bottom: var(--pb-space-lg);
+  border-bottom: 1px solid var(--pb-border-light);
 }
 
 .lt-title {
-  margin: 0 0 4px;
-  font-size: 1.5rem;
-  font-weight: 700;
+  margin: 0 0 var(--pb-space-sm);
+  font-size: var(--pb-font-size-2xl);
+  font-weight: var(--pb-font-weight-bold);
   color: var(--pb-text);
   letter-spacing: -0.02em;
 }
 
 .lt-subtitle {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--pb-font-size);
+  font-weight: 500;
   color: var(--pb-text-muted);
 }
 
@@ -75,15 +81,15 @@
 }
 
 .lt-route-card:hover {
-  border-color: var(--lt-accent);
-  box-shadow: var(--lt-accent-hover);
+  border-color: var(--pb-primary);
+  box-shadow: var(--pb-shadow-hover);
 }
 
 .lt-route-num {
   flex-shrink: 0;
   min-width: 36px;
   padding: 4px 8px;
-  background: var(--lt-accent);
+  background: var(--pb-primary);
   color: white;
   font-size: 0.875rem;
   font-weight: 700;
@@ -123,7 +129,7 @@
   padding: 6px 0;
   background: none;
   border: none;
-  color: var(--lt-accent);
+  color: var(--pb-primary);
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
@@ -150,8 +156,8 @@
 .lt-fare {
   display: inline-block;
   padding: 4px 10px;
-  background: var(--lt-accent-light);
-  color: var(--lt-accent);
+  background: var(--pb-primary-light);
+  color: var(--pb-primary);
   font-size: 0.8125rem;
   font-weight: 600;
   border-radius: 6px;
@@ -234,7 +240,7 @@
 }
 
 .lt-footer a {
-  color: var(--lt-accent);
+  color: var(--pb-primary);
   text-decoration: none;
 }
 
