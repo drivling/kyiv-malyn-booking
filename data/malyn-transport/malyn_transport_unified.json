@@ -86,126 +86,6 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "2",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-01",
-      "trip_headsign": "ФБП",
-      "direction_id": "0",
-      "block_id": "АІ0262АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "2",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-02",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "1",
-      "block_id": "АІ0262АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "2",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-03",
-      "trip_headsign": "ФБП",
-      "direction_id": "0",
-      "block_id": "АІ8251ЕК",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "2",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-04",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "1",
-      "block_id": "АІ8251ЕК",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "3",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "3-01",
-      "trip_headsign": "Лісотехнікум",
-      "direction_id": "0",
-      "block_id": "АІ2954АХ",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "3",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "3-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ2954АХ",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "3",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "3-03",
-      "trip_headsign": "Лісотехнікум",
-      "direction_id": "0",
-      "block_id": "АІ0261АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "3",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "3-04",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ0261АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "3",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "3-05",
-      "trip_headsign": "Лісотехнікум",
-      "direction_id": "0",
-      "block_id": "АМ0958АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "3",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "3-06",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0958АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "5",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "5-01",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АІ1724ІН",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "5",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "5-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ1724ІН",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
       "route_id": "6",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "6-01",
@@ -222,66 +102,6 @@
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
       "block_id": "АМ0033АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "7",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "7-01",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АІ8250ЕК",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "7",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "7-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ8250ЕК",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "8",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "8-01",
-      "trip_headsign": "Базарна площа",
-      "direction_id": "0",
-      "block_id": "АІ0263АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "8",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "8-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ0263АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "8",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "8-03",
-      "trip_headsign": "Базарна площа",
-      "direction_id": "0",
-      "block_id": "АІ8758АВ",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "8",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "8-04",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ8758АВ",
       "wheelchair_accessible": "0",
       "bikes_allowed": "2"
     },
@@ -326,46 +146,6 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "11",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "11-01",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "АМ0959АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "11",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "11-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0959АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "11",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "11-03",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "АІ9091ВЕ",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "11",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "11-04",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АІ9091ВЕ",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
       "route_id": "12",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "12-01",
@@ -404,6 +184,950 @@
       "block_id": "АМ0960АА",
       "wheelchair_accessible": "0",
       "bikes_allowed": "2"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-01",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "7:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-02",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "7:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-03",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-04",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-05",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-06",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-07",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-08",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-09",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-10",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-11",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-12",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-13",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "13:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-14",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "14:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-15",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-16",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-17",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-18",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-19",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "17:05"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-21",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-22",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:40"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-02",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "7:30"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:15"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-04",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "8:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:20"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-06",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "9:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:35"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-08",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "11:10"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:40"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-10",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "12:10"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:30"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-12",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-13",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "14:20"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-14",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-15",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "15:25"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-16",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:55"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-17",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-18",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:55"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-19",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-20",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-21",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "18:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:40"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-02",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:23"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-04",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:45"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:08"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-06",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "8:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:53"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-08",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "9:15"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:38"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-10",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:23"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-12",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:48"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-13",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:08"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-14",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:55"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-16",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "12:15"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "12:38"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-18",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "13:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-19",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:20"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "13:45"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:53"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-22",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:36"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-23",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "16:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-24",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:23"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-25",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "16:48"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-26",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:06"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-27",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-28",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:55"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-01",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:15"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:40"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-03",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-04",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:20"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:10"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-06",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "9:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:50"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-08",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:15"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:40"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-10",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:10"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:35"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-12",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:55"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-13",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:20"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-14",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "13:45"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:10"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-16",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "14:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:55"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-18",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "15:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-19",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-22",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:45"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-23",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:06"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-24",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "18:35"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-25",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:50"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-26",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "19:15"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-02",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "7:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-04",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "8:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-06",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "9:25"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-08",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "10:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-10",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "11:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-12",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "12:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-13",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-14",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "13:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-16",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "15:20"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-18",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-19",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-20",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "17:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:00"
     },
     {
       "route_id": "9",
@@ -556,6 +1280,142 @@
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
       "block_id": "17:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-02",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-04",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:20"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-06",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "9:35"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:50"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-08",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "11:05"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-09",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "12:25"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-10",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "14:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:10"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-12",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-13",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "15:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-14",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:05"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-16",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "18:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:50"
     }
   ],
   "supplement": {
@@ -745,7 +1605,7 @@
     }
   },
   "stats": {
-    "total_rows": 57,
+    "total_rows": 170,
     "columns": 9,
     "routes_count": 11,
     "route_ids": [
@@ -763,28 +1623,28 @@
     ],
     "trips_per_route": {
       "1": 6,
-      "2": 4,
-      "3": 6,
-      "5": 2,
       "6": 2,
-      "7": 2,
-      "8": 4,
       "10": 4,
-      "11": 4,
       "12": 4,
-      "9": 19
+      "2": 22,
+      "3": 21,
+      "5": 28,
+      "7": 26,
+      "8": 21,
+      "9": 19,
+      "11": 17
     },
     "headsigns": [
-      "Базарна площа",
+      "Базар (Базарна площа)",
       "Базарна площа (ТЦ «Промінь»)",
       "Барміна",
       "Залізничний вокзал",
+      "Лікарня",
+      "Лікарня (Лісотехнікум)",
       "Лікарня (через БАМ)",
-      "Лісотехнікум",
       "Малинівка, Юрівка, БАМ",
       "Паперова фабрика",
-      "Поліклініка",
-      "ФБП"
+      "Поліклініка"
     ]
   }
 }

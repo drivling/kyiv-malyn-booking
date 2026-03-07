@@ -9,7 +9,7 @@ import re
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 NS = {
     "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -153,6 +153,53 @@ def parse_times_from_schedule(text: str) -> list[str]:
     return times
 
 
+def schedule_entries_to_trips(route_id: str, route_data: dict) -> Optional[List[dict]]:
+    """
+    Згенерувати рейси з schedule_entries (формат для маршрутів 2, 3, 5, 7, 8, 11).
+    Перший entry = рейси з "from" до "to" (direction 1), другий = з "to" до "from" (direction 0).
+    """
+    schedule = route_data.get("schedule") or {}
+    entries = schedule.get("schedule_entries") or []
+    if len(entries) < 2:
+        return None
+
+    from_endpoint = route_data.get("from") or "А"
+    to_endpoint = route_data.get("to") or "Б"
+    headsign_from = from_endpoint[:40] if len(from_endpoint) <= 40 else from_endpoint[:37] + "..."
+    headsign_to = to_endpoint[:40] if len(to_endpoint) <= 40 else to_endpoint[:37] + "..."
+
+    trips: list[tuple[str, str, str]] = []
+    # entry[0] = з "from" → direction 1 (до to)
+    for t in parse_times_from_schedule(entries[0].get("times") or ""):
+        trips.append((t, "1", headsign_to))
+    # entry[1] = з "to" → direction 0 (до from)
+    for t in parse_times_from_schedule(entries[1].get("times") or ""):
+        trips.append((t, "0", headsign_from))
+
+    if not trips:
+        return None
+
+    def time_key(x: tuple[str, str, str]) -> tuple[int, int]:
+        parts = x[0].split(":")
+        h = int(parts[0]) if len(parts) > 0 else 0
+        m = int(parts[1]) if len(parts) > 1 else 0
+        return (h, m)
+
+    trips.sort(key=time_key)
+
+    result = []
+    for i, (time_str, direction_id, headsign) in enumerate(trips, 1):
+        result.append({
+            "route_id": route_id,
+            "service_id": "пн-вт-ср-чт-пт-сб-нд",
+            "trip_id": f"{route_id}-{i:02d}",
+            "trip_headsign": headsign,
+            "direction_id": direction_id,
+            "block_id": time_str,
+        })
+    return result
+
+
 def supplement_schedule_to_trips(route_id: str, route_data: dict) -> list[dict]:
     """
     Згенерувати записи рейсів з розкладу supplement для маршрутів без даних у Excel.
@@ -252,15 +299,34 @@ def main():
         with open(supplement_path, "r", encoding="utf-8") as f:
             supplement = json.load(f)
 
-    # Згенерувати рейси з supplement для маршрутів, яких немає в Excel
-    excel_route_ids = set(route_ids)
+    # Об'єднати графіки з supplement: замінити Excel-рейси на офіційні розклади з фото
     supplement_routes = supplement.get("routes") or {}
+    records_to_keep = []
+    for r in records:
+        rid = r.get("route_id")
+        route_data = supplement_routes.get(rid) if rid else None
+        schedule = (route_data or {}).get("schedule") or {}
+        # Якщо є schedule_entries — використовуємо графік з фото замість Excel
+        if schedule.get("schedule_entries"):
+            continue  # відкидаємо Excel-записи для цього маршруту
+        records_to_keep.append(r)
+
+    records = records_to_keep
+
     for rid, route_data in supplement_routes.items():
-        if rid not in excel_route_ids and isinstance(route_data, dict) and route_data.get("schedule"):
+        if not isinstance(route_data, dict):
+            continue
+        schedule = route_data.get("schedule") or {}
+        synthetic = None
+
+        if schedule.get("schedule_entries"):
+            synthetic = schedule_entries_to_trips(rid, route_data)
+        elif schedule.get("from_bazar") or schedule.get("from_oleksy_tikh") or schedule.get("first_trip"):
             synthetic = supplement_schedule_to_trips(rid, route_data)
-            if synthetic:
-                records.extend(synthetic)
-                print(f"Додано {len(synthetic)} рейсів з supplement для маршруту №{rid}")
+
+        if synthetic:
+            records.extend(synthetic)
+            print(f"Графік з фото для маршруту №{rid}: {len(synthetic)} рейсів")
 
     # Оновити підсумок після merge
     route_ids = sorted(set(r.get("route_id") for r in records if r.get("route_id")))
