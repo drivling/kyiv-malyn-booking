@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
-import { formatPhoneDisplay, supportPhoneToTelLink } from '@/utils/constants';
+import {
+  formatPhoneDisplay,
+  supportPhoneToTelLink,
+  BOOKING_CITY_LABELS,
+  BOOKING_FROM_TO,
+  getDirectionFromCities,
+} from '@/utils/constants';
+import type { BookingCity } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { userState } from '@/utils/userState';
 import './PoputkyPage.css';
@@ -104,8 +111,8 @@ export const PoputkyPage: React.FC = () => {
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
   const [sortByTime, setSortByTime] = useState<'asc' | 'desc'>('asc');
   const [announceRole, setAnnounceRole] = useState<'driver' | 'passenger'>('driver');
-  const [announceFrom, setAnnounceFrom] = useState('');
-  const [announceTo, setAnnounceTo] = useState('');
+  const [announceFrom, setAnnounceFrom] = useState<BookingCity | ''>('');
+  const [announceTo, setAnnounceTo] = useState<BookingCity | ''>('');
   const [announceDate, setAnnounceDate] = useState('');
   const [announceTimeFrom, setAnnounceTimeFrom] = useState('');
   const [announceTimeTo, setAnnounceTimeTo] = useState('');
@@ -113,6 +120,24 @@ export const PoputkyPage: React.FC = () => {
   const [announceSubmitting, setAnnounceSubmitting] = useState(false);
   const telegramUser = userState.getTelegramUser();
   const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
+
+  const fromCityOptions = (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
+    value,
+    label,
+  }));
+
+  const toCityOptions = announceFrom
+    ? BOOKING_FROM_TO.filter((p) => p.from === announceFrom).map((p) => ({
+        value: p.to,
+        label: BOOKING_CITY_LABELS[p.to],
+      }))
+    : [];
+
+  useEffect(() => {
+    if (announceFrom && announceTo && !getDirectionFromCities(announceFrom, announceTo)) {
+      setAnnounceTo('');
+    }
+  }, [announceFrom, announceTo]);
 
   const loadPoputky = async () => {
     setLoading(true);
@@ -462,35 +487,47 @@ export const PoputkyPage: React.FC = () => {
                 </button>
               </div>
               <form className="poputky-announce-form" onSubmit={handlePublishAnnounce}>
-                <label className="poputky-form-label">
-                  Звідки:
-                  <select
-                    value={announceFrom}
-                    onChange={(e) => setAnnounceFrom(e.target.value)}
-                    className="poputky-form-input"
-                  >
-                    <option value="">Оберіть</option>
-                    <option value="malyn">Малин</option>
-                    <option value="kyiv">Київ</option>
-                    <option value="zhytomyr">Житомир</option>
-                    <option value="korosten">Коростень</option>
-                  </select>
-                </label>
-                <label className="poputky-form-label">
-                  Куди:
-                  <select
-                    value={announceTo}
-                    onChange={(e) => setAnnounceTo(e.target.value)}
-                    className="poputky-form-input"
-                  >
-                    <option value="">Оберіть</option>
-                    <option value="malyn">Малин</option>
-                    <option value="kyiv">Київ</option>
-                    <option value="zhytomyr">Житомир</option>
-                    <option value="korosten">Коростень</option>
-                  </select>
-                </label>
-                <p className="poputky-form-hint poputky-form-hint--inline">Маршрути лише з/до Малина.</p>
+                <div className="poputky-route-section">
+                  <div className="poputky-route-row">
+                    <label className="poputky-form-label">
+                      Звідки:
+                      <select
+                        value={announceFrom}
+                        onChange={(e) => {
+                          const next = (e.target.value || '') as BookingCity | '';
+                          setAnnounceFrom(next);
+                          setAnnounceTo('');
+                        }}
+                        className="poputky-form-input"
+                      >
+                        <option value="">Оберіть</option>
+                        {fromCityOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <span className="poputky-route-arrow" aria-hidden>→</span>
+                    <label className="poputky-form-label">
+                      Куди:
+                      <select
+                        value={announceTo}
+                        onChange={(e) => setAnnounceTo((e.target.value || '') as BookingCity | '')}
+                        className="poputky-form-input"
+                        disabled={!announceFrom}
+                      >
+                        <option value="">Оберіть</option>
+                        {toCityOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <p className="poputky-form-hint poputky-form-hint--inline">Усі маршрути проходять через Малин</p>
+                </div>
                 <label className="poputky-form-label">
                   Дата поїздки:
                   <input
