@@ -12,6 +12,7 @@ exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
+exports.resolveUsernameByPhoneFromTelegram = resolveUsernameByPhoneFromTelegram;
 exports.fetchTelegramGroupMessages = fetchTelegramGroupMessages;
 exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessages;
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
@@ -1018,6 +1019,54 @@ async function resolveNameByPhoneFromTelegram(phone) {
         child.on('error', () => resolve(null));
     });
 }
+/**
+ * Знайти @username в Telegram по номеру телефону (Python send_message.py --resolve-username).
+ * Повертає username без @ або null.
+ */
+async function resolveUsernameByPhoneFromTelegram(phone) {
+    const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
+    const scriptDir = sessionPath ? path_1.default.dirname(sessionPath) : '';
+    const scriptPath = path_1.default.join(scriptDir, 'send_message.py');
+    const apiId = process.env.TELEGRAM_API_ID;
+    const apiHash = process.env.TELEGRAM_API_HASH;
+    if (!sessionPath || !apiId || !apiHash || !phone?.trim())
+        return null;
+    const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
+    return new Promise((resolve) => {
+        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, '--resolve-username', phone.trim()], {
+            env: {
+                ...process.env,
+                TELEGRAM_USER_SESSION_PATH: sessionPath,
+                TELEGRAM_API_ID: apiId,
+                TELEGRAM_API_HASH: apiHash,
+            },
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        let stdout = '';
+        let stderr = '';
+        child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
+        child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
+        child.on('close', (code) => {
+            if (code === 0 && stdout.trim()) {
+                try {
+                    const parsed = JSON.parse(stdout.trim());
+                    const username = parsed.telegramUsername?.trim();
+                    resolve(username || null);
+                }
+                catch {
+                    resolve(null);
+                }
+            }
+            else {
+                if (code !== 1) {
+                    console.error(`ℹ️ resolveUsernameByPhone (${phone}): код ${code}`, stderr.slice(0, 200));
+                }
+                resolve(null);
+            }
+        });
+        child.on('error', () => resolve(null));
+    });
+}
 const TELEGRAM_TOPICS = [2, 6, 108];
 /**
  * Завантажити повідомлення з Telegram групи PoDoroguem через особистий акаунт (Telethon).
@@ -1289,7 +1338,7 @@ function spawnSendMessage(value, message, isUsername) {
     if (!sessionPath || !apiId || !apiHash)
         return Promise.resolve(false);
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
-    const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, value];
+    const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, '--report-name', value];
     return new Promise((resolve) => {
         const child = (0, child_process_1.spawn)(pythonCmd, args, {
             env: {
@@ -1300,7 +1349,11 @@ function spawnSendMessage(value, message, isUsername) {
             },
             stdio: ['pipe', 'pipe', 'pipe'],
         });
+        let stdout = '';
         let stderr = '';
+        child.stdout?.on('data', (chunk) => {
+            stdout += chunk.toString();
+        });
         const stderrDone = new Promise((r) => {
             if (!child.stderr) {
                 r();
@@ -1314,6 +1367,17 @@ function spawnSendMessage(value, message, isUsername) {
         child.on('close', async (code) => {
             await stderrDone; // Дочекатись повного stderr (close може спрацювати раніше)
             if (code === 0) {
+                if (!isUsername && stdout.trim()) {
+                    try {
+                        const parsed = JSON.parse(stdout.trim());
+                        if (parsed.phone && parsed.telegramUsername?.trim()) {
+                            await (0, exports.findOrCreatePersonByPhone)(parsed.phone, { telegramUsername: parsed.telegramUsername.trim() }).catch((e) => console.error('❌ Оновлення Person після send_message:', e));
+                        }
+                    }
+                    catch {
+                        // stdout може містити щось інше — ігноруємо
+                    }
+                }
                 resolve(true);
                 return;
             }

@@ -4,13 +4,16 @@
 Використовується для одноразового промо користувачам, які ще не в боті.
 
 Виклик:
-  python3 send_message.py <phone>           — відправка по номеру телефону
-  python3 send_message.py --username <user> — відправка по @username (без @)
+  python3 send_message.py <phone>                    — відправка по номеру телефону
+  python3 send_message.py --report-name <phone>     — як вище + вивід @username в stdout (JSON) для оновлення Person.telegramUsername
+  python3 send_message.py --username <user>         — відправка по @username (без @)
 Текст повідомлення читається з stdin (UTF-8).
 
-Тільки пошук імені по номеру (без відправки):
+Тільки пошук по номеру (без відправки):
   python3 send_message.py --resolve <phone>
   Виводить у stdout ім'я (first_name + last_name) або порожньо. Код виходу 0 — знайдено, 1 — не знайдено.
+  python3 send_message.py --resolve-username <phone>
+  Виводить у stdout JSON {"phone":"...","telegramUsername":"..."} або порожньо. Код виходу 0 — знайдено, 1 — не знайдено.
 
 Локальна перевірка форматів номерів (без Telegram):
   python3 send_message.py --test
@@ -25,6 +28,7 @@
   2 — інша помилка
 """
 
+import json
 import os
 import sys
 import asyncio
@@ -85,6 +89,42 @@ def get_phone_formats_for_resolve(phone_normalized: str):
         f"+380({p[3:5]}){p[5:]}",  # +380(50)1399910
         f"+380 {p[3:5]} {p[5:8]} {p[8:10]} {p[10:12]}",  # +380 50 139 99 10
     ]
+
+
+async def resolve_phone_to_username(phone_arg: str) -> str:
+    """Пошук контакту в Telegram по номеру; повертає @username (без @) або порожній рядок."""
+    from telethon import TelegramClient
+    from telethon.tl.functions.contacts import ResolvePhoneRequest
+
+    session_path = get_session_path()
+    api_id, api_hash = get_api_credentials()
+    phone = normalize_phone(phone_arg)
+    if not phone:
+        return ""
+
+    client = TelegramClient(session_path, api_id, api_hash)
+    try:
+        await client.connect()
+        if not await client.is_user_authorized():
+            return ""
+        result = None
+        for phone_for_api in get_phone_formats_for_resolve(phone):
+            if not phone_for_api:
+                continue
+            try:
+                result = await client(ResolvePhoneRequest(phone=phone_for_api))
+                if result and result.users:
+                    break
+            except Exception:
+                continue
+        if not result or not result.users:
+            return ""
+        user = result.users[0]
+        return (getattr(user, "username", "") or "").strip()
+    except Exception:
+        return ""
+    finally:
+        await client.disconnect()
 
 
 async def resolve_phone_to_name(phone_arg: str) -> str:
@@ -148,6 +188,24 @@ async def main():
             sys.exit(0)
         sys.exit(1)
 
+    # Режим --resolve-username: вивести @username по номеру (JSON)
+    if phone_arg == "--resolve-username" and len(sys.argv) >= 3:
+        resolve_phone = sys.argv[2].strip()
+        if not resolve_phone:
+            sys.exit(1)
+        phone_norm = normalize_phone(resolve_phone)
+        username = await resolve_phone_to_username(resolve_phone)
+        if phone_norm and username:
+            print(json.dumps({"phone": phone_norm, "telegramUsername": username}))
+            sys.exit(0)
+        sys.exit(1)
+
+    # Режим --report-name: відправка по телефону + вивід @username в stdout для оновлення Person.telegramUsername
+    report_name = False
+    if phone_arg == "--report-name" and len(sys.argv) >= 3:
+        report_name = True
+        phone_arg = sys.argv[2].strip()
+
     # Режим --username: відправка по @username
     use_username = False
     username_arg = ""
@@ -206,7 +264,10 @@ async def main():
                         print("Користувача не знайдено або номер приховано (перепробовано всі формати)", file=sys.stderr)
                         sys.exit(1)
                     user = result.users[0]
+                    tg_username = (getattr(user, "username", "") or "").strip()
                     await client.send_message(user, message, parse_mode="html")
+                    if report_name and tg_username:
+                        print(json.dumps({"phone": phone, "telegramUsername": tg_username}))
                     sys.exit(0)
             except tg_errors.FloodWaitError as e:
                 wait_sec = getattr(e, "seconds", None) or getattr(e, "value", 60)

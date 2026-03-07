@@ -215,6 +215,13 @@ class ApiClient {
     });
   }
 
+  /** Перевірити номера: персони без telegramChatId — спробувати знайти @username через ResolvePhone і оновити telegramUsername. */
+  async checkPersonUsernames(): Promise<{ total: number; updated: number; errors?: string[] }> {
+    return this.request<{ total: number; updated: number; errors?: string[] }>('/admin/persons/check-usernames', {
+      method: 'POST',
+    });
+  }
+
   /** Оновити імена персон: пошук через Telegram-бота (якщо підключений), ваш акаунт (send_message.py) та Opendatabot. onlyEmpty: true — лише персони без імені в базі. onlyLatin: true — лише персони з іменем латиницею (без кирилиці). */
   async refreshPersonNames(options?: { personIds?: number[]; onlyEmpty?: boolean; onlyLatin?: boolean }): Promise<RefreshPersonNamesResponse> {
     const body =

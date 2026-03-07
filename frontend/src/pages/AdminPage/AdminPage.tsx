@@ -127,6 +127,8 @@ export const AdminPage: React.FC = () => {
   const [refreshNamesResult, setRefreshNamesResult] = useState<RefreshPersonNamesResponse | null>(null);
   const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
   const [phoneCheckSummary, setPhoneCheckSummary] = useState('');
+  const [checkUsernamesLoading, setCheckUsernamesLoading] = useState(false);
+  const [checkUsernamesSummary, setCheckUsernamesSummary] = useState('');
   const [userSenderErrors, setUserSenderErrors] = useState<TelegramUserSendError[]>([]);
   const [userSenderErrorsLoading, setUserSenderErrorsLoading] = useState(false);
   const [userSenderErrorsClearing, setUserSenderErrorsClearing] = useState(false);
@@ -512,6 +514,28 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка оновлення імен');
     } finally {
       setRefreshNamesLoading(false);
+    }
+  };
+
+  const handleCheckUsernames = async () => {
+    setCheckUsernamesLoading(true);
+    setError('');
+    setSuccess('');
+    setCheckUsernamesSummary('');
+    try {
+      const result = await apiClient.checkPersonUsernames();
+      setCheckUsernamesSummary(
+        `Перевірено ${result.total} персон без Telegram бота. Оновлено @username: ${result.updated}.` +
+          (result.errors?.length ? ` Помилки: ${result.errors.length}.` : '')
+      );
+      if (result.updated > 0) {
+        setSuccess(`Оновлено @username для ${result.updated} персон.`);
+        loadPersons();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка перевірки номерів');
+    } finally {
+      setCheckUsernamesLoading(false);
     }
   };
 
@@ -1825,6 +1849,14 @@ export const AdminPage: React.FC = () => {
               </Button>
               <Button
                 variant="secondary"
+                onClick={handleCheckUsernames}
+                disabled={checkUsernamesLoading}
+                title="Персони без telegramChatId: спробувати знайти @username через ResolvePhone (ваш акаунт) і оновити telegramUsername."
+              >
+                {checkUsernamesLoading ? 'Перевірка…' : 'Перевір номера'}
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={handleAnalyzePhonesViaPhoneCheck}
                 disabled={phoneCheckLoading || !persons.length}
                 title="Перевірити поточний список телефонів через phonecheck.top та завантажити відповіді (ігноруючи «Данные не найдены»)."
@@ -1836,6 +1868,11 @@ export const AdminPage: React.FC = () => {
               <div className="data-refresh-summary" style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
                 Статистика: перевірено {refreshNamesResult.total}, оновлено {refreshNamesResult.updated}, пропущено {refreshNamesResult.skipped}.
                 {refreshNamesResult.errors?.length ? ` Помилки: ${refreshNamesResult.errors.length}.` : ''}
+              </div>
+            )}
+            {checkUsernamesSummary && (
+              <div className="data-refresh-summary" style={{ marginBottom: '12px', fontSize: '14px', color: 'var(--text-secondary, #666)' }}>
+                {checkUsernamesSummary}
               </div>
             )}
             {phoneCheckSummary && (

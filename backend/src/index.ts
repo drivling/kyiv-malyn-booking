@@ -3,7 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic, fetchAndImportTelegramGroupMessages } from './telegram';
+import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, resolveUsernameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic, fetchAndImportTelegramGroupMessages } from './telegram';
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 import { runPhoneCheckForPhone, type PhoneCheckResult } from './phonecheck';
@@ -1831,6 +1831,44 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ POST /admin/persons/refresh-names:', e);
     res.status(500).json({ error: 'Не вдалося оновити імена' });
+  }
+});
+
+/** Перевірити номера: знайти персон без telegramChatId, спробувати ResolvePhone і оновити telegramUsername. */
+app.post('/admin/persons/check-usernames', requireAdmin, async (req, res) => {
+  try {
+    const persons = await prisma.person.findMany({
+      where: {
+        telegramChatId: null,
+        OR: [{ telegramUsername: null }, { telegramUsername: '' }],
+      },
+      orderBy: { id: 'asc' },
+    });
+    let updated = 0;
+    const errors: string[] = [];
+    for (const p of persons) {
+      try {
+        const username = await resolveUsernameByPhoneFromTelegram(p.phoneNormalized);
+        if (username?.trim()) {
+          await prisma.person.update({
+            where: { id: p.id },
+            data: { telegramUsername: username.trim() },
+          });
+          updated++;
+          console.log(`[check-usernames] #${p.id} ${p.phoneNormalized} → @${username}`);
+        }
+        // Пауза між запитами, щоб не перевищити rate limit
+        await new Promise((r) => setTimeout(r, 1500));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`#${p.id} ${p.phoneNormalized}: ${msg}`);
+      }
+    }
+    console.log(`[check-usernames] Підсумок: total=${persons.length}, updated=${updated}`);
+    res.json({ total: persons.length, updated, errors: errors.length > 0 ? errors : undefined });
+  } catch (e) {
+    console.error('❌ POST /admin/persons/check-usernames:', e);
+    res.status(500).json({ error: 'Не вдалося перевірити номера' });
   }
 });
 

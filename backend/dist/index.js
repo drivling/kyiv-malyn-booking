@@ -1708,6 +1708,45 @@ app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Не вдалося оновити імена' });
     }
 });
+/** Перевірити номера: знайти персон без telegramChatId, спробувати ResolvePhone і оновити telegramUsername. */
+app.post('/admin/persons/check-usernames', requireAdmin, async (req, res) => {
+    try {
+        const persons = await prisma.person.findMany({
+            where: {
+                telegramChatId: null,
+                OR: [{ telegramUsername: null }, { telegramUsername: '' }],
+            },
+            orderBy: { id: 'asc' },
+        });
+        let updated = 0;
+        const errors = [];
+        for (const p of persons) {
+            try {
+                const username = await (0, telegram_1.resolveUsernameByPhoneFromTelegram)(p.phoneNormalized);
+                if (username?.trim()) {
+                    await prisma.person.update({
+                        where: { id: p.id },
+                        data: { telegramUsername: username.trim() },
+                    });
+                    updated++;
+                    console.log(`[check-usernames] #${p.id} ${p.phoneNormalized} → @${username}`);
+                }
+                // Пауза між запитами, щоб не перевищити rate limit
+                await new Promise((r) => setTimeout(r, 1500));
+            }
+            catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                errors.push(`#${p.id} ${p.phoneNormalized}: ${msg}`);
+            }
+        }
+        console.log(`[check-usernames] Підсумок: total=${persons.length}, updated=${updated}`);
+        res.json({ total: persons.length, updated, errors: errors.length > 0 ? errors : undefined });
+    }
+    catch (e) {
+        console.error('❌ POST /admin/persons/check-usernames:', e);
+        res.status(500).json({ error: 'Не вдалося перевірити номера' });
+    }
+});
 /** Одна персона за id. */
 app.get('/admin/persons/:id', requireAdmin, async (req, res) => {
     try {
