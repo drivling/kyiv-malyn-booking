@@ -246,7 +246,7 @@ export const LocalTransportPage: React.FC = () => {
                     <tr>
                       <th>Рейс</th>
                       <th>Напрямок</th>
-                      <th>Автобус</th>
+                      <th>Час / Автобус</th>
                     </tr>
                   </thead>
                   <tbody>

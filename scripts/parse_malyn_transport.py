@@ -145,6 +145,77 @@ def rows_to_dicts(headers: list[str], rows: list[list]) -> list[dict]:
     return result
 
 
+def parse_times_from_schedule(text: str) -> list[str]:
+    """Витягти час у форматі HH:MM з рядка розкладу."""
+    if not text:
+        return []
+    times = re.findall(r"\b(\d{1,2}:\d{2})\b", str(text))
+    return times
+
+
+def supplement_schedule_to_trips(route_id: str, route_data: dict) -> list[dict]:
+    """
+    Згенерувати записи рейсів з розкладу supplement для маршрутів без даних у Excel.
+    Повертає список записів у форматі records (route_id, trip_id, trip_headsign, direction_id).
+    """
+    schedule = route_data.get("schedule") or {}
+    from_center = route_data.get("from") or "Центр"
+    to_suburbs = route_data.get("to") or "Окраїни"
+
+    # Короткі назви для таблиці (повна інфа в supplement)
+    headsign_to = to_suburbs if len(to_suburbs) <= 40 else "Малинівка, Юрівка, БАМ"
+    headsign_from = from_center if len(from_center) <= 30 else "Базарна площа"
+
+    trips: list[tuple[str, str, str]] = []  # (time, direction_id, headsign)
+    seen_times: set[tuple[str, str]] = set()  # (time, direction) для дедуплікації
+
+    def add(t: str, direction: str, headsign: str) -> None:
+        if (t, direction) not in seen_times:
+            seen_times.add((t, direction))
+            trips.append((t, direction, headsign))
+
+    # direction_id: 0 = рейс до "from" (субурби→центр), 1 = рейс до "to" (центр→субурби)
+    # first_trip — ранковий рейс з центру до лікарні (центр→субурби) → direction 1
+    first = schedule.get("first_trip") or ""
+    first_times = parse_times_from_schedule(first)
+    if first_times:
+        add(first_times[0], "1", "Лікарня (через БАМ)")
+
+    # from_bazar — рейси з Базарної площі до окраїн (центр→субурби) → direction 1
+    for t in parse_times_from_schedule(schedule.get("from_bazar") or ""):
+        add(t, "1", headsign_to)
+
+    # from_oleksy_tikh, to_center — рейси з окраїн до центру (субурби→центр) → direction 0
+    for t in parse_times_from_schedule(schedule.get("from_oleksy_tikh") or ""):
+        add(t, "0", headsign_from)
+    for t in parse_times_from_schedule(schedule.get("to_center") or ""):
+        add(t, "0", headsign_from)
+
+    if not trips:
+        return []
+
+    # Сортувати за часом
+    def time_key(x: tuple[str, str, str]) -> tuple[int, int]:
+        parts = x[0].split(":")
+        h = int(parts[0]) if len(parts) > 0 else 0
+        m = int(parts[1]) if len(parts) > 1 else 0
+        return (h, m)
+
+    trips.sort(key=time_key)
+
+    result = []
+    for i, (time_str, direction_id, headsign) in enumerate(trips, 1):
+        result.append({
+            "route_id": route_id,
+            "service_id": "пн-вт-ср-чт-пт-сб-нд",
+            "trip_id": f"{route_id}-{i:02d}",
+            "trip_headsign": headsign,
+            "direction_id": direction_id,
+            "block_id": time_str,  # час відправлення (для supplement-маршрутів)
+        })
+    return result
+
+
 def main():
     base = Path(__file__).resolve().parent.parent
     xlsx_path = base / "data" / "malyn-transport" / "perelik-reisiv-24.xlsx"
@@ -171,14 +242,8 @@ def main():
     records = rows_to_dicts(headers, data_rows)
     print(f"Записано {len(records)} записів")
 
-    # Підсумок для аналізу
+    # Підсумок для аналізу (route_ids з Excel, буде оновлено після merge)
     route_ids = sorted(set(r.get("route_id") for r in records if r.get("route_id")))
-    trips_by_route = {}
-    for r in records:
-        rid = r.get("route_id")
-        if rid:
-            trips_by_route[rid] = trips_by_route.get(rid, 0) + 1
-    headsigns = sorted(set(r.get("trip_headsign") for r in records if r.get("trip_headsign")))
 
     # Доповнення з malyn.media
     supplement_path = out_dir / "malyn_media_supplement.json"
@@ -186,6 +251,25 @@ def main():
     if supplement_path.exists():
         with open(supplement_path, "r", encoding="utf-8") as f:
             supplement = json.load(f)
+
+    # Згенерувати рейси з supplement для маршрутів, яких немає в Excel
+    excel_route_ids = set(route_ids)
+    supplement_routes = supplement.get("routes") or {}
+    for rid, route_data in supplement_routes.items():
+        if rid not in excel_route_ids and isinstance(route_data, dict) and route_data.get("schedule"):
+            synthetic = supplement_schedule_to_trips(rid, route_data)
+            if synthetic:
+                records.extend(synthetic)
+                print(f"Додано {len(synthetic)} рейсів з supplement для маршруту №{rid}")
+
+    # Оновити підсумок після merge
+    route_ids = sorted(set(r.get("route_id") for r in records if r.get("route_id")))
+    trips_by_route = {}
+    for r in records:
+        rid = r.get("route_id")
+        if rid:
+            trips_by_route[rid] = trips_by_route.get(rid, 0) + 1
+    headsigns = sorted(set(r.get("trip_headsign") for r in records if r.get("trip_headsign")))
 
     output = {
         "source": "data.gov.ua",
