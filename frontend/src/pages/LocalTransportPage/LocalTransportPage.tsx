@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Select } from '@/components/Select';
 import type { SupplementRoute, TransportData, TransportRecord } from './types';
 import './LocalTransportPage.css';
@@ -59,13 +60,34 @@ function buildStops(routes: ReturnType<typeof buildRoutes>): string[] {
   return [...stopSet].sort((a, b) => a.localeCompare(b));
 }
 
+function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
+  const dir0 = trips.filter((t) => t.direction_id === '0').sort(sortByTime);
+  const dir1 = trips.filter((t) => t.direction_id === '1').sort(sortByTime);
+  return { dir0, dir1 };
+}
+
+function sortByTime(a: TransportRecord, b: TransportRecord): number {
+  const ta = parseTime(a.block_id);
+  const tb = parseTime(b.block_id);
+  return ta - tb;
+}
+
+function parseTime(s: string | undefined): number {
+  if (!s) return 0;
+  const m = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return 0;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+
 export const LocalTransportPage: React.FC = () => {
+  const { routeId } = useParams<{ routeId?: string }>();
+  const navigate = useNavigate();
   const [data, setData] = useState<TransportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stopFilter, setStopFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
-  const [detailRouteId, setDetailRouteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -100,11 +122,12 @@ export const LocalTransportPage: React.FC = () => {
   }, [routes, stopFilter, routeFilter]);
 
   const detailRoute = useMemo(
-    () => (detailRouteId ? routes.find((r) => r.id === detailRouteId) : null),
-    [routes, detailRouteId]
+    () => (routeId ? routes.find((r) => r.id === routeId) : null),
+    [routes, routeId]
   );
 
-  const handleBack = useCallback(() => setDetailRouteId(null), []);
+  const handleSelectRoute = (id: string) => navigate(`/localtransport/route/${id}`);
+  const handleBack = () => navigate('/localtransport');
 
   const stopOptions = useMemo(
     () => [{ value: '', label: 'Всі зупинки' }, ...stops.map((s) => ({ value: s, label: s }))],
@@ -124,9 +147,9 @@ export const LocalTransportPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="local-transport-page">
-        <div className="local-transport-container">
-          <p className="local-transport-loading">Завантаження даних...</p>
+      <div className="lt-page">
+        <div className="lt-container">
+          <p className="lt-loading">Завантаження...</p>
         </div>
       </div>
     );
@@ -134,87 +157,79 @@ export const LocalTransportPage: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="local-transport-page">
-        <div className="local-transport-container">
-          <div className="local-transport-error">
+      <div className="lt-page">
+        <div className="lt-container">
+          <div className="lt-error">
             <p>{error || 'Дані не завантажені'}</p>
-            <p className="local-transport-error-hint">
-              Переконайтеся, що файл data/malyn_transport.json існує. Запустіть{' '}
-              <code>python scripts/parse_malyn_transport.py</code> для оновлення.
-            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  const supplement = data.supplement;
-  const fare = supplement?.fare ? `${supplement.fare.amount} грн` : null;
+  const fare = data.supplement?.fare ? `${data.supplement.fare.amount} грн` : null;
 
   return (
-    <div className="local-transport-page">
-      <div className="local-transport-container">
-        {detailRouteId && detailRoute ? (
-          <div className="local-transport-detail-view">
-            <button type="button" className="local-transport-back-btn" onClick={handleBack}>
-              ← Назад до списку
+    <div className="lt-page">
+      <div className="lt-container">
+        {routeId && detailRoute ? (
+          <div className="lt-detail">
+            <button type="button" className="lt-back" onClick={handleBack}>
+              ← Усі маршрути
             </button>
-            <div className="local-transport-route-detail">
-              <h2>
-                <span className="local-transport-route-num">{detailRoute.id}</span>{' '}
-                {detailRoute.from ?? '?'} ↔ {detailRoute.to ?? '?'}
-              </h2>
-              {fare && (
-                <p className="local-transport-fare">
-                  <span className="local-transport-fare-badge">Проїзд {fare}</span>
-                </p>
-              )}
-              <p className="local-transport-meta">
-                {detailRoute.trips.length
-                  ? `Графік: пн–нд · ${detailRoute.trips.length} рейсів`
-                  : 'Дані з malyn.media'}
-              </p>
-
-              {detailRoute.trips.length > 0 && (
-                <table className="local-transport-trips-table">
-                  <thead>
-                    <tr>
-                      <th>Рейс</th>
-                      <th>Напрямок</th>
-                      <th>Час / Автобус</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailRoute.trips.map((t) => (
-                      <tr key={t.trip_id}>
-                        <td>{t.trip_id}</td>
-                        <td>
-                          <span className="local-transport-dir-badge">
-                            {t.direction_id === '0'
-                              ? `${detailRoute.from} →`
-                              : `→ ${detailRoute.to}`}
-                          </span>
-                        </td>
-                        <td>{t.block_id || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+            <header className="lt-detail-header">
+              <h1 className="lt-route-title">
+                <span className="lt-route-num">№{detailRoute.id}</span>
+                {detailRoute.from ?? '?'} — {detailRoute.to ?? '?'}
+              </h1>
+              {fare && <span className="lt-fare">Проїзд {fare}</span>}
+            </header>
+            {detailRoute.trips.length > 0 && (
+              <div className="lt-timetable">
+                {(() => {
+                  const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
+                  return (
+                    <div className="lt-timetable-grid">
+                      <div className="lt-timetable-col">
+                        <h3 className="lt-timetable-heading">
+                          {detailRoute.to} →
+                        </h3>
+                        <div className="lt-times">
+                          {dir1.map((t) => (
+                            <span key={t.trip_id} className="lt-time">
+                              {t.block_id || '—'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="lt-timetable-col">
+                        <h3 className="lt-timetable-heading">
+                          ← {detailRoute.from}
+                        </h3>
+                        <div className="lt-times">
+                          {dir0.map((t) => (
+                            <span key={t.trip_id} className="lt-time">
+                              {t.block_id || '—'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         ) : (
           <>
-            <div className="local-transport-header">
-              <h1>Місцевий транспорт Малина</h1>
-              <p className="local-transport-subtitle">
-                Маршрути та розклади громадського транспорту міста Малин
-              </p>
-            </div>
+            <header className="lt-header">
+              <h1 className="lt-title">Розклад руху</h1>
+              <p className="lt-subtitle">Малин · місцевий транспорт</p>
+            </header>
 
-            <div className="local-transport-filters">
+            <div className="lt-search">
               <Select
-                label="Фільтр по зупинці"
+                label="Зупинка"
                 options={stopOptions}
                 value={stopFilter}
                 onChange={(e) => setStopFilter(e.target.value)}
@@ -227,53 +242,32 @@ export const LocalTransportPage: React.FC = () => {
               />
             </div>
 
-            <div className="local-transport-route-list">
+            <div className="lt-routes">
               {filteredRoutes.length === 0 ? (
-                <div className="local-transport-empty">
-                  <p>Маршрутів не знайдено</p>
-                  <p>Спробуйте змінити фільтри</p>
-                </div>
+                <p className="lt-empty">Маршрутів не знайдено. Змініть фільтри.</p>
               ) : (
-                filteredRoutes.map((r) => {
-                  const meta = r.trips.length
-                    ? `${r.trips.length} рейсів · щодня`
-                    : r.supplement
-                      ? 'malyn.media'
-                      : 'щодня';
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className="local-transport-route-card"
-                      onClick={() => setDetailRouteId(r.id)}
-                    >
-                      <div className="local-transport-route-header">
-                        <span className="local-transport-route-num">{r.id}</span>
-                        <span className="local-transport-route-path">
-                          {r.from ?? '?'} <span className="local-transport-arrow">↔</span>{' '}
-                          {r.to ?? '?'}
-                        </span>
-                      </div>
-                      <div className="local-transport-route-meta">{meta}</div>
-                    </button>
-                  );
-                })
+                filteredRoutes.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className="lt-route-card"
+                    onClick={() => handleSelectRoute(r.id)}
+                  >
+                    <span className="lt-route-num">№{r.id}</span>
+                    <span className="lt-route-path">
+                      {r.from ?? '?'} — {r.to ?? '?'}
+                    </span>
+                    <span className="lt-route-meta">{r.trips.length} рейсів</span>
+                  </button>
+                ))
               )}
             </div>
           </>
         )}
 
-        <footer className="local-transport-footer">
-          Дані:{' '}
-          <a
-            href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            data.gov.ua
-          </a>
+        <footer className="lt-footer">
+          <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
           {' · '}
-          Оновлено: березень 2024 · Розклад уточнюйте на автостанції{' '}
           <a href="tel:+380687771590">(068) 77-71-590</a>
         </footer>
       </div>
