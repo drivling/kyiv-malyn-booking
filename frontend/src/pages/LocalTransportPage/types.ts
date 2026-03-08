@@ -31,9 +31,16 @@ export interface SupplementRoute {
   };
 }
 
+export interface SupplementStops {
+  source?: string;
+  source_url?: string;
+  stops_by_route?: Record<string, string[]>;
+}
+
 export interface Supplement {
   fare?: { amount: number; currency: string; note?: string };
   routes?: Record<string, SupplementRoute>;
+  stops?: SupplementStops;
   news?: Array<{ date: string; title: string; url: string }>;
   sources?: Record<string, string>;
   contacts?: Record<string, string>;

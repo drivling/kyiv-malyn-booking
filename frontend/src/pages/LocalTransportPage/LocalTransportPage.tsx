@@ -50,14 +50,33 @@ function buildRoutes(data: TransportData): Array<{
     .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 }
 
-function buildStops(routes: ReturnType<typeof buildRoutes>): string[] {
+function buildStops(
+  routes: ReturnType<typeof buildRoutes>,
+  stopsByRoute?: Record<string, string[]>
+): string[] {
   const stopSet = new Set<string>();
   routes.forEach((r) => {
     if (r.from) stopSet.add(r.from);
     if (r.to) stopSet.add(r.to);
   });
+  if (stopsByRoute) {
+    Object.values(stopsByRoute).forEach((stops) => stops.forEach((s) => stopSet.add(s)));
+  }
   ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((s) => stopSet.add(s));
   return [...stopSet].sort((a, b) => a.localeCompare(b));
+}
+
+function routeHasStop(
+  routeId: string,
+  stopName: string,
+  route: { from: string | null; to: string | null },
+  stopsByRoute?: Record<string, string[]>
+): boolean {
+  if (route.from === stopName || route.to === stopName) return true;
+  const routeStops = stopsByRoute?.[routeId];
+  if (routeStops?.includes(stopName)) return true;
+  if (route.from?.includes(stopName) || route.to?.includes(stopName)) return true;
+  return false;
 }
 
 function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
@@ -104,22 +123,16 @@ export const LocalTransportPage: React.FC = () => {
   }, []);
 
   const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
-  const stops = useMemo(() => buildStops(routes), [routes]);
+  const stopsByRoute = data?.supplement?.stops?.stops_by_route;
+  const stops = useMemo(() => buildStops(routes, stopsByRoute), [routes, stopsByRoute]);
 
   const filteredRoutes = useMemo(() => {
     return routes.filter((r) => {
       if (routeFilter && r.id !== routeFilter) return false;
-      if (stopFilter) {
-        const match =
-          r.from === stopFilter ||
-          r.to === stopFilter ||
-          (r.from?.includes(stopFilter) ?? false) ||
-          (r.to?.includes(stopFilter) ?? false);
-        if (!match) return false;
-      }
+      if (stopFilter && !routeHasStop(r.id, stopFilter, r, stopsByRoute)) return false;
       return true;
     });
-  }, [routes, stopFilter, routeFilter]);
+  }, [routes, stopFilter, routeFilter, stopsByRoute]);
 
   const detailRoute = useMemo(
     () => (routeId ? routes.find((r) => r.id === routeId) : null),
@@ -184,6 +197,21 @@ export const LocalTransportPage: React.FC = () => {
               </h1>
               {fare && <span className="lt-fare">Проїзд {fare}</span>}
             </header>
+            {(() => {
+              const routeStops = stopsByRoute?.[detailRoute.id];
+              return routeStops && routeStops.length > 0 ? (
+                <div className="lt-stops">
+                  <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
+                  <ul className="lt-stops-list">
+                    {routeStops.map((s) => (
+                      <li key={s} className="lt-stop-item">
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null;
+            })()}
             {detailRoute.trips.length > 0 && (
               <div className="lt-timetable">
                 {(() => {

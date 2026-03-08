@@ -163,6 +163,36 @@
   border-radius: 6px;
 }
 
+/* Зупинки на маршруті */
+.lt-stops {
+  margin-bottom: var(--pb-space-lg);
+  padding: var(--pb-space);
+  background: var(--pb-bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--pb-border-light);
+}
+
+.lt-stops-heading {
+  margin: 0 0 var(--pb-space-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lt-stops-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  color: var(--pb-text);
+  line-height: 1.6;
+}
+
+.lt-stop-item {
+  margin-bottom: 2px;
+}
+
 /* Timetable — дві колонки по напрямках */
 .lt-timetable {
   background: var(--pb-card-bg);
