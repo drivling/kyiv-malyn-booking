@@ -16,6 +16,12 @@
   border: 1px solid var(--pb-border);
 }
 
+@media (min-width: 900px) {
+  .lt-container:has(.lt-detail) {
+    max-width: 960px;
+  }
+}
+
 /* Header — як BookingPage */
 .lt-header {
   text-align: center;
@@ -163,22 +169,106 @@
   border-radius: 6px;
 }
 
+/* Карта + Зупинки — side-by-side на широких екранах */
+.lt-map-stops {
+  margin-top: var(--pb-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pb-space);
+}
+
+@media (min-width: 768px) {
+  .lt-map-stops {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--pb-space-lg);
+  }
+
+  .lt-map-area {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .lt-stops {
+    flex-shrink: 0;
+    width: 300px;
+    position: sticky;
+    top: var(--pb-space);
+  }
+}
+
 /* Зупинки на маршруті */
 .lt-stops {
-  margin-bottom: var(--pb-space-lg);
   padding: var(--pb-space);
   background: var(--pb-bg-secondary);
   border-radius: 12px;
   border: 1px solid var(--pb-border-light);
 }
 
+.lt-stops-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+@media (min-width: 768px) {
+  .lt-stops-toggle {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .lt-stops-toggle-icon {
+    display: none;
+  }
+}
+
 .lt-stops-heading {
-  margin: 0 0 var(--pb-space-sm);
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--pb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.lt-stops-toggle-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--pb-primary);
+  background: var(--pb-primary-light);
+  border-radius: 6px;
+}
+
+@media (min-width: 768px) {
+  .lt-stops-content {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .lt-stops-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+  }
+
+  .lt-stops--expanded .lt-stops-content {
+    max-height: 280px;
+    overflow-y: auto;
+    margin-top: var(--pb-space-sm);
+  }
 }
 
 .lt-stops-list {
@@ -191,6 +281,47 @@
 
 .lt-stop-item {
   margin-bottom: 2px;
+}
+
+/* Карта маршруту */
+.lt-map-area .lt-map-wrapper {
+  margin-top: 0;
+}
+
+.lt-map-wrapper {
+  padding: var(--pb-space);
+  background: var(--pb-bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--pb-border-light);
+}
+
+.lt-map-heading {
+  margin: 0 0 var(--pb-space-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lt-map-container {
+  height: 320px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e8e8e8;
+}
+
+@media (min-width: 768px) {
+  .lt-map-container {
+    height: 400px;
+  }
+}
+
+.lt-map {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
 }
 
 /* Timetable — дві колонки по напрямках */

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Select } from '@/components/Select';
 import type { SupplementRoute, TransportData, TransportRecord } from './types';
+import { RouteMap } from './RouteMap';
 import './LocalTransportPage.css';
 
 const DATA_URL = '/data/malyn_transport.json';
@@ -107,6 +108,7 @@ export const LocalTransportPage: React.FC = () => {
   const [error, setError] = useState('');
   const [stopFilter, setStopFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
+  const [stopsExpanded, setStopsExpanded] = useState(false);
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -197,21 +199,6 @@ export const LocalTransportPage: React.FC = () => {
               </h1>
               {fare && <span className="lt-fare">Проїзд {fare}</span>}
             </header>
-            {(() => {
-              const routeStops = stopsByRoute?.[detailRoute.id];
-              return routeStops && routeStops.length > 0 ? (
-                <div className="lt-stops">
-                  <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
-                  <ul className="lt-stops-list">
-                    {routeStops.map((s) => (
-                      <li key={s} className="lt-stop-item">
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null;
-            })()}
             {detailRoute.trips.length > 0 && (
               <div className="lt-timetable">
                 {(() => {
@@ -247,6 +234,38 @@ export const LocalTransportPage: React.FC = () => {
                 })()}
               </div>
             )}
+            {(() => {
+              const routeStops = stopsByRoute?.[detailRoute.id];
+              return routeStops && routeStops.length > 0 ? (
+                <div className="lt-map-stops">
+                  <div className="lt-map-area">
+                    <RouteMap stopNames={routeStops} />
+                  </div>
+                  <div className={`lt-stops ${stopsExpanded ? 'lt-stops--expanded' : ''}`}>
+                    <button
+                      type="button"
+                      className="lt-stops-toggle"
+                      onClick={() => setStopsExpanded((v) => !v)}
+                      aria-expanded={stopsExpanded}
+                    >
+                      <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
+                      <span className="lt-stops-toggle-icon" aria-hidden>
+                        {stopsExpanded ? '−' : '+'}
+                      </span>
+                    </button>
+                    <div className="lt-stops-content">
+                      <ul className="lt-stops-list">
+                        {routeStops.map((s) => (
+                          <li key={s} className="lt-stop-item">
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              ) : null;
+            })()}
           </div>
         ) : (
           <>

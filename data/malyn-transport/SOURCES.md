@@ -2,6 +2,16 @@
 
 Зібрано з різних ресурсів. Оновлено: березень 2026.
 
+## Координати зупинок (stops_coords.json)
+
+Геокодовано через [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap). Адреси з `zupinki-24.xlsx` (data.gov.ua, набір 97e2ca7c-3f6f-4a77-9a4d-d954478bfe43).
+
+**Оновити координати:**
+```bash
+python scripts/geocode_stops.py
+```
+Nominatim: 1 запит/сек (~2 хв для всіх зупинок).
+
 ---
 
 ## 1. Офіційні відкриті дані
