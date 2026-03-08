@@ -179,6 +179,40 @@ function findNearestTrip(
   return dist1 <= dist0 ? { time: next1, direction: 'there' } : { time: next0, direction: 'back' };
 }
 
+/** Визначити напрямок (there/back) за парою З→До з порядку зупинок */
+function getImpliedDirection(
+  fromStop: string,
+  toStop: string,
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
+  routeId?: string
+): 'there' | 'back' | null {
+  if (!routeId || !stopsByRoute?.[routeId]) return null;
+  const routeStops = stopsByRoute[routeId];
+  if (!Array.isArray(routeStops) || routeStops.length === 0) return null;
+  const first = routeStops[0];
+  const withOrder: RouteStopWithOrder[] =
+    first && typeof first === 'object' && 'name' in first
+      ? (routeStops as RouteStopWithOrder[])
+      : (routeStops as string[]).map((name, i) => ({
+          name,
+          order_there: i + 1,
+          order_back: routeStops.length - i,
+          belongs_to: 'both' as const,
+        }));
+  const orderedThere = [...withOrder]
+    .filter((s) => (s.belongs_to ?? 'both') !== 'back')
+    .sort((a, b) => a.order_there - b.order_there);
+  const orderedBack = [...withOrder]
+    .filter((s) => (s.belongs_to ?? 'both') !== 'there')
+    .sort((a, b) => a.order_back - b.order_back);
+  const fromOrderThere = orderedThere.find((s) => s.name === fromStop)?.order_there;
+  const toOrderThere = orderedThere.find((s) => s.name === toStop)?.order_there;
+  const fromOrderBack = orderedBack.find((s) => s.name === fromStop)?.order_back;
+  const toOrderBack = orderedBack.find((s) => s.name === toStop)?.order_back;
+  if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere) return 'there';
+  if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack) return 'back';
+  return null;
+}
 
 export const LocalTransportPage: React.FC = () => {
   const { routeId } = useParams<{ routeId?: string }>();
@@ -329,6 +363,51 @@ export const LocalTransportPage: React.FC = () => {
       setStopsDirection(nearest.direction);
     }
   }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute, timeFromUrl, dirFromUrl]);
+
+  // При зміні З/До — визначити напрямок і оновити stopsDirection, selectedTrip, URL
+  const prevFromToRef = useRef<string>('');
+  useEffect(() => {
+    if (!detailRoute) return;
+    if (!fromStop || !toStop) {
+      prevFromToRef.current = '';
+      return;
+    }
+    const key = `${fromStop}|${toStop}`;
+    if (prevFromToRef.current === key) return;
+    prevFromToRef.current = key;
+    const dir = getImpliedDirection(fromStop, toStop, stopsByRoute, detailRoute.id);
+    if (!dir) return;
+    setStopsDirection(dir);
+    setSelectedTripDirection(dir);
+    const nearest = findNearestTrip(detailRoute.trips, getKyivMinutesNow(), dir);
+    if (nearest) {
+      setSelectedTripTime(nearest.time);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('time', formatTime(nearest.time));
+        next.set('dir', dir);
+        return next;
+      });
+    } else {
+      const first = groupTripsByDirection(detailRoute.trips)[dir === 'there' ? 'dir1' : 'dir0'][0];
+      const mins = first ? parseTime(first.block_id) : null;
+      if (mins != null && mins > 0) {
+        setSelectedTripTime(mins);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('time', formatTime(mins));
+          next.set('dir', dir);
+          return next;
+        });
+      } else {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('dir', dir);
+          return next;
+        });
+      }
+    }
+  }, [fromStop, toStop, detailRoute?.id, detailRoute?.trips, stopsByRoute]);
 
   const updateDetailUrl = (updates: { stop?: string; to?: string; time?: string; dir?: string }) => {
     setSearchParams((prev) => {
