@@ -6,6 +6,25 @@ import { RouteMap } from './RouteMap';
 import './LocalTransportPage.css';
 
 const DATA_URL = '/data/malyn_transport.json';
+const STOPS_COORDS_URL = '/data/stops_coords.json';
+
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 function buildRoutes(data: TransportData): Array<{
   id: string;
@@ -109,6 +128,9 @@ export const LocalTransportPage: React.FC = () => {
   const [stopFilter, setStopFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
   const [stopsExpanded, setStopsExpanded] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState('');
+  const [nearestStops, setNearestStops] = useState<Array<{ name: string; distance: number }> | null>(null);
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -143,6 +165,49 @@ export const LocalTransportPage: React.FC = () => {
 
   const handleSelectRoute = (id: string) => navigate(`/localtransport/route/${id}`);
   const handleBack = () => navigate('/localtransport');
+
+  const handleFindNearest = () => {
+    setGeoError('');
+    setNearestStops(null);
+    setGeoLoading(true);
+    if (!navigator.geolocation) {
+      setGeoError('Геолокація не підтримується браузером');
+      setGeoLoading(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(STOPS_COORDS_URL);
+          const { stops } = await res.json();
+          const withDistance = Object.entries(stops as Record<string, [number, number]>)
+            .map(([name, coords]) => ({
+              name,
+              distance: haversineDistance(latitude, longitude, coords[0], coords[1]),
+            }))
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 5);
+          setNearestStops(withDistance);
+        } catch {
+          setGeoError('Не вдалося завантажити координати зупинок');
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      (err) => {
+        setGeoError(
+          err.code === 1
+            ? 'Дозвіл на геолокацію відхилено'
+            : err.code === 2
+              ? 'Позицію не визначено'
+              : 'Помилка геолокації'
+        );
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const stopOptions = useMemo(
     () => [{ value: '', label: 'Всі зупинки' }, ...stops.map((s) => ({ value: s, label: s }))],
@@ -287,6 +352,39 @@ export const LocalTransportPage: React.FC = () => {
                 value={routeFilter}
                 onChange={(e) => setRouteFilter(e.target.value)}
               />
+              <div className="lt-geo">
+                <button
+                  type="button"
+                  className="lt-geo-btn"
+                  onClick={handleFindNearest}
+                  disabled={geoLoading}
+                  title="Знайти найближчі зупинки"
+                >
+                  {geoLoading ? '…' : '📍'} Найближча зупинка
+                </button>
+                {geoError && <p className="lt-geo-error">{geoError}</p>}
+                {nearestStops && nearestStops.length > 0 && (
+                  <div className="lt-nearest">
+                    <p className="lt-nearest-title">Найближчі зупинки:</p>
+                    <ul className="lt-nearest-list">
+                      {nearestStops.map(({ name, distance }) => (
+                        <li key={name}>
+                          <button
+                            type="button"
+                            className="lt-nearest-item"
+                            onClick={() => {
+                              setStopFilter(name);
+                              setNearestStops(null);
+                            }}
+                          >
+                            {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="lt-routes">
