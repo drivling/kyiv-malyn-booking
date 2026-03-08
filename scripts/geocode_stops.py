@@ -131,7 +131,12 @@ def get_all_stops() -> set[str]:
     sbr = data.get("supplement", {}).get("stops", {}).get("stops_by_route", {})
     stops = set()
     for arr in sbr.values():
-        stops.update(arr)
+        if arr:
+            first = arr[0]
+            if isinstance(first, dict) and "name" in first:
+                stops.update(s["name"] for s in arr)
+            else:
+                stops.update(arr)
     stops.update(["Малинівка", "Юрівка", "БАМ", "Царське село"])
     return stops
 

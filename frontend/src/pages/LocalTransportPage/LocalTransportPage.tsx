@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Select } from '@/components/Select';
-import type { SupplementRoute, TransportData, TransportRecord } from './types';
+import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
 import './LocalTransportPage.css';
 
@@ -70,9 +70,15 @@ function buildRoutes(data: TransportData): Array<{
     .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 }
 
+function getStopNames(stops: string[] | RouteStopWithOrder[]): string[] {
+  if (!stops?.length) return [];
+  const first = stops[0];
+  return typeof first === 'string' ? (stops as string[]) : (stops as RouteStopWithOrder[]).map((s) => s.name);
+}
+
 function buildStops(
   routes: ReturnType<typeof buildRoutes>,
-  stopsByRoute?: Record<string, string[]>
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
 ): string[] {
   const stopSet = new Set<string>();
   routes.forEach((r) => {
@@ -80,7 +86,7 @@ function buildStops(
     if (r.to) stopSet.add(r.to);
   });
   if (stopsByRoute) {
-    Object.values(stopsByRoute).forEach((stops) => stops.forEach((s) => stopSet.add(s)));
+    Object.values(stopsByRoute).forEach((stops) => getStopNames(stops).forEach((s) => stopSet.add(s)));
   }
   ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((s) => stopSet.add(s));
   return [...stopSet].sort((a, b) => a.localeCompare(b));
@@ -90,11 +96,11 @@ function routeHasStop(
   routeId: string,
   stopName: string,
   route: { from: string | null; to: string | null },
-  stopsByRoute?: Record<string, string[]>
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
 ): boolean {
   if (route.from === stopName || route.to === stopName) return true;
-  const routeStops = stopsByRoute?.[routeId];
-  if (routeStops?.includes(stopName)) return true;
+  const names = getStopNames(stopsByRoute?.[routeId] ?? []);
+  if (names.includes(stopName)) return true;
   if (route.from?.includes(stopName) || route.to?.includes(stopName)) return true;
   return false;
 }
@@ -301,10 +307,26 @@ export const LocalTransportPage: React.FC = () => {
             )}
             {(() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
-              return routeStops && routeStops.length > 0 ? (
+              let stopsWithOrder: RouteStopWithOrder[] | null = null;
+              if (Array.isArray(routeStops) && routeStops.length > 0) {
+                const first = routeStops[0];
+                if (first && typeof first === 'object' && 'name' in first) {
+                  stopsWithOrder = routeStops as RouteStopWithOrder[];
+                } else {
+                  const names = routeStops as unknown as string[];
+                  stopsWithOrder = names.map((name, i) => ({
+                    name,
+                    order_there: i + 1,
+                    order_back: names.length - i,
+                    belongs_to: 'both' as const,
+                  }));
+                }
+              }
+              const stopNames = stopsWithOrder ? getStopNames(stopsWithOrder) : [];
+              return stopsWithOrder && stopNames.length > 0 ? (
                 <div className="lt-map-stops">
                   <div className="lt-map-area">
-                    <RouteMap stopNames={routeStops} />
+                    <RouteMap stopNames={stopNames} />
                   </div>
                   <div className={`lt-stops ${stopsExpanded ? 'lt-stops--expanded' : ''}`}>
                     <button
@@ -319,13 +341,38 @@ export const LocalTransportPage: React.FC = () => {
                       </span>
                     </button>
                     <div className="lt-stops-content">
-                      <ul className="lt-stops-list">
-                        {routeStops.map((s) => (
-                          <li key={s} className="lt-stop-item">
-                            {s}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="lt-stops-directions">
+                        <div className="lt-stops-col">
+                          <h4 className="lt-stops-col-heading">
+                            {detailRoute.to} →
+                          </h4>
+                          <ul className="lt-stops-list">
+                            {[...stopsWithOrder]
+                              .filter((s) => (s.belongs_to ?? 'both') !== 'back')
+                              .sort((a, b) => a.order_there - b.order_there)
+                              .map((s) => (
+                                <li key={`there-${s.name}-${s.order_there}`} className="lt-stop-item">
+                                  <span className="lt-stop-num">{s.order_there}.</span> {s.name}
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                        <div className="lt-stops-col">
+                          <h4 className="lt-stops-col-heading">
+                            ← {detailRoute.from}
+                          </h4>
+                          <ul className="lt-stops-list">
+                            {[...stopsWithOrder]
+                              .filter((s) => (s.belongs_to ?? 'both') !== 'there')
+                              .sort((a, b) => a.order_back - b.order_back)
+                              .map((s) => (
+                                <li key={`back-${s.name}-${s.order_back}`} className="lt-stop-item">
+                                  <span className="lt-stop-num">{s.order_back}.</span> {s.name}
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

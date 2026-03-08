@@ -31,10 +31,25 @@ export interface SupplementRoute {
   };
 }
 
+/** Чи зупинка є тільки в одному напрямку */
+export type StopBelongsTo = 'there' | 'back' | 'both';
+
+/** Зупинка з порядком у напрямках "туди" та "назад" */
+export interface RouteStopWithOrder {
+  name: string;
+  /** Номер зупинки в маршруті туди (from → to) */
+  order_there: number;
+  /** Номер зупинки в маршруті назад (to → from) */
+  order_back: number;
+  /** Чи зупинка є тільки в одному напрямку. За замовчуванням: both */
+  belongs_to?: StopBelongsTo;
+}
+
 export interface SupplementStops {
   source?: string;
   source_url?: string;
-  stops_by_route?: Record<string, string[]>;
+  /** Зупинки по маршрутах з порядком у кожному напрямку */
+  stops_by_route?: Record<string, RouteStopWithOrder[]>;
 }
 
 export interface Supplement {
