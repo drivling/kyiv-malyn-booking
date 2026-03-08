@@ -24,7 +24,9 @@ API_ID та API_HASH беруться з TELEGRAM_API_ID/TELEGRAM_API_HASH у с
 import os
 import sys
 from telethon import TelegramClient
+from telethon.tl.functions.auth import ResendCodeRequest
 from telethon.errors import SessionPasswordNeededError
+from telethon.errors.rpcerrorlist import SendCodeUnavailableError
 
 # Завантажити .env з backend/ або telegram-user/ (щоб не експортувати API_ID/API_HASH вручну)
 def _load_dotenv():
@@ -127,12 +129,78 @@ async def logout_main():
 
 
 async def main():
+    # Якщо змінили API_ID/API_HASH — видаліть старі файли сесії
+    for p in _session_files(SESSION_NAME):
+        if os.path.isfile(p):
+            print(f"Існує файл сесії: {p}")
+            print("Якщо змінювали API_ID/API_HASH — видаліть його: rm session_telegram_user.session*")
+            break
+
+    phone = input("Номер телефону (напр. +380671234567): ").strip()
+    if not phone:
+        print("Порожній номер.", file=sys.stderr)
+        return
+    if not phone.startswith("+"):
+        phone = "+" + phone
+
     client = TelegramClient(SESSION_NAME, int(API_ID), API_HASH)
-    await client.start(
-        phone=lambda: input("Номер телефону (напр. +380671234567): "),
-        code_callback=lambda: input("Код з Telegram: "),
-        password=lambda: input("Пароль 2FA (якщо є): "),
-    )
+    await client.connect()
+    if not await client.is_user_authorized():
+        result = await client.send_code_request(phone)
+        phone_code_hash = result.phone_code_hash
+
+        print()
+        print("Код надіслано в додаток Telegram (або SMS).")
+        print("Якщо не приходить: 'call' — дзвінок, 'retry' — надіслати код заново.")
+        print()
+
+        while True:
+            code = input("Код з Telegram (або call/retry): ").strip()
+            if code.lower() in ("retry", "new", "resend", "повторити"):
+                try:
+                    result = await client.send_code_request(phone)
+                    phone_code_hash = result.phone_code_hash
+                    print("Новий код надіслано. Перевірте додаток Telegram або SMS.")
+                except Exception as e:
+                    print(f"Помилка: {e}", file=sys.stderr)
+                continue
+            if code.lower() in ("call", "дзвінок"):
+                try:
+                    result = await client(ResendCodeRequest(phone_number=phone, phone_code_hash=phone_code_hash))
+                    phone_code_hash = result.phone_code_hash
+                    print("Запит дзвінка відправлено. Очікуйте дзвінок — робот проговорить код.")
+                except SendCodeUnavailableError:
+                    print("Дзвінок недоступний (всі варіанти вже використано). Пробуємо надіслати код заново...")
+                    try:
+                        result = await client.send_code_request(phone)
+                        phone_code_hash = result.phone_code_hash
+                        print("Новий код надіслано. Перевірте додаток Telegram або SMS.")
+                    except Exception as e2:
+                        print(f"Помилка: {e2}", file=sys.stderr)
+                        print("Зачекайте 10–15 хв і запустіть auth_session.py знову.")
+                except Exception as e:
+                    print(f"Помилка: {e}", file=sys.stderr)
+                continue
+
+            if not code:
+                print("Введіть код або call/retry.")
+                continue
+
+            try:
+                await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
+                break
+            except SessionPasswordNeededError:
+                pw = input("Пароль 2FA: ").strip()
+                await client.sign_in(password=pw)
+                break
+            except Exception as e:
+                err = str(e).lower()
+                if "phone_code" in err or "invalid" in err:
+                    print("Невірний код. Спробуйте ще раз або введіть 'call' для дзвінка.")
+                else:
+                    print(f"Помилка: {e}", file=sys.stderr)
+                    raise
+
     me = await client.get_me()
     print(f"Успішно авторизовано: {me.first_name} (@{me.username or '—'})")
     print(f"Сесія збережена у: {os.path.abspath(SESSION_NAME)}.session")

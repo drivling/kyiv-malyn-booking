@@ -21,8 +21,8 @@
 
 | Змінна | Значення |
 |--------|----------|
-| `TELEGRAM_API_ID` | `35082143` |
-| `TELEGRAM_API_HASH` | `8095eb80857cacd09c29c7891d1bf4e5` |
+| `TELEGRAM_API_ID` | `35076972` |
+| `TELEGRAM_API_HASH` | `9b47fc0d11ed33c59e16047d084da56b` |
 
 ---
 
@@ -33,8 +33,8 @@
 ```bash
 cd backend/telegram-user
 pip install -r requirements.txt
-export TELEGRAM_API_ID="35082143"
-export TELEGRAM_API_HASH="8095eb80857cacd09c29c7891d1bf4e5"
+export TELEGRAM_API_ID="35076972"
+export TELEGRAM_API_HASH="9b47fc0d11ed33c59e16047d084da56b"
 python3 auth_session.py
 ```
 
@@ -62,8 +62,8 @@ git push
 
 | Змінна | Значення |
 |--------|----------|
-| `TELEGRAM_API_ID` | `35082143` |
-| `TELEGRAM_API_HASH` | `8095eb80857cacd09c29c7891d1bf4e5` |
+| `TELEGRAM_API_ID` | `35076972` |
+| `TELEGRAM_API_HASH` | `9b47fc0d11ed33c59e16047d084da56b` |
 
 **TELEGRAM_USER_SESSION_BASE64 не потрібна** — backend читає сесію з файлу `telegram-user/session_telegram_user.session` у репо.
 
@@ -94,6 +94,19 @@ git push
 
 ---
 
+## Якщо змінили API_ID або API_HASH
+
+**Спочатку видаліть старі файли сесії** — вони прив’язані до попередніх credentials:
+
+```bash
+cd backend/telegram-user
+rm -f session_telegram_user.session session_telegram_user.session-journal
+```
+
+Потім повторити **Крок 2**: запустити `auth_session.py`, отримати новий файл сесії, закомітити і запушити.
+
+---
+
 ## Якщо змінили пароль Telegram або вийшли з акаунта
 
 Повторити **Крок 2**: знову запустити `auth_session.py` локально, отримати новий `session_telegram_user.session`, замінити файл у репо і зробити commit + push. Після деплою буде використовуватися нова сесія.
@@ -118,8 +131,8 @@ git push
 
 ```bash
 cd backend/telegram-user
-export TELEGRAM_API_ID="35082143"
-export TELEGRAM_API_HASH="8095eb80857cacd09c29c7891d1bf4e5"
+export TELEGRAM_API_ID="35076972"
+export TELEGRAM_API_HASH="9b47fc0d11ed33c59e16047d084da56b"
 # Сесія має вже існувати (після auth_session.py)
 python3 test_resolve_phone.py 0501399910
 ```

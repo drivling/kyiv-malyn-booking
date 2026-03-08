@@ -47,8 +47,8 @@ pip install -r requirements.txt
 Не закриваючи термінал (venv має бути активований):
 
 ```bash
-export TELEGRAM_API_ID="35082143"
-export TELEGRAM_API_HASH="8095eb80857cacd09c29c7891d1bf4e5"
+export TELEGRAM_API_ID="35076972"
+export TELEGRAM_API_HASH="9b47fc0d11ed33c59e16047d084da56b"
 python auth_session.py
 ```
 
@@ -84,8 +84,8 @@ python auth_session.py
 cd C:\msys64\home\Note\projects\kyiv-malyn-booking\backend\telegram-user
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-$env:TELEGRAM_API_ID="35082143"
-$env:TELEGRAM_API_HASH="8095eb80857cacd09c29c7891d1bf4e5"
+$env:TELEGRAM_API_ID="35076972"
+$env:TELEGRAM_API_HASH="9b47fc0d11ed33c59e16047d084da56b"
 python auth_session.py
 ```
 
