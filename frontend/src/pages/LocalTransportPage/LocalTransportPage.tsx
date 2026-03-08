@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Select } from '@/components/Select';
+import { Combobox } from '@/components/Combobox';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
 import './LocalTransportPage.css';
@@ -316,7 +317,7 @@ export const LocalTransportPage: React.FC = () => {
     );
   };
 
-  const stopOptions = useMemo(
+  const stopComboboxOptions = useMemo(
     () => [{ value: '', label: 'Всі зупинки' }, ...stops.map((s) => ({ value: s, label: s }))],
     [stops]
   );
@@ -559,23 +560,20 @@ export const LocalTransportPage: React.FC = () => {
             </header>
 
             <div className="lt-search">
-              <Select
-                label="Зупинка"
-                options={stopOptions}
-                value={effectiveStopFilter}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setStopFilter(v);
-                  setSearchParams(v ? { stop: v } : {});
-                }}
-              />
-              <Select
-                label="Маршрут"
-                options={routeOptions}
-                value={routeFilter}
-                onChange={(e) => setRouteFilter(e.target.value)}
-              />
-              <div className="lt-geo">
+              <div className="lt-search-row">
+                <div className="lt-search-field">
+                  <Combobox
+                    label="Пошук зупинки"
+                    options={stopComboboxOptions}
+                    value={effectiveStopFilter}
+                    onChange={(v) => {
+                      setStopFilter(v);
+                      setSearchParams(v ? { stop: v } : {});
+                    }}
+                    placeholder="Введіть назву (напр. Царське село, вокзал)"
+                    emptyMessage="Зупинок не знайдено"
+                  />
+                </div>
                 <button
                   type="button"
                   className="lt-geo-btn"
@@ -583,32 +581,44 @@ export const LocalTransportPage: React.FC = () => {
                   disabled={geoLoading}
                   title="Знайти найближчі зупинки"
                 >
-                  {geoLoading ? '…' : '📍'} Найближча зупинка
+                  {geoLoading ? '…' : '📍'} Найближча
                 </button>
-                {geoError && <p className="lt-geo-error">{geoError}</p>}
-                {nearestStops && nearestStops.length > 0 && (
-                  <div className="lt-nearest">
-                    <p className="lt-nearest-title">Найближчі зупинки:</p>
-                    <ul className="lt-nearest-list">
-                      {nearestStops.map(({ name, distance }) => (
-                        <li key={name}>
-                          <button
-                            type="button"
-                            className="lt-nearest-item"
-                            onClick={() => {
-                              setStopFilter(name);
-                              setSearchParams({ stop: name });
-                              setNearestStops(null);
-                            }}
-                          >
-                            {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
+              <div className="lt-search-row lt-search-row--route">
+                <Select
+                  label="Маршрут"
+                  options={routeOptions}
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value)}
+                />
+              </div>
+              {(geoError || (nearestStops && nearestStops.length > 0)) && (
+                <div className="lt-geo-results">
+                  {geoError && <p className="lt-geo-error">{geoError}</p>}
+                  {nearestStops && nearestStops.length > 0 && (
+                    <div className="lt-nearest">
+                      <p className="lt-nearest-title">Найближчі зупинки:</p>
+                      <ul className="lt-nearest-list">
+                        {nearestStops.map(({ name, distance }) => (
+                          <li key={name}>
+                            <button
+                              type="button"
+                              className="lt-nearest-item"
+                              onClick={() => {
+                                setStopFilter(name);
+                                setSearchParams({ stop: name });
+                                setNearestStops(null);
+                              }}
+                            >
+                              {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="lt-routes">

@@ -1,0 +1,125 @@
+.combobox {
+  position: relative;
+  width: 100%;
+}
+
+.combobox-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.combobox-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  background: var(--pb-card-bg);
+  transition: border-color 0.15s;
+}
+
+.combobox-input-wrap:focus-within {
+  border-color: var(--pb-primary);
+  box-shadow: 0 0 0 2px var(--pb-primary-light);
+}
+
+.combobox-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 44px 10px 12px;
+  border: none;
+  background: transparent;
+  font-size: 16px; /* 16px+ запобігає авто-зуму iOS Safari при фокусі */
+  color: var(--pb-text);
+  outline: none;
+  border-radius: 8px;
+}
+
+@media (min-width: 768px) {
+  .combobox-input {
+    font-size: 0.9375rem;
+  }
+}
+
+.combobox-input::placeholder {
+  color: var(--pb-text-hint);
+}
+
+.combobox-toggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 44px; /* Мін. 44px для touch targets (Apple HIG) */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--pb-text-muted);
+  cursor: pointer;
+  border-radius: 0 8px 8px 0;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.combobox-toggle:hover {
+  color: var(--pb-primary);
+}
+
+@media (hover: none) {
+  .combobox-toggle:active {
+    color: var(--pb-primary);
+  }
+}
+
+.combobox-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: min(240px, 50vh); /* На мобільному: не перекривати екран при відкритій клавіатурі */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Плавний скрол на iOS */
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  box-shadow: var(--pb-shadow-card);
+  z-index: 100;
+}
+
+.combobox-option {
+  padding: 12px 14px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  font-size: 0.9375rem;
+  color: var(--pb-text);
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.combobox-option:hover,
+.combobox-option--highlight {
+  background: var(--pb-primary-light);
+  color: var(--pb-primary);
+}
+
+.combobox-empty {
+  padding: 12px;
+  font-size: 0.875rem;
+  color: var(--pb-text-muted);
+  text-align: center;
+}
