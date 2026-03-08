@@ -185,16 +185,23 @@ export const LocalTransportPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedStopFromUrl = searchParams.get('stop') ?? '';
+  const toFromUrl = searchParams.get('to') ?? '';
+  const timeFromUrl = searchParams.get('time') ?? '';
+  const dirFromUrl = searchParams.get('dir') ?? '';
   const [data, setData] = useState<TransportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stopFilter, setStopFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
-  const [stopsExpanded, setStopsExpanded] = useState(false);
   const [stopsDirection, setStopsDirection] = useState<'there' | 'back'>('there');
   const [selectedTripTime, setSelectedTripTime] = useState<number | null>(null);
   const [selectedTripDirection, setSelectedTripDirection] = useState<'there' | 'back' | null>(null);
+  const [fromStop, setFromStop] = useState<string>('');
+  const [toStop, setToStop] = useState<string>('');
   const youHereRef = useRef<HTMLLIElement | null>(null);
+  const toStopRef = useRef<HTMLLIElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const [segmentStyle, setSegmentStyle] = useState<{ top: number; height: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [nearestStops, setNearestStops] = useState<Array<{ name: string; distance: number }> | null>(null);
@@ -242,9 +249,63 @@ export const LocalTransportPage: React.FC = () => {
     }
   }, [selectedStopFromUrl, stopsDirection]);
 
-  // Автовибір найближчого рейсу за поточним часом (Київ)
+  // Вимірювання сегменту лінії між З і До
+  useEffect(() => {
+    if (!fromStop || !toStop || !youHereRef.current || !toStopRef.current || !timelineRef.current) {
+      setSegmentStyle(null);
+      return;
+    }
+    const measure = () => {
+      const fromEl = youHereRef.current;
+      const toEl = toStopRef.current;
+      const timelineEl = timelineRef.current;
+      if (!fromEl || !toEl || !timelineEl) return;
+      const timelineRect = timelineEl.getBoundingClientRect();
+      const fromRect = fromEl.getBoundingClientRect();
+      const toRect = toEl.getBoundingClientRect();
+      const fromCenter = fromRect.top + fromRect.height / 2 - timelineRect.top;
+      const toCenter = toRect.top + toRect.height / 2 - timelineRect.top;
+      const top = Math.min(fromCenter, toCenter);
+      const height = Math.abs(toCenter - fromCenter);
+      setSegmentStyle({ top, height });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(timelineRef.current);
+    return () => ro.disconnect();
+  }, [fromStop, toStop, stopsDirection]);
+
+  // Ініціалізація From, To, time, dir з URL при завантаженні маршруту
+  const prevRouteIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!detailRoute) return;
+    const routeStops = stopsByRoute?.[detailRoute.id];
+    const names = routeStops?.length ? getStopNames(routeStops) : [];
+    const routeChanged = prevRouteIdRef.current !== detailRoute.id;
+    prevRouteIdRef.current = detailRoute.id;
+    if (routeChanged) {
+      if (selectedStopFromUrl && names.includes(selectedStopFromUrl)) {
+        setFromStop(selectedStopFromUrl);
+        setToStop(toFromUrl && names.includes(toFromUrl) ? toFromUrl : '');
+      } else {
+        setFromStop('');
+        setToStop('');
+      }
+      if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
+        const mins = parseTime(timeFromUrl);
+        if (mins > 0) {
+          setSelectedTripTime(mins);
+          setSelectedTripDirection(dirFromUrl);
+          setStopsDirection(dirFromUrl);
+        }
+      }
+    }
+  }, [detailRoute?.id, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl, stopsByRoute]);
+
+  // Автовибір найближчого рейсу за поточним часом (Київ) — пропускаємо, якщо в URL вже є time і dir
   useEffect(() => {
     if (!detailRoute || detailRoute.trips.length === 0) return;
+    if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) return;
     let directionFilter: 'there' | 'back' | undefined;
     if (selectedStopFromUrl && stopsByRoute) {
       const routeStops = stopsByRoute[detailRoute.id];
@@ -263,11 +324,24 @@ export const LocalTransportPage: React.FC = () => {
       setSelectedTripDirection(nearest.direction);
       setStopsDirection(nearest.direction);
     }
-  }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute]);
+  }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute, timeFromUrl, dirFromUrl]);
+
+  const updateDetailUrl = (updates: { stop?: string; to?: string; time?: string; dir?: string }) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if ('stop' in updates) (updates.stop ? next.set('stop', updates.stop) : next.delete('stop'));
+      if ('to' in updates) (updates.to ? next.set('to', updates.to) : next.delete('to'));
+      if ('time' in updates) (updates.time ? next.set('time', updates.time) : next.delete('time'));
+      if ('dir' in updates) (updates.dir ? next.set('dir', updates.dir) : next.delete('dir'));
+      return next;
+    });
+  };
 
   const handleSelectRoute = (id: string) => {
     const stop = effectiveStopFilter;
-    navigate(`/localtransport/route/${id}${stop ? `?stop=${encodeURIComponent(stop)}` : ''}`);
+    const params = new URLSearchParams();
+    if (stop) params.set('stop', stop);
+    navigate(`/localtransport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
   };
   const handleBack = () => {
     const stop = selectedStopFromUrl || effectiveStopFilter;
@@ -358,7 +432,7 @@ export const LocalTransportPage: React.FC = () => {
   const fare = data.supplement?.fare ? `${data.supplement.fare.amount} грн` : null;
 
   return (
-    <div className="lt-page">
+    <div className="lt-page lt-use-site-colors">
       <div className="lt-container">
         {routeId && detailRoute ? (
           <div className="lt-detail">
@@ -372,73 +446,235 @@ export const LocalTransportPage: React.FC = () => {
               </h1>
               {fare && <span className="lt-fare">Проїзд {fare}</span>}
             </header>
-            {detailRoute.trips.length > 0 && (
-              <div className="lt-timetable">
-                {(() => {
-                  const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
-                  return (
-                    <div className="lt-timetable-grid">
-                      <div className="lt-timetable-col">
-                        <h3 className="lt-timetable-heading">
-                          {detailRoute.to} →
-                        </h3>
-                        <div className="lt-times">
-                          {dir1.map((t) => {
-                            const mins = parseTime(t.block_id);
-                            const isSelected =
-                              selectedTripTime === mins && selectedTripDirection === 'there';
-                            return (
-                              <button
-                                key={t.trip_id}
-                                type="button"
-                                className={`lt-time ${isSelected ? 'lt-time--selected' : ''}`}
-                                onClick={() => {
-                                  if (mins > 0) {
-                                    setSelectedTripTime(mins);
-                                    setSelectedTripDirection('there');
-                                    setStopsDirection('there');
-                                  }
-                                }}
-                              >
-                                {t.block_id || '—'}
-                              </button>
-                            );
-                          })}
+            {detailRoute.trips.length > 0 && (() => {
+              const routeStops = stopsByRoute?.[detailRoute.id];
+              let stopsWithOrder: RouteStopWithOrder[] | null = null;
+              if (Array.isArray(routeStops) && routeStops.length > 0) {
+                const first = routeStops[0];
+                if (first && typeof first === 'object' && 'name' in first) {
+                  stopsWithOrder = routeStops as RouteStopWithOrder[];
+                } else {
+                  const names = routeStops as unknown as string[];
+                  stopsWithOrder = names.map((name, i) => ({
+                    name,
+                    order_there: i + 1,
+                    order_back: names.length - i,
+                    belongs_to: 'both' as const,
+                  }));
+                }
+              }
+              const orderedStopsThere = stopsWithOrder
+                ? [...stopsWithOrder]
+                    .filter((s) => (s.belongs_to ?? 'both') !== 'back')
+                    .sort((a, b) => a.order_there - b.order_there)
+                : [];
+              const orderedStopsBack = stopsWithOrder
+                ? [...stopsWithOrder]
+                    .filter((s) => (s.belongs_to ?? 'both') !== 'there')
+                    .sort((a, b) => a.order_back - b.order_back)
+                : [];
+              const fromOptions = orderedStopsThere.map((s) => ({ value: s.name, label: s.name }));
+              const toOptionsFrom = (fromStop
+                ? orderedStopsThere.filter((s) => s.name !== fromStop)
+                : orderedStopsThere
+              ).map((s) => ({ value: s.name, label: s.name }));
+
+              const buildTableTrips = () => {
+                if (!fromStop || !toStop || !stopsWithOrder) return null;
+                const fromOrderThere = orderedStopsThere.find((s) => s.name === fromStop)?.order_there;
+                const toOrderThere = orderedStopsThere.find((s) => s.name === toStop)?.order_there;
+                const fromOrderBack = orderedStopsBack.find((s) => s.name === fromStop)?.order_back;
+                const toOrderBack = orderedStopsBack.find((s) => s.name === toStop)?.order_back;
+                const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
+                const rows: Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> = [];
+                if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere) {
+                  dir1.forEach((t) => {
+                    const mins = parseTime(t.block_id);
+                    if (mins > 0) {
+                      rows.push({
+                        dep: formatTime(mins + (fromOrderThere - 1) * MINS_PER_STOP),
+                        arr: formatTime(mins + (toOrderThere - 1) * MINS_PER_STOP),
+                        direction: 'there',
+                        baseTime: mins,
+                      });
+                    }
+                  });
+                }
+                if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack) {
+                  dir0.forEach((t) => {
+                    const mins = parseTime(t.block_id);
+                    if (mins > 0) {
+                      rows.push({
+                        dep: formatTime(mins + (fromOrderBack - 1) * MINS_PER_STOP),
+                        arr: formatTime(mins + (toOrderBack - 1) * MINS_PER_STOP),
+                        direction: 'back',
+                        baseTime: mins,
+                      });
+                    }
+                  });
+                }
+                return rows.sort((a, b) => a.dep.localeCompare(b.dep));
+              };
+
+              const tableTrips = buildTableTrips();
+              const hasFromTo = !!stopsWithOrder?.length;
+
+              return (
+                <>
+                  <div className="lt-timetable-header">
+                    {hasFromTo && (
+                      <div className="lt-from-to">
+                        <div className="lt-from-to-field">
+                          <Combobox
+                            label="З"
+                            options={[{ value: '', label: '— Зупинка —' }, ...fromOptions]}
+                            value={fromStop}
+                            onChange={(v) => {
+                              setFromStop(v);
+                              const updates: { stop?: string; to?: string } = { stop: v || undefined };
+                              if (!v) {
+                                setToStop('');
+                                updates.to = undefined;
+                              } else if (toStop) {
+                                const idxFrom = orderedStopsThere.findIndex((s) => s.name === v);
+                                const idxTo = orderedStopsThere.findIndex((s) => s.name === toStop);
+                                if (idxTo <= idxFrom) {
+                                  setToStop('');
+                                  updates.to = undefined;
+                                }
+                              }
+                              updateDetailUrl(updates);
+                            }}
+                            placeholder="Пошук зупинки"
+                            emptyMessage="Зупинок не знайдено"
+                            clearable
+                          />
+                        </div>
+                        <span className="lt-from-to-arrow">→</span>
+                        <div className="lt-from-to-field">
+                          <Combobox
+                            label="До"
+                            options={[{ value: '', label: '— Зупинка —' }, ...toOptionsFrom]}
+                            value={toStop}
+                            onChange={(v) => {
+                              setToStop(v);
+                              updateDetailUrl({ to: v || undefined });
+                            }}
+                            placeholder="Пошук зупинки"
+                            emptyMessage="Зупинок не знайдено"
+                            clearable
+                          />
                         </div>
                       </div>
-                      <div className="lt-timetable-col">
-                        <h3 className="lt-timetable-heading">
-                          ← {detailRoute.from}
-                        </h3>
-                        <div className="lt-times">
-                          {dir0.map((t) => {
-                            const mins = parseTime(t.block_id);
-                            const isSelected =
-                              selectedTripTime === mins && selectedTripDirection === 'back';
-                            return (
-                              <button
-                                key={t.trip_id}
-                                type="button"
-                                className={`lt-time ${isSelected ? 'lt-time--selected' : ''}`}
-                                onClick={() => {
-                                  if (mins > 0) {
-                                    setSelectedTripTime(mins);
-                                    setSelectedTripDirection('back');
-                                    setStopsDirection('back');
-                                  }
-                                }}
-                              >
-                                {t.block_id || '—'}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    )}
+                    <div className="lt-date-row">
+                      <button type="button" className="lt-print-btn" onClick={() => window.print()} title="Друк">
+                        🖨 Друк
+                      </button>
                     </div>
-                  );
-                })()}
-              </div>
-            )}
+                  </div>
+
+                  <div className="lt-timetable">
+                    {tableTrips && tableTrips.length > 0 ? (
+                      <table className="lt-timetable-table">
+                        <thead>
+                          <tr>
+                            <th>Відправлення{fromStop && <span className="lt-th-stop"> ({fromStop})</span>}</th>
+                            <th>Прибуття{toStop && <span className="lt-th-stop"> ({toStop})</span>}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tableTrips.map((row, i) => {
+                            const isSelected =
+                              selectedTripTime === row.baseTime && selectedTripDirection === row.direction;
+                            return (
+                            <tr
+                              key={i}
+                              className={`lt-timetable-row-clickable ${isSelected ? 'lt-timetable-row--selected' : ''}`}
+                              onClick={() => {
+                                setSelectedTripTime(row.baseTime);
+                                setSelectedTripDirection(row.direction);
+                                setStopsDirection(row.direction);
+                                updateDetailUrl({ time: row.dep, dir: row.direction });
+                              }}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  setSelectedTripTime(row.baseTime);
+                                  setSelectedTripDirection(row.direction);
+                                  setStopsDirection(row.direction);
+                                  updateDetailUrl({ time: row.dep, dir: row.direction });
+                                }
+                              }}
+                            >
+                              <td className="lt-time-cell">{row.dep}</td>
+                              <td className="lt-time-cell">{row.arr}</td>
+                            </tr>
+                          );})}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="lt-timetable-grid">
+                        <div className="lt-timetable-col">
+                          <h3 className="lt-timetable-heading">{detailRoute.to} →</h3>
+                          <div className="lt-times">
+                            {groupTripsByDirection(detailRoute.trips).dir1.map((t) => {
+                              const mins = parseTime(t.block_id);
+                              const isSelected = selectedTripTime === mins && selectedTripDirection === 'there';
+                              return (
+                                <button
+                                  key={t.trip_id}
+                                  type="button"
+                                  className={`lt-time ${isSelected ? 'lt-time--selected' : ''}`}
+                                  onClick={() => {
+                                    if (mins > 0) {
+                                      setSelectedTripTime(mins);
+                                      setSelectedTripDirection('there');
+                                      setStopsDirection('there');
+                                      updateDetailUrl({ time: formatTime(mins), dir: 'there' });
+                                    }
+                                  }}
+                                >
+                                  {t.block_id || '—'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="lt-timetable-col">
+                          <h3 className="lt-timetable-heading">← {detailRoute.from}</h3>
+                          <div className="lt-times">
+                            {groupTripsByDirection(detailRoute.trips).dir0.map((t) => {
+                              const mins = parseTime(t.block_id);
+                              const isSelected = selectedTripTime === mins && selectedTripDirection === 'back';
+                              return (
+                                <button
+                                  key={t.trip_id}
+                                  type="button"
+                                  className={`lt-time ${isSelected ? 'lt-time--selected' : ''}`}
+                                  onClick={() => {
+                                    if (mins > 0) {
+                                      setSelectedTripTime(mins);
+                                      setSelectedTripDirection('back');
+                                      setStopsDirection('back');
+                                      updateDetailUrl({ time: formatTime(mins), dir: 'back' });
+                                    }
+                                  }}
+                                >
+                                  {t.block_id || '—'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
             {(() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
@@ -462,90 +698,80 @@ export const LocalTransportPage: React.FC = () => {
                   <div className="lt-map-area">
                     <RouteMap stopNames={stopNames} />
                   </div>
-                  <div className={`lt-stops ${stopsExpanded ? 'lt-stops--expanded' : ''}`}>
-                    <button
-                      type="button"
-                      className="lt-stops-toggle"
-                      onClick={() => setStopsExpanded((v) => !v)}
-                      aria-expanded={stopsExpanded}
-                    >
-                      <h3 className="lt-stops-heading">
-                        Зупинки на маршруті
-                        <span className="lt-stops-hint">
-                          {selectedTripDirection === stopsDirection && selectedTripTime != null
-                            ? ` (графік для рейсу ${formatTime(selectedTripTime)}, ~2 хв між зупинками)`
-                            : ' (натисніть час рейсу вище — час орієнтовний)'}
-                        </span>
-                      </h3>
-                      <span className="lt-stops-toggle-icon" aria-hidden>
-                        {stopsExpanded ? '−' : '+'}
-                      </span>
-                    </button>
-                    <div className="lt-stops-content">
-                      <div className="lt-stops-direction-switch">
-                        <button
-                          type="button"
-                          className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
-                          onClick={() => setStopsDirection('there')}
-                        >
-                          {detailRoute.to} →
-                        </button>
-                        <button
-                          type="button"
-                          className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
-                          onClick={() => setStopsDirection('back')}
-                        >
-                          ← {detailRoute.from}
-                        </button>
-                      </div>
-                      <div className="lt-stops-col">
-                        {(() => {
-                          const isThere = stopsDirection === 'there';
-                          const filtered = [...stopsWithOrder]
-                            .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-                            .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
-                          const baseTime =
-                            selectedTripDirection === stopsDirection && selectedTripTime != null
-                              ? selectedTripTime
-                              : getFirstTripTime(detailRoute.trips);
-                          const orderKey = isThere ? 'order_there' : 'order_back';
-                          return (
-                            <>
-                              <h4 className="lt-stops-col-heading">
-                                {isThere ? `${detailRoute.to} →` : `← ${detailRoute.from}`}
-                              </h4>
-                              <ul className="lt-stops-list lt-stops-list--timeline">
-                                {filtered.map((s, idx) => {
-                                  const order = s[orderKey];
-                                  const arrivalMins = baseTime + (order - 1) * MINS_PER_STOP;
-                                  const nextStop = filtered[idx + 1];
-                                  const nextArrivalMins = nextStop
-                                    ? baseTime + (nextStop[orderKey] - 1) * MINS_PER_STOP
-                                    : null;
-                                  const minsToNext = nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
-                                  const isYouHere = selectedStopFromUrl && s.name === selectedStopFromUrl;
-                                  return (
-                                    <li
-                                      key={`${isThere ? 'there' : 'back'}-${s.name}-${order}`}
-                                      ref={isYouHere ? youHereRef : undefined}
-                                      className={`lt-stop-item ${isYouHere ? 'lt-stop-item--you-here' : ''}`}
-                                    >
-                                      <span className="lt-stop-time">{formatTime(arrivalMins)}</span>
-                                      <span className="lt-stop-content">
-                                        {s.name}
-                                        {isYouHere && <span className="lt-you-here">Ви тут</span>}
-                                      </span>
-                                      <span className="lt-stop-to-next">
-                                        {minsToNext != null ? `${minsToNext} хв` : '—'}
-                                      </span>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </>
-                          );
-                        })()}
-                      </div>
+                  <div className="lt-stops">
+                    <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
+                    <div className="lt-stops-direction-switch">
+                      <button
+                        type="button"
+                        className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
+                        onClick={() => {
+                          setStopsDirection('there');
+                          updateDetailUrl({ dir: 'there' });
+                        }}
+                      >
+                        {detailRoute.to} →
+                      </button>
+                      <button
+                        type="button"
+                        className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
+                        onClick={() => {
+                          setStopsDirection('back');
+                          updateDetailUrl({ dir: 'back' });
+                        }}
+                      >
+                        ← {detailRoute.from}
+                      </button>
+                    </div>
+                    <div ref={timelineRef} className="lt-stops-timeline">
+                      {segmentStyle && (
+                        <div
+                          className="lt-stops-timeline-segment"
+                          style={{ top: segmentStyle.top, height: segmentStyle.height }}
+                        />
+                      )}
+                      {(() => {
+                        const isThere = stopsDirection === 'there';
+                        const filtered = [...stopsWithOrder]
+                          .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
+                          .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
+                        const baseTime =
+                          selectedTripDirection === stopsDirection && selectedTripTime != null
+                            ? selectedTripTime
+                            : getFirstTripTime(detailRoute.trips);
+                        const orderKey = isThere ? 'order_there' : 'order_back';
+                        return (
+                          <ul className="lt-stops-list">
+                            {filtered.map((s, idx) => {
+                              const order = s[orderKey];
+                              const arrivalMins = baseTime + (order - 1) * MINS_PER_STOP;
+                              const nextStop = filtered[idx + 1];
+                              const nextArrivalMins = nextStop
+                                ? baseTime + (nextStop[orderKey] - 1) * MINS_PER_STOP
+                                : null;
+                              const minsToNext = nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
+                              const isFrom = fromStop && s.name === fromStop;
+                              const isTo = toStop && s.name === toStop;
+                              return (
+                                <li
+                                  key={`${isThere ? 'there' : 'back'}-${s.name}-${order}`}
+                                  ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
+                                  className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''}`}
+                                >
+                                  <span className="lt-stop-time">{formatTime(arrivalMins)}</span>
+                                  <span className="lt-stop-content">
+                                    {s.name}
+                                    {isFrom && <span className="lt-stop-badge lt-stop-badge--from">З</span>}
+                                    {isTo && <span className="lt-stop-badge lt-stop-badge--to">До</span>}
+                                  </span>
+                                  <span className="lt-stop-to-next">
+                                    {minsToNext != null ? `${minsToNext} хв` : '—'}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

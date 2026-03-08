@@ -40,6 +40,10 @@
   border-radius: 8px;
 }
 
+.combobox-input-wrap--clearable .combobox-input {
+  padding-right: 80px;
+}
+
 @media (min-width: 768px) {
   .combobox-input {
     font-size: 0.9375rem;
@@ -48,6 +52,30 @@
 
 .combobox-input::placeholder {
   color: var(--pb-text-hint);
+}
+
+.combobox-clear {
+  position: absolute;
+  right: 44px;
+  top: 0;
+  bottom: 0;
+  width: 36px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--pb-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.combobox-clear:hover {
+  color: var(--pb-primary);
 }
 
 .combobox-toggle {

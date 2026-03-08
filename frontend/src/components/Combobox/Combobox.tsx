@@ -14,6 +14,8 @@ interface ComboboxProps {
   placeholder?: string;
   emptyMessage?: string;
   filterFn?: (option: ComboboxOption, query: string) => boolean;
+  /** Показати кнопку очищення, коли є вибране значення */
+  clearable?: boolean;
 }
 
 const defaultFilter = (opt: ComboboxOption, query: string) =>
@@ -27,6 +29,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
   placeholder = 'Введіть для пошуку...',
   emptyMessage = 'Нічого не знайдено',
   filterFn = defaultFilter,
+  clearable = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -136,7 +139,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
           {label}
         </label>
       )}
-      <div className="combobox-input-wrap">
+      <div className={`combobox-input-wrap ${clearable && value ? 'combobox-input-wrap--clearable' : ''}`}>
         <input
           id={inputId}
           type="text"
@@ -157,6 +160,22 @@ export const Combobox: React.FC<ComboboxProps> = ({
           placeholder={placeholder}
           autoComplete="off"
         />
+        {clearable && value && (
+          <button
+            type="button"
+            className="combobox-clear"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setInputValue('');
+              close(false);
+            }}
+            tabIndex={-1}
+            aria-label="Очистити"
+          >
+            ×
+          </button>
+        )}
         <button
           type="button"
           className="combobox-toggle"

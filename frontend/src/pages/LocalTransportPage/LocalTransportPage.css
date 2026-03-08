@@ -1,23 +1,48 @@
-/* Розклад руху — єдиний стиль з Booking/Попутки */
+/* ==========================================================================
+   Local Transport — HSL Reittiopas–style design
+   Утилітарний, чистий, функціональний інтерфейс як у reittiopas.hsl.fi
+   ========================================================================== */
+
+/* HSL-подібна палітра (можна змінити на --pb-primary для узгодженості) */
+.lt-page {
+  --lt-accent: #007ac9;
+  --lt-accent-hover: #005a96;
+  --lt-accent-light: #e8f4fc;
+  --lt-bg: #f7f9fb;
+  --lt-card: #ffffff;
+  --lt-border: #d1d5db;
+  --lt-border-light: #e5e7eb;
+  --lt-text: #1a1a1a;
+  --lt-text-muted: #6b7280;
+  --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Перевизначення кольорів — можна використати зелений сайту */
+.lt-page.lt-use-site-colors {
+  --lt-accent: var(--pb-primary);
+  --lt-accent-hover: var(--pb-primary-hover);
+  --lt-accent-light: var(--pb-primary-light);
+}
 
 .lt-page {
   min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px); /* dvh для мобільних (враховує адресний рядок) */
-  background: linear-gradient(180deg, #f0fdf4 0%, var(--pb-bg-page) 120px);
-  padding: var(--pb-space-xl) var(--pb-space);
-  padding-left: max(var(--pb-space), env(safe-area-inset-left));
-  padding-right: max(var(--pb-space), env(safe-area-inset-right));
-  padding-bottom: max(var(--pb-space-xl), env(safe-area-inset-bottom));
+  min-height: calc(100dvh - 60px);
+  background: var(--lt-bg);
+  padding: 20px 16px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(32px, env(safe-area-inset-bottom));
+  font-family: var(--lt-font);
 }
 
 .lt-container {
-  max-width: 600px;
+  max-width: 720px;
   margin: 0 auto;
-  background: var(--pb-card-bg);
-  padding: var(--pb-space-xl);
-  border-radius: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 0 1px rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--pb-border);
+  background: var(--lt-card);
+  border-radius: var(--pb-radius-lg);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--lt-border-light);
+  overflow: hidden;
 }
 
 @media (min-width: 900px) {
@@ -26,53 +51,45 @@
   }
 }
 
-/* Header — як BookingPage */
+/* ========== List view: маршрути ========== */
 .lt-header {
-  text-align: center;
-  margin-bottom: var(--pb-space-xl);
-  padding-bottom: var(--pb-space-lg);
-  border-bottom: 1px solid var(--pb-border-light);
+  padding: 24px 20px;
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-title {
-  margin: 0 0 var(--pb-space-sm);
-  font-size: var(--pb-font-size-2xl);
-  font-weight: var(--pb-font-weight-bold);
-  color: var(--pb-text);
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--lt-text);
   letter-spacing: -0.02em;
 }
 
 .lt-subtitle {
   margin: 0;
-  font-size: var(--pb-font-size);
-  font-weight: 500;
-  color: var(--pb-text-muted);
+  font-size: 0.9375rem;
+  color: var(--lt-text-muted);
 }
 
-/* Search / Filters */
+/* Пошук — компактний, як у HSL */
 .lt-search {
+  padding: 16px 20px;
+  background: var(--lt-bg);
+  border-bottom: 1px solid var(--lt-border-light);
   display: flex;
   flex-direction: column;
-  gap: var(--pb-space);
-  margin-bottom: var(--pb-space-lg);
-  padding: var(--pb-space);
-  background: var(--pb-card-bg);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  gap: 12px;
 }
 
 .lt-search-row {
   display: flex;
-  gap: var(--pb-space);
+  gap: 12px;
   align-items: flex-end;
+  flex-wrap: wrap;
 }
 
 .lt-search-row .lt-search-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-search-row--route .select-wrapper {
   flex: 1;
   min-width: 0;
 }
@@ -81,28 +98,21 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
   padding: 10px 16px;
-  min-height: 44px; /* Touch target для мобільних */
-  box-sizing: border-box;
-  background: var(--pb-primary);
+  min-height: 44px;
+  background: var(--lt-accent);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--pb-radius);
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.lt-geo-results {
-  padding-top: var(--pb-space-sm);
-  border-top: 1px solid var(--pb-border-light);
+  transition: background 0.15s;
 }
 
 .lt-geo-btn:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--lt-accent-hover);
 }
 
 .lt-geo-btn:disabled {
@@ -110,21 +120,28 @@
   cursor: not-allowed;
 }
 
+.lt-geo-results {
+  padding-top: 8px;
+  border-top: 1px solid var(--lt-border-light);
+}
+
 .lt-geo-error {
-  margin: var(--pb-space-sm) 0 0;
+  margin: 0;
   font-size: 0.8125rem;
-  color: var(--pb-error, #dc2626);
+  color: #dc2626;
 }
 
 .lt-nearest {
-  margin-top: var(--pb-space);
+  margin-top: 8px;
 }
 
 .lt-nearest-title {
-  margin: 0 0 var(--pb-space-sm);
-  font-size: 0.8125rem;
+  margin: 0 0 6px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .lt-nearest-list {
@@ -139,146 +156,362 @@
   padding: 10px 12px;
   margin-bottom: 4px;
   text-align: left;
-  background: var(--pb-bg-secondary);
-  border: 1px solid var(--pb-border-light);
-  border-radius: 8px;
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--pb-radius);
   font-size: 0.9375rem;
-  color: var(--pb-text);
+  color: var(--lt-text);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .lt-nearest-item:hover {
-  border-color: var(--pb-primary);
-  background: var(--pb-primary-light);
+  border-color: var(--lt-accent);
+  background: var(--lt-accent-light);
 }
 
 .lt-search .select-label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
-
-/* Route list */
+/* Список маршрутів — плоскі картки як у HSL */
 .lt-routes {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
 .lt-route-card {
   display: flex;
   align-items: center;
-  gap: var(--pb-space);
+  gap: 16px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 16px 20px;
   text-align: left;
-  background: var(--pb-card-bg);
-  border: 1px solid var(--pb-border);
-  border-radius: 10px;
+  background: var(--lt-card);
+  border: none;
+  border-bottom: 1px solid var(--lt-border-light);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s;
+}
+
+.lt-route-card:last-child {
+  border-bottom: none;
 }
 
 .lt-route-card:hover {
-  border-color: var(--pb-primary);
-  box-shadow: var(--pb-shadow-hover);
+  background: var(--lt-accent-light);
 }
 
 .lt-route-num {
   flex-shrink: 0;
-  min-width: 36px;
-  padding: 4px 8px;
-  background: var(--pb-primary);
+  min-width: 44px;
+  padding: 6px 10px;
+  background: var(--lt-accent);
   color: white;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 700;
-  border-radius: 6px;
+  border-radius: var(--pb-radius-sm);
   text-align: center;
 }
 
 .lt-route-path {
   flex: 1;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: var(--pb-text);
+  color: var(--lt-text);
 }
 
 .lt-route-meta {
   flex-shrink: 0;
   font-size: 0.8125rem;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
 }
 
 .lt-empty {
   text-align: center;
-  padding: var(--pb-space-xl);
-  color: var(--pb-text-muted);
+  padding: 40px 20px;
+  color: var(--lt-text-muted);
   font-size: 0.9375rem;
 }
 
-/* Detail view */
+/* ========== Detail view: маршрут ========== */
 .lt-detail {
-  padding-bottom: var(--pb-space);
+  padding-bottom: 0;
+}
+
+.lt-detail-header {
+  padding: 20px 20px 16px;
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-back {
   display: inline-flex;
   align-items: center;
-  margin-bottom: var(--pb-space);
-  padding: 6px 0;
+  margin-bottom: 12px;
+  padding: 8px 12px;
   background: none;
   border: none;
-  color: var(--pb-primary);
+  border-radius: var(--pb-radius);
+  color: var(--lt-text-muted);
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
 
 .lt-back:hover {
-  text-decoration: underline;
-}
-
-.lt-detail-header {
-  margin-bottom: var(--pb-space-lg);
-  padding-bottom: var(--pb-space);
-  border-bottom: 1px solid var(--pb-border-light);
+  background: var(--lt-accent-light);
+  color: var(--lt-accent);
 }
 
 .lt-route-title {
   margin: 0 0 8px;
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--pb-text);
-  line-height: 1.3;
+  color: var(--lt-text);
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lt-route-title .lt-route-num {
+  flex-shrink: 0;
 }
 
 .lt-fare {
   display: inline-block;
   padding: 4px 10px;
-  background: var(--pb-primary-light);
-  color: var(--pb-primary);
+  background: var(--lt-accent-light);
+  color: var(--lt-accent);
   font-size: 0.8125rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--pb-radius-sm);
 }
 
-/* Карта + Зупинки — side-by-side на широких екранах */
+/* From/To селектори — як у HSL RouteScheduleHeader */
+.lt-timetable-header {
+  padding: 16px 20px;
+  background: var(--lt-bg);
+  border-bottom: 1px solid var(--lt-border-light);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.lt-from-to {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lt-from-to-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lt-from-to-field {
+  min-width: 160px;
+}
+
+.lt-from-to-field .combobox-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lt-from-to-field .combobox-input-wrap {
+  border-radius: var(--pb-radius);
+}
+
+.lt-from-to-arrow {
+  color: var(--lt-text-muted);
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+.lt-date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.lt-date-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+}
+
+.lt-date-value {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--lt-text);
+}
+
+.lt-print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--pb-radius);
+  font-size: 0.875rem;
+  color: var(--lt-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.lt-print-btn:hover {
+  border-color: var(--lt-accent);
+  color: var(--lt-accent);
+}
+
+/* Таблиця рейсів — як HSL RouteScheduleTripRow */
+.lt-timetable {
+  overflow-x: auto;
+}
+
+.lt-timetable-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.lt-timetable-table th,
+.lt-timetable-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--lt-border-light);
+}
+
+.lt-timetable-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--lt-bg);
+}
+
+.lt-timetable-table .lt-th-stop {
+  font-weight: 400;
+  text-transform: none;
+  font-size: 0.6875rem;
+  opacity: 0.9;
+}
+
+.lt-timetable-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-timetable-table tbody tr:hover {
+  background: var(--lt-accent-light);
+}
+
+.lt-timetable-row-clickable {
+  cursor: pointer;
+}
+
+.lt-timetable-row-clickable:focus {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: -2px;
+}
+
+.lt-timetable-row--selected {
+  background: var(--lt-accent-light);
+}
+
+.lt-timetable-table .lt-time-cell {
+  font-weight: 600;
+  min-width: 4em;
+}
+
+/* Дві колонки напрямків (якщо без From/To) */
+.lt-timetable-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.lt-timetable-col {
+  padding: 16px 20px;
+  border-right: 1px solid var(--lt-border-light);
+}
+
+.lt-timetable-col:last-child {
+  border-right: none;
+}
+
+.lt-timetable-heading {
+  margin: 0 0 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lt-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.lt-time {
+  display: inline-block;
+  min-width: 56px;
+  padding: 8px 12px;
+  background: var(--lt-bg);
+  border: 1px solid transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border-radius: var(--pb-radius);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lt-time:hover {
+  border-color: var(--lt-accent);
+  background: var(--lt-accent-light);
+}
+
+.lt-time--selected {
+  background: var(--lt-accent);
+  border-color: var(--lt-accent);
+  color: white;
+}
+
+/* ========== Зупинки — вертикальна timeline з dotted line (HSL-style) ========== */
 .lt-map-stops {
-  margin-top: var(--pb-space-lg);
+  margin-top: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--pb-space);
+  gap: 0;
 }
 
 @media (min-width: 768px) {
   .lt-map-stops {
     flex-direction: row;
     align-items: flex-start;
-    gap: var(--pb-space-lg);
   }
 
   .lt-map-area {
@@ -288,332 +521,234 @@
 
   .lt-stops {
     flex-shrink: 0;
-    width: 300px;
+    width: 320px;
     position: sticky;
-    top: var(--pb-space);
+    top: 20px;
   }
 }
 
-/* Зупинки на маршруті */
+.lt-map-area {
+  padding: 20px;
+  border-top: 1px solid var(--lt-border-light);
+}
+
 .lt-stops {
-  padding: var(--pb-space);
-  background: var(--pb-bg-secondary);
-  border-radius: 12px;
-  border: 1px solid var(--pb-border-light);
+  padding: 20px;
+  background: var(--lt-card);
+  border-top: 1px solid var(--lt-border-light);
 }
 
-.lt-stops-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
+/* Вертикальна лінія та кружки — спільна система координат */
+.lt-stops-timeline {
+  --lt-line-center: 15px;
+  position: relative;
+  padding-left: 28px;
 }
 
-@media (min-width: 768px) {
-  .lt-stops-toggle {
-    cursor: default;
-    pointer-events: none;
-  }
-
-  .lt-stops-toggle-icon {
-    display: none;
-  }
+/* Пунктирна лінія для всіх зупинок — центр на --lt-line-center */
+.lt-stops-timeline::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--lt-line-center) - 1px);
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background-image: radial-gradient(circle, var(--lt-accent) 1.5px, transparent 1.5px);
+  background-size: 2px 8px;
+  background-repeat: repeat-y;
+  opacity: 0.5;
 }
 
-.lt-stops-heading {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--pb-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-stops-hint {
-  font-weight: 400;
-  text-transform: none;
-  font-size: 0.6875rem;
+/* Суцільна товста лінія між З і До — центр на --lt-line-center */
+.lt-stops-timeline-segment {
+  position: absolute;
+  left: calc(var(--lt-line-center) - 2px);
+  width: 4px;
+  background: var(--lt-accent);
   opacity: 0.85;
-}
-
-.lt-stops-toggle-icon {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  font-weight: 400;
-  color: var(--pb-primary);
-  background: var(--pb-primary-light);
-  border-radius: 6px;
-}
-
-@media (min-width: 768px) {
-  .lt-stops-content {
-    display: block;
-  }
-}
-
-@media (max-width: 767px) {
-  .lt-stops-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.25s ease;
-  }
-
-  .lt-stops--expanded .lt-stops-content {
-    max-height: 400px;
-    overflow-y: auto;
-    margin-top: var(--pb-space-sm);
-  }
+  pointer-events: none;
+  border-radius: 2px;
 }
 
 .lt-stops-direction-switch {
   display: flex;
   gap: 8px;
-  margin-bottom: var(--pb-space);
+  margin-bottom: 16px;
 }
 
 .lt-direction-btn {
   flex: 1;
   padding: 10px 14px;
-  background: var(--pb-bg-secondary);
-  border: 1px solid var(--pb-border-light);
-  border-radius: 8px;
+  background: var(--lt-bg);
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--pb-radius);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.15s;
 }
 
 .lt-direction-btn:hover {
-  border-color: var(--pb-primary);
-  color: var(--pb-text);
+  border-color: var(--lt-accent);
+  color: var(--lt-text);
 }
 
 .lt-direction-btn--active {
-  background: var(--pb-primary);
-  border-color: var(--pb-primary);
+  background: var(--lt-accent);
+  border-color: var(--lt-accent);
   color: white;
 }
 
-.lt-stops-col-heading {
-  margin: 0 0 var(--pb-space-sm);
+.lt-stops-heading {
+  margin: 0 0 12px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  line-height: 1.3;
 }
 
 .lt-stops-list {
   margin: 0;
-  padding-left: 1.25rem;
-  font-size: 0.9375rem;
-  color: var(--pb-text);
-  line-height: 1.6;
+  padding: 0;
+  list-style: none;
 }
 
 .lt-stop-item {
-  margin-bottom: 2px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.5em 1fr 2.5em;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  min-height: 36px;
 }
 
-.lt-stops-list--timeline .lt-stop-item {
-  display: grid;
-  grid-template-columns: 3em 1fr 2.5em;
-  gap: 8px;
-  align-items: baseline;
-  margin-bottom: 6px;
+/* Кружок 10px: центр на --lt-line-center. li починається з 28px → left = 11 - 28 - 5 = -22 */
+.lt-stop-item::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--lt-line-center) - 28px - 5px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: var(--lt-accent);
+  border-radius: 50%;
+  border: 2px solid var(--lt-card);
+  box-shadow: 0 0 0 1px var(--lt-border);
+}
+
+.lt-stop-item--from::before {
+  width: 14px;
+  height: 14px;
+  left: calc(var(--lt-line-center) - 28px - 7px);
+  transform: translateY(-50%);
+  background: var(--lt-accent);
+  box-shadow: 0 0 0 2px var(--lt-accent-light);
+}
+
+.lt-stop-item--to::before {
+  width: 14px;
+  height: 14px;
+  left: calc(var(--lt-line-center) - 28px - 7px);
+  transform: translateY(-50%);
+  background: var(--pb-yellow-dark);
+  box-shadow: 0 0 0 2px rgba(255, 213, 0, 0.4);
 }
 
 .lt-stop-time {
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
 }
 
 .lt-stop-content {
   min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--lt-text);
 }
 
-.lt-stop-item--you-here .lt-stop-content {
-  font-weight: 600;
-  color: var(--pb-primary);
+.lt-stop-item--from .lt-stop-content {
+  font-weight: 700;
+  color: var(--lt-accent);
 }
 
-.lt-you-here {
+.lt-stop-item--to .lt-stop-content {
+  font-weight: 700;
+  color: var(--pb-yellow-dark);
+}
+
+.lt-stop-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 2px 6px;
   font-size: 0.6875rem;
   font-weight: 600;
-  background: var(--pb-primary-light);
-  color: var(--pb-primary);
-  border-radius: 4px;
+  border-radius: var(--pb-radius-sm);
+}
+
+.lt-stop-badge--from {
+  background: var(--lt-accent-light);
+  color: var(--lt-accent);
+}
+
+.lt-stop-badge--to {
+  background: rgba(255, 213, 0, 0.25);
+  color: var(--pb-yellow-dark);
 }
 
 .lt-stop-to-next {
   font-size: 0.75rem;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
   text-align: right;
 }
 
-
-/* Карта маршруту */
-.lt-map-area .lt-map-wrapper {
-  margin-top: 0;
-}
-
+/* Карта */
 .lt-map-wrapper {
-  padding: var(--pb-space);
-  background: var(--pb-bg-secondary);
-  border-radius: 12px;
-  border: 1px solid var(--pb-border-light);
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .lt-map-heading {
-  margin: 0 0 var(--pb-space-sm);
+  margin: 0 0 8px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .lt-map-container {
-  height: 320px;
+  height: 280px;
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--pb-radius);
   overflow: hidden;
-  background: #e8e8e8;
+  background: var(--lt-bg);
+  border: 1px solid var(--lt-border-light);
 }
 
 @media (min-width: 768px) {
   .lt-map-container {
-    height: 400px;
+    height: 360px;
   }
-}
-
-.lt-map {
-  height: 100%;
-  width: 100%;
-  z-index: 0;
-}
-
-/* Timetable — дві колонки по напрямках */
-.lt-timetable {
-  background: var(--pb-card-bg);
-  border-radius: 12px;
-  border: 1px solid var(--pb-border);
-  overflow: hidden;
-}
-
-.lt-timetable-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-
-.lt-timetable-col {
-  padding: var(--pb-space);
-  border-right: 1px solid var(--pb-border-light);
-}
-
-.lt-timetable-col:last-child {
-  border-right: none;
-}
-
-.lt-timetable-heading {
-  margin: 0 0 var(--pb-space-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--pb-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1.3;
-}
-
-.lt-times {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-@media (max-width: 480px) {
-  .lt-search-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .lt-search-row .lt-geo-btn {
-    min-height: 44px;
-    width: 100%;
-    justify-content: center;
-  }
-  .lt-timetable-grid {
-    grid-template-columns: 1fr;
-  }
-  .lt-timetable-col {
-    border-right: none;
-    border-bottom: 1px solid var(--pb-border-light);
-  }
-  .lt-timetable-col:last-child {
-    border-bottom: none;
-  }
-}
-
-.lt-time {
-  display: inline-block;
-  min-width: 56px;
-  padding: 8px 10px;
-  background: var(--pb-bg-secondary);
-  border: 1px solid transparent;
-  font-size: 1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.lt-time:hover {
-  border-color: var(--pb-primary);
-  background: var(--pb-primary-light);
-}
-
-.lt-time--selected {
-  background: var(--pb-primary);
-  border-color: var(--pb-primary);
-  color: white;
-}
-
-.lt-time--selected:hover {
-  background: var(--pb-primary);
-  border-color: var(--pb-primary);
-  color: white;
 }
 
 /* Footer */
 .lt-footer {
-  margin-top: var(--pb-space-xl);
-  padding-top: var(--pb-space);
-  border-top: 1px solid var(--pb-border-light);
+  margin-top: 0;
+  padding: 16px 20px;
+  border-top: 1px solid var(--lt-border-light);
   font-size: 0.8125rem;
-  color: var(--pb-text-muted);
+  color: var(--lt-text-muted);
+  background: var(--lt-bg);
 }
 
 .lt-footer a {
-  color: var(--pb-primary);
+  color: var(--lt-accent);
   text-decoration: none;
 }
 
@@ -625,10 +760,74 @@
 .lt-loading,
 .lt-error {
   text-align: center;
-  padding: var(--pb-space-xl);
-  color: var(--pb-text-muted);
+  padding: 48px 20px;
+  color: var(--lt-text-muted);
 }
 
 .lt-error p {
   margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .lt-search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lt-search-row .lt-geo-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lt-timetable-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lt-timetable-col {
+    border-right: none;
+    border-bottom: 1px solid var(--lt-border-light);
+  }
+
+  .lt-timetable-col:last-child {
+    border-bottom: none;
+  }
+
+  .lt-from-to {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lt-from-to-select {
+    min-width: 100%;
+  }
+
+  .lt-date-row {
+    margin-left: 0;
+  }
+}
+
+/* Print */
+@media print {
+  .lt-page {
+    background: white;
+    padding: 0;
+  }
+
+  .lt-container {
+    box-shadow: none;
+    border: none;
+  }
+
+  .lt-stops-toggle,
+  .lt-geo-btn,
+  .lt-print-btn,
+  .lt-back,
+  .app-nav {
+    display: none !important;
+  }
+
+  .lt-map-container {
+    height: 400px;
+  }
 }
