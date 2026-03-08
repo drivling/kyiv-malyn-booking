@@ -159,6 +159,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
           onKeyDown={handleInputKeyDown}
           placeholder={placeholder}
           autoComplete="off"
+          inputMode="search"
         />
         {clearable && value && (
           <button
