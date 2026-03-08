@@ -310,6 +310,13 @@
   letter-spacing: 0.04em;
 }
 
+.lt-stops-hint {
+  font-weight: 400;
+  text-transform: none;
+  font-size: 0.6875rem;
+  opacity: 0.85;
+}
+
 .lt-stops-toggle-icon {
   flex-shrink: 0;
   width: 28px;
@@ -344,10 +351,34 @@
   }
 }
 
-.lt-stops-directions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--pb-space-lg);
+.lt-stops-direction-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--pb-space);
+}
+
+.lt-direction-btn {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--pb-bg-secondary);
+  border: 1px solid var(--pb-border-light);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lt-direction-btn:hover {
+  border-color: var(--pb-primary);
+  color: var(--pb-text);
+}
+
+.lt-direction-btn--active {
+  background: var(--pb-primary);
+  border-color: var(--pb-primary);
+  color: white;
 }
 
 .lt-stops-col-heading {
@@ -372,11 +403,46 @@
   margin-bottom: 2px;
 }
 
-.lt-stop-num {
-  font-weight: 600;
-  color: var(--pb-text-muted);
-  margin-right: 4px;
+.lt-stops-list--timeline .lt-stop-item {
+  display: grid;
+  grid-template-columns: 3em 1fr 2.5em;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
 }
+
+.lt-stop-time {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--pb-text-muted);
+}
+
+.lt-stop-content {
+  min-width: 0;
+}
+
+.lt-stop-item--you-here .lt-stop-content {
+  font-weight: 600;
+  color: var(--pb-primary);
+}
+
+.lt-you-here {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: var(--pb-primary-light);
+  color: var(--pb-primary);
+  border-radius: 4px;
+}
+
+.lt-stop-to-next {
+  font-size: 0.75rem;
+  color: var(--pb-text-muted);
+  text-align: right;
+}
+
 
 /* Карта маршруту */
 .lt-map-area .lt-map-wrapper {
@@ -459,10 +525,6 @@
 }
 
 @media (max-width: 480px) {
-  .lt-stops-directions {
-    grid-template-columns: 1fr;
-  }
-
   .lt-search {
     grid-template-columns: 1fr;
   }
@@ -487,11 +549,31 @@
   min-width: 56px;
   padding: 8px 10px;
   background: var(--pb-bg-secondary);
+  border: 1px solid transparent;
   font-size: 1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
   border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lt-time:hover {
+  border-color: var(--pb-primary);
+  background: var(--pb-primary-light);
+}
+
+.lt-time--selected {
+  background: var(--pb-primary);
+  border-color: var(--pb-primary);
+  color: white;
+}
+
+.lt-time--selected:hover {
+  background: var(--pb-primary);
+  border-color: var(--pb-primary);
+  color: white;
 }
 
 /* Footer */
