@@ -205,9 +205,13 @@ export const LocalTransportPage: React.FC = () => {
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [nearestStops, setNearestStops] = useState<Array<{ name: string; distance: number }> | null>(null);
+  const latestStopRef = useRef<string>('');
 
   useEffect(() => {
-    if (selectedStopFromUrl) setStopFilter(selectedStopFromUrl);
+    if (selectedStopFromUrl) {
+      latestStopRef.current = selectedStopFromUrl;
+      setStopFilter(selectedStopFromUrl);
+    }
   }, [selectedStopFromUrl]);
 
   useEffect(() => {
@@ -338,7 +342,7 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   const handleSelectRoute = (id: string) => {
-    const stop = effectiveStopFilter;
+    const stop = latestStopRef.current || effectiveStopFilter;
     const params = new URLSearchParams();
     if (stop) params.set('stop', stop);
     navigate(`/localtransport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
@@ -793,6 +797,7 @@ export const LocalTransportPage: React.FC = () => {
                     options={stopComboboxOptions}
                     value={effectiveStopFilter}
                     onChange={(v) => {
+                      latestStopRef.current = v;
                       setStopFilter(v);
                       setSearchParams(v ? { stop: v } : {});
                     }}
@@ -831,6 +836,7 @@ export const LocalTransportPage: React.FC = () => {
                               type="button"
                               className="lt-nearest-item"
                               onClick={() => {
+                                latestStopRef.current = name;
                                 setStopFilter(name);
                                 setSearchParams({ stop: name });
                                 setNearestStops(null);
