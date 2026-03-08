@@ -366,13 +366,23 @@ export const LocalTransportPage: React.FC = () => {
 
   // При зміні З/До — визначити напрямок і оновити stopsDirection, selectedTrip, URL
   const prevFromToRef = useRef<string>('');
+  const initializedFromUrlRef = useRef(false);
   useEffect(() => {
     if (!detailRoute) return;
     if (!fromStop || !toStop) {
       prevFromToRef.current = '';
+      initializedFromUrlRef.current = false;
       return;
     }
     const key = `${fromStop}|${toStop}`;
+    if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
+      if (!initializedFromUrlRef.current && fromStop === selectedStopFromUrl && toStop === toFromUrl) {
+        initializedFromUrlRef.current = true;
+        prevFromToRef.current = key;
+      }
+      return;
+    }
+    initializedFromUrlRef.current = false;
     if (prevFromToRef.current === key) return;
     prevFromToRef.current = key;
     const dir = getImpliedDirection(fromStop, toStop, stopsByRoute, detailRoute.id);
@@ -407,7 +417,7 @@ export const LocalTransportPage: React.FC = () => {
         });
       }
     }
-  }, [fromStop, toStop, detailRoute?.id, detailRoute?.trips, stopsByRoute]);
+  }, [fromStop, toStop, detailRoute?.id, detailRoute?.trips, stopsByRoute, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl]);
 
   const updateDetailUrl = (updates: { stop?: string; to?: string; time?: string; dir?: string }) => {
     setSearchParams((prev) => {
