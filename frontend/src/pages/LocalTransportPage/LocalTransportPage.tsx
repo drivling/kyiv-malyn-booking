@@ -214,6 +214,64 @@ function getImpliedDirection(
   return null;
 }
 
+/** Знайти зупинку з names, що відповідає urlValue (точний або з нормалізацією типових відмінностей) */
+function findMatchingStop(urlValue: string, names: string[]): string | null {
+  if (!urlValue) return null;
+  if (names.includes(urlValue)) return urlValue;
+  const norm = (s: string) => s.replace(/["«»]/g, '"').replace(/Проектор/gi, 'Прожектор');
+  const nUrl = norm(urlValue);
+  return names.find((n) => norm(n) === nUrl) ?? names.find((n) => n.includes('Прожектор') && urlValue.includes('Проектор')) ?? null;
+}
+
+/** Порядок зупинки fromStop у напрямку dir (1-based). Повертає null якщо не знайдено. */
+function getFromOrder(
+  fromStop: string,
+  dir: 'there' | 'back',
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
+  routeId?: string
+): number | null {
+  if (!routeId || !stopsByRoute?.[routeId]) return null;
+  const routeStops = stopsByRoute[routeId];
+  if (!Array.isArray(routeStops) || routeStops.length === 0) return null;
+  const first = routeStops[0];
+  const withOrder: RouteStopWithOrder[] =
+    first && typeof first === 'object' && 'name' in first
+      ? (routeStops as RouteStopWithOrder[])
+      : (routeStops as string[]).map((name, i) => ({
+          name,
+          order_there: i + 1,
+          order_back: routeStops.length - i,
+          belongs_to: 'both' as const,
+        }));
+  const ordered = dir === 'there'
+    ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back').sort((a, b) => a.order_there - b.order_there)
+    : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there').sort((a, b) => a.order_back - b.order_back);
+  const stop = ordered.find((s) => s.name === fromStop);
+  return stop ? (dir === 'there' ? stop.order_there : stop.order_back) : null;
+}
+
+/** Знайти baseTime рейсу за часом відправлення з зупинки fromStop */
+function findBaseTimeByDepartureFromStop(
+  trips: TransportRecord[],
+  depFromStopMins: number,
+  fromStop: string,
+  dir: 'there' | 'back',
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
+  routeId?: string
+): number | null {
+  const fromOrder = getFromOrder(fromStop, dir, stopsByRoute, routeId);
+  if (fromOrder == null) return null;
+  const baseTime = depFromStopMins - (fromOrder - 1) * MINS_PER_STOP;
+  const { dir0, dir1 } = groupTripsByDirection(trips);
+  const dirTrips = dir === 'there' ? dir1 : dir0;
+  const baseTimes = dirTrips.map((t) => parseTime(t.block_id)).filter((m) => m > 0);
+  if (baseTimes.length === 0) return null;
+  const closest = baseTimes.reduce((best, t) =>
+    Math.abs(t - baseTime) < Math.abs(best - baseTime) ? t : best
+  );
+  return closest;
+}
+
 export const LocalTransportPage: React.FC = () => {
   const { routeId } = useParams<{ routeId?: string }>();
   const navigate = useNavigate();
@@ -322,23 +380,54 @@ export const LocalTransportPage: React.FC = () => {
     const routeChanged = prevRouteIdRef.current !== detailRoute.id;
     prevRouteIdRef.current = detailRoute.id;
     if (routeChanged) {
-      if (selectedStopFromUrl && names.includes(selectedStopFromUrl)) {
-        setFromStop(selectedStopFromUrl);
-        setToStop(toFromUrl && names.includes(toFromUrl) ? toFromUrl : '');
+      const matchedFrom = selectedStopFromUrl ? findMatchingStop(selectedStopFromUrl, names) : null;
+      const matchedTo = toFromUrl ? findMatchingStop(toFromUrl, names) : null;
+      if (matchedFrom) {
+        setFromStop(matchedFrom);
+        setToStop(matchedTo ?? '');
       } else {
         setFromStop('');
         setToStop('');
       }
       if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
-        const mins = parseTime(timeFromUrl);
-        if (mins > 0) {
-          setSelectedTripTime(mins);
-          setSelectedTripDirection(dirFromUrl);
-          setStopsDirection(dirFromUrl);
+        const depMins = parseTime(timeFromUrl);
+        if (depMins > 0) {
+          const fromForTime = matchedFrom;
+          const baseTime =
+            fromForTime && detailRoute
+              ? findBaseTimeByDepartureFromStop(
+                  detailRoute.trips,
+                  depMins,
+                  fromForTime,
+                  dirFromUrl as 'there' | 'back',
+                  stopsByRoute,
+                  detailRoute.id
+                )
+              : depMins;
+          setSelectedTripTime(baseTime ?? depMins);
+          setSelectedTripDirection(dirFromUrl as 'there' | 'back');
+          setStopsDirection(dirFromUrl as 'there' | 'back');
         }
       }
     }
   }, [detailRoute?.id, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl, stopsByRoute]);
+
+  // Синхронізація selectedTripTime з URL коли є fromStop, toStop — щоб рядок у таблиці підсвічувався
+  useEffect(() => {
+    if (!detailRoute || !fromStop || !toStop || !timeFromUrl || (dirFromUrl !== 'there' && dirFromUrl !== 'back'))
+      return;
+    const depMins = parseTime(timeFromUrl);
+    if (depMins <= 0) return;
+    const baseTime = findBaseTimeByDepartureFromStop(
+      detailRoute.trips,
+      depMins,
+      fromStop,
+      dirFromUrl,
+      stopsByRoute,
+      detailRoute.id
+    );
+    if (baseTime != null) setSelectedTripTime(baseTime);
+  }, [fromStop, toStop, timeFromUrl, dirFromUrl, detailRoute?.id, detailRoute?.trips, stopsByRoute]);
 
   // Автовибір найближчого рейсу за поточним часом (Київ) — пропускаємо, якщо в URL вже є time і dir
   useEffect(() => {
