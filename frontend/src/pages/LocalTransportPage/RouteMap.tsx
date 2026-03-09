@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 const STOPS_COORDS_URL = '/data/stops_coords.json';
 
 /** Маршрути з перевіреною трасою — на карті малюється пунктир і стрілочки напрямку */
-const VERIFIED_ROUTE_IDS = ['5', '9', '11'];
+const VERIFIED_ROUTE_IDS = ['3', '5', '9', '11'];
 
 interface RouteMapProps {
   /** Номер маршруту (для перевірених малюємо лінію) */
