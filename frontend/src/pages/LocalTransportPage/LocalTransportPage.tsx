@@ -664,9 +664,33 @@ export const LocalTransportPage: React.FC = () => {
             <header className="lt-detail-header">
               <h1 className="lt-route-title">
                 <span className="lt-route-num">№{detailRoute.id}</span>
-                {detailRoute.from ?? '?'} — {detailRoute.to ?? '?'}
+                {stopsDirection === 'there'
+                  ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
+                  : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
               </h1>
-              {fare && <span className="lt-fare">Проїзд {fare}</span>}
+              <div className="lt-detail-header-actions">
+                <button
+                  type="button"
+                  className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
+                  onClick={() => {
+                    setStopsDirection('there');
+                    updateDetailUrl({ dir: 'there' });
+                  }}
+                >
+                  {detailRoute.to} →
+                </button>
+                <button
+                  type="button"
+                  className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
+                  onClick={() => {
+                    setStopsDirection('back');
+                    updateDetailUrl({ dir: 'back' });
+                  }}
+                >
+                  ← {detailRoute.from}
+                </button>
+                {fare && <span className="lt-fare">Проїзд {fare}</span>}
+              </div>
             </header>
             {detailRoute.trips.length > 0 && (() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
@@ -938,28 +962,6 @@ export const LocalTransportPage: React.FC = () => {
                   </div>
                   <div className="lt-stops">
                     <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
-                    <div className="lt-stops-direction-switch">
-                      <button
-                        type="button"
-                        className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
-                        onClick={() => {
-                          setStopsDirection('there');
-                          updateDetailUrl({ dir: 'there' });
-                        }}
-                      >
-                        {detailRoute.to} →
-                      </button>
-                      <button
-                        type="button"
-                        className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
-                        onClick={() => {
-                          setStopsDirection('back');
-                          updateDetailUrl({ dir: 'back' });
-                        }}
-                      >
-                        ← {detailRoute.from}
-                      </button>
-                    </div>
                     <div ref={timelineRef} className="lt-stops-timeline">
                       {segmentStyle && (
                         <div

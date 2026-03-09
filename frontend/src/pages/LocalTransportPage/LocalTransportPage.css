@@ -250,6 +250,23 @@
   border-bottom: 1px solid var(--lt-border-light);
 }
 
+.lt-detail-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 12px;
+}
+
+.lt-detail-header-actions .lt-direction-btn {
+  flex: 1;
+  min-width: 120px;
+}
+
+.lt-detail-header-actions .lt-fare {
+  margin-left: auto;
+}
+
 .lt-back {
   display: inline-flex;
   align-items: center;
