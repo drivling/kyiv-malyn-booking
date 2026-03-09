@@ -93,6 +93,12 @@ function buildStops(
   return [...stopSet].sort((a, b) => a.localeCompare(b));
 }
 
+/** order === -1 означає тимчасово недоступну зупинку */
+function isStopAvailableInDirection(stop: RouteStopWithOrder, dir: 'there' | 'back'): boolean {
+  const order = dir === 'there' ? stop.order_there : stop.order_back;
+  return typeof order === 'number' && order > 0;
+}
+
 function routeHasStop(
   routeId: string,
   stopName: string,
@@ -100,10 +106,15 @@ function routeHasStop(
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
 ): boolean {
   if (route.from === stopName || route.to === stopName) return true;
-  const names = getStopNames(stopsByRoute?.[routeId] ?? []);
-  if (names.includes(stopName)) return true;
-  if (route.from?.includes(stopName) || route.to?.includes(stopName)) return true;
-  return false;
+  const routeStops = stopsByRoute?.[routeId];
+  if (!routeStops?.length) return false;
+  const first = routeStops[0];
+  if (typeof first === 'object' && 'order_there' in first) {
+    const stop = (routeStops as RouteStopWithOrder[]).find((s) => s.name === stopName);
+    if (!stop) return false;
+    return isStopAvailableInDirection(stop, 'there') || isStopAvailableInDirection(stop, 'back');
+  }
+  return getStopNames(routeStops).includes(stopName);
 }
 
 function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
@@ -200,10 +211,10 @@ function getImpliedDirection(
           belongs_to: 'both' as const,
         }));
   const orderedThere = [...withOrder]
-    .filter((s) => (s.belongs_to ?? 'both') !== 'back')
+    .filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0)
     .sort((a, b) => a.order_there - b.order_there);
   const orderedBack = [...withOrder]
-    .filter((s) => (s.belongs_to ?? 'both') !== 'there')
+    .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
     .sort((a, b) => a.order_back - b.order_back);
   const fromOrderThere = orderedThere.find((s) => s.name === fromStop)?.order_there;
   const toOrderThere = orderedThere.find((s) => s.name === toStop)?.order_there;
@@ -244,8 +255,8 @@ function getFromOrder(
           belongs_to: 'both' as const,
         }));
   const ordered = dir === 'there'
-    ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back').sort((a, b) => a.order_there - b.order_there)
-    : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there').sort((a, b) => a.order_back - b.order_back);
+    ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0).sort((a, b) => a.order_there - b.order_there)
+    : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0).sort((a, b) => a.order_back - b.order_back);
   const stop = ordered.find((s) => s.name === fromStop);
   return stop ? (dir === 'there' ? stop.order_there : stop.order_back) : null;
 }
@@ -675,12 +686,12 @@ export const LocalTransportPage: React.FC = () => {
               }
               const orderedStopsThere = stopsWithOrder
                 ? [...stopsWithOrder]
-                    .filter((s) => (s.belongs_to ?? 'both') !== 'back')
+                    .filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0)
                     .sort((a, b) => a.order_there - b.order_there)
                 : [];
               const orderedStopsBack = stopsWithOrder
                 ? [...stopsWithOrder]
-                    .filter((s) => (s.belongs_to ?? 'both') !== 'there')
+                    .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
                     .sort((a, b) => a.order_back - b.order_back)
                 : [];
               const fromOptions = orderedStopsThere.map((s) => ({ value: s.name, label: s.name }));
@@ -943,6 +954,7 @@ export const LocalTransportPage: React.FC = () => {
                         const isThere = stopsDirection === 'there';
                         const filtered = [...stopsWithOrder]
                           .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
+                          .filter((s) => (isThere ? s.order_there : s.order_back) > 0)
                           .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
                         const baseTime =
                           selectedTripDirection === stopsDirection && selectedTripTime != null

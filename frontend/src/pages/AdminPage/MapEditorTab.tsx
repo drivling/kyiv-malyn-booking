@@ -9,6 +9,8 @@ import './MapEditorTab.css';
 const TRANSPORT_URL = '/data/malyn_transport.json';
 const STOPS_COORDS_URL = '/data/stops_coords.json';
 
+const MARKER_EXCLUDED_COLOR = '#1e3a5f';
+
 interface StopsCoordsData {
   center: [number, number];
   stops: Record<string, [number, number]>;
@@ -21,27 +23,57 @@ interface RouteStop {
 }
 
 interface TransportData {
+  source?: string;
+  records?: unknown[];
   supplement?: {
     stops?: {
       stops_by_route?: Record<string, RouteStop[] | string[]>;
     };
+    routes?: Record<string, unknown>;
   };
+  [key: string]: unknown;
 }
 
-function getStopNames(stops: RouteStop[] | string[]): string[] {
-  if (!stops?.length) return [];
-  const first = stops[0];
-  return typeof first === 'string' ? (stops as string[]) : (stops as RouteStop[]).map((s) => s.name);
+function getRouteStopsWithOrder(
+  sbr: Record<string, RouteStop[] | string[]> | undefined,
+  routeId: string
+): RouteStop[] {
+  const routeStops = sbr?.[routeId];
+  if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
+  const first = routeStops[0];
+  if (typeof first === 'object' && 'order_there' in first) {
+    return routeStops as RouteStop[];
+  }
+  const names = routeStops as unknown as string[];
+  return names.map((name, i) => ({
+    name,
+    order_there: i + 1,
+    order_back: names.length - i,
+  }));
 }
+
+function createMarkerIcon(color: string) {
+  return L.divIcon({
+    className: 'map-editor-marker',
+    html: `<span style="background-color:${color};width:24px;height:36px;display:block;border-radius:2px 2px 50% 50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></span>`,
+    iconSize: [24, 36],
+    iconAnchor: [12, 36],
+  });
+}
+
+const defaultIcon = createMarkerIcon('#3388ff');
+const excludedIcon = createMarkerIcon(MARKER_EXCLUDED_COLOR);
 
 function DraggableMarker({
   name,
   position,
   onPositionChange,
+  excluded,
 }: {
   name: string;
   position: [number, number];
   onPositionChange: (name: string, lat: number, lng: number) => void;
+  excluded?: boolean;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
 
@@ -74,12 +106,44 @@ function DraggableMarker({
       ref={markerRef}
       position={position}
       draggable
+      icon={excluded ? excludedIcon : defaultIcon}
       eventHandlers={eventHandlers}
     >
-      <Popup>Перетягніть маркер для зміни позиції: {name}</Popup>
+      <Popup>
+        Перетягніть маркер для зміни позиції: {name}
+        {excluded && <span className="map-editor-popup-excluded"> (виключена)</span>}
+      </Popup>
     </Marker>
   );
 }
+
+function ClickableMarker({
+  name,
+  position,
+  onClick,
+  excluded,
+}: {
+  name: string;
+  position: [number, number];
+  onClick: (name: string) => void;
+  excluded?: boolean;
+}) {
+  return (
+    <Marker
+      position={position}
+      draggable={false}
+      icon={excluded ? excludedIcon : defaultIcon}
+      eventHandlers={{ click: () => onClick(name) }}
+    >
+      <Popup>
+        <button type="button" className="map-editor-marker-popup-btn" onClick={() => onClick(name)}>
+          Редагувати порядок: {name}
+        </button>
+      </Popup>
+    </Marker>
+  );
+}
+
 
 function MapBounds({ positions }: { positions: [number, number][] }) {
   const map = useMap();
@@ -93,13 +157,18 @@ function MapBounds({ positions }: { positions: [number, number][] }) {
   return null;
 }
 
+type EditorMode = 'coords' | 'direction';
+
 export const MapEditorTab: React.FC = () => {
   const [transportData, setTransportData] = useState<TransportData | null>(null);
   const [coordsData, setCoordsData] = useState<StopsCoordsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<string>('');
+  const [editorMode, setEditorMode] = useState<EditorMode>('coords');
+  const [directionMode, setDirectionMode] = useState<'there' | 'back'>('there');
   const [mounted, setMounted] = useState(false);
+  const [modalStop, setModalStop] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -119,7 +188,7 @@ export const MapEditorTab: React.FC = () => {
   }, []);
 
   const routeOptions = useMemo(() => {
-    const opts = [{ value: '', label: 'Всі зупинки' }];
+    const opts = [{ value: '', label: 'Всі зупинки / виберіть маршрут' }];
     const sbr = transportData?.supplement?.stops?.stops_by_route;
     if (sbr) {
       Object.keys(sbr)
@@ -133,11 +202,44 @@ export const MapEditorTab: React.FC = () => {
     if (!coordsData) return [];
     const allStops = Object.keys(coordsData.stops);
     if (!selectedRoute) return allStops;
-    const sbr = transportData?.supplement?.stops?.stops_by_route;
-    if (!sbr?.[selectedRoute]) return allStops;
-    const routeStopNames = new Set(getStopNames(sbr[selectedRoute]));
+    const routeStops = getRouteStopsWithOrder(transportData?.supplement?.stops?.stops_by_route, selectedRoute);
+    const routeStopNames = new Set(routeStops.map((s) => s.name));
     return allStops.filter((n) => routeStopNames.has(n));
   }, [coordsData, transportData, selectedRoute]);
+
+  const routeStopsForDirection = useMemo(() => {
+    if (!selectedRoute || !transportData) return [];
+    return getRouteStopsWithOrder(transportData.supplement?.stops?.stops_by_route, selectedRoute);
+  }, [selectedRoute, transportData]);
+
+  const orderedStopsForDirection = useMemo(() => {
+    const orderKey = directionMode === 'there' ? 'order_there' : 'order_back';
+    return [...routeStopsForDirection]
+      .filter((s) => {
+        const o = s[orderKey];
+        return typeof o === 'number' && o > 0;
+      })
+      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
+  }, [routeStopsForDirection, directionMode]);
+
+  const isStopExcludedInDirection = useCallback(
+    (name: string) => {
+      const stop = routeStopsForDirection.find((s) => s.name === name);
+      if (!stop) return false;
+      const order = directionMode === 'there' ? stop.order_there : stop.order_back;
+      return order === -1;
+    },
+    [routeStopsForDirection, directionMode]
+  );
+
+  const isStopExcludedInAnyDirection = useCallback(
+    (name: string) => {
+      const stop = routeStopsForDirection.find((s) => s.name === name);
+      if (!stop) return false;
+      return stop.order_there === -1 || stop.order_back === -1;
+    },
+    [routeStopsForDirection]
+  );
 
   const handlePositionChange = useCallback(
     (name: string, lat: number, lng: number) => {
@@ -155,7 +257,7 @@ export const MapEditorTab: React.FC = () => {
     []
   );
 
-  const handleDownload = useCallback(() => {
+  const handleDownloadCoords = useCallback(() => {
     if (!coordsData) return;
     const blob = new Blob([JSON.stringify(coordsData, null, 2)], {
       type: 'application/json',
@@ -167,6 +269,56 @@ export const MapEditorTab: React.FC = () => {
     a.click();
     URL.revokeObjectURL(url);
   }, [coordsData]);
+
+  const handleStopOrderChange = useCallback(
+    (stopName: string, newOrder: number) => {
+      if (!transportData || !selectedRoute) return;
+      const sbr = transportData.supplement?.stops?.stops_by_route;
+      if (!sbr?.[selectedRoute]) return;
+      const routeStops = [...(sbr[selectedRoute] as RouteStop[])];
+      const orderKey = directionMode === 'there' ? 'order_there' : 'order_back';
+      const stopIdx = routeStops.findIndex((s) => s.name === stopName);
+      if (stopIdx < 0) return;
+      const oldOrder = routeStops[stopIdx][orderKey] ?? 0;
+      if (newOrder === -1) {
+        routeStops[stopIdx] = { ...routeStops[stopIdx], [orderKey]: -1 };
+      } else {
+        const swapIdx = routeStops.findIndex((s) => (s[orderKey] ?? 0) === newOrder);
+        routeStops[stopIdx] = { ...routeStops[stopIdx], [orderKey]: newOrder };
+        if (swapIdx >= 0 && swapIdx !== stopIdx) {
+          routeStops[swapIdx] = { ...routeStops[swapIdx], [orderKey]: oldOrder };
+        }
+      }
+      setTransportData({
+        ...transportData,
+        supplement: {
+          ...transportData.supplement,
+          stops: {
+            ...transportData.supplement?.stops,
+            stops_by_route: {
+              ...transportData.supplement?.stops?.stops_by_route,
+              [selectedRoute]: routeStops,
+            },
+          },
+        },
+      });
+      setModalStop(null);
+    },
+    [transportData, selectedRoute, directionMode]
+  );
+
+  const handleDownloadTransport = useCallback(() => {
+    if (!transportData) return;
+    const blob = new Blob([JSON.stringify(transportData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'malyn_transport.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [transportData]);
 
   const positions = useMemo(
     () => displayedStops.map((n) => coordsData?.stops[n]).filter(Boolean) as [number, number][],
@@ -185,8 +337,31 @@ export const MapEditorTab: React.FC = () => {
     );
   }
 
+  const directionEditorActive = editorMode === 'direction' && selectedRoute;
+
   return (
     <div className="tab-content map-editor-tab">
+      <div className="map-editor-mode-switch">
+        <div className="map-editor-mode-btns">
+          <button
+            type="button"
+            className={`map-editor-mode-btn ${editorMode === 'coords' ? 'map-editor-mode-btn--active' : ''}`}
+            onClick={() => setEditorMode('coords')}
+          >
+            Редактор координат
+          </button>
+          <button
+            type="button"
+            className={`map-editor-mode-btn ${editorMode === 'direction' ? 'map-editor-mode-btn--active' : ''}`}
+            onClick={() => setEditorMode('direction')}
+            disabled={!selectedRoute}
+            title={!selectedRoute ? 'Спочатку виберіть маршрут' : ''}
+          >
+            Редактор напрямку
+          </button>
+        </div>
+      </div>
+
       <div className="map-editor-controls">
         <div className="map-editor-select">
           <Select
@@ -196,16 +371,53 @@ export const MapEditorTab: React.FC = () => {
             onChange={(e) => setSelectedRoute(e.target.value)}
           />
         </div>
-        <div className="map-editor-actions">
-          <Button onClick={handleDownload}>
-            ⬇ Завантажити stops_coords.json
+        {editorMode === 'coords' && (
+          <div className="map-editor-actions">
+            <Button onClick={handleDownloadCoords}>
+              ⬇ Завантажити stops_coords.json
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {editorMode === 'coords' && (
+        <p className="map-editor-hint">
+          Перетягніть маркер на карті для уточнення позиції зупинки. Темно-синій маркер — зупинка виключена (order = -1).
+          Потім завантажте файл і замініть <code>frontend/public/data/stops_coords.json</code> у проекті.
+        </p>
+      )}
+
+      {directionEditorActive && (
+        <div className="map-editor-direction-controls">
+          <div className="map-editor-direction-switch">
+            <span className="map-editor-direction-label">Напрямок:</span>
+            <button
+              type="button"
+              className={`map-editor-direction-btn ${directionMode === 'there' ? 'map-editor-direction-btn--active' : ''}`}
+              onClick={() => setDirectionMode('there')}
+            >
+              Туди
+            </button>
+            <button
+              type="button"
+              className={`map-editor-direction-btn ${directionMode === 'back' ? 'map-editor-direction-btn--active' : ''}`}
+              onClick={() => setDirectionMode('back')}
+            >
+              Назад
+            </button>
+          </div>
+          <Button onClick={handleDownloadTransport}>
+            ⬇ Завантажити malyn_transport.json
           </Button>
         </div>
-      </div>
-      <p className="map-editor-hint">
-        Перетягніть маркер на карті для уточнення позиції зупинки. Потім завантажте файл і замініть{' '}
-        <code>frontend/public/data/stops_coords.json</code> у проекті.
-      </p>
+      )}
+
+      {directionEditorActive && (
+        <p className="map-editor-hint">
+          Натисніть на маркер, щоб змінити номер зупинки по напрямку або виключити (-1). Темно-синій — виключена.
+        </p>
+      )}
+
       <div className="map-editor-layout">
         <div className="map-editor-map">
           {mounted && (
@@ -221,40 +433,122 @@ export const MapEditorTab: React.FC = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <MapBounds positions={positions} />
-              {displayedStops.map((name) => {
-                const pos = coordsData.stops[name];
-                if (!pos) return null;
-                return (
-                  <DraggableMarker
-                    key={name}
-                    name={name}
-                    position={pos}
-                    onPositionChange={handlePositionChange}
-                  />
-                );
-              })}
+              {editorMode === 'coords'
+                ? displayedStops.map((name) => {
+                    const pos = coordsData.stops[name];
+                    if (!pos) return null;
+                    return (
+                      <DraggableMarker
+                        key={name}
+                        name={name}
+                        position={pos}
+                        onPositionChange={handlePositionChange}
+                        excluded={selectedRoute ? isStopExcludedInAnyDirection(name) : false}
+                      />
+                    );
+                  })
+                : directionEditorActive &&
+                  displayedStops.map((name) => {
+                    const pos = coordsData.stops[name];
+                    if (!pos) return null;
+                    return (
+                      <ClickableMarker
+                        key={name}
+                        name={name}
+                        position={pos}
+                        onClick={setModalStop}
+                        excluded={isStopExcludedInDirection(name)}
+                      />
+                    );
+                  })}
             </MapContainer>
           )}
         </div>
         <div className="map-editor-list">
-          <h3 className="map-editor-list-title">Зупинки ({displayedStops.length})</h3>
-          <ul className="map-editor-stops-list">
-            {displayedStops.map((name) => {
-              const pos = coordsData.stops[name];
-              return (
-                <li key={name} className="map-editor-stop-item">
-                  <span className="map-editor-stop-name">{name}</span>
-                  {pos && (
-                    <span className="map-editor-stop-coords">
-                      {pos[0].toFixed(6)}, {pos[1].toFixed(6)}
-                    </span>
+          {editorMode === 'coords' ? (
+            <>
+              <h3 className="map-editor-list-title">Зупинки ({displayedStops.length})</h3>
+              <ul className="map-editor-stops-list">
+                {displayedStops.map((name) => {
+                  const pos = coordsData.stops[name];
+                  const excluded = selectedRoute ? isStopExcludedInAnyDirection(name) : false;
+                  return (
+                    <li key={name} className={`map-editor-stop-item ${excluded ? 'map-editor-stop-item--excluded' : ''}`}>
+                      <span className="map-editor-stop-name">{name}</span>
+                      {pos && (
+                        <span className="map-editor-stop-coords">
+                          {pos[0].toFixed(6)}, {pos[1].toFixed(6)}
+                        </span>
+                      )}
+                      {excluded && <span className="map-editor-stop-badge">виключена</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          ) : editorMode === 'direction' ? (
+            directionEditorActive ? (
+              <>
+                <h3 className="map-editor-list-title">
+                  Порядок зупинок ({directionMode === 'there' ? 'туди' : 'назад'})
+                </h3>
+                <ul className="map-editor-stops-list map-editor-stops-list--ordered">
+                  {orderedStopsForDirection.map((s, idx) => (
+                    <li key={s.name} className="map-editor-stop-item">
+                      <span className="map-editor-stop-order">{idx + 1}.</span>
+                      <span className="map-editor-stop-name">{s.name}</span>
+                    </li>
+                  ))}
+                  {routeStopsForDirection.filter((s) => (directionMode === 'there' ? s.order_there : s.order_back) === -1).length > 0 && (
+                    <li className="map-editor-stop-item map-editor-stop-item--excluded-header">Виключені (-1):</li>
                   )}
-                </li>
-              );
-            })}
-          </ul>
+                  {routeStopsForDirection
+                    .filter((s) => (directionMode === 'there' ? s.order_there : s.order_back) === -1)
+                    .map((s) => (
+                      <li key={s.name} className="map-editor-stop-item map-editor-stop-item--excluded">
+                        <span className="map-editor-stop-order">—</span>
+                        <span className="map-editor-stop-name">{s.name}</span>
+                      </li>
+                    ))}
+                </ul>
+              </>
+            ) : (
+              <p className="map-editor-hint">Виберіть маршрут для редагування порядку зупинок.</p>
+            )
+          ) : null}
         </div>
       </div>
+
+      {modalStop && directionEditorActive && (
+        <div className="map-editor-modal-overlay" onClick={() => setModalStop(null)}>
+          <div className="map-editor-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="map-editor-modal-title">Зупинка: {modalStop}</h3>
+            <p className="map-editor-modal-hint">Номер по напрямку або -1 (виключити):</p>
+            <div className="map-editor-modal-options">
+              {Array.from({ length: Math.max(routeStopsForDirection.length, 20) }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="map-editor-modal-opt"
+                    onClick={() => handleStopOrderChange(modalStop, n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              <button
+                type="button"
+                className="map-editor-modal-opt map-editor-modal-opt--exclude"
+                onClick={() => handleStopOrderChange(modalStop, -1)}
+              >
+                -1 (виключити)
+              </button>
+            </div>
+            <button type="button" className="map-editor-modal-close" onClick={() => setModalStop(null)}>
+              Скасувати
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

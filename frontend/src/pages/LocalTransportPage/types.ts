@@ -37,9 +37,9 @@ export type StopBelongsTo = 'there' | 'back' | 'both';
 /** Зупинка з порядком у напрямках "туди" та "назад" */
 export interface RouteStopWithOrder {
   name: string;
-  /** Номер зупинки в маршруті туди (from → to) */
+  /** Номер зупинки в маршруті туди (from → to). -1 = тимчасово недоступна */
   order_there: number;
-  /** Номер зупинки в маршруті назад (to → from) */
+  /** Номер зупинки в маршруті назад (to → from). -1 = тимчасово недоступна */
   order_back: number;
   /** Чи зупинка є тільки в одному напрямку. За замовчуванням: both */
   belongs_to?: StopBelongsTo;
