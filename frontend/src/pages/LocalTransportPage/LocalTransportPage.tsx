@@ -27,6 +27,30 @@ function haversineDistance(
   return R * c;
 }
 
+/** Зі списку зупинок повертає назву найближчої до targetName за координатами (або першу з списку) */
+function findNearestStopInList(
+  targetName: string,
+  list: Array<{ name: string }>,
+  coords: Record<string, [number, number]> | null
+): string | null {
+  if (!list.length) return null;
+  const target = coords?.[targetName];
+  if (!target) return list[0].name;
+  const [lat, lon] = target;
+  let best = list[0].name;
+  let bestDist = Infinity;
+  for (const s of list) {
+    const c = coords?.[s.name];
+    if (!c) continue;
+    const d = haversineDistance(lat, lon, c[0], c[1]);
+    if (d < bestDist) {
+      bestDist = d;
+      best = s.name;
+    }
+  }
+  return best;
+}
+
 function buildRoutes(data: TransportData): Array<{
   id: string;
   from: string | null;
@@ -330,6 +354,8 @@ export const LocalTransportPage: React.FC = () => {
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [nearestStops, setNearestStops] = useState<Array<{ name: string; distance: number }> | null>(null);
+  const [stopsCoords, setStopsCoords] = useState<Record<string, [number, number]> | null>(null);
+  const prevStopsDirectionRef = useRef<'there' | 'back'>('there');
   const latestStopRef = useRef<string>('');
 
   useEffect(() => {
@@ -351,6 +377,13 @@ export const LocalTransportPage: React.FC = () => {
       })
       .catch((err) => setError(err.message || 'Не вдалося завантажити дані'))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch(STOPS_COORDS_URL)
+      .then((r) => r.json())
+      .then((json: { stops?: Record<string, [number, number]> }) => setStopsCoords(json?.stops ?? null))
+      .catch(() => setStopsCoords(null));
   }, []);
 
   const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
@@ -492,6 +525,60 @@ export const LocalTransportPage: React.FC = () => {
       setStopsDirection(nearest.direction);
     }
   }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute, timeFromUrl, dirFromUrl]);
+
+  // При зміні напрямку (туди/назад) — оновити опції З/До: якщо поточний вибір не в списку, обрати найближчу зупинку за координатами
+  useEffect(() => {
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return;
+    if (prevStopsDirectionRef.current === stopsDirection) return;
+    prevStopsDirectionRef.current = stopsDirection;
+
+    const routeStops = stopsByRoute[detailRoute.id];
+    if (!Array.isArray(routeStops) || routeStops.length === 0) return;
+    const first = routeStops[0];
+    const stopsWithOrder: RouteStopWithOrder[] =
+      typeof first === 'object' && first && 'name' in first
+        ? (routeStops as RouteStopWithOrder[])
+        : (routeStops as unknown as string[]).map((name, i) => ({
+            name,
+            order_there: i + 1,
+            order_back: routeStops.length - i,
+            belongs_to: 'both' as const,
+          }));
+
+    const orderedStopsThere = [...stopsWithOrder]
+      .filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0)
+      .sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0));
+    const orderedStopsBack = [...stopsWithOrder]
+      .filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0)
+      .sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
+
+    const orderedForDirection = stopsDirection === 'there' ? orderedStopsThere : orderedStopsBack;
+    const orderKey = stopsDirection === 'there' ? 'order_there' : 'order_back';
+    if (orderedForDirection.length === 0) return;
+
+    const fromInList = orderedForDirection.find((s) => s.name === fromStop);
+    let newFrom = fromStop;
+    if (!fromInList) {
+      newFrom = findNearestStopInList(fromStop, orderedForDirection, stopsCoords) ?? orderedForDirection[0].name;
+      setFromStop(newFrom);
+    }
+
+    const fromOrder = orderedForDirection.find((s) => s.name === newFrom)?.[orderKey] ?? 0;
+    const validTo = orderedForDirection.filter((s) => (s[orderKey] ?? 0) > fromOrder);
+    const toInList = validTo.some((s) => s.name === toStop);
+    let newTo = toStop;
+    if (!toInList) {
+      if (validTo.length > 0) {
+        newTo = findNearestStopInList(toStop, validTo, stopsCoords) ?? validTo[0].name;
+        setToStop(newTo);
+      } else {
+        setToStop('');
+        newTo = '';
+      }
+    }
+
+    updateDetailUrl({ stop: newFrom, to: newTo || undefined, dir: stopsDirection });
+  }, [stopsDirection, detailRoute?.id, stopsByRoute, fromStop, toStop, stopsCoords]);
 
   // При зміні З/До — визначити напрямок і оновити stopsDirection, selectedTrip, URL
   const prevFromToRef = useRef<string>('');
@@ -719,10 +806,13 @@ export const LocalTransportPage: React.FC = () => {
                     .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
                     .sort((a, b) => a.order_back - b.order_back)
                 : [];
-              const fromOptions = orderedStopsThere.map((s) => ({ value: s.name, label: s.name }));
+              const orderedForDirection = stopsDirection === 'there' ? orderedStopsThere : orderedStopsBack;
+              const orderKey = stopsDirection === 'there' ? 'order_there' : 'order_back';
+              const fromOptions = orderedForDirection.map((s) => ({ value: s.name, label: s.name }));
+              const fromOrder = fromStop ? (orderedForDirection.find((s) => s.name === fromStop)?.[orderKey] ?? 0) : 0;
               const toOptionsFrom = (fromStop
-                ? orderedStopsThere.filter((s) => s.name !== fromStop)
-                : orderedStopsThere
+                ? orderedForDirection.filter((s) => (s[orderKey] ?? 0) > fromOrder)
+                : orderedForDirection
               ).map((s) => ({ value: s.name, label: s.name }));
 
               const buildTableTrips = () => {
@@ -782,9 +872,9 @@ export const LocalTransportPage: React.FC = () => {
                                 setToStop('');
                                 updates.to = undefined;
                               } else if (toStop) {
-                                const idxFrom = orderedStopsThere.findIndex((s) => s.name === v);
-                                const idxTo = orderedStopsThere.findIndex((s) => s.name === toStop);
-                                if (idxTo <= idxFrom) {
+                                const newFromOrder = orderedForDirection.find((s) => s.name === v)?.[orderKey] ?? 0;
+                                const toOrder = orderedForDirection.find((s) => s.name === toStop)?.[orderKey] ?? 0;
+                                if (toOrder <= newFromOrder) {
                                   setToStop('');
                                   updates.to = undefined;
                                 }
