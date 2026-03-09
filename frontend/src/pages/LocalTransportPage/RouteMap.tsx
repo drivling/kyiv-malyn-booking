@@ -24,15 +24,23 @@ interface CoordsData {
   stops: Record<string, [number, number]>;
 }
 
-function MapBounds({ stopNames, stops }: { stopNames: string[]; stops: Record<string, [number, number]> }) {
+function MapBounds({
+  stopNames,
+  stops,
+  padding = [30, 30],
+}: {
+  stopNames: string[];
+  stops: Record<string, [number, number]>;
+  padding?: [number, number];
+}) {
   const map = useMap();
   useEffect(() => {
     const withCoords = stopNames.filter((n) => stops[n]);
-    if (withCoords.length > 1) {
+    if (withCoords.length >= 1) {
       const bounds = withCoords.map((n) => stops[n] as [number, number]);
-      map.fitBounds(bounds as [number, number][], { padding: [30, 30], maxZoom: 15 });
+      map.fitBounds(bounds as [number, number][], { padding, maxZoom: 16 });
     }
-  }, [map, stopNames, stops]);
+  }, [map, stopNames, stops, padding]);
   return null;
 }
 
@@ -57,6 +65,9 @@ const defaultIcon = createCircleIcon('#00A86B', 14);
 const fromIcon = createCircleIcon('#2563eb', 18);
 const toIcon = createCircleIcon('#f97316', 18);
 
+const ROUTE_LINE_COLOR = '#FFD700'; // яскраво жовтий (gold)
+const FROM_TO_SEGMENT_COLOR = '#E65100'; // оранжево-червоний, ділянка З → До
+
 function createArrowIcon(angleDeg: number) {
   return L.divIcon({
     className: 'lt-map-arrow',
@@ -66,7 +77,7 @@ function createArrowIcon(angleDeg: number) {
       height:0;
       border-left:5px solid transparent;
       border-right:5px solid transparent;
-      border-bottom:8px solid rgba(0,0,0,0.25);
+      border-bottom:8px solid ${ROUTE_LINE_COLOR};
       transform:rotate(${angleDeg}deg);
     "></span>`,
     iconSize: [10, 10],
@@ -108,6 +119,21 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const positions = stopsWithCoords.map((n) => coords.stops[n] as [number, number]);
   const showRouteLine = routeId && VERIFIED_ROUTE_IDS.includes(routeId) && positions.length >= 2;
 
+  // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту
+  const fromIdx = fromStopName ? stopsWithCoords.indexOf(fromStopName) : -1;
+  const toIdx = toStopName ? stopsWithCoords.indexOf(toStopName) : -1;
+  const hasFromToSegment =
+    showRouteLine && fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx;
+  const segmentStart = hasFromToSegment ? Math.min(fromIdx, toIdx) : 0;
+  const segmentEnd = hasFromToSegment ? Math.max(fromIdx, toIdx) + 1 : 0;
+  const fromToPositions = hasFromToSegment ? positions.slice(segmentStart, segmentEnd) : [];
+
+  // Зум: якщо вибрано З і До — підлаштовуємо видиму область під цю ділянку з невеликим відступом
+  const boundsStopNames = hasFromToSegment
+    ? stopsWithCoords.slice(segmentStart, segmentEnd)
+    : stopsWithCoords;
+  const boundsPadding: [number, number] = hasFromToSegment ? [50, 50] : [30, 30];
+
   return (
     <div className="lt-map-wrapper">
       <h3 className="lt-map-heading">Карта маршруту</h3>
@@ -123,18 +149,28 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <MapBounds stopNames={stopNames} stops={coords.stops} />
+          <MapBounds stopNames={boundsStopNames} stops={coords.stops} padding={boundsPadding} />
           {showRouteLine && (
             <>
               <Polyline
                 positions={positions}
                 pathOptions={{
-                  color: 'rgba(0,0,0,0.25)',
-                  weight: 2,
-                  opacity: 0.8,
+                  color: ROUTE_LINE_COLOR,
+                  weight: 4,
+                  opacity: 1,
                   dashArray: '6, 8',
                 }}
               />
+              {hasFromToSegment && fromToPositions.length >= 2 && (
+                <Polyline
+                  positions={fromToPositions}
+                  pathOptions={{
+                    color: FROM_TO_SEGMENT_COLOR,
+                    weight: 7,
+                    opacity: 1,
+                  }}
+                />
+              )}
               {positions.map((_, i) => {
                 if (i === positions.length - 1) return null;
                 const a = positions[i];

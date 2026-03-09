@@ -729,6 +729,11 @@
   overflow: hidden;
   background: var(--lt-bg);
   border: 1px solid var(--lt-border-light);
+  /* Стабільний рендер карти на iOS/Android: окремий шар, без "стрибків" при скролі */
+  position: relative;
+  isolation: isolate;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 @media (min-width: 768px) {
@@ -741,6 +746,10 @@
   pointer-events: none;
   background: transparent !important;
   border: none !important;
+}
+
+.lt-map-container .leaflet-container {
+  font: inherit;
 }
 
 /* Footer */
