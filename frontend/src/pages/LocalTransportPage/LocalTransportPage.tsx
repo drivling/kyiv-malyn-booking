@@ -272,6 +272,27 @@ function findBaseTimeByDepartureFromStop(
   return closest;
 }
 
+/**
+ * Формує посилання для QR-коду на зупинці.
+ * Відкриває сторінку маршруту з зупинкою та напрямком; час не вказано — показується найближчий рейс за поточним часом.
+ * @param routeId — номер маршруту (напр. "9")
+ * @param stopName — назва зупинки (напр. "Малинівка")
+ * @param direction — напрямок: "there" (туди, до кінцевої) або "back" (назад)
+ * @param basePath — базовий шлях (за замовчуванням "/localtransport")
+ */
+export function buildStopRouteQrUrl(
+  routeId: string,
+  stopName: string,
+  direction: 'there' | 'back',
+  basePath = '/localtransport'
+): string {
+  const path = `${basePath}/route/${routeId}`;
+  const params = new URLSearchParams();
+  params.set('stop', stopName);
+  params.set('dir', direction);
+  return `${path}?${params.toString()}`;
+}
+
 export const LocalTransportPage: React.FC = () => {
   const { routeId } = useParams<{ routeId?: string }>();
   const navigate = useNavigate();
@@ -408,6 +429,9 @@ export const LocalTransportPage: React.FC = () => {
           setSelectedTripDirection(dirFromUrl as 'there' | 'back');
           setStopsDirection(dirFromUrl as 'there' | 'back');
         }
+      } else if (!timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
+        // Посилання з QR: є dir, але немає time — напрямок задамо в autoselect, тут лише перемикач зупинок
+        setStopsDirection(dirFromUrl as 'there' | 'back');
       }
     }
   }, [detailRoute?.id, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl, stopsByRoute]);
@@ -430,11 +454,15 @@ export const LocalTransportPage: React.FC = () => {
   }, [fromStop, toStop, timeFromUrl, dirFromUrl, detailRoute?.id, detailRoute?.trips, stopsByRoute]);
 
   // Автовибір найближчого рейсу за поточним часом (Київ) — пропускаємо, якщо в URL вже є time і dir
+  // При посиланні з QR (stop + dir без time) — dir з URL задає напрямок для вибору найближчого рейсу
   useEffect(() => {
     if (!detailRoute || detailRoute.trips.length === 0) return;
     if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) return;
     let directionFilter: 'there' | 'back' | undefined;
-    if (selectedStopFromUrl && stopsByRoute) {
+    // Якщо dir явно в URL (посилання з QR-коду) — використовуємо його
+    if (dirFromUrl === 'there' || dirFromUrl === 'back') {
+      directionFilter = dirFromUrl;
+    } else if (selectedStopFromUrl && stopsByRoute) {
       const routeStops = stopsByRoute[detailRoute.id];
       if (Array.isArray(routeStops) && routeStops.length > 0) {
         const first = routeStops[0];
