@@ -1627,7 +1627,6 @@ export const AdminPage: React.FC = () => {
                               ))}
                             </ul>
                           </td>
-                          
                           <td style={{ minWidth: 200 }}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                               {scenarioKeys.map((key) => {
