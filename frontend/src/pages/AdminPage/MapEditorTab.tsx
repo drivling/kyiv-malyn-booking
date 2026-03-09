@@ -57,17 +57,18 @@ function getRouteStopsWithOrder(
   }));
 }
 
-function createMarkerIcon(color: string) {
+function createMarkerIcon(color: string, orderLabel?: string) {
+  const label = orderLabel != null ? `<span class="map-editor-marker-label">${orderLabel}</span>` : '';
   return L.divIcon({
     className: 'map-editor-marker',
-    html: `<span style="background-color:${color};width:24px;height:36px;display:block;border-radius:2px 2px 50% 50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></span>`,
-    iconSize: [24, 36],
-    iconAnchor: [12, 36],
+    html: `<span class="map-editor-marker-pin" style="background-color:${color}"><span class="map-editor-marker-inner">${label}</span></span>`,
+    iconSize: [32, 42],
+    iconAnchor: [16, 42],
   });
 }
 
 const defaultIcon = createMarkerIcon('#3388ff');
-const excludedIcon = createMarkerIcon(MARKER_EXCLUDED_COLOR);
+const excludedIcon = createMarkerIcon(MARKER_EXCLUDED_COLOR, '−');
 
 function DraggableMarker({
   name,
@@ -127,17 +128,22 @@ function ClickableMarker({
   position,
   onClick,
   excluded,
+  order,
 }: {
   name: string;
   position: [number, number];
   onClick: (name: string) => void;
   excluded?: boolean;
+  order?: number;
 }) {
+  const icon = excluded
+    ? createMarkerIcon(MARKER_EXCLUDED_COLOR, '−')
+    : createMarkerIcon('#3388ff', order != null ? String(order) : undefined);
   return (
     <Marker
       position={position}
       draggable={false}
-      icon={excluded ? excludedIcon : defaultIcon}
+      icon={icon}
       eventHandlers={{ click: () => onClick(name) }}
     >
       <Popup>
@@ -232,16 +238,6 @@ export const MapEditorTab: React.FC = () => {
       })
       .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
   }, [routeStopsForDirection, directionMode]);
-
-  const isStopExcludedInDirection = useCallback(
-    (name: string) => {
-      const stop = routeStopsForDirection.find((s) => s.name === name);
-      if (!stop) return false;
-      const order = directionMode === 'there' ? stop.order_there : stop.order_back;
-      return order === -1;
-    },
-    [routeStopsForDirection, directionMode]
-  );
 
   const isStopExcludedInAnyDirection = useCallback(
     (name: string) => {
@@ -464,13 +460,18 @@ export const MapEditorTab: React.FC = () => {
                   displayedStops.map((name) => {
                     const pos = coordsData.stops[name];
                     if (!pos) return null;
+                    const stop = routeStopsForDirection.find((s) => s.name === name);
+                    const orderKey = directionMode === 'there' ? 'order_there' : 'order_back';
+                    const order = stop?.[orderKey];
+                    const excluded = order === -1;
                     return (
                       <ClickableMarker
                         key={name}
                         name={name}
                         position={pos}
                         onClick={setModalStop}
-                        excluded={isStopExcludedInDirection(name)}
+                        excluded={excluded}
+                        order={excluded ? undefined : (order as number)}
                       />
                     );
                   })}
