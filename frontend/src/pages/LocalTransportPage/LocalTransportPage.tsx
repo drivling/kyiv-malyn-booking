@@ -532,6 +532,12 @@ export const LocalTransportPage: React.FC = () => {
     if (prevStopsDirectionRef.current === stopsDirection) return;
     prevStopsDirectionRef.current = stopsDirection;
 
+    // Якщо З і До не вибрані — тільки оновити dir у URL, не підставляти зупинки
+    if (!fromStop && !toStop) {
+      updateDetailUrl({ dir: stopsDirection });
+      return;
+    }
+
     const routeStops = stopsByRoute[detailRoute.id];
     if (!Array.isArray(routeStops) || routeStops.length === 0) return;
     const first = routeStops[0];
