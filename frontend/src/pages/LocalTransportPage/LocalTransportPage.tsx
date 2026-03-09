@@ -915,8 +915,6 @@ export const LocalTransportPage: React.FC = () => {
                 }
               }
               let mapStopNames: string[] = [];
-              let mapStartName: string | undefined;
-              let mapEndName: string | undefined;
               if (stopsWithOrder) {
                 const isThere = stopsDirection === 'there';
                 const orderKey = isThere ? 'order_there' : 'order_back';
@@ -927,16 +925,15 @@ export const LocalTransportPage: React.FC = () => {
                   .filter((s) => (s[orderKey] ?? 0) > 0)
                   .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
                 mapStopNames = included.map((s) => s.name);
-                mapStartName = included[0]?.name;
-                mapEndName = included[included.length - 1]?.name;
               }
               return stopsWithOrder && mapStopNames.length > 0 ? (
                 <div className="lt-map-stops">
                   <div className="lt-map-area">
                     <RouteMap
+                      routeId={detailRoute.id}
                       stopNames={mapStopNames}
-                      startStopName={mapStartName}
-                      endStopName={mapEndName}
+                      fromStopName={fromStop || undefined}
+                      toStopName={toStop || undefined}
                     />
                   </div>
                   <div className="lt-stops">

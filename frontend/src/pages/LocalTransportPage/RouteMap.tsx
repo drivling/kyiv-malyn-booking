@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const STOPS_COORDS_URL = '/data/stops_coords.json';
 
+/** Маршрути з перевіреною трасою — на карті малюється пунктир і стрілочки напрямку */
+const VERIFIED_ROUTE_IDS = ['11'];
+
 interface RouteMapProps {
+  /** Номер маршруту (для перевірених малюємо лінію) */
+  routeId?: string;
   /** Зупинки, які входять до маршруту в поточному напрямку (виключені не показуються) */
   stopNames: string[];
-  /** Перша зупинка в напрямку (from) */
-  startStopName?: string;
-  /** Остання зупинка в напрямку (to) */
-  endStopName?: string;
+  /** Зупинка «З» (підсвічується окремо) */
+  fromStopName?: string;
+  /** Зупинка «До» (підсвічується окремо) */
+  toStopName?: string;
 }
 
 interface CoordsData {
@@ -49,13 +54,31 @@ function createCircleIcon(color: string, size = 16) {
 }
 
 const defaultIcon = createCircleIcon('#00A86B', 14);
-const startIcon = createCircleIcon('#2563eb', 18);
-const endIcon = createCircleIcon('#f97316', 18);
+const fromIcon = createCircleIcon('#2563eb', 18);
+const toIcon = createCircleIcon('#f97316', 18);
+
+function createArrowIcon(angleDeg: number) {
+  return L.divIcon({
+    className: 'lt-map-arrow',
+    html: `<span style="
+      display:inline-block;
+      width:0;
+      height:0;
+      border-left:5px solid transparent;
+      border-right:5px solid transparent;
+      border-bottom:8px solid rgba(0,0,0,0.25);
+      transform:rotate(${angleDeg}deg);
+    "></span>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+  });
+}
 
 export const RouteMap: React.FC<RouteMapProps> = ({
+  routeId,
   stopNames,
-  startStopName,
-  endStopName,
+  fromStopName,
+  toStopName,
 }) => {
   const [coords, setCoords] = useState<CoordsData | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -82,6 +105,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   if (!mounted || !coords || stopNames.length === 0) return null;
 
   const stopsWithCoords = stopNames.filter((n) => coords.stops[n]);
+  const positions = stopsWithCoords.map((n) => coords.stops[n] as [number, number]);
+  const showRouteLine = routeId && VERIFIED_ROUTE_IDS.includes(routeId) && positions.length >= 2;
 
   return (
     <div className="lt-map-wrapper">
@@ -99,13 +124,42 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapBounds stopNames={stopNames} stops={coords.stops} />
+          {showRouteLine && (
+            <>
+              <Polyline
+                positions={positions}
+                pathOptions={{
+                  color: 'rgba(0,0,0,0.25)',
+                  weight: 2,
+                  opacity: 0.8,
+                  dashArray: '6, 8',
+                }}
+              />
+              {positions.map((_, i) => {
+                if (i === positions.length - 1) return null;
+                const a = positions[i];
+                const b = positions[i + 1];
+                const midLat = (a[0] + b[0]) / 2;
+                const midLng = (a[1] + b[1]) / 2;
+                const angleDeg = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
+                return (
+                  <Marker
+                    key={`arrow-${i}`}
+                    position={[midLat, midLng]}
+                    icon={createArrowIcon(angleDeg)}
+                    zIndexOffset={0}
+                  />
+                );
+              })}
+            </>
+          )}
           {stopsWithCoords.map((n) => {
-            const isStart = n === startStopName;
-            const isEnd = n === endStopName;
-            const icon = isStart ? startIcon : isEnd ? endIcon : defaultIcon;
+            const isFrom = n === fromStopName;
+            const isTo = n === toStopName;
+            const icon = isFrom ? fromIcon : isTo ? toIcon : defaultIcon;
             return (
               <Marker key={n} position={coords.stops[n] as [number, number]} icon={icon}>
-                <Popup>{n}</Popup>
+                <Popup>{n}{isFrom ? ' (З)' : isTo ? ' (До)' : ''}</Popup>
               </Marker>
             );
           })}

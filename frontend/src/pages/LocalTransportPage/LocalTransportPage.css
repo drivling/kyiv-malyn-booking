@@ -737,6 +737,12 @@
   }
 }
 
+.lt-map-arrow {
+  pointer-events: none;
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Footer */
 .lt-footer {
   margin-top: 0;
