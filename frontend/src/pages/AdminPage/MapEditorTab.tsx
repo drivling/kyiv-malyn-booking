@@ -22,6 +22,11 @@ interface RouteStop {
   order_back?: number;
 }
 
+interface SupplementRoute {
+  from?: string;
+  to?: string;
+}
+
 interface TransportData {
   source?: string;
   records?: unknown[];
@@ -29,7 +34,7 @@ interface TransportData {
     stops?: {
       stops_by_route?: Record<string, RouteStop[] | string[]>;
     };
-    routes?: Record<string, unknown>;
+    routes?: Record<string, SupplementRoute>;
   };
   [key: string]: unknown;
 }
@@ -210,6 +215,12 @@ export const MapEditorTab: React.FC = () => {
   const routeStopsForDirection = useMemo(() => {
     if (!selectedRoute || !transportData) return [];
     return getRouteStopsWithOrder(transportData.supplement?.stops?.stops_by_route, selectedRoute);
+  }, [selectedRoute, transportData]);
+
+  const routeEndpoints = useMemo(() => {
+    if (!selectedRoute || !transportData) return { from: '?', to: '?' };
+    const r = transportData.supplement?.routes?.[selectedRoute];
+    return { from: r?.from ?? '?', to: r?.to ?? '?' };
   }, [selectedRoute, transportData]);
 
   const orderedStopsForDirection = useMemo(() => {
@@ -395,15 +406,17 @@ export const MapEditorTab: React.FC = () => {
               type="button"
               className={`map-editor-direction-btn ${directionMode === 'there' ? 'map-editor-direction-btn--active' : ''}`}
               onClick={() => setDirectionMode('there')}
+              title={`На ${routeEndpoints.to}`}
             >
-              Туди
+              → {routeEndpoints.to}
             </button>
             <button
               type="button"
               className={`map-editor-direction-btn ${directionMode === 'back' ? 'map-editor-direction-btn--active' : ''}`}
               onClick={() => setDirectionMode('back')}
+              title={`На ${routeEndpoints.from}`}
             >
-              Назад
+              ← {routeEndpoints.from}
             </button>
           </div>
           <Button onClick={handleDownloadTransport}>
@@ -490,7 +503,7 @@ export const MapEditorTab: React.FC = () => {
             directionEditorActive ? (
               <>
                 <h3 className="map-editor-list-title">
-                  Порядок зупинок ({directionMode === 'there' ? 'туди' : 'назад'})
+                  Порядок зупинок ({directionMode === 'there' ? `→ ${routeEndpoints.to}` : `← ${routeEndpoints.from}`})
                 </h3>
                 <ul className="map-editor-stops-list map-editor-stops-list--ordered">
                   {orderedStopsForDirection.map((s, idx) => (

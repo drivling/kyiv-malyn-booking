@@ -183,6 +183,10 @@
   background: var(--pb-bg);
   font-size: 0.875rem;
   cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .map-editor-direction-btn:hover {
