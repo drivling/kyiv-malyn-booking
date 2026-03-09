@@ -1870,183 +1870,183 @@
         "5": [
           {
             "name": "Грушевського 48",
-            "order_there": 1,
-            "order_back": 36
+            "order_there": 8,
+            "order_back": -1
           },
           {
             "name": "Грушевського 87",
-            "order_there": 2,
-            "order_back": 35
+            "order_there": -1,
+            "order_back": -1
           },
           {
             "name": "Залізничний вокзал",
-            "order_there": 3,
-            "order_back": 34
+            "order_there": 20,
+            "order_back": 1
           },
           {
             "name": "Й. Кульчицького",
-            "order_there": 4,
-            "order_back": 33
-          },
-          {
-            "name": "Ливарний завод",
-            "order_there": 5,
-            "order_back": 32
-          },
-          {
-            "name": "Ливарний завод (а/стоянка)",
-            "order_there": 6,
-            "order_back": 31
-          },
-          {
-            "name": "Лікарня",
-            "order_there": 7,
-            "order_back": 30
-          },
-          {
-            "name": "Лікарня 2",
-            "order_there": 8,
-            "order_back": 29
-          },
-          {
-            "name": "Малинівський круг",
-            "order_there": 9,
-            "order_back": 28
-          },
-          {
-            "name": "Молокозавод",
-            "order_there": 10,
-            "order_back": 27
-          },
-          {
-            "name": "Огієнка 36",
-            "order_there": 11,
-            "order_back": 26
-          },
-          {
-            "name": "Огієнка 65 (БАМ)",
             "order_there": 12,
-            "order_back": 25
-          },
-          {
-            "name": "Огієнка 65 (БАМ) (навпроти)",
-            "order_there": 13,
-            "order_back": 24
-          },
-          {
-            "name": "Перемоги 15-17",
-            "order_there": 14,
-            "order_back": 23
-          },
-          {
-            "name": "Перемоги 15-17 (зв)",
-            "order_there": 15,
-            "order_back": 22
-          },
-          {
-            "name": "Поліклініка",
-            "order_there": 16,
-            "order_back": 21
-          },
-          {
-            "name": "ТОВ \"Фратеко\"",
-            "order_there": 17,
-            "order_back": 20
-          },
-          {
-            "name": "Хлібзавод",
-            "order_there": 18,
-            "order_back": 19
-          },
-          {
-            "name": "Швейна фабрика",
-            "order_there": 19,
-            "order_back": 18
-          },
-          {
-            "name": "Швейна фабрика (навпроти)",
-            "order_there": 20,
-            "order_back": 17
-          },
-          {
-            "name": "Шевченка 119",
-            "order_there": 21,
-            "order_back": 16
-          },
-          {
-            "name": "Шевченка 22",
-            "order_there": 22,
-            "order_back": 15
-          },
-          {
-            "name": "Ярослава Мудрого",
-            "order_there": 23,
-            "order_back": 14
-          },
-          {
-            "name": "з-д \"Прожектор\"",
-            "order_there": 24,
-            "order_back": 13
-          },
-          {
-            "name": "з-д \"РЕЙЛ\"",
-            "order_there": 25,
-            "order_back": 12
-          },
-          {
-            "name": "з-д \"РЕЙЛ\" (навпроти)",
-            "order_there": 26,
-            "order_back": 11
-          },
-          {
-            "name": "м-н \"Будматеріали\"",
-            "order_there": 27,
             "order_back": 10
           },
           {
-            "name": "м-н \"Корона\"",
-            "order_there": 28,
-            "order_back": 9
+            "name": "Ливарний завод",
+            "order_there": 18,
+            "order_back": -1
           },
           {
-            "name": "м-н \"Меркурій\"",
-            "order_there": 29,
-            "order_back": 8
-          },
-          {
-            "name": "м-н \"Росава\"",
-            "order_there": 30,
-            "order_back": 7
-          },
-          {
-            "name": "м-н \"Сонечко\"",
-            "order_there": 31,
-            "order_back": 6
-          },
-          {
-            "name": "м-н \"Сільпо\"",
-            "order_there": 32,
-            "order_back": 5
-          },
-          {
-            "name": "маркет \"Соборний\"",
-            "order_there": 33,
-            "order_back": 4
-          },
-          {
-            "name": "перехр-тя Бондарик-Шевченка",
-            "order_there": 34,
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": -1,
             "order_back": 3
           },
           {
-            "name": "пл. Соборна (біля РБК)",
-            "order_there": 35,
+            "name": "Лікарня",
+            "order_there": -1,
+            "order_back": 20
+          },
+          {
+            "name": "Лікарня 2",
+            "order_there": 3,
+            "order_back": -1
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 13,
+            "order_back": 9
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 17,
+            "order_back": 4
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": -1,
             "order_back": 2
           },
           {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 14,
+            "order_back": -1
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": -1,
+            "order_back": 8
+          },
+          {
+            "name": "Перемоги 15-17",
+            "order_there": 11,
+            "order_back": -1
+          },
+          {
+            "name": "Перемоги 15-17 (зв)",
+            "order_there": -1,
+            "order_back": 11
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 4,
+            "order_back": 19
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 19,
+            "order_back": -1
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 15,
+            "order_back": 7
+          },
+          {
+            "name": "Швейна фабрика",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "Швейна фабрика (навпроти)",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "Шевченка 119",
+            "order_there": 1,
+            "order_back": 22
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": 6,
+            "order_back": 16
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"Прожектор\"",
+            "order_there": 10,
+            "order_back": 12
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 16,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Корона\"",
+            "order_there": -1,
+            "order_back": 17
+          },
+          {
+            "name": "м-н \"Меркурій\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": 5,
+            "order_back": 18
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": -1,
+            "order_back": 14
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "перехр-тя Бондарик-Шевченка",
+            "order_there": 2,
+            "order_back": 21
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
             "name": "сквер \"Жертв Чорнобиля\"",
-            "order_there": 36,
-            "order_back": 1
+            "order_there": -1,
+            "order_back": -1
           }
         ],
         "6": [
