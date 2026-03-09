@@ -6,7 +6,12 @@ import 'leaflet/dist/leaflet.css';
 const STOPS_COORDS_URL = '/data/stops_coords.json';
 
 interface RouteMapProps {
+  /** Зупинки, які входять до маршруту в поточному напрямку (виключені не показуються) */
   stopNames: string[];
+  /** Перша зупинка в напрямку (from) */
+  startStopName?: string;
+  /** Остання зупинка в напрямку (to) */
+  endStopName?: string;
 }
 
 interface CoordsData {
@@ -26,7 +31,32 @@ function MapBounds({ stopNames, stops }: { stopNames: string[]; stops: Record<st
   return null;
 }
 
-export const RouteMap: React.FC<RouteMapProps> = ({ stopNames }) => {
+function createCircleIcon(color: string, size = 16) {
+  return L.divIcon({
+    className: 'lt-map-marker',
+    html: `<span style="
+      display:inline-block;
+      width:${size}px;
+      height:${size}px;
+      border-radius:999px;
+      background:${color};
+      border:2px solid #ffffff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.4);
+    "></span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+const defaultIcon = createCircleIcon('#00A86B', 14);
+const startIcon = createCircleIcon('#2563eb', 18);
+const endIcon = createCircleIcon('#f97316', 18);
+
+export const RouteMap: React.FC<RouteMapProps> = ({
+  stopNames,
+  startStopName,
+  endStopName,
+}) => {
   const [coords, setCoords] = useState<CoordsData | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -44,11 +74,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stopNames }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-      });
+      // Власні іконки, тому дефолтні URL можна не задавати
+      L.Icon.Default.mergeOptions({});
     }
   }, []);
 
@@ -72,11 +99,16 @@ export const RouteMap: React.FC<RouteMapProps> = ({ stopNames }) => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapBounds stopNames={stopNames} stops={coords.stops} />
-          {stopsWithCoords.map((n) => (
-            <Marker key={n} position={coords.stops[n] as [number, number]}>
-              <Popup>{n}</Popup>
-            </Marker>
-          ))}
+          {stopsWithCoords.map((n) => {
+            const isStart = n === startStopName;
+            const isEnd = n === endStopName;
+            const icon = isStart ? startIcon : isEnd ? endIcon : defaultIcon;
+            return (
+              <Marker key={n} position={coords.stops[n] as [number, number]} icon={icon}>
+                <Popup>{n}</Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
       </div>
     </div>

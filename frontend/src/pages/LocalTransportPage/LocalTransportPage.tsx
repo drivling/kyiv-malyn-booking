@@ -112,6 +112,7 @@ function routeHasStop(
   if (typeof first === 'object' && 'order_there' in first) {
     const stop = (routeStops as RouteStopWithOrder[]).find((s) => s.name === stopName);
     if (!stop) return false;
+    // Не показувати маршрут, якщо зупинка виключена в обох напрямках (order = -1)
     return isStopAvailableInDirection(stop, 'there') || isStopAvailableInDirection(stop, 'back');
   }
   return getStopNames(routeStops).includes(stopName);
@@ -913,11 +914,30 @@ export const LocalTransportPage: React.FC = () => {
                   }));
                 }
               }
-              const stopNames = stopsWithOrder ? getStopNames(stopsWithOrder) : [];
-              return stopsWithOrder && stopNames.length > 0 ? (
+              let mapStopNames: string[] = [];
+              let mapStartName: string | undefined;
+              let mapEndName: string | undefined;
+              if (stopsWithOrder) {
+                const isThere = stopsDirection === 'there';
+                const orderKey = isThere ? 'order_there' : 'order_back';
+                const allowed = [...stopsWithOrder].filter(
+                  (s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there')
+                );
+                const included = allowed
+                  .filter((s) => (s[orderKey] ?? 0) > 0)
+                  .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
+                mapStopNames = included.map((s) => s.name);
+                mapStartName = included[0]?.name;
+                mapEndName = included[included.length - 1]?.name;
+              }
+              return stopsWithOrder && mapStopNames.length > 0 ? (
                 <div className="lt-map-stops">
                   <div className="lt-map-area">
-                    <RouteMap stopNames={stopNames} />
+                    <RouteMap
+                      stopNames={mapStopNames}
+                      startStopName={mapStartName}
+                      endStopName={mapEndName}
+                    />
                   </div>
                   <div className="lt-stops">
                     <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
