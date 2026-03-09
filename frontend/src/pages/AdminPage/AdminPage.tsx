@@ -6,9 +6,10 @@ import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
+import { MapEditorTab } from './MapEditorTab';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'userSenderErrors';
+type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -156,6 +157,8 @@ export const AdminPage: React.FC = () => {
       loadTelegramReminderPersons();
     } else if (activeTab === 'data') {
       loadPersons();
+    } else if (activeTab === 'mapEditor') {
+      // MapEditor завантажує дані сам
     } else if (activeTab === 'userSenderErrors') {
       loadUserSenderErrors();
     }
@@ -891,6 +894,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('data')}
           >
             Дані
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'mapEditor' ? 'active' : ''}`}
+            onClick={() => setActiveTab('mapEditor')}
+          >
+            Редактор карти
           </button>
           <button
             className={`admin-tab ${activeTab === 'userSenderErrors' ? 'active' : ''}`}
@@ -2086,6 +2095,8 @@ export const AdminPage: React.FC = () => {
             )}
           </div>
         )}
+
+        {activeTab === 'mapEditor' && <MapEditorTab />}
 
         {/* Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */}
         {activeTab === 'userSenderErrors' && (
