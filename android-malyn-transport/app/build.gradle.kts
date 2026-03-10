@@ -16,7 +16,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_BASE_URL", "\"https://malin.kiev.ua\"")
+        buildConfigField(
+            "String",
+            "API_BASE_URL",
+            "\"https://kyiv-malyn-booking-production.up.railway.app\"",
+        )
     }
 
     buildTypes {

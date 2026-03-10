@@ -91,25 +91,15 @@ app.get('/status', (_req, res) => {
 
 app.get('/localtransport/data', (_req, res) => {
   try {
-    const root = process.cwd();
-    const transportPath = path.join(root, 'frontend', 'public', 'data', 'malyn_transport.json');
-    const coordsPath = path.join(root, 'frontend', 'public', 'data', 'stops_coords.json');
-    const segmentsPath = path.join(
-      root,
-      'frontend',
-      'src',
-      'pages',
-      'LocalTransportPage',
-      'segmentDurations.json',
-    );
+    // Дані лежать поруч з backend (папка localtransport-data), щоб працювало на Railway без frontend
+    const dataDir = path.join(__dirname, '..', 'localtransport-data');
+    const transportPath = path.join(dataDir, 'malyn_transport.json');
+    const coordsPath = path.join(dataDir, 'stops_coords.json');
+    const segmentsPath = path.join(dataDir, 'segmentDurations.json');
 
-    const transportRaw = fs.readFileSync(transportPath, 'utf8');
-    const coordsRaw = fs.readFileSync(coordsPath, 'utf8');
-    const segmentsRaw = fs.readFileSync(segmentsPath, 'utf8');
-
-    const transport = JSON.parse(transportRaw);
-    const coords = JSON.parse(coordsRaw);
-    const segments = JSON.parse(segmentsRaw);
+    const transport = JSON.parse(fs.readFileSync(transportPath, 'utf8'));
+    const coords = JSON.parse(fs.readFileSync(coordsPath, 'utf8'));
+    const segments = JSON.parse(fs.readFileSync(segmentsPath, 'utf8'));
 
     res.set({
       'Cache-Control': 'public, max-age=300',

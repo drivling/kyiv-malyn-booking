@@ -1,0 +1,3273 @@
+{
+  "source": "data.gov.ua",
+  "dataset": "Розклад руху громадського транспорту міста Малина",
+  "file": "perelik-reisiv-24.xlsx",
+  "headers": [
+    "route_id",
+    "service_id",
+    "trip_id",
+    "trip_headsign",
+    "direction_id",
+    "block_id",
+    "shape_id",
+    "wheelchair_accessible",
+    "bikes_allowed"
+  ],
+  "headers_uk": {
+    "route_id": "Ідентифікатор маршруту",
+    "service_id": "Тижневий графік роботи",
+    "trip_id": "Ідентифікатор рейсу",
+    "trip_headsign": "Кінцева зупинка",
+    "direction_id": "Напрямок руху",
+    "block_id": "Блок рейсів",
+    "shape_id": "Лінія маршруту",
+    "wheelchair_accessible": "Доступність",
+    "bikes_allowed": "Перевезення велосипедів"
+  },
+  "records": [
+    {
+      "route_id": "1",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "1-01",
+      "trip_headsign": "Барміна",
+      "direction_id": "0",
+      "block_id": "АІ6309ІС",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "1",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "1-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АІ6309ІС",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "1",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "1-03",
+      "trip_headsign": "Барміна",
+      "direction_id": "0",
+      "block_id": "АІ6315ІС",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "1",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "1-04",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АІ6315ІС",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "1",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "1-05",
+      "trip_headsign": "Барміна",
+      "direction_id": "0",
+      "block_id": "АІ8051ІА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "1",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "1-06",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АІ8051ІА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "6",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "6-01",
+      "trip_headsign": "Поліклініка",
+      "direction_id": "0",
+      "block_id": "АМ0033АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "6",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "6-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АМ0033АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "10",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "10-01",
+      "trip_headsign": "Барміна",
+      "direction_id": "0",
+      "block_id": "АІ5696АН",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "10",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "10-02",
+      "trip_headsign": "Поліклініка",
+      "direction_id": "1",
+      "block_id": "АІ5696АН",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "10",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "10-03",
+      "trip_headsign": "Барміна",
+      "direction_id": "0",
+      "block_id": "АІ8252ЕК",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "10",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "10-04",
+      "trip_headsign": "Поліклініка",
+      "direction_id": "1",
+      "block_id": "АІ8252ЕК",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-01",
+      "trip_headsign": "Поліклініка",
+      "direction_id": "0",
+      "block_id": "АМ0030АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АМ0030АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-03",
+      "trip_headsign": "Поліклініка",
+      "direction_id": "0",
+      "block_id": "АМ0960АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-04",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АМ0960АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-01",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "7:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-02",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "7:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-03",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-04",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-05",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-06",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-07",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-08",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-09",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-10",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-11",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-12",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-13",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "13:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-14",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "14:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-15",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-16",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-17",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-18",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-19",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "17:05"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-21",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-22",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:40"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-02",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "7:30"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:15"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-04",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "8:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:20"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-06",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "9:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:35"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-08",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "11:10"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:40"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-10",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "12:10"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:30"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-12",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-13",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "14:20"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-14",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-15",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "15:25"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-16",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:55"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-17",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-18",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:55"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-19",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-20",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:50"
+    },
+    {
+      "route_id": "3",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "3-21",
+      "trip_headsign": "Лікарня (Лісотехнікум)",
+      "direction_id": "0",
+      "block_id": "18:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:40"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-02",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:23"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-04",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:45"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:08"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-06",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "8:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:53"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-08",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "9:15"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:38"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-10",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:23"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-12",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:48"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-13",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:08"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-14",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:55"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-16",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "12:15"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "12:38"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-18",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "13:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-19",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:20"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "13:45"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:53"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-22",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:36"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-23",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "16:03"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-24",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:23"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-25",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "16:48"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-26",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:06"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-27",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:30"
+    },
+    {
+      "route_id": "5",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "5-28",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:55"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-01",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:15"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:40"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-03",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-04",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:20"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:10"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-06",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "9:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:50"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-08",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:15"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:40"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-10",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:10"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:35"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-12",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:55"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-13",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:20"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-14",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "13:45"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:10"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-16",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "14:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:55"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-18",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "15:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-19",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-22",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:45"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-23",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:06"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-24",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "18:35"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-25",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:50"
+    },
+    {
+      "route_id": "7",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "7-26",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "19:15"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-02",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "7:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-04",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "8:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-06",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "9:25"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-08",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "10:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-09",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-10",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "11:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-12",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "12:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-13",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-14",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "13:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-16",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "15:20"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-18",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-19",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-20",
+      "trip_headsign": "Базар (Базарна площа)",
+      "direction_id": "0",
+      "block_id": "17:30"
+    },
+    {
+      "route_id": "8",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "8-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-01",
+      "trip_headsign": "Лікарня (через БАМ)",
+      "direction_id": "1",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-02",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "8:10"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-03",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "8:40"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-04",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "9:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-05",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "9:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-06",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "10:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-07",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "10:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-08",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "11:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-09",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "11:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-10",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "12:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-11",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "12:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-12",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "13:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-13",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "13:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-14",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "15:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-15",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "15:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-16",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-17",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "16:30"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-18",
+      "trip_headsign": "Малинівка, Юрівка, БАМ",
+      "direction_id": "1",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "9",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "9-19",
+      "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
+      "direction_id": "0",
+      "block_id": "17:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-01",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-02",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-03",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-04",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "8:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-05",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:20"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-06",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "9:35"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-07",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:50"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-08",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "11:05"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-09",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "12:25"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-10",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "14:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-11",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "14:10"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-12",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "15:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-13",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "15:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-14",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-15",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:05"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-16",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "18:40"
+    },
+    {
+      "route_id": "11",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "11-17",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:50"
+    }
+  ],
+  "supplement": {
+    "source": "malyn.media + офіційні розклади Facebook MalynCityCouncil",
+    "parsed_at": "2026-03-07",
+    "description": "Дані з malyn.media та офіційних розкладів — маршрути №2–12, розклади з зображень",
+    "stops": {
+      "source": "zupinki-24.xlsx; маршрут 9 — malyn.media, ROUTE9_ANALYSIS.md",
+      "source_url": "https://data.gov.ua/dataset/97e2ca7c-3f6f-4a77-9a4d-d954478bfe43",
+      "stops_by_route": {
+        "1": [
+          {
+            "name": "Барміна",
+            "order_there": 1,
+            "order_back": 32
+          },
+          {
+            "name": "Грушевського 48",
+            "order_there": 2,
+            "order_back": 31
+          },
+          {
+            "name": "Грушевського 87",
+            "order_there": 3,
+            "order_back": 30
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 4,
+            "order_back": 29
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": 5,
+            "order_back": 28
+          },
+          {
+            "name": "Кооперативний ринок",
+            "order_there": 6,
+            "order_back": 27
+          },
+          {
+            "name": "Кооперативний ринок (навпр.)",
+            "order_there": 7,
+            "order_back": 26
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 8,
+            "order_back": 25
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": 9,
+            "order_back": 24
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 10,
+            "order_back": 23
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 11,
+            "order_back": 22
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": 12,
+            "order_back": 21
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 13,
+            "order_back": 20
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": 14,
+            "order_back": 19
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 15,
+            "order_back": 18
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 16,
+            "order_back": 17
+          },
+          {
+            "name": "Чорновола 10",
+            "order_there": 17,
+            "order_back": 16
+          },
+          {
+            "name": "Чорновола 15",
+            "order_there": 18,
+            "order_back": 15
+          },
+          {
+            "name": "Чорновола 36",
+            "order_there": 19,
+            "order_back": 14
+          },
+          {
+            "name": "Чорновола 53",
+            "order_there": 20,
+            "order_back": 13
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": 21,
+            "order_back": 12
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 22,
+            "order_back": 11
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": 23,
+            "order_back": 10
+          },
+          {
+            "name": "Івана Мазепи 27",
+            "order_there": 24,
+            "order_back": 9
+          },
+          {
+            "name": "Івана Мазепи 3",
+            "order_there": 25,
+            "order_back": 8
+          },
+          {
+            "name": "Івана Мазепи 4",
+            "order_there": 26,
+            "order_back": 7
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": 27,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Вікторія\"",
+            "order_there": 28,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Доктор ЗОО\"",
+            "order_there": 29,
+            "order_back": 4
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": 30,
+            "order_back": 3
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 31,
+            "order_back": 2
+          },
+          {
+            "name": "сквер \"Жертв Чорнобиля\"",
+            "order_there": 32,
+            "order_back": 1
+          }
+        ],
+        "2": [
+          {
+            "name": "Івана Мазепи 27",
+            "order_there": 5,
+            "order_back": 11
+          },
+          {
+            "name": "Івана Мазепи 3",
+            "order_there": 6,
+            "order_back": -1
+          },
+          {
+            "name": "Івана Мазепи 4",
+            "order_there": -1,
+            "order_back": 10
+          },
+          {
+            "name": "Кооперативний ринок",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "Кооперативний ринок (навпр.)",
+            "order_there": -1,
+            "order_back": 9
+          },
+          {
+            "name": "Лікарня",
+            "order_there": 13,
+            "order_back": -1
+          },
+          {
+            "name": "Лікарня 2",
+            "order_there": -1,
+            "order_back": 3
+          },
+          {
+            "name": "Паперова фабрика Вайдманн",
+            "order_there": 1,
+            "order_back": 15
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 12,
+            "order_back": 4
+          },
+          {
+            "name": "Приходька 28",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "Приходька 29",
+            "order_there": 3,
+            "order_back": -1
+          },
+          {
+            "name": "Приходька 60 (ФБП)",
+            "order_there": -1,
+            "order_back": 14
+          },
+          {
+            "name": "Приходька 8",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "Приходька 9",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "Шевченка 119",
+            "order_there": 15,
+            "order_back": 1
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Доктор ЗОО\"",
+            "order_there": -1,
+            "order_back": 8
+          },
+          {
+            "name": "м-н \"Корона\"",
+            "order_there": 10,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Наталка\"",
+            "order_there": 2,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": -1,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": 11,
+            "order_back": 5
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": 8,
+            "order_back": 7
+          },
+          {
+            "name": "перехр-тя Бондарик-Шевченка",
+            "order_there": 14,
+            "order_back": 2
+          }
+        ],
+        "3": [
+          {
+            "name": "10 ОГШБ (навпр.РЕМу)",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "Грушевського 48",
+            "order_there": 8,
+            "order_back": -1
+          },
+          {
+            "name": "Грушевського 87",
+            "order_there": 10,
+            "order_back": 9
+          },
+          {
+            "name": "ЗОШ \" 3",
+            "order_there": 5,
+            "order_back": -1
+          },
+          {
+            "name": "ЗОШ № 3 (навпроти)",
+            "order_there": -1,
+            "order_back": 14
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 18,
+            "order_back": 1
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 16,
+            "order_back": -1
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": -1,
+            "order_back": 3
+          },
+          {
+            "name": "Лісна",
+            "order_there": 2,
+            "order_back": 18
+          },
+          {
+            "name": "Лісотехнікум",
+            "order_there": 1,
+            "order_back": 19
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 11,
+            "order_back": 8
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 15,
+            "order_back": 4
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": -1,
+            "order_back": 2
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 12,
+            "order_back": -1
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": -1,
+            "order_back": 7
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 3,
+            "order_back": -1
+          },
+          {
+            "name": "РЕМ",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 17,
+            "order_back": -1
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 13,
+            "order_back": 6
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": 9,
+            "order_back": 10
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 14,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Богдан\"",
+            "order_there": -1,
+            "order_back": 17
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 6,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": -1,
+            "order_back": 11
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "сквер \"Жертв Чорнобиля\"",
+            "order_there": -1,
+            "order_back": -1
+          }
+        ],
+        "5": [
+          {
+            "name": "Грушевського 48",
+            "order_there": 8,
+            "order_back": -1
+          },
+          {
+            "name": "Грушевського 87",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 20,
+            "order_back": 1
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": 12,
+            "order_back": 10
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 18,
+            "order_back": -1
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": -1,
+            "order_back": 3
+          },
+          {
+            "name": "Лікарня",
+            "order_there": -1,
+            "order_back": 20
+          },
+          {
+            "name": "Лікарня 2",
+            "order_there": 3,
+            "order_back": -1
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 13,
+            "order_back": 9
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 17,
+            "order_back": 4
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": -1,
+            "order_back": 2
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 14,
+            "order_back": -1
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": -1,
+            "order_back": 8
+          },
+          {
+            "name": "Перемоги 15-17",
+            "order_there": 11,
+            "order_back": -1
+          },
+          {
+            "name": "Перемоги 15-17 (зв)",
+            "order_there": -1,
+            "order_back": 11
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 4,
+            "order_back": 19
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 19,
+            "order_back": -1
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 15,
+            "order_back": 7
+          },
+          {
+            "name": "Швейна фабрика",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "Швейна фабрика (навпроти)",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "Шевченка 119",
+            "order_there": 1,
+            "order_back": 22
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": 6,
+            "order_back": 16
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"Прожектор\"",
+            "order_there": 10,
+            "order_back": 12
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 16,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Корона\"",
+            "order_there": -1,
+            "order_back": 17
+          },
+          {
+            "name": "м-н \"Меркурій\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": 5,
+            "order_back": 18
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": -1,
+            "order_back": 14
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "перехр-тя Бондарик-Шевченка",
+            "order_there": 2,
+            "order_back": 21
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "сквер \"Жертв Чорнобиля\"",
+            "order_there": -1,
+            "order_back": -1
+          }
+        ],
+        "6": [
+          {
+            "name": "10 ОГШБ (навпр.РЕМу)",
+            "order_there": 1,
+            "order_back": 34
+          },
+          {
+            "name": "Автостанція",
+            "order_there": 2,
+            "order_back": 33
+          },
+          {
+            "name": "Автостанція (навпроти)",
+            "order_there": 3,
+            "order_back": 32
+          },
+          {
+            "name": "Грушевського 48",
+            "order_there": 4,
+            "order_back": 31
+          },
+          {
+            "name": "Грушевського 87",
+            "order_there": 5,
+            "order_back": 30
+          },
+          {
+            "name": "ЗОШ \" 3",
+            "order_there": 6,
+            "order_back": 29
+          },
+          {
+            "name": "ЗОШ № 3 (навпроти)",
+            "order_there": 7,
+            "order_back": 28
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 8,
+            "order_back": 27
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": 9,
+            "order_back": 26
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 10,
+            "order_back": 25
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": 11,
+            "order_back": 24
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 12,
+            "order_back": 23
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 13,
+            "order_back": 22
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": 14,
+            "order_back": 21
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 15,
+            "order_back": 20
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": 16,
+            "order_back": 19
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 17,
+            "order_back": 18
+          },
+          {
+            "name": "РЕМ",
+            "order_there": 18,
+            "order_back": 17
+          },
+          {
+            "name": "ТОВ \"Малин Енергоінвест\"",
+            "order_there": 19,
+            "order_back": 16
+          },
+          {
+            "name": "ТОВ \"Райагрошляхбуд\"",
+            "order_there": 20,
+            "order_back": 15
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 21,
+            "order_back": 14
+          },
+          {
+            "name": "Укр. Повстанців 38",
+            "order_there": 22,
+            "order_back": 13
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 23,
+            "order_back": 12
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": 24,
+            "order_back": 11
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": 25,
+            "order_back": 10
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 26,
+            "order_back": 9
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": 27,
+            "order_back": 8
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": 28,
+            "order_back": 7
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 29,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": 30,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": 31,
+            "order_back": 4
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": 32,
+            "order_back": 3
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 33,
+            "order_back": 2
+          },
+          {
+            "name": "сквер \"Жертв Чорнобиля\"",
+            "order_there": 34,
+            "order_back": 1
+          }
+        ],
+        "7": [
+          {
+            "name": "10 ОГШБ (навпр.РЕМу)",
+            "order_there": 2,
+            "order_back": -1
+          },
+          {
+            "name": "14 ОМБ",
+            "order_there": 16,
+            "order_back": -1
+          },
+          {
+            "name": "14 ОМБ (навпр)",
+            "order_there": -1,
+            "order_back": 3
+          },
+          {
+            "name": "Їдальня ЗОШ 6",
+            "order_there": 15,
+            "order_back": -1
+          },
+          {
+            "name": "Їдальня ЗОШ 6 (навпроти)",
+            "order_there": -1,
+            "order_back": 4
+          },
+          {
+            "name": "ГМП 14",
+            "order_there": 14,
+            "order_back": -1
+          },
+          {
+            "name": "ГМП 14 (навпроти)",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "ДНЗ № 3",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "ЗОШ \" 3",
+            "order_there": 3,
+            "order_back": -1
+          },
+          {
+            "name": "ЗОШ 5",
+            "order_there": -1,
+            "order_back": 2
+          },
+          {
+            "name": "ЗОШ 5 (навпроти)",
+            "order_there": 17,
+            "order_back": -1
+          },
+          {
+            "name": "ЗОШ № 3 (навпроти)",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 18,
+            "order_back": 1
+          },
+          {
+            "name": "Малинське УЕГГ",
+            "order_there": 11,
+            "order_back": 8
+          },
+          {
+            "name": "Миру-Городищанська (перехр)",
+            "order_there": -1,
+            "order_back": 7
+          },
+          {
+            "name": "ПТЛ",
+            "order_there": 12,
+            "order_back": -1
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 1,
+            "order_back": 19
+          },
+          {
+            "name": "РЕМ",
+            "order_there": -1,
+            "order_back": 18
+          },
+          {
+            "name": "С.Бандери 36",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\"",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\" (навпроти)",
+            "order_there": -1,
+            "order_back": 10
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "м-н \"Будмаркет\"",
+            "order_there": 10,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Будмаркет\" (навпроти)",
+            "order_there": -1,
+            "order_back": 9
+          },
+          {
+            "name": "м-н \"Продукти\" навпроти ПТЛ",
+            "order_there": 13,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Промінь\"",
+            "order_there": 6,
+            "order_back": 13
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": -1,
+            "order_back": 17
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": 5,
+            "order_back": 14
+          },
+          {
+            "name": "перехр.Горбатюка-Бандери",
+            "order_there": 8,
+            "order_back": -1
+          },
+          {
+            "name": "прехр.Горбатюка-Бандери 2",
+            "order_there": -1,
+            "order_back": 11
+          }
+        ],
+        "8": [
+          {
+            "name": "Івана Мазепи 27",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "Івана Мазепи 3",
+            "order_there": 5,
+            "order_back": -1
+          },
+          {
+            "name": "Івана Мазепи 4",
+            "order_there": -1,
+            "order_back": 14
+          },
+          {
+            "name": "Барміна",
+            "order_there": 3,
+            "order_back": 17
+          },
+          {
+            "name": "ДНЗ № 3",
+            "order_there": -1,
+            "order_back": 11
+          },
+          {
+            "name": "ЗОШ 5",
+            "order_there": -1,
+            "order_back": 2
+          },
+          {
+            "name": "ЗОШ 5 (навпроти)",
+            "order_there": 16,
+            "order_back": -1
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 17,
+            "order_back": 1
+          },
+          {
+            "name": "Кооперативний ринок",
+            "order_there": 6,
+            "order_back": -1
+          },
+          {
+            "name": "Кооперативний ринок (навпр.)",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "Малинське УЕГГ",
+            "order_there": 12,
+            "order_back": 7
+          },
+          {
+            "name": "Миру - ГМП (до перехрестя)",
+            "order_there": 15,
+            "order_back": 3
+          },
+          {
+            "name": "Миру - ГМП (за перехрестям)",
+            "order_there": 14,
+            "order_back": 4
+          },
+          {
+            "name": "Миру-Городищанська (перехр)",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "ПТЛ",
+            "order_there": 13,
+            "order_back": 6
+          },
+          {
+            "name": "С.Бандери 36",
+            "order_there": 8,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\"",
+            "order_there": 10,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\" (навпроти)",
+            "order_there": -1,
+            "order_back": 9
+          },
+          {
+            "name": "Чорновола 10",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
+            "name": "Чорновола 15",
+            "order_there": 2,
+            "order_back": -1
+          },
+          {
+            "name": "Чорновола 36",
+            "order_there": -1,
+            "order_back": 18
+          },
+          {
+            "name": "Чорновола 53",
+            "order_there": 1,
+            "order_back": 19
+          },
+          {
+            "name": "м-н \"Будмаркет\"",
+            "order_there": 11,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Будмаркет\" (навпроти)",
+            "order_there": -1,
+            "order_back": 8
+          },
+          {
+            "name": "м-н \"Вікторія\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "м-н \"Доктор ЗОО\"",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "м-н \"Продукти\" навпроти ПТЛ",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Промінь\"",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "перехр.Горбатюка-Бандери",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "прехр.Горбатюка-Бандери 2",
+            "order_there": -1,
+            "order_back": 10
+          }
+        ],
+        "9": [
+          {
+            "name": "м-н \"Промінь\"",
+            "order_there": 2,
+            "order_back": 9
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 5,
+            "order_back": 6
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 4,
+            "order_back": 7
+          },
+          {
+            "name": "Царське село",
+            "order_there": 3,
+            "order_back": 8
+          },
+          {
+            "name": "Малинівка",
+            "order_there": 6,
+            "order_back": 5
+          },
+          {
+            "name": "Юрівка",
+            "order_there": 7,
+            "order_back": 4
+          },
+          {
+            "name": "вул. Олекси Тихого",
+            "order_there": 8,
+            "order_back": 3
+          },
+          {
+            "name": "перехрестя О. Тихого та Філатова",
+            "order_there": 10,
+            "order_back": 1
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 9,
+            "order_back": 2
+          },
+          {
+            "name": "Лікарня",
+            "order_there": 1,
+            "order_back": 10
+          }
+        ],
+        "10": [
+          {
+            "name": "10 ОГШБ (навпр.РЕМу)",
+            "order_there": 1,
+            "order_back": 21
+          },
+          {
+            "name": "Івана Мазепи 27",
+            "order_there": 2,
+            "order_back": 20
+          },
+          {
+            "name": "Івана Мазепи 3",
+            "order_there": 3,
+            "order_back": 19
+          },
+          {
+            "name": "Івана Мазепи 4",
+            "order_there": 4,
+            "order_back": 18
+          },
+          {
+            "name": "Барміна",
+            "order_there": 5,
+            "order_back": 17
+          },
+          {
+            "name": "ЗОШ \" 3",
+            "order_there": 6,
+            "order_back": 16
+          },
+          {
+            "name": "ЗОШ № 3 (навпроти)",
+            "order_there": 7,
+            "order_back": 15
+          },
+          {
+            "name": "Кооперативний ринок",
+            "order_there": 8,
+            "order_back": 14
+          },
+          {
+            "name": "Кооперативний ринок (навпр.)",
+            "order_there": 9,
+            "order_back": 13
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 10,
+            "order_back": 12
+          },
+          {
+            "name": "РЕМ",
+            "order_there": 11,
+            "order_back": 11
+          },
+          {
+            "name": "Чорновола 10",
+            "order_there": 12,
+            "order_back": 10
+          },
+          {
+            "name": "Чорновола 15",
+            "order_there": 13,
+            "order_back": 9
+          },
+          {
+            "name": "Чорновола 36",
+            "order_there": 14,
+            "order_back": 8
+          },
+          {
+            "name": "Чорновола 53",
+            "order_there": 15,
+            "order_back": 7
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": 16,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Вікторія\"",
+            "order_there": 17,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Доктор ЗОО\"",
+            "order_there": 18,
+            "order_back": 4
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 19,
+            "order_back": 3
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": 20,
+            "order_back": 2
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": 21,
+            "order_back": 1
+          }
+        ],
+        "11": [
+          {
+            "name": "Івана Мазепи 27",
+            "order_there": 5,
+            "order_back": 18
+          },
+          {
+            "name": "Івана Мазепи 3",
+            "order_there": 6,
+            "order_back": -1
+          },
+          {
+            "name": "Івана Мазепи 4",
+            "order_there": -1,
+            "order_back": 17
+          },
+          {
+            "name": "Грушевського 48",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "Грушевського 87",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 21,
+            "order_back": 1
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": 13,
+            "order_back": 9
+          },
+          {
+            "name": "Кооперативний ринок",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "Кооперативний ринок (навпр.)",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 19,
+            "order_back": -1
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": -1,
+            "order_back": 3
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 14,
+            "order_back": 8
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 18,
+            "order_back": 4
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": -1,
+            "order_back": 2
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 15,
+            "order_back": -1
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": -1,
+            "order_back": 7
+          },
+          {
+            "name": "Паперова фабрика Вайдманн",
+            "order_there": 1,
+            "order_back": 23
+          },
+          {
+            "name": "Перемоги 15-17",
+            "order_there": 12,
+            "order_back": -1
+          },
+          {
+            "name": "Перемоги 15-17 (зв)",
+            "order_there": -1,
+            "order_back": 10
+          },
+          {
+            "name": "Приходька 28",
+            "order_there": -1,
+            "order_back": 21
+          },
+          {
+            "name": "Приходька 29",
+            "order_there": 3,
+            "order_back": 20
+          },
+          {
+            "name": "Приходька 60 (ФБП)",
+            "order_there": -1,
+            "order_back": 22
+          },
+          {
+            "name": "Приходька 8",
+            "order_there": -1,
+            "order_back": 19
+          },
+          {
+            "name": "Приходька 9",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 20,
+            "order_back": -1
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 16,
+            "order_back": 6
+          },
+          {
+            "name": "Швейна фабрика",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "Швейна фабрика (навпроти)",
+            "order_there": 10,
+            "order_back": -1
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"Прожектор\"",
+            "order_there": 11,
+            "order_back": 11
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 17,
+            "order_back": -1
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Доктор ЗОО\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "м-н \"Меркурій\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Наталка\"",
+            "order_there": 2,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 8,
+            "order_back": 14
+          },
+          {
+            "name": "сквер \"Жертв Чорнобиля\"",
+            "order_there": -1,
+            "order_back": -1
+          }
+        ],
+        "12": [
+          {
+            "name": "10 ОГШБ (навпр.РЕМу)",
+            "order_there": 1,
+            "order_back": 31
+          },
+          {
+            "name": "Вербицького",
+            "order_there": 2,
+            "order_back": 30
+          },
+          {
+            "name": "Грушевського 48",
+            "order_there": 3,
+            "order_back": 29
+          },
+          {
+            "name": "Грушевського 87",
+            "order_there": 4,
+            "order_back": 28
+          },
+          {
+            "name": "ЗОШ \" 3",
+            "order_there": 5,
+            "order_back": 27
+          },
+          {
+            "name": "ЗОШ № 3 (навпроти)",
+            "order_there": 6,
+            "order_back": 26
+          },
+          {
+            "name": "Заводська",
+            "order_there": 7,
+            "order_back": 25
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 8,
+            "order_back": 24
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": 9,
+            "order_back": 23
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 10,
+            "order_back": 22
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": 11,
+            "order_back": 21
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 12,
+            "order_back": 20
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 13,
+            "order_back": 19
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": 14,
+            "order_back": 18
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 15,
+            "order_back": 17
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": 16,
+            "order_back": 16
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 17,
+            "order_back": 15
+          },
+          {
+            "name": "РЕМ",
+            "order_there": 18,
+            "order_back": 14
+          },
+          {
+            "name": "ТОВ \"Фратеко\"",
+            "order_there": 19,
+            "order_back": 13
+          },
+          {
+            "name": "Хлібзавод",
+            "order_there": 20,
+            "order_back": 12
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": 21,
+            "order_back": 11
+          },
+          {
+            "name": "Ярослава Мудрого",
+            "order_there": 22,
+            "order_back": 10
+          },
+          {
+            "name": "з-д \"РЕЙЛ\"",
+            "order_there": 23,
+            "order_back": 9
+          },
+          {
+            "name": "з-д \"РЕЙЛ\" (навпроти)",
+            "order_there": 24,
+            "order_back": 8
+          },
+          {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": 25,
+            "order_back": 7
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 26,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": 27,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Сільпо\"",
+            "order_there": 28,
+            "order_back": 4
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": 29,
+            "order_back": 3
+          },
+          {
+            "name": "пл. Соборна (біля РБК)",
+            "order_there": 30,
+            "order_back": 2
+          },
+          {
+            "name": "сквер \"Жертв Чорнобиля\"",
+            "order_there": 31,
+            "order_back": 1
+          }
+        ]
+      }
+    },
+    "fare": {
+      "amount": 15,
+      "currency": "UAH",
+      "note": "Проїзд платний з 2 травня 2022"
+    },
+    "routes": {
+      "2": {
+        "from": "Паперова фабрика",
+        "to": "Лікарня",
+        "scheme": "Паперова фабрика – Барміна – Лікарня (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Паперової фабрики",
+              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:05, 18:00"
+            },
+            {
+              "label": "З Лікарні",
+              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:00, 18:00"
+            }
+          ],
+          "lunch_break": "12:00–14:00 (обід)",
+          "note": "17:00 +5 хв; 12:30/13:30 до центра"
+        },
+        "note": "Маршрут №2/20. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "3": {
+        "from": "Лікарня (Лісотехнікум)",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з круг (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні / Фахового коледжу",
+              "times": "6:40, 8:15, 9:20, 10:35, 11:40, 13:30, 13:50, 14:50, 15:55, 16:55, 17:50"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:30, 8:50, 9:50, 11:10, 12:10, 14:20, 15:25, 16:30, 17:20, 18:30"
+            }
+          ],
+          "lunch_break": "обід між 12:10 та 14:20",
+          "note": "6:40 та 8:15 — з Фахового коледжу (лісотехнікум); 13:30 — з Центру"
+        },
+        "note": "Маршрут №3. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "5": {
+        "from": "Лікарня",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з Прожектор - Шевченка (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні",
+              "times": "6:40, 7:23, 8:08, 8:53, 9:38, 10:23, 11:08, 11:55, 12:38, 13:20, 14:53, 15:36, 16:23, 17:06, 17:55"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:03, 7:45, 8:30, 9:15, 10:03, 10:48, 11:30, 12:15, 13:03, 13:45, 16:03, 16:48, 17:30"
+            }
+          ],
+          "lunch_break": "13:20–14:53 (обід)",
+          "note": "13:45 — до центра"
+        },
+        "note": "Маршрут №5. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "7": {
+        "from": "Лікарня",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з Городище (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні",
+              "times": "7:40, 8:20, 9:10, 9:50, 10:40, 11:35, 13:20, 14:10, 14:55, 16:30, 17:20, 18:06, 18:50"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:15, 8:00, 9:30, 10:15, 11:10, 11:55, 13:45, 14:30, 15:30, 17:00, 17:45, 18:35, 19:15"
+            }
+          ],
+          "lunch_break": "11:55 (обід)",
+          "note": "7:40 — по Миру; 17:45 (17:42 ел.), 18:35 (18:29 ел.)"
+        },
+        "special": "Заїзд до школи №6",
+        "note": "Маршрут №7. Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської.",
+        "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
+      },
+      "8": {
+        "from": "Базар (Базарна площа)",
+        "to": "Залізничний вокзал",
+        "scheme": "Базар – Вокзал по вул. Миру (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Базару",
+              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:00, 18:00"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:30, 8:30, 9:25, 10:30, 11:30, 12:30, 13:30, 15:20, 16:30, 17:30"
+            }
+          ],
+          "lunch_break": "13:00–15:00 (обід)",
+          "note": "13:30 — до центру"
+        },
+        "note": "Маршрут №8. Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської.",
+        "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-marshrutok-7-ta-8/"
+      },
+      "9": {
+        "from": "Базарна площа (ТЦ «Промінь»)",
+        "to": "Малинівка, Юрівка, вул. Олекси Тихого, БАМ, «Царське село»",
+        "scheme": "ЦЕНТР (ТЦ «Промінь») – вул. Степана Бандери – просп. Машинобудівників – вул. Огієнка (БАМ) – Малинівський круг – с.Малинівка – с.Юрівка – вул. Олекси Тихого (і назад)",
+        "streets": [
+          "Степана Бандери",
+          "Машинобудівників",
+          "Огієнка",
+          "Малинівський круг",
+          "Малинівка",
+          "Юрівка"
+        ],
+        "schedule": {
+          "first_trip": "6:45 з центру → вокзал 7:05, Олекси Тихого 7:15, Малинівка 7:25, БАМ 7:30, центр 7:45, лікарня 7:50",
+          "from_bazar": "8:10, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:20",
+          "from_oleksy_tikh": "8:40, 9:30, 10:30, 11:30, 12:30, 13:30, 15:30, 16:30, 17:40",
+          "to_center": "13:30, 17:40 (до центра)",
+          "lunch_break": "13:00–15:00 (обід)"
+        },
+        "note": "Тестовий режим з 1 травня 2025. Офіційний розклад з Facebook MalynCityCouncil.",
+        "source_url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
+      },
+      "11": {
+        "from": "Паперова фабрика",
+        "to": "Залізничний вокзал",
+        "scheme": "Паперова фабрика – Барміна – Вокзал ч/з Прожектор (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Паперової фабрики",
+              "times": "6:45, 8:00, 9:20, 10:50, 14:10, 15:40, 17:05, 18:50"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "6:45, 8:00, 9:35, 11:05, 12:25, 14:00, 15:40, 17:00, 18:40"
+            }
+          ],
+          "lunch_break": "обід між 10:50 та 14:10",
+          "note": "17:00 +5 хв; 12:25, 14:00 — до центра; (17:42 ел.), (18:29 ел.)"
+        },
+        "note": "Маршрут №11/1. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      }
+    },
+    "news": [
+      {
+        "date": "2025-05-06",
+        "title": "У Малині оприлюднили розклад нового автобусного маршруту №9",
+        "url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
+      },
+      {
+        "date": "2023-10-04",
+        "title": "У Малині тимчасово змінили схему руху маршруток №7 та №8",
+        "url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
+      },
+      {
+        "date": "2022-04-29",
+        "title": "Змінився графік маршруток, які курсують по Малину. Проїзд 15 грн.",
+        "url": "https://malyn.media/novyny/misto/zminyvsia-hrafik-marshrutok-iaki-kursuiut-po-malynu/"
+      }
+    ],
+    "sources": {
+      "malyn_media": "https://malyn.media/tag/rozklad-rukhu/",
+      "facebook_council": "https://www.facebook.com/MalynCityCouncil"
+    },
+    "contacts": {
+      "autostation": "(068) 77-71-590",
+      "council": "mradazv@ukr.net"
+    }
+  },
+  "stats": {
+    "total_rows": 170,
+    "columns": 9,
+    "routes_count": 11,
+    "route_ids": [
+      "1",
+      "10",
+      "11",
+      "12",
+      "2",
+      "3",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "trips_per_route": {
+      "1": 6,
+      "2": 22,
+      "3": 21,
+      "5": 28,
+      "6": 2,
+      "7": 26,
+      "8": 21,
+      "9": 19,
+      "10": 4,
+      "11": 17,
+      "12": 4
+    },
+    "headsigns": [
+      "Базар (Базарна площа)",
+      "Базарна площа (ТЦ «Промінь»)",
+      "Барміна",
+      "Залізничний вокзал",
+      "Лікарня",
+      "Лікарня (Лісотехнікум)",
+      "Лікарня (через БАМ)",
+      "Малинівка, Юрівка, БАМ",
+      "Паперова фабрика",
+      "Поліклініка"
+    ]
+  }
+}
