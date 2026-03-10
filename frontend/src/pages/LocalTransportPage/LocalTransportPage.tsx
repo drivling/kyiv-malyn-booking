@@ -696,6 +696,64 @@ export const LocalTransportPage: React.FC = () => {
     });
   };
 
+  const reverseDirectionAndFromTo = (targetDir?: 'there' | 'back') => {
+    const newDir: 'there' | 'back' =
+      targetDir ?? (stopsDirection === 'there' ? 'back' : 'there');
+
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) {
+      setStopsDirection(newDir);
+      updateDetailUrl({ dir: newDir });
+      return;
+    }
+
+    const routeStops = stopsByRoute[detailRoute.id];
+    if (!Array.isArray(routeStops) || routeStops.length === 0) {
+      setStopsDirection(newDir);
+      updateDetailUrl({ dir: newDir });
+      return;
+    }
+
+    const first = routeStops[0];
+    const stopsWithOrder: RouteStopWithOrder[] =
+      first && typeof first === 'object' && 'name' in first
+        ? (routeStops as RouteStopWithOrder[])
+        : (routeStops as string[]).map((name, i, arr) => ({
+            name,
+            order_there: i + 1,
+            order_back: arr.length - i,
+            belongs_to: 'both' as const,
+          }));
+
+    const orderedStopsThere = [...stopsWithOrder]
+      .filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0)
+      .sort((a, b) => a.order_there - b.order_there);
+    const orderedStopsBack = [...stopsWithOrder]
+      .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
+      .sort((a, b) => a.order_back - b.order_back);
+
+    const targetOrdered = newDir === 'there' ? orderedStopsThere : orderedStopsBack;
+    const targetNames = targetOrdered.map((s) => s.name);
+
+    const fromCandidate = toStop || fromStop || '';
+    const toCandidate = fromStop || toStop || '';
+    const newFromMatched = fromCandidate
+      ? findMatchingStop(fromCandidate, targetNames)
+      : null;
+    const newToMatched = toCandidate ? findMatchingStop(toCandidate, targetNames) : null;
+
+    const newFrom = newFromMatched ?? '';
+    const newTo = newToMatched ?? '';
+
+    setStopsDirection(newDir);
+    setFromStop(newFrom);
+    setToStop(newTo);
+    updateDetailUrl({
+      stop: newFrom || undefined,
+      to: newTo || undefined,
+      dir: newDir,
+    });
+  };
+
   const handleSelectRoute = (id: string) => {
     const stop = latestStopRef.current || effectiveStopFilter;
     const params = new URLSearchParams();
@@ -809,20 +867,14 @@ export const LocalTransportPage: React.FC = () => {
                 <button
                   type="button"
                   className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
-                  onClick={() => {
-                    setStopsDirection('there');
-                    updateDetailUrl({ dir: 'there' });
-                  }}
+                  onClick={() => reverseDirectionAndFromTo('there')}
                 >
                   {detailRoute.to} →
                 </button>
                 <button
                   type="button"
                   className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
-                  onClick={() => {
-                    setStopsDirection('back');
-                    updateDetailUrl({ dir: 'back' });
-                  }}
+                  onClick={() => reverseDirectionAndFromTo('back')}
                 >
                   ← {detailRoute.from}
                 </button>
@@ -944,7 +996,15 @@ export const LocalTransportPage: React.FC = () => {
                             clearable
                           />
                         </div>
-                        <span className="lt-from-to-arrow">→</span>
+                        <button
+                          type="button"
+                          className="lt-from-to-arrow"
+                          onClick={() => reverseDirectionAndFromTo()}
+                          title="Поміняти напрямок (З та До навпаки)"
+                          aria-label="Поміняти напрямок (З та До навпаки)"
+                        >
+                          ⇄
+                        </button>
                         <div className="lt-from-to-field">
                           <Combobox
                             label="До"

@@ -356,9 +356,13 @@
 }
 
 .lt-from-to-arrow {
+  border: none;
+  background: transparent;
   color: var(--lt-text-muted);
   font-size: 1.25rem;
   font-weight: 300;
+  padding: 0 4px;
+  cursor: pointer;
 }
 
 .lt-date-row {
