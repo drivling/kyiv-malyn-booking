@@ -2224,158 +2224,158 @@
         "7": [
           {
             "name": "10 ОГШБ (навпр.РЕМу)",
-            "order_there": 1,
-            "order_back": 31
+            "order_there": 2,
+            "order_back": -1
           },
           {
             "name": "14 ОМБ",
-            "order_there": 2,
-            "order_back": 30
+            "order_there": 16,
+            "order_back": -1
           },
           {
             "name": "14 ОМБ (навпр)",
-            "order_there": 3,
-            "order_back": 29
-          },
-          {
-            "name": "Їдальня ЗОШ 6",
-            "order_there": 4,
-            "order_back": 28
-          },
-          {
-            "name": "Їдальня ЗОШ 6 (навпроти)",
-            "order_there": 5,
-            "order_back": 27
-          },
-          {
-            "name": "ГМП 14",
-            "order_there": 6,
-            "order_back": 26
-          },
-          {
-            "name": "ГМП 14 (навпроти)",
-            "order_there": 7,
-            "order_back": 25
-          },
-          {
-            "name": "ДНЗ № 3",
-            "order_there": 8,
-            "order_back": 24
-          },
-          {
-            "name": "ЗОШ \" 3",
-            "order_there": 9,
-            "order_back": 23
-          },
-          {
-            "name": "ЗОШ 5",
-            "order_there": 10,
-            "order_back": 22
-          },
-          {
-            "name": "ЗОШ 5 (навпроти)",
-            "order_there": 11,
-            "order_back": 21
-          },
-          {
-            "name": "ЗОШ № 3 (навпроти)",
-            "order_there": 12,
-            "order_back": 20
-          },
-          {
-            "name": "Залізничний вокзал",
-            "order_there": 13,
-            "order_back": 19
-          },
-          {
-            "name": "Малинське УЕГГ",
-            "order_there": 14,
-            "order_back": 18
-          },
-          {
-            "name": "Миру-Городищанська (перехр)",
-            "order_there": 15,
-            "order_back": 17
-          },
-          {
-            "name": "ПТЛ",
-            "order_there": 16,
-            "order_back": 16
-          },
-          {
-            "name": "Поліклініка",
-            "order_there": 17,
-            "order_back": 15
-          },
-          {
-            "name": "РЕМ",
-            "order_there": 18,
-            "order_back": 14
-          },
-          {
-            "name": "С.Бандери 36",
-            "order_there": 19,
-            "order_back": 13
-          },
-          {
-            "name": "ТОВ \"Юнігран\"",
-            "order_there": 20,
-            "order_back": 12
-          },
-          {
-            "name": "ТОВ \"Юнігран\" (навпроти)",
-            "order_there": 21,
-            "order_back": 11
-          },
-          {
-            "name": "Шевченка 22",
-            "order_there": 22,
-            "order_back": 10
-          },
-          {
-            "name": "м-н \"Будмаркет\"",
-            "order_there": 23,
-            "order_back": 9
-          },
-          {
-            "name": "м-н \"Будмаркет\" (навпроти)",
-            "order_there": 24,
-            "order_back": 8
-          },
-          {
-            "name": "м-н \"Продукти\" навпроти ПТЛ",
-            "order_there": 25,
-            "order_back": 7
-          },
-          {
-            "name": "м-н \"Промінь\"",
-            "order_there": 26,
-            "order_back": 6
-          },
-          {
-            "name": "м-н \"Росава\"",
-            "order_there": 27,
-            "order_back": 5
-          },
-          {
-            "name": "м-н \"Сонечко\"",
-            "order_there": 28,
-            "order_back": 4
-          },
-          {
-            "name": "маркет \"Соборний\"",
-            "order_there": 29,
+            "order_there": -1,
             "order_back": 3
           },
           {
-            "name": "перехр.Горбатюка-Бандери",
-            "order_there": 30,
+            "name": "Їдальня ЗОШ 6",
+            "order_there": 15,
+            "order_back": -1
+          },
+          {
+            "name": "Їдальня ЗОШ 6 (навпроти)",
+            "order_there": -1,
+            "order_back": 4
+          },
+          {
+            "name": "ГМП 14",
+            "order_there": 14,
+            "order_back": -1
+          },
+          {
+            "name": "ГМП 14 (навпроти)",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "ДНЗ № 3",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "ЗОШ \" 3",
+            "order_there": 3,
+            "order_back": -1
+          },
+          {
+            "name": "ЗОШ 5",
+            "order_there": -1,
             "order_back": 2
           },
           {
-            "name": "прехр.Горбатюка-Бандери 2",
-            "order_there": 31,
+            "name": "ЗОШ 5 (навпроти)",
+            "order_there": 17,
+            "order_back": -1
+          },
+          {
+            "name": "ЗОШ № 3 (навпроти)",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 18,
             "order_back": 1
+          },
+          {
+            "name": "Малинське УЕГГ",
+            "order_there": 11,
+            "order_back": 8
+          },
+          {
+            "name": "Миру-Городищанська (перехр)",
+            "order_there": -1,
+            "order_back": 7
+          },
+          {
+            "name": "ПТЛ",
+            "order_there": 12,
+            "order_back": -1
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 1,
+            "order_back": 19
+          },
+          {
+            "name": "РЕМ",
+            "order_there": -1,
+            "order_back": 18
+          },
+          {
+            "name": "С.Бандери 36",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\"",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\" (навпроти)",
+            "order_there": -1,
+            "order_back": 10
+          },
+          {
+            "name": "Шевченка 22",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "м-н \"Будмаркет\"",
+            "order_there": 10,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Будмаркет\" (навпроти)",
+            "order_there": -1,
+            "order_back": 9
+          },
+          {
+            "name": "м-н \"Продукти\" навпроти ПТЛ",
+            "order_there": 13,
+            "order_back": 6
+          },
+          {
+            "name": "м-н \"Промінь\"",
+            "order_there": 6,
+            "order_back": 13
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": -1,
+            "order_back": 17
+          },
+          {
+            "name": "маркет \"Соборний\"",
+            "order_there": 5,
+            "order_back": 14
+          },
+          {
+            "name": "перехр.Горбатюка-Бандери",
+            "order_there": 8,
+            "order_back": -1
+          },
+          {
+            "name": "прехр.Горбатюка-Бандери 2",
+            "order_there": -1,
+            "order_back": 11
           }
         ],
         "8": [
