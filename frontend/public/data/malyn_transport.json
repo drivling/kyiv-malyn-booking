@@ -2381,153 +2381,153 @@
         "8": [
           {
             "name": "Івана Мазепи 27",
-            "order_there": 1,
-            "order_back": 30
+            "order_there": 4,
+            "order_back": -1
           },
           {
             "name": "Івана Мазепи 3",
-            "order_there": 2,
-            "order_back": 29
+            "order_there": 5,
+            "order_back": -1
           },
           {
             "name": "Івана Мазепи 4",
-            "order_there": 3,
-            "order_back": 28
-          },
-          {
-            "name": "Барміна",
-            "order_there": 4,
-            "order_back": 27
-          },
-          {
-            "name": "ДНЗ № 3",
-            "order_there": 5,
-            "order_back": 26
-          },
-          {
-            "name": "ЗОШ 5",
-            "order_there": 6,
-            "order_back": 25
-          },
-          {
-            "name": "ЗОШ 5 (навпроти)",
-            "order_there": 7,
-            "order_back": 24
-          },
-          {
-            "name": "Залізничний вокзал",
-            "order_there": 8,
-            "order_back": 23
-          },
-          {
-            "name": "Кооперативний ринок",
-            "order_there": 9,
-            "order_back": 22
-          },
-          {
-            "name": "Кооперативний ринок (навпр.)",
-            "order_there": 10,
-            "order_back": 21
-          },
-          {
-            "name": "Малинське УЕГГ",
-            "order_there": 11,
-            "order_back": 20
-          },
-          {
-            "name": "Миру - ГМП (до перехрестя)",
-            "order_there": 12,
-            "order_back": 19
-          },
-          {
-            "name": "Миру - ГМП (за перехрестям)",
-            "order_there": 13,
-            "order_back": 18
-          },
-          {
-            "name": "Миру-Городищанська (перехр)",
-            "order_there": 14,
-            "order_back": 17
-          },
-          {
-            "name": "ПТЛ",
-            "order_there": 15,
-            "order_back": 16
-          },
-          {
-            "name": "С.Бандери 36",
-            "order_there": 16,
-            "order_back": 15
-          },
-          {
-            "name": "ТОВ \"Юнігран\"",
-            "order_there": 17,
+            "order_there": -1,
             "order_back": 14
           },
           {
-            "name": "ТОВ \"Юнігран\" (навпроти)",
-            "order_there": 18,
-            "order_back": 13
+            "name": "Барміна",
+            "order_there": 3,
+            "order_back": 17
           },
           {
-            "name": "Чорновола 10",
-            "order_there": 19,
-            "order_back": 12
-          },
-          {
-            "name": "Чорновола 15",
-            "order_there": 20,
+            "name": "ДНЗ № 3",
+            "order_there": -1,
             "order_back": 11
           },
           {
-            "name": "Чорновола 36",
-            "order_there": 21,
-            "order_back": 10
-          },
-          {
-            "name": "Чорновола 53",
-            "order_there": 22,
-            "order_back": 9
-          },
-          {
-            "name": "м-н \"Будмаркет\"",
-            "order_there": 23,
-            "order_back": 8
-          },
-          {
-            "name": "м-н \"Будмаркет\" (навпроти)",
-            "order_there": 24,
-            "order_back": 7
-          },
-          {
-            "name": "м-н \"Вікторія\"",
-            "order_there": 25,
-            "order_back": 6
-          },
-          {
-            "name": "м-н \"Доктор ЗОО\"",
-            "order_there": 26,
-            "order_back": 5
-          },
-          {
-            "name": "м-н \"Продукти\" навпроти ПТЛ",
-            "order_there": 27,
-            "order_back": 4
-          },
-          {
-            "name": "м-н \"Промінь\"",
-            "order_there": 28,
-            "order_back": 3
-          },
-          {
-            "name": "перехр.Горбатюка-Бандери",
-            "order_there": 29,
+            "name": "ЗОШ 5",
+            "order_there": -1,
             "order_back": 2
           },
           {
-            "name": "прехр.Горбатюка-Бандери 2",
-            "order_there": 30,
+            "name": "ЗОШ 5 (навпроти)",
+            "order_there": 16,
+            "order_back": -1
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 17,
             "order_back": 1
+          },
+          {
+            "name": "Кооперативний ринок",
+            "order_there": 6,
+            "order_back": -1
+          },
+          {
+            "name": "Кооперативний ринок (навпр.)",
+            "order_there": -1,
+            "order_back": 13
+          },
+          {
+            "name": "Малинське УЕГГ",
+            "order_there": 12,
+            "order_back": 7
+          },
+          {
+            "name": "Миру - ГМП (до перехрестя)",
+            "order_there": 15,
+            "order_back": 3
+          },
+          {
+            "name": "Миру - ГМП (за перехрестям)",
+            "order_there": 14,
+            "order_back": 4
+          },
+          {
+            "name": "Миру-Городищанська (перехр)",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "ПТЛ",
+            "order_there": 13,
+            "order_back": 6
+          },
+          {
+            "name": "С.Бандери 36",
+            "order_there": 8,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\"",
+            "order_there": 10,
+            "order_back": -1
+          },
+          {
+            "name": "ТОВ \"Юнігран\" (навпроти)",
+            "order_there": -1,
+            "order_back": 9
+          },
+          {
+            "name": "Чорновола 10",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
+            "name": "Чорновола 15",
+            "order_there": 2,
+            "order_back": -1
+          },
+          {
+            "name": "Чорновола 36",
+            "order_there": -1,
+            "order_back": 18
+          },
+          {
+            "name": "Чорновола 53",
+            "order_there": 1,
+            "order_back": 19
+          },
+          {
+            "name": "м-н \"Будмаркет\"",
+            "order_there": 11,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Будмаркет\" (навпроти)",
+            "order_there": -1,
+            "order_back": 8
+          },
+          {
+            "name": "м-н \"Вікторія\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
+            "name": "м-н \"Доктор ЗОО\"",
+            "order_there": -1,
+            "order_back": 12
+          },
+          {
+            "name": "м-н \"Продукти\" навпроти ПТЛ",
+            "order_there": -1,
+            "order_back": 5
+          },
+          {
+            "name": "м-н \"Промінь\"",
+            "order_there": 7,
+            "order_back": -1
+          },
+          {
+            "name": "перехр.Горбатюка-Бандери",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "прехр.Горбатюка-Бандери 2",
+            "order_there": -1,
+            "order_back": 10
           }
         ],
         "9": [

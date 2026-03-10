@@ -22,7 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '9', '11'];
+const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11'];
 const DEFAULT_SEC = 120;
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving';
 const DELAY_MS = 300;

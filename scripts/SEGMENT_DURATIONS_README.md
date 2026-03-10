@@ -22,7 +22,7 @@ node scripts/calculate_segment_durations.js --route=11
 node scripts/calculate_segment_durations.js
 ```
 
-Скрипт перераховує **тільки перевірені** маршрути: **2, 3, 5, 7, 9, 11** (список у скрипті `VERIFIED_ROUTE_IDS`).
+Скрипт перераховує **тільки перевірені** маршрути: **2, 3, 5, 7, 8, 9, 11** (список у скрипті `VERIFIED_ROUTE_IDS`).
 
 ### 3. Додати новий перевірений маршрут
 
@@ -31,7 +31,7 @@ node scripts/calculate_segment_durations.js
 1. Відкрийте **`scripts/calculate_segment_durations.js`**.
 2. Додайте ID маршруту в масив **`VERIFIED_ROUTE_IDS`**:
    ```js
-   const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '9', '11'];
+   const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11'];
    ```
 3. Переконайтесь, що для зупинок цього маршруту є координати в **`frontend/public/data/stops_coords.json`**.
 4. Запустіть розрахунок тільки для цього маршруту:
@@ -61,3 +61,12 @@ node scripts/calculate_segment_durations.js
 - Якщо сума всіх сегментів маршруту «туди» значно більша за час «від першої до останньої по прямій», скрипт трохи зменшує час на зупинках (не більше 5–10%), щоб загальний час був ближчий до реального.
 
 Редагувати готові значення можна вручну в **`segmentDurations.json`** (числа в секундах).
+
+
+https://data.gov.ua/dataset/97e2ca7c-3f6f-4a77-9a4d-d954478bfe43
+
+Розклад руху громадського транспорту міста Малина
+https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36
+
+Перелік перевізників що надають послуги пасажирського автомобільного транспорту
+https://data.gov.ua/dataset/d8b6a318-2760-42cd-a142-0f3ead69852f
