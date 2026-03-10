@@ -173,9 +173,19 @@ function getFirstTripTime(trips: TransportRecord[]): number {
 }
 
 function formatTime(minutes: number): string {
-  const h = Math.floor(minutes / 60) % 24;
-  const m = minutes % 60;
+  const totalMins = Math.round(minutes);
+  const h = Math.floor(totalMins / 60) % 24;
+  const m = totalMins % 60;
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+/** Формат тривалості між зупинками: "X хв Y сек" або "Y сек", без дробів */
+function formatDurationMinutes(minutes: number): string {
+  const totalSec = Math.round(minutes * 60);
+  if (totalSec < 60) return `${totalSec} сек`;
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return s === 0 ? `${m} хв` : `${m} хв ${s} сек`;
 }
 
 /** Поточний час у Києві (хвилини з півночі) */
@@ -1158,7 +1168,7 @@ export const LocalTransportPage: React.FC = () => {
                                     {isTo && <span className="lt-stop-badge lt-stop-badge--to">До</span>}
                                   </span>
                                   <span className="lt-stop-to-next">
-                                    {minsToNext != null ? `${minsToNext} хв` : '—'}
+                                    {minsToNext != null ? formatDurationMinutes(minsToNext) : '—'}
                                   </span>
                                 </li>
                               );
