@@ -87,6 +87,44 @@ app.get('/status', (_req, res) => {
   });
 });
 
+// ---------- Local transport JSON for Android/web ----------
+
+app.get('/localtransport/data', (_req, res) => {
+  try {
+    const root = process.cwd();
+    const transportPath = path.join(root, 'frontend', 'public', 'data', 'malyn_transport.json');
+    const coordsPath = path.join(root, 'frontend', 'public', 'data', 'stops_coords.json');
+    const segmentsPath = path.join(
+      root,
+      'frontend',
+      'src',
+      'pages',
+      'LocalTransportPage',
+      'segmentDurations.json',
+    );
+
+    const transportRaw = fs.readFileSync(transportPath, 'utf8');
+    const coordsRaw = fs.readFileSync(coordsPath, 'utf8');
+    const segmentsRaw = fs.readFileSync(segmentsPath, 'utf8');
+
+    const transport = JSON.parse(transportRaw);
+    const coords = JSON.parse(coordsRaw);
+    const segments = JSON.parse(segmentsRaw);
+
+    res.set({
+      'Cache-Control': 'public, max-age=300',
+    });
+    res.json({
+      transport,
+      coords,
+      segments,
+    });
+  } catch (error) {
+    console.error('❌ /localtransport/data error:', error);
+    res.status(500).json({ error: 'Failed to load local transport data' });
+  }
+});
+
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
   try {
