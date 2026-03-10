@@ -8,6 +8,8 @@
  * - Відстань між зупинками: OSRM (router.project-osrm.org), відстань по дорозі.
  * - Час сегменту = час зупинки (12 с) + час руху (відстань / швидкість).
  * - Швидкість у місті 35 км/год, при перегоні > 600 м — 45 км/год.
+ * - Корекція підвищення: якщо час маршруту при 24 км/год (відстань по дорозі / 24) більший
+ *   за суму поточних сегментів — множимо час кожного сегменту на коефіцієнт (щоб сума ≈ час при 24 км/год).
  *
  * Використання:
  *   node scripts/calculate_segment_durations.js           # усі перевірені маршрути
@@ -29,6 +31,8 @@ const STOP_TIME_SEC = 12;
 const SPEED_KMH_URBAN = 35;
 const SPEED_KMH_FAST = 45;
 const SEGMENT_LONG_M = 600;
+/** Швидкість для кореляції всього маршруту: якщо час при цій швидкості більший за суму сегментів — підвищуємо час сегментів */
+const CORRELATION_SPEED_KMH = 24;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -119,6 +123,8 @@ async function main() {
 
   let requested = 0;
   let failed = 0;
+  /** Відстань по дорозі (м) для кожного сегменту — для кореляції при 24 км/год */
+  const segmentDistancesM = {};
 
   for (const routeId of routesToProcess) {
     for (const dir of ['there', 'back']) {
@@ -142,11 +148,41 @@ async function main() {
         await sleep(DELAY_MS);
 
         if (distM != null && distM > 0) {
+          segmentDistancesM[key] = distM;
           existing.segments[key] = Math.max(30, segmentTimeSecFromDistanceM(distM));
         } else {
           existing.segments[key] = DEFAULT_SEC;
           failed++;
         }
+      }
+    }
+  }
+
+  // Корекція підвищення: якщо час при 24 км/год більший за суму сегментів — підвищуємо час сегментів
+  for (const routeId of routesToProcess) {
+    for (const dir of ['there', 'back']) {
+      const names = getOrderedStopNames(stopsByRoute, routeId, dir);
+      const keys = [];
+      for (let i = 0; i < names.length - 1; i++) {
+        keys.push(`${routeId}|${names[i]}|${names[i + 1]}`);
+      }
+      let totalDistM = 0;
+      let totalTimeSec = 0;
+      for (const k of keys) {
+        if (segmentDistancesM[k] != null) totalDistM += segmentDistancesM[k];
+        totalTimeSec += existing.segments[k] || 0;
+      }
+      if (totalDistM <= 0 || totalTimeSec <= 0) continue;
+      const timeAt24Sec = (totalDistM / 1000 / CORRELATION_SPEED_KMH) * 3600;
+      if (timeAt24Sec > totalTimeSec) {
+        const factor = timeAt24Sec / totalTimeSec;
+        for (const k of keys) {
+          const v = existing.segments[k];
+          if (v != null) existing.segments[k] = Math.max(30, Math.round(v * factor));
+        }
+        console.log(
+          `Корекція ${routeId} ${dir}: час при ${CORRELATION_SPEED_KMH} км/год ${Math.round(timeAt24Sec)} с > сума ${totalTimeSec} с → фактор ${factor.toFixed(3)}`
+        );
       }
     }
   }
