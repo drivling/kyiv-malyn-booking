@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Базовая тема приложения для Activity (Compose сам управляет своим Material3-темингом) -->
+    <style name="Theme.MalynTransport" parent="Theme.AppCompat.Light.NoActionBar" />
+
+</resources>
+

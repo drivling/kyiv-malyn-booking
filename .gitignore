@@ -27,3 +27,28 @@ venv/
 # Next.js build output
 .next/
 out/
+
+# Android / Gradle
+android-malyn-transport/.gradle/
+android-malyn-transport/build/
+android-malyn-transport/**/build/
+android-malyn-transport/local.properties
+android-malyn-transport/*.keystore
+android-malyn-transport/*.jks
+android-malyn-transport/*.keystore.properties
+
+# Android Studio / IntelliJ project files
+android-malyn-transport/.idea/
+android-malyn-transport/*.iml
+android-malyn-transport/*.ipr
+android-malyn-transport/*.iws
+
+# Android generated outputs
+android-malyn-transport/app/*/outputs/
+android-malyn-transport/app/*/intermediates/
+android-malyn-transport/app/*/generated/
+
+# Android local/cache artefacts
+android-malyn-transport/.kotlin/
+android-malyn-transport/java_pid*.hprof
+*.hprof

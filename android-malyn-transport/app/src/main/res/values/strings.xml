@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Малин транспорт</string>
+    <string name="nav_planner">Маршрут</string>
+    <string name="nav_stops">Зупинки</string>
+    <string name="nav_tickets">Квитки</string>
+    <string name="nav_profile">Профіль</string>
+</resources>
+
