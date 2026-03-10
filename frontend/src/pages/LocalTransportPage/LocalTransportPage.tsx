@@ -4,6 +4,12 @@ import { Select } from '@/components/Select';
 import { Combobox } from '@/components/Combobox';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
+import {
+  getMinsBetweenStops,
+  getDurationFromStartSec,
+  getSegmentDurationSec,
+  isVerifiedRoute,
+} from './routeTiming';
 import './LocalTransportPage.css';
 
 const DATA_URL = '/data/malyn_transport.json';
@@ -161,9 +167,6 @@ function parseTime(s: string | undefined): number {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-/** Орієнтовно хвилин між зупинками (для розрахунку часу прибуття) */
-const MINS_PER_STOP = 2;
-
 function getFirstTripTime(trips: TransportRecord[]): number {
   const times = trips.map((t) => parseTime(t.block_id)).filter((t) => t > 0);
   return times.length > 0 ? Math.min(...times) : 7 * 60; // 7:00 за замовчуванням
@@ -286,6 +289,32 @@ function getFromOrder(
   return stop ? (dir === 'there' ? stop.order_there : stop.order_back) : null;
 }
 
+/** Зібрати назви зупинок у порядку руху для маршруту та напрямку */
+function getOrderedStopNames(
+  routeId: string,
+  dir: 'there' | 'back',
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
+): string[] {
+  if (!routeId || !stopsByRoute?.[routeId]) return [];
+  const routeStops = stopsByRoute[routeId];
+  if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
+  const first = routeStops[0];
+  const withOrder: RouteStopWithOrder[] =
+    first && typeof first === 'object' && 'name' in first
+      ? (routeStops as RouteStopWithOrder[])
+      : (routeStops as string[]).map((name, i) => ({
+          name,
+          order_there: i + 1,
+          order_back: routeStops.length - i,
+          belongs_to: 'both' as const,
+        }));
+  const ordered =
+    dir === 'there'
+      ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0).sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0))
+      : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0).sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
+  return ordered.map((s) => s.name);
+}
+
 /** Знайти baseTime рейсу за часом відправлення з зупинки fromStop */
 function findBaseTimeByDepartureFromStop(
   trips: TransportRecord[],
@@ -297,7 +326,12 @@ function findBaseTimeByDepartureFromStop(
 ): number | null {
   const fromOrder = getFromOrder(fromStop, dir, stopsByRoute, routeId);
   if (fromOrder == null) return null;
-  const baseTime = depFromStopMins - (fromOrder - 1) * MINS_PER_STOP;
+  const rid = routeId ?? '';
+  const durationMins =
+    isVerifiedRoute(rid) && stopsByRoute?.[rid]
+      ? getDurationFromStartSec(rid, getOrderedStopNames(rid, dir, stopsByRoute), fromOrder - 1) / 60
+      : (fromOrder - 1) * getMinsBetweenStops(rid);
+  const baseTime = depFromStopMins - durationMins;
   const { dir0, dir1 } = groupTripsByDirection(trips);
   const dirTrips = dir === 'there' ? dir1 : dir0;
   const baseTimes = dirTrips.map((t) => parseTime(t.block_id)).filter((m) => m > 0);
@@ -821,6 +855,12 @@ export const LocalTransportPage: React.FC = () => {
                 : orderedForDirection
               ).map((s) => ({ value: s.name, label: s.name }));
 
+              const minsPerStop = getMinsBetweenStops(detailRoute.id);
+              const routeId = detailRoute.id;
+              const verified = isVerifiedRoute(routeId);
+              const orderedNamesThere = orderedStopsThere.map((s) => s.name);
+              const orderedNamesBack = orderedStopsBack.map((s) => s.name);
+
               const buildTableTrips = () => {
                 if (!fromStop || !toStop || !stopsWithOrder) return null;
                 const fromOrderThere = orderedStopsThere.find((s) => s.name === fromStop)?.order_there;
@@ -833,12 +873,13 @@ export const LocalTransportPage: React.FC = () => {
                   dir1.forEach((t) => {
                     const mins = parseTime(t.block_id);
                     if (mins > 0) {
-                      rows.push({
-                        dep: formatTime(mins + (fromOrderThere - 1) * MINS_PER_STOP),
-                        arr: formatTime(mins + (toOrderThere - 1) * MINS_PER_STOP),
-                        direction: 'there',
-                        baseTime: mins,
-                      });
+                      const depMins = verified
+                        ? mins + getDurationFromStartSec(routeId, orderedNamesThere, fromOrderThere - 1) / 60
+                        : mins + (fromOrderThere - 1) * minsPerStop;
+                      const arrMins = verified
+                        ? mins + getDurationFromStartSec(routeId, orderedNamesThere, toOrderThere - 1) / 60
+                        : mins + (toOrderThere - 1) * minsPerStop;
+                      rows.push({ dep: formatTime(depMins), arr: formatTime(arrMins), direction: 'there', baseTime: mins });
                     }
                   });
                 }
@@ -846,12 +887,13 @@ export const LocalTransportPage: React.FC = () => {
                   dir0.forEach((t) => {
                     const mins = parseTime(t.block_id);
                     if (mins > 0) {
-                      rows.push({
-                        dep: formatTime(mins + (fromOrderBack - 1) * MINS_PER_STOP),
-                        arr: formatTime(mins + (toOrderBack - 1) * MINS_PER_STOP),
-                        direction: 'back',
-                        baseTime: mins,
-                      });
+                      const depMins = verified
+                        ? mins + getDurationFromStartSec(routeId, orderedNamesBack, fromOrderBack - 1) / 60
+                        : mins + (fromOrderBack - 1) * minsPerStop;
+                      const arrMins = verified
+                        ? mins + getDurationFromStartSec(routeId, orderedNamesBack, toOrderBack - 1) / 60
+                        : mins + (toOrderBack - 1) * minsPerStop;
+                      rows.push({ dep: formatTime(depMins), arr: formatTime(arrMins), direction: 'back', baseTime: mins });
                     }
                   });
                 }
@@ -1076,16 +1118,31 @@ export const LocalTransportPage: React.FC = () => {
                             ? selectedTripTime
                             : getFirstTripTime(detailRoute.trips);
                         const orderKey = isThere ? 'order_there' : 'order_back';
+                        const orderedNamesStops = filtered.map((s) => s.name);
+                        const verifiedStops = isVerifiedRoute(detailRoute.id);
+                        const minsPerStopStops = getMinsBetweenStops(detailRoute.id);
                         return (
                           <ul className="lt-stops-list">
                             {filtered.map((s, idx) => {
                               const order = s[orderKey];
-                              const arrivalMins = baseTime + (order - 1) * MINS_PER_STOP;
+                              const arrivalMins = verifiedStops
+                                ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, order - 1) / 60
+                                : baseTime + (order - 1) * minsPerStopStops;
                               const nextStop = filtered[idx + 1];
-                              const nextArrivalMins = nextStop
-                                ? baseTime + (nextStop[orderKey] - 1) * MINS_PER_STOP
-                                : null;
-                              const minsToNext = nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
+                              const nextArrivalMins =
+                                nextStop == null
+                                  ? null
+                                  : verifiedStops
+                                    ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextStop[orderKey] - 1) / 60
+                                    : baseTime + (nextStop[orderKey] - 1) * minsPerStopStops;
+                              const minsToNext =
+                                nextStop == null
+                                  ? null
+                                  : verifiedStops
+                                    ? getSegmentDurationSec(detailRoute.id, s.name, nextStop.name) / 60
+                                    : nextArrivalMins != null
+                                      ? nextArrivalMins - arrivalMins
+                                      : null;
                               const isFrom = fromStop && s.name === fromStop;
                               const isTo = toStop && s.name === toStop;
                               return (

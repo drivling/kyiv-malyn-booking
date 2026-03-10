@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { VERIFIED_ROUTE_IDS } from './routeTiming';
 
 const STOPS_COORDS_URL = '/data/stops_coords.json';
-
-/** Маршрути з перевіреною трасою — на карті малюється пунктир і стрілочки напрямку */
-const VERIFIED_ROUTE_IDS = ['3', '5', '7', '9', '11'];
 
 interface RouteMapProps {
   /** Номер маршруту (для перевірених малюємо лінію) */
@@ -117,7 +115,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
   const stopsWithCoords = stopNames.filter((n) => coords.stops[n]);
   const positions = stopsWithCoords.map((n) => coords.stops[n] as [number, number]);
-  const showRouteLine = routeId && VERIFIED_ROUTE_IDS.includes(routeId) && positions.length >= 2;
+  const showRouteLine = routeId && (VERIFIED_ROUTE_IDS as readonly string[]).includes(routeId) && positions.length >= 2;
 
   // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту
   const fromIdx = fromStopName ? stopsWithCoords.indexOf(fromStopName) : -1;
