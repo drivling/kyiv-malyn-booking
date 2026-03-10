@@ -1,6 +1,6 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
 package ua.malyn.transport.ui.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +15,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -157,15 +160,21 @@ private fun StopSelector(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier) {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier,
+    ) {
         OutlinedTextField(
             value = selected,
             onValueChange = {},
-            label = { Text(label) },
             readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = true },
+                .menuAnchor(),
         )
         DropdownMenu(
             expanded = expanded,
@@ -175,8 +184,8 @@ private fun StopSelector(
                 DropdownMenuItem(
                     text = { Text(stop) },
                     onClick = {
-                        expanded = false
                         onSelected(stop)
+                        expanded = false
                     },
                 )
             }
