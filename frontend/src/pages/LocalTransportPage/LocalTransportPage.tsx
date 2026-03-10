@@ -717,7 +717,7 @@ export const LocalTransportPage: React.FC = () => {
     const stopsWithOrder: RouteStopWithOrder[] =
       first && typeof first === 'object' && 'name' in first
         ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as string[]).map((name, i, arr) => ({
+        : (routeStops as unknown as string[]).map((name, i, arr) => ({
             name,
             order_there: i + 1,
             order_back: arr.length - i,
