@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ua.malyn.transport.domain.model.JourneyOption
@@ -81,12 +84,8 @@ fun JourneyMapScreen(
     val duration = journey.arrivalMinutes - journey.departureMinutes
     val minutesUntilDeparture = (journey.departureMinutes - nowMinutes + 24 * 60) % (24 * 60)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars),
-    ) {
-        // 1. Заголовок як у Jakdojade — темний блок
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 1. Заголовок — темний блок від самого верху (edge-to-edge)
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = Color(0xFF2D2D2D),
@@ -94,6 +93,7 @@ fun JourneyMapScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))
                     .padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -204,11 +204,12 @@ fun JourneyMapScreen(
             }
         }
 
-        // 2. Карта + правий блок таймлайну
+        // 2. Карта + правий блок таймлайну (clip щоб карта не перекривала заголовок)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .clip(RectangleShape),
         ) {
             OsmMapView(
                 modifier = Modifier.fillMaxSize(),
