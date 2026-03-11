@@ -207,7 +207,7 @@
       "trip_id": "2-03",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "8:00"
+      "block_id": "7:40"
     },
     {
       "route_id": "2",
@@ -223,28 +223,36 @@
       "trip_id": "2-05",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "9:00"
+      "block_id": "8:20"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-06",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
       "block_id": "9:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-07",
-      "trip_headsign": "Лікарня",
-      "direction_id": "1",
-      "block_id": "10:00"
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "9:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-08",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "9:40"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-09",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
       "block_id": "10:00"
@@ -252,18 +260,10 @@
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-09",
+      "trip_id": "2-10",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "11:00"
-    },
-    {
-      "route_id": "2",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-10",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "11:00"
+      "block_id": "10:20"
     },
     {
       "route_id": "2",
@@ -271,7 +271,7 @@
       "trip_id": "2-11",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "12:00"
+      "block_id": "11:00"
     },
     {
       "route_id": "2",
@@ -279,23 +279,23 @@
       "trip_id": "2-12",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "12:00"
+      "block_id": "11:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-13",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "13:00"
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "11:40"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-14",
-      "trip_headsign": "Лікарня",
-      "direction_id": "1",
-      "block_id": "14:00"
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "12:00"
     },
     {
       "route_id": "2",
@@ -303,7 +303,7 @@
       "trip_id": "2-15",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "15:00"
+      "block_id": "12:20"
     },
     {
       "route_id": "2",
@@ -311,7 +311,7 @@
       "trip_id": "2-16",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "15:00"
+      "block_id": "13:00"
     },
     {
       "route_id": "2",
@@ -319,15 +319,15 @@
       "trip_id": "2-17",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "16:00"
+      "block_id": "14:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-18",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "16:00"
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "14:40"
     },
     {
       "route_id": "2",
@@ -335,7 +335,7 @@
       "trip_id": "2-19",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "17:00"
+      "block_id": "15:00"
     },
     {
       "route_id": "2",
@@ -343,7 +343,7 @@
       "trip_id": "2-20",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "17:05"
+      "block_id": "15:20"
     },
     {
       "route_id": "2",
@@ -351,12 +351,52 @@
       "trip_id": "2-21",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "18:00"
+      "block_id": "16:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-22",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-23",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "16:40"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-24",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-25",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-26",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-27",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
       "block_id": "18:00"
@@ -1436,7 +1476,7 @@
           "schedule_entries": [
             {
               "label": "З Паперової фабрики",
-              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:05, 18:00"
+              "times": "7:00, 7:40, 8:20, 9:00, 9:40, 10:20, 11:00, 11:40, 12:20, 14:00, 14:40, 15:20, 16:00, 16:40, 17:20, 18:00"
             },
             {
               "label": "З Лікарні",
@@ -1605,7 +1645,7 @@
     }
   },
   "stats": {
-    "total_rows": 170,
+    "total_rows": 175,
     "columns": 9,
     "routes_count": 11,
     "route_ids": [
@@ -1626,7 +1666,7 @@
       "6": 2,
       "10": 4,
       "12": 4,
-      "2": 22,
+      "2": 27,
       "3": 21,
       "5": 28,
       "7": 26,
