@@ -77,6 +77,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
+    // Lottie — анімований індикатор завантаження (офлайн з res/raw/loading.json)
+    implementation("com.airbnb.android:lottie-compose:6.6.2")
+
     // Maps: пока без SDK, только модель; позже можно прикрутить Google Maps / Mapbox
 
     testImplementation("junit:junit:4.13.2")

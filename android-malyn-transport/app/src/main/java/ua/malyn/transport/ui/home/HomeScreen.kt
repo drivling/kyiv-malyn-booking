@@ -1,23 +1,26 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
 package ua.malyn.transport.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,17 +30,28 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import ua.malyn.transport.R
 import ua.malyn.transport.domain.model.Direction
 import ua.malyn.transport.domain.model.JourneyOption
 import ua.malyn.transport.domain.model.PlannerTimeMode
@@ -65,11 +79,14 @@ private fun LoadingContent() {
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(modifier = Modifier.size(56.dp))
         Text(
             text = "Завантаження розкладу…",
-            modifier = Modifier.padding(top = 16.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 24.dp),
         )
     }
 }
@@ -97,150 +114,231 @@ private fun ErrorContent(
     }
 }
 
+/**
+ * Планувальник у стилі Jakdojade: вертикальний блок «Звідки»/«Куди», іконки,
+ * плейсхолдери, компактний час, список рейсів знизу.
+ */
 @Composable
 private fun PlannerContent(
     state: HomeUiState,
     vm: HomeViewModel,
 ) {
+    val focusManager = LocalFocusManager.current
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        Text(
-            text = "Планувальник поїздки",
-            style = MaterialTheme.typography.titleMedium,
-        )
-
-        Row(
+        // Блок пошуку маршруту (як у Jakdojade — одна картка з полями)
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
-            StopSelector(
-                label = "Звідки",
-                allStops = state.allStops,
-                selected = state.fromStop,
-                onSelected = vm::onFromStopSelected,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(
-                onClick = vm::onSwapStops,
-                modifier = Modifier.padding(top = 8.dp),
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
-                Icon(Icons.Filled.SwapVert, contentDescription = "Поміняти місцями")
+                StopSelector(
+                    label = "Звідки",
+                    placeholder = "Введіть зупинку відправлення",
+                    leadingIcon = Icons.Filled.Place,
+                    allStops = state.allStops,
+                    selected = state.fromStop,
+                    onSelected = vm::onFromStopSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    IconButton(onClick = vm::onSwapStops) {
+                        Icon(
+                            Icons.Filled.SwapVert,
+                            contentDescription = "Поміняти місцями",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                StopSelector(
+                    label = "Куди",
+                    placeholder = "Введіть зупинку прибуття",
+                    leadingIcon = Icons.Filled.Flag,
+                    allStops = state.allStops,
+                    selected = state.toStop,
+                    onSelected = vm::onToStopSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TimeSelector(
+                    timeMinutes = state.timeMinutes,
+                    mode = state.timeMode,
+                    onModeChange = vm::onTimeModeChanged,
+                    onShiftTime = vm::shiftTimeBy,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
             }
-            StopSelector(
-                label = "Куди",
-                allStops = state.allStops,
-                selected = state.toStop,
-                onSelected = vm::onToStopSelected,
-                modifier = Modifier.weight(1f),
-            )
         }
 
-        TimeSelector(
-            timeMinutes = state.timeMinutes,
-            mode = state.timeMode,
-            onModeChange = vm::onTimeModeChanged,
-            onShiftTime = vm::shiftTimeBy,
+        // Кнопка пошуку як у застосунку Jakdojade — зелена кнопка внизу блоку (закриває клавіатуру)
+        Button(
+            onClick = { focusManager.clearFocus() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+        ) {
+            Icon(
+                Icons.Filled.DirectionsBus,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Знайти маршрути", style = MaterialTheme.typography.titleMedium)
+        }
+
+        Text(
+            text = "Рейси",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
         )
 
         JourneysList(journeys = state.journeys)
     }
 }
 
+/**
+ * Поле вводу зупинки як у Jakdojade: текстове поле з іконкою та плейсхолдером,
+ * клавіатура відкривається; під полем — список підказок по введеному тексту.
+ */
 @Composable
 private fun StopSelector(
     label: String,
+    placeholder: String,
+    leadingIcon: ImageVector,
     allStops: List<String>,
     selected: String,
     onSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var query by remember(selected) { mutableStateOf(selected) }
+    var showSuggestions by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier,
-    ) {
+    val suggestions = remember(query, allStops) {
+        if (query.isBlank()) {
+            allStops.take(80)
+        } else {
+            allStops.filter { it.contains(query, ignoreCase = true) }.take(80)
+        }
+    }
+
+    Column(modifier = modifier) {
         OutlinedTextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
+            value = query,
+            onValueChange = { newValue ->
+                query = newValue
+                showSuggestions = true
+            },
             label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyLarge) },
+            leadingIcon = { Icon(leadingIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+            singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(),
+                .onFocusChanged { showSuggestions = it.hasFocus || query.isNotEmpty() },
         )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
+
+        AnimatedVisibility(
+            visible = showSuggestions && suggestions.isNotEmpty(),
+            enter = expandVertically(),
+            exit = shrinkVertically(),
         ) {
-            allStops.forEach { stop ->
-                DropdownMenuItem(
-                    text = { Text(stop) },
-                    onClick = {
-                        onSelected(stop)
-                        expanded = false
-                    },
-                )
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .padding(top = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            ) {
+                LazyColumn(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    items(suggestions) { stop ->
+                        Text(
+                            text = stop,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    query = stop
+                                    onSelected(stop)
+                                    showSuggestions = false
+                                    focusManager.clearFocus()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+/**
+ * Вибір часу як у Jakdojade: один ряд — режим (Вирушити о / Прибути до) + час + кнопки ±15 хв.
+ */
 @Composable
 private fun TimeSelector(
     timeMinutes: Int,
     mode: PlannerTimeMode,
     onModeChange: (PlannerTimeMode) -> Unit,
     onShiftTime: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val hours = (timeMinutes / 60) % 24
     val mins = timeMinutes % 60
     val timeLabel = String.format("%02d:%02d", hours, mins)
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(
-                selected = mode == PlannerTimeMode.DEPART_AT,
-                onClick = { onModeChange(PlannerTimeMode.DEPART_AT) },
-                label = { Text("Вирушити о") },
-                leadingIcon = if (mode == PlannerTimeMode.DEPART_AT) {
-                    { Icon(Icons.Filled.Schedule, contentDescription = null) }
-                } else null,
-            )
-            FilterChip(
-                selected = mode == PlannerTimeMode.ARRIVE_BY,
-                onClick = { onModeChange(PlannerTimeMode.ARRIVE_BY) },
-                label = { Text("Прибути до") },
-                leadingIcon = if (mode == PlannerTimeMode.ARRIVE_BY) {
-                    { Icon(Icons.Filled.Schedule, contentDescription = null) }
-                } else null,
-            )
+        FilterChip(
+            selected = mode == PlannerTimeMode.DEPART_AT,
+            onClick = { onModeChange(PlannerTimeMode.DEPART_AT) },
+            label = { Text("Вирушити о", style = MaterialTheme.typography.labelLarge) },
+            leadingIcon = if (mode == PlannerTimeMode.DEPART_AT) {
+                { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.padding(4.dp)) }
+            } else null,
+        )
+        FilterChip(
+            selected = mode == PlannerTimeMode.ARRIVE_BY,
+            onClick = { onModeChange(PlannerTimeMode.ARRIVE_BY) },
+            label = { Text("Прибути до", style = MaterialTheme.typography.labelLarge) },
+            leadingIcon = if (mode == PlannerTimeMode.ARRIVE_BY) {
+                { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.padding(4.dp)) }
+            } else null,
+        )
+        Text(
+            text = timeLabel,
+            style = MaterialTheme.typography.titleMedium,
+        )
+        TextButton(onClick = { onShiftTime(-15) }) {
+            Text("−15")
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = timeLabel,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            TextButton(onClick = { onShiftTime(-15) }) {
-                Text("−15 хв")
-            }
-            TextButton(onClick = { onShiftTime(15) }) {
-                Text("+15 хв")
-            }
+        TextButton(onClick = { onShiftTime(15) }) {
+            Text("+15")
         }
     }
 }
@@ -272,6 +370,10 @@ private fun JourneysList(
     }
 }
 
+/**
+ * Картка рейсу як у застосунку Jakdojade: зліва номер маршруту, справа час у дорозі;
+ * рядок відправлення → прибуття та зупинки.
+ */
 @Composable
 private fun JourneyCard(journey: JourneyOption) {
     val depH = (journey.departureMinutes / 60) % 24
@@ -281,44 +383,55 @@ private fun JourneyCard(journey: JourneyOption) {
     val depStr = String.format("%02d:%02d", depH, depM)
     val arrStr = String.format("%02d:%02d", arrH, arrM)
     val duration = journey.arrivalMinutes - journey.departureMinutes
-    val durH = duration / 60
     val durM = duration % 60
+    val durH = duration / 60
     val durStr = if (durH > 0) "${durH} год ${durM} хв" else "${durM} хв"
 
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Text(
+                        text = "№${journey.routeId}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "$depStr → $arrStr",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = "${journey.fromStop} → ${journey.toStop}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Text(
-                text = buildString {
-                    append("Маршрут №${journey.routeId}")
-                    if (!journey.routeFrom.isNullOrBlank() || !journey.routeTo.isNullOrBlank()) {
-                        append(" · ")
-                        append(journey.routeFrom ?: "")
-                        append(" — ")
-                        append(journey.routeTo ?: "")
-                    }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "${journey.fromStop} → ${journey.toStop}",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "$depStr → $arrStr ($durStr)",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = when (journey.direction) {
-                    Direction.THERE -> "Напрямок: туди"
-                    Direction.BACK -> "Напрямок: назад"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = durStr,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
     }

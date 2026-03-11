@@ -1,0 +1,2 @@
+# Android Malyn Transport
+# Gradle: у цій папці запускай збірку через ./run-gradle.sh (а не ./gradlew), щоб JAVA_HOME підставлявся з gradle.properties.
