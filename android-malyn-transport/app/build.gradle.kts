@@ -80,7 +80,8 @@ dependencies {
     // Lottie — анімований індикатор завантаження (офлайн з res/raw/loading.json)
     implementation("com.airbnb.android:lottie-compose:6.6.2")
 
-    // Maps: пока без SDK, только модель; позже можно прикрутить Google Maps / Mapbox
+    // OpenStreetMap (osmdroid)
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

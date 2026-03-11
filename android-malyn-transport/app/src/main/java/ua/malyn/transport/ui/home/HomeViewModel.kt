@@ -1,5 +1,6 @@
 package ua.malyn.transport.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,8 @@ data class HomeUiState(
     val timeMinutes: Int = 0,
     val journeys: List<JourneyOption> = emptyList(),
     val selectedJourney: JourneyOption? = null,
+    /** Зупинки маршруту З→До з координатами для карти */
+    val mapStops: List<ua.malyn.transport.domain.model.Stop> = emptyList(),
     val isPlannerExpanded: Boolean = true,
 )
 
@@ -41,8 +44,10 @@ class HomeViewModel(
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null, selectedJourney = null, isPlannerExpanded = true)
             try {
+                Log.d(TAG, "reload: fetching payload...")
                 val data = repository.loadPayload()
                 payload = data
+                Log.d(TAG, "reload: ok, coords.stops=${data.coords.stops.keys.size}, supplement.stops_by_route=${data.transport.supplement?.stops?.stops_by_route?.keys}")
 
                 // Побудувати список усіх зупинок з supplement.stops.stops_by_route
                 val allStops = data.transport.supplement
@@ -68,6 +73,7 @@ class HomeViewModel(
 
                 recalcJourneys()
             } catch (e: Exception) {
+                Log.e(TAG, "reload failed", e)
                 _state.value = _state.value.copy(
                     loading = false,
                     error = e.message ?: "Помилка завантаження",
@@ -112,17 +118,79 @@ class HomeViewModel(
     }
 
     fun onJourneySelected(journey: JourneyOption) {
+        Log.d(TAG, "onJourneySelected: route=${journey.routeId} from=${journey.fromStop} to=${journey.toStop} dir=${journey.direction}")
+        val mapStops = computeMapStopsForJourney(journey)
+        Log.d(TAG, "computeMapStopsForJourney: ${mapStops.size} stops, payload=${if (payload != null) "ok" else "null"}")
+        mapStops.forEachIndexed { i, s -> Log.d(TAG, "  stop[$i]: ${s.name} (${s.lat}, ${s.lng})") }
         _state.value = _state.value.copy(
             selectedJourney = journey,
+            mapStops = mapStops,
             isPlannerExpanded = false,
         )
+    }
+
+    private companion object {
+        const val TAG = "MalynTransport"
     }
 
     fun onJourneyClosed() {
         _state.value = _state.value.copy(
             selectedJourney = null,
+            mapStops = emptyList(),
             isPlannerExpanded = false,
         )
+    }
+
+    /** Зупинки від fromStop до toStop з координатами для відображення на карті */
+    private fun computeMapStopsForJourney(journey: JourneyOption): List<ua.malyn.transport.domain.model.Stop> {
+        val data = payload ?: run {
+            Log.w(TAG, "computeMapStops: payload is null")
+            return emptyList()
+        }
+        val stopsByRoute = data.transport.supplement?.stops?.stops_by_route
+        if (stopsByRoute == null) {
+            Log.w(TAG, "computeMapStops: stops_by_route is null")
+            return emptyList()
+        }
+        val coords = data.coords.stops
+        Log.d(TAG, "computeMapStops: coords keys=${coords.keys.size}, routeIds=${stopsByRoute.keys}")
+
+        val routeStops = stopsByRoute[journey.routeId]
+        if (routeStops == null) {
+            Log.w(TAG, "computeMapStops: no stops for route ${journey.routeId}")
+            return emptyList()
+        }
+        val orderedStops = if (journey.direction == Direction.THERE) {
+            routeStops
+                .filter { (it.belongs_to ?: "both") != "back" && (it.order_there != null) }
+                .sortedBy { it.order_there }
+                .map { it.name }
+        } else {
+            routeStops
+                .filter { (it.belongs_to ?: "both") != "there" && (it.order_back != null) }
+                .sortedBy { it.order_back }
+                .map { it.name }
+        }
+
+        val fromIdx = orderedStops.indexOf(journey.fromStop)
+        val toIdx = orderedStops.indexOf(journey.toStop)
+        Log.d(TAG, "computeMapStops: orderedStops=${orderedStops.size}, fromIdx=$fromIdx toIdx=$toIdx")
+        if (fromIdx == -1 || toIdx == -1 || fromIdx > toIdx) {
+            Log.w(TAG, "computeMapStops: invalid indices (fromStop=${journey.fromStop} toStop=${journey.toStop})")
+            return emptyList()
+        }
+
+        val segmentNames = orderedStops.subList(fromIdx, toIdx + 1)
+        Log.d(TAG, "computeMapStops: segment=${segmentNames}")
+        return segmentNames.mapNotNull { name ->
+            val c = coords[name]
+            if (c != null && c.size >= 2) {
+                ua.malyn.transport.domain.model.Stop(name = name, lat = c[0], lng = c[1])
+            } else {
+                Log.d(TAG, "computeMapStops: no coords for '$name'")
+                null
+            }
+        }
     }
 
     fun setPlannerExpanded(expanded: Boolean) {

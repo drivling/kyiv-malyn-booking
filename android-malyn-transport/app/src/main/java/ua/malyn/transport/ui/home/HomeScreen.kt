@@ -31,6 +31,7 @@ fun HomeScreen(
             state.error != null -> ErrorContent(error = state.error ?: "Помилка", onRetry = vm::reload)
             selectedJourney != null -> JourneyMapScreen(
                 journey = selectedJourney,
+                mapStops = state.mapStops,
                 selectedTimeMinutes = state.timeMinutes,
                 mode = state.timeMode,
                 onClose = vm::onJourneyClosed,
