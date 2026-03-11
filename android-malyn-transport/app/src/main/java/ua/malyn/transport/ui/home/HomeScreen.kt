@@ -516,7 +516,13 @@ private fun JourneyCard(
         PlannerTimeMode.ARRIVE_BY -> selectedTimeMinutes - journey.arrivalMinutes
     }
     val deltaMinutes = deltaMinutesRaw.coerceAtLeast(0)
-    val deltaLabel = String.format("%02d", deltaMinutes)
+    val waitH = deltaMinutes / 60
+    val waitM = deltaMinutes % 60
+    val deltaLabel = if (waitH > 0) {
+        "${waitH} год ${waitM} хв"
+    } else {
+        "${waitM} хв"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -548,12 +554,6 @@ private fun JourneyCard(
                         Text(
                             text = deltaLabel,
                             style = MaterialTheme.typography.displaySmall,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "ХВ",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
