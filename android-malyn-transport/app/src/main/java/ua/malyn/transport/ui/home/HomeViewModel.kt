@@ -20,6 +20,8 @@ data class HomeUiState(
     val timeMode: PlannerTimeMode = PlannerTimeMode.DEPART_AT,
     val timeMinutes: Int = 0,
     val journeys: List<JourneyOption> = emptyList(),
+    val selectedJourney: JourneyOption? = null,
+    val isPlannerExpanded: Boolean = true,
 )
 
 class HomeViewModel(
@@ -37,7 +39,7 @@ class HomeViewModel(
 
     fun reload() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
+            _state.value = _state.value.copy(loading = true, error = null, selectedJourney = null, isPlannerExpanded = true)
             try {
                 val data = repository.loadPayload()
                 payload = data
@@ -60,6 +62,8 @@ class HomeViewModel(
                     error = null,
                     allStops = allStops,
                     timeMinutes = now,
+                    selectedJourney = null,
+                    isPlannerExpanded = true,
                 )
 
                 recalcJourneys()
@@ -69,6 +73,8 @@ class HomeViewModel(
                     error = e.message ?: "Помилка завантаження",
                     allStops = emptyList(),
                     journeys = emptyList(),
+                    selectedJourney = null,
+                    isPlannerExpanded = true,
                 )
             }
         }
@@ -103,6 +109,24 @@ class HomeViewModel(
         val newTime = ((current.timeMinutes + deltaMinutes) % (24 * 60) + (24 * 60)) % (24 * 60)
         _state.value = current.copy(timeMinutes = newTime)
         recalcJourneys()
+    }
+
+    fun onJourneySelected(journey: JourneyOption) {
+        _state.value = _state.value.copy(
+            selectedJourney = journey,
+            isPlannerExpanded = false,
+        )
+    }
+
+    fun onJourneyClosed() {
+        _state.value = _state.value.copy(
+            selectedJourney = null,
+            isPlannerExpanded = false,
+        )
+    }
+
+    fun setPlannerExpanded(expanded: Boolean) {
+        _state.value = _state.value.copy(isPlannerExpanded = expanded)
     }
 
     private fun recalcJourneys() {

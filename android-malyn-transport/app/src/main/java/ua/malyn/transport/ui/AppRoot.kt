@@ -8,8 +8,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -45,11 +50,46 @@ fun AppRoot() {
         RootDestination.Profile,
     )
 
+    val homeVm: ua.malyn.transport.ui.home.HomeViewModel = viewModel()
+    val homeState by homeVm.state.collectAsState()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Малин · транспорт") },
-            )
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+            when (currentRoute) {
+                RootDestination.Planner.route -> {
+                    if (homeState.selectedJourney != null) {
+                        TopAppBar(
+                            navigationIcon = {
+                                IconButton(onClick = homeVm::onJourneyClosed) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Назад",
+                                    )
+                                }
+                            },
+                            title = {},
+                        )
+                    } else {
+                        TopAppBar(
+                            title = {},
+                        )
+                    }
+                }
+                RootDestination.Stops.route -> {
+                    TopAppBar(title = { Text("Зупинки") })
+                }
+                RootDestination.Tickets.route -> {
+                    TopAppBar(title = { Text("Квитки") })
+                }
+                RootDestination.Profile.route -> {
+                    TopAppBar(title = { Text("Профіль") })
+                }
+                else -> {
+                    TopAppBar(title = {})
+                }
+            }
         },
         bottomBar = {
             NavigationBar {
@@ -89,7 +129,7 @@ fun AppRoot() {
         ) {
             composable(RootDestination.Planner.route) {
                 // Планувальник/список маршрутів (аналог головного екрану Jakdojade)
-                HomeScreen(modifier = Modifier)
+                HomeScreen(modifier = Modifier, vm = homeVm)
             }
             composable(RootDestination.Stops.route) {
                 StopsScreen(modifier = Modifier)
