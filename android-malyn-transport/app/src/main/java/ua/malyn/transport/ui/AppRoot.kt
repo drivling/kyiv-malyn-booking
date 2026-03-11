@@ -11,11 +11,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -109,10 +111,16 @@ fun AppRoot() {
             }
         },
     ) { padding ->
+        val layoutDirection = LocalLayoutDirection.current
         NavHost(
             navController = navController,
             startDestination = RootDestination.Planner.route,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(
+                top = if (homeState.selectedJourney != null) 0.dp else padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding(),
+                start = padding.calculateLeftPadding(layoutDirection),
+                end = padding.calculateRightPadding(layoutDirection),
+            ),
         ) {
             composable(RootDestination.Planner.route) {
                 // Планувальник/список маршрутів (аналог головного екрану Jakdojade)

@@ -1,7 +1,9 @@
 package ua.malyn.transport.ui.home
 
 import android.util.Log
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,8 +46,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import ua.malyn.transport.domain.model.JourneyOption
 import ua.malyn.transport.domain.model.PlannerTimeMode
 import ua.malyn.transport.domain.model.Stop
@@ -66,6 +70,21 @@ fun JourneyMapScreen(
 ) {
     Log.d("JourneyMap", "JourneyMapScreen: journey=${journey.routeId} ${journey.fromStop}→${journey.toStop}, mapStops=${mapStops.size}")
     BackHandler(onBack = onClose)
+
+    val view = LocalView.current
+    val window = (view.context as? Activity)?.window
+    DisposableEffect(window) {
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            val wasLight = controller.isAppearanceLightStatusBars
+            controller.isAppearanceLightStatusBars = false
+            onDispose {
+                controller.isAppearanceLightStatusBars = wasLight
+            }
+        } else {
+            onDispose { }
+        }
+    }
 
     var nowMinutes by remember { mutableIntStateOf(currentTimeMinutes()) }
     LaunchedEffect(Unit) {
