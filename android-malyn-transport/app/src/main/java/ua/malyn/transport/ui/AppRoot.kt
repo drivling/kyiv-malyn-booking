@@ -54,17 +54,14 @@ fun AppRoot() {
 
     val homeVm: ua.malyn.transport.ui.home.HomeViewModel = viewModel()
     val homeState by homeVm.state.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         topBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
             when (currentRoute) {
                 RootDestination.Planner.route -> {
-                    if (homeState.selectedJourney == null) {
-                        TopAppBar(title = {})
-                    }
-                    // Коли обрано маршрут — TopAppBar не показуємо, заголовок у JourneyMapScreen
+                    // Planner і JourneyMap — без TopAppBar, контент до самого верху
                 }
                 RootDestination.Stops.route -> {
                     TopAppBar(title = { Text("Зупинки") })
@@ -116,7 +113,7 @@ fun AppRoot() {
             navController = navController,
             startDestination = RootDestination.Planner.route,
             modifier = Modifier.padding(
-                top = if (homeState.selectedJourney != null) 0.dp else padding.calculateTopPadding(),
+                top = if (currentRoute == RootDestination.Planner.route) 0.dp else padding.calculateTopPadding(),
                 bottom = padding.calculateBottomPadding(),
                 start = padding.calculateLeftPadding(layoutDirection),
                 end = padding.calculateRightPadding(layoutDirection),

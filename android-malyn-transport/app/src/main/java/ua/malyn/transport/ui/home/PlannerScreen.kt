@@ -5,9 +5,18 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import android.app.Activity
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,22 +75,61 @@ fun PlannerScreen(
     onJourneyClick: (JourneyOption) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    val view = LocalView.current
+    val window = (view.context as? Activity)?.window
+    DisposableEffect(window, isSearchExpanded) {
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            val wasLight = controller.isAppearanceLightStatusBars
+            controller.isAppearanceLightStatusBars = true
+            onDispose { controller.isAppearanceLightStatusBars = wasLight }
+        } else {
+            onDispose { }
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
             .animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         if (!isSearchExpanded) {
-            CollapsedSearchHeader(
-                from = state.fromStop,
-                to = state.toStop,
-                onExpand = { onSearchExpandedChange(true) },
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top)),
+                ) {
+                    CollapsedSearchHeader(
+                        from = state.fromStop,
+                        to = state.toStop,
+                        onExpand = { onSearchExpandedChange(true) },
+                    )
+                }
+            }
+        } else {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top)),
+                )
+            }
         }
 
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
         AnimatedVisibility(
             visible = isSearchExpanded,
             enter = expandVertically(),
@@ -176,6 +224,7 @@ fun PlannerScreen(
             mode = state.timeMode,
             onJourneyClick = onJourneyClick,
         )
+        }
     }
 }
 
