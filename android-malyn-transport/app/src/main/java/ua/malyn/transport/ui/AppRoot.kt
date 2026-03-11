@@ -59,23 +59,10 @@ fun AppRoot() {
             val currentRoute = navBackStackEntry?.destination?.route
             when (currentRoute) {
                 RootDestination.Planner.route -> {
-                    if (homeState.selectedJourney != null) {
-                        TopAppBar(
-                            navigationIcon = {
-                                IconButton(onClick = homeVm::onJourneyClosed) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Назад",
-                                    )
-                                }
-                            },
-                            title = {},
-                        )
-                    } else {
-                        TopAppBar(
-                            title = {},
-                        )
+                    if (homeState.selectedJourney == null) {
+                        TopAppBar(title = {})
                     }
+                    // Коли обрано маршрут — TopAppBar не показуємо, заголовок у JourneyMapScreen
                 }
                 RootDestination.Stops.route -> {
                     TopAppBar(title = { Text("Зупинки") })

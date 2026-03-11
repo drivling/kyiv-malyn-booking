@@ -79,20 +79,22 @@ fun OsmMapView(
                 if (stopsToUse.isNotEmpty()) {
                     val points = stopsToUse.map { GeoPoint(it.lat, it.lng) }
 
+                    // Зелена лінія маршруту (як у Jakdojade)
                     val polyline = Polyline().apply {
                         setPoints(points)
-                        outlinePaint.color = Color.parseColor("#1976D2")
-                        outlinePaint.strokeWidth = 12f
+                        outlinePaint.color = Color.parseColor("#4CAF50")
+                        outlinePaint.strokeWidth = 14f
                     }
                     it.overlays.add(0, polyline)
                     routeOverlays.add(polyline)
 
+                    // Нумеровані зупинки: 0 — старт, 1..n-1 — проміжні, остання — синя пінка
                     stopsToUse.forEachIndexed { index, stop ->
                         val marker = Marker(it).apply {
                             position = GeoPoint(stop.lat, stop.lng)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                             title = stop.name
-                            snippet = if (index == 0) "З" else if (index == stopsToUse.lastIndex) "До" else null
+                            snippet = if (index == 0) "З" else if (index == stopsToUse.lastIndex) "До" else "$index"
                         }
                         it.overlays.add(marker)
                         routeOverlays.add(marker)
