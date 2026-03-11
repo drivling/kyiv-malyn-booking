@@ -14,7 +14,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import ua.malyn.transport.domain.model.Stop
 
@@ -88,17 +87,18 @@ fun OsmMapView(
                     it.overlays.add(0, polyline)
                     routeOverlays.add(polyline)
 
-                    // Нумеровані зупинки: 0 — старт, 1..n-1 — проміжні, остання — синя пінка
-                    stopsToUse.forEachIndexed { index, stop ->
-                        val marker = Marker(it).apply {
-                            position = GeoPoint(stop.lat, stop.lng)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                            title = stop.name
-                            snippet = if (index == 0) "З" else if (index == stopsToUse.lastIndex) "До" else "$index"
+                    // Нумеровані кружечки: 0 — старт, 1..n-1 — проміжні, остання — синій
+                    val numberedPoints = stopsToUse.mapIndexed { index, stop ->
+                        val label = when {
+                            index == 0 -> "0"
+                            index == stopsToUse.lastIndex -> "До"
+                            else -> "$index"
                         }
-                        it.overlays.add(marker)
-                        routeOverlays.add(marker)
+                        GeoPoint(stop.lat, stop.lng) to label
                     }
+                    val overlay = NumberedCircleOverlay(it.context, numberedPoints)
+                    it.overlays.add(overlay)
+                    routeOverlays.add(overlay)
 
                     when {
                         points.size >= 2 -> {
