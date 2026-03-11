@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
@@ -43,6 +44,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,92 +126,162 @@ private fun PlannerContent(
     vm: HomeViewModel,
 ) {
     val focusManager = LocalFocusManager.current
+    var isSearchExpanded by rememberSaveable { mutableStateOf(true) }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        // Блок пошуку маршруту (як у Jakdojade — одна картка з полями)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        if (!isSearchExpanded) {
+            CollapsedSearchHeader(
+                from = state.fromStop,
+                to = state.toStop,
+                onExpand = { isSearchExpanded = true },
+            )
+        }
+
+        // Блок пошуку маршруту (як у Jakdojade — одна картка з полями), який можна згортати
+        AnimatedVisibility(
+            visible = isSearchExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
-            ) {
-                StopSelector(
-                    label = "Звідки",
-                    placeholder = "Введіть зупинку відправлення",
-                    leadingIcon = Icons.Filled.Place,
-                    allStops = state.allStops,
-                    selected = state.fromStop,
-                    onSelected = vm::onFromStopSelected,
+            Column {
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Center,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
-                    IconButton(onClick = vm::onSwapStops) {
-                        Icon(
-                            Icons.Filled.SwapVert,
-                            contentDescription = "Поміняти місцями",
-                            tint = MaterialTheme.colorScheme.primary,
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                    ) {
+                        StopSelector(
+                            label = "Звідки",
+                            placeholder = "Введіть зупинку відправлення",
+                            leadingIcon = Icons.Filled.Place,
+                            allStops = state.allStops,
+                            selected = state.fromStop,
+                            onSelected = vm::onFromStopSelected,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            IconButton(onClick = vm::onSwapStops) {
+                                Icon(
+                                    Icons.Filled.SwapVert,
+                                    contentDescription = "Поміняти місцями",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        StopSelector(
+                            label = "Куди",
+                            placeholder = "Введіть зупинку прибуття",
+                            leadingIcon = Icons.Filled.Flag,
+                            allStops = state.allStops,
+                            selected = state.toStop,
+                            onSelected = vm::onToStopSelected,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TimeSelector(
+                            timeMinutes = state.timeMinutes,
+                            mode = state.timeMode,
+                            onModeChange = vm::onTimeModeChanged,
+                            onShiftTime = vm::shiftTimeBy,
+                            modifier = Modifier.padding(top = 12.dp),
                         )
                     }
                 }
-                StopSelector(
-                    label = "Куди",
-                    placeholder = "Введіть зупинку прибуття",
-                    leadingIcon = Icons.Filled.Flag,
-                    allStops = state.allStops,
-                    selected = state.toStop,
-                    onSelected = vm::onToStopSelected,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TimeSelector(
-                    timeMinutes = state.timeMinutes,
-                    mode = state.timeMode,
-                    onModeChange = vm::onTimeModeChanged,
-                    onShiftTime = vm::shiftTimeBy,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
+
+                // Кнопка пошуку як у застосунку Jakdojade — зелена кнопка внизу блоку (закриває клавіатуру і згортає блок)
+                Button(
+                    onClick = {
+                        focusManager.clearFocus()
+                        isSearchExpanded = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.DirectionsBus,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Знайти маршрути", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
 
-        // Кнопка пошуку як у застосунку Jakdojade — зелена кнопка внизу блоку (закриває клавіатуру)
-        Button(
-            onClick = { focusManager.clearFocus() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-        ) {
-            Icon(
-                Icons.Filled.DirectionsBus,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Знайти маршрути", style = MaterialTheme.typography.titleMedium)
-        }
-
         Text(
-            text = "Рейси",
+            text = "Маршрути",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
         )
 
-        JourneysList(journeys = state.journeys)
+        JourneysList(
+            journeys = state.journeys,
+            timeMinutes = state.timeMinutes,
+            mode = state.timeMode,
+        )
+    }
+}
+
+@Composable
+private fun CollapsedSearchHeader(
+    from: String,
+    to: String,
+    onExpand: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clickable(onClick = onExpand),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = (from.ifBlank { "Звідки?" }) + " → " + (to.ifBlank { "Куди?" }),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Змінити пошук",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.DirectionsBus,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
@@ -309,36 +381,78 @@ private fun TimeSelector(
     val mins = timeMinutes % 60
     val timeLabel = String.format("%02d:%02d", hours, mins)
 
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(
-            selected = mode == PlannerTimeMode.DEPART_AT,
-            onClick = { onModeChange(PlannerTimeMode.DEPART_AT) },
-            label = { Text("Вирушити о", style = MaterialTheme.typography.labelLarge) },
-            leadingIcon = if (mode == PlannerTimeMode.DEPART_AT) {
-                { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.padding(4.dp)) }
-            } else null,
-        )
-        FilterChip(
-            selected = mode == PlannerTimeMode.ARRIVE_BY,
-            onClick = { onModeChange(PlannerTimeMode.ARRIVE_BY) },
-            label = { Text("Прибути до", style = MaterialTheme.typography.labelLarge) },
-            leadingIcon = if (mode == PlannerTimeMode.ARRIVE_BY) {
-                { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.padding(4.dp)) }
-            } else null,
-        )
-        Text(
-            text = timeLabel,
-            style = MaterialTheme.typography.titleMedium,
-        )
-        TextButton(onClick = { onShiftTime(-15) }) {
-            Text("−15")
+        // Режим "вирушити / прибути" — залишаємо як дві чіп-кнопки
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = mode == PlannerTimeMode.DEPART_AT,
+                onClick = { onModeChange(PlannerTimeMode.DEPART_AT) },
+                label = { Text("Вирушити", style = MaterialTheme.typography.labelLarge) },
+                leadingIcon = if (mode == PlannerTimeMode.DEPART_AT) {
+                    { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.padding(4.dp)) }
+                } else null,
+            )
+            FilterChip(
+                selected = mode == PlannerTimeMode.ARRIVE_BY,
+                onClick = { onModeChange(PlannerTimeMode.ARRIVE_BY) },
+                label = { Text("Прибути", style = MaterialTheme.typography.labelLarge) },
+                leadingIcon = if (mode == PlannerTimeMode.ARRIVE_BY) {
+                    { Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.padding(4.dp)) }
+                } else null,
+            )
         }
-        TextButton(onClick = { onShiftTime(15) }) {
-            Text("+15")
+
+        // Сучасний блок часу: велике значення посередині + іконки зміни часу
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = { onShiftTime(-15) }) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = "Раніше на 15 хв",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = timeLabel,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                }
+            }
+
+            IconButton(onClick = { onShiftTime(15) }) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = "Пізніше на 15 хв",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -346,6 +460,8 @@ private fun TimeSelector(
 @Composable
 private fun JourneysList(
     journeys: List<JourneyOption>,
+    timeMinutes: Int,
+    mode: PlannerTimeMode,
 ) {
     if (journeys.isEmpty()) {
         Text(
@@ -365,7 +481,11 @@ private fun JourneysList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(journeys) { journey ->
-            JourneyCard(journey)
+            JourneyCard(
+                journey = journey,
+                selectedTimeMinutes = timeMinutes,
+                mode = mode,
+            )
         }
     }
 }
@@ -375,7 +495,11 @@ private fun JourneysList(
  * рядок відправлення → прибуття та зупинки.
  */
 @Composable
-private fun JourneyCard(journey: JourneyOption) {
+private fun JourneyCard(
+    journey: JourneyOption,
+    selectedTimeMinutes: Int,
+    mode: PlannerTimeMode,
+) {
     val depH = (journey.departureMinutes / 60) % 24
     val depM = journey.departureMinutes % 60
     val arrH = (journey.arrivalMinutes / 60) % 24
@@ -387,52 +511,135 @@ private fun JourneyCard(journey: JourneyOption) {
     val durH = duration / 60
     val durStr = if (durH > 0) "${durH} год ${durM} хв" else "${durM} хв"
 
+    val deltaMinutesRaw = when (mode) {
+        PlannerTimeMode.DEPART_AT -> journey.departureMinutes - selectedTimeMinutes
+        PlannerTimeMode.ARRIVE_BY -> selectedTimeMinutes - journey.arrivalMinutes
+    }
+    val deltaMinutes = deltaMinutesRaw.coerceAtLeast(0)
+    val deltaLabel = String.format("%02d", deltaMinutes)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Верхній рядок: "Виїзд за" + великі хвилини, номер маршруту, час у дорозі
             Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f),
             ) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     Text(
-                        text = "№${journey.routeId}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        text = "Виїзд за",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = deltaLabel,
+                            style = MaterialTheme.typography.displaySmall,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "ХВ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "$depStr → $arrStr",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DirectionsBus,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                text = journey.routeId,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                    ) {
+                        Text(
+                            text = durStr,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
+
+            // Нижній рядок: часи і зупинки
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
                     Text(
                         text = "${journey.fromStop} → ${journey.toStop}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Text(
+                                text = depStr,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                text = arrStr,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
                 }
             }
-            Text(
-                text = durStr,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
         }
     }
 }
