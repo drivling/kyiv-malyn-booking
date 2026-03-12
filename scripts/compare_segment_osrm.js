@@ -11,7 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11'];
+const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11', '12'];
 const DELAY_MS = 250;
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving';
 

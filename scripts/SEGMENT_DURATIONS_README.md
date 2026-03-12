@@ -22,7 +22,7 @@ node scripts/calculate_segment_durations.js --route=11
 node scripts/calculate_segment_durations.js
 ```
 
-Скрипт перераховує **тільки перевірені** маршрути: **2, 3, 5, 7, 8, 9, 11** (список у скрипті `VERIFIED_ROUTE_IDS`).
+Скрипт перераховує **тільки перевірені** маршрути: **2, 3, 5, 7, 8, 9, 11, 12** (список у скрипті `VERIFIED_ROUTE_IDS`).
 
 ### 3. Додати новий перевірений маршрут
 
