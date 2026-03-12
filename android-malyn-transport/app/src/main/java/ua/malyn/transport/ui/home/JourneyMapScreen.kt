@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,17 +38,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -86,14 +84,6 @@ fun JourneyMapScreen(
         }
     }
 
-    var nowMinutes by remember { mutableIntStateOf(currentTimeMinutes()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(30_000)
-            nowMinutes = currentTimeMinutes()
-        }
-    }
-
     val depH = (journey.departureMinutes / 60) % 24
     val depM = journey.departureMinutes % 60
     val arrH = (journey.arrivalMinutes / 60) % 24
@@ -101,7 +91,17 @@ fun JourneyMapScreen(
     val depStr = String.format("%02d:%02d", depH, depM)
     val arrStr = String.format("%02d:%02d", arrH, arrM)
     val duration = journey.arrivalMinutes - journey.departureMinutes
-    val minutesUntilDeparture = (journey.departureMinutes - nowMinutes + 24 * 60) % (24 * 60)
+    val durH = duration / 60
+    val durM = duration % 60
+    val durationStr = if (durH > 0) "${durH} h ${durM} min" else "${durM} min"
+    val deltaMinutesRaw = when (mode) {
+        PlannerTimeMode.DEPART_AT -> journey.departureMinutes - selectedTimeMinutes
+        PlannerTimeMode.ARRIVE_BY -> selectedTimeMinutes - journey.arrivalMinutes
+    }
+    val deltaMinutes = deltaMinutesRaw.coerceAtLeast(0)
+    val waitH = deltaMinutes / 60
+    val waitM = deltaMinutes % 60
+    val departureInStr = if (waitH > 0) "${waitH} год ${waitM} хв" else "${waitM} хв"
 
     Column(modifier = Modifier.fillMaxSize()) {
         // 1. Заголовок — темний блок від самого верху (edge-to-edge)
@@ -128,26 +128,20 @@ fun JourneyMapScreen(
                         verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Column {
+                        Column(modifier = Modifier.widthIn(max = 140.dp)) {
                             Text(
                                 text = "Відправлення через",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White.copy(alpha = 0.8f),
                             )
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = "$minutesUntilDeparture",
-                                    style = MaterialTheme.typography.displaySmall,
-                                    color = Color.White,
-                                    fontSize = 32.sp,
-                                )
-                                Text(
-                                    text = " хв",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier.padding(bottom = 4.dp),
-                                )
-                            }
+                            Text(
+                                text = departureInStr,
+                                style = MaterialTheme.typography.displaySmall,
+                                color = Color.White,
+                                fontSize = 28.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Surface(
@@ -172,12 +166,6 @@ fun JourneyMapScreen(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "$duration хв",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                        )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
@@ -210,6 +198,24 @@ fun JourneyMapScreen(
                                 color = Color.White,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color.White.copy(alpha = 0.15f),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                                    .defaultMinSize(minWidth = 48.dp, minHeight = 28.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "⏲️ $durationStr",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                )
+                            }
                         }
                     }
                 }

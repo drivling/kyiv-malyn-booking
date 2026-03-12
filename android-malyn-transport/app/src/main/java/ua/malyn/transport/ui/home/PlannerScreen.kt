@@ -308,7 +308,7 @@ private fun StopSelector(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .onFocusChanged { showSuggestions = it.hasFocus || query.isNotEmpty() },
+                .onFocusChanged { showSuggestions = it.hasFocus },
         )
 
         AnimatedVisibility(
