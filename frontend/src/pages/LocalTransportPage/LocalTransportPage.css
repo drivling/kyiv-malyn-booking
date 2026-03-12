@@ -219,6 +219,14 @@
   text-align: center;
 }
 
+.lt-route-num--verified {
+  background: var(--lt-accent);
+}
+
+.lt-route-num--unverified {
+  background: #f97316; /* жовто-гарячий для неперевірених маршрутів */
+}
+
 .lt-route-path {
   flex: 1;
   font-size: 1rem;

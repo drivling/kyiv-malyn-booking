@@ -858,7 +858,11 @@ export const LocalTransportPage: React.FC = () => {
             </button>
             <header className="lt-detail-header">
               <h1 className="lt-route-title">
-                <span className="lt-route-num">№{detailRoute.id}</span>
+                <span
+                  className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                >
+                  №{detailRoute.id}
+                </span>
                 {stopsDirection === 'there'
                   ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
                   : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
@@ -1324,7 +1328,11 @@ export const LocalTransportPage: React.FC = () => {
                     className="lt-route-card"
                     onClick={() => handleSelectRoute(r.id)}
                   >
-                    <span className="lt-route-num">№{r.id}</span>
+                    <span
+                      className={`lt-route-num ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                    >
+                      №{r.id}
+                    </span>
                     <span className="lt-route-path">
                       {r.from ?? '?'} — {r.to ?? '?'}
                     </span>
