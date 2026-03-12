@@ -146,46 +146,6 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-01",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АМ0030АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0030АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-03",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АМ0960АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-04",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0960АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-01",
@@ -207,7 +167,7 @@
       "trip_id": "2-03",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "8:00"
+      "block_id": "7:40"
     },
     {
       "route_id": "2",
@@ -223,28 +183,36 @@
       "trip_id": "2-05",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "9:00"
+      "block_id": "8:20"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-06",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
       "block_id": "9:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-07",
-      "trip_headsign": "Лікарня",
-      "direction_id": "1",
-      "block_id": "10:00"
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "9:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-08",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "9:40"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-09",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
       "block_id": "10:00"
@@ -252,18 +220,10 @@
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-09",
+      "trip_id": "2-10",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "11:00"
-    },
-    {
-      "route_id": "2",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "2-10",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "11:00"
+      "block_id": "10:20"
     },
     {
       "route_id": "2",
@@ -271,7 +231,7 @@
       "trip_id": "2-11",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "12:00"
+      "block_id": "11:00"
     },
     {
       "route_id": "2",
@@ -279,23 +239,23 @@
       "trip_id": "2-12",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "12:00"
+      "block_id": "11:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-13",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "13:00"
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "11:40"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-14",
-      "trip_headsign": "Лікарня",
-      "direction_id": "1",
-      "block_id": "14:00"
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "12:00"
     },
     {
       "route_id": "2",
@@ -303,7 +263,7 @@
       "trip_id": "2-15",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "15:00"
+      "block_id": "12:20"
     },
     {
       "route_id": "2",
@@ -311,7 +271,7 @@
       "trip_id": "2-16",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "15:00"
+      "block_id": "13:00"
     },
     {
       "route_id": "2",
@@ -319,15 +279,15 @@
       "trip_id": "2-17",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "16:00"
+      "block_id": "14:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-18",
-      "trip_headsign": "Паперова фабрика",
-      "direction_id": "0",
-      "block_id": "16:00"
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "14:40"
     },
     {
       "route_id": "2",
@@ -335,7 +295,7 @@
       "trip_id": "2-19",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "17:00"
+      "block_id": "15:00"
     },
     {
       "route_id": "2",
@@ -343,7 +303,7 @@
       "trip_id": "2-20",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "17:05"
+      "block_id": "15:20"
     },
     {
       "route_id": "2",
@@ -351,12 +311,52 @@
       "trip_id": "2-21",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "18:00"
+      "block_id": "16:00"
     },
     {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-22",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "16:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-23",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "16:40"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-24",
+      "trip_headsign": "Паперова фабрика",
+      "direction_id": "0",
+      "block_id": "17:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-25",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "17:20"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-26",
+      "trip_headsign": "Лікарня",
+      "direction_id": "1",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "2",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "2-27",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
       "block_id": "18:00"
@@ -1416,12 +1416,413 @@
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
       "block_id": "18:50"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-01",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "6:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-03",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:05"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-04",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:15"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-05",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-06",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:05"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-07",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "8:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-08",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:45"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-09",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "9:18"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-10",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-11",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:15"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-12",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-13",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:05"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-14",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-15",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:55"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-16",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "12:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-17",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "12:45"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-18",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:10"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-19",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "14:44"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "16:10"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-22",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:10"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-23",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-24",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-25",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:25"
     }
   ],
   "supplement": {
     "source": "malyn.media + офіційні розклади Facebook MalynCityCouncil",
     "parsed_at": "2026-03-07",
     "description": "Дані з malyn.media та офіційних розкладів — маршрути №2–12, розклади з зображень",
+    "fare": {
+      "amount": 15,
+      "currency": "UAH",
+      "note": "Проїзд платний з 2 травня 2022"
+    },
+    "routes": {
+      "2": {
+        "from": "Паперова фабрика",
+        "to": "Лікарня",
+        "scheme": "Паперова фабрика – Барміна – Лікарня (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Паперової фабрики",
+              "times": "7:00, 7:40, 8:20, 9:00, 9:40, 10:20, 11:00, 11:40, 12:20, 14:00, 14:40, 15:20, 16:00, 16:40, 17:20, 18:00"
+            },
+            {
+              "label": "З Лікарні",
+              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:00, 18:00"
+            }
+          ],
+          "lunch_break": "12:00–14:00 (обід)",
+          "note": "17:00 +5 хв; 12:30/13:30 до центра"
+        },
+        "note": "Маршрут №2/20. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "3": {
+        "from": "Лікарня (Лісотехнікум)",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з круг (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні / Фахового коледжу",
+              "times": "6:40, 8:15, 9:20, 10:35, 11:40, 13:30, 13:50, 14:50, 15:55, 16:55, 17:50"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:30, 8:50, 9:50, 11:10, 12:10, 14:20, 15:25, 16:30, 17:20, 18:30"
+            }
+          ],
+          "lunch_break": "обід між 12:10 та 14:20",
+          "note": "6:40 та 8:15 — з Фахового коледжу (лісотехнікум); 13:30 — з Центру"
+        },
+        "note": "Маршрут №3. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "5": {
+        "from": "Лікарня",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з Прожектор - Шевченка (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні",
+              "times": "6:40, 7:23, 8:08, 8:53, 9:38, 10:23, 11:08, 11:55, 12:38, 13:20, 14:53, 15:36, 16:23, 17:06, 17:55"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:03, 7:45, 8:30, 9:15, 10:03, 10:48, 11:30, 12:15, 13:03, 13:45, 16:03, 16:48, 17:30"
+            }
+          ],
+          "lunch_break": "13:20–14:53 (обід)",
+          "note": "13:45 — до центра"
+        },
+        "note": "Маршрут №5. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "7": {
+        "from": "Лікарня",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з Городище (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні",
+              "times": "7:40, 8:20, 9:10, 9:50, 10:40, 11:35, 13:20, 14:10, 14:55, 16:30, 17:20, 18:06, 18:50"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:15, 8:00, 9:30, 10:15, 11:10, 11:55, 13:45, 14:30, 15:30, 17:00, 17:45, 18:35, 19:15"
+            }
+          ],
+          "lunch_break": "11:55 (обід)",
+          "note": "7:40 — по Миру; 17:45 (17:42 ел.), 18:35 (18:29 ел.)"
+        },
+        "special": "Заїзд до школи №6",
+        "note": "Маршрут №7. Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської.",
+        "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
+      },
+      "8": {
+        "from": "Базар (Базарна площа)",
+        "to": "Залізничний вокзал",
+        "scheme": "Базар – Вокзал по вул. Миру (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Базару",
+              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:00, 18:00"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "7:30, 8:30, 9:25, 10:30, 11:30, 12:30, 13:30, 15:20, 16:30, 17:30"
+            }
+          ],
+          "lunch_break": "13:00–15:00 (обід)",
+          "note": "13:30 — до центру"
+        },
+        "note": "Маршрут №8. Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської.",
+        "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-marshrutok-7-ta-8/"
+      },
+      "9": {
+        "from": "Базарна площа (ТЦ «Промінь»)",
+        "to": "Малинівка, Юрівка, вул. Олекси Тихого, БАМ, «Царське село»",
+        "scheme": "ЦЕНТР (ТЦ «Промінь») – вул. Степана Бандери – просп. Машинобудівників – вул. Огієнка (БАМ) – Малинівський круг – с.Малинівка – с.Юрівка – вул. Олекси Тихого (і назад)",
+        "streets": [
+          "Степана Бандери",
+          "Машинобудівників",
+          "Огієнка",
+          "Малинівський круг",
+          "Малинівка",
+          "Юрівка"
+        ],
+        "schedule": {
+          "first_trip": "6:45 з центру → вокзал 7:05, Олекси Тихого 7:15, Малинівка 7:25, БАМ 7:30, центр 7:45, лікарня 7:50",
+          "from_bazar": "8:10, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:20",
+          "from_oleksy_tikh": "8:40, 9:30, 10:30, 11:30, 12:30, 13:30, 15:30, 16:30, 17:40",
+          "to_center": "13:30, 17:40 (до центра)",
+          "lunch_break": "13:00–15:00 (обід)"
+        },
+        "note": "Тестовий режим з 1 травня 2025. Офіційний розклад з Facebook MalynCityCouncil.",
+        "source_url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
+      },
+      "11": {
+        "from": "Паперова фабрика",
+        "to": "Залізничний вокзал",
+        "scheme": "Паперова фабрика – Барміна – Вокзал ч/з Прожектор (і назад)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Паперової фабрики",
+              "times": "6:45, 8:00, 9:20, 10:50, 14:10, 15:40, 17:05, 18:50"
+            },
+            {
+              "label": "З Вокзалу",
+              "times": "6:45, 8:00, 9:35, 11:05, 12:25, 14:00, 15:40, 17:00, 18:40"
+            }
+          ],
+          "lunch_break": "обід між 10:50 та 14:10",
+          "note": "17:00 +5 хв; 12:25, 14:00 — до центра; (17:42 ел.), (18:29 ел.)"
+        },
+        "note": "Маршрут №11/1. Джерело: офіційний розклад.",
+        "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "12": {
+        "from": "Лікарня",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з вул. Винниченка, вул. Укр. Повстанців, вул. Огієнка, Малинівку та Юрівку (маршрут №10)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні / Оріївки / Центру",
+              "times": "6:45, 7:15, 8:05, 8:45, 9:40, 10:40, 11:25, 12:25, 13:10, 16:40, 17:40, 18:25"
+            },
+            {
+              "label": "З Вокзалу / Малинівки / Центру",
+              "times": "6:25, 7:05, 7:25, 8:25, 9:18, 10:15, 11:05, 11:55, 12:45, 14:44, 16:10, 17:10, 18:00"
+            }
+          ],
+          "note": "За фото-розкладом: ранковий рейс з Центру о 6:15 (до Вокзалу о 6:25); окремі рейси позначені як «до вокзалу» та із заїздом на заправку."
+        },
+        "note": "Маршрут №10. Розклад з оголошення на зупинці (фото).",
+        "source_url": null
+      }
+    },
+    "news": [
+      {
+        "date": "2025-05-06",
+        "title": "У Малині оприлюднили розклад нового автобусного маршруту №9",
+        "url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
+      },
+      {
+        "date": "2023-10-04",
+        "title": "У Малині тимчасово змінили схему руху маршруток №7 та №8",
+        "url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
+      },
+      {
+        "date": "2022-04-29",
+        "title": "Змінився графік маршруток, які курсують по Малину. Проїзд 20 грн.",
+        "url": "https://malyn.media/novyny/misto/zminyvsia-hrafik-marshrutok-iaki-kursuiut-po-malynu/"
+      }
+    ],
+    "sources": {
+      "malyn_media": "https://malyn.media/tag/rozklad-rukhu/",
+      "facebook_council": "https://www.facebook.com/MalynCityCouncil"
+    },
+    "contacts": {
+      "autostation": "(068) 77-71-590",
+      "council": "mradazv@ukr.net"
+    },
     "stops": {
       "source": "zupinki-24.xlsx; маршрут 9 — malyn.media, ROUTE9_ANALYSIS.md",
       "source_url": "https://data.gov.ua/dataset/97e2ca7c-3f6f-4a77-9a4d-d954478bfe43",
@@ -2889,346 +3290,165 @@
         "12": [
           {
             "name": "10 ОГШБ (навпр.РЕМу)",
-            "order_there": 1,
-            "order_back": 31
+            "order_there": 2,
+            "order_back": -1
           },
           {
             "name": "Вербицького",
-            "order_there": 2,
-            "order_back": 30
+            "order_there": -1,
+            "order_back": -1
           },
           {
             "name": "Грушевського 48",
-            "order_there": 3,
-            "order_back": 29
+            "order_there": 6,
+            "order_back": -1
           },
           {
             "name": "Грушевського 87",
-            "order_there": 4,
-            "order_back": 28
+            "order_there": -1,
+            "order_back": 9
           },
           {
             "name": "ЗОШ \" 3",
-            "order_there": 5,
-            "order_back": 27
+            "order_there": 3,
+            "order_back": -1
           },
           {
             "name": "ЗОШ № 3 (навпроти)",
-            "order_there": 6,
-            "order_back": 26
-          },
-          {
-            "name": "Заводська",
-            "order_there": 7,
-            "order_back": 25
-          },
-          {
-            "name": "Залізничний вокзал",
-            "order_there": 8,
-            "order_back": 24
-          },
-          {
-            "name": "Й. Кульчицького",
-            "order_there": 9,
-            "order_back": 23
-          },
-          {
-            "name": "Ливарний завод",
-            "order_there": 10,
-            "order_back": 22
-          },
-          {
-            "name": "Ливарний завод (а/стоянка)",
-            "order_there": 11,
-            "order_back": 21
-          },
-          {
-            "name": "Малинівський круг",
-            "order_there": 12,
-            "order_back": 20
-          },
-          {
-            "name": "Молокозавод",
-            "order_there": 13,
-            "order_back": 19
-          },
-          {
-            "name": "Огієнка 36",
-            "order_there": 14,
-            "order_back": 18
-          },
-          {
-            "name": "Огієнка 65 (БАМ)",
-            "order_there": 15,
-            "order_back": 17
-          },
-          {
-            "name": "Огієнка 65 (БАМ) (навпроти)",
-            "order_there": 16,
-            "order_back": 16
-          },
-          {
-            "name": "Поліклініка",
-            "order_there": 17,
-            "order_back": 15
-          },
-          {
-            "name": "РЕМ",
-            "order_there": 18,
+            "order_there": -1,
             "order_back": 14
           },
           {
+            "name": "Заводська",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "Залізничний вокзал",
+            "order_there": 15,
+            "order_back": 1
+          },
+          {
+            "name": "Й. Кульчицького",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "Ливарний завод",
+            "order_there": 13,
+            "order_back": -1
+          },
+          {
+            "name": "Ливарний завод (а/стоянка)",
+            "order_there": -1,
+            "order_back": 3
+          },
+          {
+            "name": "Малинівський круг",
+            "order_there": 8,
+            "order_back": 8
+          },
+          {
+            "name": "Молокозавод",
+            "order_there": 12,
+            "order_back": 4
+          },
+          {
+            "name": "Огієнка 36",
+            "order_there": -1,
+            "order_back": 2
+          },
+          {
+            "name": "Огієнка 65 (БАМ)",
+            "order_there": 9,
+            "order_back": -1
+          },
+          {
+            "name": "Огієнка 65 (БАМ) (навпроти)",
+            "order_there": -1,
+            "order_back": 7
+          },
+          {
+            "name": "Поліклініка",
+            "order_there": 1,
+            "order_back": 17
+          },
+          {
+            "name": "РЕМ",
+            "order_there": -1,
+            "order_back": 16
+          },
+          {
             "name": "ТОВ \"Фратеко\"",
-            "order_there": 19,
-            "order_back": 13
+            "order_there": 14,
+            "order_back": -1
           },
           {
             "name": "Хлібзавод",
-            "order_there": 20,
-            "order_back": 12
+            "order_there": 10,
+            "order_back": 6
           },
           {
             "name": "Шевченка 22",
-            "order_there": 21,
-            "order_back": 11
+            "order_there": -1,
+            "order_back": 13
           },
           {
             "name": "Ярослава Мудрого",
-            "order_there": 22,
+            "order_there": 7,
             "order_back": 10
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 23,
-            "order_back": 9
+            "order_there": 11,
+            "order_back": -1
           },
           {
             "name": "з-д \"РЕЙЛ\" (навпроти)",
-            "order_there": 24,
-            "order_back": 8
-          },
-          {
-            "name": "м-н \"Будматеріали\"",
-            "order_there": 25,
-            "order_back": 7
-          },
-          {
-            "name": "м-н \"Росава\"",
-            "order_there": 26,
-            "order_back": 6
-          },
-          {
-            "name": "м-н \"Сонечко\"",
-            "order_there": 27,
+            "order_there": -1,
             "order_back": 5
           },
           {
+            "name": "м-н \"Будматеріали\"",
+            "order_there": -1,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Росава\"",
+            "order_there": 4,
+            "order_back": -1
+          },
+          {
+            "name": "м-н \"Сонечко\"",
+            "order_there": -1,
+            "order_back": 15
+          },
+          {
             "name": "м-н \"Сільпо\"",
-            "order_there": 28,
-            "order_back": 4
+            "order_there": -1,
+            "order_back": 11
           },
           {
             "name": "маркет \"Соборний\"",
-            "order_there": 29,
-            "order_back": 3
+            "order_there": -1,
+            "order_back": 12
           },
           {
             "name": "пл. Соборна (біля РБК)",
-            "order_there": 30,
-            "order_back": 2
+            "order_there": 5,
+            "order_back": -1
           },
           {
             "name": "сквер \"Жертв Чорнобиля\"",
-            "order_there": 31,
-            "order_back": 1
+            "order_there": -1,
+            "order_back": -1
           }
         ]
       }
-    },
-    "fare": {
-      "amount": 15,
-      "currency": "UAH",
-      "note": "Проїзд платний з 2 травня 2022"
-    },
-    "routes": {
-      "2": {
-        "from": "Паперова фабрика",
-        "to": "Лікарня",
-        "scheme": "Паперова фабрика – Барміна – Лікарня (і назад)",
-        "schedule": {
-          "schedule_entries": [
-            {
-              "label": "З Паперової фабрики",
-              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 14:00, 15:00, 16:00, 17:05, 18:00"
-            },
-            {
-              "label": "З Лікарні",
-              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:00, 18:00"
-            }
-          ],
-          "lunch_break": "12:00–14:00 (обід)",
-          "note": "17:00 +5 хв; 12:30/13:30 до центра"
-        },
-        "note": "Маршрут №2/20. Джерело: офіційний розклад.",
-        "source_url": "https://www.facebook.com/MalynCityCouncil"
-      },
-      "3": {
-        "from": "Лікарня (Лісотехнікум)",
-        "to": "Залізничний вокзал",
-        "scheme": "Лікарня – Вокзал ч/з круг (і назад)",
-        "schedule": {
-          "schedule_entries": [
-            {
-              "label": "З Лікарні / Фахового коледжу",
-              "times": "6:40, 8:15, 9:20, 10:35, 11:40, 13:30, 13:50, 14:50, 15:55, 16:55, 17:50"
-            },
-            {
-              "label": "З Вокзалу",
-              "times": "7:30, 8:50, 9:50, 11:10, 12:10, 14:20, 15:25, 16:30, 17:20, 18:30"
-            }
-          ],
-          "lunch_break": "обід між 12:10 та 14:20",
-          "note": "6:40 та 8:15 — з Фахового коледжу (лісотехнікум); 13:30 — з Центру"
-        },
-        "note": "Маршрут №3. Джерело: офіційний розклад.",
-        "source_url": "https://www.facebook.com/MalynCityCouncil"
-      },
-      "5": {
-        "from": "Лікарня",
-        "to": "Залізничний вокзал",
-        "scheme": "Лікарня – Вокзал ч/з Прожектор - Шевченка (і назад)",
-        "schedule": {
-          "schedule_entries": [
-            {
-              "label": "З Лікарні",
-              "times": "6:40, 7:23, 8:08, 8:53, 9:38, 10:23, 11:08, 11:55, 12:38, 13:20, 14:53, 15:36, 16:23, 17:06, 17:55"
-            },
-            {
-              "label": "З Вокзалу",
-              "times": "7:03, 7:45, 8:30, 9:15, 10:03, 10:48, 11:30, 12:15, 13:03, 13:45, 16:03, 16:48, 17:30"
-            }
-          ],
-          "lunch_break": "13:20–14:53 (обід)",
-          "note": "13:45 — до центра"
-        },
-        "note": "Маршрут №5. Джерело: офіційний розклад.",
-        "source_url": "https://www.facebook.com/MalynCityCouncil"
-      },
-      "7": {
-        "from": "Лікарня",
-        "to": "Залізничний вокзал",
-        "scheme": "Лікарня – Вокзал ч/з Городище (і назад)",
-        "schedule": {
-          "schedule_entries": [
-            {
-              "label": "З Лікарні",
-              "times": "7:40, 8:20, 9:10, 9:50, 10:40, 11:35, 13:20, 14:10, 14:55, 16:30, 17:20, 18:06, 18:50"
-            },
-            {
-              "label": "З Вокзалу",
-              "times": "7:15, 8:00, 9:30, 10:15, 11:10, 11:55, 13:45, 14:30, 15:30, 17:00, 17:45, 18:35, 19:15"
-            }
-          ],
-          "lunch_break": "11:55 (обід)",
-          "note": "7:40 — по Миру; 17:45 (17:42 ел.), 18:35 (18:29 ел.)"
-        },
-        "special": "Заїзд до школи №6",
-        "note": "Маршрут №7. Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської.",
-        "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
-      },
-      "8": {
-        "from": "Базар (Базарна площа)",
-        "to": "Залізничний вокзал",
-        "scheme": "Базар – Вокзал по вул. Миру (і назад)",
-        "schedule": {
-          "schedule_entries": [
-            {
-              "label": "З Базару",
-              "times": "7:00, 8:00, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:00, 18:00"
-            },
-            {
-              "label": "З Вокзалу",
-              "times": "7:30, 8:30, 9:25, 10:30, 11:30, 12:30, 13:30, 15:20, 16:30, 17:30"
-            }
-          ],
-          "lunch_break": "13:00–15:00 (обід)",
-          "note": "13:30 — до центру"
-        },
-        "note": "Маршрут №8. Тимчасова схема (жовтень 2023) через ремонт вул. Городищанської.",
-        "source_url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-marshrutok-7-ta-8/"
-      },
-      "9": {
-        "from": "Базарна площа (ТЦ «Промінь»)",
-        "to": "Малинівка, Юрівка, вул. Олекси Тихого, БАМ, «Царське село»",
-        "scheme": "ЦЕНТР (ТЦ «Промінь») – вул. Степана Бандери – просп. Машинобудівників – вул. Огієнка (БАМ) – Малинівський круг – с.Малинівка – с.Юрівка – вул. Олекси Тихого (і назад)",
-        "streets": [
-          "Степана Бандери",
-          "Машинобудівників",
-          "Огієнка",
-          "Малинівський круг",
-          "Малинівка",
-          "Юрівка"
-        ],
-        "schedule": {
-          "first_trip": "6:45 з центру → вокзал 7:05, Олекси Тихого 7:15, Малинівка 7:25, БАМ 7:30, центр 7:45, лікарня 7:50",
-          "from_bazar": "8:10, 9:00, 10:00, 11:00, 12:00, 13:00, 15:00, 16:00, 17:20",
-          "from_oleksy_tikh": "8:40, 9:30, 10:30, 11:30, 12:30, 13:30, 15:30, 16:30, 17:40",
-          "to_center": "13:30, 17:40 (до центра)",
-          "lunch_break": "13:00–15:00 (обід)"
-        },
-        "note": "Тестовий режим з 1 травня 2025. Офіційний розклад з Facebook MalynCityCouncil.",
-        "source_url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
-      },
-      "11": {
-        "from": "Паперова фабрика",
-        "to": "Залізничний вокзал",
-        "scheme": "Паперова фабрика – Барміна – Вокзал ч/з Прожектор (і назад)",
-        "schedule": {
-          "schedule_entries": [
-            {
-              "label": "З Паперової фабрики",
-              "times": "6:45, 8:00, 9:20, 10:50, 14:10, 15:40, 17:05, 18:50"
-            },
-            {
-              "label": "З Вокзалу",
-              "times": "6:45, 8:00, 9:35, 11:05, 12:25, 14:00, 15:40, 17:00, 18:40"
-            }
-          ],
-          "lunch_break": "обід між 10:50 та 14:10",
-          "note": "17:00 +5 хв; 12:25, 14:00 — до центра; (17:42 ел.), (18:29 ел.)"
-        },
-        "note": "Маршрут №11/1. Джерело: офіційний розклад.",
-        "source_url": "https://www.facebook.com/MalynCityCouncil"
-      }
-    },
-    "news": [
-      {
-        "date": "2025-05-06",
-        "title": "У Малині оприлюднили розклад нового автобусного маршруту №9",
-        "url": "https://malyn.media/novyny/misto/u-malyni-opryliudnyly-rozklad-novoho-avtobusnoho-marshrutu-9/"
-      },
-      {
-        "date": "2023-10-04",
-        "title": "У Малині тимчасово змінили схему руху маршруток №7 та №8",
-        "url": "https://malyn.media/novyny/misto/u-malyni-tymchasovo-zminyly-skhemu-rukhu-marshrutok-7-ta-8/"
-      },
-      {
-        "date": "2022-04-29",
-        "title": "Змінився графік маршруток, які курсують по Малину. Проїзд 20 грн.",
-        "url": "https://malyn.media/novyny/misto/zminyvsia-hrafik-marshrutok-iaki-kursuiut-po-malynu/"
-      }
-    ],
-    "sources": {
-      "malyn_media": "https://malyn.media/tag/rozklad-rukhu/",
-      "facebook_council": "https://www.facebook.com/MalynCityCouncil"
-    },
-    "contacts": {
-      "autostation": "(068) 77-71-590",
-      "council": "mradazv@ukr.net"
     }
   },
   "stats": {
-    "total_rows": 170,
+    "total_rows": 196,
     "columns": 9,
     "routes_count": 11,
     "route_ids": [
@@ -3246,7 +3466,7 @@
     ],
     "trips_per_route": {
       "1": 6,
-      "2": 22,
+      "2": 27,
       "3": 21,
       "5": 28,
       "6": 2,
@@ -3255,7 +3475,7 @@
       "9": 19,
       "10": 4,
       "11": 17,
-      "12": 4
+      "12": 25
     },
     "headsigns": [
       "Базар (Базарна площа)",
