@@ -146,46 +146,6 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-01",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АМ0030АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0030АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-03",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АМ0960АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "12",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "12-04",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0960АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
       "route_id": "2",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "2-01",
@@ -1456,6 +1416,206 @@
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
       "block_id": "18:50"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-01",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "6:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "6:45"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-03",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:05"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-04",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "7:15"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-05",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "7:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-06",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:05"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-07",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "8:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-08",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "8:45"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-09",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "9:18"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-10",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "9:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-11",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "10:15"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-12",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "10:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-13",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:05"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-14",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "11:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-15",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "11:55"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-16",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "12:25"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-17",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "12:45"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-18",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "13:10"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-19",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "14:44"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-20",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "16:10"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-21",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "16:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-22",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "17:10"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-23",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "17:40"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-24",
+      "trip_headsign": "Лікарня",
+      "direction_id": "0",
+      "block_id": "18:00"
+    },
+    {
+      "route_id": "12",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "12-25",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "18:25"
     }
   ],
   "supplement": {
@@ -1616,6 +1776,26 @@
         },
         "note": "Маршрут №11/1. Джерело: офіційний розклад.",
         "source_url": "https://www.facebook.com/MalynCityCouncil"
+      },
+      "12": {
+        "from": "Лікарня",
+        "to": "Залізничний вокзал",
+        "scheme": "Лікарня – Вокзал ч/з вул. Винниченка, вул. Укр. Повстанців, вул. Огієнка, Малинівку та Юрівку (маршрут №10)",
+        "schedule": {
+          "schedule_entries": [
+            {
+              "label": "З Лікарні / Оріївки / Центру",
+              "times": "6:45, 7:15, 8:05, 8:45, 9:40, 10:40, 11:25, 12:25, 13:10, 16:40, 17:40, 18:25"
+            },
+            {
+              "label": "З Вокзалу / Малинівки / Центру",
+              "times": "6:25, 7:05, 7:25, 8:25, 9:18, 10:15, 11:05, 11:55, 12:45, 14:44, 16:10, 17:10, 18:00"
+            }
+          ],
+          "note": "За фото-розкладом: ранковий рейс з Центру о 6:15 (до Вокзалу о 6:25); окремі рейси позначені як «до вокзалу» та із заїздом на заправку."
+        },
+        "note": "Маршрут №10. Розклад з оголошення на зупинці (фото).",
+        "source_url": null
       }
     },
     "news": [
@@ -1645,7 +1825,7 @@
     }
   },
   "stats": {
-    "total_rows": 175,
+    "total_rows": 196,
     "columns": 9,
     "routes_count": 11,
     "route_ids": [
@@ -1665,14 +1845,14 @@
       "1": 6,
       "6": 2,
       "10": 4,
-      "12": 4,
       "2": 27,
       "3": 21,
       "5": 28,
       "7": 26,
       "8": 21,
       "9": 19,
-      "11": 17
+      "11": 17,
+      "12": 25
     },
     "headsigns": [
       "Базар (Базарна площа)",
