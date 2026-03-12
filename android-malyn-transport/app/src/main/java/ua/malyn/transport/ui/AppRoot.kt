@@ -28,7 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import ua.malyn.transport.R
 import ua.malyn.transport.ui.home.HomeScreen
-import ua.malyn.transport.ui.stops.StopsScreen
+import ua.malyn.transport.ui.schedule.ScheduleScreen
 
 private sealed class RootDestination(
     val route: String,
@@ -36,7 +36,7 @@ private sealed class RootDestination(
     val iconRes: Int,
 ) {
     data object Planner : RootDestination("planner", R.string.nav_planner, R.drawable.ic_nav_planner)
-    data object Stops : RootDestination("stops", R.string.nav_stops, R.drawable.ic_nav_stops)
+    data object Schedule : RootDestination("schedule", R.string.nav_schedule, R.drawable.ic_nav_schedule)
     data object Tickets : RootDestination("tickets", R.string.nav_tickets, R.drawable.ic_nav_tickets)
     data object Profile : RootDestination("profile", R.string.nav_profile, R.drawable.ic_nav_profile)
 }
@@ -47,7 +47,7 @@ fun AppRoot() {
     val navController = rememberNavController()
     val destinations = listOf(
         RootDestination.Planner,
-        RootDestination.Stops,
+        RootDestination.Schedule,
         RootDestination.Tickets,
         RootDestination.Profile,
     )
@@ -60,11 +60,9 @@ fun AppRoot() {
     Scaffold(
         topBar = {
             when (currentRoute) {
-                RootDestination.Planner.route -> {
-                    // Planner і JourneyMap — без TopAppBar, контент до самого верху
-                }
-                RootDestination.Stops.route -> {
-                    TopAppBar(title = { Text("Зупинки") })
+                RootDestination.Planner.route,
+                RootDestination.Schedule.route -> {
+                    // Planner, Schedule — без TopAppBar, контент до самого верху
                 }
                 RootDestination.Tickets.route -> {
                     TopAppBar(title = { Text("Квитки") })
@@ -113,7 +111,7 @@ fun AppRoot() {
             navController = navController,
             startDestination = RootDestination.Planner.route,
             modifier = Modifier.padding(
-                top = if (currentRoute == RootDestination.Planner.route) 0.dp else padding.calculateTopPadding(),
+                top = if (currentRoute == RootDestination.Planner.route || currentRoute == RootDestination.Schedule.route) 0.dp else padding.calculateTopPadding(),
                 bottom = padding.calculateBottomPadding(),
                 start = padding.calculateLeftPadding(layoutDirection),
                 end = padding.calculateRightPadding(layoutDirection),
@@ -123,8 +121,8 @@ fun AppRoot() {
                 // Планувальник/список маршрутів (аналог головного екрану Jakdojade)
                 HomeScreen(modifier = Modifier, vm = homeVm)
             }
-            composable(RootDestination.Stops.route) {
-                StopsScreen(modifier = Modifier)
+            composable(RootDestination.Schedule.route) {
+                ScheduleScreen(modifier = Modifier)
             }
             composable(RootDestination.Tickets.route) {
                 // TODO: екран покупки квитків
