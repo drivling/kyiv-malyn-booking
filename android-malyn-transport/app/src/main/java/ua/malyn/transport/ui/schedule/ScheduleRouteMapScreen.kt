@@ -49,10 +49,9 @@ import androidx.core.view.WindowCompat
 import ua.malyn.transport.domain.model.Direction
 import ua.malyn.transport.domain.model.Stop
 import ua.malyn.transport.ui.map.OsmMapView
-
-private val PanelHeaderColor = Color(0xFF1E3A5F)
-private val TabActiveColor = Color(0xFFFFC107)
-private val RouteLineColor = Color(0xFF616161)
+import ua.malyn.transport.ui.schedule.SchedulePanelHeaderColor
+import ua.malyn.transport.ui.schedule.ScheduleRouteLineColor
+import ua.malyn.transport.ui.schedule.ScheduleTabActiveColor
 
 @Composable
 fun ScheduleRouteMapScreen(
@@ -95,22 +94,65 @@ fun ScheduleRouteMapScreen(
                 modifier = Modifier.fillMaxSize(),
                 stops = mapStops,
             )
-            Box(
+            Surface(
                 modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top))
-                    .padding(12.dp)
-                    .align(Alignment.TopStart),
+                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(WindowInsets.statusBars.only(WindowInsetsSides.Top)),
+                color = SchedulePanelHeaderColor.copy(alpha = 0.96f),
+                shadowElevation = 4.dp,
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.White,
-                    shadowElevation = 4.dp,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     IconButton(onClick = onClose) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = Color.Black,
+                            tint = Color.White,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.White,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.DirectionsBus,
+                                contentDescription = null,
+                                tint = SchedulePanelHeaderColor,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                text = routeId,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = SchedulePanelHeaderColor,
+                            )
+                        }
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = destination.uppercase(),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color.White,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = "Малин транспорт",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f),
+                            maxLines = 1,
                         )
                     }
                 }
@@ -151,7 +193,7 @@ private fun ScheduleRoutePanelHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PanelHeaderColor)
+            .background(SchedulePanelHeaderColor)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(
@@ -202,7 +244,7 @@ private fun ScheduleRoutePanelHeader(
                     Icon(
                         Icons.Filled.SwapVert,
                         contentDescription = "Змінити напрямок",
-                        tint = PanelHeaderColor,
+                        tint = SchedulePanelHeaderColor,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -225,7 +267,7 @@ private fun ScheduleRoutePanelHeader(
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (isActive) TabActiveColor else Color.White.copy(alpha = 0.8f),
+                        color = if (isActive) ScheduleTabActiveColor else Color.White.copy(alpha = 0.8f),
                     )
                     if (isActive) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -233,7 +275,7 @@ private fun ScheduleRoutePanelHeader(
                             modifier = Modifier
                                 .height(2.dp)
                                 .width(120.dp)
-                                .background(TabActiveColor),
+                                .background(ScheduleTabActiveColor),
                         )
                     }
                 }
@@ -261,14 +303,14 @@ private fun ScheduleRouteStopsList(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
-                        .border(2.dp, RouteLineColor, CircleShape),
+                        .border(2.dp, ScheduleRouteLineColor, CircleShape),
                 )
                 if (index < mapStops.lastIndex) {
                     Box(
                         modifier = Modifier
                             .width(2.dp)
                             .height(24.dp)
-                            .background(RouteLineColor),
+                            .background(ScheduleRouteLineColor),
                     )
                 }
             }

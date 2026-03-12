@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +62,9 @@ import ua.malyn.transport.domain.model.JourneyOption
 import ua.malyn.transport.domain.model.PlannerTimeMode
 import ua.malyn.transport.domain.model.Stop
 import ua.malyn.transport.ui.map.OsmMapView
+import ua.malyn.transport.ui.schedule.SchedulePanelHeaderColor
+import ua.malyn.transport.ui.schedule.ScheduleRouteLineColor
+import ua.malyn.transport.ui.schedule.ScheduleTabActiveColor
 
 private fun currentTimeMinutes(): Int {
     val now = java.time.LocalTime.now()
@@ -116,7 +120,7 @@ fun JourneyMapScreen(
         // 1. Заголовок — темний блок від самого верху (edge-to-edge)
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = Color(0xFF2D2D2D),
+            color = SchedulePanelHeaderColor,
         ) {
             Row(
                 modifier = Modifier
@@ -155,7 +159,7 @@ fun JourneyMapScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF4CAF50),
+                            color = Color.White,
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -165,13 +169,13 @@ fun JourneyMapScreen(
                                 Icon(
                                     imageVector = Icons.Filled.DirectionsBus,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = SchedulePanelHeaderColor,
                                     modifier = Modifier.size(20.dp),
                                 )
                                 Text(
                                     text = "№${journey.routeId}",
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
+                                    color = SchedulePanelHeaderColor,
                                 )
                             }
                         }
@@ -183,12 +187,12 @@ fun JourneyMapScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF4CAF50).copy(alpha = 0.3f),
+                            color = Color.White.copy(alpha = 0.18f),
                         ) {
                             Text(
                                 text = depStr,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = Color.White,
+                                    color = Color.White,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -199,12 +203,12 @@ fun JourneyMapScreen(
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF2196F3).copy(alpha = 0.3f),
+                            color = Color.White.copy(alpha = 0.18f),
                         ) {
                             Text(
                                 text = arrStr,
                                 style = MaterialTheme.typography.labelLarge,
-                                color = Color.White,
+                                    color = Color.White,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -239,7 +243,7 @@ fun JourneyMapScreen(
         }
 
         // 2. Карта + правий блок таймлайну (clip щоб карта не перекривала заголовок)
-        var isPanelExpanded by remember { mutableStateOf(true) }
+        val panelState = remember { MutableTransitionState(true) }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -249,7 +253,9 @@ fun JourneyMapScreen(
             OsmMapView(
                 modifier = Modifier.fillMaxSize(),
                 stops = mapStops,
-                onMapTap = { isPanelExpanded = !isPanelExpanded },
+                onMapTap = {
+                    panelState.targetState = !panelState.targetState
+                },
             )
 
             // 3. Правий блок — таймлайн маршруту (згортається/розгортається)
@@ -260,21 +266,22 @@ fun JourneyMapScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AnimatedVisibility(
-                    visible = isPanelExpanded,
+                    visibleState = panelState,
                     enter = expandHorizontally(),
                     exit = shrinkHorizontally(),
                 ) {
                     JourneyTimelinePanel(
                         journey = journey,
                         mapStops = mapStops,
-                        onToggle = { isPanelExpanded = false },
+                        onToggle = { panelState.targetState = false },
                         modifier = Modifier
                             .fillMaxHeight()
-                            .width(200.dp)
+                            .width(260.dp)
                             .padding(12.dp),
                     )
                 }
-                if (!isPanelExpanded) {
+                val showCollapsedToggle = !panelState.currentState && !panelState.targetState
+                if (showCollapsedToggle) {
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -287,7 +294,7 @@ fun JourneyMapScreen(
                             shadowElevation = 4.dp,
                         ) {
                             IconButton(
-                                onClick = { isPanelExpanded = true },
+                                onClick = { panelState.targetState = true },
                                 modifier = Modifier.size(36.dp),
                             ) {
                                 Icon(
@@ -371,7 +378,7 @@ private fun JourneyTimelinePanel(
                     .width(2.dp)
                     .height(8.dp)
                     .align(Alignment.CenterHorizontally)
-                    .background(Color(0xFF4CAF50)),
+                    .background(SchedulePanelHeaderColor),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -381,14 +388,14 @@ private fun JourneyTimelinePanel(
                 Icon(
                     imageVector = Icons.Filled.DirectionsBus,
                     contentDescription = null,
-                    tint = Color(0xFF4CAF50),
+                    tint = SchedulePanelHeaderColor,
                     modifier = Modifier.size(24.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "№${journey.routeId}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF4CAF50),
+                    color = SchedulePanelHeaderColor,
                 )
             }
             Box(
@@ -396,7 +403,7 @@ private fun JourneyTimelinePanel(
                     .width(2.dp)
                     .height(8.dp)
                     .align(Alignment.CenterHorizontally)
-                    .background(Color(0xFF4CAF50)),
+                    .background(SchedulePanelHeaderColor),
             )
 
             // Проміжні зупинки
@@ -418,7 +425,7 @@ private fun JourneyTimelinePanel(
                     .width(2.dp)
                     .height(8.dp)
                     .align(Alignment.CenterHorizontally)
-                    .background(Color(0xFF2196F3)),
+                    .background(ScheduleTabActiveColor),
             )
             TimelineItem(
                 time = arrStr,
@@ -439,15 +446,30 @@ private fun TimelineItem(
     isLast: Boolean,
 ) {
     val color = when {
-        isStart -> Color(0xFF4CAF50)
-        isLast -> Color(0xFF2196F3)
-        else -> Color(0xFF757575)
+        isStart -> SchedulePanelHeaderColor
+        isLast -> ScheduleTabActiveColor
+        else -> ScheduleRouteLineColor
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Колонка часу — ліворуч
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = color.copy(alpha = 0.1f),
+            modifier = Modifier.widthIn(min = 60.dp),
+        ) {
+            Text(
+                text = time,
+                style = MaterialTheme.typography.labelLarge,
+                color = color,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+
+        // Вертикальна лінія/кружок між часом і назвою зупинки
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(vertical = 4.dp),
@@ -456,29 +478,20 @@ private fun TimelineItem(
                 modifier = Modifier
                     .size(14.dp)
                     .clip(CircleShape)
-                    .background(color),
+                    .background(Color.White),
             )
             if (!isLast) {
                 Box(
                     modifier = Modifier
                         .width(2.dp)
                         .height(20.dp)
-                        .background(color.copy(alpha = 0.4f)),
+                        .background(color.copy(alpha = 0.6f)),
                 )
             }
         }
+
+        // Назва зупинки праворуч
         Column(modifier = Modifier.weight(1f)) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = color.copy(alpha = 0.15f),
-            ) {
-                Text(
-                    text = time,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = color,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,

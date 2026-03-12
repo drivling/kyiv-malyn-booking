@@ -55,12 +55,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.TextButton
 import ua.malyn.transport.domain.model.JourneyOption
 import ua.malyn.transport.domain.model.PlannerTimeMode
+import ua.malyn.transport.ui.schedule.SchedulePanelHeaderColor
+import ua.malyn.transport.ui.schedule.ScheduleTabActiveColor
 
 @Composable
 fun PlannerScreen(
@@ -96,7 +99,7 @@ fun PlannerScreen(
     ) {
         if (!isSearchExpanded) {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = SchedulePanelHeaderColor,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
@@ -113,7 +116,7 @@ fun PlannerScreen(
             }
         } else {
             Surface(
-                color = MaterialTheme.colorScheme.surface,
+                color = SchedulePanelHeaderColor,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Spacer(
@@ -139,7 +142,7 @@ fun PlannerScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -197,7 +200,7 @@ fun PlannerScreen(
                         .padding(top = 12.dp)
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.buttonColors(containerColor = SchedulePanelHeaderColor),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                 ) {
                     Icon(
@@ -237,10 +240,10 @@ private fun CollapsedSearchHeader(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp)
+            .padding(top = 8.dp, start = 12.dp, end = 12.dp, bottom = 8.dp)
             .clickable(onClick = onExpand),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = SchedulePanelHeaderColor,
     ) {
         Row(
             modifier = Modifier
@@ -255,18 +258,18 @@ private fun CollapsedSearchHeader(
                 Text(
                     text = (from.ifBlank { "Звідки?" }) + " → " + (to.ifBlank { "Куди?" }),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color.White,
                 )
                 Text(
                     text = "Змінити пошук",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = ScheduleTabActiveColor,
                 )
             }
             Icon(
                 imageVector = Icons.Filled.DirectionsBus,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = Color.White,
                 modifier = Modifier.size(20.dp),
             )
         }
