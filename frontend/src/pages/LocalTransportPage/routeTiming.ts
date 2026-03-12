@@ -13,7 +13,6 @@ import {
 /** Маршрути з перевіреною трасою (карта, час між зупинками з файлу segmentDurations) */
 export const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11', '12'] as const;
 
-
 /** Fallback: хвилин між зупинками, коли немає даних для маршруту (розрахунок у коді) */
 export const MINS_BETWEEN_STOPS_FALLBACK = 2;
 
