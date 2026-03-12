@@ -11,9 +11,11 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Polyline
 import ua.malyn.transport.domain.model.Stop
 
@@ -30,6 +32,7 @@ fun OsmMapView(
     stops: List<Stop> = emptyList(),
     center: GeoPoint = MALYN_CENTER,
     zoomLevel: Double = 14.0,
+    onMapTap: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -68,12 +71,26 @@ fun OsmMapView(
         },
         update = {
             val stopsToUse = stops
+            val onTap = onMapTap
             it.post {
                 Log.d("OsmMap", "OsmMapView update: stops=${stopsToUse.size}")
                 routeOverlays.forEach { overlay ->
                     it.overlays.remove(overlay)
                 }
                 routeOverlays.clear()
+
+                // Тап по карті (single tap) — не блокує скрол/зум
+                if (onTap != null) {
+                    val tapOverlay = MapEventsOverlay(object : MapEventsReceiver {
+                        override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                            onTap()
+                            return true
+                        }
+                        override fun longPressHelper(p: GeoPoint): Boolean = false
+                    })
+                    it.overlays.add(tapOverlay)
+                    routeOverlays.add(tapOverlay)
+                }
 
                 if (stopsToUse.isNotEmpty()) {
                     val points = stopsToUse.map { GeoPoint(it.lat, it.lng) }

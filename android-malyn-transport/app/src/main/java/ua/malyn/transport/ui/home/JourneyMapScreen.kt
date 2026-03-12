@@ -30,6 +30,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Icon
@@ -37,7 +39,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -230,6 +239,7 @@ fun JourneyMapScreen(
         }
 
         // 2. Карта + правий блок таймлайну (clip щоб карта не перекривала заголовок)
+        var isPanelExpanded by remember { mutableStateOf(true) }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -239,18 +249,58 @@ fun JourneyMapScreen(
             OsmMapView(
                 modifier = Modifier.fillMaxSize(),
                 stops = mapStops,
+                onMapTap = { isPanelExpanded = !isPanelExpanded },
             )
 
-            // 3. Правий блок — таймлайн маршруту
-            JourneyTimelinePanel(
-                journey = journey,
-                mapStops = mapStops,
+            // 3. Правий блок — таймлайн маршруту (згортається/розгортається)
+            Row(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .width(200.dp)
-                    .padding(12.dp),
-            )
+                    .fillMaxHeight(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AnimatedVisibility(
+                    visible = isPanelExpanded,
+                    enter = expandHorizontally(),
+                    exit = shrinkHorizontally(),
+                ) {
+                    JourneyTimelinePanel(
+                        journey = journey,
+                        mapStops = mapStops,
+                        onToggle = { isPanelExpanded = false },
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(200.dp)
+                            .padding(12.dp),
+                    )
+                }
+                if (!isPanelExpanded) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(12.dp),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = Color.White,
+                            shadowElevation = 4.dp,
+                        ) {
+                            IconButton(
+                                onClick = { isPanelExpanded = true },
+                                modifier = Modifier.size(36.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ChevronLeft,
+                                    contentDescription = "Розгорнути",
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -259,6 +309,7 @@ fun JourneyMapScreen(
 private fun JourneyTimelinePanel(
     journey: JourneyOption,
     mapStops: List<Stop>,
+    onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val depH = (journey.departureMinutes / 60) % 24
@@ -278,13 +329,36 @@ private fun JourneyTimelinePanel(
         color = Color.White,
         shadowElevation = 8.dp,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(28.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(
+                    onClick = onToggle,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = "Згорнути",
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
             // Старт
             TimelineItem(
                 time = depStr,
@@ -352,6 +426,7 @@ private fun JourneyTimelinePanel(
                 isStart = false,
                 isLast = true,
             )
+            }
         }
     }
 }
