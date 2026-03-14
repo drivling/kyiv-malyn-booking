@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Select } from '@/components/Select';
 import { Combobox } from '@/components/Combobox';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
@@ -373,19 +372,49 @@ export function buildStopRouteQrUrl(
   return `${path}?${params.toString()}`;
 }
 
+/** Формат дати для URL як у Jakdojade: DD.MM.YY */
+function formatDateUrl(date: Date): string {
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  const y = String(date.getFullYear()).slice(-2);
+  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}.${y}`;
+}
+
+function parseDateUrl(s: string): Date | null {
+  const m = s?.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if (!m) return null;
+  const [, day, month, year] = m;
+  const y = year.length === 2 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
+  const d = new Date(y, parseInt(month, 10) - 1, parseInt(day, 10));
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export const LocalTransportPage: React.FC = () => {
-  const { routeId } = useParams<{ routeId?: string }>();
+  const { routeId, fromStop: fromPath, toStop: toPath } = useParams<{
+    routeId?: string;
+    fromStop?: string;
+    toStop?: string;
+  }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedStopFromUrl = searchParams.get('stop') ?? '';
   const toFromUrl = searchParams.get('to') ?? '';
   const timeFromUrl = searchParams.get('time') ?? '';
   const dirFromUrl = searchParams.get('dir') ?? '';
+  const dateFromUrl = searchParams.get('d') ?? '';
+  const hourFromUrl = searchParams.get('h') ?? '';
   const [data, setData] = useState<TransportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stopFilter, setStopFilter] = useState('');
-  const [routeFilter, setRouteFilter] = useState('');
+  const [routeFilter] = useState('');
+  const [searchFrom, setSearchFrom] = useState<string>('');
+  const [searchTo, setSearchTo] = useState<string>('');
+  const [searchDate, setSearchDate] = useState<string>(() => formatDateUrl(new Date()));
+  const [searchTime, setSearchTime] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
   const [stopsDirection, setStopsDirection] = useState<'there' | 'back'>('there');
   const [selectedTripTime, setSelectedTripTime] = useState<number | null>(null);
   const [selectedTripDirection, setSelectedTripDirection] = useState<'there' | 'back' | null>(null);
@@ -408,6 +437,14 @@ export const LocalTransportPage: React.FC = () => {
       setStopFilter(selectedStopFromUrl);
     }
   }, [selectedStopFromUrl]);
+
+  const fromPathDecoded = fromPath ? decodeURIComponent(fromPath) : '';
+  const toPathDecoded = toPath ? decodeURIComponent(toPath) : '';
+  const hasPathSearch = Boolean(fromPathDecoded && toPathDecoded);
+  const queryFrom = searchParams.get('from') ?? '';
+  const queryTo = searchParams.get('to') ?? '';
+  const isMainPage = !routeId;
+  const isDetailPage = Boolean(routeId);
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -434,14 +471,50 @@ export const LocalTransportPage: React.FC = () => {
   const stopsByRoute = data?.supplement?.stops?.stops_by_route;
   const stops = useMemo(() => buildStops(routes, stopsByRoute), [routes, stopsByRoute]);
 
+  const effectiveSearchFrom = searchFrom || fromPathDecoded || queryFrom;
+  const effectiveSearchTo = searchTo || toPathDecoded || queryTo;
+  const hasFromToSearch = Boolean(effectiveSearchFrom && effectiveSearchTo);
+
+  const routesConnectingFromTo = useMemo(() => {
+    if (!hasFromToSearch || !stops.length) return [];
+    const fromMatch = findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom;
+    const toMatch = findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo;
+    return routes.filter((r) => {
+      const hasFrom = routeHasStop(r.id, fromMatch, r, stopsByRoute);
+      const hasTo = routeHasStop(r.id, toMatch, r, stopsByRoute);
+      if (!hasFrom || !hasTo) return false;
+      const dir = getImpliedDirection(fromMatch, toMatch, stopsByRoute, r.id);
+      return dir != null;
+    });
+  }, [routes, stopsByRoute, stops, hasFromToSearch, effectiveSearchFrom, effectiveSearchTo]);
+
+  useEffect(() => {
+    if (!isMainPage || !stops.length) return;
+    if (fromPathDecoded || toPathDecoded) {
+      const fromMatch = fromPathDecoded ? (findMatchingStop(fromPathDecoded, stops) ?? fromPathDecoded) : '';
+      const toMatch = toPathDecoded ? (findMatchingStop(toPathDecoded, stops) ?? toPathDecoded) : '';
+      setSearchFrom(fromMatch);
+      setSearchTo(toMatch);
+    } else if (queryFrom || queryTo) {
+      setSearchFrom(queryFrom);
+      setSearchTo(queryTo);
+    }
+    if (dateFromUrl) {
+      const parsed = parseDateUrl(dateFromUrl);
+      if (parsed) setSearchDate(formatDateUrl(parsed));
+    }
+    if (hourFromUrl) setSearchTime(hourFromUrl);
+  }, [isMainPage, fromPathDecoded, toPathDecoded, queryFrom, queryTo, dateFromUrl, hourFromUrl, stops.length]);
+
   const effectiveStopFilter = stopFilter || selectedStopFromUrl;
   const filteredRoutes = useMemo(() => {
+    if (hasFromToSearch && routesConnectingFromTo.length > 0) return routesConnectingFromTo;
     return routes.filter((r) => {
       if (routeFilter && r.id !== routeFilter) return false;
       if (effectiveStopFilter && !routeHasStop(r.id, effectiveStopFilter, r, stopsByRoute)) return false;
       return true;
     });
-  }, [routes, effectiveStopFilter, routeFilter, stopsByRoute]);
+  }, [routes, effectiveStopFilter, routeFilter, stopsByRoute, hasFromToSearch, routesConnectingFromTo]);
 
   const detailRoute = useMemo(
     () => (routeId ? routes.find((r) => r.id === routeId) : null),
@@ -754,15 +827,51 @@ export const LocalTransportPage: React.FC = () => {
     });
   };
 
-  const handleSelectRoute = (id: string) => {
-    const stop = latestStopRef.current || effectiveStopFilter;
+  const handleSearchSubmit = () => {
+    const from = findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom;
+    const to = findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo;
+    if (!from || !to) return;
+    const pathFrom = encodeURIComponent(from);
+    const pathTo = encodeURIComponent(to);
     const params = new URLSearchParams();
-    if (stop) params.set('stop', stop);
+    params.set('d', searchDate);
+    params.set('h', searchTime);
+    navigate(`/localtransport/${pathFrom}/${pathTo}?${params.toString()}`);
+  };
+
+  const handleSelectRoute = (id: string) => {
+    const from = hasFromToSearch
+      ? (findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom)
+      : latestStopRef.current || effectiveStopFilter;
+    const to = hasFromToSearch ? (findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo) : '';
+    const params = new URLSearchParams();
+    if (from) params.set('stop', from);
+    if (to) params.set('to', to);
+    if (searchTime) params.set('time', searchTime);
+    if (searchDate) {
+      params.set('d', searchDate);
+      params.set('h', searchTime);
+    }
+    const dir = from && to ? getImpliedDirection(from, to, stopsByRoute, id) : null;
+    if (dir) params.set('dir', dir);
     navigate(`/localtransport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
   };
+
   const handleBack = () => {
-    const stop = selectedStopFromUrl || effectiveStopFilter;
-    navigate(stop ? `/localtransport?stop=${encodeURIComponent(stop)}` : '/localtransport');
+    if (isDetailPage && selectedStopFromUrl && toFromUrl) {
+      const params = new URLSearchParams();
+      params.set('d', dateFromUrl || formatDateUrl(new Date()));
+      params.set('h', timeFromUrl || hourFromUrl || '12:00');
+      navigate(`/localtransport/${encodeURIComponent(selectedStopFromUrl)}/${encodeURIComponent(toFromUrl)}?${params.toString()}`);
+    } else if (isMainPage && hasPathSearch) {
+      const params = new URLSearchParams();
+      if (searchDate) params.set('d', searchDate);
+      if (searchTime) params.set('h', searchTime);
+      navigate(`/localtransport/${encodeURIComponent(effectiveSearchFrom)}/${encodeURIComponent(effectiveSearchTo)}?${params.toString()}`);
+    } else {
+      const stop = selectedStopFromUrl || effectiveStopFilter;
+      navigate(stop ? `/localtransport?stop=${encodeURIComponent(stop)}` : '/localtransport');
+    }
   };
 
   const handleFindNearest = () => {
@@ -807,22 +916,6 @@ export const LocalTransportPage: React.FC = () => {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
-
-  const stopComboboxOptions = useMemo(
-    () => [{ value: '', label: 'Всі зупинки' }, ...stops.map((s) => ({ value: s, label: s }))],
-    [stops]
-  );
-
-  const routeOptions = useMemo(
-    () => [
-      { value: '', label: 'Всі маршрути' },
-      ...routes.map((r) => ({
-        value: r.id,
-        label: `№${r.id} ${r.from ?? '?'} ↔ ${r.to ?? '?'}`,
-      })),
-    ],
-    [routes]
-  );
 
   if (loading) {
     return (
@@ -1248,97 +1341,183 @@ export const LocalTransportPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <header className="lt-header">
-              <h1 className="lt-title">Розклад руху</h1>
+            <header className="lt-header lt-header--jakdojade">
+              <h1 className="lt-title">Як доїхати</h1>
               <p className="lt-subtitle">Малин · місцевий транспорт</p>
             </header>
 
-            <div className="lt-search">
-              <div className="lt-search-row">
-                <div className="lt-search-field">
-                  <Combobox
-                    label="Пошук зупинки"
-                    options={stopComboboxOptions}
-                    value={effectiveStopFilter}
-                    onChange={(v) => {
-                      latestStopRef.current = v;
-                      setStopFilter(v);
-                      setSearchParams(v ? { stop: v } : {});
+            <div className="lt-search lt-search--jakdojade">
+              <div className="lt-from-to-block">
+                <div className="lt-from-to-row">
+                  <div className="lt-from-to-cell lt-from-to-cell--from">
+                    <label className="lt-from-to-label">З</label>
+                    <Combobox
+                      label=""
+                      options={[{ value: '', label: '— Зупинка —' }, ...stops.map((s) => ({ value: s, label: s }))]}
+                      value={effectiveSearchFrom}
+                      onChange={(v) => {
+                        setSearchFrom(v);
+                        latestStopRef.current = v;
+                        setStopFilter(v);
+                        if (!v) setSearchTo('');
+                      }}
+                      placeholder="Наприклад Малинівка"
+                      emptyMessage="Зупинок не знайдено"
+                      clearable
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="lt-from-to-swap"
+                    onClick={() => {
+                      setSearchFrom(effectiveSearchTo);
+                      setSearchTo(effectiveSearchFrom);
                     }}
-                    placeholder="Введіть назву (напр. Царське село, вокзал)"
-                    emptyMessage="Зупинок не знайдено"
-                  />
+                    title="Поміняти місцями"
+                    aria-label="Поміняти З та До"
+                  >
+                    ⇄
+                  </button>
+                  <div className="lt-from-to-cell lt-from-to-cell--to">
+                    <label className="lt-from-to-label">До</label>
+                    <Combobox
+                      label=""
+                      options={[{ value: '', label: '— Зупинка —' }, ...stops.map((s) => ({ value: s, label: s }))]}
+                      value={effectiveSearchTo}
+                      onChange={(v) => setSearchTo(v)}
+                      placeholder="Наприклад Царське село"
+                      emptyMessage="Зупинок не знайдено"
+                      clearable
+                    />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className="lt-geo-btn"
-                  onClick={handleFindNearest}
-                  disabled={geoLoading}
-                  title="Знайти найближчі зупинки"
-                >
-                  {geoLoading ? '…' : '📍'} Найближча
-                </button>
-              </div>
-              <div className="lt-search-row lt-search-row--route">
-                <Select
-                  label="Маршрут"
-                  options={routeOptions}
-                  value={routeFilter}
-                  onChange={(e) => setRouteFilter(e.target.value)}
-                />
-              </div>
-              {(geoError || (nearestStops && nearestStops.length > 0)) && (
-                <div className="lt-geo-results">
-                  {geoError && <p className="lt-geo-error">{geoError}</p>}
-                  {nearestStops && nearestStops.length > 0 && (
-                    <div className="lt-nearest">
-                      <p className="lt-nearest-title">Найближчі зупинки:</p>
-                      <ul className="lt-nearest-list">
-                        {nearestStops.map(({ name, distance }) => (
-                          <li key={name}>
-                            <button
-                              type="button"
-                              className="lt-nearest-item"
-                              onClick={() => {
-                                latestStopRef.current = name;
-                                setStopFilter(name);
-                                setSearchParams({ stop: name });
-                                setNearestStops(null);
-                              }}
-                            >
-                              {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                <div className="lt-datetime-row">
+                  <div className="lt-datetime-field">
+                    <label className="lt-datetime-label">Дата</label>
+                    <input
+                      type="text"
+                      className="lt-datetime-input"
+                      value={searchDate}
+                      onChange={(e) => setSearchDate(e.target.value)}
+                      placeholder="ДД.ММ.РР"
+                      maxLength={8}
+                    />
+                  </div>
+                  <div className="lt-datetime-field">
+                    <label className="lt-datetime-label">Час</label>
+                    <input
+                      type="time"
+                      className="lt-datetime-input"
+                      value={searchTime}
+                      onChange={(e) => setSearchTime(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="lt-search-btn"
+                    onClick={handleSearchSubmit}
+                    disabled={!effectiveSearchFrom || !effectiveSearchTo}
+                  >
+                    Знайти
+                  </button>
+                </div>
+                <div className="lt-search-extra">
+                  <button
+                    type="button"
+                    className="lt-geo-btn lt-geo-btn--small"
+                    onClick={handleFindNearest}
+                    disabled={geoLoading}
+                    title="Найближчі зупинки"
+                  >
+                    {geoLoading ? '…' : '📍'} Найближча
+                  </button>
+                  {(geoError || (nearestStops && nearestStops.length > 0)) && (
+                    <div className="lt-geo-results">
+                      {geoError && <p className="lt-geo-error">{geoError}</p>}
+                      {nearestStops && nearestStops.length > 0 && (
+                        <div className="lt-nearest">
+                          <p className="lt-nearest-title">Найближчі зупинки:</p>
+                          <ul className="lt-nearest-list">
+                            {nearestStops.map(({ name, distance }) => (
+                              <li key={name}>
+                                <button
+                                  type="button"
+                                  className="lt-nearest-item"
+                                  onClick={() => {
+                                    latestStopRef.current = name;
+                                    setSearchFrom(name);
+                                    setStopFilter(name);
+                                    setNearestStops(null);
+                                  }}
+                                >
+                                  {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
 
+            {hasFromToSearch && routesConnectingFromTo.length === 0 && (
+              <div className="lt-no-routes">
+                <p>Між цими зупинками немає прямого маршруту. Оберіть інші зупинки або перегляньте всі маршрути нижче.</p>
+              </div>
+            )}
+
             <div className="lt-routes">
-              {filteredRoutes.length === 0 ? (
-                <p className="lt-empty">Маршрутів не знайдено. Змініть фільтри.</p>
-              ) : (
-                filteredRoutes.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className="lt-route-card"
-                    onClick={() => handleSelectRoute(r.id)}
-                  >
-                    <span
-                      className={`lt-route-num ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+              {hasFromToSearch && routesConnectingFromTo.length > 0 ? (
+                <>
+                  <p className="lt-routes-heading">
+                    Маршрути: {effectiveSearchFrom} → {effectiveSearchTo}
+                  </p>
+                  {filteredRoutes.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className="lt-route-card"
+                      onClick={() => handleSelectRoute(r.id)}
                     >
-                      №{r.id}
-                    </span>
-                    <span className="lt-route-path">
-                      {r.from ?? '?'} — {r.to ?? '?'}
-                    </span>
-                    <span className="lt-route-meta">{r.trips.length} рейсів</span>
-                  </button>
-                ))
+                      <span
+                        className={`lt-route-num ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                      >
+                        №{r.id}
+                      </span>
+                      <span className="lt-route-path">
+                        {r.from ?? '?'} — {r.to ?? '?'}
+                      </span>
+                      <span className="lt-route-meta">{r.trips.length} рейсів</span>
+                    </button>
+                  ))}
+                </>
+              ) : filteredRoutes.length === 0 ? (
+                <p className="lt-empty">Введіть «З» та «До» і натисніть «Знайти», або перегляньте маршрути нижче.</p>
+              ) : (
+                <>
+                  <p className="lt-routes-heading">Усі маршрути</p>
+                  {filteredRoutes.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className="lt-route-card"
+                      onClick={() => handleSelectRoute(r.id)}
+                    >
+                      <span
+                        className={`lt-route-num ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                      >
+                        №{r.id}
+                      </span>
+                      <span className="lt-route-path">
+                        {r.from ?? '?'} — {r.to ?? '?'}
+                      </span>
+                      <span className="lt-route-meta">{r.trips.length} рейсів</span>
+                    </button>
+                  ))}
+                </>
               )}
             </div>
           </>

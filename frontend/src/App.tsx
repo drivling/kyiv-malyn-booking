@@ -27,6 +27,7 @@ function AppContent() {
         <Route path="/poputky" element={<PoputkyPage />} />
         <Route path="/booking" element={<BookingPage />} />
         <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
+        <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
         <Route path="/localtransport" element={<LocalTransportPage />} />
         <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
         <Route path="/login" element={<LoginPage />} />

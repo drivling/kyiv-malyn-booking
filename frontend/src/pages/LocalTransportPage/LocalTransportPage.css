@@ -58,6 +58,10 @@
   border-bottom: 1px solid var(--lt-border-light);
 }
 
+.lt-header--jakdojade {
+  padding: 20px 20px 12px;
+}
+
 .lt-title {
   margin: 0 0 4px;
   font-size: 1.5rem;
@@ -70,6 +74,175 @@
   margin: 0;
   font-size: 0.9375rem;
   color: var(--lt-text-muted);
+}
+
+/* ========== Jakdojade-style: З / До блок ========== */
+.lt-search--jakdojade {
+  padding: 16px 20px 20px;
+}
+
+.lt-from-to-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lt-from-to-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lt-from-to-cell {
+  flex: 1;
+  min-width: 0;
+}
+
+.lt-from-to-cell .combobox-input-wrap {
+  border-radius: var(--pb-radius);
+  border: 2px solid var(--lt-border);
+  transition: border-color 0.15s;
+}
+
+.lt-from-to-cell .combobox-input-wrap:focus-within {
+  border-color: var(--lt-accent);
+}
+
+.lt-from-to-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.lt-from-to-cell--from .lt-from-to-label { color: var(--lt-accent); }
+.lt-from-to-swap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lt-bg);
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--pb-radius);
+  color: var(--lt-text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lt-from-to-swap:hover {
+  border-color: var(--lt-accent);
+  color: var(--lt-accent);
+}
+
+.lt-datetime-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lt-datetime-field {
+  flex: 0 0 auto;
+}
+
+.lt-datetime-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.lt-datetime-input {
+  width: 100%;
+  min-width: 90px;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid var(--lt-border);
+  border-radius: var(--pb-radius);
+  background: var(--lt-card);
+  color: var(--lt-text);
+}
+
+.lt-datetime-input:focus {
+  outline: none;
+  border-color: var(--lt-accent);
+}
+
+.lt-datetime-input[type="time"] {
+  min-width: 100px;
+}
+
+.lt-search-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 12px 20px;
+  background: var(--lt-accent);
+  color: white;
+  border: none;
+  border-radius: var(--pb-radius);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lt-search-btn:hover:not(:disabled) {
+  background: var(--lt-accent-hover);
+}
+
+.lt-search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lt-search-extra {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lt-geo-btn--small {
+  padding: 8px 14px;
+  min-height: 40px;
+  font-size: 0.875rem;
+}
+
+.lt-routes-heading {
+  margin: 0 0 8px;
+  padding: 0 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lt-no-routes {
+  padding: 16px 20px;
+  margin: 0 20px 8px;
+  background: var(--lt-accent-light);
+  border-radius: var(--pb-radius);
+  border: 1px solid rgba(0, 122, 201, 0.2);
+}
+
+.lt-no-routes p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--lt-text);
 }
 
 /* Пошук — компактний, як у HSL */
