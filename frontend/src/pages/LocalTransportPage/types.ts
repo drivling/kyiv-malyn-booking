@@ -34,7 +34,11 @@ export interface SupplementRoute {
 /** Чи зупинка є тільки в одному напрямку */
 export type StopBelongsTo = 'there' | 'back' | 'both';
 
-/** Зупинка з порядком у напрямках "туди" та "назад" */
+/**
+ * Зупинка або точка маршруту з порядком у напрямках "туди" та "назад".
+ * Точки з map_only: true — тільки для карти (полілінія) і ланцюжка сегментів (segmentDurations);
+ * не показуються в списку зупинок і не можуть бути обрані як З/До.
+ */
 export interface RouteStopWithOrder {
   name: string;
   /** Номер зупинки в маршруті туди (from → to). -1 = тимчасово недоступна */
@@ -43,6 +47,12 @@ export interface RouteStopWithOrder {
   order_back: number;
   /** Чи зупинка є тільки в одному напрямку. За замовчуванням: both */
   belongs_to?: StopBelongsTo;
+  /**
+   * true = точка тільки для карти та розрахунку (ланцюжок сегментів).
+   * Не показується в «Список зупинок», не потрапляє в вибір З/До.
+   * Координати — у stops_coords.json під тим самим name; сегменти — у segmentDurations.
+   */
+  map_only?: boolean;
 }
 
 export interface SupplementStops {

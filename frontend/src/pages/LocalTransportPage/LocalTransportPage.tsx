@@ -6,7 +6,6 @@ import { RouteMap } from './RouteMap';
 import {
   getMinsBetweenStops,
   getDurationFromStartSec,
-  getSegmentDurationSec,
   isVerifiedRoute,
 } from './routeTiming';
 import './LocalTransportPage.css';
@@ -106,6 +105,11 @@ function getStopNames(stops: string[] | RouteStopWithOrder[]): string[] {
   return typeof first === 'string' ? (stops as string[]) : (stops as RouteStopWithOrder[]).map((s) => s.name);
 }
 
+/** Зупинки без map_only — для списку та вибору З/До (точки тільки для карти виключаємо) */
+function getRealStops(stops: RouteStopWithOrder[]): RouteStopWithOrder[] {
+  return stops.filter((s) => !s.map_only);
+}
+
 function buildStops(
   routes: ReturnType<typeof buildRoutes>,
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
@@ -116,7 +120,13 @@ function buildStops(
     if (r.to) stopSet.add(r.to);
   });
   if (stopsByRoute) {
-    Object.values(stopsByRoute).forEach((stops) => getStopNames(stops).forEach((s) => stopSet.add(s)));
+    Object.values(stopsByRoute).forEach((stops) => {
+      const names =
+        Array.isArray(stops) && stops[0] != null && typeof stops[0] === 'object' && 'name' in stops[0]
+          ? getStopNames(getRealStops(stops as RouteStopWithOrder[]))
+          : getStopNames(stops);
+      names.forEach((s) => stopSet.add(s));
+    });
   }
   ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((s) => stopSet.add(s));
   return [...stopSet].sort((a, b) => a.localeCompare(b));
@@ -587,10 +597,15 @@ export const LocalTransportPage: React.FC = () => {
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
 
-  const detailRouteStopNames = useMemo(
-    () => (detailRoute && stopsByRoute?.[detailRoute.id] ? getStopNames(stopsByRoute[detailRoute.id]) : []),
-    [detailRoute?.id, stopsByRoute]
-  );
+  const detailRouteStopNames = useMemo(() => {
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
+    const s = stopsByRoute[detailRoute.id];
+    const arr = Array.isArray(s) ? s : [];
+    if (arr.length && arr[0] != null && typeof arr[0] === 'object' && 'name' in arr[0]) {
+      return getStopNames(getRealStops(arr as RouteStopWithOrder[]));
+    }
+    return getStopNames(s);
+  }, [detailRoute?.id, stopsByRoute]);
   const hasChosenStopsOnDetail =
     Boolean(
       detailRoute &&
@@ -1344,6 +1359,7 @@ export const LocalTransportPage: React.FC = () => {
                           .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
                           .filter((s) => (isThere ? s.order_there : s.order_back) > 0)
                           .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
+                        const listStops = getRealStops(filtered);
                         const baseTime =
                           selectedTripDirection === stopsDirection && selectedTripTime != null
                             ? selectedTripTime
@@ -1354,7 +1370,7 @@ export const LocalTransportPage: React.FC = () => {
                         const minsPerStopStops = getMinsBetweenStops(detailRoute.id);
                         return (
                           <ul className="lt-stops-list">
-                            {filtered.map((s, idx) => {
+                            {listStops.map((s, idx) => {
                               const order = s[orderKey];
                               const arrivalMins = verifiedStops
                                 ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, order - 1) / 60
@@ -1370,7 +1386,8 @@ export const LocalTransportPage: React.FC = () => {
                                 nextStop == null
                                   ? null
                                   : verifiedStops
-                                    ? getSegmentDurationSec(detailRoute.id, s.name, nextStop.name) / 60
+                                    ? (getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextStop[orderKey] - 1) -
+                                        getDurationFromStartSec(detailRoute.id, orderedNamesStops, (s[orderKey] ?? 0) - 1)) / 60
                                     : nextArrivalMins != null
                                       ? nextArrivalMins - arrivalMins
                                       : null;

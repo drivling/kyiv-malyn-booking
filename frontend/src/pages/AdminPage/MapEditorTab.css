@@ -125,6 +125,11 @@
   font-style: italic;
 }
 
+.map-editor-stop-badge--tech {
+  color: var(--pb-primary, #2563eb);
+  font-style: normal;
+}
+
 .map-editor-mode-switch {
   margin-bottom: 8px;
 }

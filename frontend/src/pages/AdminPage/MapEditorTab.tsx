@@ -20,6 +20,8 @@ interface RouteStop {
   name: string;
   order_there?: number;
   order_back?: number;
+  /** Точка тільки для карти й розрахунку (не показується в списку зупинок для пасажирів) */
+  map_only?: boolean;
 }
 
 interface SupplementRoute {
@@ -55,6 +57,19 @@ function getRouteStopsWithOrder(
     order_there: i + 1,
     order_back: names.length - i,
   }));
+}
+
+/** Наступний індекс для технічної зупинки маршруту (назва "№{routeId} т.{n}") */
+function nextTechnicalStopIndex(routeStops: RouteStop[], routeId: string): number {
+  const prefix = `№${routeId} т.`;
+  let max = 0;
+  routeStops.forEach((s) => {
+    if (s.map_only && s.name.startsWith(prefix)) {
+      const num = parseInt(s.name.slice(prefix.length), 10);
+      if (!Number.isNaN(num) && num > max) max = num;
+    }
+  });
+  return max + 1;
 }
 
 function createMarkerIcon(color: string, orderLabel?: string) {
@@ -168,6 +183,22 @@ function MapBounds({ positions }: { positions: [number, number][] }) {
   return null;
 }
 
+function MapCenterTracker({ onCenterChange }: { onCenterChange: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const update = () => {
+      const c = map.getCenter();
+      onCenterChange(c.lat, c.lng);
+    };
+    update();
+    map.on('moveend', update);
+    return () => {
+      map.off('moveend', update);
+    };
+  }, [map, onCenterChange]);
+  return null;
+}
+
 type EditorMode = 'coords' | 'direction';
 
 export const MapEditorTab: React.FC = () => {
@@ -180,6 +211,10 @@ export const MapEditorTab: React.FC = () => {
   const [directionMode, setDirectionMode] = useState<'there' | 'back'>('there');
   const [mounted, setMounted] = useState(false);
   const [modalStop, setModalStop] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
+  const handleMapCenterChange = useCallback((lat: number, lng: number) => {
+    setMapCenter([lat, lng]);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -217,6 +252,15 @@ export const MapEditorTab: React.FC = () => {
     const routeStopNames = new Set(routeStops.map((s) => s.name));
     return allStops.filter((n) => routeStopNames.has(n));
   }, [coordsData, transportData, selectedRoute]);
+
+  const isTechnicalStop = useCallback(
+    (name: string) => {
+      if (!selectedRoute || !transportData) return false;
+      const routeStops = getRouteStopsWithOrder(transportData.supplement?.stops?.stops_by_route, selectedRoute);
+      return routeStops.some((s) => s.name === name && s.map_only);
+    },
+    [selectedRoute, transportData]
+  );
 
   const routeStopsForDirection = useMemo(() => {
     if (!selectedRoute || !transportData) return [];
@@ -263,6 +307,42 @@ export const MapEditorTab: React.FC = () => {
     },
     []
   );
+
+  const handleAddTechnicalStop = useCallback(() => {
+    if (!selectedRoute || !transportData || !coordsData) return;
+    const sbr = transportData.supplement?.stops?.stops_by_route;
+    const routeStops = getRouteStopsWithOrder(sbr, selectedRoute);
+    if (routeStops.length === 0) return;
+    const name = `№${selectedRoute} т.${nextTechnicalStopIndex(routeStops, selectedRoute)}`;
+    const maxThere = Math.max(0, ...routeStops.map((s) => s.order_there ?? 0).filter((n) => n > 0));
+    const maxBack = Math.max(0, ...routeStops.map((s) => s.order_back ?? 0).filter((n) => n > 0));
+    const firstWithCoords = displayedStops.map((n) => coordsData.stops[n]).find(Boolean);
+    const position: [number, number] = mapCenter ?? (firstWithCoords as [number, number]) ?? coordsData.center;
+    setCoordsData((prev) =>
+      prev
+        ? { ...prev, stops: { ...prev.stops, [name]: position } }
+        : prev
+    );
+    const newStop: RouteStop = {
+      name,
+      order_there: maxThere + 1,
+      order_back: maxBack + 1,
+      map_only: true,
+    };
+    setTransportData({
+      ...transportData,
+      supplement: {
+        ...transportData.supplement,
+        stops: {
+          ...transportData.supplement?.stops,
+          stops_by_route: {
+            ...transportData.supplement?.stops?.stops_by_route,
+            [selectedRoute]: [...routeStops, newStop],
+          },
+        },
+      },
+    });
+  }, [selectedRoute, transportData, coordsData, mapCenter, displayedStops]);
 
   const handleDownloadCoords = useCallback(() => {
     if (!coordsData) return;
@@ -380,6 +460,14 @@ export const MapEditorTab: React.FC = () => {
         </div>
         {editorMode === 'coords' && (
           <div className="map-editor-actions">
+            <Button
+              type="button"
+              onClick={handleAddTechnicalStop}
+              disabled={!selectedRoute}
+              title={!selectedRoute ? 'Спочатку виберіть маршрут' : 'Додати точку тільки для карти (map_only)'}
+            >
+              + Техн. зупинка
+            </Button>
             <Button onClick={handleDownloadCoords}>
               ⬇ Завантажити stops_coords.json
             </Button>
@@ -389,8 +477,8 @@ export const MapEditorTab: React.FC = () => {
 
       {editorMode === 'coords' && (
         <p className="map-editor-hint">
-          Перетягніть маркер на карті для уточнення позиції зупинки. Темно-синій маркер — зупинка виключена (order = -1).
-          Потім завантажте файл і замініть <code>frontend/public/data/stops_coords.json</code> у проекті.
+          Перетягніть маркер для уточнення позиції. «+ Техн. зупинка» — точка тільки для карти (map_only), коротка назва типу №9 т.1.
+          Темно-синій — виключена (order = -1). Завантажте обидва JSON і замініть у <code>public/data/</code>.
         </p>
       )}
 
@@ -442,6 +530,7 @@ export const MapEditorTab: React.FC = () => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <MapBounds positions={positions} />
+              <MapCenterTracker onCenterChange={handleMapCenterChange} />
               {editorMode === 'coords'
                 ? displayedStops.map((name) => {
                     const pos = coordsData.stops[name];
@@ -486,6 +575,7 @@ export const MapEditorTab: React.FC = () => {
                 {displayedStops.map((name) => {
                   const pos = coordsData.stops[name];
                   const excluded = selectedRoute ? isStopExcludedInAnyDirection(name) : false;
+                  const technical = isTechnicalStop(name);
                   return (
                     <li key={name} className={`map-editor-stop-item ${excluded ? 'map-editor-stop-item--excluded' : ''}`}>
                       <span className="map-editor-stop-name">{name}</span>
@@ -494,6 +584,7 @@ export const MapEditorTab: React.FC = () => {
                           {pos[0].toFixed(6)}, {pos[1].toFixed(6)}
                         </span>
                       )}
+                      {technical && <span className="map-editor-stop-badge map-editor-stop-badge--tech">техн.</span>}
                       {excluded && <span className="map-editor-stop-badge">виключена</span>}
                     </li>
                   );
@@ -511,6 +602,7 @@ export const MapEditorTab: React.FC = () => {
                     <li key={s.name} className="map-editor-stop-item">
                       <span className="map-editor-stop-order">{idx + 1}.</span>
                       <span className="map-editor-stop-name">{s.name}</span>
+                      {s.map_only && <span className="map-editor-stop-badge map-editor-stop-badge--tech">техн.</span>}
                     </li>
                   ))}
                   {routeStopsForDirection.filter((s) => (directionMode === 'there' ? s.order_there : s.order_back) === -1).length > 0 && (
