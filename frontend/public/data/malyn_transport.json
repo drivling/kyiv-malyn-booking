@@ -3106,7 +3106,7 @@
           {
             "name": "Івана Мазепи 27",
             "order_there": 5,
-            "order_back": 18
+            "order_back": 19
           },
           {
             "name": "Івана Мазепи 3",
@@ -3116,7 +3116,7 @@
           {
             "name": "Івана Мазепи 4",
             "order_there": -1,
-            "order_back": 17
+            "order_back": 18
           },
           {
             "name": "Грушевського 48",
@@ -3130,12 +3130,12 @@
           },
           {
             "name": "Залізничний вокзал",
-            "order_there": 21,
+            "order_there": 22,
             "order_back": 1
           },
           {
             "name": "Й. Кульчицького",
-            "order_there": 13,
+            "order_there": 14,
             "order_back": 9
           },
           {
@@ -3146,11 +3146,11 @@
           {
             "name": "Кооперативний ринок (навпр.)",
             "order_there": -1,
-            "order_back": 16
+            "order_back": 17
           },
           {
             "name": "Ливарний завод",
-            "order_there": 19,
+            "order_there": 20,
             "order_back": -1
           },
           {
@@ -3160,12 +3160,12 @@
           },
           {
             "name": "Малинівський круг",
-            "order_there": 14,
+            "order_there": 15,
             "order_back": 8
           },
           {
             "name": "Молокозавод",
-            "order_there": 18,
+            "order_there": 19,
             "order_back": 4
           },
           {
@@ -3175,7 +3175,7 @@
           },
           {
             "name": "Огієнка 65 (БАМ)",
-            "order_there": 15,
+            "order_there": 16,
             "order_back": -1
           },
           {
@@ -3186,11 +3186,11 @@
           {
             "name": "Паперова фабрика Вайдманн",
             "order_there": 1,
-            "order_back": 23
+            "order_back": 24
           },
           {
             "name": "Перемоги 15-17",
-            "order_there": 12,
+            "order_there": 13,
             "order_back": -1
           },
           {
@@ -3201,22 +3201,22 @@
           {
             "name": "Приходька 28",
             "order_there": -1,
-            "order_back": 21
+            "order_back": 22
           },
           {
             "name": "Приходька 29",
             "order_there": 3,
-            "order_back": 20
+            "order_back": 21
           },
           {
             "name": "Приходька 60 (ФБП)",
             "order_there": -1,
-            "order_back": 22
+            "order_back": 23
           },
           {
             "name": "Приходька 8",
             "order_there": -1,
-            "order_back": 19
+            "order_back": 20
           },
           {
             "name": "Приходька 9",
@@ -3225,12 +3225,12 @@
           },
           {
             "name": "ТОВ \"Фратеко\"",
-            "order_there": 20,
+            "order_there": 21,
             "order_back": -1
           },
           {
             "name": "Хлібзавод",
-            "order_there": 16,
+            "order_there": 17,
             "order_back": 6
           },
           {
@@ -3240,7 +3240,7 @@
           },
           {
             "name": "Швейна фабрика (навпроти)",
-            "order_there": 10,
+            "order_there": 11,
             "order_back": -1
           },
           {
@@ -3250,12 +3250,12 @@
           },
           {
             "name": "з-д \"Прожектор\"",
-            "order_there": 11,
+            "order_there": 12,
             "order_back": 11
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 17,
+            "order_there": 18,
             "order_back": -1
           },
           {
@@ -3271,7 +3271,7 @@
           {
             "name": "м-н \"Доктор ЗОО\"",
             "order_there": -1,
-            "order_back": 15
+            "order_back": 16
           },
           {
             "name": "м-н \"Меркурій\"",
@@ -3286,17 +3286,23 @@
           {
             "name": "м-н \"Сільпо\"",
             "order_there": -1,
-            "order_back": 13
+            "order_back": 14
           },
           {
             "name": "пл. Соборна (біля РБК)",
             "order_there": 8,
-            "order_back": 14
+            "order_back": 15
           },
           {
             "name": "сквер \"Жертв Чорнобиля\"",
             "order_there": -1,
             "order_back": -1
+          },
+          {
+            "name": "№11 т.1",
+            "order_there": 10,
+            "order_back": 13,
+            "map_only": true
           }
         ],
         "12": [
