@@ -15,6 +15,8 @@ interface RouteMapProps {
   fromStopName?: string;
   /** Зупинка «До» (підсвічується окремо) */
   toStopName?: string;
+  /** Темна тема + зелена лінія (як Jakdojade) */
+  dark?: boolean;
 }
 
 interface CoordsData {
@@ -63,10 +65,15 @@ const defaultIcon = createCircleIcon('#00A86B', 14);
 const fromIcon = createCircleIcon('#2563eb', 18);
 const toIcon = createCircleIcon('#f97316', 18);
 
-const ROUTE_LINE_COLOR = '#FFD700'; // яскраво жовтий (gold)
-const FROM_TO_SEGMENT_COLOR = '#E65100'; // оранжево-червоний, ділянка З → До
+const fromIconGreen = createCircleIcon('#4caf50', 18);
+const toIconBlue = createCircleIcon('#42a5f5', 18);
 
-function createArrowIcon(angleDeg: number) {
+const ROUTE_LINE_COLOR = '#4caf50'; // зелений — весь маршрут
+const ROUTE_LINE_GREEN = '#4caf50';
+const FROM_TO_SEGMENT_COLOR = '#FF8C00'; // жовтогарячий — тільки ділянка між обраними точками З → До
+const FROM_TO_SEGMENT_GREEN = '#FF6600';
+
+function createArrowIcon(angleDeg: number, color: string) {
   return L.divIcon({
     className: 'lt-map-arrow',
     html: `<span style="
@@ -75,7 +82,7 @@ function createArrowIcon(angleDeg: number) {
       height:0;
       border-left:5px solid transparent;
       border-right:5px solid transparent;
-      border-bottom:8px solid ${ROUTE_LINE_COLOR};
+      border-bottom:8px solid ${color};
       transform:rotate(${angleDeg}deg);
     "></span>`,
     iconSize: [10, 10],
@@ -83,12 +90,23 @@ function createArrowIcon(angleDeg: number) {
   });
 }
 
+const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+const LIGHT_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+/** Центр Малина — fallback коли координати ще не завантажились */
+const MALYN_CENTER: [number, number] = [50.768, 29.242];
+
 export const RouteMap: React.FC<RouteMapProps> = ({
   routeId,
   stopNames,
   fromStopName,
   toStopName,
+  dark = false,
 }) => {
+  const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
+  const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
+  const fromI = dark ? fromIconGreen : fromIcon;
+  const toI = dark ? toIconBlue : toIcon;
   const [coords, setCoords] = useState<CoordsData | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -111,11 +129,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     }
   }, []);
 
-  if (!mounted || !coords || stopNames.length === 0) return null;
+  if (!mounted) return null;
 
-  const stopsWithCoords = stopNames.filter((n) => coords.stops[n]);
-  const positions = stopsWithCoords.map((n) => coords.stops[n] as [number, number]);
+  const center = coords?.center ?? MALYN_CENTER;
+  const stopsRecord = coords?.stops ?? {};
+  const stopsWithCoords = stopNames.length > 0 ? stopNames.filter((n) => stopsRecord[n]) : [];
+  const positions = stopsWithCoords.map((n) => stopsRecord[n] as [number, number]);
   const showRouteLine = routeId && (VERIFIED_ROUTE_IDS as readonly string[]).includes(routeId) && positions.length >= 2;
+  const hasAnyStops = positions.length > 0;
 
   // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту
   const fromIdx = fromStopName ? stopsWithCoords.indexOf(fromStopName) : -1;
@@ -131,13 +152,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     ? stopsWithCoords.slice(segmentStart, segmentEnd)
     : stopsWithCoords;
   const boundsPadding: [number, number] = hasFromToSegment ? [50, 50] : [30, 30];
+  const showBounds = boundsStopNames.length >= 1;
 
   return (
-    <div className="lt-map-wrapper">
+    <div className={`lt-map-wrapper ${dark ? 'lt-map-wrapper--dark' : ''}`}>
       <h3 className="lt-map-heading">Карта маршруту</h3>
       <div className="lt-map-container">
         <MapContainer
-          center={coords.center}
+          center={center}
           zoom={13}
           className="lt-map"
           scrollWheelZoom
@@ -145,26 +167,27 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url={dark ? LIGHT_TILES : LIGHT_TILES}
           />
-          <MapBounds stopNames={boundsStopNames} stops={coords.stops} padding={boundsPadding} />
-          {showRouteLine && (
+          {showBounds && <MapBounds stopNames={boundsStopNames} stops={stopsRecord} padding={boundsPadding} />}
+          {hasAnyStops && showRouteLine && (
             <>
+              {/* Весь маршрут — зелений */}
               <Polyline
                 positions={positions}
                 pathOptions={{
-                  color: ROUTE_LINE_COLOR,
-                  weight: 4,
+                  color: lineColor,
+                  weight: 5,
                   opacity: 1,
-                  dashArray: '6, 8',
                 }}
               />
+              {/* Ділянка між обраними З і До — жовтогарячий поверх */}
               {hasFromToSegment && fromToPositions.length >= 2 && (
                 <Polyline
                   positions={fromToPositions}
                   pathOptions={{
-                    color: FROM_TO_SEGMENT_COLOR,
-                    weight: 7,
+                    color: segmentColor,
+                    weight: 8,
                     opacity: 1,
                   }}
                 />
@@ -180,19 +203,19 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                   <Marker
                     key={`arrow-${i}`}
                     position={[midLat, midLng]}
-                    icon={createArrowIcon(angleDeg)}
+                    icon={createArrowIcon(angleDeg, lineColor)}
                     zIndexOffset={0}
                   />
                 );
               })}
             </>
           )}
-          {stopsWithCoords.map((n) => {
+          {hasAnyStops && stopsWithCoords.map((n) => {
             const isFrom = n === fromStopName;
             const isTo = n === toStopName;
-            const icon = isFrom ? fromIcon : isTo ? toIcon : defaultIcon;
+            const icon = isFrom ? fromI : isTo ? toI : defaultIcon;
             return (
-              <Marker key={n} position={coords.stops[n] as [number, number]} icon={icon}>
+              <Marker key={n} position={stopsRecord[n] as [number, number]} icon={icon}>
                 <Popup>{n}{isFrom ? ' (З)' : isTo ? ' (До)' : ''}</Popup>
               </Marker>
             );

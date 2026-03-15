@@ -263,12 +263,29 @@ function getImpliedDirection(
 }
 
 /** Знайти зупинку з names, що відповідає urlValue (точний або з нормалізацією типових відмінностей) */
+/** Нормалізує рядок для порівняння: прибирає префікс "з-д ", лапки, Проектор→Прожектор */
+function normalizeStopNameForMatch(s: string): string {
+  let t = s
+    .replace(/^з-д\s+/i, '')
+    .replace(/^["'\s]+|["'\s]+$/g, '')
+    .trim();
+  t = t.replace(/^["«»]|["«»]$/g, '').trim();
+  t = t.replace(/Проектор/gi, 'Прожектор');
+  return t;
+}
+
 function findMatchingStop(urlValue: string, names: string[]): string | null {
   if (!urlValue) return null;
   if (names.includes(urlValue)) return urlValue;
   const norm = (s: string) => s.replace(/["«»]/g, '"').replace(/Проектор/gi, 'Прожектор');
   const nUrl = norm(urlValue);
-  return names.find((n) => norm(n) === nUrl) ?? names.find((n) => n.includes('Прожектор') && urlValue.includes('Проектор')) ?? null;
+  let found = names.find((n) => norm(n) === nUrl) ?? names.find((n) => n.includes('Прожектор') && urlValue.includes('Проектор')) ?? null;
+  if (found) return found;
+  const normalizedInput = normalizeStopNameForMatch(urlValue);
+  if (!normalizedInput) return null;
+  return names.find((n) => normalizeStopNameForMatch(n) === normalizedInput)
+    ?? names.find((n) => norm(n) === normalizedInput)
+    ?? null;
 }
 
 /** Порядок зупинки fromStop у напрямку dir (1-based). Повертає null якщо не знайдено. */
@@ -400,7 +417,8 @@ export const LocalTransportPage: React.FC = () => {
   const selectedStopFromUrl = searchParams.get('stop') ?? '';
   const toFromUrl = searchParams.get('to') ?? '';
   const timeFromUrl = searchParams.get('time') ?? '';
-  const dirFromUrl = searchParams.get('dir') ?? '';
+  const rawDir = searchParams.get('dir') ?? '';
+  const dirFromUrl = rawDir.toLowerCase().startsWith('there') ? 'there' : rawDir.toLowerCase().startsWith('back') ? 'back' : rawDir;
   const dateFromUrl = searchParams.get('d') ?? '';
   const hourFromUrl = searchParams.get('h') ?? '';
   const [data, setData] = useState<TransportData | null>(null);
@@ -521,12 +539,53 @@ export const LocalTransportPage: React.FC = () => {
     [routes, routeId]
   );
 
-  // Прокрутити до "Ви тут" при завантаженні
-  useEffect(() => {
-    if (selectedStopFromUrl && youHereRef.current) {
-      youHereRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [selectedStopFromUrl, stopsDirection]);
+  const detailMapStopNames = useMemo(() => {
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
+    const routeStops = stopsByRoute[detailRoute.id];
+    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
+    const first = routeStops[0];
+    const withOrder: RouteStopWithOrder[] =
+      first && typeof first === 'object' && 'name' in first
+        ? (routeStops as RouteStopWithOrder[])
+        : (routeStops as unknown as string[]).map((name, i) => ({
+            name,
+            order_there: i + 1,
+            order_back: routeStops.length - i,
+            belongs_to: 'both' as const,
+          }));
+    const isThere = stopsDirection === 'there';
+    const orderKey = isThere ? 'order_there' : 'order_back';
+    const included = withOrder
+      .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
+      .filter((s) => (s[orderKey] ?? 0) > 0)
+      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
+    return included.map((s) => s.name);
+  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+
+  /** Fallback для карти: усі зупинки маршруту в поточному напрямку (щоб карта завжди мала що малювати) */
+  const detailMapStopNamesFallback = useMemo(() => {
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
+    const routeStops = stopsByRoute[detailRoute.id];
+    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
+    const first = routeStops[0];
+    const withOrder: RouteStopWithOrder[] =
+      first && typeof first === 'object' && 'name' in first
+        ? (routeStops as RouteStopWithOrder[])
+        : (routeStops as unknown as string[]).map((name, i) => ({
+            name,
+            order_there: i + 1,
+            order_back: routeStops.length - i,
+            belongs_to: 'both' as const,
+          }));
+    const isThere = stopsDirection === 'there';
+    const orderKey = isThere ? 'order_there' : 'order_back';
+    const sorted = [...withOrder].sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
+    return sorted.map((s) => s.name);
+  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+
+  const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
+
+  // Не робимо auto-scroll до "Ви тут" — це викликало зміщення вліво при виборі маршруту та зміні напрямку
 
   // Вимірювання сегменту лінії між З і До
   useEffect(() => {
@@ -942,23 +1001,34 @@ export const LocalTransportPage: React.FC = () => {
   const fare = data.supplement?.fare ? `${data.supplement.fare.amount} грн` : null;
 
   return (
-    <div className="lt-page lt-use-site-colors">
-      <div className="lt-container">
+    <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+      <div className={`lt-container ${routeId && detailRoute ? 'lt-split-layout' : ''}`}>
         {routeId && detailRoute ? (
-          <div className="lt-detail">
-            <button type="button" className="lt-back" onClick={handleBack}>
-              ← Усі маршрути
-            </button>
-            <header className="lt-detail-header">
-              <h1 className="lt-route-title">
+          <>
+          <div className="lt-panel">
+          <div className="lt-detail lt-detail--jakdojade">
+            {/* Такий самий хедер як на головній */}
+            <header className="lt-header lt-header--jakdojade">
+              <button type="button" className="lt-back lt-back--header" onClick={handleBack} aria-label="Назад до пошуку">
+                ←
+              </button>
+              <h1 className="lt-title">Як доїхати</h1>
+              <p className="lt-subtitle">Маршрут №{detailRoute.id} · Малин</p>
+            </header>
+
+            {/* Заголовок маршруту + перемикач напрямку */}
+            <header className="lt-detail-header lt-detail-header--jd">
+              <h1 className="lt-route-title lt-route-title--jd">
                 <span
                   className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
                 >
                   №{detailRoute.id}
                 </span>
-                {stopsDirection === 'there'
-                  ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
-                  : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
+                <span className="lt-route-title-path">
+                  {stopsDirection === 'there'
+                    ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
+                    : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
+                </span>
               </h1>
               <div className="lt-detail-header-actions">
                 <button
@@ -978,6 +1048,7 @@ export const LocalTransportPage: React.FC = () => {
                 {fare && <span className="lt-fare">Проїзд {fare}</span>}
               </div>
             </header>
+
             {detailRoute.trips.length > 0 && (() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
@@ -1005,15 +1076,6 @@ export const LocalTransportPage: React.FC = () => {
                     .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
                     .sort((a, b) => a.order_back - b.order_back)
                 : [];
-              const orderedForDirection = stopsDirection === 'there' ? orderedStopsThere : orderedStopsBack;
-              const orderKey = stopsDirection === 'there' ? 'order_there' : 'order_back';
-              const fromOptions = orderedForDirection.map((s) => ({ value: s.name, label: s.name }));
-              const fromOrder = fromStop ? (orderedForDirection.find((s) => s.name === fromStop)?.[orderKey] ?? 0) : 0;
-              const toOptionsFrom = (fromStop
-                ? orderedForDirection.filter((s) => (s[orderKey] ?? 0) > fromOrder)
-                : orderedForDirection
-              ).map((s) => ({ value: s.name, label: s.name }));
-
               const minsPerStop = getMinsBetweenStops(detailRoute.id);
               const routeId = detailRoute.id;
               const verified = isVerifiedRoute(routeId);
@@ -1064,165 +1126,78 @@ export const LocalTransportPage: React.FC = () => {
 
               return (
                 <>
-                  <div className="lt-timetable-header">
-                    {hasFromTo && (
-                      <div className="lt-from-to">
-                        <div className="lt-from-to-field">
-                          <Combobox
-                            label="З"
-                            options={[{ value: '', label: '— Зупинка —' }, ...fromOptions]}
-                            value={fromStop}
-                            onChange={(v) => {
-                              setFromStop(v);
-                              const updates: { stop?: string; to?: string } = { stop: v || undefined };
-                              if (!v) {
-                                setToStop('');
-                                updates.to = undefined;
-                              } else if (toStop) {
-                                const newFromOrder = orderedForDirection.find((s) => s.name === v)?.[orderKey] ?? 0;
-                                const toOrder = orderedForDirection.find((s) => s.name === toStop)?.[orderKey] ?? 0;
-                                if (toOrder <= newFromOrder) {
-                                  setToStop('');
-                                  updates.to = undefined;
-                                }
-                              }
-                              updateDetailUrl(updates);
-                            }}
-                            placeholder="Пошук зупинки"
-                            emptyMessage="Зупинок не знайдено"
-                            clearable
-                          />
-                        </div>
+                  {/* Компактний рядок після вибору маршруту (як на Jakdojade): Звідки → Куди, дата/час, Змінити */}
+                  {hasFromTo && (
+                    <div className="lt-detail-summary lt-detail-summary--compact">
+                      <div className="lt-detail-summary-route">
+                        <span className="lt-detail-summary-from">
+                          {fromStop || selectedStopFromUrl || detailRoute.from || '—'}
+                        </span>
+                        <span className="lt-detail-summary-arrow" aria-hidden>→</span>
+                        <span className="lt-detail-summary-to">
+                          {toStop || toFromUrl || detailRoute.to || '—'}
+                        </span>
+                      </div>
+                      <div className="lt-detail-summary-meta">
+                        <span className="lt-detail-date">{dateFromUrl || formatDateUrl(new Date())}</span>
+                        <span className="lt-detail-time">{timeFromUrl || hourFromUrl || '—'}</span>
                         <button
                           type="button"
-                          className="lt-from-to-arrow"
-                          onClick={() => reverseDirectionAndFromTo()}
-                          title="Поміняти напрямок (З та До навпаки)"
-                          aria-label="Поміняти напрямок (З та До навпаки)"
+                          className="lt-detail-summary-change"
+                          onClick={handleBack}
                         >
-                          ⇄
+                          Змінити
                         </button>
-                        <div className="lt-from-to-field">
-                          <Combobox
-                            label="До"
-                            options={[{ value: '', label: '— Зупинка —' }, ...toOptionsFrom]}
-                            value={toStop}
-                            onChange={(v) => {
-                              setToStop(v);
-                              updateDetailUrl({ to: v || undefined });
-                            }}
-                            placeholder="Пошук зупинки"
-                            emptyMessage="Зупинок не знайдено"
-                            clearable
-                          />
-                        </div>
                       </div>
-                    )}
-                    <div className="lt-date-row">
-                      <button type="button" className="lt-print-btn" onClick={() => window.print()} title="Друк">
-                        🖨 Друк
-                      </button>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="lt-timetable">
-                    {tableTrips && tableTrips.length > 0 ? (
-                      <table className="lt-timetable-table">
-                        <thead>
-                          <tr>
-                            <th>Відправлення{fromStop && <span className="lt-th-stop"> ({fromStop})</span>}</th>
-                            <th>Прибуття{toStop && <span className="lt-th-stop"> ({toStop})</span>}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tableTrips.map((row, i) => {
-                            const isSelected =
-                              selectedTripTime === row.baseTime && selectedTripDirection === row.direction;
-                            return (
-                            <tr
-                              key={i}
-                              className={`lt-timetable-row-clickable ${isSelected ? 'lt-timetable-row--selected' : ''}`}
-                              onClick={() => {
-                                setSelectedTripTime(row.baseTime);
-                                setSelectedTripDirection(row.direction);
-                                setStopsDirection(row.direction);
-                                updateDetailUrl({ time: row.dep, dir: row.direction });
-                              }}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
+                  {/* Секція Розклад руху: один компактний ряд — дата, час, Відправлення о, Друк */}
+                  <section className="lt-timetable-section lt-timetable-section--compact" aria-labelledby="lt-rozklad-heading">
+                    <h2 id="lt-rozklad-heading" className="lt-section-title">Розклад руху</h2>
+                    {hasFromTo && (
+                      <div className="lt-timetable-header lt-timetable-header--jd lt-timetable-header--compact">
+                        <span className="lt-detail-date">{dateFromUrl || formatDateUrl(new Date())}</span>
+                        <span className="lt-detail-time">{timeFromUrl || hourFromUrl || '—'}</span>
+                        {tableTrips && tableTrips.length > 0 && (
+                          <>
+                            <label className="lt-time-picker-label">Відправлення о</label>
+                            <select
+                              className="lt-time-picker-select lt-time-picker-select--compact"
+                              value={
+                                selectedTripTime != null && selectedTripDirection != null
+                                  ? tableTrips.find(
+                                      (r) => r.baseTime === selectedTripTime && r.direction === selectedTripDirection
+                                    )?.dep ?? tableTrips[0]?.dep
+                                  : tableTrips[0]?.dep ?? ''
+                              }
+                              onChange={(e) => {
+                                const dep = e.target.value;
+                                const row = tableTrips.find((r) => r.dep === dep);
+                                if (row) {
                                   setSelectedTripTime(row.baseTime);
                                   setSelectedTripDirection(row.direction);
                                   setStopsDirection(row.direction);
                                   updateDetailUrl({ time: row.dep, dir: row.direction });
                                 }
                               }}
+                              aria-label="Час відправлення"
                             >
-                              <td className="lt-time-cell">{row.dep}</td>
-                              <td className="lt-time-cell">{row.arr}</td>
-                            </tr>
-                          );})}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div className="lt-timetable-grid">
-                        <div className="lt-timetable-col">
-                          <h3 className="lt-timetable-heading">{detailRoute.to} →</h3>
-                          <div className="lt-times">
-                            {groupTripsByDirection(detailRoute.trips).dir1.map((t) => {
-                              const mins = parseTime(t.block_id);
-                              const isSelected = selectedTripTime === mins && selectedTripDirection === 'there';
-                              return (
-                                <button
-                                  key={t.trip_id}
-                                  type="button"
-                                  className={`lt-time ${isSelected ? 'lt-time--selected' : ''}`}
-                                  onClick={() => {
-                                    if (mins > 0) {
-                                      setSelectedTripTime(mins);
-                                      setSelectedTripDirection('there');
-                                      setStopsDirection('there');
-                                      updateDetailUrl({ time: formatTime(mins), dir: 'there' });
-                                    }
-                                  }}
-                                >
-                                  {t.block_id || '—'}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="lt-timetable-col">
-                          <h3 className="lt-timetable-heading">← {detailRoute.from}</h3>
-                          <div className="lt-times">
-                            {groupTripsByDirection(detailRoute.trips).dir0.map((t) => {
-                              const mins = parseTime(t.block_id);
-                              const isSelected = selectedTripTime === mins && selectedTripDirection === 'back';
-                              return (
-                                <button
-                                  key={t.trip_id}
-                                  type="button"
-                                  className={`lt-time ${isSelected ? 'lt-time--selected' : ''}`}
-                                  onClick={() => {
-                                    if (mins > 0) {
-                                      setSelectedTripTime(mins);
-                                      setSelectedTripDirection('back');
-                                      setStopsDirection('back');
-                                      updateDetailUrl({ time: formatTime(mins), dir: 'back' });
-                                    }
-                                  }}
-                                >
-                                  {t.block_id || '—'}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                              {tableTrips.map((row, i) => (
+                                <option key={i} value={row.dep}>
+                                  {row.dep} — прибуття {row.arr}
+                                </option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                        <button type="button" className="lt-print-btn lt-print-btn--compact" onClick={() => window.print()} title="Друк">
+                          Друк
+                        </button>
                       </div>
                     )}
-                  </div>
+
+                  </section>
                 </>
               );
             })()}
@@ -1256,17 +1231,11 @@ export const LocalTransportPage: React.FC = () => {
                 mapStopNames = included.map((s) => s.name);
               }
               return stopsWithOrder && mapStopNames.length > 0 ? (
-                <div className="lt-map-stops">
-                  <div className="lt-map-area">
-                    <RouteMap
-                      routeId={detailRoute.id}
-                      stopNames={mapStopNames}
-                      fromStopName={fromStop || undefined}
-                      toStopName={toStop || undefined}
-                    />
-                  </div>
-                  <div className="lt-stops">
-                    <h3 className="lt-stops-heading">Зупинки на маршруті</h3>
+                <section className="lt-map-stops lt-map-stops--jd" aria-labelledby="lt-stops-heading">
+                  <h2 id="lt-stops-heading" className="lt-section-title lt-section-title--stops">Зупинки на маршруті</h2>
+                  <div className="lt-map-stops-inner">
+                    <div className="lt-stops lt-stops--jd">
+                      <h3 className="lt-stops-heading">Список зупинок</h3>
                     <div ref={timelineRef} className="lt-stops-timeline">
                       {segmentStyle && (
                         <div
@@ -1336,10 +1305,28 @@ export const LocalTransportPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                </section>
               ) : null;
             })()}
           </div>
+            <footer className="lt-footer">
+              <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
+              {' · '}
+              <a href="tel:+380687771590">(068) 77-71-590</a>
+            </footer>
+          </div>
+          <div className="lt-map-column">
+            <RouteMap
+              routeId={detailRoute.id}
+              stopNames={mapStopNamesToShow}
+              fromStopName={fromStop || undefined}
+              toStopName={toStop || undefined}
+              dark
+            />
+          </div>
+          </>
         ) : (
+          <div className="lt-panel">
           <>
             <header className="lt-header lt-header--jakdojade">
               <h1 className="lt-title">Як доїхати</h1>
@@ -1350,7 +1337,9 @@ export const LocalTransportPage: React.FC = () => {
               <div className="lt-from-to-block">
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
-                    <label className="lt-from-to-label">З</label>
+                    <label className="lt-from-to-label lt-from-to-label--with-icon">
+                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Звідки їдемо?
+                    </label>
                     <Combobox
                       label=""
                       options={[{ value: '', label: '— Зупинка —' }, ...stops.map((s) => ({ value: s, label: s }))]}
@@ -1359,7 +1348,13 @@ export const LocalTransportPage: React.FC = () => {
                         setSearchFrom(v);
                         latestStopRef.current = v;
                         setStopFilter(v);
-                        if (!v) setSearchTo('');
+                        if (!v) {
+                          setSearchTo('');
+                          const params = new URLSearchParams();
+                          if (searchDate) params.set('d', searchDate);
+                          if (searchTime) params.set('h', searchTime);
+                          navigate(`/localtransport${params.toString() ? `?${params.toString()}` : ''}`);
+                        }
                       }}
                       placeholder="Наприклад Малинівка"
                       emptyMessage="Зупинок не знайдено"
@@ -1379,12 +1374,23 @@ export const LocalTransportPage: React.FC = () => {
                     ⇄
                   </button>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
-                    <label className="lt-from-to-label">До</label>
+                    <label className="lt-from-to-label lt-from-to-label--with-icon">
+                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> Куди їдемо?
+                    </label>
                     <Combobox
                       label=""
                       options={[{ value: '', label: '— Зупинка —' }, ...stops.map((s) => ({ value: s, label: s }))]}
                       value={effectiveSearchTo}
-                      onChange={(v) => setSearchTo(v)}
+                      onChange={(v) => {
+                        setSearchTo(v);
+                        if (!v && (fromPathDecoded || toPathDecoded)) {
+                          const params = new URLSearchParams();
+                          if (effectiveSearchFrom) params.set('from', effectiveSearchFrom);
+                          if (searchDate) params.set('d', searchDate);
+                          if (searchTime) params.set('h', searchTime);
+                          navigate(`/localtransport${params.toString() ? `?${params.toString()}` : ''}`);
+                        }
+                      }}
                       placeholder="Наприклад Царське село"
                       emptyMessage="Зупинок не знайдено"
                       clearable
@@ -1520,14 +1526,15 @@ export const LocalTransportPage: React.FC = () => {
                 </>
               )}
             </div>
+            <footer className="lt-footer">
+              <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
+              {' · '}
+              <a href="tel:+380687771590">(068) 77-71-590</a>
+            </footer>
           </>
+          </div>
         )}
 
-        <footer className="lt-footer">
-          <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
-          {' · '}
-          <a href="tel:+380687771590">(068) 77-71-590</a>
-        </footer>
       </div>
     </div>
   );

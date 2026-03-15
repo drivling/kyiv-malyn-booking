@@ -1,9 +1,9 @@
 /* ==========================================================================
-   Local Transport — HSL Reittiopas–style design
-   Утилітарний, чистий, функціональний інтерфейс як у reittiopas.hsl.fi
+   Local Transport — UX як Jakdojade.pl (wtk-red theme)
+   Кольори, типографіка, відступи максимально наближені до Jakdojade
    ========================================================================== */
 
-/* HSL-подібна палітра (можна змінити на --pb-primary для узгодженості) */
+/* Палитра Jakdojade (wtk-red): червоний акцент, сірі фони */
 .lt-page {
   --lt-accent: #007ac9;
   --lt-accent-hover: #005a96;
@@ -17,11 +17,487 @@
   --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Перевизначення кольорів — можна використати зелений сайту */
-.lt-page.lt-use-site-colors {
-  --lt-accent: var(--pb-primary);
-  --lt-accent-hover: var(--pb-primary-hover);
-  --lt-accent-light: var(--pb-primary-light);
+/* Тема Jakdojade (wtk-red) — повне перевизначення для сторінки транспорту */
+.lt-page.lt-theme-jakdojade {
+  --lt-accent: #E30613;
+  --lt-accent-hover: #b80412;
+  --lt-accent-light: #ffebee;
+  --lt-bg: #f2f2f2;
+  --lt-card: #ffffff;
+  --lt-border: #ddd;
+  --lt-border-light: #e8e8e8;
+  --lt-text: #212121;
+  --lt-text-muted: #616161;
+  --lt-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* У темі Jakdojade «До» — синій контраст до червоного «З» */
+.lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: #1565c0; }
+.lt-theme-jakdojade .lt-stop-badge--to {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+.lt-theme-jakdojade .lt-stop-item--to::before {
+  background: #1565c0;
+  box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.3);
+}
+
+/* ========== Dark layout як на скрінах Jakdojade: ліва панель + карта справа ========== */
+.lt-page.lt-layout-dark {
+  --lt-panel-bg: #2d2d2d;
+  --lt-panel-text: #ffffff;
+  --lt-panel-text-muted: #b0b0b0;
+  --lt-panel-border: #404040;
+  --lt-route-green: #4caf50;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0;
+  background: #1a1a1a;
+  font-family: var(--lt-font);
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.lt-page.lt-layout-dark .lt-container {
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+  min-height: calc(100dvh - 60px);
+  overflow-x: hidden;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .lt-page.lt-layout-dark .lt-container.lt-split-layout {
+    flex-direction: row;
+    height: calc(100vh - 60px);
+    height: calc(100dvh - 60px);
+    min-height: calc(100vh - 60px);
+    overflow-x: hidden;
+    align-items: stretch;
+  }
+  .lt-page.lt-layout-dark .lt-panel {
+    width: 380px;
+    max-width: 380px;
+    min-width: 320px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .lt-page.lt-layout-dark .lt-map-column {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.lt-panel {
+  background: var(--lt-panel-bg);
+  color: var(--lt-panel-text);
+}
+
+.lt-layout-dark .lt-panel .lt-back,
+.lt-layout-dark .lt-panel .lt-detail-from-to-text,
+.lt-layout-dark .lt-panel .lt-detail-date,
+.lt-layout-dark .lt-panel .lt-detail-time,
+.lt-layout-dark .lt-panel .lt-route-title-path,
+.lt-layout-dark .lt-panel .lt-section-title,
+.lt-layout-dark .lt-panel .lt-from-to-label,
+.lt-layout-dark .lt-panel .lt-stops-heading,
+.lt-layout-dark .lt-panel .lt-stop-time,
+.lt-layout-dark .lt-panel .lt-stop-content,
+.lt-layout-dark .lt-panel .lt-th-stop,
+.lt-layout-dark .lt-panel .lt-routes-heading,
+.lt-layout-dark .lt-panel .lt-title,
+.lt-layout-dark .lt-panel .lt-subtitle { color: var(--lt-panel-text) !important; }
+
+.lt-layout-dark .lt-panel .lt-detail-date,
+.lt-layout-dark .lt-panel .lt-timetable-heading,
+.lt-layout-dark .lt-panel .lt-stop-to-next { color: var(--lt-panel-text-muted) !important; }
+
+.lt-layout-dark .lt-panel .lt-detail-topbar,
+.lt-layout-dark .lt-panel .lt-detail-header,
+.lt-layout-dark .lt-panel .lt-timetable-section,
+.lt-layout-dark .lt-panel .lt-timetable-header,
+.lt-layout-dark .lt-panel .lt-map-stops--jd { border-color: var(--lt-panel-border) !important; }
+
+.lt-layout-dark .lt-panel .lt-search--jakdojade,
+.lt-layout-dark .lt-panel .lt-header--jakdojade { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); }
+
+.lt-layout-dark .lt-panel .lt-route-num--verified,
+.lt-layout-dark .lt-panel .lt-direction-btn--active { background: var(--lt-route-green) !important; border-color: var(--lt-route-green) !important; }
+
+.lt-layout-dark .lt-panel .lt-direction-btn:not(.lt-direction-btn--active) {
+  background: #3d3d3d;
+  border-color: var(--lt-panel-border);
+  color: var(--lt-panel-text-muted);
+}
+
+.lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #1a1a1a !important; }
+.lt-layout-dark .lt-panel .lt-timetable-table--tablica td { border-color: var(--lt-panel-border); background: var(--lt-panel-bg); }
+.lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: #3d3d3d !important; }
+.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap,
+.lt-layout-dark .lt-panel .lt-datetime-input { background: #3d3d3d; border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
+.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap::placeholder,
+.lt-layout-dark .lt-panel .lt-datetime-input::placeholder { color: var(--lt-panel-text-muted); }
+.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap:focus-within { border-color: var(--lt-route-green); }
+.lt-layout-dark .lt-panel .combobox-list { background: #3d3d3d; border-color: var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .combobox-option { color: var(--lt-panel-text); }
+.lt-layout-dark .lt-panel .combobox-option:hover,
+.lt-layout-dark .lt-panel .combobox-option--highlight { background: #4d4d4d; }
+.lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-route-green) !important; }
+.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: #43a047 !important; }
+.lt-layout-dark .lt-panel .lt-geo-btn--small { background: #3d3d3d; color: var(--lt-panel-text); border: 1px solid var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
+.lt-layout-dark .lt-panel .lt-route-card:hover { background: #3d3d3d; }
+.lt-layout-dark .lt-panel .lt-stops-timeline::before { background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px); }
+.lt-layout-dark .lt-panel .lt-stops-timeline-segment { background: var(--lt-route-green); }
+.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: var(--lt-route-green); }
+.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #42a5f5; }
+.lt-layout-dark .lt-panel .lt-footer { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); color: var(--lt-panel-text-muted); }
+.lt-layout-dark .lt-panel .lt-footer a { color: #81c784; }
+
+/* Темна тема — додатково: фон і межі щоб ніде не пробивався світлий стиль */
+.lt-layout-dark .lt-panel .lt-detail-header,
+.lt-layout-dark .lt-panel .lt-detail-header--jd { background: var(--lt-panel-bg) !important; border-color: var(--lt-panel-border) !important; }
+.lt-layout-dark .lt-panel .lt-timetable-header,
+.lt-layout-dark .lt-panel .lt-timetable-header--jd,
+.lt-layout-dark .lt-panel .lt-timetable-header--compact { background: var(--lt-panel-bg) !important; border-color: var(--lt-panel-border) !important; }
+.lt-layout-dark .lt-panel .lt-timetable-section { background: var(--lt-panel-bg); }
+.lt-layout-dark .lt-panel .lt-print-btn,
+.lt-layout-dark .lt-panel .lt-print-btn--compact {
+  background: #3d3d3d !important;
+  border-color: var(--lt-panel-border) !important;
+  color: var(--lt-panel-text) !important;
+}
+.lt-layout-dark .lt-panel .lt-print-btn:hover,
+.lt-layout-dark .lt-panel .lt-print-btn--compact:hover {
+  background: #4d4d4d !important;
+  border-color: var(--lt-route-green) !important;
+  color: var(--lt-route-green) !important;
+}
+.lt-layout-dark .lt-panel .lt-fare {
+  background: rgba(76, 175, 80, 0.2) !important;
+  color: var(--lt-route-green) !important;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+.lt-layout-dark .lt-panel .lt-back,
+.lt-layout-dark .lt-panel .lt-back--header { color: var(--lt-panel-text-muted) !important; }
+.lt-layout-dark .lt-panel .lt-back:hover,
+.lt-layout-dark .lt-panel .lt-back--header:hover { color: var(--lt-panel-text) !important; }
+.lt-layout-dark .lt-panel .lt-detail-summary-route,
+.lt-layout-dark .lt-panel .lt-detail-summary-meta { color: inherit; }
+.lt-layout-dark .lt-panel .lt-detail-summary-change { color: var(--lt-route-green); border-color: var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(76, 175, 80, 0.1); }
+.lt-layout-dark .lt-panel .lt-detail-summary-arrow { color: var(--lt-route-green); }
+.lt-layout-dark .lt-panel .lt-route-num--unverified { color: var(--lt-panel-text-muted); }
+
+/* Темна тема — секція «Зупинки на маршруті»: фон і весь текст видимий */
+.lt-layout-dark .lt-panel .lt-map-stops,
+.lt-layout-dark .lt-panel .lt-map-stops--jd,
+.lt-layout-dark .lt-panel .lt-map-stops-inner,
+.lt-layout-dark .lt-panel .lt-stops,
+.lt-layout-dark .lt-panel .lt-stops--jd,
+.lt-layout-dark .lt-panel .lt-map-area {
+  background: var(--lt-panel-bg) !important;
+  border-color: var(--lt-panel-border) !important;
+}
+.lt-layout-dark .lt-panel .lt-map-stops .lt-section-title--stops,
+.lt-layout-dark .lt-panel .lt-stops-heading {
+  color: var(--lt-panel-text) !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-time {
+  color: var(--lt-panel-text-muted) !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-content {
+  color: var(--lt-panel-text) !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-item--from .lt-stop-content {
+  color: var(--lt-route-green) !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-item--to .lt-stop-content {
+  color: #42a5f5 !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-to-next {
+  color: var(--lt-panel-text-muted) !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-badge--from {
+  background: rgba(76, 175, 80, 0.25) !important;
+  color: var(--lt-route-green) !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-badge--to {
+  background: rgba(66, 165, 245, 0.25) !important;
+  color: #42a5f5 !important;
+}
+.lt-layout-dark .lt-panel .lt-stop-item::before {
+  border-color: var(--lt-panel-bg) !important;
+  box-shadow: 0 0 0 1px var(--lt-panel-border) !important;
+}
+.lt-layout-dark .lt-panel .lt-stops-timeline::before {
+  background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px) !important;
+}
+
+/* Деталі маршруту — компактний стиль */
+.lt-detail .lt-header--jakdojade {
+  position: relative;
+  padding: 10px 20px 10px 48px;
+  min-height: auto;
+}
+
+.lt-detail .lt-header--jakdojade .lt-title {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.lt-detail .lt-header--jakdojade .lt-subtitle {
+  font-size: 0.8125rem;
+  margin: 4px 0 0;
+}
+
+.lt-back--header {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-bottom: 0;
+  padding: 6px;
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 1.125rem;
+}
+
+.lt-detail--jakdojade .lt-detail-header--jd {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--lt-panel-border);
+}
+
+/* Трохи правіше — щоб контент не залізав вліво */
+.lt-layout-dark .lt-panel .lt-detail--jakdojade {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.lt-detail--jakdojade .lt-detail-header-actions {
+  margin-top: 8px;
+  gap: 6px 12px;
+}
+
+.lt-detail--jakdojade .lt-route-title--jd {
+  margin-bottom: 8px;
+}
+
+.lt-detail--jakdojade .lt-route-title--jd .lt-route-num {
+  font-size: 1.125rem;
+}
+
+.lt-detail--jakdojade .lt-route-title-path {
+  font-size: 0.9375rem;
+}
+
+.lt-detail--jakdojade .lt-detail-header-actions .lt-direction-btn {
+  min-width: 100px;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+}
+
+.lt-detail--jakdojade .lt-fare {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.lt-detail-search {
+  padding-top: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--lt-panel-border);
+}
+
+/* Компактний рядок після вибору маршруту (Jakdojade-стиль) */
+.lt-detail-summary.lt-detail-summary--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--lt-panel-border);
+}
+
+.lt-detail-summary-route {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lt-detail-summary-from,
+.lt-detail-summary-to {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--lt-panel-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lt-detail-summary-arrow {
+  flex-shrink: 0;
+  color: var(--lt-accent);
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+.lt-detail-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.lt-detail-summary-meta .lt-detail-date,
+.lt-detail-summary-meta .lt-detail-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--lt-panel-text-muted);
+}
+
+.lt-detail-summary-meta .lt-detail-time {
+  font-weight: 600;
+  color: var(--lt-panel-text);
+}
+
+.lt-detail-summary-change {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--lt-accent);
+  background: transparent;
+  border: 1px solid var(--lt-panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lt-detail-summary-change:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--lt-accent);
+}
+
+.lt-detail-from-to-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lt-detail-from-to-row:last-of-type {
+  margin-bottom: 12px;
+}
+
+.lt-detail-from-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--lt-panel-text);
+}
+
+/* Комбобокси в блоці деталей — виглядають як значення на темному фоні */
+.lt-detail-combobox-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.lt-detail-combobox-wrap .combobox-input-wrap {
+  border-color: var(--lt-panel-border);
+  background: var(--lt-panel-bg);
+}
+
+.lt-detail-combobox-wrap .combobox-input {
+  color: var(--lt-panel-text);
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.lt-detail-combobox-wrap .combobox-input::placeholder {
+  color: var(--lt-panel-text-muted);
+}
+
+.lt-detail-from-to-row--swap {
+  justify-content: flex-start;
+  margin-bottom: 4px;
+}
+
+.lt-from-to-arrow--detail {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--lt-panel-border);
+  border-radius: 8px;
+  color: var(--lt-panel-text);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.lt-from-to-arrow--detail:hover {
+  background: var(--lt-panel-border);
+  color: var(--lt-panel-text);
+}
+
+.lt-datetime-row--detail {
+  margin-top: 4px;
+  margin-bottom: 0;
+  gap: 12px;
+}
+
+.lt-datetime-row--detail .lt-detail-date,
+.lt-datetime-row--detail .lt-detail-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-datetime-row--detail .lt-detail-time {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.lt-datetime-row--in-rozklad {
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.lt-map-column {
+  height: 320px;
+  background: #1a1a1a;
+}
+
+@media (min-width: 768px) {
+  .lt-map-column {
+    height: 100%;
+    min-height: 400px;
+  }
+}
+
+.lt-map-column .lt-map-wrapper {
+  padding: 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.lt-map-column .lt-map-heading { display: none; }
+.lt-map-column .lt-map-container {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  border-radius: 0;
+  border: none;
 }
 
 .lt-page {
@@ -46,7 +522,7 @@
 }
 
 @media (min-width: 900px) {
-  .lt-container:has(.lt-detail) {
+  .lt-container:has(.lt-detail):not(.lt-split-layout) {
     max-width: 960px;
   }
 }
@@ -60,6 +536,21 @@
 
 .lt-header--jakdojade {
   padding: 20px 20px 12px;
+}
+
+.lt-theme-jakdojade .lt-header--jakdojade {
+  padding: 16px 20px 10px;
+  border-bottom: 1px solid var(--lt-border-light);
+}
+
+.lt-theme-jakdojade .lt-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.lt-theme-jakdojade .lt-subtitle {
+  font-size: 0.875rem;
+  color: var(--lt-text-muted);
 }
 
 .lt-title {
@@ -120,6 +611,26 @@
 }
 
 .lt-from-to-cell--from .lt-from-to-label { color: var(--lt-accent); }
+
+.lt-from-to-label--with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lt-from-to-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lt-from-to-dot--from { background: #4caf50; }
+.lt-from-to-dot--to { background: #42a5f5; }
+
+.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: #4caf50; }
+.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: #42a5f5; }
+
 .lt-from-to-swap {
   flex-shrink: 0;
   width: 44px;
@@ -206,6 +717,21 @@
 .lt-search-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Jakdojade: кнопка «Знайти» на всю ширину в один ряд з полями */
+.lt-theme-jakdojade .lt-search--jakdojade {
+  padding: 12px 20px 16px;
+}
+
+.lt-theme-jakdojade .lt-datetime-row {
+  gap: 8px;
+}
+
+.lt-theme-jakdojade .lt-search-btn {
+  min-width: 100px;
+  padding: 11px 16px;
+  font-size: 0.9375rem;
 }
 
 .lt-search-extra {
@@ -420,9 +946,83 @@
   font-size: 0.9375rem;
 }
 
-/* ========== Detail view: маршрут ========== */
+/* ========== Detail view: маршрут (Jakdojade-style) ========== */
 .lt-detail {
   padding-bottom: 0;
+}
+
+/* Верхній бар як у Jakdojade: назад + маршрут З→До + дата/час */
+.lt-detail--jakdojade .lt-detail-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--lt-bg);
+  border-bottom: 1px solid var(--lt-border-light);
+  flex-wrap: wrap;
+}
+
+.lt-theme-jakdojade .lt-detail-topbar {
+  padding: 10px 20px;
+  min-height: 48px;
+}
+
+.lt-detail--jakdojade .lt-back {
+  margin-bottom: 0;
+  padding: 8px 10px;
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.lt-detail-route-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.lt-route-num--pill {
+  flex-shrink: 0;
+  min-width: 32px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.lt-detail-from-to-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--lt-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lt-detail-datetime {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-detail-date {
+  font-size: 0.8125rem;
+  color: var(--lt-text-muted);
+}
+
+.lt-detail-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--lt-text);
+}
+
+.lt-detail-header--jd {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-detail-header {
@@ -451,6 +1051,7 @@
 .lt-back {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   margin-bottom: 12px;
   padding: 8px 12px;
   background: none;
@@ -480,6 +1081,19 @@
   flex-wrap: wrap;
 }
 
+.lt-route-title--jd {
+  margin-bottom: 12px;
+}
+
+.lt-route-title--jd .lt-route-num {
+  flex-shrink: 0;
+}
+
+.lt-route-title-path {
+  font-weight: 600;
+  color: var(--lt-text);
+}
+
 .lt-route-title .lt-route-num {
   flex-shrink: 0;
 }
@@ -492,6 +1106,264 @@
   font-size: 0.8125rem;
   font-weight: 600;
   border-radius: var(--pb-radius-sm);
+}
+
+/* Секції з заголовками як у Jakdojade */
+.lt-section-title {
+  margin: 0;
+  padding: 14px 20px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lt-section-title--stops {
+  padding-top: 20px;
+  border-top: 1px solid var(--lt-border-light);
+}
+
+.lt-timetable-section {
+  padding-bottom: 0;
+}
+
+/* Розклад — tablica odjazdów (таблиця відправлень) */
+.lt-timetable-header--jd {
+  padding: 0 20px 14px;
+}
+
+/* Компактний ряд: дата, час, Відправлення о, Друк в один рядок */
+.lt-timetable-header--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 20px 10px;
+}
+
+.lt-timetable-header--compact .lt-detail-date,
+.lt-timetable-header--compact .lt-detail-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--lt-panel-text-muted);
+}
+
+.lt-timetable-header--compact .lt-detail-time {
+  font-weight: 600;
+  color: var(--lt-panel-text);
+}
+
+.lt-timetable-header--compact .lt-time-picker-label {
+  font-size: 0.75rem;
+  margin: 0;
+  margin-right: 2px;
+}
+
+.lt-time-picker-select--compact {
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  min-height: auto;
+}
+
+.lt-print-btn--compact {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.lt-timetable-section--compact .lt-section-title {
+  padding: 8px 20px 4px;
+  font-size: 0.6875rem;
+}
+
+.lt-from-to--jd {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lt-from-to--jd .lt-from-to-field {
+  min-width: 140px;
+}
+
+.lt-from-to-arrow--jd {
+  padding: 0 6px;
+  font-size: 1.125rem;
+}
+
+/* Окремий вибір часу відправлення (як на Jakdojade — окреме поле з dropdown) */
+.lt-time-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.lt-time-picker-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.lt-time-picker-select {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 36px 10px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid var(--lt-accent);
+  border-radius: var(--pb-radius);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.lt-time-picker-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--lt-accent-light);
+}
+
+.lt-theme-jakdojade .lt-time-picker-select {
+  border-color: var(--lt-accent);
+}
+
+.lt-layout-dark .lt-panel .lt-time-picker-label {
+  color: var(--lt-panel-text-muted) !important;
+}
+
+.lt-layout-dark .lt-panel .lt-time-picker-select {
+  background-color: #3d3d3d;
+  border-color: var(--lt-route-green);
+  color: var(--lt-panel-text);
+}
+
+.lt-layout-dark .lt-panel .lt-time-picker-select:focus {
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+}
+
+.lt-timetable--jd {
+  padding: 0 20px 20px;
+}
+
+.lt-timetable-table--tablica {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--pb-radius);
+  overflow: hidden;
+}
+
+.lt-timetable-table--tablica thead {
+  background: var(--lt-text);
+  color: #fff;
+}
+
+.lt-theme-jakdojade .lt-timetable-table--tablica thead {
+  background: var(--lt-accent);
+  color: #fff;
+}
+
+.lt-timetable-table--tablica th {
+  padding: 12px 16px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  border: none;
+}
+
+.lt-timetable-table--tablica td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--lt-border-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-timetable-table--tablica tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.lt-timetable-table--tablica .lt-time-cell--tablica {
+  font-size: 1.25rem;
+  font-weight: 700;
+  min-width: 4.5em;
+}
+
+.lt-timetable-table--tablica .lt-timetable-row--selected td {
+  background: var(--lt-accent-light);
+}
+
+.lt-timetable-grid--jd {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--pb-radius);
+  overflow: hidden;
+}
+
+.lt-timetable-grid--jd .lt-timetable-col {
+  background: var(--lt-card);
+}
+
+.lt-times--jd {
+  gap: 10px 12px;
+}
+
+.lt-time--jd {
+  min-width: 60px;
+  padding: 10px 14px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+/* Зупинки + карта — Jakdojade layout */
+.lt-map-stops--jd .lt-section-title--stops {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.lt-map-stops-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (min-width: 768px) {
+  .lt-map-stops-inner {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .lt-map-stops--jd .lt-map-area {
+    flex: 1;
+    min-width: 0;
+  }
+  .lt-map-stops--jd .lt-stops--jd {
+    width: 320px;
+    flex-shrink: 0;
+  }
+}
+
+.lt-stops--jd .lt-stops-heading {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--lt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* From/To селектори — як у HSL RouteScheduleHeader */
@@ -952,6 +1824,7 @@
 
 .lt-map-container .leaflet-container {
   font: inherit;
+  min-height: 280px;
 }
 
 /* Footer */
