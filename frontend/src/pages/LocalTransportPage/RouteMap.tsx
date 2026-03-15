@@ -90,7 +90,6 @@ function createArrowIcon(angleDeg: number, color: string) {
   });
 }
 
-const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 const LIGHT_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 /** Центр Малина — fallback коли координати ще не завантажились */
