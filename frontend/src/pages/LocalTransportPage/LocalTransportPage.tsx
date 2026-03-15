@@ -597,6 +597,30 @@ export const LocalTransportPage: React.FC = () => {
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
 
+  /** Тільки «реальні» зупинки для маркерів на карті (без map_only — технічні точки лише для поворотів лінії) */
+  const detailMapStopNamesForMarkers = useMemo(() => {
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
+    const routeStops = stopsByRoute[detailRoute.id];
+    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
+    const first = routeStops[0];
+    const withOrder: RouteStopWithOrder[] =
+      first && typeof first === 'object' && 'name' in first
+        ? (routeStops as RouteStopWithOrder[])
+        : (routeStops as unknown as string[]).map((name, i) => ({
+            name,
+            order_there: i + 1,
+            order_back: routeStops.length - i,
+            belongs_to: 'both' as const,
+          }));
+    const isThere = stopsDirection === 'there';
+    const orderKey = isThere ? 'order_there' : 'order_back';
+    const included = withOrder
+      .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
+      .filter((s) => (s[orderKey] ?? 0) > 0)
+      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
+    return getRealStops(included).map((s) => s.name);
+  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+
   const detailRouteStopNames = useMemo(() => {
     if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
     const s = stopsByRoute[detailRoute.id];
@@ -1431,6 +1455,7 @@ export const LocalTransportPage: React.FC = () => {
             <RouteMap
               routeId={detailRoute.id}
               stopNames={mapStopNamesToShow}
+              markerStopNames={detailMapStopNamesForMarkers}
               fromStopName={fromStop || undefined}
               toStopName={toStop || undefined}
               dark

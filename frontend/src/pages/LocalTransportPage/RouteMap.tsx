@@ -9,8 +9,10 @@ const STOPS_COORDS_URL = '/data/stops_coords.json';
 interface RouteMapProps {
   /** Номер маршруту (для перевірених малюємо лінію) */
   routeId?: string;
-  /** Зупинки, які входять до маршруту в поточному напрямку (виключені не показуються) */
+  /** Усі точки маршруту в порядку (для полілінії, включно з технічними для поворотів) */
   stopNames: string[];
+  /** Якщо задано — маркери тільки для цих зупинок; технічні (map_only) не показуються */
+  markerStopNames?: string[];
   /** Зупинка «З» (підсвічується окремо) */
   fromStopName?: string;
   /** Зупинка «До» (підсвічується окремо) */
@@ -98,6 +100,7 @@ const MALYN_CENTER: [number, number] = [50.768, 29.242];
 export const RouteMap: React.FC<RouteMapProps> = ({
   routeId,
   stopNames,
+  markerStopNames,
   fromStopName,
   toStopName,
   dark = false,
@@ -134,10 +137,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const stopsRecord = coords?.stops ?? {};
   const stopsWithCoords = stopNames.length > 0 ? stopNames.filter((n) => stopsRecord[n]) : [];
   const positions = stopsWithCoords.map((n) => stopsRecord[n] as [number, number]);
+  const namesForMarkers = (markerStopNames != null && markerStopNames.length > 0 ? markerStopNames : stopNames).filter(
+    (n) => stopsRecord[n]
+  );
   const showRouteLine = routeId && (VERIFIED_ROUTE_IDS as readonly string[]).includes(routeId) && positions.length >= 2;
   const hasAnyStops = positions.length > 0;
 
-  // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту
+  // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту (по повному списку для лінії)
   const fromIdx = fromStopName ? stopsWithCoords.indexOf(fromStopName) : -1;
   const toIdx = toStopName ? stopsWithCoords.indexOf(toStopName) : -1;
   const hasFromToSegment =
@@ -209,7 +215,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
               })}
             </>
           )}
-          {hasAnyStops && stopsWithCoords.map((n) => {
+          {hasAnyStops && namesForMarkers.map((n) => {
             const isFrom = n === fromStopName;
             const isTo = n === toStopName;
             const icon = isFrom ? fromI : isTo ? toI : defaultIcon;
