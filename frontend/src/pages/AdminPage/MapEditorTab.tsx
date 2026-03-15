@@ -394,6 +394,50 @@ export const MapEditorTab: React.FC = () => {
     [transportData, selectedRoute, directionMode]
   );
 
+  /** Скопіювати зупинку (за назвою) в інший маршрут — додати в кінець, порядок потім підправити в редакторі */
+  const handleCopyStopToRoute = useCallback(
+    (stopName: string, targetRouteId: string) => {
+      if (!transportData || !selectedRoute || targetRouteId === selectedRoute) return;
+      const sbr = transportData.supplement?.stops?.stops_by_route;
+      const sourceStop = routeStopsForDirection.find((s) => s.name === stopName);
+      if (!sourceStop) return;
+      const targetStopsRaw = sbr?.[targetRouteId];
+      if (!targetStopsRaw || !Array.isArray(targetStopsRaw)) return;
+      const targetStops: RouteStop[] =
+        targetStopsRaw.length > 0 && typeof targetStopsRaw[0] === 'object' && 'name' in targetStopsRaw[0]
+          ? [...(targetStopsRaw as RouteStop[])]
+          : (targetStopsRaw as string[]).map((name, i) => ({
+              name,
+              order_there: i + 1,
+              order_back: targetStopsRaw.length - i,
+            }));
+      if (targetStops.some((s) => s.name === stopName)) return;
+      const maxThere = Math.max(0, ...targetStops.map((s) => s.order_there ?? 0).filter((n) => n > 0));
+      const maxBack = Math.max(0, ...targetStops.map((s) => s.order_back ?? 0).filter((n) => n > 0));
+      const newEntry: RouteStop = {
+        name: stopName,
+        order_there: maxThere + 1,
+        order_back: maxBack + 1,
+        ...(sourceStop.map_only !== undefined && { map_only: sourceStop.map_only }),
+      };
+      setTransportData({
+        ...transportData,
+        supplement: {
+          ...transportData.supplement,
+          stops: {
+            ...transportData.supplement?.stops,
+            stops_by_route: {
+              ...transportData.supplement?.stops?.stops_by_route,
+              [targetRouteId]: [...targetStops, newEntry],
+            },
+          },
+        },
+      });
+      setModalStop(null);
+    },
+    [transportData, selectedRoute, routeStopsForDirection]
+  );
+
   const handleDownloadTransport = useCallback(() => {
     if (!transportData) return;
     const blob = new Blob([JSON.stringify(transportData, null, 2)], {
@@ -632,15 +676,15 @@ export const MapEditorTab: React.FC = () => {
             <p className="map-editor-modal-hint">Номер по напрямку або -1 (виключити):</p>
             <div className="map-editor-modal-options">
               {Array.from({ length: Math.max(routeStopsForDirection.length, 20) }, (_, i) => i + 1).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className="map-editor-modal-opt"
-                    onClick={() => handleStopOrderChange(modalStop, n)}
-                  >
-                    {n}
-                  </button>
-                ))}
+                <button
+                  key={n}
+                  type="button"
+                  className="map-editor-modal-opt"
+                  onClick={() => handleStopOrderChange(modalStop, n)}
+                >
+                  {n}
+                </button>
+              ))}
               <button
                 type="button"
                 className="map-editor-modal-opt map-editor-modal-opt--exclude"
@@ -648,6 +692,21 @@ export const MapEditorTab: React.FC = () => {
               >
                 -1 (виключити)
               </button>
+            </div>
+            <p className="map-editor-modal-hint map-editor-modal-copy-heading">Скопіювати зупинку в маршрут:</p>
+            <div className="map-editor-modal-copy-routes">
+              {routeOptions
+                .filter((o) => o.value && o.value !== selectedRoute)
+                .map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    className="map-editor-modal-opt map-editor-modal-opt--copy"
+                    onClick={() => handleCopyStopToRoute(modalStop, o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
             </div>
             <button type="button" className="map-editor-modal-close" onClick={() => setModalStop(null)}>
               Скасувати

@@ -284,6 +284,27 @@
   background: rgba(30, 58, 95, 0.1);
 }
 
+.map-editor-modal-copy-heading {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.map-editor-modal-copy-routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.map-editor-modal-opt--copy {
+  background: var(--pb-bg-secondary);
+}
+
+.map-editor-modal-opt--copy:hover {
+  background: var(--pb-primary-light);
+  border-color: var(--pb-primary);
+}
+
 .map-editor-modal-close {
   padding: 8px 16px;
   border: 1px solid var(--pb-border);
