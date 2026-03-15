@@ -1621,48 +1621,70 @@ export const LocalTransportPage: React.FC = () => {
                   <p className="lt-routes-heading">
                     Маршрути: {effectiveSearchFrom} → {effectiveSearchTo}
                   </p>
-                  {filteredRoutes.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className="lt-route-card"
-                      onClick={() => handleSelectRoute(r.id)}
-                    >
-                      <span
-                        className={`lt-route-num ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                  {filteredRoutes.map((r) => {
+                    const searchMins =
+                      (() => {
+                        const [h, m] = searchTime.split(':').map(Number);
+                        return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
+                      })();
+                    const nearest = findNearestTrip(r.trips, searchMins);
+                    const nextTimeStr = nearest ? formatTime(nearest.time) : (r.trips.length > 0 ? formatTime(getFirstTripTime(r.trips)) : '—');
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        className="lt-route-card lt-route-card--jd"
+                        onClick={() => handleSelectRoute(r.id)}
                       >
-                        №{r.id}
-                      </span>
-                      <span className="lt-route-path">
-                        {r.from ?? '?'} — {r.to ?? '?'}
-                      </span>
-                      <span className="lt-route-meta">{r.trips.length} рейсів</span>
-                    </button>
-                  ))}
+                        <div className="lt-route-card-time">
+                          <span className="lt-route-card-time-value">{nextTimeStr}</span>
+                        </div>
+                        <div className="lt-route-card-main">
+                          <span
+                            className={`lt-route-num lt-route-num--card ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                          >
+                            №{r.id}
+                          </span>
+                          <span className="lt-route-path">{r.from ?? '?'} — {r.to ?? '?'}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </>
               ) : filteredRoutes.length === 0 ? (
                 <p className="lt-empty">Введіть «З» та «До» і натисніть «Знайти», або перегляньте маршрути нижче.</p>
               ) : (
                 <>
                   <p className="lt-routes-heading">Усі маршрути</p>
-                  {filteredRoutes.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className="lt-route-card"
-                      onClick={() => handleSelectRoute(r.id)}
-                    >
-                      <span
-                        className={`lt-route-num ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                  {filteredRoutes.map((r) => {
+                    const searchMins =
+                      (() => {
+                        const [h, m] = searchTime.split(':').map(Number);
+                        return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
+                      })();
+                    const nearest = findNearestTrip(r.trips, searchMins);
+                    const nextTimeStr = nearest ? formatTime(nearest.time) : (r.trips.length > 0 ? formatTime(getFirstTripTime(r.trips)) : '—');
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        className="lt-route-card lt-route-card--jd"
+                        onClick={() => handleSelectRoute(r.id)}
                       >
-                        №{r.id}
-                      </span>
-                      <span className="lt-route-path">
-                        {r.from ?? '?'} — {r.to ?? '?'}
-                      </span>
-                      <span className="lt-route-meta">{r.trips.length} рейсів</span>
-                    </button>
-                  ))}
+                        <div className="lt-route-card-time">
+                          <span className="lt-route-card-time-value">{nextTimeStr}</span>
+                        </div>
+                        <div className="lt-route-card-main">
+                          <span
+                            className={`lt-route-num lt-route-num--card ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                          >
+                            №{r.id}
+                          </span>
+                          <span className="lt-route-path">{r.from ?? '?'} — {r.to ?? '?'}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </>
               )}
             </div>

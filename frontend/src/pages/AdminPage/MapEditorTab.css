@@ -58,6 +58,25 @@
   }
 }
 
+/* iPhone / Samsung / Xiaomi: safe-area та touch-targets на малих екранах */
+@media (max-width: 768px) {
+  .map-editor-tab {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .map-editor-map,
+  .map-editor-map-container {
+    min-height: 360px;
+  }
+  .map-editor-modal-opt,
+  .map-editor-modal-opt--copy,
+  .map-editor-modal-close {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+}
+
 .map-editor-map {
   min-height: 450px;
   border-radius: 12px;

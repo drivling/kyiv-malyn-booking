@@ -116,7 +116,7 @@
   padding-top: env(safe-area-inset-top);
 }
 
-/* iPhone/Android: панель зверху, карта знизу (стопка) */
+/* iPhone / Samsung / Xiaomi: панель зверху, карта знизу (стопка), safe-area для вирізу та home indicator */
 @media (max-width: 767px) {
   .lt-page.lt-layout-dark .lt-container.lt-split-layout {
     flex-direction: column;
@@ -125,11 +125,19 @@
   }
   .lt-page.lt-layout-dark .lt-panel {
     flex: 0 0 auto;
-    overflow-y: visible;
+    overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: max(var(--lt-panel-y), env(safe-area-inset-bottom));
   }
   .lt-page.lt-layout-dark .lt-map-column {
     flex: 0 0 auto;
+  }
+  /* 16px щоб iOS не зумувало при фокусі на даті/часі та селекті зупинок */
+  .lt-datetime-input,
+  .lt-time-picker-select,
+  .lt-detail-picker .combobox-input {
+    font-size: 16px;
   }
 }
 
@@ -230,6 +238,12 @@
 }
 .lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
 .lt-layout-dark .lt-panel .lt-route-card:hover { background: #3d3d3d; }
+.lt-layout-dark .lt-panel .lt-route-card--jd { background: var(--lt-panel-bg); }
+.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #3d3d3d; }
+.lt-layout-dark .lt-panel .lt-route-card-time { border-color: var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .lt-route-card-time-value { color: var(--lt-panel-text); }
+.lt-layout-dark .lt-panel .lt-route-card-main .lt-route-path { color: var(--lt-panel-text) !important; }
+.lt-layout-dark .lt-panel .lt-route-card-main .lt-route-meta { color: var(--lt-panel-text-muted); }
 .lt-layout-dark .lt-panel .lt-stops-timeline::before { background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px); }
 .lt-layout-dark .lt-panel .lt-stops-timeline-segment { background: var(--lt-route-green); }
 .lt-layout-dark .lt-panel .lt-stop-item--from::before { background: var(--lt-route-green); }
@@ -1045,12 +1059,76 @@
   transition: background 0.15s;
 }
 
+.lt-route-card--jd {
+  align-items: stretch;
+  gap: 0;
+  padding: var(--lt-panel-y) var(--lt-panel-x);
+  min-height: 72px;
+}
+
+.lt-route-card--jd:hover {
+  background: var(--lt-accent-light);
+}
+
 .lt-route-card:last-child {
   border-bottom: none;
 }
 
 .lt-route-card:hover {
   background: var(--lt-accent-light);
+}
+
+.lt-route-card-time {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding-right: 14px;
+  min-width: 56px;
+  border-right: 1px solid var(--lt-border-light);
+}
+
+.lt-route-card-time-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text);
+}
+
+.lt-route-card-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 8px 10px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 14px;
+}
+
+.lt-route-card-main .lt-route-num--card {
+  flex-shrink: 0;
+  min-width: 36px;
+  padding: 4px 8px;
+  font-size: var(--lt-fs-base);
+  font-weight: 700;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.lt-route-card-main .lt-route-path {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--lt-fs-md);
+  font-weight: 600;
+  color: var(--lt-text);
+}
+
+.lt-route-card-main .lt-route-meta {
+  flex-shrink: 0;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .lt-route-num {
@@ -2096,11 +2174,10 @@
   overflow-x: auto;
 }
 
-/* Combobox input — 16px на мобільному щоб iOS не зумував при фокусі */
+/* iPhone / Samsung / Xiaomi: 16px інпути щоб iOS Safari не зумував при фокусі */
 .lt-from-to-field .combobox-input {
   font-size: 16px;
 }
-
 @media (min-width: 768px) {
   .lt-from-to-field .combobox-input {
     font-size: 0.9375rem;
