@@ -1002,7 +1002,7 @@ export const LocalTransportPage: React.FC = () => {
 
   return (
     <div className="lt-page lt-theme-jakdojade lt-layout-dark">
-      <div className={`lt-container ${routeId && detailRoute ? 'lt-split-layout' : ''}`}>
+      <div className="lt-container lt-split-layout">
         {routeId && detailRoute ? (
           <>
           <div className="lt-panel">
@@ -1232,10 +1232,9 @@ export const LocalTransportPage: React.FC = () => {
               }
               return stopsWithOrder && mapStopNames.length > 0 ? (
                 <section className="lt-map-stops lt-map-stops--jd" aria-labelledby="lt-stops-heading">
-                  <h2 id="lt-stops-heading" className="lt-section-title lt-section-title--stops">Зупинки на маршруті</h2>
                   <div className="lt-map-stops-inner">
                     <div className="lt-stops lt-stops--jd">
-                      <h3 className="lt-stops-heading">Список зупинок</h3>
+                      <h2 id="lt-stops-heading" className="lt-stops-heading">Список зупинок</h2>
                     <div ref={timelineRef} className="lt-stops-timeline">
                       {segmentStyle && (
                         <div
@@ -1326,6 +1325,7 @@ export const LocalTransportPage: React.FC = () => {
           </div>
           </>
         ) : (
+          <>
           <div className="lt-panel">
           <>
             <header className="lt-header lt-header--jakdojade">
@@ -1533,6 +1533,10 @@ export const LocalTransportPage: React.FC = () => {
             </footer>
           </>
           </div>
+          <div className="lt-map-column">
+            <RouteMap stopNames={[]} dark />
+          </div>
+          </>
         )}
 
       </div>

@@ -1,9 +1,7 @@
 /* ==========================================================================
-   Local Transport — UX як Jakdojade.pl (wtk-red theme)
-   Кольори, типографіка, відступи максимально наближені до Jakdojade
    ========================================================================== */
 
-/* Палитра Jakdojade (wtk-red): червоний акцент, сірі фони */
+/* Палитра + типографіка/відступи як на Jakdojade (ваші кольори) */
 .lt-page {
   --lt-accent: #007ac9;
   --lt-accent-hover: #005a96;
@@ -15,6 +13,17 @@
   --lt-text: #1a1a1a;
   --lt-text-muted: #6b7280;
   --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Розміри текстів — візуально як Jakdojade */
+  --lt-fs-xs: 0.6875rem;   /* 11px — міні-бейджі, дрібні підписи */
+  --lt-fs-sm: 0.75rem;     /* 12px — лейбли, дата/час у компактних блоках */
+  --lt-fs-base: 0.875rem;  /* 14px — другорядний текст, мета */
+  --lt-fs-md: 1rem;        /* 16px — інпути, кнопки, назви зупинок */
+  --lt-fs-lg: 1.125rem;   /* 18px — номер маршруту, заголовок картки */
+  --lt-fs-xl: 1.25rem;     /* 20px — заголовок сторінки */
+  /* Відступи панелі — як на Jakdojade */
+  --lt-panel-x: 16px;
+  --lt-panel-y: 12px;
+  --lt-panel-block: 14px;
 }
 
 /* Тема Jakdojade (wtk-red) — повне перевизначення для сторінки транспорту */
@@ -40,6 +49,32 @@
 .lt-theme-jakdojade .lt-stop-item--to::before {
   background: #1565c0;
   box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.3);
+}
+
+/* Доступність: видимий фокус для клавіатури (як на Jakdojade) */
+.lt-page button:focus-visible,
+.lt-page [role="button"]:focus-visible,
+.lt-page a:focus-visible,
+.lt-page .lt-route-card:focus-visible,
+.lt-page .lt-nearest-item:focus-visible,
+.lt-page .lt-direction-btn:focus-visible,
+.lt-page .lt-print-btn:focus-visible,
+.lt-page .lt-print-btn--compact:focus-visible,
+.lt-page .lt-detail-summary-change:focus-visible,
+.lt-page .lt-from-to-swap:focus-visible,
+.lt-page .lt-back:focus-visible,
+.lt-page .lt-back--header:focus-visible,
+.lt-page .lt-geo-btn:focus-visible,
+.lt-page .lt-geo-btn--small:focus-visible,
+.lt-page .lt-search-btn:focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: 2px;
+}
+
+.lt-page input:focus-visible,
+.lt-page select:focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: 0;
 }
 
 /* ========== Dark layout як на скрінах Jakdojade: ліва панель + карта справа ========== */
@@ -167,6 +202,15 @@
 .lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-route-green) !important; }
 .lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: #43a047 !important; }
 .lt-layout-dark .lt-panel .lt-geo-btn--small { background: #3d3d3d; color: var(--lt-panel-text); border: 1px solid var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .lt-from-to-swap {
+  background: #3d3d3d;
+  border-color: var(--lt-panel-border);
+  color: var(--lt-panel-text-muted);
+}
+.lt-layout-dark .lt-panel .lt-from-to-swap:hover {
+  border-color: var(--lt-route-green);
+  color: var(--lt-route-green);
+}
 .lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
 .lt-layout-dark .lt-panel .lt-route-card:hover { background: #3d3d3d; }
 .lt-layout-dark .lt-panel .lt-stops-timeline::before { background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px); }
@@ -195,6 +239,32 @@
   border-color: var(--lt-route-green) !important;
   color: var(--lt-route-green) !important;
 }
+
+/* Темна тема: видимий фокус — зелений контур */
+.lt-layout-dark .lt-panel button:focus-visible,
+.lt-layout-dark .lt-panel [role="button"]:focus-visible,
+.lt-layout-dark .lt-panel .lt-route-card:focus-visible,
+.lt-layout-dark .lt-panel .lt-nearest-item:focus-visible,
+.lt-layout-dark .lt-panel .lt-direction-btn:focus-visible,
+.lt-layout-dark .lt-panel .lt-print-btn:focus-visible,
+.lt-layout-dark .lt-panel .lt-print-btn--compact:focus-visible,
+.lt-layout-dark .lt-panel .lt-detail-summary-change:focus-visible,
+.lt-layout-dark .lt-panel .lt-from-to-swap:focus-visible,
+.lt-layout-dark .lt-panel .lt-back:focus-visible,
+.lt-layout-dark .lt-panel .lt-back--header:focus-visible,
+.lt-layout-dark .lt-panel .lt-geo-btn:focus-visible,
+.lt-layout-dark .lt-panel .lt-geo-btn--small:focus-visible,
+.lt-layout-dark .lt-panel .lt-search-btn:focus-visible {
+  outline: 2px solid var(--lt-route-green) !important;
+  outline-offset: 2px;
+}
+
+.lt-layout-dark .lt-panel input:focus-visible,
+.lt-layout-dark .lt-panel select:focus-visible {
+  outline: 2px solid var(--lt-route-green) !important;
+  outline-offset: 0;
+}
+
 .lt-layout-dark .lt-panel .lt-fare {
   background: rgba(76, 175, 80, 0.2) !important;
   color: var(--lt-route-green) !important;
@@ -256,21 +326,21 @@
   background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px) !important;
 }
 
-/* Деталі маршруту — компактний стиль */
+/* Деталі маршруту — компактний стиль як Jakdojade */
 .lt-detail .lt-header--jakdojade {
   position: relative;
-  padding: 10px 20px 10px 48px;
+  padding: 10px var(--lt-panel-x) 10px 48px;
   min-height: auto;
 }
 
 .lt-detail .lt-header--jakdojade .lt-title {
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   margin: 0;
 }
 
 .lt-detail .lt-header--jakdojade .lt-subtitle {
-  font-size: 0.8125rem;
-  margin: 4px 0 0;
+  font-size: var(--lt-fs-base);
+  margin: 2px 0 0;
 }
 
 .lt-back--header {
@@ -291,42 +361,42 @@
 }
 
 .lt-detail--jakdojade .lt-detail-header--jd {
-  padding: 10px 20px;
+  padding: var(--lt-panel-y) var(--lt-panel-x);
   border-bottom: 1px solid var(--lt-panel-border);
 }
 
-/* Трохи правіше — щоб контент не залізав вліво */
+/* Відступи панелі деталей */
 .lt-layout-dark .lt-panel .lt-detail--jakdojade {
-  padding-left: 14px;
-  padding-right: 14px;
+  padding-left: var(--lt-panel-x);
+  padding-right: var(--lt-panel-x);
 }
 
 .lt-detail--jakdojade .lt-detail-header-actions {
   margin-top: 8px;
-  gap: 6px 12px;
+  gap: 6px 10px;
 }
 
 .lt-detail--jakdojade .lt-route-title--jd {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .lt-detail--jakdojade .lt-route-title--jd .lt-route-num {
-  font-size: 1.125rem;
+  font-size: var(--lt-fs-lg);
 }
 
 .lt-detail--jakdojade .lt-route-title-path {
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
 }
 
 .lt-detail--jakdojade .lt-detail-header-actions .lt-direction-btn {
-  min-width: 100px;
+  min-width: 90px;
   padding: 6px 10px;
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-sm);
 }
 
 .lt-detail--jakdojade .lt-fare {
   padding: 2px 8px;
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
 }
 
 .lt-detail-search {
@@ -355,7 +425,7 @@
 
 .lt-detail-summary-from,
 .lt-detail-summary-to {
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
   font-weight: 600;
   color: var(--lt-panel-text);
   overflow: hidden;
@@ -367,7 +437,7 @@
   flex-shrink: 0;
   color: var(--lt-accent);
   font-weight: 700;
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
 }
 
 .lt-detail-summary-meta {
@@ -380,7 +450,7 @@
 .lt-detail-summary-meta .lt-detail-date,
 .lt-detail-summary-meta .lt-detail-time {
   font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   color: var(--lt-panel-text-muted);
 }
 
@@ -391,7 +461,7 @@
 
 .lt-detail-summary-change {
   padding: 2px 8px;
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-accent);
   background: transparent;
@@ -423,7 +493,7 @@
 }
 
 .lt-detail-from-value {
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
   color: var(--lt-panel-text);
 }
@@ -442,7 +512,7 @@
 .lt-detail-combobox-wrap .combobox-input {
   color: var(--lt-panel-text);
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
 }
 
 .lt-detail-combobox-wrap .combobox-input::placeholder {
@@ -558,33 +628,33 @@
 
 /* ========== List view: маршрути ========== */
 .lt-header {
-  padding: 24px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   background: var(--lt-card);
   border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-header--jakdojade {
-  padding: 20px 20px 12px;
+  padding: var(--lt-panel-block) var(--lt-panel-x) var(--lt-panel-y);
 }
 
 .lt-theme-jakdojade .lt-header--jakdojade {
-  padding: 16px 20px 10px;
+  padding: var(--lt-panel-block) var(--lt-panel-x) 10px;
   border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-theme-jakdojade .lt-title {
-  font-size: 1.375rem;
+  font-size: var(--lt-fs-xl);
   font-weight: 700;
 }
 
 .lt-theme-jakdojade .lt-subtitle {
-  font-size: 0.875rem;
+  font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
 }
 
 .lt-title {
-  margin: 0 0 4px;
-  font-size: 1.5rem;
+  margin: 0 0 2px;
+  font-size: var(--lt-fs-xl);
   font-weight: 700;
   color: var(--lt-text);
   letter-spacing: -0.02em;
@@ -592,19 +662,19 @@
 
 .lt-subtitle {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
 }
 
 /* ========== Jakdojade-style: З / До блок ========== */
 .lt-search--jakdojade {
-  padding: 16px 20px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x) var(--lt-panel-block);
 }
 
 .lt-from-to-block {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .lt-from-to-row {
@@ -631,12 +701,12 @@
 
 .lt-from-to-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 700;
   color: var(--lt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .lt-from-to-cell--from .lt-from-to-label { color: var(--lt-accent); }
@@ -695,7 +765,7 @@
 
 .lt-datetime-label {
   display: block;
-  font-size: 0.7rem;
+  font-size: var(--lt-fs-xs);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -707,7 +777,7 @@
   width: 100%;
   min-width: 90px;
   padding: 10px 12px;
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-variant-numeric: tabular-nums;
   border: 2px solid var(--lt-border);
   border-radius: var(--pb-radius);
@@ -727,12 +797,12 @@
 .lt-search-btn {
   flex: 1;
   min-width: 120px;
-  padding: 12px 20px;
+  padding: 12px var(--lt-panel-x);
   background: var(--lt-accent);
   color: white;
   border: none;
   border-radius: var(--pb-radius);
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s;
@@ -759,8 +829,8 @@
 
 .lt-theme-jakdojade .lt-search-btn {
   min-width: 100px;
-  padding: 11px 16px;
-  font-size: 0.9375rem;
+  padding: 11px var(--lt-panel-x);
+  font-size: var(--lt-fs-md);
 }
 
 .lt-search-extra {
@@ -771,15 +841,15 @@
 }
 
 .lt-geo-btn--small {
-  padding: 8px 14px;
+  padding: 8px 12px;
   min-height: 40px;
-  font-size: 0.875rem;
+  font-size: var(--lt-fs-base);
 }
 
 .lt-routes-heading {
-  margin: 0 0 8px;
-  padding: 0 20px;
-  font-size: 0.8125rem;
+  margin: 0 0 6px;
+  padding: 0 var(--lt-panel-x);
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -787,8 +857,8 @@
 }
 
 .lt-no-routes {
-  padding: 16px 20px;
-  margin: 0 20px 8px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
+  margin: 0 var(--lt-panel-x) 8px;
   background: var(--lt-accent-light);
   border-radius: var(--pb-radius);
   border: 1px solid rgba(0, 122, 201, 0.2);
@@ -796,18 +866,18 @@
 
 .lt-no-routes p {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   color: var(--lt-text);
 }
 
 /* Пошук — компактний, як у HSL */
 .lt-search {
-  padding: 16px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   background: var(--lt-bg);
   border-bottom: 1px solid var(--lt-border-light);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .lt-search-row {
@@ -827,13 +897,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
+  padding: 10px var(--lt-panel-x);
   min-height: 44px;
   background: var(--lt-accent);
   color: white;
   border: none;
   border-radius: var(--pb-radius);
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -855,7 +925,7 @@
 
 .lt-geo-error {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
   color: #dc2626;
 }
 
@@ -864,8 +934,8 @@
 }
 
 .lt-nearest-title {
-  margin: 0 0 6px;
-  font-size: 0.75rem;
+  margin: 0 0 4px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -887,7 +957,7 @@
   background: var(--lt-card);
   border: 1px solid var(--lt-border-light);
   border-radius: var(--pb-radius);
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   color: var(--lt-text);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -899,7 +969,7 @@
 }
 
 .lt-search .select-label {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -916,9 +986,9 @@
 .lt-route-card {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  padding: 16px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   text-align: left;
   background: var(--lt-card);
   border: none;
@@ -937,11 +1007,11 @@
 
 .lt-route-num {
   flex-shrink: 0;
-  min-width: 44px;
+  min-width: 40px;
   padding: 6px 10px;
   background: var(--lt-accent);
   color: white;
-  font-size: 1rem;
+  font-size: var(--lt-fs-lg);
   font-weight: 700;
   border-radius: var(--pb-radius-sm);
   text-align: center;
@@ -957,22 +1027,22 @@
 
 .lt-route-path {
   flex: 1;
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
   color: var(--lt-text);
 }
 
 .lt-route-meta {
   flex-shrink: 0;
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
 }
 
 .lt-empty {
   text-align: center;
-  padding: 40px 20px;
+  padding: 32px var(--lt-panel-x);
   color: var(--lt-text-muted);
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
 }
 
 /* ========== Detail view: маршрут (Jakdojade-style) ========== */
@@ -984,15 +1054,15 @@
 .lt-detail--jakdojade .lt-detail-topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: var(--lt-panel-y) var(--lt-panel-x);
   background: var(--lt-bg);
   border-bottom: 1px solid var(--lt-border-light);
   flex-wrap: wrap;
 }
 
 .lt-theme-jakdojade .lt-detail-topbar {
-  padding: 10px 20px;
+  padding: 10px var(--lt-panel-x);
   min-height: 48px;
 }
 
@@ -1001,7 +1071,7 @@
   padding: 8px 10px;
   min-width: 40px;
   min-height: 40px;
-  font-size: 1.25rem;
+  font-size: var(--lt-fs-lg);
   line-height: 1;
 }
 
@@ -1017,13 +1087,13 @@
   flex-shrink: 0;
   min-width: 32px;
   padding: 4px 8px;
-  font-size: 0.875rem;
+  font-size: var(--lt-fs-base);
   font-weight: 700;
   text-align: center;
 }
 
 .lt-detail-from-to-text {
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
   color: var(--lt-text);
   white-space: nowrap;
@@ -1039,23 +1109,23 @@
 }
 
 .lt-detail-date {
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
 }
 
 .lt-detail-time {
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   font-weight: 700;
   color: var(--lt-text);
 }
 
 .lt-detail-header--jd {
-  padding: 16px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-detail-header {
-  padding: 20px 20px 16px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   background: var(--lt-card);
   border-bottom: 1px solid var(--lt-border-light);
 }
@@ -1064,13 +1134,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
-  margin-top: 12px;
+  gap: 8px 12px;
+  margin-top: 8px;
 }
 
 .lt-detail-header-actions .lt-direction-btn {
   flex: 1;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .lt-detail-header-actions .lt-fare {
@@ -1081,13 +1151,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   padding: 8px 12px;
   background: none;
   border: none;
   border-radius: var(--pb-radius);
   color: var(--lt-text-muted);
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -1099,19 +1169,19 @@
 }
 
 .lt-route-title {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
+  margin: 0 0 6px;
+  font-size: var(--lt-fs-lg);
   font-weight: 700;
   color: var(--lt-text);
-  line-height: 1.4;
+  line-height: 1.35;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .lt-route-title--jd {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .lt-route-title--jd .lt-route-num {
@@ -1132,7 +1202,7 @@
   padding: 4px 10px;
   background: var(--lt-accent-light);
   color: var(--lt-accent);
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   border-radius: var(--pb-radius-sm);
 }
@@ -1140,8 +1210,8 @@
 /* Секції з заголовками як у Jakdojade */
 .lt-section-title {
   margin: 0;
-  padding: 14px 20px 8px;
-  font-size: 0.75rem;
+  padding: var(--lt-panel-block) var(--lt-panel-x) 6px;
+  font-size: var(--lt-fs-sm);
   font-weight: 700;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1149,8 +1219,16 @@
 }
 
 .lt-section-title--stops {
-  padding-top: 20px;
+  padding-top: var(--lt-panel-block);
   border-top: 1px solid var(--lt-border-light);
+}
+
+/* Секція зупинок без окремого заголовка — верхня межа */
+.lt-map-stops--jd {
+  border-top: 1px solid var(--lt-border-light);
+}
+.lt-layout-dark .lt-panel .lt-map-stops--jd {
+  border-top-color: var(--lt-panel-border);
 }
 
 .lt-timetable-section {
@@ -1159,7 +1237,7 @@
 
 /* Розклад — tablica odjazdów (таблиця відправлень) */
 .lt-timetable-header--jd {
-  padding: 0 20px 14px;
+  padding: 0 var(--lt-panel-x) var(--lt-panel-block);
 }
 
 /* Компактний ряд: дата, час, Відправлення о, Друк в один рядок */
@@ -1167,14 +1245,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  padding: 6px 20px 10px;
+  gap: 6px 10px;
+  padding: 6px var(--lt-panel-x) 8px;
 }
 
 .lt-timetable-header--compact .lt-detail-date,
 .lt-timetable-header--compact .lt-detail-time {
   font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   color: var(--lt-panel-text-muted);
 }
 
@@ -1184,26 +1262,26 @@
 }
 
 .lt-timetable-header--compact .lt-time-picker-label {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   margin: 0;
   margin-right: 2px;
 }
 
 .lt-time-picker-select--compact {
   padding: 4px 8px;
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
   min-height: auto;
 }
 
 .lt-print-btn--compact {
   padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   margin-left: auto;
 }
 
 .lt-timetable-section--compact .lt-section-title {
-  padding: 8px 20px 4px;
-  font-size: 0.6875rem;
+  padding: 6px var(--lt-panel-x) 4px;
+  font-size: var(--lt-fs-xs);
 }
 
 .lt-from-to--jd {
@@ -1232,7 +1310,7 @@
 }
 
 .lt-time-picker-label {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 700;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1244,7 +1322,7 @@
   flex: 1;
   min-width: 140px;
   padding: 10px 36px 10px 12px;
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   border: 2px solid var(--lt-accent);
@@ -1275,6 +1353,8 @@
   background-color: #3d3d3d;
   border-color: var(--lt-route-green);
   color: var(--lt-panel-text);
+  /* Іконка стрілки видима на темному фоні */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b0b0b0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
 }
 
 .lt-layout-dark .lt-panel .lt-time-picker-select:focus {
@@ -1282,13 +1362,13 @@
 }
 
 .lt-timetable--jd {
-  padding: 0 20px 20px;
+  padding: 0 var(--lt-panel-x) var(--lt-panel-block);
 }
 
 .lt-timetable-table--tablica {
   width: 100%;
   border-collapse: collapse;
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   background: var(--lt-card);
   border: 1px solid var(--lt-border-light);
   border-radius: var(--pb-radius);
@@ -1306,8 +1386,8 @@
 }
 
 .lt-timetable-table--tablica th {
-  padding: 12px 16px;
-  font-size: 0.6875rem;
+  padding: 10px var(--lt-panel-x);
+  font-size: var(--lt-fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1316,7 +1396,7 @@
 }
 
 .lt-timetable-table--tablica td {
-  padding: 14px 16px;
+  padding: 10px var(--lt-panel-x);
   border-bottom: 1px solid var(--lt-border-light);
   font-variant-numeric: tabular-nums;
 }
@@ -1326,7 +1406,7 @@
 }
 
 .lt-timetable-table--tablica .lt-time-cell--tablica {
-  font-size: 1.25rem;
+  font-size: var(--lt-fs-lg);
   font-weight: 700;
   min-width: 4.5em;
 }
@@ -1353,18 +1433,13 @@
 }
 
 .lt-time--jd {
-  min-width: 60px;
-  padding: 10px 14px;
-  font-size: 1.0625rem;
+  min-width: 56px;
+  padding: 8px 12px;
+  font-size: var(--lt-fs-md);
   font-weight: 700;
 }
 
-/* Зупинки + карта — Jakdojade layout */
-.lt-map-stops--jd .lt-section-title--stops {
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
+/* Зупинки + карта — один заголовок «Список зупинок», список лівіше */
 .lt-map-stops-inner {
   display: flex;
   flex-direction: column;
@@ -1380,15 +1455,31 @@
     flex: 1;
     min-width: 0;
   }
+  /* Список зупинок у першій колонці (ліворуч) */
   .lt-map-stops--jd .lt-stops--jd {
     width: 320px;
     flex-shrink: 0;
+    order: 1;
+    padding-left: 0;
+    padding-right: var(--lt-panel-x);
+    padding-top: var(--lt-panel-y);
+    padding-bottom: var(--lt-panel-block);
+  }
+  .lt-map-stops--jd .lt-map-area {
+    order: 2;
   }
 }
 
+.lt-map-stops--jd .lt-stops--jd {
+  padding-left: 0;
+  padding-right: var(--lt-panel-x);
+  padding-top: var(--lt-panel-y);
+  padding-bottom: var(--lt-panel-block);
+}
+
 .lt-stops--jd .lt-stops-heading {
-  margin: 0 0 10px;
-  font-size: 0.7rem;
+  margin: 0 0 8px;
+  font-size: var(--lt-fs-sm);
   font-weight: 700;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1397,13 +1488,13 @@
 
 /* From/To селектори — як у HSL RouteScheduleHeader */
 .lt-timetable-header {
-  padding: 16px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   background: var(--lt-bg);
   border-bottom: 1px solid var(--lt-border-light);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 20px;
+  gap: 10px 12px;
 }
 
 .lt-from-to {
@@ -1414,7 +1505,7 @@
 }
 
 .lt-from-to-label {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1426,7 +1517,7 @@
 }
 
 .lt-from-to-field .combobox-label {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1455,14 +1546,14 @@
 }
 
 .lt-date-label {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
 }
 
 .lt-date-value {
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-weight: 500;
   color: var(--lt-text);
 }
@@ -1471,11 +1562,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   background: var(--lt-card);
   border: 1px solid var(--lt-border);
   border-radius: var(--pb-radius);
-  font-size: 0.875rem;
+  font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
   cursor: pointer;
   transition: all 0.15s;
@@ -1494,18 +1585,18 @@
 .lt-timetable-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
 }
 
 .lt-timetable-table th,
 .lt-timetable-table td {
-  padding: 12px 16px;
+  padding: 10px var(--lt-panel-x);
   text-align: left;
   border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-timetable-table th {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1516,7 +1607,7 @@
 .lt-timetable-table .lt-th-stop {
   font-weight: 400;
   text-transform: none;
-  font-size: 0.6875rem;
+  font-size: var(--lt-fs-xs);
   opacity: 0.9;
 }
 
@@ -1544,6 +1635,7 @@
 .lt-timetable-table .lt-time-cell {
   font-weight: 600;
   min-width: 4em;
+  font-size: var(--lt-fs-md);
 }
 
 /* Дві колонки напрямків (якщо без From/To) */
@@ -1554,7 +1646,7 @@
 }
 
 .lt-timetable-col {
-  padding: 16px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   border-right: 1px solid var(--lt-border-light);
 }
 
@@ -1563,8 +1655,8 @@
 }
 
 .lt-timetable-heading {
-  margin: 0 0 12px;
-  font-size: 0.75rem;
+  margin: 0 0 8px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1579,11 +1671,11 @@
 
 .lt-time {
   display: inline-block;
-  min-width: 56px;
-  padding: 8px 12px;
+  min-width: 52px;
+  padding: 8px 10px;
   background: var(--lt-bg);
   border: 1px solid transparent;
-  font-size: 1rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -1641,11 +1733,12 @@
   border-top: 1px solid var(--lt-border-light);
 }
 
-/* Вертикальна лінія та кружки — спільна система координат */
+/* Вертикальна лінія та кружки — спільна система координат (менший відступ зліва) */
 .lt-stops-timeline {
-  --lt-line-center: 15px;
+  --lt-line-center: 14px;
+  --lt-timeline-pad: 20px;
   position: relative;
-  padding-left: 28px;
+  padding-left: var(--lt-timeline-pad);
 }
 
 /* Пунктирна лінія для всіх зупинок — центр на --lt-line-center */
@@ -1681,11 +1774,11 @@
 
 .lt-direction-btn {
   flex: 1;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--lt-bg);
   border: 1px solid var(--lt-border-light);
   border-radius: var(--pb-radius);
-  font-size: 0.875rem;
+  font-size: var(--lt-fs-base);
   font-weight: 600;
   color: var(--lt-text-muted);
   cursor: pointer;
@@ -1704,8 +1797,8 @@
 }
 
 .lt-stops-heading {
-  margin: 0 0 12px;
-  font-size: 0.75rem;
+  margin: 0 0 8px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1722,17 +1815,17 @@
   position: relative;
   display: grid;
   grid-template-columns: 3.5em 1fr 2.5em;
-  gap: 10px;
+  gap: 8px;
   align-items: baseline;
-  padding: 8px 0;
-  min-height: 36px;
+  padding: 6px 0;
+  min-height: 32px;
 }
 
-/* Кружок 10px: центр на --lt-line-center. li починається з 28px → left = 11 - 28 - 5 = -22 */
+/* Кружок: центр на --lt-line-center, прив'язка до --lt-timeline-pad */
 .lt-stop-item::before {
   content: '';
   position: absolute;
-  left: calc(var(--lt-line-center) - 28px - 5px);
+  left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 5px);
   top: 50%;
   transform: translateY(-50%);
   width: 10px;
@@ -1746,7 +1839,7 @@
 .lt-stop-item--from::before {
   width: 14px;
   height: 14px;
-  left: calc(var(--lt-line-center) - 28px - 7px);
+  left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 7px);
   transform: translateY(-50%);
   background: var(--lt-accent);
   box-shadow: 0 0 0 2px var(--lt-accent-light);
@@ -1755,21 +1848,21 @@
 .lt-stop-item--to::before {
   width: 14px;
   height: 14px;
-  left: calc(var(--lt-line-center) - 28px - 7px);
+  left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 7px);
   transform: translateY(-50%);
   background: var(--pb-yellow-dark);
   box-shadow: 0 0 0 2px rgba(255, 213, 0, 0.4);
 }
 
 .lt-stop-time {
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-sm);
   font-variant-numeric: tabular-nums;
   color: var(--lt-text-muted);
 }
 
 .lt-stop-content {
   min-width: 0;
-  font-size: 0.9375rem;
+  font-size: var(--lt-fs-md);
   font-weight: 500;
   color: var(--lt-text);
 }
@@ -1788,7 +1881,7 @@
   display: inline-block;
   margin-left: 6px;
   padding: 2px 6px;
-  font-size: 0.6875rem;
+  font-size: var(--lt-fs-xs);
   font-weight: 600;
   border-radius: var(--pb-radius-sm);
 }
@@ -1804,7 +1897,7 @@
 }
 
 .lt-stop-to-next {
-  font-size: 0.75rem;
+  font-size: var(--lt-fs-sm);
   color: var(--lt-text-muted);
   text-align: right;
 }
@@ -1817,8 +1910,8 @@
 }
 
 .lt-map-heading {
-  margin: 0 0 8px;
-  font-size: 0.75rem;
+  margin: 0 0 6px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1859,9 +1952,9 @@
 /* Footer */
 .lt-footer {
   margin-top: 0;
-  padding: 16px 20px;
+  padding: var(--lt-panel-block) var(--lt-panel-x);
   border-top: 1px solid var(--lt-border-light);
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
   background: var(--lt-bg);
 }
@@ -1975,8 +2068,8 @@
   .lt-detail-header,
   .lt-search,
   .lt-timetable-header {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: var(--lt-panel-x);
+    padding-right: var(--lt-panel-x);
   }
 
   .lt-route-title {
@@ -2038,7 +2131,7 @@
   }
 
   .lt-footer {
-    padding: 14px 16px;
+    padding: var(--lt-panel-y) var(--lt-panel-x);
   }
 }
 
@@ -2053,8 +2146,8 @@
   .lt-detail-header,
   .lt-search,
   .lt-timetable-header {
-    padding-left: 14px;
-    padding-right: 14px;
+    padding-left: var(--lt-panel-x);
+    padding-right: var(--lt-panel-x);
   }
 
   .lt-layout-dark .lt-panel .lt-detail--jakdojade {
