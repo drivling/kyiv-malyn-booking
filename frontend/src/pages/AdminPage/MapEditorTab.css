@@ -303,6 +303,58 @@
   background: rgba(30, 58, 95, 0.1);
 }
 
+.map-editor-modal-field {
+  margin-bottom: 14px;
+}
+
+.map-editor-modal-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--pb-text-muted);
+  margin-bottom: 6px;
+}
+
+.map-editor-modal-name-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.map-editor-modal-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 12px;
+  font-size: 0.9375rem;
+  border: 1px solid var(--pb-border);
+  border-radius: 6px;
+  background: var(--pb-bg);
+}
+
+.map-editor-modal-save-name {
+  flex-shrink: 0;
+}
+
+.map-editor-modal-field--checkbox {
+  margin-bottom: 12px;
+}
+
+.map-editor-modal-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--pb-text);
+}
+
+.map-editor-modal-checkbox-label input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .map-editor-modal-copy-heading {
   margin-top: 16px;
   margin-bottom: 8px;

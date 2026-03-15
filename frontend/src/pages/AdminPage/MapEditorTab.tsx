@@ -211,6 +211,7 @@ export const MapEditorTab: React.FC = () => {
   const [directionMode, setDirectionMode] = useState<'there' | 'back'>('there');
   const [mounted, setMounted] = useState(false);
   const [modalStop, setModalStop] = useState<string | null>(null);
+  const [editStopName, setEditStopName] = useState<string>('');
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
   const handleMapCenterChange = useCallback((lat: number, lng: number) => {
     setMapCenter([lat, lng]);
@@ -219,6 +220,10 @@ export const MapEditorTab: React.FC = () => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setEditStopName(modalStop ?? '');
+  }, [modalStop]);
 
   useEffect(() => {
     Promise.all([
@@ -436,6 +441,80 @@ export const MapEditorTab: React.FC = () => {
       setModalStop(null);
     },
     [transportData, selectedRoute, routeStopsForDirection]
+  );
+
+  /** Увімкнути/вимкнути «технічна зупинка» (map_only) для обраної зупинки в поточному маршруті */
+  const handleToggleMapOnly = useCallback(
+    (stopName: string, mapOnly: boolean) => {
+      if (!transportData || !selectedRoute) return;
+      const sbr = transportData.supplement?.stops?.stops_by_route;
+      if (!sbr?.[selectedRoute]) return;
+      const routeStops = (sbr[selectedRoute] as RouteStop[]).map((s) =>
+        s.name === stopName ? { ...s, map_only: mapOnly } : s
+      );
+      setTransportData({
+        ...transportData,
+        supplement: {
+          ...transportData.supplement,
+          stops: {
+            ...transportData.supplement?.stops,
+            stops_by_route: {
+              ...transportData.supplement?.stops?.stops_by_route,
+              [selectedRoute]: routeStops,
+            },
+          },
+        },
+      });
+    },
+    [transportData, selectedRoute]
+  );
+
+  /** Перейменувати зупинку у всіх маршрутах та в координатах */
+  const handleRenameStop = useCallback(
+    (oldName: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed || trimmed === oldName) return;
+      if (!transportData || !coordsData) return;
+      const sbr = transportData.supplement?.stops?.stops_by_route;
+      if (!sbr) return;
+      const newSbr: Record<string, RouteStop[] | string[]> = {};
+      for (const [routeId, stops] of Object.entries(sbr)) {
+        if (!Array.isArray(stops)) {
+          newSbr[routeId] = stops;
+          continue;
+        }
+        const first = stops[0];
+        if (typeof first === 'object' && first && 'name' in first) {
+          newSbr[routeId] = (stops as RouteStop[]).map((s) =>
+            s.name === oldName ? { ...s, name: trimmed } : s
+          );
+        } else {
+          newSbr[routeId] = (stops as string[]).map((n) => (n === oldName ? trimmed : n));
+        }
+      }
+      setTransportData({
+        ...transportData,
+        supplement: {
+          ...transportData.supplement,
+          stops: {
+            ...transportData.supplement?.stops,
+            stops_by_route: newSbr,
+          },
+        },
+      });
+      const pos = coordsData.stops[oldName];
+      if (pos) {
+        setCoordsData((prev) => {
+          if (!prev) return prev;
+          const next = { ...prev.stops, [trimmed]: pos };
+          delete next[oldName];
+          return { ...prev, stops: next };
+        });
+      }
+      setModalStop(trimmed);
+      setEditStopName(trimmed);
+    },
+    [transportData, coordsData]
   );
 
   const handleDownloadTransport = useCallback(() => {
@@ -673,6 +752,39 @@ export const MapEditorTab: React.FC = () => {
         <div className="map-editor-modal-overlay" onClick={() => setModalStop(null)}>
           <div className="map-editor-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="map-editor-modal-title">Зупинка: {modalStop}</h3>
+
+            <div className="map-editor-modal-field">
+              <label className="map-editor-modal-label">Назва зупинки:</label>
+              <div className="map-editor-modal-name-row">
+                <input
+                  type="text"
+                  className="map-editor-modal-input"
+                  value={editStopName}
+                  onChange={(e) => setEditStopName(e.target.value)}
+                  placeholder="Назва"
+                />
+                <button
+                  type="button"
+                  className="map-editor-modal-opt map-editor-modal-save-name"
+                  onClick={() => handleRenameStop(modalStop, editStopName)}
+                  disabled={!editStopName.trim() || editStopName.trim() === modalStop}
+                >
+                  Зберегти назву
+                </button>
+              </div>
+            </div>
+
+            <div className="map-editor-modal-field map-editor-modal-field--checkbox">
+              <label className="map-editor-modal-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={routeStopsForDirection.find((s) => s.name === modalStop)?.map_only ?? false}
+                  onChange={(e) => handleToggleMapOnly(modalStop, e.target.checked)}
+                />
+                <span>Технічна зупинка (тільки для карти, map_only)</span>
+              </label>
+            </div>
+
             <p className="map-editor-modal-hint">Номер по напрямку або -1 (виключити):</p>
             <div className="map-editor-modal-options">
               {Array.from({ length: Math.max(routeStopsForDirection.length, 20) }, (_, i) => i + 1).map((n) => (
