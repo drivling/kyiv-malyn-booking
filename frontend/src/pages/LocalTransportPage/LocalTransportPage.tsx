@@ -895,11 +895,26 @@ export const LocalTransportPage: React.FC = () => {
     setStopsDirection(newDir);
     setFromStop(newFrom);
     setToStop(newTo);
-    updateDetailUrl({
-      stop: newFrom || undefined,
-      to: newTo || undefined,
-      dir: newDir,
-    });
+
+    const dirTrips = groupTripsByDirection(detailRoute.trips)[newDir === 'there' ? 'dir1' : 'dir0'];
+    const firstInDir = dirTrips.find((t) => parseTime(t.block_id) > 0);
+    const firstMins = firstInDir ? parseTime(firstInDir.block_id) : null;
+    if (firstMins != null && firstMins > 0) {
+      setSelectedTripTime(firstMins);
+      setSelectedTripDirection(newDir);
+      updateDetailUrl({
+        stop: newFrom || undefined,
+        to: newTo || undefined,
+        dir: newDir,
+        time: formatTime(firstMins),
+      });
+    } else {
+      updateDetailUrl({
+        stop: newFrom || undefined,
+        to: newTo || undefined,
+        dir: newDir,
+      });
+    }
   };
 
   const handleSearchSubmit = () => {
@@ -1123,7 +1138,7 @@ export const LocalTransportPage: React.FC = () => {
               </section>
             )}
 
-            {hasChosenStopsOnDetail && detailRoute.trips.length > 0 && (() => {
+            {detailRoute.trips.length > 0 && (() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
               if (Array.isArray(routeStops) && routeStops.length > 0) {
@@ -1156,15 +1171,17 @@ export const LocalTransportPage: React.FC = () => {
               const orderedNamesThere = orderedStopsThere.map((s) => s.name);
               const orderedNamesBack = orderedStopsBack.map((s) => s.name);
 
-              const buildTableTrips = () => {
-                if (!fromStop || !toStop || !stopsWithOrder) return null;
-                const fromOrderThere = orderedStopsThere.find((s) => s.name === fromStop)?.order_there;
-                const toOrderThere = orderedStopsThere.find((s) => s.name === toStop)?.order_there;
-                const fromOrderBack = orderedStopsBack.find((s) => s.name === fromStop)?.order_back;
-                const toOrderBack = orderedStopsBack.find((s) => s.name === toStop)?.order_back;
+              const buildTableTrips = (): Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> | null => {
+                if (!stopsWithOrder) return null;
                 const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
                 const rows: Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> = [];
-                if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere) {
+                const nThere = orderedStopsThere.length;
+                const nBack = orderedStopsBack.length;
+                const fromOrderThere = fromStop ? orderedStopsThere.find((s) => s.name === fromStop)?.order_there : 1;
+                const toOrderThere = toStop ? orderedStopsThere.find((s) => s.name === toStop)?.order_there : nThere;
+                const fromOrderBack = fromStop ? orderedStopsBack.find((s) => s.name === fromStop)?.order_back : 1;
+                const toOrderBack = toStop ? orderedStopsBack.find((s) => s.name === toStop)?.order_back : nBack;
+                if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere && nThere > 0) {
                   dir1.forEach((t) => {
                     const mins = parseTime(t.block_id);
                     if (mins > 0) {
@@ -1178,7 +1195,7 @@ export const LocalTransportPage: React.FC = () => {
                     }
                   });
                 }
-                if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack) {
+                if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack && nBack > 0) {
                   dir0.forEach((t) => {
                     const mins = parseTime(t.block_id);
                     if (mins > 0) {
@@ -1192,11 +1209,15 @@ export const LocalTransportPage: React.FC = () => {
                     }
                   });
                 }
-                return rows.sort((a, b) => a.dep.localeCompare(b.dep));
+                return rows.length ? rows.sort((a, b) => a.dep.localeCompare(b.dep)) : null;
               };
 
               const tableTrips = buildTableTrips();
-              const hasFromTo = !!stopsWithOrder?.length;
+              const tableTripsInDirection =
+                tableTrips && stopsDirection
+                  ? tableTrips.filter((r) => r.direction === stopsDirection)
+                  : tableTrips;
+              const hasFromTo = !!(fromStop && toStop && stopsWithOrder?.length);
 
               return (
                 <>
@@ -1226,56 +1247,57 @@ export const LocalTransportPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Секція Розклад руху: один компактний ряд — дата, час, Відправлення о, Друк */}
+                  {/* Секція Розклад руху: завжди показуємо дату, час, вибір рейсу по поточному напрямку, Друк */}
                   <section className="lt-timetable-section lt-timetable-section--compact" aria-labelledby="lt-rozklad-heading">
                     <h2 id="lt-rozklad-heading" className="lt-section-title">Розклад руху</h2>
-                    {hasFromTo && (
-                      <div className="lt-timetable-header lt-timetable-header--jd lt-timetable-header--compact">
-                        <span className="lt-detail-date">{dateFromUrl || formatDateUrl(new Date())}</span>
-                        <span className="lt-detail-time">{timeFromUrl || hourFromUrl || '—'}</span>
-                        {tableTrips && tableTrips.length > 0 && (
-                          <>
-                            <label className="lt-time-picker-label">Відправлення о</label>
-                            <select
-                              className="lt-time-picker-select lt-time-picker-select--compact"
-                              value={
-                                selectedTripTime != null && selectedTripDirection != null
-                                  ? tableTrips.find(
-                                      (r) => r.baseTime === selectedTripTime && r.direction === selectedTripDirection
-                                    )?.dep ?? tableTrips[0]?.dep
-                                  : tableTrips[0]?.dep ?? ''
+                    <div className="lt-timetable-header lt-timetable-header--jd lt-timetable-header--compact">
+                      <span className="lt-detail-date">{dateFromUrl || formatDateUrl(new Date())}</span>
+                      <span className="lt-detail-time">{timeFromUrl || hourFromUrl || '—'}</span>
+                      {tableTripsInDirection && tableTripsInDirection.length > 0 && (
+                        <>
+                          <label className="lt-time-picker-label">Відправлення о</label>
+                          <select
+                            className="lt-time-picker-select lt-time-picker-select--compact"
+                            value={
+                              selectedTripDirection === stopsDirection &&
+                              selectedTripTime != null &&
+                              tableTripsInDirection.some(
+                                (r) => r.baseTime === selectedTripTime && r.direction === selectedTripDirection
+                              )
+                                ? tableTripsInDirection.find(
+                                    (r) => r.baseTime === selectedTripTime && r.direction === selectedTripDirection
+                                  )?.dep ?? tableTripsInDirection[0]?.dep
+                                : tableTripsInDirection[0]?.dep ?? ''
+                            }
+                            onChange={(e) => {
+                              const dep = e.target.value;
+                              const row = tableTripsInDirection.find((r) => r.dep === dep);
+                              if (row) {
+                                setSelectedTripTime(row.baseTime);
+                                setSelectedTripDirection(row.direction);
+                                setStopsDirection(row.direction);
+                                updateDetailUrl({ time: row.dep, dir: row.direction });
                               }
-                              onChange={(e) => {
-                                const dep = e.target.value;
-                                const row = tableTrips.find((r) => r.dep === dep);
-                                if (row) {
-                                  setSelectedTripTime(row.baseTime);
-                                  setSelectedTripDirection(row.direction);
-                                  setStopsDirection(row.direction);
-                                  updateDetailUrl({ time: row.dep, dir: row.direction });
-                                }
-                              }}
-                              aria-label="Час відправлення"
-                            >
-                              {tableTrips.map((row, i) => (
-                                <option key={i} value={row.dep}>
-                                  {row.dep} — прибуття {row.arr}
-                                </option>
-                              ))}
-                            </select>
-                          </>
-                        )}
-                        <button type="button" className="lt-print-btn lt-print-btn--compact" onClick={() => window.print()} title="Друк">
-                          Друк
-                        </button>
-                      </div>
-                    )}
-
+                            }}
+                            aria-label="Час відправлення"
+                          >
+                            {tableTripsInDirection.map((row, i) => (
+                              <option key={i} value={row.dep}>
+                                {row.dep} — прибуття {row.arr}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      )}
+                      <button type="button" className="lt-print-btn lt-print-btn--compact" onClick={() => window.print()} title="Друк">
+                        Друк
+                      </button>
+                    </div>
                   </section>
                 </>
               );
             })()}
-            {hasChosenStopsOnDetail && (() => {
+            {(() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
               if (Array.isArray(routeStops) && routeStops.length > 0) {
