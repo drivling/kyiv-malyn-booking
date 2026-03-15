@@ -343,32 +343,39 @@
   background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px) !important;
 }
 
-/* Деталі маршруту — компактний стиль як Jakdojade */
+/* Деталі маршруту — компактний стиль як Jakdojade; текст правіше кнопки ← */
 .lt-detail .lt-header--jakdojade {
   position: relative;
-  padding: 10px var(--lt-panel-x) 10px 48px;
+  padding: 10px var(--lt-panel-x) 10px 0;
   min-height: auto;
 }
 
+.lt-detail .lt-header--jakdojade .lt-header-title-wrap {
+  margin-left: 46px;
+  min-width: 0;
+}
+
 .lt-detail .lt-header--jakdojade .lt-title {
-  font-size: var(--lt-fs-md);
+  font-size: var(--lt-fs-base);
   margin: 0;
+  font-weight: 600;
 }
 
 .lt-detail .lt-header--jakdojade .lt-subtitle {
-  font-size: var(--lt-fs-base);
+  font-size: var(--lt-fs-sm);
   margin: 2px 0 0;
 }
 
 .lt-back--header {
   position: absolute;
-  left: 12px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   margin-bottom: 0;
   padding: 10px;
-  min-width: 44px;
-  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
   font-size: 1.125rem;
   display: inline-flex;
   align-items: center;
@@ -2114,6 +2121,10 @@
   .lt-timetable-header {
     padding-left: var(--lt-panel-x);
     padding-right: var(--lt-panel-x);
+  }
+
+  .lt-detail .lt-header--jakdojade .lt-header-title-wrap {
+    margin-left: 46px;
   }
 
   .lt-route-title {

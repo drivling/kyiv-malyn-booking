@@ -1096,8 +1096,10 @@ export const LocalTransportPage: React.FC = () => {
               <button type="button" className="lt-back lt-back--header" onClick={handleBack} aria-label="Назад до пошуку">
                 ←
               </button>
-              <h1 className="lt-title">Як доїхати</h1>
-              <p className="lt-subtitle">Маршрут №{detailRoute.id} · Малин</p>
+              <div className="lt-header-title-wrap">
+                <h1 className="lt-title">Як доїхати</h1>
+                <p className="lt-subtitle">Маршрут №{detailRoute.id} · Малин</p>
+              </div>
             </header>
 
             {/* Заголовок маршруту + перемикач напрямку */}
