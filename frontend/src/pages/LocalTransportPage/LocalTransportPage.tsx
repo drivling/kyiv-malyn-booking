@@ -448,6 +448,8 @@ export const LocalTransportPage: React.FC = () => {
   const [stopsCoords, setStopsCoords] = useState<Record<string, [number, number]> | null>(null);
   const prevStopsDirectionRef = useRef<'there' | 'back'>('there');
   const latestStopRef = useRef<string>('');
+  const [pickerFrom, setPickerFrom] = useState<string>('');
+  const [pickerTo, setPickerTo] = useState<string>('');
 
   useEffect(() => {
     if (selectedStopFromUrl) {
@@ -584,6 +586,20 @@ export const LocalTransportPage: React.FC = () => {
   }, [detailRoute?.id, stopsByRoute, stopsDirection]);
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
+
+  const detailRouteStopNames = useMemo(
+    () => (detailRoute && stopsByRoute?.[detailRoute.id] ? getStopNames(stopsByRoute[detailRoute.id]) : []),
+    [detailRoute?.id, stopsByRoute]
+  );
+  const hasChosenStopsOnDetail =
+    Boolean(
+      detailRoute &&
+        selectedStopFromUrl &&
+        toFromUrl &&
+        detailRouteStopNames.length &&
+        findMatchingStop(selectedStopFromUrl, detailRouteStopNames) &&
+        findMatchingStop(toFromUrl, detailRouteStopNames)
+    );
 
   // Не робимо auto-scroll до "Ви тут" — це викликало зміщення вліво при виборі маршруту та зміні напрямку
 
@@ -899,21 +915,35 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   const handleSelectRoute = (id: string) => {
+    const routeStopNames = stopsByRoute?.[id] ? getStopNames(stopsByRoute[id]) : [];
     const from = hasFromToSearch
       ? (findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom)
       : latestStopRef.current || effectiveStopFilter;
     const to = hasFromToSearch ? (findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo) : '';
+    const fromOnRoute = from && routeStopNames.length && findMatchingStop(from, routeStopNames);
+    const toOnRoute = to && routeStopNames.length && findMatchingStop(to, routeStopNames);
     const params = new URLSearchParams();
-    if (from) params.set('stop', from);
-    if (to) params.set('to', to);
-    if (searchTime) params.set('time', searchTime);
-    if (searchDate) {
-      params.set('d', searchDate);
-      params.set('h', searchTime);
+    if (searchDate) params.set('d', searchDate);
+    if (searchTime) params.set('h', searchTime);
+    if (fromOnRoute && toOnRoute) {
+      params.set('stop', fromOnRoute);
+      params.set('to', toOnRoute);
+      const dir = getImpliedDirection(fromOnRoute, toOnRoute, stopsByRoute, id);
+      if (dir) params.set('dir', dir);
     }
-    const dir = from && to ? getImpliedDirection(from, to, stopsByRoute, id) : null;
-    if (dir) params.set('dir', dir);
     navigate(`/localtransport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
+  };
+
+  const handleShowTimetableFromPicker = () => {
+    if (!detailRoute || !pickerFrom || !pickerTo) return;
+    const params = new URLSearchParams();
+    params.set('stop', pickerFrom);
+    params.set('to', pickerTo);
+    if (searchDate) params.set('d', searchDate);
+    if (searchTime) params.set('h', searchTime);
+    const dir = getImpliedDirection(pickerFrom, pickerTo, stopsByRoute, detailRoute.id);
+    if (dir) params.set('dir', dir);
+    navigate(`/localtransport/route/${detailRoute.id}?${params.toString()}`);
   };
 
   const handleBack = () => {
@@ -1049,7 +1079,51 @@ export const LocalTransportPage: React.FC = () => {
               </div>
             </header>
 
-            {detailRoute.trips.length > 0 && (() => {
+            {!hasChosenStopsOnDetail && detailRouteStopNames.length > 0 && (
+              <section className="lt-detail-picker lt-detail-picker--stops" aria-labelledby="lt-picker-heading">
+                <h2 id="lt-picker-heading" className="lt-section-title">Оберіть зупинки</h2>
+                <div className="lt-detail-picker-row">
+                  <div className="lt-from-to-cell lt-from-to-cell--from">
+                    <label className="lt-from-to-label lt-from-to-label--with-icon">
+                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Звідки їдемо?
+                    </label>
+                    <Combobox
+                      label=""
+                      options={[{ value: '', label: '— Зупинка —' }, ...detailRouteStopNames.map((s) => ({ value: s, label: s }))]}
+                      value={pickerFrom}
+                      onChange={setPickerFrom}
+                      placeholder="Наприклад Малинівка"
+                      emptyMessage="Зупинок не знайдено"
+                      clearable
+                    />
+                  </div>
+                  <div className="lt-from-to-cell lt-from-to-cell--to">
+                    <label className="lt-from-to-label lt-from-to-label--with-icon">
+                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> Куди їдемо?
+                    </label>
+                    <Combobox
+                      label=""
+                      options={[{ value: '', label: '— Зупинка —' }, ...detailRouteStopNames.map((s) => ({ value: s, label: s }))]}
+                      value={pickerTo}
+                      onChange={setPickerTo}
+                      placeholder="Наприклад Царське село"
+                      emptyMessage="Зупинок не знайдено"
+                      clearable
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="lt-search-btn lt-detail-picker-btn"
+                  onClick={handleShowTimetableFromPicker}
+                  disabled={!pickerFrom || !pickerTo}
+                >
+                  Показати розклад
+                </button>
+              </section>
+            )}
+
+            {hasChosenStopsOnDetail && detailRoute.trips.length > 0 && (() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
               if (Array.isArray(routeStops) && routeStops.length > 0) {
@@ -1201,7 +1275,7 @@ export const LocalTransportPage: React.FC = () => {
                 </>
               );
             })()}
-            {(() => {
+            {hasChosenStopsOnDetail && (() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
               if (Array.isArray(routeStops) && routeStops.length > 0) {

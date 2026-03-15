@@ -116,6 +116,23 @@
   padding-top: env(safe-area-inset-top);
 }
 
+/* iPhone/Android: панель зверху, карта знизу (стопка) */
+@media (max-width: 767px) {
+  .lt-page.lt-layout-dark .lt-container.lt-split-layout {
+    flex-direction: column;
+    min-height: 100dvh;
+    min-height: 100vh;
+  }
+  .lt-page.lt-layout-dark .lt-panel {
+    flex: 0 0 auto;
+    overflow-y: visible;
+    overflow-x: hidden;
+  }
+  .lt-page.lt-layout-dark .lt-map-column {
+    flex: 0 0 auto;
+  }
+}
+
 @media (min-width: 768px) {
   .lt-page.lt-layout-dark .lt-container.lt-split-layout {
     flex-direction: row;
@@ -403,6 +420,30 @@
   padding-top: 8px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--lt-panel-border);
+}
+
+/* Блок вибору зупинок на сторінці маршруту (коли ще не обрано З/До) */
+.lt-detail-picker {
+  padding: var(--lt-panel-block) var(--lt-panel-x);
+  border-bottom: 1px solid var(--lt-panel-border);
+}
+
+.lt-detail-picker .lt-section-title {
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.lt-detail-picker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lt-detail-picker-btn {
+  margin-top: 14px;
+  width: 100%;
 }
 
 /* Компактний рядок після вибору маршруту (Jakdojade-стиль) */
@@ -1989,7 +2030,10 @@
 .lt-print-btn,
 .lt-direction-btn,
 .lt-time,
-.lt-timetable-row-clickable {
+.lt-timetable-row-clickable,
+.lt-search-btn,
+.lt-detail-summary-change,
+.lt-from-to-swap {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -2126,8 +2170,19 @@
     padding: 16px;
   }
 
+  /* Висота карти в панелі (деталі) — фіксована; в колонці справа — на всю 40dvh */
   .lt-map-container {
     height: 240px;
+  }
+  .lt-map-column .lt-map-container {
+    height: 100%;
+    min-height: 200px;
+  }
+
+  /* iOS: 16px щоб не зумувало при фокусі на даті/часі та селекті */
+  .lt-datetime-input,
+  .lt-time-picker-select {
+    font-size: 16px;
   }
 
   .lt-footer {
