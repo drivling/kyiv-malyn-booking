@@ -1399,18 +1399,18 @@ export const LocalTransportPage: React.FC = () => {
                               const arrivalMins = verifiedStops
                                 ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, order - 1) / 60
                                 : baseTime + (order - 1) * minsPerStopStops;
-                              const nextStop = filtered[idx + 1];
+                              const nextRealStop = listStops[idx + 1];
                               const nextArrivalMins =
-                                nextStop == null
+                                nextRealStop == null
                                   ? null
                                   : verifiedStops
-                                    ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextStop[orderKey] - 1) / 60
-                                    : baseTime + (nextStop[orderKey] - 1) * minsPerStopStops;
+                                    ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextRealStop[orderKey] - 1) / 60
+                                    : baseTime + (nextRealStop[orderKey] - 1) * minsPerStopStops;
                               const minsToNext =
-                                nextStop == null
+                                nextRealStop == null
                                   ? null
                                   : verifiedStops
-                                    ? (getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextStop[orderKey] - 1) -
+                                    ? (getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextRealStop[orderKey] - 1) -
                                         getDurationFromStartSec(detailRoute.id, orderedNamesStops, (s[orderKey] ?? 0) - 1)) / 60
                                     : nextArrivalMins != null
                                       ? nextArrivalMins - arrivalMins
