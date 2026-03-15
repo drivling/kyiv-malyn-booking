@@ -2979,7 +2979,7 @@
           },
           {
             "name": "Лікарня",
-            "order_there": 1,
+            "order_there": -1,
             "order_back": 10
           }
         ],
