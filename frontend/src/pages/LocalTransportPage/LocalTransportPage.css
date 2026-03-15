@@ -73,6 +73,14 @@
   width: 100%;
 }
 
+/* iPhone / Android: safe area (виріз, home indicator) */
+.lt-page.lt-layout-dark .lt-container {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: env(safe-area-inset-top);
+}
+
 @media (min-width: 768px) {
   .lt-page.lt-layout-dark .lt-container.lt-split-layout {
     flex-direction: row;
@@ -271,10 +279,15 @@
   top: 50%;
   transform: translateY(-50%);
   margin-bottom: 0;
-  padding: 6px;
-  min-width: 32px;
-  min-height: 32px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
   font-size: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .lt-detail--jakdojade .lt-detail-header--jd {
@@ -385,6 +398,12 @@
   border: 1px solid var(--lt-panel-border);
   border-radius: 4px;
   cursor: pointer;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .lt-detail-summary-change:hover {
@@ -473,7 +492,17 @@
 
 .lt-map-column {
   height: 320px;
+  min-height: 280px;
   background: #1a1a1a;
+}
+
+@media (max-width: 767px) {
+  .lt-page.lt-layout-dark .lt-map-column {
+    min-height: 40vh;
+    min-height: 40dvh;
+    height: 40vh;
+    height: 40dvh;
+  }
 }
 
 @media (min-width: 768px) {
@@ -2026,6 +2055,11 @@
   .lt-timetable-header {
     padding-left: 14px;
     padding-right: 14px;
+  }
+
+  .lt-layout-dark .lt-panel .lt-detail--jakdojade {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
   .lt-title {
