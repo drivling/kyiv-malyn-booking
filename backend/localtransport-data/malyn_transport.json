@@ -2132,7 +2132,7 @@
           {
             "name": "Грушевського 87",
             "order_there": 10,
-            "order_back": 9
+            "order_back": 12
           },
           {
             "name": "ЗОШ \" 3",
@@ -2142,11 +2142,11 @@
           {
             "name": "ЗОШ № 3 (навпроти)",
             "order_there": -1,
-            "order_back": 14
+            "order_back": 17
           },
           {
             "name": "Залізничний вокзал",
-            "order_there": 18,
+            "order_there": 21,
             "order_back": 1
           },
           {
@@ -2156,48 +2156,48 @@
           },
           {
             "name": "Ливарний завод",
-            "order_there": 16,
+            "order_there": 17,
             "order_back": -1
           },
           {
             "name": "Ливарний завод (а/стоянка)",
             "order_there": -1,
-            "order_back": 3
+            "order_back": 5
           },
           {
             "name": "Лісна",
             "order_there": 2,
-            "order_back": 18
+            "order_back": 21
           },
           {
             "name": "Лісотехнікум",
             "order_there": 1,
-            "order_back": 19
+            "order_back": 22
           },
           {
             "name": "Малинівський круг",
-            "order_there": 11,
-            "order_back": 8
+            "order_there": 12,
+            "order_back": 10
           },
           {
             "name": "Молокозавод",
-            "order_there": 15,
-            "order_back": 4
+            "order_there": 16,
+            "order_back": 6
           },
           {
             "name": "Огієнка 36",
             "order_there": -1,
-            "order_back": 2
+            "order_back": 4
           },
           {
             "name": "Огієнка 65 (БАМ)",
-            "order_there": 12,
+            "order_there": 13,
             "order_back": -1
           },
           {
             "name": "Огієнка 65 (БАМ) (навпроти)",
             "order_there": -1,
-            "order_back": 7
+            "order_back": 9
           },
           {
             "name": "Поліклініка",
@@ -2207,42 +2207,42 @@
           {
             "name": "РЕМ",
             "order_there": -1,
-            "order_back": 16
+            "order_back": 19
           },
           {
             "name": "ТОВ \"Фратеко\"",
-            "order_there": 17,
+            "order_there": 18,
             "order_back": -1
           },
           {
             "name": "Хлібзавод",
-            "order_there": 13,
-            "order_back": 6
+            "order_there": 14,
+            "order_back": 8
           },
           {
             "name": "Шевченка 22",
             "order_there": -1,
-            "order_back": 13
+            "order_back": 16
           },
           {
             "name": "Ярослава Мудрого",
             "order_there": 9,
-            "order_back": 10
+            "order_back": 13
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 14,
+            "order_there": 15,
             "order_back": -1
           },
           {
             "name": "з-д \"РЕЙЛ\" (навпроти)",
             "order_there": -1,
-            "order_back": 5
+            "order_back": 7
           },
           {
             "name": "м-н \"Богдан\"",
             "order_there": -1,
-            "order_back": 17
+            "order_back": 20
           },
           {
             "name": "м-н \"Будматеріали\"",
@@ -2257,17 +2257,17 @@
           {
             "name": "м-н \"Сонечко\"",
             "order_there": -1,
-            "order_back": 15
+            "order_back": 18
           },
           {
             "name": "м-н \"Сільпо\"",
             "order_there": -1,
-            "order_back": 11
+            "order_back": 14
           },
           {
             "name": "маркет \"Соборний\"",
             "order_there": -1,
-            "order_back": 12
+            "order_back": 15
           },
           {
             "name": "пл. Соборна (біля РБК)",
@@ -2278,6 +2278,30 @@
             "name": "сквер \"Жертв Чорнобиля\"",
             "order_there": -1,
             "order_back": -1
+          },
+          {
+            "name": "Й. Кульчицького (груш)",
+            "order_there": 11,
+            "order_back": 11,
+            "map_only": false
+          },
+          {
+            "name": "№11 т.4",
+            "order_there": 19,
+            "order_back": 3,
+            "map_only": true
+          },
+          {
+            "name": "№11 т.2",
+            "order_there": 20,
+            "order_back": -1,
+            "map_only": true
+          },
+          {
+            "name": "№11 т.3",
+            "order_there": -1,
+            "order_back": 2,
+            "map_only": true
           }
         ],
         "5": [
