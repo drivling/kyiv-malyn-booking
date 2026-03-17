@@ -3635,7 +3635,7 @@
             "name": "Й. Кульчицького (груш)",
             "order_there": 8,
             "order_back": 11,
-            "map_only": true
+            "map_only": false
           }
         ]
       }
