@@ -48,10 +48,11 @@ function getOrderedStopNames(stopsByRoute, routeId, direction) {
     .map((s) => s.name);
 }
 
-function segmentTimeSecFromDistanceM(distanceM) {
+function segmentTimeSecFromDistanceM(distanceM, withStopPause = true) {
   const speedKmh = distanceM >= SEGMENT_LONG_M ? SPEED_KMH_FAST : SPEED_KMH_URBAN;
   const driveSec = (distanceM / 1000 / speedKmh) * 3600;
-  return Math.round(STOP_TIME_SEC + driveSec);
+  const stopSec = withStopPause ? STOP_TIME_SEC : 0;
+  return Math.round(stopSec + driveSec);
 }
 
 async function fetchOsrmRoute(lon1, lat1, lon2, lat2) {
@@ -136,8 +137,12 @@ async function main() {
         const cb = stopsCoords[b];
         const key = `${routeId}|${a}|${b}`;
 
+        const routeStops = stopsByRoute[routeId] || [];
+        const isTechnicalStop = routeStops.some((s) => s.name === a && s.map_only);
+
         if (!ca || !cb || ca.length < 2 || cb.length < 2) {
-          existing.segments[key] = DEFAULT_SEC;
+          const fallbackSec = isTechnicalStop ? Math.max(30, DEFAULT_SEC - STOP_TIME_SEC) : DEFAULT_SEC;
+          existing.segments[key] = fallbackSec;
           continue;
         }
 
@@ -149,9 +154,10 @@ async function main() {
 
         if (distM != null && distM > 0) {
           segmentDistancesM[key] = distM;
-          existing.segments[key] = Math.max(30, segmentTimeSecFromDistanceM(distM));
+          existing.segments[key] = Math.max(30, segmentTimeSecFromDistanceM(distM, !isTechnicalStop));
         } else {
-          existing.segments[key] = DEFAULT_SEC;
+          const fallbackSec = isTechnicalStop ? Math.max(30, DEFAULT_SEC - STOP_TIME_SEC) : DEFAULT_SEC;
+          existing.segments[key] = fallbackSec;
           failed++;
         }
       }
