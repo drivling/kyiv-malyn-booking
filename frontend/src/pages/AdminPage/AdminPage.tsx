@@ -219,7 +219,11 @@ export const AdminPage: React.FC = () => {
         // Якщо імпорт неуспішний (наприклад, немає таблиці ViberRide) — показуємо це як помилку
         setViberAnalyticsError(msg);
       } else {
-        setViberAnalyticsSummary(msg);
+        const cleanupMsg =
+          typeof result.deletedSourceOld === 'number'
+            ? ` Видалено з джерела (ViberRide/ViberListing) записів старіших ніж 1 місяць: ${result.deletedSourceOld}.`
+            : '';
+        setViberAnalyticsSummary(msg + cleanupMsg);
       }
     } catch (err) {
       setViberAnalyticsError(err instanceof Error ? err.message : 'Помилка імпорту аналітики ViberRide');

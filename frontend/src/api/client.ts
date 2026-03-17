@@ -369,6 +369,8 @@ class ApiClient {
     message?: string;
     totalListings?: number;
     totalEvents?: number;
+    deletedSourceOld?: number;
+    sourceCleanupBefore?: string;
   }> {
     return this.request<{
       success: boolean;
@@ -378,6 +380,8 @@ class ApiClient {
       message?: string;
       totalListings?: number;
       totalEvents?: number;
+      deletedSourceOld?: number;
+      sourceCleanupBefore?: string;
     }>('/admin/viber-analytics/import', {
       method: 'POST',
     });

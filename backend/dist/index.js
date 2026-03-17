@@ -85,6 +85,31 @@ app.get('/status', (_req, res) => {
         cwd: process.cwd(),
     });
 });
+// ---------- Local transport JSON for Android/web ----------
+app.get('/localtransport/data', (_req, res) => {
+    try {
+        // Дані лежать поруч з backend (папка localtransport-data), щоб працювало на Railway без frontend
+        const dataDir = path_1.default.join(__dirname, '..', 'localtransport-data');
+        const transportPath = path_1.default.join(dataDir, 'malyn_transport.json');
+        const coordsPath = path_1.default.join(dataDir, 'stops_coords.json');
+        const segmentsPath = path_1.default.join(dataDir, 'segmentDurations.json');
+        const transport = JSON.parse(fs_1.default.readFileSync(transportPath, 'utf8'));
+        const coords = JSON.parse(fs_1.default.readFileSync(coordsPath, 'utf8'));
+        const segments = JSON.parse(fs_1.default.readFileSync(segmentsPath, 'utf8'));
+        res.set({
+            'Cache-Control': 'public, max-age=300',
+        });
+        res.json({
+            transport,
+            coords,
+            segments,
+        });
+    }
+    catch (error) {
+        console.error('❌ /localtransport/data error:', error);
+        res.status(500).json({ error: 'Failed to load local transport data' });
+    }
+});
 // Endpoint для виправлення telegramUserId в існуючих бронюваннях
 app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
     try {
@@ -2234,6 +2259,16 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
             });
             created += result.count;
         }
+        // Після імпорту чистимо джерело: видаляємо записи старше ніж "дата запиту - 1 місяць".
+        // У поточній схемі історія "ViberRide" зберігається в таблиці ViberListing (поле date = дата поїздки).
+        const requestDate = new Date();
+        const cutoff = new Date(requestDate);
+        cutoff.setMonth(cutoff.getMonth() - 1);
+        const deletedOldSource = await prisma.viberListing.deleteMany({
+            where: {
+                date: { lt: cutoff },
+            },
+        });
         const totalEvents = await prisma.viberRideEvent.count();
         res.json({
             success: true,
@@ -2242,6 +2277,8 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
             importedNow: created,
             totalListings: rows.length,
             totalEvents,
+            deletedSourceOld: deletedOldSource.count,
+            sourceCleanupBefore: cutoff.toISOString(),
         });
     }
     catch (e) {

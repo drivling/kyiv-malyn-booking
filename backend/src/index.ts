@@ -2451,6 +2451,17 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       created += result.count;
     }
 
+    // Після імпорту чистимо джерело: видаляємо записи старше ніж "дата запиту - 1 місяць".
+    // У поточній схемі історія "ViberRide" зберігається в таблиці ViberListing (поле date = дата поїздки).
+    const requestDate = new Date();
+    const cutoff = new Date(requestDate);
+    cutoff.setMonth(cutoff.getMonth() - 1);
+    const deletedOldSource = await prisma.viberListing.deleteMany({
+      where: {
+        date: { lt: cutoff },
+      },
+    });
+
     const totalEvents = await (prisma as any).viberRideEvent.count();
 
     res.json({
@@ -2460,6 +2471,8 @@ app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       importedNow: created,
       totalListings: rows.length,
       totalEvents,
+      deletedSourceOld: deletedOldSource.count,
+      sourceCleanupBefore: cutoff.toISOString(),
     });
   } catch (e) {
     console.error('❌ Помилка імпорту з ViberRide в ViberRideEvent:', e);
