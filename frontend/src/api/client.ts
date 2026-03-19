@@ -215,6 +215,19 @@ class ApiClient {
     });
   }
 
+  /** Видалити персону разом із залежними записами (Booking, ViberListing, ViberRideEvent) за personId. */
+  async deletePerson(id: number): Promise<{
+    id: number;
+    deleted: { bookings: number; viberListings: number; viberRideEvents: number };
+  }> {
+    return this.request<{
+      id: number;
+      deleted: { bookings: number; viberListings: number; viberRideEvents: number };
+    }>(`/admin/persons/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   /** Перевірити номера: персони без telegramChatId — спробувати знайти @username через ResolvePhone і оновити telegramUsername. */
   async checkPersonUsernames(): Promise<{ total: number; updated: number; errors?: string[] }> {
     return this.request<{ total: number; updated: number; errors?: string[] }>('/admin/persons/check-usernames', {

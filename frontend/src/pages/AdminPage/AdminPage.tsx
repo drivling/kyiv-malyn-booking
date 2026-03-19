@@ -126,6 +126,7 @@ export const AdminPage: React.FC = () => {
   const [dataSortDir, setDataSortDir] = useState<'asc' | 'desc'>('asc');
   const [refreshNamesLoading, setRefreshNamesLoading] = useState(false);
   const [refreshNamesResult, setRefreshNamesResult] = useState<RefreshPersonNamesResponse | null>(null);
+  const [deletingPersonId, setDeletingPersonId] = useState<number | null>(null);
   const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
   const [phoneCheckSummary, setPhoneCheckSummary] = useState('');
   const [checkUsernamesLoading, setCheckUsernamesLoading] = useState(false);
@@ -498,6 +499,28 @@ export const AdminPage: React.FC = () => {
       loadPersons();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка оновлення');
+    }
+  };
+
+  const handleDeletePerson = async (p: PersonWithCounts) => {
+    const warn = `Видалити персону #${p.id}? Це також видалить залежні записи: бронювання (${p._count.bookings}), Viber-оголошення (${p._count.viberListings}) та аналітичні події ViberRide. Дію не можна скасувати.`;
+    if (!confirm(warn)) return;
+    setDeletingPersonId(p.id);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await apiClient.deletePerson(p.id);
+      if (editingPerson?.id === p.id) {
+        setEditingPerson(null);
+      }
+      setSuccess(
+        `Персону #${result.id} видалено. Видалено записів: бронювань — ${result.deleted.bookings}, Viber-оголошень — ${result.deleted.viberListings}, ViberRide подій — ${result.deleted.viberRideEvents}.`,
+      );
+      await loadPersons();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка видалення персони');
+    } finally {
+      setDeletingPersonId(null);
     }
   };
 
@@ -1962,9 +1985,18 @@ export const AdminPage: React.FC = () => {
                           <td>{p._count.bookings}</td>
                           <td>{p._count.viberListings}</td>
                           <td>
-                            <Button variant="secondary" onClick={() => openEditPerson(p)}>
-                              Редагувати
-                            </Button>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <Button variant="secondary" onClick={() => openEditPerson(p)} disabled={deletingPersonId === p.id}>
+                                Редагувати
+                              </Button>
+                              <Button
+                                variant="danger"
+                                onClick={() => handleDeletePerson(p)}
+                                disabled={deletingPersonId === p.id}
+                              >
+                                {deletingPersonId === p.id ? 'Видалення...' : 'Видалити'}
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );

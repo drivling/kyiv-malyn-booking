@@ -2022,6 +2022,52 @@ app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
   }
 });
 
+/** Видалити персону та всі залежні записи по personId (Booking, ViberListing, ViberRideEvent). */
+app.delete('/admin/persons/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const person = await tx.person.findUnique({ where: { id } });
+      if (!person) return null;
+
+      const [bookingsDeleted, viberListingsDeleted, viberRideEventsDeleted] = await Promise.all([
+        tx.booking.deleteMany({ where: { personId: id } }),
+        tx.viberListing.deleteMany({ where: { personId: id } }),
+        tx.viberRideEvent.deleteMany({ where: { personId: id } }),
+      ]);
+
+      await tx.person.delete({ where: { id } });
+
+      return {
+        id,
+        deleted: {
+          bookings: bookingsDeleted.count,
+          viberListings: viberListingsDeleted.count,
+          viberRideEvents: viberRideEventsDeleted.count,
+        },
+      };
+    });
+
+    if (!result) {
+      res.status(404).json({ error: 'Персону не знайдено' });
+      return;
+    }
+
+    console.log(
+      `🗑️ Видалено персону #${result.id}: booking.count=${result.deleted.bookings}, viberListing.count=${result.deleted.viberListings}, viberRideEvent.count=${result.deleted.viberRideEvents}`,
+    );
+    res.json(result);
+  } catch (e) {
+    console.error('❌ DELETE /admin/persons/:id:', e);
+    res.status(500).json({ error: 'Не вдалося видалити персону' });
+  }
+});
+
 /** База нагадувань — тільки персони з Telegram ботом (мають telegramChatId). filter: all = всі, no_active_viber = без активних Viber оголошень. */
 const hasTelegramReminderBaseCondition = {
   telegramChatId: {
