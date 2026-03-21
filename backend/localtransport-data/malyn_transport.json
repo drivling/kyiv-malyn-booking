@@ -2216,8 +2216,8 @@
           },
           {
             "name": "Хлібзавод",
-            "order_there": 16,
-            "order_back": 8
+            "order_there": 17,
+            "order_back": 7
           },
           {
             "name": "Шевченка 22",
@@ -2231,13 +2231,13 @@
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 17,
+            "order_there": 16,
             "order_back": -1
           },
           {
             "name": "з-д \"РЕЙЛ\" (навпроти)",
             "order_there": -1,
-            "order_back": 7
+            "order_back": 8
           },
           {
             "name": "м-н \"Богдан\"",
@@ -2404,8 +2404,8 @@
           },
           {
             "name": "Хлібзавод",
-            "order_there": 17,
-            "order_back": 8
+            "order_there": 18,
+            "order_back": 7
           },
           {
             "name": "Швейна фабрика",
@@ -2439,13 +2439,13 @@
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 18,
+            "order_there": 17,
             "order_back": -1
           },
           {
             "name": "з-д \"РЕЙЛ\" (навпроти)",
             "order_there": -1,
-            "order_back": 7
+            "order_back": 8
           },
           {
             "name": "м-н \"Будматеріали\"",
@@ -3376,8 +3376,8 @@
           },
           {
             "name": "Хлібзавод",
-            "order_there": 20,
-            "order_back": 8
+            "order_there": 21,
+            "order_back": 7
           },
           {
             "name": "Швейна фабрика",
@@ -3401,13 +3401,13 @@
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 21,
+            "order_there": 20,
             "order_back": -1
           },
           {
             "name": "з-д \"РЕЙЛ\" (навпроти)",
             "order_there": -1,
-            "order_back": 7
+            "order_back": 8
           },
           {
             "name": "м-н \"Будматеріали\"",
@@ -3591,8 +3591,8 @@
           },
           {
             "name": "Хлібзавод",
-            "order_there": 11,
-            "order_back": 8
+            "order_there": 12,
+            "order_back": 7
           },
           {
             "name": "Шевченка 22",
@@ -3606,13 +3606,13 @@
           },
           {
             "name": "з-д \"РЕЙЛ\"",
-            "order_there": 12,
+            "order_there": 11,
             "order_back": -1
           },
           {
             "name": "з-д \"РЕЙЛ\" (навпроти)",
             "order_there": -1,
-            "order_back": 7
+            "order_back": 8
           },
           {
             "name": "м-н \"Будматеріали\"",
