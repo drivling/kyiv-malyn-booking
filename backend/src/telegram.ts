@@ -578,42 +578,6 @@ async function findMatchingDriversForPassenger(passengerListing: {
   });
 }
 
-function buildPassengerMatchMessageForDriver(
-  driverListing: { id: number; route: string; date: Date; departureTime: string | null; seats: number | null; phone: string; senderName: string | null; notes: string | null },
-  options?: { includeBotActionHint?: boolean }
-): string {
-  return (
-    `🎯 Пряме співпадіння: з\'явився водій на ваш маршрут і дату.\n\n` +
-    `🛣 ${getRouteName(driverListing.route)}\n` +
-    `📅 ${formatDate(driverListing.date)}\n` +
-    (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
-    (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
-    `👤 ${driverListing.senderName ?? 'Водій'}\n` +
-    `📞 ${formatPhoneTelLink(driverListing.phone)}` +
-    (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
-    (options?.includeBotActionHint
-      ? '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 годину на підтвердження._'
-      : '')
-  );
-}
-
-function buildDriverMatchMessageForPassenger(
-  passengerListing: { id: number; route: string; date: Date; departureTime: string | null; phone: string; senderName: string | null; notes: string | null },
-  options?: { includeBotActionHint?: boolean }
-): string {
-  // includeBotActionHint наразі не використовується (для водія кнопка "запропонувати" сама пояснює дію)
-  void options;
-  return (
-    `🎯 Пряме співпадіння: новий запит пасажира на ваш маршрут і дату.\n\n` +
-    `🛣 ${getRouteName(passengerListing.route)}\n` +
-    `📅 ${formatDate(passengerListing.date)}\n` +
-    (passengerListing.departureTime ? `🕐 ${passengerListing.departureTime}\n` : '') +
-    `👤 ${passengerListing.senderName ?? 'Пасажир'}\n` +
-    `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
-    (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '')
-  );
-}
-
 async function sendMatchMessageToPerson(
   phone: string,
   messageHtml: string,
@@ -637,6 +601,180 @@ async function sendMatchMessageToPerson(
     telegramUsername: person?.telegramUsername ?? null,
   }).catch(() => false);
   return ok ? { sent: true, via: 'user' } : { sent: false, via: 'none' };
+}
+
+async function sleepTelethonBatchDelay(): Promise<void> {
+  if (isTelegramUserSenderEnabled()) {
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
+type CounterpartNotifyOutcome =
+  | { kind: 'skipped' }
+  | { kind: 'failed' }
+  | { kind: 'sent'; via: 'bot' | 'user' };
+
+/** Пасажир отримує повідомлення про водія для пари (дедуп у БД). */
+async function notifyPassengerAboutDriverPair(
+  driverListing: {
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    seats: number | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+  },
+  passengerListing: { id: number; phone: string },
+  matchType: 'exact' | 'approximate'
+): Promise<CounterpartNotifyOutcome> {
+  const row = await prisma.viberMatchPairNotification.findUnique({
+    where: {
+      passengerListingId_driverListingId: {
+        passengerListingId: passengerListing.id,
+        driverListingId: driverListing.id,
+      },
+    },
+  });
+  if (row?.passengerNotifiedAt) return { kind: 'skipped' };
+
+  const label = matchType === 'exact' ? '🎯 Пряме співпадіння' : '📌 Приблизне співпадіння';
+  const msg =
+    `${label}: з\'явився водій на ваш маршрут і дату.\n\n` +
+    `🛣 ${getRouteName(driverListing.route)}\n` +
+    `📅 ${formatDate(driverListing.date)}\n` +
+    (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
+    (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
+    `👤 ${driverListing.senderName ?? 'Водій'}\n` +
+    `📞 ${formatPhoneTelLink(driverListing.phone)}` +
+    (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
+    (matchType === 'exact'
+      ? '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 годину на підтвердження._'
+      : '');
+
+  const replyMarkup =
+    matchType === 'exact'
+      ? {
+          inline_keyboard: [
+            [
+              {
+                text: `🎫 Забронювати у ${driverListing.senderName ?? 'водія'}`,
+                callback_data: `vibermatch_book_${passengerListing.id}_${driverListing.id}`,
+              },
+            ],
+          ],
+        }
+      : undefined;
+
+  const result = await sendMatchMessageToPerson(passengerListing.phone, msg, replyMarkup ? { replyMarkup } : undefined);
+  if (!result.sent) return { kind: 'failed' };
+
+  await prisma.viberMatchPairNotification.upsert({
+    where: {
+      passengerListingId_driverListingId: {
+        passengerListingId: passengerListing.id,
+        driverListingId: driverListing.id,
+      },
+    },
+    create: {
+      passengerListingId: passengerListing.id,
+      driverListingId: driverListing.id,
+      passengerNotifiedAt: new Date(),
+    },
+    update: { passengerNotifiedAt: new Date() },
+  });
+  return { kind: 'sent', via: result.via === 'user' ? 'user' : 'bot' };
+}
+
+/** Водій отримує повідомлення про пасажира для пари (дедуп у БД). */
+async function notifyDriverAboutPassengerPair(
+  driverListing: { id: number; phone: string },
+  passengerListing: {
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+  },
+  matchType: 'exact' | 'approximate'
+): Promise<CounterpartNotifyOutcome> {
+  const row = await prisma.viberMatchPairNotification.findUnique({
+    where: {
+      passengerListingId_driverListingId: {
+        passengerListingId: passengerListing.id,
+        driverListingId: driverListing.id,
+      },
+    },
+  });
+  if (row?.driverNotifiedAt) return { kind: 'skipped' };
+
+  const label = matchType === 'exact' ? '🎯 Пряме співпадіння' : '📌 Приблизне співпадіння';
+  const msg =
+    `${label}: новий запит пасажира на ваш маршрут і дату.\n\n` +
+    `🛣 ${getRouteName(passengerListing.route)}\n` +
+    `📅 ${formatDate(passengerListing.date)}\n` +
+    (passengerListing.departureTime ? `🕐 ${passengerListing.departureTime}\n` : '') +
+    `👤 ${passengerListing.senderName ?? 'Пасажир'}\n` +
+    `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
+    (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '');
+
+  const replyMarkup =
+    matchType === 'exact'
+      ? {
+          inline_keyboard: [
+            [
+              {
+                text: `🤝 Запропонувати ${passengerListing.senderName ?? 'пасажиру'}`,
+                callback_data: `vibermatch_book_driver_${driverListing.id}_${passengerListing.id}`,
+              },
+            ],
+          ],
+        }
+      : undefined;
+
+  const result = await sendMatchMessageToPerson(driverListing.phone, msg, replyMarkup ? { replyMarkup } : undefined);
+  if (!result.sent) return { kind: 'failed' };
+
+  await prisma.viberMatchPairNotification.upsert({
+    where: {
+      passengerListingId_driverListingId: {
+        passengerListingId: passengerListing.id,
+        driverListingId: driverListing.id,
+      },
+    },
+    create: {
+      passengerListingId: passengerListing.id,
+      driverListingId: driverListing.id,
+      driverNotifiedAt: new Date(),
+    },
+    update: { driverNotifiedAt: new Date() },
+  });
+  return { kind: 'sent', via: result.via === 'user' ? 'user' : 'bot' };
+}
+
+async function sendAdminNewListingMatchReport(
+  listingId: number,
+  listingType: 'driver' | 'passenger',
+  pairCount: number,
+  stats: { sent: number; skipped: number; failed: number }
+): Promise<void> {
+  if (pairCount === 0 || !bot || !adminChatId) return;
+  // Після merge усі пари часто лише «skipped» — не засмічуємо адмін-чат
+  if (stats.sent === 0 && stats.failed === 0) return;
+  const typeUa = listingType === 'driver' ? 'водій' : 'пасажир';
+  const targetUa = listingType === 'driver' ? 'пасажирів' : 'водіїв';
+  await bot
+    .sendMessage(
+      adminChatId,
+      `🔔 <b>Збіги після збереження оголошення</b> #${listingId} (${typeUa})\n\n` +
+        `• Пар по маршруту/даті: ${pairCount}\n` +
+        `• Сповіщено ${targetUa} (бот або ваш акаунт): надіслано ${stats.sent}, уже отримували цю пару: ${stats.skipped}, не доставлено: ${stats.failed}`,
+      { parse_mode: 'HTML' }
+    )
+    .catch(() => {});
 }
 
 /** Після додавання поїздки водія: сповістити водія та всіх пасажирів, що збігаються. */
@@ -678,35 +816,18 @@ export async function notifyMatchingPassengersForNewDriver(
     ).catch(() => {});
   }
 
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
   for (const { listing: p, matchType } of matches) {
-    const passengerChatId = await getChatIdByPhone(p.phone);
-    if (!passengerChatId) continue;
-    const label = matchType === 'exact' ? '🎯 Пряме співпадіння' : '📌 Приблизне співпадіння';
-    const msg = `${label}: з\'явився водій на ваш маршрут і дату.\n\n` +
-      `🛣 ${getRouteName(driverListing.route)}\n` +
-      `📅 ${formatDate(driverListing.date)}\n` +
-      (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
-      (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
-      `👤 ${driverListing.senderName ?? 'Водій'}\n` +
-      `📞 ${formatPhoneTelLink(driverListing.phone)}` +
-      (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
-      (matchType === 'exact'
-        ? '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 годину на підтвердження._'
-        : '');
-
-    const replyMarkup = matchType === 'exact'
-      ? {
-          inline_keyboard: [[
-            { text: `🎫 Забронювати у ${driverListing.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${p.id}_${driverListing.id}` }
-          ]]
-        }
-      : undefined;
-
-    await bot?.sendMessage(passengerChatId, msg, {
-      parse_mode: 'HTML',
-      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-    }).catch(() => {});
+    const out = await notifyPassengerAboutDriverPair(driverListing, { id: p.id, phone: p.phone }, matchType);
+    if (out.kind === 'sent') sent++;
+    else if (out.kind === 'skipped') skipped++;
+    else failed++;
+    await sleepTelethonBatchDelay();
   }
+
+  await sendAdminNewListingMatchReport(driverListing.id, 'driver', matches.length, { sent, skipped, failed });
 }
 
 /** Викликати після створення запиту пасажира (бот або адмінка). passengerChatId — якщо є (з бота), сповістимо пасажира про збіги. */
@@ -745,19 +866,18 @@ export async function notifyMatchingDriversForNewPassenger(
     ).catch(() => {});
   }
 
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
   for (const { listing: d, matchType } of matches) {
-    const driverChatId = await getChatIdByPhone(d.phone);
-    if (!driverChatId) continue;
-    const label = matchType === 'exact' ? '🎯 Пряме співпадіння' : '📌 Приблизне співпадіння';
-    const msg = `${label}: новий запит пасажира на ваш маршрут і дату.\n\n` +
-      `🛣 ${getRouteName(passengerListing.route)}\n` +
-      `📅 ${formatDate(passengerListing.date)}\n` +
-      (passengerListing.departureTime ? `🕐 ${passengerListing.departureTime}\n` : '') +
-      `👤 ${passengerListing.senderName ?? 'Пасажир'}\n` +
-      `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
-      (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '');
-    await bot?.sendMessage(driverChatId, msg, { parse_mode: 'HTML' }).catch(() => {});
+    const out = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, passengerListing, matchType);
+    if (out.kind === 'sent') sent++;
+    else if (out.kind === 'skipped') skipped++;
+    else failed++;
+    await sleepTelethonBatchDelay();
   }
+
+  await sendAdminNewListingMatchReport(passengerListing.id, 'passenger', matches.length, { sent, skipped, failed });
 }
 
 // --- Робота з Person (єдина база людей) ---
@@ -3159,14 +3279,15 @@ https://malin.kiev.ua
     );
   });
 
-  // Команда /checkclients — тільки для адміна: знайти прямі співпадіння (пасажир ↔ водій) у майбутніх попутках і надіслати повідомлення в особистий канал (бот або ваш акаунт)
+  // Команда /checkclients — тільки для адміна: ті самі збіги, що й при новій поїздці (маршрут+дата, точне/приблизне),
+  // доставка через бот або ваш акаунт; пари вже сповічені раніше пропускаються (таблиця ViberMatchPairNotification).
   bot.onText(/^\/checkclients(?:@\w+)?$/i, async (msg) => {
     const chatId = msg.chat.id.toString();
     if (chatId !== adminChatId) return;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    await bot?.sendMessage(chatId, '⏳ Перевіряю прямі співпадіння пасажирів та водіїв у майбутніх поїздках…', {
+    await bot?.sendMessage(chatId, '⏳ Перевіряю співпадіння пасажирів та водіїв у майбутніх поїздках (як при автододаванні)…', {
       parse_mode: 'HTML',
     }).catch(() => {});
 
@@ -3192,61 +3313,59 @@ https://malin.kiev.ua
     }
 
     let pairCount = 0;
-    let sentToPassengers = 0;
-    let sentToDrivers = 0;
+    let exactPairCount = 0;
+    let passengerSent = 0;
+    let passengerSkipped = 0;
+    let passengerFailed = 0;
+    let driverSent = 0;
+    let driverSkipped = 0;
+    let driverFailed = 0;
     let sentViaUser = 0;
     let sentViaBot = 0;
 
     for (const d of drivers) {
-      if (!d.departureTime?.trim()) continue;
       const key = `${d.route}__${toDateKey(d.date)}`;
       const ps = passengersByKey.get(key);
       if (!ps || ps.length === 0) continue;
       for (const p of ps) {
-        if (!p.departureTime?.trim()) continue;
-        if (!isExactTimeMatch(d.departureTime, p.departureTime)) continue;
         pairCount++;
+        const matchType: 'exact' | 'approximate' =
+          !!d.departureTime?.trim() && !!p.departureTime?.trim() && isExactTimeMatch(d.departureTime, p.departureTime)
+            ? 'exact'
+            : 'approximate';
+        if (matchType === 'exact') exactPairCount++;
 
-        const passengerMsg = buildPassengerMatchMessageForDriver(d, { includeBotActionHint: true });
-        const passengerKb: TelegramBot.InlineKeyboardMarkup = {
-          inline_keyboard: [[{ text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${p.id}_${d.id}` }]],
-        };
-        const passengerResult = await sendMatchMessageToPerson(p.phone, passengerMsg, { replyMarkup: passengerKb });
-        if (passengerResult.sent) {
-          sentToPassengers++;
-          if (passengerResult.via === 'user') sentViaUser++;
-          if (passengerResult.via === 'bot') sentViaBot++;
-        }
+        const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType);
+        if (pOut.kind === 'sent') {
+          passengerSent++;
+          if (pOut.via === 'user') sentViaUser++;
+          else sentViaBot++;
+        } else if (pOut.kind === 'skipped') passengerSkipped++;
+        else passengerFailed++;
 
-        const driverMsg = buildDriverMatchMessageForPassenger(p);
-        const driverKb: TelegramBot.InlineKeyboardMarkup = {
-          inline_keyboard: [[{ text: `🤝 Запропонувати ${p.senderName ?? 'пасажиру'}`, callback_data: `vibermatch_book_driver_${d.id}_${p.id}` }]],
-        };
-        const driverResult = await sendMatchMessageToPerson(d.phone, driverMsg, { replyMarkup: driverKb });
-        if (driverResult.sent) {
-          sentToDrivers++;
-          if (driverResult.via === 'user') sentViaUser++;
-          if (driverResult.via === 'bot') sentViaBot++;
-        }
+        const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType);
+        if (dOut.kind === 'sent') {
+          driverSent++;
+          if (dOut.via === 'user') sentViaUser++;
+          else sentViaBot++;
+        } else if (dOut.kind === 'skipped') driverSkipped++;
+        else driverFailed++;
 
-        // невелика пауза, щоб не влетіти в rate-limit Telethon при серії відправок через user-акаунт
-        if (isTelegramUserSenderEnabled()) {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
+        await sleepTelethonBatchDelay();
       }
     }
 
     const userSenderHint = isTelegramUserSenderEnabled()
-      ? `\n• Через ваш акаунт (Telethon): ${sentViaUser}`
+      ? `\n• Усього відправок через ваш акаунт (Telethon): ${sentViaUser}`
       : `\n• Через ваш акаунт (Telethon): вимкнено (немає TELEGRAM_USER_SESSION_PATH / TELEGRAM_API_ID / TELEGRAM_API_HASH)`;
 
     await bot?.sendMessage(
       chatId,
       '✅ <b>/checkclients завершено</b>\n\n' +
-        `• Прямих пар (пасажир↔водій): ${pairCount}\n` +
-        `• Надіслано пасажирам: ${sentToPassengers}\n` +
-        `• Надіслано водіям: ${sentToDrivers}\n` +
-        `• Через бот (по telegramChatId): ${sentViaBot}` +
+        `• Пар (маршрут+дата): ${pairCount} (з них точний час: ${exactPairCount})\n` +
+        `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
+        `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
+        `• Через бот: ${sentViaBot}` +
         userSenderHint,
       { parse_mode: 'HTML' }
     ).catch(() => {});
@@ -3540,7 +3659,7 @@ https://malin.kiev.ua
                     departureTime: listing.departureTime,
                     seats: listing.seats,
                     listingType: listing.listingType,
-                  }).catch((err) => console.error('Telegram Viber user notify:', err));
+                  }                ).catch((err) => console.error('Telegram Viber user notify:', err));
                 }
                 const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
                 if (listing.listingType === 'driver') {
@@ -3621,7 +3740,7 @@ https://malin.kiev.ua
                 departureTime: listing.departureTime,
                 seats: listing.seats,
                 listingType: listing.listingType,
-              }).catch((err) => console.error('Telegram Viber user notify:', err));
+              }            ).catch((err) => console.error('Telegram Viber user notify:', err));
             }
             const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
             if (listing.listingType === 'driver') {
@@ -4040,7 +4159,7 @@ https://malin.kiev.ua
                   departureTime: listing.departureTime,
                   seats: listing.seats,
                   listingType: listing.listingType,
-                }).catch((err) => console.error('Telegram user notify:', err));
+                }              ).catch((err) => console.error('Telegram user notify:', err));
               }
               const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
               if (listing.listingType === 'driver') {

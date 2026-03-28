@@ -94,6 +94,26 @@ model ViberListing {
   bookingsFromRideShare    Booking[]
   rideShareRequestsAsPassenger RideShareRequest[] @relation("RideShareAsPassenger")
   rideShareRequestsAsDriver   RideShareRequest[] @relation("RideShareAsDriver")
+  matchNotifyAsPassenger      ViberMatchPairNotification[] @relation("MatchNotifyPassengerListing")
+  matchNotifyAsDriver         ViberMatchPairNotification[] @relation("MatchNotifyDriverListing")
+}
+
+/// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).
+model ViberMatchPairNotification {
+  id                  Int       @id @default(autoincrement())
+  passengerListingId  Int
+  driverListingId     Int
+  /// Пасажир уже отримав повідомлення «є водій» для цієї пари
+  passengerNotifiedAt DateTime?
+  /// Водій уже отримав повідомлення «є пасажир» для цієї пари
+  driverNotifiedAt    DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  passengerListing ViberListing @relation("MatchNotifyPassengerListing", fields: [passengerListingId], references: [id], onDelete: Cascade)
+  driverListing    ViberListing @relation("MatchNotifyDriverListing", fields: [driverListingId], references: [id], onDelete: Cascade)
+
+  @@unique([passengerListingId, driverListingId])
 }
 
 /// Аналітичні події, згенеровані з історичної таблиці "ViberRide" (окремий сервіс парсингу).

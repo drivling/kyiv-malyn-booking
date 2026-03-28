@@ -1465,7 +1465,7 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
           priceUah: listing.priceUah ?? undefined,
         }).catch((err) => console.error('Telegram Viber user notify:', err));
       }
-      // Сповістити про збіги водій/пасажир — як при додаванні через бота
+      // Збіги після збереження (новий рядок або merge): дедуп пар у БД не дає спамити старі пари; повторний прогін — нові оголошення в базі та повтор невдалих доставок
       const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
       if (listing.listingType === 'driver') {
         notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
@@ -1553,7 +1553,6 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
               priceUah: listing.priceUah ?? undefined,
             }).catch((err) => console.error('Telegram Viber user notify:', err));
           }
-          // Сповістити про збіги водій/пасажир (як при додаванні через бота)
           const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
           if (listing.listingType === 'driver') {
             notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
