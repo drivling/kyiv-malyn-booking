@@ -27,6 +27,8 @@ interface RouteMapProps {
   onSwapStops?: () => void;
   /** Часті кінцеві зупинки для швидкого вибору "ПО" */
   frequentToStops?: string[];
+  /** Тап по маркеру зупинки (наприклад розгорнути mobile sheet карти) */
+  onStopMarkerActivate?: () => void;
 }
 
 interface CoordsData {
@@ -125,6 +127,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   onPickToStop,
   onSwapStops,
   frequentToStops = [],
+  onStopMarkerActivate,
 }) => {
   const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
   const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
@@ -295,7 +298,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 position={stopsRecord[n] as [number, number]}
                 icon={icon}
                 eventHandlers={{
-                  click: () => setSelectedStopOnMap(n),
+                  click: () => {
+                    setSelectedStopOnMap(n);
+                    onStopMarkerActivate?.();
+                  },
                 }}
               >
                 <Popup>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
@@ -465,6 +465,103 @@ export const LocalTransportPage: React.FC = () => {
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
+  const [mobileMapSnap, setMobileMapSnap] = useState<'collapsed' | 'mid' | 'full'>('collapsed');
+  const touchStartYRef = useRef<number | null>(null);
+  const touchStartTimeRef = useRef<number | null>(null);
+  const isMobileMapExpanded = mobileMapSnap !== 'collapsed';
+
+  const hapticLight = useCallback(() => {
+    try {
+      if (typeof navigator !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+        navigator.vibrate?.(12);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const cycleMobileMapSnap = () => {
+    setMobileMapSnap((prev) => (prev === 'collapsed' ? 'mid' : prev === 'mid' ? 'full' : 'collapsed'));
+    hapticLight();
+  };
+
+  /** Розгорнути карту на мобілці після тапу по маркеру (як у Google Maps / Transit) */
+  const expandMobileMapSheetForStop = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    setMobileMapSnap((prev) => {
+      if (prev === 'collapsed') {
+        queueMicrotask(() => hapticLight());
+        return 'mid';
+      }
+      return prev;
+    });
+  }, [hapticLight]);
+
+  const handleMobileMapTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
+    touchStartYRef.current = e.touches[0]?.clientY ?? null;
+    touchStartTimeRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  };
+
+  const handleMobileMapTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
+    const startY = touchStartYRef.current;
+    const startT = touchStartTimeRef.current;
+    touchStartYRef.current = null;
+    touchStartTimeRef.current = null;
+    if (startY == null || startT == null) return;
+    const endY = e.changedTouches[0]?.clientY ?? startY;
+    const endT = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const deltaY = endY - startY;
+    const dt = Math.max(16, endT - startT);
+    const velocityPxPerMs = deltaY / dt;
+
+    const FLING = 0.45;
+    const DRAG = 36;
+
+    const moveUp = () => {
+      setMobileMapSnap((prev) => {
+        if (prev === 'collapsed') return 'mid';
+        if (prev === 'mid') return 'full';
+        return prev;
+      });
+      hapticLight();
+    };
+    const moveDown = () => {
+      setMobileMapSnap((prev) => {
+        if (prev === 'full') return 'mid';
+        if (prev === 'mid') return 'collapsed';
+        return prev;
+      });
+      hapticLight();
+    };
+
+    if (velocityPxPerMs < -FLING) {
+      moveUp();
+      return;
+    }
+    if (velocityPxPerMs > FLING) {
+      moveDown();
+      return;
+    }
+    if (deltaY < -DRAG) {
+      moveUp();
+      return;
+    }
+    if (deltaY > DRAG) {
+      moveDown();
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.innerWidth >= 768) return;
+    if (!isMobileMapExpanded) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMobileMapExpanded]);
 
   useEffect(() => {
     try {
@@ -1484,7 +1581,25 @@ export const LocalTransportPage: React.FC = () => {
               <a href="tel:+380687771590">(068) 77-71-590</a>
             </footer>
           </div>
-          <div className="lt-map-column">
+            {isMobileMapExpanded && (
+              <button
+                type="button"
+                className="lt-mobile-map-backdrop"
+                aria-label="Закрити карту"
+                onClick={() => setMobileMapSnap('collapsed')}
+              />
+            )}
+            <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
+            <button
+              type="button"
+              className="lt-mobile-map-toggle"
+                onClick={cycleMobileMapSnap}
+                onTouchStart={handleMobileMapTouchStart}
+                onTouchEnd={handleMobileMapTouchEnd}
+                aria-label={mobileMapSnap === 'collapsed' ? 'Відкрити карту' : mobileMapSnap === 'mid' ? 'Розгорнути карту на весь екран' : 'Згорнути карту'}
+            >
+              {mobileMapSnap === 'collapsed' ? 'Карта' : mobileMapSnap === 'mid' ? 'Ще більше' : 'Список'}
+            </button>
             <RouteMap
               routeId={detailRoute.id}
               stopNames={mapStopNamesToShow}
@@ -1502,6 +1617,7 @@ export const LocalTransportPage: React.FC = () => {
               }}
               onSwapStops={() => reverseDirectionAndFromTo()}
               frequentToStops={frequentToStops}
+              onStopMarkerActivate={expandMobileMapSheetForStop}
               dark
             />
           </div>
