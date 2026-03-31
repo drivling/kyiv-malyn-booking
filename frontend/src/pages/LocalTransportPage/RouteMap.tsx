@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { VERIFIED_ROUTE_IDS } from './routeTiming';
@@ -19,6 +19,14 @@ interface RouteMapProps {
   toStopName?: string;
   /** Темна тема + зелена лінія (як Jakdojade) */
   dark?: boolean;
+  /** Клік по зупинці: вибрати як "Звідси" */
+  onPickFromStop?: (stopName: string) => void;
+  /** Клік по зупинці: вибрати як "ПО" */
+  onPickToStop?: (stopName: string) => void;
+  /** Поміняти "З" та "ПО" місцями */
+  onSwapStops?: () => void;
+  /** Часті кінцеві зупинки для швидкого вибору "ПО" */
+  frequentToStops?: string[];
 }
 
 interface CoordsData {
@@ -46,6 +54,15 @@ function MapBounds({
   return null;
 }
 
+function MapViewportEvents({ onViewportChange }: { onViewportChange: () => void }) {
+  useMapEvents({
+    move: onViewportChange,
+    zoom: onViewportChange,
+    resize: onViewportChange,
+  });
+  return null;
+}
+
 function createCircleIcon(color: string, size = 16) {
   return L.divIcon({
     className: 'lt-map-marker',
@@ -64,8 +81,8 @@ function createCircleIcon(color: string, size = 16) {
 }
 
 const defaultIcon = createCircleIcon('#1a73e8', 14);
-const fromIcon = createCircleIcon('#1967d2', 18);
-const toIcon = createCircleIcon('#ea4335', 18);
+const fromIcon = createCircleIcon('#34a853', 18);
+const toIcon = createCircleIcon('#1a73e8', 18);
 
 const fromIconGreen = createCircleIcon('#8ab4f8', 18);
 const toIconBlue = createCircleIcon('#f28b82', 18);
@@ -104,6 +121,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   fromStopName,
   toStopName,
   dark = false,
+  onPickFromStop,
+  onPickToStop,
+  onSwapStops,
+  frequentToStops = [],
 }) => {
   const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
   const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
@@ -111,6 +132,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const toI = dark ? toIconBlue : toIcon;
   const [coords, setCoords] = useState<CoordsData | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [selectedStopOnMap, setSelectedStopOnMap] = useState<string>('');
+  const [radialPosition, setRadialPosition] = useState<{ x: number; y: number } | null>(null);
+  const [mapRef, setMapRef] = useState<L.Map | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -131,8 +155,6 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     }
   }, []);
 
-  if (!mounted) return null;
-
   const center = coords?.center ?? MALYN_CENTER;
   const stopsRecord = coords?.stops ?? {};
   const stopsWithCoords = stopNames.length > 0 ? stopNames.filter((n) => stopsRecord[n]) : [];
@@ -142,6 +164,34 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   );
   const showRouteLine = routeId && (VERIFIED_ROUTE_IDS as readonly string[]).includes(routeId) && positions.length >= 2;
   const hasAnyStops = positions.length > 0;
+  const hasBothStops = Boolean(fromStopName && toStopName);
+  const hasOneStop = Boolean((fromStopName && !toStopName) || (!fromStopName && toStopName));
+  const secondStepHint = fromStopName && !toStopName
+    ? 'Обрано "Звідси". Тепер виберіть куди їхати.'
+    : toStopName && !fromStopName
+      ? 'Обрано "ПО". Тепер виберіть звідки їхати.'
+      : '';
+  const filteredFrequentToStops = frequentToStops.filter((n) => n && n !== fromStopName && n !== toStopName).slice(0, 3);
+
+  useEffect(() => {
+    const stops = coords?.stops ?? {};
+    if (!selectedStopOnMap || !mapRef || !stops[selectedStopOnMap]) {
+      setRadialPosition(null);
+      return;
+    }
+    const [lat, lng] = stops[selectedStopOnMap];
+    const p = mapRef.latLngToContainerPoint([lat, lng]);
+    setRadialPosition({ x: p.x, y: p.y });
+  }, [selectedStopOnMap, mapRef, coords]);
+
+  if (!mounted) return null;
+
+  const updateRadialPosition = () => {
+    if (!selectedStopOnMap || !mapRef || !stopsRecord[selectedStopOnMap]) return;
+    const [lat, lng] = stopsRecord[selectedStopOnMap];
+    const p = mapRef.latLngToContainerPoint([lat, lng]);
+    setRadialPosition({ x: p.x, y: p.y });
+  };
 
   // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту (по повному списку для лінії)
   const fromIdx = fromStopName ? stopsWithCoords.indexOf(fromStopName) : -1;
@@ -161,6 +211,23 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
   return (
     <div className={`lt-map-wrapper ${dark ? 'lt-map-wrapper--dark' : ''}`}>
+      <div className="lt-direction-strip" aria-label="Обрані зупинки">
+        <span className="lt-direction-strip__from">З {fromStopName || '—'}</span>
+        <button
+          type="button"
+          className="lt-direction-strip__swap"
+          onClick={onSwapStops}
+          disabled={!hasBothStops}
+          title="Поміняти місцями"
+          aria-label="Поміняти місцями З та ПО"
+        >
+          ⇄
+        </button>
+        <span className="lt-direction-strip__to">ПО {toStopName || '—'}</span>
+      </div>
+      {hasOneStop && secondStepHint && (
+        <p className="lt-direction-strip__hint">{secondStepHint}</p>
+      )}
       <h3 className="lt-map-heading">Карта маршруту</h3>
       <div className="lt-map-container">
         <MapContainer
@@ -169,12 +236,15 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           className="lt-map"
           scrollWheelZoom
           style={{ height: '100%', width: '100%' }}
+          ref={setMapRef}
+          whenReady={updateRadialPosition}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url={dark ? LIGHT_TILES : LIGHT_TILES}
           />
           {showBounds && <MapBounds stopNames={boundsStopNames} stops={stopsRecord} padding={boundsPadding} />}
+          <MapViewportEvents onViewportChange={updateRadialPosition} />
           {hasAnyStops && showRouteLine && (
             <>
               {/* Весь маршрут — зелений */}
@@ -220,13 +290,112 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             const isTo = n === toStopName;
             const icon = isFrom ? fromI : isTo ? toI : defaultIcon;
             return (
-              <Marker key={n} position={stopsRecord[n] as [number, number]} icon={icon}>
-                <Popup>{n}{isFrom ? ' (З)' : isTo ? ' (До)' : ''}</Popup>
+              <Marker
+                key={n}
+                position={stopsRecord[n] as [number, number]}
+                icon={icon}
+                eventHandlers={{
+                  click: () => setSelectedStopOnMap(n),
+                }}
+              >
+                <Popup>
+                  <div className="lt-stop-popup">
+                    <div className="lt-stop-popup__title">
+                      {n}
+                      {isFrom ? ' (З)' : isTo ? ' (ПО)' : ''}
+                    </div>
+                    <div className="lt-stop-popup__actions">
+                      <button type="button" onClick={() => onPickFromStop?.(n)}>З</button>
+                      <button type="button" onClick={() => onPickToStop?.(n)}>ПО</button>
+                    </div>
+                  </div>
+                </Popup>
               </Marker>
             );
           })}
         </MapContainer>
+        {selectedStopOnMap && radialPosition && (
+          <div
+            className="lt-radial-picker"
+            style={{ left: radialPosition.x, top: radialPosition.y }}
+            role="group"
+            aria-label="Швидкий вибір З або ПО"
+          >
+            <button
+              type="button"
+              className="lt-radial-picker__btn lt-radial-picker__btn--from"
+              onClick={() => {
+                onPickFromStop?.(selectedStopOnMap);
+                setSelectedStopOnMap('');
+              }}
+            >
+              З
+            </button>
+            <button
+              type="button"
+              className="lt-radial-picker__btn lt-radial-picker__btn--to"
+              onClick={() => {
+                onPickToStop?.(selectedStopOnMap);
+                setSelectedStopOnMap('');
+              }}
+            >
+              ПО
+            </button>
+          </div>
+        )}
       </div>
+      {selectedStopOnMap && (
+        <div className="lt-stop-sheet" role="dialog" aria-label="Вибір ролі зупинки">
+          <div className="lt-stop-sheet__header">
+            <strong>{selectedStopOnMap}</strong>
+            <button type="button" onClick={() => setSelectedStopOnMap('')} aria-label="Закрити">
+              ✕
+            </button>
+          </div>
+          <div className="lt-stop-sheet__actions">
+            <button
+              type="button"
+              className="lt-stop-sheet__btn lt-stop-sheet__btn--from"
+              onClick={() => {
+                onPickFromStop?.(selectedStopOnMap);
+                setSelectedStopOnMap('');
+              }}
+            >
+              Звідси (З)
+            </button>
+            <button
+              type="button"
+              className="lt-stop-sheet__btn lt-stop-sheet__btn--to"
+              onClick={() => {
+                onPickToStop?.(selectedStopOnMap);
+                setSelectedStopOnMap('');
+              }}
+            >
+              Сюди (ПО)
+            </button>
+          </div>
+          {filteredFrequentToStops.length > 0 && (
+            <div className="lt-stop-sheet__history">
+              <span>Часто їду в…</span>
+              <div className="lt-stop-sheet__chips">
+                {filteredFrequentToStops.map((stop) => (
+                  <button
+                    key={stop}
+                    type="button"
+                    className="lt-stop-sheet__chip"
+                    onClick={() => {
+                      onPickToStop?.(stop);
+                      setSelectedStopOnMap('');
+                    }}
+                  >
+                    {stop}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

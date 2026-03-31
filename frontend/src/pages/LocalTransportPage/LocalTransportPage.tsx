@@ -12,6 +12,7 @@ import './LocalTransportPage.css';
 
 const DATA_URL = '/data/malyn_transport.json';
 const STOPS_COORDS_URL = '/data/stops_coords.json';
+const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
 function haversineDistance(
   lat1: number,
@@ -463,6 +464,33 @@ export const LocalTransportPage: React.FC = () => {
   const [isSwapAnimating, setIsSwapAnimating] = useState(false);
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
+  const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FREQUENT_TO_STOPS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setFrequentToStops(parsed.filter((v) => typeof v === 'string'));
+      }
+    } catch {
+      setFrequentToStops([]);
+    }
+  }, []);
+
+  const rememberFrequentToStop = (stopName: string) => {
+    if (!stopName) return;
+    setFrequentToStops((prev) => {
+      const next = [stopName, ...prev.filter((s) => s !== stopName)].slice(0, 5);
+      try {
+        localStorage.setItem(FREQUENT_TO_STOPS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore write errors
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (selectedStopFromUrl) {
@@ -1432,7 +1460,7 @@ export const LocalTransportPage: React.FC = () => {
                                   <span className="lt-stop-content">
                                     {s.name}
                                     {isFrom && <span className="lt-stop-badge lt-stop-badge--from">З</span>}
-                                    {isTo && <span className="lt-stop-badge lt-stop-badge--to">До</span>}
+                                    {isTo && <span className="lt-stop-badge lt-stop-badge--to">ПО</span>}
                                   </span>
                                   <span className="lt-stop-to-next">
                                     {minsToNext != null ? formatDurationMinutes(minsToNext) : '—'}
@@ -1463,6 +1491,17 @@ export const LocalTransportPage: React.FC = () => {
               markerStopNames={detailMapStopNamesForMarkers}
               fromStopName={fromStop || undefined}
               toStopName={toStop || undefined}
+              onPickFromStop={(stopName) => {
+                setFromStop(stopName);
+                updateDetailUrl({ stop: stopName });
+              }}
+              onPickToStop={(stopName) => {
+                setToStop(stopName);
+                rememberFrequentToStop(stopName);
+                updateDetailUrl({ to: stopName });
+              }}
+              onSwapStops={() => reverseDirectionAndFromTo()}
+              frequentToStops={frequentToStops}
               dark
             />
           </div>
