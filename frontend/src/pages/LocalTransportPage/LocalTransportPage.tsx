@@ -458,6 +458,9 @@ export const LocalTransportPage: React.FC = () => {
   const [stopsCoords, setStopsCoords] = useState<Record<string, [number, number]> | null>(null);
   const prevStopsDirectionRef = useRef<'there' | 'back'>('there');
   const latestStopRef = useRef<string>('');
+  const searchFromInputRef = useRef<HTMLInputElement | null>(null);
+  const searchToInputRef = useRef<HTMLInputElement | null>(null);
+  const [isSwapAnimating, setIsSwapAnimating] = useState(false);
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
 
@@ -1499,14 +1502,24 @@ export const LocalTransportPage: React.FC = () => {
                       placeholder="Наприклад Малинівка"
                       emptyMessage="Зупинок не знайдено"
                       clearable
+                      inputRef={searchFromInputRef}
+                      onSelectOption={(selected) => {
+                        if (!selected) return;
+                        window.setTimeout(() => searchToInputRef.current?.focus(), 0);
+                      }}
                     />
                   </div>
                   <button
                     type="button"
-                    className="lt-from-to-swap"
+                    className={`lt-from-to-swap ${isSwapAnimating ? 'lt-from-to-swap--animating' : ''}`}
                     onClick={() => {
+                      setIsSwapAnimating(true);
                       setSearchFrom(effectiveSearchTo);
                       setSearchTo(effectiveSearchFrom);
+                      window.setTimeout(() => {
+                        setIsSwapAnimating(false);
+                        searchFromInputRef.current?.focus();
+                      }, 220);
                     }}
                     title="Поміняти місцями"
                     aria-label="Поміняти З та До"
@@ -1534,6 +1547,7 @@ export const LocalTransportPage: React.FC = () => {
                       placeholder="Наприклад Царське село"
                       emptyMessage="Зупинок не знайдено"
                       clearable
+                      inputRef={searchToInputRef}
                     />
                   </div>
                 </div>

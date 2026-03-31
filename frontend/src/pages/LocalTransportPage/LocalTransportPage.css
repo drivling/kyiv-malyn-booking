@@ -1,54 +1,85 @@
 /* ==========================================================================
+   Локальний транспорт — палітра та UX у дусі Google Maps (Directions)
    ========================================================================== */
 
-/* Палитра + типографіка/відступи як на Jakdojade (ваші кольори) */
 .lt-page {
-  --lt-accent: #007ac9;
-  --lt-accent-hover: #005a96;
-  --lt-accent-light: #e8f4fc;
-  --lt-bg: #f7f9fb;
+  /* Google Material / Maps (світла тема) */
+  --lt-accent: #1a73e8;
+  --lt-accent-hover: #1967d2;
+  --lt-accent-light: #e8f0fe;
+  --lt-bg: #f8f9fa;
   --lt-card: #ffffff;
-  --lt-border: #d1d5db;
-  --lt-border-light: #e5e7eb;
-  --lt-text: #1a1a1a;
-  --lt-text-muted: #6b7280;
-  --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* Розміри текстів — візуально як Jakdojade */
-  --lt-fs-xs: 0.6875rem;   /* 11px — міні-бейджі, дрібні підписи */
-  --lt-fs-sm: 0.75rem;     /* 12px — лейбли, дата/час у компактних блоках */
-  --lt-fs-base: 0.875rem;  /* 14px — другорядний текст, мета */
-  --lt-fs-md: 1rem;        /* 16px — інпути, кнопки, назви зупинок */
-  --lt-fs-lg: 1.125rem;   /* 18px — номер маршруту, заголовок картки */
-  --lt-fs-xl: 1.25rem;     /* 20px — заголовок сторінки */
-  /* Відступи панелі — як на Jakdojade */
+  --lt-border: #dadce0;
+  --lt-border-light: #e8eaed;
+  --lt-text: #202124;
+  --lt-text-muted: #5f6368;
+  --lt-origin: #34a853;
+  --lt-destination: #ea4335;
+  --lt-font: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --lt-card-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+  --lt-elev-1: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --lt-fs-xs: 0.6875rem;
+  --lt-fs-sm: 0.75rem;
+  --lt-fs-base: 0.875rem;
+  --lt-fs-md: 1rem;
+  --lt-fs-lg: 1.125rem;
+  --lt-fs-xl: 1.375rem;
   --lt-panel-x: 16px;
   --lt-panel-y: 12px;
   --lt-panel-block: 14px;
 }
 
-/* Тема Jakdojade (wtk-red) — повне перевизначення для сторінки транспорту */
+/* Тема Jakdojade — червоний бренд на нейтралях як у Google */
 .lt-page.lt-theme-jakdojade {
-  --lt-accent: #E30613;
-  --lt-accent-hover: #b80412;
-  --lt-accent-light: #ffebee;
-  --lt-bg: #f2f2f2;
+  --lt-accent: #1a73e8;
+  --lt-accent-hover: #1967d2;
+  --lt-accent-light: #e8f0fe;
+  --lt-bg: #f8f9fa;
   --lt-card: #ffffff;
-  --lt-border: #ddd;
-  --lt-border-light: #e8e8e8;
-  --lt-text: #212121;
-  --lt-text-muted: #616161;
-  --lt-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --lt-border: #dadce0;
+  --lt-border-light: #e8eaed;
+  --lt-text: #202124;
+  --lt-text-muted: #5f6368;
+  --lt-font: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* У темі Jakdojade «До» — синій контраст до червоного «З» */
-.lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: #1565c0; }
+/* Jakdojade: «До» — червоний акцент Google (кінцева точка) */
+.lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: var(--lt-destination); }
 .lt-theme-jakdojade .lt-stop-badge--to {
-  background: #e3f2fd;
-  color: #1565c0;
+  background: #fce8e6;
+  color: #c5221f;
 }
 .lt-theme-jakdojade .lt-stop-item--to::before {
-  background: #1565c0;
-  box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.3);
+  background: var(--lt-destination);
+  box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.25);
+}
+
+/* Поля всередині сторінки транспорту — фокус і hover як у Google, не ПриватБанк */
+.lt-page .combobox-input-wrap {
+  border-color: var(--lt-border);
+  background: var(--lt-card);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.lt-page .combobox-input-wrap:focus-within {
+  border-color: var(--lt-accent);
+  box-shadow: 0 0 0 1px var(--lt-accent);
+}
+.lt-page .combobox-clear:hover {
+  color: var(--lt-accent);
+}
+.lt-page .combobox-option:hover,
+.lt-page .combobox-option--highlight {
+  background: var(--lt-bg);
+}
+.lt-page .combobox {
+  z-index: 1;
+}
+.lt-page .combobox:focus-within {
+  z-index: 12;
+}
+.lt-page .combobox-list {
+  z-index: 1200;
 }
 
 /* Доступність: видимий фокус для клавіатури (як на Jakdojade) */
@@ -77,13 +108,14 @@
   outline-offset: 0;
 }
 
-/* ========== Dark layout як на скрінах Jakdojade: ліва панель + карта справа ========== */
+/* ========== Dark layout — панель як у Google Maps (темна тема) ========== */
 .lt-page.lt-layout-dark {
-  --lt-panel-bg: #2d2d2d;
-  --lt-panel-text: #ffffff;
-  --lt-panel-text-muted: #b0b0b0;
-  --lt-panel-border: #404040;
-  --lt-route-green: #4caf50;
+  --lt-panel-bg: #202124;
+  --lt-panel-text: #e8eaed;
+  --lt-panel-text-muted: #9aa0a6;
+  --lt-panel-border: #3c4043;
+  /* Акцент у темній темі Google — блакитний, не зелений */
+  --lt-route-green: #8ab4f8;
   min-height: 100vh;
   min-height: 100dvh;
   padding: 0;
@@ -203,12 +235,21 @@
 .lt-layout-dark .lt-panel .lt-search--jakdojade,
 .lt-layout-dark .lt-panel .lt-header--jakdojade { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); }
 
-.lt-layout-dark .lt-panel .lt-route-num--verified,
-.lt-layout-dark .lt-panel .lt-direction-btn--active { background: var(--lt-route-green) !important; border-color: var(--lt-route-green) !important; }
+.lt-layout-dark .lt-panel .lt-route-num--verified {
+  background: var(--lt-route-green) !important;
+  border-color: var(--lt-route-green) !important;
+  color: #202124 !important;
+}
+
+.lt-layout-dark .lt-panel .lt-direction-btn--active {
+  background: rgba(138, 180, 248, 0.22) !important;
+  border: 1px solid var(--lt-route-green) !important;
+  color: var(--lt-route-green) !important;
+}
 
 .lt-layout-dark .lt-panel .lt-direction-btn:not(.lt-direction-btn--active) {
-  background: #3d3d3d;
-  border-color: var(--lt-panel-border);
+  background: #2b2c2f;
+  border-color: transparent;
   color: var(--lt-panel-text-muted);
 }
 
@@ -225,7 +266,7 @@
 .lt-layout-dark .lt-panel .combobox-option:hover,
 .lt-layout-dark .lt-panel .combobox-option--highlight { background: #4d4d4d; }
 .lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-route-green) !important; }
-.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: #43a047 !important; }
+.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: #9fc2fa !important; color: #202124 !important; }
 .lt-layout-dark .lt-panel .lt-geo-btn--small { background: #3d3d3d; color: var(--lt-panel-text); border: 1px solid var(--lt-panel-border); }
 .lt-layout-dark .lt-panel .lt-from-to-swap {
   background: #3d3d3d;
@@ -237,19 +278,22 @@
   color: var(--lt-route-green);
 }
 .lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
-.lt-layout-dark .lt-panel .lt-route-card:hover { background: #3d3d3d; }
+.lt-layout-dark .lt-panel .lt-route-card:hover { background: #2f3033; }
 .lt-layout-dark .lt-panel .lt-route-card--jd { background: var(--lt-panel-bg); }
-.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #3d3d3d; }
+.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #2f3033; }
 .lt-layout-dark .lt-panel .lt-route-card-time { border-color: var(--lt-panel-border); }
 .lt-layout-dark .lt-panel .lt-route-card-time-value { color: var(--lt-panel-text); }
 .lt-layout-dark .lt-panel .lt-route-card-main .lt-route-path { color: var(--lt-panel-text) !important; }
 .lt-layout-dark .lt-panel .lt-route-card-main .lt-route-meta { color: var(--lt-panel-text-muted); }
-.lt-layout-dark .lt-panel .lt-stops-timeline::before { background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px); }
+.lt-layout-dark .lt-panel .lt-stops-timeline::before {
+  background: var(--lt-panel-border) !important;
+  background-image: none !important;
+}
 .lt-layout-dark .lt-panel .lt-stops-timeline-segment { background: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #42a5f5; }
+.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: #81c995 !important; }
+.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #f28b82 !important; }
 .lt-layout-dark .lt-panel .lt-footer { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); color: var(--lt-panel-text-muted); }
-.lt-layout-dark .lt-panel .lt-footer a { color: #81c784; }
+.lt-layout-dark .lt-panel .lt-footer a { color: var(--lt-route-green); }
 
 /* Темна тема — додатково: фон і межі щоб ніде не пробивався світлий стиль */
 .lt-layout-dark .lt-panel .lt-detail-header,
@@ -297,9 +341,9 @@
 }
 
 .lt-layout-dark .lt-panel .lt-fare {
-  background: rgba(76, 175, 80, 0.2) !important;
+  background: rgba(138, 180, 248, 0.12) !important;
   color: var(--lt-route-green) !important;
-  border: 1px solid rgba(76, 175, 80, 0.4);
+  border: 1px solid rgba(138, 180, 248, 0.35);
 }
 .lt-layout-dark .lt-panel .lt-back,
 .lt-layout-dark .lt-panel .lt-back--header { color: var(--lt-panel-text-muted) !important; }
@@ -308,7 +352,7 @@
 .lt-layout-dark .lt-panel .lt-detail-summary-route,
 .lt-layout-dark .lt-panel .lt-detail-summary-meta { color: inherit; }
 .lt-layout-dark .lt-panel .lt-detail-summary-change { color: var(--lt-route-green); border-color: var(--lt-panel-border); }
-.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(76, 175, 80, 0.1); }
+.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(138, 180, 248, 0.12); }
 .lt-layout-dark .lt-panel .lt-detail-summary-arrow { color: var(--lt-route-green); }
 .lt-layout-dark .lt-panel .lt-route-num--unverified { color: var(--lt-panel-text-muted); }
 
@@ -333,30 +377,26 @@
   color: var(--lt-panel-text) !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-item--from .lt-stop-content {
-  color: var(--lt-route-green) !important;
+  color: #81c995 !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-item--to .lt-stop-content {
-  color: #42a5f5 !important;
+  color: #f28b82 !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-to-next {
   color: var(--lt-panel-text-muted) !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-badge--from {
-  background: rgba(76, 175, 80, 0.25) !important;
-  color: var(--lt-route-green) !important;
+  background: rgba(129, 201, 149, 0.2) !important;
+  color: #81c995 !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-badge--to {
-  background: rgba(66, 165, 245, 0.25) !important;
-  color: #42a5f5 !important;
+  background: rgba(242, 139, 130, 0.2) !important;
+  color: #f28b82 !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-item::before {
   border-color: var(--lt-panel-bg) !important;
   box-shadow: 0 0 0 1px var(--lt-panel-border) !important;
 }
-.lt-layout-dark .lt-panel .lt-stops-timeline::before {
-  background-image: radial-gradient(circle, var(--lt-route-green) 1.5px, transparent 1.5px) !important;
-}
-
 /* Деталі маршруту — компактний стиль як Jakdojade; текст правіше кнопки ← */
 .lt-detail .lt-header--jakdojade {
   position: relative;
@@ -676,9 +716,9 @@
   max-width: 720px;
   margin: 0 auto;
   background: var(--lt-card);
-  border-radius: var(--pb-radius-lg);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--lt-border-light);
+  border-radius: 8px;
+  box-shadow: var(--lt-card-shadow);
+  border: 1px solid var(--lt-border);
   overflow: hidden;
 }
 
@@ -728,9 +768,14 @@
   color: var(--lt-text-muted);
 }
 
-/* ========== Jakdojade-style: З / До блок ========== */
+/* ========== Блок З / До — картка як у панелі Google Maps Directions ========== */
 .lt-search--jakdojade {
   padding: var(--lt-panel-block) var(--lt-panel-x) var(--lt-panel-block);
+  background: var(--lt-bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--lt-border-light);
 }
 
 .lt-from-to-block {
@@ -746,32 +791,88 @@
   flex-wrap: wrap;
 }
 
+.lt-theme-jakdojade .lt-from-to-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+.lt-theme-jakdojade .lt-from-to-cell {
+  padding: 0;
+}
+
+.lt-theme-jakdojade .lt-from-to-cell--to {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lt-theme-jakdojade .lt-from-to-cell--from {
+  border-right: none;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lt-theme-jakdojade .lt-from-to-swap {
+  align-self: end;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--lt-border);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.25);
+  background: var(--lt-card);
+}
+
+.lt-theme-jakdojade .lt-from-to-swap:hover {
+  background: #f1f3f4;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
+}
+
+@media (max-width: 639px) {
+  .lt-theme-jakdojade .lt-from-to-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .lt-theme-jakdojade .lt-from-to-cell--from {
+    border-bottom: none;
+  }
+
+  .lt-theme-jakdojade .lt-from-to-swap {
+    width: 44px;
+    justify-self: center;
+    min-height: 44px;
+  }
+}
+
 .lt-from-to-cell {
   flex: 1;
   min-width: 0;
 }
 
 .lt-from-to-cell .combobox-input-wrap {
-  border-radius: var(--pb-radius);
-  border: 2px solid var(--lt-border);
-  transition: border-color 0.15s;
+  border-radius: 8px;
+  border: 1px solid var(--lt-border);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .lt-from-to-cell .combobox-input-wrap:focus-within {
   border-color: var(--lt-accent);
+  box-shadow: 0 0 0 1px var(--lt-accent);
 }
 
 .lt-from-to-label {
   display: block;
   font-size: var(--lt-fs-sm);
-  font-weight: 700;
+  font-weight: 500;
   color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 6px;
 }
 
-.lt-from-to-cell--from .lt-from-to-label { color: var(--lt-accent); }
+.lt-from-to-cell--from .lt-from-to-label { color: var(--lt-text-muted); }
 
 .lt-from-to-label--with-icon {
   display: flex;
@@ -786,11 +887,11 @@
   flex-shrink: 0;
 }
 
-.lt-from-to-dot--from { background: #4caf50; }
-.lt-from-to-dot--to { background: #42a5f5; }
+.lt-from-to-dot--from { background: var(--lt-origin, #34a853); }
+.lt-from-to-dot--to { background: var(--lt-destination, #ea4335); }
 
-.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: #4caf50; }
-.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: #42a5f5; }
+.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: #81c995; }
+.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: #f28b82; }
 
 .lt-from-to-swap {
   flex-shrink: 0;
@@ -799,19 +900,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--lt-bg);
-  border: 1px solid var(--lt-border-light);
-  border-radius: var(--pb-radius);
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border);
+  border-radius: 999px;
   color: var(--lt-text-muted);
   font-size: 1.25rem;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.25);
 }
 
 .lt-from-to-swap:hover {
-  border-color: var(--lt-accent);
+  border-color: var(--lt-border);
   color: var(--lt-accent);
+  background: var(--lt-bg);
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
+}
+
+.lt-from-to-swap--animating {
+  transform: rotate(180deg) scale(1.03);
+  transition: transform 0.22s ease;
 }
 
 .lt-datetime-row {
@@ -827,12 +936,12 @@
 
 .lt-datetime-label {
   display: block;
-  font-size: var(--lt-fs-xs);
-  font-weight: 600;
+  font-size: var(--lt-fs-sm);
+  font-weight: 500;
   color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 6px;
 }
 
 .lt-datetime-input {
@@ -841,15 +950,17 @@
   padding: 10px 12px;
   font-size: var(--lt-fs-md);
   font-variant-numeric: tabular-nums;
-  border: 2px solid var(--lt-border);
-  border-radius: var(--pb-radius);
+  border: 1px solid var(--lt-border);
+  border-radius: 8px;
   background: var(--lt-card);
   color: var(--lt-text);
+  box-shadow: none;
 }
 
 .lt-datetime-input:focus {
   outline: none;
   border-color: var(--lt-accent);
+  box-shadow: 0 0 0 1px var(--lt-accent);
 }
 
 .lt-datetime-input[type="time"] {
@@ -861,14 +972,15 @@
   min-width: 120px;
   padding: 12px var(--lt-panel-x);
   background: var(--lt-accent);
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: var(--pb-radius);
+  border-radius: 24px;
   font-size: var(--lt-fs-md);
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
 }
 
 .lt-search-btn:hover:not(:disabled) {
@@ -912,18 +1024,18 @@
   margin: 0 0 6px;
   padding: 0 var(--lt-panel-x);
   font-size: var(--lt-fs-sm);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .lt-no-routes {
   padding: var(--lt-panel-block) var(--lt-panel-x);
   margin: 0 var(--lt-panel-x) 8px;
   background: var(--lt-accent-light);
-  border-radius: var(--pb-radius);
-  border: 1px solid rgba(0, 122, 201, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(26, 115, 232, 0.28);
 }
 
 .lt-no-routes p {
@@ -1026,8 +1138,8 @@
 }
 
 .lt-nearest-item:hover {
-  border-color: var(--lt-accent);
-  background: var(--lt-accent-light);
+  border-color: var(--lt-border);
+  background: #f1f3f4;
 }
 
 .lt-search .select-label {
@@ -1067,7 +1179,7 @@
 }
 
 .lt-route-card--jd:hover {
-  background: var(--lt-accent-light);
+  background: #f1f3f4;
 }
 
 .lt-route-card:last-child {
@@ -1075,7 +1187,7 @@
 }
 
 .lt-route-card:hover {
-  background: var(--lt-accent-light);
+  background: #f1f3f4;
 }
 
 .lt-route-card-time {
@@ -1437,10 +1549,10 @@
 
 .lt-time-picker-label {
   font-size: var(--lt-fs-sm);
-  font-weight: 700;
+  font-weight: 500;
   color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: 0;
   flex-shrink: 0;
 }
 
@@ -1449,22 +1561,23 @@
   min-width: 140px;
   padding: 10px 36px 10px 12px;
   font-size: var(--lt-fs-md);
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  border: 2px solid var(--lt-accent);
-  border-radius: var(--pb-radius);
-  background: var(--lt-card);
+  border: 1px solid var(--lt-border);
+  border-radius: 8px;
+  background-color: var(--lt-card);
   color: var(--lt-text);
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235f6368' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
 }
 
 .lt-time-picker-select:focus {
   outline: none;
-  box-shadow: 0 0 0 3px var(--lt-accent-light);
+  border-color: var(--lt-accent);
+  box-shadow: 0 0 0 1px var(--lt-accent);
 }
 
 .lt-theme-jakdojade .lt-time-picker-select {
@@ -1867,7 +1980,7 @@
   padding-left: var(--lt-timeline-pad);
 }
 
-/* Пунктирна лінія для всіх зупинок — центр на --lt-line-center */
+/* Суцільна сіра лінія маршруту (як у Google Maps) */
 .lt-stops-timeline::before {
   content: '';
   position: absolute;
@@ -1875,19 +1988,17 @@
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background-image: radial-gradient(circle, var(--lt-accent) 1.5px, transparent 1.5px);
-  background-size: 2px 8px;
-  background-repeat: repeat-y;
-  opacity: 0.5;
+  background: var(--lt-border);
+  opacity: 1;
 }
 
-/* Суцільна товста лінія між З і До — центр на --lt-line-center */
+/* Акцентний сегмент між зупинками */
 .lt-stops-timeline-segment {
   position: absolute;
   left: calc(var(--lt-line-center) - 2px);
   width: 4px;
   background: var(--lt-accent);
-  opacity: 0.85;
+  opacity: 0.9;
   pointer-events: none;
   border-radius: 2px;
 }
@@ -1901,25 +2012,27 @@
 .lt-direction-btn {
   flex: 1;
   padding: 8px 12px;
-  background: var(--lt-bg);
-  border: 1px solid var(--lt-border-light);
-  border-radius: var(--pb-radius);
+  background: #f1f3f4;
+  border: 1px solid transparent;
+  border-radius: 999px;
   font-size: var(--lt-fs-base);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--lt-text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .lt-direction-btn:hover {
-  border-color: var(--lt-accent);
+  background: #e8eaed;
   color: var(--lt-text);
 }
 
 .lt-direction-btn--active {
-  background: var(--lt-accent);
+  background: var(--lt-accent-light);
   border-color: var(--lt-accent);
-  color: white;
+  color: var(--lt-accent);
+  font-weight: 500;
+  box-shadow: none;
 }
 
 .lt-stops-heading {
@@ -1947,7 +2060,7 @@
   min-height: 32px;
 }
 
-/* Кружок: центр на --lt-line-center, прив'язка до --lt-timeline-pad */
+/* Маркери зупинок: проміжні — нейтральні, як у Google Maps */
 .lt-stop-item::before {
   content: '';
   position: absolute;
@@ -1956,10 +2069,10 @@
   transform: translateY(-50%);
   width: 10px;
   height: 10px;
-  background: var(--lt-accent);
+  background: #fff;
   border-radius: 50%;
-  border: 2px solid var(--lt-card);
-  box-shadow: 0 0 0 1px var(--lt-border);
+  border: 2px solid var(--lt-border);
+  box-shadow: none;
 }
 
 .lt-stop-item--from::before {
@@ -1967,8 +2080,9 @@
   height: 14px;
   left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 7px);
   transform: translateY(-50%);
-  background: var(--lt-accent);
-  box-shadow: 0 0 0 2px var(--lt-accent-light);
+  background: var(--lt-origin, #34a853);
+  border: 2px solid var(--lt-card);
+  box-shadow: 0 0 0 2px rgba(52, 168, 83, 0.35);
 }
 
 .lt-stop-item--to::before {
@@ -1976,8 +2090,8 @@
   height: 14px;
   left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 7px);
   transform: translateY(-50%);
-  background: var(--pb-yellow-dark);
-  box-shadow: 0 0 0 2px rgba(255, 213, 0, 0.4);
+  background: var(--lt-destination, #ea4335);
+  box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.25);
 }
 
 .lt-stop-time {
@@ -1994,13 +2108,13 @@
 }
 
 .lt-stop-item--from .lt-stop-content {
-  font-weight: 700;
-  color: var(--lt-accent);
+  font-weight: 600;
+  color: var(--lt-origin, #34a853);
 }
 
 .lt-stop-item--to .lt-stop-content {
-  font-weight: 700;
-  color: var(--pb-yellow-dark);
+  font-weight: 600;
+  color: var(--lt-destination, #ea4335);
 }
 
 .lt-stop-badge {
@@ -2013,13 +2127,13 @@
 }
 
 .lt-stop-badge--from {
-  background: var(--lt-accent-light);
-  color: var(--lt-accent);
+  background: #e6f4ea;
+  color: #137333;
 }
 
 .lt-stop-badge--to {
-  background: rgba(255, 213, 0, 0.25);
-  color: var(--pb-yellow-dark);
+  background: #fce8e6;
+  color: #c5221f;
 }
 
 .lt-stop-to-next {

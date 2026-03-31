@@ -16,6 +16,10 @@ interface ComboboxProps {
   filterFn?: (option: ComboboxOption, query: string) => boolean;
   /** Показати кнопку очищення, коли є вибране значення */
   clearable?: boolean;
+  /** Ref до input для керування фокусом ззовні */
+  inputRef?: React.Ref<HTMLInputElement>;
+  /** Викликається лише коли користувач обрав опцію зі списку */
+  onSelectOption?: (value: string) => void;
 }
 
 const defaultFilter = (opt: ComboboxOption, query: string) =>
@@ -30,6 +34,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
   emptyMessage = 'Нічого не знайдено',
   filterFn = defaultFilter,
   clearable = false,
+  inputRef,
+  onSelectOption,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -111,6 +117,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
           const opt = filtered[highlightIndex];
           onChange(opt.value);
           setInputValue(opt.value === '' ? '' : opt.label);
+          onSelectOption?.(opt.value);
           close();
         }
         break;
@@ -126,6 +133,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
   const handleSelect = (opt: ComboboxOption) => {
     onChange(opt.value);
     setInputValue(opt.value === '' ? '' : opt.label);
+    onSelectOption?.(opt.value);
     close(false);
   };
 
@@ -141,6 +149,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
       )}
       <div className={`combobox-input-wrap ${clearable && value ? 'combobox-input-wrap--clearable' : ''}`}>
         <input
+          ref={inputRef}
           id={inputId}
           type="text"
           role="combobox"
