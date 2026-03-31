@@ -1,16 +1,29 @@
-/* Попутки — єдиний стиль з Login/User (чистий, один акцент) */
+/* Poputky — Google Maps-like surfaces and controls */
+
+.poputky-page {
+  --pk-accent: #1a73e8;
+  --pk-accent-hover: #1967d2;
+  --pk-accent-light: #e8f0fe;
+  --pk-bg: #f8f9fa;
+  --pk-card: #ffffff;
+  --pk-border: #dadce0;
+  --pk-border-light: #e8eaed;
+  --pk-text: #202124;
+  --pk-text-muted: #5f6368;
+  --pk-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
 
 .poputky-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f0fdf4 0%, #f5f5f5 100px);
+  background: linear-gradient(180deg, #f8f9fa 0%, #eef3fd 120px);
   padding-bottom: 0;
 }
 
 .poputky-hero {
-  background: linear-gradient(135deg, #047857 0%, #059669 50%, #00A86B 100%);
-  color: #fff;
-  padding: 28px 20px 32px;
-  text-align: center;
+  background: transparent;
+  color: var(--pk-text);
+  padding: 22px 20px 14px;
+  text-align: left;
 }
 
 .poputky-hero-inner {
@@ -24,13 +37,15 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
+  color: var(--pk-text);
 }
 
 .poputky-hero-subtitle {
   margin: 6px 0 0;
   font-size: 0.9375rem;
-  opacity: 0.92;
+  opacity: 1;
   font-weight: 500;
+  color: var(--pk-text-muted);
 }
 
 .poputky-tabs {
@@ -38,8 +53,13 @@
   justify-content: center;
   gap: 0;
   padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid var(--pb-border);
+  background: var(--pk-card);
+  border: 1px solid var(--pk-border);
+  border-radius: 12px;
+  box-shadow: var(--pk-shadow);
+  position: sticky;
+  top: 10px;
+  z-index: 10;
   flex-wrap: wrap;
 }
 
@@ -49,7 +69,7 @@
   border-radius: 10px;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--pk-text-muted);
   background: transparent;
   cursor: pointer;
   font-family: inherit;
@@ -57,18 +77,18 @@
 }
 
 .poputky-tab:hover {
-  color: var(--pb-text);
-  background: var(--pb-bg-secondary);
+  color: var(--pk-text);
+  background: #f1f3f4;
 }
 
 .poputky-tab--active {
-  color: var(--pb-primary);
-  background: var(--pb-primary-light);
+  color: var(--pk-accent);
+  background: var(--pk-accent-light);
 }
 
 .poputky-tab--active:hover {
-  background: var(--pb-primary-light);
-  color: var(--pb-primary-active);
+  background: var(--pk-accent-light);
+  color: var(--pk-accent-hover);
 }
 
 .poputky-container {
@@ -117,12 +137,14 @@
 }
 
 .poputky-btn--green {
-  background: var(--pb-primary);
+  background: var(--pk-accent);
   color: #fff;
+  border-radius: 22px;
+  box-shadow: var(--pk-shadow);
 }
 
 .poputky-btn--green:hover {
-  background: var(--pb-primary-hover);
+  background: var(--pk-accent-hover);
 }
 
 .poputky-btn--block {
@@ -151,20 +173,21 @@
 }
 
 .poputky-trip-card {
-  background: var(--pb-card-bg);
-  border: 1px solid var(--pb-border);
-  border-radius: 16px;
+  background: var(--pk-card);
+  border: 1px solid var(--pk-border);
+  border-radius: 12px;
   padding: 16px 18px;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 16px 24px;
   align-items: start;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.2s;
+  box-shadow: var(--pk-shadow);
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
 .poputky-trip-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  background: #f8fbff;
+  box-shadow: 0 2px 4px rgba(60, 64, 67, 0.22);
 }
 
 .poputky-trip-card-main {
@@ -203,7 +226,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--pb-primary);
+  background: var(--pk-accent);
   color: #fff;
   display: flex;
   align-items: center;
@@ -222,20 +245,20 @@
 
 .poputky-trip-name {
   font-weight: 600;
-  color: var(--pb-text);
+  color: var(--pk-text);
   font-size: 0.9375rem;
 }
 
 .poputky-trip-route {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--pb-text);
+  color: var(--pk-text);
   margin: 0;
 }
 
 .poputky-trip-meta {
   font-size: 0.8125rem;
-  color: var(--pb-text-muted);
+  color: var(--pk-text-muted);
 }
 
 .poputky-trip-seats {
@@ -244,7 +267,7 @@
 
 .poputky-trip-notes {
   font-size: 0.8125rem;
-  color: var(--pb-text-muted);
+  color: var(--pk-text-muted);
   white-space: pre-line;
   max-width: 220px;
   line-height: 1.4;
@@ -252,17 +275,17 @@
 
 .poputky-trip-price {
   font-size: 0.875rem;
-  color: var(--pb-text);
+  color: var(--pk-text);
 }
 
 .poputky-trip-price strong {
-  color: var(--pb-primary);
+  color: var(--pk-accent);
 }
 
 .poputky-trip-detail {
   padding: 8px 14px;
   border-radius: 10px;
-  background: var(--pb-primary);
+  background: var(--pk-accent);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -271,7 +294,7 @@
 }
 
 .poputky-trip-detail:hover {
-  background: var(--pb-primary-hover);
+  background: var(--pk-accent-hover);
   color: #fff;
 }
 
@@ -299,13 +322,13 @@
 
 .poputky-trip-login-btn {
   background: transparent !important;
-  color: var(--pb-primary);
-  border: 1px solid var(--pb-primary) !important;
+  color: var(--pk-accent);
+  border: 1px solid var(--pk-accent) !important;
 }
 
 .poputky-trip-login-btn:hover {
-  background: var(--pb-primary-light) !important;
-  color: var(--pb-primary-hover);
+  background: var(--pk-accent-light) !important;
+  color: var(--pk-accent-hover);
 }
 
 .poputky-all-link {
@@ -313,7 +336,7 @@
   margin-top: 12px;
   background: none;
   border: none;
-  color: var(--pb-primary);
+  color: var(--pk-accent);
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
@@ -328,7 +351,7 @@
 
 .poputky-form-column {
   position: sticky;
-  top: 24px;
+  top: 132px;
 }
 
 @media (max-width: 900px) {
@@ -338,20 +361,20 @@
 }
 
 .poputky-announce-card {
-  background: var(--pb-card-bg);
-  border: 1px solid var(--pb-border);
-  border-radius: 16px;
+  background: var(--pk-card);
+  border: 1px solid var(--pk-border);
+  border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--pk-shadow);
 }
 
 .poputky-role-toggle {
   display: flex;
   margin-bottom: 20px;
-  background: var(--pb-bg-secondary);
+  background: #f1f3f4;
   border-radius: 12px;
   padding: 4px;
-  border: 1px solid var(--pb-border);
+  border: 1px solid var(--pk-border);
 }
 
 .poputky-role-btn {
@@ -361,7 +384,7 @@
   border-radius: 10px;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--pb-text-muted);
+  color: var(--pk-text-muted);
   background: transparent;
   cursor: pointer;
   font-family: inherit;
@@ -369,13 +392,13 @@
 }
 
 .poputky-role-btn:hover {
-  color: var(--pb-text);
+  color: var(--pk-text);
 }
 
 .poputky-role-btn--active {
-  background: var(--pb-card-bg);
-  color: var(--pb-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: var(--pk-card);
+  color: var(--pk-accent);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.2);
 }
 
 .poputky-role-btn--active:hover {
@@ -438,23 +461,23 @@
   gap: 6px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--pb-text);
+  color: var(--pk-text);
 }
 
 .poputky-form-input {
   padding: 10px 14px;
-  border: 1px solid var(--pb-border);
+  border: 1px solid var(--pk-border);
   border-radius: 10px;
   font-size: 0.9375rem;
   font-family: inherit;
-  background: var(--pb-card-bg);
-  color: var(--pb-text);
+  background: var(--pk-card);
+  color: var(--pk-text);
 }
 
 .poputky-form-input:focus {
   outline: none;
-  border-color: var(--pb-primary);
-  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
+  border-color: var(--pk-accent);
+  box-shadow: 0 0 0 1px var(--pk-accent);
 }
 
 .poputky-form-textarea {
@@ -470,12 +493,15 @@
 }
 
 .poputky-filters-card {
-  background: var(--pb-card-bg);
-  border: 1px solid var(--pb-border);
-  border-radius: 16px;
+  background: var(--pk-card);
+  border: 1px solid var(--pk-border);
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--pk-shadow);
+  position: sticky;
+  top: 76px;
+  z-index: 8;
 }
 
 .poputky-filters-row {
@@ -502,17 +528,18 @@
 .poputky-filter {
   height: 44px;
   padding: 0 14px;
-  border: 1px solid var(--pb-border);
+  border: 1px solid var(--pk-border);
   border-radius: 10px;
   font-size: 0.875rem;
   font-family: inherit;
-  background: var(--pb-card-bg);
-  color: var(--pb-text);
+  background: var(--pk-card);
+  color: var(--pk-text);
 }
 
 .poputky-filter:focus {
   outline: none;
-  border-color: var(--pb-primary);
+  border-color: var(--pk-accent);
+  box-shadow: 0 0 0 1px var(--pk-accent);
 }
 
 .poputky-filter--search {
@@ -524,7 +551,7 @@
   padding: 0 20px;
   border: none;
   border-radius: 10px;
-  background: var(--pb-primary);
+  background: var(--pk-accent);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -534,12 +561,38 @@
 }
 
 .poputky-filter-btn:hover:not(:disabled) {
-  background: var(--pb-primary-hover);
+  background: var(--pk-accent-hover);
+}
+
+.poputky-btn:focus-visible,
+.poputky-tab:focus-visible,
+.poputky-trip-detail:focus-visible,
+.poputky-filter-btn:focus-visible,
+.poputky-filter:focus-visible,
+.poputky-form-input:focus-visible {
+  outline: 2px solid var(--pk-accent);
+  outline-offset: 2px;
 }
 
 .poputky-filter-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.poputky-filter-btn--ghost {
+  background: #f1f3f4;
+  color: var(--pk-text);
+  border: 1px solid var(--pk-border);
+}
+
+.poputky-filter-btn--ghost:hover:not(:disabled) {
+  background: #e8eaed;
+}
+
+.poputky-filter-summary {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: var(--pk-text-muted);
 }
 
 .poputky-stats-row {

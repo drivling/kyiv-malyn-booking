@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
@@ -333,6 +333,16 @@ export const BookingPage: React.FC = () => {
   const isFormDisabled = loading || (availability !== null && !availability.isAvailable) || !!isDateInPast;
 
   const currentStep = !fromCity || !toCity ? 1 : !selectedSchedule ? 2 : 3;
+  const step2Ref = useRef<HTMLElement | null>(null);
+  const step3Ref = useRef<HTMLElement | null>(null);
+
+  const isStep1Ready = !!fromCity && !!toCity;
+  const isStep2Ready = !!selectedSchedule && !!date && !isDateInPast;
+
+  const scrollToStep = (step: 2 | 3) => {
+    const target = step === 2 ? step2Ref.current : step3Ref.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handlePopularRoute = (from: BookingCity, to: BookingCity) => {
     setFromCity(from);
@@ -413,9 +423,23 @@ export const BookingPage: React.FC = () => {
               />
             </div>
             <p className="booking-route-hint">Усі маршрути проходять через Малин</p>
+            <div className="booking-step-actions">
+              <button
+                type="button"
+                className="booking-step-next"
+                onClick={() => scrollToStep(2)}
+                disabled={!isStep1Ready}
+              >
+                Далі: дата і час
+              </button>
+            </div>
           </section>
 
-          <section className={`booking-step ${currentStep === 2 ? 'current' : ''}`} aria-label="Крок 2: Дата і час">
+          <section
+            ref={step2Ref}
+            className={`booking-step ${currentStep === 2 ? 'current' : ''}`}
+            aria-label="Крок 2: Дата і час"
+          >
             <h3 className="booking-step-title">Дата і час</h3>
           <div className="date-time-row">
             <div className="booking-date-wrap">
@@ -458,9 +482,23 @@ export const BookingPage: React.FC = () => {
               )}
             </div>
           </div>
+          <div className="booking-step-actions">
+            <button
+              type="button"
+              className="booking-step-next"
+              onClick={() => scrollToStep(3)}
+              disabled={!isStep2Ready}
+            >
+              Далі: контакти
+            </button>
+          </div>
           </section>
 
-          <section className={`booking-step ${currentStep === 3 ? 'current' : ''}`} aria-label="Крок 3: Контакти">
+          <section
+            ref={step3Ref}
+            className={`booking-step ${currentStep === 3 ? 'current' : ''}`}
+            aria-label="Крок 3: Контакти"
+          >
             <h3 className="booking-step-title">Контакти</h3>
           <div className="phone-name-row">
             <div className="phone-name-row__field phone-name-row__field--phone">

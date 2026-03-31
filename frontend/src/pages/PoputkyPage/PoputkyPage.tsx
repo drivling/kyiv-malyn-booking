@@ -105,6 +105,7 @@ export const PoputkyPage: React.FC = () => {
   const [confirmRequestListing, setConfirmRequestListing] = useState<ViberListing | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [routeTab, setRouteTab] = useState<RouteTab>('kyiv');
+  const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
   const [announcePrice, setAnnouncePrice] = useState('');
   const [tripDate, setTripDate] = useState('');
@@ -132,6 +133,11 @@ export const PoputkyPage: React.FC = () => {
         label: BOOKING_CITY_LABELS[p.to],
       }))
     : [];
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setQuery(queryInput), 220);
+    return () => window.clearTimeout(id);
+  }, [queryInput]);
 
   useEffect(() => {
     if (announceFrom && announceTo && !getDirectionFromCities(announceFrom, announceTo)) {
@@ -203,6 +209,14 @@ export const PoputkyPage: React.FC = () => {
 
   const driverCount = filteredListings.filter((item) => item.listingType === 'driver').length;
   const passengerCount = filteredListings.filter((item) => item.listingType === 'passenger').length;
+  const hasActiveFilters = Boolean(listingType || tripDate || queryInput || sortByTime !== 'asc');
+
+  const resetFilters = () => {
+    setListingType('');
+    setTripDate('');
+    setQueryInput('');
+    setSortByTime('asc');
+  };
 
   const handleRequestRide = async (driverListingId: number) => {
     if (!telegramUser?.id) {
@@ -343,8 +357,8 @@ export const PoputkyPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Маршрут, ім'я, телефон..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  value={queryInput}
+                  onChange={(e) => setQueryInput(e.target.value)}
                   className="poputky-filter poputky-filter--search"
                 />
                 <select
@@ -359,7 +373,18 @@ export const PoputkyPage: React.FC = () => {
                 <button type="button" onClick={loadPoputky} disabled={loading} className="poputky-filter-btn">
                   {loading ? 'Оновлення...' : 'Оновити'}
                 </button>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  disabled={!hasActiveFilters}
+                  className="poputky-filter-btn poputky-filter-btn--ghost"
+                >
+                  Скинути
+                </button>
               </div>
+              {queryInput !== query && (
+                <div className="poputky-filter-summary" role="status">Шукаємо...</div>
+              )}
               <div className="poputky-stats-row">
                 <span className="poputky-stat">Всього: <strong>{filteredListings.length}</strong></span>
                 <span className="poputky-stat">Водії: <strong>{driverCount}</strong></span>
