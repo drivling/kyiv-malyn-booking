@@ -1618,6 +1618,7 @@ export const LocalTransportPage: React.FC = () => {
               onSwapStops={() => reverseDirectionAndFromTo()}
               frequentToStops={frequentToStops}
               onStopMarkerActivate={expandMobileMapSheetForStop}
+              mapSheetSnap={mobileMapSnap}
               dark
             />
           </div>

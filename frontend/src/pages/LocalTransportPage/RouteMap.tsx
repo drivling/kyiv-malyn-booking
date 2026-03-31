@@ -29,6 +29,8 @@ interface RouteMapProps {
   frequentToStops?: string[];
   /** Тап по маркеру зупинки (наприклад розгорнути mobile sheet карти) */
   onStopMarkerActivate?: () => void;
+  /** Стан mobile bottom-sheet: при зміні викликається invalidateSize для коректних тайлів */
+  mapSheetSnap?: 'collapsed' | 'mid' | 'full' | null;
 }
 
 interface CoordsData {
@@ -62,6 +64,43 @@ function MapViewportEvents({ onViewportChange }: { onViewportChange: () => void 
     zoom: onViewportChange,
     resize: onViewportChange,
   });
+  return null;
+}
+
+/**
+ * Після показу карти з display:none / анімації висоти (mobile sheet) Leaflet має нульовий розмір —
+ * тайли сірі, частина підписів не дорисовується. invalidateSize + відкладені повтори це виправляють.
+ */
+function MapSizeAfterLayout({
+  sheetSnap,
+}: {
+  sheetSnap?: 'collapsed' | 'mid' | 'full' | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (sheetSnap === undefined || sheetSnap === null) return;
+    if (sheetSnap === 'collapsed') return;
+
+    const refresh = () => {
+      map.invalidateSize({ animate: false, pan: false });
+      map.eachLayer((layer) => {
+        if (layer instanceof L.TileLayer) {
+          layer.redraw();
+        }
+      });
+    };
+
+    refresh();
+    const t1 = window.setTimeout(refresh, 50);
+    const t2 = window.setTimeout(refresh, 230);
+    const t3 = window.setTimeout(refresh, 450);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [map, sheetSnap]);
   return null;
 }
 
@@ -128,6 +167,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   onSwapStops,
   frequentToStops = [],
   onStopMarkerActivate,
+  mapSheetSnap,
 }) => {
   const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
   const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
@@ -245,7 +285,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url={dark ? LIGHT_TILES : LIGHT_TILES}
+            updateWhenIdle={false}
+            keepBuffer={2}
           />
+          {mapSheetSnap !== undefined ? <MapSizeAfterLayout sheetSnap={mapSheetSnap} /> : null}
           {showBounds && <MapBounds stopNames={boundsStopNames} stops={stopsRecord} padding={boundsPadding} />}
           <MapViewportEvents onViewportChange={updateRadialPosition} />
           {hasAnyStops && showRouteLine && (
