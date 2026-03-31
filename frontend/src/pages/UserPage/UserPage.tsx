@@ -255,7 +255,10 @@ export const UserPage: React.FC = () => {
 
         {/* Мої бронювання маршруток */}
         <section className="user-section">
-          <h2 className="user-section-title">Мої поточні бронювання</h2>
+          <div className="user-section-head">
+            <h2 className="user-section-title">Мої поточні бронювання</h2>
+            <span className="user-section-count">{profile?.bookings?.length ?? 0}</span>
+          </div>
           {profile?.bookings && profile.bookings.length > 0 ? (
             <ul className="user-list">
               {profile.bookings.map((b) => (
@@ -281,14 +284,19 @@ export const UserPage: React.FC = () => {
           ) : (
             <p className="user-empty">Немає поточних бронювань</p>
           )}
-          <Link to="/booking" className="user-btn user-btn-primary user-btn-new">
-            Нове бронювання
-          </Link>
+          <div className="user-section-cta">
+            <Link to="/booking" className="user-btn user-btn-primary user-btn-new">
+              Нове бронювання
+            </Link>
+          </div>
         </section>
 
         {/* Як пасажир */}
         <section className="user-section">
-          <h2 className="user-section-title">Як пасажир</h2>
+          <div className="user-section-head">
+            <h2 className="user-section-title">Як пасажир</h2>
+            <span className="user-section-count">{profile?.passengerListings?.length ?? 0}</span>
+          </div>
           {profile?.passengerListings && profile.passengerListings.length > 0 ? (
             <ul className="user-list">
               {profile.passengerListings.map((l) => (
@@ -315,19 +323,24 @@ export const UserPage: React.FC = () => {
           ) : (
             <p className="user-empty">Немає поточних планів як пасажир</p>
           )}
-          <a
-            href={scenarios.scenarios.passenger.deepLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="user-btn user-btn-primary user-btn-new"
-          >
-            Новий запит
-          </a>
+          <div className="user-section-cta">
+            <a
+              href={scenarios.scenarios.passenger.deepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="user-btn user-btn-primary user-btn-new"
+            >
+              Новий запит
+            </a>
+          </div>
         </section>
 
         {/* Як водій */}
         <section className="user-section">
-          <h2 className="user-section-title">Як водій</h2>
+          <div className="user-section-head">
+            <h2 className="user-section-title">Як водій</h2>
+            <span className="user-section-count">{profile?.driverListings?.length ?? 0}</span>
+          </div>
           {profile?.driverListings && profile.driverListings.length > 0 ? (
             <ul className="user-list">
               {profile.driverListings.map((l) => (
@@ -355,14 +368,16 @@ export const UserPage: React.FC = () => {
           ) : (
             <p className="user-empty">Немає поточних планів як водій</p>
           )}
-          <a
-            href={scenarios.scenarios.driver.deepLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="user-btn user-btn-primary user-btn-new"
-          >
-            Нова попутка
-          </a>
+          <div className="user-section-cta">
+            <a
+              href={scenarios.scenarios.driver.deepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="user-btn user-btn-primary user-btn-new"
+            >
+              Нова попутка
+            </a>
+          </div>
         </section>
       </div>
 
