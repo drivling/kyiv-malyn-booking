@@ -1,13 +1,26 @@
 /* Адмін панель — той самий стиль, що й решта додатку */
 
 .admin-page {
+  --pb-primary: #1a73e8;
+  --pb-primary-hover: #1967d2;
+  --pb-primary-active: #185abc;
+  --pb-primary-light: #e8f0fe;
+  --pb-primary-border: rgba(26, 115, 232, 0.35);
+  --pb-bg-page: #f8f9fa;
+  --pb-card-bg: #ffffff;
+  --pb-bg-secondary: #f1f3f4;
+  --pb-border: #dadce0;
+  --pb-border-light: #e8eaed;
+  --pb-text: #202124;
+  --pb-text-muted: #5f6368;
+  --pb-text-hint: #5f6368;
   min-height: calc(100vh - 60px);
-  background: linear-gradient(180deg, #f0fdf4 0%, var(--pb-bg-page) 100px);
+  background: linear-gradient(180deg, #f8f9fa 0%, #eef3fd 120px);
   padding: 0 20px 40px;
 }
 
 .admin-header {
-  background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+  background: linear-gradient(135deg, #1967d2 0%, #1a73e8 55%, #4285f4 100%);
   color: #fff;
   padding: 24px 20px 28px;
   margin: 0 -20px 0;
@@ -200,7 +213,7 @@
 .control-input:focus {
   outline: none;
   border-color: var(--pb-primary);
-  box-shadow: 0 0 0 3px rgba(0, 168, 107, 0.15);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
 }
 
 .form-group {
@@ -301,9 +314,9 @@
 }
 
 .badge-malyn-zhytomyr {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: #e8f0fe;
+  color: #174ea6;
+  border: 1px solid rgba(26, 115, 232, 0.35);
 }
 
 .badge-zhytomyr-malyn {
@@ -325,9 +338,9 @@
 }
 
 .badge-success {
-  background: #d1fae5;
-  color: #065f46;
-  border: 1px solid rgba(5, 150, 105, 0.4);
+  background: #e8f0fe;
+  color: #174ea6;
+  border: 1px solid rgba(26, 115, 232, 0.35);
 }
 
 .badge-info {

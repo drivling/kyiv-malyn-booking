@@ -63,15 +63,15 @@ function createCircleIcon(color: string, size = 16) {
   });
 }
 
-const defaultIcon = createCircleIcon('#00A86B', 14);
-const fromIcon = createCircleIcon('#2563eb', 18);
-const toIcon = createCircleIcon('#f97316', 18);
+const defaultIcon = createCircleIcon('#1a73e8', 14);
+const fromIcon = createCircleIcon('#1967d2', 18);
+const toIcon = createCircleIcon('#ea4335', 18);
 
-const fromIconGreen = createCircleIcon('#4caf50', 18);
-const toIconBlue = createCircleIcon('#42a5f5', 18);
+const fromIconGreen = createCircleIcon('#8ab4f8', 18);
+const toIconBlue = createCircleIcon('#f28b82', 18);
 
-const ROUTE_LINE_COLOR = '#4caf50'; // зелений — весь маршрут
-const ROUTE_LINE_GREEN = '#4caf50';
+const ROUTE_LINE_COLOR = '#1a73e8'; // синій — весь маршрут
+const ROUTE_LINE_GREEN = '#8ab4f8';
 const FROM_TO_SEGMENT_COLOR = '#FF8C00'; // жовтогарячий — тільки ділянка між обраними точками З → До
 const FROM_TO_SEGMENT_GREEN = '#FF6600';
 

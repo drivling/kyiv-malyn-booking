@@ -11,6 +11,17 @@
   --pk-text: #202124;
   --pk-text-muted: #5f6368;
   --pk-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  /* Backward-compatible aliases for legacy tokens */
+  --pb-primary: var(--pk-accent);
+  --pb-primary-hover: var(--pk-accent-hover);
+  --pb-primary-light: var(--pk-accent-light);
+  --pb-card-bg: var(--pk-card);
+  --pb-bg-secondary: #f1f3f4;
+  --pb-border: var(--pk-border);
+  --pb-border-light: var(--pk-border-light);
+  --pb-text: var(--pk-text);
+  --pb-text-muted: var(--pk-text-muted);
+  --pb-text-hint: var(--pk-text-muted);
 }
 
 .poputky-page {
@@ -402,7 +413,7 @@
 }
 
 .poputky-role-btn--active:hover {
-  color: var(--pb-primary-hover);
+  color: var(--pk-accent-hover);
 }
 
 .poputky-announce-form {
@@ -431,7 +442,7 @@
 
 .poputky-route-arrow {
   flex-shrink: 0;
-  color: var(--pb-primary);
+  color: var(--pk-accent);
   font-size: 1.25rem;
   font-weight: 600;
   padding-bottom: 8px;
@@ -610,7 +621,7 @@
 }
 
 .poputky-stat strong {
-  color: var(--pb-primary);
+  color: var(--pk-accent);
   font-weight: 600;
 }
 
@@ -649,7 +660,7 @@
 }
 
 .poputky-footer-link {
-  color: var(--pb-primary);
+  color: var(--pk-accent);
   font-weight: 600;
   text-decoration: none;
 }
@@ -734,7 +745,7 @@
   text-align: center;
   text-decoration: none;
   border-radius: 10px;
-  background: var(--pb-primary);
+  background: var(--pk-accent);
   color: #fff;
   font-weight: 600;
   padding: 14px;
@@ -744,7 +755,7 @@
 }
 
 .poputky-modal-call-button:hover {
-  background: var(--pb-primary-hover);
+  background: var(--pk-accent-hover);
   color: #fff;
 }
 
