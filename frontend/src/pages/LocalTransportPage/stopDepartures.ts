@@ -3,6 +3,7 @@
  */
 import type { RouteStopWithOrder, TransportRecord, TransportData, SupplementRoute } from './types';
 import { getDurationFromStartSec, getMinsBetweenStops, isVerifiedRoute } from './routeTiming';
+import { getStopKey, invertNameToId, type StopsCatalog } from './stopCatalog';
 
 export type StopDepartureRow = {
   routeId: string;
@@ -36,22 +37,21 @@ function getStopNames(stops: string[] | RouteStopWithOrder[]): string[] {
   return typeof first === 'string' ? (stops as string[]) : (stops as RouteStopWithOrder[]).map((s) => s.name);
 }
 
-function getRealStops(stops: RouteStopWithOrder[]): RouteStopWithOrder[] {
-  return stops.filter((s) => !s.map_only);
-}
-
 function routeHasStop(
   routeId: string,
-  stopName: string,
+  stopKey: string,
   route: { from: string | null; to: string | null },
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
+  catalog?: StopsCatalog
 ): boolean {
-  if (route.from === stopName || route.to === stopName) return true;
+  const n2i = invertNameToId(catalog);
+  if (route.from && (n2i.get(route.from) === stopKey || route.from === stopKey)) return true;
+  if (route.to && (n2i.get(route.to) === stopKey || route.to === stopKey)) return true;
   const routeStops = stopsByRoute?.[routeId];
   if (!routeStops?.length) return false;
   const first = routeStops[0];
   if (typeof first === 'object' && 'order_there' in first) {
-    const stop = (routeStops as RouteStopWithOrder[]).find((s) => s.name === stopName);
+    const stop = (routeStops as RouteStopWithOrder[]).find((s) => getStopKey(s) === stopKey);
     if (!stop) return false;
     const ot = stop.order_there;
     const ob = stop.order_back;
@@ -59,7 +59,10 @@ function routeHasStop(
     const backOk = typeof ob === 'number' && ob > 0;
     return thereOk || backOk;
   }
-  return getStopNames(routeStops).includes(stopName);
+  return getStopNames(routeStops).some((name) => {
+    const id = n2i.get(name);
+    return id === stopKey || name === stopKey;
+  });
 }
 
 function normalizeStopsWithOrder(routeStops: string[] | RouteStopWithOrder[]): RouteStopWithOrder[] {
@@ -137,43 +140,22 @@ export function buildRoutesFromData(data: TransportData): RouteBundle[] {
     .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 }
 
-export function buildStopsList(
-  routes: RouteBundle[],
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
-): string[] {
-  const stopSet = new Set<string>();
-  routes.forEach((r) => {
-    if (r.from) stopSet.add(r.from);
-    if (r.to) stopSet.add(r.to);
-  });
-  if (stopsByRoute) {
-    Object.values(stopsByRoute).forEach((stops) => {
-      const names =
-        Array.isArray(stops) && stops[0] != null && typeof stops[0] === 'object' && 'name' in stops[0]
-          ? getStopNames(getRealStops(stops as RouteStopWithOrder[]))
-          : getStopNames(stops);
-      names.forEach((s) => stopSet.add(s));
-    });
-  }
-  ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((s) => stopSet.add(s));
-  return [...stopSet].sort((a, b) => a.localeCompare(b));
-}
-
 /**
- * Усі відправлення з зупинки `stopName` по всіх маршрутах (обидва напрямки), відсортовані за часом.
+ * Усі відправлення з зупинки `stopKey` (id st_XXXX) по всіх маршрутах (обидва напрямки), відсортовані за часом.
  */
 export function buildStopDepartures(
-  stopName: string,
+  stopKey: string,
   routes: RouteBundle[],
-  stopsByRoute: Record<string, string[] | RouteStopWithOrder[]> | undefined
+  stopsByRoute: Record<string, string[] | RouteStopWithOrder[]> | undefined,
+  catalog?: StopsCatalog
 ): StopDepartureRow[] {
-  if (!stopName || !stopsByRoute) return [];
+  if (!stopKey || !stopsByRoute) return [];
 
   const rows: StopDepartureRow[] = [];
 
   for (const route of routes) {
     if (!route.trips.length) continue;
-    if (!routeHasStop(route.id, stopName, route, stopsByRoute)) continue;
+    if (!routeHasStop(route.id, stopKey, route, stopsByRoute, catalog)) continue;
 
     const raw = stopsByRoute[route.id];
     if (!raw?.length) continue;
@@ -181,11 +163,11 @@ export function buildStopDepartures(
     const stopsWithOrder = normalizeStopsWithOrder(raw);
     const orderedThere = getOrderedForDirection(stopsWithOrder, 'there');
     const orderedBack = getOrderedForDirection(stopsWithOrder, 'back');
-    const orderedNamesThere = orderedThere.map((s) => s.name);
-    const orderedNamesBack = orderedBack.map((s) => s.name);
+    const orderedKeysThere = orderedThere.map((s) => getStopKey(s));
+    const orderedKeysBack = orderedBack.map((s) => getStopKey(s));
 
-    const stopThere = orderedThere.find((s) => s.name === stopName);
-    const stopBack = orderedBack.find((s) => s.name === stopName);
+    const stopThere = orderedThere.find((s) => getStopKey(s) === stopKey);
+    const stopBack = orderedBack.find((s) => getStopKey(s) === stopKey);
 
     const verified = isVerifiedRoute(route.id);
     const minsPerStop = getMinsBetweenStops(route.id);
@@ -197,7 +179,7 @@ export function buildStopDepartures(
         const mins = parseTime(t.block_id);
         if (mins <= 0) return;
         const depMins = verified
-          ? mins + getDurationFromStartSec(route.id, orderedNamesThere, order - 1) / 60
+          ? mins + getDurationFromStartSec(route.id, orderedKeysThere, order - 1) / 60
           : mins + (order - 1) * minsPerStop;
         const dest = (t.trip_headsign || route.to || '').trim() || '—';
         rows.push({
@@ -216,7 +198,7 @@ export function buildStopDepartures(
         const mins = parseTime(t.block_id);
         if (mins <= 0) return;
         const depMins = verified
-          ? mins + getDurationFromStartSec(route.id, orderedNamesBack, order - 1) / 60
+          ? mins + getDurationFromStartSec(route.id, orderedKeysBack, order - 1) / 60
           : mins + (order - 1) * minsPerStop;
         const dest = (t.trip_headsign || route.from || '').trim() || '—';
         rows.push({

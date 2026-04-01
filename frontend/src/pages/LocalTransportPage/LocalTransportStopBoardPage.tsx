@@ -2,47 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import type { TransportData } from './types';
-import {
-  buildRoutesFromData,
-  buildStopsList,
-  buildStopDepartures,
-  formatMinsClock,
-} from './stopDepartures';
+import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
+import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
 import './LocalTransportPage.css';
 
 const DATA_URL = '/data/malyn_transport.json';
 
-/** Як у LocalTransportPage — узгодження назви з URL і списком */
-function normalizeStopNameForMatch(s: string): string {
-  let t = s
-    .replace(/^з-д\s+/i, '')
-    .replace(/^["'\s]+|["'\s]+$/g, '')
-    .trim();
-  t = t.replace(/^["«»]|["«»]$/g, '').trim();
-  t = t.replace(/Проектор/gi, 'Прожектор');
-  return t;
-}
-
-function findMatchingStop(urlValue: string, names: string[]): string | null {
-  if (!urlValue) return null;
-  if (names.includes(urlValue)) return urlValue;
-  const norm = (s: string) => s.replace(/["«»]/g, '"').replace(/Проектор/gi, 'Прожектор');
-  const nUrl = norm(urlValue);
-  let found =
-    names.find((n) => norm(n) === nUrl) ??
-    names.find((n) => n.includes('Прожектор') && urlValue.includes('Проектор')) ??
-    null;
-  if (found) return found;
-  const normalizedInput = normalizeStopNameForMatch(urlValue);
-  if (!normalizedInput) return null;
-  return (
-    names.find((n) => normalizeStopNameForMatch(n) === normalizedInput) ??
-    names.find((n) => norm(n) === normalizedInput) ??
-    null
-  );
-}
 
 function formatDateUrl(date: Date): string {
   const d = date.getDate();
@@ -187,28 +154,38 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   const routes = useMemo(() => (data ? buildRoutesFromData(data) : []), [data]);
   const stopsByRoute = data?.supplement?.stops?.stops_by_route;
-  const stops = useMemo(() => buildStopsList(routes, stopsByRoute), [routes, stopsByRoute]);
+  const stopsCatalog = useMemo(() => getStopsCatalog(data), [data]);
+  const stops = useMemo(
+    () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog),
+    [routes, stopsByRoute, stopsCatalog]
+  );
 
   const decodedSlug = stopSlug ? decodeURIComponent(stopSlug) : '';
-  const matchedStopName = useMemo(() => {
+  const matchedStopId = useMemo(() => {
     if (!decodedSlug || !stops.length) return '';
-    return findMatchingStop(decodedSlug, stops) ?? '';
-  }, [decodedSlug, stops]);
+    const id = resolveStopIdInList(decodedSlug, stops, stopsCatalog);
+    return id && stops.includes(id) ? id : '';
+  }, [decodedSlug, stops, stopsCatalog]);
 
   useEffect(() => {
-    if (matchedStopName) setSelectedStop(matchedStopName);
-  }, [matchedStopName]);
+    if (matchedStopId) setSelectedStop(matchedStopId);
+  }, [matchedStopId]);
 
   useEffect(() => {
     setShowFullDay(false);
-  }, [matchedStopName]);
+  }, [matchedStopId]);
 
   const referenceMins = useMemo(() => parseClockToMins(searchTime), [searchTime]);
 
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
-    return buildStopDepartures(selectedStop, routes, stopsByRoute);
-  }, [selectedStop, routes, stopsByRoute]);
+    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog);
+  }, [selectedStop, routes, stopsByRoute, stopsCatalog]);
+
+  const selectedStopTitle = useMemo(
+    () => (selectedStop ? displayNameForStopKey(selectedStop, stopsCatalog) : ''),
+    [selectedStop, stopsCatalog]
+  );
 
   /** За замовчуванням — лише рейси з обраного часу або пізніше (як «наступні відправлення»). */
   const visibleDepartures = useMemo(() => {
@@ -312,7 +289,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   </label>
                   <Combobox
                     label=""
-                    options={[{ value: '', label: '— Оберіть зупинку —' }, ...stops.map((s) => ({ value: s, label: s }))]}
+                    options={[
+                      { value: '', label: '— Оберіть зупинку —' },
+                      ...stops.map((s: string) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
+                    ]}
                     value={selectedStop}
                     onChange={handleStopChange}
                     placeholder="Наприклад Малинівка"
@@ -359,7 +339,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <section className="lt-stop-board" aria-labelledby="lt-stop-board-table-h">
               <div className="lt-stop-board-meta">
                 <h3 id="lt-stop-board-table-h" className="lt-stop-board-table-title">
-                  {selectedStop}
+                  {selectedStopTitle}
                 </h3>
                 {parseDateUrl(searchDate) && (
                   <span className="lt-stop-board-date">
@@ -379,7 +359,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <section className="lt-stop-board" aria-labelledby="lt-stop-board-table-h">
               <div className="lt-stop-board-meta">
                 <h3 id="lt-stop-board-table-h" className="lt-stop-board-table-title">
-                  {selectedStop}
+                  {selectedStopTitle}
                 </h3>
                 {parseDateUrl(searchDate) && (
                   <span className="lt-stop-board-date">

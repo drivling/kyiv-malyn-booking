@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import './MapEditorTab.css';
+import { displayNameForStopKey, getStopKey, type StopsCatalog } from '../LocalTransportPage/stopCatalog';
 
 const TRANSPORT_URL = '/data/malyn_transport.json';
 const STOPS_COORDS_URL = '/data/stops_coords.json';
@@ -17,6 +18,8 @@ interface StopsCoordsData {
 }
 
 interface RouteStop {
+  /** Стабільний ключ (координати, сегменти) — як у public/data */
+  id?: string;
   name: string;
   order_there?: number;
   order_back?: number;
@@ -35,6 +38,7 @@ interface TransportData {
   supplement?: {
     stops?: {
       stops_by_route?: Record<string, RouteStop[] | string[]>;
+      stops_catalog?: StopsCatalog;
     };
     routes?: Record<string, SupplementRoute>;
   };
@@ -59,7 +63,27 @@ function getRouteStopsWithOrder(
   }));
 }
 
-/** Наступний індекс для технічної зупинки маршруту (назва "№{routeId} т.{n}") */
+/** Наступний вільний st_XXXX за каталогом і ключами coords */
+function nextStopCatalogId(transport: TransportData | null, coords: StopsCoordsData | null): string {
+  const nums: number[] = [];
+  const cat = transport?.supplement?.stops?.stops_catalog;
+  if (cat) {
+    for (const k of Object.keys(cat)) {
+      const m = k.match(/^st_(\d{4})$/);
+      if (m) nums.push(parseInt(m[1], 10));
+    }
+  }
+  if (coords?.stops) {
+    for (const k of Object.keys(coords.stops)) {
+      const m = k.match(/^st_(\d{4})$/);
+      if (m) nums.push(parseInt(m[1], 10));
+    }
+  }
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `st_${next.toString().padStart(4, '0')}`;
+}
+
+/** Наступний індекс для технічної зупинки маршруту (підпис "№{routeId} т.{n}") */
 function nextTechnicalStopIndex(routeStops: RouteStop[], routeId: string): number {
   const prefix = `№${routeId} т.`;
   let max = 0;
@@ -90,11 +114,13 @@ function DraggableMarker({
   position,
   onPositionChange,
   excluded,
+  popupLabel,
 }: {
   name: string;
   position: [number, number];
   onPositionChange: (name: string, lat: number, lng: number) => void;
   excluded?: boolean;
+  popupLabel?: string;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
 
@@ -131,7 +157,7 @@ function DraggableMarker({
       eventHandlers={eventHandlers}
     >
       <Popup>
-        Перетягніть маркер для зміни позиції: {name}
+        Перетягніть маркер для зміни позиції: {popupLabel ?? name}
         {excluded && <span className="map-editor-popup-excluded"> (виключена)</span>}
       </Popup>
     </Marker>
@@ -144,12 +170,14 @@ function ClickableMarker({
   onClick,
   excluded,
   order,
+  popupLabel,
 }: {
   name: string;
   position: [number, number];
   onClick: (name: string) => void;
   excluded?: boolean;
   order?: number;
+  popupLabel?: string;
 }) {
   const icon = excluded
     ? createMarkerIcon(MARKER_EXCLUDED_COLOR, '−')
@@ -163,7 +191,7 @@ function ClickableMarker({
     >
       <Popup>
         <button type="button" className="map-editor-marker-popup-btn" onClick={() => onClick(name)}>
-          Редагувати порядок: {name}
+          Редагувати порядок: {popupLabel ?? name}
         </button>
       </Popup>
     </Marker>
@@ -221,9 +249,15 @@ export const MapEditorTab: React.FC = () => {
     setMounted(true);
   }, []);
 
+  const stopsCatalog = useMemo(() => transportData?.supplement?.stops?.stops_catalog, [transportData]);
+
   useEffect(() => {
-    setEditStopName(modalStop ?? '');
-  }, [modalStop]);
+    if (!modalStop) {
+      setEditStopName('');
+      return;
+    }
+    setEditStopName(displayNameForStopKey(modalStop, stopsCatalog));
+  }, [modalStop, stopsCatalog]);
 
   useEffect(() => {
     Promise.all([
@@ -254,15 +288,15 @@ export const MapEditorTab: React.FC = () => {
     const allStops = Object.keys(coordsData.stops);
     if (!selectedRoute) return allStops;
     const routeStops = getRouteStopsWithOrder(transportData?.supplement?.stops?.stops_by_route, selectedRoute);
-    const routeStopNames = new Set(routeStops.map((s) => s.name));
-    return allStops.filter((n) => routeStopNames.has(n));
+    const routeStopKeys = new Set(routeStops.map((s) => getStopKey(s)));
+    return allStops.filter((k) => routeStopKeys.has(k));
   }, [coordsData, transportData, selectedRoute]);
 
   const isTechnicalStop = useCallback(
-    (name: string) => {
+    (stopKey: string) => {
       if (!selectedRoute || !transportData) return false;
       const routeStops = getRouteStopsWithOrder(transportData.supplement?.stops?.stops_by_route, selectedRoute);
-      return routeStops.some((s) => s.name === name && s.map_only);
+      return routeStops.some((s) => getStopKey(s) === stopKey && s.map_only);
     },
     [selectedRoute, transportData]
   );
@@ -289,8 +323,8 @@ export const MapEditorTab: React.FC = () => {
   }, [routeStopsForDirection, directionMode]);
 
   const isStopExcludedInAnyDirection = useCallback(
-    (name: string) => {
-      const stop = routeStopsForDirection.find((s) => s.name === name);
+    (stopKey: string) => {
+      const stop = routeStopsForDirection.find((s) => getStopKey(s) === stopKey);
       if (!stop) return false;
       return stop.order_there === -1 || stop.order_back === -1;
     },
@@ -318,28 +352,30 @@ export const MapEditorTab: React.FC = () => {
     const sbr = transportData.supplement?.stops?.stops_by_route;
     const routeStops = getRouteStopsWithOrder(sbr, selectedRoute);
     if (routeStops.length === 0) return;
-    const name = `№${selectedRoute} т.${nextTechnicalStopIndex(routeStops, selectedRoute)}`;
+    const newId = nextStopCatalogId(transportData, coordsData);
+    const label = `№${selectedRoute} т.${nextTechnicalStopIndex(routeStops, selectedRoute)}`;
     const maxThere = Math.max(0, ...routeStops.map((s) => s.order_there ?? 0).filter((n) => n > 0));
     const maxBack = Math.max(0, ...routeStops.map((s) => s.order_back ?? 0).filter((n) => n > 0));
     const firstWithCoords = displayedStops.map((n) => coordsData.stops[n]).find(Boolean);
     const position: [number, number] = mapCenter ?? (firstWithCoords as [number, number]) ?? coordsData.center;
     setCoordsData((prev) =>
-      prev
-        ? { ...prev, stops: { ...prev.stops, [name]: position } }
-        : prev
+      prev ? { ...prev, stops: { ...prev.stops, [newId]: position } } : prev
     );
     const newStop: RouteStop = {
-      name,
+      id: newId,
+      name: label,
       order_there: maxThere + 1,
       order_back: maxBack + 1,
       map_only: true,
     };
+    const prevCatalog = transportData.supplement?.stops?.stops_catalog ?? {};
     setTransportData({
       ...transportData,
       supplement: {
         ...transportData.supplement,
         stops: {
           ...transportData.supplement?.stops,
+          stops_catalog: { ...prevCatalog, [newId]: { name: label } },
           stops_by_route: {
             ...transportData.supplement?.stops?.stops_by_route,
             [selectedRoute]: [...routeStops, newStop],
@@ -363,13 +399,13 @@ export const MapEditorTab: React.FC = () => {
   }, [coordsData]);
 
   const handleStopOrderChange = useCallback(
-    (stopName: string, newOrder: number) => {
+    (stopKey: string, newOrder: number) => {
       if (!transportData || !selectedRoute) return;
       const sbr = transportData.supplement?.stops?.stops_by_route;
       if (!sbr?.[selectedRoute]) return;
       const routeStops = [...(sbr[selectedRoute] as RouteStop[])];
       const orderKey = directionMode === 'there' ? 'order_there' : 'order_back';
-      const stopIdx = routeStops.findIndex((s) => s.name === stopName);
+      const stopIdx = routeStops.findIndex((s) => getStopKey(s) === stopKey);
       if (stopIdx < 0) return;
       const oldOrder = routeStops[stopIdx][orderKey] ?? 0;
       if (newOrder === -1) {
@@ -401,10 +437,10 @@ export const MapEditorTab: React.FC = () => {
 
   /** Скопіювати зупинку (за назвою) в інший маршрут — додати в кінець, порядок потім підправити в редакторі */
   const handleCopyStopToRoute = useCallback(
-    (stopName: string, targetRouteId: string) => {
+    (stopKey: string, targetRouteId: string) => {
       if (!transportData || !selectedRoute || targetRouteId === selectedRoute) return;
       const sbr = transportData.supplement?.stops?.stops_by_route;
-      const sourceStop = routeStopsForDirection.find((s) => s.name === stopName);
+      const sourceStop = routeStopsForDirection.find((s) => getStopKey(s) === stopKey);
       if (!sourceStop) return;
       const targetStopsRaw = sbr?.[targetRouteId];
       if (!targetStopsRaw || !Array.isArray(targetStopsRaw)) return;
@@ -416,11 +452,12 @@ export const MapEditorTab: React.FC = () => {
               order_there: i + 1,
               order_back: targetStopsRaw.length - i,
             }));
-      if (targetStops.some((s) => s.name === stopName)) return;
+      if (targetStops.some((s) => getStopKey(s) === stopKey)) return;
       const maxThere = Math.max(0, ...targetStops.map((s) => s.order_there ?? 0).filter((n) => n > 0));
       const maxBack = Math.max(0, ...targetStops.map((s) => s.order_back ?? 0).filter((n) => n > 0));
       const newEntry: RouteStop = {
-        name: stopName,
+        id: sourceStop.id,
+        name: sourceStop.name,
         order_there: maxThere + 1,
         order_back: maxBack + 1,
         ...(sourceStop.map_only !== undefined && { map_only: sourceStop.map_only }),
@@ -445,12 +482,12 @@ export const MapEditorTab: React.FC = () => {
 
   /** Увімкнути/вимкнути «технічна зупинка» (map_only) для обраної зупинки в поточному маршруті */
   const handleToggleMapOnly = useCallback(
-    (stopName: string, mapOnly: boolean) => {
+    (stopKey: string, mapOnly: boolean) => {
       if (!transportData || !selectedRoute) return;
       const sbr = transportData.supplement?.stops?.stops_by_route;
       if (!sbr?.[selectedRoute]) return;
       const routeStops = (sbr[selectedRoute] as RouteStop[]).map((s) =>
-        s.name === stopName ? { ...s, map_only: mapOnly } : s
+        getStopKey(s) === stopKey ? { ...s, map_only: mapOnly } : s
       );
       setTransportData({
         ...transportData,
@@ -469,14 +506,17 @@ export const MapEditorTab: React.FC = () => {
     [transportData, selectedRoute]
   );
 
-  /** Перейменувати зупинку у всіх маршрутах та в координатах */
+  /** Оновити підпис зупинки в каталозі та полі name у маршрутах (ключ id не змінюється) */
   const handleRenameStop = useCallback(
-    (oldName: string, newName: string) => {
-      const trimmed = newName.trim();
-      if (!trimmed || trimmed === oldName) return;
-      if (!transportData || !coordsData) return;
+    (stopId: string, newDisplayName: string) => {
+      const trimmed = newDisplayName.trim();
+      if (!trimmed) return;
+      if (!transportData) return;
+      const prevLabel = displayNameForStopKey(stopId, transportData.supplement?.stops?.stops_catalog);
+      if (trimmed === prevLabel) return;
       const sbr = transportData.supplement?.stops?.stops_by_route;
       if (!sbr) return;
+      const prevCatalog = transportData.supplement?.stops?.stops_catalog ?? {};
       const newSbr: Record<string, RouteStop[] | string[]> = {};
       for (const [routeId, stops] of Object.entries(sbr)) {
         if (!Array.isArray(stops)) {
@@ -486,10 +526,10 @@ export const MapEditorTab: React.FC = () => {
         const first = stops[0];
         if (typeof first === 'object' && first && 'name' in first) {
           newSbr[routeId] = (stops as RouteStop[]).map((s) =>
-            s.name === oldName ? { ...s, name: trimmed } : s
+            getStopKey(s) === stopId ? { ...s, name: trimmed } : s
           );
         } else {
-          newSbr[routeId] = (stops as string[]).map((n) => (n === oldName ? trimmed : n));
+          newSbr[routeId] = (stops as string[]).map((n) => (n === stopId ? trimmed : n));
         }
       }
       setTransportData({
@@ -498,23 +538,14 @@ export const MapEditorTab: React.FC = () => {
           ...transportData.supplement,
           stops: {
             ...transportData.supplement?.stops,
+            stops_catalog: { ...prevCatalog, [stopId]: { name: trimmed } },
             stops_by_route: newSbr,
           },
         },
       });
-      const pos = coordsData.stops[oldName];
-      if (pos) {
-        setCoordsData((prev) => {
-          if (!prev) return prev;
-          const next = { ...prev.stops, [trimmed]: pos };
-          delete next[oldName];
-          return { ...prev, stops: next };
-        });
-      }
-      setModalStop(trimmed);
       setEditStopName(trimmed);
     },
-    [transportData, coordsData]
+    [transportData]
   );
 
   const handleDownloadTransport = useCallback(() => {
@@ -665,6 +696,7 @@ export const MapEditorTab: React.FC = () => {
                         position={pos}
                         onPositionChange={handlePositionChange}
                         excluded={selectedRoute ? isStopExcludedInAnyDirection(name) : false}
+                        popupLabel={displayNameForStopKey(name, stopsCatalog)}
                       />
                     );
                   })
@@ -672,7 +704,7 @@ export const MapEditorTab: React.FC = () => {
                   displayedStops.map((name) => {
                     const pos = coordsData.stops[name];
                     if (!pos) return null;
-                    const stop = routeStopsForDirection.find((s) => s.name === name);
+                    const stop = routeStopsForDirection.find((s) => getStopKey(s) === name);
                     const orderKey = directionMode === 'there' ? 'order_there' : 'order_back';
                     const order = stop?.[orderKey];
                     const excluded = order === -1;
@@ -684,6 +716,7 @@ export const MapEditorTab: React.FC = () => {
                         onClick={setModalStop}
                         excluded={excluded}
                         order={excluded ? undefined : (order as number)}
+                        popupLabel={displayNameForStopKey(name, stopsCatalog)}
                       />
                     );
                   })}
@@ -701,7 +734,7 @@ export const MapEditorTab: React.FC = () => {
                   const technical = isTechnicalStop(name);
                   return (
                     <li key={name} className={`map-editor-stop-item ${excluded ? 'map-editor-stop-item--excluded' : ''}`}>
-                      <span className="map-editor-stop-name">{name}</span>
+                      <span className="map-editor-stop-name">{displayNameForStopKey(name, stopsCatalog)}</span>
                       {pos && (
                         <span className="map-editor-stop-coords">
                           {pos[0].toFixed(6)}, {pos[1].toFixed(6)}
@@ -722,9 +755,9 @@ export const MapEditorTab: React.FC = () => {
                 </h3>
                 <ul className="map-editor-stops-list map-editor-stops-list--ordered">
                   {orderedStopsForDirection.map((s, idx) => (
-                    <li key={s.name} className="map-editor-stop-item">
+                    <li key={getStopKey(s)} className="map-editor-stop-item">
                       <span className="map-editor-stop-order">{idx + 1}.</span>
-                      <span className="map-editor-stop-name">{s.name}</span>
+                      <span className="map-editor-stop-name">{displayNameForStopKey(getStopKey(s), stopsCatalog)}</span>
                       {s.map_only && <span className="map-editor-stop-badge map-editor-stop-badge--tech">техн.</span>}
                     </li>
                   ))}
@@ -734,9 +767,9 @@ export const MapEditorTab: React.FC = () => {
                   {routeStopsForDirection
                     .filter((s) => (directionMode === 'there' ? s.order_there : s.order_back) === -1)
                     .map((s) => (
-                      <li key={s.name} className="map-editor-stop-item map-editor-stop-item--excluded">
+                      <li key={getStopKey(s)} className="map-editor-stop-item map-editor-stop-item--excluded">
                         <span className="map-editor-stop-order">—</span>
-                        <span className="map-editor-stop-name">{s.name}</span>
+                        <span className="map-editor-stop-name">{displayNameForStopKey(getStopKey(s), stopsCatalog)}</span>
                       </li>
                     ))}
                 </ul>
@@ -751,7 +784,9 @@ export const MapEditorTab: React.FC = () => {
       {modalStop && directionEditorActive && (
         <div className="map-editor-modal-overlay" onClick={() => setModalStop(null)}>
           <div className="map-editor-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="map-editor-modal-title">Зупинка: {modalStop}</h3>
+            <h3 className="map-editor-modal-title">
+              Зупинка: {displayNameForStopKey(modalStop, stopsCatalog)}
+            </h3>
 
             <div className="map-editor-modal-field">
               <label className="map-editor-modal-label">Назва зупинки:</label>
@@ -767,7 +802,10 @@ export const MapEditorTab: React.FC = () => {
                   type="button"
                   className="map-editor-modal-opt map-editor-modal-save-name"
                   onClick={() => handleRenameStop(modalStop, editStopName)}
-                  disabled={!editStopName.trim() || editStopName.trim() === modalStop}
+                  disabled={
+                    !editStopName.trim() ||
+                    editStopName.trim() === displayNameForStopKey(modalStop, stopsCatalog)
+                  }
                 >
                   Зберегти назву
                 </button>
@@ -778,7 +816,7 @@ export const MapEditorTab: React.FC = () => {
               <label className="map-editor-modal-checkbox-label">
                 <input
                   type="checkbox"
-                  checked={routeStopsForDirection.find((s) => s.name === modalStop)?.map_only ?? false}
+                  checked={routeStopsForDirection.find((s) => getStopKey(s) === modalStop)?.map_only ?? false}
                   onChange={(e) => handleToggleMapOnly(modalStop, e.target.checked)}
                 />
                 <span>Технічна зупинка (тільки для карти, map_only)</span>

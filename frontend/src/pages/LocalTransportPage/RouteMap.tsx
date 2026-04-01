@@ -25,8 +25,10 @@ interface RouteMapProps {
   onPickToStop?: (stopName: string) => void;
   /** Поміняти "З" та "ПО" місцями */
   onSwapStops?: () => void;
-  /** Часті кінцеві зупинки для швидкого вибору "ПО" */
+  /** Часті кінцеві зупинки (id) для швидкого вибору "ПО" */
   frequentToStops?: string[];
+  /** Підпис зупинки для UI (id → назва); якщо немає — показується id */
+  resolveStopLabel?: (stopKey: string) => string;
   /** Тап по маркеру зупинки (наприклад розгорнути mobile sheet карти) */
   onStopMarkerActivate?: () => void;
   /** Стан mobile bottom-sheet: при зміні викликається invalidateSize для коректних тайлів */
@@ -166,6 +168,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   onPickToStop,
   onSwapStops,
   frequentToStops = [],
+  resolveStopLabel = (k) => k,
   onStopMarkerActivate,
   mapSheetSnap,
 }) => {
@@ -255,7 +258,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   return (
     <div className={`lt-map-wrapper ${dark ? 'lt-map-wrapper--dark' : ''}`}>
       <div className="lt-direction-strip" aria-label="Обрані зупинки">
-        <span className="lt-direction-strip__from">З {fromStopName || '—'}</span>
+        <span className="lt-direction-strip__from">З {fromStopName ? resolveStopLabel(fromStopName) : '—'}</span>
         <button
           type="button"
           className="lt-direction-strip__swap"
@@ -266,7 +269,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         >
           ⇄
         </button>
-        <span className="lt-direction-strip__to">ПО {toStopName || '—'}</span>
+        <span className="lt-direction-strip__to">ПО {toStopName ? resolveStopLabel(toStopName) : '—'}</span>
       </div>
       {hasOneStop && secondStepHint && (
         <p className="lt-direction-strip__hint">{secondStepHint}</p>
@@ -350,7 +353,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 <Popup>
                   <div className="lt-stop-popup">
                     <div className="lt-stop-popup__title">
-                      {n}
+                      {resolveStopLabel(n)}
                       {isFrom ? ' (З)' : isTo ? ' (ПО)' : ''}
                     </div>
                     <div className="lt-stop-popup__actions">
@@ -396,7 +399,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       {selectedStopOnMap && (
         <div className="lt-stop-sheet" role="dialog" aria-label="Вибір ролі зупинки">
           <div className="lt-stop-sheet__header">
-            <strong>{selectedStopOnMap}</strong>
+            <strong>{resolveStopLabel(selectedStopOnMap)}</strong>
             <button type="button" onClick={() => setSelectedStopOnMap('')} aria-label="Закрити">
               ✕
             </button>
@@ -437,7 +440,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                       setSelectedStopOnMap('');
                     }}
                   >
-                    {stop}
+                    {resolveStopLabel(stop)}
                   </button>
                 ))}
               </div>

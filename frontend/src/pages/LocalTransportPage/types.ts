@@ -41,6 +41,8 @@ export type StopBelongsTo = 'there' | 'back' | 'both';
  */
 export interface RouteStopWithOrder {
   name: string;
+  /** Стабільний ідентифікатор (st_XXXX) — URL, координати, сегменти часу */
+  id?: string;
   /** Номер зупинки в маршруті туди (from → to). -1 = тимчасово недоступна */
   order_there: number;
   /** Номер зупинки в маршруті назад (to → from). -1 = тимчасово недоступна */
@@ -58,6 +60,8 @@ export interface RouteStopWithOrder {
 export interface SupplementStops {
   source?: string;
   source_url?: string;
+  /** Каталог: id → відображувана назва (стабільні ключі для даних і URL) */
+  stops_catalog?: Record<string, { name: string }>;
   /** Зупинки по маршрутах з порядком у кожному напрямку */
   stops_by_route?: Record<string, RouteStopWithOrder[]>;
 }

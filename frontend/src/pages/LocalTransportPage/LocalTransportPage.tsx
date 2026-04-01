@@ -3,6 +3,15 @@ import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Combobox } from '@/components/Combobox';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
+import type { StopsCatalog } from './stopCatalog';
+import {
+  buildSortedStopIds,
+  displayNameForStopKey,
+  getStopKey,
+  getStopsCatalog,
+  invertNameToId,
+  resolveStopIdInList,
+} from './stopCatalog';
 import {
   getMinsBetweenStops,
   getDurationFromStartSec,
@@ -33,25 +42,26 @@ function haversineDistance(
   return R * c;
 }
 
-/** Зі списку зупинок повертає назву найближчої до targetName за координатами (або першу з списку) */
+/** Зі списку зупинок повертає id найближчої до targetKey за координатами (або першу з списку) */
 function findNearestStopInList(
-  targetName: string,
-  list: Array<{ name: string }>,
+  targetKey: string,
+  list: RouteStopWithOrder[],
   coords: Record<string, [number, number]> | null
 ): string | null {
   if (!list.length) return null;
-  const target = coords?.[targetName];
-  if (!target) return list[0].name;
+  const target = coords?.[targetKey];
+  if (!target) return getStopKey(list[0]);
   const [lat, lon] = target;
-  let best = list[0].name;
+  let best = getStopKey(list[0]);
   let bestDist = Infinity;
   for (const s of list) {
-    const c = coords?.[s.name];
+    const key = getStopKey(s);
+    const c = coords?.[key];
     if (!c) continue;
     const d = haversineDistance(lat, lon, c[0], c[1]);
     if (d < bestDist) {
       bestDist = d;
-      best = s.name;
+      best = key;
     }
   }
   return best;
@@ -112,26 +122,17 @@ function getRealStops(stops: RouteStopWithOrder[]): RouteStopWithOrder[] {
   return stops.filter((s) => !s.map_only);
 }
 
-function buildStops(
-  routes: ReturnType<typeof buildRoutes>,
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
+function getStopKeysFromRouteStops(
+  stops: string[] | RouteStopWithOrder[],
+  catalog: StopsCatalog | undefined
 ): string[] {
-  const stopSet = new Set<string>();
-  routes.forEach((r) => {
-    if (r.from) stopSet.add(r.from);
-    if (r.to) stopSet.add(r.to);
-  });
-  if (stopsByRoute) {
-    Object.values(stopsByRoute).forEach((stops) => {
-      const names =
-        Array.isArray(stops) && stops[0] != null && typeof stops[0] === 'object' && 'name' in stops[0]
-          ? getStopNames(getRealStops(stops as RouteStopWithOrder[]))
-          : getStopNames(stops);
-      names.forEach((s) => stopSet.add(s));
-    });
+  if (!stops?.length) return [];
+  const first = stops[0];
+  const n2i = invertNameToId(catalog);
+  if (typeof first === 'string') {
+    return (stops as string[]).map((name) => n2i.get(name) ?? name);
   }
-  ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((s) => stopSet.add(s));
-  return [...stopSet].sort((a, b) => a.localeCompare(b));
+  return getRealStops(stops as RouteStopWithOrder[]).map((s) => getStopKey(s));
 }
 
 /** order === -1 означає тимчасово недоступну зупинку */
@@ -142,21 +143,27 @@ function isStopAvailableInDirection(stop: RouteStopWithOrder, dir: 'there' | 'ba
 
 function routeHasStop(
   routeId: string,
-  stopName: string,
+  stopKey: string,
   route: { from: string | null; to: string | null },
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
+  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
+  catalog?: StopsCatalog
 ): boolean {
-  if (route.from === stopName || route.to === stopName) return true;
+  const n2i = invertNameToId(catalog);
+  const fromKey = route.from ? n2i.get(route.from) ?? route.from : null;
+  const toKey = route.to ? n2i.get(route.to) ?? route.to : null;
+  if (fromKey === stopKey || toKey === stopKey) return true;
   const routeStops = stopsByRoute?.[routeId];
   if (!routeStops?.length) return false;
   const first = routeStops[0];
   if (typeof first === 'object' && 'order_there' in first) {
-    const stop = (routeStops as RouteStopWithOrder[]).find((s) => s.name === stopName);
+    const stop = (routeStops as RouteStopWithOrder[]).find((s) => getStopKey(s) === stopKey);
     if (!stop) return false;
-    // Не показувати маршрут, якщо зупинка виключена в обох напрямках (order = -1)
     return isStopAvailableInDirection(stop, 'there') || isStopAvailableInDirection(stop, 'back');
   }
-  return getStopNames(routeStops).includes(stopName);
+  return getStopNames(routeStops).some((name) => {
+    const id = n2i.get(name);
+    return id === stopKey || name === stopKey;
+  });
 }
 
 function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
@@ -265,40 +272,15 @@ function getImpliedDirection(
   const orderedBack = [...withOrder]
     .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
     .sort((a, b) => a.order_back - b.order_back);
-  const fromOrderThere = orderedThere.find((s) => s.name === fromStop)?.order_there;
-  const toOrderThere = orderedThere.find((s) => s.name === toStop)?.order_there;
-  const fromOrderBack = orderedBack.find((s) => s.name === fromStop)?.order_back;
-  const toOrderBack = orderedBack.find((s) => s.name === toStop)?.order_back;
+  const fromOrderThere = orderedThere.find((s) => getStopKey(s) === fromStop)?.order_there;
+  const toOrderThere = orderedThere.find((s) => getStopKey(s) === toStop)?.order_there;
+  const fromOrderBack = orderedBack.find((s) => getStopKey(s) === fromStop)?.order_back;
+  const toOrderBack = orderedBack.find((s) => getStopKey(s) === toStop)?.order_back;
   if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere) return 'there';
   if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack) return 'back';
   return null;
 }
 
-/** Знайти зупинку з names, що відповідає urlValue (точний або з нормалізацією типових відмінностей) */
-/** Нормалізує рядок для порівняння: прибирає префікс "з-д ", лапки, Проектор→Прожектор */
-function normalizeStopNameForMatch(s: string): string {
-  let t = s
-    .replace(/^з-д\s+/i, '')
-    .replace(/^["'\s]+|["'\s]+$/g, '')
-    .trim();
-  t = t.replace(/^["«»]|["«»]$/g, '').trim();
-  t = t.replace(/Проектор/gi, 'Прожектор');
-  return t;
-}
-
-function findMatchingStop(urlValue: string, names: string[]): string | null {
-  if (!urlValue) return null;
-  if (names.includes(urlValue)) return urlValue;
-  const norm = (s: string) => s.replace(/["«»]/g, '"').replace(/Проектор/gi, 'Прожектор');
-  const nUrl = norm(urlValue);
-  let found = names.find((n) => norm(n) === nUrl) ?? names.find((n) => n.includes('Прожектор') && urlValue.includes('Проектор')) ?? null;
-  if (found) return found;
-  const normalizedInput = normalizeStopNameForMatch(urlValue);
-  if (!normalizedInput) return null;
-  return names.find((n) => normalizeStopNameForMatch(n) === normalizedInput)
-    ?? names.find((n) => norm(n) === normalizedInput)
-    ?? null;
-}
 
 /** Порядок зупинки fromStop у напрямку dir (1-based). Повертає null якщо не знайдено. */
 function getFromOrder(
@@ -323,12 +305,12 @@ function getFromOrder(
   const ordered = dir === 'there'
     ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0).sort((a, b) => a.order_there - b.order_there)
     : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0).sort((a, b) => a.order_back - b.order_back);
-  const stop = ordered.find((s) => s.name === fromStop);
+  const stop = ordered.find((s) => getStopKey(s) === fromStop);
   return stop ? (dir === 'there' ? stop.order_there : stop.order_back) : null;
 }
 
-/** Зібрати назви зупинок у порядку руху для маршруту та напрямку */
-function getOrderedStopNames(
+/** Зібрати id зупинок у порядку руху для маршруту та напрямку */
+function getOrderedStopKeys(
   routeId: string,
   dir: 'there' | 'back',
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
@@ -350,7 +332,7 @@ function getOrderedStopNames(
     dir === 'there'
       ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0).sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0))
       : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0).sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
-  return ordered.map((s) => s.name);
+  return ordered.map((s) => getStopKey(s));
 }
 
 /** Знайти baseTime рейсу за часом відправлення з зупинки fromStop */
@@ -367,7 +349,7 @@ function findBaseTimeByDepartureFromStop(
   const rid = routeId ?? '';
   const durationMins =
     isVerifiedRoute(rid) && stopsByRoute?.[rid]
-      ? getDurationFromStartSec(rid, getOrderedStopNames(rid, dir, stopsByRoute), fromOrder - 1) / 60
+      ? getDurationFromStartSec(rid, getOrderedStopKeys(rid, dir, stopsByRoute), fromOrder - 1) / 60
       : (fromOrder - 1) * getMinsBetweenStops(rid);
   const baseTime = depFromStopMins - durationMins;
   const { dir0, dir1 } = groupTripsByDirection(trips);
@@ -628,7 +610,11 @@ export const LocalTransportPage: React.FC = () => {
 
   const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
   const stopsByRoute = data?.supplement?.stops?.stops_by_route;
-  const stops = useMemo(() => buildStops(routes, stopsByRoute), [routes, stopsByRoute]);
+  const stopsCatalog = useMemo(() => getStopsCatalog(data), [data]);
+  const stops = useMemo(
+    () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog),
+    [routes, stopsByRoute, stopsCatalog]
+  );
 
   const effectiveSearchFrom = searchFrom || fromPathDecoded || queryFrom;
   const effectiveSearchTo = searchTo || toPathDecoded || queryTo;
@@ -636,44 +622,47 @@ export const LocalTransportPage: React.FC = () => {
 
   const routesConnectingFromTo = useMemo(() => {
     if (!hasFromToSearch || !stops.length) return [];
-    const fromMatch = findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom;
-    const toMatch = findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo;
+    const fromMatch = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
+    const toMatch = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
     return routes.filter((r) => {
-      const hasFrom = routeHasStop(r.id, fromMatch, r, stopsByRoute);
-      const hasTo = routeHasStop(r.id, toMatch, r, stopsByRoute);
+      const hasFrom = routeHasStop(r.id, fromMatch, r, stopsByRoute, stopsCatalog);
+      const hasTo = routeHasStop(r.id, toMatch, r, stopsByRoute, stopsCatalog);
       if (!hasFrom || !hasTo) return false;
       const dir = getImpliedDirection(fromMatch, toMatch, stopsByRoute, r.id);
       return dir != null;
     });
-  }, [routes, stopsByRoute, stops, hasFromToSearch, effectiveSearchFrom, effectiveSearchTo]);
+  }, [routes, stopsByRoute, stops, stopsCatalog, hasFromToSearch, effectiveSearchFrom, effectiveSearchTo]);
 
   useEffect(() => {
     if (!isMainPage || !stops.length) return;
     if (fromPathDecoded || toPathDecoded) {
-      const fromMatch = fromPathDecoded ? (findMatchingStop(fromPathDecoded, stops) ?? fromPathDecoded) : '';
-      const toMatch = toPathDecoded ? (findMatchingStop(toPathDecoded, stops) ?? toPathDecoded) : '';
+      const fromMatch = fromPathDecoded ? resolveStopIdInList(fromPathDecoded, stops, stopsCatalog) : '';
+      const toMatch = toPathDecoded ? resolveStopIdInList(toPathDecoded, stops, stopsCatalog) : '';
       setSearchFrom(fromMatch);
       setSearchTo(toMatch);
     } else if (queryFrom || queryTo) {
-      setSearchFrom(queryFrom);
-      setSearchTo(queryTo);
+      setSearchFrom(queryFrom ? resolveStopIdInList(queryFrom, stops, stopsCatalog) : '');
+      setSearchTo(queryTo ? resolveStopIdInList(queryTo, stops, stopsCatalog) : '');
     }
     if (dateFromUrl) {
       const parsed = parseDateUrl(dateFromUrl);
       if (parsed) setSearchDate(formatDateUrl(parsed));
     }
     if (hourFromUrl) setSearchTime(hourFromUrl);
-  }, [isMainPage, fromPathDecoded, toPathDecoded, queryFrom, queryTo, dateFromUrl, hourFromUrl, stops.length]);
+  }, [isMainPage, fromPathDecoded, toPathDecoded, queryFrom, queryTo, dateFromUrl, hourFromUrl, stops.length, stops, stopsCatalog]);
 
   const effectiveStopFilter = stopFilter || selectedStopFromUrl;
+  const resolvedStopFilter = effectiveStopFilter
+    ? resolveStopIdInList(effectiveStopFilter, stops, stopsCatalog)
+    : '';
   const filteredRoutes = useMemo(() => {
     if (hasFromToSearch && routesConnectingFromTo.length > 0) return routesConnectingFromTo;
     return routes.filter((r) => {
       if (routeFilter && r.id !== routeFilter) return false;
-      if (effectiveStopFilter && !routeHasStop(r.id, effectiveStopFilter, r, stopsByRoute)) return false;
+      if (resolvedStopFilter && !routeHasStop(r.id, resolvedStopFilter, r, stopsByRoute, stopsCatalog)) return false;
       return true;
     });
-  }, [routes, effectiveStopFilter, routeFilter, stopsByRoute, hasFromToSearch, routesConnectingFromTo]);
+  }, [routes, resolvedStopFilter, routeFilter, stopsByRoute, stopsCatalog, hasFromToSearch, routesConnectingFromTo]);
 
   const detailRoute = useMemo(
     () => (routeId ? routes.find((r) => r.id === routeId) : null),
@@ -700,7 +689,7 @@ export const LocalTransportPage: React.FC = () => {
       .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
       .filter((s) => (s[orderKey] ?? 0) > 0)
       .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return included.map((s) => s.name);
+    return included.map((s) => getStopKey(s));
   }, [detailRoute?.id, stopsByRoute, stopsDirection]);
 
   /** Fallback для карти: усі зупинки маршруту в поточному напрямку (щоб карта завжди мала що малювати) */
@@ -721,7 +710,7 @@ export const LocalTransportPage: React.FC = () => {
     const isThere = stopsDirection === 'there';
     const orderKey = isThere ? 'order_there' : 'order_back';
     const sorted = [...withOrder].sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return sorted.map((s) => s.name);
+    return sorted.map((s) => getStopKey(s));
   }, [detailRoute?.id, stopsByRoute, stopsDirection]);
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
@@ -747,27 +736,19 @@ export const LocalTransportPage: React.FC = () => {
       .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
       .filter((s) => (s[orderKey] ?? 0) > 0)
       .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return getRealStops(included).map((s) => s.name);
+    return getRealStops(included).map((s) => getStopKey(s));
   }, [detailRoute?.id, stopsByRoute, stopsDirection]);
 
-  const detailRouteStopNames = useMemo(() => {
+  const detailRouteStopIds = useMemo(() => {
     if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const s = stopsByRoute[detailRoute.id];
-    const arr = Array.isArray(s) ? s : [];
-    if (arr.length && arr[0] != null && typeof arr[0] === 'object' && 'name' in arr[0]) {
-      return getStopNames(getRealStops(arr as RouteStopWithOrder[]));
-    }
-    return getStopNames(s);
-  }, [detailRoute?.id, stopsByRoute]);
-  const hasChosenStopsOnDetail =
-    Boolean(
-      detailRoute &&
-        selectedStopFromUrl &&
-        toFromUrl &&
-        detailRouteStopNames.length &&
-        findMatchingStop(selectedStopFromUrl, detailRouteStopNames) &&
-        findMatchingStop(toFromUrl, detailRouteStopNames)
-    );
+    return getStopKeysFromRouteStops(stopsByRoute[detailRoute.id], stopsCatalog);
+  }, [detailRoute?.id, stopsByRoute, stopsCatalog]);
+  const hasChosenStopsOnDetail = useMemo(() => {
+    if (!detailRoute || !selectedStopFromUrl || !toFromUrl || !detailRouteStopIds.length) return false;
+    const rf = resolveStopIdInList(selectedStopFromUrl, detailRouteStopIds, stopsCatalog);
+    const rt = resolveStopIdInList(toFromUrl, detailRouteStopIds, stopsCatalog);
+    return Boolean(rf && rt && detailRouteStopIds.includes(rf) && detailRouteStopIds.includes(rt));
+  }, [detailRoute, selectedStopFromUrl, toFromUrl, detailRouteStopIds, stopsCatalog]);
 
   // Не робимо auto-scroll до "Ви тут" — це викликало зміщення вліво при виборі маршруту та зміні напрямку
 
@@ -802,15 +783,17 @@ export const LocalTransportPage: React.FC = () => {
   useEffect(() => {
     if (!detailRoute) return;
     const routeStops = stopsByRoute?.[detailRoute.id];
-    const names = routeStops?.length ? getStopNames(routeStops) : [];
+    const ids = routeStops?.length ? getStopKeysFromRouteStops(routeStops, stopsCatalog) : [];
     const routeChanged = prevRouteIdRef.current !== detailRoute.id;
     prevRouteIdRef.current = detailRoute.id;
     if (routeChanged) {
-      const matchedFrom = selectedStopFromUrl ? findMatchingStop(selectedStopFromUrl, names) : null;
-      const matchedTo = toFromUrl ? findMatchingStop(toFromUrl, names) : null;
-      if (matchedFrom) {
-        setFromStop(matchedFrom);
-        setToStop(matchedTo ?? '');
+      const matchedFrom = selectedStopFromUrl ? resolveStopIdInList(selectedStopFromUrl, ids, stopsCatalog) : null;
+      const matchedTo = toFromUrl ? resolveStopIdInList(toFromUrl, ids, stopsCatalog) : null;
+      const fromOk = matchedFrom && ids.includes(matchedFrom) ? matchedFrom : null;
+      const toOk = matchedTo && ids.includes(matchedTo) ? matchedTo : null;
+      if (fromOk) {
+        setFromStop(fromOk);
+        setToStop(toOk ?? '');
       } else {
         setFromStop('');
         setToStop('');
@@ -818,7 +801,7 @@ export const LocalTransportPage: React.FC = () => {
       if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
         const depMins = parseTime(timeFromUrl);
         if (depMins > 0) {
-          const fromForTime = matchedFrom;
+          const fromForTime = fromOk;
           const baseTime =
             fromForTime && detailRoute
               ? findBaseTimeByDepartureFromStop(
@@ -839,7 +822,7 @@ export const LocalTransportPage: React.FC = () => {
         setStopsDirection(dirFromUrl as 'there' | 'back');
       }
     }
-  }, [detailRoute?.id, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl, stopsByRoute]);
+  }, [detailRoute?.id, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl, stopsByRoute, stopsCatalog]);
 
   // Синхронізація selectedTripTime з URL коли є fromStop, toStop — щоб рядок у таблиці підсвічувався
   useEffect(() => {
@@ -872,7 +855,8 @@ export const LocalTransportPage: React.FC = () => {
       if (Array.isArray(routeStops) && routeStops.length > 0) {
         const first = routeStops[0];
         if (typeof first === 'object' && 'name' in first) {
-          const stop = (routeStops as RouteStopWithOrder[]).find((s) => s.name === selectedStopFromUrl);
+          const selId = resolveStopIdInList(selectedStopFromUrl, getStopKeysFromRouteStops(routeStops, stopsCatalog), stopsCatalog);
+          const stop = (routeStops as RouteStopWithOrder[]).find((s) => getStopKey(s) === selId);
           if (stop?.belongs_to === 'there') directionFilter = 'there';
           else if (stop?.belongs_to === 'back') directionFilter = 'back';
         }
@@ -884,7 +868,7 @@ export const LocalTransportPage: React.FC = () => {
       setSelectedTripDirection(nearest.direction);
       setStopsDirection(nearest.direction);
     }
-  }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute, timeFromUrl, dirFromUrl]);
+  }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute, stopsCatalog, timeFromUrl, dirFromUrl]);
 
   // При зміні напрямку (туди/назад) — оновити опції З/До: якщо поточний вибір не в списку, обрати найближчу зупинку за координатами
   useEffect(() => {
@@ -922,20 +906,20 @@ export const LocalTransportPage: React.FC = () => {
     const orderKey = stopsDirection === 'there' ? 'order_there' : 'order_back';
     if (orderedForDirection.length === 0) return;
 
-    const fromInList = orderedForDirection.find((s) => s.name === fromStop);
+    const fromInList = orderedForDirection.find((s) => getStopKey(s) === fromStop);
     let newFrom = fromStop;
     if (!fromInList) {
-      newFrom = findNearestStopInList(fromStop, orderedForDirection, stopsCoords) ?? orderedForDirection[0].name;
+      newFrom = findNearestStopInList(fromStop, orderedForDirection, stopsCoords) ?? getStopKey(orderedForDirection[0]);
       setFromStop(newFrom);
     }
 
-    const fromOrder = orderedForDirection.find((s) => s.name === newFrom)?.[orderKey] ?? 0;
+    const fromOrder = orderedForDirection.find((s) => getStopKey(s) === newFrom)?.[orderKey] ?? 0;
     const validTo = orderedForDirection.filter((s) => (s[orderKey] ?? 0) > fromOrder);
-    const toInList = validTo.some((s) => s.name === toStop);
+    const toInList = validTo.some((s) => getStopKey(s) === toStop);
     let newTo = toStop;
     if (!toInList) {
       if (validTo.length > 0) {
-        newTo = findNearestStopInList(toStop, validTo, stopsCoords) ?? validTo[0].name;
+        newTo = findNearestStopInList(toStop, validTo, stopsCoords) ?? getStopKey(validTo[0]);
         setToStop(newTo);
       } else {
         setToStop('');
@@ -1048,14 +1032,16 @@ export const LocalTransportPage: React.FC = () => {
       .sort((a, b) => a.order_back - b.order_back);
 
     const targetOrdered = newDir === 'there' ? orderedStopsThere : orderedStopsBack;
-    const targetNames = targetOrdered.map((s) => s.name);
+    const targetKeys = targetOrdered.map((s) => getStopKey(s));
 
     const fromCandidate = toStop || fromStop || '';
     const toCandidate = fromStop || toStop || '';
-    const newFromMatched = fromCandidate
-      ? findMatchingStop(fromCandidate, targetNames)
-      : null;
-    const newToMatched = toCandidate ? findMatchingStop(toCandidate, targetNames) : null;
+    const pickInTarget = (raw: string) => {
+      const id = resolveStopIdInList(raw, targetKeys, stopsCatalog);
+      return id && targetKeys.includes(id) ? id : null;
+    };
+    const newFromMatched = fromCandidate ? pickInTarget(fromCandidate) : null;
+    const newToMatched = toCandidate ? pickInTarget(toCandidate) : null;
 
     const newFrom = newFromMatched ?? '';
     const newTo = newToMatched ?? '';
@@ -1086,9 +1072,9 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   const handleSearchSubmit = () => {
-    const from = findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom;
-    const to = findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo;
-    if (!from || !to) return;
+    const from = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
+    const to = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
+    if (!from || !to || !stops.includes(from) || !stops.includes(to)) return;
     const pathFrom = encodeURIComponent(from);
     const pathTo = encodeURIComponent(to);
     const params = new URLSearchParams();
@@ -1098,13 +1084,15 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   const handleSelectRoute = (id: string) => {
-    const routeStopNames = stopsByRoute?.[id] ? getStopNames(stopsByRoute[id]) : [];
-    const from = hasFromToSearch
-      ? (findMatchingStop(effectiveSearchFrom, stops) ?? effectiveSearchFrom)
-      : latestStopRef.current || effectiveStopFilter;
-    const to = hasFromToSearch ? (findMatchingStop(effectiveSearchTo, stops) ?? effectiveSearchTo) : '';
-    const fromOnRoute = from && routeStopNames.length && findMatchingStop(from, routeStopNames);
-    const toOnRoute = to && routeStopNames.length && findMatchingStop(to, routeStopNames);
+    const routeStopIds = stopsByRoute?.[id] ? getStopKeysFromRouteStops(stopsByRoute[id], stopsCatalog) : [];
+    const fromResolved = hasFromToSearch
+      ? resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog)
+      : latestStopRef.current || effectiveStopFilter
+        ? resolveStopIdInList(latestStopRef.current || effectiveStopFilter, stops, stopsCatalog)
+        : '';
+    const toResolved = hasFromToSearch ? resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog) : '';
+    const fromOnRoute = fromResolved && routeStopIds.includes(fromResolved) ? fromResolved : null;
+    const toOnRoute = toResolved && routeStopIds.includes(toResolved) ? toResolved : null;
     const params = new URLSearchParams();
     if (searchDate) params.set('d', searchDate);
     if (searchTime) params.set('h', searchTime);
@@ -1269,7 +1257,7 @@ export const LocalTransportPage: React.FC = () => {
               </div>
             </header>
 
-            {!hasChosenStopsOnDetail && detailRouteStopNames.length > 0 && (
+            {!hasChosenStopsOnDetail && detailRouteStopIds.length > 0 && (
               <section className="lt-detail-picker lt-detail-picker--stops" aria-labelledby="lt-picker-heading">
                 <h2 id="lt-picker-heading" className="lt-section-title">Оберіть зупинки</h2>
                 <div className="lt-detail-picker-row">
@@ -1279,7 +1267,10 @@ export const LocalTransportPage: React.FC = () => {
                     </label>
                     <Combobox
                       label=""
-                      options={[{ value: '', label: '— Зупинка —' }, ...detailRouteStopNames.map((s) => ({ value: s, label: s }))]}
+                      options={[
+                        { value: '', label: '— Зупинка —' },
+                        ...detailRouteStopIds.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
+                      ]}
                       value={pickerFrom}
                       onChange={setPickerFrom}
                       placeholder="Наприклад Малинівка"
@@ -1293,7 +1284,10 @@ export const LocalTransportPage: React.FC = () => {
                     </label>
                     <Combobox
                       label=""
-                      options={[{ value: '', label: '— Зупинка —' }, ...detailRouteStopNames.map((s) => ({ value: s, label: s }))]}
+                      options={[
+                        { value: '', label: '— Зупинка —' },
+                        ...detailRouteStopIds.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
+                      ]}
                       value={pickerTo}
                       onChange={setPickerTo}
                       placeholder="Наприклад Царське село"
@@ -1343,8 +1337,8 @@ export const LocalTransportPage: React.FC = () => {
               const minsPerStop = getMinsBetweenStops(detailRoute.id);
               const routeId = detailRoute.id;
               const verified = isVerifiedRoute(routeId);
-              const orderedNamesThere = orderedStopsThere.map((s) => s.name);
-              const orderedNamesBack = orderedStopsBack.map((s) => s.name);
+              const orderedKeysThere = orderedStopsThere.map((s) => getStopKey(s));
+              const orderedKeysBack = orderedStopsBack.map((s) => getStopKey(s));
 
               const buildTableTrips = (): Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> | null => {
                 if (!stopsWithOrder) return null;
@@ -1352,19 +1346,19 @@ export const LocalTransportPage: React.FC = () => {
                 const rows: Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> = [];
                 const nThere = orderedStopsThere.length;
                 const nBack = orderedStopsBack.length;
-                const fromOrderThere = fromStop ? orderedStopsThere.find((s) => s.name === fromStop)?.order_there : 1;
-                const toOrderThere = toStop ? orderedStopsThere.find((s) => s.name === toStop)?.order_there : nThere;
-                const fromOrderBack = fromStop ? orderedStopsBack.find((s) => s.name === fromStop)?.order_back : 1;
-                const toOrderBack = toStop ? orderedStopsBack.find((s) => s.name === toStop)?.order_back : nBack;
+                const fromOrderThere = fromStop ? orderedStopsThere.find((s) => getStopKey(s) === fromStop)?.order_there : 1;
+                const toOrderThere = toStop ? orderedStopsThere.find((s) => getStopKey(s) === toStop)?.order_there : nThere;
+                const fromOrderBack = fromStop ? orderedStopsBack.find((s) => getStopKey(s) === fromStop)?.order_back : 1;
+                const toOrderBack = toStop ? orderedStopsBack.find((s) => getStopKey(s) === toStop)?.order_back : nBack;
                 if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere && nThere > 0) {
                   dir1.forEach((t) => {
                     const mins = parseTime(t.block_id);
                     if (mins > 0) {
                       const depMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedNamesThere, fromOrderThere - 1) / 60
+                        ? mins + getDurationFromStartSec(routeId, orderedKeysThere, fromOrderThere - 1) / 60
                         : mins + (fromOrderThere - 1) * minsPerStop;
                       const arrMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedNamesThere, toOrderThere - 1) / 60
+                        ? mins + getDurationFromStartSec(routeId, orderedKeysThere, toOrderThere - 1) / 60
                         : mins + (toOrderThere - 1) * minsPerStop;
                       rows.push({ dep: formatTime(depMins), arr: formatTime(arrMins), direction: 'there', baseTime: mins });
                     }
@@ -1375,10 +1369,10 @@ export const LocalTransportPage: React.FC = () => {
                     const mins = parseTime(t.block_id);
                     if (mins > 0) {
                       const depMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedNamesBack, fromOrderBack - 1) / 60
+                        ? mins + getDurationFromStartSec(routeId, orderedKeysBack, fromOrderBack - 1) / 60
                         : mins + (fromOrderBack - 1) * minsPerStop;
                       const arrMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedNamesBack, toOrderBack - 1) / 60
+                        ? mins + getDurationFromStartSec(routeId, orderedKeysBack, toOrderBack - 1) / 60
                         : mins + (toOrderBack - 1) * minsPerStop;
                       rows.push({ dep: formatTime(depMins), arr: formatTime(arrMins), direction: 'back', baseTime: mins });
                     }
@@ -1401,11 +1395,19 @@ export const LocalTransportPage: React.FC = () => {
                     <div className="lt-detail-summary lt-detail-summary--compact">
                       <div className="lt-detail-summary-route">
                         <span className="lt-detail-summary-from">
-                          {fromStop || selectedStopFromUrl || detailRoute.from || '—'}
+                          {displayNameForStopKey(
+                            fromStop || resolveStopIdInList(selectedStopFromUrl, stops, stopsCatalog),
+                            stopsCatalog
+                          ) ||
+                            detailRoute.from ||
+                            '—'}
                         </span>
                         <span className="lt-detail-summary-arrow" aria-hidden>→</span>
                         <span className="lt-detail-summary-to">
-                          {toStop || toFromUrl || detailRoute.to || '—'}
+                          {displayNameForStopKey(
+                            toStop || resolveStopIdInList(toFromUrl, stops, stopsCatalog),
+                            stopsCatalog
+                          ) || detailRoute.to || '—'}
                         </span>
                       </div>
                       <div className="lt-detail-summary-meta">
@@ -1499,7 +1501,7 @@ export const LocalTransportPage: React.FC = () => {
                 const included = allowed
                   .filter((s) => (s[orderKey] ?? 0) > 0)
                   .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-                mapStopNames = included.map((s) => s.name);
+                mapStopNames = included.map((s) => getStopKey(s));
               }
               return stopsWithOrder && mapStopNames.length > 0 ? (
                 <section className="lt-map-stops lt-map-stops--jd" aria-labelledby="lt-stops-heading">
@@ -1525,7 +1527,7 @@ export const LocalTransportPage: React.FC = () => {
                             ? selectedTripTime
                             : getFirstTripTime(detailRoute.trips);
                         const orderKey = isThere ? 'order_there' : 'order_back';
-                        const orderedNamesStops = filtered.map((s) => s.name);
+                        const orderedKeysStops = filtered.map((s) => getStopKey(s));
                         const verifiedStops = isVerifiedRoute(detailRoute.id);
                         const minsPerStopStops = getMinsBetweenStops(detailRoute.id);
                         return (
@@ -1533,29 +1535,29 @@ export const LocalTransportPage: React.FC = () => {
                             {listStops.map((s, idx) => {
                               const order = s[orderKey];
                               const arrivalMins = verifiedStops
-                                ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, order - 1) / 60
+                                ? baseTime + getDurationFromStartSec(detailRoute.id, orderedKeysStops, order - 1) / 60
                                 : baseTime + (order - 1) * minsPerStopStops;
                               const nextRealStop = listStops[idx + 1];
                               const nextArrivalMins =
                                 nextRealStop == null
                                   ? null
                                   : verifiedStops
-                                    ? baseTime + getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextRealStop[orderKey] - 1) / 60
+                                    ? baseTime + getDurationFromStartSec(detailRoute.id, orderedKeysStops, nextRealStop[orderKey] - 1) / 60
                                     : baseTime + (nextRealStop[orderKey] - 1) * minsPerStopStops;
                               const minsToNext =
                                 nextRealStop == null
                                   ? null
                                   : verifiedStops
-                                    ? (getDurationFromStartSec(detailRoute.id, orderedNamesStops, nextRealStop[orderKey] - 1) -
-                                        getDurationFromStartSec(detailRoute.id, orderedNamesStops, (s[orderKey] ?? 0) - 1)) / 60
+                                    ? (getDurationFromStartSec(detailRoute.id, orderedKeysStops, nextRealStop[orderKey] - 1) -
+                                        getDurationFromStartSec(detailRoute.id, orderedKeysStops, (s[orderKey] ?? 0) - 1)) / 60
                                     : nextArrivalMins != null
                                       ? nextArrivalMins - arrivalMins
                                       : null;
-                              const isFrom = fromStop && s.name === fromStop;
-                              const isTo = toStop && s.name === toStop;
+                              const isFrom = fromStop && getStopKey(s) === fromStop;
+                              const isTo = toStop && getStopKey(s) === toStop;
                               return (
                                 <li
-                                  key={`${isThere ? 'there' : 'back'}-${s.name}-${order}`}
+                                  key={`${isThere ? 'there' : 'back'}-${getStopKey(s)}-${order}`}
                                   ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
                                   className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''}`}
                                 >
@@ -1563,10 +1565,10 @@ export const LocalTransportPage: React.FC = () => {
                                   <span className="lt-stop-content">
                                     <Link
                                       className="lt-stop-content-link"
-                                      to={`/localtransport/stop/${encodeURIComponent(s.name)}?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`}
+                                      to={`/localtransport/stop/${encodeURIComponent(getStopKey(s))}?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`}
                                       title="Розклад з цієї зупинки (усі маршрути)"
                                     >
-                                      {s.name}
+                                      {displayNameForStopKey(getStopKey(s), stopsCatalog)}
                                     </Link>
                                     {isFrom && <span className="lt-stop-badge lt-stop-badge--from">З</span>}
                                     {isTo && <span className="lt-stop-badge lt-stop-badge--to">ПО</span>}
@@ -1618,6 +1620,7 @@ export const LocalTransportPage: React.FC = () => {
               markerStopNames={detailMapStopNamesForMarkers}
               fromStopName={fromStop || undefined}
               toStopName={toStop || undefined}
+              resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
               onPickFromStop={(stopName) => {
                 setFromStop(stopName);
                 updateDetailUrl({ stop: stopName });
@@ -1655,7 +1658,10 @@ export const LocalTransportPage: React.FC = () => {
                     </label>
                     <Combobox
                       label=""
-                      options={[{ value: '', label: '— Зупинка —' }, ...stops.map((s) => ({ value: s, label: s }))]}
+                      options={[
+                        { value: '', label: '— Зупинка —' },
+                        ...stops.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
+                      ]}
                       value={effectiveSearchFrom}
                       onChange={(v) => {
                         setSearchFrom(v);
@@ -1702,7 +1708,10 @@ export const LocalTransportPage: React.FC = () => {
                     </label>
                     <Combobox
                       label=""
-                      options={[{ value: '', label: '— Зупинка —' }, ...stops.map((s) => ({ value: s, label: s }))]}
+                      options={[
+                        { value: '', label: '— Зупинка —' },
+                        ...stops.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
+                      ]}
                       value={effectiveSearchTo}
                       onChange={(v) => {
                         setSearchTo(v);
@@ -1780,7 +1789,8 @@ export const LocalTransportPage: React.FC = () => {
                                     setNearestStops(null);
                                   }}
                                 >
-                                  {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
+                                  {displayNameForStopKey(name, stopsCatalog)} —{' '}
+                                  {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
                                 </button>
                                 <Link
                                   className="lt-nearest-tablo-link"
@@ -1809,7 +1819,9 @@ export const LocalTransportPage: React.FC = () => {
               {hasFromToSearch && routesConnectingFromTo.length > 0 ? (
                 <>
                   <p className="lt-routes-heading">
-                    Маршрути: {effectiveSearchFrom} → {effectiveSearchTo}
+                    Маршрути:{' '}
+                    {displayNameForStopKey(resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog), stopsCatalog)} →{' '}
+                    {displayNameForStopKey(resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog), stopsCatalog)}
                   </p>
                   {filteredRoutes.map((r) => {
                     const searchMins =
