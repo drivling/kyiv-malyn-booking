@@ -4,6 +4,7 @@ import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { PoputkyPage } from '@/pages/PoputkyPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
+import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { apiClient } from '@/api/client';
@@ -27,6 +28,8 @@ function AppContent() {
         <Route path="/poputky" element={<PoputkyPage />} />
         <Route path="/booking" element={<BookingPage />} />
         <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
+        <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
+        <Route path="/localtransport/stop" element={<LocalTransportStopBoardPage />} />
         <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
         <Route path="/localtransport" element={<LocalTransportPage />} />
         <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />

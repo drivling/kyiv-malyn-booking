@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
@@ -9,6 +9,7 @@ import {
   isVerifiedRoute,
 } from './routeTiming';
 import './LocalTransportPage.css';
+import { LocalTransportSubNav } from './LocalTransportSubNav';
 
 const DATA_URL = '/data/malyn_transport.json';
 const STOPS_COORDS_URL = '/data/stops_coords.json';
@@ -1230,6 +1231,11 @@ export const LocalTransportPage: React.FC = () => {
               </div>
             </header>
 
+            <LocalTransportSubNav
+              searchDate={dateFromUrl || searchDate || formatDateUrl(new Date())}
+              searchTime={hourFromUrl || timeFromUrl || searchTime}
+            />
+
             {/* Заголовок маршруту + перемикач напрямку */}
             <header className="lt-detail-header lt-detail-header--jd">
               <h1 className="lt-route-title lt-route-title--jd">
@@ -1555,7 +1561,13 @@ export const LocalTransportPage: React.FC = () => {
                                 >
                                   <span className="lt-stop-time">{formatTime(arrivalMins)}</span>
                                   <span className="lt-stop-content">
-                                    {s.name}
+                                    <Link
+                                      className="lt-stop-content-link"
+                                      to={`/localtransport/stop/${encodeURIComponent(s.name)}?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`}
+                                      title="Розклад з цієї зупинки (усі маршрути)"
+                                    >
+                                      {s.name}
+                                    </Link>
                                     {isFrom && <span className="lt-stop-badge lt-stop-badge--from">З</span>}
                                     {isTo && <span className="lt-stop-badge lt-stop-badge--to">ПО</span>}
                                   </span>
@@ -1631,6 +1643,8 @@ export const LocalTransportPage: React.FC = () => {
               <h1 className="lt-title">Як доїхати</h1>
               <p className="lt-subtitle">Малин · місцевий транспорт</p>
             </header>
+
+            <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
 
             <div className="lt-search lt-search--jakdojade">
               <div className="lt-from-to-block">
@@ -1755,7 +1769,7 @@ export const LocalTransportPage: React.FC = () => {
                           <p className="lt-nearest-title">Найближчі зупинки:</p>
                           <ul className="lt-nearest-list">
                             {nearestStops.map(({ name, distance }) => (
-                              <li key={name}>
+                              <li key={name} className="lt-nearest-item-row">
                                 <button
                                   type="button"
                                   className="lt-nearest-item"
@@ -1768,6 +1782,12 @@ export const LocalTransportPage: React.FC = () => {
                                 >
                                   {name} — {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
                                 </button>
+                                <Link
+                                  className="lt-nearest-tablo-link"
+                                  to={`/localtransport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
+                                >
+                                  Табло
+                                </Link>
                               </li>
                             ))}
                           </ul>
