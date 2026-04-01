@@ -1,0 +1,8 @@
+---
+description: Git commit messages must be written in English
+alwaysApply: true
+---
+
+# Git commits
+
+Write all git commit messages in **English** (subject and body). Use clear, imperative-style subjects when appropriate.

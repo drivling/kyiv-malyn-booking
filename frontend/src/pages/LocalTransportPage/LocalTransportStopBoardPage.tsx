@@ -91,15 +91,20 @@ function roundedDepartureMins(mins: number): number {
   return Math.round(mins);
 }
 
-/** Чи обрана дата в полі збігається з «сьогодні» за календарем Києва */
-function isSearchDateTodayKyiv(searchDateStr: string): boolean {
+/**
+ * Скільки календарних днів між обраною датою поїздки (поле «Дата») і сьогодні за Києвом.
+ * 0 — сьогодні, 1 — завтра, -1 — вчора; null — некоректний формат.
+ */
+function searchDateKyivOffsetDays(searchDateStr: string): number | null {
   const m = searchDateStr?.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (!m) return false;
+  if (!m) return null;
   const day = parseInt(m[1], 10);
   const month = parseInt(m[2], 10);
   const year = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
   const k = getKyivCalendarDate();
-  return day === k.d && month === k.m && year === k.y;
+  const msSearch = Date.UTC(year, month - 1, day, 12, 0, 0);
+  const msKyiv = Date.UTC(k.y, k.m - 1, k.d, 12, 0, 0);
+  return Math.round((msSearch - msKyiv) / 86400000);
 }
 
 export const LocalTransportStopBoardPage: React.FC = () => {
@@ -181,6 +186,20 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   }, [matchedStopId]);
 
   const referenceMins = useMemo(() => parseClockToMins(searchTime), [searchTime]);
+
+  /** Зсув обраної дати поїздки від «сьогодні» за календарем Києва (для відліку та текстів). */
+  const travelDayOffsetDays = useMemo(() => searchDateKyivOffsetDays(searchDate), [searchDate]);
+
+  /**
+   * Лише для **день поїздки = сьогодні (Київ)** і не «весь день»: база = max(зараз у Києві, орієнтовний час).
+   * Для майбутнього дня відлік = зміщення по датах + час відправлення − зараз у Києві.
+   */
+  const countdownBaselineMins = useMemo(() => {
+    if (travelDayOffsetDays !== 0 || showFullDay) return kyivNowMins;
+    return Math.max(kyivNowMins, referenceMins);
+  }, [travelDayOffsetDays, showFullDay, kyivNowMins, referenceMins]);
+
+  const showDepartureCountdown = travelDayOffsetDays !== null && travelDayOffsetDays >= 0;
 
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
@@ -386,7 +405,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               <p className="lt-stop-board-hint">
                 {showFullDay
                   ? `Повний день. Орієнтовний час ${searchTime} — найближчий рейс після нього виділено.`
-                  : `Лише рейси з ${searchTime} або пізніше. Зворотний відлік — якщо обрана дата збігається з сьогоднішньою (Київ).`}
+                  : `Лише рейси з ${searchTime} або пізніше. Дата поїздки — з поля «Дата» (порівняння з календарем Києва). Якщо це сьогодні — «через … хв» від пізнішого з: зараз у Києві та орієнтовного часу (узгоджено з фільтром). Якщо майбутній день — відлік до обраної дати та часу відправлення від поточного часу в Києві.`}
               </p>
               <div className="lt-jd-cards" role="list">
                 {visibleDepartures.map((row, i) => {
@@ -400,8 +419,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   if (searchDate) qs.set('d', searchDate);
                   qs.set('h', depClock);
                   const toRoute = `/localtransport/route/${row.routeId}?${qs.toString()}`;
-                  const todayKyiv = isSearchDateTodayKyiv(searchDate);
-                  const deltaMins = depMins - kyivNowMins;
+                  let deltaMins = 0;
+                  if (travelDayOffsetDays === 0) {
+                    deltaMins = depMins - countdownBaselineMins;
+                    if (deltaMins < 0 && countdownBaselineMins >= 22 * 60 && depMins < 4 * 60) {
+                      deltaMins += 24 * 60;
+                    }
+                  } else if (travelDayOffsetDays !== null && travelDayOffsetDays > 0) {
+                    deltaMins = travelDayOffsetDays * 24 * 60 + depMins - kyivNowMins;
+                  }
                   const aria = `Маршрут ${row.routeId}, відправлення ${depClock}, ${row.destination}`;
                   const waitHours = deltaMins >= 60 ? Math.floor(deltaMins / 60) : 0;
                   const waitMinsRem = deltaMins >= 60 ? deltaMins % 60 : deltaMins;
@@ -414,7 +440,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       aria-label={aria}
                     >
                       <div className="lt-jd-card__countdown" aria-hidden>
-                        {todayKyiv ? (
+                        {showDepartureCountdown ? (
                           deltaMins > 0 ? (
                             <>
                               <span className="lt-jd-card__countdown-label">Відправлення через</span>
