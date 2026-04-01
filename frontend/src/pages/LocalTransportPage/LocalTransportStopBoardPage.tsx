@@ -86,6 +86,11 @@ function getKyivCalendarDate(): { d: number; m: number; y: number } {
   return { d, m: mo, y };
 }
 
+/** Час відправлення зі зупинки в хвилинах від півночі (цілі хв — дроби лише в сирих даних). */
+function roundedDepartureMins(mins: number): number {
+  return Math.round(mins);
+}
+
 /** Чи обрана дата в полі збігається з «сьогодні» за календарем Києва */
 function isSearchDateTodayKyiv(searchDateStr: string): boolean {
   const m = searchDateStr?.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
@@ -190,14 +195,14 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   /** За замовчуванням — лише рейси з обраного часу або пізніше (як «наступні відправлення»). */
   const visibleDepartures = useMemo(() => {
     if (!departures.length || showFullDay) return departures;
-    return departures.filter((r) => r.departureMins >= referenceMins);
+    return departures.filter((r) => roundedDepartureMins(r.departureMins) >= referenceMins);
   }, [departures, showFullDay, referenceMins]);
 
   /** Підсвітка: у режимі «з часу» — перший рядок; у «весь день» — перший ≥ часу. */
   const highlightIndex = useMemo(() => {
     if (!visibleDepartures.length) return -1;
     if (!showFullDay) return 0;
-    const idx = visibleDepartures.findIndex((r) => r.departureMins >= referenceMins);
+    const idx = visibleDepartures.findIndex((r) => roundedDepartureMins(r.departureMins) >= referenceMins);
     return idx >= 0 ? idx : -1;
   }, [visibleDepartures, showFullDay, referenceMins]);
 
@@ -386,20 +391,23 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               <div className="lt-jd-cards" role="list">
                 {visibleDepartures.map((row, i) => {
                   const isNext = highlightIndex >= 0 && i === highlightIndex;
+                  const depMins = roundedDepartureMins(row.departureMins);
+                  const depClock = formatMinsClock(depMins);
                   const qs = new URLSearchParams();
                   qs.set('stop', selectedStop);
                   qs.set('dir', row.direction);
-                  const depClock = formatMinsClock(row.departureMins);
                   qs.set('time', depClock);
                   if (searchDate) qs.set('d', searchDate);
                   qs.set('h', depClock);
                   const toRoute = `/localtransport/route/${row.routeId}?${qs.toString()}`;
                   const todayKyiv = isSearchDateTodayKyiv(searchDate);
-                  const deltaMins = row.departureMins - kyivNowMins;
+                  const deltaMins = depMins - kyivNowMins;
                   const aria = `Маршрут ${row.routeId}, відправлення ${depClock}, ${row.destination}`;
+                  const waitHours = deltaMins >= 60 ? Math.floor(deltaMins / 60) : 0;
+                  const waitMinsRem = deltaMins >= 60 ? deltaMins % 60 : deltaMins;
                   return (
                     <Link
-                      key={`${row.tripId}-${row.departureMins}-${i}`}
+                      key={`${row.tripId}-${depMins}-${i}`}
                       className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
                       to={toRoute}
                       role="listitem"
@@ -410,10 +418,31 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                           deltaMins > 0 ? (
                             <>
                               <span className="lt-jd-card__countdown-label">Відправлення через</span>
-                              <div className="lt-jd-card__countdown-big">
-                                <span className="lt-jd-card__countdown-num">{deltaMins}</span>
-                                <span className="lt-jd-card__countdown-unit">хв</span>
+                              <div
+                                className={`lt-jd-card__countdown-big ${deltaMins >= 60 ? 'lt-jd-card__countdown-big--hm' : ''}`}
+                              >
+                                {deltaMins < 60 ? (
+                                  <>
+                                    <span className="lt-jd-card__countdown-num">{deltaMins}</span>
+                                    <span className="lt-jd-card__countdown-unit">хв</span>
+                                  </>
+                                ) : (
+                                  <span className="lt-jd-card__countdown-hm">
+                                    {waitHours}
+                                    <span className="lt-jd-card__countdown-hm-suffix"> год</span>
+                                    {waitMinsRem > 0 ? (
+                                      <>
+                                        {' '}
+                                        {waitMinsRem}
+                                        <span className="lt-jd-card__countdown-hm-suffix"> хв</span>
+                                      </>
+                                    ) : null}
+                                  </span>
+                                )}
                               </div>
+                              {deltaMins >= 60 ? (
+                                <span className="lt-jd-card__countdown-at">о {depClock}</span>
+                              ) : null}
                             </>
                           ) : deltaMins === 0 ? (
                             <span className="lt-jd-card__countdown-now">Зараз</span>

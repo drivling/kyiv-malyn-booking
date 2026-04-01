@@ -2901,27 +2901,28 @@
 .lt-jd-cards {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px var(--lt-panel-x, 16px) 20px;
+  gap: 14px;
+  padding: 6px var(--lt-panel-x, 16px) 24px;
 }
 
 .lt-jd-card {
   display: grid;
-  grid-template-columns: minmax(5.75rem, 7.25rem) 1fr;
-  gap: 14px 18px;
+  grid-template-columns: minmax(6.5rem, 8.5rem) 1fr;
+  gap: 16px 20px;
   align-items: stretch;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: #2a2b2e;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: linear-gradient(165deg, #323336 0%, #28292c 100%);
   border: 1px solid var(--lt-panel-border, #3c4043);
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
 }
 
 .lt-jd-card:hover {
-  border-color: rgba(138, 180, 248, 0.45);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  border-color: rgba(138, 180, 248, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
 }
 
 .lt-jd-card:focus-visible {
@@ -2930,9 +2931,11 @@
 }
 
 .lt-jd-card--next {
-  border-color: rgba(138, 180, 248, 0.55);
-  box-shadow: 0 0 0 1px rgba(138, 180, 248, 0.2);
-  background: linear-gradient(145deg, rgba(138, 180, 248, 0.1) 0%, #2a2b2e 55%);
+  border-color: rgba(129, 201, 149, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(129, 201, 149, 0.2),
+    inset 3px 0 0 0 rgba(129, 201, 149, 0.85);
+  background: linear-gradient(165deg, rgba(129, 201, 149, 0.12) 0%, #2a2b2e 52%);
 }
 
 .lt-jd-card__countdown {
@@ -2962,7 +2965,37 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: var(--lt-route-green, #8ab4f8);
+  color: #aecbfa;
+}
+
+.lt-jd-card__countdown-big--hm {
+  align-items: center;
+}
+
+.lt-jd-card__countdown-hm {
+  font-size: 1.28rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  color: #aecbfa;
+  letter-spacing: -0.02em;
+}
+
+.lt-jd-card__countdown-hm-suffix {
+  font-size: 0.72em;
+  font-weight: 600;
+  color: var(--lt-panel-text-muted, #9aa0a6);
+  letter-spacing: 0;
+}
+
+.lt-jd-card__countdown-at {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-panel-text-muted, #9aa0a6);
+  letter-spacing: 0.04em;
 }
 
 .lt-jd-card__countdown-unit {
@@ -3007,11 +3040,12 @@
   flex-shrink: 0;
   font-weight: 700;
   font-size: 0.9375rem;
-  padding: 4px 11px;
-  border-radius: 8px;
-  background: rgba(138, 180, 248, 0.12);
-  color: var(--lt-route-green, #8ab4f8);
-  border-bottom: 2px solid rgba(138, 180, 248, 0.35);
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: rgba(138, 180, 248, 0.14);
+  color: #aecbfa;
+  border: 1px solid rgba(138, 180, 248, 0.22);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
 .lt-jd-card__route-num--verified {
@@ -3026,10 +3060,10 @@
 }
 
 .lt-jd-card__destination {
-  font-size: 0.9375rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--lt-panel-text, #e8eaed);
-  line-height: 1.4;
+  line-height: 1.35;
   flex: 1;
   min-width: 0;
 }
