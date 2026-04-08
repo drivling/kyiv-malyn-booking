@@ -791,6 +791,8 @@ export const LocalTransportPage: React.FC = () => {
       const matchedTo = toFromUrl ? resolveStopIdInList(toFromUrl, ids, stopsCatalog) : null;
       const fromOk = matchedFrom && ids.includes(matchedFrom) ? matchedFrom : null;
       const toOk = matchedTo && ids.includes(matchedTo) ? matchedTo : null;
+      setPickerFrom(fromOk ?? '');
+      setPickerTo(toOk ?? '');
       if (fromOk) {
         setFromStop(fromOk);
         setToStop(toOk ?? '');
