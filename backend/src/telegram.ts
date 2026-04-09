@@ -3387,6 +3387,7 @@ https://malin.kiev.ua
   bot.onText(/^\/checkclients(?:@\w+)?$/i, async (msg) => {
     const chatId = msg.chat.id.toString();
     if (chatId !== adminChatId) return;
+    const CHECKCLIENTS_PAIR_LINES_LIMIT = 30;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
@@ -3427,6 +3428,11 @@ https://malin.kiev.ua
     let driverFailed = 0;
     let sentViaUser = 0;
     let sentViaBot = 0;
+    const pairLinesByType: Record<MatchType, string[]> = {
+      exact: [],
+      approximate: [],
+      same_day: [],
+    };
 
     for (const d of drivers) {
       const key = `${d.route}__${toDateKey(d.date)}`;
@@ -3435,6 +3441,25 @@ https://malin.kiev.ua
       for (const p of ps) {
         pairCount++;
         const matchType = resolveMatchType(d.departureTime, p.departureTime);
+        if (pairLinesByType[matchType].length < CHECKCLIENTS_PAIR_LINES_LIMIT) {
+          const driverTime = d.departureTime ?? '—';
+          const passengerTime = p.departureTime ?? '—';
+          const timeDelta =
+            parseTimeRangeForMatch(d.departureTime) && parseTimeRangeForMatch(p.departureTime)
+              ? (() => {
+                  const dr = parseTimeRangeForMatch(d.departureTime)!;
+                  const pr = parseTimeRangeForMatch(p.departureTime)!;
+                  const overlapStart = Math.max(dr.start, pr.start);
+                  const overlapEnd = Math.min(dr.end, pr.end);
+                  if (overlapStart <= overlapEnd) return 'перетин';
+                  const gap = Math.min(Math.abs(dr.start - pr.end), Math.abs(pr.start - dr.end));
+                  return `Δ${gap}хв`;
+                })()
+              : 'час не вказано';
+          pairLinesByType[matchType].push(
+            `• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`
+          );
+        }
         if (matchType === 'exact') exactPairCount++;
         else if (matchType === 'approximate') approximatePairCount++;
         else sameDayPairCount++;
@@ -3473,6 +3498,19 @@ https://malin.kiev.ua
         userSenderHint,
       { parse_mode: 'HTML' }
     ).catch(() => {});
+
+    const sections: Array<{ type: MatchType; title: string }> = [
+      { type: 'exact', title: `🎯 <b>Точні пари (±45 хв, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+      { type: 'approximate', title: `📌 <b>Приблизні пари (±2 год, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+      { type: 'same_day', title: `🗓️ <b>Поїздки цього дня (до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+    ];
+    for (const section of sections) {
+      const lines = pairLinesByType[section.type];
+      if (lines.length === 0) continue;
+      await bot?.sendMessage(chatId, `${section.title}\n\n${lines.join('\n')}`, {
+        parse_mode: 'HTML',
+      }).catch(() => {});
+    }
   });
 
   // Обробка контакту (коли користувач ділиться номером через кнопку)
