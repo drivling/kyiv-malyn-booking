@@ -3,10 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CODE_VERSION = void 0;
+exports.getSupportPhoneForRoute = exports.CODE_VERSION = void 0;
 exports.createApp = createApp;
 exports.getRegisteredRoutes = getRegisteredRoutes;
-exports.getSupportPhoneForRoute = getSupportPhoneForRoute;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const fs_1 = __importDefault(require("fs"));
@@ -16,8 +15,11 @@ const viber_parser_1 = require("./viber-parser");
 const phonecheck_1 = require("./phonecheck");
 const index_helpers_1 = require("./index-helpers");
 const poputky_1 = require("./routes/poputky");
-const schedule_departure_time_1 = require("./validation/schedule-departure-time");
-const booking_phone_1 = require("./validation/booking-phone");
+const require_admin_1 = require("./middleware/require-admin");
+const public_routes_1 = require("./routes/public-routes");
+const admin_session_1 = require("./routes/admin-session");
+const admin_maintenance_1 = require("./routes/admin-maintenance");
+const schedules_bookings_1 = require("./routes/schedules-bookings");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -55,584 +57,11 @@ function createApp(deps) {
     app.use((0, cors_1.default)(corsOptions));
     app.use(express_1.default.json());
     app.use('/poputky', (0, poputky_1.createPoputkyRouter)());
-    // Простий токен для авторизації (в продакшені використовуйте JWT)
     const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
-    const ADMIN_TOKEN = 'admin-authenticated';
-    // Middleware для перевірки авторизації адміна
-    const requireAdmin = (req, res, next) => {
-        const token = req.headers.authorization;
-        if (token === ADMIN_TOKEN) {
-            next();
-        }
-        else {
-            res.status(401).json({ error: 'Unauthorized' });
-        }
-    };
-    app.get('/health', (_req, res) => {
-        res.set({
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Pragma': 'no-cache',
-        });
-        res.json({
-            status: 'ok',
-            version: 3,
-            viber: true,
-            codeVersion: exports.CODE_VERSION,
-            deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
-            cwd: process.cwd(),
-        });
-    });
-    app.get('/status', (_req, res) => {
-        res.json({
-            status: 'ok',
-            version: 3,
-            viber: true,
-            codeVersion: exports.CODE_VERSION,
-            deploymentId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
-            cwd: process.cwd(),
-        });
-    });
-    // ---------- Local transport JSON for Android/web ----------
-    app.get('/localtransport/data', (_req, res) => {
-        try {
-            // Дані лежать поруч з backend (папка localtransport-data), щоб працювало на Railway без frontend
-            const dataDir = path_1.default.join(__dirname, '..', 'localtransport-data');
-            const transportPath = path_1.default.join(dataDir, 'malyn_transport.json');
-            const coordsPath = path_1.default.join(dataDir, 'stops_coords.json');
-            const segmentsPath = path_1.default.join(dataDir, 'segmentDurations.json');
-            const transport = JSON.parse(fs_1.default.readFileSync(transportPath, 'utf8'));
-            const coords = JSON.parse(fs_1.default.readFileSync(coordsPath, 'utf8'));
-            const segments = JSON.parse(fs_1.default.readFileSync(segmentsPath, 'utf8'));
-            res.set({
-                'Cache-Control': 'public, max-age=300',
-            });
-            res.json({
-                transport,
-                coords,
-                segments,
-            });
-        }
-        catch (error) {
-            console.error('❌ /localtransport/data error:', error);
-            res.status(500).json({ error: 'Failed to load local transport data' });
-        }
-    });
-    // Endpoint для виправлення telegramUserId в існуючих бронюваннях
-    app.post('/admin/fix-telegram-ids', requireAdmin, async (_req, res) => {
-        try {
-            console.log('🔧 Початок виправлення telegramUserId...');
-            // 1. Знаходимо всі бронювання де є chatId але немає валідного userId
-            const problematicBookings = await prisma.booking.findMany({
-                where: {
-                    telegramChatId: { not: null },
-                    OR: [
-                        { telegramUserId: null },
-                        { telegramUserId: '0' },
-                        { telegramUserId: '' }
-                    ]
-                }
-            });
-            console.log(`📋 Знайдено ${problematicBookings.length} бронювань з невалідним telegramUserId`);
-            if (problematicBookings.length === 0) {
-                return res.json({
-                    success: true,
-                    message: 'Всі записи вже правильні!',
-                    fixed: 0,
-                    skipped: 0,
-                    total: 0
-                });
-            }
-            // 2. Виправляємо кожне бронювання
-            let fixed = 0;
-            let skipped = 0;
-            const details = [];
-            for (const booking of problematicBookings) {
-                if (booking.telegramChatId &&
-                    booking.telegramChatId !== '0' &&
-                    booking.telegramChatId.trim() !== '') {
-                    // Для приватних чатів chat_id = user_id
-                    await prisma.booking.update({
-                        where: { id: booking.id },
-                        data: {
-                            telegramUserId: booking.telegramChatId
-                        }
-                    });
-                    const msg = `✅ #${booking.id}: telegramUserId оновлено з '${booking.telegramUserId}' на '${booking.telegramChatId}'`;
-                    console.log(msg);
-                    details.push(msg);
-                    fixed++;
-                }
-                else {
-                    const msg = `⚠️ #${booking.id}: пропущено (невалідний chatId: '${booking.telegramChatId}')`;
-                    console.log(msg);
-                    details.push(msg);
-                    skipped++;
-                }
-            }
-            console.log(`📊 Виправлено: ${fixed}, Пропущено: ${skipped}, Всього: ${problematicBookings.length}`);
-            res.json({
-                success: true,
-                message: 'Виправлення завершено!',
-                fixed,
-                skipped,
-                total: problematicBookings.length,
-                details
-            });
-        }
-        catch (error) {
-            console.error('❌ Помилка виправлення:', error);
-            res.status(500).json({
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
-            });
-        }
-    });
-    // Авторизація адміна
-    app.post('/admin/login', async (req, res) => {
-        const { password } = req.body;
-        if (password === ADMIN_PASSWORD) {
-            res.json({ token: ADMIN_TOKEN, success: true });
-        }
-        else {
-            res.status(401).json({ error: 'Невірний пароль' });
-        }
-    });
-    // Перевірка авторизації
-    app.get('/admin/check', requireAdmin, (_req, res) => {
-        res.json({ authenticated: true });
-    });
-    // Schedule CRUD endpoints
-    app.get('/schedules', async (req, res) => {
-        const { route } = req.query;
-        const where = route ? { route: route } : {};
-        const schedules = await prisma.schedule.findMany({
-            where,
-            orderBy: [{ route: 'asc' }, { departureTime: 'asc' }]
-        });
-        res.json(schedules);
-    });
-    app.get('/schedules/:route', async (req, res) => {
-        const { route } = req.params;
-        const schedules = await prisma.schedule.findMany({
-            where: { route },
-            orderBy: { departureTime: 'asc' }
-        });
-        res.json(schedules);
-    });
-    // Телефон підтримки для уточнення бронювання (з графіка; для напрямків з Києвом)
-    app.get('/schedules-support-phone', async (_req, res) => {
-        try {
-            const schedule = await prisma.schedule.findFirst({
-                where: { supportPhone: { not: null } },
-                select: { supportPhone: true }
-            });
-            res.json({ supportPhone: schedule?.supportPhone ?? null });
-        }
-        catch (error) {
-            res.status(500).json({ supportPhone: null });
-        }
-    });
-    // Перевірка доступності місць для конкретного рейсу та дати
-    app.get('/schedules/:route/:departureTime/availability', async (req, res) => {
-        const { route, departureTime } = req.params;
-        const { date } = req.query;
-        if (!date) {
-            return res.status(400).json({ error: 'Date parameter is required' });
-        }
-        try {
-            // Знаходимо графік
-            const schedule = await prisma.schedule.findUnique({
-                where: {
-                    route_departureTime: {
-                        route,
-                        departureTime
-                    }
-                }
-            });
-            if (!schedule) {
-                return res.status(404).json({ error: 'Schedule not found' });
-            }
-            // Підраховуємо зайняті місця для цієї дати та часу
-            const bookingDate = new Date(date);
-            const startOfDay = new Date(bookingDate);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(bookingDate);
-            endOfDay.setHours(23, 59, 59, 999);
-            const bookings = await prisma.booking.findMany({
-                where: {
-                    route,
-                    departureTime,
-                    date: {
-                        gte: startOfDay,
-                        lte: endOfDay
-                    }
-                }
-            });
-            const bookedSeats = bookings.reduce((sum, booking) => sum + booking.seats, 0);
-            const availableSeats = schedule.maxSeats - bookedSeats;
-            res.json({
-                scheduleId: schedule.id,
-                maxSeats: schedule.maxSeats,
-                bookedSeats,
-                availableSeats,
-                isAvailable: availableSeats > 0
-            });
-        }
-        catch (error) {
-            res.status(500).json({ error: 'Failed to check availability' });
-        }
-    });
-    app.post('/schedules', requireAdmin, async (req, res) => {
-        const { route, departureTime, maxSeats, supportPhone } = req.body;
-        if (!route || !departureTime) {
-            return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
-        }
-        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
-            return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
-        }
-        try {
-            const schedule = await prisma.schedule.create({
-                data: {
-                    route,
-                    departureTime,
-                    maxSeats: maxSeats ? Number(maxSeats) : 20,
-                    supportPhone: supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null
-                }
-            });
-            res.status(201).json(schedule);
-        }
-        catch (error) {
-            if (error.code === 'P2002') {
-                return res.status(409).json({ error: 'Schedule with this route and time already exists' });
-            }
-            res.status(500).json({ error: 'Failed to create schedule' });
-        }
-    });
-    app.put('/schedules/:id', requireAdmin, async (req, res) => {
-        const { id } = req.params;
-        const { route, departureTime, maxSeats, supportPhone } = req.body;
-        if (!route || !departureTime) {
-            return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
-        }
-        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
-            return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
-        }
-        try {
-            const schedule = await prisma.schedule.update({
-                where: { id: Number(id) },
-                data: {
-                    route,
-                    departureTime,
-                    maxSeats: maxSeats ? Number(maxSeats) : undefined,
-                    supportPhone: supportPhone !== undefined ? (supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null) : undefined
-                }
-            });
-            res.json(schedule);
-        }
-        catch (error) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Schedule not found' });
-            }
-            if (error.code === 'P2002') {
-                return res.status(409).json({ error: 'Schedule with this route and time already exists' });
-            }
-            res.status(500).json({ error: 'Failed to update schedule' });
-        }
-    });
-    app.delete('/schedules/:id', requireAdmin, async (req, res) => {
-        const { id } = req.params;
-        try {
-            await prisma.schedule.delete({
-                where: { id: Number(id) }
-            });
-            res.status(204).send();
-        }
-        catch (error) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Schedule not found' });
-            }
-            res.status(500).json({ error: 'Failed to delete schedule' });
-        }
-    });
-    // Booking endpoints
-    app.post('/bookings', async (req, res) => {
-        const { route, date, departureTime, seats, name, phone, scheduleId, telegramUserId } = req.body;
-        if (!route || !date || !departureTime || !seats || !name || !phone) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-        const phoneValid = (0, booking_phone_1.validateBookingPhoneInput)(phone);
-        if (!phoneValid.ok) {
-            return res.status(400).json({ error: phoneValid.error });
-        }
-        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
-            return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
-        }
-        // Перевірка доступності місць
-        try {
-            const schedule = await prisma.schedule.findUnique({
-                where: {
-                    route_departureTime: {
-                        route,
-                        departureTime
-                    }
-                }
-            });
-            if (schedule) {
-                const bookingDate = new Date(date);
-                const startOfDay = new Date(bookingDate);
-                startOfDay.setHours(0, 0, 0, 0);
-                const endOfDay = new Date(bookingDate);
-                endOfDay.setHours(23, 59, 59, 999);
-                const existingBookings = await prisma.booking.findMany({
-                    where: {
-                        route,
-                        departureTime,
-                        date: {
-                            gte: startOfDay,
-                            lte: endOfDay
-                        }
-                    }
-                });
-                const bookedSeats = existingBookings.reduce((sum, booking) => sum + booking.seats, 0);
-                const requestedSeats = Number(seats);
-                const availableSeats = schedule.maxSeats - bookedSeats;
-                if (requestedSeats > availableSeats) {
-                    return res.status(400).json({
-                        error: `Недостатньо місць. Доступно: ${availableSeats}, запитується: ${requestedSeats}`
-                    });
-                }
-            }
-        }
-        catch (error) {
-            // Якщо графік не знайдено, все одно дозволяємо бронювання
-        }
-        // Прив'язка до Person та пошук Telegram: спочатку Person, потім попередні бронювання
-        let telegramChatId = null;
-        let bookingTelegramUserId = telegramUserId || null;
-        const fullNameForPerson = typeof name === 'string' && name.trim() ? name.trim() : name;
-        const person = await (0, telegram_1.findOrCreatePersonByPhone)(phone, { fullName: fullNameForPerson });
-        // Оновлюємо ім'я в усіх попередніх бронюваннях та в Viber оголошеннях цієї персони
-        if (fullNameForPerson) {
-            try {
-                const [bookingsUpdated, viberUpdated] = await Promise.all([
-                    prisma.booking.updateMany({
-                        where: { personId: person.id },
-                        data: { name: fullNameForPerson },
-                    }),
-                    prisma.viberListing.updateMany({
-                        where: { personId: person.id },
-                        data: { senderName: fullNameForPerson },
-                    }),
-                ]);
-                if (bookingsUpdated.count > 0 || viberUpdated.count > 0) {
-                    console.log(`📝 Оновлено ім'я персони: booking.count=${bookingsUpdated.count}, viberListing.count=${viberUpdated.count}`);
-                }
-            }
-            catch (err) {
-                console.error('Помилка оновлення імені в бронюваннях/Viber:', err);
-                // Не блокуємо створення бронювання
-            }
-        }
-        try {
-            const normalizedPhone = (0, telegram_1.normalizePhone)(phone);
-            const personRecord = await (0, telegram_1.getPersonByPhone)(phone);
-            if (personRecord?.telegramChatId && personRecord.telegramChatId !== '0' && personRecord.telegramChatId.trim() !== '') {
-                telegramChatId = personRecord.telegramChatId;
-            }
-            if (personRecord?.telegramUserId && personRecord.telegramUserId !== '0' && personRecord.telegramUserId.trim() !== '') {
-                bookingTelegramUserId = bookingTelegramUserId || personRecord.telegramUserId;
-            }
-            if (!telegramChatId || !bookingTelegramUserId) {
-                const allBookings = await prisma.booking.findMany({
-                    where: {
-                        telegramUserId: { not: null, notIn: ['0', '', ' '] },
-                    },
-                    orderBy: { createdAt: 'desc' },
-                });
-                const previousBooking = allBookings.find((b) => (0, telegram_1.normalizePhone)(b.phone) === normalizedPhone);
-                if (previousBooking) {
-                    if (previousBooking.telegramChatId && previousBooking.telegramChatId !== '0' && previousBooking.telegramChatId.trim() !== '') {
-                        telegramChatId = telegramChatId || previousBooking.telegramChatId;
-                    }
-                    if (!bookingTelegramUserId && previousBooking.telegramUserId && previousBooking.telegramUserId !== '0' && previousBooking.telegramUserId.trim() !== '') {
-                        bookingTelegramUserId = previousBooking.telegramUserId;
-                    }
-                    else if (!bookingTelegramUserId && previousBooking.telegramChatId) {
-                        bookingTelegramUserId = previousBooking.telegramChatId;
-                    }
-                }
-            }
-            console.log(`🔍 Person id=${person.id}, Telegram: chatId=${telegramChatId}, userId=${bookingTelegramUserId}`);
-        }
-        catch (error) {
-            console.error('❌ Помилка пошуку Person/попередніх бронювань:', error);
-        }
-        // Фінальна валідація: для приватних чатів chat_id = user_id
-        // Якщо є chatId але немає userId - використовуємо chatId як userId
-        if (telegramChatId &&
-            telegramChatId !== '0' &&
-            telegramChatId.trim() !== '' &&
-            !bookingTelegramUserId) {
-            bookingTelegramUserId = telegramChatId;
-            console.log(`⚠️ Використовуємо telegramChatId як telegramUserId для приватного чату: ${bookingTelegramUserId}`);
-        }
-        // Додаткова валідація перед записом
-        if (telegramChatId === '0' || telegramChatId === '') {
-            console.log(`⚠️ Невалідний telegramChatId (${telegramChatId}), встановлюємо null`);
-            telegramChatId = null;
-        }
-        if (bookingTelegramUserId === '0' || bookingTelegramUserId === '') {
-            console.log(`⚠️ Невалідний telegramUserId (${bookingTelegramUserId}), встановлюємо null`);
-            bookingTelegramUserId = null;
-        }
-        console.log(`📝 Створюємо бронювання з Telegram даними:`, {
-            chatId: telegramChatId,
-            userId: bookingTelegramUserId,
-            phone: phone
-        });
-        const booking = await prisma.booking.create({
-            data: {
-                route,
-                date: new Date(date),
-                departureTime,
-                seats: Number(seats),
-                name,
-                phone,
-                scheduleId: scheduleId ? Number(scheduleId) : null,
-                telegramChatId,
-                telegramUserId: bookingTelegramUserId,
-                personId: person.id,
-            },
-        });
-        // Відправка повідомлень в Telegram (якщо налаштовано)
-        if ((0, telegram_1.isTelegramEnabled)()) {
-            try {
-                // Повідомлення адміну (тільки для маршруток; source за замовч. "schedule")
-                await (0, telegram_1.sendBookingNotificationToAdmin)({
-                    id: booking.id,
-                    route: booking.route,
-                    date: booking.date,
-                    departureTime: booking.departureTime,
-                    seats: booking.seats,
-                    name: booking.name,
-                    phone: booking.phone,
-                    source: booking.source,
-                });
-                // Повідомлення клієнту (якщо він підписаний; тільки для маршруток). Телефон підтримки — з графіка для цього маршруту.
-                const customerChatId = await (0, telegram_1.getChatIdByPhone)(booking.phone);
-                if (customerChatId) {
-                    const supportPhone = await getSupportPhoneForRoute(prisma, booking.route);
-                    await (0, telegram_1.sendBookingConfirmationToCustomer)(customerChatId, {
-                        id: booking.id,
-                        route: booking.route,
-                        date: booking.date,
-                        departureTime: booking.departureTime,
-                        seats: booking.seats,
-                        name: booking.name,
-                        source: booking.source,
-                        supportPhone: supportPhone ?? undefined,
-                    });
-                }
-            }
-            catch (error) {
-                console.error('Помилка відправки Telegram повідомлення:', error);
-                // Не блокуємо бронювання якщо Telegram не працює
-            }
-        }
-        res.status(201).json(booking);
-    });
-    app.get('/bookings', requireAdmin, async (_req, res) => {
-        res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } }));
-    });
-    // Пошук останнього бронювання або персони по телефону (для автозаповнення імені на сторінці бронювання)
-    app.get('/bookings/by-phone/:phone', async (req, res) => {
-        const { phone } = req.params;
-        try {
-            const normalized = (0, telegram_1.normalizePhone)(phone);
-            // 1) Шукаємо Person за телефоном
-            const person = await (0, telegram_1.getPersonByPhone)(phone);
-            if (person) {
-                const byPerson = await prisma.booking.findFirst({
-                    where: { personId: person.id },
-                    orderBy: { createdAt: 'desc' },
-                });
-                if (byPerson) {
-                    return res.json(byPerson);
-                }
-                // Персона є, але бронювань немає — повертаємо ім'я з Person для автозаповнення
-                if (person.fullName && person.fullName.trim()) {
-                    return res.json({ name: person.fullName.trim(), phone: person.phoneNormalized });
-                }
-            }
-            // 2) Шукаємо в таблиці Booking по нормалізованому телефону
-            const allRecent = await prisma.booking.findMany({
-                orderBy: { createdAt: 'desc' },
-                take: 500,
-            });
-            const lastBooking = allRecent.find((b) => (0, telegram_1.normalizePhone)(b.phone) === normalized) ?? null;
-            res.json(lastBooking);
-        }
-        catch (error) {
-            res.status(500).json({ error: 'Failed to find booking' });
-        }
-    });
-    // Скасування бронювання користувачем (через Telegram)
-    app.delete('/bookings/:id/by-user', async (req, res) => {
-        const { id } = req.params;
-        const { telegramUserId } = req.body;
-        if (!telegramUserId) {
-            return res.status(400).json({ error: 'telegramUserId is required' });
-        }
-        try {
-            // Перевірка що бронювання належить користувачу
-            const booking = await prisma.booking.findUnique({
-                where: { id: Number(id) }
-            });
-            if (!booking) {
-                return res.status(404).json({ error: 'Бронювання не знайдено' });
-            }
-            if (booking.telegramUserId !== telegramUserId) {
-                return res.status(403).json({ error: 'Це не ваше бронювання' });
-            }
-            // Видалити бронювання
-            await prisma.booking.delete({
-                where: { id: Number(id) }
-            });
-            console.log(`✅ Користувач ${telegramUserId} скасував бронювання #${id}`);
-            res.json({
-                success: true,
-                message: 'Бронювання скасовано',
-                booking: {
-                    id: booking.id,
-                    route: booking.route,
-                    date: booking.date,
-                    departureTime: booking.departureTime
-                }
-            });
-        }
-        catch (error) {
-            console.error('❌ Помилка скасування бронювання:', error);
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Booking not found' });
-            }
-            res.status(500).json({ error: 'Failed to cancel booking' });
-        }
-    });
-    app.delete('/bookings/:id', requireAdmin, async (req, res) => {
-        const { id } = req.params;
-        try {
-            await prisma.booking.delete({
-                where: { id: Number(id) }
-            });
-            res.status(204).send();
-        }
-        catch (error) {
-            if (error.code === 'P2025') {
-                return res.status(404).json({ error: 'Booking not found' });
-            }
-            res.status(500).json({ error: 'Failed to delete booking' });
-        }
-    });
+    app.use((0, public_routes_1.createPublicRoutesRouter)({ codeVersion: exports.CODE_VERSION }));
+    app.use((0, admin_session_1.createAdminSessionRouter)({ adminPassword: ADMIN_PASSWORD }));
+    app.use((0, admin_maintenance_1.createAdminMaintenanceRouter)({ prisma }));
+    app.use((0, schedules_bookings_1.createSchedulesBookingsRouter)({ prisma }));
     // ——— Профіль користувача (Telegram) ———
     const startOfToday = () => {
         const d = new Date();
@@ -822,7 +251,7 @@ function createApp(deps) {
         }
     });
     // Відправка нагадувань про поїздки на завтра (admin endpoint)
-    app.post('/telegram/send-reminders', requireAdmin, async (_req, res) => {
+    app.post('/telegram/send-reminders', require_admin_1.requireAdmin, async (_req, res) => {
         if (!(0, telegram_1.isTelegramEnabled)()) {
             return res.status(400).json({ error: 'Telegram bot не налаштовано' });
         }
@@ -881,7 +310,7 @@ function createApp(deps) {
         }
     });
     // Автоматичне завантаження нових повідомлень з групи PoDoroguem — для cron кожні 2 год
-    app.post('/telegram/fetch-group-messages', requireAdmin, async (_req, res) => {
+    app.post('/telegram/fetch-group-messages', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             const result = await (0, telegram_1.fetchAndImportTelegramGroupMessages)();
             if (!result.success) {
@@ -905,7 +334,7 @@ function createApp(deps) {
         }
     });
     // Нагадування в день поїздки (сьогодні) — для cron щодня вранці
-    app.post('/telegram/send-reminders-today', requireAdmin, async (_req, res) => {
+    app.post('/telegram/send-reminders-today', require_admin_1.requireAdmin, async (_req, res) => {
         if (!(0, telegram_1.isTelegramEnabled)()) {
             return res.status(400).json({ error: 'Telegram bot не налаштовано' });
         }
@@ -962,7 +391,7 @@ function createApp(deps) {
         }
     });
     // Тестовий endpoint для перевірки Telegram підключення
-    app.get('/telegram/status', requireAdmin, (_req, res) => {
+    app.get('/telegram/status', require_admin_1.requireAdmin, (_req, res) => {
         res.json({
             enabled: (0, telegram_1.isTelegramEnabled)(),
             adminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ? 'configured' : 'not configured',
@@ -1196,7 +625,7 @@ function createApp(deps) {
         }
     });
     // Створити Viber оголошення (Admin)
-    app.post('/viber-listings', requireAdmin, async (req, res) => {
+    app.post('/viber-listings', require_admin_1.requireAdmin, async (req, res) => {
         const { rawMessage } = req.body;
         if (!rawMessage) {
             return res.status(400).json({ error: 'rawMessage is required' });
@@ -1281,7 +710,7 @@ function createApp(deps) {
         }
     });
     // Масове створення Viber оголошень з копіювання чату (Admin)
-    app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
+    app.post('/viber-listings/bulk', require_admin_1.requireAdmin, async (req, res) => {
         const { rawMessages } = req.body;
         if (!rawMessages) {
             return res.status(400).json({ error: 'rawMessages is required' });
@@ -1382,7 +811,7 @@ function createApp(deps) {
         'rawMessage', 'senderName', 'listingType', 'route', 'date', 'departureTime', 'seats', 'phone', 'notes', 'priceUah', 'isActive'
     ];
     // Оновити Viber оголошення (Admin)
-    app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
+    app.put('/viber-listings/:id', require_admin_1.requireAdmin, async (req, res) => {
         const { id } = req.params;
         const body = req.body;
         const updates = {};
@@ -1432,7 +861,7 @@ function createApp(deps) {
         }
     });
     // Деактивувати Viber оголошення (Admin)
-    app.patch('/viber-listings/:id/deactivate', requireAdmin, async (req, res) => {
+    app.patch('/viber-listings/:id/deactivate', require_admin_1.requireAdmin, async (req, res) => {
         const { id } = req.params;
         try {
             const listing = await prisma.viberListing.update({
@@ -1450,7 +879,7 @@ function createApp(deps) {
         }
     });
     // Видалити Viber оголошення (Admin)
-    app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
+    app.delete('/viber-listings/:id', require_admin_1.requireAdmin, async (req, res) => {
         const { id } = req.params;
         try {
             await prisma.viberListing.delete({
@@ -1470,7 +899,7 @@ function createApp(deps) {
     // «Дата по» = date + кінець часу з departureTime (один час "15:00" або кінець діапазону "14:30-16:00" → 16:00).
     // Деактивуємо, якщо дата по < зараз − 1 год.
     const CLEANUP_CUTOFF_HOURS = 1;
-    app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
+    app.post('/viber-listings/cleanup-old', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             const cutoff = new Date();
             cutoff.setHours(cutoff.getHours() - CLEANUP_CUTOFF_HOURS);
@@ -1515,7 +944,7 @@ function createApp(deps) {
   `.trim();
     }
     /** Створити контакт (Person) за телефоном та іменем. Якщо номер вже є — оновлює fullName. */
-    app.post('/admin/person', requireAdmin, async (req, res) => {
+    app.post('/admin/person', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const { phone, fullName } = req.body;
             const rawPhone = typeof phone === 'string' ? phone.trim() : '';
@@ -1537,7 +966,7 @@ function createApp(deps) {
         }
     });
     /** Список Person для управління даними. Query: ?search= — пошук по телефону або імені. */
-    app.get('/admin/persons', requireAdmin, async (req, res) => {
+    app.get('/admin/persons', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const search = req.query.search?.trim() || '';
             const where = search
@@ -1563,7 +992,7 @@ function createApp(deps) {
         }
     });
     /** Оновити імена персон: спочатку по боту, потім по номеру (ваш акаунт), потім через Opendatabot. Якщо імені не було — заповнити будь-яким; інакше вибрати найдовше кириличне серед усіх. onlyEmpty: true — лише персони без імені в базі. onlyLatin: true — лише персони з іменем, де немає кирилиці (латиниця). */
-    app.post('/admin/persons/refresh-names', requireAdmin, async (req, res) => {
+    app.post('/admin/persons/refresh-names', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const body = (req.body || {});
             const personIds = Array.isArray(body.personIds) ? body.personIds.filter((id) => Number.isInteger(id) && id > 0) : undefined;
@@ -1639,7 +1068,7 @@ function createApp(deps) {
         }
     });
     /** Перевірити номера: знайти персон без telegramChatId, спробувати ResolvePhone і оновити telegramUsername. */
-    app.post('/admin/persons/check-usernames', requireAdmin, async (req, res) => {
+    app.post('/admin/persons/check-usernames', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const persons = await prisma.person.findMany({
                 where: {
@@ -1678,7 +1107,7 @@ function createApp(deps) {
         }
     });
     /** Одна персона за id. */
-    app.get('/admin/persons/:id', requireAdmin, async (req, res) => {
+    app.get('/admin/persons/:id', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const id = parseInt(req.params.id, 10);
             if (Number.isNaN(id)) {
@@ -1703,7 +1132,7 @@ function createApp(deps) {
         }
     });
     /** Оновити персону. При зміні телефону або імені оновлюються пов’язані Booking (phone, name) та ViberListing (phone, senderName). */
-    app.put('/admin/persons/:id', requireAdmin, async (req, res) => {
+    app.put('/admin/persons/:id', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const id = parseInt(req.params.id, 10);
             if (Number.isNaN(id)) {
@@ -1791,7 +1220,7 @@ function createApp(deps) {
         }
     });
     /** Видалити персону та всі залежні записи по personId (Booking, ViberListing, ViberRideEvent). */
-    app.delete('/admin/persons/:id', requireAdmin, async (req, res) => {
+    app.delete('/admin/persons/:id', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const id = parseInt(req.params.id, 10);
             if (Number.isNaN(id)) {
@@ -1830,7 +1259,7 @@ function createApp(deps) {
         }
     });
     /** Список Person для Telegram-нагадувань (база = з ботом). Query: ?filter=all|no_active_viber|no_reminder_7_days */
-    app.get('/admin/telegram-reminder-persons', requireAdmin, async (req, res) => {
+    app.get('/admin/telegram-reminder-persons', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const filter = req.query.filter?.trim() || 'all';
             const where = (0, index_helpers_1.getTelegramReminderWhere)(filter);
@@ -1858,7 +1287,7 @@ function createApp(deps) {
         }
     });
     /** Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */
-    app.get('/admin/telegram-user-send-errors', requireAdmin, async (_req, res) => {
+    app.get('/admin/telegram-user-send-errors', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             const rows = await prisma.telegramUserSendError.findMany({
                 orderBy: { createdAt: 'desc' },
@@ -1872,7 +1301,7 @@ function createApp(deps) {
         }
     });
     /** Обнулити таблицю помилок user-sender */
-    app.delete('/admin/telegram-user-send-errors', requireAdmin, async (_req, res) => {
+    app.delete('/admin/telegram-user-send-errors', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             const result = await prisma.telegramUserSendError.deleteMany({});
             res.json({ deleted: result.count });
@@ -1883,7 +1312,7 @@ function createApp(deps) {
         }
     });
     /** Відправити Telegram-нагадування неактивним користувачам. Body: { filter?, limit?, delaysMs? } */
-    app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
+    app.post('/admin/send-telegram-reminders', require_admin_1.requireAdmin, async (req, res) => {
         if (!(0, telegram_1.isTelegramEnabled)()) {
             return res.status(400).json({ error: 'Telegram bot не налаштовано' });
         }
@@ -1952,7 +1381,7 @@ function createApp(deps) {
         }
     });
     /** Нагадати від особистого акаунта тим, хто заблокував бота. Body: { phones: string[], delaysSec?: number[] }. */
-    app.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res) => {
+    app.post('/admin/send-reminder-via-user-account', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const phones = Array.isArray(req.body?.phones) ? req.body.phones.map((p) => String(p).trim()).filter(Boolean) : [];
             if (phones.length === 0) {
@@ -1996,7 +1425,7 @@ function createApp(deps) {
         }
     });
     /** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication|promo_not_found */
-    app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
+    app.get('/admin/channel-promo-persons', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const filter = req.query.filter?.trim() || 'no_telegram';
             const where = (0, index_helpers_1.getChannelPromoWhere)(filter);
@@ -2013,7 +1442,7 @@ function createApp(deps) {
         }
     });
     /** Відправити рекламу каналу. Body: { filter?, limit?, delaysMs? }. limit — лише перші N; delaysMs — паузи в мс між відправками [після 1-го, після 2-го, ...]. */
-    app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
+    app.post('/admin/send-channel-promo', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const filter = req.body?.filter?.trim() || 'no_telegram';
             if (!['no_telegram', 'no_communication', 'promo_not_found'].includes(filter)) {
@@ -2074,7 +1503,7 @@ function createApp(deps) {
     });
     // Історичні дані з окремої таблиці "ViberRide" (сервіс парсингу Viber чату) → аналітична таблиця ViberRideEvent.
     // Endpoint: тільки нові записи, щоб можна було викликати кілька разів.
-    app.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
+    app.post('/admin/viber-analytics/import', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             // Які ViberListing вже імпортовані в ViberRideEvent (по viberRideId)
             const existing = await prisma.viberRideEvent.findMany({
@@ -2178,7 +1607,7 @@ function createApp(deps) {
         }
     });
     // Аналіз телефонів через phonecheck.top: для кожного телефону дивимося, чи є дані (ігноруємо "Данные не найдены").
-    app.post('/admin/phonecheck/analyze', requireAdmin, async (req, res) => {
+    app.post('/admin/phonecheck/analyze', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const body = (req.body || {});
             const rawPhones = Array.isArray(body.phones) ? body.phones : [];
@@ -2213,7 +1642,7 @@ function createApp(deps) {
     });
     // Аналітика поведінки клієнтів на основі ViberRideEvent.
     // Повертає до N клієнтів з найбільшою кількістю поїздок та коротким описом патернів.
-    app.get('/admin/viber-analytics/summary', requireAdmin, async (req, res) => {
+    app.get('/admin/viber-analytics/summary', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const pageParam = Number(req.query.page);
             const pageSizeParam = Number(req.query.pageSize ?? req.query.limit);
@@ -2474,7 +1903,7 @@ function createApp(deps) {
         'mixed_unified',
         'mixed_both',
     ];
-    app.get('/admin/viber-analytics/promo-scenarios', requireAdmin, (_req, res) => {
+    app.get('/admin/viber-analytics/promo-scenarios', require_admin_1.requireAdmin, (_req, res) => {
         res.json({
             scenarios: PROMO_SCENARIO_KEYS.map((key) => ({
                 key,
@@ -2493,7 +1922,7 @@ function createApp(deps) {
      * Якщо є Telegram бот — через бота, інакше через особистий акаунт.
      * При невдалій комунікації (не знайдено в Telegram) проставляється маркер — кнопка стає неактивною.
      */
-    app.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, res) => {
+    app.post('/admin/viber-analytics/send-person-promo', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const { phoneNormalized: rawPhone, scenarioKey, mainRoute } = req.body;
             const phone = rawPhone ? (0, telegram_1.normalizePhone)(String(rawPhone).trim()) : '';
@@ -2604,11 +2033,5 @@ function getRegisteredRoutes(app) {
     }
     return [...new Set(routes)].sort();
 }
-/** Телефон підтримки для маршруту з графіка (формат +380(93)1701835) */
-async function getSupportPhoneForRoute(prisma, route) {
-    const schedule = await prisma.schedule.findFirst({
-        where: { route, supportPhone: { not: null } },
-        select: { supportPhone: true },
-    });
-    return schedule?.supportPhone ?? null;
-}
+var support_phone_route_1 = require("./support-phone-route");
+Object.defineProperty(exports, "getSupportPhoneForRoute", { enumerable: true, get: function () { return support_phone_route_1.getSupportPhoneForRoute; } });
