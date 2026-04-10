@@ -4,11 +4,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
+exports.resetTelegramPrismaForTests = resetTelegramPrismaForTests;
+exports.createOrMergeViberListing = createOrMergeViberListing;
 exports.setAnnounceDraft = setAnnounceDraft;
 exports.getAnnounceDraft = getAnnounceDraft;
 exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.buildBehaviorPromoMessage = buildBehaviorPromoMessage;
 exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
+exports.setSendMatchMessageToPersonForTests = setSendMatchMessageToPersonForTests;
+exports.notifyPassengerAboutDriverPair = notifyPassengerAboutDriverPair;
+exports.notifyDriverAboutPassengerPair = notifyDriverAboutPassengerPair;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
@@ -18,6 +24,7 @@ exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessage
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
+exports.executeBookViberRideShare = executeBookViberRideShare;
 exports.getTelegramNameByChatId = getTelegramNameByChatId;
 exports.hasCyrillic = hasCyrillic;
 exports.getResolvedNameForPerson = getResolvedNameForPerson;
@@ -28,7 +35,16 @@ const path_1 = __importDefault(require("path"));
 const client_1 = require("@prisma/client");
 const viber_parser_1 = require("./viber-parser");
 const telegram_parser_1 = require("./telegram-parser");
-const prisma = new client_1.PrismaClient();
+const defaultTgPrisma = new client_1.PrismaClient();
+let tgPrisma = defaultTgPrisma;
+/** Для юніт-тестів: підставити мок Prisma замість реального клієнта. */
+function setTelegramPrismaForTests(client) {
+    tgPrisma = client;
+}
+/** Повернути дефолтний Prisma після тестів (той самий інстанс, що при старті). */
+function resetTelegramPrismaForTests() {
+    tgPrisma = defaultTgPrisma;
+}
 function hasNonEmptyText(value) {
     return !!value && value.trim().length > 0;
 }
@@ -71,7 +87,7 @@ async function createOrMergeViberListing(data) {
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
     const normalizedPhone = data.phone?.trim() ? (0, exports.normalizePhone)(data.phone) : '';
     // Шукаємо існуючий запис за route+date+time+phone (незалежно від source — Viber1 чи telegram1)
-    const candidates = await prisma.viberListing.findMany({
+    const candidates = await tgPrisma.viberListing.findMany({
         where: {
             listingType: data.listingType,
             route: data.route,
@@ -92,7 +108,7 @@ async function createOrMergeViberListing(data) {
         existing = candidates.find((c) => c.personId === personId) ?? null;
     }
     if (!existing) {
-        const listing = await prisma.viberListing.create({
+        const listing = await tgPrisma.viberListing.create({
             data: { ...data, source: data.source ?? 'Viber1' },
         });
         return { listing, isNew: true };
@@ -100,7 +116,7 @@ async function createOrMergeViberListing(data) {
     // Оновлюємо існуючий — source залишаємо перший (як потрапило в базу)
     const mergedNotes = mergeTextField(existing.notes, data.notes);
     const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
-    const updated = await prisma.viberListing.update({
+    const updated = await tgPrisma.viberListing.update({
         where: { id: existing.id },
         data: {
             rawMessage: mergeRawMessage(existing.rawMessage, data.rawMessage),
@@ -449,7 +465,7 @@ function toDateKey(d) {
 /** Знайти активні оголошення пасажирів, що збігаються по маршруту та даті з оголошенням водія. */
 async function findMatchingPassengersForDriver(driverListing) {
     const dateKey = toDateKey(driverListing.date);
-    const passengers = await prisma.viberListing.findMany({
+    const passengers = await tgPrisma.viberListing.findMany({
         where: {
             listingType: 'passenger',
             isActive: true,
@@ -470,7 +486,7 @@ async function findMatchingPassengersForDriver(driverListing) {
 /** Знайти активні оголошення водіїв, що збігаються по маршруту та даті з оголошенням пасажира. */
 async function findMatchingDriversForPassenger(passengerListing) {
     const dateKey = toDateKey(passengerListing.date);
-    const drivers = await prisma.viberListing.findMany({
+    const drivers = await tgPrisma.viberListing.findMany({
         where: {
             listingType: 'driver',
             isActive: true,
@@ -488,7 +504,15 @@ async function findMatchingDriversForPassenger(passengerListing) {
         return { listing: d, matchType };
     });
 }
+let sendMatchMessageToPersonTestStub = null;
+/** Юніт-тести: підміна доставки match-повідомлень (інакше без бота завжди failed). */
+function setSendMatchMessageToPersonForTests(stub) {
+    sendMatchMessageToPersonTestStub = stub;
+}
 async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
+    if (sendMatchMessageToPersonTestStub) {
+        return sendMatchMessageToPersonTestStub(phone, messageHtml, botOptions);
+    }
     const chatId = await (0, exports.getChatIdByPhone)(phone);
     if (chatId && bot) {
         const sent = await bot
@@ -518,7 +542,7 @@ async function sleepTelethonBatchDelay() {
 }
 /** Пасажир отримує повідомлення про водія для пари (дедуп у БД). */
 async function notifyPassengerAboutDriverPair(driverListing, passengerListing, matchType) {
-    const row = await prisma.viberMatchPairNotification.findUnique({
+    const row = await tgPrisma.viberMatchPairNotification.findUnique({
         where: {
             passengerListingId_driverListingId: {
                 passengerListingId: passengerListing.id,
@@ -561,7 +585,7 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
         : (replyMarkup ? { replyMarkup } : undefined));
     if (!result.sent)
         return { kind: 'failed' };
-    await prisma.viberMatchPairNotification.upsert({
+    await tgPrisma.viberMatchPairNotification.upsert({
         where: {
             passengerListingId_driverListingId: {
                 passengerListingId: passengerListing.id,
@@ -579,7 +603,7 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
 }
 /** Водій отримує повідомлення про пасажира для пари (дедуп у БД). */
 async function notifyDriverAboutPassengerPair(driverListing, passengerListing, matchType) {
-    const row = await prisma.viberMatchPairNotification.findUnique({
+    const row = await tgPrisma.viberMatchPairNotification.findUnique({
         where: {
             passengerListingId_driverListingId: {
                 passengerListingId: passengerListing.id,
@@ -618,7 +642,7 @@ async function notifyDriverAboutPassengerPair(driverListing, passengerListing, m
         : (replyMarkup ? { replyMarkup } : undefined));
     if (!result.sent)
         return { kind: 'failed' };
-    await prisma.viberMatchPairNotification.upsert({
+    await tgPrisma.viberMatchPairNotification.upsert({
         where: {
             passengerListingId_driverListingId: {
                 passengerListingId: passengerListing.id,
@@ -749,7 +773,7 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
 /** Знайти людину за нормалізованим номером телефону */
 const getPersonByPhone = async (phone) => {
     const normalized = (0, exports.normalizePhone)(phone);
-    return prisma.person.findUnique({
+    return tgPrisma.person.findUnique({
         where: { phoneNormalized: normalized }
     });
 };
@@ -763,7 +787,7 @@ const getPersonByTelegram = async (userId, chatId) => {
         or.push({ telegramChatId: chatId });
     if (or.length === 0)
         return null;
-    return prisma.person.findFirst({ where: { OR: or } });
+    return tgPrisma.person.findFirst({ where: { OR: or } });
 };
 exports.getPersonByTelegram = getPersonByTelegram;
 /**
@@ -774,13 +798,13 @@ const getDriverFutureBookingsForMybookings = async (userId, chatId, sinceDate) =
     const person = await (0, exports.getPersonByTelegram)(userId, chatId);
     if (!person)
         return [];
-    const myDriverListingIds = (await prisma.viberListing.findMany({
+    const myDriverListingIds = (await tgPrisma.viberListing.findMany({
         where: { personId: person.id, listingType: 'driver' },
         select: { id: true }
     })).map((l) => l.id);
     if (myDriverListingIds.length === 0)
         return [];
-    return prisma.booking.findMany({
+    return tgPrisma.booking.findMany({
         where: {
             viberListingId: { in: myDriverListingIds },
             date: { gte: sinceDate }
@@ -799,7 +823,7 @@ const findOrCreatePersonByPhone = async (phone, options) => {
     const fullName = options?.fullName != null && String(options.fullName).trim() !== ''
         ? String(options.fullName).trim()
         : null;
-    const person = await prisma.person.upsert({
+    const person = await tgPrisma.person.upsert({
         where: { phoneNormalized: normalized },
         create: {
             phoneNormalized: normalized,
@@ -820,17 +844,17 @@ const findOrCreatePersonByPhone = async (phone, options) => {
 exports.findOrCreatePersonByPhone = findOrCreatePersonByPhone;
 /** Оновити Telegram у Person та у всіх бронюваннях з тим же номером (і привʼязати їх до Person). */
 async function updatePersonAndBookingsTelegram(personId, chatId, userId) {
-    await prisma.person.update({
+    await tgPrisma.person.update({
         where: { id: personId },
         data: { telegramChatId: chatId, telegramUserId: userId },
     });
-    const person = await prisma.person.findUnique({ where: { id: personId }, select: { phoneNormalized: true } });
+    const person = await tgPrisma.person.findUnique({ where: { id: personId }, select: { phoneNormalized: true } });
     if (!person)
         return;
-    const allBookings = await prisma.booking.findMany({ select: { id: true, phone: true, personId: true } });
+    const allBookings = await tgPrisma.booking.findMany({ select: { id: true, phone: true, personId: true } });
     const samePhone = allBookings.filter((b) => (0, exports.normalizePhone)(b.phone) === person.phoneNormalized);
     for (const b of samePhone) {
-        await prisma.booking.update({
+        await tgPrisma.booking.update({
             where: { id: b.id },
             data: { telegramChatId: chatId, telegramUserId: userId, personId },
         });
@@ -843,7 +867,7 @@ const getNameByPhone = async (phone) => {
     const person = await (0, exports.getPersonByPhone)(phone);
     if (person?.fullName?.trim())
         return person.fullName.trim();
-    const bookings = await prisma.booking.findMany({
+    const bookings = await tgPrisma.booking.findMany({
         orderBy: { createdAt: 'desc' },
         take: 500,
         select: { phone: true, name: true },
@@ -859,7 +883,7 @@ const getPhoneByTelegramUser = async (userId, chatId) => {
     const person = await (0, exports.getPersonByTelegram)(userId, chatId);
     if (person)
         return person.phoneNormalized;
-    const booking = await prisma.booking.findFirst({
+    const booking = await tgPrisma.booking.findFirst({
         where: {
             OR: [{ telegramUserId: userId }, { telegramChatId: chatId }],
         },
@@ -1045,22 +1069,22 @@ async function resetTelegramBindingForPhone(phone) {
     const normalized = (0, exports.normalizePhone)(phone);
     const person = await (0, exports.getPersonByPhone)(phone);
     if (person) {
-        await prisma.person.update({
+        await tgPrisma.person.update({
             where: { id: person.id },
             data: { telegramChatId: null, telegramUserId: null, telegramPromoSentAt: null },
         });
-        await prisma.booking.updateMany({
+        await tgPrisma.booking.updateMany({
             where: { personId: person.id },
             data: { telegramChatId: null, telegramUserId: null },
         });
     }
-    const bookingsWithTg = await prisma.booking.findMany({
+    const bookingsWithTg = await tgPrisma.booking.findMany({
         where: { telegramChatId: { not: null } },
         select: { id: true, phone: true },
     });
     const idsToClear = bookingsWithTg.filter((b) => (0, exports.normalizePhone)(b.phone) === normalized).map((b) => b.id);
     if (idsToClear.length > 0) {
-        await prisma.booking.updateMany({
+        await tgPrisma.booking.updateMany({
             where: { id: { in: idsToClear } },
             data: { telegramChatId: null, telegramUserId: null },
         });
@@ -1108,7 +1132,7 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
                     telegramUsername: person.telegramUsername,
                 });
                 if (sent) {
-                    await prisma.person.update({
+                    await tgPrisma.person.update({
                         where: { id: person.id },
                         data: { telegramPromoSentAt: new Date() },
                     });
@@ -1273,7 +1297,7 @@ async function fetchTelegramGroupMessages(options) {
     const fullFetch = options?.fullFetch ?? false;
     let lastIds = {};
     if (!fullFetch) {
-        const states = await prisma.telegramFetchState.findMany();
+        const states = await tgPrisma.telegramFetchState.findMany();
         for (const s of states) {
             lastIds[String(s.topicId)] = s.lastMessageId;
         }
@@ -1337,7 +1361,7 @@ async function fetchTelegramGroupMessages(options) {
                 const topicId = parseInt(topicStr, 10);
                 if (Number.isNaN(topicId) || msgId <= 0)
                     continue;
-                await prisma.telegramFetchState.upsert({
+                await tgPrisma.telegramFetchState.upsert({
                     where: { topicId },
                     create: { topicId, lastMessageId: msgId },
                     update: { lastMessageId: msgId },
@@ -1586,7 +1610,7 @@ function spawnSendMessage(value, message, isUsername) {
 async function recordTelegramUserSendError(contact, contactType, errorCode, errorText) {
     try {
         const displayContact = contactType === 'username' && !contact.startsWith('@') ? `@${contact}` : contact;
-        await prisma.telegramUserSendError.create({
+        await tgPrisma.telegramUserSendError.create({
             data: { contact: displayContact, contactType, errorCode, errorText: errorText || null },
         });
     }
@@ -1671,7 +1695,7 @@ const sendTripReminder = async (chatId, booking) => {
         return;
     }
     try {
-        const schedule = await prisma.schedule.findFirst({
+        const schedule = await tgPrisma.schedule.findFirst({
             where: { route: booking.route, supportPhone: { not: null } },
             select: { supportPhone: true }
         });
@@ -1712,7 +1736,7 @@ const sendTripReminderToday = async (chatId, booking) => {
         return;
     }
     try {
-        const schedule = await prisma.schedule.findFirst({
+        const schedule = await tgPrisma.schedule.findFirst({
             where: { route: booking.route, supportPhone: { not: null } },
             select: { supportPhone: true }
         });
@@ -1800,14 +1824,14 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
         const normalizedPhone = (0, exports.normalizePhone)(phoneInput);
         // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
         const personByTelegram = await (0, exports.getPersonByTelegram)(userId, chatId);
-        const bookingByTelegram = await prisma.booking.findFirst({
+        const bookingByTelegram = await tgPrisma.booking.findFirst({
             where: { telegramUserId: userId },
             select: { id: true },
         });
         const hadAccountBefore = !!(personByTelegram || bookingByTelegram);
-        const allBookings = await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
+        const allBookings = await tgPrisma.booking.findMany({ orderBy: { createdAt: 'desc' } });
         const matchingBookings = allBookings.filter((b) => (0, exports.normalizePhone)(b.phone) === normalizedPhone);
-        const userIdBookings = await prisma.booking.findMany({
+        const userIdBookings = await tgPrisma.booking.findMany({
             where: { telegramUserId: userId },
         });
         const totalBookings = matchingBookings.length + userIdBookings.length;
@@ -1844,18 +1868,18 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
             });
             await updatePersonAndBookingsTelegram(person.id, chatId, userId);
             const norm = (0, exports.normalizePhone)(phone);
-            const allWithPhone = await prisma.booking.findMany({ where: {} });
+            const allWithPhone = await tgPrisma.booking.findMany({ where: {} });
             const toLink = allWithPhone.filter((b) => (0, exports.normalizePhone)(b.phone) === norm);
             for (const b of toLink) {
                 if (b.personId !== person.id) {
-                    await prisma.booking.update({
+                    await tgPrisma.booking.update({
                         where: { id: b.id },
                         data: { personId: person.id, telegramChatId: chatId, telegramUserId: userId },
                     });
                 }
             }
         }
-        await prisma.booking.updateMany({
+        await tgPrisma.booking.updateMany({
             where: { telegramUserId: userId, telegramChatId: null },
             data: { telegramChatId: chatId },
         });
@@ -2095,7 +2119,7 @@ function setupBotCommands() {
         }
         const startScenario = parseStartScenario(msg.text);
         const person = await (0, exports.getPersonByTelegram)(userId, chatId);
-        const existingBooking = await prisma.booking.findFirst({
+        const existingBooking = await tgPrisma.booking.findFirst({
             where: { telegramUserId: userId },
         });
         const buildRegisteredWelcome = (displayPhone) => `
@@ -2139,12 +2163,12 @@ https://malin.kiev.ua
             return true;
         };
         if (person) {
-            await prisma.person.updateMany({
+            await tgPrisma.person.updateMany({
                 where: { id: person.id },
                 data: { telegramChatId: chatId, telegramUserId: userId },
             });
             if (existingBooking) {
-                await prisma.booking.updateMany({
+                await tgPrisma.booking.updateMany({
                     where: { telegramUserId: userId, telegramChatId: null },
                     data: { telegramChatId: chatId },
                 });
@@ -2161,7 +2185,7 @@ https://malin.kiev.ua
         }
         else {
             if (existingBooking) {
-                await prisma.booking.updateMany({
+                await tgPrisma.booking.updateMany({
                     where: { telegramUserId: userId, telegramChatId: null },
                     data: { telegramChatId: chatId },
                 });
@@ -2314,7 +2338,7 @@ https://malin.kiev.ua
             else if (!showAll) {
                 where.date = { gte: today };
             }
-            let activeListings = await prisma.viberListing.findMany({
+            let activeListings = await tgPrisma.viberListing.findMany({
                 where,
                 orderBy: [{ date: 'asc' }, { departureTime: 'asc' }, { createdAt: 'desc' }],
                 take: 80,
@@ -2562,11 +2586,11 @@ https://malin.kiev.ua
             const normalizedPhone = (0, exports.normalizePhone)(userPhone);
             const person = await (0, exports.getPersonByTelegram)(userId, chatId);
             const [futureBookings, driverListings, passengerListings] = await Promise.all([
-                prisma.booking.findMany({
+                tgPrisma.booking.findMany({
                     where: { telegramUserId: userId, date: { gte: today } },
                     orderBy: { date: 'asc' }
                 }),
-                prisma.viberListing.findMany({
+                tgPrisma.viberListing.findMany({
                     where: {
                         listingType: 'driver',
                         isActive: true,
@@ -2575,7 +2599,7 @@ https://malin.kiev.ua
                     },
                     orderBy: [{ date: 'asc' }, { departureTime: 'asc' }]
                 }),
-                prisma.viberListing.findMany({
+                tgPrisma.viberListing.findMany({
                     where: {
                         listingType: 'passenger',
                         isActive: true,
@@ -2634,7 +2658,7 @@ https://malin.kiev.ua
             return;
         }
         const normalized = (0, exports.normalizePhone)(userPhone);
-        const listings = await prisma.viberListing.findMany({ where: { listingType: 'driver', isActive: true }, orderBy: [{ date: 'asc' }, { departureTime: 'asc' }] });
+        const listings = await tgPrisma.viberListing.findMany({ where: { listingType: 'driver', isActive: true }, orderBy: [{ date: 'asc' }, { departureTime: 'asc' }] });
         const myListings = listings.filter((l) => (0, exports.normalizePhone)(l.phone ?? '') === normalized);
         if (myListings.length === 0) {
             await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\nУ вас поки немає активних оголошень про поїздки.\n\nДодати поїздку: /adddriverride', { parse_mode: 'HTML' });
@@ -2692,7 +2716,7 @@ https://malin.kiev.ua
             return;
         }
         const normalized = (0, exports.normalizePhone)(userPhone);
-        const listings = await prisma.viberListing.findMany({ where: { listingType: 'passenger', isActive: true }, orderBy: [{ date: 'asc' }, { departureTime: 'asc' }] });
+        const listings = await tgPrisma.viberListing.findMany({ where: { listingType: 'passenger', isActive: true }, orderBy: [{ date: 'asc' }, { departureTime: 'asc' }] });
         const myListings = listings.filter((l) => (0, exports.normalizePhone)(l.phone ?? '') === normalized);
         if (myListings.length === 0) {
             await bot?.sendMessage(chatId, '👤 <b>Мої запити (пасажир)</b>\n\nУ вас поки немає активних запитів на поїздку.\n\nДодати запит: /addpassengerride', { parse_mode: 'HTML' });
@@ -2746,25 +2770,25 @@ https://malin.kiev.ua
             return;
         }
         try {
-            await prisma.booking.updateMany({ where: { telegramUserId: userId, telegramChatId: null }, data: { telegramChatId: chatId } });
-            const allUserBookings = await prisma.booking.findMany({ where: { telegramUserId: userId }, orderBy: { date: 'desc' } });
+            await tgPrisma.booking.updateMany({ where: { telegramUserId: userId, telegramChatId: null }, data: { telegramChatId: chatId } });
+            const allUserBookings = await tgPrisma.booking.findMany({ where: { telegramUserId: userId }, orderBy: { date: 'desc' } });
             if (allUserBookings.length > 0) {
                 const userPhones = [...new Set(allUserBookings.map((b) => b.phone))];
                 for (const phone of userPhones) {
                     const normalizedPhone = (0, exports.normalizePhone)(phone);
-                    const allBookingsForPhone = await prisma.booking.findMany({ where: { OR: [{ telegramUserId: null }, { telegramUserId: '0' }, { telegramUserId: '' }] } });
+                    const allBookingsForPhone = await tgPrisma.booking.findMany({ where: { OR: [{ telegramUserId: null }, { telegramUserId: '0' }, { telegramUserId: '' }] } });
                     const orphanedBookings = allBookingsForPhone.filter((b) => (0, exports.normalizePhone)(b.phone ?? '') === normalizedPhone);
                     if (orphanedBookings.length > 0) {
                         const person = await (0, exports.findOrCreatePersonByPhone)(phone, { telegramChatId: chatId, telegramUserId: userId });
                         for (const booking of orphanedBookings) {
-                            await prisma.booking.update({ where: { id: booking.id }, data: { telegramUserId: userId, telegramChatId: chatId, personId: person.id } });
+                            await tgPrisma.booking.update({ where: { id: booking.id }, data: { telegramUserId: userId, telegramChatId: chatId, personId: person.id } });
                         }
                     }
                 }
             }
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const futureBookings = await prisma.booking.findMany({
+            const futureBookings = await tgPrisma.booking.findMany({
                 where: { telegramUserId: userId, date: { gte: today } },
                 orderBy: { date: 'asc' },
                 take: 10,
@@ -2772,7 +2796,7 @@ https://malin.kiev.ua
             });
             const driverFutureBookings = await (0, exports.getDriverFutureBookingsForMybookings)(userId, chatId, today);
             if (futureBookings.length === 0) {
-                const finalAllBookings = await prisma.booking.findMany({ where: { telegramUserId: userId }, orderBy: { date: 'desc' }, include: { viberListing: true } });
+                const finalAllBookings = await tgPrisma.booking.findMany({ where: { telegramUserId: userId }, orderBy: { date: 'desc' }, include: { viberListing: true } });
                 if (finalAllBookings.length > 0) {
                     const recentPast = finalAllBookings.slice(0, 3);
                     let message = `📋 <b>Активних бронювань немає</b>\n\nАле знайдено ${finalAllBookings.length} минулих:\n\n`;
@@ -2907,12 +2931,12 @@ https://malin.kiev.ua
             parse_mode: 'HTML',
         }).catch(() => { });
         const [drivers, passengers] = await Promise.all([
-            prisma.viberListing.findMany({
+            tgPrisma.viberListing.findMany({
                 where: { listingType: 'driver', isActive: true, date: { gte: now } },
                 select: { id: true, route: true, date: true, departureTime: true, seats: true, phone: true, senderName: true, notes: true },
                 orderBy: { date: 'asc' },
             }),
-            prisma.viberListing.findMany({
+            tgPrisma.viberListing.findMany({
                 where: { listingType: 'passenger', isActive: true, date: { gte: now } },
                 select: { id: true, route: true, date: true, departureTime: true, phone: true, senderName: true, notes: true },
                 orderBy: { date: 'asc' },
@@ -3624,7 +3648,7 @@ https://malin.kiev.ua
         }
         else {
             // Якщо користувач ще не зареєстрований, підказуємо
-            const existingBooking = await prisma.booking.findFirst({
+            const existingBooking = await tgPrisma.booking.findFirst({
                 where: { telegramUserId: userId }
             });
             if (!existingBooking) {
@@ -4127,8 +4151,8 @@ https://malin.kiev.ua
                     return;
                 }
                 const [driverListing, passengerListing] = await Promise.all([
-                    prisma.viberListing.findUnique({ where: { id: driverListingId } }),
-                    prisma.viberListing.findUnique({ where: { id: passengerListingId } }),
+                    tgPrisma.viberListing.findUnique({ where: { id: driverListingId } }),
+                    tgPrisma.viberListing.findUnique({ where: { id: passengerListingId } }),
                 ]);
                 if (!driverListing || !passengerListing || driverListing.listingType !== 'driver' || passengerListing.listingType !== 'passenger') {
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Оголошення не знайдено' });
@@ -4146,7 +4170,7 @@ https://malin.kiev.ua
                     return;
                 }
                 const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-                const request = await prisma.rideShareRequest.create({
+                const request = await tgPrisma.rideShareRequest.create({
                     data: { passengerListingId, driverListingId, status: 'pending', expiresAt },
                 });
                 const confirmKeyboard = {
@@ -4174,15 +4198,15 @@ https://malin.kiev.ua
                     return;
                 }
                 const [passengerListing, driverListing] = await Promise.all([
-                    prisma.viberListing.findUnique({ where: { id: passengerListingId } }),
-                    prisma.viberListing.findUnique({ where: { id: driverListingId } })
+                    tgPrisma.viberListing.findUnique({ where: { id: passengerListingId } }),
+                    tgPrisma.viberListing.findUnique({ where: { id: driverListingId } })
                 ]);
                 if (!passengerListing || !driverListing || passengerListing.listingType !== 'passenger' || driverListing.listingType !== 'driver') {
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Оголошення не знайдено' });
                     return;
                 }
                 const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 година
-                const request = await prisma.rideShareRequest.create({
+                const request = await tgPrisma.rideShareRequest.create({
                     data: { passengerListingId, driverListingId, status: 'pending', expiresAt }
                 });
                 const driverChatId = await (0, exports.getChatIdByPhone)(driverListing.phone);
@@ -4229,7 +4253,7 @@ https://malin.kiev.ua
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
                     return;
                 }
-                const request = await prisma.rideShareRequest.findUnique({
+                const request = await tgPrisma.rideShareRequest.findUnique({
                     where: { id: requestId },
                     include: { passengerListing: true, driverListing: true }
                 });
@@ -4242,7 +4266,7 @@ https://malin.kiev.ua
                     return;
                 }
                 if (new Date() > request.expiresAt) {
-                    await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
+                    await tgPrisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
                     await bot?.answerCallbackQuery(query.id, { text: '⏱ Час на підтвердження минув' });
                     return;
                 }
@@ -4259,7 +4283,7 @@ https://malin.kiev.ua
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка: пасажир не знайдений' });
                     return;
                 }
-                const booking = await prisma.booking.create({
+                const booking = await tgPrisma.booking.create({
                     data: {
                         route: driverListing.route,
                         date: driverListing.date,
@@ -4274,7 +4298,7 @@ https://malin.kiev.ua
                         viberListingId: driverListing.id
                     }
                 });
-                await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
+                await tgPrisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
                 const passengerChatId = passengerPerson.telegramChatId;
                 if (passengerChatId) {
                     await bot?.sendMessage(passengerChatId, `✅ <b>Водій підтвердив ваше бронювання!</b>\n\n` +
@@ -4304,7 +4328,7 @@ https://malin.kiev.ua
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
                     return;
                 }
-                const request = await prisma.rideShareRequest.findUnique({
+                const request = await tgPrisma.rideShareRequest.findUnique({
                     where: { id: requestId },
                     include: { passengerListing: true, driverListing: true },
                 });
@@ -4317,7 +4341,7 @@ https://malin.kiev.ua
                     return;
                 }
                 if (new Date() > request.expiresAt) {
-                    await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
+                    await tgPrisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'expired' } });
                     await bot?.answerCallbackQuery(query.id, { text: '⏱ Час на підтвердження минув' });
                     return;
                 }
@@ -4329,7 +4353,7 @@ https://malin.kiev.ua
                     await bot?.answerCallbackQuery(query.id, { text: 'Це підтвердження лише для пасажира цього запиту' });
                     return;
                 }
-                const booking = await prisma.booking.create({
+                const booking = await tgPrisma.booking.create({
                     data: {
                         route: driverListing.route,
                         date: driverListing.date,
@@ -4344,7 +4368,7 @@ https://malin.kiev.ua
                         viberListingId: driverListing.id,
                     },
                 });
-                await prisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
+                await tgPrisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
                 const driverChatId = await (0, exports.getChatIdByPhone)(driverListing.phone);
                 if (driverChatId) {
                     await bot?.sendMessage(driverChatId, `✅ <b>Пасажир підтвердив вашу пропозицію!</b>\n\n` +
@@ -4370,7 +4394,7 @@ https://malin.kiev.ua
             // Відміна оголошення попутки (водій) — підтвердження
             if (data.startsWith('cancel_driver_')) {
                 const listingId = data.replace('cancel_driver_', '');
-                const listing = await prisma.viberListing.findFirst({
+                const listing = await tgPrisma.viberListing.findFirst({
                     where: { id: Number(listingId), listingType: 'driver', isActive: true }
                 });
                 if (!listing) {
@@ -4404,7 +4428,7 @@ https://malin.kiev.ua
             // Відміна оголошення попутки (пасажир) — підтвердження
             if (data.startsWith('cancel_passenger_')) {
                 const listingId = data.replace('cancel_passenger_', '');
-                const listing = await prisma.viberListing.findFirst({
+                const listing = await tgPrisma.viberListing.findFirst({
                     where: { id: Number(listingId), listingType: 'passenger', isActive: true }
                 });
                 if (!listing) {
@@ -4438,7 +4462,7 @@ https://malin.kiev.ua
             // Підтвердження відміни оголошення (водій)
             if (data.startsWith('confirm_cancel_driver_')) {
                 const listingId = data.replace('confirm_cancel_driver_', '');
-                const listing = await prisma.viberListing.findFirst({
+                const listing = await tgPrisma.viberListing.findFirst({
                     where: { id: Number(listingId), listingType: 'driver' }
                 });
                 if (!listing) {
@@ -4451,7 +4475,7 @@ https://malin.kiev.ua
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Це не ваше оголошення' });
                     return;
                 }
-                await prisma.viberListing.update({ where: { id: Number(listingId) }, data: { isActive: false } });
+                await tgPrisma.viberListing.update({ where: { id: Number(listingId) }, data: { isActive: false } });
                 await bot?.editMessageText('✅ <b>Оголошення (водій) відмінено</b>\n\n' +
                     `🚗 #${listingId}: ${getRouteName(listing.route)} — ${formatDate(listing.date)}\n\n` +
                     '💡 /adddriverride — додати нову поїздку\n🚫 /cancel — скасувати бронювання або інші оголошення', { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' });
@@ -4461,7 +4485,7 @@ https://malin.kiev.ua
             // Підтвердження відміни заявки (пасажир)
             if (data.startsWith('confirm_cancel_passenger_')) {
                 const listingId = data.replace('confirm_cancel_passenger_', '');
-                const listing = await prisma.viberListing.findFirst({
+                const listing = await tgPrisma.viberListing.findFirst({
                     where: { id: Number(listingId), listingType: 'passenger' }
                 });
                 if (!listing) {
@@ -4474,7 +4498,7 @@ https://malin.kiev.ua
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Це не ваша заявка' });
                     return;
                 }
-                await prisma.viberListing.update({ where: { id: Number(listingId) }, data: { isActive: false } });
+                await tgPrisma.viberListing.update({ where: { id: Number(listingId) }, data: { isActive: false } });
                 await bot?.editMessageText('✅ <b>Заявку (пасажир) відмінено</b>\n\n' +
                     `👤 #${listingId}: ${getRouteName(listing.route)} — ${formatDate(listing.date)}\n\n` +
                     '💡 /addpassengerride — шукати поїздку\n🚫 /cancel — скасувати бронювання або інші оголошення', { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' });
@@ -4485,7 +4509,7 @@ https://malin.kiev.ua
             if (/^cancel_\d+$/.test(data)) {
                 const bookingId = data.replace('cancel_', '');
                 // Отримати інформацію про бронювання
-                const booking = await prisma.booking.findUnique({
+                const booking = await tgPrisma.booking.findUnique({
                     where: { id: Number(bookingId) }
                 });
                 if (!booking) {
@@ -4518,7 +4542,7 @@ https://malin.kiev.ua
             if (data.startsWith('confirm_cancel_')) {
                 const bookingId = data.replace('confirm_cancel_', '');
                 try {
-                    const booking = await prisma.booking.findUnique({
+                    const booking = await tgPrisma.booking.findUnique({
                         where: { id: Number(bookingId) },
                         include: { viberListing: true }
                     });
@@ -4535,7 +4559,7 @@ https://malin.kiev.ua
                     };
                     const isRideShare = booking.source === 'viber_match';
                     const driverListing = booking.viberListing;
-                    await prisma.booking.delete({
+                    await tgPrisma.booking.delete({
                         where: { id: Number(bookingId) }
                     });
                     console.log(`✅ Користувач ${userId} скасував бронювання #${bookingId}`);
@@ -4628,7 +4652,7 @@ https://malin.kiev.ua
                 // Direction - все що до дати
                 const direction = parts.slice(0, -3).join('-');
                 // Отримати графіки для обраного напрямку
-                const schedules = await prisma.schedule.findMany({
+                const schedules = await tgPrisma.schedule.findMany({
                     where: { route: { startsWith: direction } },
                     orderBy: { departureTime: 'asc' }
                 });
@@ -4638,7 +4662,7 @@ https://malin.kiev.ua
                     startOfDay.setHours(0, 0, 0, 0);
                     const endOfDay = new Date(selectedDate);
                     endOfDay.setHours(23, 59, 59, 999);
-                    const viberListings = await prisma.viberListing.findMany({
+                    const viberListings = await tgPrisma.viberListing.findMany({
                         where: {
                             route: direction,
                             date: { gte: startOfDay, lte: endOfDay },
@@ -4690,7 +4714,7 @@ https://malin.kiev.ua
                     startOfDay.setHours(0, 0, 0, 0);
                     const endOfDay = new Date(selectedDate);
                     endOfDay.setHours(23, 59, 59, 999);
-                    const existingBookings = await prisma.booking.findMany({
+                    const existingBookings = await tgPrisma.booking.findMany({
                         where: {
                             route: schedule.route,
                             departureTime: schedule.departureTime,
@@ -4801,7 +4825,7 @@ https://malin.kiev.ua
                 const route = parts.slice(0, -5).join('-');
                 try {
                     // Дані користувача: з останнього бронювання або з Person (якщо реєструвався тільки через бота)
-                    const userBooking = await prisma.booking.findFirst({
+                    const userBooking = await tgPrisma.booking.findFirst({
                         where: { telegramUserId: userId }
                     });
                     const person = await (0, exports.getPersonByTelegram)(userId, chatId);
@@ -4816,7 +4840,7 @@ https://malin.kiev.ua
                     startOfDay.setHours(0, 0, 0, 0);
                     const endOfDay = new Date(selectedDate);
                     endOfDay.setHours(23, 59, 59, 999);
-                    const schedule = await prisma.schedule.findFirst({
+                    const schedule = await tgPrisma.schedule.findFirst({
                         where: {
                             route,
                             departureTime: time
@@ -4825,7 +4849,7 @@ https://malin.kiev.ua
                     if (!schedule) {
                         throw new Error('Графік не знайдено');
                     }
-                    const existingBookings = await prisma.booking.findMany({
+                    const existingBookings = await tgPrisma.booking.findMany({
                         where: {
                             route,
                             departureTime: time,
@@ -4841,7 +4865,7 @@ https://malin.kiev.ua
                         throw new Error(`Недостатньо місць. Доступно: ${availableSeats}, запитано: ${seats}`);
                     }
                     // Створити бронювання (прив'язка до Person якщо є)
-                    const booking = await prisma.booking.create({
+                    const booking = await tgPrisma.booking.create({
                         data: {
                             route,
                             date: new Date(selectedDate),
@@ -4945,7 +4969,7 @@ const getChatIdByPhone = async (phone) => {
         if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
             return person.telegramChatId;
         }
-        const bookings = await prisma.booking.findMany({
+        const bookings = await tgPrisma.booking.findMany({
             where: {
                 telegramChatId: { not: null },
                 telegramUserId: { not: null },
@@ -4970,7 +4994,7 @@ async function getChatIdForDriverListing(listing) {
     if (byPhone)
         return byPhone;
     if (listing.personId) {
-        const person = await prisma.person.findUnique({
+        const person = await tgPrisma.person.findUnique({
             where: { id: listing.personId },
             select: { telegramChatId: true },
         });
@@ -4984,7 +5008,7 @@ async function getChatIdForDriverListing(listing) {
  * Виконати запит на попутку до водія (Viber-оголошення). Викликається з callback book_viber_ та з /start?start=book_viber_ID.
  */
 async function executeBookViberRideShare(chatId, userId, driverListingId, passengerDisplayName) {
-    const driverListing = await prisma.viberListing.findUnique({ where: { id: driverListingId } });
+    const driverListing = await tgPrisma.viberListing.findUnique({ where: { id: driverListingId } });
     if (!driverListing || driverListing.listingType !== 'driver' || !driverListing.isActive) {
         return { ok: false, error: '❌ Оголошення водія не знайдено' };
     }
@@ -5006,7 +5030,7 @@ async function executeBookViberRideShare(chatId, userId, driverListingId, passen
         personId: person.id,
     });
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-    const request = await prisma.rideShareRequest.create({
+    const request = await tgPrisma.rideShareRequest.create({
         data: { passengerListingId: passengerListing.id, driverListingId: driverListing.id, status: 'pending', expiresAt },
     });
     const driverChatId = await getChatIdForDriverListing(driverListing);
