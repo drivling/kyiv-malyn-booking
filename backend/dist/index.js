@@ -13,6 +13,7 @@ const telegram_1 = require("./telegram");
 const crypto_1 = __importDefault(require("crypto"));
 const viber_parser_1 = require("./viber-parser");
 const phonecheck_1 = require("./phonecheck");
+const index_helpers_1 = require("./index-helpers");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -689,8 +690,8 @@ app.get('/user/profile', async (req, res) => {
                 source: b.source,
                 createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
             })),
-            passengerListings: passengerListings.map((l) => serializeViberListing(l)),
-            driverListings: driverListings.map((l) => serializeViberListing(l)),
+            passengerListings: passengerListings.map((l) => (0, index_helpers_1.serializeViberListing)(l)),
+            driverListings: driverListings.map((l) => (0, index_helpers_1.serializeViberListing)(l)),
         };
         res.json(profile);
     }
@@ -790,7 +791,7 @@ app.patch('/viber-listings/:id/by-user', async (req, res) => {
                 (0, telegram_1.notifyMatchingDriversForNewPassenger)(updated, authorChatId).catch((err) => console.error('Telegram match notify after user update (passenger):', err));
             }
         }
-        res.json({ ...serializeViberListing(updated), matchingRecheckTriggered });
+        res.json({ ...(0, index_helpers_1.serializeViberListing)(updated), matchingRecheckTriggered });
     }
     catch (error) {
         if (error.code === 'P2025')
@@ -815,7 +816,7 @@ app.patch('/viber-listings/:id/deactivate/by-user', async (req, res) => {
             where: { id },
             data: { isActive: false },
         });
-        res.json(serializeViberListing(updated));
+        res.json((0, index_helpers_1.serializeViberListing)(updated));
     }
     catch (error) {
         if (error.code === 'P2025')
@@ -997,24 +998,6 @@ app.get('/telegram/scenarios', (_req, res) => {
         },
     });
 });
-/** Маппінг "звідки–куди" (сайт) → route (бот). Значення: malyn, kyiv, zhytomyr, korosten */
-function mapFromToToRoute(from, to) {
-    const f = (from || '').toLowerCase().trim();
-    const t = (to || '').toLowerCase().trim();
-    if (f === 'kyiv' && t === 'malyn')
-        return 'Kyiv-Malyn';
-    if (f === 'malyn' && t === 'kyiv')
-        return 'Malyn-Kyiv';
-    if (f === 'zhytomyr' && t === 'malyn')
-        return 'Zhytomyr-Malyn';
-    if (f === 'malyn' && t === 'zhytomyr')
-        return 'Malyn-Zhytomyr';
-    if (f === 'korosten' && t === 'malyn')
-        return 'Korosten-Malyn';
-    if (f === 'malyn' && t === 'korosten')
-        return 'Malyn-Korosten';
-    return null;
-}
 // Чернетка оголошення з сайту poputky: зберігає маршрут/дату/час/примітки, повертає посилання на бота з токеном
 app.post('/poputky/announce-draft', express_1.default.json(), (req, res) => {
     const { role, from, to, date, time, notes, priceUah } = req.body;
@@ -1029,7 +1012,7 @@ app.post('/poputky/announce-draft', express_1.default.json(), (req, res) => {
     if (!role || (role !== 'driver' && role !== 'passenger')) {
         return res.status(400).json({ error: 'role має бути driver або passenger' });
     }
-    const route = mapFromToToRoute(from ?? '', to ?? '');
+    const route = (0, index_helpers_1.mapFromToToRoute)(from ?? '', to ?? '');
     if (!route) {
         return res.status(400).json({ error: 'Поїздки можуть бути лише з/до Малина. Оберіть звідки та куди (наприклад Малин ↔ Київ).' });
     }
@@ -1150,41 +1133,6 @@ app.post('/rideshare/request', async (req, res) => {
         res.status(500).json({ error: 'Не вдалося створити запит на попутку' });
     }
 });
-function hasNonEmptyText(value) {
-    return !!value && value.trim().length > 0;
-}
-function mergeTextField(oldVal, newVal) {
-    if (!hasNonEmptyText(newVal))
-        return oldVal;
-    if (!hasNonEmptyText(oldVal))
-        return newVal;
-    const oldTrim = oldVal.trim();
-    const newTrim = newVal.trim();
-    if (oldTrim === newTrim)
-        return oldVal;
-    if (newTrim.length > oldTrim.length && !oldTrim.includes(newTrim)) {
-        return `${oldTrim} | ${newTrim}`;
-    }
-    return oldVal;
-}
-function mergeSenderName(oldVal, newVal) {
-    if (!hasNonEmptyText(oldVal) && hasNonEmptyText(newVal))
-        return newVal;
-    return oldVal;
-}
-function mergeRawMessage(oldRaw, newRaw) {
-    const oldTrim = (oldRaw || '').trim();
-    const newTrim = (newRaw || '').trim();
-    if (!newTrim)
-        return oldRaw;
-    if (!oldTrim)
-        return newRaw;
-    if (oldTrim.includes(newTrim))
-        return oldRaw;
-    if (newTrim.includes(oldTrim))
-        return newRaw;
-    return `${oldRaw}\n---\n${newRaw}`;
-}
 async function createOrMergeViberListing(data) {
     const personId = data.personId ?? null;
     const date = data.date;
@@ -1219,12 +1167,12 @@ async function createOrMergeViberListing(data) {
         return { listing, isNew: true };
     }
     // Оновлюємо існуючий — source залишаємо перший (як потрапило в базу)
-    const mergedNotes = mergeTextField(existing.notes, data.notes);
-    const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
+    const mergedNotes = (0, index_helpers_1.mergeTextField)(existing.notes, data.notes);
+    const mergedSenderName = (0, index_helpers_1.mergeSenderName)(existing.senderName, data.senderName ?? null);
     const updated = await prisma.viberListing.update({
         where: { id: existing.id },
         data: {
-            rawMessage: mergeRawMessage(existing.rawMessage, data.rawMessage),
+            rawMessage: (0, index_helpers_1.mergeRawMessage)(existing.rawMessage, data.rawMessage),
             senderName: mergedSenderName ?? undefined,
             seats: data.seats != null ? data.seats : existing.seats,
             phone: existing.phone || data.phone,
@@ -1238,15 +1186,6 @@ async function createOrMergeViberListing(data) {
     console.log(`♻️ Listing merged with existing #${existing.id} (route+date+time+phone match, source=${existing.source})`);
     return { listing: updated, isNew: false };
 }
-// Допоміжна функція: серіалізація Viber listing для JSON (дати в ISO рядок)
-function serializeViberListing(row) {
-    return {
-        ...row,
-        date: row.date instanceof Date ? row.date.toISOString() : row.date,
-        createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
-        updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
-    };
-}
 // Отримати всі активні Viber оголошення
 app.get('/viber-listings', async (req, res) => {
     try {
@@ -1259,7 +1198,7 @@ app.get('/viber-listings', async (req, res) => {
                 { createdAt: 'desc' }
             ]
         });
-        res.json(listings.map(serializeViberListing));
+        res.json(listings.map(index_helpers_1.serializeViberListing));
     }
     catch (error) {
         console.error('❌ Помилка отримання Viber оголошень:', error);
@@ -1289,7 +1228,7 @@ app.get('/viber-listings/search', async (req, res) => {
             },
             orderBy: [{ date: 'asc' }, { departureTime: 'asc' }]
         });
-        res.json(listings.map(serializeViberListing));
+        res.json(listings.map(index_helpers_1.serializeViberListing));
     }
     catch (error) {
         console.error('❌ Помилка пошуку Viber оголошень:', error);
@@ -1374,7 +1313,7 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
                 (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
             }
         }
-        res.status(201).json({ ...serializeViberListing(listing), matchingRecheckTriggered });
+        res.status(201).json({ ...(0, index_helpers_1.serializeViberListing)(listing), matchingRecheckTriggered });
     }
     catch (error) {
         console.error('❌ Помилка створення Viber оголошення:', error);
@@ -1522,7 +1461,7 @@ app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
                 (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify after admin update (passenger):', err));
             }
         }
-        res.json({ ...serializeViberListing(listing), matchingRecheckTriggered });
+        res.json({ ...(0, index_helpers_1.serializeViberListing)(listing), matchingRecheckTriggered });
     }
     catch (error) {
         if (error.code === 'P2025') {
@@ -1567,27 +1506,6 @@ app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to delete Viber listing' });
     }
 });
-// Повертає «дату по» для оголошення: дата поїздки + кінець часу.
-// departureTime: "15:00" → той день о 15:00; "14:30-16:00" → той день о 16:00; відсутній → 23:59.
-function getViberListingEndDateTime(date, departureTime) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const t = (departureTime ?? '').trim();
-    if (!t) {
-        d.setHours(23, 59, 0, 0);
-        return d;
-    }
-    const rangeMatch = t.match(/^\d{1,2}:\d{2}-(\d{1,2}):(\d{2})$/);
-    const singleMatch = t.match(/^(\d{1,2}):(\d{2})$/);
-    const timeStr = rangeMatch ? `${rangeMatch[1]}:${rangeMatch[2]}` : (singleMatch ? `${singleMatch[1]}:${singleMatch[2]}` : null);
-    if (timeStr) {
-        const [h, m] = timeStr.split(':').map(Number);
-        d.setHours(h, m, 0, 0);
-        return d;
-    }
-    d.setHours(23, 59, 0, 0);
-    return d;
-}
 // Автоматичне деактивування старих оголошень (можна викликати з cron).
 // «Дата по» = date + кінець часу з departureTime (один час "15:00" або кінець діапазону "14:30-16:00" → 16:00).
 // Деактивуємо, якщо дата по < зараз − 1 год.
@@ -1601,7 +1519,7 @@ app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
             select: { id: true, date: true, departureTime: true }
         });
         const idsToDeactivate = activeListings
-            .filter((l) => getViberListingEndDateTime(l.date, l.departureTime) < cutoff)
+            .filter((l) => (0, index_helpers_1.getViberListingEndDateTime)(l.date, l.departureTime) < cutoff)
             .map((l) => l.id);
         const count = idsToDeactivate.length;
         if (count > 0) {
@@ -1951,42 +1869,11 @@ app.delete('/admin/persons/:id', requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Не вдалося видалити персону' });
     }
 });
-/** База нагадувань — тільки персони з Telegram ботом (мають telegramChatId). filter: all = всі, no_active_viber = без активних Viber оголошень. */
-const hasTelegramReminderBaseCondition = {
-    telegramChatId: {
-        not: null,
-    },
-    NOT: [{ telegramChatId: '' }, { telegramChatId: '0' }],
-};
-const TELEGRAM_REMINDER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 днів
-function getTelegramReminderWhere(filter) {
-    if (filter === 'no_active_viber') {
-        return {
-            ...hasTelegramReminderBaseCondition,
-            viberListings: {
-                none: {
-                    isActive: true,
-                },
-            },
-        };
-    }
-    if (filter === 'no_reminder_7_days') {
-        const sevenDaysAgo = new Date(Date.now() - TELEGRAM_REMINDER_COOLDOWN_MS);
-        return {
-            ...hasTelegramReminderBaseCondition,
-            OR: [
-                { telegramReminderSentAt: null },
-                { telegramReminderSentAt: { lt: sevenDaysAgo } },
-            ],
-        };
-    }
-    return hasTelegramReminderBaseCondition;
-}
 /** Список Person для Telegram-нагадувань (база = з ботом). Query: ?filter=all|no_active_viber|no_reminder_7_days */
 app.get('/admin/telegram-reminder-persons', requireAdmin, async (req, res) => {
     try {
         const filter = req.query.filter?.trim() || 'all';
-        const where = getTelegramReminderWhere(filter);
+        const where = (0, index_helpers_1.getTelegramReminderWhere)(filter);
         const persons = await prisma.person.findMany({
             where,
             select: {
@@ -2050,7 +1937,7 @@ app.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
         const delaysMs = Array.isArray(req.body?.delaysMs)
             ? req.body.delaysMs.filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120000))
             : undefined;
-        const where = getTelegramReminderWhere(filter);
+        const where = (0, index_helpers_1.getTelegramReminderWhere)(filter);
         let persons = await prisma.person.findMany({
             where,
             select: { id: true, phoneNormalized: true, fullName: true, telegramChatId: true },
@@ -2148,35 +2035,11 @@ app.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res)
         res.status(500).json({ error: 'Failed to send reminder via user account' });
     }
 });
-/** База реклами — завжди тільки персони без Telegram бота. filter: no_telegram = всі з бази, no_communication = з бази тільки ті, до кого ще не комунікували. */
-const noTelegramCondition = {
-    OR: [
-        { telegramChatId: null },
-        { telegramChatId: '' },
-        { telegramChatId: '0' },
-    ],
-};
-/** Мінімальна дата-маркер: пробували відправити промо, але номер не знайдено в Telegram. Для подальшої фільтрації. */
-const PROMO_NOT_FOUND_SENTINEL = new Date(0);
-function getChannelPromoWhere(filter) {
-    if (filter === 'no_communication') {
-        return { ...noTelegramCondition, telegramPromoSentAt: null };
-    }
-    if (filter === 'promo_not_found') {
-        return { ...noTelegramCondition, telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL };
-    }
-    return noTelegramCondition;
-}
-/** Сценарії реклами, доступні для профілю (для mixed — водійські + пасажирські + mixed). */
-function getScenarioKeysForProfile(profileRole) {
-    const keys = ['driver_passengers', 'driver_autocreate', 'passenger_notify', 'passenger_quick', 'mixed_unified', 'mixed_both'];
-    return keys.filter((k) => telegram_1.BEHAVIOR_PROMO_SCENARIO_PROFILES[k].includes(profileRole));
-}
 /** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication|promo_not_found */
 app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
     try {
         const filter = req.query.filter?.trim() || 'no_telegram';
-        const where = getChannelPromoWhere(filter);
+        const where = (0, index_helpers_1.getChannelPromoWhere)(filter);
         const persons = await prisma.person.findMany({
             where,
             select: { id: true, phoneNormalized: true, fullName: true },
@@ -2201,7 +2064,7 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
         const delaysMs = Array.isArray(req.body?.delaysMs)
             ? req.body.delaysMs.filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120000))
             : undefined;
-        const where = getChannelPromoWhere(filter);
+        const where = (0, index_helpers_1.getChannelPromoWhere)(filter);
         let persons = await prisma.person.findMany({
             where,
             select: { id: true, phoneNormalized: true, fullName: true, telegramUsername: true },
@@ -2232,7 +2095,7 @@ app.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
                 notFound.push({ phone: p.phoneNormalized, fullName: p.fullName });
                 await prisma.person.update({
                     where: { id: p.id },
-                    data: { telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL },
+                    data: { telegramPromoSentAt: index_helpers_1.PROMO_NOT_FOUND_SENTINEL },
                 });
             }
             if (delaysMs?.length && i < persons.length - 1) {
@@ -2659,9 +2522,9 @@ app.get('/admin/viber-analytics/promo-scenarios', requireAdmin, (_req, res) => {
             profiles: telegram_1.BEHAVIOR_PROMO_SCENARIO_PROFILES[key],
         })),
         scenarioKeysByProfile: {
-            driver: getScenarioKeysForProfile('driver'),
-            passenger: getScenarioKeysForProfile('passenger'),
-            mixed: getScenarioKeysForProfile('mixed'),
+            driver: (0, index_helpers_1.getScenarioKeysForProfile)('driver'),
+            passenger: (0, index_helpers_1.getScenarioKeysForProfile)('passenger'),
+            mixed: (0, index_helpers_1.getScenarioKeysForProfile)('mixed'),
         },
     });
 });
@@ -2734,7 +2597,7 @@ app.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, r
         }
         await prisma.person.updateMany({
             where: { phoneNormalized: phone },
-            data: { telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL },
+            data: { telegramPromoSentAt: index_helpers_1.PROMO_NOT_FOUND_SENTINEL },
         });
         return res.json({
             success: false,

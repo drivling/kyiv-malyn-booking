@@ -7,6 +7,18 @@ import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getC
 import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 import { runPhoneCheckForPhone, type PhoneCheckResult } from './phonecheck';
+import {
+  mapFromToToRoute,
+  mergeTextField,
+  mergeSenderName,
+  mergeRawMessage,
+  serializeViberListing,
+  getViberListingEndDateTime,
+  getTelegramReminderWhere,
+  getChannelPromoWhere,
+  getScenarioKeysForProfile,
+  PROMO_NOT_FOUND_SENTINEL,
+} from './index-helpers';
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 const CODE_VERSION = 'viber-v2-2026';
@@ -1064,19 +1076,6 @@ app.get('/telegram/scenarios', (_req, res) => {
   });
 });
 
-/** Маппінг "звідки–куди" (сайт) → route (бот). Значення: malyn, kyiv, zhytomyr, korosten */
-function mapFromToToRoute(from: string, to: string): string | null {
-  const f = (from || '').toLowerCase().trim();
-  const t = (to || '').toLowerCase().trim();
-  if (f === 'kyiv' && t === 'malyn') return 'Kyiv-Malyn';
-  if (f === 'malyn' && t === 'kyiv') return 'Malyn-Kyiv';
-  if (f === 'zhytomyr' && t === 'malyn') return 'Zhytomyr-Malyn';
-  if (f === 'malyn' && t === 'zhytomyr') return 'Malyn-Zhytomyr';
-  if (f === 'korosten' && t === 'malyn') return 'Korosten-Malyn';
-  if (f === 'malyn' && t === 'korosten') return 'Malyn-Korosten';
-  return null;
-}
-
 // Чернетка оголошення з сайту poputky: зберігає маршрут/дату/час/примітки, повертає посилання на бота з токеном
 app.post('/poputky/announce-draft', express.json(), (req, res) => {
   const { role, from, to, date, time, notes, priceUah } = req.body as { role?: string; from?: string; to?: string; date?: string; time?: string; notes?: string; priceUah?: unknown };
@@ -1247,37 +1246,6 @@ type ViberListingMergeInput = {
   source?: 'Viber1' | 'telegram1';
 };
 
-function hasNonEmptyText(value: string | null | undefined): boolean {
-  return !!value && value.trim().length > 0;
-}
-
-function mergeTextField(oldVal: string | null, newVal: string | null): string | null {
-  if (!hasNonEmptyText(newVal)) return oldVal;
-  if (!hasNonEmptyText(oldVal)) return newVal;
-  const oldTrim = oldVal!.trim();
-  const newTrim = newVal!.trim();
-  if (oldTrim === newTrim) return oldVal;
-  if (newTrim.length > oldTrim.length && !oldTrim.includes(newTrim)) {
-    return `${oldTrim} | ${newTrim}`;
-  }
-  return oldVal;
-}
-
-function mergeSenderName(oldVal: string | null, newVal: string | null): string | null {
-  if (!hasNonEmptyText(oldVal) && hasNonEmptyText(newVal)) return newVal;
-  return oldVal;
-}
-
-function mergeRawMessage(oldRaw: string, newRaw: string): string {
-  const oldTrim = (oldRaw || '').trim();
-  const newTrim = (newRaw || '').trim();
-  if (!newTrim) return oldRaw;
-  if (!oldTrim) return newRaw;
-  if (oldTrim.includes(newTrim)) return oldRaw;
-  if (newTrim.includes(oldTrim)) return newRaw;
-  return `${oldRaw}\n---\n${newRaw}`;
-}
-
 async function createOrMergeViberListing(
   data: ViberListingMergeInput
 ): Promise<{ listing: any; isNew: boolean }> {
@@ -1341,16 +1309,6 @@ async function createOrMergeViberListing(
   );
 
   return { listing: updated, isNew: false };
-}
-
-// Допоміжна функція: серіалізація Viber listing для JSON (дати в ISO рядок)
-function serializeViberListing(row: { date: Date; createdAt: Date; updatedAt: Date; [key: string]: unknown }) {
-  return {
-    ...row,
-    date: row.date instanceof Date ? row.date.toISOString() : row.date,
-    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
-    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
-  };
 }
 
 // Отримати всі активні Viber оголошення
@@ -1690,28 +1648,6 @@ app.delete('/viber-listings/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete Viber listing' });
   }
 });
-
-// Повертає «дату по» для оголошення: дата поїздки + кінець часу.
-// departureTime: "15:00" → той день о 15:00; "14:30-16:00" → той день о 16:00; відсутній → 23:59.
-function getViberListingEndDateTime(date: Date, departureTime: string | null): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const t = (departureTime ?? '').trim();
-  if (!t) {
-    d.setHours(23, 59, 0, 0);
-    return d;
-  }
-  const rangeMatch = t.match(/^\d{1,2}:\d{2}-(\d{1,2}):(\d{2})$/);
-  const singleMatch = t.match(/^(\d{1,2}):(\d{2})$/);
-  const timeStr = rangeMatch ? `${rangeMatch[1]}:${rangeMatch[2]}` : (singleMatch ? `${singleMatch[1]}:${singleMatch[2]}` : null);
-  if (timeStr) {
-    const [h, m] = timeStr.split(':').map(Number);
-    d.setHours(h, m, 0, 0);
-    return d;
-  }
-  d.setHours(23, 59, 0, 0);
-  return d;
-}
 
 // Автоматичне деактивування старих оголошень (можна викликати з cron).
 // «Дата по» = date + кінець часу з departureTime (один час "15:00" або кінець діапазону "14:30-16:00" → 16:00).
@@ -2101,40 +2037,6 @@ app.delete('/admin/persons/:id', requireAdmin, async (req, res) => {
   }
 });
 
-/** База нагадувань — тільки персони з Telegram ботом (мають telegramChatId). filter: all = всі, no_active_viber = без активних Viber оголошень. */
-const hasTelegramReminderBaseCondition = {
-  telegramChatId: {
-    not: null,
-  },
-  NOT: [{ telegramChatId: '' }, { telegramChatId: '0' }],
-};
-
-const TELEGRAM_REMINDER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 днів
-
-function getTelegramReminderWhere(filter: string): object {
-  if (filter === 'no_active_viber') {
-    return {
-      ...hasTelegramReminderBaseCondition,
-      viberListings: {
-        none: {
-          isActive: true,
-        },
-      },
-    };
-  }
-  if (filter === 'no_reminder_7_days') {
-    const sevenDaysAgo = new Date(Date.now() - TELEGRAM_REMINDER_COOLDOWN_MS);
-    return {
-      ...hasTelegramReminderBaseCondition,
-      OR: [
-        { telegramReminderSentAt: null },
-        { telegramReminderSentAt: { lt: sevenDaysAgo } },
-      ],
-    };
-  }
-  return hasTelegramReminderBaseCondition;
-}
-
 /** Список Person для Telegram-нагадувань (база = з ботом). Query: ?filter=all|no_active_viber|no_reminder_7_days */
 app.get('/admin/telegram-reminder-persons', requireAdmin, async (req, res) => {
   try {
@@ -2305,28 +2207,6 @@ app.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res)
   }
 });
 
-/** База реклами — завжди тільки персони без Telegram бота. filter: no_telegram = всі з бази, no_communication = з бази тільки ті, до кого ще не комунікували. */
-const noTelegramCondition = {
-  OR: [
-    { telegramChatId: null },
-    { telegramChatId: '' },
-    { telegramChatId: '0' },
-  ],
-};
-
-/** Мінімальна дата-маркер: пробували відправити промо, але номер не знайдено в Telegram. Для подальшої фільтрації. */
-const PROMO_NOT_FOUND_SENTINEL = new Date(0);
-
-function getChannelPromoWhere(filter: string): object {
-  if (filter === 'no_communication') {
-    return { ...noTelegramCondition, telegramPromoSentAt: null };
-  }
-  if (filter === 'promo_not_found') {
-    return { ...noTelegramCondition, telegramPromoSentAt: PROMO_NOT_FOUND_SENTINEL };
-  }
-  return noTelegramCondition;
-}
-
 type ViberClientBehavior = {
   phoneNormalized: string;
   fullName: string | null;
@@ -2345,12 +2225,6 @@ type ViberClientBehavior = {
   /** Профіль з аналітики: driver | passenger | mixed (показувати кнопки обох типів). */
   profileRole: 'driver' | 'passenger' | 'mixed';
 };
-
-/** Сценарії реклами, доступні для профілю (для mixed — водійські + пасажирські + mixed). */
-function getScenarioKeysForProfile(profileRole: 'driver' | 'passenger' | 'mixed'): BehaviorPromoScenarioKey[] {
-  const keys: BehaviorPromoScenarioKey[] = ['driver_passengers', 'driver_autocreate', 'passenger_notify', 'passenger_quick', 'mixed_unified', 'mixed_both'];
-  return keys.filter((k) => BEHAVIOR_PROMO_SCENARIO_PROFILES[k].includes(profileRole));
-}
 
 /** Список Person для реклами каналу (база = без бота). Query: ?filter=no_telegram|no_communication|promo_not_found */
 app.get('/admin/channel-promo-persons', requireAdmin, async (req, res) => {
