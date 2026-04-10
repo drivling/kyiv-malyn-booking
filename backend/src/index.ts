@@ -1715,8 +1715,8 @@ function getViberListingEndDateTime(date: Date, departureTime: string | null): D
 
 // Автоматичне деактивування старих оголошень (можна викликати з cron).
 // «Дата по» = date + кінець часу з departureTime (один час "15:00" або кінець діапазону "14:30-16:00" → 16:00).
-// Деактивуємо, якщо дата по < зараз − 3 год.
-const CLEANUP_CUTOFF_HOURS = 3;
+// Деактивуємо, якщо дата по < зараз − 1 год.
+const CLEANUP_CUTOFF_HOURS = 1;
 
 app.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
   try {
