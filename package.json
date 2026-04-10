@@ -1,0 +1,11 @@
+{
+  "name": "kyiv-malyn-booking",
+  "private": true,
+  "scripts": {
+    "test:backend": "npm run test --prefix backend",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
