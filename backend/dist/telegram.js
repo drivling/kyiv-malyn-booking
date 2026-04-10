@@ -397,13 +397,37 @@ function parseTimeRangeForMatch(t) {
         return null;
     return { start: point, end: point };
 }
-/** Чи збігається час: обидва задані і їхні часові інтервали перетинаються. */
+const EXACT_MATCH_TOLERANCE_MINUTES = 45;
+const APPROX_MATCH_TOLERANCE_MINUTES = 120;
+function rangesOverlapWithTolerance(a, b, toleranceMinutes) {
+    const aStart = a.start - toleranceMinutes;
+    const aEnd = a.end + toleranceMinutes;
+    const bStart = b.start - toleranceMinutes;
+    const bEnd = b.end + toleranceMinutes;
+    return aStart <= bEnd && bStart <= aEnd;
+}
 function isExactTimeMatch(timeA, timeB) {
     const a = parseTimeRangeForMatch(timeA);
     const b = parseTimeRangeForMatch(timeB);
     if (!a || !b)
         return false;
-    return a.start <= b.end && b.start <= a.end;
+    return rangesOverlapWithTolerance(a, b, EXACT_MATCH_TOLERANCE_MINUTES);
+}
+/** Чи є приблизний збіг часу (перетин з допуском ±2 години). */
+function isApproximateTimeMatch(timeA, timeB) {
+    const a = parseTimeRangeForMatch(timeA);
+    const b = parseTimeRangeForMatch(timeB);
+    if (!a || !b)
+        return false;
+    return rangesOverlapWithTolerance(a, b, APPROX_MATCH_TOLERANCE_MINUTES);
+}
+/** Класифікація збігу часу: точний (±45 хв), приблизний (±2 год), або лише той самий день. */
+function resolveMatchType(timeA, timeB) {
+    if (isExactTimeMatch(timeA, timeB))
+        return 'exact';
+    if (isApproximateTimeMatch(timeA, timeB))
+        return 'approximate';
+    return 'same_day';
 }
 /** Діапазон хвилин від початку доби для фільтра /allrides по часу. */
 const ALLRIDES_TIME_SLOTS = {
@@ -439,8 +463,8 @@ async function findMatchingPassengersForDriver(driverListing) {
     });
     const driverTime = driverListing.departureTime;
     return passengers.map((p) => {
-        const exact = !!driverTime && !!p.departureTime && isExactTimeMatch(driverTime, p.departureTime);
-        return { listing: p, matchType: exact ? 'exact' : 'approximate' };
+        const matchType = resolveMatchType(driverTime, p.departureTime);
+        return { listing: p, matchType };
     });
 }
 /** Знайти активні оголошення водіїв, що збігаються по маршруту та даті з оголошенням пасажира. */
@@ -460,8 +484,8 @@ async function findMatchingDriversForPassenger(passengerListing) {
     });
     const passengerTime = passengerListing.departureTime;
     return drivers.map((d) => {
-        const exact = !!passengerTime && !!d.departureTime && isExactTimeMatch(passengerTime, d.departureTime);
-        return { listing: d, matchType: exact ? 'exact' : 'approximate' };
+        const matchType = resolveMatchType(passengerTime, d.departureTime);
+        return { listing: d, matchType };
     });
 }
 async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
@@ -477,6 +501,8 @@ async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
         if (sent)
             return { sent: true, via: 'bot' };
     }
+    if (botOptions?.forceBotOnly)
+        return { sent: false, via: 'none' };
     if (!isTelegramUserSenderEnabled())
         return { sent: false, via: 'none' };
     const person = await (0, exports.getPersonByPhone)(phone).catch(() => null);
@@ -502,7 +528,11 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
     });
     if (row?.passengerNotifiedAt)
         return { kind: 'skipped' };
-    const label = matchType === 'exact' ? '🎯 Пряме співпадіння' : '📌 Приблизне співпадіння';
+    const label = matchType === 'exact'
+        ? '🎯 Пряме співпадіння (час близький, ±45 хв)'
+        : matchType === 'approximate'
+            ? '📌 Приблизне співпадіння (час близький, ±2 год)'
+            : '🗓️ Поїздки цього дня';
     const msg = `${label}: з\'явився водій на ваш маршрут і дату.\n\n` +
         `🛣 ${getRouteName(driverListing.route)}\n` +
         `📅 ${formatDate(driverListing.date)}\n` +
@@ -526,7 +556,9 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
             ],
         }
         : undefined;
-    const result = await sendMatchMessageToPerson(passengerListing.phone, msg, replyMarkup ? { replyMarkup } : undefined);
+    const result = await sendMatchMessageToPerson(passengerListing.phone, msg, matchType === 'same_day'
+        ? { ...(replyMarkup ? { replyMarkup } : {}), forceBotOnly: true }
+        : (replyMarkup ? { replyMarkup } : undefined));
     if (!result.sent)
         return { kind: 'failed' };
     await prisma.viberMatchPairNotification.upsert({
@@ -557,7 +589,11 @@ async function notifyDriverAboutPassengerPair(driverListing, passengerListing, m
     });
     if (row?.driverNotifiedAt)
         return { kind: 'skipped' };
-    const label = matchType === 'exact' ? '🎯 Пряме співпадіння' : '📌 Приблизне співпадіння';
+    const label = matchType === 'exact'
+        ? '🎯 Пряме співпадіння (час близький, ±45 хв)'
+        : matchType === 'approximate'
+            ? '📌 Приблизне співпадіння (час близький, ±2 год)'
+            : '🗓️ Поїздки цього дня';
     const msg = `${label}: новий запит пасажира на ваш маршрут і дату.\n\n` +
         `🛣 ${getRouteName(passengerListing.route)}\n` +
         `📅 ${formatDate(passengerListing.date)}\n` +
@@ -577,7 +613,9 @@ async function notifyDriverAboutPassengerPair(driverListing, passengerListing, m
             ],
         }
         : undefined;
-    const result = await sendMatchMessageToPerson(driverListing.phone, msg, replyMarkup ? { replyMarkup } : undefined);
+    const result = await sendMatchMessageToPerson(driverListing.phone, msg, matchType === 'same_day'
+        ? { ...(replyMarkup ? { replyMarkup } : {}), forceBotOnly: true }
+        : (replyMarkup ? { replyMarkup } : undefined));
     if (!result.sent)
         return { kind: 'failed' };
     await prisma.viberMatchPairNotification.upsert({
@@ -618,6 +656,7 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
         return;
     const exactList = matches.filter((m) => m.matchType === 'exact').map((m) => m.listing);
     const approxList = matches.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
+    const sameDayList = matches.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
     if (driverChatId && exactList.length > 0) {
         const lines = exactList.map((p) => {
             const time = p.departureTime ?? '—';
@@ -626,7 +665,7 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
         const confirmButtons = exactList.map((p) => ([
             { text: `🤝 Запропонувати ${p.senderName ?? 'пасажиру'}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
         ]));
-        await bot?.sendMessage(driverChatId, '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут (час збігається або перетинається)</b>\n\n' +
+        await bot?.sendMessage(driverChatId, '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут (перетин з допуском ±45 хв)</b>\n\n' +
             lines +
             '\n\n_Натисніть кнопку, щоб надіслати пасажиру запит на підтвердження (1 година)._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: confirmButtons } }).catch(() => { });
     }
@@ -635,7 +674,14 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
             const time = p.departureTime ?? '—';
             return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
-        await bot?.sendMessage(driverChatId, '📌 <b>Приблизне співпадіння (час не перетинається або не вказаний)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
+        await bot?.sendMessage(driverChatId, '📌 <b>Приблизне співпадіння (перетин з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
+    }
+    if (driverChatId && sameDayList.length > 0) {
+        const lines = sameDayList.map((p) => {
+            const time = p.departureTime ?? '—';
+            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+        }).join('\n');
+        await bot?.sendMessage(driverChatId, '🗓️ <b>Поїздки цього дня (маршрут і дата збігаються, але час не перетинається навіть з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
     let sent = 0;
     let skipped = 0;
@@ -659,6 +705,7 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
         return;
     const exactList = matches.filter((m) => m.matchType === 'exact').map((m) => m.listing);
     const approxList = matches.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
+    const sameDayList = matches.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
     if (passengerChatId && exactList.length > 0) {
         const lines = exactList.map((d) => {
             const time = d.departureTime ?? '—';
@@ -667,14 +714,21 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
         const bookButtons = exactList.map((d) => [
             { text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
         ]);
-        await bot?.sendMessage(passengerChatId, '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут (час збігається або перетинається)</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: bookButtons } }).catch(() => { });
+        await bot?.sendMessage(passengerChatId, '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут (перетин з допуском ±45 хв)</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: bookButtons } }).catch(() => { });
     }
     if (passengerChatId && approxList.length > 0) {
         const lines = approxList.map((d) => {
             const time = d.departureTime ?? '—';
             return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
-        await bot?.sendMessage(passengerChatId, '📌 <b>Приблизне співпадіння (час не перетинається або не вказаний)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
+        await bot?.sendMessage(passengerChatId, '📌 <b>Приблизне співпадіння (перетин з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
+    }
+    if (passengerChatId && sameDayList.length > 0) {
+        const lines = sameDayList.map((d) => {
+            const time = d.departureTime ?? '—';
+            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+        }).join('\n');
+        await bot?.sendMessage(passengerChatId, '🗓️ <b>Поїздки цього дня (маршрут і дата збігаються, але час не перетинається навіть з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
     let sent = 0;
     let skipped = 0;
@@ -2398,7 +2452,7 @@ https://malin.kiev.ua
                         break;
                 }
                 if (inlineKeyboard.length === 0) {
-                    message += '\n\nℹ️ Для швидких дій потрібне точне співпадіння по маршруту, даті та часу (однаковий час або перетин інтервалів).\n' +
+                    message += '\n\nℹ️ Для швидких дій потрібне точне співпадіння по маршруту, даті та часу (перетин із допуском ±45 хв).\n' +
                         'Щоб з\'являлися кнопки швидких дій, додайте себе:\n' +
                         '🚗 Як водій: /adddriverride\n' +
                         '👤 Як пасажир: /addpassengerride';
@@ -2592,7 +2646,7 @@ https://malin.kiev.ua
             return `• ${getRouteName(l.route)} — ${formatDate(l.date)} о ${time}${seats}`;
         });
         await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /adddriverride', { parse_mode: 'HTML' });
-        // Співпадіння пасажирів для кожної моєї поїздки (прямі + приблизні)
+        // Співпадіння пасажирів для кожної моєї поїздки (точні + приблизні + поїздки цього дня)
         for (const myDriver of myListings.slice(0, 5)) {
             const matches = await findMatchingPassengersForDriver({
                 route: myDriver.route,
@@ -2602,6 +2656,7 @@ https://malin.kiev.ua
             const matchesFiltered = matches.filter((m) => (0, exports.normalizePhone)(m.listing.phone) !== normalized);
             const exactList = matchesFiltered.filter((m) => m.matchType === 'exact').map((m) => m.listing);
             const approxList = matchesFiltered.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
+            const sameDayList = matchesFiltered.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
             const routeDateLabel = `${getRouteName(myDriver.route)}, ${formatDate(myDriver.date)} о ${myDriver.departureTime ?? '—'}`;
             if (exactList.length > 0) {
                 const linesExact = exactList.map((p) => {
@@ -2611,7 +2666,7 @@ https://malin.kiev.ua
                 const buttons = exactList.map((p) => ([
                     { text: `🤝 ${truncateForButton(p.senderName ?? 'Пасажир')} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
                 ]));
-                await bot?.sendMessage(chatId, `🎯 <b>Пряме співпадіння для поїздки:</b> ${routeDateLabel}\n\n` + linesExact +
+                await bot?.sendMessage(chatId, `🎯 <b>Пряме співпадіння (±45 хв) для поїздки:</b> ${routeDateLabel}\n\n` + linesExact +
                     '\n\n_Натисніть кнопку — запит буде надісланий пасажиру на підтвердження (1 година)._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch((err) => console.error('mydriverrides: exact matches', err));
             }
             if (approxList.length > 0) {
@@ -2619,7 +2674,14 @@ https://malin.kiev.ua
                     const time = p.departureTime ?? '—';
                     return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
                 }).join('\n');
-                await bot?.sendMessage(chatId, `📌 <b>Приблизне співпадіння</b> (поїздка: ${routeDateLabel})\n\n` + linesApprox, { parse_mode: 'HTML' }).catch((err) => console.error('mydriverrides: approx matches', err));
+                await bot?.sendMessage(chatId, `📌 <b>Приблизне співпадіння (±2 год)</b> (поїздка: ${routeDateLabel})\n\n` + linesApprox, { parse_mode: 'HTML' }).catch((err) => console.error('mydriverrides: approx matches', err));
+            }
+            if (sameDayList.length > 0) {
+                const linesSameDay = sameDayList.map((p) => {
+                    const time = p.departureTime ?? '—';
+                    return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+                }).join('\n');
+                await bot?.sendMessage(chatId, `🗓️ <b>Поїздки цього дня</b> (поїздка: ${routeDateLabel})\n\n` + linesSameDay, { parse_mode: 'HTML' }).catch((err) => console.error('mydriverrides: same day matches', err));
             }
         }
     };
@@ -2638,7 +2700,7 @@ https://malin.kiev.ua
         }
         const lines = myListings.map((l) => `• ${getRouteName(l.route)} — ${formatDate(l.date)} о ${l.departureTime ?? '—'}`);
         await bot?.sendMessage(chatId, '👤 <b>Мої запити (пасажир)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /addpassengerride', { parse_mode: 'HTML' });
-        // Співпадіння водіїв для кожного мого запиту (прямі + приблизні)
+        // Співпадіння водіїв для кожного мого запиту (точні + приблизні + поїздки цього дня)
         for (const myPassenger of myListings.slice(0, 5)) {
             const matches = await findMatchingDriversForPassenger({
                 route: myPassenger.route,
@@ -2648,6 +2710,7 @@ https://malin.kiev.ua
             const matchesFiltered = matches.filter((m) => (0, exports.normalizePhone)(m.listing.phone) !== normalized);
             const exactList = matchesFiltered.filter((m) => m.matchType === 'exact').map((m) => m.listing);
             const approxList = matchesFiltered.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
+            const sameDayList = matchesFiltered.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
             const routeDateLabel = `${getRouteName(myPassenger.route)}, ${formatDate(myPassenger.date)} о ${myPassenger.departureTime ?? '—'}`;
             if (exactList.length > 0) {
                 const linesExact = exactList.map((d) => {
@@ -2657,7 +2720,7 @@ https://malin.kiev.ua
                 const buttons = exactList.map((d) => ([
                     { text: `🎫 ${truncateForButton(d.senderName ?? 'Водій')} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
                 ]));
-                await bot?.sendMessage(chatId, `🎯 <b>Пряме співпадіння для вашого запиту:</b> ${routeDateLabel}\n\n` + linesExact +
+                await bot?.sendMessage(chatId, `🎯 <b>Пряме співпадіння (±45 хв) для вашого запиту:</b> ${routeDateLabel}\n\n` + linesExact +
                     '\n\n_Натисніть кнопку — запит буде надісланий водію на підтвердження (1 година)._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch((err) => console.error('mypassengerrides: exact matches', err));
             }
             if (approxList.length > 0) {
@@ -2665,7 +2728,14 @@ https://malin.kiev.ua
                     const time = d.departureTime ?? '—';
                     return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
                 }).join('\n');
-                await bot?.sendMessage(chatId, `📌 <b>Приблизне співпадіння</b> (ваш запит: ${routeDateLabel})\n\n` + linesApprox, { parse_mode: 'HTML' }).catch((err) => console.error('mypassengerrides: approx matches', err));
+                await bot?.sendMessage(chatId, `📌 <b>Приблизне співпадіння (±2 год)</b> (ваш запит: ${routeDateLabel})\n\n` + linesApprox, { parse_mode: 'HTML' }).catch((err) => console.error('mypassengerrides: approx matches', err));
+            }
+            if (sameDayList.length > 0) {
+                const linesSameDay = sameDayList.map((d) => {
+                    const time = d.departureTime ?? '—';
+                    return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+                }).join('\n');
+                await bot?.sendMessage(chatId, `🗓️ <b>Поїздки цього дня</b> (ваш запит: ${routeDateLabel})\n\n` + linesSameDay, { parse_mode: 'HTML' }).catch((err) => console.error('mypassengerrides: same day matches', err));
             }
         }
     };
@@ -2824,12 +2894,13 @@ https://malin.kiev.ua
             '• <b>Завантажити всі (скинути)</b> — завантажити всі знову (перший імпорт або скидання)\n\n' +
             '• <b>Вставити текст вручну</b> — переслати або вставити текст', { parse_mode: 'HTML', reply_markup: keyboard });
     });
-    // Команда /checkclients — тільки для адміна: ті самі збіги, що й при новій поїздці (маршрут+дата, точне/приблизне),
+    // Команда /checkclients — тільки для адміна: ті самі збіги, що й при новій поїздці (маршрут+дата, точне/приблизне/в цей день),
     // доставка через бот або ваш акаунт; пари вже сповічені раніше пропускаються (таблиця ViberMatchPairNotification).
     bot.onText(/^\/checkclients(?:@\w+)?$/i, async (msg) => {
         const chatId = msg.chat.id.toString();
         if (chatId !== adminChatId)
             return;
+        const CHECKCLIENTS_PAIR_LINES_LIMIT = 30;
         const now = new Date();
         now.setHours(0, 0, 0, 0);
         await bot?.sendMessage(chatId, '⏳ Перевіряю співпадіння пасажирів та водіїв у майбутніх поїздках (як при автододаванні)…', {
@@ -2858,6 +2929,8 @@ https://malin.kiev.ua
         }
         let pairCount = 0;
         let exactPairCount = 0;
+        let approximatePairCount = 0;
+        let sameDayPairCount = 0;
         let passengerSent = 0;
         let passengerSkipped = 0;
         let passengerFailed = 0;
@@ -2866,6 +2939,11 @@ https://malin.kiev.ua
         let driverFailed = 0;
         let sentViaUser = 0;
         let sentViaBot = 0;
+        const pairLinesByType = {
+            exact: [],
+            approximate: [],
+            same_day: [],
+        };
         for (const d of drivers) {
             const key = `${d.route}__${toDateKey(d.date)}`;
             const ps = passengersByKey.get(key);
@@ -2873,11 +2951,30 @@ https://malin.kiev.ua
                 continue;
             for (const p of ps) {
                 pairCount++;
-                const matchType = !!d.departureTime?.trim() && !!p.departureTime?.trim() && isExactTimeMatch(d.departureTime, p.departureTime)
-                    ? 'exact'
-                    : 'approximate';
+                const matchType = resolveMatchType(d.departureTime, p.departureTime);
+                if (pairLinesByType[matchType].length < CHECKCLIENTS_PAIR_LINES_LIMIT) {
+                    const driverTime = d.departureTime ?? '—';
+                    const passengerTime = p.departureTime ?? '—';
+                    const timeDelta = parseTimeRangeForMatch(d.departureTime) && parseTimeRangeForMatch(p.departureTime)
+                        ? (() => {
+                            const dr = parseTimeRangeForMatch(d.departureTime);
+                            const pr = parseTimeRangeForMatch(p.departureTime);
+                            const overlapStart = Math.max(dr.start, pr.start);
+                            const overlapEnd = Math.min(dr.end, pr.end);
+                            if (overlapStart <= overlapEnd)
+                                return 'перетин';
+                            const gap = Math.min(Math.abs(dr.start - pr.end), Math.abs(pr.start - dr.end));
+                            return `Δ${gap}хв`;
+                        })()
+                        : 'час не вказано';
+                    pairLinesByType[matchType].push(`• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`);
+                }
                 if (matchType === 'exact')
                     exactPairCount++;
+                else if (matchType === 'approximate')
+                    approximatePairCount++;
+                else
+                    sameDayPairCount++;
                 const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType);
                 if (pOut.kind === 'sent') {
                     passengerSent++;
@@ -2909,11 +3006,24 @@ https://malin.kiev.ua
             ? `\n• Усього відправок через ваш акаунт (Telethon): ${sentViaUser}`
             : `\n• Через ваш акаунт (Telethon): вимкнено (немає TELEGRAM_USER_SESSION_PATH / TELEGRAM_API_ID / TELEGRAM_API_HASH)`;
         await bot?.sendMessage(chatId, '✅ <b>/checkclients завершено</b>\n\n' +
-            `• Пар (маршрут+дата): ${pairCount} (з них точний час: ${exactPairCount})\n` +
+            `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount})\n` +
             `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
             `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
             `• Через бот: ${sentViaBot}` +
             userSenderHint, { parse_mode: 'HTML' }).catch(() => { });
+        const sections = [
+            { type: 'exact', title: `🎯 <b>Точні пари (±45 хв, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+            { type: 'approximate', title: `📌 <b>Приблизні пари (±2 год, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+            { type: 'same_day', title: `🗓️ <b>Поїздки цього дня (до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+        ];
+        for (const section of sections) {
+            const lines = pairLinesByType[section.type];
+            if (lines.length === 0)
+                continue;
+            await bot?.sendMessage(chatId, `${section.title}\n\n${lines.join('\n')}`, {
+                parse_mode: 'HTML',
+            }).catch(() => { });
+        }
     });
     // Обробка контакту (коли користувач ділиться номером через кнопку)
     bot.on('contact', async (msg) => {

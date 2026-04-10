@@ -778,7 +778,19 @@ app.patch('/viber-listings/:id/by-user', async (req, res) => {
             where: { id },
             data: updates,
         });
-        res.json(serializeViberListing(updated));
+        // Після редагування власником — повторно проганяємо matching-нотифікації
+        // за тими самими правилами, що й при створенні.
+        const matchingRecheckTriggered = (0, telegram_1.isTelegramEnabled)();
+        if (matchingRecheckTriggered) {
+            const authorChatId = updated.phone?.trim() ? await (0, telegram_1.getChatIdByPhone)(updated.phone) : null;
+            if (updated.listingType === 'driver') {
+                (0, telegram_1.notifyMatchingPassengersForNewDriver)(updated, authorChatId).catch((err) => console.error('Telegram match notify after user update (driver):', err));
+            }
+            else if (updated.listingType === 'passenger') {
+                (0, telegram_1.notifyMatchingDriversForNewPassenger)(updated, authorChatId).catch((err) => console.error('Telegram match notify after user update (passenger):', err));
+            }
+        }
+        res.json({ ...serializeViberListing(updated), matchingRecheckTriggered });
     }
     catch (error) {
         if (error.code === 'P2025')
@@ -1327,7 +1339,8 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
             date: listing.date,
             phone: listing.phone
         });
-        if ((0, telegram_1.isTelegramEnabled)()) {
+        const matchingRecheckTriggered = (0, telegram_1.isTelegramEnabled)();
+        if (matchingRecheckTriggered) {
             (0, telegram_1.sendViberListingNotificationToAdmin)({
                 id: listing.id,
                 listingType: listing.listingType,
@@ -1361,7 +1374,7 @@ app.post('/viber-listings', requireAdmin, async (req, res) => {
                 (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
             }
         }
-        res.status(201).json(serializeViberListing(listing));
+        res.status(201).json({ ...serializeViberListing(listing), matchingRecheckTriggered });
     }
     catch (error) {
         console.error('❌ Помилка створення Viber оголошення:', error);
@@ -1383,6 +1396,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
         }
         const created = [];
         const errors = [];
+        const matchingRecheckTriggered = (0, telegram_1.isTelegramEnabled)();
         for (let i = 0; i < parsedMessages.length; i++) {
             const { parsed, rawMessage: rawText } = parsedMessages[i];
             try {
@@ -1412,7 +1426,7 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
                 if (isNew) {
                     created.push(listing);
                 }
-                if ((0, telegram_1.isTelegramEnabled)()) {
+                if (matchingRecheckTriggered) {
                     (0, telegram_1.sendViberListingNotificationToAdmin)({
                         id: listing.id,
                         listingType: listing.listingType,
@@ -1455,7 +1469,8 @@ app.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
             created: created.length,
             total: parsedMessages.length,
             errors: errors.length > 0 ? errors : undefined,
-            listings: created
+            listings: created,
+            matchingRecheckTriggered,
         });
     }
     catch (error) {
@@ -1494,7 +1509,20 @@ app.put('/viber-listings/:id', requireAdmin, async (req, res) => {
             where: { id: Number(id) },
             data: updates
         });
-        res.json(serializeViberListing(listing));
+        let matchingRecheckTriggered = false;
+        // Після редагування оголошення — повторно проганяємо matching-нотифікації
+        // (дедуп пар у БД не дає дублювати вже доставлені пари).
+        if ((0, telegram_1.isTelegramEnabled)()) {
+            matchingRecheckTriggered = true;
+            const authorChatId = listing.phone?.trim() ? await (0, telegram_1.getChatIdByPhone)(listing.phone) : null;
+            if (listing.listingType === 'driver') {
+                (0, telegram_1.notifyMatchingPassengersForNewDriver)(listing, authorChatId).catch((err) => console.error('Telegram match notify after admin update (driver):', err));
+            }
+            else if (listing.listingType === 'passenger') {
+                (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify after admin update (passenger):', err));
+            }
+        }
+        res.json({ ...serializeViberListing(listing), matchingRecheckTriggered });
     }
     catch (error) {
         if (error.code === 'P2025') {
