@@ -1,0 +1,27 @@
+---
+description: After backend TypeScript changes, rebuild and commit dist so deploy matches src
+globs: backend/src/**/*
+alwaysApply: false
+---
+
+# Backend: sync `dist/` with `src/`
+
+This project **commits compiled output** under `backend/dist/` (see `backend` `npm run build` / production `node dist/index.js`). Edits to **`backend/src/**/*.ts`** are **not** picked up in deploy until `dist` is regenerated and committed.
+
+## Do this when you change `backend/src`
+
+1. From `backend/`, run **`npm run build`** (or at least **`npx tsc`** if you only need compile, not Prisma generate).
+2. Check **`git status backend/dist/`**. If any `*.js` (or related outputs) changed, **stage and commit them together** with the TypeScript changes (or in the very next commit before push).
+3. Before considering a backend task “done”, ensure there is **no leftover** `git diff backend/dist/` that should have been part of the same feature.
+
+## Do not
+
+- Leave `backend/src` updated in git while `backend/dist` still reflects old behavior (runtime will not match source on environments that run `dist` without a local build).
+
+## Quick check
+
+```bash
+cd backend && npx tsc --noEmit && git status --short dist/
+```
+
+If `src` changed earlier without a matching `dist` update, run `npm run build` and commit the resulting `dist` changes.
