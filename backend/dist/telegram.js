@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.setSpawnForTests = setSpawnForTests;
+exports.resetSpawnForTests = resetSpawnForTests;
 exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
 exports.resetTelegramPrismaForTests = resetTelegramPrismaForTests;
 exports.createOrMergeViberListing = createOrMergeViberListing;
@@ -24,6 +26,8 @@ exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessage
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
+exports.setTelegramBotForTests = setTelegramBotForTests;
+exports.resetTelegramBotForTests = resetTelegramBotForTests;
 exports.executeBookViberRideShare = executeBookViberRideShare;
 exports.getTelegramNameByChatId = getTelegramNameByChatId;
 exports.hasCyrillic = hasCyrillic;
@@ -32,6 +36,14 @@ exports.pickBestNameFromCandidates = pickBestNameFromCandidates;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const child_process_1 = require("child_process");
 const path_1 = __importDefault(require("path"));
+let spawnChild = child_process_1.spawn;
+/** Юніт-тести: підміна spawn (Python Telethon) без реальних процесів. */
+function setSpawnForTests(fn) {
+    spawnChild = fn ?? child_process_1.spawn;
+}
+function resetSpawnForTests() {
+    spawnChild = child_process_1.spawn;
+}
 const client_1 = require("@prisma/client");
 const viber_parser_1 = require("./viber-parser");
 const telegram_parser_1 = require("./telegram-parser");
@@ -1202,7 +1214,7 @@ async function resolveNameByPhoneFromTelegram(phone) {
         return null;
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
     return new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, '--resolve', phone.trim()], {
+        const child = spawnChild(pythonCmd, [scriptPath, '--resolve', phone.trim()], {
             env: {
                 ...process.env,
                 TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1243,7 +1255,7 @@ async function resolveUsernameByPhoneFromTelegram(phone) {
         return null;
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
     return new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, '--resolve-username', phone.trim()], {
+        const child = spawnChild(pythonCmd, [scriptPath, '--resolve-username', phone.trim()], {
             env: {
                 ...process.env,
                 TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1316,7 +1328,7 @@ async function fetchTelegramGroupMessages(options) {
     if (fullFetch)
         args.push('--full');
     const result = await new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, args, {
+        const child = spawnChild(pythonCmd, args, {
             env: {
                 ...process.env,
                 TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1484,7 +1496,7 @@ async function resolveNameByPhoneFromOpendatabot(phone) {
     const scriptPath = path_1.default.join(__dirname, '..', 'opendatabot-fop-parser', 'run_opendatabot_phone_lookup.py');
     const normalizedPhone = phone.trim().replace(/^\+/, '');
     return new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, [scriptPath, normalizedPhone], {
+        const child = spawnChild(pythonCmd, [scriptPath, normalizedPhone], {
             env: {
                 ...process.env,
             },
@@ -1550,7 +1562,7 @@ function spawnSendMessage(value, message, isUsername) {
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
     const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, '--report-name', value];
     return new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, args, {
+        const child = spawnChild(pythonCmd, args, {
             env: {
                 ...process.env,
                 TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -4950,15 +4962,22 @@ https://malin.kiev.ua
     });
     console.log('✅ Bot commands налаштовано');
 }
-// Ініціалізація бота (якщо токен є)
+// Ініціалізація бота (якщо токен є); productionTelegramBot — базовий інстанс для resetTelegramBotForTests()
+const productionTelegramBot = token ? new node_telegram_bot_api_1.default(token, { polling: true }) : null;
+bot = productionTelegramBot;
 if (token) {
-    bot = new node_telegram_bot_api_1.default(token, { polling: true });
     console.log('✅ Telegram Bot ініціалізовано з polling');
-    // Обробка команд
     setupBotCommands();
 }
 else {
     console.log('⚠️ TELEGRAM_BOT_TOKEN не знайдено - Telegram notifications вимкнено');
+}
+/** Юніт-тести: підставити мок TelegramBot (sendMessage тощо). */
+function setTelegramBotForTests(instance) {
+    bot = instance;
+}
+function resetTelegramBotForTests() {
+    bot = productionTelegramBot;
 }
 /**
  * Отримання chat_id по номеру телефону: спочатку Person, інакше Booking.

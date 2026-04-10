@@ -8,6 +8,8 @@ import type { PrismaClient } from '@prisma/client';
 import {
   setTelegramPrismaForTests,
   resetTelegramPrismaForTests,
+  resetTelegramBotForTests,
+  resetSpawnForTests,
   setSendMatchMessageToPersonForTests,
   getChatIdByPhone,
   getPersonByPhone,
@@ -26,6 +28,8 @@ import {
 afterEach(() => {
   setSendMatchMessageToPersonForTests(null);
   resetTelegramPrismaForTests();
+  resetTelegramBotForTests();
+  resetSpawnForTests();
 });
 
 function asPrisma(p: unknown): PrismaClient {

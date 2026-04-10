@@ -2,7 +2,7 @@
  * Юніт-тести для експортованої логіки з telegram.ts без живого бота та БД.
  * Запускайте з вимкненим TELEGRAM_BOT_TOKEN (у CI/pre-commit так і є).
  */
-import test from 'node:test';
+import test, { afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizePhone,
@@ -14,10 +14,17 @@ import {
   isTelegramEnabled,
   setAnnounceDraft,
   getAnnounceDraft,
+  resetTelegramBotForTests,
+  resetSpawnForTests,
   BEHAVIOR_PROMO_SCENARIO_LABELS,
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
 } from './telegram';
+
+afterEach(() => {
+  resetTelegramBotForTests();
+  resetSpawnForTests();
+});
 
 test('normalizePhone', () => {
   assert.equal(normalizePhone('067 955 19 52'), '380679551952');

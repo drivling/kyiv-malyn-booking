@@ -10,7 +10,7 @@
     "postinstall": "prisma generate",
 "fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
     "migrate-to-person": "ts-node src/migrate-to-person.ts",
-    "test": "node -r ./test-pretest.cjs -r ts-node/register --test src/viber-parser.test.ts src/telegram.test.ts src/telegram.prisma.test.ts"
+    "test": "node -r ./test-pretest.cjs -r ts-node/register --test src/viber-parser.test.ts src/telegram.test.ts src/telegram.prisma.test.ts src/telegram.bot.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

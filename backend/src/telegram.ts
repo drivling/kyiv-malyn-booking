@@ -1,6 +1,18 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { spawn } from 'child_process';
+import { spawn as nodeSpawn } from 'child_process';
 import path from 'path';
+
+type SpawnFn = typeof nodeSpawn;
+let spawnChild: SpawnFn = nodeSpawn;
+
+/** Юніт-тести: підміна spawn (Python Telethon) без реальних процесів. */
+export function setSpawnForTests(fn: SpawnFn | null): void {
+  spawnChild = fn ?? nodeSpawn;
+}
+
+export function resetSpawnForTests(): void {
+  spawnChild = nodeSpawn;
+}
 import { PrismaClient } from '@prisma/client';
 import { extractDate, extractTime, parseViberMessage, parseViberMessages } from './viber-parser';
 import { parseTelegramMessage, parseTelegramMessages } from './telegram-parser';
@@ -1475,7 +1487,7 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
   if (!sessionPath || !apiId || !apiHash || !phone?.trim()) return null;
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
   return new Promise((resolve) => {
-    const child = spawn(pythonCmd, [scriptPath, '--resolve', phone.trim()], {
+    const child = spawnChild(pythonCmd, [scriptPath, '--resolve', phone.trim()], {
       env: {
         ...process.env,
         TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1515,7 +1527,7 @@ export async function resolveUsernameByPhoneFromTelegram(phone: string): Promise
   if (!sessionPath || !apiId || !apiHash || !phone?.trim()) return null;
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
   return new Promise((resolve) => {
-    const child = spawn(pythonCmd, [scriptPath, '--resolve-username', phone.trim()], {
+    const child = spawnChild(pythonCmd, [scriptPath, '--resolve-username', phone.trim()], {
       env: {
         ...process.env,
         TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1591,7 +1603,7 @@ export async function fetchTelegramGroupMessages(options?: {
   if (fullFetch) args.push('--full');
 
   const result = await new Promise<string | null>((resolve) => {
-    const child = spawn(pythonCmd, args, {
+    const child = spawnChild(pythonCmd, args, {
       env: {
         ...process.env,
         TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -1780,7 +1792,7 @@ export async function resolveNameByPhoneFromOpendatabot(phone: string): Promise<
   );
   const normalizedPhone = phone.trim().replace(/^\+/, '');
   return new Promise((resolve) => {
-    const child = spawn(pythonCmd, [scriptPath, normalizedPhone], {
+    const child = spawnChild(pythonCmd, [scriptPath, normalizedPhone], {
       env: {
         ...process.env,
       },
@@ -1852,7 +1864,7 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
   const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, '--report-name', value];
   return new Promise((resolve) => {
-    const child = spawn(pythonCmd, args, {
+    const child = spawnChild(pythonCmd, args, {
       env: {
         ...process.env,
         TELEGRAM_USER_SESSION_PATH: sessionPath,
@@ -5675,15 +5687,24 @@ https://malin.kiev.ua
   console.log('✅ Bot commands налаштовано');
 }
 
-// Ініціалізація бота (якщо токен є)
+// Ініціалізація бота (якщо токен є); productionTelegramBot — базовий інстанс для resetTelegramBotForTests()
+const productionTelegramBot: TelegramBot | null = token ? new TelegramBot(token, { polling: true }) : null;
+bot = productionTelegramBot;
+
 if (token) {
-  bot = new TelegramBot(token, { polling: true });
   console.log('✅ Telegram Bot ініціалізовано з polling');
-  
-  // Обробка команд
   setupBotCommands();
 } else {
   console.log('⚠️ TELEGRAM_BOT_TOKEN не знайдено - Telegram notifications вимкнено');
+}
+
+/** Юніт-тести: підставити мок TelegramBot (sendMessage тощо). */
+export function setTelegramBotForTests(instance: TelegramBot | null): void {
+  bot = instance;
+}
+
+export function resetTelegramBotForTests(): void {
+  bot = productionTelegramBot;
 }
 
 /**
