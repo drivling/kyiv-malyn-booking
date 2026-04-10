@@ -10,7 +10,6 @@ const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
 function buildChannelPromoMessage() {
     const links = (0, telegram_1.getTelegramScenarioLinks)();
-    const channelLink = process.env.TELEGRAM_CHANNEL_LINK?.trim() || links.poputkyWeb;
     return `
 📢 <b>Поїздки Київ ↔ Малин ↔ Житомир ↔ Коростень</b>
 
