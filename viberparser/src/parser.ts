@@ -44,10 +44,11 @@ export function extractPhone(text: string): string | null {
   // Шукаємо різні формати номерів: 0501234567, +380501234567, 050-123-45-67
   // Розділювачі між групами цифр: пробіли, дужки, дефіси (050-123-45-67, +380-50-123-45-67)
   const sep = '[\\s()\\-]*';
+  // Порядок як у backend/src/viber-parser.ts: спочатку суцільний 0XXXXXXXXX, потім з роздільниками.
   const phonePatterns = [
     new RegExp(`\\+?380${sep}(\\d{2})${sep}(\\d{3})${sep}(\\d{2})${sep}(\\d{2})`),
-    new RegExp(`0${sep}(\\d{2})${sep}(\\d{3})${sep}(\\d{2})${sep}(\\d{2})`),
-    /0(\d{9})/, // 0501234567
+    /0(\d{9})/, // 0501234567, 0938901865
+    new RegExp(`0${sep}(\\d{2})${sep}(\\d{3})${sep}(\\d{2})${sep}(\\d{2})`), // 050-123-45-67
   ];
 
   for (const pattern of phonePatterns) {
