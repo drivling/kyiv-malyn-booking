@@ -4,11 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { sendBookingNotificationToAdmin, sendBookingConfirmationToCustomer, getChatIdByPhone, isTelegramEnabled, sendTripReminder, sendTripReminderToday, sendInactivityReminder, buildInactivityReminderMessage, normalizePhone, sendViberListingNotificationToAdmin, sendViberListingConfirmationToUser, getNameByPhone, findOrCreatePersonByPhone, getPersonByPhone, notifyMatchingPassengersForNewDriver, notifyMatchingDriversForNewPassenger, getTelegramScenarioLinks, getPersonByTelegram, sendRideShareRequestToDriver, sendMessageViaUserAccount, resolveNameByPhoneFromTelegram, resolveUsernameByPhoneFromTelegram, setAnnounceDraft, sendBehaviorPromoMessage, buildBehaviorPromoMessage, BEHAVIOR_PROMO_SCENARIO_LABELS, BEHAVIOR_PROMO_SCENARIO_PROFILES, type BehaviorPromoScenarioKey, getResolvedNameForPerson, pickBestNameFromCandidates, hasCyrillic, fetchAndImportTelegramGroupMessages } from './telegram';
-import crypto from 'crypto';
 import { parseViberMessage, parseViberMessages } from './viber-parser';
 import { runPhoneCheckForPhone, type PhoneCheckResult } from './phonecheck';
 import {
-  mapFromToToRoute,
   mergeTextField,
   mergeSenderName,
   mergeRawMessage,
@@ -19,6 +17,9 @@ import {
   getScenarioKeysForProfile,
   PROMO_NOT_FOUND_SENTINEL,
 } from './index-helpers';
+import { createPoputkyRouter } from './routes/poputky';
+import { isValidScheduleDepartureTime, SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE } from './validation/schedule-departure-time';
+import { validateBookingPhoneInput } from './validation/booking-phone';
 
 export type CreateAppDeps = {
   prisma: PrismaClient;
@@ -65,6 +66,7 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use('/poputky', createPoputkyRouter());
 
 // Простий токен для авторизації (в продакшені використовуйте JWT)
 const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
@@ -324,10 +326,8 @@ app.post('/schedules', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
   }
 
-  // Валідація формату часу (HH:MM)
-  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(departureTime)) {
-    return res.status(400).json({ error: 'Invalid time format. Use HH:MM (e.g., 08:00)' });
+  if (!isValidScheduleDepartureTime(departureTime)) {
+    return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
   }
 
   try {
@@ -356,10 +356,8 @@ app.put('/schedules/:id', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
   }
 
-  // Валідація формату часу
-  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(departureTime)) {
-    return res.status(400).json({ error: 'Invalid time format. Use HH:MM (e.g., 08:00)' });
+  if (!isValidScheduleDepartureTime(departureTime)) {
+    return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
   }
 
   try {
@@ -406,10 +404,13 @@ app.post('/bookings', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Валідація формату часу
-  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(departureTime)) {
-    return res.status(400).json({ error: 'Invalid time format. Use HH:MM (e.g., 08:00)' });
+  const phoneValid = validateBookingPhoneInput(phone);
+  if (!phoneValid.ok) {
+    return res.status(400).json({ error: phoneValid.error });
+  }
+
+  if (!isValidScheduleDepartureTime(departureTime)) {
+    return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
   }
 
   // Перевірка доступності місць
@@ -1072,43 +1073,6 @@ app.get('/telegram/scenarios', (_req, res) => {
       },
     },
   });
-});
-
-// Чернетка оголошення з сайту poputky: зберігає маршрут/дату/час/примітки, повертає посилання на бота з токеном
-app.post('/poputky/announce-draft', express.json(), (req, res) => {
-  const { role, from, to, date, time, notes, priceUah } = req.body as { role?: string; from?: string; to?: string; date?: string; time?: string; notes?: string; priceUah?: unknown };
-  let priceUahParsed: number | null | undefined;
-  if (priceUah !== undefined) {
-    const num = Number(priceUah);
-    if (!Number.isFinite(num) || num < 0) {
-      return res.status(400).json({ error: "Ціна має бути невід'ємним числом" });
-    }
-    priceUahParsed = Math.round(num);
-  }
-  if (!role || (role !== 'driver' && role !== 'passenger')) {
-    return res.status(400).json({ error: 'role має бути driver або passenger' });
-  }
-  const route = mapFromToToRoute(from ?? '', to ?? '');
-  if (!route) {
-    return res.status(400).json({ error: 'Поїздки можуть бути лише з/до Малина. Оберіть звідки та куди (наприклад Малин ↔ Київ).' });
-  }
-  const dateStr = (date || '').toString().trim().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return res.status(400).json({ error: 'Вкажіть коректну дату поїздки' });
-  }
-  const departureTime = (time || '').toString().trim() || null;
-  if (departureTime) {
-    const singleTime = /^\d{1,2}:\d{2}$/;
-    const timeRange = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/;
-    if (!singleTime.test(departureTime) && !timeRange.test(departureTime)) {
-      return res.status(400).json({ error: 'Час: HH:MM або HH:MM-HH:MM (інтервал)' });
-    }
-  }
-  const token = crypto.randomBytes(8).toString('hex');
-  setAnnounceDraft(token, { role: role as 'driver' | 'passenger', route, date: dateStr, departureTime: departureTime || undefined, notes: (notes || '').trim() || undefined, priceUah: priceUahParsed ?? undefined });
-  const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
-  const deepLink = `https://t.me/${botUsername}?start=${role}_${token}`;
-  return res.json({ token, deepLink });
 });
 
 // Створити запит на попутку з сайту (потрібен Telegram login у вебі)

@@ -12,10 +12,12 @@ const cors_1 = __importDefault(require("cors"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const telegram_1 = require("./telegram");
-const crypto_1 = __importDefault(require("crypto"));
 const viber_parser_1 = require("./viber-parser");
 const phonecheck_1 = require("./phonecheck");
 const index_helpers_1 = require("./index-helpers");
+const poputky_1 = require("./routes/poputky");
+const schedule_departure_time_1 = require("./validation/schedule-departure-time");
+const booking_phone_1 = require("./validation/booking-phone");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -52,6 +54,7 @@ function createApp(deps) {
     };
     app.use((0, cors_1.default)(corsOptions));
     app.use(express_1.default.json());
+    app.use('/poputky', (0, poputky_1.createPoputkyRouter)());
     // Простий токен для авторизації (в продакшені використовуйте JWT)
     const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
     const ADMIN_TOKEN = 'admin-authenticated';
@@ -284,10 +287,8 @@ function createApp(deps) {
         if (!route || !departureTime) {
             return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
         }
-        // Валідація формату часу (HH:MM)
-        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-        if (!timeRegex.test(departureTime)) {
-            return res.status(400).json({ error: 'Invalid time format. Use HH:MM (e.g., 08:00)' });
+        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
+            return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
         }
         try {
             const schedule = await prisma.schedule.create({
@@ -313,10 +314,8 @@ function createApp(deps) {
         if (!route || !departureTime) {
             return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
         }
-        // Валідація формату часу
-        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-        if (!timeRegex.test(departureTime)) {
-            return res.status(400).json({ error: 'Invalid time format. Use HH:MM (e.g., 08:00)' });
+        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
+            return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
         }
         try {
             const schedule = await prisma.schedule.update({
@@ -361,10 +360,12 @@ function createApp(deps) {
         if (!route || !date || !departureTime || !seats || !name || !phone) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
-        // Валідація формату часу
-        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-        if (!timeRegex.test(departureTime)) {
-            return res.status(400).json({ error: 'Invalid time format. Use HH:MM (e.g., 08:00)' });
+        const phoneValid = (0, booking_phone_1.validateBookingPhoneInput)(phone);
+        if (!phoneValid.ok) {
+            return res.status(400).json({ error: phoneValid.error });
+        }
+        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
+            return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
         }
         // Перевірка доступності місць
         try {
@@ -992,42 +993,6 @@ function createApp(deps) {
                 },
             },
         });
-    });
-    // Чернетка оголошення з сайту poputky: зберігає маршрут/дату/час/примітки, повертає посилання на бота з токеном
-    app.post('/poputky/announce-draft', express_1.default.json(), (req, res) => {
-        const { role, from, to, date, time, notes, priceUah } = req.body;
-        let priceUahParsed;
-        if (priceUah !== undefined) {
-            const num = Number(priceUah);
-            if (!Number.isFinite(num) || num < 0) {
-                return res.status(400).json({ error: "Ціна має бути невід'ємним числом" });
-            }
-            priceUahParsed = Math.round(num);
-        }
-        if (!role || (role !== 'driver' && role !== 'passenger')) {
-            return res.status(400).json({ error: 'role має бути driver або passenger' });
-        }
-        const route = (0, index_helpers_1.mapFromToToRoute)(from ?? '', to ?? '');
-        if (!route) {
-            return res.status(400).json({ error: 'Поїздки можуть бути лише з/до Малина. Оберіть звідки та куди (наприклад Малин ↔ Київ).' });
-        }
-        const dateStr = (date || '').toString().trim().slice(0, 10);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            return res.status(400).json({ error: 'Вкажіть коректну дату поїздки' });
-        }
-        const departureTime = (time || '').toString().trim() || null;
-        if (departureTime) {
-            const singleTime = /^\d{1,2}:\d{2}$/;
-            const timeRange = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/;
-            if (!singleTime.test(departureTime) && !timeRange.test(departureTime)) {
-                return res.status(400).json({ error: 'Час: HH:MM або HH:MM-HH:MM (інтервал)' });
-            }
-        }
-        const token = crypto_1.default.randomBytes(8).toString('hex');
-        (0, telegram_1.setAnnounceDraft)(token, { role: role, route, date: dateStr, departureTime: departureTime || undefined, notes: (notes || '').trim() || undefined, priceUah: priceUahParsed ?? undefined });
-        const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
-        const deepLink = `https://t.me/${botUsername}?start=${role}_${token}`;
-        return res.json({ token, deepLink });
     });
     // Створити запит на попутку з сайту (потрібен Telegram login у вебі)
     app.post('/rideshare/request', async (req, res) => {
