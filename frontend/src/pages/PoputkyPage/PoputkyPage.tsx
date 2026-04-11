@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SiteOwnerFooterLine } from '@/components/SiteOwnerFooterLine/SiteOwnerFooterLine';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
@@ -621,16 +622,21 @@ export const PoputkyPage: React.FC = () => {
         </div>
       </div>
 
-      <footer className="poputky-footer">
-        <p className="poputky-footer-text">
-          Користування безкоштовне. Створіть оголошення або оберіть поїздку серед опублікованих.
-        </p>
-        <p className="poputky-footer-text">
-          Адміністратор{' '}
-          <a href="https://t.me/sergmeo" target="_blank" rel="noopener noreferrer" className="poputky-footer-link">
-            Serg Merenkov
-          </a>
-        </p>
+      <footer className="poputky-footer" role="contentinfo">
+        <div className="poputky-footer-main">
+          <p className="poputky-footer-text">
+            Користування безкоштовне. Адміністратор{' '}
+            <a href="https://t.me/sergmeo" target="_blank" rel="noopener noreferrer" className="poputky-footer-link">
+              Serg Merenkov
+            </a>
+          </p>
+        </div>
+        <div className="poputky-footer-legal" aria-label="Власник сайту">
+          <SiteOwnerFooterLine
+            paragraphClassName="poputky-footer-text poputky-footer-legal-owner"
+            linkClassName="poputky-footer-link poputky-footer-link--legal"
+          />
+        </div>
       </footer>
 
       {confirmRequestListing && (

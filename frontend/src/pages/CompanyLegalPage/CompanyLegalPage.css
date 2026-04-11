@@ -1,0 +1,112 @@
+.company-legal-page {
+  flex: 1;
+  min-width: 0;
+  padding: var(--pb-space-xl) var(--pb-space-lg);
+  background: var(--pb-bg-page);
+}
+
+.company-legal-card {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-lg);
+  box-shadow: var(--pb-shadow-card);
+  padding: var(--pb-space-xl);
+}
+
+.company-legal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
+}
+
+.company-legal-lead {
+  font-size: var(--pb-font-size);
+  color: var(--pb-text-muted);
+  margin: 0 0 var(--pb-space-xl);
+  line-height: 1.55;
+}
+
+.company-legal-section {
+  margin-bottom: var(--pb-space-xl);
+  padding-bottom: var(--pb-space-lg);
+  border-bottom: 1px solid var(--pb-border-light);
+}
+
+.company-legal-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: var(--pb-space-lg);
+  padding-bottom: 0;
+}
+
+.company-legal-h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
+}
+
+.company-legal-dl {
+  margin: 0;
+}
+
+.company-legal-dl > div {
+  margin-bottom: var(--pb-space);
+}
+
+.company-legal-dl > div:last-child {
+  margin-bottom: 0;
+}
+
+.company-legal-dl dt {
+  font-size: var(--pb-font-size-sm);
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  margin: 0 0 var(--pb-space-xs);
+}
+
+.company-legal-dl dd {
+  margin: 0;
+  font-size: var(--pb-font-size);
+  color: var(--pb-text);
+  line-height: 1.55;
+}
+
+.company-legal-external {
+  color: var(--pb-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.company-legal-external:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
+}
+
+.company-legal-back {
+  margin: var(--pb-space-xl) 0 0;
+  text-align: center;
+}
+
+.company-legal-back-link {
+  color: var(--pb-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.company-legal-back-link:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .company-legal-page {
+    padding: var(--pb-space) var(--pb-space);
+  }
+
+  .company-legal-card {
+    padding: var(--pb-space-lg);
+  }
+}

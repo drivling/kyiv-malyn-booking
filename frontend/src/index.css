@@ -1,6 +1,5 @@
 /*
- * Повна палітра та стилі як на сайті ПриватБанку (privatbank.ua):
- * зелений бренд, білий фон, сірі кнопки, жовтий акцент для банерів.
+ * Глобальна палітра сайту: синій акцент, нейтральні фони та типографіка.
  */
 :root {
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -9,16 +8,17 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Основні кольори ПриватБанку (як на сайті) */
-  --pb-primary: #00A86B;
-  --pb-primary-hover: #009255;
-  --pb-primary-active: #007a47;
-  --pb-primary-light: #E6F7EE;
-  --pb-primary-border: rgba(0, 168, 107, 0.35);
+  /* Основний акцент (посилання, кнопки, фокус) */
+  --pb-primary: #1a73e8;
+  --pb-primary-hover: #1967d2;
+  --pb-primary-active: #185abc;
+  --pb-primary-light: #e8f0fe;
+  --pb-primary-border: rgba(26, 115, 232, 0.35);
+  --pb-focus-ring: rgba(26, 115, 232, 0.15);
 
-  /* Жовтий акцент (банери, виділення — як на PB) */
-  --pb-yellow: #FFD500;
-  --pb-yellow-dark: #E6C000;
+  /* Жовтий акцент (банери, виділення) */
+  --pb-yellow: #ffd500;
+  --pb-yellow-dark: #e6c000;
 
   /* Фони */
   --pb-bg: #ffffff;
@@ -35,28 +35,28 @@
   --pb-border: #e0e0e0;
   --pb-border-light: #eeeeee;
 
-  /* Кнопки: сіра друга кнопка (як «Відмовитися») */
+  /* Кнопки: сіра друга кнопка */
   --pb-btn-secondary-bg: #e8e8e8;
   --pb-btn-secondary-hover: #d8d8d8;
   --pb-btn-secondary-text: #1a1a1a;
 
-  /* Радіуси та тіні (як на PB: помірне округлення 6–8px) */
+  /* Радіуси та тіні */
   --pb-radius-sm: 6px;
   --pb-radius: 8px;
   --pb-radius-lg: 12px;
   --pb-radius-xl: 16px;
   --pb-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   --pb-shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --pb-shadow-hover: 0 4px 12px rgba(0, 168, 107, 0.2);
+  --pb-shadow-hover: 0 4px 12px rgba(26, 115, 232, 0.2);
 
-  /* Відступи як на PB (консистентність інтерфейсу) */
+  /* Відступи */
   --pb-space-xs: 4px;
   --pb-space-sm: 8px;
   --pb-space: 16px;
   --pb-space-lg: 24px;
   --pb-space-xl: 32px;
 
-  /* Розміри типографіки в стилі PB */
+  /* Типографіка */
   --pb-font-size-sm: 13px;
   --pb-font-size: 15px;
   --pb-font-size-lg: 17px;

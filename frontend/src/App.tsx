@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { BookingPage } from '@/pages/BookingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -6,7 +6,10 @@ import { PoputkyPage } from '@/pages/PoputkyPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
+import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
+import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
+import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import './App.css';
@@ -19,30 +22,50 @@ function App() {
   );
 }
 
+function isPublicSitePath(pathname: string): boolean {
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) return false;
+  if (pathname === '/user' || pathname.startsWith('/user/')) return false;
+  return true;
+}
+
+/** Глобальний підвал з реквізитами; на головній / попутках свій об’єднаний підвал у PoputkyPage */
+function showGlobalPublicLegalFooter(pathname: string): boolean {
+  if (!isPublicSitePath(pathname)) return false;
+  if (pathname === '/' || pathname === '/poputky') return false;
+  return true;
+}
+
 function AppContent() {
+  const { pathname } = useLocation();
+  const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
+
   return (
     <div className="app">
       <NavBar />
-      <Routes>
-        <Route path="/" element={<PoputkyPage />} />
-        <Route path="/poputky" element={<PoputkyPage />} />
-        <Route path="/booking" element={<BookingPage />} />
-        <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
-        <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
-        <Route path="/localtransport/stop" element={<LocalTransportStopBoardPage />} />
-        <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
-        <Route path="/localtransport" element={<LocalTransportPage />} />
-        <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute>
-              <AdminPage />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
+      <main className="app-main">
+        <Routes>
+          <Route path="/" element={<PoputkyPage />} />
+          <Route path="/poputky" element={<PoputkyPage />} />
+          <Route path="/booking" element={<BookingPage />} />
+          <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
+          <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
+          <Route path="/localtransport/stop" element={<LocalTransportStopBoardPage />} />
+          <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
+          <Route path="/localtransport" element={<LocalTransportPage />} />
+          <Route path={COMPANY_LEGAL_PATH} element={<CompanyLegalPage />} />
+          <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </main>
+      {showPublicLegalFooter ? <PublicLegalFooter /> : null}
     </div>
   );
 }
@@ -70,6 +93,9 @@ function NavBar() {
         </Link>
         <Link to="/localtransport" className="nav-link">
           🚏 Транспорт Малина
+        </Link>
+        <Link to={COMPANY_LEGAL_PATH} className="nav-link">
+          Про нас
         </Link>
       </div>
 

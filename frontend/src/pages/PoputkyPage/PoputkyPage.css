@@ -642,8 +642,20 @@
 .poputky-footer {
   background: var(--pb-card-bg);
   border-top: 1px solid var(--pb-border);
-  padding: 28px 20px 40px;
+  padding: 28px 20px 36px;
   margin-top: 24px;
+}
+
+.poputky-footer-main {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.poputky-footer-legal {
+  max-width: 560px;
+  margin: 22px auto 0;
+  padding-top: 22px;
+  border-top: 1px solid var(--pb-border-light);
 }
 
 .poputky-footer-text {
@@ -651,22 +663,38 @@
   margin: 0 auto 12px;
   font-size: 0.9375rem;
   color: var(--pb-text-muted);
-  line-height: 1.5;
+  line-height: 1.55;
   text-align: center;
 }
 
-.poputky-footer-text:last-of-type {
+.poputky-footer-legal .poputky-footer-text {
+  font-size: 0.875rem;
+  color: var(--pb-text-hint);
+  line-height: 1.5;
+}
+
+.poputky-footer-legal-owner {
+  margin-bottom: 10px;
+}
+
+.poputky-footer-text:last-child {
   margin-bottom: 0;
 }
 
 .poputky-footer-link {
-  color: var(--pk-accent);
+  color: var(--pb-primary);
   font-weight: 600;
   text-decoration: none;
 }
 
 .poputky-footer-link:hover {
+  color: var(--pb-primary-hover);
   text-decoration: underline;
+}
+
+.poputky-footer-link--legal {
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .poputky-modal-overlay {

@@ -54,7 +54,7 @@
   box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.25);
 }
 
-/* Поля всередині сторінки транспорту — фокус і hover як у Google, не ПриватБанк */
+/* Поля всередині сторінки транспорту — фокус і hover у стилі Material */
 .lt-page .combobox-input-wrap {
   border-color: var(--lt-border);
   background: var(--lt-card);
