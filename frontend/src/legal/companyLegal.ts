@@ -4,9 +4,6 @@ export const COMPANY_LEGAL_PATH = '/about';
 /** Коротка назва з ЄДР (для підвалу та згадок на сайті) */
 export const COMPANY_SHORT_NAME_UA = 'ТОВ «Технології»';
 
-/** Дата актуальності відомостей з ЄДР (для сторінки «Про нас») */
-export const COMPANY_EDR_SNAPSHOT_DATE = '11.04.2026';
-
 /** Посада керівника згідно зі статутом (єдиний виконавчий орган — генеральний директор) */
 export const COMPANY_EXECUTIVE_OFFICIAL_TITLE = 'Генеральний директор';
 

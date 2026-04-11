@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   companyEdrRecord,
   companyPhoneTelHref,
-  COMPANY_EDR_SNAPSHOT_DATE,
   COMPANY_EXECUTIVE_OFFICIAL_TITLE,
 } from '@/legal/companyLegal';
 import './CompanyLegalPage.css';
@@ -24,19 +23,6 @@ export const CompanyLegalPage: React.FC = () => {
     <div className="company-legal-page">
       <div className="company-legal-card">
         <h1 className="company-legal-title">Про нас</h1>
-        <p className="company-legal-lead">
-          Основні реквізити за даними ЄДР станом на {COMPANY_EDR_SNAPSHOT_DATE}. Повний витяг та
-          актуальний стан — на{' '}
-          <a
-            href="https://usr.minjust.gov.ua/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="company-legal-external"
-          >
-            порталі Міністерства юстиції України
-          </a>
-          .
-        </p>
 
         <section className="company-legal-section" aria-labelledby="name-heading">
           <h2 id="name-heading" className="company-legal-h2">
