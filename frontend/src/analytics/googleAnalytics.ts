@@ -1,4 +1,5 @@
-import { hasCookieConsent } from '@/analytics/cookieConsent';
+/** ID вимірювання GA4 (той самий, що в index.html) */
+export const GA_MEASUREMENT_ID = 'G-F0Q1HQJMZ8' as const;
 
 declare global {
   interface Window {
@@ -7,12 +8,8 @@ declare global {
   }
 }
 
-let scriptInjected = false;
-let gtagConfigured = false;
-
 export function gaMeasurementId(): string | undefined {
-  const id = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
-  return id || undefined;
+  return GA_MEASUREMENT_ID;
 }
 
 /** Не збираємо перегляди адмінки в тій самій вітрині звітів */
@@ -22,44 +19,10 @@ export function gaShouldTrackPath(pathname: string): boolean {
 }
 
 /**
- * Один раз підвантажує gtag.js і викликає config (без автоматичного page_view).
- */
-export function ensureGoogleAnalytics(): void {
-  const id = gaMeasurementId();
-  if (!id || !hasCookieConsent()) return;
-
-  window.dataLayer = window.dataLayer || [];
-  if (!window.gtag) {
-    window.gtag = function gtag(...args: unknown[]) {
-      window.dataLayer!.push(args);
-    };
-  }
-
-  if (!scriptInjected) {
-    scriptInjected = true;
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
-    document.head.appendChild(script);
-  }
-
-  if (!gtagConfigured) {
-    gtagConfigured = true;
-    window.gtag('js', new Date());
-    const config: Record<string, unknown> = { send_page_view: false };
-    if (import.meta.env.DEV) {
-      config.debug_mode = true;
-    }
-    window.gtag('config', id, config);
-  }
-}
-
-/**
- * Подія page_view для GA4 (рекомендований спосіб для SPA).
+ * Подія page_view для GA4 (SPA). gtag ініціалізується в index.html.
  */
 export function gaTrackPageView(pathname: string, search: string, hash: string): void {
-  const id = gaMeasurementId();
-  if (!id || !hasCookieConsent() || typeof window.gtag !== 'function') return;
+  if (typeof window.gtag !== 'function') return;
   if (!gaShouldTrackPath(pathname)) return;
 
   const page_path = `${pathname}${search || ''}${hash || ''}` || '/';
@@ -72,8 +35,6 @@ export function gaTrackPageView(pathname: string, search: string, hash: string):
 }
 
 export function ensureAndTrackPage(pathname: string, search: string, hash: string): void {
-  if (!gaMeasurementId() || !hasCookieConsent()) return;
   if (!gaShouldTrackPath(pathname)) return;
-  ensureGoogleAnalytics();
   gaTrackPageView(pathname, search, hash);
 }
