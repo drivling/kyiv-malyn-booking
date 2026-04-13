@@ -15,11 +15,41 @@
   padding: var(--pb-space-xl);
 }
 
+.company-legal-card--wide {
+  max-width: 800px;
+}
+
+.company-legal-privacy {
+  margin-top: var(--pb-space-xl);
+  padding-top: var(--pb-space-xl);
+  border-top: 1px solid var(--pb-border-light);
+  scroll-margin-top: 5.5rem;
+}
+
 .company-legal-title {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--pb-text);
+  margin: 0 0 var(--pb-space-xl);
+}
+
+.company-legal-highlight {
+  margin-bottom: var(--pb-space-xl);
+  padding: var(--pb-space-lg);
+  background: var(--pb-bg-page, #f8fafc);
+  border: 1px solid var(--pb-border-light);
+  border-radius: var(--pb-radius-md, 12px);
+}
+
+.company-legal-highlight__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--pb-text);
   margin: 0 0 var(--pb-space);
+}
+
+.company-legal-dl--tight > div {
+  margin-bottom: var(--pb-space-sm);
 }
 
 .company-legal-section {
@@ -32,6 +62,12 @@
   border-bottom: none;
   margin-bottom: var(--pb-space-lg);
   padding-bottom: 0;
+}
+
+.company-legal-contact-wrap {
+  margin-top: var(--pb-space-xl);
+  padding-top: var(--pb-space-xl);
+  border-top: 1px solid var(--pb-border-light);
 }
 
 .company-legal-h2 {

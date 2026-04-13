@@ -23,6 +23,10 @@
   margin-bottom: 0;
 }
 
+.public-legal-footer-links {
+  margin-bottom: var(--pb-space-sm);
+}
+
 .public-legal-footer-link {
   color: var(--pb-primary);
   font-weight: 600;

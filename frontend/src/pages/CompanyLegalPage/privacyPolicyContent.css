@@ -1,0 +1,118 @@
+.privacy-policy-page {
+  flex: 1;
+  min-width: 0;
+  padding: var(--pb-space-xl) var(--pb-space-lg);
+  background: var(--pb-bg-page);
+}
+
+.privacy-policy-card {
+  max-width: 800px;
+  margin: 0 auto;
+  background: var(--pb-card-bg);
+  border: 1px solid var(--pb-border);
+  border-radius: var(--pb-radius-lg);
+  box-shadow: var(--pb-shadow-card);
+  padding: var(--pb-space-xl);
+}
+
+.privacy-policy-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
+}
+
+.privacy-policy-title--section {
+  scroll-margin-top: 5.5rem;
+}
+
+.privacy-policy-lead {
+  margin: 0 0 var(--pb-space-xl);
+  font-size: var(--pb-font-size);
+  color: var(--pb-text-muted);
+  line-height: 1.65;
+}
+
+.privacy-policy-lead--owner {
+  color: var(--pb-text);
+  margin-bottom: var(--pb-space);
+}
+
+.privacy-policy-section {
+  margin-bottom: var(--pb-space-xl);
+}
+
+.privacy-policy-section:last-of-type {
+  margin-bottom: var(--pb-space-lg);
+}
+
+.privacy-policy-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
+}
+
+.privacy-policy-section p {
+  margin: 0 0 var(--pb-space);
+  font-size: var(--pb-font-size);
+  color: var(--pb-text);
+  line-height: 1.65;
+}
+
+.privacy-policy-section p:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-policy-list {
+  margin: 0 0 var(--pb-space);
+  padding-left: 1.25rem;
+  color: var(--pb-text);
+  line-height: 1.65;
+}
+
+.privacy-policy-list li {
+  margin-bottom: var(--pb-space-sm);
+}
+
+.privacy-policy-list li:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-policy-link {
+  color: var(--pb-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.privacy-policy-link:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
+}
+
+.privacy-policy-back {
+  margin: var(--pb-space-xl) 0 0;
+  text-align: center;
+  font-size: var(--pb-font-size-sm);
+}
+
+.privacy-policy-back-link {
+  color: var(--pb-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.privacy-policy-back-link:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .privacy-policy-page {
+    padding: var(--pb-space) var(--pb-space);
+  }
+
+  .privacy-policy-card {
+    padding: var(--pb-space-lg);
+  }
+}

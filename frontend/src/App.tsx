@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { BookingPage } from '@/pages/BookingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -7,9 +7,11 @@ import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
+import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
+import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import './App.css';
@@ -28,11 +30,9 @@ function isPublicSitePath(pathname: string): boolean {
   return true;
 }
 
-/** Глобальний підвал з реквізитами; на головній / попутках свій об’єднаний підвал у PoputkyPage */
+/** Глобальний підвал з реквізитами та посиланням на політику */
 function showGlobalPublicLegalFooter(pathname: string): boolean {
-  if (!isPublicSitePath(pathname)) return false;
-  if (pathname === '/' || pathname === '/poputky') return false;
-  return true;
+  return isPublicSitePath(pathname);
 }
 
 function AppContent() {
@@ -53,6 +53,8 @@ function AppContent() {
           <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
           <Route path="/localtransport" element={<LocalTransportPage />} />
           <Route path={COMPANY_LEGAL_PATH} element={<CompanyLegalPage />} />
+          <Route path="/privacy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
+          <Route path="/privacy-policy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -66,6 +68,7 @@ function AppContent() {
         </Routes>
       </main>
       {showPublicLegalFooter ? <PublicLegalFooter /> : null}
+      {!pathname.startsWith('/admin') ? <CookieNotice /> : null}
     </div>
   );
 }

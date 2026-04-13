@@ -1,0 +1,64 @@
+.site-contact-block {
+  margin: 0;
+}
+
+.site-contact-block__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
+}
+
+.site-contact-block__dl {
+  margin: 0;
+}
+
+.site-contact-block__dl > div {
+  margin-bottom: var(--pb-space);
+}
+
+.site-contact-block__dl > div:last-child {
+  margin-bottom: 0;
+}
+
+.site-contact-block__dl dt {
+  font-size: var(--pb-font-size-sm);
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  margin: 0 0 var(--pb-space-xs);
+}
+
+.site-contact-block__dl dd {
+  margin: 0;
+  font-size: var(--pb-font-size);
+  color: var(--pb-text);
+  line-height: 1.55;
+}
+
+.site-contact-block__link {
+  color: var(--pb-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-contact-block__link:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
+}
+
+.site-contact-block--compact .site-contact-block__title {
+  font-size: 1rem;
+  margin-bottom: var(--pb-space-sm);
+}
+
+.site-contact-block--compact .site-contact-block__dl > div {
+  margin-bottom: var(--pb-space-sm);
+}
+
+.site-contact-block--compact .site-contact-block__dl dt {
+  font-size: 0.75rem;
+}
+
+.site-contact-block--compact .site-contact-block__dl dd {
+  font-size: var(--pb-font-size-sm);
+}
