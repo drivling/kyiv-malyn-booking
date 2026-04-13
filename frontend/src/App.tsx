@@ -7,6 +7,7 @@ import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
+import { GoogleAnalyticsTracker } from '@/analytics/GoogleAnalyticsTracker';
 import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
@@ -41,6 +42,7 @@ function AppContent() {
 
   return (
     <div className="app">
+      <GoogleAnalyticsTracker />
       <NavBar />
       <main className="app-main">
         <Routes>

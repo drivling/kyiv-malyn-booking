@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { COOKIE_NOTICE_STORAGE_KEY, dispatchCookieConsentGranted } from '@/analytics/cookieConsent';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
 import './CookieNotice.css';
-
-const STORAGE_KEY = 'malin_kiev_ua_cookie_notice_v1';
 
 export function CookieNotice() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     try {
-      if (typeof window !== 'undefined' && window.localStorage.getItem(STORAGE_KEY) !== '1') {
+      if (typeof window !== 'undefined' && window.localStorage.getItem(COOKIE_NOTICE_STORAGE_KEY) !== '1') {
         setVisible(true);
       }
     } catch {
@@ -20,10 +19,11 @@ export function CookieNotice() {
 
   const dismiss = useCallback(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, '1');
+      window.localStorage.setItem(COOKIE_NOTICE_STORAGE_KEY, '1');
     } catch {
       /* ignore */
     }
+    dispatchCookieConsentGranted();
     setVisible(false);
   }, []);
 
@@ -33,7 +33,8 @@ export function CookieNotice() {
     <div className="cookie-notice" role="dialog" aria-live="polite" aria-label="Повідомлення про cookies">
       <div className="cookie-notice__inner">
         <p className="cookie-notice__text">
-          Ми використовуємо cookies для покращення роботи сайту. Детальніше — у{' '}
+          Ми використовуємо cookies та Google Analytics для покращення роботи сайту й знеособленої статистики
+          відвідувань. Детальніше — у{' '}
           <Link to={PRIVACY_POLICY_PAGE_LINK} className="cookie-notice__link">
             політиці конфіденційності
           </Link>{' '}
