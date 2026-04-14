@@ -16,6 +16,10 @@ export function resetSpawnForTests(): void {
 import { PrismaClient } from '@prisma/client';
 import { extractDate, extractTime, parseViberMessage, parseViberMessages } from './viber-parser';
 import { parseTelegramMessage, parseTelegramMessages } from './telegram-parser';
+import {
+  createOrMergeViberListing as createOrMergeViberListingShared,
+  type ViberListingMergeInput,
+} from './viber-listing-merge';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -30,116 +34,10 @@ export function resetTelegramPrismaForTests(): void {
   tgPrisma = defaultTgPrisma;
 }
 
-type ViberListingMergeInput = {
-  rawMessage: string;
-  source?: 'Viber1' | 'telegram1';
-  senderName?: string | null;
-  listingType: 'driver' | 'passenger';
-  route: string;
-  date: Date;
-  departureTime: string | null;
-  seats: number | null;
-  phone: string;
-  notes: string | null;
-  priceUah?: number | null;
-  isActive: boolean;
-  personId?: number | null;
-};
-
-function hasNonEmptyText(value: string | null | undefined): boolean {
-  return !!value && value.trim().length > 0;
-}
-
-function mergeTextField(oldVal: string | null, newVal: string | null): string | null {
-  if (!hasNonEmptyText(newVal)) return oldVal;
-  if (!hasNonEmptyText(oldVal)) return newVal;
-  const oldTrim = oldVal!.trim();
-  const newTrim = newVal!.trim();
-  if (oldTrim === newTrim) return oldVal;
-  if (newTrim.length > oldTrim.length && !oldTrim.includes(newTrim)) {
-    return `${oldTrim} | ${newTrim}`;
-  }
-  return oldVal;
-}
-
-function mergeSenderName(oldVal: string | null, newVal: string | null): string | null {
-  if (!hasNonEmptyText(oldVal) && hasNonEmptyText(newVal)) return newVal;
-  return oldVal;
-}
-
-function mergeRawMessage(oldRaw: string, newRaw: string): string {
-  const oldTrim = (oldRaw || '').trim();
-  const newTrim = (newRaw || '').trim();
-  if (!newTrim) return oldRaw;
-  if (!oldTrim) return newRaw;
-  if (oldTrim.includes(newTrim)) return oldRaw;
-  if (newTrim.includes(oldTrim)) return newRaw;
-  return `${oldRaw}\n---\n${newRaw}`;
-}
-
 export async function createOrMergeViberListing(
   data: ViberListingMergeInput
 ): Promise<{ listing: any; isNew: boolean }> {
-  const personId = data.personId ?? null;
-  const date = data.date;
-  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-  const normalizedPhone = data.phone?.trim() ? normalizePhone(data.phone) : '';
-
-  // Шукаємо існуючий запис за route+date+time+phone (незалежно від source — Viber1 чи telegram1)
-  const candidates = await tgPrisma.viberListing.findMany({
-    where: {
-      listingType: data.listingType,
-      route: data.route,
-      isActive: true,
-      date: {
-        gte: startOfDay,
-        lt: endOfDay,
-      },
-      departureTime: data.departureTime ?? null,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  let existing: (typeof candidates)[0] | null = null;
-  if (normalizedPhone) {
-    existing = candidates.find((c) => normalizePhone(c.phone) === normalizedPhone) ?? null;
-  }
-  if (!existing && personId) {
-    existing = candidates.find((c) => c.personId === personId) ?? null;
-  }
-
-  if (!existing) {
-    const listing = await tgPrisma.viberListing.create({
-      data: { ...data, source: data.source ?? 'Viber1' },
-    });
-    return { listing, isNew: true };
-  }
-
-  // Оновлюємо існуючий — source залишаємо перший (як потрапило в базу)
-  const mergedNotes = mergeTextField(existing.notes, data.notes);
-  const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
-
-  const updated = await tgPrisma.viberListing.update({
-    where: { id: existing.id },
-    data: {
-      rawMessage: mergeRawMessage(existing.rawMessage, data.rawMessage),
-      senderName: mergedSenderName ?? undefined,
-      seats: data.seats != null ? data.seats : existing.seats,
-      phone: existing.phone || data.phone,
-      notes: mergedNotes,
-      priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
-      isActive: existing.isActive || data.isActive,
-      personId: existing.personId ?? personId,
-      // source не оновлюємо — залишаємо перший
-    },
-  });
-
-  console.log(
-    `♻️ Listing merged with existing #${existing.id} (route+date+time+phone match, source=${existing.source})`
-  );
-
-  return { listing: updated, isNew: false };
+  return createOrMergeViberListingShared(tgPrisma, data);
 }
 
 /** Кроки потоку "додати поїздку (водій)" */

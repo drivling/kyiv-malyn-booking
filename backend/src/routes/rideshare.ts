@@ -1,6 +1,7 @@
 import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { getPersonByTelegram, sendRideShareRequestToDriver } from '../telegram';
+import { createOrMergeViberListing } from '../viber-listing-merge';
 
 export function createRideshareRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -26,56 +27,33 @@ export function createRideshareRouter(deps: { prisma: PrismaClient }): Router {
         });
       }
 
-      const driverDate = new Date(driverListing.date);
-      const startOfDay = new Date(driverDate.getFullYear(), driverDate.getMonth(), driverDate.getDate());
-      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-      const driverTime = driverListing.departureTime ?? null;
-
-      const existingPassenger = await prisma.viberListing.findFirst({
-        where: {
-          listingType: 'passenger',
-          isActive: true,
-          phone: person.phoneNormalized,
-          route: driverListing.route,
-          date: { gte: startOfDay, lt: endOfDay },
-          departureTime: driverTime,
-        },
-        orderBy: { createdAt: 'desc' },
+      const { listing: passengerListing } = await createOrMergeViberListing(prisma, {
+        rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
+        source: 'Viber1',
+        senderName: person.fullName?.trim() || 'Пасажир',
+        listingType: 'passenger',
+        route: driverListing.route,
+        date: driverListing.date,
+        departureTime: driverListing.departureTime,
+        seats: null,
+        phone: person.phoneNormalized,
+        notes: 'Запит створено з сайту /poputky',
+        isActive: true,
+        personId: person.id,
       });
 
-      if (existingPassenger) {
-        const existingRequest = await prisma.rideShareRequest.findFirst({
-          where: {
-            passengerListingId: existingPassenger.id,
-            driverListingId: driverListing.id,
-            status: { in: ['pending', 'confirmed'] },
-          },
+      const existingRequest = await prisma.rideShareRequest.findFirst({
+        where: {
+          passengerListingId: passengerListing.id,
+          driverListingId: driverListing.id,
+          status: { in: ['pending', 'confirmed'] },
+        },
+      });
+      if (existingRequest) {
+        return res.status(400).json({
+          error: 'Ви вже надсилали запит цьому водію на цей маршрут і дату. Очікуйте підтвердження або перегляньте /mybookings.',
         });
-        if (existingRequest) {
-          return res.status(400).json({
-            error: 'Ви вже надсилали запит цьому водію на цей маршрут і дату. Очікуйте підтвердження або перегляньте /mybookings.',
-          });
-        }
       }
-
-      const passengerListing =
-        existingPassenger ??
-        (await prisma.viberListing.create({
-          data: {
-            rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
-            source: 'Viber1',
-            senderName: person.fullName?.trim() || 'Пасажир',
-            listingType: 'passenger',
-            route: driverListing.route,
-            date: driverListing.date,
-            departureTime: driverListing.departureTime,
-            seats: null,
-            phone: person.phoneNormalized,
-            notes: 'Запит створено з сайту /poputky',
-            isActive: true,
-            personId: person.id,
-          },
-        }));
 
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       const requestRecord = await prisma.rideShareRequest.create({

@@ -2,7 +2,8 @@ import express from 'express';
 import { PrismaClient } from './__generated__/prisma';
 import ViberBot from 'viber-bot';
 import dotenv from 'dotenv';
-import { parseViberMessage, parseViberMessages } from './parser';
+import { parseViberMessage } from './parser';
+import { createOrMergeViberListing } from './viber-listing-merge';
 
 dotenv.config();
 
@@ -99,6 +100,7 @@ app.post('/api/import', async (req, res) => {
     console.log(`📥 Імпорт повідомлень, розмір: ${rawMessages.length} символів`);
     const messages = rawMessages.split(/\n(?=\[)/);
     let imported = 0;
+    let merged = 0;
     let skipped = 0;
     let errors = 0;
     for (const trimmed of messages) {
@@ -117,28 +119,31 @@ app.post('/api/import', async (req, res) => {
           errors++;
           continue;
         }
-        await prisma.viberListing.create({
-          data: {
-            rawMessage: message,
-            senderName: parsed.senderName,
-            listingType: parsed.listingType,
-            route: parsed.route,
-            date: parsed.date,
-            departureTime: parsed.departureTime,
-            seats: parsed.seats,
-            phone: parsed.phone || '',
-            notes: parsed.notes,
-            isActive: true,
-          },
+        const { isNew } = await createOrMergeViberListing(prisma, {
+          rawMessage: message,
+          senderName: parsed.senderName,
+          listingType: parsed.listingType,
+          route: parsed.route,
+          date: parsed.date,
+          departureTime: parsed.departureTime,
+          seats: parsed.seats,
+          phone: parsed.phone || '',
+          notes: parsed.notes,
+          isActive: true,
+          personId: null,
+          source: 'Viber1',
         });
-        imported++;
+        if (isNew) imported++;
+        else merged++;
       } catch (err) {
         console.error('Error saving message:', err);
         errors++;
       }
     }
-    console.log(`✅ Імпорт: ${imported} створено, ${skipped} пропущено, ${errors} помилок`);
-    res.json({ success: true, imported, skipped, errors, total: messages.length });
+    console.log(
+      `✅ Імпорт: ${imported} нових, ${merged} злито з існуючими, ${skipped} дубль raw, ${errors} помилок`,
+    );
+    res.json({ success: true, imported, merged, skipped, errors, total: messages.length });
   } catch (error) {
     console.error('Import error:', error);
     res.status(500).json({ error: 'Failed to import messages' });
@@ -179,21 +184,23 @@ if (bot) {
       }
       const parsed = parseViberMessage(rawMessage);
       if (parsed) {
-        await prisma.viberListing.create({
-          data: {
-            rawMessage,
-            senderName: parsed.senderName ?? message.sender.name ?? null,
-            listingType: parsed.listingType,
-            route: parsed.route,
-            date: parsed.date,
-            departureTime: parsed.departureTime,
-            seats: parsed.seats,
-            phone: parsed.phone || '',
-            notes: parsed.notes,
-            isActive: true,
-          },
+        const { isNew } = await createOrMergeViberListing(prisma, {
+          rawMessage,
+          senderName: parsed.senderName ?? message.sender.name ?? null,
+          listingType: parsed.listingType,
+          route: parsed.route,
+          date: parsed.date,
+          departureTime: parsed.departureTime,
+          seats: parsed.seats,
+          phone: parsed.phone || '',
+          notes: parsed.notes,
+          isActive: true,
+          personId: null,
+          source: 'Viber1',
         });
-        console.log(`✅ Saved to ViberListing: ${parsed.route} on ${parsed.date}`);
+        console.log(
+          `${isNew ? '✅ Saved' : '♻️ Merged'} ViberListing: ${parsed.route} on ${parsed.date}`,
+        );
       } else {
         console.log(`⚠️  Message not parsed (unknown route or format), not saved`);
       }

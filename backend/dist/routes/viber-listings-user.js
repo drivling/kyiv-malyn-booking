@@ -7,6 +7,7 @@ exports.createViberListingsUserRouter = createViberListingsUserRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const index_helpers_1 = require("../index-helpers");
+const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
 async function getViberListingForUser(prisma, listingId, telegramUserId) {
     const person = await (0, telegram_1.getPersonByTelegram)(telegramUserId, '');
     if (!person)
@@ -47,10 +48,12 @@ function createViberListingsUserRouter(deps) {
             if (Object.keys(updates).length === 0) {
                 return res.status(400).json({ error: 'No allowed fields to update' });
             }
-            const updated = await prisma.viberListing.update({
+            let updated = await prisma.viberListing.update({
                 where: { id },
                 data: updates,
             });
+            const { listing: afterDedupe, mergedAwayIds } = await (0, viber_listing_dedupe_after_update_1.dedupeViberListingsAfterUpdate)(prisma, updated.id);
+            updated = afterDedupe;
             const matchingRecheckTriggered = (0, telegram_1.isTelegramEnabled)();
             if (matchingRecheckTriggered) {
                 const authorChatId = updated.phone?.trim() ? await (0, telegram_1.getChatIdByPhone)(updated.phone) : null;
@@ -61,7 +64,7 @@ function createViberListingsUserRouter(deps) {
                     (0, telegram_1.notifyMatchingDriversForNewPassenger)(updated, authorChatId).catch((err) => console.error('Telegram match notify after user update (passenger):', err));
                 }
             }
-            res.json({ ...(0, index_helpers_1.serializeViberListing)(updated), matchingRecheckTriggered });
+            res.json({ ...(0, index_helpers_1.serializeViberListing)(updated), matchingRecheckTriggered, mergedAwayIds });
         }
         catch (error) {
             const err = error;

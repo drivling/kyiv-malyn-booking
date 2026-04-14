@@ -8,6 +8,7 @@ import {
   notifyMatchingPassengersForNewDriver,
 } from '../telegram';
 import { serializeViberListing } from '../index-helpers';
+import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
 
 async function getViberListingForUser(prisma: PrismaClient, listingId: number, telegramUserId: string) {
   const person = await getPersonByTelegram(telegramUserId, '');
@@ -47,10 +48,12 @@ export function createViberListingsUserRouter(deps: { prisma: PrismaClient }): R
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'No allowed fields to update' });
       }
-      const updated = await prisma.viberListing.update({
+      let updated = await prisma.viberListing.update({
         where: { id },
         data: updates,
       });
+      const { listing: afterDedupe, mergedAwayIds } = await dedupeViberListingsAfterUpdate(prisma, updated.id);
+      updated = afterDedupe;
       const matchingRecheckTriggered = isTelegramEnabled();
       if (matchingRecheckTriggered) {
         const authorChatId = updated.phone?.trim() ? await getChatIdByPhone(updated.phone) : null;
@@ -64,7 +67,7 @@ export function createViberListingsUserRouter(deps: { prisma: PrismaClient }): R
           );
         }
       }
-      res.json({ ...serializeViberListing(updated), matchingRecheckTriggered });
+      res.json({ ...serializeViberListing(updated), matchingRecheckTriggered, mergedAwayIds });
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err.code === 'P2025') return res.status(404).json({ error: 'Listing not found' });

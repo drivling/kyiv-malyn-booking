@@ -125,6 +125,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.ViberListingScalarFieldEnum = {
   id: 'id',
   rawMessage: 'rawMessage',
+  source: 'source',
   senderName: 'senderName',
   listingType: 'listingType',
   route: 'route',
@@ -134,6 +135,7 @@ exports.Prisma.ViberListingScalarFieldEnum = {
   phone: 'phone',
   notes: 'notes',
   isActive: 'isActive',
+  personId: 'personId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

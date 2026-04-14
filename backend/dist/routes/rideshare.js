@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createRideshareRouter = createRideshareRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
+const viber_listing_merge_1 = require("../viber-listing-merge");
 function createRideshareRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -25,52 +26,32 @@ function createRideshareRouter(deps) {
                     error: 'Щоб бронювати попутки, підключіть номер телефону в Telegram боті через /start',
                 });
             }
-            const driverDate = new Date(driverListing.date);
-            const startOfDay = new Date(driverDate.getFullYear(), driverDate.getMonth(), driverDate.getDate());
-            const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-            const driverTime = driverListing.departureTime ?? null;
-            const existingPassenger = await prisma.viberListing.findFirst({
-                where: {
-                    listingType: 'passenger',
-                    isActive: true,
-                    phone: person.phoneNormalized,
-                    route: driverListing.route,
-                    date: { gte: startOfDay, lt: endOfDay },
-                    departureTime: driverTime,
-                },
-                orderBy: { createdAt: 'desc' },
+            const { listing: passengerListing } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
+                rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
+                source: 'Viber1',
+                senderName: person.fullName?.trim() || 'Пасажир',
+                listingType: 'passenger',
+                route: driverListing.route,
+                date: driverListing.date,
+                departureTime: driverListing.departureTime,
+                seats: null,
+                phone: person.phoneNormalized,
+                notes: 'Запит створено з сайту /poputky',
+                isActive: true,
+                personId: person.id,
             });
-            if (existingPassenger) {
-                const existingRequest = await prisma.rideShareRequest.findFirst({
-                    where: {
-                        passengerListingId: existingPassenger.id,
-                        driverListingId: driverListing.id,
-                        status: { in: ['pending', 'confirmed'] },
-                    },
+            const existingRequest = await prisma.rideShareRequest.findFirst({
+                where: {
+                    passengerListingId: passengerListing.id,
+                    driverListingId: driverListing.id,
+                    status: { in: ['pending', 'confirmed'] },
+                },
+            });
+            if (existingRequest) {
+                return res.status(400).json({
+                    error: 'Ви вже надсилали запит цьому водію на цей маршрут і дату. Очікуйте підтвердження або перегляньте /mybookings.',
                 });
-                if (existingRequest) {
-                    return res.status(400).json({
-                        error: 'Ви вже надсилали запит цьому водію на цей маршрут і дату. Очікуйте підтвердження або перегляньте /mybookings.',
-                    });
-                }
             }
-            const passengerListing = existingPassenger ??
-                (await prisma.viberListing.create({
-                    data: {
-                        rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
-                        source: 'Viber1',
-                        senderName: person.fullName?.trim() || 'Пасажир',
-                        listingType: 'passenger',
-                        route: driverListing.route,
-                        date: driverListing.date,
-                        departureTime: driverListing.departureTime,
-                        seats: null,
-                        phone: person.phoneNormalized,
-                        notes: 'Запит створено з сайту /poputky',
-                        isActive: true,
-                        personId: person.id,
-                    },
-                }));
             const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
             const requestRecord = await prisma.rideShareRequest.create({
                 data: {

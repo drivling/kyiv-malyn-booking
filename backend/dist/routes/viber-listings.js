@@ -9,6 +9,8 @@ const telegram_1 = require("../telegram");
 const viber_parser_1 = require("../viber-parser");
 const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
+const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
+const viber_listing_merge_1 = require("../viber-listing-merge");
 const VIBER_LISTING_UPDATE_FIELDS = [
     'rawMessage',
     'senderName',
@@ -26,56 +28,6 @@ const CLEANUP_CUTOFF_HOURS = 1;
 function createViberListingsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
-    async function createOrMergeViberListing(data) {
-        const personId = data.personId ?? null;
-        const date = data.date;
-        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-        const normalizedPhone = data.phone?.trim() ? (0, telegram_1.normalizePhone)(data.phone) : '';
-        const candidates = await prisma.viberListing.findMany({
-            where: {
-                listingType: data.listingType,
-                route: data.route,
-                isActive: true,
-                date: {
-                    gte: startOfDay,
-                    lt: endOfDay,
-                },
-                departureTime: data.departureTime ?? null,
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-        let existing = null;
-        if (normalizedPhone) {
-            existing = candidates.find((c) => (0, telegram_1.normalizePhone)(c.phone) === normalizedPhone) ?? null;
-        }
-        if (!existing && personId) {
-            existing = candidates.find((c) => c.personId === personId) ?? null;
-        }
-        if (!existing) {
-            const listing = await prisma.viberListing.create({
-                data: { ...data, source: data.source ?? 'Viber1' },
-            });
-            return { listing, isNew: true };
-        }
-        const mergedNotes = (0, index_helpers_1.mergeTextField)(existing.notes, data.notes);
-        const mergedSenderName = (0, index_helpers_1.mergeSenderName)(existing.senderName, data.senderName ?? null);
-        const updated = await prisma.viberListing.update({
-            where: { id: existing.id },
-            data: {
-                rawMessage: (0, index_helpers_1.mergeRawMessage)(existing.rawMessage, data.rawMessage),
-                senderName: mergedSenderName ?? undefined,
-                seats: data.seats != null ? data.seats : existing.seats,
-                phone: existing.phone || data.phone,
-                notes: mergedNotes,
-                priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
-                isActive: existing.isActive || data.isActive,
-                personId: existing.personId ?? personId,
-            },
-        });
-        console.log(`♻️ Listing merged with existing #${existing.id} (route+date+time+phone match, source=${existing.source})`);
-        return { listing: updated, isNew: false };
-    }
     r.get('/viber-listings', async (req, res) => {
         try {
             const { active } = req.query;
@@ -142,7 +94,7 @@ function createViberListingsRouter(deps) {
             const person = parsed.phone
                 ? await (0, telegram_1.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
                 : null;
-            const { listing } = await createOrMergeViberListing({
+            const { listing } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
                 rawMessage,
                 senderName: senderName ?? undefined,
                 listingType: parsed.listingType,
@@ -229,7 +181,7 @@ function createViberListingsRouter(deps) {
                     const person = parsed.phone
                         ? await (0, telegram_1.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
                         : null;
-                    const { listing, isNew } = await createOrMergeViberListing({
+                    const { listing, isNew } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
                         rawMessage: rawText,
                         senderName: senderName ?? undefined,
                         listingType: parsed.listingType,
@@ -319,10 +271,12 @@ function createViberListingsRouter(deps) {
             return res.status(400).json({ error: 'No allowed fields to update' });
         }
         try {
-            const listing = await prisma.viberListing.update({
+            let listing = await prisma.viberListing.update({
                 where: { id: Number(id) },
                 data: updates,
             });
+            const { listing: afterDedupe, mergedAwayIds } = await (0, viber_listing_dedupe_after_update_1.dedupeViberListingsAfterUpdate)(prisma, listing.id);
+            listing = afterDedupe;
             let matchingRecheckTriggered = false;
             if ((0, telegram_1.isTelegramEnabled)()) {
                 matchingRecheckTriggered = true;
@@ -334,7 +288,7 @@ function createViberListingsRouter(deps) {
                     (0, telegram_1.notifyMatchingDriversForNewPassenger)(listing, authorChatId).catch((err) => console.error('Telegram match notify after admin update (passenger):', err));
                 }
             }
-            res.json({ ...(0, index_helpers_1.serializeViberListing)(listing), matchingRecheckTriggered });
+            res.json({ ...(0, index_helpers_1.serializeViberListing)(listing), matchingRecheckTriggered, mergedAwayIds });
         }
         catch (error) {
             const err = error;

@@ -858,16 +858,19 @@ export namespace Prisma {
   export type ViberListingAvgAggregateOutputType = {
     id: number | null
     seats: number | null
+    personId: number | null
   }
 
   export type ViberListingSumAggregateOutputType = {
     id: number | null
     seats: number | null
+    personId: number | null
   }
 
   export type ViberListingMinAggregateOutputType = {
     id: number | null
     rawMessage: string | null
+    source: string | null
     senderName: string | null
     listingType: string | null
     route: string | null
@@ -877,6 +880,7 @@ export namespace Prisma {
     phone: string | null
     notes: string | null
     isActive: boolean | null
+    personId: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -884,6 +888,7 @@ export namespace Prisma {
   export type ViberListingMaxAggregateOutputType = {
     id: number | null
     rawMessage: string | null
+    source: string | null
     senderName: string | null
     listingType: string | null
     route: string | null
@@ -893,6 +898,7 @@ export namespace Prisma {
     phone: string | null
     notes: string | null
     isActive: boolean | null
+    personId: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -900,6 +906,7 @@ export namespace Prisma {
   export type ViberListingCountAggregateOutputType = {
     id: number
     rawMessage: number
+    source: number
     senderName: number
     listingType: number
     route: number
@@ -909,6 +916,7 @@ export namespace Prisma {
     phone: number
     notes: number
     isActive: number
+    personId: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -918,16 +926,19 @@ export namespace Prisma {
   export type ViberListingAvgAggregateInputType = {
     id?: true
     seats?: true
+    personId?: true
   }
 
   export type ViberListingSumAggregateInputType = {
     id?: true
     seats?: true
+    personId?: true
   }
 
   export type ViberListingMinAggregateInputType = {
     id?: true
     rawMessage?: true
+    source?: true
     senderName?: true
     listingType?: true
     route?: true
@@ -937,6 +948,7 @@ export namespace Prisma {
     phone?: true
     notes?: true
     isActive?: true
+    personId?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -944,6 +956,7 @@ export namespace Prisma {
   export type ViberListingMaxAggregateInputType = {
     id?: true
     rawMessage?: true
+    source?: true
     senderName?: true
     listingType?: true
     route?: true
@@ -953,6 +966,7 @@ export namespace Prisma {
     phone?: true
     notes?: true
     isActive?: true
+    personId?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -960,6 +974,7 @@ export namespace Prisma {
   export type ViberListingCountAggregateInputType = {
     id?: true
     rawMessage?: true
+    source?: true
     senderName?: true
     listingType?: true
     route?: true
@@ -969,6 +984,7 @@ export namespace Prisma {
     phone?: true
     notes?: true
     isActive?: true
+    personId?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1063,6 +1079,7 @@ export namespace Prisma {
   export type ViberListingGroupByOutputType = {
     id: number
     rawMessage: string
+    source: string
     senderName: string | null
     listingType: string
     route: string
@@ -1072,6 +1089,7 @@ export namespace Prisma {
     phone: string
     notes: string | null
     isActive: boolean
+    personId: number | null
     createdAt: Date
     updatedAt: Date
     _count: ViberListingCountAggregateOutputType | null
@@ -1098,6 +1116,7 @@ export namespace Prisma {
   export type ViberListingSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     rawMessage?: boolean
+    source?: boolean
     senderName?: boolean
     listingType?: boolean
     route?: boolean
@@ -1107,6 +1126,7 @@ export namespace Prisma {
     phone?: boolean
     notes?: boolean
     isActive?: boolean
+    personId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["viberListing"]>
@@ -1114,6 +1134,7 @@ export namespace Prisma {
   export type ViberListingSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     rawMessage?: boolean
+    source?: boolean
     senderName?: boolean
     listingType?: boolean
     route?: boolean
@@ -1123,6 +1144,7 @@ export namespace Prisma {
     phone?: boolean
     notes?: boolean
     isActive?: boolean
+    personId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["viberListing"]>
@@ -1130,6 +1152,7 @@ export namespace Prisma {
   export type ViberListingSelectScalar = {
     id?: boolean
     rawMessage?: boolean
+    source?: boolean
     senderName?: boolean
     listingType?: boolean
     route?: boolean
@@ -1139,6 +1162,7 @@ export namespace Prisma {
     phone?: boolean
     notes?: boolean
     isActive?: boolean
+    personId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -1150,6 +1174,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: number
       rawMessage: string
+      source: string
       senderName: string | null
       listingType: string
       route: string
@@ -1159,6 +1184,7 @@ export namespace Prisma {
       phone: string
       notes: string | null
       isActive: boolean
+      personId: number | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["viberListing"]>
@@ -1556,6 +1582,7 @@ export namespace Prisma {
   interface ViberListingFieldRefs {
     readonly id: FieldRef<"ViberListing", 'Int'>
     readonly rawMessage: FieldRef<"ViberListing", 'String'>
+    readonly source: FieldRef<"ViberListing", 'String'>
     readonly senderName: FieldRef<"ViberListing", 'String'>
     readonly listingType: FieldRef<"ViberListing", 'String'>
     readonly route: FieldRef<"ViberListing", 'String'>
@@ -1565,6 +1592,7 @@ export namespace Prisma {
     readonly phone: FieldRef<"ViberListing", 'String'>
     readonly notes: FieldRef<"ViberListing", 'String'>
     readonly isActive: FieldRef<"ViberListing", 'Boolean'>
+    readonly personId: FieldRef<"ViberListing", 'Int'>
     readonly createdAt: FieldRef<"ViberListing", 'DateTime'>
     readonly updatedAt: FieldRef<"ViberListing", 'DateTime'>
   }
@@ -1872,6 +1900,7 @@ export namespace Prisma {
   export const ViberListingScalarFieldEnum: {
     id: 'id',
     rawMessage: 'rawMessage',
+    source: 'source',
     senderName: 'senderName',
     listingType: 'listingType',
     route: 'route',
@@ -1881,6 +1910,7 @@ export namespace Prisma {
     phone: 'phone',
     notes: 'notes',
     isActive: 'isActive',
+    personId: 'personId',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -1989,6 +2019,7 @@ export namespace Prisma {
     NOT?: ViberListingWhereInput | ViberListingWhereInput[]
     id?: IntFilter<"ViberListing"> | number
     rawMessage?: StringFilter<"ViberListing"> | string
+    source?: StringFilter<"ViberListing"> | string
     senderName?: StringNullableFilter<"ViberListing"> | string | null
     listingType?: StringFilter<"ViberListing"> | string
     route?: StringFilter<"ViberListing"> | string
@@ -1998,6 +2029,7 @@ export namespace Prisma {
     phone?: StringFilter<"ViberListing"> | string
     notes?: StringNullableFilter<"ViberListing"> | string | null
     isActive?: BoolFilter<"ViberListing"> | boolean
+    personId?: IntNullableFilter<"ViberListing"> | number | null
     createdAt?: DateTimeFilter<"ViberListing"> | Date | string
     updatedAt?: DateTimeFilter<"ViberListing"> | Date | string
   }
@@ -2005,6 +2037,7 @@ export namespace Prisma {
   export type ViberListingOrderByWithRelationInput = {
     id?: SortOrder
     rawMessage?: SortOrder
+    source?: SortOrder
     senderName?: SortOrderInput | SortOrder
     listingType?: SortOrder
     route?: SortOrder
@@ -2014,6 +2047,7 @@ export namespace Prisma {
     phone?: SortOrder
     notes?: SortOrderInput | SortOrder
     isActive?: SortOrder
+    personId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -2024,6 +2058,7 @@ export namespace Prisma {
     OR?: ViberListingWhereInput[]
     NOT?: ViberListingWhereInput | ViberListingWhereInput[]
     rawMessage?: StringFilter<"ViberListing"> | string
+    source?: StringFilter<"ViberListing"> | string
     senderName?: StringNullableFilter<"ViberListing"> | string | null
     listingType?: StringFilter<"ViberListing"> | string
     route?: StringFilter<"ViberListing"> | string
@@ -2033,6 +2068,7 @@ export namespace Prisma {
     phone?: StringFilter<"ViberListing"> | string
     notes?: StringNullableFilter<"ViberListing"> | string | null
     isActive?: BoolFilter<"ViberListing"> | boolean
+    personId?: IntNullableFilter<"ViberListing"> | number | null
     createdAt?: DateTimeFilter<"ViberListing"> | Date | string
     updatedAt?: DateTimeFilter<"ViberListing"> | Date | string
   }, "id">
@@ -2040,6 +2076,7 @@ export namespace Prisma {
   export type ViberListingOrderByWithAggregationInput = {
     id?: SortOrder
     rawMessage?: SortOrder
+    source?: SortOrder
     senderName?: SortOrderInput | SortOrder
     listingType?: SortOrder
     route?: SortOrder
@@ -2049,6 +2086,7 @@ export namespace Prisma {
     phone?: SortOrder
     notes?: SortOrderInput | SortOrder
     isActive?: SortOrder
+    personId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: ViberListingCountOrderByAggregateInput
@@ -2064,6 +2102,7 @@ export namespace Prisma {
     NOT?: ViberListingScalarWhereWithAggregatesInput | ViberListingScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"ViberListing"> | number
     rawMessage?: StringWithAggregatesFilter<"ViberListing"> | string
+    source?: StringWithAggregatesFilter<"ViberListing"> | string
     senderName?: StringNullableWithAggregatesFilter<"ViberListing"> | string | null
     listingType?: StringWithAggregatesFilter<"ViberListing"> | string
     route?: StringWithAggregatesFilter<"ViberListing"> | string
@@ -2073,12 +2112,14 @@ export namespace Prisma {
     phone?: StringWithAggregatesFilter<"ViberListing"> | string
     notes?: StringNullableWithAggregatesFilter<"ViberListing"> | string | null
     isActive?: BoolWithAggregatesFilter<"ViberListing"> | boolean
+    personId?: IntNullableWithAggregatesFilter<"ViberListing"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"ViberListing"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"ViberListing"> | Date | string
   }
 
   export type ViberListingCreateInput = {
     rawMessage: string
+    source?: string
     senderName?: string | null
     listingType: string
     route: string
@@ -2088,6 +2129,7 @@ export namespace Prisma {
     phone: string
     notes?: string | null
     isActive?: boolean
+    personId?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -2095,6 +2137,7 @@ export namespace Prisma {
   export type ViberListingUncheckedCreateInput = {
     id?: number
     rawMessage: string
+    source?: string
     senderName?: string | null
     listingType: string
     route: string
@@ -2104,12 +2147,14 @@ export namespace Prisma {
     phone: string
     notes?: string | null
     isActive?: boolean
+    personId?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ViberListingUpdateInput = {
     rawMessage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     senderName?: NullableStringFieldUpdateOperationsInput | string | null
     listingType?: StringFieldUpdateOperationsInput | string
     route?: StringFieldUpdateOperationsInput | string
@@ -2119,6 +2164,7 @@ export namespace Prisma {
     phone?: StringFieldUpdateOperationsInput | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    personId?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -2126,6 +2172,7 @@ export namespace Prisma {
   export type ViberListingUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     rawMessage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     senderName?: NullableStringFieldUpdateOperationsInput | string | null
     listingType?: StringFieldUpdateOperationsInput | string
     route?: StringFieldUpdateOperationsInput | string
@@ -2135,6 +2182,7 @@ export namespace Prisma {
     phone?: StringFieldUpdateOperationsInput | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    personId?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -2142,6 +2190,7 @@ export namespace Prisma {
   export type ViberListingCreateManyInput = {
     id?: number
     rawMessage: string
+    source?: string
     senderName?: string | null
     listingType: string
     route: string
@@ -2151,12 +2200,14 @@ export namespace Prisma {
     phone: string
     notes?: string | null
     isActive?: boolean
+    personId?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ViberListingUpdateManyMutationInput = {
     rawMessage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     senderName?: NullableStringFieldUpdateOperationsInput | string | null
     listingType?: StringFieldUpdateOperationsInput | string
     route?: StringFieldUpdateOperationsInput | string
@@ -2166,6 +2217,7 @@ export namespace Prisma {
     phone?: StringFieldUpdateOperationsInput | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    personId?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -2173,6 +2225,7 @@ export namespace Prisma {
   export type ViberListingUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
     rawMessage?: StringFieldUpdateOperationsInput | string
+    source?: StringFieldUpdateOperationsInput | string
     senderName?: NullableStringFieldUpdateOperationsInput | string | null
     listingType?: StringFieldUpdateOperationsInput | string
     route?: StringFieldUpdateOperationsInput | string
@@ -2182,6 +2235,7 @@ export namespace Prisma {
     phone?: StringFieldUpdateOperationsInput | string
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    personId?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -2262,6 +2316,7 @@ export namespace Prisma {
   export type ViberListingCountOrderByAggregateInput = {
     id?: SortOrder
     rawMessage?: SortOrder
+    source?: SortOrder
     senderName?: SortOrder
     listingType?: SortOrder
     route?: SortOrder
@@ -2271,6 +2326,7 @@ export namespace Prisma {
     phone?: SortOrder
     notes?: SortOrder
     isActive?: SortOrder
+    personId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -2278,11 +2334,13 @@ export namespace Prisma {
   export type ViberListingAvgOrderByAggregateInput = {
     id?: SortOrder
     seats?: SortOrder
+    personId?: SortOrder
   }
 
   export type ViberListingMaxOrderByAggregateInput = {
     id?: SortOrder
     rawMessage?: SortOrder
+    source?: SortOrder
     senderName?: SortOrder
     listingType?: SortOrder
     route?: SortOrder
@@ -2292,6 +2350,7 @@ export namespace Prisma {
     phone?: SortOrder
     notes?: SortOrder
     isActive?: SortOrder
+    personId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -2299,6 +2358,7 @@ export namespace Prisma {
   export type ViberListingMinOrderByAggregateInput = {
     id?: SortOrder
     rawMessage?: SortOrder
+    source?: SortOrder
     senderName?: SortOrder
     listingType?: SortOrder
     route?: SortOrder
@@ -2308,6 +2368,7 @@ export namespace Prisma {
     phone?: SortOrder
     notes?: SortOrder
     isActive?: SortOrder
+    personId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -2315,6 +2376,7 @@ export namespace Prisma {
   export type ViberListingSumOrderByAggregateInput = {
     id?: SortOrder
     seats?: SortOrder
+    personId?: SortOrder
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
