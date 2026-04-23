@@ -251,4 +251,8 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .company-legal-address-toggle {
+    white-space: normal;
+  }
 }

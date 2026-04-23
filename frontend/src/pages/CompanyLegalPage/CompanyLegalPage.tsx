@@ -55,11 +55,11 @@ export const CompanyLegalPage: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Перевірити в ЄДР / Opendatabot
+              Перевірити реквізити в ЄДР
             </a>
           </div>
           <p className="company-legal-highlight__hint">
-            Офіційні реєстраційні дані компанії у публічному державному реєстрі.
+            Офіційні реєстраційні дані компанії у державному реєстрі.
           </p>
           <dl className="company-legal-dl company-legal-dl--tight">
             <div>
@@ -93,7 +93,7 @@ export const CompanyLegalPage: React.FC = () => {
                       aria-controls="company-legal-full-address"
                       onClick={() => setIsFullAddressVisible((prev) => !prev)}
                     >
-                      <span>{isFullAddressVisible ? 'Згорнути' : 'Повна адреса'}</span>
+                      <span>{isFullAddressVisible ? 'Сховати' : 'Показати повну адресу'}</span>
                       <span
                         aria-hidden="true"
                         className={`company-legal-address-toggle-icon ${isFullAddressVisible ? 'is-open' : ''}`}
