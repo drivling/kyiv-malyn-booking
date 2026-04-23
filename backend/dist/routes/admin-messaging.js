@@ -8,6 +8,8 @@ const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
+const telegram_bot_blocked_1 = require("../telegram-bot-blocked");
+const revoke_telegram_bot_1 = require("../revoke-telegram-bot");
 function buildChannelPromoMessage() {
     const links = (0, telegram_1.getTelegramScenarioLinks)();
     return `
@@ -119,10 +121,15 @@ function createAdminMessagingRouter(deps) {
                         });
                     }
                     catch (err) {
-                        const errMsg = String(err?.message ?? err);
-                        const isBlocked = errMsg.includes('blocked by the user') || (errMsg.includes('403') && errMsg.toLowerCase().includes('forbidden'));
+                        const isBlocked = (0, telegram_bot_blocked_1.isTelegramBotBlockedByUserError)(err);
                         if (isBlocked) {
                             blocked.push({ id: p.id, phoneNormalized: p.phoneNormalized, fullName: p.fullName });
+                            try {
+                                await (0, revoke_telegram_bot_1.revokeTelegramBotForPerson)(prisma, p.id);
+                            }
+                            catch (clearErr) {
+                                console.error(`❌ revokeTelegramBotForPerson person #${p.id}:`, clearErr);
+                            }
                         }
                         console.error(`❌ send-telegram-reminders person #${p.id}:`, err);
                         failed++;

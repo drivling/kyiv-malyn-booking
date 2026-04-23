@@ -52,6 +52,8 @@ export function createTelegramRoutesRouter(deps: { prisma: PrismaClient }): Rout
               departureTime: booking.departureTime,
               name: booking.name,
               driver,
+              personId: booking.personId,
+              phone: booking.phone,
             });
             sent++;
           } catch (error) {
@@ -136,6 +138,8 @@ export function createTelegramRoutesRouter(deps: { prisma: PrismaClient }): Rout
               departureTime: booking.departureTime,
               name: booking.name,
               driver,
+              personId: booking.personId,
+              phone: booking.phone,
             });
             sent++;
           } catch (error) {

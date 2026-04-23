@@ -45,6 +45,8 @@ function createTelegramRoutesRouter(deps) {
                             departureTime: booking.departureTime,
                             name: booking.name,
                             driver,
+                            personId: booking.personId,
+                            phone: booking.phone,
                         });
                         sent++;
                     }
@@ -124,6 +126,8 @@ function createTelegramRoutesRouter(deps) {
                             departureTime: booking.departureTime,
                             name: booking.name,
                             driver,
+                            personId: booking.personId,
+                            phone: booking.phone,
                         });
                         sent++;
                     }

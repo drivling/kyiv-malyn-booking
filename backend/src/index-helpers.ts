@@ -127,6 +127,11 @@ export const noTelegramCondition = {
 /** Маркер: пробували промо, номер не знайдено в Telegram */
 export const PROMO_NOT_FOUND_SENTINEL = new Date(0);
 
+/** Для вибірок / звітів: користувач заблокував бота (зафіксовано при невдалій outbound-відправці). */
+export const personTelegramBotBlockedCondition = {
+  telegramBotBlockedAt: { not: null },
+} as const;
+
 export function getChannelPromoWhere(filter: string): object {
   if (filter === 'no_communication') {
     return { ...noTelegramCondition, telegramPromoSentAt: null };

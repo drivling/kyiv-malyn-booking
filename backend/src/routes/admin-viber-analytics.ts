@@ -9,6 +9,7 @@ import {
   sendMessageViaUserAccount,
   type BehaviorPromoScenarioKey,
 } from '../telegram';
+import { isTelegramBotBlockedByUserError } from '../telegram-bot-blocked';
 import { getScenarioKeysForProfile, PROMO_NOT_FOUND_SENTINEL } from '../index-helpers';
 import { runPhoneCheckForPhone, type PhoneCheckResult } from '../phonecheck';
 import { requireAdmin } from '../middleware/require-admin';
@@ -553,18 +554,21 @@ r.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, res
         return res.json({ success: true, sentVia: 'bot' as const });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        const isBlocked = isTelegramBotBlockedByUserError(err);
         const isChatNotFound =
           /chat not found|400 Bad Request|bad request: chat/i.test(msg) ||
           (msg.includes('400') && msg.toLowerCase().includes('chat'));
-        if (isChatNotFound && person?.id) {
+        if (person?.id && isChatNotFound && !isBlocked) {
           await prisma.person.update({
             where: { id: person.id },
             data: { telegramChatId: null, telegramUserId: null },
           });
           console.log(`ℹ️ send-person-promo: chat not found для ${phone}, прив'язку Telegram скинуто, пробуємо особистий акаунт`);
-        } else {
+        } else if (!isChatNotFound && !isBlocked) {
           console.error('❌ send-person-promo (bot):', err);
           return res.status(500).json({ success: false, sentVia: 'bot' as const, error: msg });
+        } else if (isBlocked) {
+          console.log(`ℹ️ send-person-promo: бот заблоковано для ${phone}, пробуємо особистий акаунт`);
         }
       }
     }

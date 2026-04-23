@@ -331,6 +331,8 @@ function createSchedulesBookingsRouter(deps) {
                         name: booking.name,
                         source: booking.source,
                         supportPhone: supportPhone ?? undefined,
+                        personId: person.id,
+                        phone: booking.phone,
                     });
                 }
             }

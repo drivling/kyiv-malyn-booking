@@ -30,6 +30,8 @@ model Person {
   telegramUsername      String?   // @username з Telegram (з групи PoDoroguem)
   telegramPromoSentAt     DateTime? // Коли одноразово відправлено промо від вашого акаунта (щоб не спамити)
   telegramReminderSentAt  DateTime? // Остання дата нагадування/реклами для Telegram-клієнтів (щоб не спамити)
+  /// Коли зафіксовано, що користувач заблокував бота (outbound send). Для вибірок і аудиту; chat/user id очищені.
+  telegramBotBlockedAt    DateTime?
   createdAt               DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

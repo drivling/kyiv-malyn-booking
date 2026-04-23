@@ -10,7 +10,7 @@
     "postinstall": "prisma generate",
     "fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
     "migrate-to-person": "ts-node src/migrate-to-person.ts",
-    "test": "node -r ./test-pretest.cjs -r ts-node/register --test src/viber-parser.test.ts src/telegram.test.ts src/telegram.prisma.test.ts src/telegram.bot.test.ts src/index-helpers.test.ts src/viber-listing-dedupe-after-update.test.ts src/index-http.test.ts src/index-integration.test.ts src/validation/validation.test.ts",
+    "test": "node -r ./test-pretest.cjs -r ts-node/register --test src/viber-parser.test.ts src/telegram.test.ts src/telegram.prisma.test.ts src/telegram.bot.test.ts src/telegram-bot-blocked.test.ts src/index-helpers.test.ts src/viber-listing-dedupe-after-update.test.ts src/index-http.test.ts src/index-integration.test.ts src/validation/validation.test.ts",
     "test:integration-db": "RUN_INTEGRATION_TESTS=1 npm run test"
   },
   "dependencies": {

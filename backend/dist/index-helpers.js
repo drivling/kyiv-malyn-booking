@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PROMO_NOT_FOUND_SENTINEL = exports.noTelegramCondition = exports.hasTelegramReminderBaseCondition = void 0;
+exports.personTelegramBotBlockedCondition = exports.PROMO_NOT_FOUND_SENTINEL = exports.noTelegramCondition = exports.hasTelegramReminderBaseCondition = void 0;
 exports.mapFromToToRoute = mapFromToToRoute;
 exports.hasNonEmptyText = hasNonEmptyText;
 exports.mergeTextField = mergeTextField;
@@ -133,6 +133,10 @@ exports.noTelegramCondition = {
 };
 /** Маркер: пробували промо, номер не знайдено в Telegram */
 exports.PROMO_NOT_FOUND_SENTINEL = new Date(0);
+/** Для вибірок / звітів: користувач заблокував бота (зафіксовано при невдалій outbound-відправці). */
+exports.personTelegramBotBlockedCondition = {
+    telegramBotBlockedAt: { not: null },
+};
 function getChannelPromoWhere(filter) {
     if (filter === 'no_communication') {
         return { ...exports.noTelegramCondition, telegramPromoSentAt: null };

@@ -366,6 +366,8 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
             name: booking.name,
             source: booking.source,
             supportPhone: supportPhone ?? undefined,
+            personId: person.id,
+            phone: booking.phone,
           });
         }
       } catch (error) {

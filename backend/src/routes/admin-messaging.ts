@@ -11,6 +11,8 @@ import {
 } from '../telegram';
 import { getTelegramReminderWhere, getChannelPromoWhere, PROMO_NOT_FOUND_SENTINEL } from '../index-helpers';
 import { requireAdmin } from '../middleware/require-admin';
+import { isTelegramBotBlockedByUserError } from '../telegram-bot-blocked';
+import { revokeTelegramBotForPerson } from '../revoke-telegram-bot';
 
 function buildChannelPromoMessage(): string {
   const links = getTelegramScenarioLinks();
@@ -132,10 +134,14 @@ r.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
             data: { telegramReminderSentAt: new Date() },
           });
         } catch (err) {
-          const errMsg = String((err as Error)?.message ?? err);
-          const isBlocked = errMsg.includes('blocked by the user') || (errMsg.includes('403') && errMsg.toLowerCase().includes('forbidden'));
+          const isBlocked = isTelegramBotBlockedByUserError(err);
           if (isBlocked) {
             blocked.push({ id: p.id, phoneNormalized: p.phoneNormalized, fullName: p.fullName });
+            try {
+              await revokeTelegramBotForPerson(prisma, p.id);
+            } catch (clearErr) {
+              console.error(`❌ revokeTelegramBotForPerson person #${p.id}:`, clearErr);
+            }
           }
           console.error(`❌ send-telegram-reminders person #${p.id}:`, err);
           failed++;
