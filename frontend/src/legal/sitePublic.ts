@@ -5,6 +5,8 @@ export const SITE_PUBLIC_DOMAIN = 'malin.kiev.ua';
 
 /** id розділу політики на сторінці «Про нас» */
 export const PRIVACY_SECTION_ID = 'privacy-policy';
+export const TERMS_SECTION_ID = 'terms-of-use';
 
 /** Посилання на розділ політики конфіденційності (одна сторінка з «Про нас») */
 export const PRIVACY_POLICY_PAGE_LINK = `${COMPANY_LEGAL_PATH}#${PRIVACY_SECTION_ID}`;
+export const TERMS_PAGE_LINK = `${COMPANY_LEGAL_PATH}#${TERMS_SECTION_ID}`;

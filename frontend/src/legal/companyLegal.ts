@@ -6,6 +6,10 @@ export const COMPANY_SHORT_NAME_UA = 'ТОВ «Технології»';
 
 /** Місто реєстрації / розташування для відображення на сайті */
 export const COMPANY_CITY_UA = 'Малин, Україна';
+export const COMPANY_LEGAL_ADDRESS_SHORT_UA = 'м. Малин, Житомирська обл.';
+export const COMPANY_LEGAL_ADDRESS_UA =
+  '11601, Україна, Житомирська обл., Коростенський р-н, м. Малин, вул. Володимирська, буд. 28А, кв. 12';
+export const COMPANY_EDR_INFO_URL = 'https://opendatabot.com/c/46288273';
 
 /** Посада керівника згідно зі статутом (єдиний виконавчий орган — генеральний директор) */
 export const COMPANY_EXECUTIVE_OFFICIAL_TITLE = 'Генеральний директор';

@@ -32,7 +32,7 @@ export function CookieNotice() {
     <div className="cookie-notice" role="dialog" aria-live="polite" aria-label="Повідомлення про cookies">
       <div className="cookie-notice__inner">
         <p className="cookie-notice__text">
-          Сайт використовує cookies та Google Analytics згідно з{' '}
+          Користуючись сайтом, ви погоджуєтеся на використання cookie та Google Analytics згідно з{' '}
           <Link to={PRIVACY_POLICY_PAGE_LINK} className="cookie-notice__link">
             політикою конфіденційності
           </Link>
