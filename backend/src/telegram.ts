@@ -328,6 +328,7 @@ async function createDriverListingFromState(
     senderName: listing.senderName,
     notes: listing.notes,
     priceUah: listing.priceUah ?? undefined,
+    source: listing.source,
   }).catch((err) => console.error('Telegram Viber notify:', err));
   await bot?.sendMessage(
     chatId,
@@ -382,7 +383,8 @@ async function createPassengerListingFromState(
     seats: listing.seats,
     phone: listing.phone,
     senderName: listing.senderName,
-    notes: listing.notes
+    notes: listing.notes,
+    source: listing.source,
   }).catch((err) => console.error('Telegram Viber notify:', err));
   await bot?.sendMessage(
     chatId,
@@ -1187,7 +1189,7 @@ function sendNewTelegramRegistrationNotificationToAdmin(
 }
 
 /**
- * Відправка повідомлення адміну про нове Viber оголошення (поїздку з чату)
+ * Відправка повідомлення адміну про нове оголошення (Viber або Telegram PoDoroguem)
  */
 export const sendViberListingNotificationToAdmin = async (listing: {
   id: number;
@@ -1200,6 +1202,8 @@ export const sendViberListingNotificationToAdmin = async (listing: {
   senderName: string | null;
   notes: string | null;
   priceUah?: number | null;
+  /** Джерело рядка в БД: telegram1 — група PoDoroguem, інакше Viber */
+  source?: string | null;
 }) => {
   if (!bot || !adminChatId) {
     console.log('⚠️ Telegram bot або admin chat ID не налаштовано');
@@ -1214,8 +1218,10 @@ export const sendViberListingNotificationToAdmin = async (listing: {
         : '—';
     const typeEmoji = listing.listingType === 'driver' ? '🚗' : '👤';
     const typeLabel = listing.listingType === 'driver' ? 'Водій' : 'Пасажир';
+    const sourceLabel =
+      listing.source === 'telegram1' ? 'Telegram' : 'Viber';
     const message = `
-📱 <b>Нове Viber оголошення #${listing.id}</b>
+📱 <b>Нове ${sourceLabel} оголошення #${listing.id}</b>
 
 ${typeEmoji} <b>Тип:</b> ${typeLabel}
 🛣 <b>Маршрут:</b> ${listing.route}
@@ -1227,9 +1233,9 @@ ${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\
     `.trim();
 
     await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
-    console.log(`✅ Telegram: адміну надіслано сповіщення про Viber оголошення #${listing.id}`);
+    console.log(`✅ Telegram: адміну надіслано сповіщення про ${sourceLabel} оголошення #${listing.id}`);
   } catch (error) {
-    console.error('❌ Помилка відправки Telegram сповіщення про Viber оголошення:', error);
+    console.error('❌ Помилка відправки Telegram сповіщення про оголошення:', error);
   }
 };
 
@@ -1659,6 +1665,8 @@ export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImp
           phone: listing.phone,
           senderName: listing.senderName,
           notes: listing.notes,
+          priceUah: listing.priceUah ?? undefined,
+          source: listing.source,
         }).catch((err) => console.error('Telegram notify:', err));
         if (listing.phone?.trim()) {
           sendViberListingConfirmationToUser(listing.phone, {
@@ -3671,6 +3679,8 @@ https://malin.kiev.ua
                 phone: listing.phone,
                 senderName: listing.senderName,
                 notes: listing.notes,
+                priceUah: listing.priceUah ?? undefined,
+                source: listing.source,
               }).catch((err) => console.error('Telegram notify:', err));
               if (listing.phone?.trim()) {
                 sendViberListingConfirmationToUser(listing.phone, {
@@ -3681,12 +3691,16 @@ https://malin.kiev.ua
                   seats: listing.seats,
                   listingType: listing.listingType,
                 }).catch((err) => console.error('Telegram user notify:', err));
-                }
+              }
               const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
               if (listing.listingType === 'driver') {
-                notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
+                notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
+                  console.error('Telegram match notify (driver):', err),
+                );
               } else if (listing.listingType === 'passenger') {
-                notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
+                notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
+                  console.error('Telegram match notify (passenger):', err),
+                );
               }
             }
           } catch (err) {
@@ -3776,6 +3790,8 @@ https://malin.kiev.ua
                   phone: listing.phone,
                   senderName: listing.senderName,
                   notes: listing.notes,
+                  priceUah: listing.priceUah ?? undefined,
+                  source: listing.source,
                 }).catch((err) => console.error('Telegram Viber notify:', err));
                 if (listing.phone?.trim()) {
                   sendViberListingConfirmationToUser(listing.phone, {
@@ -3857,6 +3873,8 @@ https://malin.kiev.ua
               phone: listing.phone,
               senderName: listing.senderName,
               notes: listing.notes,
+              priceUah: listing.priceUah ?? undefined,
+              source: listing.source,
             }).catch((err) => console.error('Telegram Viber notify:', err));
             if (listing.phone?.trim()) {
               sendViberListingConfirmationToUser(listing.phone, {
@@ -4276,6 +4294,8 @@ https://malin.kiev.ua
                 phone: listing.phone,
                 senderName: listing.senderName,
                 notes: listing.notes,
+                priceUah: listing.priceUah ?? undefined,
+                source: listing.source,
               }).catch((err) => console.error('Telegram notify:', err));
               if (listing.phone?.trim()) {
                 sendViberListingConfirmationToUser(listing.phone, {

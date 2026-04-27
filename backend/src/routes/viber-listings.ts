@@ -148,6 +148,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
           senderName: listing.senderName,
           notes: listing.notes,
           priceUah: listing.priceUah ?? undefined,
+          source: listing.source,
         }).catch((err) => console.error('Telegram Viber notify:', err));
         if (listing.phone && listing.phone.trim()) {
           sendViberListingConfirmationToUser(listing.phone, {
@@ -239,6 +240,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
               senderName: listing.senderName,
               notes: listing.notes,
               priceUah: listing.priceUah ?? undefined,
+              source: listing.source,
             }).catch((err) => console.error('Telegram Viber notify:', err));
             if (listing.phone && listing.phone.trim()) {
               sendViberListingConfirmationToUser(listing.phone, {

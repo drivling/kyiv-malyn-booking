@@ -126,6 +126,7 @@ function createViberListingsRouter(deps) {
                     senderName: listing.senderName,
                     notes: listing.notes,
                     priceUah: listing.priceUah ?? undefined,
+                    source: listing.source,
                 }).catch((err) => console.error('Telegram Viber notify:', err));
                 if (listing.phone && listing.phone.trim()) {
                     (0, telegram_1.sendViberListingConfirmationToUser)(listing.phone, {
@@ -209,6 +210,7 @@ function createViberListingsRouter(deps) {
                             senderName: listing.senderName,
                             notes: listing.notes,
                             priceUah: listing.priceUah ?? undefined,
+                            source: listing.source,
                         }).catch((err) => console.error('Telegram Viber notify:', err));
                         if (listing.phone && listing.phone.trim()) {
                             (0, telegram_1.sendViberListingConfirmationToUser)(listing.phone, {
