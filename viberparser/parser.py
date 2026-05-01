@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, time as datetime_time
 from pathlib import Path
 from urllib import error, request
 
@@ -53,7 +53,12 @@ def parse_args():
     parser.add_argument(
         "--send-history",
         action="store_true",
-        help="With --send, send historical messages from last saved state or from EventID 0.",
+        help="With --send, send historical messages from last saved post timestamp or from timestamp 0.",
+    )
+    parser.add_argument(
+        "--start-today",
+        action="store_true",
+        help="Start reading from the beginning of today and overwrite saved post timestamp.",
     )
     parser.add_argument(
         "--backend-url",
@@ -153,7 +158,7 @@ def get_groups(conn):
 
     return cursor.fetchall()
 
-def get_messages(conn, conversation_id, last_id=0):
+def get_messages(conn, conversation_id, last_timestamp=0):
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -167,19 +172,19 @@ def get_messages(conn, conversation_id, last_id=0):
         JOIN Messages m ON m.EventID = e.EventID
         LEFT JOIN Contact ct ON ct.ContactID = e.ContactID
         WHERE e.ChatID = ?
-            AND e.EventID > ?
+            AND e.TimeStamp > ?
             AND m.Body IS NOT NULL
             AND TRIM(m.Body) != ''
-        ORDER BY e.EventID ASC
-    """, (conversation_id, last_id))
+        ORDER BY e.TimeStamp ASC, e.EventID ASC
+    """, (conversation_id, last_timestamp))
 
     return cursor.fetchall()
 
 
-def get_latest_message_id(conn, conversation_id):
+def get_latest_message_timestamp(conn, conversation_id):
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT COALESCE(MAX(e.EventID), 0)
+        SELECT COALESCE(MAX(e.TimeStamp), 0)
         FROM Events e
         JOIN Messages m ON m.EventID = e.EventID
         WHERE e.ChatID = ?
@@ -187,6 +192,11 @@ def get_latest_message_id(conn, conversation_id):
             AND TRIM(m.Body) != ''
     """, (conversation_id,))
     return cursor.fetchone()[0] or 0
+
+
+def get_start_of_today_timestamp():
+    today_start = datetime.combine(datetime.now().date(), datetime_time.min)
+    return int(today_start.timestamp() * 1000)
 
 
 def format_message_time(timestamp):
@@ -223,7 +233,7 @@ def save_state(path, state):
 
 
 def state_key(db_path, chat_id):
-    return f"{Path(db_path).resolve()}::{chat_id}"
+    return f"{Path(db_path).resolve()}::{chat_id}::post_timestamp"
 
 
 def send_raw_message(backend_url, auth_token, raw_message):
@@ -282,29 +292,35 @@ def main():
     state = load_state(args.state_file)
     key = state_key(db_path, group_id)
 
-    if args.send:
+    if args.start_today:
+        last_timestamp = get_start_of_today_timestamp()
+        state[key] = last_timestamp
+        save_state(args.state_file, state)
+        print(f"📅 Старт с начала сегодняшнего дня: {format_message_time(last_timestamp)}")
+    elif args.send:
         if args.send_history:
-            last_id = int(state.get(key, 0))
-            print(f"📤 Send mode: отправляю историю начиная после EventID {last_id}")
+            last_timestamp = int(state.get(key, 0))
+            print(f"📤 Send mode: отправляю историю начиная после даты {format_message_time(last_timestamp)}")
         else:
-            last_id = int(state.get(key, get_latest_message_id(conn, group_id)))
-            state[key] = last_id
+            last_timestamp = int(state.get(key, get_latest_message_timestamp(conn, group_id)))
+            state[key] = last_timestamp
             save_state(args.state_file, state)
-            print(f"📤 Send mode: отправляю только новые сообщения после EventID {last_id}")
+            print(f"📤 Send mode: отправляю только новые сообщения после даты {format_message_time(last_timestamp)}")
         print(f"🌐 Backend: {args.backend_url.rstrip('/')}/viber-listings")
     else:
-        last_id = 0
+        last_timestamp = int(state.get(key, 0))
+        print(f"👀 Watch mode: читаю сообщения после даты {format_message_time(last_timestamp)}")
     
     print("\n🚀 Слежение за новыми сообщениями...\n")
     
     while True:
         try:
-            messages = get_messages(conn, group_id, last_id)
+            messages = get_messages(conn, group_id, last_timestamp)
             
             for msg_id, text, timestamp, author, direction in messages:
                 dt = format_message_time(timestamp)
                 direction_label = "out" if direction == 1 else "in"
-                print(f"[{dt}] {author} ({direction_label}): {text}")
+                print(f"[{dt}] EventID {msg_id} {author} ({direction_label}): {text}")
 
                 if args.send:
                     raw_message = format_viber_raw_message(text, timestamp, author)
@@ -314,10 +330,9 @@ def main():
                     else:
                         print(f"⏭️ Пропущено backend parser: EventID {msg_id} | {response_text}")
                 
-                last_id = msg_id
-                if args.send:
-                    state[key] = last_id
-                    save_state(args.state_file, state)
+                last_timestamp = timestamp
+                state[key] = last_timestamp
+                save_state(args.state_file, state)
             
             time.sleep(args.poll_interval)
         
