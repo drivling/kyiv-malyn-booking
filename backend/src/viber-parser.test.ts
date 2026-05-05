@@ -137,6 +137,11 @@ test('extractRoute', () => {
   assert.equal(extractRoute('коростеня малин'), 'Korosten-Malyn');
   assert.equal(extractRoute('Малин Коростень'), 'Malyn-Korosten');
   assert.equal(extractRoute('Львів Одеса'), 'Unknown');
+  // м Житомирська — станція метро в Києві, не місто Житомир
+  assert.equal(extractRoute('мЖитомирська Малин'), 'Kyiv-Malyn');
+  assert.equal(extractRoute('м Житомирська Малин'), 'Kyiv-Malyn');
+  assert.equal(extractRoute('м.Житомирська Малин'), 'Kyiv-Malyn');
+  assert.equal(extractRoute('Малин мЖитомирська'), 'Malyn-Kyiv');
 });
 
 test('extractListingType', () => {
