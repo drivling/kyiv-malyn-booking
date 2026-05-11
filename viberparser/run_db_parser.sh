@@ -25,3 +25,4 @@ VIBER_DB_POLL_INTERVAL_SEC="$VIBER_DB_POLL_INTERVAL_SEC" \
 VIBER_BACKEND_URL="$VIBER_BACKEND_URL" \
 VIBER_ADMIN_TOKEN="$VIBER_ADMIN_TOKEN" \
 python3 viberparser/parser.py --send --chat-id "$VIBER_CHAT_ID" "${EXTRA_ARGS[@]}"
+# python3 viberparser/parser.py --send --chat-id "$VIBER_CHAT_ID"

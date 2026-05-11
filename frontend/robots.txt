@@ -1,0 +1,9 @@
+User-agent: *
+
+Allow: /
+
+Disallow: /user
+Disallow: /api
+Disallow: /admin
+
+Sitemap: https://malin.kiev.ua/sitemap.xml

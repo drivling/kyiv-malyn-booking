@@ -9,7 +9,7 @@ from urllib import error, request
 
 DEFAULT_DB_PATH = "/Users/merenkov/Library/Application Support/ViberPC/380739551952/viber.db"
 DEFAULT_STATE_PATH = Path(__file__).with_name("db_parser_state.json")
-DEFAULT_BACKEND_URL = os.getenv("VIBER_BACKEND_URL", "http://localhost:3000")
+DEFAULT_BACKEND_URL = os.getenv("VIBER_BACKEND_URL", "https://kyiv-malyn-booking-production.up.railway.app")
 DEFAULT_AUTH_TOKEN = os.getenv("VIBER_ADMIN_TOKEN", "admin-authenticated")
 
 SQLITE_HEADER = b"SQLite format 3\x00"
@@ -338,6 +338,7 @@ def main():
         
         except Exception as e:
             print("Ошибка:", e)
+            print("link to backend:", args.backend_url)
             time.sleep(5)
 
 if __name__ == "__main__":
