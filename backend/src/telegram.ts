@@ -15,12 +15,21 @@ export function resetSpawnForTests(): void {
 }
 import { PrismaClient } from '@prisma/client';
 import { extractDate, extractTime, parseViberMessage, parseViberMessages } from './viber-parser';
+import type { ParsedViberMessage } from './viber-parser';
 import { parseTelegramMessage, parseTelegramMessages } from './telegram-parser';
 import {
   createOrMergeViberListing as createOrMergeViberListingShared,
   type ViberListingMergeInput,
 } from './viber-listing-merge';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
+import {
+  formatTelegramContactHtmlLink,
+  formatTelegramUsernameForDisplay,
+  isTelegramUsernameContact,
+  isTechnicalPlaceholderPhone,
+  normalizeTelegramUsername,
+  TECHNICAL_PHONE_PREFIX,
+} from './telegram-contact';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -996,6 +1005,75 @@ export const findOrCreatePersonByPhone = async (
   return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName };
 };
 
+/** Знайти людину за Telegram @username (з @ або без). */
+export const getPersonByTelegramUsername = async (username: string) => {
+  const normalized = normalizeTelegramUsername(username);
+  if (!normalized) return null;
+  return tgPrisma.person.findFirst({
+    where: {
+      OR: [{ telegramUsername: normalized }, { telegramUsername: `@${normalized}` }],
+    },
+  });
+};
+
+/** Наступний технічний номер 380010000000, 380010000001, … для username-only контактів. */
+export async function getNextTechnicalPhoneNumber(): Promise<string> {
+  const latest = await tgPrisma.person.findFirst({
+    where: { phoneNormalized: { startsWith: '3800100' } },
+    orderBy: { phoneNormalized: 'desc' },
+    select: { phoneNormalized: true },
+  });
+  if (!latest) return TECHNICAL_PHONE_PREFIX;
+  return (BigInt(latest.phoneNormalized) + 1n).toString();
+}
+
+/**
+ * Знайти або створити Person за Telegram @username.
+ * Якщо не знайдено — новий Person з технічним номером (380010000000+).
+ */
+export const findOrCreatePersonByTelegramUsername = async (
+  username: string,
+  options?: { fullName?: string | null }
+): Promise<{ id: number; phoneNormalized: string; fullName: string | null; telegramUsername: string | null }> => {
+  const normalizedUsername = normalizeTelegramUsername(username);
+  if (!normalizedUsername) {
+    throw new Error('Empty telegram username');
+  }
+  const fullName =
+    options?.fullName != null && String(options.fullName).trim() !== '' ? String(options.fullName).trim() : null;
+
+  const existing = await getPersonByTelegramUsername(normalizedUsername);
+  if (existing) {
+    const updates: { fullName?: string; telegramUsername?: string } = {};
+    if (fullName && !existing.fullName?.trim()) updates.fullName = fullName;
+    if (!existing.telegramUsername?.trim()) updates.telegramUsername = normalizedUsername;
+    if (Object.keys(updates).length > 0) {
+      await tgPrisma.person.update({ where: { id: existing.id }, data: updates });
+    }
+    return {
+      id: existing.id,
+      phoneNormalized: existing.phoneNormalized,
+      fullName: updates.fullName ?? existing.fullName,
+      telegramUsername: existing.telegramUsername ?? normalizedUsername,
+    };
+  }
+
+  const phoneNormalized = await getNextTechnicalPhoneNumber();
+  const person = await tgPrisma.person.create({
+    data: {
+      phoneNormalized,
+      fullName,
+      telegramUsername: normalizedUsername,
+    },
+  });
+  return {
+    id: person.id,
+    phoneNormalized: person.phoneNormalized,
+    fullName: person.fullName,
+    telegramUsername: person.telegramUsername,
+  };
+};
+
 /** Оновити Telegram у Person та у всіх бронюваннях з тим же номером (і привʼязати їх до Person). */
 async function updatePersonAndBookingsTelegram(
   personId: number,
@@ -1097,6 +1175,10 @@ function truncateForButton(name: string, maxLen: number = 18): string {
 function formatPhoneTelLink(phone: string | null | undefined): string {
   const p = (phone ?? '').trim();
   if (!p) return '—';
+  if (isTelegramUsernameContact(p)) {
+    return formatTelegramContactHtmlLink(p);
+  }
+  if (isTechnicalPlaceholderPhone(p)) return '—';
   const digits = '+' + normalizePhone(p);
   const display = formatPhoneDisplay(p);
   const displayEscaped = display.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1288,6 +1370,31 @@ export const sendViberListingConfirmationToUser = async (
   if (!trimmed) return;
 
   try {
+    if (isTelegramUsernameContact(trimmed)) {
+      const person = await getPersonByTelegramUsername(trimmed);
+      const PROMO_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+      const shouldSendPromo =
+        person &&
+        isTelegramUserSenderEnabled() &&
+        (!person.telegramPromoSentAt || Date.now() - person.telegramPromoSentAt.getTime() > PROMO_COOLDOWN_MS);
+      if (shouldSendPromo) {
+        const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
+        const sent = await sendMessageViaUserAccount(person.phoneNormalized, promoMessage, {
+          telegramUsername: normalizeTelegramUsername(trimmed),
+        });
+        if (sent) {
+          await tgPrisma.person.update({
+            where: { id: person.id },
+            data: { telegramPromoSentAt: new Date() },
+          });
+          console.log(
+            `✅ Telegram: автору Viber оголошення #${listing.id} надіслано одноразове промо по @${normalizeTelegramUsername(trimmed)}`,
+          );
+        }
+      }
+      return;
+    }
+
     let chatId = await getChatIdByPhone(trimmed);
     let botSendFailedChatNotFound = false;
 
@@ -1591,6 +1698,120 @@ export interface FetchAndImportResult {
   error?: string;
 }
 
+/** Person + контакт для ViberListing при імпорті з Telegram групи. */
+async function resolveTelegramImportPerson(params: {
+  parsed: ParsedViberMessage;
+  tgUsername?: string | null;
+}): Promise<{ person: { id: number } | null; senderName: string | null; listingPhone: string }> {
+  const { parsed, tgUsername } = params;
+  const nameFromDb = parsed.phone?.trim() ? await getNameByPhone(parsed.phone) : null;
+  let senderName = nameFromDb ?? parsed.senderName ?? null;
+
+  if (parsed.phone?.trim()) {
+    const phone = parsed.phone.trim();
+    const personForChat = await getPersonByPhone(phone);
+    const chatIdForPerson = personForChat?.telegramChatId ?? null;
+    const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
+      phone,
+      chatIdForPerson,
+    );
+    const { newName } = pickBestNameFromCandidates(
+      nameFromDb,
+      nameFromBot,
+      nameFromUser,
+      nameFromOpendatabot,
+    );
+    if (newName?.trim()) senderName = newName.trim();
+    else if (!senderName?.trim()) senderName = parsed.senderName ?? senderName;
+
+    const person = await findOrCreatePersonByPhone(phone, {
+      fullName: senderName ?? undefined,
+      telegramUsername: tgUsername ?? undefined,
+    });
+    return { person, senderName, listingPhone: phone };
+  }
+
+  if (tgUsername?.trim()) {
+    const person = await findOrCreatePersonByTelegramUsername(tgUsername, {
+      fullName: parsed.senderName ?? senderName ?? undefined,
+    });
+    if (!senderName?.trim()) senderName = person.fullName ?? parsed.senderName ?? null;
+    return {
+      person,
+      senderName,
+      listingPhone: formatTelegramUsernameForDisplay(tgUsername),
+    };
+  }
+
+  return { person: null, senderName, listingPhone: parsed.phone || '' };
+}
+
+async function getAuthorChatIdForListing(listing: { phone: string; personId: number | null }): Promise<string | null> {
+  if (listing.personId) {
+    const person = await tgPrisma.person.findUnique({
+      where: { id: listing.personId },
+      select: { telegramChatId: true },
+    });
+    const chatId = person?.telegramChatId?.trim();
+    if (chatId && chatId !== '0') return chatId;
+  }
+  const phone = listing.phone?.trim();
+  if (phone && !isTelegramUsernameContact(phone)) {
+    return getChatIdByPhone(phone);
+  }
+  return null;
+}
+
+async function afterTelegramListingImported(listing: {
+  id: number;
+  listingType: string;
+  route: string;
+  date: Date;
+  departureTime: string | null;
+  seats: number | null;
+  phone: string;
+  senderName: string | null;
+  notes: string | null;
+  priceUah: number | null;
+  source: string;
+  personId: number | null;
+}): Promise<void> {
+  if (!isTelegramEnabled()) return;
+  await sendViberListingNotificationToAdmin({
+    id: listing.id,
+    listingType: listing.listingType,
+    route: listing.route,
+    date: listing.date,
+    departureTime: listing.departureTime,
+    seats: listing.seats,
+    phone: listing.phone,
+    senderName: listing.senderName,
+    notes: listing.notes,
+    priceUah: listing.priceUah ?? undefined,
+    source: listing.source,
+  }).catch((err) => console.error('Telegram notify:', err));
+  if (listing.phone?.trim()) {
+    sendViberListingConfirmationToUser(listing.phone, {
+      id: listing.id,
+      route: listing.route,
+      date: listing.date,
+      departureTime: listing.departureTime,
+      seats: listing.seats,
+      listingType: listing.listingType,
+    }).catch((err) => console.error('Telegram user notify:', err));
+  }
+  const authorChatId = await getAuthorChatIdForListing(listing);
+  if (listing.listingType === 'driver') {
+    notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
+      console.error('Telegram match notify (driver):', err),
+    );
+  } else if (listing.listingType === 'passenger') {
+    notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
+      console.error('Telegram match notify (passenger):', err),
+    );
+  }
+}
+
 /**
  * Завантажити нові повідомлення з групи PoDoroguem і імпортувати їх у Viber listings.
  * Використовує TelegramFetchState — тільки нові повідомлення.
@@ -1612,32 +1833,7 @@ export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImp
   for (let i = 0; i < parsedMessages.length; i++) {
     const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername } = parsedMessages[i];
     try {
-      const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-      let senderName = nameFromDb ?? parsed.senderName ?? null;
-      if (parsed.phone?.trim()) {
-        const phone = parsed.phone.trim();
-        const personForChat = await getPersonByPhone(phone);
-        const chatIdForPerson = personForChat?.telegramChatId ?? null;
-        const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
-          phone,
-          chatIdForPerson,
-        );
-        const baseCurrentName = nameFromDb;
-        const { newName } = pickBestNameFromCandidates(
-          baseCurrentName,
-          nameFromBot,
-          nameFromUser,
-          nameFromOpendatabot,
-        );
-        if (newName?.trim()) senderName = newName.trim();
-        else if (!senderName || !String(senderName).trim()) senderName = parsed.senderName ?? senderName;
-      }
-      const person = parsed.phone
-        ? await findOrCreatePersonByPhone(parsed.phone, {
-            fullName: senderName ?? undefined,
-            telegramUsername: tgUsername ?? undefined,
-          })
-        : null;
+      const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
       const { listing, isNew } = await createOrMergeViberListing({
         rawMessage: rawTextItem,
         source: 'telegram1',
@@ -1647,48 +1843,14 @@ export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImp
         date: parsed.date,
         departureTime: parsed.departureTime,
         seats: parsed.seats,
-        phone: parsed.phone,
+        phone: listingPhone,
         notes: parsed.notes,
         priceUah: parsed.price ?? undefined,
         isActive: true,
         personId: person?.id ?? undefined,
       });
       if (isNew) created++;
-      if (isTelegramEnabled()) {
-        await sendViberListingNotificationToAdmin({
-          id: listing.id,
-          listingType: listing.listingType,
-          route: listing.route,
-          date: listing.date,
-          departureTime: listing.departureTime,
-          seats: listing.seats,
-          phone: listing.phone,
-          senderName: listing.senderName,
-          notes: listing.notes,
-          priceUah: listing.priceUah ?? undefined,
-          source: listing.source,
-        }).catch((err) => console.error('Telegram notify:', err));
-        if (listing.phone?.trim()) {
-          sendViberListingConfirmationToUser(listing.phone, {
-            id: listing.id,
-            route: listing.route,
-            date: listing.date,
-            departureTime: listing.departureTime,
-            seats: listing.seats,
-            listingType: listing.listingType,
-          }).catch((err) => console.error('Telegram user notify:', err));
-        }
-        const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-        if (listing.listingType === 'driver') {
-          notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
-            console.error('Telegram match notify (driver):', err),
-          );
-        } else if (listing.listingType === 'passenger') {
-          notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
-            console.error('Telegram match notify (passenger):', err),
-          );
-        }
-      }
+      await afterTelegramListingImported(listing);
     } catch (err) {
       console.error(`fetchAndImportTelegramGroupMessages item ${i} error:`, err);
     }
@@ -3623,35 +3785,7 @@ https://malin.kiev.ua
         for (let i = 0; i < parsedMessages.length; i++) {
           const { parsed, rawMessage: rawText, telegramUsername: tgUsername } = parsedMessages[i];
           try {
-            const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-            let senderName = nameFromDb ?? parsed.senderName ?? null;
-            if (parsed.phone?.trim()) {
-              const phone = parsed.phone.trim();
-              const personForChat = await getPersonByPhone(phone);
-              const chatIdForPerson = personForChat?.telegramChatId ?? null;
-              const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
-                phone,
-                chatIdForPerson,
-              );
-              const baseCurrentName = nameFromDb;
-              const { newName } = pickBestNameFromCandidates(
-                baseCurrentName,
-                nameFromBot,
-                nameFromUser,
-                nameFromOpendatabot,
-              );
-              if (newName?.trim()) {
-                senderName = newName.trim();
-              } else if (!senderName || !String(senderName).trim()) {
-                senderName = parsed.senderName ?? senderName;
-              }
-            }
-            const person = parsed.phone
-              ? await findOrCreatePersonByPhone(parsed.phone, {
-                  fullName: senderName ?? undefined,
-                  telegramUsername: tgUsername ?? undefined,
-                })
-              : null;
+            const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
             const { listing, isNew } = await createOrMergeViberListing({
               rawMessage: rawText,
               source: 'telegram1',
@@ -3661,48 +3795,14 @@ https://malin.kiev.ua
               date: parsed.date,
               departureTime: parsed.departureTime,
               seats: parsed.seats,
-              phone: parsed.phone,
+              phone: listingPhone,
               notes: parsed.notes,
               priceUah: parsed.price ?? undefined,
               isActive: true,
               personId: person?.id ?? undefined,
             });
             if (isNew) created++;
-            if (isTelegramEnabled()) {
-              await sendViberListingNotificationToAdmin({
-                id: listing.id,
-                listingType: listing.listingType,
-                route: listing.route,
-                date: listing.date,
-                departureTime: listing.departureTime,
-                seats: listing.seats,
-                phone: listing.phone,
-                senderName: listing.senderName,
-                notes: listing.notes,
-                priceUah: listing.priceUah ?? undefined,
-                source: listing.source,
-              }).catch((err) => console.error('Telegram notify:', err));
-              if (listing.phone?.trim()) {
-                sendViberListingConfirmationToUser(listing.phone, {
-                  id: listing.id,
-                  route: listing.route,
-                  date: listing.date,
-                  departureTime: listing.departureTime,
-                  seats: listing.seats,
-                  listingType: listing.listingType,
-                }).catch((err) => console.error('Telegram user notify:', err));
-              }
-              const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-              if (listing.listingType === 'driver') {
-                notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
-                  console.error('Telegram match notify (driver):', err),
-                );
-              } else if (listing.listingType === 'passenger') {
-                notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
-                  console.error('Telegram match notify (passenger):', err),
-                );
-              }
-            }
+            await afterTelegramListingImported(listing);
           } catch (err) {
             console.error(`AddTelegram bulk item ${i} error:`, err);
           }
@@ -4241,32 +4341,7 @@ https://malin.kiev.ua
         for (let i = 0; i < parsedMessages.length; i++) {
           const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername } = parsedMessages[i];
           try {
-            const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-            let senderName = nameFromDb ?? parsed.senderName ?? null;
-            if (parsed.phone?.trim()) {
-              const phone = parsed.phone.trim();
-              const personForChat = await getPersonByPhone(phone);
-              const chatIdForPerson = personForChat?.telegramChatId ?? null;
-              const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
-                phone,
-                chatIdForPerson,
-              );
-              const baseCurrentName = nameFromDb;
-              const { newName } = pickBestNameFromCandidates(
-                baseCurrentName,
-                nameFromBot,
-                nameFromUser,
-                nameFromOpendatabot,
-              );
-              if (newName?.trim()) senderName = newName.trim();
-              else if (!senderName || !String(senderName).trim()) senderName = parsed.senderName ?? senderName;
-            }
-            const person = parsed.phone
-              ? await findOrCreatePersonByPhone(parsed.phone, {
-                  fullName: senderName ?? undefined,
-                  telegramUsername: tgUsername ?? undefined,
-                })
-              : null;
+            const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
             const { listing, isNew } = await createOrMergeViberListing({
               rawMessage: rawTextItem,
               source: 'telegram1',
@@ -4276,44 +4351,14 @@ https://malin.kiev.ua
               date: parsed.date,
               departureTime: parsed.departureTime,
               seats: parsed.seats,
-              phone: parsed.phone,
+              phone: listingPhone,
               notes: parsed.notes,
               priceUah: parsed.price ?? undefined,
               isActive: true,
               personId: person?.id ?? undefined,
             });
             if (isNew) created++;
-            if (isTelegramEnabled()) {
-              await sendViberListingNotificationToAdmin({
-                id: listing.id,
-                listingType: listing.listingType,
-                route: listing.route,
-                date: listing.date,
-                departureTime: listing.departureTime,
-                seats: listing.seats,
-                phone: listing.phone,
-                senderName: listing.senderName,
-                notes: listing.notes,
-                priceUah: listing.priceUah ?? undefined,
-                source: listing.source,
-              }).catch((err) => console.error('Telegram notify:', err));
-              if (listing.phone?.trim()) {
-                sendViberListingConfirmationToUser(listing.phone, {
-                  id: listing.id,
-                  route: listing.route,
-                  date: listing.date,
-                  departureTime: listing.departureTime,
-                  seats: listing.seats,
-                  listingType: listing.listingType,
-                }              ).catch((err) => console.error('Telegram user notify:', err));
-              }
-              const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-              if (listing.listingType === 'driver') {
-                notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
-              } else if (listing.listingType === 'passenger') {
-                notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
-              }
-            }
+            await afterTelegramListingImported(listing);
           } catch (err) {
             console.error(`AddTelegram fetch item ${i} error:`, err);
           }

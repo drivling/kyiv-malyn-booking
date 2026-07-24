@@ -38,6 +38,8 @@ model Person {
   bookings     Booking[]
   viberListings ViberListing[]
   viberRideEvents ViberRideEvent[]
+
+  @@index([telegramUsername])
 }
 
 model Booking {

@@ -56,6 +56,29 @@ export function formatPhoneDisplay(phone: string | null | undefined): string {
   return phone.trim();
 }
 
+/** З номера або @username отримати посилання для кнопки «Зателефонувати». */
+export function listingContactHref(phone: string | null | undefined): string {
+  if (!phone?.trim()) return '';
+  const trimmed = phone.trim();
+  if (trimmed.startsWith('@')) {
+    const username = trimmed.replace(/^@/, '');
+    return username ? `https://t.me/${username}` : '';
+  }
+  return supportPhoneToTelLink(phone);
+}
+
+export function isTelegramUsernameContact(value: string | null | undefined): boolean {
+  if (!value?.trim()) return false;
+  return /^@?[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(value.trim());
+}
+
+/** Текст контакту для відображення (@username або телефон). */
+export function formatListingContactDisplay(phone: string | null | undefined): string {
+  if (!phone?.trim()) return '';
+  if (isTelegramUsernameContact(phone)) return phone.trim();
+  return formatPhoneDisplay(phone);
+}
+
 /** З номера отримати посилання tel: (тільки цифри) */
 export function supportPhoneToTelLink(phone: string | null | undefined): string {
   if (!phone) return '';

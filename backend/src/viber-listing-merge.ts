@@ -18,6 +18,10 @@ export type ViberListingMergeInput = {
 };
 
 export function normalizePhoneForMerge(phone: string): string {
+  const trimmed = phone.trim();
+  if (trimmed.startsWith('@')) {
+    return trimmed.toLowerCase();
+  }
   let cleaned = phone.replace(/\D/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = `38${cleaned}`;

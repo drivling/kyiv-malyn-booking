@@ -4,7 +4,9 @@ import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
 import {
-  formatPhoneDisplay,
+  formatListingContactDisplay,
+  // formatPhoneDisplay,
+  listingContactHref,
   supportPhoneToTelLink,
   BOOKING_CITY_LABELS,
   BOOKING_FROM_TO,
@@ -456,8 +458,9 @@ export const PoputkyPage: React.FC = () => {
                           ) : listing.listingType === 'driver' && !isTelegramLoggedIn ? (
                             <>
                               <a
-                                href={supportPhoneToTelLink(listing.phone)}
+                                href={listingContactHref(listing.phone)}
                                 className="poputky-trip-detail"
+                                {...(listing.phone.trim().startsWith('@') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                               >
                                 Зателефонувати
                               </a>
@@ -471,8 +474,9 @@ export const PoputkyPage: React.FC = () => {
                             </>
                           ) : (
                             <a
-                              href={supportPhoneToTelLink(listing.phone)}
+                              href={listingContactHref(listing.phone)}
                               className="poputky-trip-detail"
+                              {...(listing.phone.trim().startsWith('@') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                             >
                               Зателефонувати
                             </a>
@@ -712,17 +716,19 @@ export const PoputkyPage: React.FC = () => {
               </a>
             ) : (
               <a
-                href={supportPhoneToTelLink(requestStatusData.listing.phone)}
+                href={listingContactHref(requestStatusData.listing.phone)}
                 className="poputky-modal-call-button"
+                {...(requestStatusData.listing.phone.trim().startsWith('@') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               >
-                Зателефонувати: {formatPhoneDisplay(requestStatusData.listing.phone)}
+                Зателефонувати: {formatListingContactDisplay(requestStatusData.listing.phone)}
               </a>
             )}
             <a
-              href={supportPhoneToTelLink(requestStatusData.listing.phone)}
+              href={listingContactHref(requestStatusData.listing.phone)}
               className="poputky-modal-copy-button"
+              {...(requestStatusData.listing.phone.trim().startsWith('@') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             >
-              Подзвонити
+              {requestStatusData.listing.phone.trim().startsWith('@') ? 'Написати в Telegram' : 'Подзвонити'}
             </a>
           </div>
         </div>
