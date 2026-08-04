@@ -160,7 +160,7 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
           ? body.rejectionReason.trim()
           : null;
 
-      const proof = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         const updated = await tx.rideCompletionProof.update({
           where: { id },
           data: {
@@ -189,11 +189,25 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
           },
         });
 
+        let rewardsUnlocked = 0;
         if (status === 'approved') {
-          await tx.referralReward.updateMany({
+          const unlocked = await tx.referralReward.updateMany({
             where: { rideProofId: id, status: 'flagged' },
             data: { status: 'approved', flagReason: null },
           });
+          rewardsUnlocked = unlocked.count;
+          // Fallback: flagged без rideProofId, але по цьому пасажиру як referred
+          if (rewardsUnlocked === 0) {
+            const fallback = await tx.referralReward.updateMany({
+              where: {
+                referredPersonId: updated.personId,
+                status: 'flagged',
+                OR: [{ rideProofId: id }, { rideProofId: null }],
+              },
+              data: { status: 'approved', flagReason: null },
+            });
+            rewardsUnlocked = fallback.count;
+          }
         } else if (status === 'rejected') {
           const reason = rejectionReason || 'Фото відхилено модератором';
           await tx.referralReward.updateMany({
@@ -202,10 +216,10 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
           });
         }
 
-        return updated;
+        return { proof: updated, rewardsUnlocked };
       });
 
-      res.json(proof);
+      res.json({ ...result.proof, rewardsUnlocked: result.rewardsUnlocked });
     } catch (e) {
       console.error('❌ PATCH /admin/referrals/proofs/:id:', e);
       res.status(500).json({ error: 'Не вдалося оновити підтвердження' });

@@ -193,7 +193,7 @@ export const ReferralTab: React.FC = () => {
       });
       setSuccess(
         status === 'approved'
-          ? `Заявку #${id} схвалено — повʼязані flagged нагороди в черзі виплат`
+          ? `Заявку #${id} схвалено. Нагороди розблоковано у чергу виплат (якщо були flagged).`
           : `Заявку #${id} → ${status}`
       );
       await load();
@@ -306,7 +306,36 @@ export const ReferralTab: React.FC = () => {
             <tbody>
               {filteredBalances.length === 0 && (
                 <tr>
-                  <td colSpan={6}>Немає записів за фільтром</td>
+                  <td colSpan={6}>
+                    {payoutFilter === 'payable' ? (
+                      <span>
+                        Немає сум <strong>до виплати</strong>
+                        {(s?.flaggedCount ?? 0) > 0
+                          ? ` — але є ${s!.flaggedCount} flagged нагород (див. блок «Підозрілі» нижче або фільтр «Усі з нагородами»).`
+                          : (s?.payableUah ?? 0) === 0
+                            ? ' — нагороди ще не нараховані або вже виплачені. Натисніть «Оновити».'
+                            : '.'}
+                        {' '}
+                        <button
+                          type="button"
+                          onClick={() => setPayoutFilter('all')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--pb-primary)',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: 0,
+                            font: 'inherit',
+                          }}
+                        >
+                          Показати всі з нагородами
+                        </button>
+                      </span>
+                    ) : (
+                      'Немає записів за фільтром'
+                    )}
+                  </td>
                 </tr>
               )}
               {filteredBalances.map((row) => {

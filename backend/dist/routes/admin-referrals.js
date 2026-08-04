@@ -152,7 +152,7 @@ function createAdminReferralsRouter(deps) {
             const rejectionReason = typeof body.rejectionReason === 'string' && body.rejectionReason.trim()
                 ? body.rejectionReason.trim()
                 : null;
-            const proof = await prisma.$transaction(async (tx) => {
+            const result = await prisma.$transaction(async (tx) => {
                 const updated = await tx.rideCompletionProof.update({
                     where: { id },
                     data: {
@@ -180,11 +180,25 @@ function createAdminReferralsRouter(deps) {
                         },
                     },
                 });
+                let rewardsUnlocked = 0;
                 if (status === 'approved') {
-                    await tx.referralReward.updateMany({
+                    const unlocked = await tx.referralReward.updateMany({
                         where: { rideProofId: id, status: 'flagged' },
                         data: { status: 'approved', flagReason: null },
                     });
+                    rewardsUnlocked = unlocked.count;
+                    // Fallback: flagged без rideProofId, але по цьому пасажиру як referred
+                    if (rewardsUnlocked === 0) {
+                        const fallback = await tx.referralReward.updateMany({
+                            where: {
+                                referredPersonId: updated.personId,
+                                status: 'flagged',
+                                OR: [{ rideProofId: id }, { rideProofId: null }],
+                            },
+                            data: { status: 'approved', flagReason: null },
+                        });
+                        rewardsUnlocked = fallback.count;
+                    }
                 }
                 else if (status === 'rejected') {
                     const reason = rejectionReason || 'Фото відхилено модератором';
@@ -193,9 +207,9 @@ function createAdminReferralsRouter(deps) {
                         data: { status: 'flagged', flagReason: reason },
                     });
                 }
-                return updated;
+                return { proof: updated, rewardsUnlocked };
             });
-            res.json(proof);
+            res.json({ ...result.proof, rewardsUnlocked: result.rewardsUnlocked });
         }
         catch (e) {
             console.error('❌ PATCH /admin/referrals/proofs/:id:', e);

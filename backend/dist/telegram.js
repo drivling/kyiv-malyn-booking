@@ -3539,7 +3539,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     bot.sendPhoto(adminChatId, fileId).catch(() => { });
                 }
             }
-        }).catch((err) => {
+        }, telegramBotUsername).catch((err) => {
             console.error('Ride proof photo:', err);
             return false;
         });
@@ -4145,7 +4145,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     await (0, telegram_referral_1.handleReferralCallback)(bot, tgPrisma, chatId, person.id, telegramBotUsername, data);
                     return;
                 }
-                await (0, telegram_referral_1.handleRideProofCallback)(bot, tgPrisma, chatId, person.id, data);
+                await (0, telegram_referral_1.handleRideProofCallback)(bot, tgPrisma, chatId, person.id, data, telegramBotUsername);
                 return;
             }
             // ---------- /addtelegram: завантажити з групи або вставити текст ----------

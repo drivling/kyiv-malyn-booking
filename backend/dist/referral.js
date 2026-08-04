@@ -25,8 +25,11 @@ exports.getReferralStatsForPerson = getReferralStatsForPerson;
 exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
 exports.markReferralPayout = markReferralPayout;
+exports.formatRideDateKeyUa = formatRideDateKeyUa;
 exports.buildRideFacebookShareCaption = buildRideFacebookShareCaption;
 exports.buildRideFacebookSharePromptHtml = buildRideFacebookSharePromptHtml;
+exports.buildFacebookShareInlineKeyboard = buildFacebookShareInlineKeyboard;
+exports.syncFlaggedRewardsForApprovedProofs = syncFlaggedRewardsForApprovedProofs;
 exports.buildAdminReferralReport = buildAdminReferralReport;
 const telegram_contact_1 = require("./telegram-contact");
 /** Локальна копія normalizePhone з telegram.ts (уникаємо circular import) */
@@ -748,16 +751,25 @@ async function markReferralPayout(prisma, opts) {
         rewardIds: ids,
     };
 }
+/** Дата YYYY-MM-DD → DD.MM.YYYY для посту */
+function formatRideDateKeyUa(dateKey) {
+    const m = dateKey.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m)
+        return dateKey;
+    return `${m[3]}.${m[2]}.${m[1]}`;
+}
 /** Текст для Facebook-посту пасажира після підтвердження поїздки фото */
 function buildRideFacebookShareCaption(opts) {
     const routeNice = opts.route.replace(/-/g, ' → ');
+    const dateNice = formatRideDateKeyUa(opts.dateKey);
     return (`Сьогодні їхав(ла) попуткою ${routeNice} 🚗\n` +
-        `(${opts.dateKey})\n\n` +
+        `(${dateNice})\n\n` +
         `Знайти попутника просто — через бот попуток Малин ↔ Київ.\n` +
         `Підтвердив поїздку двома фото і навіть бонус на мобільний отримав 💸\n\n` +
-        `Хочеш так само?\n` +
-        `🤖 https://t.me/malin_kiev_ua_bot\n` +
-        `🌐 https://malin.kiev.ua/poputky\n\n` +
+        `Хочеш так само? Заходь за моїм посиланням:\n` +
+        `${opts.referralLink}\n\n` +
+        `🌐 Попутки: https://malin.kiev.ua/poputky\n` +
+        `📜 Умови: https://malin.kiev.ua/about#referral-promo\n\n` +
         `#Малин #Київ #Попутки #КиївМалин #malinkievua`);
 }
 function buildRideFacebookSharePromptHtml(caption) {
@@ -766,12 +778,48 @@ function buildRideFacebookSharePromptHtml(caption) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
     return ('📢 <b>Поділись у Facebook — це займає хвилину</b>\n\n' +
-        'Твої фото вже готові (надішлемо нижче).\n' +
-        'Створи пост у Facebook, додай обидва фото і встав текст:\n\n' +
+        '1️⃣ Збережи два фото <b>вище</b> (утримуй → Зберегти).\n' +
+        '2️⃣ Натисни «Відкрити Facebook» або створи пост сам.\n' +
+        '3️⃣ Додай обидва фото і встав текст (утримуй блок нижче → Копіювати).\n\n' +
+        'У тексті вже <b>твоє персональне посилання</b> — друзі зайдуть саме по ньому 🎁\n\n' +
         `<code>${escaped}</code>\n\n` +
+        '<i>Facebook не дає автозаповнити текст і фото з бота — потрібні 2 кроки: кнопка + вставка.</i>\n' +
         'Так більше людей знайдуть попутку. Дякуємо 💛');
 }
+/** Кнопки під фінальним повідомленням про Facebook-пост */
+function buildFacebookShareInlineKeyboard(referralLink) {
+    const fbShareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(referralLink);
+    return {
+        inline_keyboard: [
+            [{ text: '📘 Відкрити Facebook', url: fbShareUrl }],
+            // Telegram Bot API CopyTextButton (до 256 символів — саме для короткого посилання)
+            [{ text: '🔗 Копіювати моє посилання', copy_text: { text: referralLink } }],
+            [{ text: '📋 Надіслати текст посту ще раз', callback_data: 'rideproof_fb_caption' }],
+        ],
+    };
+}
+/**
+ * Якщо фото вже схвалене, а нагороди лишились flagged (старий approve без каскаду) —
+ * підтягуємо їх у чергу виплат.
+ */
+async function syncFlaggedRewardsForApprovedProofs(prisma) {
+    const approved = await prisma.rideCompletionProof.findMany({
+        where: { status: 'approved' },
+        select: { id: true },
+    });
+    if (approved.length === 0)
+        return 0;
+    const result = await prisma.referralReward.updateMany({
+        where: {
+            rideProofId: { in: approved.map((p) => p.id) },
+            status: 'flagged',
+        },
+        data: { status: 'approved', flagReason: null },
+    });
+    return result.count;
+}
 async function buildAdminReferralReport(prisma) {
+    await syncFlaggedRewardsForApprovedProofs(prisma);
     const rewards = await prisma.referralReward.findMany({
         orderBy: { createdAt: 'desc' },
         include: {

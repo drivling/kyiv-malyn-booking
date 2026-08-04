@@ -445,10 +445,15 @@ describe('payout balances and FB caption', () => {
   });
 
   it('buildRideFacebookShareCaption is share-ready', () => {
-    const text = buildRideFacebookShareCaption({ route: 'Kyiv-Malyn', dateKey: '2026-08-04' });
+    const text = buildRideFacebookShareCaption({
+      route: 'Kyiv-Malyn',
+      dateKey: '2026-08-04',
+      referralLink: 'https://t.me/malin_kiev_ua_bot?start=ref_TESTCODE',
+    });
     assert.match(text, /Kyiv → Malyn/);
+    assert.match(text, /04\.08\.2026/);
     assert.match(text, /malin\.kiev\.ua\/poputky/);
-    assert.match(text, /t\.me\/malin_kiev_ua_bot/);
+    assert.match(text, /start=ref_TESTCODE/);
     assert.match(text, /мобільний/);
   });
 });

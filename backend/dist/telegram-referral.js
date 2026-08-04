@@ -148,10 +148,37 @@ async function startRideProofFlow(bot, prisma, chatId, personId) {
         '2️⃣ Фото <b>після прибуття</b> (наприклад, на зупинці чи біля авто)\n\n' +
         '<i>Фото використаємо для рекламного посту — зробіть їх охайними 🙂</i>', { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } });
 }
-async function handleRideProofCallback(bot, prisma, chatId, personId, data) {
+async function handleRideProofCallback(bot, prisma, chatId, personId, data, botUsername = 'malin_kiev_ua_bot') {
     if (data === 'rideproof_cancel') {
         exports.rideProofFlowStateMap.delete(chatId);
         await bot.sendMessage(chatId, 'Скасовано.');
+        return true;
+    }
+    if (data === 'rideproof_fb_caption') {
+        const proof = await prisma.rideCompletionProof.findFirst({
+            where: {
+                personId,
+                photoStartFileId: { not: null },
+                photoEndFileId: { not: null },
+            },
+            orderBy: { updatedAt: 'desc' },
+        });
+        if (!proof) {
+            await bot.sendMessage(chatId, 'Немає підтвердженої поїздки з фото для посту.');
+            return true;
+        }
+        const code = await (0, referral_1.ensurePersonReferralCode)(prisma, personId);
+        const referralLink = (0, referral_1.getReferralBotLink)(botUsername, code);
+        const dateKey = proof.rideDate.toISOString().slice(0, 10);
+        const fbCaption = (0, referral_1.buildRideFacebookShareCaption)({
+            route: proof.route,
+            dateKey,
+            referralLink,
+        });
+        await bot.sendMessage(chatId, (0, referral_1.buildRideFacebookSharePromptHtml)(fbCaption), {
+            parse_mode: 'HTML',
+            reply_markup: (0, referral_1.buildFacebookShareInlineKeyboard)(referralLink),
+        });
         return true;
     }
     const selectMatch = data.match(/^rideproof_select_(\d+)$/);
@@ -214,7 +241,7 @@ async function handleReferralCallback(bot, prisma, chatId, personId, botUsername
     }
     return false;
 }
-async function handleRideProofPhoto(bot, prisma, chatId, personId, photoFileId, notifyAdmin) {
+async function handleRideProofPhoto(bot, prisma, chatId, personId, photoFileId, notifyAdmin, botUsername = 'malin_kiev_ua_bot') {
     const flow = exports.rideProofFlowStateMap.get(chatId);
     if (!flow || isFlowExpired(flow.since)) {
         exports.rideProofFlowStateMap.delete(chatId);
@@ -254,16 +281,29 @@ async function handleRideProofPhoto(bot, prisma, chatId, personId, photoFileId, 
         await bot.sendMessage(chatId, '✅ <b>Круто! Поїздку підтверджено.</b>\n\n' +
             'Фото прийнято. Дякуємо, що ділитесь дорогою з нами 🚗' +
             rewardText, { parse_mode: 'HTML' });
-        // Прохання поширити у Facebook з готовим текстом + ті самі фото
-        const dateKey = proof.rideDate.toISOString().slice(0, 10);
-        const fbCaption = (0, referral_1.buildRideFacebookShareCaption)({ route: proof.route, dateKey });
-        await bot
-            .sendMessage(chatId, (0, referral_1.buildRideFacebookSharePromptHtml)(fbCaption), { parse_mode: 'HTML' })
-            .catch((err) => console.error('FB share prompt:', err));
+        // Спочатку фото, потім фінальне повідомлення з текстом посту + кнопки
         if (proof.photoStartFileId) {
-            await bot.sendPhoto(chatId, proof.photoStartFileId, { caption: '1️⃣ Фото на старті — для Facebook' }).catch(() => { });
+            await bot
+                .sendPhoto(chatId, proof.photoStartFileId, { caption: '1️⃣ Фото на старті — збережи для Facebook' })
+                .catch(() => { });
         }
-        await bot.sendPhoto(chatId, photoFileId, { caption: '2️⃣ Фото після прибуття — для Facebook' }).catch(() => { });
+        await bot
+            .sendPhoto(chatId, photoFileId, { caption: '2️⃣ Фото після прибуття — збережи для Facebook' })
+            .catch(() => { });
+        const code = await (0, referral_1.ensurePersonReferralCode)(prisma, personId);
+        const referralLink = (0, referral_1.getReferralBotLink)(botUsername, code);
+        const dateKey = proof.rideDate.toISOString().slice(0, 10);
+        const fbCaption = (0, referral_1.buildRideFacebookShareCaption)({
+            route: proof.route,
+            dateKey,
+            referralLink,
+        });
+        await bot
+            .sendMessage(chatId, (0, referral_1.buildRideFacebookSharePromptHtml)(fbCaption), {
+            parse_mode: 'HTML',
+            reply_markup: (0, referral_1.buildFacebookShareInlineKeyboard)(referralLink),
+        })
+            .catch((err) => console.error('FB share prompt:', err));
         if (notifyAdmin && proof.photoStartFileId) {
             const parts = [
                 `📷 <b>Нове підтвердження поїздки #${flow.proofId}</b>`,

@@ -4112,7 +4112,8 @@ ${buildReferralHelpSection()}
             bot.sendPhoto(adminChatId, fileId).catch(() => {});
           }
         }
-      }
+      },
+      telegramBotUsername
     ).catch((err) => {
       console.error('Ride proof photo:', err);
       return false;
@@ -4759,7 +4760,7 @@ ${buildReferralHelpSection()}
           await handleReferralCallback(bot, tgPrisma, chatId, person.id, telegramBotUsername, data);
           return;
         }
-        await handleRideProofCallback(bot, tgPrisma, chatId, person.id, data);
+        await handleRideProofCallback(bot, tgPrisma, chatId, person.id, data, telegramBotUsername);
         return;
       }
 

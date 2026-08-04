@@ -11,6 +11,7 @@ import {
   getReferralBotLink,
   getReferralStatsForPerson,
   linkReferralOnRegistration,
+  buildFacebookShareInlineKeyboard,
   buildRideFacebookShareCaption,
   buildRideFacebookSharePromptHtml,
   processReferralRewardsAfterPassengerProof,
@@ -252,11 +253,40 @@ export async function handleRideProofCallback(
   prisma: PrismaClient,
   chatId: string,
   personId: number,
-  data: string
+  data: string,
+  botUsername: string = 'malin_kiev_ua_bot'
 ): Promise<boolean> {
   if (data === 'rideproof_cancel') {
     rideProofFlowStateMap.delete(chatId);
     await bot.sendMessage(chatId, 'Скасовано.');
+    return true;
+  }
+
+  if (data === 'rideproof_fb_caption') {
+    const proof = await prisma.rideCompletionProof.findFirst({
+      where: {
+        personId,
+        photoStartFileId: { not: null },
+        photoEndFileId: { not: null },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!proof) {
+      await bot.sendMessage(chatId, 'Немає підтвердженої поїздки з фото для посту.');
+      return true;
+    }
+    const code = await ensurePersonReferralCode(prisma, personId);
+    const referralLink = getReferralBotLink(botUsername, code);
+    const dateKey = proof.rideDate.toISOString().slice(0, 10);
+    const fbCaption = buildRideFacebookShareCaption({
+      route: proof.route,
+      dateKey,
+      referralLink,
+    });
+    await bot.sendMessage(chatId, buildRideFacebookSharePromptHtml(fbCaption), {
+      parse_mode: 'HTML',
+      reply_markup: buildFacebookShareInlineKeyboard(referralLink) as unknown as TelegramBot.InlineKeyboardMarkup,
+    });
     return true;
   }
 
@@ -348,7 +378,8 @@ export async function handleRideProofPhoto(
   chatId: string,
   personId: number,
   photoFileId: string,
-  notifyAdmin?: (text: string, photoFileIds?: string[]) => void
+  notifyAdmin?: (text: string, photoFileIds?: string[]) => void,
+  botUsername: string = 'malin_kiev_ua_bot'
 ): Promise<boolean> {
   const flow = rideProofFlowStateMap.get(chatId);
   if (!flow || isFlowExpired(flow.since)) {
@@ -401,16 +432,30 @@ export async function handleRideProofPhoto(
       { parse_mode: 'HTML' }
     );
 
-    // Прохання поширити у Facebook з готовим текстом + ті самі фото
-    const dateKey = proof.rideDate.toISOString().slice(0, 10);
-    const fbCaption = buildRideFacebookShareCaption({ route: proof.route, dateKey });
-    await bot
-      .sendMessage(chatId, buildRideFacebookSharePromptHtml(fbCaption), { parse_mode: 'HTML' })
-      .catch((err) => console.error('FB share prompt:', err));
+    // Спочатку фото, потім фінальне повідомлення з текстом посту + кнопки
     if (proof.photoStartFileId) {
-      await bot.sendPhoto(chatId, proof.photoStartFileId, { caption: '1️⃣ Фото на старті — для Facebook' }).catch(() => {});
+      await bot
+        .sendPhoto(chatId, proof.photoStartFileId, { caption: '1️⃣ Фото на старті — збережи для Facebook' })
+        .catch(() => {});
     }
-    await bot.sendPhoto(chatId, photoFileId, { caption: '2️⃣ Фото після прибуття — для Facebook' }).catch(() => {});
+    await bot
+      .sendPhoto(chatId, photoFileId, { caption: '2️⃣ Фото після прибуття — збережи для Facebook' })
+      .catch(() => {});
+
+    const code = await ensurePersonReferralCode(prisma, personId);
+    const referralLink = getReferralBotLink(botUsername, code);
+    const dateKey = proof.rideDate.toISOString().slice(0, 10);
+    const fbCaption = buildRideFacebookShareCaption({
+      route: proof.route,
+      dateKey,
+      referralLink,
+    });
+    await bot
+      .sendMessage(chatId, buildRideFacebookSharePromptHtml(fbCaption), {
+        parse_mode: 'HTML',
+        reply_markup: buildFacebookShareInlineKeyboard(referralLink) as unknown as TelegramBot.InlineKeyboardMarkup,
+      })
+      .catch((err) => console.error('FB share prompt:', err));
 
     if (notifyAdmin && proof.photoStartFileId) {
       const parts = [
