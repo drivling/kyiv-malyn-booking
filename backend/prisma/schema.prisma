@@ -35,11 +35,95 @@ model Person {
   createdAt               DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  /// Унікальний код для реферального посилання (?start=ref_CODE)
+  referralCode          String?   @unique
+  /// Хто запросив цього користувача (фіксується один раз при реєстрації)
+  referredByPersonId    Int?
+  referredByPerson      Person?   @relation("PersonReferrals", fields: [referredByPersonId], references: [id], onDelete: SetNull)
+  referredPersons       Person[]  @relation("PersonReferrals")
+
   bookings     Booking[]
   viberListings ViberListing[]
   viberRideEvents ViberRideEvent[]
+  referralInvitesSent     ReferralInvite[] @relation("ReferrerInvites")
+  referralInvitesReceived ReferralInvite[] @relation("ReferredInvites")
+  referralRewardsAsReferrer ReferralReward[] @relation("ReferrerRewards")
+  referralRewardsAsReferred ReferralReward[] @relation("ReferredRewards")
+  rideCompletionProofs    RideCompletionProof[]
 
   @@index([telegramUsername])
+  @@index([referredByPersonId])
+}
+
+/// Запрошення друга (номер, @username або посилання)
+model ReferralInvite {
+  id               Int       @id @default(autoincrement())
+  referrerId       Int
+  inviteContact    String    // як ввів користувач
+  inviteType       String    // "phone" | "telegram" | "link"
+  invitePhoneNorm  String?
+  inviteUsername   String?
+  referredPersonId Int?
+  status           String    @default("pending") // pending | registered | expired
+  registeredAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  referrer       Person  @relation("ReferrerInvites", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredPerson Person? @relation("ReferredInvites", fields: [referredPersonId], references: [id], onDelete: SetNull)
+
+  @@index([referrerId])
+  @@index([invitePhoneNorm])
+  @@index([inviteUsername])
+  @@index([referredPersonId])
+}
+
+/// Нарахування винагороди рефереру за дії запрошеного друга
+model ReferralReward {
+  id               Int       @id @default(autoincrement())
+  referrerId       Int
+  referredPersonId Int
+  rewardType       String    // registration | driver_qualified | passenger_completed_ride | passenger_self_confirm (legacy: driver_first_listing)
+  amountUah        Int
+  viberListingId   Int?
+  rideProofId      Int?
+  status           String    @default("pending") // pending | approved | paid | flagged
+  flagReason       String?   @db.Text
+  createdAt        DateTime  @default(now())
+  paidAt           DateTime?
+
+  referrer       Person              @relation("ReferrerRewards", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredPerson Person              @relation("ReferredRewards", fields: [referredPersonId], references: [id], onDelete: Cascade)
+  viberListing   ViberListing?       @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
+  rideProof      RideCompletionProof? @relation(fields: [rideProofId], references: [id], onDelete: SetNull)
+
+  @@index([referrerId])
+  @@index([referredPersonId])
+  @@index([status])
+}
+
+/// Підтвердження поїздки пасажиром (фото на старті та після) — для акції та рекламного посту
+model RideCompletionProof {
+  id                 Int       @id @default(autoincrement())
+  personId           Int
+  viberListingId     Int?
+  route              String
+  rideDate           DateTime
+  departureTime      String?
+  photoStartFileId   String?
+  photoEndFileId     String?
+  status             String    @default("awaiting_photos") // awaiting_photos | pending_review | approved | rejected | flagged
+  rejectionReason    String?
+  flagReason         String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  person       Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+  viberListing ViberListing?    @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
+  referralRewards ReferralReward[]
+
+  @@index([personId])
+  @@index([status])
 }
 
 model Booking {
@@ -100,6 +184,8 @@ model ViberListing {
   rideShareRequestsAsDriver   RideShareRequest[] @relation("RideShareAsDriver")
   matchNotifyAsPassenger      ViberMatchPairNotification[] @relation("MatchNotifyPassengerListing")
   matchNotifyAsDriver         ViberMatchPairNotification[] @relation("MatchNotifyDriverListing")
+  referralRewards             ReferralReward[]
+  rideCompletionProofs        RideCompletionProof[]
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).

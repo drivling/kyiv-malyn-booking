@@ -16,6 +16,7 @@ import { createViberListingsRouter } from './routes/viber-listings';
 import { createAdminPersonsRouter } from './routes/admin-persons';
 import { createAdminMessagingRouter } from './routes/admin-messaging';
 import { createAdminViberAnalyticsRouter } from './routes/admin-viber-analytics';
+import { createAdminReferralsRouter } from './routes/admin-referrals';
 
 export type CreateAppDeps = {
   prisma: PrismaClient;
@@ -79,6 +80,7 @@ app.use(createViberListingsRouter({ prisma }));
 app.use(createAdminPersonsRouter({ prisma }));
 app.use(createAdminMessagingRouter({ prisma }));
 app.use(createAdminViberAnalyticsRouter({ prisma }));
+app.use(createAdminReferralsRouter({ prisma }));
 
 // Глобальний обробник помилок — завжди повертаємо JSON
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

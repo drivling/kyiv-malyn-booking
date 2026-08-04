@@ -30,6 +30,19 @@ import {
   normalizeTelegramUsername,
   TECHNICAL_PHONE_PREFIX,
 } from './telegram-contact';
+import {
+  buildReferralHelpSection,
+  handleReferralCallback,
+  handleReferralContactInput,
+  handleReferralStartParam,
+  handleRideProofCallback,
+  handleRideProofPhoto,
+  onReferralRegistration,
+  sendInviteProgramMessage,
+  startRideProofFlow,
+  takePendingReferralCode,
+} from './telegram-referral';
+import { buildAdminReferralReport } from './referral';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -352,6 +365,22 @@ async function createDriverListingFromState(
     { parse_mode: 'HTML' }
   );
   await notifyMatchingPassengersForNewDriver(listing, chatId);
+  // Реферал водія: 40 грн нарахуються лише коли запрошений ним пасажир підтвердить поїздку фото
+  if (person.id) {
+    const fullPerson = await tgPrisma.person.findUnique({
+      where: { id: person.id },
+      select: { referredByPersonId: true },
+    });
+    if (fullPerson?.referredByPersonId) {
+      await bot?.sendMessage(
+        chatId,
+        '🎁 <b>Акція «Приведи друга»</b>\n\n' +
+          'Щоб ваш запрошувач отримав бонус за водія: запросіть пасажирів (/invite). ' +
+          'Коли хоча б один з них підтвердить поїздку фото (/confirmride) — нарахується винагорода.',
+        { parse_mode: 'HTML' }
+      );
+    }
+  }
 }
 
 /** Допоміжна: створити ViberListing (пасажир) зі стану потоку. Кількість місць не збираємо. */
@@ -2314,6 +2343,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
 
   try {
     const normalizedPhone = normalizePhone(phoneInput);
+    const referralCodeFromStart = takePendingReferralCode(chatId);
 
     // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
     const personByTelegram = await getPersonByTelegram(userId, chatId);
@@ -2330,9 +2360,24 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
     });
     const totalBookings = matchingBookings.length + userIdBookings.length;
 
+    const finishReferralLink = async (personId: number) => {
+      await onReferralRegistration(
+        tgPrisma,
+        personId,
+        normalizedPhone,
+        null,
+        referralCodeFromStart,
+        (text) => {
+          if (bot && adminChatId) {
+            bot.sendMessage(adminChatId, text, { parse_mode: 'HTML' }).catch(() => {});
+          }
+        }
+      ).catch((err) => console.error('Referral on registration:', err));
+    };
+
     if (totalBookings === 0) {
       // Додаємо людину в базу (Person), щоб після бронювання на сайті вона отримувала сповіщення
-      await findOrCreatePersonByPhone(phoneInput, {
+      const created = await findOrCreatePersonByPhone(phoneInput, {
         fullName: telegramName ?? undefined,
         telegramChatId: chatId,
         telegramUserId: userId,
@@ -2341,6 +2386,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
         const person = await getPersonByPhone(phoneInput);
         sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? telegramName ?? null);
       }
+      await finishReferralLink(created.id);
       await bot.sendMessage(
         chatId,
         `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
@@ -2360,12 +2406,14 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
     }
 
     const phoneNumbers = [...new Set(matchingBookings.map((b) => b.phone))];
+    let linkedPersonId: number | null = null;
     for (const phone of phoneNumbers) {
       const person = await findOrCreatePersonByPhone(phone, {
         fullName: telegramName ?? undefined,
         telegramChatId: chatId,
         telegramUserId: userId,
       });
+      linkedPersonId = person.id;
       await updatePersonAndBookingsTelegram(person.id, chatId, userId);
       const norm = normalizePhone(phone);
       const allWithPhone = await tgPrisma.booking.findMany({ where: {} });
@@ -2389,6 +2437,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       const person = await getPersonByPhone(phoneInput);
       sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? telegramName ?? null);
     }
+    if (linkedPersonId) await finishReferralLink(linkedPersonId);
 
     console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
 
@@ -2422,6 +2471,8 @@ const CLIENT_BOT_COMMANDS: { command: string; description: string }[] = [
   { command: 'mypassengerrides', description: 'Мої запити (пасажир)' },
   { command: 'addpassengerride', description: 'Шукаю поїздку' },
   { command: 'poputky', description: 'Перегляд попуток' },
+  { command: 'invite', description: 'Приведи друга' },
+  { command: 'confirmride', description: 'Підтвердити поїздку (фото)' },
 ];
 
 /** Відображувані назви кнопок головного меню (надсилаються як текст повідомлення). */
@@ -2434,6 +2485,8 @@ const MAIN_MENU_BUTTONS = {
   MY_PASSENGER_RIDES: '👤 Мої запити',
   ADD_DRIVER_RIDE: '🚗 Додати поїздку',
   ADD_PASSENGER_RIDE: '👤 Шукаю поїздку',
+  INVITE: '🎁 Приведи друга',
+  CONFIRM_RIDE: '📷 Підтвердити поїздку',
   HELP: '📚 Довідка',
 } as const;
 
@@ -2447,6 +2500,8 @@ const MENU_BUTTON_TO_COMMAND: Record<string, string> = {
   [MAIN_MENU_BUTTONS.MY_PASSENGER_RIDES]: '/mypassengerrides',
   [MAIN_MENU_BUTTONS.ADD_DRIVER_RIDE]: '/adddriverride',
   [MAIN_MENU_BUTTONS.ADD_PASSENGER_RIDE]: '/addpassengerride',
+  [MAIN_MENU_BUTTONS.INVITE]: '/invite',
+  [MAIN_MENU_BUTTONS.CONFIRM_RIDE]: '/confirmride',
   [MAIN_MENU_BUTTONS.HELP]: '/help',
 };
 
@@ -2458,6 +2513,7 @@ function getMainMenuKeyboard(): TelegramBot.ReplyKeyboardMarkup {
       [{ text: MAIN_MENU_BUTTONS.ALL_RIDES }, { text: MAIN_MENU_BUTTONS.CANCEL }],
       [{ text: MAIN_MENU_BUTTONS.MY_DRIVER_RIDES }, { text: MAIN_MENU_BUTTONS.MY_PASSENGER_RIDES }],
       [{ text: MAIN_MENU_BUTTONS.ADD_DRIVER_RIDE }, { text: MAIN_MENU_BUTTONS.ADD_PASSENGER_RIDE }],
+      [{ text: MAIN_MENU_BUTTONS.INVITE }, { text: MAIN_MENU_BUTTONS.CONFIRM_RIDE }],
       [{ text: MAIN_MENU_BUTTONS.HELP }],
     ],
     resize_keyboard: true,
@@ -2600,6 +2656,47 @@ function setupBotCommands() {
     const userId = msg.from?.id.toString() || '';
     const firstName = msg.from?.first_name || 'Друже';
     const rawStart = msg.text?.trim().match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i)?.[1]?.trim() ?? '';
+
+    // Реферальне посилання: ?start=ref_CODE
+    if (rawStart.toLowerCase().startsWith('ref_')) {
+      const ok = await handleReferralStartParam(tgPrisma, chatId, rawStart);
+      if (ok) {
+        const personAlready = await getPersonByTelegram(userId, chatId);
+        if (personAlready) {
+          await onReferralRegistration(
+            tgPrisma,
+            personAlready.id,
+            personAlready.phoneNormalized,
+            personAlready.telegramUsername,
+            takePendingReferralCode(chatId),
+            (text) => {
+              if (bot && adminChatId) {
+                bot.sendMessage(adminChatId, text, { parse_mode: 'HTML' }).catch(() => {});
+              }
+            }
+          ).catch((err) => console.error('Referral link existing person:', err));
+          await bot?.sendMessage(
+            chatId,
+            '🎁 <b>Запрошення прийнято!</b>\n\n' +
+              'Акаунт уже підключено. Додайте попутку як водій або пасажир — і акція зарахується запрошувачу.\n\n' +
+              '🌐 https://malin.kiev.ua/poputky',
+            { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() }
+          );
+          return;
+        }
+        await bot?.sendMessage(
+          chatId,
+          '🎁 <b>Вас запросили за акцією «Приведи друга»!</b>\n\n' +
+            'Щоб взяти участь:\n' +
+            '1️⃣ Поділіться номером телефону\n' +
+            '2️⃣ Відкрийте попутки: https://malin.kiev.ua/poputky\n' +
+            '3️⃣ Додайте поїздку як водій або як пасажир через бота\n\n' +
+            'Спочатку надішліть номер:',
+          { parse_mode: 'HTML', reply_markup: getSharePhoneKeyboard() }
+        );
+        return;
+      }
+    }
 
     // Посилання з /allrides: забронювати у водія (book_viber_ID)
     if (rawStart.startsWith('book_viber_')) {
@@ -3128,6 +3225,7 @@ https://malin.kiev.ua
 /start - головне меню
 /help - показати цю довідку
 /allrides - показати всі активні попутки
+${buildReferralHelpSection()}
 
 ✅ Ваш акаунт підключено до номера: ${displayPhone}
 
@@ -3138,6 +3236,7 @@ https://malin.kiev.ua
 • 🚗 Додавати поїздки як водій та запити як пасажир
 • ✅ Надсилає підтвердження після бронювання на сайті
 • 🔔 Нагадує за день до поїздки
+• 🎁 Акція «Приведи друга»
 
 🌐 Сайт: https://malin.kiev.ua`.trim();
       await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
@@ -3487,6 +3586,16 @@ https://malin.kiev.ua
         return handleHelp(chatId, userId);
       case '/poputky':
         return sendFreeViewInfo(chatId);
+      case '/invite': {
+        const person = await getPersonByTelegram(userId, chatId);
+        if (!person || !bot) return;
+        return sendInviteProgramMessage(bot, tgPrisma, chatId, person.id, telegramBotUsername);
+      }
+      case '/confirmride': {
+        const person = await getPersonByTelegram(userId, chatId);
+        if (!person || !bot) return;
+        return startRideProofFlow(bot, tgPrisma, chatId, person.id);
+      }
       default:
         return;
     }
@@ -3744,6 +3853,39 @@ https://malin.kiev.ua
     await registerUserPhone(chatId, userId, phoneNumber, nameFromContact);
   });
 
+  // Фото для підтвердження поїздки пасажира (/confirmride)
+  bot.on('photo', async (msg) => {
+    const chatId = msg.chat.id.toString();
+    const userId = msg.from?.id.toString() || '';
+    const photos = msg.photo;
+    if (!photos?.length || !bot) return;
+    const best = photos[photos.length - 1];
+    const person = await getPersonByTelegram(userId, chatId);
+    if (!person) return;
+    const handled = await handleRideProofPhoto(
+      bot,
+      tgPrisma,
+      chatId,
+      person.id,
+      best.file_id,
+      (text, photoFileIds) => {
+        if (!bot || !adminChatId) return;
+        bot.sendMessage(adminChatId, text, { parse_mode: 'HTML' }).catch(() => {});
+        if (photoFileIds?.length) {
+          for (const fileId of photoFileIds) {
+            bot.sendPhoto(adminChatId, fileId).catch(() => {});
+          }
+        }
+      }
+    ).catch((err) => {
+      console.error('Ride proof photo:', err);
+      return false;
+    });
+    if (!handled) {
+      // Не в потоці підтвердження — ігноруємо
+    }
+  });
+
   // Обробка текстових повідомлень (номер телефону або текст поїздки водія)
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id.toString();
@@ -3764,8 +3906,25 @@ https://malin.kiev.ua
     if (msg.text?.startsWith('/') || msg.contact) {
       return;
     }
+    // Фото обробляє bot.on('photo')
+    if (msg.photo) return;
 
     if (!text) return;
+
+    // Потік запрошення друга (номер / @username)
+    {
+      const personForInvite = await getPersonByTelegram(userId, chatId);
+      if (personForInvite && bot) {
+        const handledInvite = await handleReferralContactInput(
+          bot,
+          tgPrisma,
+          chatId,
+          personForInvite.id,
+          text
+        ).catch(() => false);
+        if (handledInvite) return;
+      }
+    }
 
     // Потік /addtelegram: адмін надіслав текст з Telegram групи PoDoroguem
     if (chatId === adminChatId && addTelegramAwaitingMap.has(chatId)) {
@@ -4296,6 +4455,60 @@ https://malin.kiev.ua
     await handleBook(msg.chat.id.toString(), msg.from?.id.toString() || '');
   });
 
+  // Команда /invite — акція «Приведи друга»
+  bot.onText(/^\/invite(?:@\w+)?$/i, async (msg) => {
+    const chatId = msg.chat.id.toString();
+    const userId = msg.from?.id.toString() || '';
+    const person = await getPersonByTelegram(userId, chatId);
+    if (!person || !bot) {
+      await sendSharePhoneOnly(chatId);
+      return;
+    }
+    await sendInviteProgramMessage(bot, tgPrisma, chatId, person.id, telegramBotUsername);
+  });
+
+  // Команда /confirmride — фото підтвердження поїздки пасажира
+  bot.onText(/^\/confirmride(?:@\w+)?$/i, async (msg) => {
+    const chatId = msg.chat.id.toString();
+    const userId = msg.from?.id.toString() || '';
+    const person = await getPersonByTelegram(userId, chatId);
+    if (!person || !bot) {
+      await sendSharePhoneOnly(chatId);
+      return;
+    }
+    await startRideProofFlow(bot, tgPrisma, chatId, person.id);
+  });
+
+  // Адмін: короткий звіт по реферальній програмі (чит / pending / фото)
+  bot.onText(/^\/referralreport(?:@\w+)?$/i, async (msg) => {
+    const chatId = msg.chat.id.toString();
+    if (chatId !== adminChatId || !bot) return;
+    try {
+      const report = await buildAdminReferralReport(tgPrisma);
+      const s = report.summary;
+      const flaggedLines = report.flagged.slice(0, 15).map((r) => {
+        const reason = r.flagReason ? `\n   ${r.flagReason.slice(0, 120)}` : '';
+        return `• #${r.id} ${r.rewardType} ${r.amountUah} грн | ref→${r.referrer.phoneNormalized} ← ${r.referredPerson.phoneNormalized}${reason}`;
+      });
+      const text =
+        `🎁 <b>Звіт «Приведи друга»</b>\n\n` +
+        `Запрошених: ${s.referredPersonsCount}\n` +
+        `Нагород: ${s.totalRewards}\n` +
+        `⏳ Pending: ${s.pendingCount} (${s.pendingUah} грн)\n` +
+        `✅ Paid: ${s.paidCount} (${s.paidUah} грн)\n` +
+        `🚩 Flagged (чит/підозра): ${s.flaggedCount} (${s.flaggedUah} грн)\n` +
+        `📷 Фото для реклами: ${report.promoPhotoProofs.length}\n\n` +
+        (flaggedLines.length
+          ? `<b>Підозрілі:</b>\n${flaggedLines.join('\n')}`
+          : 'Підозрілих нагород немає.') +
+        `\n\nПовний JSON: GET /admin/referrals/report`;
+      await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+    } catch (e) {
+      console.error('/referralreport:', e);
+      await bot.sendMessage(chatId, '❌ Не вдалося сформувати звіт');
+    }
+  });
+
   // Обробка callback query (натискання inline кнопок)
   bot.on('callback_query', async (query) => {
     const chatId = query.message?.chat.id.toString();
@@ -4307,6 +4520,25 @@ https://malin.kiev.ua
     if (chatId !== adminChatId && (data === 'addtelegram_fetch' || data === 'addtelegram_fetch_full' || data === 'addtelegram_paste')) return;
 
     try {
+      // ---------- Реферальна програма / підтвердження поїздки ----------
+      if (
+        data.startsWith('referral_') ||
+        data.startsWith('rideproof_')
+      ) {
+        const person = await getPersonByTelegram(userId, chatId);
+        if (!person || !bot) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Спочатку поділіться номером' });
+          return;
+        }
+        await bot.answerCallbackQuery(query.id).catch(() => {});
+        if (data.startsWith('referral_')) {
+          await handleReferralCallback(bot, tgPrisma, chatId, person.id, telegramBotUsername, data);
+          return;
+        }
+        await handleRideProofCallback(bot, tgPrisma, chatId, person.id, data);
+        return;
+      }
+
       // ---------- /addtelegram: завантажити з групи або вставити текст ----------
       if (data === 'addtelegram_fetch' || data === 'addtelegram_fetch_full') {
         const fullFetch = data === 'addtelegram_fetch_full';

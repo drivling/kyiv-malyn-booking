@@ -4,6 +4,10 @@ exports.normalizePhoneForMerge = normalizePhoneForMerge;
 exports.createOrMergeViberListing = createOrMergeViberListing;
 const index_helpers_1 = require("./index-helpers");
 function normalizePhoneForMerge(phone) {
+    const trimmed = phone.trim();
+    if (trimmed.startsWith('@')) {
+        return trimmed.toLowerCase();
+    }
     let cleaned = phone.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
         cleaned = `38${cleaned}`;
