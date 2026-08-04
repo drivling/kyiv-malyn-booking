@@ -11,13 +11,21 @@ import {
   COMPANY_FOOTER_PREFIX,
   COMPANY_FOOTER_SUFFIX,
 } from '@/legal/companyLegal';
-import { PRIVACY_SECTION_ID, SITE_PUBLIC_DOMAIN, TERMS_SECTION_ID } from '@/legal/sitePublic';
+import {
+  PRIVACY_SECTION_ID,
+  REFERRAL_PROMO_SECTION_ID,
+  SITE_PUBLIC_DOMAIN,
+  TERMS_SECTION_ID,
+} from '@/legal/sitePublic';
 import './privacyPolicyContent.css';
 import './CompanyLegalPage.css';
 
 export const CompanyLegalPage: React.FC = () => {
   const location = useLocation();
   const [isFullAddressVisible, setIsFullAddressVisible] = useState(false);
+  const [isReferralTermsOpen, setIsReferralTermsOpen] = useState(
+    () => typeof window !== 'undefined' && window.location.hash === `#${REFERRAL_PROMO_SECTION_ID}`
+  );
 
   useEffect(() => {
     const prev = document.title;
@@ -28,8 +36,15 @@ export const CompanyLegalPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const legalHashes = new Set([`#${PRIVACY_SECTION_ID}`, `#${TERMS_SECTION_ID}`]);
+    const legalHashes = new Set([
+      `#${PRIVACY_SECTION_ID}`,
+      `#${TERMS_SECTION_ID}`,
+      `#${REFERRAL_PROMO_SECTION_ID}`,
+    ]);
     if (!legalHashes.has(location.hash)) return;
+    if (location.hash === `#${REFERRAL_PROMO_SECTION_ID}`) {
+      setIsReferralTermsOpen(true);
+    }
     const id = window.requestAnimationFrame(() => {
       const targetId = location.hash.replace('#', '');
       document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -43,6 +58,24 @@ export const CompanyLegalPage: React.FC = () => {
     <div className="company-legal-page">
       <div className="company-legal-card company-legal-card--wide">
         <h1 className="company-legal-title">Про нас</h1>
+
+        <nav className="company-legal-toc" aria-label="Розділи сторінки">
+          <a href={`#${REFERRAL_PROMO_SECTION_ID}`} className="company-legal-toc-link">
+            Акція «Приведи друга»
+          </a>
+          <span className="company-legal-toc-sep" aria-hidden="true">
+            ·
+          </span>
+          <a href={`#${PRIVACY_SECTION_ID}`} className="company-legal-toc-link">
+            Політика конфіденційності
+          </a>
+          <span className="company-legal-toc-sep" aria-hidden="true">
+            ·
+          </span>
+          <a href={`#${TERMS_SECTION_ID}`} className="company-legal-toc-link">
+            Умови користування
+          </a>
+        </nav>
 
         <div className="company-legal-highlight" aria-labelledby="company-legal-block-title">
           <div className="company-legal-highlight__head">
@@ -141,6 +174,200 @@ export const CompanyLegalPage: React.FC = () => {
           title="Контакти"
         />
 
+        <section
+          id={REFERRAL_PROMO_SECTION_ID}
+          className="company-legal-section company-legal-referral"
+          aria-labelledby="referral-promo-heading"
+        >
+          <div className="company-legal-referral-teaser">
+            <h2 id="referral-promo-heading" className="company-legal-h2">
+              Акція «Приведи друга»
+            </h2>
+            <p>
+              Маркетингова акція сервісу попуток: запроси друга в бот, після підтвердженої поїздки (два фото)
+              учасники можуть отримати бонус у вигляді <strong>поповнення мобільного рахунку</strong>.
+            </p>
+            <p className="company-legal-referral-summary">
+              Орієнтири: до <strong>10 грн</strong> за нового друга після першої кваліфікації ·{' '}
+              <strong>20 грн</strong> за підтверджену поїздку пасажира (до 3) · <strong>20 грн</strong> самому
+              пасажиру за підтвердження · <strong>40 грн</strong>, якщо друг-водій запросив пасажира, і той
+              підтвердив поїздку. Це не лотерея.
+            </p>
+            <button
+              type="button"
+              className="company-legal-address-toggle"
+              aria-expanded={isReferralTermsOpen}
+              aria-controls="referral-promo-full"
+              onClick={() => setIsReferralTermsOpen((prev) => !prev)}
+            >
+              <span>{isReferralTermsOpen ? 'Сховати повні умови' : 'Показати повні умови акції'}</span>
+              <span
+                aria-hidden="true"
+                className={`company-legal-address-toggle-icon ${isReferralTermsOpen ? 'is-open' : ''}`}
+              >
+                ▾
+              </span>
+            </button>
+          </div>
+
+          <div
+            id="referral-promo-full"
+            className={`company-legal-referral-full ${isReferralTermsOpen ? 'is-visible' : ''}`}
+            aria-hidden={!isReferralTermsOpen}
+          >
+            <p className="privacy-policy-lead privacy-policy-lead--owner">
+              Організатор: {COMPANY_FOOTER_PREFIX}
+              <strong>
+                {c.shortNameUa}, код ЄДРПОУ {c.edrpou}
+              </strong>
+              {COMPANY_FOOTER_SUFFIX} Сервіс: <strong>{SITE_PUBLIC_DOMAIN}</strong>, Telegram-бот{' '}
+              <a href="https://t.me/malin_kiev_ua_bot" className="privacy-policy-link">
+                @malin_kiev_ua_bot
+              </a>
+              .
+            </p>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-nature">
+              <h3 id="ref-nature">1. Характер акції</h3>
+              <p>
+                Акція має рекламний (маркетинговий) характер. Вона <strong>не є</strong> лотереєю, розіграшем,
+                азартною грою чи публічною обіцянкою винагороди без обмежень. Участь означає згоду з цими умовами
+                та з{' '}
+                <a href={`#${TERMS_SECTION_ID}`} className="privacy-policy-link">
+                  умовами користування
+                </a>{' '}
+                сервісу.
+              </p>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-who">
+              <h3 id="ref-who">2. Учасники</h3>
+              <ul className="privacy-policy-list">
+                <li>
+                  <strong>Запрошувач</strong> — зареєстрований користувач бота, який запрошує друга.
+                </li>
+                <li>
+                  <strong>Друг</strong> — особа, запрошена персональним посиланням, номером телефону або Telegram
+                  @username, яка зареєструвалась у боті.
+                </li>
+                <li>Один друг може мати лише одного запрошувача.</li>
+                <li>Участь з 18 років або за згодою законного представника.</li>
+              </ul>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-how">
+              <h3 id="ref-how">3. Як взяти участь</h3>
+              <p>
+                У боті: кнопка «Приведи друга» або команда /invite. Надішліть другу посилання або вкажіть його
+                номер / @username. Друг додає попутку (водій або пасажир) через бот або сайт{' '}
+                <a href="https://malin.kiev.ua/poputky" className="privacy-policy-link">
+                  malin.kiev.ua/poputky
+                </a>
+                .
+              </p>
+              <p>
+                <strong>Сама реєстрація друга грошей не дає.</strong> Бонус з’являється лише після кваліфікації за
+                правилами нижче та перевірки організатором.
+              </p>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-rewards">
+              <h3 id="ref-rewards">4. Розміри бонусів</h3>
+              <ul className="privacy-policy-list">
+                <li>
+                  <strong>10 грн</strong> запрошувачу — за нового друга (якого ще не було в базі клієнтів) після
+                  його першої кваліфікації (один раз).
+                </li>
+                <li>
+                  <strong>20 грн</strong> запрошувачу — за кожну підтверджену поїздку друга-пасажира (до 3 поїздок).
+                </li>
+                <li>
+                  <strong>20 грн</strong> самому запрошеному пасажиру — за власне підтвердження поїздки фото (до 3).
+                </li>
+                <li>
+                  <strong>40 грн</strong> запрошувачу водія — якщо друг розмістив поїздку як водій, запросив
+                  пасажира, і цей пасажир підтвердив поїздку двома фото (один раз). Саме розміщення оголошення
+                  водія бонусу не дає.
+                </li>
+              </ul>
+              <p>
+                Якщо контакт уже був у базі клієнтів, але ще не підключав бота — запрошення можливе, проте бонус
+                10 грн за «нового» не нараховується; бонуси за підтверджені поїздки — за загальними правилами. Якщо
+                бот уже підключений — запрошення для акції не зараховується.
+              </p>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-photos">
+              <h3 id="ref-photos">5. Підтвердження поїздки</h3>
+              <p>
+                Пасажир підтверджує поїздку командою /confirmride (або відповідною кнопкою): фото на місці
+                відправлення та фото після прибуття. Надсилаючи фото, учасник надає згоду на їх використання в
+                рекламних матеріалах сервісу без публікації телефонів та інших зайвих персональних даних.
+              </p>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-payout">
+              <h3 id="ref-payout">6. Виплата — поповнення мобільного</h3>
+              <ul className="privacy-policy-list">
+                <li>
+                  Спосіб виплати: <strong>поповнення мобільного рахунку (передплати)</strong> на номер телефону,
+                  зареєстрований учасником у боті / профілі.
+                </li>
+                <li>
+                  Спочатку нарахування в статусі очікування; виплата — після схвалення організатором, як правило
+                  протягом 14 робочих днів.
+                </li>
+                <li>
+                  Учасник відповідає за актуальність номера. При помилці номера, блокуванні оператором або
+                  неможливості поповнення організатор може запропонувати повторну спробу чи інший узгоджений
+                  спосіб.
+                </li>
+                <li>
+                  Організатор може запросити мінімальне підтвердження володіння номером перед поповненням.
+                </li>
+                <li>
+                  Бонус має маркетинговий характер у формі поповнення рахунку. Податкові наслідки (якщо виникають)
+                  визначаються законодавством України.
+                </li>
+              </ul>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-limits">
+              <h3 id="ref-limits">7. Обмеження та модерація</h3>
+              <ul className="privacy-policy-list">
+                <li>Не можна запросити самого себе.</li>
+                <li>Один запрошувач на одного друга; ліміт 3 підтверджених пасажирських поїздок на друга.</li>
+                <li>
+                  Організатор може відхилити або скасувати нарахування при ознаках зловживання, технічних помилках
+                  чи порушенні умов сервісу.
+                </li>
+                <li>
+                  Організатор може змінити або зупинити акцію; уже схвалені суми виконуються за цими правилами.
+                </li>
+              </ul>
+            </section>
+
+            <section className="privacy-policy-section" aria-labelledby="ref-privacy">
+              <h3 id="ref-privacy">8. Персональні дані</h3>
+              <p>
+                Номер телефону, дані про запрошення та підтвердження поїздок обробляються для проведення акції та
+                виплати згідно з{' '}
+                <a href={`#${PRIVACY_SECTION_ID}`} className="privacy-policy-link">
+                  політикою конфіденційності
+                </a>
+                .
+              </p>
+              <p>
+                Питання щодо акції: {' '}
+                <a href={`mailto:${c.email}`} className="privacy-policy-link">
+                  {c.email}
+                </a>
+                .
+              </p>
+            </section>
+          </div>
+        </section>
+
         <div id={PRIVACY_SECTION_ID} className="company-legal-privacy">
           <h2 className="privacy-policy-title privacy-policy-title--section">Політика конфіденційності</h2>
           <p className="privacy-policy-lead privacy-policy-lead--owner">
@@ -170,7 +397,8 @@ export const CompanyLegalPage: React.FC = () => {
                 <strong>Імʼя або нікнейм</strong> — якщо ви вказуєте ці дані у профілі чи формі.
               </li>
               <li>
-                <strong>Телефон та email</strong> — для встановлення контакту між користувачами та сервісних повідомлень.
+                <strong>Телефон та email</strong> — для встановлення контакту між користувачами, сервісних
+                повідомлень і (за участі в акціях) поповнення мобільного рахунку.
               </li>
               <li>
                 <strong>Дані оголошень</strong> — маршрут, час, коментарі та інша інформація, яку ви публікуєте.
@@ -196,7 +424,8 @@ export const CompanyLegalPage: React.FC = () => {
               </li>
               <li>
                 <strong>Мета</strong> — забезпечити роботу платформи, встановлення контакту між користувачами,
-                модерацію контенту, підтримку, покращення сервісу та виконання вимог законодавства України.
+                модерацію контенту, підтримку, проведення маркетингових акцій (зокрема поповнення мобільного),
+                покращення сервісу та виконання вимог законодавства України.
               </li>
             </ul>
           </section>

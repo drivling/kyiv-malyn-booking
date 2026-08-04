@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Прев’ю постів — Facebook / Instagram Stories</title>
+  <style>
+    :root {
+      --fb-bg: #f0f2f5;
+      --fb-card: #fff;
+      --fb-text: #050505;
+      --fb-muted: #65676b;
+      --fb-blue: #0866ff;
+      --fb-border: #ced0d4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--fb-bg);
+      color: var(--fb-text);
+      padding: 24px 16px 48px;
+    }
+    .howto {
+      max-width: 680px;
+      margin: 0 auto 20px;
+      padding: 12px 14px;
+      background: #fff8e6;
+      border: 1px solid #f0d78c;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #5c4b1a;
+    }
+    .howto strong { color: #3d320f; }
+    .howto.hidden,
+    .toolbar.hidden { display: none; }
+    .toolbar {
+      max-width: 680px;
+      margin: 0 auto 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .toolbar button {
+      border: 1px solid var(--fb-border);
+      background: #fff;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .toolbar button:hover { border-color: var(--fb-blue); color: var(--fb-blue); }
+    .stage {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .fb-post {
+      background: var(--fb-card);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.1), 0 0 0 1px rgba(0,0,0,.04);
+      overflow: hidden;
+    }
+    .fb-head {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px 8px;
+    }
+    .fb-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #1d3557;
+    }
+    .fb-meta { min-width: 0; }
+    .fb-name { font-weight: 600; font-size: 15px; line-height: 1.2; }
+    .fb-time { color: var(--fb-muted); font-size: 13px; margin-top: 2px; }
+    .fb-caption {
+      padding: 4px 16px 12px;
+      font-size: 15px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    .fb-photos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      background: #111;
+    }
+    .fb-photo {
+      position: relative;
+      aspect-ratio: 3 / 4;
+      overflow: hidden;
+      background: #222;
+    }
+    .fb-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scale(1.02);
+    }
+    .fb-photo-badge {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    }
+    .fb-actions {
+      display: flex;
+      border-top: 1px solid #e4e6eb;
+      padding: 4px 8px;
+    }
+    .fb-action {
+      flex: 1;
+      text-align: center;
+      padding: 10px 4px;
+      color: var(--fb-muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .promo-square {
+      width: min(100%, 540px);
+      margin: 0 auto;
+      aspect-ratio: 1;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      color: #fff;
+      box-shadow: 0 8px 28px rgba(0,0,0,.22);
+      background: #123 url('facebook-preview-assets/fb-promo-cover.png') center / cover no-repeat;
+    }
+    .promo-square::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(8, 20, 28, 0.15) 0%, rgba(8, 20, 28, 0.35) 40%, rgba(8, 16, 20, 0.88) 100%);
+    }
+    .promo-inner {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 28px;
+    }
+    .promo-brand {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-shadow: 0 2px 12px rgba(0,0,0,.45);
+    }
+    .promo-h1 {
+      font-size: clamp(28px, 7vw, 40px);
+      font-weight: 800;
+      line-height: 1.1;
+      margin: 18px 0 10px;
+      max-width: 14ch;
+      text-shadow: 0 3px 18px rgba(0,0,0,.55);
+    }
+    .promo-lead {
+      font-size: 16px;
+      line-height: 1.4;
+      max-width: 28ch;
+      opacity: .97;
+      text-shadow: 0 2px 10px rgba(0,0,0,.5);
+    }
+    .promo-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .promo-pill {
+      background: rgba(255,255,255,.16);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      backdrop-filter: blur(6px);
+    }
+    .promo-foot {
+      font-size: 14px;
+      opacity: .95;
+      text-shadow: 0 2px 10px rgba(0,0,0,.5);
+    }
+    .promo-foot strong { font-size: 15px; }
+
+    /* —— Instagram Stories 9:16 —— */
+    .story-wrap {
+      width: min(100%, 360px);
+      margin: 0 auto;
+    }
+    .ig-story {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      border-radius: 18px;
+      overflow: hidden;
+      color: #fff;
+      box-shadow: 0 10px 32px rgba(0,0,0,.28);
+      background: #0b1520 url('facebook-preview-assets/fb-story-bg.png') center / cover no-repeat;
+    }
+    .ig-story::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.12) 28%, rgba(0,0,0,.2) 55%, rgba(0,0,0,.82) 100%);
+    }
+    .ig-story-chrome {
+      position: absolute;
+      z-index: 2;
+      left: 12px;
+      right: 12px;
+      top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ig-story-progress {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      top: 8px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.35);
+      overflow: hidden;
+      z-index: 3;
+    }
+    .ig-story-progress > i {
+      display: block;
+      width: 42%;
+      height: 100%;
+      background: #fff;
+      border-radius: inherit;
+    }
+    .ig-story-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #fff;
+      margin-top: 10px;
+    }
+    .ig-story-user {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      text-shadow: 0 1px 6px rgba(0,0,0,.55);
+    }
+    .ig-story-time {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: .85;
+    }
+    .ig-story-body {
+      position: absolute;
+      z-index: 2;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 22px 20px 28px;
+    }
+    .ig-story-kicker {
+      display: inline-flex;
+      align-self: flex-start;
+      margin-bottom: 12px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.16);
+      border: 1px solid rgba(255,255,255,.35);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      backdrop-filter: blur(6px);
+    }
+    .ig-story-h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 8vw, 36px);
+      font-weight: 800;
+      line-height: 1.08;
+      max-width: 12ch;
+      text-shadow: 0 3px 16px rgba(0,0,0,.55);
+    }
+    .ig-story-lead {
+      margin: 0 0 16px;
+      font-size: 15px;
+      line-height: 1.35;
+      max-width: 22ch;
+      opacity: .96;
+      text-shadow: 0 2px 10px rgba(0,0,0,.5);
+    }
+    .ig-story-photos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .ig-story-photos figure {
+      margin: 0;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 3 / 4;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+    }
+    .ig-story-photos img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .ig-story-photos span {
+      position: absolute;
+      left: 6px;
+      bottom: 6px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.55);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .ig-story-cta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      padding-top: 4px;
+    }
+    .ig-story-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 70%;
+      padding: 11px 16px;
+      border-radius: 999px;
+      background: #fff;
+      color: #111;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 6px 18px rgba(0,0,0,.28);
+    }
+    .ig-story-cta-sub {
+      font-size: 11px;
+      opacity: .9;
+      text-align: center;
+      text-shadow: 0 1px 6px rgba(0,0,0,.45);
+    }
+
+    .panel { display: none; }
+    .panel.show { display: block; }
+    @media print {
+      .howto, .toolbar { display: none !important; }
+      body { background: #fff; padding: 0; }
+      .fb-post, .promo-square, .ig-story { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="howto" id="howto">
+    <strong>Як зробити картинку:</strong> оберіть варіант → «Сховати підказку» → скріншот картки (⌘⇧4).
+    Фото лежать у <code>Docs/facebook-preview-assets/</code> — можна підмінити своїми.
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <button type="button" data-panel="ride">Пост після поїздки</button>
+    <button type="button" data-panel="promo">Квадрат для реклами 1:1</button>
+    <button type="button" data-panel="story">Instagram Stories 9:16</button>
+    <button type="button" id="hide-howto">Сховати підказку</button>
+  </div>
+
+  <div class="stage">
+    <div class="panel show" id="panel-ride">
+      <article class="fb-post" aria-label="Прев’ю Facebook-поста">
+        <header class="fb-head">
+          <img
+            class="fb-avatar"
+            src="facebook-preview-assets/fb-promo-cover.png"
+            alt=""
+            width="40"
+            height="40"
+          />
+          <div class="fb-meta">
+            <div class="fb-name">Попутки Малин ↔ Київ</div>
+            <div class="fb-time">Сьогодні · 🌐</div>
+          </div>
+        </header>
+        <div class="fb-caption" id="ride-caption"></div>
+        <div class="fb-photos">
+          <div class="fb-photo">
+            <img
+              src="facebook-preview-assets/fb-ride-start.png"
+              alt="Старт поїздки — дорога на світанку"
+              width="600"
+              height="800"
+            />
+            <span class="fb-photo-badge">1️⃣ Старт</span>
+          </div>
+          <div class="fb-photo">
+            <img
+              src="facebook-preview-assets/fb-ride-arrive.png"
+              alt="Прибуття — кінець поїздки"
+              width="600"
+              height="800"
+            />
+            <span class="fb-photo-badge">2️⃣ Прибуття</span>
+          </div>
+        </div>
+        <div class="fb-actions" aria-hidden="true">
+          <div class="fb-action">👍 Подобається</div>
+          <div class="fb-action">💬 Коментар</div>
+          <div class="fb-action">↗ Поділитися</div>
+        </div>
+      </article>
+    </div>
+
+    <div class="panel" id="panel-promo">
+      <div class="promo-square" id="promo-square">
+        <div class="promo-inner">
+          <div>
+            <div class="promo-brand">malin.kiev.ua</div>
+            <h1 class="promo-h1">Приведи друга — обидва в плюсі</h1>
+            <p class="promo-lead">Попутка Київ ↔ Малин. Підтвердив поїздку двома фото — бонус на мобільний.</p>
+            <div class="promo-pills">
+              <span class="promo-pill">до 10 грн</span>
+              <span class="promo-pill">+20 грн / поїздка</span>
+              <span class="promo-pill">+40 грн водій</span>
+            </div>
+          </div>
+          <div class="promo-foot">
+            <strong>t.me/malin_kiev_ua_bot</strong><br />
+            Умови: malin.kiev.ua/about#referral-promo
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-story">
+      <div class="story-wrap">
+        <article class="ig-story" aria-label="Прев’ю Instagram Stories">
+          <div class="ig-story-progress" aria-hidden="true"><i></i></div>
+          <div class="ig-story-chrome" aria-hidden="true">
+            <img
+              class="ig-story-avatar"
+              src="facebook-preview-assets/fb-promo-cover.png"
+              alt=""
+              width="32"
+              height="32"
+            />
+            <span class="ig-story-user">malin.kiev.ua</span>
+            <span class="ig-story-time">1 год</span>
+          </div>
+          <div class="ig-story-body">
+            <span class="ig-story-kicker">Акція</span>
+            <h1 class="ig-story-h1">Попутка + друг = бонус</h1>
+            <p class="ig-story-lead">Підтвердив поїздку двома фото — поповнимо мобільний 💸</p>
+            <div class="ig-story-photos">
+              <figure>
+                <img src="facebook-preview-assets/fb-ride-start.png" alt="Старт" width="300" height="400" />
+                <span>Старт</span>
+              </figure>
+              <figure>
+                <img src="facebook-preview-assets/fb-ride-arrive.png" alt="Прибуття" width="300" height="400" />
+                <span>Фініш</span>
+              </figure>
+            </div>
+            <div class="ig-story-cta">
+              <div class="ig-story-cta-btn">Відкрити бот → /invite</div>
+              <div class="ig-story-cta-sub">t.me/malin_kiev_ua_bot · умови на сайті</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CAPTION = [
+      'Сьогодні їхав(ла) попуткою Київ → Малин 🚗',
+      '(04.08.2026)',
+      '',
+      'Знайти попутника просто — через бот попуток Малин ↔ Київ.',
+      'Підтвердив поїздку двома фото і навіть бонус на мобільний отримав 💸',
+      '',
+      'Хочеш так само?',
+      '🤖 https://t.me/malin_kiev_ua_bot',
+      '🌐 https://malin.kiev.ua/poputky',
+      '',
+      '#Малин #Київ #Попутки #КиївМалин #malinkievua',
+    ].join('\n');
+
+    document.getElementById('ride-caption').textContent = CAPTION;
+
+    document.querySelectorAll('[data-panel]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-panel');
+        document.querySelectorAll('.panel').forEach((p) => p.classList.remove('show'));
+        document.getElementById('panel-' + id).classList.add('show');
+      });
+    });
+    document.getElementById('hide-howto').addEventListener('click', () => {
+      document.getElementById('howto').classList.add('hidden');
+      document.getElementById('toolbar').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>

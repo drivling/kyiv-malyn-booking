@@ -30,7 +30,71 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
+}
+
+.company-legal-toc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
   margin: 0 0 var(--pb-space-xl);
+  padding: 0.75rem 0.9rem;
+  background: var(--pb-bg-page, #f8fafc);
+  border: 1px solid var(--pb-border-light);
+  border-radius: var(--pb-radius-md, 12px);
+  font-size: var(--pb-font-size-sm);
+}
+
+.company-legal-toc-link {
+  color: var(--pb-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.company-legal-toc-link:hover {
+  text-decoration: underline;
+}
+
+.company-legal-toc-sep {
+  color: var(--pb-text-muted);
+}
+
+.company-legal-referral {
+  scroll-margin-top: 5.5rem;
+}
+
+.company-legal-referral-teaser p {
+  margin: 0 0 var(--pb-space);
+  font-size: var(--pb-font-size);
+  color: var(--pb-text);
+  line-height: 1.65;
+}
+
+.company-legal-referral-summary {
+  color: var(--pb-text-muted) !important;
+  font-size: var(--pb-font-size-sm) !important;
+}
+
+.company-legal-referral-full {
+  margin: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease, margin-top 0.2s ease;
+}
+
+.company-legal-referral-full.is-visible {
+  margin-top: var(--pb-space-lg);
+  max-height: 200rem;
+  opacity: 1;
+}
+
+.company-legal-referral-full h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--pb-text);
+  margin: 0 0 var(--pb-space);
 }
 
 .company-legal-highlight {

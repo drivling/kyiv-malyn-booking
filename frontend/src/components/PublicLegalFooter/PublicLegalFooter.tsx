@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom';
 import { SiteOwnerFooterLine } from '@/components/SiteOwnerFooterLine/SiteOwnerFooterLine';
-import { PRIVACY_POLICY_PAGE_LINK, TERMS_PAGE_LINK } from '@/legal/sitePublic';
+import {
+  PRIVACY_POLICY_PAGE_LINK,
+  REFERRAL_PROMO_PAGE_LINK,
+  TERMS_PAGE_LINK,
+} from '@/legal/sitePublic';
 import './PublicLegalFooter.css';
 
 export const PublicLegalFooter: React.FC = () => {
@@ -14,6 +18,10 @@ export const PublicLegalFooter: React.FC = () => {
           {' · '}
           <Link to={TERMS_PAGE_LINK} className="public-legal-footer-link">
             Умови користування
+          </Link>
+          {' · '}
+          <Link to={REFERRAL_PROMO_PAGE_LINK} className="public-legal-footer-link">
+            Акція «Приведи друга»
           </Link>
         </p>
         <SiteOwnerFooterLine

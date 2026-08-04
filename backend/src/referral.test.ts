@@ -449,5 +449,6 @@ describe('payout balances and FB caption', () => {
     assert.match(text, /Kyiv → Malyn/);
     assert.match(text, /malin\.kiev\.ua\/poputky/);
     assert.match(text, /t\.me\/malin_kiev_ua_bot/);
+    assert.match(text, /мобільний/);
   });
 });

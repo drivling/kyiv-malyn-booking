@@ -664,11 +664,12 @@ async function getReferralStatsForPerson(prisma, personId) {
 function buildReferralProgramTermsHtml(referralLink) {
     return ('🎁 <b>Приведи друга — обидва в плюсі</b>\n\n' +
         'Поділись посиланням з тим, з ким їздите.\n' +
-        'Коли друг проїде попуткою і підтвердить поїздку двома фото — <b>гроші отримуєте ви обидва</b> 💸\n\n' +
+        'Коли друг проїде попуткою і підтвердить поїздку двома фото — <b>бонус отримуєте ви обидва</b> (поповнення мобільного) 💸\n\n' +
         `👤 Друг поїхав пасажиром — вам від <b>${exports.REFERRAL_REWARD_UAH.registration + exports.REFERRAL_REWARD_UAH.passenger_completed_ride} грн</b>, йому <b>${exports.REFERRAL_REWARD_UAH.passenger_self_confirm} грн</b>\n` +
         `🚗 Друг віз людей як водій — вам до <b>${exports.REFERRAL_REWARD_UAH.registration + exports.REFERRAL_REWARD_UAH.driver_qualified} грн</b>\n\n` +
         `🔗 Твоє посилання:\n<code>${referralLink}</code>\n\n` +
-        '🌐 https://malin.kiev.ua/poputky');
+        '🌐 https://malin.kiev.ua/poputky\n' +
+        '📜 Умови: https://malin.kiev.ua/about#referral-promo');
 }
 /** Агрегат «скільки кому виплатити» по referrerId (отримувач нагороди). */
 function buildPayoutBalancesFromRewards(rewards) {
@@ -741,7 +742,7 @@ function buildRideFacebookShareCaption(opts) {
     return (`Сьогодні їхав(ла) попуткою ${routeNice} 🚗\n` +
         `(${opts.dateKey})\n\n` +
         `Знайти попутника просто — через бот попуток Малин ↔ Київ.\n` +
-        `Підтвердив поїздку двома фото і навіть бонус отримав 💸\n\n` +
+        `Підтвердив поїздку двома фото і навіть бонус на мобільний отримав 💸\n\n` +
         `Хочеш так само?\n` +
         `🤖 https://t.me/malin_kiev_ua_bot\n` +
         `🌐 https://malin.kiev.ua/poputky\n\n` +
