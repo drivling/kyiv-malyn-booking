@@ -20,7 +20,10 @@ import {
   buildRideFacebookShareCaption,
   flagUnpaidReferralRewardsForBotBlocked,
   buildBotBlockedPayoutsFrozenMessage,
+  withAdminManualFlagReason,
+  isProtectedFlagReason,
   BOT_BLOCKED_REWARD_FLAG_REASON,
+  ADMIN_MANUAL_FLAG_PREFIX,
   REFERRAL_REWARD_UAH,
   MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED,
   type RideTimeSlot,
@@ -495,5 +498,14 @@ describe('payout balances and FB caption', () => {
     assert.match(text, /\/start/);
     assert.doesNotMatch(text, /\d+\s*грн/i);
     assert.doesNotMatch(text, /\d+\s*UAH/i);
+  });
+
+  it('admin manual flag is protected from auto-unlock', () => {
+    const reason = withAdminManualFlagReason('Перевірити вручну');
+    assert.equal(reason.startsWith(ADMIN_MANUAL_FLAG_PREFIX), true);
+    assert.equal(isProtectedFlagReason(reason), true);
+    assert.equal(isProtectedFlagReason(BOT_BLOCKED_REWARD_FLAG_REASON), true);
+    assert.equal(isProtectedFlagReason('Дубль маршруту того ж дня'), false);
+    assert.equal(withAdminManualFlagReason(reason), reason);
   });
 });

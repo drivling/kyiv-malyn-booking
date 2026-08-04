@@ -111,17 +111,20 @@ function createAdminReferralsRouter(deps) {
                 return;
             }
             const clearFlag = status === 'approved' || status === 'pending';
+            const flagReason = status === 'flagged'
+                ? (0, referral_1.withAdminManualFlagReason)(typeof body.flagReason === 'string' ? body.flagReason : 'Підозріла активність')
+                : body.flagReason !== undefined
+                    ? body.flagReason
+                    : clearFlag
+                        ? null
+                        : undefined;
             const reward = await prisma.referralReward.update({
                 where: { id },
                 data: {
                     status,
                     ...(body.payoutNote !== undefined ? { payoutNote: body.payoutNote } : {}),
                     ...(status === 'paid' ? { paidAt: new Date() } : {}),
-                    ...(body.flagReason !== undefined
-                        ? { flagReason: body.flagReason }
-                        : clearFlag
-                            ? { flagReason: null }
-                            : {}),
+                    ...(flagReason !== undefined ? { flagReason } : {}),
                 },
             });
             res.json(reward);
@@ -188,22 +191,16 @@ function createAdminReferralsRouter(deps) {
                 });
                 let rewardsUnlocked = 0;
                 if (status === 'approved') {
-                    const unlocked = await tx.referralReward.updateMany({
-                        where: { rideProofId: id, status: 'flagged' },
-                        data: { status: 'approved', flagReason: null },
+                    const unlockIds = await (0, referral_1.findUnlockableFlaggedRewardIds)(tx, {
+                        proofId: id,
+                        personId: updated.personId,
                     });
-                    rewardsUnlocked = unlocked.count;
-                    // Fallback: flagged без rideProofId, але по цьому пасажиру як referred
-                    if (rewardsUnlocked === 0) {
-                        const fallback = await tx.referralReward.updateMany({
-                            where: {
-                                referredPersonId: updated.personId,
-                                status: 'flagged',
-                                OR: [{ rideProofId: id }, { rideProofId: null }],
-                            },
+                    if (unlockIds.length > 0) {
+                        const unlocked = await tx.referralReward.updateMany({
+                            where: { id: { in: unlockIds } },
                             data: { status: 'approved', flagReason: null },
                         });
-                        rewardsUnlocked = fallback.count;
+                        rewardsUnlocked = unlocked.count;
                     }
                 }
                 else if (status === 'rejected') {

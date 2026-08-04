@@ -897,6 +897,22 @@ export function buildPayoutBalancesFromRewards(
 export const BOT_BLOCKED_REWARD_FLAG_REASON =
   'Бот Telegram заблоковано користувачем — прибрано з виплат';
 
+/** Префікс ручного Flag в адмінці — heal / approve-фото такі рядки не чіпають */
+export const ADMIN_MANUAL_FLAG_PREFIX = '[admin] ';
+
+export function withAdminManualFlagReason(reason: string): string {
+  const trimmed = reason.trim() || 'Підозріла активність';
+  if (trimmed.startsWith(ADMIN_MANUAL_FLAG_PREFIX)) return trimmed;
+  return `${ADMIN_MANUAL_FLAG_PREFIX}${trimmed}`;
+}
+
+export function isProtectedFlagReason(flagReason: string | null | undefined): boolean {
+  if (!flagReason) return false;
+  if (flagReason === BOT_BLOCKED_REWARD_FLAG_REASON) return true;
+  if (flagReason.startsWith(ADMIN_MANUAL_FLAG_PREFIX)) return true;
+  return false;
+}
+
 /**
  * Текст (без сум) для особистої розсилки після першого блоку бота.
  * Йде через user-account (Telethon) по номеру / @username.
@@ -1058,6 +1074,7 @@ export function buildFacebookShareInlineKeyboard(
 /**
  * Якщо фото вже схвалене, а нагороди лишились flagged (старий approve без каскаду) —
  * підтягуємо їх у чергу виплат.
+ * Не чіпаємо ручний Flag адміна ([admin]) і блок бота — їх знімає лише явна кнопка «Схвалити».
  */
 export async function syncFlaggedRewardsForApprovedProofs(prisma: PrismaClient): Promise<number> {
   const approved = await prisma.rideCompletionProof.findMany({
@@ -1065,14 +1082,45 @@ export async function syncFlaggedRewardsForApprovedProofs(prisma: PrismaClient):
     select: { id: true },
   });
   if (approved.length === 0) return 0;
-  const result = await prisma.referralReward.updateMany({
+  const candidates = await prisma.referralReward.findMany({
     where: {
       rideProofId: { in: approved.map((p) => p.id) },
       status: 'flagged',
     },
+    select: { id: true, flagReason: true },
+  });
+  const ids = candidates.filter((r) => !isProtectedFlagReason(r.flagReason)).map((r) => r.id);
+  if (ids.length === 0) return 0;
+  const result = await prisma.referralReward.updateMany({
+    where: { id: { in: ids } },
     data: { status: 'approved', flagReason: null },
   });
   return result.count;
+}
+
+/**
+ * Id flagged-нагород, які можна розблокувати при approve фото
+ * (без ручного [admin] Flag і без блоку бота).
+ */
+export async function findUnlockableFlaggedRewardIds(
+  // PrismaClient або transaction client
+  prisma: { referralReward: PrismaClient['referralReward'] },
+  opts: { proofId: number; personId: number }
+): Promise<number[]> {
+  const candidates = await prisma.referralReward.findMany({
+    where: {
+      status: 'flagged',
+      OR: [
+        { rideProofId: opts.proofId },
+        {
+          referredPersonId: opts.personId,
+          OR: [{ rideProofId: opts.proofId }, { rideProofId: null }],
+        },
+      ],
+    },
+    select: { id: true, flagReason: true },
+  });
+  return candidates.filter((r) => !isProtectedFlagReason(r.flagReason)).map((r) => r.id);
 }
 
 export async function buildAdminReferralReport(prisma: PrismaClient) {

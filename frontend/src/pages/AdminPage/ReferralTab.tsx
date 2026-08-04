@@ -434,6 +434,7 @@ export const ReferralTab: React.FC = () => {
                                         type="button"
                                         disabled={busyRewardId === r.id}
                                         onClick={() => void setRewardStatus(r.id, 'approved')}
+                                        title="Повернути в чергу виплат (знімає ручний Flag)"
                                       >
                                         Схвалити
                                       </Button>
@@ -443,6 +444,7 @@ export const ReferralTab: React.FC = () => {
                                         type="button"
                                         disabled={busyRewardId === r.id}
                                         onClick={() => void flagReward(r.id, r.flagReason)}
+                                        title="Прибрати з виплат. Повернути можна кнопкою «Схвалити»"
                                       >
                                         Flag
                                       </Button>

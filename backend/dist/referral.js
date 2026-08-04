@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = void 0;
 exports.generateReferralCode = generateReferralCode;
 exports.getReferralBotLink = getReferralBotLink;
 exports.maxRewardUahPerReferred = maxRewardUahPerReferred;
@@ -24,6 +24,8 @@ exports.processReferralPassengerProofReward = processReferralPassengerProofRewar
 exports.getReferralStatsForPerson = getReferralStatsForPerson;
 exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
+exports.withAdminManualFlagReason = withAdminManualFlagReason;
+exports.isProtectedFlagReason = isProtectedFlagReason;
 exports.buildBotBlockedPayoutsFrozenMessage = buildBotBlockedPayoutsFrozenMessage;
 exports.flagUnpaidReferralRewardsForBotBlocked = flagUnpaidReferralRewardsForBotBlocked;
 exports.markReferralPayout = markReferralPayout;
@@ -33,6 +35,7 @@ exports.buildRideFacebookShareCaption = buildRideFacebookShareCaption;
 exports.buildRideFacebookSharePromptHtml = buildRideFacebookSharePromptHtml;
 exports.buildFacebookShareInlineKeyboard = buildFacebookShareInlineKeyboard;
 exports.syncFlaggedRewardsForApprovedProofs = syncFlaggedRewardsForApprovedProofs;
+exports.findUnlockableFlaggedRewardIds = findUnlockableFlaggedRewardIds;
 exports.buildAdminReferralReport = buildAdminReferralReport;
 const telegram_contact_1 = require("./telegram-contact");
 /** Локальна копія normalizePhone з telegram.ts (уникаємо circular import) */
@@ -724,6 +727,23 @@ function buildPayoutBalancesFromRewards(rewards) {
 }
 /** Причина flag, коли отримувач заблокував бота — адмін бачить у нотатці/flagReason */
 exports.BOT_BLOCKED_REWARD_FLAG_REASON = 'Бот Telegram заблоковано користувачем — прибрано з виплат';
+/** Префікс ручного Flag в адмінці — heal / approve-фото такі рядки не чіпають */
+exports.ADMIN_MANUAL_FLAG_PREFIX = '[admin] ';
+function withAdminManualFlagReason(reason) {
+    const trimmed = reason.trim() || 'Підозріла активність';
+    if (trimmed.startsWith(exports.ADMIN_MANUAL_FLAG_PREFIX))
+        return trimmed;
+    return `${exports.ADMIN_MANUAL_FLAG_PREFIX}${trimmed}`;
+}
+function isProtectedFlagReason(flagReason) {
+    if (!flagReason)
+        return false;
+    if (flagReason === exports.BOT_BLOCKED_REWARD_FLAG_REASON)
+        return true;
+    if (flagReason.startsWith(exports.ADMIN_MANUAL_FLAG_PREFIX))
+        return true;
+    return false;
+}
 /**
  * Текст (без сум) для особистої розсилки після першого блоку бота.
  * Йде через user-account (Telethon) по номеру / @username.
@@ -854,6 +874,7 @@ function buildFacebookShareInlineKeyboard(referralLink, caption) {
 /**
  * Якщо фото вже схвалене, а нагороди лишились flagged (старий approve без каскаду) —
  * підтягуємо їх у чергу виплат.
+ * Не чіпаємо ручний Flag адміна ([admin]) і блок бота — їх знімає лише явна кнопка «Схвалити».
  */
 async function syncFlaggedRewardsForApprovedProofs(prisma) {
     const approved = await prisma.rideCompletionProof.findMany({
@@ -862,14 +883,43 @@ async function syncFlaggedRewardsForApprovedProofs(prisma) {
     });
     if (approved.length === 0)
         return 0;
-    const result = await prisma.referralReward.updateMany({
+    const candidates = await prisma.referralReward.findMany({
         where: {
             rideProofId: { in: approved.map((p) => p.id) },
             status: 'flagged',
         },
+        select: { id: true, flagReason: true },
+    });
+    const ids = candidates.filter((r) => !isProtectedFlagReason(r.flagReason)).map((r) => r.id);
+    if (ids.length === 0)
+        return 0;
+    const result = await prisma.referralReward.updateMany({
+        where: { id: { in: ids } },
         data: { status: 'approved', flagReason: null },
     });
     return result.count;
+}
+/**
+ * Id flagged-нагород, які можна розблокувати при approve фото
+ * (без ручного [admin] Flag і без блоку бота).
+ */
+async function findUnlockableFlaggedRewardIds(
+// PrismaClient або transaction client
+prisma, opts) {
+    const candidates = await prisma.referralReward.findMany({
+        where: {
+            status: 'flagged',
+            OR: [
+                { rideProofId: opts.proofId },
+                {
+                    referredPersonId: opts.personId,
+                    OR: [{ rideProofId: opts.proofId }, { rideProofId: null }],
+                },
+            ],
+        },
+        select: { id: true, flagReason: true },
+    });
+    return candidates.filter((r) => !isProtectedFlagReason(r.flagReason)).map((r) => r.id);
 }
 async function buildAdminReferralReport(prisma) {
     await syncFlaggedRewardsForApprovedProofs(prisma);
