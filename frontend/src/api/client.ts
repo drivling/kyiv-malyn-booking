@@ -554,6 +554,27 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  /** Завантажити фото підтвердження (blob URL для <img>). Не забудьте URL.revokeObjectURL. */
+  async fetchRideProofPhotoObjectUrl(proofId: number, kind: 'start' | 'end'): Promise<string> {
+    const url = `${this.baseUrl}/admin/referrals/proofs/${proofId}/photo/${kind}`;
+    const headers = new Headers();
+    if (this.authToken) headers.set('Authorization', this.authToken);
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const text = await response.text();
+      let msg = `Помилка ${response.status}`;
+      try {
+        const err = text ? JSON.parse(text) : {};
+        if (err?.error) msg = err.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

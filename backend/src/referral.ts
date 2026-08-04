@@ -482,6 +482,11 @@ async function createRewardIfNotExists(
   return { created: true, rewardId: reward.id };
 }
 
+/**
+ * Слоти для античиту. Підтвердження (proof) має пріоритет над оголошенням:
+ * якщо є proof на той самий маршрут+дату (або той самий listing) — listing не дублюємо,
+ * інакше звичайний /confirmride завжди дає хибний «Дубль маршруту».
+ */
 export async function collectPersonRideSlots(prisma: PrismaClient, personId: number): Promise<RideTimeSlot[]> {
   const listings = await prisma.viberListing.findMany({
     where: { personId, listingType: 'passenger' },
@@ -489,20 +494,15 @@ export async function collectPersonRideSlots(prisma: PrismaClient, personId: num
   });
   const proofs = await prisma.rideCompletionProof.findMany({
     where: { personId, status: { in: ['approved', 'pending_review', 'flagged'] } },
-    select: { route: true, rideDate: true, departureTime: true, id: true },
+    select: { route: true, rideDate: true, departureTime: true, id: true, viberListingId: true },
   });
 
+  const proofListingIds = new Set(
+    proofs.map((p) => p.viberListingId).filter((id): id is number => typeof id === 'number' && id > 0)
+  );
+  const proofDayKeys = new Set(proofs.map((p) => `${p.route}__${toDateKey(p.rideDate)}`));
+
   const slots: RideTimeSlot[] = [];
-  for (const l of listings) {
-    const startMin = parseDepartureMinutes(l.departureTime);
-    slots.push({
-      route: l.route,
-      dateKey: toDateKey(l.date),
-      startMin: startMin ?? 0,
-      endMin: startMin != null ? startMin + MIN_RIDE_DURATION_MINUTES : 24 * 60,
-      source: `listing:${l.id}`,
-    });
-  }
   for (const p of proofs) {
     const startMin = parseDepartureMinutes(p.departureTime);
     slots.push({
@@ -511,6 +511,19 @@ export async function collectPersonRideSlots(prisma: PrismaClient, personId: num
       startMin: startMin ?? 0,
       endMin: startMin != null ? startMin + MIN_RIDE_DURATION_MINUTES : 24 * 60,
       source: `proof:${p.id}`,
+    });
+  }
+  for (const l of listings) {
+    if (proofListingIds.has(l.id)) continue;
+    const dayKey = `${l.route}__${toDateKey(l.date)}`;
+    if (proofDayKeys.has(dayKey)) continue;
+    const startMin = parseDepartureMinutes(l.departureTime);
+    slots.push({
+      route: l.route,
+      dateKey: toDateKey(l.date),
+      startMin: startMin ?? 0,
+      endMin: startMin != null ? startMin + MIN_RIDE_DURATION_MINUTES : 24 * 60,
+      source: `listing:${l.id}`,
     });
   }
   return slots;
@@ -992,7 +1005,20 @@ export async function buildAdminReferralReport(prisma: PrismaClient) {
           fullName: true,
           phoneNormalized: true,
           telegramChatId: true,
+          telegramUsername: true,
         },
+      },
+      referralRewards: {
+        select: {
+          id: true,
+          rewardType: true,
+          amountUah: true,
+          status: true,
+          flagReason: true,
+          referrerId: true,
+          referrer: { select: { id: true, fullName: true, phoneNormalized: true } },
+        },
+        orderBy: { id: 'asc' },
       },
     },
   });

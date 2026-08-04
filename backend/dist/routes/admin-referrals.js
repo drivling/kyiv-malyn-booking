@@ -7,6 +7,7 @@ exports.createAdminReferralsRouter = createAdminReferralsRouter;
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const referral_1 = require("../referral");
+const telegram_1 = require("../telegram");
 function createAdminReferralsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -19,6 +20,49 @@ function createAdminReferralsRouter(deps) {
         catch (e) {
             console.error('❌ GET /admin/referrals/report:', e);
             res.status(500).json({ error: 'Не вдалося сформувати звіт' });
+        }
+    });
+    /**
+     * Превʼю фото підтвердження поїздки (проксі з Telegram Bot API).
+     * kind = start | end
+     */
+    r.get('/admin/referrals/proofs/:id/photo/:kind', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const kind = String(req.params.kind || '').trim().toLowerCase();
+            if (!Number.isInteger(id) || id <= 0) {
+                res.status(400).json({ error: 'Невірний id' });
+                return;
+            }
+            if (kind !== 'start' && kind !== 'end') {
+                res.status(400).json({ error: 'kind: start | end' });
+                return;
+            }
+            const proof = await prisma.rideCompletionProof.findUnique({
+                where: { id },
+                select: { photoStartFileId: true, photoEndFileId: true },
+            });
+            if (!proof) {
+                res.status(404).json({ error: 'Підтвердження не знайдено' });
+                return;
+            }
+            const fileId = kind === 'start' ? proof.photoStartFileId : proof.photoEndFileId;
+            if (!fileId) {
+                res.status(404).json({ error: 'Фото ще немає' });
+                return;
+            }
+            const file = await (0, telegram_1.fetchTelegramFileById)(fileId);
+            if (!file) {
+                res.status(502).json({ error: 'Не вдалося завантажити фото з Telegram' });
+                return;
+            }
+            res.setHeader('Content-Type', file.contentType);
+            res.setHeader('Cache-Control', 'private, max-age=300');
+            res.send(file.buffer);
+        }
+        catch (e) {
+            console.error('❌ GET /admin/referrals/proofs/:id/photo:', e);
+            res.status(500).json({ error: 'Помилка завантаження фото' });
         }
     });
     /**
@@ -66,13 +110,18 @@ function createAdminReferralsRouter(deps) {
                 res.status(400).json({ error: 'status: pending | approved | paid | flagged' });
                 return;
             }
+            const clearFlag = status === 'approved' || status === 'pending';
             const reward = await prisma.referralReward.update({
                 where: { id },
                 data: {
                     status,
-                    ...(body.flagReason !== undefined ? { flagReason: body.flagReason } : {}),
                     ...(body.payoutNote !== undefined ? { payoutNote: body.payoutNote } : {}),
                     ...(status === 'paid' ? { paidAt: new Date() } : {}),
+                    ...(body.flagReason !== undefined
+                        ? { flagReason: body.flagReason }
+                        : clearFlag
+                            ? { flagReason: null }
+                            : {}),
                 },
             });
             res.json(reward);
@@ -82,7 +131,11 @@ function createAdminReferralsRouter(deps) {
             res.status(500).json({ error: 'Не вдалося оновити нагороду' });
         }
     });
-    /** Схвалити / відхилити підтвердження поїздки з фото */
+    /**
+     * Схвалити / відхилити підтвердження поїздки з фото.
+     * При approve — повʼязані flagged нагороди → approved (у чергу виплат).
+     * При reject — повʼязані нагороди → flagged з причиною відхилення.
+     */
     r.patch('/admin/referrals/proofs/:id', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const id = parseInt(req.params.id, 10);
@@ -96,12 +149,51 @@ function createAdminReferralsRouter(deps) {
                 res.status(400).json({ error: 'status: pending_review | approved | rejected | flagged' });
                 return;
             }
-            const proof = await prisma.rideCompletionProof.update({
-                where: { id },
-                data: {
-                    status,
-                    ...(body.rejectionReason !== undefined ? { rejectionReason: body.rejectionReason } : {}),
-                },
+            const rejectionReason = typeof body.rejectionReason === 'string' && body.rejectionReason.trim()
+                ? body.rejectionReason.trim()
+                : null;
+            const proof = await prisma.$transaction(async (tx) => {
+                const updated = await tx.rideCompletionProof.update({
+                    where: { id },
+                    data: {
+                        status,
+                        ...(body.rejectionReason !== undefined ? { rejectionReason } : {}),
+                        ...(status === 'approved' ? { flagReason: null, rejectionReason: null } : {}),
+                        ...(status === 'rejected' && rejectionReason
+                            ? { rejectionReason, flagReason: rejectionReason }
+                            : {}),
+                    },
+                    include: {
+                        person: {
+                            select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true },
+                        },
+                        referralRewards: {
+                            select: {
+                                id: true,
+                                rewardType: true,
+                                amountUah: true,
+                                status: true,
+                                flagReason: true,
+                                referrerId: true,
+                                referrer: { select: { id: true, fullName: true, phoneNormalized: true } },
+                            },
+                        },
+                    },
+                });
+                if (status === 'approved') {
+                    await tx.referralReward.updateMany({
+                        where: { rideProofId: id, status: 'flagged' },
+                        data: { status: 'approved', flagReason: null },
+                    });
+                }
+                else if (status === 'rejected') {
+                    const reason = rejectionReason || 'Фото відхилено модератором';
+                    await tx.referralReward.updateMany({
+                        where: { rideProofId: id, status: { in: ['pending', 'approved', 'flagged'] } },
+                        data: { status: 'flagged', flagReason: reason },
+                    });
+                }
+                return updated;
             });
             res.json(proof);
         }

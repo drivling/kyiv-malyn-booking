@@ -2355,6 +2355,36 @@ export const sendReferralInvitePromo = async (chatId: string, personId: number):
 };
 
 /**
+ * Завантажити файл з Telegram за file_id (для адмін-превʼю фото /confirmride).
+ */
+export async function fetchTelegramFileById(
+  fileId: string
+): Promise<{ buffer: Buffer; contentType: string; filePath: string } | null> {
+  if (!bot || !token || !fileId.trim()) return null;
+  try {
+    const file = await bot.getFile(fileId);
+    if (!file.file_path) return null;
+    const url = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('❌ Telegram getFile download:', res.status, file.file_path);
+      return null;
+    }
+    const arrayBuf = await res.arrayBuffer();
+    const lower = file.file_path.toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) contentType = 'image/jpeg';
+    else if (lower.endsWith('.png')) contentType = 'image/png';
+    else if (lower.endsWith('.webp')) contentType = 'image/webp';
+    else if (lower.endsWith('.gif')) contentType = 'image/gif';
+    return { buffer: Buffer.from(arrayBuf), contentType, filePath: file.file_path };
+  } catch (e) {
+    console.error('❌ fetchTelegramFileById:', e);
+    return null;
+  }
+};
+
+/**
  * Перевірка чи бот налаштований
  */
 export const isTelegramEnabled = (): boolean => {

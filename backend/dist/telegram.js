@@ -27,6 +27,7 @@ exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessage
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
+exports.fetchTelegramFileById = fetchTelegramFileById;
 exports.setTelegramBotForTests = setTelegramBotForTests;
 exports.resetTelegramBotForTests = resetTelegramBotForTests;
 exports.executeBookViberRideShare = executeBookViberRideShare;
@@ -1946,6 +1947,41 @@ const sendReferralInvitePromo = async (chatId, personId) => {
     await bot.sendMessage(chatId, (0, referral_1.buildReferralProgramTermsHtml)(link), { parse_mode: 'HTML' });
 };
 exports.sendReferralInvitePromo = sendReferralInvitePromo;
+/**
+ * Завантажити файл з Telegram за file_id (для адмін-превʼю фото /confirmride).
+ */
+async function fetchTelegramFileById(fileId) {
+    if (!bot || !token || !fileId.trim())
+        return null;
+    try {
+        const file = await bot.getFile(fileId);
+        if (!file.file_path)
+            return null;
+        const url = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            console.error('❌ Telegram getFile download:', res.status, file.file_path);
+            return null;
+        }
+        const arrayBuf = await res.arrayBuffer();
+        const lower = file.file_path.toLowerCase();
+        let contentType = 'application/octet-stream';
+        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
+            contentType = 'image/jpeg';
+        else if (lower.endsWith('.png'))
+            contentType = 'image/png';
+        else if (lower.endsWith('.webp'))
+            contentType = 'image/webp';
+        else if (lower.endsWith('.gif'))
+            contentType = 'image/gif';
+        return { buffer: Buffer.from(arrayBuf), contentType, filePath: file.file_path };
+    }
+    catch (e) {
+        console.error('❌ fetchTelegramFileById:', e);
+        return null;
+    }
+}
+;
 /**
  * Перевірка чи бот налаштований
  */

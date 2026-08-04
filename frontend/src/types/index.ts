@@ -307,6 +307,16 @@ export interface ReferralPayoutPersonRow {
   rewardIds: number[];
 }
 
+export interface RideProofLinkedReward {
+  id: number;
+  rewardType: string;
+  amountUah: number;
+  status: string;
+  flagReason: string | null;
+  referrerId: number;
+  referrer: { id: number; fullName: string | null; phoneNormalized: string };
+}
+
 export interface RideCompletionProofRow {
   id: number;
   personId: number;
@@ -319,6 +329,7 @@ export interface RideCompletionProofRow {
   rejectionReason: string | null;
   flagReason: string | null;
   person: ReferralPersonBrief;
+  referralRewards?: RideProofLinkedReward[];
 }
 
 export interface AdminReferralReport {

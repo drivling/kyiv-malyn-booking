@@ -4,7 +4,13 @@ import { Alert } from '@/components/Alert';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { formatPhoneDisplay } from '@/utils/constants';
-import type { AdminReferralReport, ReferralPayoutPersonRow, ReferralRewardRow } from '@/types';
+import type {
+  AdminReferralReport,
+  ReferralPayoutPersonRow,
+  ReferralRewardRow,
+  RideCompletionProofRow,
+} from '@/types';
+import './ReferralTab.css';
 
 const REWARD_TYPE_LABEL: Record<string, string> = {
   registration: 'Новий друг (10)',
@@ -15,6 +21,65 @@ const REWARD_TYPE_LABEL: Record<string, string> = {
 };
 
 type PayoutFilter = 'payable' | 'all' | 'paid_only';
+
+const ProofPhotoThumb: React.FC<{
+  proofId: number;
+  kind: 'start' | 'end';
+  label: string;
+  onOpen: (url: string) => void;
+}> = ({ proofId, kind, label, onOpen }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    let objectUrl: string | null = null;
+    setLoading(true);
+    setError('');
+    void apiClient
+      .fetchRideProofPhotoObjectUrl(proofId, kind)
+      .then((u) => {
+        if (!alive) {
+          URL.revokeObjectURL(u);
+          return;
+        }
+        objectUrl = u;
+        setUrl(u);
+      })
+      .catch((e) => {
+        if (alive) setError(e instanceof Error ? e.message : 'Не завантажилось');
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [proofId, kind]);
+
+  return (
+    <button
+      type="button"
+      className="referral-proof-photo"
+      onClick={() => {
+        if (url) onOpen(url);
+      }}
+      disabled={!url}
+      title={url ? 'Збільшити' : undefined}
+    >
+      {loading && <span className="referral-proof-photo__loading">Завантаження…</span>}
+      {!loading && error && <span className="referral-proof-photo__err">{error}</span>}
+      {!loading && url && (
+        <>
+          <img src={url} alt={label} />
+          <span className="referral-proof-photo__label">{label}</span>
+        </>
+      )}
+    </button>
+  );
+};
 
 export const ReferralTab: React.FC = () => {
   const [report, setReport] = useState<AdminReferralReport | null>(null);
@@ -28,6 +93,7 @@ export const ReferralTab: React.FC = () => {
   const [payingPersonId, setPayingPersonId] = useState<number | null>(null);
   const [busyProofId, setBusyProofId] = useState<number | null>(null);
   const [busyRewardId, setBusyRewardId] = useState<number | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,18 +183,34 @@ export const ReferralTab: React.FC = () => {
     }
   };
 
-  const setProofStatus = async (id: number, status: string) => {
+  const setProofStatus = async (id: number, status: string, rejectionReason?: string) => {
     setBusyProofId(id);
     setError('');
     try {
-      await apiClient.patchRideProof(id, { status });
-      setSuccess(`Фото #${id} → ${status}`);
+      await apiClient.patchRideProof(id, {
+        status,
+        ...(rejectionReason !== undefined ? { rejectionReason } : {}),
+      });
+      setSuccess(
+        status === 'approved'
+          ? `Заявку #${id} схвалено — повʼязані flagged нагороди в черзі виплат`
+          : `Заявку #${id} → ${status}`
+      );
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка оновлення фото');
     } finally {
       setBusyProofId(null);
     }
+  };
+
+  const rejectProof = async (p: RideCompletionProofRow) => {
+    const reason = window.prompt(
+      `Причина відхилення фото #${p.id} (буде на нагородах):`,
+      p.flagReason || 'Фото не підтверджує поїздку'
+    );
+    if (reason === null) return;
+    await setProofStatus(p.id, 'rejected', reason.trim() || 'Фото відхилено модератором');
   };
 
   if (loading && !report) {
@@ -324,57 +406,122 @@ export const ReferralTab: React.FC = () => {
       <section style={{ marginTop: 36 }}>
         <h3>📷 Фото підтверджень (модерація)</h3>
         <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
-          Після двох фото бот просить людину викласти пост у Facebook. Тут — схвалення / відхилення.
+          Після двох фото бот просить викласти пост у Facebook. Перегляньте фото, причину flagged (якщо є),
+          потім схваліть (нагороди підуть у виплату) або відхиліть із причиною.
         </p>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Хто</th>
-                <th>Маршрут / дата</th>
-                <th>Статус</th>
-                <th>Telegram file_id</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingProofs.length === 0 && (
-                <tr>
-                  <td colSpan={6}>Немає фото на перевірці</td>
-                </tr>
-              )}
-              {pendingProofs.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.id}</td>
-                  <td>
-                    {p.person.fullName || '—'}
-                    <div style={{ fontSize: 12 }}>{formatPhoneDisplay(p.person.phoneNormalized)}</div>
-                  </td>
-                  <td>
-                    {p.route}
-                    <div style={{ fontSize: 12 }}>{String(p.rideDate).slice(0, 10)}</div>
-                  </td>
-                  <td>{p.status}</td>
-                  <td style={{ fontSize: 11, maxWidth: 180, wordBreak: 'break-all' }}>
-                    {p.photoStartFileId ? `start: ${p.photoStartFileId.slice(0, 24)}…` : '—'}
-                    <br />
-                    {p.photoEndFileId ? `end: ${p.photoEndFileId.slice(0, 24)}…` : '—'}
-                  </td>
-                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <Button type="button" disabled={busyProofId === p.id} onClick={() => void setProofStatus(p.id, 'approved')}>
-                      OK
+        {pendingProofs.length === 0 ? (
+          <p style={{ color: 'var(--pb-text-muted)' }}>Немає заявок на перевірці.</p>
+        ) : (
+          <div className="referral-proof-grid">
+            {pendingProofs.map((p) => {
+              const rewards = p.referralRewards ?? [];
+              const rewardSum = rewards.reduce((s, r) => s + r.amountUah, 0);
+              const isFlagged = p.status === 'flagged';
+              return (
+                <article
+                  key={p.id}
+                  className={`referral-proof-card${isFlagged ? ' is-flagged' : ''}`}
+                >
+                  <div className="referral-proof-card__head">
+                    <div>
+                      <h4 className="referral-proof-card__title">
+                        #{p.id} · {p.person.fullName || 'Без імені'}
+                      </h4>
+                      <p className="referral-proof-card__meta">
+                        {formatPhoneDisplay(p.person.phoneNormalized)}
+                        {p.person.telegramUsername ? ` · @${p.person.telegramUsername}` : ''}
+                        <br />
+                        {p.route} · {String(p.rideDate).slice(0, 10)}
+                        {p.departureTime ? ` · ${p.departureTime}` : ''}
+                      </p>
+                    </div>
+                    <span
+                      className={`referral-proof-badge ${
+                        isFlagged ? 'referral-proof-badge--flagged' : 'referral-proof-badge--pending'
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
+
+                  {(p.flagReason || p.rejectionReason) && (
+                    <p className="referral-proof-reason">
+                      <strong>{isFlagged ? 'Чому flagged: ' : 'Причина: '}</strong>
+                      {p.flagReason || p.rejectionReason}
+                    </p>
+                  )}
+
+                  <div className="referral-proof-photos">
+                    <ProofPhotoThumb
+                      proofId={p.id}
+                      kind="start"
+                      label="1️⃣ Старт"
+                      onOpen={setLightboxUrl}
+                    />
+                    <ProofPhotoThumb
+                      proofId={p.id}
+                      kind="end"
+                      label="2️⃣ Прибуття"
+                      onOpen={setLightboxUrl}
+                    />
+                  </div>
+
+                  {rewards.length > 0 ? (
+                    <ul className="referral-proof-rewards">
+                      <li>
+                        <strong>Нагороди по цій заявці:</strong> {rewardSum} грн
+                      </li>
+                      {rewards.map((r) => (
+                        <li key={r.id}>
+                          #{r.id} {REWARD_TYPE_LABEL[r.rewardType] || r.rewardType} →{' '}
+                          {r.referrer.fullName || formatPhoneDisplay(r.referrer.phoneNormalized)} ·{' '}
+                          {r.amountUah} грн · {r.status}
+                          {r.flagReason ? ` (${r.flagReason})` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="referral-proof-card__meta">Немає привʼязаних нагород (або ще не нараховані).</p>
+                  )}
+
+                  <div className="referral-proof-actions">
+                    <Button
+                      type="button"
+                      disabled={busyProofId === p.id}
+                      onClick={() => void setProofStatus(p.id, 'approved')}
+                    >
+                      {busyProofId === p.id ? '…' : 'Схвалити → у виплату'}
                     </Button>
-                    <Button type="button" disabled={busyProofId === p.id} onClick={() => void setProofStatus(p.id, 'rejected')}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busyProofId === p.id}
+                      onClick={() => void rejectProof(p)}
+                    >
                       Відхилити
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
+
+      {lightboxUrl && (
+        <div
+          className="referral-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Перегляд фото"
+          onClick={() => setLightboxUrl(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setLightboxUrl(null);
+          }}
+        >
+          <img src={lightboxUrl} alt="Фото підтвердження" />
+        </div>
+      )}
 
       {(report?.flagged?.length ?? 0) > 0 && (
         <section style={{ marginTop: 36 }}>

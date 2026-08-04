@@ -1,0 +1,198 @@
+{
+  "main": {
+    "id": "8944b49ba2bf89c7",
+    "type": "split",
+    "children": [
+      {
+        "id": "39f26761f7b76827",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b7c99523d49269ce",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "referral-program-terms.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "referral-program-terms"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2a18f8802b5bec29",
+    "type": "split",
+    "children": [
+      {
+        "id": "a9201c2f1b212feb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "01bb99d1c8eec46c",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловий менеджер"
+            }
+          },
+          {
+            "id": "e4f1c06348bd8a09",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Пошук"
+            }
+          },
+          {
+            "id": "e498612db1c1ac65",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "6f1d3b84bb872912",
+    "type": "split",
+    "children": [
+      {
+        "id": "038f4aaaf5bdfd0b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7af7a94e2952d903",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "referral-program-terms.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Зворотні посилання для referral-program-terms"
+            }
+          },
+          {
+            "id": "de772c7ff007d345",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "referral-program-terms.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Вихідні посилання з referral-program-terms"
+            }
+          },
+          {
+            "id": "3231ced97dfde717",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Мітки"
+            }
+          },
+          {
+            "id": "6a03089cf0956920",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Всі властивості"
+            }
+          },
+          {
+            "id": "7c52d4ba53ff6cd7",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "referral-program-terms.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Вміст referral-program-terms"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Відкрити провідник файлів": false,
+      "graph:Граф": false,
+      "canvas:Створити нове полотно": false,
+      "daily-notes:Сьогоднішня нотатка": false,
+      "templates:Вставити шаблон": false,
+      "command-palette:Відкрити меню команд": false,
+      "bases:Створити нову базу": false
+    }
+  },
+  "active": "b7c99523d49269ce",
+  "lastOpenFiles": [
+    "facebook-preview-assets/fb-story-bg.png",
+    "facebook-preview-assets/fb-ride-start.png",
+    "facebook-preview-assets/fb-ride-arrive.png",
+    "facebook-preview-assets/fb-promo-cover.png",
+    "facebook-preview-assets",
+    "facebook-ride-post-preview.html",
+    "referral-facebook-post.md",
+    "referral-program-terms.md",
+    "Schema_telegram.svg"
+  ]
+}
