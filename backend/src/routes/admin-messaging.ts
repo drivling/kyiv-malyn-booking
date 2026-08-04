@@ -8,6 +8,7 @@ import {
   normalizePhone,
   sendInactivityReminder,
   sendMessageViaUserAccount,
+  sendReferralInvitePromo,
 } from '../telegram';
 import { getTelegramReminderWhere, getChannelPromoWhere, PROMO_NOT_FOUND_SENTINEL } from '../index-helpers';
 import { requireAdmin } from '../middleware/require-admin';
@@ -161,6 +162,84 @@ r.post('/admin/send-telegram-reminders', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ send-telegram-reminders:', e);
     res.status(500).json({ error: 'Failed to send telegram reminders' });
+  }
+});
+
+/**
+ * Персональне промо «Приведи друга» тим самим фільтром, що й нагадування.
+ * Кожному формується своє ref-посилання. Body: { filter?, limit?, delaysMs? }.
+ */
+r.post('/admin/send-referral-promo', requireAdmin, async (req, res) => {
+  if (!isTelegramEnabled()) {
+    return res.status(400).json({ error: 'Telegram bot не налаштовано' });
+  }
+  try {
+    const filter = (req.body?.filter as string)?.trim() || 'all';
+    if (!['all', 'no_active_viber', 'no_reminder_7_days'].includes(filter)) {
+      res.status(400).json({ error: 'Invalid filter' });
+      return;
+    }
+    const limit = typeof req.body?.limit === 'number' && req.body.limit > 0 ? Math.floor(req.body.limit) : undefined;
+    const delaysMs = Array.isArray(req.body?.delaysMs)
+      ? (req.body.delaysMs as number[]).filter((d) => typeof d === 'number' && d >= 0).map((d) => Math.min(Math.floor(d), 120000))
+      : undefined;
+    const where = getTelegramReminderWhere(filter);
+    let persons = await prisma.person.findMany({
+      where,
+      select: { id: true, phoneNormalized: true, fullName: true, telegramChatId: true },
+      orderBy: { id: 'asc' },
+    });
+    if (limit !== undefined) {
+      persons = persons.slice(0, limit);
+    }
+    let sent = 0;
+    let failed = 0;
+    const blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }> = [];
+    for (let i = 0; i < persons.length; i++) {
+      const p = persons[i];
+      const chatId = p.telegramChatId;
+      if (!chatId || chatId === '0' || !chatId.trim()) {
+        failed++;
+      } else {
+        try {
+          await sendReferralInvitePromo(chatId, p.id);
+          sent++;
+          await prisma.person.update({
+            where: { id: p.id },
+            data: { telegramReminderSentAt: new Date() },
+          });
+        } catch (err) {
+          const isBlocked = isTelegramBotBlockedByUserError(err);
+          if (isBlocked) {
+            blocked.push({ id: p.id, phoneNormalized: p.phoneNormalized, fullName: p.fullName });
+            try {
+              await revokeTelegramBotForPerson(prisma, p.id);
+            } catch (clearErr) {
+              console.error(`❌ revokeTelegramBotForPerson person #${p.id}:`, clearErr);
+            }
+          }
+          console.error(`❌ send-referral-promo person #${p.id}:`, err);
+          failed++;
+        }
+      }
+      if (delaysMs?.length && i < persons.length - 1) {
+        const delayMs = delaysMs[Math.min(i, delaysMs.length - 1)] ?? 0;
+        if (delayMs > 0) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+    }
+    const total = persons.length;
+    const message =
+      `Промо «Приведи друга» відправлено: ${sent}, помилок: ${failed}, всього в вибірці: ${total}` +
+      (blocked.length > 0 ? `; заблокували бота: ${blocked.length}` : '');
+    console.log(
+      `📢 Referral promo (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent}, failed=${failed}, blocked=${blocked.length}, total=${total}`
+    );
+    res.json({ success: true, total, sent, failed, message, blocked });
+  } catch (e) {
+    console.error('❌ send-referral-promo:', e);
+    res.status(500).json({ error: 'Failed to send referral promo' });
   }
 });
 

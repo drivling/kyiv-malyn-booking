@@ -42,7 +42,12 @@ import {
   startRideProofFlow,
   takePendingReferralCode,
 } from './telegram-referral';
-import { buildAdminReferralReport } from './referral';
+import {
+  buildAdminReferralReport,
+  buildReferralProgramTermsHtml,
+  ensurePersonReferralCode,
+  getReferralBotLink,
+} from './referral';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -2338,6 +2343,18 @@ export const sendInactivityReminder = async (chatId: string) => {
 };
 
 /**
+ * Персональне промо «Приведи друга» з унікальним ref-посиланням для Person.
+ */
+export const sendReferralInvitePromo = async (chatId: string, personId: number): Promise<void> => {
+  if (!bot) {
+    throw new Error('Telegram bot не налаштовано');
+  }
+  const code = await ensurePersonReferralCode(tgPrisma, personId);
+  const link = getReferralBotLink(telegramBotUsername, code);
+  await bot.sendMessage(chatId, buildReferralProgramTermsHtml(link), { parse_mode: 'HTML' });
+};
+
+/**
  * Перевірка чи бот налаштований
  */
 export const isTelegramEnabled = (): boolean => {
@@ -2508,7 +2525,8 @@ const MENU_NAV = {
   ROOT_PROMO: '🎁 Акції',
   ROOT_HELP: '📚 Довідка',
   ROOT_ADMIN: '🛠 Адмін',
-  BACK: '◀️ Назад',
+  /** Повернення в корінь — коротка назва, щоб завжди вміщалась у ряд з «Скасувати». */
+  BACK: '◀️ Головне меню',
   BOOK: '🎫 Забронювати',
   MY_BOOKINGS: '📋 Мої бронювання',
   CANCEL: '🚫 Скасувати',
@@ -2571,8 +2589,8 @@ function getMainMenuKeyboard(chatId?: string): TelegramBot.ReplyKeyboardMarkup {
 function getMarshrutkyMenuKeyboard(): TelegramBot.ReplyKeyboardMarkup {
   return replyKeyboard([
     [MENU_NAV.BOOK, MENU_NAV.MY_BOOKINGS],
-    [MENU_NAV.CANCEL],
-    [MENU_NAV.BACK],
+    // Один нижній ряд: інакше «Назад» ховається за межею екрана в Telegram.
+    [MENU_NAV.CANCEL, MENU_NAV.BACK],
   ]);
 }
 
@@ -2581,15 +2599,13 @@ function getPoputkyMenuKeyboard(): TelegramBot.ReplyKeyboardMarkup {
     [MENU_NAV.ALL_RIDES],
     [MENU_NAV.ADD_DRIVER_RIDE, MENU_NAV.ADD_PASSENGER_RIDE],
     [MENU_NAV.MY_DRIVER_RIDES, MENU_NAV.MY_PASSENGER_RIDES],
-    [MENU_NAV.CANCEL],
-    [MENU_NAV.BACK],
+    [MENU_NAV.CANCEL, MENU_NAV.BACK],
   ]);
 }
 
 function getPromoMenuKeyboard(): TelegramBot.ReplyKeyboardMarkup {
   return replyKeyboard([
-    [MENU_NAV.INVITE],
-    [MENU_NAV.CONFIRM_RIDE],
+    [MENU_NAV.INVITE, MENU_NAV.CONFIRM_RIDE],
     [MENU_NAV.BACK],
   ]);
 }
@@ -2661,7 +2677,8 @@ async function handleMenuNavigation(chatId: string, text: string): Promise<boole
     );
     return true;
   }
-  if (text === MENU_NAV.BACK) {
+  // «◀️ Назад» — стара підпис кнопки, лишаємо для вже відкритих клавіатур у клієнті.
+  if (text === MENU_NAV.BACK || text === '◀️ Назад') {
     await bot.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard(chatId) });
     return true;
   }

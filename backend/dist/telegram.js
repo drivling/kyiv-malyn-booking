@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
 exports.setSpawnForTests = setSpawnForTests;
 exports.resetSpawnForTests = resetSpawnForTests;
 exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
@@ -1935,6 +1935,18 @@ const sendInactivityReminder = async (chatId) => {
 };
 exports.sendInactivityReminder = sendInactivityReminder;
 /**
+ * Персональне промо «Приведи друга» з унікальним ref-посиланням для Person.
+ */
+const sendReferralInvitePromo = async (chatId, personId) => {
+    if (!bot) {
+        throw new Error('Telegram bot не налаштовано');
+    }
+    const code = await (0, referral_1.ensurePersonReferralCode)(tgPrisma, personId);
+    const link = (0, referral_1.getReferralBotLink)(telegramBotUsername, code);
+    await bot.sendMessage(chatId, (0, referral_1.buildReferralProgramTermsHtml)(link), { parse_mode: 'HTML' });
+};
+exports.sendReferralInvitePromo = sendReferralInvitePromo;
+/**
  * Перевірка чи бот налаштований
  */
 const isTelegramEnabled = () => {
@@ -2078,7 +2090,8 @@ const MENU_NAV = {
     ROOT_PROMO: '🎁 Акції',
     ROOT_HELP: '📚 Довідка',
     ROOT_ADMIN: '🛠 Адмін',
-    BACK: '◀️ Назад',
+    /** Повернення в корінь — коротка назва, щоб завжди вміщалась у ряд з «Скасувати». */
+    BACK: '◀️ Головне меню',
     BOOK: '🎫 Забронювати',
     MY_BOOKINGS: '📋 Мої бронювання',
     CANCEL: '🚫 Скасувати',
@@ -2136,8 +2149,8 @@ function getMainMenuKeyboard(chatId) {
 function getMarshrutkyMenuKeyboard() {
     return replyKeyboard([
         [MENU_NAV.BOOK, MENU_NAV.MY_BOOKINGS],
-        [MENU_NAV.CANCEL],
-        [MENU_NAV.BACK],
+        // Один нижній ряд: інакше «Назад» ховається за межею екрана в Telegram.
+        [MENU_NAV.CANCEL, MENU_NAV.BACK],
     ]);
 }
 function getPoputkyMenuKeyboard() {
@@ -2145,14 +2158,12 @@ function getPoputkyMenuKeyboard() {
         [MENU_NAV.ALL_RIDES],
         [MENU_NAV.ADD_DRIVER_RIDE, MENU_NAV.ADD_PASSENGER_RIDE],
         [MENU_NAV.MY_DRIVER_RIDES, MENU_NAV.MY_PASSENGER_RIDES],
-        [MENU_NAV.CANCEL],
-        [MENU_NAV.BACK],
+        [MENU_NAV.CANCEL, MENU_NAV.BACK],
     ]);
 }
 function getPromoMenuKeyboard() {
     return replyKeyboard([
-        [MENU_NAV.INVITE],
-        [MENU_NAV.CONFIRM_RIDE],
+        [MENU_NAV.INVITE, MENU_NAV.CONFIRM_RIDE],
         [MENU_NAV.BACK],
     ]);
 }
@@ -2214,7 +2225,8 @@ async function handleMenuNavigation(chatId, text) {
         await bot.sendMessage(chatId, '🎁 <b>Акції</b>\nПриведи друга або підтверди поїздку фото:', { parse_mode: 'HTML', reply_markup: getPromoMenuKeyboard() });
         return true;
     }
-    if (text === MENU_NAV.BACK) {
+    // «◀️ Назад» — стара підпис кнопки, лишаємо для вже відкритих клавіатур у клієнті.
+    if (text === MENU_NAV.BACK || text === '◀️ Назад') {
         await bot.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard(chatId) });
         return true;
     }

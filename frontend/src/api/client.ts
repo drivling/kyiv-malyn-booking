@@ -309,6 +309,33 @@ class ApiClient {
     });
   }
 
+  /** Персональне промо «Приведи друга» (той самий фільтр, що й нагадування). */
+  async sendReferralPromo(options: {
+    filter: 'all' | 'no_active_viber' | 'no_reminder_7_days';
+    limit?: number;
+    delaysMs?: number[];
+  }): Promise<{
+    success: boolean;
+    total: number;
+    sent: number;
+    failed: number;
+    message: string;
+    blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }>;
+  }> {
+    const { filter = 'all', limit, delaysMs } = options;
+    return this.request<{
+      success: boolean;
+      total: number;
+      sent: number;
+      failed: number;
+      message: string;
+      blocked: Array<{ id: number; phoneNormalized: string; fullName: string | null }>;
+    }>('/admin/send-referral-promo', {
+      method: 'POST',
+      body: JSON.stringify({ filter, limit, delaysMs }),
+    });
+  }
+
   /** Нагадати від особистого акаунта (тим, хто заблокував бота). Паузи між відправками: 2, 15, 25, 30 с (циклом). */
   async sendReminderViaUserAccount(phones: string[], delaysSec: number[] = [2, 15, 25, 30]): Promise<{
     success: boolean;

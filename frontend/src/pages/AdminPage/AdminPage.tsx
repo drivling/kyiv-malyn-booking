@@ -344,6 +344,36 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleSendReferralPromo = async () => {
+    setTelegramReminderError('');
+    setTelegramReminderSummary('');
+    setTelegramReminderResults(null);
+    setReminderViaUserMessage('');
+    setReminderViaUserError('');
+    setTelegramReminderLoading(true);
+    try {
+      const result = await apiClient.sendReferralPromo({ filter: telegramReminderFilter });
+      setTelegramReminderSummary(
+        result.message ||
+          `Промо «Приведи друга» відправлено: ${result.sent}/${result.total}, помилок: ${result.failed}`
+      );
+      setTelegramReminderResults({
+        sent: result.sent,
+        failed: result.failed,
+        total: result.total,
+        message: result.message,
+        blocked: result.blocked ?? [],
+      });
+      await loadTelegramReminderPersons();
+    } catch (err) {
+      setTelegramReminderError(
+        err instanceof Error ? err.message : 'Помилка відправки промо «Приведи друга»'
+      );
+    } finally {
+      setTelegramReminderLoading(false);
+    }
+  };
+
   const handleCreatePromoContact = async (e: React.FormEvent) => {
     e.preventDefault();
     const phone = promoContactPhone.trim();
@@ -1755,7 +1785,8 @@ export const AdminPage: React.FC = () => {
             </p>
             <p style={{ marginBottom: '12px' }}>
               Підходить під вибір: <strong>{telegramReminderPersons.length}</strong>. Після відправки
-              проставляється дата комунікації (Нагадування відправлено).
+              проставляється дата комунікації (Нагадування відправлено). Кнопка «Приведи друга»
+              шле кожному персональне ref-посилання (той самий фільтр).
             </p>
             <div
               className="controls"
@@ -1766,6 +1797,14 @@ export const AdminPage: React.FC = () => {
                 disabled={telegramReminderLoading || telegramReminderPersons.length === 0}
               >
                 {telegramReminderLoading ? 'Відправка...' : 'Відправити нагадування'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleSendReferralPromo}
+                disabled={telegramReminderLoading || telegramReminderPersons.length === 0}
+                title="Кожному клієнту — своє посилання ?start=ref_…"
+              >
+                {telegramReminderLoading ? 'Відправка...' : '🎁 Приведи друга (персонально)'}
               </Button>
               <Button
                 variant="secondary"
