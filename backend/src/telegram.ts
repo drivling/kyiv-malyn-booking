@@ -22,6 +22,7 @@ import {
   type ViberListingMergeInput,
 } from './viber-listing-merge';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
+import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
 import {
   formatTelegramContactHtmlLink,
   formatTelegramUsernameForDisplay,
@@ -1041,7 +1042,13 @@ export const findOrCreatePersonByPhone = async (
     },
     update: {
       ...(fullName != null && { fullName }),
-      ...(options?.telegramChatId != null && { telegramChatId: options.telegramChatId }),
+      ...(options?.telegramChatId != null && {
+        telegramChatId: options.telegramChatId,
+        // Знову підписався на бота — скидаємо мітку блоку (наступний блок знову «перший»)
+        ...(options.telegramChatId.trim() !== '' && options.telegramChatId !== '0'
+          ? { telegramBotBlockedAt: null }
+          : {}),
+      }),
       ...(options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
       ...(options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
     },
@@ -1126,7 +1133,11 @@ async function updatePersonAndBookingsTelegram(
 ): Promise<void> {
   await tgPrisma.person.update({
     where: { id: personId },
-    data: { telegramChatId: chatId, telegramUserId: userId },
+    data: {
+      telegramChatId: chatId,
+      telegramUserId: userId,
+      telegramBotBlockedAt: null,
+    },
   });
   const person = await tgPrisma.person.findUnique({ where: { id: personId }, select: { phoneNormalized: true } });
   if (!person) return;
@@ -2353,6 +2364,30 @@ export const sendReferralInvitePromo = async (chatId: string, personId: number):
   const link = getReferralBotLink(telegramBotUsername, code);
   await bot.sendMessage(chatId, buildReferralProgramTermsHtml(link), { parse_mode: 'HTML' });
 };
+
+/**
+ * Надіслати HTML-повідомлення користувачу через бота.
+ * При блоці бота — revoke + flag невиплачених реферальних нагород.
+ */
+export async function sendTelegramHtmlToChat(
+  chatId: string,
+  html: string,
+  ctx?: { personId?: number | null; normalizedPhone?: string | null }
+): Promise<{ ok: boolean; blocked: boolean }> {
+  if (!bot || !chatId?.trim()) return { ok: false, blocked: false };
+  try {
+    await bot.sendMessage(chatId.trim(), html, { parse_mode: 'HTML' });
+    return { ok: true, blocked: false };
+  } catch (e) {
+    console.error('❌ sendTelegramHtmlToChat:', chatId, e);
+    await handleTelegramBotBlockedFromOutboundSend(tgPrisma, e, {
+      chatId: chatId.trim(),
+      personId: ctx?.personId,
+      normalizedPhone: ctx?.normalizedPhone,
+    });
+    return { ok: false, blocked: isTelegramBotBlockedByUserError(e) };
+  }
+}
 
 /**
  * Завантажити файл з Telegram за file_id (для адмін-превʼю фото /confirmride).

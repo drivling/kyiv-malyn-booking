@@ -165,7 +165,13 @@ function createAdminReferralsRouter(deps) {
                     },
                     include: {
                         person: {
-                            select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true },
+                            select: {
+                                id: true,
+                                fullName: true,
+                                phoneNormalized: true,
+                                telegramUsername: true,
+                                telegramChatId: true,
+                            },
                         },
                         referralRewards: {
                             select: {
@@ -209,7 +215,117 @@ function createAdminReferralsRouter(deps) {
                 }
                 return { proof: updated, rewardsUnlocked };
             });
-            res.json({ ...result.proof, rewardsUnlocked: result.rewardsUnlocked });
+            const routeNice = result.proof.route.replace(/-/g, ' → ');
+            const dateKey = result.proof.rideDate.toISOString().slice(0, 10);
+            let notifyBlocked = 0;
+            let notifySent = 0;
+            if (status === 'rejected') {
+                const chatId = result.proof.person.telegramChatId?.trim();
+                if (chatId) {
+                    const reason = (typeof body.rejectionReason === 'string' && body.rejectionReason.trim()) ||
+                        result.proof.rejectionReason ||
+                        'Фото не прийнято';
+                    const escaped = reason
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    const sendResult = await (0, telegram_1.sendTelegramHtmlToChat)(chatId, '❌ <b>Фото підтвердження поїздки відхилено</b>\n\n' +
+                        `${routeNice} · ${dateKey}\n` +
+                        `Причина: <i>${escaped}</i>\n\n` +
+                        'Можете надіслати <b>нові фото</b>: команда /confirmride → оберіть ту саму поїздку.\n' +
+                        'Після перевірки бонуси знову розглянемо.', {
+                        personId: result.proof.person.id,
+                        normalizedPhone: result.proof.person.phoneNormalized,
+                    });
+                    if (sendResult.ok)
+                        notifySent += 1;
+                    if (sendResult.blocked)
+                        notifyBlocked += 1;
+                }
+            }
+            else if (status === 'approved') {
+                // Повідомити кожного отримувача нагород по цій заявці з конкретною сумою (грн)
+                const payable = await prisma.referralReward.findMany({
+                    where: {
+                        rideProofId: id,
+                        status: { in: ['pending', 'approved'] },
+                    },
+                    select: {
+                        amountUah: true,
+                        rewardType: true,
+                        referrerId: true,
+                        referrer: {
+                            select: {
+                                id: true,
+                                fullName: true,
+                                phoneNormalized: true,
+                                telegramChatId: true,
+                            },
+                        },
+                    },
+                });
+                const byPerson = new Map();
+                for (const r of payable) {
+                    const prev = byPerson.get(r.referrerId);
+                    if (prev) {
+                        prev.uah += r.amountUah;
+                        prev.count += 1;
+                    }
+                    else {
+                        byPerson.set(r.referrerId, {
+                            uah: r.amountUah,
+                            count: 1,
+                            chatId: r.referrer.telegramChatId?.trim() || null,
+                            phone: r.referrer.phoneNormalized,
+                            isPassenger: r.referrerId === result.proof.personId,
+                        });
+                    }
+                }
+                // Якщо нагород ще немає (не реферал) — все одно подякувати пасажиру за фото
+                if (byPerson.size === 0) {
+                    const chatId = result.proof.person.telegramChatId?.trim();
+                    if (chatId) {
+                        const sendResult = await (0, telegram_1.sendTelegramHtmlToChat)(chatId, '✅ <b>Фото підтвердження поїздки схвалено</b>\n\n' +
+                            `${routeNice} · ${dateKey}\n` +
+                            'Дякуємо, що підтвердили поїздку!', {
+                            personId: result.proof.person.id,
+                            normalizedPhone: result.proof.person.phoneNormalized,
+                        });
+                        if (sendResult.ok)
+                            notifySent += 1;
+                        if (sendResult.blocked)
+                            notifyBlocked += 1;
+                    }
+                }
+                else {
+                    for (const [personId, info] of byPerson) {
+                        if (!info.chatId)
+                            continue;
+                        const html = '✅ <b>Бонус підтверджено</b>\n\n' +
+                            `${routeNice} · ${dateKey}\n` +
+                            (info.isPassenger
+                                ? 'Ваші фото поїздки схвалено.\n'
+                                : 'Поїздку вашого друга підтверджено фото.\n') +
+                            `💸 До виплати (поповнення мобільного): <b>${info.uah} грн</b>` +
+                            (info.count > 1 ? ` (${info.count} нагород)` : '') +
+                            '\n\nОчікуйте поповнення — адмін обробить чергу виплат.';
+                        const sendResult = await (0, telegram_1.sendTelegramHtmlToChat)(info.chatId, html, {
+                            personId,
+                            normalizedPhone: info.phone,
+                        });
+                        if (sendResult.ok)
+                            notifySent += 1;
+                        if (sendResult.blocked)
+                            notifyBlocked += 1;
+                    }
+                }
+            }
+            res.json({
+                ...result.proof,
+                rewardsUnlocked: result.rewardsUnlocked,
+                notifySent,
+                notifyBlocked,
+            });
         }
         catch (e) {
             console.error('❌ PATCH /admin/referrals/proofs/:id:', e);

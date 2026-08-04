@@ -140,16 +140,26 @@ export const ReferralTab: React.FC = () => {
   }, [report]);
 
   const pendingProofs = useMemo(
-    () => (report?.promoPhotoProofs ?? []).filter((p) => p.status === 'pending_review' || p.status === 'flagged'),
+    () =>
+      (report?.promoPhotoProofs ?? []).filter((p) =>
+        p.status === 'pending_review' || p.status === 'flagged' || p.status === 'rejected'
+      ),
     [report]
   );
 
   const markPaid = async (row: ReferralPayoutPersonRow) => {
     if (row.payableUah <= 0) return;
-    const ok = window.confirm(
-      `Позначити виплату ${row.payableUah} грн для ${row.fullName || formatPhoneDisplay(row.phoneNormalized)}?`
+    const who = row.fullName || formatPhoneDisplay(row.phoneNormalized);
+    const noteRaw = window.prompt(
+      `Виплата ${row.payableUah} грн → ${who}\n\nНотатка про виплату (обовʼязково), напр. «Київстар ****1952, 05.08» або «Приват ****1234»:`,
+      payoutNote.trim()
     );
-    if (!ok) return;
+    if (noteRaw === null) return;
+    const note = noteRaw.trim();
+    if (!note) {
+      setError('Нотатка до виплати обовʼязкова — як саме поповнили / куди перевели.');
+      return;
+    }
     setPayingPersonId(row.personId);
     setError('');
     setSuccess('');
@@ -157,7 +167,7 @@ export const ReferralTab: React.FC = () => {
       const result = await apiClient.markReferralPayout({
         personId: row.personId,
         rewardIds: row.rewardIds,
-        note: payoutNote.trim() || undefined,
+        note,
       });
       setSuccess(`Виплату позначено: ${result.amountUah} грн (${result.updatedCount} нагород)`);
       setPayoutNote('');
@@ -169,11 +179,15 @@ export const ReferralTab: React.FC = () => {
     }
   };
 
-  const setRewardStatus = async (id: number, status: string) => {
+  const setRewardStatus = async (
+    id: number,
+    status: string,
+    extra?: { flagReason?: string | null }
+  ) => {
     setBusyRewardId(id);
     setError('');
     try {
-      await apiClient.patchReferralReward(id, { status });
+      await apiClient.patchReferralReward(id, { status, ...extra });
       setSuccess(`Нагороду #${id} → ${status}`);
       await load();
     } catch (e) {
@@ -181,6 +195,17 @@ export const ReferralTab: React.FC = () => {
     } finally {
       setBusyRewardId(null);
     }
+  };
+
+  const flagReward = async (id: number, currentReason?: string | null) => {
+    const reason = window.prompt(
+      `Причина flag для нагороди #${id}:`,
+      currentReason || 'Підозріла активність'
+    );
+    if (reason === null) return;
+    await setRewardStatus(id, 'flagged', {
+      flagReason: reason.trim() || 'Підозріла активність',
+    });
   };
 
   const setProofStatus = async (id: number, status: string, rejectionReason?: string) => {
@@ -193,8 +218,10 @@ export const ReferralTab: React.FC = () => {
       });
       setSuccess(
         status === 'approved'
-          ? `Заявку #${id} схвалено. Нагороди розблоковано у чергу виплат (якщо були flagged).`
-          : `Заявку #${id} → ${status}`
+          ? `Заявку #${id} схвалено. Отримувачам надіслано суми до виплати в бот (якщо chat є). При блоці бота їх невиплачені бонуси → flagged.`
+          : status === 'rejected'
+            ? `Заявку #${id} відхилено — користувача сповіщено в бот (може знову надіслати фото через /confirmride).`
+            : `Заявку #${id} → ${status}`
       );
       await load();
     } catch (e) {
@@ -283,10 +310,10 @@ export const ReferralTab: React.FC = () => {
           </div>
           <div style={{ minWidth: 220, flex: 1 }}>
             <Input
-              label="Нотатка до наступної виплати"
+              label="Чернетка нотатки (підставиться у вікно «Виплатив»)"
               value={payoutNote}
               onChange={(e) => setPayoutNote(e.target.value)}
-              placeholder="напр. Приват ****1234, 04.08"
+              placeholder="напр. Київстар ****1952, 05.08"
             />
           </div>
         </div>
@@ -382,7 +409,8 @@ export const ReferralTab: React.FC = () => {
                                 <th>Сума</th>
                                 <th>Статус</th>
                                 <th>Друг</th>
-                                <th>Нотатка</th>
+                                <th>Нотатка виплати</th>
+                                <th>Причина flag</th>
                                 <th></th>
                               </tr>
                             </thead>
@@ -396,7 +424,10 @@ export const ReferralTab: React.FC = () => {
                                   <td>
                                     {r.referredPerson.fullName || formatPhoneDisplay(r.referredPerson.phoneNormalized)}
                                   </td>
-                                  <td style={{ fontSize: 12 }}>{r.payoutNote || r.flagReason || '—'}</td>
+                                  <td style={{ fontSize: 12 }}>{r.payoutNote || '—'}</td>
+                                  <td style={{ fontSize: 12, color: r.flagReason ? 'var(--pb-danger, #b42318)' : undefined }}>
+                                    {r.flagReason || '—'}
+                                  </td>
                                   <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                     {r.status === 'flagged' && (
                                       <Button
@@ -411,7 +442,7 @@ export const ReferralTab: React.FC = () => {
                                       <Button
                                         type="button"
                                         disabled={busyRewardId === r.id}
-                                        onClick={() => void setRewardStatus(r.id, 'flagged')}
+                                        onClick={() => void flagReward(r.id, r.flagReason)}
                                       >
                                         Flag
                                       </Button>
@@ -435,8 +466,9 @@ export const ReferralTab: React.FC = () => {
       <section style={{ marginTop: 36 }}>
         <h3>📷 Фото підтверджень (модерація)</h3>
         <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
-          Після двох фото бот просить викласти пост у Facebook. Перегляньте фото, причину flagged (якщо є),
-          потім схваліть (нагороди підуть у виплату) або відхиліть із причиною.
+          Після двох фото бот просить викласти пост у Facebook. Схваліть (нагороди у виплату) або відхиліть із причиною —
+          користувач отримає повідомлення в бот і зможе знову надіслати фото через /confirmride.
+          Відхилені можна <strong>перепогодити</strong> без нових фото, якщо передумали.
         </p>
         {pendingProofs.length === 0 ? (
           <p style={{ color: 'var(--pb-text-muted)' }}>Немає заявок на перевірці.</p>
@@ -446,10 +478,11 @@ export const ReferralTab: React.FC = () => {
               const rewards = p.referralRewards ?? [];
               const rewardSum = rewards.reduce((s, r) => s + r.amountUah, 0);
               const isFlagged = p.status === 'flagged';
+              const isRejected = p.status === 'rejected';
               return (
                 <article
                   key={p.id}
-                  className={`referral-proof-card${isFlagged ? ' is-flagged' : ''}`}
+                  className={`referral-proof-card${isFlagged ? ' is-flagged' : ''}${isRejected ? ' is-rejected' : ''}`}
                 >
                   <div className="referral-proof-card__head">
                     <div>
@@ -466,7 +499,11 @@ export const ReferralTab: React.FC = () => {
                     </div>
                     <span
                       className={`referral-proof-badge ${
-                        isFlagged ? 'referral-proof-badge--flagged' : 'referral-proof-badge--pending'
+                        isRejected
+                          ? 'referral-proof-badge--rejected'
+                          : isFlagged
+                            ? 'referral-proof-badge--flagged'
+                            : 'referral-proof-badge--pending'
                       }`}
                     >
                       {p.status}
@@ -474,9 +511,11 @@ export const ReferralTab: React.FC = () => {
                   </div>
 
                   {(p.flagReason || p.rejectionReason) && (
-                    <p className="referral-proof-reason">
-                      <strong>{isFlagged ? 'Чому flagged: ' : 'Причина: '}</strong>
-                      {p.flagReason || p.rejectionReason}
+                    <p className={`referral-proof-reason${isRejected ? ' is-rejected' : ''}`}>
+                      <strong>
+                        {isRejected ? 'Відхилено: ' : isFlagged ? 'Чому flagged: ' : 'Причина: '}
+                      </strong>
+                      {p.rejectionReason || p.flagReason}
                     </p>
                   )}
 
@@ -519,16 +558,22 @@ export const ReferralTab: React.FC = () => {
                       disabled={busyProofId === p.id}
                       onClick={() => void setProofStatus(p.id, 'approved')}
                     >
-                      {busyProofId === p.id ? '…' : 'Схвалити → у виплату'}
+                      {busyProofId === p.id
+                        ? '…'
+                        : isRejected
+                          ? 'Перепогодити → у виплату'
+                          : 'Схвалити → у виплату'}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={busyProofId === p.id}
-                      onClick={() => void rejectProof(p)}
-                    >
-                      Відхилити
-                    </Button>
+                    {!isRejected && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={busyProofId === p.id}
+                        onClick={() => void rejectProof(p)}
+                      >
+                        Відхилити
+                      </Button>
+                    )}
                   </div>
                 </article>
               );

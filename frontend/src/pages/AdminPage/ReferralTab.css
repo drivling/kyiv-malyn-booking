@@ -20,6 +20,11 @@
   box-shadow: 0 0 0 1px rgba(224, 168, 0, 0.25);
 }
 
+.referral-proof-card.is-rejected {
+  border-color: #d92d20;
+  box-shadow: 0 0 0 1px rgba(217, 45, 32, 0.2);
+}
+
 .referral-proof-card__head {
   display: flex;
   justify-content: space-between;
@@ -62,6 +67,11 @@
   color: #1a56db;
 }
 
+.referral-proof-badge--rejected {
+  background: #fee4e2;
+  color: #b42318;
+}
+
 .referral-proof-reason {
   margin: 0;
   padding: 8px 10px;
@@ -71,6 +81,12 @@
   font-size: 13px;
   line-height: 1.45;
   color: #5c4b1a;
+}
+
+.referral-proof-reason.is-rejected {
+  background: #fef3f2;
+  border-color: #fecdca;
+  color: #7a271a;
 }
 
 .referral-proof-photos {

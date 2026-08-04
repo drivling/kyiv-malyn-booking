@@ -122,17 +122,24 @@ async function startRideProofFlow(bot, prisma, chatId, personId) {
         orderBy: { date: 'desc' },
         take: 10,
     });
-    const existingProofListingIds = new Set((await prisma.rideCompletionProof.findMany({
-        where: { personId, viberListingId: { not: null } },
+    // Блокуємо лише активні / вже прийняті заявки. rejected і незавершені awaiting_photos —
+    // можна знову обрати й надіслати фото.
+    const blockingProofListingIds = new Set((await prisma.rideCompletionProof.findMany({
+        where: {
+            personId,
+            viberListingId: { not: null },
+            status: { in: ['pending_review', 'approved', 'flagged'] },
+        },
         select: { viberListingId: true },
     }))
         .map((p) => p.viberListingId)
         .filter((id) => id != null));
-    const available = listings.filter((l) => !existingProofListingIds.has(l.id));
+    const available = listings.filter((l) => !blockingProofListingIds.has(l.id));
     if (available.length === 0) {
         await bot.sendMessage(chatId, '📷 <b>Підтвердження поїздки</b>\n\n' +
-            'Немає завершених поїздок пасажира для підтвердження.\n\n' +
-            'Спочатку додайте запит як пасажир (/addpassengerride), а після поїздки надішліть фото.', { parse_mode: 'HTML' });
+            'Немає завершених поїздок пасажира для підтвердження (або всі вже на перевірці / схвалені).\n\n' +
+            'Якщо фото відхилили — оберіть ту саму поїздку знову після /confirmride.\n' +
+            'Інакше спочатку додайте запит як пасажир (/addpassengerride).', { parse_mode: 'HTML' });
         return;
     }
     const buttons = available.slice(0, 8).map((l) => {
@@ -154,33 +161,6 @@ async function handleRideProofCallback(bot, prisma, chatId, personId, data, botU
         await bot.sendMessage(chatId, 'Скасовано.');
         return true;
     }
-    if (data === 'rideproof_fb_caption') {
-        const proof = await prisma.rideCompletionProof.findFirst({
-            where: {
-                personId,
-                photoStartFileId: { not: null },
-                photoEndFileId: { not: null },
-            },
-            orderBy: { updatedAt: 'desc' },
-        });
-        if (!proof) {
-            await bot.sendMessage(chatId, 'Немає підтвердженої поїздки з фото для посту.');
-            return true;
-        }
-        const code = await (0, referral_1.ensurePersonReferralCode)(prisma, personId);
-        const referralLink = (0, referral_1.getReferralBotLink)(botUsername, code);
-        const dateKey = proof.rideDate.toISOString().slice(0, 10);
-        const fbCaption = (0, referral_1.buildRideFacebookShareCaption)({
-            route: proof.route,
-            dateKey,
-            referralLink,
-        });
-        await bot.sendMessage(chatId, (0, referral_1.buildRideFacebookSharePromptHtml)(fbCaption), {
-            parse_mode: 'HTML',
-            reply_markup: (0, referral_1.buildFacebookShareInlineKeyboard)(referralLink),
-        });
-        return true;
-    }
     const selectMatch = data.match(/^rideproof_select_(\d+)$/);
     if (selectMatch) {
         const listingId = parseInt(selectMatch[1], 10);
@@ -191,16 +171,44 @@ async function handleRideProofCallback(bot, prisma, chatId, personId, data, botU
             await bot.sendMessage(chatId, '❌ Поїздку не знайдено.');
             return true;
         }
-        const proof = await prisma.rideCompletionProof.create({
-            data: {
-                personId,
-                viberListingId: listingId,
-                route: listing.route,
-                rideDate: listing.date,
-                departureTime: listing.departureTime,
-                status: 'awaiting_photos',
-            },
+        const existingProof = await prisma.rideCompletionProof.findFirst({
+            where: { personId, viberListingId: listingId },
+            orderBy: { updatedAt: 'desc' },
         });
+        if (existingProof &&
+            (existingProof.status === 'pending_review' ||
+                existingProof.status === 'approved' ||
+                existingProof.status === 'flagged')) {
+            await bot.sendMessage(chatId, existingProof.status === 'approved'
+                ? '✅ Цю поїздку вже підтверджено.'
+                : '⏳ Фото по цій поїздці вже на перевірці. Зачекайте рішення модератора.');
+            return true;
+        }
+        const proof = existingProof
+            ? await prisma.rideCompletionProof.update({
+                where: { id: existingProof.id },
+                data: {
+                    photoStartFileId: null,
+                    photoEndFileId: null,
+                    status: 'awaiting_photos',
+                    rejectionReason: null,
+                    flagReason: null,
+                    route: listing.route,
+                    rideDate: listing.date,
+                    departureTime: listing.departureTime,
+                },
+            })
+            : await prisma.rideCompletionProof.create({
+                data: {
+                    personId,
+                    viberListingId: listingId,
+                    route: listing.route,
+                    rideDate: listing.date,
+                    departureTime: listing.departureTime,
+                    status: 'awaiting_photos',
+                },
+            });
+        const isResubmit = !!existingProof && existingProof.status === 'rejected';
         exports.rideProofFlowStateMap.set(chatId, {
             state: 'ride_proof_flow',
             step: 'photo_start',
@@ -209,6 +217,9 @@ async function handleRideProofCallback(bot, prisma, chatId, personId, data, botU
             since: Date.now(),
         });
         await bot.sendMessage(chatId, `📷 Поїздка: <b>${listing.route}</b> (${listing.date.toISOString().slice(0, 10)})\n\n` +
+            (isResubmit
+                ? '♻️ Попередні фото було відхилено — надішліть <b>нові</b>.\n\n'
+                : '') +
             '📸 Надішліть <b>перше фото</b> — на місці відправлення.\n\n' +
             '<i>Порада: зніміть себе або авто біля зупинки/місця збору — так краще для рекламного посту.</i>', { parse_mode: 'HTML' });
         return true;
@@ -301,7 +312,7 @@ async function handleRideProofPhoto(bot, prisma, chatId, personId, photoFileId, 
         await bot
             .sendMessage(chatId, (0, referral_1.buildRideFacebookSharePromptHtml)(fbCaption), {
             parse_mode: 'HTML',
-            reply_markup: (0, referral_1.buildFacebookShareInlineKeyboard)(referralLink),
+            reply_markup: (0, referral_1.buildFacebookShareInlineKeyboard)(referralLink, fbCaption),
         })
             .catch((err) => console.error('FB share prompt:', err));
         if (notifyAdmin && proof.photoStartFileId) {

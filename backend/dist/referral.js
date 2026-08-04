@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = void 0;
 exports.generateReferralCode = generateReferralCode;
 exports.getReferralBotLink = getReferralBotLink;
 exports.maxRewardUahPerReferred = maxRewardUahPerReferred;
@@ -24,8 +24,11 @@ exports.processReferralPassengerProofReward = processReferralPassengerProofRewar
 exports.getReferralStatsForPerson = getReferralStatsForPerson;
 exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
+exports.buildBotBlockedPayoutsFrozenMessage = buildBotBlockedPayoutsFrozenMessage;
+exports.flagUnpaidReferralRewardsForBotBlocked = flagUnpaidReferralRewardsForBotBlocked;
 exports.markReferralPayout = markReferralPayout;
 exports.formatRideDateKeyUa = formatRideDateKeyUa;
+exports.clipForTelegramCopyText = clipForTelegramCopyText;
 exports.buildRideFacebookShareCaption = buildRideFacebookShareCaption;
 exports.buildRideFacebookSharePromptHtml = buildRideFacebookSharePromptHtml;
 exports.buildFacebookShareInlineKeyboard = buildFacebookShareInlineKeyboard;
@@ -719,6 +722,43 @@ function buildPayoutBalancesFromRewards(rewards) {
     }
     return [...map.values()].sort((a, b) => b.payableUah - a.payableUah || b.paidUah - a.paidUah);
 }
+/** Причина flag, коли отримувач заблокував бота — адмін бачить у нотатці/flagReason */
+exports.BOT_BLOCKED_REWARD_FLAG_REASON = 'Бот Telegram заблоковано користувачем — прибрано з виплат';
+/**
+ * Текст (без сум) для особистої розсилки після першого блоку бота.
+ * Йде через user-account (Telethon) по номеру / @username.
+ */
+function buildBotBlockedPayoutsFrozenMessage(botUsername = 'malin_kiev_ua_bot') {
+    const bot = botUsername.replace(/^@/, '').trim() || 'malin_kiev_ua_bot';
+    return ('⏸️ Бонуси програми «Приведи друга» тимчасово на паузі\n\n' +
+        'Ми не можемо писати вам у бот — схоже, бот заблоковано або чат недоступний.\n' +
+        'Поки бот недоступний, виплати бонусів заморожено.\n\n' +
+        'Щоб знову отримувати повідомлення й розблокувати виплати:\n' +
+        `1) Відкрийте @${bot}\n` +
+        '2) Натисніть «Розблокувати» (якщо бот у чорному списку)\n' +
+        '3) Натисніть Start / напишіть /start\n\n' +
+        `🤖 https://t.me/${bot}\n` +
+        'Після цього ми зможемо продовжити обробку ваших бонусів. Дякуємо 💛');
+}
+/**
+ * Усі невиплачені нагороди отримувача (referrerId) → flagged з явною причиною.
+ * Викликається при детекції блоку бота.
+ */
+async function flagUnpaidReferralRewardsForBotBlocked(prisma, personId) {
+    if (!Number.isInteger(personId) || personId <= 0)
+        return 0;
+    const result = await prisma.referralReward.updateMany({
+        where: {
+            referrerId: personId,
+            status: { in: ['pending', 'approved'] },
+        },
+        data: {
+            status: 'flagged',
+            flagReason: exports.BOT_BLOCKED_REWARD_FLAG_REASON,
+        },
+    });
+    return result.count;
+}
 /**
  * Позначити нагороди людини як виплачені (без flagged).
  */
@@ -758,18 +798,27 @@ function formatRideDateKeyUa(dateKey) {
         return dateKey;
     return `${m[3]}.${m[2]}.${m[1]}`;
 }
-/** Текст для Facebook-посту пасажира після підтвердження поїздки фото */
+/** Ліміт Telegram CopyTextButton */
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = 256;
+/** Обрізати для copy_text (Telegram: max 256 символів) */
+function clipForTelegramCopyText(text) {
+    const chars = [...text];
+    if (chars.length <= exports.TELEGRAM_COPY_TEXT_MAX_CHARS)
+        return text;
+    return chars.slice(0, exports.TELEGRAM_COPY_TEXT_MAX_CHARS).join('');
+}
+/**
+ * Текст для Facebook-посту пасажира після підтвердження поїздки фото.
+ * Тримати ≤256 символів — щоб кнопка «Копіювати текст посту» працювала.
+ */
 function buildRideFacebookShareCaption(opts) {
     const routeNice = opts.route.replace(/-/g, ' → ');
     const dateNice = formatRideDateKeyUa(opts.dateKey);
     return (`Сьогодні їхав(ла) попуткою ${routeNice} 🚗\n` +
         `(${dateNice})\n\n` +
-        `Знайти попутника просто — через бот попуток Малин ↔ Київ.\n` +
-        `Підтвердив поїздку двома фото і навіть бонус на мобільний отримав 💸\n\n` +
-        `Хочеш так само? Заходь за моїм посиланням:\n` +
-        `${opts.referralLink}\n\n` +
-        `🌐 Попутки: https://malin.kiev.ua/poputky\n` +
-        `📜 Умови: https://malin.kiev.ua/about#referral-promo\n\n` +
+        `Попутки Малин↔Київ у боті + бонус на мобільний 💸\n` +
+        `${opts.referralLink}\n` +
+        `🌐 malin.kiev.ua/poputky\n` +
         `#Малин #Київ #Попутки #КиївМалин #malinkievua`);
 }
 function buildRideFacebookSharePromptHtml(caption) {
@@ -780,21 +829,25 @@ function buildRideFacebookSharePromptHtml(caption) {
     return ('📢 <b>Поділись у Facebook — це займає хвилину</b>\n\n' +
         '1️⃣ Збережи два фото <b>вище</b> (утримуй → Зберегти).\n' +
         '2️⃣ Натисни «Відкрити Facebook» або створи пост сам.\n' +
-        '3️⃣ Додай обидва фото і встав текст (утримуй блок нижче → Копіювати).\n\n' +
+        '3️⃣ Додай обидва фото і встав текст — кнопка <b>«Копіювати текст посту»</b> нижче.\n\n' +
         'У тексті вже <b>твоє персональне посилання</b> — друзі зайдуть саме по ньому 🎁\n\n' +
         `<code>${escaped}</code>\n\n` +
         '<i>Facebook не дає автозаповнити текст і фото з бота — потрібні 2 кроки: кнопка + вставка.</i>\n' +
         'Так більше людей знайдуть попутку. Дякуємо 💛');
 }
 /** Кнопки під фінальним повідомленням про Facebook-пост */
-function buildFacebookShareInlineKeyboard(referralLink) {
+function buildFacebookShareInlineKeyboard(referralLink, caption) {
     const fbShareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(referralLink);
     return {
         inline_keyboard: [
             [{ text: '📘 Відкрити Facebook', url: fbShareUrl }],
-            // Telegram Bot API CopyTextButton (до 256 символів — саме для короткого посилання)
-            [{ text: '🔗 Копіювати моє посилання', copy_text: { text: referralLink } }],
-            [{ text: '📋 Надіслати текст посту ще раз', callback_data: 'rideproof_fb_caption' }],
+            [{ text: '🔗 Копіювати моє посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
+            [
+                {
+                    text: '📋 Копіювати текст посту',
+                    copy_text: { text: clipForTelegramCopyText(caption) },
+                },
+            ],
         ],
     };
 }

@@ -893,6 +893,51 @@ export function buildPayoutBalancesFromRewards(
   return [...map.values()].sort((a, b) => b.payableUah - a.payableUah || b.paidUah - a.paidUah);
 }
 
+/** Причина flag, коли отримувач заблокував бота — адмін бачить у нотатці/flagReason */
+export const BOT_BLOCKED_REWARD_FLAG_REASON =
+  'Бот Telegram заблоковано користувачем — прибрано з виплат';
+
+/**
+ * Текст (без сум) для особистої розсилки після першого блоку бота.
+ * Йде через user-account (Telethon) по номеру / @username.
+ */
+export function buildBotBlockedPayoutsFrozenMessage(botUsername: string = 'malin_kiev_ua_bot'): string {
+  const bot = botUsername.replace(/^@/, '').trim() || 'malin_kiev_ua_bot';
+  return (
+    '⏸️ Бонуси програми «Приведи друга» тимчасово на паузі\n\n' +
+    'Ми не можемо писати вам у бот — схоже, бот заблоковано або чат недоступний.\n' +
+    'Поки бот недоступний, виплати бонусів заморожено.\n\n' +
+    'Щоб знову отримувати повідомлення й розблокувати виплати:\n' +
+    `1) Відкрийте @${bot}\n` +
+    '2) Натисніть «Розблокувати» (якщо бот у чорному списку)\n' +
+    '3) Натисніть Start / напишіть /start\n\n' +
+    `🤖 https://t.me/${bot}\n` +
+    'Після цього ми зможемо продовжити обробку ваших бонусів. Дякуємо 💛'
+  );
+}
+
+/**
+ * Усі невиплачені нагороди отримувача (referrerId) → flagged з явною причиною.
+ * Викликається при детекції блоку бота.
+ */
+export async function flagUnpaidReferralRewardsForBotBlocked(
+  prisma: PrismaClient,
+  personId: number
+): Promise<number> {
+  if (!Number.isInteger(personId) || personId <= 0) return 0;
+  const result = await prisma.referralReward.updateMany({
+    where: {
+      referrerId: personId,
+      status: { in: ['pending', 'approved'] },
+    },
+    data: {
+      status: 'flagged',
+      flagReason: BOT_BLOCKED_REWARD_FLAG_REASON,
+    },
+  });
+  return result.count;
+}
+
 /**
  * Позначити нагороди людини як виплачені (без flagged).
  */
@@ -936,7 +981,20 @@ export function formatRideDateKeyUa(dateKey: string): string {
   return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
-/** Текст для Facebook-посту пасажира після підтвердження поїздки фото */
+/** Ліміт Telegram CopyTextButton */
+export const TELEGRAM_COPY_TEXT_MAX_CHARS = 256;
+
+/** Обрізати для copy_text (Telegram: max 256 символів) */
+export function clipForTelegramCopyText(text: string): string {
+  const chars = [...text];
+  if (chars.length <= TELEGRAM_COPY_TEXT_MAX_CHARS) return text;
+  return chars.slice(0, TELEGRAM_COPY_TEXT_MAX_CHARS).join('');
+}
+
+/**
+ * Текст для Facebook-посту пасажира після підтвердження поїздки фото.
+ * Тримати ≤256 символів — щоб кнопка «Копіювати текст посту» працювала.
+ */
 export function buildRideFacebookShareCaption(opts: {
   route: string;
   dateKey: string;
@@ -948,12 +1006,9 @@ export function buildRideFacebookShareCaption(opts: {
   return (
     `Сьогодні їхав(ла) попуткою ${routeNice} 🚗\n` +
     `(${dateNice})\n\n` +
-    `Знайти попутника просто — через бот попуток Малин ↔ Київ.\n` +
-    `Підтвердив поїздку двома фото і навіть бонус на мобільний отримав 💸\n\n` +
-    `Хочеш так само? Заходь за моїм посиланням:\n` +
-    `${opts.referralLink}\n\n` +
-    `🌐 Попутки: https://malin.kiev.ua/poputky\n` +
-    `📜 Умови: https://malin.kiev.ua/about#referral-promo\n\n` +
+    `Попутки Малин↔Київ у боті + бонус на мобільний 💸\n` +
+    `${opts.referralLink}\n` +
+    `🌐 malin.kiev.ua/poputky\n` +
     `#Малин #Київ #Попутки #КиївМалин #malinkievua`
   );
 }
@@ -967,7 +1022,7 @@ export function buildRideFacebookSharePromptHtml(caption: string): string {
     '📢 <b>Поділись у Facebook — це займає хвилину</b>\n\n' +
     '1️⃣ Збережи два фото <b>вище</b> (утримуй → Зберегти).\n' +
     '2️⃣ Натисни «Відкрити Facebook» або створи пост сам.\n' +
-    '3️⃣ Додай обидва фото і встав текст (утримуй блок нижче → Копіювати).\n\n' +
+    '3️⃣ Додай обидва фото і встав текст — кнопка <b>«Копіювати текст посту»</b> нижче.\n\n' +
     'У тексті вже <b>твоє персональне посилання</b> — друзі зайдуть саме по ньому 🎁\n\n' +
     `<code>${escaped}</code>\n\n` +
     '<i>Facebook не дає автозаповнити текст і фото з бота — потрібні 2 кроки: кнопка + вставка.</i>\n' +
@@ -976,7 +1031,10 @@ export function buildRideFacebookSharePromptHtml(caption: string): string {
 }
 
 /** Кнопки під фінальним повідомленням про Facebook-пост */
-export function buildFacebookShareInlineKeyboard(referralLink: string): {
+export function buildFacebookShareInlineKeyboard(
+  referralLink: string,
+  caption: string
+): {
   inline_keyboard: Array<
     Array<{ text: string; url?: string; callback_data?: string; copy_text?: { text: string } }>
   >;
@@ -986,9 +1044,13 @@ export function buildFacebookShareInlineKeyboard(referralLink: string): {
   return {
     inline_keyboard: [
       [{ text: '📘 Відкрити Facebook', url: fbShareUrl }],
-      // Telegram Bot API CopyTextButton (до 256 символів — саме для короткого посилання)
-      [{ text: '🔗 Копіювати моє посилання', copy_text: { text: referralLink } }],
-      [{ text: '📋 Надіслати текст посту ще раз', callback_data: 'rideproof_fb_caption' }],
+      [{ text: '🔗 Копіювати моє посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
+      [
+        {
+          text: '📋 Копіювати текст посту',
+          copy_text: { text: clipForTelegramCopyText(caption) },
+        },
+      ],
     ],
   };
 }

@@ -18,6 +18,9 @@ import {
   unlockRegistrationReward,
   buildPayoutBalancesFromRewards,
   buildRideFacebookShareCaption,
+  flagUnpaidReferralRewardsForBotBlocked,
+  buildBotBlockedPayoutsFrozenMessage,
+  BOT_BLOCKED_REWARD_FLAG_REASON,
   REFERRAL_REWARD_UAH,
   MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED,
   type RideTimeSlot,
@@ -455,5 +458,42 @@ describe('payout balances and FB caption', () => {
     assert.match(text, /malin\.kiev\.ua\/poputky/);
     assert.match(text, /start=ref_TESTCODE/);
     assert.match(text, /мобільний/);
+    // CopyTextButton Telegram — max 256
+    assert.ok([...text].length <= 256, `caption too long: ${[...text].length}`);
+  });
+
+  it('flagUnpaidReferralRewardsForBotBlocked flags only unpaid for that person', async () => {
+    const calls: Array<{ where: unknown; data: unknown }> = [];
+    const prisma = {
+      referralReward: {
+        updateMany: async ({ where, data }: { where: unknown; data: unknown }) => {
+          calls.push({ where, data });
+          return { count: 2 };
+        },
+      },
+    } as unknown as PrismaClient;
+
+    const n = await flagUnpaidReferralRewardsForBotBlocked(prisma, 42);
+    assert.equal(n, 2);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].where, {
+      referrerId: 42,
+      status: { in: ['pending', 'approved'] },
+    });
+    assert.deepEqual(calls[0].data, {
+      status: 'flagged',
+      flagReason: BOT_BLOCKED_REWARD_FLAG_REASON,
+    });
+    assert.match(BOT_BLOCKED_REWARD_FLAG_REASON, /заблоковано/);
+  });
+
+  it('buildBotBlockedPayoutsFrozenMessage has no amounts, has bot link', () => {
+    const text = buildBotBlockedPayoutsFrozenMessage('malin_kiev_ua_bot');
+    assert.match(text, /на паузі/);
+    assert.match(text, /заморожено/);
+    assert.match(text, /t\.me\/malin_kiev_ua_bot/);
+    assert.match(text, /\/start/);
+    assert.doesNotMatch(text, /\d+\s*грн/i);
+    assert.doesNotMatch(text, /\d+\s*UAH/i);
   });
 });
