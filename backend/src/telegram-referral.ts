@@ -11,6 +11,8 @@ import {
   getReferralBotLink,
   getReferralStatsForPerson,
   linkReferralOnRegistration,
+  buildRideFacebookShareCaption,
+  buildRideFacebookSharePromptHtml,
   processReferralRewardsAfterPassengerProof,
   REFERRAL_REWARD_UAH,
 } from './referral';
@@ -398,6 +400,17 @@ export async function handleRideProofPhoto(
         rewardText,
       { parse_mode: 'HTML' }
     );
+
+    // Прохання поширити у Facebook з готовим текстом + ті самі фото
+    const dateKey = proof.rideDate.toISOString().slice(0, 10);
+    const fbCaption = buildRideFacebookShareCaption({ route: proof.route, dateKey });
+    await bot
+      .sendMessage(chatId, buildRideFacebookSharePromptHtml(fbCaption), { parse_mode: 'HTML' })
+      .catch((err) => console.error('FB share prompt:', err));
+    if (proof.photoStartFileId) {
+      await bot.sendPhoto(chatId, proof.photoStartFileId, { caption: '1️⃣ Фото на старті — для Facebook' }).catch(() => {});
+    }
+    await bot.sendPhoto(chatId, photoFileId, { caption: '2️⃣ Фото після прибуття — для Facebook' }).catch(() => {});
 
     if (notifyAdmin && proof.photoStartFileId) {
       const parts = [

@@ -265,3 +265,94 @@ export interface UserProfile {
   passengerListings: ViberListing[];
   driverListings: ViberListing[];
 }
+
+/** Адмін: реферальна програма */
+export type ReferralRewardStatus = 'pending' | 'approved' | 'paid' | 'flagged';
+export type RideProofStatus = 'awaiting_photos' | 'pending_review' | 'approved' | 'rejected' | 'flagged';
+
+export interface ReferralPersonBrief {
+  id?: number;
+  fullName: string | null;
+  phoneNormalized: string;
+  telegramUsername?: string | null;
+  telegramChatId?: string | null;
+}
+
+export interface ReferralRewardRow {
+  id: number;
+  referrerId: number;
+  referredPersonId: number;
+  rewardType: string;
+  amountUah: number;
+  status: ReferralRewardStatus | string;
+  flagReason: string | null;
+  payoutNote?: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  referrer: ReferralPersonBrief & { id: number };
+  referredPerson: ReferralPersonBrief & { id: number };
+  viberListing?: { id: number; route: string; date: string; listingType: string } | null;
+  rideProof?: { id: number; route: string; rideDate: string; photoStartFileId: string | null; photoEndFileId: string | null } | null;
+}
+
+export interface ReferralPayoutPersonRow {
+  personId: number;
+  fullName: string | null;
+  phoneNormalized: string;
+  telegramUsername: string | null;
+  payableUah: number;
+  payableCount: number;
+  paidUah: number;
+  flaggedUah: number;
+  rewardIds: number[];
+}
+
+export interface RideCompletionProofRow {
+  id: number;
+  personId: number;
+  route: string;
+  rideDate: string;
+  departureTime: string | null;
+  photoStartFileId: string | null;
+  photoEndFileId: string | null;
+  status: RideProofStatus | string;
+  rejectionReason: string | null;
+  flagReason: string | null;
+  person: ReferralPersonBrief;
+}
+
+export interface AdminReferralReport {
+  summary: {
+    totalRewards: number;
+    pendingCount: number;
+    pendingUah: number;
+    paidCount: number;
+    paidUah: number;
+    flaggedCount: number;
+    flaggedUah: number;
+    referredPersonsCount: number;
+    payablePeopleCount: number;
+    payableUah: number;
+  };
+  payoutBalances: ReferralPayoutPersonRow[];
+  rewards: ReferralRewardRow[];
+  flagged: ReferralRewardRow[];
+  invites: Array<{
+    id: number;
+    inviteContact: string;
+    inviteType: string;
+    status: string;
+    registrationBonusEligible?: boolean;
+    createdAt: string;
+    referrer: { fullName: string | null; phoneNormalized: string };
+    referredPerson: { fullName: string | null; phoneNormalized: string } | null;
+  }>;
+  referredPersons: Array<{
+    id: number;
+    fullName: string | null;
+    phoneNormalized: string;
+    referralRegistrationBonusEligible?: boolean | null;
+    referredByPerson: { id: number; fullName: string | null; phoneNormalized: string } | null;
+  }>;
+  promoPhotoProofs: RideCompletionProofRow[];
+}

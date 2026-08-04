@@ -7,9 +7,10 @@ import { Alert } from '@/components/Alert';
 import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
+import { ReferralTab } from './ReferralTab';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors';
+type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -163,6 +164,7 @@ export const AdminPage: React.FC = () => {
     } else if (activeTab === 'userSenderErrors') {
       loadUserSenderErrors();
     }
+    // referrals — ReferralTab завантажує дані сам
   }, [activeTab, promoFilter, telegramReminderFilter]);
 
   const loadPromoPersons = async () => {
@@ -915,6 +917,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('promo')}
           >
             Реклама
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'referrals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('referrals')}
+          >
+            Реферали
           </button>
           <button
             className={`admin-tab ${activeTab === 'data' ? 'active' : ''}`}
@@ -2133,6 +2141,8 @@ export const AdminPage: React.FC = () => {
         )}
 
         {activeTab === 'mapEditor' && <MapEditorTab />}
+
+        {activeTab === 'referrals' && <ReferralTab />}
 
         {/* Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */}
         {activeTab === 'userSenderErrors' && (

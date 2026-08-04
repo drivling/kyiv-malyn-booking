@@ -827,6 +827,126 @@ export function buildReferralProgramTermsHtml(referralLink: string): string {
   );
 }
 
+export type ReferralPayoutPersonRow = {
+  personId: number;
+  fullName: string | null;
+  phoneNormalized: string;
+  telegramUsername: string | null;
+  payableUah: number;
+  payableCount: number;
+  paidUah: number;
+  flaggedUah: number;
+  rewardIds: number[];
+};
+
+/** Агрегат «скільки кому виплатити» по referrerId (отримувач нагороди). */
+export function buildPayoutBalancesFromRewards(
+  rewards: Array<{
+    id: number;
+    referrerId: number;
+    amountUah: number;
+    status: string;
+    referrer: { id: number; fullName: string | null; phoneNormalized: string; telegramUsername: string | null };
+  }>
+): ReferralPayoutPersonRow[] {
+  const map = new Map<number, ReferralPayoutPersonRow>();
+  for (const r of rewards) {
+    let row = map.get(r.referrerId);
+    if (!row) {
+      row = {
+        personId: r.referrer.id,
+        fullName: r.referrer.fullName,
+        phoneNormalized: r.referrer.phoneNormalized,
+        telegramUsername: r.referrer.telegramUsername,
+        payableUah: 0,
+        payableCount: 0,
+        paidUah: 0,
+        flaggedUah: 0,
+        rewardIds: [],
+      };
+      map.set(r.referrerId, row);
+    }
+    if (r.status === 'pending' || r.status === 'approved') {
+      row.payableUah += r.amountUah;
+      row.payableCount += 1;
+      row.rewardIds.push(r.id);
+    } else if (r.status === 'paid') {
+      row.paidUah += r.amountUah;
+    } else if (r.status === 'flagged') {
+      row.flaggedUah += r.amountUah;
+    }
+  }
+  return [...map.values()].sort((a, b) => b.payableUah - a.payableUah || b.paidUah - a.paidUah);
+}
+
+/**
+ * Позначити нагороди людини як виплачені (без flagged).
+ */
+export async function markReferralPayout(
+  prisma: PrismaClient,
+  opts: { personId: number; rewardIds?: number[]; note?: string | null }
+): Promise<{ updatedCount: number; amountUah: number; rewardIds: number[] }> {
+  const where = {
+    referrerId: opts.personId,
+    status: { in: ['pending', 'approved'] as string[] },
+    ...(opts.rewardIds?.length ? { id: { in: opts.rewardIds } } : {}),
+  };
+  const toPay = await prisma.referralReward.findMany({
+    where,
+    select: { id: true, amountUah: true },
+  });
+  if (toPay.length === 0) {
+    return { updatedCount: 0, amountUah: 0, rewardIds: [] };
+  }
+  const ids = toPay.map((r) => r.id);
+  const note = opts.note?.trim() || null;
+  await prisma.referralReward.updateMany({
+    where: { id: { in: ids } },
+    data: {
+      status: 'paid',
+      paidAt: new Date(),
+      ...(note != null ? { payoutNote: note } : {}),
+    },
+  });
+  return {
+    updatedCount: ids.length,
+    amountUah: toPay.reduce((s, r) => s + r.amountUah, 0),
+    rewardIds: ids,
+  };
+}
+
+/** Текст для Facebook-посту пасажира після підтвердження поїздки фото */
+export function buildRideFacebookShareCaption(opts: {
+  route: string;
+  dateKey: string;
+}): string {
+  const routeNice = opts.route.replace(/-/g, ' → ');
+  return (
+    `Сьогодні їхав(ла) попуткою ${routeNice} 🚗\n` +
+    `(${opts.dateKey})\n\n` +
+    `Знайти попутника просто — через бот попуток Малин ↔ Київ.\n` +
+    `Підтвердив поїздку двома фото і навіть бонус отримав 💸\n\n` +
+    `Хочеш так само?\n` +
+    `🤖 https://t.me/malin_kiev_ua_bot\n` +
+    `🌐 https://malin.kiev.ua/poputky\n\n` +
+    `#Малин #Київ #Попутки #КиївМалин #malinkievua`
+  );
+}
+
+export function buildRideFacebookSharePromptHtml(caption: string): string {
+  const escaped = caption
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return (
+    '📢 <b>Поділись у Facebook — це займає хвилину</b>\n\n' +
+    'Твої фото вже готові (надішлемо нижче).\n' +
+    'Створи пост у Facebook, додай обидва фото і встав текст:\n\n' +
+    `<code>${escaped}</code>\n\n` +
+    'Так більше людей знайдуть попутку. Дякуємо 💛'
+  );
+}
+
 export async function buildAdminReferralReport(prisma: PrismaClient) {
   const rewards = await prisma.referralReward.findMany({
     orderBy: { createdAt: 'desc' },
@@ -839,8 +959,9 @@ export async function buildAdminReferralReport(prisma: PrismaClient) {
   });
 
   const flagged = rewards.filter((r) => r.status === 'flagged');
-  const pending = rewards.filter((r) => r.status === 'pending');
+  const pending = rewards.filter((r) => r.status === 'pending' || r.status === 'approved');
   const paid = rewards.filter((r) => r.status === 'paid');
+  const payoutBalances = buildPayoutBalancesFromRewards(rewards);
 
   const invites = await prisma.referralInvite.findMany({
     orderBy: { createdAt: 'desc' },
@@ -862,9 +983,20 @@ export async function buildAdminReferralReport(prisma: PrismaClient) {
   const proofs = await prisma.rideCompletionProof.findMany({
     where: { photoStartFileId: { not: null }, photoEndFileId: { not: null } },
     orderBy: { updatedAt: 'desc' },
-    take: 50,
-    include: { person: { select: { fullName: true, phoneNormalized: true } } },
+    take: 80,
+    include: {
+      person: {
+        select: {
+          id: true,
+          fullName: true,
+          phoneNormalized: true,
+          telegramChatId: true,
+        },
+      },
+    },
   });
+
+  const payablePeople = payoutBalances.filter((p) => p.payableUah > 0);
 
   return {
     summary: {
@@ -876,7 +1008,10 @@ export async function buildAdminReferralReport(prisma: PrismaClient) {
       flaggedCount: flagged.length,
       flaggedUah: flagged.reduce((s, r) => s + r.amountUah, 0),
       referredPersonsCount: referredPersons.length,
+      payablePeopleCount: payablePeople.length,
+      payableUah: payablePeople.reduce((s, p) => s + p.payableUah, 0),
     },
+    payoutBalances,
     rewards,
     flagged,
     invites,

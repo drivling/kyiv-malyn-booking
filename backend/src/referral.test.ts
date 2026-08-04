@@ -16,6 +16,8 @@ import {
   parseInviteContact,
   processReferralRewardsAfterPassengerProof,
   unlockRegistrationReward,
+  buildPayoutBalancesFromRewards,
+  buildRideFacebookShareCaption,
   REFERRAL_REWARD_UAH,
   MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED,
   type RideTimeSlot,
@@ -396,5 +398,56 @@ describe('unlockRegistrationReward eligibility', () => {
     const r = await unlockRegistrationReward(prisma, 2);
     assert.equal(r.created, false);
     assert.equal(r.skippedExistingClient, true);
+  });
+});
+
+describe('payout balances and FB caption', () => {
+  it('buildPayoutBalancesFromRewards aggregates by person', () => {
+    const rows = buildPayoutBalancesFromRewards([
+      {
+        id: 1,
+        referrerId: 10,
+        amountUah: 30,
+        status: 'pending',
+        referrer: { id: 10, fullName: 'A', phoneNormalized: '380501111111', telegramUsername: null },
+      },
+      {
+        id: 2,
+        referrerId: 10,
+        amountUah: 20,
+        status: 'approved',
+        referrer: { id: 10, fullName: 'A', phoneNormalized: '380501111111', telegramUsername: null },
+      },
+      {
+        id: 3,
+        referrerId: 10,
+        amountUah: 40,
+        status: 'paid',
+        referrer: { id: 10, fullName: 'A', phoneNormalized: '380501111111', telegramUsername: null },
+      },
+      {
+        id: 4,
+        referrerId: 11,
+        amountUah: 20,
+        status: 'flagged',
+        referrer: { id: 11, fullName: 'B', phoneNormalized: '380502222222', telegramUsername: null },
+      },
+    ]);
+    assert.equal(rows.length, 2);
+    const a = rows.find((r) => r.personId === 10)!;
+    assert.equal(a.payableUah, 50);
+    assert.equal(a.payableCount, 2);
+    assert.equal(a.paidUah, 40);
+    assert.deepEqual(a.rewardIds.sort(), [1, 2]);
+    const b = rows.find((r) => r.personId === 11)!;
+    assert.equal(b.flaggedUah, 20);
+    assert.equal(b.payableUah, 0);
+  });
+
+  it('buildRideFacebookShareCaption is share-ready', () => {
+    const text = buildRideFacebookShareCaption({ route: 'Kyiv-Malyn', dateKey: '2026-08-04' });
+    assert.match(text, /Kyiv → Malyn/);
+    assert.match(text, /malin\.kiev\.ua\/poputky/);
+    assert.match(text, /t\.me\/malin_kiev_ua_bot/);
   });
 });

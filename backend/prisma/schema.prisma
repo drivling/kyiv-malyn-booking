@@ -93,6 +93,8 @@ model ReferralReward {
   rideProofId      Int?
   status           String    @default("pending") // pending | approved | paid | flagged
   flagReason       String?   @db.Text
+  /// Нотатка адміна при виплаті (напр. «картка Приват 04.08»)
+  payoutNote       String?
   createdAt        DateTime  @default(now())
   paidAt           DateTime?
 

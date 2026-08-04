@@ -254,6 +254,16 @@ async function handleRideProofPhoto(bot, prisma, chatId, personId, photoFileId, 
         await bot.sendMessage(chatId, '✅ <b>Круто! Поїздку підтверджено.</b>\n\n' +
             'Фото прийнято. Дякуємо, що ділитесь дорогою з нами 🚗' +
             rewardText, { parse_mode: 'HTML' });
+        // Прохання поширити у Facebook з готовим текстом + ті самі фото
+        const dateKey = proof.rideDate.toISOString().slice(0, 10);
+        const fbCaption = (0, referral_1.buildRideFacebookShareCaption)({ route: proof.route, dateKey });
+        await bot
+            .sendMessage(chatId, (0, referral_1.buildRideFacebookSharePromptHtml)(fbCaption), { parse_mode: 'HTML' })
+            .catch((err) => console.error('FB share prompt:', err));
+        if (proof.photoStartFileId) {
+            await bot.sendPhoto(chatId, proof.photoStartFileId, { caption: '1️⃣ Фото на старті — для Facebook' }).catch(() => { });
+        }
+        await bot.sendPhoto(chatId, photoFileId, { caption: '2️⃣ Фото після прибуття — для Facebook' }).catch(() => { });
         if (notifyAdmin && proof.photoStartFileId) {
             const parts = [
                 `📷 <b>Нове підтвердження поїздки #${flow.proofId}</b>`,

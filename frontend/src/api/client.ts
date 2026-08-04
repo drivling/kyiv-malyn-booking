@@ -20,6 +20,9 @@ import type {
   SendPersonPromoResponse,
   BehaviorPromoScenarioKey,
   PhoneCheckAnalyzeResponse,
+  AdminReferralReport,
+  ReferralRewardRow,
+  RideCompletionProofRow,
 } from '@/types';
 
 class ApiClient {
@@ -486,6 +489,42 @@ class ApiClient {
     return this.request<ViberListing>(`/viber-listings/${id}/deactivate/by-user`, {
       method: 'PATCH',
       body: JSON.stringify({ telegramUserId }),
+    });
+  }
+
+  // --- Реферальна програма (адмін) ---
+  async getReferralReport(): Promise<AdminReferralReport> {
+    return this.request<AdminReferralReport>('/admin/referrals/report');
+  }
+
+  async markReferralPayout(data: {
+    personId: number;
+    rewardIds?: number[];
+    note?: string;
+  }): Promise<{ updatedCount: number; amountUah: number; rewardIds: number[] }> {
+    return this.request('/admin/referrals/payouts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async patchReferralReward(
+    id: number,
+    data: { status: string; flagReason?: string | null; payoutNote?: string | null }
+  ): Promise<ReferralRewardRow> {
+    return this.request<ReferralRewardRow>(`/admin/referrals/rewards/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async patchRideProof(
+    id: number,
+    data: { status: string; rejectionReason?: string | null }
+  ): Promise<RideCompletionProofRow> {
+    return this.request<RideCompletionProofRow>(`/admin/referrals/proofs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   }
 }
