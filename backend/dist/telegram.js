@@ -97,6 +97,10 @@ function getAnnounceDraft(token) {
 // Ініціалізація бота
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
+/** Єдиний допуск до адмін-команд бота: приватний чат з TELEGRAM_ADMIN_CHAT_ID. */
+function isTelegramAdminChat(chatId) {
+    return !!adminChatId && chatId === adminChatId;
+}
 const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
 let bot = null;
 function getTelegramScenarioLinks() {
@@ -1988,7 +1992,7 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
                 `2️⃣ <b>Що ви будете отримувати автоматично:</b>\n` +
                 `   • ✅ Підтвердження бронювання (на сайті чи в боті)\n` +
                 `   • 🔔 Нагадування за день до поїздки\n\n` +
-                `3️⃣ Нижче з\'явилися кнопки меню — користуйтеся ними або командами з довідки /help.`, { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() });
+                `3️⃣ Нижче з\'явилися кнопки меню — користуйтеся ними або командами з довідки /help.`, { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
             console.log(`✅ Додано Person (без бронювань) для ${userId}, номер ${normalizedPhone}`);
             return;
         }
@@ -2033,14 +2037,14 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
             `Тепер ви будете отримувати:\n` +
             `• ✅ Підтвердження при створенні бронювання\n` +
             `• 🔔 Нагадування за день до поїздки\n\n` +
-            `📋 Нижче з\'явилися кнопки меню — можна користуватися ними замість команд.`, { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() });
+            `📋 Нижче з\'явилися кнопки меню — можна користуватися ними замість команд.`, { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
     }
     catch (error) {
         console.error('❌ Помилка реєстрації номера:', error);
         await bot.sendMessage(chatId, '❌ Помилка при реєстрації. Спробуйте пізніше.');
     }
 }
-/** Список команд для меню бота (кнопка "Menu" зліва від вводу). */
+/** Список команд для меню бота (кнопка "Menu" зліва від вводу) — для всіх клієнтів. */
 const CLIENT_BOT_COMMANDS = [
     { command: 'start', description: 'Головне меню' },
     { command: 'help', description: 'Довідка' },
@@ -2056,48 +2060,351 @@ const CLIENT_BOT_COMMANDS = [
     { command: 'invite', description: 'Приведи друга' },
     { command: 'confirmride', description: 'Підтвердити поїздку (фото)' },
 ];
-/** Відображувані назви кнопок головного меню (надсилаються як текст повідомлення). */
-const MAIN_MENU_BUTTONS = {
-    BOOK: '🎫 Бронювання',
+/** Адмін-команди — лише в scope chat для TELEGRAM_ADMIN_CHAT_ID (не видно іншим). */
+const ADMIN_EXTRA_BOT_COMMANDS = [
+    { command: 'addviber', description: 'Адмін: додати з Viber' },
+    { command: 'addtelegram', description: 'Адмін: Telegram PoDoroguem' },
+    { command: 'checkclients', description: 'Адмін: перевірити збіги' },
+    { command: 'referralreport', description: 'Адмін: звіт рефералів' },
+];
+const ADMIN_BOT_COMMANDS = [...CLIENT_BOT_COMMANDS, ...ADMIN_EXTRA_BOT_COMMANDS];
+/**
+ * Reply-меню бота: головний екран компактний, рідкісні дії — у підменю.
+ * Головне: Маршрутки | Попутки / Акції | Довідка (+ Адмін лише для адміна)
+ */
+const MENU_NAV = {
+    ROOT_MARSHRUTKY: '🎫 Маршрутки',
+    ROOT_POPUTKY: '🚗 Попутки',
+    ROOT_PROMO: '🎁 Акції',
+    ROOT_HELP: '📚 Довідка',
+    ROOT_ADMIN: '🛠 Адмін',
+    BACK: '◀️ Назад',
+    BOOK: '🎫 Забронювати',
     MY_BOOKINGS: '📋 Мої бронювання',
-    ALL_RIDES: '🌐 Всі попутки',
     CANCEL: '🚫 Скасувати',
-    MY_DRIVER_RIDES: '🚗 Мої поїздки',
-    MY_PASSENGER_RIDES: '👤 Мої запити',
+    ALL_RIDES: '🌐 Всі попутки',
     ADD_DRIVER_RIDE: '🚗 Додати поїздку',
     ADD_PASSENGER_RIDE: '👤 Шукаю поїздку',
+    MY_DRIVER_RIDES: '🚗 Мої поїздки',
+    MY_PASSENGER_RIDES: '👤 Мої запити',
     INVITE: '🎁 Приведи друга',
     CONFIRM_RIDE: '📷 Підтвердити поїздку',
-    HELP: '📚 Довідка',
+    ADMIN_ADD_VIBER: '📱 Add Viber',
+    ADMIN_ADD_TELEGRAM: '✈️ Add Telegram',
+    ADMIN_CHECK_CLIENTS: '🔍 Check clients',
+    ADMIN_REFERRAL_REPORT: '🎁 Referral report',
 };
-/** Відповідність текстів кнопок командам. */
+const ADMIN_MENU_BUTTONS = new Set([
+    MENU_NAV.ROOT_ADMIN,
+    MENU_NAV.ADMIN_ADD_VIBER,
+    MENU_NAV.ADMIN_ADD_TELEGRAM,
+    MENU_NAV.ADMIN_CHECK_CLIENTS,
+    MENU_NAV.ADMIN_REFERRAL_REPORT,
+]);
+/** Кнопки дій → команди бота (навігація підменю окремо). */
 const MENU_BUTTON_TO_COMMAND = {
-    [MAIN_MENU_BUTTONS.BOOK]: '/book',
-    [MAIN_MENU_BUTTONS.MY_BOOKINGS]: '/mybookings',
-    [MAIN_MENU_BUTTONS.ALL_RIDES]: '/allrides',
-    [MAIN_MENU_BUTTONS.CANCEL]: '/cancel',
-    [MAIN_MENU_BUTTONS.MY_DRIVER_RIDES]: '/mydriverrides',
-    [MAIN_MENU_BUTTONS.MY_PASSENGER_RIDES]: '/mypassengerrides',
-    [MAIN_MENU_BUTTONS.ADD_DRIVER_RIDE]: '/adddriverride',
-    [MAIN_MENU_BUTTONS.ADD_PASSENGER_RIDE]: '/addpassengerride',
-    [MAIN_MENU_BUTTONS.INVITE]: '/invite',
-    [MAIN_MENU_BUTTONS.CONFIRM_RIDE]: '/confirmride',
-    [MAIN_MENU_BUTTONS.HELP]: '/help',
+    [MENU_NAV.BOOK]: '/book',
+    [MENU_NAV.MY_BOOKINGS]: '/mybookings',
+    [MENU_NAV.CANCEL]: '/cancel',
+    [MENU_NAV.ALL_RIDES]: '/allrides',
+    [MENU_NAV.ADD_DRIVER_RIDE]: '/adddriverride',
+    [MENU_NAV.ADD_PASSENGER_RIDE]: '/addpassengerride',
+    [MENU_NAV.MY_DRIVER_RIDES]: '/mydriverrides',
+    [MENU_NAV.MY_PASSENGER_RIDES]: '/mypassengerrides',
+    [MENU_NAV.INVITE]: '/invite',
+    [MENU_NAV.CONFIRM_RIDE]: '/confirmride',
+    [MENU_NAV.ROOT_HELP]: '/help',
 };
-/** Reply-клавіатура (кнопки під полем вводу), згруповані в підменю. */
-function getMainMenuKeyboard() {
+function replyKeyboard(rows) {
     return {
-        keyboard: [
-            [{ text: MAIN_MENU_BUTTONS.BOOK }, { text: MAIN_MENU_BUTTONS.MY_BOOKINGS }],
-            [{ text: MAIN_MENU_BUTTONS.ALL_RIDES }, { text: MAIN_MENU_BUTTONS.CANCEL }],
-            [{ text: MAIN_MENU_BUTTONS.MY_DRIVER_RIDES }, { text: MAIN_MENU_BUTTONS.MY_PASSENGER_RIDES }],
-            [{ text: MAIN_MENU_BUTTONS.ADD_DRIVER_RIDE }, { text: MAIN_MENU_BUTTONS.ADD_PASSENGER_RIDE }],
-            [{ text: MAIN_MENU_BUTTONS.INVITE }, { text: MAIN_MENU_BUTTONS.CONFIRM_RIDE }],
-            [{ text: MAIN_MENU_BUTTONS.HELP }],
-        ],
+        keyboard: rows.map((row) => row.map((text) => ({ text }))),
         resize_keyboard: true,
         one_time_keyboard: false,
     };
+}
+/** Головне меню — розділи; кнопка «Адмін» лише для TELEGRAM_ADMIN_CHAT_ID. */
+function getMainMenuKeyboard(chatId) {
+    const rows = [
+        [MENU_NAV.ROOT_MARSHRUTKY, MENU_NAV.ROOT_POPUTKY],
+        [MENU_NAV.ROOT_PROMO, MENU_NAV.ROOT_HELP],
+    ];
+    if (chatId && isTelegramAdminChat(chatId)) {
+        rows.push([MENU_NAV.ROOT_ADMIN]);
+    }
+    return replyKeyboard(rows);
+}
+function getMarshrutkyMenuKeyboard() {
+    return replyKeyboard([
+        [MENU_NAV.BOOK, MENU_NAV.MY_BOOKINGS],
+        [MENU_NAV.CANCEL],
+        [MENU_NAV.BACK],
+    ]);
+}
+function getPoputkyMenuKeyboard() {
+    return replyKeyboard([
+        [MENU_NAV.ALL_RIDES],
+        [MENU_NAV.ADD_DRIVER_RIDE, MENU_NAV.ADD_PASSENGER_RIDE],
+        [MENU_NAV.MY_DRIVER_RIDES, MENU_NAV.MY_PASSENGER_RIDES],
+        [MENU_NAV.CANCEL],
+        [MENU_NAV.BACK],
+    ]);
+}
+function getPromoMenuKeyboard() {
+    return replyKeyboard([
+        [MENU_NAV.INVITE],
+        [MENU_NAV.CONFIRM_RIDE],
+        [MENU_NAV.BACK],
+    ]);
+}
+function getAdminMenuKeyboard() {
+    return replyKeyboard([
+        [MENU_NAV.ADMIN_ADD_VIBER, MENU_NAV.ADMIN_ADD_TELEGRAM],
+        [MENU_NAV.ADMIN_CHECK_CLIENTS, MENU_NAV.ADMIN_REFERRAL_REPORT],
+        [MENU_NAV.BACK],
+    ]);
+}
+/** Відкрити підменю reply-клавіатури або повернутись на головне. */
+async function handleMenuNavigation(chatId, text) {
+    if (!bot)
+        return false;
+    // Адмін-кнопки: чужим чатам — тихо ігноруємо (без підказок, що команда існує).
+    if (ADMIN_MENU_BUTTONS.has(text)) {
+        if (!isTelegramAdminChat(chatId))
+            return true;
+        if (text === MENU_NAV.ROOT_ADMIN) {
+            await bot.sendMessage(chatId, '🛠 <b>Адмін</b>\nКоманди лише для цього чату:\n' +
+                '• /addviber — додати оголошення з Viber\n' +
+                '• /addtelegram — імпорт з PoDoroguem\n' +
+                '• /checkclients — перевірити збіги пасажир↔водій\n' +
+                '• /referralreport — звіт «Приведи друга»', { parse_mode: 'HTML', reply_markup: getAdminMenuKeyboard() });
+            return true;
+        }
+        if (text === MENU_NAV.ADMIN_ADD_VIBER) {
+            await runAdminAddViber(chatId);
+            return true;
+        }
+        if (text === MENU_NAV.ADMIN_ADD_TELEGRAM) {
+            await runAdminAddTelegram(chatId);
+            return true;
+        }
+        if (text === MENU_NAV.ADMIN_CHECK_CLIENTS) {
+            await runAdminCheckClients(chatId);
+            return true;
+        }
+        if (text === MENU_NAV.ADMIN_REFERRAL_REPORT) {
+            await runAdminReferralReport(chatId);
+            return true;
+        }
+    }
+    if (text === MENU_NAV.ROOT_MARSHRUTKY) {
+        await bot.sendMessage(chatId, '🎫 <b>Маршрутки</b>\nОберіть дію:', {
+            parse_mode: 'HTML',
+            reply_markup: getMarshrutkyMenuKeyboard(),
+        });
+        return true;
+    }
+    if (text === MENU_NAV.ROOT_POPUTKY) {
+        await bot.sendMessage(chatId, '🚗 <b>Попутки</b>\nОберіть дію:', {
+            parse_mode: 'HTML',
+            reply_markup: getPoputkyMenuKeyboard(),
+        });
+        return true;
+    }
+    if (text === MENU_NAV.ROOT_PROMO) {
+        await bot.sendMessage(chatId, '🎁 <b>Акції</b>\nПриведи друга або підтверди поїздку фото:', { parse_mode: 'HTML', reply_markup: getPromoMenuKeyboard() });
+        return true;
+    }
+    if (text === MENU_NAV.BACK) {
+        await bot.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard(chatId) });
+        return true;
+    }
+    return false;
+}
+/** Старт /addviber — тільки адмін-чат (перевірка на виклику). */
+async function runAdminAddViber(chatId) {
+    if (!bot || !isTelegramAdminChat(chatId))
+        return;
+    addViberAwaitingMap.set(chatId, Date.now());
+    await bot.sendMessage(chatId, '📱 <b>Додати оголошення з Вайверу</b>\n\n' +
+        'Надішліть текст оголошення — такий самий, як вставляєте в адмінці при кнопці «➕ Додати оголошення».\n\n' +
+        'Можна одне повідомлення або кілька (скопіювати блок з чату). Через 10 хв очікування скасується.', { parse_mode: 'HTML' });
+}
+/** Старт /addtelegram — тільки адмін-чат. */
+async function runAdminAddTelegram(chatId) {
+    if (!bot || !isTelegramAdminChat(chatId))
+        return;
+    const keyboard = {
+        inline_keyboard: [
+            [{ text: '📥 Завантажити нові', callback_data: 'addtelegram_fetch' }],
+            [{ text: '📥 Завантажити всі (скинути)', callback_data: 'addtelegram_fetch_full' }],
+            [{ text: '📋 Вставити текст вручну', callback_data: 'addtelegram_paste' }],
+        ],
+    };
+    await bot.sendMessage(chatId, '✈️ <b>Додати оголошення з Telegram (PoDoroguem)</b>\n\n' +
+        '• <b>Завантажити нові</b> — тільки повідомлення, які ще не імпортували\n\n' +
+        '• <b>Завантажити всі (скинути)</b> — завантажити всі знову (перший імпорт або скидання)\n\n' +
+        '• <b>Вставити текст вручну</b> — переслати або вставити текст', { parse_mode: 'HTML', reply_markup: keyboard });
+}
+/** /referralreport — тільки адмін-чат. */
+async function runAdminReferralReport(chatId) {
+    if (!bot || !isTelegramAdminChat(chatId))
+        return;
+    try {
+        const report = await (0, referral_1.buildAdminReferralReport)(tgPrisma);
+        const s = report.summary;
+        const flaggedLines = report.flagged.slice(0, 15).map((r) => {
+            const reason = r.flagReason ? `\n   ${r.flagReason.slice(0, 120)}` : '';
+            return `• #${r.id} ${r.rewardType} ${r.amountUah} грн | ref→${r.referrer.phoneNormalized} ← ${r.referredPerson.phoneNormalized}${reason}`;
+        });
+        const text = `🎁 <b>Звіт «Приведи друга»</b>\n\n` +
+            `Запрошених: ${s.referredPersonsCount}\n` +
+            `Нагород: ${s.totalRewards}\n` +
+            `⏳ Pending: ${s.pendingCount} (${s.pendingUah} грн)\n` +
+            `✅ Paid: ${s.paidCount} (${s.paidUah} грн)\n` +
+            `🚩 Flagged (чит/підозра): ${s.flaggedCount} (${s.flaggedUah} грн)\n` +
+            `📷 Фото для реклами: ${report.promoPhotoProofs.length}\n\n` +
+            (flaggedLines.length
+                ? `<b>Підозрілі:</b>\n${flaggedLines.join('\n')}`
+                : 'Підозрілих нагород немає.') +
+            `\n\nПовний JSON: GET /admin/referrals/report`;
+        await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+    }
+    catch (e) {
+        console.error('/referralreport:', e);
+        await bot.sendMessage(chatId, '❌ Не вдалося сформувати звіт');
+    }
+}
+/**
+ * /checkclients — ті самі збіги, що й при новій поїздці; тільки адмін-чат.
+ * Пари вже сповіщені раніше пропускаються (ViberMatchPairNotification).
+ */
+async function runAdminCheckClients(chatId) {
+    if (!bot || !isTelegramAdminChat(chatId))
+        return;
+    const CHECKCLIENTS_PAIR_LINES_LIMIT = 30;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    await bot.sendMessage(chatId, '⏳ Перевіряю співпадіння пасажирів та водіїв у майбутніх поїздках (як при автододаванні)…', {
+        parse_mode: 'HTML',
+    }).catch(() => { });
+    const [drivers, passengers] = await Promise.all([
+        tgPrisma.viberListing.findMany({
+            where: { listingType: 'driver', isActive: true, date: { gte: now } },
+            select: { id: true, route: true, date: true, departureTime: true, seats: true, phone: true, senderName: true, notes: true },
+            orderBy: { date: 'asc' },
+        }),
+        tgPrisma.viberListing.findMany({
+            where: { listingType: 'passenger', isActive: true, date: { gte: now } },
+            select: { id: true, route: true, date: true, departureTime: true, phone: true, senderName: true, notes: true },
+            orderBy: { date: 'asc' },
+        }),
+    ]);
+    const passengersByKey = new Map();
+    for (const p of passengers) {
+        const key = `${p.route}__${toDateKey(p.date)}`;
+        const arr = passengersByKey.get(key);
+        if (arr)
+            arr.push(p);
+        else
+            passengersByKey.set(key, [p]);
+    }
+    let pairCount = 0;
+    let exactPairCount = 0;
+    let approximatePairCount = 0;
+    let sameDayPairCount = 0;
+    let passengerSent = 0;
+    let passengerSkipped = 0;
+    let passengerFailed = 0;
+    let driverSent = 0;
+    let driverSkipped = 0;
+    let driverFailed = 0;
+    let sentViaUser = 0;
+    let sentViaBot = 0;
+    const pairLinesByType = {
+        exact: [],
+        approximate: [],
+        same_day: [],
+    };
+    for (const d of drivers) {
+        const key = `${d.route}__${toDateKey(d.date)}`;
+        const ps = passengersByKey.get(key);
+        if (!ps || ps.length === 0)
+            continue;
+        for (const p of ps) {
+            pairCount++;
+            const matchType = resolveMatchType(d.departureTime, p.departureTime);
+            if (pairLinesByType[matchType].length < CHECKCLIENTS_PAIR_LINES_LIMIT) {
+                const driverTime = d.departureTime ?? '—';
+                const passengerTime = p.departureTime ?? '—';
+                const timeDelta = parseTimeRangeForMatch(d.departureTime) && parseTimeRangeForMatch(p.departureTime)
+                    ? (() => {
+                        const dr = parseTimeRangeForMatch(d.departureTime);
+                        const pr = parseTimeRangeForMatch(p.departureTime);
+                        const overlapStart = Math.max(dr.start, pr.start);
+                        const overlapEnd = Math.min(dr.end, pr.end);
+                        if (overlapStart <= overlapEnd)
+                            return 'перетин';
+                        const gap = Math.min(Math.abs(dr.start - pr.end), Math.abs(pr.start - dr.end));
+                        return `Δ${gap}хв`;
+                    })()
+                    : 'час не вказано';
+                pairLinesByType[matchType].push(`• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`);
+            }
+            if (matchType === 'exact')
+                exactPairCount++;
+            else if (matchType === 'approximate')
+                approximatePairCount++;
+            else
+                sameDayPairCount++;
+            const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType);
+            if (pOut.kind === 'sent') {
+                passengerSent++;
+                if (pOut.via === 'user')
+                    sentViaUser++;
+                else
+                    sentViaBot++;
+            }
+            else if (pOut.kind === 'skipped')
+                passengerSkipped++;
+            else
+                passengerFailed++;
+            const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType);
+            if (dOut.kind === 'sent') {
+                driverSent++;
+                if (dOut.via === 'user')
+                    sentViaUser++;
+                else
+                    sentViaBot++;
+            }
+            else if (dOut.kind === 'skipped')
+                driverSkipped++;
+            else
+                driverFailed++;
+            await sleepTelethonBatchDelay();
+        }
+    }
+    const userSenderHint = isTelegramUserSenderEnabled()
+        ? `\n• Усього відправок через ваш акаунт (Telethon): ${sentViaUser}`
+        : `\n• Через ваш акаунт (Telethon): вимкнено (немає TELEGRAM_USER_SESSION_PATH / TELEGRAM_API_ID / TELEGRAM_API_HASH)`;
+    await bot.sendMessage(chatId, '✅ <b>/checkclients завершено</b>\n\n' +
+        `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount})\n` +
+        `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
+        `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
+        `• Через бот: ${sentViaBot}` +
+        userSenderHint, { parse_mode: 'HTML' }).catch(() => { });
+    const sections = [
+        { type: 'exact', title: `🎯 <b>Точні пари (±45 хв, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+        { type: 'approximate', title: `📌 <b>Приблизні пари (±2 год, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+        { type: 'same_day', title: `🗓️ <b>Поїздки цього дня (до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
+    ];
+    for (const section of sections) {
+        const lines = pairLinesByType[section.type];
+        if (lines.length === 0)
+            continue;
+        await bot.sendMessage(chatId, `${section.title}\n\n${lines.join('\n')}`, {
+            parse_mode: 'HTML',
+        }).catch(() => { });
+    }
 }
 /** Клавіатура «Поділитися номером» — єдина дія для користувача без номера. */
 function getSharePhoneKeyboard() {
@@ -2125,8 +2432,16 @@ async function sendSharePhoneOnly(chatId) {
 function setupBotCommands() {
     if (!bot)
         return;
-    // Меню команд (кнопка "Menu" зліва від вводу тексту)
+    // Меню команд: клієнтські — усім; адмінські — лише в чаті TELEGRAM_ADMIN_CHAT_ID
     bot.setMyCommands(CLIENT_BOT_COMMANDS).catch((err) => console.error('❌ setMyCommands:', err));
+    if (adminChatId) {
+        const adminChatScopeId = Number(adminChatId);
+        if (!Number.isNaN(adminChatScopeId)) {
+            bot
+                .setMyCommands(ADMIN_BOT_COMMANDS, { scope: { type: 'chat', chat_id: adminChatScopeId } })
+                .catch((err) => console.error('❌ setMyCommands (admin scope):', err));
+        }
+    }
     const parseStartScenario = (text) => {
         if (!text)
             return null;
@@ -2225,7 +2540,7 @@ function setupBotCommands() {
                     (0, telegram_referral_1.takePendingReferralCode)(chatId);
                     await bot?.sendMessage(chatId, '🙂 Ви вже з нами в боті — це запрошення для нових друзів.\n\n' +
                         'Можете самі когось запросити: /invite\n\n' +
-                        '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() });
+                        '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
                     return;
                 }
                 await bot?.sendMessage(chatId, '🎁 <b>Вас запросили за акцією «Приведи друга»!</b>\n\n' +
@@ -2295,23 +2610,14 @@ function setupBotCommands() {
 
 Я бот для бронювання маршруток <b>Київ, Житомир, Коростень ↔ Малин</b>.
 
-✅ Ваш акаунт підключено до номера: ${displayPhone}
+✅ Акаунт: ${displayPhone}
 
-🎫 <b>Що можна зробити:</b>
-/book - 🎫 Створити нове бронювання
-/mybookings - 📋 Переглянути мої бронювання
-/allrides - 🌐 Всі активні попутки
-/cancel - 🚫 Скасувати бронювання або оголошення попуток
-🚗 <b>Водій:</b>
-/mydriverrides - Мої поїздки (які я пропоную)
-/adddriverride - Додати поїздку як водій
-👤 <b>Пасажир:</b>
-/mypassengerrides - Мої запити на поїздку
-/addpassengerride - Шукаю поїздку (додати запит)
-/help - 📚 Показати повну довідку
+📱 <b>Меню знизу:</b>
+🎫 Маршрутки · 🚗 Попутки · 🎁 Акції · 📚 Довідка${isTelegramAdminChat(chatId) ? ' · 🛠 Адмін' : ''}
 
-🌐 <b>Або забронюйте на сайті:</b>
-https://malin.kiev.ua
+Або команди: /book /allrides /invite /confirmride /help
+
+🌐 Сайт: https://malin.kiev.ua
     `.trim();
         /** Якщо передано contactKeyboard, при сценарії view зберігаємо кнопку «Поділитися контактом» під повідомленням. */
         const handleStartScenario = async (contactKeyboard) => {
@@ -2346,7 +2652,7 @@ https://malin.kiev.ua
             const displayPhone = person.phoneNormalized ? formatPhoneTelLink(person.phoneNormalized) : (existingBooking ? formatPhoneTelLink(existingBooking.phone) : '');
             await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), {
                 parse_mode: 'HTML',
-                reply_markup: getMainMenuKeyboard(),
+                reply_markup: getMainMenuKeyboard(chatId),
             });
             if (await handleStartScenario())
                 return;
@@ -2367,7 +2673,7 @@ https://malin.kiev.ua
                 const displayPhone = formatPhoneTelLink(p.phoneNormalized ?? existingBooking.phone);
                 await bot?.sendMessage(chatId, buildRegisteredWelcome(displayPhone), {
                     parse_mode: 'HTML',
-                    reply_markup: getMainMenuKeyboard(),
+                    reply_markup: getMainMenuKeyboard(chatId),
                 });
                 if (await handleStartScenario())
                     return;
@@ -2737,8 +3043,18 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
 • 🔔 Нагадує за день до поїздки
 • 🎁 Акція «Приведи друга»
 
-🌐 Сайт: https://malin.kiev.ua`.trim();
-            await bot?.sendMessage(chatId, helpMessage, { parse_mode: 'HTML' });
+🌐 Сайт: https://malin.kiev.ua` +
+                (isTelegramAdminChat(chatId)
+                    ? `
+
+🛠 <b>Адмін (лише ваш чат):</b>
+/addviber — додати оголошення з Viber
+/addtelegram — імпорт з PoDoroguem
+/checkclients — перевірити збіги пасажир↔водій
+/referralreport — звіт «Приведи друга»
+Або кнопка «🛠 Адмін» у головному меню.`
+                    : '');
+            await bot?.sendMessage(chatId, helpMessage.trim(), { parse_mode: 'HTML' });
         }
         else {
             await sendSharePhoneOnly(chatId);
@@ -3073,163 +3389,15 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
         const filterRaw = (match?.[1] ?? '').trim();
         await sendAllrides(chatId, userId, filterRaw);
     });
-    // Команда /addviber — тільки для адміна в адмін-чаті: очікує наступне повідомлення з текстом з Вайберу (як «Додати оголошення» в адмінці)
+    // Адмін-команди — лише TELEGRAM_ADMIN_CHAT_ID (див. isTelegramAdminChat / runAdmin*)
     bot.onText(/\/addviber/, async (msg) => {
-        const chatId = msg.chat.id.toString();
-        if (chatId !== adminChatId)
-            return;
-        addViberAwaitingMap.set(chatId, Date.now());
-        await bot?.sendMessage(chatId, '📱 <b>Додати оголошення з Вайберу</b>\n\n' +
-            'Надішліть текст оголошення — такий самий, як вставляєте в адмінці при кнопці «➕ Додати оголошення».\n\n' +
-            'Можна одне повідомлення або кілька (скопіювати блок з чату). Через 10 хв очікування скасується.', { parse_mode: 'HTML' });
+        await runAdminAddViber(msg.chat.id.toString());
     });
-    // Команда /addtelegram — тільки для адміна: завантажити з групи або вставити текст вручну
     bot.onText(/\/addtelegram/, async (msg) => {
-        const chatId = msg.chat.id.toString();
-        if (chatId !== adminChatId)
-            return;
-        const keyboard = {
-            inline_keyboard: [
-                [{ text: '📥 Завантажити нові', callback_data: 'addtelegram_fetch' }],
-                [{ text: '📥 Завантажити всі (скинути)', callback_data: 'addtelegram_fetch_full' }],
-                [{ text: '📋 Вставити текст вручну', callback_data: 'addtelegram_paste' }],
-            ],
-        };
-        await bot?.sendMessage(chatId, '✈️ <b>Додати оголошення з Telegram (PoDoroguem)</b>\n\n' +
-            '• <b>Завантажити нові</b> — тільки повідомлення, які ще не імпортували\n\n' +
-            '• <b>Завантажити всі (скинути)</b> — завантажити всі знову (перший імпорт або скидання)\n\n' +
-            '• <b>Вставити текст вручну</b> — переслати або вставити текст', { parse_mode: 'HTML', reply_markup: keyboard });
+        await runAdminAddTelegram(msg.chat.id.toString());
     });
-    // Команда /checkclients — тільки для адміна: ті самі збіги, що й при новій поїздці (маршрут+дата, точне/приблизне/в цей день),
-    // доставка через бот або ваш акаунт; пари вже сповічені раніше пропускаються (таблиця ViberMatchPairNotification).
     bot.onText(/^\/checkclients(?:@\w+)?$/i, async (msg) => {
-        const chatId = msg.chat.id.toString();
-        if (chatId !== adminChatId)
-            return;
-        const CHECKCLIENTS_PAIR_LINES_LIMIT = 30;
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        await bot?.sendMessage(chatId, '⏳ Перевіряю співпадіння пасажирів та водіїв у майбутніх поїздках (як при автододаванні)…', {
-            parse_mode: 'HTML',
-        }).catch(() => { });
-        const [drivers, passengers] = await Promise.all([
-            tgPrisma.viberListing.findMany({
-                where: { listingType: 'driver', isActive: true, date: { gte: now } },
-                select: { id: true, route: true, date: true, departureTime: true, seats: true, phone: true, senderName: true, notes: true },
-                orderBy: { date: 'asc' },
-            }),
-            tgPrisma.viberListing.findMany({
-                where: { listingType: 'passenger', isActive: true, date: { gte: now } },
-                select: { id: true, route: true, date: true, departureTime: true, phone: true, senderName: true, notes: true },
-                orderBy: { date: 'asc' },
-            }),
-        ]);
-        const passengersByKey = new Map();
-        for (const p of passengers) {
-            const key = `${p.route}__${toDateKey(p.date)}`;
-            const arr = passengersByKey.get(key);
-            if (arr)
-                arr.push(p);
-            else
-                passengersByKey.set(key, [p]);
-        }
-        let pairCount = 0;
-        let exactPairCount = 0;
-        let approximatePairCount = 0;
-        let sameDayPairCount = 0;
-        let passengerSent = 0;
-        let passengerSkipped = 0;
-        let passengerFailed = 0;
-        let driverSent = 0;
-        let driverSkipped = 0;
-        let driverFailed = 0;
-        let sentViaUser = 0;
-        let sentViaBot = 0;
-        const pairLinesByType = {
-            exact: [],
-            approximate: [],
-            same_day: [],
-        };
-        for (const d of drivers) {
-            const key = `${d.route}__${toDateKey(d.date)}`;
-            const ps = passengersByKey.get(key);
-            if (!ps || ps.length === 0)
-                continue;
-            for (const p of ps) {
-                pairCount++;
-                const matchType = resolveMatchType(d.departureTime, p.departureTime);
-                if (pairLinesByType[matchType].length < CHECKCLIENTS_PAIR_LINES_LIMIT) {
-                    const driverTime = d.departureTime ?? '—';
-                    const passengerTime = p.departureTime ?? '—';
-                    const timeDelta = parseTimeRangeForMatch(d.departureTime) && parseTimeRangeForMatch(p.departureTime)
-                        ? (() => {
-                            const dr = parseTimeRangeForMatch(d.departureTime);
-                            const pr = parseTimeRangeForMatch(p.departureTime);
-                            const overlapStart = Math.max(dr.start, pr.start);
-                            const overlapEnd = Math.min(dr.end, pr.end);
-                            if (overlapStart <= overlapEnd)
-                                return 'перетин';
-                            const gap = Math.min(Math.abs(dr.start - pr.end), Math.abs(pr.start - dr.end));
-                            return `Δ${gap}хв`;
-                        })()
-                        : 'час не вказано';
-                    pairLinesByType[matchType].push(`• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`);
-                }
-                if (matchType === 'exact')
-                    exactPairCount++;
-                else if (matchType === 'approximate')
-                    approximatePairCount++;
-                else
-                    sameDayPairCount++;
-                const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType);
-                if (pOut.kind === 'sent') {
-                    passengerSent++;
-                    if (pOut.via === 'user')
-                        sentViaUser++;
-                    else
-                        sentViaBot++;
-                }
-                else if (pOut.kind === 'skipped')
-                    passengerSkipped++;
-                else
-                    passengerFailed++;
-                const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType);
-                if (dOut.kind === 'sent') {
-                    driverSent++;
-                    if (dOut.via === 'user')
-                        sentViaUser++;
-                    else
-                        sentViaBot++;
-                }
-                else if (dOut.kind === 'skipped')
-                    driverSkipped++;
-                else
-                    driverFailed++;
-                await sleepTelethonBatchDelay();
-            }
-        }
-        const userSenderHint = isTelegramUserSenderEnabled()
-            ? `\n• Усього відправок через ваш акаунт (Telethon): ${sentViaUser}`
-            : `\n• Через ваш акаунт (Telethon): вимкнено (немає TELEGRAM_USER_SESSION_PATH / TELEGRAM_API_ID / TELEGRAM_API_HASH)`;
-        await bot?.sendMessage(chatId, '✅ <b>/checkclients завершено</b>\n\n' +
-            `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount})\n` +
-            `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
-            `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
-            `• Через бот: ${sentViaBot}` +
-            userSenderHint, { parse_mode: 'HTML' }).catch(() => { });
-        const sections = [
-            { type: 'exact', title: `🎯 <b>Точні пари (±45 хв, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
-            { type: 'approximate', title: `📌 <b>Приблизні пари (±2 год, до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
-            { type: 'same_day', title: `🗓️ <b>Поїздки цього дня (до ${CHECKCLIENTS_PAIR_LINES_LIMIT})</b>` },
-        ];
-        for (const section of sections) {
-            const lines = pairLinesByType[section.type];
-            if (lines.length === 0)
-                continue;
-            await bot?.sendMessage(chatId, `${section.title}\n\n${lines.join('\n')}`, {
-                parse_mode: 'HTML',
-            }).catch(() => { });
-        }
+        await runAdminCheckClients(msg.chat.id.toString());
     });
     // Обробка контакту (коли користувач ділиться номером через кнопку)
     bot.on('contact', async (msg) => {
@@ -3336,7 +3504,16 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
         const chatId = msg.chat.id.toString();
         const userId = msg.from?.id.toString() || '';
         const text = msg.text?.trim();
-        // Кнопки головного меню: викликаємо обробник команди напряму (без emit — надійніше в node-telegram-bot-api)
+        // Reply-меню: спочатку підменю (Маршрутки / Попутки / Акції / Назад), потім дії
+        if (text && bot) {
+            try {
+                if (await handleMenuNavigation(chatId, text))
+                    return;
+            }
+            catch (err) {
+                console.error('❌ handleMenuNavigation:', err);
+            }
+        }
         const command = text ? MENU_BUTTON_TO_COMMAND[text] : undefined;
         if (command && bot) {
             try {
@@ -3367,7 +3544,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             }
         }
         // Потік /addtelegram: адмін надіслав текст з Telegram групи PoDoroguem
-        if (chatId === adminChatId && addTelegramAwaitingMap.has(chatId)) {
+        if (isTelegramAdminChat(chatId) && addTelegramAwaitingMap.has(chatId)) {
             const since = addTelegramAwaitingMap.get(chatId);
             addTelegramAwaitingMap.delete(chatId);
             if (Date.now() - since > ADDTELEGRAM_STATE_TTL_MS) {
@@ -3417,7 +3594,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             return;
         }
         // Потік /addviber: адмін надіслав текст оголошення з Вайберу (та сама обробка, що в адмінці)
-        if (chatId === adminChatId && addViberAwaitingMap.has(chatId)) {
+        if (isTelegramAdminChat(chatId) && addViberAwaitingMap.has(chatId)) {
             const since = addViberAwaitingMap.get(chatId);
             addViberAwaitingMap.delete(chatId);
             if (Date.now() - since > ADDVIBER_STATE_TTL_MS) {
@@ -3889,33 +4066,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
     });
     // Адмін: короткий звіт по реферальній програмі (чит / pending / фото)
     bot.onText(/^\/referralreport(?:@\w+)?$/i, async (msg) => {
-        const chatId = msg.chat.id.toString();
-        if (chatId !== adminChatId || !bot)
-            return;
-        try {
-            const report = await (0, referral_1.buildAdminReferralReport)(tgPrisma);
-            const s = report.summary;
-            const flaggedLines = report.flagged.slice(0, 15).map((r) => {
-                const reason = r.flagReason ? `\n   ${r.flagReason.slice(0, 120)}` : '';
-                return `• #${r.id} ${r.rewardType} ${r.amountUah} грн | ref→${r.referrer.phoneNormalized} ← ${r.referredPerson.phoneNormalized}${reason}`;
-            });
-            const text = `🎁 <b>Звіт «Приведи друга»</b>\n\n` +
-                `Запрошених: ${s.referredPersonsCount}\n` +
-                `Нагород: ${s.totalRewards}\n` +
-                `⏳ Pending: ${s.pendingCount} (${s.pendingUah} грн)\n` +
-                `✅ Paid: ${s.paidCount} (${s.paidUah} грн)\n` +
-                `🚩 Flagged (чит/підозра): ${s.flaggedCount} (${s.flaggedUah} грн)\n` +
-                `📷 Фото для реклами: ${report.promoPhotoProofs.length}\n\n` +
-                (flaggedLines.length
-                    ? `<b>Підозрілі:</b>\n${flaggedLines.join('\n')}`
-                    : 'Підозрілих нагород немає.') +
-                `\n\nПовний JSON: GET /admin/referrals/report`;
-            await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
-        }
-        catch (e) {
-            console.error('/referralreport:', e);
-            await bot.sendMessage(chatId, '❌ Не вдалося сформувати звіт');
-        }
+        await runAdminReferralReport(msg.chat.id.toString());
     });
     // Обробка callback query (натискання inline кнопок)
     bot.on('callback_query', async (query) => {
@@ -3925,8 +4076,13 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
         const messageId = query.message?.message_id;
         if (!chatId || !data)
             return;
-        if (chatId !== adminChatId && (data === 'addtelegram_fetch' || data === 'addtelegram_fetch_full' || data === 'addtelegram_paste'))
-            return;
+        // Адмін-inline (addtelegram_*): чужим чатам — тиха відмова, без підказок.
+        if (data.startsWith('addtelegram_')) {
+            if (!isTelegramAdminChat(chatId)) {
+                await bot?.answerCallbackQuery(query.id).catch(() => { });
+                return;
+            }
+        }
         try {
             // ---------- Реферальна програма / підтвердження поїздки ----------
             if (data.startsWith('referral_') ||
@@ -4055,7 +4211,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (data === 'adddriver_cancel') {
                 driverRideStateMap.delete(chatId);
                 await bot?.editMessageText('❌ Скасовано. Можете почати знову кнопкою «🚗 Додати поїздку» або /adddriverride.', { chat_id: chatId, message_id: messageId });
-                await bot?.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard() });
+                await bot?.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard(chatId) });
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
@@ -4210,7 +4366,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (data === 'addpassenger_cancel') {
                 passengerRideStateMap.delete(chatId);
                 await bot?.editMessageText('❌ Скасовано. Можете почати знову кнопкою «👤 Шукаю поїздку» або /addpassengerride.', { chat_id: chatId, message_id: messageId });
-                await bot?.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard() });
+                await bot?.sendMessage(chatId, 'Головне меню:', { reply_markup: getMainMenuKeyboard(chatId) });
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
