@@ -1010,11 +1010,16 @@ export const findOrCreatePersonByPhone = async (
     telegramUserId?: string | null;
     telegramUsername?: string | null;
   }
-): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> => {
+): Promise<{ id: number; phoneNormalized: string; fullName: string | null; created: boolean }> => {
   const normalized = normalizePhone(phone);
   const fullName = options?.fullName != null && String(options.fullName).trim() !== ''
     ? String(options.fullName).trim()
     : null;
+  const existing = await tgPrisma.person.findUnique({
+    where: { phoneNormalized: normalized },
+    select: { id: true },
+  });
+  const created = !existing;
   const person = await tgPrisma.person.upsert({
     where: { phoneNormalized: normalized },
     create: {
@@ -1031,7 +1036,7 @@ export const findOrCreatePersonByPhone = async (
       ...(options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
     },
   });
-  return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName };
+  return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName, created };
 };
 
 /** Знайти людину за Telegram @username (з @ або без). */
@@ -2360,7 +2365,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
     });
     const totalBookings = matchingBookings.length + userIdBookings.length;
 
-    const finishReferralLink = async (personId: number) => {
+    const finishReferralLink = async (personId: number, personWasNewToClientsDb: boolean) => {
       await onReferralRegistration(
         tgPrisma,
         personId,
@@ -2371,7 +2376,8 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
           if (bot && adminChatId) {
             bot.sendMessage(adminChatId, text, { parse_mode: 'HTML' }).catch(() => {});
           }
-        }
+        },
+        personWasNewToClientsDb
       ).catch((err) => console.error('Referral on registration:', err));
     };
 
@@ -2386,7 +2392,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
         const person = await getPersonByPhone(phoneInput);
         sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? telegramName ?? null);
       }
-      await finishReferralLink(created.id);
+      await finishReferralLink(created.id, created.created);
       await bot.sendMessage(
         chatId,
         `✅ <b>Номер додано в базу клієнтів!</b>\n\n` +
@@ -2407,6 +2413,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
 
     const phoneNumbers = [...new Set(matchingBookings.map((b) => b.phone))];
     let linkedPersonId: number | null = null;
+    let linkedPersonWasNew = false;
     for (const phone of phoneNumbers) {
       const person = await findOrCreatePersonByPhone(phone, {
         fullName: telegramName ?? undefined,
@@ -2414,6 +2421,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
         telegramUserId: userId,
       });
       linkedPersonId = person.id;
+      linkedPersonWasNew = person.created;
       await updatePersonAndBookingsTelegram(person.id, chatId, userId);
       const norm = normalizePhone(phone);
       const allWithPhone = await tgPrisma.booking.findMany({ where: {} });
@@ -2437,7 +2445,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       const person = await getPersonByPhone(phoneInput);
       sendNewTelegramRegistrationNotificationToAdmin(userId, phoneInput, person?.fullName ?? telegramName ?? null);
     }
-    if (linkedPersonId) await finishReferralLink(linkedPersonId);
+    if (linkedPersonId) await finishReferralLink(linkedPersonId, linkedPersonWasNew);
 
     console.log(`✅ Оновлено Person та бронювання для користувача ${userId}, номер ${normalizedPhone}`);
 
@@ -2663,22 +2671,12 @@ function setupBotCommands() {
       if (ok) {
         const personAlready = await getPersonByTelegram(userId, chatId);
         if (personAlready) {
-          await onReferralRegistration(
-            tgPrisma,
-            personAlready.id,
-            personAlready.phoneNormalized,
-            personAlready.telegramUsername,
-            takePendingReferralCode(chatId),
-            (text) => {
-              if (bot && adminChatId) {
-                bot.sendMessage(adminChatId, text, { parse_mode: 'HTML' }).catch(() => {});
-              }
-            }
-          ).catch((err) => console.error('Referral link existing person:', err));
+          // Уже користувач бота — акційне «залучення» не застосовується
+          takePendingReferralCode(chatId);
           await bot?.sendMessage(
             chatId,
-            '🎁 <b>Запрошення прийнято!</b>\n\n' +
-              'Акаунт уже підключено. Додайте попутку як водій або пасажир — і акція зарахується запрошувачу.\n\n' +
+            '🙂 Ви вже з нами в боті — це запрошення для нових друзів.\n\n' +
+              'Можете самі когось запросити: /invite\n\n' +
               '🌐 https://malin.kiev.ua/poputky',
             { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard() }
           );

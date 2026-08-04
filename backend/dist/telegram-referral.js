@@ -75,25 +75,39 @@ async function handleReferralContactInput(bot, prisma, chatId, personId, text) {
     const result = await (0, referral_1.createReferralInvite)(prisma, personId, text);
     exports.referralFlowStateMap.delete(chatId);
     if (!result.ok) {
-        await bot.sendMessage(chatId, `❌ ${result.error}`, { parse_mode: 'HTML' });
+        if (result.alreadyOurUser) {
+            await bot.sendMessage(chatId, result.error, { parse_mode: 'HTML' });
+        }
+        else {
+            await bot.sendMessage(chatId, `❌ ${result.error}`, { parse_mode: 'HTML' });
+        }
         return true;
+    }
+    let extra = '';
+    if (result.alreadyInClientsDb) {
+        extra =
+            '\n\nℹ️ Цей контакт уже був у нашій базі клієнтів — бонус «за нового друга» не нарахується, ' +
+                'але за підтверджені поїздки бонуси будуть як завжди 💛';
     }
     await bot.sendMessage(chatId, `✅ <b>Запрошення збережено!</b>\n\n` +
         `Контакт: ${result.display}\n\n` +
         'Коли друг проїде і підтвердить поїздку фото — ви обидва отримаєте бонус 💸\n' +
-        'Надішліть йому своє посилання з /invite.', { parse_mode: 'HTML' });
+        'Надішліть йому своє посилання з /invite.' +
+        extra, { parse_mode: 'HTML' });
     return true;
 }
 /** Лише прив'язка реферера. Гроші — після підтвердження поїздки. */
-async function onReferralRegistration(prisma, personId, phoneNormalized, telegramUsername, referralCodeFromStart, notifyAdmin) {
-    const { linked, referrerId } = await (0, referral_1.linkReferralOnRegistration)(prisma, personId, phoneNormalized, telegramUsername, referralCodeFromStart);
+async function onReferralRegistration(prisma, personId, phoneNormalized, telegramUsername, referralCodeFromStart, notifyAdmin, personWasNewToClientsDb) {
+    const { linked, referrerId, registrationBonusEligible } = await (0, referral_1.linkReferralOnRegistration)(prisma, personId, phoneNormalized, telegramUsername, referralCodeFromStart, personWasNewToClientsDb);
     if (!linked || !referrerId)
         return;
     if (notifyAdmin) {
         notifyAdmin(`🎁 <b>Реферал: новий зв'язок</b>\n` +
             `Запрошений Person #${personId}\n` +
             `Реферер Person #${referrerId}\n` +
-            `<i>Нагорода ще не нарахована — чекаємо підтвердження поїздки.</i>`);
+            (registrationBonusEligible === false
+                ? `<i>Уже був у базі клієнтів — без 10 грн за залучення; бонуси лише за підтверджені поїздки.</i>`
+                : `<i>Нагорода ще не нарахована — чекаємо підтвердження поїздки.</i>`));
     }
 }
 async function startRideProofFlow(bot, prisma, chatId, personId) {

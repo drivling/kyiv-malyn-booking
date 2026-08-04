@@ -41,6 +41,8 @@ model Person {
   referredByPersonId    Int?
   referredByPerson      Person?   @relation("PersonReferrals", fields: [referredByPersonId], references: [id], onDelete: SetNull)
   referredPersons       Person[]  @relation("PersonReferrals")
+  /// Чи можна нарахувати 10 грн «за нового друга»: false — уже був у базі клієнтів
+  referralRegistrationBonusEligible Boolean?
 
   bookings     Booking[]
   viberListings ViberListing[]
@@ -65,6 +67,8 @@ model ReferralInvite {
   inviteUsername   String?
   referredPersonId Int?
   status           String    @default("pending") // pending | registered | expired
+  /// false — контакт уже був у Person (без бота); 10 грн за залучення не буде
+  registrationBonusEligible Boolean @default(true)
   registeredAt     DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

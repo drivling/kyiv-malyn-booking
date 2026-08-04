@@ -11,6 +11,7 @@ exports.isReverseRoute = isReverseRoute;
 exports.detectTimeConflict = detectTimeConflict;
 exports.ensurePersonReferralCode = ensurePersonReferralCode;
 exports.findReferrerByCode = findReferrerByCode;
+exports.isPersonConnectedToBot = isPersonConnectedToBot;
 exports.createReferralInvite = createReferralInvite;
 exports.linkReferralOnRegistration = linkReferralOnRegistration;
 exports.collectPersonRideSlots = collectPersonRideSlots;
@@ -153,6 +154,12 @@ async function ensurePersonReferralCode(prisma, personId) {
 async function findReferrerByCode(prisma, code) {
     return prisma.person.findFirst({ where: { referralCode: code.toUpperCase() } });
 }
+/** Уже підключений до бота — не «новий» для акції */
+function isPersonConnectedToBot(person) {
+    const chat = person.telegramChatId?.trim();
+    const user = person.telegramUserId?.trim();
+    return !!(chat || user);
+}
 async function createReferralInvite(prisma, referrerId, contactInput) {
     const parsed = parseInviteContact(contactInput);
     if (!parsed) {
@@ -165,11 +172,23 @@ async function createReferralInvite(prisma, referrerId, contactInput) {
                 OR: [{ telegramUsername: parsed.username }, { telegramUsername: `@${parsed.username}` }],
             },
         });
-    if (existingPerson?.referredByPersonId) {
-        return { ok: false, error: 'Цей користувач уже зареєстрований і має іншого запрошувача' };
-    }
     if (existingPerson?.id === referrerId) {
         return { ok: false, error: 'Не можна запросити самого себе' };
+    }
+    // Уже користувач бота — м’яко відхиляємо
+    if (existingPerson && isPersonConnectedToBot(existingPerson)) {
+        return {
+            ok: false,
+            alreadyOurUser: true,
+            error: 'Цей друг уже з нами в боті 🙂 Запрошення для акції не зарахується — спробуйте запросити когось іншого.',
+        };
+    }
+    if (existingPerson?.referredByPersonId) {
+        return {
+            ok: false,
+            alreadyOurUser: true,
+            error: 'Цей друг уже був запрошений раніше 🙂 Оберіть, будь ласка, іншого.',
+        };
     }
     const duplicate = await prisma.referralInvite.findFirst({
         where: {
@@ -181,8 +200,10 @@ async function createReferralInvite(prisma, referrerId, contactInput) {
         },
     });
     if (duplicate) {
-        return { ok: false, error: 'Ви вже запросили цей контакт — очікуємо реєстрації друга' };
+        return { ok: false, error: 'Ви вже запросили цей контакт — очікуємо, поки друг підключить бота' };
     }
+    const alreadyInClientsDb = !!existingPerson;
+    const registrationBonusEligible = !alreadyInClientsDb;
     const invite = await prisma.referralInvite.create({
         data: {
             referrerId,
@@ -193,14 +214,24 @@ async function createReferralInvite(prisma, referrerId, contactInput) {
             referredPersonId: existingPerson?.id ?? null,
             status: existingPerson ? 'registered' : 'pending',
             registeredAt: existingPerson ? new Date() : null,
+            registrationBonusEligible,
         },
     });
     if (existingPerson && !existingPerson.referredByPersonId) {
-        await linkReferredPerson(prisma, existingPerson.id, referrerId, invite.id);
+        await linkReferredPerson(prisma, existingPerson.id, referrerId, {
+            inviteId: invite.id,
+            registrationBonusEligible: false,
+        });
     }
-    return { ok: true, inviteId: invite.id, display: parsed.display };
+    return {
+        ok: true,
+        inviteId: invite.id,
+        display: parsed.display,
+        registrationBonusEligible,
+        alreadyInClientsDb,
+    };
 }
-async function linkReferredPerson(prisma, referredPersonId, referrerPersonId, inviteId) {
+async function linkReferredPerson(prisma, referredPersonId, referrerPersonId, opts) {
     if (referredPersonId === referrerPersonId)
         return false;
     const referred = await prisma.person.findUnique({
@@ -211,11 +242,16 @@ async function linkReferredPerson(prisma, referredPersonId, referrerPersonId, in
         return false;
     await prisma.person.update({
         where: { id: referredPersonId },
-        data: { referredByPersonId: referrerPersonId },
+        data: {
+            referredByPersonId: referrerPersonId,
+            ...(opts?.registrationBonusEligible !== undefined
+                ? { referralRegistrationBonusEligible: opts.registrationBonusEligible }
+                : {}),
+        },
     });
-    if (inviteId) {
+    if (opts?.inviteId) {
         await prisma.referralInvite.update({
-            where: { id: inviteId },
+            where: { id: opts.inviteId },
             data: { referredPersonId, status: 'registered', registeredAt: new Date() },
         });
     }
@@ -245,16 +281,22 @@ async function markMatchingInvitesRegistered(prisma, referredPersonId, referrerP
 /**
  * Прив'язати реферера при реєстрації (посилання ref_ або pending invite).
  * Нагороди тут НЕ нараховуються — лише зв'язок.
+ * @param personWasNewToClientsDb — true лише якщо Person щойно створений (не було в базі клієнтів)
  */
-async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormalized, telegramUsername, referralCodeFromStart) {
+async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormalized, telegramUsername, referralCodeFromStart, personWasNewToClientsDb) {
     const person = await prisma.person.findUnique({
         where: { id: referredPersonId },
-        select: { referredByPersonId: true },
+        select: { referredByPersonId: true, referralRegistrationBonusEligible: true },
     });
     if (person?.referredByPersonId) {
-        return { linked: false, referrerId: person.referredByPersonId };
+        return {
+            linked: false,
+            referrerId: person.referredByPersonId,
+            registrationBonusEligible: person.referralRegistrationBonusEligible ?? undefined,
+        };
     }
     let referrerId = null;
+    let inviteBonusEligible = null;
     if (referralCodeFromStart) {
         const referrer = await findReferrerByCode(prisma, referralCodeFromStart);
         if (referrer && referrer.id !== referredPersonId)
@@ -274,6 +316,7 @@ async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormali
         });
         if (pendingInvite && pendingInvite.referrerId !== referredPersonId) {
             referrerId = pendingInvite.referrerId;
+            inviteBonusEligible = pendingInvite.registrationBonusEligible;
             await prisma.referralInvite.update({
                 where: { id: pendingInvite.id },
                 data: { referredPersonId, status: 'registered', registeredAt: new Date() },
@@ -282,8 +325,14 @@ async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormali
     }
     if (!referrerId)
         return { linked: false };
-    const linked = await linkReferredPerson(prisma, referredPersonId, referrerId);
-    return linked ? { linked: true, referrerId } : { linked: false };
+    // 10 грн лише якщо людина нова в базі клієнтів і запрошення теж це дозволяє
+    const registrationBonusEligible = personWasNewToClientsDb === true && (inviteBonusEligible === null || inviteBonusEligible === true);
+    const linked = await linkReferredPerson(prisma, referredPersonId, referrerId, {
+        registrationBonusEligible,
+    });
+    return linked
+        ? { linked: true, referrerId, registrationBonusEligible }
+        : { linked: false };
 }
 async function getReferrerIdForPerson(prisma, personId) {
     const p = await prisma.person.findUnique({ where: { id: personId }, select: { referredByPersonId: true } });
@@ -375,12 +424,21 @@ async function collectPersonRideSlots(prisma, personId) {
     return slots;
 }
 /**
- * 10 грн за «реєстрацію» — лише після першої кваліфікації друга (не при /start).
+ * 10 грн за «нового друга» — лише після першої кваліфікації,
+ * і лише якщо друг був дійсно новим у базі клієнтів (не referralRegistrationBonusEligible=false).
  */
 async function unlockRegistrationReward(prisma, referredPersonId, opts) {
     const referrerId = await getReferrerIdForPerson(prisma, referredPersonId);
     if (!referrerId)
         return { created: false };
+    const person = await prisma.person.findUnique({
+        where: { id: referredPersonId },
+        select: { referralRegistrationBonusEligible: true },
+    });
+    // false — уже був у базі клієнтів → без 10 грн; null/true — дозволено
+    if (person?.referralRegistrationBonusEligible === false) {
+        return { created: false, skippedExistingClient: true };
+    }
     const result = await createRewardIfNotExists(prisma, {
         referrerId,
         referredPersonId,

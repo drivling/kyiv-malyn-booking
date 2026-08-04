@@ -78,15 +78,30 @@ test('getPersonByPhone: findUnique з нормалізованим номеро�
 });
 
 test('findOrCreatePersonByPhone: upsert', async () => {
+  const findUnique = mock.fn(async () => null);
   const upsert = mock.fn(async () => ({
     id: 42,
     phoneNormalized: '380501112233',
     fullName: 'Тест',
   }));
-  setTelegramPrismaForTests(asPrisma({ person: { upsert } }));
+  setTelegramPrismaForTests(asPrisma({ person: { findUnique, upsert } }));
   const r = await findOrCreatePersonByPhone('0501112233', { fullName: 'Тест' });
   assert.equal(r.id, 42);
+  assert.equal(r.created, true);
+  assert.equal(findUnique.mock.calls.length, 1);
   assert.equal(upsert.mock.calls.length, 1);
+});
+
+test('findOrCreatePersonByPhone: existing → created=false', async () => {
+  const findUnique = mock.fn(async () => ({ id: 7 }));
+  const upsert = mock.fn(async () => ({
+    id: 7,
+    phoneNormalized: '380501112233',
+    fullName: 'Був',
+  }));
+  setTelegramPrismaForTests(asPrisma({ person: { findUnique, upsert } }));
+  const r = await findOrCreatePersonByPhone('0501112233', { fullName: 'Був' });
+  assert.equal(r.created, false);
 });
 
 test('getNameByPhone: Person.fullName', async () => {

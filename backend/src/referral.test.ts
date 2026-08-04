@@ -8,12 +8,14 @@ import {
   detectTimeConflict,
   generateReferralCode,
   getReferralBotLink,
+  isPersonConnectedToBot,
   isReverseRoute,
   maxRewardUahPerReferred,
   MIN_RIDE_DURATION_MINUTES,
   parseDepartureMinutes,
   parseInviteContact,
   processReferralRewardsAfterPassengerProof,
+  unlockRegistrationReward,
   REFERRAL_REWARD_UAH,
   MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED,
   type RideTimeSlot,
@@ -84,6 +86,14 @@ describe('referral pure helpers', () => {
     );
     assert.equal(maxRewardUahPerReferred(), 10 + 40 + 60);
   });
+
+  it('isPersonConnectedToBot', () => {
+    assert.equal(isPersonConnectedToBot({}), false);
+    assert.equal(isPersonConnectedToBot({ telegramChatId: null, telegramUserId: null }), false);
+    assert.equal(isPersonConnectedToBot({ telegramChatId: '1', telegramUserId: null }), true);
+    assert.equal(isPersonConnectedToBot({ telegramChatId: null, telegramUserId: '99' }), true);
+    assert.equal(isPersonConnectedToBot({ telegramChatId: '  ', telegramUserId: '' }), false);
+  });
 });
 
 type RewardRow = {
@@ -106,6 +116,9 @@ function createRewardPrismaMock(opts: {
   existingRewards?: RewardRow[];
   proofRoute?: string;
   proofTime?: string;
+  /** false = уже був у базі клієнтів → без 10 грн */
+  passengerRegistrationBonusEligible?: boolean | null;
+  driverRegistrationBonusEligible?: boolean | null;
 }) {
   let nextRewardId = 1;
   const rewards: RewardRow[] = [...(opts.existingRewards ?? [])];
@@ -137,16 +150,22 @@ function createRewardPrismaMock(opts: {
       },
     },
     person: {
-      findUnique: async ({ where }: { where: { id: number }; select?: { referredByPersonId?: boolean } }) => {
+      findUnique: async ({ where }: { where: { id: number }; select?: Record<string, boolean> }) => {
         // unlockRegistration / getReferrer for passenger
         if (where.id === opts.passengerId) {
-          return { referredByPersonId: opts.passengerReferrerId };
+          return {
+            referredByPersonId: opts.passengerReferrerId,
+            referralRegistrationBonusEligible: opts.passengerRegistrationBonusEligible ?? true,
+          };
         }
         // getReferrer for driver (passengerReferrer)
         if (where.id === opts.passengerReferrerId) {
-          return { referredByPersonId: opts.driverReferrerId ?? null };
+          return {
+            referredByPersonId: opts.driverReferrerId ?? null,
+            referralRegistrationBonusEligible: opts.driverRegistrationBonusEligible ?? true,
+          };
         }
-        return { referredByPersonId: null };
+        return { referredByPersonId: null, referralRegistrationBonusEligible: true };
       },
     },
     referralReward: {
@@ -350,5 +369,32 @@ describe('processReferralRewardsAfterPassengerProof', () => {
     const result = await processReferralRewardsAfterPassengerProof(prisma, 1);
     assert.equal(result.totalNewUah, 0);
     assert.equal(prisma._rewards.length, 0);
+  });
+
+  it('existing client (no 10 грн): only trip bonuses 20+20', async () => {
+    const prisma = createRewardPrismaMock({
+      passengerId: 2,
+      passengerReferrerId: 1,
+      passengerRegistrationBonusEligible: false,
+    });
+    const result = await processReferralRewardsAfterPassengerProof(prisma, 100);
+    assert.equal(result.registrationCreated, false);
+    assert.equal(result.passengerRideCreated, true);
+    assert.equal(result.passengerSelfCreated, true);
+    assert.equal(result.totalNewUah, 40);
+    assert.ok(!prisma._rewards.some((r) => r.rewardType === 'registration'));
+  });
+});
+
+describe('unlockRegistrationReward eligibility', () => {
+  it('skips when referralRegistrationBonusEligible=false', async () => {
+    const prisma = createRewardPrismaMock({
+      passengerId: 2,
+      passengerReferrerId: 1,
+      passengerRegistrationBonusEligible: false,
+    });
+    const r = await unlockRegistrationReward(prisma, 2);
+    assert.equal(r.created, false);
+    assert.equal(r.skippedExistingClient, true);
   });
 });
