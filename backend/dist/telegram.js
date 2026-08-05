@@ -2338,24 +2338,27 @@ async function runAdminReferralReport(chatId) {
     if (!bot || !isTelegramAdminChat(chatId))
         return;
     try {
-        const report = await (0, referral_1.buildAdminReferralReport)(tgPrisma);
+        const report = await (0, referral_1.buildAdminReferralSummary)(tgPrisma);
         const s = report.summary;
-        const flaggedLines = report.flagged.slice(0, 15).map((r) => {
+        const flaggedLines = report.flaggedPreview.map((r) => {
             const reason = r.flagReason ? `\n   ${r.flagReason.slice(0, 120)}` : '';
             return `• #${r.id} ${r.rewardType} ${r.amountUah} грн | ref→${r.referrer.phoneNormalized} ← ${r.referredPerson.phoneNormalized}${reason}`;
         });
+        const budgetLine = s.budgetExceeded
+            ? `⚠️ Бюджет вичерпано (ліміт ${s.budgetUah} грн)`
+            : `Бюджет: лишилось ${s.budgetRemainingUah} з ${s.budgetUah} грн`;
         const text = `🎁 <b>Звіт «Приведи друга»</b>\n\n` +
             `Запрошених: ${s.referredPersonsCount}\n` +
             `Нагород: ${s.totalRewards}\n` +
             `⏳ Чекають перевірки фото: ${s.onHoldCount} (${s.onHoldUah} грн)\n` +
-            `💳 До виплати: ${s.payablePeopleCount} осіб (${s.payableUah} грн)\n` +
+            `💳 До виплати: ${s.payableCount} нагород (${s.payableUah} грн)\n` +
             `✅ Paid: ${s.paidCount} (${s.paidUah} грн)\n` +
             `🚩 Flagged (чит/підозра): ${s.flaggedCount} (${s.flaggedUah} грн)\n` +
-            `📷 Фото для реклами: ${report.promoPhotoProofs.length}\n\n` +
+            `${budgetLine}\n\n` +
             (flaggedLines.length
                 ? `<b>Підозрілі:</b>\n${flaggedLines.join('\n')}`
                 : 'Підозрілих нагород немає.') +
-            `\n\nПовний JSON: GET /admin/referrals/report`;
+            `\n\nДеталі — вкладка «Реферали» в адмінці`;
         await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
     }
     catch (e) {

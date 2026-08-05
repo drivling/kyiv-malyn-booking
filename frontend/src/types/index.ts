@@ -345,6 +345,87 @@ export interface ReferralBudgetStatus {
   exceeded: boolean;
 }
 
+export interface ReferralInviteRow {
+  id: number;
+  inviteContact: string;
+  inviteType: string;
+  status: string;
+  registrationBonusEligible?: boolean;
+  createdAt: string;
+  referrer: { fullName: string | null; phoneNormalized: string };
+  referredPerson: { fullName: string | null; phoneNormalized: string } | null;
+}
+
+export interface ReferralInvitesPage {
+  items: ReferralInviteRow[];
+  total: number;
+  skip: number;
+  take: number;
+}
+
+export interface SharedTelegramAccountGroup {
+  key: string;
+  persons: Array<{
+    id: number;
+    fullName: string | null;
+    phoneNormalized: string;
+    telegramUsername: string | null;
+    referredByPersonId: number | null;
+    unpaidUah: number;
+  }>;
+  selfReferralPairs: Array<{ referredPersonId: number; referrerPersonId: number }>;
+  unpaidUah: number;
+}
+
+export interface PersonReferralDetails {
+  person: {
+    id: number;
+    fullName: string | null;
+    phoneNormalized: string;
+    telegramUsername: string | null;
+    telegramChatId: string | null;
+    telegramUserId: string | null;
+    referralCode: string | null;
+    referredByPerson: {
+      id: number;
+      fullName: string | null;
+      phoneNormalized: string;
+      telegramUsername: string | null;
+    } | null;
+  };
+  rewards: Array<{
+    id: number;
+    rewardType: string;
+    amountUah: number;
+    status: string;
+    flagReason: string | null;
+    payoutNote: string | null;
+    paidAt: string | null;
+    referredPerson: { id: number; fullName: string | null; phoneNormalized: string };
+    rideProof: { id: number; route: string; rideDate: string; status: string } | null;
+  }>;
+  invitedPersons: Array<{
+    id: number;
+    fullName: string | null;
+    phoneNormalized: string;
+    telegramUsername: string | null;
+  }>;
+  sharedAccountPersons: Array<{
+    id: number;
+    fullName: string | null;
+    phoneNormalized: string;
+  }>;
+}
+
+export interface ReferralPersonSearchHit {
+  id: number;
+  fullName: string | null;
+  phoneNormalized: string;
+  telegramUsername: string | null;
+  referredByPerson: { id: number; fullName: string | null; phoneNormalized: string } | null;
+  _count: { referredPersons: number; referralRewards: number };
+}
+
 export interface AdminReferralReport {
   summary: {
     totalRewards: number;
@@ -358,27 +439,12 @@ export interface AdminReferralReport {
     payablePeopleCount: number;
     payableUah: number;
     personWarnLimitUah: number;
+    sharedTelegramGroupCount: number;
   };
   budget: ReferralBudgetStatus;
   payoutBalances: ReferralPayoutPersonRow[];
-  rewards: ReferralRewardRow[];
   flagged: ReferralRewardRow[];
-  invites: Array<{
-    id: number;
-    inviteContact: string;
-    inviteType: string;
-    status: string;
-    registrationBonusEligible?: boolean;
-    createdAt: string;
-    referrer: { fullName: string | null; phoneNormalized: string };
-    referredPerson: { fullName: string | null; phoneNormalized: string } | null;
-  }>;
-  referredPersons: Array<{
-    id: number;
-    fullName: string | null;
-    phoneNormalized: string;
-    referralRegistrationBonusEligible?: boolean | null;
-    referredByPerson: { id: number; fullName: string | null; phoneNormalized: string } | null;
-  }>;
+  invites: ReferralInvitesPage;
+  sharedTelegramGroups: SharedTelegramAccountGroup[];
   promoPhotoProofs: RideCompletionProofRow[];
 }

@@ -3,10 +3,16 @@ import type { PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../middleware/require-admin';
 import {
   buildAdminReferralReport,
+  buildPayoutsCsv,
   findUnlockableFlaggedRewardIds,
+  getPersonReferralDetails,
   getReferralBudgetStatus,
+  listReferralInvites,
   markReferralPayout,
+  searchReferralPersons,
   setReferralBudgetUah,
+  syncFlaggedRewardsForApprovedProofs,
+  undoReferralPayout,
   withAdminManualFlagReason,
   REWARD_STATUS_APPROVED,
   REWARD_STATUS_FLAGGED,
@@ -27,6 +33,77 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
     } catch (e) {
       console.error('❌ GET /admin/referrals/report:', e);
       res.status(500).json({ error: 'Не вдалося сформувати звіт' });
+    }
+  });
+
+  /**
+   * Підтягнути hold/flagged нагороди по вже схвалених фото у чергу виплат.
+   * Раніше це робив GET звіту — тепер явна кнопка.
+   */
+  r.post('/admin/referrals/sync-approved', requireAdmin, async (_req, res) => {
+    try {
+      const unlocked = await syncFlaggedRewardsForApprovedProofs(prisma);
+      res.json({ unlocked });
+    } catch (e) {
+      console.error('❌ POST /admin/referrals/sync-approved:', e);
+      res.status(500).json({ error: 'Не вдалося синхронізувати нагороди' });
+    }
+  });
+
+  /** CSV виплат (approved + paid) для звірки з поповненнями */
+  r.get('/admin/referrals/payouts.csv', requireAdmin, async (_req, res) => {
+    try {
+      const csv = await buildPayoutsCsv(prisma);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="referral-payouts.csv"');
+      res.send(csv);
+    } catch (e) {
+      console.error('❌ GET /admin/referrals/payouts.csv:', e);
+      res.status(500).json({ error: 'Не вдалося сформувати CSV' });
+    }
+  });
+
+  /** Сторінка запрошень */
+  r.get('/admin/referrals/invites', requireAdmin, async (req, res) => {
+    try {
+      const skip = Math.max(parseInt(String(req.query.skip ?? '0'), 10) || 0, 0);
+      const take = Math.min(Math.max(parseInt(String(req.query.take ?? '30'), 10) || 30, 1), 200);
+      const status = typeof req.query.status === 'string' ? req.query.status.trim() : undefined;
+      res.json(await listReferralInvites(prisma, { skip, take, status: status || undefined }));
+    } catch (e) {
+      console.error('❌ GET /admin/referrals/invites:', e);
+      res.status(500).json({ error: 'Не вдалося завантажити запрошення' });
+    }
+  });
+
+  /** Пошук людей (отримувачі й запрошені) */
+  r.get('/admin/referrals/persons/search', requireAdmin, async (req, res) => {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      res.json({ items: await searchReferralPersons(prisma, q) });
+    } catch (e) {
+      console.error('❌ GET /admin/referrals/persons/search:', e);
+      res.status(500).json({ error: 'Не вдалося виконати пошук' });
+    }
+  });
+
+  /** Граф / деталі людини: хто привів, кого привела, нагороди */
+  r.get('/admin/referrals/persons/:id', requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ error: 'Невірний id' });
+        return;
+      }
+      const details = await getPersonReferralDetails(prisma, id);
+      if (!details) {
+        res.status(404).json({ error: 'Людину не знайдено' });
+        return;
+      }
+      res.json(details);
+    } catch (e) {
+      console.error('❌ GET /admin/referrals/persons/:id:', e);
+      res.status(500).json({ error: 'Не вдалося завантажити деталі' });
     }
   });
 
@@ -135,6 +212,31 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
     } catch (e) {
       console.error('❌ POST /admin/referrals/payouts:', e);
       res.status(500).json({ error: 'Не вдалося позначити виплату' });
+    }
+  });
+
+  /**
+   * Скасувати виплату (помилково натиснули «Виплатив»): paid → approved.
+   * Body: { rewardIds: number[] }
+   */
+  r.post('/admin/referrals/payouts/undo', requireAdmin, async (req, res) => {
+    try {
+      const rewardIds = Array.isArray((req.body as { rewardIds?: number[] })?.rewardIds)
+        ? (req.body as { rewardIds: number[] }).rewardIds.filter((id) => Number.isInteger(id) && id > 0)
+        : [];
+      if (rewardIds.length === 0) {
+        res.status(400).json({ error: 'Потрібен rewardIds' });
+        return;
+      }
+      const result = await undoReferralPayout(prisma, rewardIds);
+      if (result.updatedCount === 0) {
+        res.status(400).json({ error: 'Немає виплачених нагород серед переданих id' });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      console.error('❌ POST /admin/referrals/payouts/undo:', e);
+      res.status(500).json({ error: 'Не вдалося скасувати виплату' });
     }
   });
 

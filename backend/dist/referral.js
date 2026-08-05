@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.REFERRAL_SHARE_TEXT = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_PAYOUT_UNDONE_PREFIX = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.REFERRAL_SHARE_TEXT = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
 exports.isRewardOnHold = isRewardOnHold;
 exports.isRewardPayable = isRewardPayable;
 exports.generateReferralCode = generateReferralCode;
@@ -34,12 +34,14 @@ exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
 exports.buildTelegramShareUrl = buildTelegramShareUrl;
 exports.buildReferralProgramInlineKeyboard = buildReferralProgramInlineKeyboard;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
+exports.buildPayoutBalances = buildPayoutBalances;
 exports.withAdminManualFlagReason = withAdminManualFlagReason;
 exports.isProtectedFlagReason = isProtectedFlagReason;
 exports.flagUnpaidRewardsForSelfReferral = flagUnpaidRewardsForSelfReferral;
 exports.buildBotBlockedPayoutsFrozenMessage = buildBotBlockedPayoutsFrozenMessage;
 exports.flagUnpaidReferralRewardsForBotBlocked = flagUnpaidReferralRewardsForBotBlocked;
 exports.markReferralPayout = markReferralPayout;
+exports.undoReferralPayout = undoReferralPayout;
 exports.formatRideDateKeyUa = formatRideDateKeyUa;
 exports.clipForTelegramCopyText = clipForTelegramCopyText;
 exports.buildRideFacebookShareCaption = buildRideFacebookShareCaption;
@@ -47,7 +49,13 @@ exports.buildRideFacebookSharePromptHtml = buildRideFacebookSharePromptHtml;
 exports.buildFacebookShareInlineKeyboard = buildFacebookShareInlineKeyboard;
 exports.syncFlaggedRewardsForApprovedProofs = syncFlaggedRewardsForApprovedProofs;
 exports.findUnlockableFlaggedRewardIds = findUnlockableFlaggedRewardIds;
+exports.findSharedTelegramAccountGroups = findSharedTelegramAccountGroups;
+exports.getPersonReferralDetails = getPersonReferralDetails;
+exports.searchReferralPersons = searchReferralPersons;
+exports.listReferralInvites = listReferralInvites;
+exports.buildPayoutsCsv = buildPayoutsCsv;
 exports.buildAdminReferralReport = buildAdminReferralReport;
+exports.buildAdminReferralSummary = buildAdminReferralSummary;
 const telegram_contact_1 = require("./telegram-contact");
 /** Локальна копія normalizePhone з telegram.ts (уникаємо circular import) */
 function normalizePhone(phone) {
@@ -1001,44 +1009,92 @@ function buildReferralProgramInlineKeyboard(referralLink, opts) {
     }
     return { inline_keyboard: rows };
 }
+function emptyPayoutRow(person) {
+    return {
+        personId: person.id,
+        fullName: person.fullName,
+        phoneNormalized: person.phoneNormalized,
+        telegramUsername: person.telegramUsername,
+        payableUah: 0,
+        payableCount: 0,
+        holdUah: 0,
+        holdCount: 0,
+        paidUah: 0,
+        flaggedUah: 0,
+        rewardIds: [],
+    };
+}
+/** Розкласти суму за статусом по «кишенях» рядка виплат */
+function addToPayoutRow(row, status, amountUah, count) {
+    if (isRewardPayable(status)) {
+        row.payableUah += amountUah;
+        row.payableCount += count;
+    }
+    else if (isRewardOnHold(status)) {
+        row.holdUah += amountUah;
+        row.holdCount += count;
+    }
+    else if (status === exports.REWARD_STATUS_PAID) {
+        row.paidUah += amountUah;
+    }
+    else if (status === exports.REWARD_STATUS_FLAGGED) {
+        row.flaggedUah += amountUah;
+    }
+}
+function sortPayoutRows(rows) {
+    return rows.sort((a, b) => b.payableUah - a.payableUah || b.holdUah - a.holdUah || b.paidUah - a.paidUah);
+}
 /** Агрегат «скільки кому виплатити» по referrerId (отримувач нагороди). */
 function buildPayoutBalancesFromRewards(rewards) {
     const map = new Map();
     for (const r of rewards) {
         let row = map.get(r.referrerId);
         if (!row) {
-            row = {
-                personId: r.referrer.id,
-                fullName: r.referrer.fullName,
-                phoneNormalized: r.referrer.phoneNormalized,
-                telegramUsername: r.referrer.telegramUsername,
-                payableUah: 0,
-                payableCount: 0,
-                holdUah: 0,
-                holdCount: 0,
-                paidUah: 0,
-                flaggedUah: 0,
-                rewardIds: [],
-            };
+            row = emptyPayoutRow(r.referrer);
             map.set(r.referrerId, row);
         }
-        if (isRewardPayable(r.status)) {
-            row.payableUah += r.amountUah;
-            row.payableCount += 1;
+        addToPayoutRow(row, r.status, r.amountUah, 1);
+        if (isRewardPayable(r.status))
             row.rewardIds.push(r.id);
-        }
-        else if (isRewardOnHold(r.status)) {
-            row.holdUah += r.amountUah;
-            row.holdCount += 1;
-        }
-        else if (r.status === exports.REWARD_STATUS_PAID) {
-            row.paidUah += r.amountUah;
-        }
-        else if (r.status === exports.REWARD_STATUS_FLAGGED) {
-            row.flaggedUah += r.amountUah;
-        }
     }
-    return [...map.values()].sort((a, b) => b.payableUah - a.payableUah || b.holdUah - a.holdUah || b.paidUah - a.paidUah);
+    return sortPayoutRows([...map.values()]);
+}
+/**
+ * Те саме, але без вивантаження всіх нагород: агрегація на боці БД.
+ * Поіменні id тягнемо лише для approved — саме їх адмін позначає виплаченими.
+ */
+async function buildPayoutBalances(prisma) {
+    const grouped = await prisma.referralReward.groupBy({
+        by: ['referrerId', 'status'],
+        _sum: { amountUah: true },
+        _count: { _all: true },
+    });
+    if (grouped.length === 0)
+        return [];
+    const personIds = [...new Set(grouped.map((g) => g.referrerId))];
+    const [persons, approved] = await Promise.all([
+        prisma.person.findMany({
+            where: { id: { in: personIds } },
+            select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true },
+        }),
+        prisma.referralReward.findMany({
+            where: { status: exports.REWARD_STATUS_APPROVED },
+            select: { id: true, referrerId: true },
+        }),
+    ]);
+    const map = new Map();
+    for (const person of persons)
+        map.set(person.id, emptyPayoutRow(person));
+    for (const g of grouped) {
+        const row = map.get(g.referrerId);
+        if (!row)
+            continue;
+        addToPayoutRow(row, g.status, g._sum.amountUah ?? 0, g._count._all ?? 0);
+    }
+    for (const reward of approved) {
+        map.get(reward.referrerId)?.rewardIds.push(reward.id);
+    }
+    return sortPayoutRows([...map.values()]);
 }
 /** Причина flag, коли отримувач заблокував бота — адмін бачить у нотатці/flagReason */
 exports.BOT_BLOCKED_REWARD_FLAG_REASON = 'Бот Telegram заблоковано користувачем — прибрано з виплат';
@@ -1163,6 +1219,41 @@ async function markReferralPayout(prisma, opts) {
         return { updatedCount: paidIds.length, amountUah, rewardIds: paidIds };
     });
 }
+/**
+ * Відкотити виплату (помилково натиснули «Виплатив»): paid → approved.
+ * Нотатку зберігаємо з поміткою, щоб слід у історії лишився.
+ */
+async function undoReferralPayout(prisma, rewardIds) {
+    const ids = [...new Set(rewardIds.filter((id) => Number.isInteger(id) && id > 0))];
+    if (ids.length === 0)
+        return { updatedCount: 0, amountUah: 0 };
+    return prisma.$transaction(async (tx) => {
+        const paid = await tx.referralReward.findMany({
+            where: { id: { in: ids }, status: exports.REWARD_STATUS_PAID },
+            select: { id: true, amountUah: true, payoutNote: true },
+        });
+        if (paid.length === 0)
+            return { updatedCount: 0, amountUah: 0 };
+        for (const reward of paid) {
+            await tx.referralReward.updateMany({
+                where: { id: reward.id, status: exports.REWARD_STATUS_PAID },
+                data: {
+                    status: exports.REWARD_STATUS_APPROVED,
+                    paidAt: null,
+                    payoutNote: reward.payoutNote
+                        ? `${exports.ADMIN_PAYOUT_UNDONE_PREFIX}${reward.payoutNote}`
+                        : exports.ADMIN_PAYOUT_UNDONE_PREFIX.trim(),
+                },
+            });
+        }
+        return {
+            updatedCount: paid.length,
+            amountUah: paid.reduce((s, r) => s + r.amountUah, 0),
+        };
+    });
+}
+/** Помітка в нотатці, що виплату відкотили */
+exports.ADMIN_PAYOUT_UNDONE_PREFIX = '[скасовано] ';
 /** Дата YYYY-MM-DD → DD.MM.YYYY для посту */
 function formatRideDateKeyUa(dateKey) {
     const m = dateKey.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -1273,87 +1364,378 @@ prisma, opts) {
     });
     return candidates.filter((r) => !isProtectedFlagReason(r.flagReason)).map((r) => r.id);
 }
-async function buildAdminReferralReport(prisma) {
-    await syncFlaggedRewardsForApprovedProofs(prisma);
-    const budget = await getReferralBudgetStatus(prisma);
-    const rewards = await prisma.referralReward.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-            referrer: { select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true } },
-            referredPerson: { select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true } },
-            viberListing: { select: { id: true, route: true, date: true, listingType: true } },
-            rideProof: { select: { id: true, route: true, rideDate: true, photoStartFileId: true, photoEndFileId: true } },
+/**
+ * Кілька Person на одному Telegram-акаунті — головний сигнал само-реферала.
+ * Показуємо разом із невиплаченими грошима, щоб адмін одразу бачив ціну питання.
+ */
+async function findSharedTelegramAccountGroups(prisma) {
+    const persons = await prisma.person.findMany({
+        where: { OR: [{ telegramChatId: { not: null } }, { telegramUserId: { not: null } }] },
+        select: {
+            id: true,
+            fullName: true,
+            phoneNormalized: true,
+            telegramChatId: true,
+            telegramUserId: true,
+            telegramUsername: true,
+            referredByPersonId: true,
+        },
+        orderBy: { id: 'asc' },
+    });
+    const groups = new Map();
+    for (const p of persons) {
+        const chat = normalizeTelegramId(p.telegramChatId);
+        const user = normalizeTelegramId(p.telegramUserId);
+        const key = chat ? `chat:${chat}` : user ? `user:${user}` : null;
+        if (!key)
+            continue;
+        const arr = groups.get(key) ?? [];
+        arr.push(p);
+        groups.set(key, arr);
+    }
+    const duplicates = [...groups.entries()].filter(([, rows]) => rows.length > 1);
+    if (duplicates.length === 0)
+        return [];
+    const allIds = duplicates.flatMap(([, rows]) => rows.map((r) => r.id));
+    const unpaid = await prisma.referralReward.groupBy({
+        by: ['referrerId'],
+        where: { referrerId: { in: allIds }, status: { in: exports.REWARD_STATUSES_UNPAID } },
+        _sum: { amountUah: true },
+    });
+    const unpaidByPerson = new Map(unpaid.map((u) => [u.referrerId, u._sum.amountUah ?? 0]));
+    return duplicates.map(([key, rows]) => ({
+        key,
+        persons: rows.map((p) => ({
+            id: p.id,
+            fullName: p.fullName,
+            phoneNormalized: p.phoneNormalized,
+            telegramUsername: p.telegramUsername,
+            referredByPersonId: p.referredByPersonId,
+            unpaidUah: unpaidByPerson.get(p.id) ?? 0,
+        })),
+        /** Пари «запрошений ↔ запрошувач» усередині однієї групи — це і є само-реферал */
+        selfReferralPairs: rows
+            .filter((p) => p.referredByPersonId && rows.some((r) => r.id === p.referredByPersonId))
+            .map((p) => ({ referredPersonId: p.id, referrerPersonId: p.referredByPersonId })),
+        unpaidUah: rows.reduce((s, p) => s + (unpaidByPerson.get(p.id) ?? 0), 0),
+    }));
+}
+/** Картка людини: хто привів, кого привела, її нагороди та заявки з фото */
+async function getPersonReferralDetails(prisma, personId) {
+    const person = await prisma.person.findUnique({
+        where: { id: personId },
+        select: {
+            id: true,
+            fullName: true,
+            phoneNormalized: true,
+            telegramUsername: true,
+            telegramChatId: true,
+            telegramUserId: true,
+            referralCode: true,
+            referredByPerson: {
+                select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true },
+            },
         },
     });
-    const flagged = rewards.filter((r) => r.status === exports.REWARD_STATUS_FLAGGED);
-    /** Нараховано, але фото ще не схвалене — у виплати не йде */
-    const onHold = rewards.filter((r) => isRewardOnHold(r.status));
-    const paid = rewards.filter((r) => r.status === exports.REWARD_STATUS_PAID);
-    const payoutBalances = buildPayoutBalancesFromRewards(rewards);
-    const invites = await prisma.referralInvite.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 100,
+    if (!person)
+        return null;
+    const sharedOr = [
+        ...(normalizeTelegramId(person.telegramChatId)
+            ? [{ telegramChatId: person.telegramChatId }]
+            : []),
+        ...(normalizeTelegramId(person.telegramUserId)
+            ? [{ telegramUserId: person.telegramUserId }]
+            : []),
+    ];
+    const [rewards, invitedPersons, sharedAccount] = await Promise.all([
+        prisma.referralReward.findMany({
+            where: { referrerId: personId },
+            orderBy: { id: 'desc' },
+            include: {
+                referredPerson: { select: { id: true, fullName: true, phoneNormalized: true } },
+                rideProof: { select: { id: true, route: true, rideDate: true, status: true } },
+            },
+        }),
+        prisma.person.findMany({
+            where: { referredByPersonId: personId },
+            select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true },
+            orderBy: { id: 'desc' },
+        }),
+        sharedOr.length > 0
+            ? prisma.person.findMany({
+                where: { id: { not: personId }, OR: sharedOr },
+                select: { id: true, fullName: true, phoneNormalized: true },
+            })
+            : Promise.resolve([]),
+    ]);
+    return { person, rewards, invitedPersons, sharedAccountPersons: sharedAccount };
+}
+/** Пошук людини за іменем, телефоном або @username — щоб знайти й запрошених, не лише отримувачів */
+async function searchReferralPersons(prisma, query, take = 20) {
+    const q = query.trim();
+    if (q.length < 2)
+        return [];
+    const digits = q.replace(/\D/g, '');
+    const persons = await prisma.person.findMany({
+        where: {
+            OR: [
+                { fullName: { contains: q, mode: 'insensitive' } },
+                { telegramUsername: { contains: q.replace(/^@/, ''), mode: 'insensitive' } },
+                ...(digits.length >= 3 ? [{ phoneNormalized: { contains: digits } }] : []),
+            ],
+        },
+        select: {
+            id: true,
+            fullName: true,
+            phoneNormalized: true,
+            telegramUsername: true,
+            referredByPerson: { select: { id: true, fullName: true, phoneNormalized: true } },
+            _count: { select: { referredPersons: true, referralRewardsAsReferrer: true } },
+        },
+        take,
+        orderBy: { id: 'desc' },
+    });
+    return persons.map((p) => ({
+        ...p,
+        _count: {
+            referredPersons: p._count.referredPersons,
+            referralRewards: p._count.referralRewardsAsReferrer,
+        },
+    }));
+}
+/** Сторінка списку запрошень */
+async function listReferralInvites(prisma, opts) {
+    const take = Math.min(Math.max(opts?.take ?? 30, 1), 200);
+    const skip = Math.max(opts?.skip ?? 0, 0);
+    const where = opts?.status ? { status: opts.status } : {};
+    const [items, total] = await Promise.all([
+        prisma.referralInvite.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take,
+            include: {
+                referrer: { select: { fullName: true, phoneNormalized: true } },
+                referredPerson: { select: { fullName: true, phoneNormalized: true } },
+            },
+        }),
+        prisma.referralInvite.count({ where }),
+    ]);
+    return { items, total, skip, take };
+}
+/** CSV виплат для звірки з поповненнями мобільного */
+async function buildPayoutsCsv(prisma) {
+    const rewards = await prisma.referralReward.findMany({
+        where: { status: { in: [exports.REWARD_STATUS_PAID, exports.REWARD_STATUS_APPROVED] } },
+        orderBy: [{ paidAt: 'desc' }, { id: 'desc' }],
         include: {
-            referrer: { select: { fullName: true, phoneNormalized: true } },
+            referrer: { select: { fullName: true, phoneNormalized: true, telegramUsername: true } },
             referredPerson: { select: { fullName: true, phoneNormalized: true } },
         },
     });
-    const referredPersons = await prisma.person.findMany({
-        where: { referredByPersonId: { not: null } },
+    const escape = (value) => {
+        const text = value == null ? '' : String(value);
+        return /[",;\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const header = [
+        'reward_id',
+        'status',
+        'otrymuvach',
+        'telefon',
+        'telegram',
+        'suma_uah',
+        'typ',
+        'drug',
+        'data_vyplaty',
+        'notatka',
+    ];
+    const rows = rewards.map((r) => [
+        r.id,
+        r.status,
+        r.referrer.fullName ?? '',
+        r.referrer.phoneNormalized,
+        r.referrer.telegramUsername ? `@${r.referrer.telegramUsername.replace(/^@/, '')}` : '',
+        r.amountUah,
+        r.rewardType,
+        r.referredPerson.fullName ?? r.referredPerson.phoneNormalized,
+        r.paidAt ? r.paidAt.toISOString().slice(0, 10) : '',
+        r.payoutNote ?? '',
+    ]
+        .map(escape)
+        .join(','));
+    // BOM — щоб Excel не ламав кирилицю
+    return '\uFEFF' + [header.join(','), ...rows].join('\n');
+}
+/**
+ * Звіт для адмінки. Тільки читає: синхронізацію flagged→approved робить
+ * окрема кнопка / щоденний прогін, а не кожне відкриття вкладки.
+ */
+async function buildAdminReferralReport(prisma) {
+    const budget = await getReferralBudgetStatus(prisma);
+    // Агрегати рахує БД: раніше сюди вивантажувались усі нагороди з чотирма relation-ами
+    const [statusTotals, payoutBalances, referredPersonsCount] = await Promise.all([
+        prisma.referralReward.groupBy({
+            by: ['status'],
+            _sum: { amountUah: true },
+            _count: { _all: true },
+        }),
+        buildPayoutBalances(prisma),
+        prisma.person.count({ where: { referredByPersonId: { not: null } } }),
+    ]);
+    const totals = { count: 0, onHoldCount: 0, onHoldUah: 0, paidCount: 0, paidUah: 0, flaggedCount: 0, flaggedUah: 0 };
+    for (const row of statusTotals) {
+        const count = row._count._all ?? 0;
+        const uah = row._sum.amountUah ?? 0;
+        totals.count += count;
+        if (isRewardOnHold(row.status)) {
+            totals.onHoldCount += count;
+            totals.onHoldUah += uah;
+        }
+        else if (row.status === exports.REWARD_STATUS_PAID) {
+            totals.paidCount += count;
+            totals.paidUah += uah;
+        }
+        else if (row.status === exports.REWARD_STATUS_FLAGGED) {
+            totals.flaggedCount += count;
+            totals.flaggedUah += uah;
+        }
+    }
+    // Підозрілі показуємо повністю (з ними працюють руками), решту — сторінками
+    const flagged = await prisma.referralReward.findMany({
+        where: { status: exports.REWARD_STATUS_FLAGGED },
+        orderBy: { id: 'desc' },
+        take: 200,
         include: {
-            referredByPerson: { select: { fullName: true, phoneNormalized: true, id: true } },
+            referrer: { select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true } },
+            referredPerson: { select: { id: true, fullName: true, phoneNormalized: true, telegramUsername: true } },
+            rideProof: { select: { id: true, route: true, rideDate: true, status: true } },
         },
-        orderBy: { createdAt: 'desc' },
     });
-    const proofs = await prisma.rideCompletionProof.findMany({
-        where: { photoStartFileId: { not: null }, photoEndFileId: { not: null } },
-        orderBy: { updatedAt: 'desc' },
-        take: 80,
-        include: {
-            person: {
-                select: {
-                    id: true,
-                    fullName: true,
-                    phoneNormalized: true,
-                    telegramChatId: true,
-                    telegramUsername: true,
+    const [invites, sharedTelegramGroups, proofs] = await Promise.all([
+        listReferralInvites(prisma, { take: 30 }),
+        findSharedTelegramAccountGroups(prisma),
+        prisma.rideCompletionProof.findMany({
+            where: { photoStartFileId: { not: null }, photoEndFileId: { not: null } },
+            orderBy: { updatedAt: 'desc' },
+            take: 80,
+            include: {
+                person: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        phoneNormalized: true,
+                        telegramChatId: true,
+                        telegramUsername: true,
+                    },
+                },
+                referralRewards: {
+                    select: {
+                        id: true,
+                        rewardType: true,
+                        amountUah: true,
+                        status: true,
+                        flagReason: true,
+                        referrerId: true,
+                        referrer: { select: { id: true, fullName: true, phoneNormalized: true } },
+                    },
+                    orderBy: { id: 'asc' },
                 },
             },
-            referralRewards: {
-                select: {
-                    id: true,
-                    rewardType: true,
-                    amountUah: true,
-                    status: true,
-                    flagReason: true,
-                    referrerId: true,
-                    referrer: { select: { id: true, fullName: true, phoneNormalized: true } },
-                },
-                orderBy: { id: 'asc' },
-            },
-        },
-    });
+        }),
+    ]);
     const payablePeople = payoutBalances.filter((p) => p.payableUah > 0);
     return {
         summary: {
-            totalRewards: rewards.length,
-            onHoldCount: onHold.length,
-            onHoldUah: onHold.reduce((s, r) => s + r.amountUah, 0),
-            paidCount: paid.length,
-            paidUah: paid.reduce((s, r) => s + r.amountUah, 0),
-            flaggedCount: flagged.length,
-            flaggedUah: flagged.reduce((s, r) => s + r.amountUah, 0),
-            referredPersonsCount: referredPersons.length,
+            totalRewards: totals.count,
+            onHoldCount: totals.onHoldCount,
+            onHoldUah: totals.onHoldUah,
+            paidCount: totals.paidCount,
+            paidUah: totals.paidUah,
+            flaggedCount: totals.flaggedCount,
+            flaggedUah: totals.flaggedUah,
+            referredPersonsCount,
             payablePeopleCount: payablePeople.length,
             payableUah: payablePeople.reduce((s, p) => s + p.payableUah, 0),
             personWarnLimitUah: exports.REFERRAL_PERSON_TOTAL_WARN_UAH,
+            sharedTelegramGroupCount: sharedTelegramGroups.length,
         },
         budget,
         payoutBalances,
-        rewards,
         flagged,
         invites,
-        referredPersons,
+        sharedTelegramGroups,
         promoPhotoProofs: proofs,
+    };
+}
+/**
+ * Легка зводка для бота /referralreport — без фото, запрошень і повних списків.
+ * Раніше тягнула той самий важкий GET, що й адмінка.
+ */
+async function buildAdminReferralSummary(prisma) {
+    const [budget, statusTotals, referredPersonsCount, flaggedPreview] = await Promise.all([
+        getReferralBudgetStatus(prisma),
+        prisma.referralReward.groupBy({
+            by: ['status'],
+            _sum: { amountUah: true },
+            _count: { _all: true },
+        }),
+        prisma.person.count({ where: { referredByPersonId: { not: null } } }),
+        prisma.referralReward.findMany({
+            where: { status: exports.REWARD_STATUS_FLAGGED },
+            orderBy: { id: 'desc' },
+            take: 15,
+            include: {
+                referrer: { select: { phoneNormalized: true } },
+                referredPerson: { select: { phoneNormalized: true } },
+            },
+        }),
+    ]);
+    let totalRewards = 0;
+    let onHoldCount = 0;
+    let onHoldUah = 0;
+    let paidCount = 0;
+    let paidUah = 0;
+    let flaggedCount = 0;
+    let flaggedUah = 0;
+    let payableUah = 0;
+    let payableCount = 0;
+    for (const row of statusTotals) {
+        const count = row._count._all ?? 0;
+        const uah = row._sum.amountUah ?? 0;
+        totalRewards += count;
+        if (isRewardOnHold(row.status)) {
+            onHoldCount += count;
+            onHoldUah += uah;
+        }
+        else if (row.status === exports.REWARD_STATUS_PAID) {
+            paidCount += count;
+            paidUah += uah;
+        }
+        else if (row.status === exports.REWARD_STATUS_FLAGGED) {
+            flaggedCount += count;
+            flaggedUah += uah;
+        }
+        else if (isRewardPayable(row.status)) {
+            payableCount += count;
+            payableUah += uah;
+        }
+    }
+    return {
+        summary: {
+            totalRewards,
+            onHoldCount,
+            onHoldUah,
+            paidCount,
+            paidUah,
+            flaggedCount,
+            flaggedUah,
+            referredPersonsCount,
+            payableUah,
+            payableCount,
+            budgetUah: budget.budgetUah,
+            budgetRemainingUah: budget.remainingUah,
+            budgetExceeded: budget.exceeded,
+        },
+        flaggedPreview,
     };
 }

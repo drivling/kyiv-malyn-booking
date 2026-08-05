@@ -21,7 +21,10 @@ import type {
   BehaviorPromoScenarioKey,
   PhoneCheckAnalyzeResponse,
   AdminReferralReport,
+  PersonReferralDetails,
   ReferralBudgetStatus,
+  ReferralInvitesPage,
+  ReferralPersonSearchHit,
   ReferralRewardRow,
   RideCompletionProofRow,
 } from '@/types';
@@ -525,6 +528,10 @@ class ApiClient {
     return this.request<AdminReferralReport>('/admin/referrals/report');
   }
 
+  async syncReferralApproved(): Promise<{ unlocked: number }> {
+    return this.request('/admin/referrals/sync-approved', { method: 'POST' });
+  }
+
   async setReferralBudget(
     budgetUah: number
   ): Promise<ReferralBudgetStatus & { releasedCount: number; releasedUah: number }> {
@@ -545,6 +552,34 @@ class ApiClient {
     });
   }
 
+  async undoReferralPayout(rewardIds: number[]): Promise<{ updatedCount: number; amountUah: number }> {
+    return this.request('/admin/referrals/payouts/undo', {
+      method: 'POST',
+      body: JSON.stringify({ rewardIds }),
+    });
+  }
+
+  async getReferralInvites(opts?: {
+    skip?: number;
+    take?: number;
+    status?: string;
+  }): Promise<ReferralInvitesPage> {
+    const params = new URLSearchParams();
+    if (opts?.skip != null) params.set('skip', String(opts.skip));
+    if (opts?.take != null) params.set('take', String(opts.take));
+    if (opts?.status) params.set('status', opts.status);
+    const q = params.toString();
+    return this.request(`/admin/referrals/invites${q ? `?${q}` : ''}`);
+  }
+
+  async searchReferralPersons(q: string): Promise<{ items: ReferralPersonSearchHit[] }> {
+    return this.request(`/admin/referrals/persons/search?q=${encodeURIComponent(q)}`);
+  }
+
+  async getPersonReferralDetails(id: number): Promise<PersonReferralDetails> {
+    return this.request(`/admin/referrals/persons/${id}`);
+  }
+
   async patchReferralReward(
     id: number,
     data: { status: string; flagReason?: string | null; payoutNote?: string | null }
@@ -563,6 +598,26 @@ class ApiClient {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  }
+
+  /** CSV виплат (blob) — з авторизацією */
+  async downloadReferralPayoutsCsv(): Promise<Blob> {
+    const url = `${this.baseUrl}/admin/referrals/payouts.csv`;
+    const headers = new Headers();
+    if (this.authToken) headers.set('Authorization', this.authToken);
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const text = await response.text();
+      let msg = `Помилка ${response.status}`;
+      try {
+        const err = text ? JSON.parse(text) : {};
+        if (err?.error) msg = err.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
+    return response.blob();
   }
 
   /** Завантажити фото підтвердження (blob URL для <img>). Не забудьте URL.revokeObjectURL. */

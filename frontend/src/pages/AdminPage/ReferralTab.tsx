@@ -6,7 +6,10 @@ import { Input } from '@/components/Input';
 import { formatPhoneDisplay } from '@/utils/constants';
 import type {
   AdminReferralReport,
+  PersonReferralDetails,
+  ReferralInviteRow,
   ReferralPayoutPersonRow,
+  ReferralPersonSearchHit,
   ReferralRewardRow,
   RideCompletionProofRow,
 } from '@/types';
@@ -34,7 +37,15 @@ const REWARD_STATUS_LABEL: Record<string, string> = {
   flagged: 'підозра',
 };
 
-type PayoutFilter = 'payable' | 'all' | 'paid_only';
+type PayoutFilter = 'payable' | 'all' | 'paid_only' | 'flagged';
+
+type ModalState =
+  | { kind: 'payout'; row: ReferralPayoutPersonRow }
+  | { kind: 'reject'; proof: RideCompletionProofRow }
+  | { kind: 'flag'; rewardId: number; currentReason?: string | null }
+  | null;
+
+const INVITES_PAGE_SIZE = 30;
 
 const ProofPhotoThumb: React.FC<{
   proofId: number;
@@ -95,6 +106,14 @@ const ProofPhotoThumb: React.FC<{
   );
 };
 
+const scrollToProof = (proofId: number) => {
+  const el = document.getElementById(`referral-proof-${proofId}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('referral-proof-card--flash');
+  window.setTimeout(() => el.classList.remove('referral-proof-card--flash'), 1600);
+};
+
 export const ReferralTab: React.FC = () => {
   const [report, setReport] = useState<AdminReferralReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -103,13 +122,48 @@ export const ReferralTab: React.FC = () => {
   const [search, setSearch] = useState('');
   const [payoutFilter, setPayoutFilter] = useState<PayoutFilter>('payable');
   const [expandedPersonId, setExpandedPersonId] = useState<number | null>(null);
-  const [payoutNote, setPayoutNote] = useState('');
+  const [personDetails, setPersonDetails] = useState<PersonReferralDetails | null>(null);
+  const [personDetailsLoading, setPersonDetailsLoading] = useState(false);
   const [payingPersonId, setPayingPersonId] = useState<number | null>(null);
   const [busyProofId, setBusyProofId] = useState<number | null>(null);
   const [busyRewardId, setBusyRewardId] = useState<number | null>(null);
+  const [undoingRewardId, setUndoingRewardId] = useState<number | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
   const [budgetSaving, setBudgetSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [modal, setModal] = useState<ModalState>(null);
+  const [modalText, setModalText] = useState('');
+  const [modalBusy, setModalBusy] = useState(false);
+
+  const [invites, setInvites] = useState<ReferralInviteRow[]>([]);
+  const [invitesTotal, setInvitesTotal] = useState(0);
+  const [invitesSkip, setInvitesSkip] = useState(0);
+  const [invitesStatus, setInvitesStatus] = useState('');
+  const [invitesLoading, setInvitesLoading] = useState(false);
+
+  const [personSearch, setPersonSearch] = useState('');
+  const [personSearchHits, setPersonSearchHits] = useState<ReferralPersonSearchHit[]>([]);
+  const [personSearchBusy, setPersonSearchBusy] = useState(false);
+
+  const loadInvites = useCallback(async (skip: number, status: string) => {
+    setInvitesLoading(true);
+    try {
+      const page = await apiClient.getReferralInvites({
+        skip,
+        take: INVITES_PAGE_SIZE,
+        status: status || undefined,
+      });
+      setInvites(page.items);
+      setInvitesTotal(page.total);
+      setInvitesSkip(page.skip);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не вдалося завантажити запрошення');
+    } finally {
+      setInvitesLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,6 +172,9 @@ export const ReferralTab: React.FC = () => {
       const data = await apiClient.getReferralReport();
       setReport(data);
       setBudgetInput(String(data.budget.budgetUah));
+      setInvites(data.invites.items);
+      setInvitesTotal(data.invites.total);
+      setInvitesSkip(data.invites.skip);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка завантаження');
     } finally {
@@ -129,6 +186,26 @@ export const ReferralTab: React.FC = () => {
     void load();
   }, [load]);
 
+  const openPersonDetails = useCallback(async (personId: number) => {
+    if (expandedPersonId === personId) {
+      setExpandedPersonId(null);
+      setPersonDetails(null);
+      return;
+    }
+    setExpandedPersonId(personId);
+    setPersonDetails(null);
+    setPersonDetailsLoading(true);
+    try {
+      const details = await apiClient.getPersonReferralDetails(personId);
+      setPersonDetails(details);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не вдалося завантажити деталі');
+      setExpandedPersonId(null);
+    } finally {
+      setPersonDetailsLoading(false);
+    }
+  }, [expandedPersonId]);
+
   const filteredBalances = useMemo(() => {
     if (!report) return [];
     const q = search.trim().toLowerCase().replace(/\D/g, '');
@@ -136,6 +213,7 @@ export const ReferralTab: React.FC = () => {
     return report.payoutBalances.filter((row) => {
       if (payoutFilter === 'payable' && row.payableUah <= 0) return false;
       if (payoutFilter === 'paid_only' && row.paidUah <= 0) return false;
+      if (payoutFilter === 'flagged' && row.flaggedUah <= 0) return false;
       if (!qText) return true;
       const phone = row.phoneNormalized.toLowerCase();
       const name = (row.fullName || '').toLowerCase();
@@ -144,17 +222,6 @@ export const ReferralTab: React.FC = () => {
       return name.includes(qText) || un.includes(qText) || phone.includes(qText);
     });
   }, [report, search, payoutFilter]);
-
-  const rewardsByPerson = useMemo(() => {
-    const map = new Map<number, ReferralRewardRow[]>();
-    if (!report) return map;
-    for (const r of report.rewards) {
-      const arr = map.get(r.referrerId) ?? [];
-      arr.push(r);
-      map.set(r.referrerId, arr);
-    }
-    return map;
-  }, [report]);
 
   const selfReferralFlagged = useMemo(
     () => (report?.flagged ?? []).filter((r) => isSelfReferralFlag(r.flagReason)),
@@ -170,40 +237,68 @@ export const ReferralTab: React.FC = () => {
 
   const pendingProofs = useMemo(
     () =>
-      (report?.promoPhotoProofs ?? []).filter((p) =>
-        p.status === 'pending_review' || p.status === 'flagged' || p.status === 'rejected'
+      (report?.promoPhotoProofs ?? []).filter(
+        (p) => p.status === 'pending_review' || p.status === 'flagged' || p.status === 'rejected'
       ),
     [report]
   );
 
-  const markPaid = async (row: ReferralPayoutPersonRow) => {
-    if (row.payableUah <= 0) return;
-    const who = row.fullName || formatPhoneDisplay(row.phoneNormalized);
-    const noteRaw = window.prompt(
-      `Виплата ${row.payableUah} грн → ${who}\n\nНотатка про виплату (обовʼязково), напр. «Київстар ****1952, 05.08» або «Приват ****1234»:`,
-      payoutNote.trim()
-    );
-    if (noteRaw === null) return;
-    const note = noteRaw.trim();
-    if (!note) {
-      setError('Нотатка до виплати обовʼязкова — як саме поповнили / куди перевели.');
-      return;
-    }
-    setPayingPersonId(row.personId);
+  const openModal = (next: ModalState, preset = '') => {
+    setModal(next);
+    setModalText(preset);
+  };
+
+  const closeModal = () => {
+    if (modalBusy) return;
+    setModal(null);
+    setModalText('');
+  };
+
+  const confirmModal = async () => {
+    if (!modal) return;
+    const text = modalText.trim();
+    setModalBusy(true);
     setError('');
     setSuccess('');
     try {
-      const result = await apiClient.markReferralPayout({
-        personId: row.personId,
-        rewardIds: row.rewardIds,
-        note,
-      });
-      setSuccess(`Виплату позначено: ${result.amountUah} грн (${result.updatedCount} нагород)`);
-      setPayoutNote('');
-      await load();
+      if (modal.kind === 'payout') {
+        if (!text) {
+          setError('Нотатка до виплати обовʼязкова — як саме поповнили / куди перевели.');
+          return;
+        }
+        setPayingPersonId(modal.row.personId);
+        const result = await apiClient.markReferralPayout({
+          personId: modal.row.personId,
+          rewardIds: modal.row.rewardIds,
+          note: text,
+        });
+        setSuccess(`Виплату позначено: ${result.amountUah} грн (${result.updatedCount} нагород)`);
+        setModal(null);
+        setModalText('');
+        await load();
+        if (expandedPersonId === modal.row.personId) {
+          const details = await apiClient.getPersonReferralDetails(modal.row.personId);
+          setPersonDetails(details);
+        }
+      } else if (modal.kind === 'reject') {
+        await setProofStatus(
+          modal.proof.id,
+          'rejected',
+          text || 'Фото відхилено модератором'
+        );
+        setModal(null);
+        setModalText('');
+      } else if (modal.kind === 'flag') {
+        await setRewardStatus(modal.rewardId, 'flagged', {
+          flagReason: text || 'Підозріла активність',
+        });
+        setModal(null);
+        setModalText('');
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Помилка виплати');
+      setError(e instanceof Error ? e.message : 'Помилка');
     } finally {
+      setModalBusy(false);
       setPayingPersonId(null);
     }
   };
@@ -219,10 +314,33 @@ export const ReferralTab: React.FC = () => {
       await apiClient.patchReferralReward(id, { status, ...extra });
       setSuccess(`Нагороду #${id} → ${status}`);
       await load();
+      if (expandedPersonId) {
+        const details = await apiClient.getPersonReferralDetails(expandedPersonId);
+        setPersonDetails(details);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка оновлення нагороди');
     } finally {
       setBusyRewardId(null);
+    }
+  };
+
+  const undoPayout = async (rewardId: number) => {
+    setUndoingRewardId(rewardId);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await apiClient.undoReferralPayout([rewardId]);
+      setSuccess(`Виплату скасовано: ${result.amountUah} грн (нагорода #${rewardId})`);
+      await load();
+      if (expandedPersonId) {
+        const details = await apiClient.getPersonReferralDetails(expandedPersonId);
+        setPersonDetails(details);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не вдалося скасувати виплату');
+    } finally {
+      setUndoingRewardId(null);
     }
   };
 
@@ -251,7 +369,44 @@ export const ReferralTab: React.FC = () => {
     }
   };
 
-  /** Само-реферал знімається лише свідомо: спершу підтвердження */
+  const syncApproved = async () => {
+    setSyncing(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await apiClient.syncReferralApproved();
+      setSuccess(
+        result.unlocked > 0
+          ? `Синхронізовано: ${result.unlocked} нагород переведено в чергу виплат`
+          : 'Немає нагород для синхронізації'
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не вдалося синхронізувати');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const downloadCsv = async () => {
+    setCsvBusy(true);
+    setError('');
+    try {
+      const blob = await apiClient.downloadReferralPayoutsCsv();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'referral-payouts.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      setSuccess('CSV завантажено');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не вдалося завантажити CSV');
+    } finally {
+      setCsvBusy(false);
+    }
+  };
+
   const approveFlaggedReward = async (r: ReferralRewardRow) => {
     if (isSelfReferralFlag(r.flagReason)) {
       const who = r.referrer.fullName || formatPhoneDisplay(r.referrer.phoneNormalized);
@@ -265,17 +420,6 @@ export const ReferralTab: React.FC = () => {
       if (!ok) return;
     }
     await setRewardStatus(r.id, 'approved');
-  };
-
-  const flagReward = async (id: number, currentReason?: string | null) => {
-    const reason = window.prompt(
-      `Причина flag для нагороди #${id}:`,
-      currentReason || 'Підозріла активність'
-    );
-    if (reason === null) return;
-    await setRewardStatus(id, 'flagged', {
-      flagReason: reason.trim() || 'Підозріла активність',
-    });
   };
 
   const setProofStatus = async (id: number, status: string, rejectionReason?: string) => {
@@ -301,28 +445,60 @@ export const ReferralTab: React.FC = () => {
     }
   };
 
-  const rejectProof = async (p: RideCompletionProofRow) => {
-    const reason = window.prompt(
-      `Причина відхилення фото #${p.id} (буде на нагородах):`,
-      p.flagReason || 'Фото не підтверджує поїздку'
-    );
-    if (reason === null) return;
-    await setProofStatus(p.id, 'rejected', reason.trim() || 'Фото відхилено модератором');
+  const runPersonSearch = async () => {
+    const q = personSearch.trim();
+    if (q.length < 2) {
+      setPersonSearchHits([]);
+      return;
+    }
+    setPersonSearchBusy(true);
+    setError('');
+    try {
+      const result = await apiClient.searchReferralPersons(q);
+      setPersonSearchHits(result.items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Пошук не вдався');
+    } finally {
+      setPersonSearchBusy(false);
+    }
   };
 
   if (loading && !report) {
-    return <div className="tab-content"><p>Завантаження реферальної програми…</p></div>;
+    return (
+      <div className="tab-content">
+        <p>Завантаження реферальної програми…</p>
+      </div>
+    );
   }
 
   const s = report?.summary;
+  const invitesPage = Math.floor(invitesSkip / INVITES_PAGE_SIZE) + 1;
+  const invitesPages = Math.max(1, Math.ceil(invitesTotal / INVITES_PAGE_SIZE));
 
   return (
     <div className="tab-content">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          marginBottom: 16,
+        }}
+      >
         <h2 style={{ margin: 0 }}>🎁 Реферали — виплати та контроль</h2>
-        <Button type="button" onClick={() => void load()} disabled={loading}>
-          Оновити
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button type="button" variant="secondary" onClick={() => void syncApproved()} disabled={syncing || loading}>
+            {syncing ? 'Синхронізація…' : 'Синхронізувати схвалені'}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => void downloadCsv()} disabled={csvBusy}>
+            {csvBusy ? 'CSV…' : 'CSV виплат'}
+          </Button>
+          <Button type="button" onClick={() => void load()} disabled={loading}>
+            Оновити
+          </Button>
+        </div>
       </div>
 
       {error && <Alert variant="error">{error}</Alert>}
@@ -354,6 +530,13 @@ export const ReferralTab: React.FC = () => {
             <h3>Запрошених друзів</h3>
             <div className="stat-value">{s.referredPersonsCount}</div>
           </div>
+          {(s.sharedTelegramGroupCount ?? 0) > 0 && (
+            <div className="stat-card">
+              <h3>Спільні Telegram</h3>
+              <div className="stat-value">{s.sharedTelegramGroupCount}</div>
+              <div style={{ fontSize: 13, color: 'var(--pb-text-muted)' }}>груп акаунтів</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -368,8 +551,8 @@ export const ReferralTab: React.FC = () => {
           {report.budget.budgetHeldCount > 0 && (
             <Alert variant="error">
               Через вичерпаний бюджет утримано {report.budget.budgetHeldCount} нагород на{' '}
-              <strong>{report.budget.budgetHeldUah} грн</strong>. Підніміть бюджет — ті, що
-              вкладуться, автоматично повернуться в звичайну чергу модерації.
+              <strong>{report.budget.budgetHeldUah} грн</strong>. Підніміть бюджет — ті, що вкладуться,
+              автоматично повернуться в звичайну чергу модерації.
             </Alert>
           )}
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -392,20 +575,130 @@ export const ReferralTab: React.FC = () => {
         </section>
       )}
 
+      {(report?.sharedTelegramGroups?.length ?? 0) > 0 && (
+        <section style={{ marginTop: 28 }}>
+          <h3>🚨 Спільні Telegram-акаунти</h3>
+          <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
+            Кілька Person з одним chatId/userId — типовий слід само-реферала. Натисніть імʼя, щоб відкрити граф.
+          </p>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ключ</th>
+                  <th>Люди</th>
+                  <th>Невиплачено</th>
+                  <th>Само-реферал?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report!.sharedTelegramGroups.map((g) => (
+                  <tr key={g.key} className={g.selfReferralPairs.length > 0 ? 'referral-row--fraud' : undefined}>
+                    <td style={{ fontSize: 12 }}>{g.key}</td>
+                    <td>
+                      {g.persons.map((p) => (
+                        <div key={p.id}>
+                          <button
+                            type="button"
+                            className="referral-link-btn"
+                            onClick={() => void openPersonDetails(p.id)}
+                          >
+                            {p.fullName || formatPhoneDisplay(p.phoneNormalized)}
+                          </button>
+                          {p.telegramUsername ? (
+                            <span style={{ fontSize: 12, color: 'var(--pb-text-muted)' }}> @{p.telegramUsername}</span>
+                          ) : null}
+                        </div>
+                      ))}
+                    </td>
+                    <td>
+                      <strong>{g.unpaidUah} грн</strong>
+                    </td>
+                    <td>{g.selfReferralPairs.length > 0 ? `так (${g.selfReferralPairs.length})` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      <section style={{ marginTop: 28 }}>
+        <h3>🔍 Пошук людини (отримувач або запрошений)</h3>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ minWidth: 240, flex: 1 }}>
+            <Input
+              label="Імʼя, телефон або @username"
+              value={personSearch}
+              onChange={(e) => setPersonSearch(e.target.value)}
+              placeholder="напр. 38067… або Олена"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void runPersonSearch();
+              }}
+            />
+          </div>
+          <Button type="button" onClick={() => void runPersonSearch()} disabled={personSearchBusy}>
+            {personSearchBusy ? '…' : 'Знайти'}
+          </Button>
+        </div>
+        {personSearchHits.length > 0 && (
+          <div className="table-container" style={{ marginTop: 12 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Людина</th>
+                  <th>Телефон</th>
+                  <th>Хто привів</th>
+                  <th>Запросила / нагород</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {personSearchHits.map((hit) => (
+                  <tr key={hit.id}>
+                    <td>
+                      {hit.fullName || '—'}
+                      {hit.telegramUsername ? (
+                        <div style={{ fontSize: 12, color: 'var(--pb-text-muted)' }}>@{hit.telegramUsername}</div>
+                      ) : null}
+                    </td>
+                    <td>{formatPhoneDisplay(hit.phoneNormalized)}</td>
+                    <td>
+                      {hit.referredByPerson
+                        ? hit.referredByPerson.fullName ||
+                          formatPhoneDisplay(hit.referredByPerson.phoneNormalized)
+                        : '—'}
+                    </td>
+                    <td>
+                      {hit._count.referredPersons} / {hit._count.referralRewards}
+                    </td>
+                    <td>
+                      <Button type="button" variant="secondary" onClick={() => void openPersonDetails(hit.id)}>
+                        Граф
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <section style={{ marginTop: 28 }}>
         <h3>💳 Черга виплат</h3>
         <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
           Платимо людям (не окремим рядкам). У «До виплати» потрапляє лише те, де фото вже схвалені.
-          Колонка «На перевірці» — нараховано, але заявка ще не пройшла модерацію (блок «Фото підтверджень» нижче).
-          Flagged теж не платимо — спочатку розберіть підозри.
+          Колонка «На перевірці» — нараховано, але заявка ще не пройшла модерацію. Розкрийте рядок — там
+          посилання на заявку з фото. Flagged не платимо.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12, alignItems: 'flex-end' }}>
           <div style={{ minWidth: 200, flex: 1 }}>
             <Input
-              label="Пошук"
+              label="Пошук у черзі"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="телефон або імʼя"
+              placeholder="телефон або імʼя отримувача"
             />
           </div>
           <div>
@@ -416,17 +709,10 @@ export const ReferralTab: React.FC = () => {
               style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--pb-border)' }}
             >
               <option value="payable">Лише до виплати</option>
+              <option value="flagged">З flagged сумою</option>
               <option value="all">Усі з нагородами</option>
               <option value="paid_only">Уже отримували виплату</option>
             </select>
-          </div>
-          <div style={{ minWidth: 220, flex: 1 }}>
-            <Input
-              label="Чернетка нотатки (підставиться у вікно «Виплатив»)"
-              value={payoutNote}
-              onChange={(e) => setPayoutNote(e.target.value)}
-              placeholder="напр. Київстар ****1952, 05.08"
-            />
           </div>
         </div>
 
@@ -451,26 +737,13 @@ export const ReferralTab: React.FC = () => {
                       <span>
                         Немає сум <strong>до виплати</strong>
                         {(s?.onHoldCount ?? 0) > 0
-                          ? ` — але ${s!.onHoldUah} грн чекають модерації фото (блок «Фото підтверджень» нижче).`
+                          ? ` — але ${s!.onHoldUah} грн чекають модерації фото.`
                           : (s?.flaggedCount ?? 0) > 0
-                            ? ` — але є ${s!.flaggedCount} flagged нагород (див. блок «Підозрілі» нижче або фільтр «Усі з нагородами»).`
+                            ? ` — але є ${s!.flaggedCount} flagged нагород.`
                             : (s?.payableUah ?? 0) === 0
-                              ? ' — нагороди ще не нараховані або вже виплачені. Натисніть «Оновити».'
-                              : '.'}
-                        {' '}
-                        <button
-                          type="button"
-                          onClick={() => setPayoutFilter('all')}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--pb-primary)',
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                            padding: 0,
-                            font: 'inherit',
-                          }}
-                        >
+                              ? ' — нагороди ще не нараховані або вже виплачені.'
+                              : '.'}{' '}
+                        <button type="button" className="referral-link-btn" onClick={() => setPayoutFilter('all')}>
                           Показати всі з нагородами
                         </button>
                       </span>
@@ -482,7 +755,6 @@ export const ReferralTab: React.FC = () => {
               )}
               {filteredBalances.map((row) => {
                 const open = expandedPersonId === row.personId;
-                const details = rewardsByPerson.get(row.personId) ?? [];
                 const totalEarnedUah = row.paidUah + row.payableUah + row.holdUah;
                 const overWarnLimit = totalEarnedUah >= personWarnLimitUah;
                 return (
@@ -491,22 +763,31 @@ export const ReferralTab: React.FC = () => {
                       <td>
                         <button
                           type="button"
-                          onClick={() => setExpandedPersonId(open ? null : row.personId)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: 'var(--pb-primary)', padding: 0 }}
+                          onClick={() => void openPersonDetails(row.personId)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            color: 'var(--pb-primary)',
+                            padding: 0,
+                          }}
                         >
                           {open ? '▼' : '▶'} {row.fullName || '—'}
                         </button>
-                        {row.telegramUsername ? <div style={{ fontSize: 12, color: 'var(--pb-text-muted)' }}>@{row.telegramUsername}</div> : null}
+                        {row.telegramUsername ? (
+                          <div style={{ fontSize: 12, color: 'var(--pb-text-muted)' }}>@{row.telegramUsername}</div>
+                        ) : null}
                         {overWarnLimit && (
-                          <div style={{ fontSize: 12, fontWeight: 600 }}>
-                            👀 усього {totalEarnedUah} грн — перевірте
-                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 600 }}>👀 усього {totalEarnedUah} грн — перевірте</div>
                         )}
                       </td>
                       <td>{formatPhoneDisplay(row.phoneNormalized)}</td>
                       <td>
                         <strong>{row.payableUah} грн</strong>
-                        {row.payableCount > 0 ? <div style={{ fontSize: 12 }}>{row.payableCount} нагород</div> : null}
+                        {row.payableCount > 0 ? (
+                          <div style={{ fontSize: 12 }}>{row.payableCount} нагород</div>
+                        ) : null}
                       </td>
                       <td>
                         {row.holdUah > 0 ? (
@@ -524,7 +805,7 @@ export const ReferralTab: React.FC = () => {
                         <Button
                           type="button"
                           disabled={row.payableUah <= 0 || payingPersonId === row.personId}
-                          onClick={() => void markPaid(row)}
+                          onClick={() => openModal({ kind: 'payout', row })}
                         >
                           {payingPersonId === row.personId ? '…' : 'Виплатив'}
                         </Button>
@@ -533,69 +814,20 @@ export const ReferralTab: React.FC = () => {
                     {open && (
                       <tr>
                         <td colSpan={7} style={{ background: 'var(--pb-bg-secondary)' }}>
-                          <table style={{ width: '100%' }}>
-                            <thead>
-                              <tr>
-                                <th>#</th>
-                                <th>Тип</th>
-                                <th>Сума</th>
-                                <th>Статус</th>
-                                <th>Друг</th>
-                                <th>Нотатка виплати</th>
-                                <th>Причина flag</th>
-                                <th></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {details.map((r) => (
-                                <tr key={r.id}>
-                                  <td>{r.id}</td>
-                                  <td>{REWARD_TYPE_LABEL[r.rewardType] || r.rewardType}</td>
-                                  <td>{r.amountUah}</td>
-                                  <td>{REWARD_STATUS_LABEL[r.status] || r.status}</td>
-                                  <td>
-                                    {r.referredPerson.fullName || formatPhoneDisplay(r.referredPerson.phoneNormalized)}
-                                  </td>
-                                  <td style={{ fontSize: 12 }}>{r.payoutNote || '—'}</td>
-                                  <td style={{ fontSize: 12, color: r.flagReason ? 'var(--pb-danger, #b42318)' : undefined }}>
-                                    {r.flagReason || '—'}
-                                  </td>
-                                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                    {r.status === 'flagged' && (
-                                      <Button
-                                        type="button"
-                                        disabled={busyRewardId === r.id}
-                                        onClick={() => void setRewardStatus(r.id, 'approved')}
-                                        title="Повернути в чергу виплат (знімає ручний Flag)"
-                                      >
-                                        Схвалити
-                                      </Button>
-                                    )}
-                                    {(r.status === 'hold' || r.status === 'pending') && (
-                                      <Button
-                                        type="button"
-                                        disabled={busyRewardId === r.id}
-                                        onClick={() => void setRewardStatus(r.id, 'approved')}
-                                        title="Пропустити модерацію фото і поставити в чергу виплат"
-                                      >
-                                        Схвалити вручну
-                                      </Button>
-                                    )}
-                                    {(r.status === 'hold' || r.status === 'pending' || r.status === 'approved') && (
-                                      <Button
-                                        type="button"
-                                        disabled={busyRewardId === r.id}
-                                        onClick={() => void flagReward(r.id, r.flagReason)}
-                                        title="Прибрати з виплат. Повернути можна кнопкою «Схвалити»"
-                                      >
-                                        Flag
-                                      </Button>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          {personDetailsLoading && <p>Завантаження деталей…</p>}
+                          {!personDetailsLoading && personDetails && personDetails.person.id === row.personId && (
+                            <PersonDetailsPanel
+                              details={personDetails}
+                              busyRewardId={busyRewardId}
+                              undoingRewardId={undoingRewardId}
+                              onApprove={(id) => void setRewardStatus(id, 'approved')}
+                              onFlag={(id, reason) =>
+                                openModal({ kind: 'flag', rewardId: id, currentReason: reason }, reason || '')
+                              }
+                              onUndo={(id) => void undoPayout(id)}
+                              onOpenPerson={(id) => void openPersonDetails(id)}
+                            />
+                          )}
                         </td>
                       </tr>
                     )}
@@ -607,12 +839,34 @@ export const ReferralTab: React.FC = () => {
         </div>
       </section>
 
+      {expandedPersonId &&
+        personDetails &&
+        !filteredBalances.some((r) => r.personId === expandedPersonId) && (
+          <section style={{ marginTop: 28 }}>
+            <h3>👤 Картка людини #{expandedPersonId}</h3>
+            {personDetailsLoading ? (
+              <p>Завантаження…</p>
+            ) : (
+              <PersonDetailsPanel
+                details={personDetails}
+                busyRewardId={busyRewardId}
+                undoingRewardId={undoingRewardId}
+                onApprove={(id) => void setRewardStatus(id, 'approved')}
+                onFlag={(id, reason) =>
+                  openModal({ kind: 'flag', rewardId: id, currentReason: reason }, reason || '')
+                }
+                onUndo={(id) => void undoPayout(id)}
+                onOpenPerson={(id) => void openPersonDetails(id)}
+              />
+            )}
+          </section>
+        )}
+
       <section style={{ marginTop: 36 }}>
         <h3>📷 Фото підтверджень (модерація)</h3>
         <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
-          Після двох фото бот просить викласти пост у Facebook. Схваліть (нагороди у виплату) або відхиліть із причиною —
-          користувач отримає повідомлення в бот і зможе знову надіслати фото через /confirmride.
-          Відхилені можна <strong>перепогодити</strong> без нових фото, якщо передумали.
+          Після двох фото бот просить викласти пост у Facebook. Схваліть (нагороди у виплату) або відхиліть із
+          причиною — користувач отримає повідомлення в бот і зможе знову надіслати фото через /confirmride.
         </p>
         {pendingProofs.length === 0 ? (
           <p style={{ color: 'var(--pb-text-muted)' }}>Немає заявок на перевірці.</p>
@@ -620,12 +874,13 @@ export const ReferralTab: React.FC = () => {
           <div className="referral-proof-grid">
             {pendingProofs.map((p) => {
               const rewards = p.referralRewards ?? [];
-              const rewardSum = rewards.reduce((s, r) => s + r.amountUah, 0);
+              const rewardSum = rewards.reduce((sum, r) => sum + r.amountUah, 0);
               const isFlagged = p.status === 'flagged';
               const isRejected = p.status === 'rejected';
               return (
                 <article
                   key={p.id}
+                  id={`referral-proof-${p.id}`}
                   className={`referral-proof-card${isFlagged ? ' is-flagged' : ''}${isRejected ? ' is-rejected' : ''}`}
                 >
                   <div className="referral-proof-card__head">
@@ -664,18 +919,8 @@ export const ReferralTab: React.FC = () => {
                   )}
 
                   <div className="referral-proof-photos">
-                    <ProofPhotoThumb
-                      proofId={p.id}
-                      kind="start"
-                      label="1️⃣ Старт"
-                      onOpen={setLightboxUrl}
-                    />
-                    <ProofPhotoThumb
-                      proofId={p.id}
-                      kind="end"
-                      label="2️⃣ Прибуття"
-                      onOpen={setLightboxUrl}
-                    />
+                    <ProofPhotoThumb proofId={p.id} kind="start" label="1️⃣ Старт" onOpen={setLightboxUrl} />
+                    <ProofPhotoThumb proofId={p.id} kind="end" label="2️⃣ Прибуття" onOpen={setLightboxUrl} />
                   </div>
 
                   {rewards.length > 0 ? (
@@ -686,8 +931,8 @@ export const ReferralTab: React.FC = () => {
                       {rewards.map((r) => (
                         <li key={r.id}>
                           #{r.id} {REWARD_TYPE_LABEL[r.rewardType] || r.rewardType} →{' '}
-                          {r.referrer.fullName || formatPhoneDisplay(r.referrer.phoneNormalized)} ·{' '}
-                          {r.amountUah} грн · {r.status}
+                          {r.referrer.fullName || formatPhoneDisplay(r.referrer.phoneNormalized)} · {r.amountUah} грн ·{' '}
+                          {r.status}
                           {r.flagReason ? ` (${r.flagReason})` : ''}
                         </li>
                       ))}
@@ -713,7 +958,12 @@ export const ReferralTab: React.FC = () => {
                         type="button"
                         variant="secondary"
                         disabled={busyProofId === p.id}
-                        onClick={() => void rejectProof(p)}
+                        onClick={() =>
+                          openModal(
+                            { kind: 'reject', proof: p },
+                            p.flagReason || 'Фото не підтверджує поїздку'
+                          )
+                        }
                       >
                         Відхилити
                       </Button>
@@ -746,10 +996,11 @@ export const ReferralTab: React.FC = () => {
           <h3>🚩 Підозрілі нагороди</h3>
           {selfReferralFlagged.length > 0 && (
             <Alert variant="error">
-              <strong>Само-реферал: {selfReferralFlagged.length} нагород на {selfReferralUah} грн.</strong>
-              {' '}Людина запросила свій же другий номер з того самого Telegram-акаунта. Звʼязок бот уже
-              заблокував, гроші заморожені. Схвалення фото їх <strong>не</strong> розморозить — рішення лише тут.
-              {' '}Перед «Схвалити» перевірте телефони: якщо це справді одна людина — лишайте flagged.
+              <strong>
+                Само-реферал: {selfReferralFlagged.length} нагород на {selfReferralUah} грн.
+              </strong>{' '}
+              Людина запросила свій же другий номер з того самого Telegram-акаунта. Схвалення фото їх{' '}
+              <strong>не</strong> розморозить — рішення лише тут.
             </Alert>
           )}
           <div className="table-container">
@@ -761,6 +1012,7 @@ export const ReferralTab: React.FC = () => {
                   <th>Тип</th>
                   <th>Сума</th>
                   <th>Причина</th>
+                  <th>Фото</th>
                   <th></th>
                 </tr>
               </thead>
@@ -784,15 +1036,23 @@ export const ReferralTab: React.FC = () => {
                         {selfReferral ? <strong>🚨 Само-реферал</strong> : r.flagReason || '—'}
                       </td>
                       <td>
+                        {r.rideProof?.id ? (
+                          <button
+                            type="button"
+                            className="referral-link-btn"
+                            onClick={() => scrollToProof(r.rideProof!.id)}
+                          >
+                            заявка #{r.rideProof.id}
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
                         <Button
                           type="button"
                           disabled={busyRewardId === r.id}
                           onClick={() => void approveFlaggedReward(r)}
-                          title={
-                            selfReferral
-                              ? 'Виплатити попри підозру на само-реферал'
-                              : 'Повернути в чергу виплат'
-                          }
                         >
                           Схвалити
                         </Button>
@@ -807,7 +1067,46 @@ export const ReferralTab: React.FC = () => {
       )}
 
       <section style={{ marginTop: 36 }}>
-        <h3>👥 Останні запрошення</h3>
+        <h3>👥 Запрошення</h3>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12, alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Статус</label>
+            <select
+              value={invitesStatus}
+              onChange={(e) => {
+                const next = e.target.value;
+                setInvitesStatus(next);
+                void loadInvites(0, next);
+              }}
+              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--pb-border)' }}
+            >
+              <option value="">Усі</option>
+              <option value="pending">pending</option>
+              <option value="linked">linked</option>
+              <option value="blocked_self_referral">blocked_self_referral</option>
+              <option value="already_referred">already_referred</option>
+            </select>
+          </div>
+          <span style={{ fontSize: 13, color: 'var(--pb-text-muted)', paddingBottom: 8 }}>
+            {invitesLoading ? 'Завантаження…' : `${invitesTotal} усього · стор. ${invitesPage}/${invitesPages}`}
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={invitesLoading || invitesSkip <= 0}
+            onClick={() => void loadInvites(Math.max(0, invitesSkip - INVITES_PAGE_SIZE), invitesStatus)}
+          >
+            ← Назад
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={invitesLoading || invitesSkip + INVITES_PAGE_SIZE >= invitesTotal}
+            onClick={() => void loadInvites(invitesSkip + INVITES_PAGE_SIZE, invitesStatus)}
+          >
+            Далі →
+          </Button>
+        </div>
         <div className="table-container">
           <table>
             <thead>
@@ -820,7 +1119,7 @@ export const ReferralTab: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {(report?.invites ?? []).slice(0, 30).map((inv) => (
+              {invites.map((inv) => (
                 <tr key={inv.id}>
                   <td>{inv.referrer.fullName || formatPhoneDisplay(inv.referrer.phoneNormalized)}</td>
                   <td>{inv.inviteContact}</td>
@@ -829,10 +1128,241 @@ export const ReferralTab: React.FC = () => {
                   <td>{String(inv.createdAt).slice(0, 10)}</td>
                 </tr>
               ))}
+              {invites.length === 0 && (
+                <tr>
+                  <td colSpan={5}>Немає запрошень</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </section>
+
+      {modal && (
+        <div
+          className="modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal-content" style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0 }}>
+                {modal.kind === 'payout' && 'Нотатка виплати'}
+                {modal.kind === 'reject' && `Відхилити фото #${modal.proof.id}`}
+                {modal.kind === 'flag' && `Flag нагороди #${modal.rewardId}`}
+              </h3>
+              <button type="button" className="close-btn" onClick={closeModal} disabled={modalBusy}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {modal.kind === 'payout' && (
+                <p style={{ marginTop: 0, color: 'var(--pb-text-muted)' }}>
+                  Виплата <strong>{modal.row.payableUah} грн</strong> →{' '}
+                  {modal.row.fullName || formatPhoneDisplay(modal.row.phoneNormalized)}. Опишіть, куди
+                  перевели / яке поповнення.
+                </p>
+              )}
+              {modal.kind === 'reject' && (
+                <p style={{ marginTop: 0, color: 'var(--pb-text-muted)' }}>
+                  Причина потрапить у повідомлення користувачу і на повʼязані нагороди.
+                </p>
+              )}
+              <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
+                {modal.kind === 'payout' ? 'Нотатка (обовʼязково)' : 'Причина'}
+              </label>
+              <textarea
+                value={modalText}
+                onChange={(e) => setModalText(e.target.value)}
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: 12,
+                  borderRadius: 8,
+                  border: '1px solid var(--pb-border)',
+                  font: 'inherit',
+                  resize: 'vertical',
+                }}
+                placeholder={
+                  modal.kind === 'payout'
+                    ? 'напр. Київстар ****1952, 05.08'
+                    : modal.kind === 'reject'
+                      ? 'Фото не підтверджує поїздку'
+                      : 'Підозріла активність'
+                }
+                autoFocus
+              />
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button type="button" variant="secondary" onClick={closeModal} disabled={modalBusy}>
+                Скасувати
+              </Button>
+              <Button type="button" onClick={() => void confirmModal()} disabled={modalBusy}>
+                {modalBusy
+                  ? '…'
+                  : modal.kind === 'payout'
+                    ? 'Підтвердити виплату'
+                    : modal.kind === 'reject'
+                      ? 'Відхилити'
+                      : 'Поставити Flag'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PersonDetailsPanel: React.FC<{
+  details: PersonReferralDetails;
+  busyRewardId: number | null;
+  undoingRewardId: number | null;
+  onApprove: (id: number) => void;
+  onFlag: (id: number, reason?: string | null) => void;
+  onUndo: (id: number) => void;
+  onOpenPerson: (id: number) => void;
+}> = ({ details, busyRewardId, undoingRewardId, onApprove, onFlag, onUndo, onOpenPerson }) => {
+  const { person, rewards, invitedPersons, sharedAccountPersons } = details;
+  return (
+    <div className="referral-person-panel">
+      <div className="referral-person-panel__meta">
+        <div>
+          <strong>{person.fullName || '—'}</strong> · {formatPhoneDisplay(person.phoneNormalized)}
+          {person.telegramUsername ? ` · @${person.telegramUsername}` : ''}
+          {person.referralCode ? (
+            <div style={{ fontSize: 12, color: 'var(--pb-text-muted)' }}>код: {person.referralCode}</div>
+          ) : null}
+        </div>
+        <div style={{ fontSize: 13 }}>
+          Хто привів:{' '}
+          {person.referredByPerson ? (
+            <button
+              type="button"
+              className="referral-link-btn"
+              onClick={() => onOpenPerson(person.referredByPerson!.id)}
+            >
+              {person.referredByPerson.fullName ||
+                formatPhoneDisplay(person.referredByPerson.phoneNormalized)}
+            </button>
+          ) : (
+            '—'
+          )}
+        </div>
+        {invitedPersons.length > 0 && (
+          <div style={{ fontSize: 13 }}>
+            Кого привела:{' '}
+            {invitedPersons.map((p, i) => (
+              <React.Fragment key={p.id}>
+                {i > 0 ? ', ' : ''}
+                <button type="button" className="referral-link-btn" onClick={() => onOpenPerson(p.id)}>
+                  {p.fullName || formatPhoneDisplay(p.phoneNormalized)}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+        {sharedAccountPersons.length > 0 && (
+          <Alert variant="error">
+            Той самий Telegram також у:{' '}
+            {sharedAccountPersons.map((p) => formatPhoneDisplay(p.phoneNormalized)).join(', ')}
+          </Alert>
+        )}
+      </div>
+
+      <table style={{ width: '100%' }}>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Тип</th>
+            <th>Сума</th>
+            <th>Статус</th>
+            <th>Друг</th>
+            <th>Фото</th>
+            <th>Нотатка</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rewards.length === 0 && (
+            <tr>
+              <td colSpan={8}>Немає нагород у цієї людини як у отримувача</td>
+            </tr>
+          )}
+          {rewards.map((r) => (
+            <tr key={r.id}>
+              <td>{r.id}</td>
+              <td>{REWARD_TYPE_LABEL[r.rewardType] || r.rewardType}</td>
+              <td>{r.amountUah}</td>
+              <td>
+                {REWARD_STATUS_LABEL[r.status] || r.status}
+                {r.flagReason ? (
+                  <div style={{ fontSize: 11, color: 'var(--pb-danger, #b42318)' }}>{r.flagReason}</div>
+                ) : null}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  className="referral-link-btn"
+                  onClick={() => onOpenPerson(r.referredPerson.id)}
+                >
+                  {r.referredPerson.fullName || formatPhoneDisplay(r.referredPerson.phoneNormalized)}
+                </button>
+              </td>
+              <td>
+                {r.rideProof?.id ? (
+                  <button
+                    type="button"
+                    className="referral-link-btn"
+                    onClick={() => scrollToProof(r.rideProof!.id)}
+                    title={`${r.rideProof.route} · ${String(r.rideProof.rideDate).slice(0, 10)} · ${r.rideProof.status}`}
+                  >
+                    заявка #{r.rideProof.id}
+                  </button>
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td style={{ fontSize: 12 }}>{r.payoutNote || '—'}</td>
+              <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(r.status === 'flagged' || r.status === 'hold' || r.status === 'pending') && (
+                  <Button
+                    type="button"
+                    disabled={busyRewardId === r.id}
+                    onClick={() => onApprove(r.id)}
+                  >
+                    Схвалити
+                  </Button>
+                )}
+                {(r.status === 'hold' || r.status === 'pending' || r.status === 'approved') && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={busyRewardId === r.id}
+                    onClick={() => onFlag(r.id, r.flagReason)}
+                  >
+                    Flag
+                  </Button>
+                )}
+                {r.status === 'paid' && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={undoingRewardId === r.id}
+                    onClick={() => onUndo(r.id)}
+                    title="Повернути в чергу виплат (якщо натиснули «Виплатив» помилково)"
+                  >
+                    {undoingRewardId === r.id ? '…' : 'Скасувати виплату'}
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

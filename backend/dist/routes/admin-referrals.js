@@ -22,6 +22,77 @@ function createAdminReferralsRouter(deps) {
             res.status(500).json({ error: 'Не вдалося сформувати звіт' });
         }
     });
+    /**
+     * Підтягнути hold/flagged нагороди по вже схвалених фото у чергу виплат.
+     * Раніше це робив GET звіту — тепер явна кнопка.
+     */
+    r.post('/admin/referrals/sync-approved', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const unlocked = await (0, referral_1.syncFlaggedRewardsForApprovedProofs)(prisma);
+            res.json({ unlocked });
+        }
+        catch (e) {
+            console.error('❌ POST /admin/referrals/sync-approved:', e);
+            res.status(500).json({ error: 'Не вдалося синхронізувати нагороди' });
+        }
+    });
+    /** CSV виплат (approved + paid) для звірки з поповненнями */
+    r.get('/admin/referrals/payouts.csv', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const csv = await (0, referral_1.buildPayoutsCsv)(prisma);
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="referral-payouts.csv"');
+            res.send(csv);
+        }
+        catch (e) {
+            console.error('❌ GET /admin/referrals/payouts.csv:', e);
+            res.status(500).json({ error: 'Не вдалося сформувати CSV' });
+        }
+    });
+    /** Сторінка запрошень */
+    r.get('/admin/referrals/invites', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const skip = Math.max(parseInt(String(req.query.skip ?? '0'), 10) || 0, 0);
+            const take = Math.min(Math.max(parseInt(String(req.query.take ?? '30'), 10) || 30, 1), 200);
+            const status = typeof req.query.status === 'string' ? req.query.status.trim() : undefined;
+            res.json(await (0, referral_1.listReferralInvites)(prisma, { skip, take, status: status || undefined }));
+        }
+        catch (e) {
+            console.error('❌ GET /admin/referrals/invites:', e);
+            res.status(500).json({ error: 'Не вдалося завантажити запрошення' });
+        }
+    });
+    /** Пошук людей (отримувачі й запрошені) */
+    r.get('/admin/referrals/persons/search', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const q = typeof req.query.q === 'string' ? req.query.q : '';
+            res.json({ items: await (0, referral_1.searchReferralPersons)(prisma, q) });
+        }
+        catch (e) {
+            console.error('❌ GET /admin/referrals/persons/search:', e);
+            res.status(500).json({ error: 'Не вдалося виконати пошук' });
+        }
+    });
+    /** Граф / деталі людини: хто привів, кого привела, нагороди */
+    r.get('/admin/referrals/persons/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            if (!Number.isInteger(id) || id <= 0) {
+                res.status(400).json({ error: 'Невірний id' });
+                return;
+            }
+            const details = await (0, referral_1.getPersonReferralDetails)(prisma, id);
+            if (!details) {
+                res.status(404).json({ error: 'Людину не знайдено' });
+                return;
+            }
+            res.json(details);
+        }
+        catch (e) {
+            console.error('❌ GET /admin/referrals/persons/:id:', e);
+            res.status(500).json({ error: 'Не вдалося завантажити деталі' });
+        }
+    });
     /** Поточний бюджет акції та скільки з нього витрачено */
     r.get('/admin/referrals/budget', require_admin_1.requireAdmin, async (_req, res) => {
         try {
@@ -124,6 +195,31 @@ function createAdminReferralsRouter(deps) {
         catch (e) {
             console.error('❌ POST /admin/referrals/payouts:', e);
             res.status(500).json({ error: 'Не вдалося позначити виплату' });
+        }
+    });
+    /**
+     * Скасувати виплату (помилково натиснули «Виплатив»): paid → approved.
+     * Body: { rewardIds: number[] }
+     */
+    r.post('/admin/referrals/payouts/undo', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const rewardIds = Array.isArray(req.body?.rewardIds)
+                ? req.body.rewardIds.filter((id) => Number.isInteger(id) && id > 0)
+                : [];
+            if (rewardIds.length === 0) {
+                res.status(400).json({ error: 'Потрібен rewardIds' });
+                return;
+            }
+            const result = await (0, referral_1.undoReferralPayout)(prisma, rewardIds);
+            if (result.updatedCount === 0) {
+                res.status(400).json({ error: 'Немає виплачених нагород серед переданих id' });
+                return;
+            }
+            res.json(result);
+        }
+        catch (e) {
+            console.error('❌ POST /admin/referrals/payouts/undo:', e);
+            res.status(500).json({ error: 'Не вдалося скасувати виплату' });
         }
     });
     /** Оновити статус нагороди: pending | approved | paid | flagged */
