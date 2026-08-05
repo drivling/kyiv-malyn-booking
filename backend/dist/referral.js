@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
+exports.isRewardOnHold = isRewardOnHold;
+exports.isRewardPayable = isRewardPayable;
 exports.generateReferralCode = generateReferralCode;
 exports.getReferralBotLink = getReferralBotLink;
 exports.maxRewardUahPerReferred = maxRewardUahPerReferred;
@@ -45,6 +47,26 @@ function normalizePhone(phone) {
     if (cleaned.startsWith('0'))
         cleaned = '38' + cleaned;
     return cleaned;
+}
+/**
+ * Статуси нагороди.
+ * hold — створена, але фото ще не схвалене модератором: у виплати не потрапляє.
+ * approved — фото схвалене, стоїть у черзі виплат.
+ * Легасі 'pending' (до введення hold) читаємо як hold — теж не платимо.
+ */
+exports.REWARD_STATUS_HOLD = 'hold';
+exports.REWARD_STATUS_APPROVED = 'approved';
+exports.REWARD_STATUS_PAID = 'paid';
+exports.REWARD_STATUS_FLAGGED = 'flagged';
+/** Статуси «гроші ще не в черзі виплат» (включно з легасі 'pending') */
+exports.REWARD_STATUSES_ON_HOLD = [exports.REWARD_STATUS_HOLD, 'pending'];
+/** Статуси, які може заморозити flag або розблокувати схвалення фото */
+exports.REWARD_STATUSES_UNPAID = [...exports.REWARD_STATUSES_ON_HOLD, exports.REWARD_STATUS_APPROVED];
+function isRewardOnHold(status) {
+    return exports.REWARD_STATUSES_ON_HOLD.includes(status);
+}
+function isRewardPayable(status) {
+    return status === exports.REWARD_STATUS_APPROVED;
 }
 exports.REFERRAL_REWARD_UAH = {
     registration: 10,
@@ -399,7 +421,7 @@ async function createRewardIfNotExists(prisma, data) {
             amountUah: data.amountUah,
             viberListingId: data.viberListingId ?? null,
             rideProofId: data.rideProofId ?? null,
-            status: data.flagReason ? 'flagged' : 'pending',
+            status: data.flagReason ? exports.REWARD_STATUS_FLAGGED : exports.REWARD_STATUS_HOLD,
             flagReason: data.flagReason ?? null,
         },
     });
@@ -676,12 +698,27 @@ async function getReferralStatsForPerson(prisma, personId) {
         }),
         prisma.person.count({ where: { referredByPersonId: personId } }),
     ]);
-    const totalPendingUah = rewards
-        .filter((r) => r.status === 'pending' || r.status === 'approved')
+    /** Чекає перевірки фото — ще не в черзі виплат */
+    const totalOnHoldUah = rewards
+        .filter((r) => isRewardOnHold(r.status))
         .reduce((s, r) => s + r.amountUah, 0);
-    const totalPaidUah = rewards.filter((r) => r.status === 'paid').reduce((s, r) => s + r.amountUah, 0);
-    const flaggedCount = rewards.filter((r) => r.status === 'flagged').length;
-    return { invites, rewards, referredCount, totalPendingUah, totalPaidUah, flaggedCount };
+    /** Фото схвалено — стоїть у черзі виплат */
+    const totalPayableUah = rewards
+        .filter((r) => isRewardPayable(r.status))
+        .reduce((s, r) => s + r.amountUah, 0);
+    const totalPaidUah = rewards
+        .filter((r) => r.status === exports.REWARD_STATUS_PAID)
+        .reduce((s, r) => s + r.amountUah, 0);
+    const flaggedCount = rewards.filter((r) => r.status === exports.REWARD_STATUS_FLAGGED).length;
+    return {
+        invites,
+        rewards,
+        referredCount,
+        totalOnHoldUah,
+        totalPayableUah,
+        totalPaidUah,
+        flaggedCount,
+    };
 }
 function buildReferralProgramTermsHtml(referralLink) {
     return ('🎁 <b>Приведи друга — обидва в плюсі</b>\n\n' +
@@ -716,25 +753,31 @@ function buildPayoutBalancesFromRewards(rewards) {
                 telegramUsername: r.referrer.telegramUsername,
                 payableUah: 0,
                 payableCount: 0,
+                holdUah: 0,
+                holdCount: 0,
                 paidUah: 0,
                 flaggedUah: 0,
                 rewardIds: [],
             };
             map.set(r.referrerId, row);
         }
-        if (r.status === 'pending' || r.status === 'approved') {
+        if (isRewardPayable(r.status)) {
             row.payableUah += r.amountUah;
             row.payableCount += 1;
             row.rewardIds.push(r.id);
         }
-        else if (r.status === 'paid') {
+        else if (isRewardOnHold(r.status)) {
+            row.holdUah += r.amountUah;
+            row.holdCount += 1;
+        }
+        else if (r.status === exports.REWARD_STATUS_PAID) {
             row.paidUah += r.amountUah;
         }
-        else if (r.status === 'flagged') {
+        else if (r.status === exports.REWARD_STATUS_FLAGGED) {
             row.flaggedUah += r.amountUah;
         }
     }
-    return [...map.values()].sort((a, b) => b.payableUah - a.payableUah || b.paidUah - a.paidUah);
+    return [...map.values()].sort((a, b) => b.payableUah - a.payableUah || b.holdUah - a.holdUah || b.paidUah - a.paidUah);
 }
 /** Причина flag, коли отримувач заблокував бота — адмін бачить у нотатці/flagReason */
 exports.BOT_BLOCKED_REWARD_FLAG_REASON = 'Бот Telegram заблоковано користувачем — прибрано з виплат';
@@ -781,46 +824,54 @@ async function flagUnpaidReferralRewardsForBotBlocked(prisma, personId) {
     const result = await prisma.referralReward.updateMany({
         where: {
             referrerId: personId,
-            status: { in: ['pending', 'approved'] },
+            status: { in: exports.REWARD_STATUSES_UNPAID },
         },
         data: {
-            status: 'flagged',
+            status: exports.REWARD_STATUS_FLAGGED,
             flagReason: exports.BOT_BLOCKED_REWARD_FLAG_REASON,
         },
     });
     return result.count;
 }
 /**
- * Позначити нагороди людини як виплачені (без flagged).
+ * Позначити нагороди людини як виплачені. Платимо лише те, що схвалене (approved).
+ * Транзакція + статус у самому updateMany: подвійний клік не перезапише вже виплачене.
  */
 async function markReferralPayout(prisma, opts) {
-    const where = {
-        referrerId: opts.personId,
-        status: { in: ['pending', 'approved'] },
-        ...(opts.rewardIds?.length ? { id: { in: opts.rewardIds } } : {}),
-    };
-    const toPay = await prisma.referralReward.findMany({
-        where,
-        select: { id: true, amountUah: true },
-    });
-    if (toPay.length === 0) {
-        return { updatedCount: 0, amountUah: 0, rewardIds: [] };
-    }
-    const ids = toPay.map((r) => r.id);
     const note = opts.note?.trim() || null;
-    await prisma.referralReward.updateMany({
-        where: { id: { in: ids } },
-        data: {
-            status: 'paid',
-            paidAt: new Date(),
-            ...(note != null ? { payoutNote: note } : {}),
-        },
+    return prisma.$transaction(async (tx) => {
+        const where = {
+            referrerId: opts.personId,
+            status: exports.REWARD_STATUS_APPROVED,
+            ...(opts.rewardIds?.length ? { id: { in: opts.rewardIds } } : {}),
+        };
+        const toPay = await tx.referralReward.findMany({
+            where,
+            select: { id: true, amountUah: true },
+        });
+        if (toPay.length === 0) {
+            return { updatedCount: 0, amountUah: 0, rewardIds: [] };
+        }
+        const paidAt = new Date();
+        const paidIds = [];
+        let amountUah = 0;
+        for (const reward of toPay) {
+            // статус повторно у where — паралельна виплата не спрацює двічі
+            const updated = await tx.referralReward.updateMany({
+                where: { id: reward.id, status: exports.REWARD_STATUS_APPROVED },
+                data: {
+                    status: exports.REWARD_STATUS_PAID,
+                    paidAt,
+                    ...(note != null ? { payoutNote: note } : {}),
+                },
+            });
+            if (updated.count > 0) {
+                paidIds.push(reward.id);
+                amountUah += reward.amountUah;
+            }
+        }
+        return { updatedCount: paidIds.length, amountUah, rewardIds: paidIds };
     });
-    return {
-        updatedCount: ids.length,
-        amountUah: toPay.reduce((s, r) => s + r.amountUah, 0),
-        rewardIds: ids,
-    };
 }
 /** Дата YYYY-MM-DD → DD.MM.YYYY для посту */
 function formatRideDateKeyUa(dateKey) {
@@ -883,7 +934,7 @@ function buildFacebookShareInlineKeyboard(referralLink, caption) {
     };
 }
 /**
- * Якщо фото вже схвалене, а нагороди лишились flagged (старий approve без каскаду) —
+ * Якщо фото вже схвалене, а нагороди лишились на hold або flagged (старий approve без каскаду) —
  * підтягуємо їх у чергу виплат.
  * Не чіпаємо ручний Flag адміна ([admin]) і блок бота — їх знімає лише явна кнопка «Схвалити».
  */
@@ -897,7 +948,7 @@ async function syncFlaggedRewardsForApprovedProofs(prisma) {
     const candidates = await prisma.referralReward.findMany({
         where: {
             rideProofId: { in: approved.map((p) => p.id) },
-            status: 'flagged',
+            status: { in: [...exports.REWARD_STATUSES_ON_HOLD, exports.REWARD_STATUS_FLAGGED] },
         },
         select: { id: true, flagReason: true },
     });
@@ -906,20 +957,20 @@ async function syncFlaggedRewardsForApprovedProofs(prisma) {
         return 0;
     const result = await prisma.referralReward.updateMany({
         where: { id: { in: ids } },
-        data: { status: 'approved', flagReason: null },
+        data: { status: exports.REWARD_STATUS_APPROVED, flagReason: null },
     });
     return result.count;
 }
 /**
- * Id flagged-нагород, які можна розблокувати при approve фото
- * (без ручного [admin] Flag і без блоку бота).
+ * Id нагород, які схвалення фото переводить у чергу виплат: hold (легасі pending) і flagged
+ * без ручного [admin] Flag та без блоку бота.
  */
 async function findUnlockableFlaggedRewardIds(
 // PrismaClient або transaction client
 prisma, opts) {
     const candidates = await prisma.referralReward.findMany({
         where: {
-            status: 'flagged',
+            status: { in: [...exports.REWARD_STATUSES_ON_HOLD, exports.REWARD_STATUS_FLAGGED] },
             OR: [
                 { rideProofId: opts.proofId },
                 {
@@ -943,9 +994,10 @@ async function buildAdminReferralReport(prisma) {
             rideProof: { select: { id: true, route: true, rideDate: true, photoStartFileId: true, photoEndFileId: true } },
         },
     });
-    const flagged = rewards.filter((r) => r.status === 'flagged');
-    const pending = rewards.filter((r) => r.status === 'pending' || r.status === 'approved');
-    const paid = rewards.filter((r) => r.status === 'paid');
+    const flagged = rewards.filter((r) => r.status === exports.REWARD_STATUS_FLAGGED);
+    /** Нараховано, але фото ще не схвалене — у виплати не йде */
+    const onHold = rewards.filter((r) => isRewardOnHold(r.status));
+    const paid = rewards.filter((r) => r.status === exports.REWARD_STATUS_PAID);
     const payoutBalances = buildPayoutBalancesFromRewards(rewards);
     const invites = await prisma.referralInvite.findMany({
         orderBy: { createdAt: 'desc' },
@@ -994,8 +1046,8 @@ async function buildAdminReferralReport(prisma) {
     return {
         summary: {
             totalRewards: rewards.length,
-            pendingCount: pending.length,
-            pendingUah: pending.reduce((s, r) => s + r.amountUah, 0),
+            onHoldCount: onHold.length,
+            onHoldUah: onHold.reduce((s, r) => s + r.amountUah, 0),
             paidCount: paid.length,
             paidUah: paid.reduce((s, r) => s + r.amountUah, 0),
             flaggedCount: flagged.length,

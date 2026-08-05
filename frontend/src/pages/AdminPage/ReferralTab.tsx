@@ -20,6 +20,14 @@ const REWARD_TYPE_LABEL: Record<string, string> = {
   passenger_self_confirm: 'Своє підтвердження (20)',
 };
 
+const REWARD_STATUS_LABEL: Record<string, string> = {
+  hold: 'на перевірці',
+  pending: 'на перевірці (legacy)',
+  approved: 'до виплати',
+  paid: 'виплачено',
+  flagged: 'підозра',
+};
+
 type PayoutFilter = 'payable' | 'all' | 'paid_only';
 
 const ProofPhotoThumb: React.FC<{
@@ -266,6 +274,11 @@ export const ReferralTab: React.FC = () => {
             <div style={{ fontSize: 13, color: 'var(--pb-text-muted)' }}>{s.payablePeopleCount} осіб</div>
           </div>
           <div className="stat-card">
+            <h3>На перевірці фото</h3>
+            <div className="stat-value">{s.onHoldUah} грн</div>
+            <div style={{ fontSize: 13, color: 'var(--pb-text-muted)' }}>{s.onHoldCount} нагород</div>
+          </div>
+          <div className="stat-card">
             <h3>Уже виплачено</h3>
             <div className="stat-value">{s.paidUah} грн</div>
             <div style={{ fontSize: 13, color: 'var(--pb-text-muted)' }}>{s.paidCount} нагород</div>
@@ -285,7 +298,9 @@ export const ReferralTab: React.FC = () => {
       <section style={{ marginTop: 28 }}>
         <h3>💳 Черга виплат</h3>
         <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
-          Платимо людям (не окремим рядкам). Flagged у виплату не потрапляють — спочатку розберіть підозри нижче.
+          Платимо людям (не окремим рядкам). У «До виплати» потрапляє лише те, де фото вже схвалені.
+          Колонка «На перевірці» — нараховано, але заявка ще не пройшла модерацію (блок «Фото підтверджень» нижче).
+          Flagged теж не платимо — спочатку розберіть підозри.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12, alignItems: 'flex-end' }}>
           <div style={{ minWidth: 200, flex: 1 }}>
@@ -325,6 +340,7 @@ export const ReferralTab: React.FC = () => {
                 <th>Отримувач</th>
                 <th>Телефон</th>
                 <th>До виплати</th>
+                <th>На перевірці</th>
                 <th>Виплачено</th>
                 <th>Flagged</th>
                 <th></th>
@@ -333,15 +349,17 @@ export const ReferralTab: React.FC = () => {
             <tbody>
               {filteredBalances.length === 0 && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     {payoutFilter === 'payable' ? (
                       <span>
                         Немає сум <strong>до виплати</strong>
-                        {(s?.flaggedCount ?? 0) > 0
-                          ? ` — але є ${s!.flaggedCount} flagged нагород (див. блок «Підозрілі» нижче або фільтр «Усі з нагородами»).`
-                          : (s?.payableUah ?? 0) === 0
-                            ? ' — нагороди ще не нараховані або вже виплачені. Натисніть «Оновити».'
-                            : '.'}
+                        {(s?.onHoldCount ?? 0) > 0
+                          ? ` — але ${s!.onHoldUah} грн чекають модерації фото (блок «Фото підтверджень» нижче).`
+                          : (s?.flaggedCount ?? 0) > 0
+                            ? ` — але є ${s!.flaggedCount} flagged нагород (див. блок «Підозрілі» нижче або фільтр «Усі з нагородами»).`
+                            : (s?.payableUah ?? 0) === 0
+                              ? ' — нагороди ще не нараховані або вже виплачені. Натисніть «Оновити».'
+                              : '.'}
                         {' '}
                         <button
                           type="button"
@@ -386,6 +404,16 @@ export const ReferralTab: React.FC = () => {
                         <strong>{row.payableUah} грн</strong>
                         {row.payableCount > 0 ? <div style={{ fontSize: 12 }}>{row.payableCount} нагород</div> : null}
                       </td>
+                      <td>
+                        {row.holdUah > 0 ? (
+                          <span title="Фото ще не схвалені — платити не можна">
+                            ⏳ {row.holdUah} грн
+                            <div style={{ fontSize: 12 }}>{row.holdCount} нагород</div>
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td>{row.paidUah} грн</td>
                       <td>{row.flaggedUah > 0 ? `${row.flaggedUah} грн` : '—'}</td>
                       <td>
@@ -400,7 +428,7 @@ export const ReferralTab: React.FC = () => {
                     </tr>
                     {open && (
                       <tr>
-                        <td colSpan={6} style={{ background: 'var(--pb-bg-secondary)' }}>
+                        <td colSpan={7} style={{ background: 'var(--pb-bg-secondary)' }}>
                           <table style={{ width: '100%' }}>
                             <thead>
                               <tr>
@@ -420,7 +448,7 @@ export const ReferralTab: React.FC = () => {
                                   <td>{r.id}</td>
                                   <td>{REWARD_TYPE_LABEL[r.rewardType] || r.rewardType}</td>
                                   <td>{r.amountUah}</td>
-                                  <td>{r.status}</td>
+                                  <td>{REWARD_STATUS_LABEL[r.status] || r.status}</td>
                                   <td>
                                     {r.referredPerson.fullName || formatPhoneDisplay(r.referredPerson.phoneNormalized)}
                                   </td>
@@ -439,7 +467,17 @@ export const ReferralTab: React.FC = () => {
                                         Схвалити
                                       </Button>
                                     )}
-                                    {(r.status === 'pending' || r.status === 'approved') && (
+                                    {(r.status === 'hold' || r.status === 'pending') && (
+                                      <Button
+                                        type="button"
+                                        disabled={busyRewardId === r.id}
+                                        onClick={() => void setRewardStatus(r.id, 'approved')}
+                                        title="Пропустити модерацію фото і поставити в чергу виплат"
+                                      >
+                                        Схвалити вручну
+                                      </Button>
+                                    )}
+                                    {(r.status === 'hold' || r.status === 'pending' || r.status === 'approved') && (
                                       <Button
                                         type="button"
                                         disabled={busyRewardId === r.id}

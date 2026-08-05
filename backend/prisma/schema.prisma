@@ -91,7 +91,8 @@ model ReferralReward {
   amountUah        Int
   viberListingId   Int?
   rideProofId      Int?
-  status           String    @default("pending") // pending | approved | paid | flagged
+  /// hold — чекає схвалення фото (у виплати не йде); approved — у черзі виплат; legacy: pending
+  status           String    @default("hold") // hold | approved | paid | flagged
   flagReason       String?   @db.Text
   /// Нотатка адміна при виплаті (напр. «картка Приват 04.08»)
   payoutNote       String?

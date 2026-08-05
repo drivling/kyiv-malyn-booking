@@ -47,7 +47,11 @@ async function sendInviteProgramMessage(bot, prisma, chatId, personId, botUserna
     const link = (0, referral_1.getReferralBotLink)(botUsername, code);
     const stats = await (0, referral_1.getReferralStatsForPerson)(prisma, personId);
     const keyboard = (0, referral_1.buildReferralProgramInlineKeyboard)(link, { withInviteActions: true });
-    let extra = `\n\n📊 Запрошено: ${stats.referredCount} | Очікує виплати: <b>${stats.totalPendingUah} грн</b>`;
+    let extra = `\n\n📊 Запрошено: ${stats.referredCount}`;
+    if (stats.totalPayableUah > 0)
+        extra += ` | До виплати: <b>${stats.totalPayableUah} грн</b>`;
+    if (stats.totalOnHoldUah > 0)
+        extra += ` | На перевірці: ${stats.totalOnHoldUah} грн`;
     if (stats.totalPaidUah > 0)
         extra += ` | Виплачено: ${stats.totalPaidUah} грн`;
     await bot.sendMessage(chatId, (0, referral_1.buildReferralProgramTermsHtml)(link) + extra, {
@@ -240,7 +244,8 @@ async function handleReferralCallback(bot, prisma, chatId, personId, botUsername
         });
         await bot.sendMessage(chatId, `📊 <b>Ваша реферальна статистика</b>\n\n` +
             `Запрошено друзів: ${stats.referredCount}\n` +
-            `Очікує виплати: <b>${stats.totalPendingUah} грн</b>\n` +
+            `На перевірці фото: ${stats.totalOnHoldUah} грн\n` +
+            `До виплати: <b>${stats.totalPayableUah} грн</b>\n` +
             `Виплачено: ${stats.totalPaidUah} грн\n\n` +
             (lines.length ? `<b>Останні нагороди:</b>\n${lines.join('\n')}` : 'Поки немає нагород.'), { parse_mode: 'HTML' });
         return true;

@@ -26,6 +26,7 @@ import {
   ADMIN_MANUAL_FLAG_PREFIX,
   REFERRAL_REWARD_UAH,
   MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED,
+  markReferralPayout,
   type RideTimeSlot,
 } from './referral';
 
@@ -250,6 +251,11 @@ describe('processReferralRewardsAfterPassengerProof', () => {
     const self = prisma._rewards.find((r) => r.rewardType === 'passenger_self_confirm');
     assert.equal(self?.referrerId, 2);
     assert.equal(self?.referredPersonId, 2);
+    // до модерації фото гроші не в черзі виплат
+    assert.deepEqual(
+      prisma._rewards.map((r) => r.status),
+      ['hold', 'hold', 'hold']
+    );
   });
 
   it('second passenger trip → +20 referrer +20 self (registration already unlocked)', async () => {
@@ -441,13 +447,32 @@ describe('payout balances and FB caption', () => {
     ]);
     assert.equal(rows.length, 2);
     const a = rows.find((r) => r.personId === 10)!;
-    assert.equal(a.payableUah, 50);
-    assert.equal(a.payableCount, 2);
+    // pending (legacy) не платимо — лише approved
+    assert.equal(a.payableUah, 20);
+    assert.equal(a.payableCount, 1);
+    assert.equal(a.holdUah, 30);
+    assert.equal(a.holdCount, 1);
     assert.equal(a.paidUah, 40);
-    assert.deepEqual(a.rewardIds.sort(), [1, 2]);
+    assert.deepEqual(a.rewardIds.sort(), [2]);
     const b = rows.find((r) => r.personId === 11)!;
     assert.equal(b.flaggedUah, 20);
     assert.equal(b.payableUah, 0);
+  });
+
+  it('hold rewards stay out of the payout queue', () => {
+    const rows = buildPayoutBalancesFromRewards([
+      {
+        id: 1,
+        referrerId: 10,
+        amountUah: 50,
+        status: 'hold',
+        referrer: { id: 10, fullName: 'A', phoneNormalized: '380501111111', telegramUsername: null },
+      },
+    ]);
+    assert.equal(rows[0].payableUah, 0);
+    assert.equal(rows[0].payableCount, 0);
+    assert.equal(rows[0].holdUah, 50);
+    assert.deepEqual(rows[0].rewardIds, []);
   });
 
   it('buildRideFacebookShareCaption is share-ready', () => {
@@ -481,7 +506,7 @@ describe('payout balances and FB caption', () => {
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0].where, {
       referrerId: 42,
-      status: { in: ['pending', 'approved'] },
+      status: { in: ['hold', 'pending', 'approved'] },
     });
     assert.deepEqual(calls[0].data, {
       status: 'flagged',
@@ -498,6 +523,50 @@ describe('payout balances and FB caption', () => {
     assert.match(text, /\/start/);
     assert.doesNotMatch(text, /\d+\s*грн/i);
     assert.doesNotMatch(text, /\d+\s*UAH/i);
+  });
+
+  it('markReferralPayout pays only approved and never twice', async () => {
+    const rows = [
+      { id: 1, amountUah: 20, status: 'approved' },
+      { id: 2, amountUah: 30, status: 'hold' },
+      { id: 3, amountUah: 40, status: 'paid' },
+    ];
+    const tx = {
+      referralReward: {
+        findMany: async ({ where }: { where: { status?: string; id?: { in: number[] } } }) =>
+          rows
+            .filter((r) => (where.status ? r.status === where.status : true))
+            .filter((r) => (where.id?.in ? where.id.in.includes(r.id) : true))
+            .map((r) => ({ id: r.id, amountUah: r.amountUah })),
+        updateMany: async ({
+          where,
+          data,
+        }: {
+          where: { id: number; status: string };
+          data: { status: string };
+        }) => {
+          const row = rows.find((r) => r.id === where.id && r.status === where.status);
+          if (!row) return { count: 0 };
+          row.status = data.status;
+          return { count: 1 };
+        },
+      },
+    };
+    const prisma = {
+      $transaction: async (fn: (c: typeof tx) => Promise<unknown>) => fn(tx),
+    } as unknown as PrismaClient;
+
+    const first = await markReferralPayout(prisma, { personId: 7, note: 'Київстар' });
+    assert.equal(first.updatedCount, 1);
+    assert.equal(first.amountUah, 20);
+    assert.deepEqual(first.rewardIds, [1]);
+
+    // повторний клік — платити вже нічого
+    const second = await markReferralPayout(prisma, { personId: 7, note: 'Київстар' });
+    assert.equal(second.updatedCount, 0);
+    assert.equal(second.amountUah, 0);
+    // hold лишився недоторканим
+    assert.equal(rows.find((r) => r.id === 2)!.status, 'hold');
   });
 
   it('admin manual flag is protected from auto-unlock', () => {

@@ -2805,7 +2805,8 @@ async function runAdminReferralReport(chatId: string): Promise<void> {
       `🎁 <b>Звіт «Приведи друга»</b>\n\n` +
       `Запрошених: ${s.referredPersonsCount}\n` +
       `Нагород: ${s.totalRewards}\n` +
-      `⏳ Pending: ${s.pendingCount} (${s.pendingUah} грн)\n` +
+      `⏳ Чекають перевірки фото: ${s.onHoldCount} (${s.onHoldUah} грн)\n` +
+      `💳 До виплати: ${s.payablePeopleCount} осіб (${s.payableUah} грн)\n` +
       `✅ Paid: ${s.paidCount} (${s.paidUah} грн)\n` +
       `🚩 Flagged (чит/підозра): ${s.flaggedCount} (${s.flaggedUah} грн)\n` +
       `📷 Фото для реклами: ${report.promoPhotoProofs.length}\n\n` +

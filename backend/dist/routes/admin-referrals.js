@@ -106,11 +106,11 @@ function createAdminReferralsRouter(deps) {
             }
             const body = (req.body || {});
             const status = typeof body.status === 'string' ? body.status.trim() : '';
-            if (!['pending', 'approved', 'paid', 'flagged'].includes(status)) {
-                res.status(400).json({ error: 'status: pending | approved | paid | flagged' });
+            if (![referral_1.REWARD_STATUS_HOLD, 'pending', referral_1.REWARD_STATUS_APPROVED, 'paid', referral_1.REWARD_STATUS_FLAGGED].includes(status)) {
+                res.status(400).json({ error: 'status: hold | approved | paid | flagged' });
                 return;
             }
-            const clearFlag = status === 'approved' || status === 'pending';
+            const clearFlag = status === referral_1.REWARD_STATUS_APPROVED || status === referral_1.REWARD_STATUS_HOLD || status === 'pending';
             const flagReason = status === 'flagged'
                 ? (0, referral_1.withAdminManualFlagReason)(typeof body.flagReason === 'string' ? body.flagReason : 'Підозріла активність')
                 : body.flagReason !== undefined
@@ -198,7 +198,7 @@ function createAdminReferralsRouter(deps) {
                     if (unlockIds.length > 0) {
                         const unlocked = await tx.referralReward.updateMany({
                             where: { id: { in: unlockIds } },
-                            data: { status: 'approved', flagReason: null },
+                            data: { status: referral_1.REWARD_STATUS_APPROVED, flagReason: null },
                         });
                         rewardsUnlocked = unlocked.count;
                     }
@@ -206,8 +206,8 @@ function createAdminReferralsRouter(deps) {
                 else if (status === 'rejected') {
                     const reason = rejectionReason || 'Фото відхилено модератором';
                     await tx.referralReward.updateMany({
-                        where: { rideProofId: id, status: { in: ['pending', 'approved', 'flagged'] } },
-                        data: { status: 'flagged', flagReason: reason },
+                        where: { rideProofId: id, status: { in: referral_1.REWARD_STATUSES_UNPAID } },
+                        data: { status: referral_1.REWARD_STATUS_FLAGGED, flagReason: reason },
                     });
                 }
                 return { proof: updated, rewardsUnlocked };
@@ -245,7 +245,7 @@ function createAdminReferralsRouter(deps) {
                 const payable = await prisma.referralReward.findMany({
                     where: {
                         rideProofId: id,
-                        status: { in: ['pending', 'approved'] },
+                        status: referral_1.REWARD_STATUS_APPROVED,
                     },
                     select: {
                         amountUah: true,

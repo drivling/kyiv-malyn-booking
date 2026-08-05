@@ -267,7 +267,8 @@ export interface UserProfile {
 }
 
 /** Адмін: реферальна програма */
-export type ReferralRewardStatus = 'pending' | 'approved' | 'paid' | 'flagged';
+/** hold — чекає схвалення фото; approved — у черзі виплат; pending — легасі до введення hold */
+export type ReferralRewardStatus = 'hold' | 'pending' | 'approved' | 'paid' | 'flagged';
 export type RideProofStatus = 'awaiting_photos' | 'pending_review' | 'approved' | 'rejected' | 'flagged';
 
 export interface ReferralPersonBrief {
@@ -302,6 +303,9 @@ export interface ReferralPayoutPersonRow {
   telegramUsername: string | null;
   payableUah: number;
   payableCount: number;
+  /** Нараховано, але фото ще не схвалено — платити не можна */
+  holdUah: number;
+  holdCount: number;
   paidUah: number;
   flaggedUah: number;
   rewardIds: number[];
@@ -335,8 +339,8 @@ export interface RideCompletionProofRow {
 export interface AdminReferralReport {
   summary: {
     totalRewards: number;
-    pendingCount: number;
-    pendingUah: number;
+    onHoldCount: number;
+    onHoldUah: number;
     paidCount: number;
     paidUah: number;
     flaggedCount: number;

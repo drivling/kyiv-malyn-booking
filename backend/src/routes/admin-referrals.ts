@@ -6,6 +6,10 @@ import {
   findUnlockableFlaggedRewardIds,
   markReferralPayout,
   withAdminManualFlagReason,
+  REWARD_STATUS_APPROVED,
+  REWARD_STATUS_FLAGGED,
+  REWARD_STATUS_HOLD,
+  REWARD_STATUSES_UNPAID,
 } from '../referral';
 import { fetchTelegramFileById, sendTelegramHtmlToChat } from '../telegram';
 
@@ -116,11 +120,11 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
         payoutNote?: string | null;
       };
       const status = typeof body.status === 'string' ? body.status.trim() : '';
-      if (!['pending', 'approved', 'paid', 'flagged'].includes(status)) {
-        res.status(400).json({ error: 'status: pending | approved | paid | flagged' });
+      if (![REWARD_STATUS_HOLD, 'pending', REWARD_STATUS_APPROVED, 'paid', REWARD_STATUS_FLAGGED].includes(status)) {
+        res.status(400).json({ error: 'status: hold | approved | paid | flagged' });
         return;
       }
-      const clearFlag = status === 'approved' || status === 'pending';
+      const clearFlag = status === REWARD_STATUS_APPROVED || status === REWARD_STATUS_HOLD || status === 'pending';
       const flagReason =
         status === 'flagged'
           ? withAdminManualFlagReason(
@@ -215,15 +219,15 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
           if (unlockIds.length > 0) {
             const unlocked = await tx.referralReward.updateMany({
               where: { id: { in: unlockIds } },
-              data: { status: 'approved', flagReason: null },
+              data: { status: REWARD_STATUS_APPROVED, flagReason: null },
             });
             rewardsUnlocked = unlocked.count;
           }
         } else if (status === 'rejected') {
           const reason = rejectionReason || 'Фото відхилено модератором';
           await tx.referralReward.updateMany({
-            where: { rideProofId: id, status: { in: ['pending', 'approved', 'flagged'] } },
-            data: { status: 'flagged', flagReason: reason },
+            where: { rideProofId: id, status: { in: REWARD_STATUSES_UNPAID } },
+            data: { status: REWARD_STATUS_FLAGGED, flagReason: reason },
           });
         }
 
@@ -266,7 +270,7 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
         const payable = await prisma.referralReward.findMany({
           where: {
             rideProofId: id,
-            status: { in: ['pending', 'approved'] },
+            status: REWARD_STATUS_APPROVED,
           },
           select: {
             amountUah: true,

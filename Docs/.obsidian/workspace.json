@@ -13,15 +13,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "referral-program-terms.md",
+                "file": "referral-program-fix-plan.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "referral-program-terms"
+              "title": "referral-program-fix-plan"
+            }
+          },
+          {
+            "id": "97f8429fafac3151",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "referral-program-fix-plan.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "referral-program-fix-plan"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -41,10 +56,12 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
-              "title": "Файловий менеджер"
+              "title": "Файловый менеджер"
             }
           },
           {
@@ -174,25 +191,27 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:Відкрити провідник файлів": false,
-      "graph:Граф": false,
-      "canvas:Створити нове полотно": false,
-      "daily-notes:Сьогоднішня нотатка": false,
-      "templates:Вставити шаблон": false,
-      "command-palette:Відкрити меню команд": false,
-      "bases:Створити нову базу": false
+      "switcher:Меню быстрого перехода": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
+      "graph:Граф": false
     }
   },
-  "active": "b7c99523d49269ce",
+  "active": "97f8429fafac3151",
   "lastOpenFiles": [
+    "На будущее.md",
+    "referral-program-fix-plan.md",
+    "Schema_telegram.svg",
+    "referral-program-terms.md",
     "facebook-preview-assets/fb-story-bg.png",
     "facebook-preview-assets/fb-ride-start.png",
     "facebook-preview-assets/fb-ride-arrive.png",
     "facebook-preview-assets/fb-promo-cover.png",
     "facebook-preview-assets",
     "facebook-ride-post-preview.html",
-    "referral-facebook-post.md",
-    "referral-program-terms.md",
-    "Schema_telegram.svg"
+    "referral-facebook-post.md"
   ]
 }
