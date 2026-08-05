@@ -5,6 +5,7 @@ import type TelegramBot from 'node-telegram-bot-api';
 import type { PrismaClient } from '@prisma/client';
 import {
   buildReferralProgramTermsHtml,
+  buildReferralProgramInlineKeyboard,
   createReferralInvite,
   ensurePersonReferralCode,
   findReferrerByCode,
@@ -82,12 +83,7 @@ export async function sendInviteProgramMessage(
   const link = getReferralBotLink(botUsername, code);
   const stats = await getReferralStatsForPerson(prisma, personId);
 
-  const keyboard: TelegramBot.InlineKeyboardMarkup = {
-    inline_keyboard: [
-      [{ text: '📲 Запросити за номером / @username', callback_data: 'referral_invite_contact' }],
-      [{ text: '📊 Моя статистика', callback_data: 'referral_my_stats' }],
-    ],
-  };
+  const keyboard = buildReferralProgramInlineKeyboard(link, { withInviteActions: true });
 
   let extra =
     `\n\n📊 Запрошено: ${stats.referredCount} | Очікує виплати: <b>${stats.totalPendingUah} грн</b>`;
@@ -95,7 +91,7 @@ export async function sendInviteProgramMessage(
 
   await bot.sendMessage(chatId, buildReferralProgramTermsHtml(link) + extra, {
     parse_mode: 'HTML',
-    reply_markup: keyboard,
+    reply_markup: keyboard as TelegramBot.InlineKeyboardMarkup,
   });
 }
 

@@ -841,6 +841,30 @@ export function buildReferralProgramTermsHtml(referralLink: string): string {
   );
 }
 
+type ReferralInlineButton = {
+  text: string;
+  url?: string;
+  callback_data?: string;
+  copy_text?: { text: string };
+};
+
+/** Inline-кнопки під промо «Приведи друга» (копіювання посилання + опційно дії в боті). */
+export function buildReferralProgramInlineKeyboard(
+  referralLink: string,
+  opts?: { withInviteActions?: boolean }
+): { inline_keyboard: ReferralInlineButton[][] } {
+  const rows: ReferralInlineButton[][] = [
+    [{ text: '🔗 Копіювати посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
+  ];
+  if (opts?.withInviteActions) {
+    rows.push(
+      [{ text: '📲 Запросити за номером / @username', callback_data: 'referral_invite_contact' }],
+      [{ text: '📊 Моя статистика', callback_data: 'referral_my_stats' }]
+    );
+  }
+  return { inline_keyboard: rows };
+}
+
 export type ReferralPayoutPersonRow = {
   personId: number;
   fullName: string | null;

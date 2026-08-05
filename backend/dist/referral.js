@@ -23,6 +23,7 @@ exports.processReferralRegistrationReward = processReferralRegistrationReward;
 exports.processReferralPassengerProofReward = processReferralPassengerProofReward;
 exports.getReferralStatsForPerson = getReferralStatsForPerson;
 exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
+exports.buildReferralProgramInlineKeyboard = buildReferralProgramInlineKeyboard;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
 exports.withAdminManualFlagReason = withAdminManualFlagReason;
 exports.isProtectedFlagReason = isProtectedFlagReason;
@@ -691,6 +692,16 @@ function buildReferralProgramTermsHtml(referralLink) {
         `🔗 Твоє посилання:\n<code>${referralLink}</code>\n\n` +
         '🌐 https://malin.kiev.ua/poputky\n' +
         '📜 Умови: https://malin.kiev.ua/about#referral-promo');
+}
+/** Inline-кнопки під промо «Приведи друга» (копіювання посилання + опційно дії в боті). */
+function buildReferralProgramInlineKeyboard(referralLink, opts) {
+    const rows = [
+        [{ text: '🔗 Копіювати посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
+    ];
+    if (opts?.withInviteActions) {
+        rows.push([{ text: '📲 Запросити за номером / @username', callback_data: 'referral_invite_contact' }], [{ text: '📊 Моя статистика', callback_data: 'referral_my_stats' }]);
+    }
+    return { inline_keyboard: rows };
 }
 /** Агрегат «скільки кому виплатити» по referrerId (отримувач нагороди). */
 function buildPayoutBalancesFromRewards(rewards) {

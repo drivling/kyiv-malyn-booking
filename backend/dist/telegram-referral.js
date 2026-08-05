@@ -46,12 +46,7 @@ async function sendInviteProgramMessage(bot, prisma, chatId, personId, botUserna
     const code = await (0, referral_1.ensurePersonReferralCode)(prisma, personId);
     const link = (0, referral_1.getReferralBotLink)(botUsername, code);
     const stats = await (0, referral_1.getReferralStatsForPerson)(prisma, personId);
-    const keyboard = {
-        inline_keyboard: [
-            [{ text: '📲 Запросити за номером / @username', callback_data: 'referral_invite_contact' }],
-            [{ text: '📊 Моя статистика', callback_data: 'referral_my_stats' }],
-        ],
-    };
+    const keyboard = (0, referral_1.buildReferralProgramInlineKeyboard)(link, { withInviteActions: true });
     let extra = `\n\n📊 Запрошено: ${stats.referredCount} | Очікує виплати: <b>${stats.totalPendingUah} грн</b>`;
     if (stats.totalPaidUah > 0)
         extra += ` | Виплачено: ${stats.totalPaidUah} грн`;

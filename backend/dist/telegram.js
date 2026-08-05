@@ -1956,7 +1956,10 @@ const sendReferralInvitePromo = async (chatId, personId) => {
     }
     const code = await (0, referral_1.ensurePersonReferralCode)(tgPrisma, personId);
     const link = (0, referral_1.getReferralBotLink)(telegramBotUsername, code);
-    await bot.sendMessage(chatId, (0, referral_1.buildReferralProgramTermsHtml)(link), { parse_mode: 'HTML' });
+    await bot.sendMessage(chatId, (0, referral_1.buildReferralProgramTermsHtml)(link), {
+        parse_mode: 'HTML',
+        reply_markup: (0, referral_1.buildReferralProgramInlineKeyboard)(link),
+    });
 };
 exports.sendReferralInvitePromo = sendReferralInvitePromo;
 /**
@@ -2074,6 +2077,7 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
                 `   • ✅ Підтвердження бронювання (на сайті чи в боті)\n` +
                 `   • 🔔 Нагадування за день до поїздки\n\n` +
                 `3️⃣ Нижче з\'явилися кнопки меню — користуйтеся ними або командами з довідки /help.`, { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
+            await (0, telegram_referral_1.sendInviteProgramMessage)(bot, tgPrisma, chatId, created.id, telegramBotUsername);
             console.log(`✅ Додано Person (без бронювань) для ${userId}, номер ${normalizedPhone}`);
             return;
         }
@@ -2119,6 +2123,9 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
             `• ✅ Підтвердження при створенні бронювання\n` +
             `• 🔔 Нагадування за день до поїздки\n\n` +
             `📋 Нижче з\'явилися кнопки меню — можна користуватися ними замість команд.`, { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
+        if (linkedPersonId) {
+            await (0, telegram_referral_1.sendInviteProgramMessage)(bot, tgPrisma, chatId, linkedPersonId, telegramBotUsername);
+        }
     }
     catch (error) {
         console.error('❌ Помилка реєстрації номера:', error);
@@ -2622,6 +2629,9 @@ function setupBotCommands() {
                     await bot?.sendMessage(chatId, '🙂 Ви вже з нами в боті — це запрошення для нових друзів.\n\n' +
                         'Можете самі когось запросити: /invite\n\n' +
                         '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
+                    if (bot) {
+                        await (0, telegram_referral_1.sendInviteProgramMessage)(bot, tgPrisma, chatId, personAlready.id, telegramBotUsername);
+                    }
                     return;
                 }
                 await bot?.sendMessage(chatId, '🎁 <b>Вас запросили за акцією «Приведи друга»!</b>\n\n' +
@@ -2737,6 +2747,9 @@ function setupBotCommands() {
             });
             if (await handleStartScenario())
                 return;
+            if (bot) {
+                await (0, telegram_referral_1.sendInviteProgramMessage)(bot, tgPrisma, chatId, person.id, telegramBotUsername);
+            }
         }
         else {
             if (existingBooking) {
@@ -2758,6 +2771,9 @@ function setupBotCommands() {
                 });
                 if (await handleStartScenario())
                     return;
+                if (bot) {
+                    await (0, telegram_referral_1.sendInviteProgramMessage)(bot, tgPrisma, chatId, p.id, telegramBotUsername);
+                }
                 return;
             }
             // Новий користувач — показуємо тільки заклик поділитися номером (без інших команд і сценаріїв)

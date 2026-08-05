@@ -46,6 +46,7 @@ import {
 import {
   buildAdminReferralReport,
   buildReferralProgramTermsHtml,
+  buildReferralProgramInlineKeyboard,
   ensurePersonReferralCode,
   getReferralBotLink,
 } from './referral';
@@ -2362,7 +2363,10 @@ export const sendReferralInvitePromo = async (chatId: string, personId: number):
   }
   const code = await ensurePersonReferralCode(tgPrisma, personId);
   const link = getReferralBotLink(telegramBotUsername, code);
-  await bot.sendMessage(chatId, buildReferralProgramTermsHtml(link), { parse_mode: 'HTML' });
+  await bot.sendMessage(chatId, buildReferralProgramTermsHtml(link), {
+    parse_mode: 'HTML',
+    reply_markup: buildReferralProgramInlineKeyboard(link) as TelegramBot.InlineKeyboardMarkup,
+  });
 };
 
 /**
@@ -2494,6 +2498,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
           `3️⃣ Нижче з\'явилися кнопки меню — користуйтеся ними або командами з довідки /help.`,
         { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
       );
+      await sendInviteProgramMessage(bot, tgPrisma, chatId, created.id, telegramBotUsername);
       console.log(`✅ Додано Person (без бронювань) для ${userId}, номер ${normalizedPhone}`);
       return;
     }
@@ -2547,6 +2552,9 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
         `📋 Нижче з\'явилися кнопки меню — можна користуватися ними замість команд.`,
       { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
     );
+    if (linkedPersonId) {
+      await sendInviteProgramMessage(bot, tgPrisma, chatId, linkedPersonId, telegramBotUsername);
+    }
   } catch (error) {
     console.error('❌ Помилка реєстрації номера:', error);
     await bot.sendMessage(chatId, '❌ Помилка при реєстрації. Спробуйте пізніше.');
@@ -3103,6 +3111,9 @@ function setupBotCommands() {
               '🌐 https://malin.kiev.ua/poputky',
             { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
           );
+          if (bot) {
+            await sendInviteProgramMessage(bot, tgPrisma, chatId, personAlready.id, telegramBotUsername);
+          }
           return;
         }
         await bot?.sendMessage(
@@ -3225,6 +3236,9 @@ function setupBotCommands() {
         reply_markup: getMainMenuKeyboard(chatId),
       });
       if (await handleStartScenario()) return;
+      if (bot) {
+        await sendInviteProgramMessage(bot, tgPrisma, chatId, person.id, telegramBotUsername);
+      }
     } else {
       if (existingBooking) {
         await tgPrisma.booking.updateMany({
@@ -3244,6 +3258,9 @@ function setupBotCommands() {
           reply_markup: getMainMenuKeyboard(chatId),
         });
         if (await handleStartScenario()) return;
+        if (bot) {
+          await sendInviteProgramMessage(bot, tgPrisma, chatId, p.id, telegramBotUsername);
+        }
         return;
       }
       // Новий користувач — показуємо тільки заклик поділитися номером (без інших команд і сценаріїв)
