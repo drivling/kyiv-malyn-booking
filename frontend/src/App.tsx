@@ -3,6 +3,7 @@ import { BookingPage } from '@/pages/BookingPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { PoputkyPage } from '@/pages/PoputkyPage';
+import { MizhgorodskiPage } from '@/pages/MizhgorodskiPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
@@ -49,6 +50,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<PoputkyPage />} />
           <Route path="/poputky" element={<PoputkyPage />} />
+          <Route path="/mizhgorodski" element={<MizhgorodskiPage />} />
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
           <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
@@ -98,6 +100,9 @@ function NavBar() {
       <div className="nav-left">
         <Link to="/" className="nav-link">
           🚗 Попутки
+        </Link>
+        <Link to="/mizhgorodski" className="nav-link">
+          🛣️ Міжміські
         </Link>
         <Link to="/booking" className="nav-link">
           🚌 Маршрутки

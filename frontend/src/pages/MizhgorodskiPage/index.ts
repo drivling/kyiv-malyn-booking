@@ -1,0 +1,1 @@
+export { MizhgorodskiPage } from './MizhgorodskiPage';
