@@ -10,7 +10,9 @@
 - [Попутки](https://malin.kiev.ua/poputky): оголошення водіїв і пасажирів, запит до водія
 - [Маршрутки / бронювання](https://malin.kiev.ua/booking): розклад і місця
 - [Транспорт Малина](https://malin.kiev.ua/localtransport): місцеві маршрути й зупинки
-- [Допомога](https://malin.kiev.ua/support): інструкція Telegram-бота, FAQ, контакти
+- [Допомога](https://malin.kiev.ua/support): центр допомоги (хаб → статті)
+- [Telegram-бот](https://malin.kiev.ua/support/bot): команди, попутки, inline
+- [FAQ](https://malin.kiev.ua/support/faq) · [Контакти](https://malin.kiev.ua/support/contact)
 - [Про нас](https://malin.kiev.ua/about): реквізити, політика, умови, акція «Приведи друга»
 
 ## Telegram-бот (коротко)
@@ -21,11 +23,11 @@
 4. Inline у будь-якому чаті: набрати @malin_kiev_ua_bot — меню, попутки сьогодні, посилання акції, бронювання.
 5. Акція «Приведи друга»: /invite, підтвердження поїздки двома фото /confirmride, виплата після модерації.
 
-Детально: https://malin.kiev.ua/support#bot
+Детально: https://malin.kiev.ua/support/bot
 
 ## Контакти
 
-Див. https://malin.kiev.ua/support#contact і блок контактів на https://malin.kiev.ua/about
+Див. https://malin.kiev.ua/support/contact і блок контактів на https://malin.kiev.ua/about
 
 ## Файли для пошуку / ШІ
 

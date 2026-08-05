@@ -2,7 +2,7 @@
 
 Бот: [@malin_kiev_ua_bot](https://t.me/malin_kiev_ua_bot) · Сайт: [malin.kiev.ua/poputky](https://malin.kiev.ua/poputky)
 
-**Публічна сторінка допомоги (для користувачів):** [malin.kiev.ua/support](https://malin.kiev.ua/support) — розділ «Telegram-бот» з повним гайдом, FAQ і контактами. Редірект `/help` → `/support`.
+**Публічна сторінка допомоги (для користувачів):** [malin.kiev.ua/support](https://malin.kiev.ua/support) — хаб тем; гайд бота: [/support/bot](https://malin.kiev.ua/support/bot). Редірект `/help` → `/support`. Старі якорі `#bot` тощо на хабі перенаправляють на відповідну статтю.
 
 Документ нижче — робоча копія для адміна/розробки. Оновлено 05.08.2026.
 

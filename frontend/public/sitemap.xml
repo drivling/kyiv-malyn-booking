@@ -38,12 +38,50 @@
         <priority>0.9</priority>
     </url>
 
-    <!-- Help-center: бот, FAQ, контакти (важливо для SEO/AEO) -->
+    <!-- Help-center: хаб -->
     <url>
         <loc>https://malin.kiev.ua/support</loc>
         <lastmod>2026-08-05</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.85</priority>
+    </url>
+
+    <!-- Help-center: статті (IA hub → article) -->
+    <url>
+        <loc>https://malin.kiev.ua/support/start</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.75</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/support/bot</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/support/site</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/support/referral</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.75</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/support/faq</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/support/contact</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
     </url>
 
     <!-- Про нас: реквізити, політика, умови, акція -->
