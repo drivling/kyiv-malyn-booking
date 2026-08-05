@@ -721,9 +721,12 @@ export async function remindRideProofExpectsPhoto(
 }
 
 export function buildReferralHelpSection(): string {
+  const bot = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
   return (
     '\n\n🎁 <b>Акція «Приведи друга»</b>\n' +
-    '/invite — ваше посилання та запрошення\n' +
+    '/invite — ваше посилання та запрошення (кнопка «Поділитися» або @' +
+    bot +
+    ' ref_share)\n' +
     '/confirmride — підтвердити поїздку пасажира (фото до/після)'
   );
 }

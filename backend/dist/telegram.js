@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
 exports.setSpawnForTests = setSpawnForTests;
 exports.resetSpawnForTests = resetSpawnForTests;
 exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
@@ -56,6 +56,7 @@ const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
 const telegram_contact_1 = require("./telegram-contact");
 const telegram_referral_1 = require("./telegram-referral");
 const referral_1 = require("./referral");
+const telegram_inline_1 = require("./telegram-inline");
 const defaultTgPrisma = new client_1.PrismaClient();
 let tgPrisma = defaultTgPrisma;
 /** Для юніт-тестів: підставити мок Prisma замість реального клієнта. */
@@ -283,7 +284,19 @@ async function createDriverListingFromState(chatId, state, notes, senderName) {
         (state.seats != null ? `🎫 ${state.seats} місць\n` : '') +
         (state.priceUah != null ? `💰 ${state.priceUah} грн\n` : '') +
         (notes ? `📝 ${notes}\n` : '') +
-        '\nОголошення опубліковано. Адмін отримав сповіщення.', { parse_mode: 'HTML' });
+        '\nОголошення опубліковано. Адмін отримав сповіщення.', {
+        parse_mode: 'HTML',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    {
+                        text: '📤 Поділитися оголошенням',
+                        switch_inline_query_current_chat: `${telegram_inline_1.INLINE_QUERY_PREFIX.SHARE_LISTING}${listing.id}`,
+                    },
+                ],
+            ],
+        },
+    });
     await notifyMatchingPassengersForNewDriver(listing, chatId);
     // Реферал водія: 40 грн нарахуються лише коли запрошений ним пасажир підтвердить поїздку фото
     if (person.id) {
@@ -955,6 +968,8 @@ const formatDate = (date) => {
         year: 'numeric',
     }).format(date);
 };
+/** Для inline-модуля та зовнішніх викликів */
+exports.formatTelegramDate = formatDate;
 /**
  * Формат номера для відображення в Telegram: +380(67)4476844 (без пропусків, оператор у дужках).
  * Український формат 380XXXXXXXXX: 38 + 0 (трак) + XX (оператор 2 цифри) + 7 цифр.
@@ -1030,6 +1045,7 @@ const getRouteName = (route) => {
         return 'Малин → Коростень';
     return route;
 };
+exports.getTelegramRouteName = getRouteName;
 /**
  * Відправка повідомлення про нове бронювання адміністратору.
  * Тільки для маршруток (schedule). Для попуток (viber_match) адміну шле окреме повідомлення в обробнику.
@@ -2545,6 +2561,8 @@ function setupBotCommands() {
             return 'driver';
         if (raw === 'passenger' || raw === 'addpassengerride')
             return 'passenger';
+        if (raw === 'book')
+            return 'book';
         if (raw === 'view' || raw === 'poputky' || raw === 'rides')
             return 'view';
         return null;
@@ -2648,6 +2666,24 @@ function setupBotCommands() {
             }
         }
         // Посилання з /allrides: забронювати у водія (book_viber_ID)
+        // setup_phone з inline switch_pm — поділитися номером для бронювання
+        if (rawStart === telegram_inline_1.INLINE_QUERY_PREFIX.SETUP_PHONE) {
+            await bot?.sendMessage(chatId, '📱 <b>Номер для бронювання</b>\n\nПоділіться номером телефону — тоді зможете бронювати та бачити персональні кнопки в /allrides.', { parse_mode: 'HTML', reply_markup: getSharePhoneKeyboard() });
+            await bot?.sendMessage(chatId, 'Після реєстрації номера можете знову відкрити inline (@бот) або /allrides.', {
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: '🚌 Попутки в цей чат',
+                                switch_inline_query_current_chat: telegram_inline_1.INLINE_QUERY_PREFIX.RIDES_TODAY,
+                            },
+                        ],
+                    ],
+                },
+            });
+            return;
+        }
         if (rawStart.startsWith('book_viber_')) {
             const driverListingId = parseInt(rawStart.replace('book_viber_', ''), 10);
             if (!isNaN(driverListingId)) {
@@ -2726,6 +2762,10 @@ function setupBotCommands() {
             if (startScenario === 'passenger') {
                 await bot?.sendMessage(chatId, '👤 Запускаю сценарій: <b>Запит на поїздку як пасажир</b>', { parse_mode: 'HTML' });
                 await startPassengerRideFlow(chatId, userId);
+                return true;
+            }
+            if (startScenario === 'book') {
+                await handleBook(chatId, userId);
                 return true;
             }
             await sendFreeViewInfo(chatId, contactKeyboard);
@@ -3065,6 +3105,12 @@ function setupBotCommands() {
             const filterKeyboard = [
                 ...getAllridesFilterKeyboard(),
                 ...(isFutureView ? getAllridesTimeFilterRow() : []),
+                [
+                    {
+                        text: '📤 Поділитися попутками в чат',
+                        switch_inline_query_current_chat: telegram_inline_1.INLINE_QUERY_PREFIX.RIDES_TODAY,
+                    },
+                ],
             ];
             await bot?.sendMessage(chatId, message, {
                 parse_mode: 'HTML',
@@ -3131,6 +3177,9 @@ function setupBotCommands() {
 /start - головне меню
 /help - показати цю довідку
 /allrides - показати всі активні попутки
+
+💬 <b>У групі (inline):</b>
+Наберіть @${telegramBotUsername} у чаті — зʼявляться карточки: запросити друга, попутки сьогодні, допомога, бронювання. Або кнопка «Поділитися попутками» в /allrides.
 ${(0, telegram_referral_1.buildReferralHelpSection)()}
 
 ✅ Ваш акаунт підключено до номера: ${displayPhone}
@@ -3256,7 +3305,17 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             const seats = l.seats != null ? `, ${l.seats} місць` : '';
             return `• ${getRouteName(l.route)} — ${formatDate(l.date)} о ${time}${seats}`;
         });
-        await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /adddriverride', { parse_mode: 'HTML' });
+        await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /adddriverride', {
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: myListings.slice(0, 5).map((l) => [
+                    {
+                        text: `📤 Поділитися #${l.id}`,
+                        switch_inline_query_current_chat: `${telegram_inline_1.INLINE_QUERY_PREFIX.SHARE_LISTING}${l.id}`,
+                    },
+                ]),
+            },
+        });
         // Співпадіння пасажирів для кожної моєї поїздки (точні + приблизні + поїздки цього дня)
         for (const myDriver of myListings.slice(0, 5)) {
             const matches = await findMatchingPassengersForDriver({
@@ -4185,47 +4244,22 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
     bot.onText(/^\/referralreport(?:@\w+)?$/i, async (msg) => {
         await runAdminReferralReport(msg.chat.id.toString());
     });
-    /** Inline-режим: реферальне «Поділитися» та (порожній @бот) підказка */
+    /** Inline-режим (@бот у чатах) */
     bot.on('inline_query', async (query) => {
         if (!bot)
             return;
-        try {
-            if (!(0, referral_1.isReferralInlineShareQuery)(query.query)) {
-                await bot.answerInlineQuery(query.id, [], { cache_time: 5 });
-                return;
-            }
-            const userId = query.from.id.toString();
-            const person = await (0, exports.getPersonByTelegram)(userId, '');
-            if (!person) {
-                await bot.answerInlineQuery(query.id, [
-                    {
-                        type: 'article',
-                        id: 'referral_need_start',
-                        title: 'Спочатку /start у боті',
-                        description: 'Тоді знову «Поділитися з другом»',
-                        input_message_content: {
-                            message_text: `Спочатку відкрийте @${telegramBotUsername} і напишіть /start — тоді зможете поділитися персональним посиланням.`,
-                        },
-                    },
-                ], { cache_time: 60 });
-                return;
-            }
-            const code = await (0, referral_1.ensurePersonReferralCode)(tgPrisma, person.id);
-            const link = (0, referral_1.getReferralBotLink)(telegramBotUsername, code);
-            await bot.answerInlineQuery(query.id, [(0, referral_1.buildReferralShareInlineQueryResult)(link)], {
-                cache_time: 300,
-                is_personal: true,
-            });
-        }
-        catch (e) {
-            console.error('❌ inline_query:', e);
-            try {
-                await bot.answerInlineQuery(query.id, [], { cache_time: 0 });
-            }
-            catch {
-                /* ignore */
-            }
-        }
+        await (0, telegram_inline_1.handleInlineQuery)(bot, query, {
+            prisma: tgPrisma,
+            botUsername: telegramBotUsername,
+            getPersonByTelegram: exports.getPersonByTelegram,
+            isAdminTelegramUser: (uid) => isTelegramAdminChat(uid),
+            formatDate,
+            getRouteName,
+            normalizePhone: exports.normalizePhone,
+        });
+    });
+    bot.on('chosen_inline_result', async (result) => {
+        await (0, telegram_inline_1.handleChosenInlineResult)(result);
     });
     // Обробка callback query (натискання inline кнопок)
     bot.on('callback_query', async (query) => {

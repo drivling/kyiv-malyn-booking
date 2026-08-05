@@ -50,11 +50,10 @@ import {
   buildAdminReferralSummary,
   buildReferralProgramTermsHtml,
   buildReferralProgramInlineKeyboard,
-  buildReferralShareInlineQueryResult,
   ensurePersonReferralCode,
   getReferralBotLink,
-  isReferralInlineShareQuery,
 } from './referral';
+import { INLINE_QUERY_PREFIX, handleChosenInlineResult, handleInlineQuery } from './telegram-inline';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -379,7 +378,19 @@ async function createDriverListingFromState(
     (state.priceUah != null ? `💰 ${state.priceUah} грн\n` : '') +
     (notes ? `📝 ${notes}\n` : '') +
     '\nОголошення опубліковано. Адмін отримав сповіщення.',
-    { parse_mode: 'HTML' }
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '📤 Поділитися оголошенням',
+              switch_inline_query_current_chat: `${INLINE_QUERY_PREFIX.SHARE_LISTING}${listing.id}`,
+            },
+          ],
+        ],
+      },
+    }
   );
   await notifyMatchingPassengersForNewDriver(listing, chatId);
   // Реферал водія: 40 грн нарахуються лише коли запрошений ним пасажир підтвердить поїздку фото
@@ -1199,6 +1210,9 @@ const formatDate = (date: Date): string => {
   }).format(date);
 };
 
+/** Для inline-модуля та зовнішніх викликів */
+export const formatTelegramDate = formatDate;
+
 /**
  * Формат номера для відображення в Telegram: +380(67)4476844 (без пропусків, оператор у дужках).
  * Український формат 380XXXXXXXXX: 38 + 0 (трак) + XX (оператор 2 цифри) + 7 цифр.
@@ -1266,6 +1280,8 @@ const getRouteName = (route: string): string => {
   if (route.includes('Malyn-Korosten')) return 'Малин → Коростень';
   return route;
 };
+
+export const getTelegramRouteName = getRouteName;
 
 /**
  * Відправка повідомлення про нове бронювання адміністратору.
@@ -3001,13 +3017,14 @@ function setupBotCommands() {
     }
   }
 
-  const parseStartScenario = (text?: string): 'driver' | 'passenger' | 'view' | null => {
+  const parseStartScenario = (text?: string): 'driver' | 'passenger' | 'view' | 'book' | null => {
     if (!text) return null;
     const match = text.trim().match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i);
     const raw = match?.[1]?.trim().toLowerCase();
     if (!raw) return null;
     if (raw === 'driver' || raw === 'adddriverride') return 'driver';
     if (raw === 'passenger' || raw === 'addpassengerride') return 'passenger';
+    if (raw === 'book') return 'book';
     if (raw === 'view' || raw === 'poputky' || raw === 'rides') return 'view';
     return null;
   };
@@ -3140,6 +3157,29 @@ function setupBotCommands() {
     }
 
     // Посилання з /allrides: забронювати у водія (book_viber_ID)
+    // setup_phone з inline switch_pm — поділитися номером для бронювання
+    if (rawStart === INLINE_QUERY_PREFIX.SETUP_PHONE) {
+      await bot?.sendMessage(
+        chatId,
+        '📱 <b>Номер для бронювання</b>\n\nПоділіться номером телефону — тоді зможете бронювати та бачити персональні кнопки в /allrides.',
+        { parse_mode: 'HTML', reply_markup: getSharePhoneKeyboard() }
+      );
+      await bot?.sendMessage(chatId, 'Після реєстрації номера можете знову відкрити inline (@бот) або /allrides.', {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '🚌 Попутки в цей чат',
+                switch_inline_query_current_chat: INLINE_QUERY_PREFIX.RIDES_TODAY,
+              },
+            ],
+          ],
+        },
+      });
+      return;
+    }
+
     if (rawStart.startsWith('book_viber_')) {
       const driverListingId = parseInt(rawStart.replace('book_viber_', ''), 10);
       if (!isNaN(driverListingId)) {
@@ -3220,6 +3260,10 @@ function setupBotCommands() {
       if (startScenario === 'passenger') {
         await bot?.sendMessage(chatId, '👤 Запускаю сценарій: <b>Запит на поїздку як пасажир</b>', { parse_mode: 'HTML' });
         await startPassengerRideFlow(chatId, userId);
+        return true;
+      }
+      if (startScenario === 'book') {
+        await handleBook(chatId, userId);
         return true;
       }
       await sendFreeViewInfo(chatId, contactKeyboard);
@@ -3591,6 +3635,12 @@ function setupBotCommands() {
       const filterKeyboard = [
         ...getAllridesFilterKeyboard(),
         ...(isFutureView ? getAllridesTimeFilterRow() : []),
+        [
+          {
+            text: '📤 Поділитися попутками в чат',
+            switch_inline_query_current_chat: INLINE_QUERY_PREFIX.RIDES_TODAY,
+          },
+        ],
       ];
       await bot?.sendMessage(chatId, message, {
         parse_mode: 'HTML',
@@ -3665,6 +3715,9 @@ function setupBotCommands() {
 /start - головне меню
 /help - показати цю довідку
 /allrides - показати всі активні попутки
+
+💬 <b>У групі (inline):</b>
+Наберіть @${telegramBotUsername} у чаті — зʼявляться карточки: запросити друга, попутки сьогодні, допомога, бронювання. Або кнопка «Поділитися попутками» в /allrides.
 ${buildReferralHelpSection()}
 
 ✅ Ваш акаунт підключено до номера: ${displayPhone}
@@ -3801,7 +3854,17 @@ ${buildReferralHelpSection()}
       const seats = l.seats != null ? `, ${l.seats} місць` : '';
       return `• ${getRouteName(l.route)} — ${formatDate(l.date)} о ${time}${seats}`;
     });
-    await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /adddriverride', { parse_mode: 'HTML' });
+    await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\n' + lines.join('\n') + '\n\nДодати ще: /adddriverride', {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: myListings.slice(0, 5).map((l: { id: number }) => [
+          {
+            text: `📤 Поділитися #${l.id}`,
+            switch_inline_query_current_chat: `${INLINE_QUERY_PREFIX.SHARE_LISTING}${l.id}`,
+          },
+        ]),
+      },
+    });
 
     // Співпадіння пасажирів для кожної моєї поїздки (точні + приблизні + поїздки цього дня)
     for (const myDriver of myListings.slice(0, 5)) {
@@ -4805,52 +4868,22 @@ ${buildReferralHelpSection()}
     await runAdminReferralReport(msg.chat.id.toString());
   });
 
-  /** Inline-режим: реферальне «Поділитися» та (порожній @бот) підказка */
+  /** Inline-режим (@бот у чатах) */
   bot.on('inline_query', async (query) => {
     if (!bot) return;
-    try {
-      if (!isReferralInlineShareQuery(query.query)) {
-        await bot.answerInlineQuery(query.id, [], { cache_time: 5 });
-        return;
-      }
+    await handleInlineQuery(bot, query, {
+      prisma: tgPrisma,
+      botUsername: telegramBotUsername,
+      getPersonByTelegram,
+      isAdminTelegramUser: (uid) => isTelegramAdminChat(uid),
+      formatDate,
+      getRouteName,
+      normalizePhone,
+    });
+  });
 
-      const userId = query.from.id.toString();
-      const person = await getPersonByTelegram(userId, '');
-
-      if (!person) {
-        await bot.answerInlineQuery(
-          query.id,
-          [
-            {
-              type: 'article',
-              id: 'referral_need_start',
-              title: 'Спочатку /start у боті',
-              description: 'Тоді знову «Поділитися з другом»',
-              input_message_content: {
-                message_text:
-                  `Спочатку відкрийте @${telegramBotUsername} і напишіть /start — тоді зможете поділитися персональним посиланням.`,
-              },
-            },
-          ],
-          { cache_time: 60 }
-        );
-        return;
-      }
-
-      const code = await ensurePersonReferralCode(tgPrisma, person.id);
-      const link = getReferralBotLink(telegramBotUsername, code);
-      await bot.answerInlineQuery(query.id, [buildReferralShareInlineQueryResult(link)], {
-        cache_time: 300,
-        is_personal: true,
-      });
-    } catch (e) {
-      console.error('❌ inline_query:', e);
-      try {
-        await bot.answerInlineQuery(query.id, [], { cache_time: 0 });
-      } catch {
-        /* ignore */
-      }
-    }
+  bot.on('chosen_inline_result', async (result) => {
+    await handleChosenInlineResult(result);
   });
 
   // Обробка callback query (натискання inline кнопок)

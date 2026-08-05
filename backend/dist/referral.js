@@ -997,10 +997,10 @@ exports.REFERRAL_INLINE_QUERY_PREFIX = 'ref_share';
 function buildReferralShareMessageText(referralLink) {
     return `${exports.REFERRAL_SHARE_TEXT}\n\n${referralLink}`;
 }
-/** Inline @бот у чаті: пустий запит або ref_share з кнопки */
+/** Inline @бот: лише явний ref_share (пустий query → inline-меню в telegram-inline.ts) */
 function isReferralInlineShareQuery(query) {
     const q = query.trim();
-    return q === '' || q === exports.REFERRAL_INLINE_QUERY_PREFIX || q.startsWith(`${exports.REFERRAL_INLINE_QUERY_PREFIX} `);
+    return q === exports.REFERRAL_INLINE_QUERY_PREFIX || q.startsWith(`${exports.REFERRAL_INLINE_QUERY_PREFIX} `);
 }
 /** Результат answerInlineQuery — готове приглашення з персональним посиланням */
 function buildReferralShareInlineQueryResult(referralLink) {

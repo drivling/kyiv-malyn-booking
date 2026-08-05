@@ -1194,10 +1194,10 @@ export function buildReferralShareMessageText(referralLink: string): string {
   return `${REFERRAL_SHARE_TEXT}\n\n${referralLink}`;
 }
 
-/** Inline @бот у чаті: пустий запит або ref_share з кнопки */
+/** Inline @бот: лише явний ref_share (пустий query → inline-меню в telegram-inline.ts) */
 export function isReferralInlineShareQuery(query: string): boolean {
   const q = query.trim();
-  return q === '' || q === REFERRAL_INLINE_QUERY_PREFIX || q.startsWith(`${REFERRAL_INLINE_QUERY_PREFIX} `);
+  return q === REFERRAL_INLINE_QUERY_PREFIX || q.startsWith(`${REFERRAL_INLINE_QUERY_PREFIX} `);
 }
 
 /** Результат answerInlineQuery — готове приглашення з персональним посиланням */

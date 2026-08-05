@@ -147,7 +147,7 @@ describe('referral sharing buttons', () => {
 
   it('inline query matcher and share message', () => {
     const link = 'https://t.me/malin_kiev_ua_bot?start=ref_ABCD';
-    assert.equal(isReferralInlineShareQuery(''), true);
+    assert.equal(isReferralInlineShareQuery(''), false);
     assert.equal(isReferralInlineShareQuery('ref_share'), true);
     assert.equal(isReferralInlineShareQuery('allrides'), false);
     assert.ok(buildReferralShareMessageText(link).includes(link));
