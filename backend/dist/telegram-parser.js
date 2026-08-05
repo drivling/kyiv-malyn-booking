@@ -24,14 +24,14 @@ const viber_parser_1 = require("./viber-parser");
  */
 function extractSenderNameTelegram(text) {
     // "Name|@username: " або "FirstName LastName: " або "Ім'я: " або "@username: " на початку
-    const withUsername = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@]+)\|(@[a-zA-Z0-9_]+):\s*(.*)/s);
+    const withUsername = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+)\|(@[a-zA-Z0-9_]+):\s*(.*)/s);
     if (withUsername) {
         const name = withUsername[1].trim();
         if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
             return name;
         }
     }
-    const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@]+):\s*(.*)/s);
+    const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+):\s*(.*)/s);
     if (namePrefixMatch) {
         const name = namePrefixMatch[1].trim();
         if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
@@ -49,18 +49,18 @@ function extractSenderNameTelegram(text) {
  * Витягує @username з повідомлення (формат "Name|@username: текст" з fetch_telegram_messages.py)
  */
 function extractTelegramUsername(rawMessage) {
-    const match = rawMessage.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+\|(@[a-zA-Z0-9_]+):\s*/s);
+    const match = rawMessage.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+\|(@[a-zA-Z0-9_]+):\s*/s);
     return match ? match[1] : null;
 }
 /**
  * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Ім'я|@username: " або "Forwarded from X: ")
  */
 function extractMessageBodyTelegram(text) {
-    const withUsername = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+\|@[a-zA-Z0-9_]+:\s*(.*)/s);
+    const withUsername = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+\|@[a-zA-Z0-9_]+:\s*(.*)/s);
     if (withUsername) {
         return withUsername[1].trim();
     }
-    const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@]+:\s*(.*)/s);
+    const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+:\s*(.*)/s);
     if (namePrefixMatch) {
         return namePrefixMatch[1].trim();
     }
@@ -98,13 +98,12 @@ function parseTelegramMessage(rawMessage) {
         const departureTime = (0, viber_parser_1.extractTime)(messageBody);
         const price = (0, viber_parser_1.extractPrice)(messageBody);
         const seats = (0, viber_parser_1.extractSeats)(messageBody);
-        let notes = null;
-        const notesPatterns = [/від\s+м\s+\w+/i, /біля\s+\w+/i, /є\s+місця/i];
-        for (const pattern of notesPatterns) {
-            const match = messageBody.match(pattern);
-            if (match) {
-                notes = notes ? `${notes}; ${match[0]}` : match[0];
-            }
+        let notes = (0, viber_parser_1.extractNotes)(messageBody);
+        // Якщо телефону немає, а є @username — посилання на Telegram як контакт у notes
+        const username = extractTelegramUsername(rawMessage);
+        if (username && (!phone || phone === '')) {
+            const tme = `https://t.me/${username.replace(/^@/, '')}`;
+            notes = notes ? `${notes}; ${tme}` : tme;
         }
         return {
             senderName,

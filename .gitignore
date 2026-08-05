@@ -52,3 +52,5 @@ android-malyn-transport/app/*/generated/
 android-malyn-transport/.kotlin/
 android-malyn-transport/java_pid*.hprof
 *.hprof
+# Parser golden-set dumps (PII: phones in listings)
+backend/testdata/

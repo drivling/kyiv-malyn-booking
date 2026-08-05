@@ -7,6 +7,7 @@ import {
   extractTime,
   extractSeats,
   extractPrice,
+  extractNotes,
   extractRoute,
   extractListingType,
   extractSenderName,
@@ -46,6 +47,7 @@ test('extractPhone', () => {
     { input: '0501234567', expected: '0501234567' },
     { input: '+380501234567', expected: '+380501234567' },
     { input: 'тел: 050-111-22-33', expected: '0501112233' },
+    { input: 'Телефон. 096 97 27 437', expected: '0969727437' },
     { input: '10.04.2026 лише дата', expected: null },
   ];
   for (const { input, expected } of cases) {
@@ -108,6 +110,51 @@ test('extractTime: невалідний / відсутній', () => {
   assert.equal(extractTime('лише текст'), null);
 });
 
+test('extractTime: поширені формати з живих оголошень', () => {
+  assert.equal(extractTime('9.15 - 12.00'), '09:15-12:00');
+  assert.equal(extractTime('11-00'), '11:00');
+  assert.equal(extractTime('08-30 їду'), '08:30');
+  assert.equal(extractTime('на 9-00 тел'), '09:00');
+  assert.equal(extractTime('19-30-20-00'), '19:30-20:00');
+  assert.equal(extractTime('о 5 30 їду'), '05:30');
+  assert.equal(extractTime('18-20год'), '18:00-20:00');
+  assert.equal(extractTime('8-9'), '08:00-09:00');
+  assert.equal(extractTime('о  13 - 13:30'), '13:00-13:30');
+  assert.equal(extractTime('16.00'), '16:00');
+  assert.equal(extractTime('о 17-ій год'), '17:00');
+  assert.equal(extractTime('6.30- 7.00'), '06:30-07:00');
+  assert.equal(extractTime('12.⁰⁰'), '12:00');
+  assert.equal(extractTime('[Бот-пасажир] Kyiv-Malyn 2026-07-30'), null);
+});
+
+test('extractDate: не плутає час з датою', () => {
+  const ref = new Date(2026, 6, 14);
+  assert.equal(ymd(extractDate('о 14.10 Малин-Київ', ref)), '2026-07-14');
+  assert.equal(ymd(extractDate('18.40-20.00 Житомир', ref)), '2026-07-14');
+  assert.equal(ymd(extractDate('14..07.26', ref)), '2026-07-14');
+  assert.equal(ymd(extractDate('26 07 Малин-Київ', ref)), '2026-07-26');
+  assert.equal(ymd(extractDate('Академмістечко -Малин 20.07. 17.10-17.30', ref)), '2026-07-20');
+  assert.equal(ymd(extractDate('21.07. 15:40. Академ', ref)), '2026-07-21');
+});
+
+test('extractSeats: словесні форми', () => {
+  assert.equal(extractSeats('є два місця'), 2);
+  assert.equal(extractSeats('Двоє позаду 200грн'), 2);
+  assert.equal(extractSeats('2 людини'), 2);
+});
+
+test('extractRoute: bot-формат', () => {
+  assert.equal(extractRoute('[Бот-пасажир] Kyiv-Malyn 2026-07-17 20:30'), 'Kyiv-Malyn');
+  assert.equal(extractRoute('[Бот] Malyn-Zhytomyr 2026-08-04 08:00 2 місць'), 'Malyn-Zhytomyr');
+});
+
+test('extractListingType: неявний пасажир', () => {
+  assert.equal(
+    extractListingType('можливо хтось їде сьогодні з академмістечко в малин'),
+    'passenger'
+  );
+});
+
 test('extractSeats', () => {
   assert.equal(extractSeats('2 пасажири'), 2);
   assert.equal(extractSeats('3 особи'), 3);
@@ -122,6 +169,35 @@ test('extractPrice', () => {
   assert.equal(extractPrice('99 UAH'), 99);
   assert.equal(extractPrice('9 грн'), null);
   assert.equal(extractPrice('без ціни'), null);
+});
+
+test('extractNotes: є місця / орієнтири / позаду / дужки', () => {
+  assert.equal(extractNotes('Водій Київ-Малин є місця 0501234567'), 'є місця');
+  assert.equal(extractNotes('Водій Київ-Малин Є місця 0501234567'), 'Є місця');
+  assert.equal(extractNotes('Є 3 місця Київ-Малин'), null); // seats, не примітка
+  assert.match(extractNotes('від південного залізничного вокзалу. Є вільні місця.') || '', /від південного/);
+  assert.match(extractNotes('від південного залізничного вокзалу. Є вільні місця.') || '', /є місця/i);
+  assert.equal(extractNotes('Двоє позаду 200грн'), 'Двоє позаду');
+  assert.equal(extractNotes('(позаду двоє)'), 'Двоє позаду');
+  assert.equal(
+    extractNotes('мЖитомирська на Малин (дзвоніть або пишіть)'),
+    'м. Житомирська (дзвоніть або пишіть у Viber).'
+  );
+  assert.equal(extractNotes('Київ (Акад)-Малин'), 'м Академмістечко');
+  assert.equal(extractNotes('Київ (Академ.)-Малин'), 'Академмістечко');
+  assert.equal(extractNotes('Академмістечко -Малин 17.10'), 'Академмістечко');
+  assert.equal(extractNotes('Київ *Ірпінь Малин*'), 'Ірпінь -> Малин');
+  assert.equal(
+    extractNotes('Малин - Київ (південний залізничний вокзал)'),
+    'До Південний залізничний вокзал'
+  );
+  assert.equal(
+    extractNotes('(прохання писати у вайбер, до 17 год не завжди зможу відповісти) Київ-Малин'),
+    '(прохання писати у вайбер, до 17 год не завжди зможу відповісти)'
+  );
+  assert.match(extractNotes('Малин-Київ до Цирку Є місця') || '', /до Цирку/);
+  assert.match(extractNotes('біля метро є місця') || '', /біля метро/);
+  assert.match(extractNotes('Заберу по місту. є місця') || '', /Заберу по місту/);
 });
 
 test('extractRoute', () => {
@@ -163,7 +239,12 @@ test('extractMessageDate', () => {
   assert(d);
   assert.equal(ymd(d), '2026-04-10');
   assert.equal(extractMessageDate('немає шапки'), null);
-  assert.equal(extractMessageDate('[ 1 февраля 2026 р. 10:00 ] ⁨X⁩:'), null);
+  const ru = extractMessageDate('[ 1 февраля 2026 г. 10:00 ] ⁨X⁩:');
+  assert(ru);
+  assert.equal(ymd(ru!), '2026-02-01');
+  const weekday = extractMessageDate('[ вівторок, 21 липня 2026 р. 07:22 ] ⁨X⁩:');
+  assert(weekday);
+  assert.equal(ymd(weekday!), '2026-07-21');
 });
 
 test('extractMessageBody: багаторядковий текст', () => {
@@ -196,12 +277,11 @@ test('parseViberMessage: повний успішний розбір', () => {
   assert.equal(ymd(p.date), '2026-04-10');
   assert.equal(p.departureTime, '16:00');
   assert.equal(p.price, 250);
-  assert.equal(p.seats, null);
+  assert.equal(p.seats, 2); // "Двоє позаду"
   assert.equal(p.phone, '+380687211477');
 });
 
 test('parseViberMessage: місця та примітки', () => {
-  // notesPatterns використовують \\w+ — латиниця; кирилицю після «біля» не ловить (регресія, якщо зміните regex)
   const raw = `[ 1 лютого 2026 р. 10:00 ] ⁨X⁩: Пасажир Малин-Київ 05.02 о 18:00 3 пасажири 200 грн біля Akadem є місця 0501112233`;
   const p = parseViberMessage(raw);
   assert(p);
