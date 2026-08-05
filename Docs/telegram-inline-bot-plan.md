@@ -9,7 +9,8 @@
 **Уже сделано (реферал):**
 - Кнопка «📤 Поділитися з другом» → `switch_inline_query: ref_share`
 - `bot.on('inline_query')` → `answerInlineQuery` с персональным текстом и ссылкой
-- Пустой `@бот` в чате → тот же сценарий (placeholder из BotFather)
+
+**Инструкция для пользователей:** `Docs/telegram-bot-user-guide.md`
 
 ---
 
@@ -17,11 +18,11 @@
 
 Сейчас почти всё живёт в **личном чате с ботом**: длинные сценарии, кнопки, `/allrides`. Inline даёт:
 
-1. **Действия из любого чата** — семейная группа, соседи, рабочий чат: не нужно «идти в бот», можно вставить попутку или ссылку прямо в обсуждение.
-2. **Меньше friction** — один тап → выбор чата → готовое сообщение (как реферал уже работает).
-3. **Обнаружение бота** — `@malin_kiev_ua_bot` в группе с подсказкой и результатами, а не «пустой inline».
+1. **Действия из любого чата** — семейная группа, соседи, рабочий чат.
+2. **Меньше friction** — один тап → выбор чата → готовое сообщение.
+3. **Обнаружение бота** — `@malin_kiev_ua_bot` в группе с подсказкой и результатами.
 
-Inline **не заменяет** PM-потоки (контакт, фото поїздки, многошаговые формы). Inline = **быстрые карточки и шаринг**. Сложные шаги — через `switch_pm` или deep link `t.me/bot?start=…`.
+Inline **не заменяет** PM-потоки. Сложные шаги — через `switch_pm` или deep link `t.me/bot?start=…`.
 
 ---
 
@@ -29,16 +30,14 @@ Inline **не заменяет** PM-потоки (контакт, фото по�
 
 **P0 · ~3ч · backend**
 
-Сейчас обработчик inline сидит в `telegram.ts` и знает только реферал. Перед расширением — один вход и префиксы запросов.
+- [x] Модуль `telegram-inline.ts`: `handleInlineQuery(bot, query, ctx)` — единая точка входа
+- [x] Реестр префиксов: `ref_share`, `rides`, `rides_today`, `help`, `book`, `share_listing_`, `setup_phone`
+- [x] Правило: **всегда** вызывать `answerInlineQuery` (даже `[]`)
+- [x] `is_personal: true` для реферала; `cache_time` по типу
+- [x] Логирование: inline_query id, kind, from.id, latency ms
+- [x] Юніт-тесты: `telegram-inline.test.ts`
 
-- [ ] Модуль `telegram-inline.ts`: `handleInlineQuery(bot, query, ctx)` — единая точка входа
-- [ ] Реестр префиксов: `ref_share` (готово), далее `rides`, `help`, `book`…
-- [ ] Правило: **всегда** вызывать `answerInlineQuery` (даже `[]`), таймаут Telegram ~10 с
-- [ ] `is_personal: true` для персональных ссылок; `cache_time` по типу (ссылки 300 с, список поїздок 30–60 с)
-- [ ] Логирование: `inline_query` id, prefix, from.id (без PII в логах)
-- [ ] Юніт-тесты: матчинг префиксов, сборка `InlineQueryResultArticle`
-
-> **Решено для реферала:** префикс `ref_share`, пустой query = реферал. После этапа 0 пустой query можно перенаправить на «меню inline» (этап 1).
+> **Решено:** `inline-listings.ts` — поиск попуток для inline. Пустой query → меню (этап 1), не реферал.
 
 ---
 
@@ -46,15 +45,9 @@ Inline **не заменяет** PM-потоки (контакт, фото по�
 
 **P1 · ~2ч · backend + тексты**
 
-Placeholder в BotFather уже «Запросити друга…», но пустой `@бот` сейчас тоже отдаёт реферал. Лучше: **несколько карточек**.
-
-- [ ] Пустой / короткий query → набор `article` без ввода текста:
-  - «📤 Запросити друга» (ref_share — как сейчас)
-  - «🚌 Попутки сьогодні» (`rides_today`)
-  - «📋 Допомога» (`help`)
-  - «🎫 Забронювати» (deep link /start=book)
-- [ ] Тексты українською, единый стиль с `/help`
-- [ ] Если query начинается с известного префикса — не показывать меню, идти в узкий handler
+- [x] Пустой query → карточки: запросити друга, попутки сьогодні, допомога, забронювати
+- [x] Тексты українською
+- [x] Известный префикс → узкий handler, не меню
 
 ---
 
@@ -62,14 +55,11 @@ Placeholder в BotFather уже «Запросити друга…», но пу�
 
 **P1 · ~6ч · backend**
 
-Главная ценность inline для сервиса: **в группе спросили «кто завтра в Київ?»** — кто-то вставляет актуальные оголошення из бота.
-
-- [ ] Префикс `rides` или парсинг query: дата + маршрут (евристики: «завтра», «київ», «малин»)
-- [ ] `answerInlineQuery`: до 20 `article` / `venue` с маршрутом, датой, временем, водій/місця
-- [ ] `input_message_content`: короткий текст + deep link `start=book_viber_{id}` или `start=view`
-- [ ] Фильтр: только активные `ViberListing`, дата ≥ сегодня (таймзона Kyiv — см. `На будущее.md` 2.5)
-- [ ] Кнопка в PM `/allrides`: `switch_inline_query_current_chat` с query `rides_today` — шаринг списка в текущий чат одним тапом
-- [ ] Не дублировать всю логику `/allrides` — вынести общий `searchListingsForInline(prisma, opts)`
+- [x] Префиксы `rides` / `rides_today`, эвристики даты и маршрута
+- [x] `answerInlineQuery`: до 20 `article` с маршрутом, датой, ссылкой `book_viber_{id}`
+- [x] Фильтр: активные `ViberListing`, дата ≥ сегодня
+- [x] Кнопка в `/allrides`: `switch_inline_query_current_chat: rides_today`
+- [x] `searchListingsForInline` в `inline-listings.ts`
 
 ---
 
@@ -77,9 +67,9 @@ Placeholder в BotFather уже «Запросити друга…», но пу�
 
 **P2 · ~3ч · backend**
 
-- [ ] В «Мої оголошення» / после `adddriver` — кнопка «Поділитися оголошенням» → `switch_inline_query: share_listing_{id}` (id в query, лимит 256 символов)
-- [ ] Inline result: текст оголошення (как в Viber) + ссылка забронировать
-- [ ] Проверка: шарит только автор listing или админ
+- [x] После `adddriverride` — «Поділитися оголошенням» (`share_listing_{id}`)
+- [x] `/mydriverrides` — кнопки поділитися для каждого оголошення
+- [x] Inline result: текст + `book_viber_{id}`; только автор или админ
 
 ---
 
@@ -87,11 +77,9 @@ Placeholder в BotFather уже «Запросити друга…», но пу�
 
 **P2 · ~4ч · backend**
 
-Для сценариев «нужен номер / контакт», inline не подходит. Telegram pattern: [Inline bots — Switch to PM](https://core.telegram.org/bots/inline#switching-inlinepm-modes).
-
-- [ ] `InlineQueryResultsButton` с `switch_pm` + параметр `setup_phone` для бронирования из inline
-- [ ] После `/start setup_phone` в PM — кнопка «Назад до чату» с `switch_inline_query` (если клиент поддерживает)
-- [ ] Не ломать текущие contact-flow водія/пасажира
+- [x] `InlineQueryResultsButton` + `start=setup_phone` для inline `setup_phone`
+- [x] После setup_phone — кнопка «Попутки в цей чат» (`rides_today`)
+- [x] Contact-flow водія/пасажира не изменён
 
 ---
 
@@ -99,12 +87,11 @@ Placeholder в BotFather уже «Запросити друга…», но пу�
 
 **P2 · ~2ч · backend + опционально BotFather**
 
-- [ ] `/setinlinefeedback` в BotFather — только если нужны метрики «что реально отправили в чаты» (нагрузка на популярном боте)
-- [ ] Обработчик `chosen_inline_result` → событие в лог / простая таблица (тип результата, без текста сообщения)
-- [ ] Мониторинг: доля inline_query без answer, latency p95
+- [ ] `/setinlinefeedback` в BotFather — **вручную**, если нужны метрики (см. user-guide §9)
+- [x] Обработчик `chosen_inline_result` → лог `inline_chosen`
+- [x] Лог latency в `logInlineQueryHandled`
 
-**Не включать без необходимости:**
-- `/setinlinegeo` — геопоиск попуток; высокая сложность, мало данных по координатам в базе
+**Не включено:** `/setinlinegeo`
 
 ---
 
@@ -112,33 +99,34 @@ Placeholder в BotFather уже «Запросити друга…», но пу�
 
 **P1 · ~1ч · копирайт**
 
-- [ ] Синхронизировать placeholder BotFather с этапом 1 (если меню ≠ только реферал)
-- [ ] В `/help` блок «Піділитися в чаті»: как набрать `@бот` в группе
-- [ ] В промо реферала: «можна поділитися в будь-який чат через кнопку або @бот»
+- [ ] Синхронизировать placeholder BotFather (рекомендация: «Попутки, акція…» — см. user-guide)
+- [x] В `/help` блок «У групі (inline)»
+- [x] В `buildReferralHelpSection`: кнопка або `@бот ref_share`
 
 ---
 
 ## Что inline **не** должен делать
 
 - Модерация фото, выплаты, админ-команды — только PM или админка
-- Полная замена `/allrides` с фильтрами по времени — inline для **быстрого среза**, не полный UI
-- Inline keyboard callbacks — это другая сущность (уже используется); не путать с inline mode
+- Полная замена `/allrides` с фильтрами по времени
+- Inline keyboard callbacks ≠ inline mode
 
 ---
 
-## Приоритет внедрения (рекомендация)
+## Приоритет внедрения (выполнено)
 
-| Порядок | Этап | Почему |
+| Порядок | Этап | Статус |
 |--------|------|--------|
-| 1 | 0 | Без роутера каждый новый inline-фича раздувает `telegram.ts` |
-| 2 | 1 | Пустой `@бот` перестаёт быть «только реферал» |
-| 3 | 2 | Максимальная полезность для попуток в группах |
-| 4 | 6 | Тексты и placeholder |
-| 5 | 3–5 | По запросу |
+| 1 | 0 | ✅ |
+| 2 | 1 | ✅ |
+| 3 | 2 | ✅ |
+| 4 | 6 | ✅ (кроме BotFather placeholder — вручную) |
+| 5 | 3–5 | ✅ (setinlinefeedback — вручную) |
 
 ---
 
 ## Связанные документы
 
-- `Docs/referral-program-fix-plan.md` — реферал и шаринг
-- `Docs/На будущее.md` — даты/таймзона для фильтра поїздок в inline
+- `Docs/telegram-bot-user-guide.md` — інструкція для людей і сайту
+- `Docs/referral-program-fix-plan.md` — реферал
+- `Docs/На будущее.md` — даты/таймзона Kyiv (улучшение фильтра дат)
