@@ -34,7 +34,7 @@ body {
   flex-direction: column;
 }
 
-/* Шапка: білий фон, синій акцент при наведенні */
+/* Шапка: білий фон; на публічних сторінках — BBC cyan brand */
 .app-nav {
   background: var(--pb-card-bg);
   border-bottom: 1px solid var(--pb-border);
@@ -45,6 +45,49 @@ body {
   box-shadow: var(--pb-shadow);
   flex-wrap: wrap;
   gap: 12px;
+}
+
+/* Публічний сайт: cyan як у BlaBlaCar; адмінка лишається на --pb-* за замовчуванням */
+.app--bbc {
+  --pb-primary: #00aff5;
+  --pb-primary-hover: #0099d9;
+  --pb-primary-active: #0087c0;
+  --pb-primary-light: rgba(0, 175, 245, 0.12);
+  --pb-primary-border: rgba(0, 175, 245, 0.35);
+  --pb-focus-ring: rgba(0, 175, 245, 0.18);
+}
+
+.app-nav--bbc {
+  border-bottom-color: rgba(0, 175, 245, 0.18);
+}
+
+.app-nav--bbc .nav-brand {
+  color: #054752 !important;
+  font-weight: 700;
+}
+
+.app-nav--bbc .nav-brand:hover {
+  color: #00aff5 !important;
+}
+
+.app-nav--bbc .nav-link:hover {
+  background: rgba(0, 175, 245, 0.12);
+  color: #0087c0;
+}
+
+.app-nav--bbc .nav-user-info {
+  background: rgba(0, 175, 245, 0.12);
+  border-color: rgba(0, 175, 245, 0.35);
+  color: #054752;
+}
+
+/* Адмінка: попередня синя палітра без cyan */
+.app-nav--admin {
+  --pb-primary: #1a73e8;
+  --pb-primary-hover: #1967d2;
+  --pb-primary-active: #185abc;
+  --pb-primary-light: #e8f0fe;
+  --pb-primary-border: rgba(26, 115, 232, 0.35);
 }
 
 .nav-left {

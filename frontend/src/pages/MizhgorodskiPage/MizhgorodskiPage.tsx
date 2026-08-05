@@ -1,8 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
-import type { Schedule, TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
+import {
+  useAnnounceDraft,
+  usePageSeo,
+  useRideShareRequest,
+  useTelegramScenarios,
+  TELEGRAM_BOT_USERNAME,
+} from '@/hooks';
+import type { Availability, Schedule, ViberListing, ViberListingType } from '@/types';
 import type { BookingCity } from '@/utils/constants';
 import {
   BOOKING_CITY_LABELS,
@@ -15,7 +22,7 @@ import {
   supportPhoneToTelLink,
 } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
-import { userState } from '@/utils/userState';
+import { BusBookingModal } from './BusBookingModal';
 import {
   CORRIDORS,
   citiesFromCorridor,
@@ -32,29 +39,6 @@ import {
 } from './mizhUtils';
 import './MizhgorodskiPage.css';
 
-const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
-const DEFAULT_TELEGRAM_SCENARIOS: TelegramScenariosResponse = {
-  enabled: true,
-  scenarios: {
-    driver: {
-      title: 'Запит на поїздку як водій',
-      command: '/adddriverride',
-      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=driver`,
-    },
-    passenger: {
-      title: 'Запит на поїздку як пасажир',
-      command: '/addpassengerride',
-      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=passenger`,
-    },
-    view: {
-      title: 'Вільний перегляд поїздок',
-      command: '/poputky',
-      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=view`,
-      webLink: 'https://malin.kiev.ua/poputky',
-    },
-  },
-};
-
 const VALID_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
 
 type ResultItem =
@@ -69,6 +53,10 @@ function parseCity(value: string | null): BookingCity | '' {
 export const MizhgorodskiPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  usePageSeo(
+    'Міжміські — попутки та маршрутки | malin.kiev.ua',
+    'https://malin.kiev.ua/mizhgorodski'
+  );
 
   const initialFrom = parseCity(searchParams.get('from')) || 'Kyiv';
   const initialTo = parseCity(searchParams.get('to')) || 'Malyn';
@@ -84,38 +72,20 @@ export const MizhgorodskiPage: React.FC = () => {
       : 'all') as TransportFilter
   );
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
-  const [hasSearched, setHasSearched] = useState(true);
-
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [availabilityById, setAvailabilityById] = useState<Record<number, Availability>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [requestError, setRequestError] = useState('');
-
   const [showOfferModal, setShowOfferModal] = useState(false);
-  const [announceRole, setAnnounceRole] = useState<'driver' | 'passenger'>('driver');
-  const [announceFrom, setAnnounceFrom] = useState<BookingCity | ''>('');
-  const [announceTo, setAnnounceTo] = useState<BookingCity | ''>('');
-  const [announceDate, setAnnounceDate] = useState('');
-  const [announceTimeFrom, setAnnounceTimeFrom] = useState('');
-  const [announceTimeTo, setAnnounceTimeTo] = useState('');
-  const [announcePrice, setAnnouncePrice] = useState('');
-  const [announceComment, setAnnounceComment] = useState('');
-  const [announceSubmitting, setAnnounceSubmitting] = useState(false);
+  const [bookingSchedule, setBookingSchedule] = useState<Schedule | null>(null);
 
-  const [requestingListingId, setRequestingListingId] = useState<number | null>(null);
-  const [confirmRequestListing, setConfirmRequestListing] = useState<ViberListing | null>(null);
-  const [showRequestStatusModal, setShowRequestStatusModal] = useState(false);
-  const [requestStatusData, setRequestStatusData] = useState<{
-    listing: ViberListing;
-    driverNotified: boolean;
-    message: string;
-  } | null>(null);
-  const [alreadyRequestedListing, setAlreadyRequestedListing] = useState<ViberListing | null>(null);
-  const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
-
-  const telegramUser = userState.getTelegramUser();
-  const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
+  const telegramScenarios = useTelegramScenarios();
+  const announce = useAnnounceDraft();
+  const rideshare = useRideShareRequest({
+    listings,
+    onNeedLogin: () => navigate('/login'),
+  });
 
   const activeCorridor: CorridorId | null = useMemo(() => {
     return corridorFromCity(fromCity === 'Malyn' ? toCity : fromCity);
@@ -131,8 +101,8 @@ export const MizhgorodskiPage: React.FC = () => {
     label: BOOKING_CITY_LABELS[p.to],
   }));
 
-  const announceToOptions = announceFrom
-    ? BOOKING_FROM_TO.filter((p) => p.from === announceFrom).map((p) => ({
+  const announceToOptions = announce.fields.from
+    ? BOOKING_FROM_TO.filter((p) => p.from === announce.fields.from).map((p) => ({
         value: p.to,
         label: BOOKING_CITY_LABELS[p.to],
       }))
@@ -143,6 +113,7 @@ export const MizhgorodskiPage: React.FC = () => {
     if (!dir) return;
     setLoading(true);
     setError('');
+    setAvailabilityById({});
     try {
       const routes = DIRECTION_ROUTES[dir] || [];
       const [allListings, scheduleBatches] = await Promise.all([
@@ -177,46 +148,72 @@ export const MizhgorodskiPage: React.FC = () => {
     };
     if (nextType !== 'all') params.type = nextType;
     setSearchParams(params, { replace: true });
-    setHasSearched(true);
     void loadResults(nextFrom, nextTo, nextDate);
   };
 
   useEffect(() => {
-    document.title = 'Міжміські — попутки та маршрутки | malin.kiev.ua';
-    return () => {
-      document.title = 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень';
-    };
-  }, []);
-
-  useEffect(() => {
     applySearch(fromCity, toCity, date, transport);
-    // initial search on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    apiClient
-      .getTelegramScenarios()
-      .then((data) => {
-        if (data?.scenarios?.driver?.deepLink && data?.scenarios?.passenger?.deepLink) {
-          setTelegramScenarios(data);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    const params: Record<string, string> = {
+      from: fromCity,
+      to: toCity,
+      date,
+    };
+    if (transport !== 'all') params.type = transport;
+    setSearchParams(params, { replace: true });
+  }, [transport, fromCity, toCity, date, setSearchParams]);
+
+  useEffect(() => {
+    if (!schedules.length || !date) {
+      setAvailabilityById({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        schedules.map(async (schedule) => {
+          try {
+            const availability = await apiClient.checkAvailability(
+              schedule.route,
+              schedule.departureTime,
+              date
+            );
+            return [schedule.id, availability] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      const map: Record<number, Availability> = {};
+      for (const entry of entries) {
+        if (entry) map[entry[0]] = entry[1];
+      }
+      setAvailabilityById(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [schedules, date]);
 
   const anyModalOpen =
-    showOfferModal || !!confirmRequestListing || showRequestStatusModal || !!alreadyRequestedListing;
+    showOfferModal ||
+    !!rideshare.confirmRequestListing ||
+    rideshare.showRequestStatusModal ||
+    !!rideshare.alreadyRequestedListing;
 
   useEffect(() => {
     if (!anyModalOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setShowOfferModal(false);
-      setConfirmRequestListing(null);
-      setShowRequestStatusModal(false);
-      setRequestStatusData(null);
-      setAlreadyRequestedListing(null);
+      rideshare.setConfirmRequestListing(null);
+      rideshare.setShowRequestStatusModal(false);
+      rideshare.setRequestStatusData(null);
+      rideshare.setAlreadyRequestedListing(null);
     };
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -225,35 +222,17 @@ export const MizhgorodskiPage: React.FC = () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyModalOpen]);
 
-  useEffect(() => {
-    if (!hasSearched) return;
-    const params: Record<string, string> = {
+  const openOfferModal = (role: 'driver' | 'passenger' = 'driver') => {
+    announce.reset({
+      role,
       from: fromCity,
       to: toCity,
-      date,
-    };
-    if (transport !== 'all') params.type = transport;
-    setSearchParams(params, { replace: true });
-  }, [transport, hasSearched, fromCity, toCity, date, setSearchParams]);
-
-  useEffect(() => {
-    if (announceFrom && announceTo && !getDirectionFromCities(announceFrom, announceTo)) {
-      setAnnounceTo('');
-    }
-  }, [announceFrom, announceTo]);
-
-  const openOfferModal = (role: 'driver' | 'passenger' = 'driver') => {
-    setAnnounceRole(role);
-    setAnnounceFrom(fromCity);
-    setAnnounceTo(toCity);
-    setAnnounceDate(date || todayISO());
-    setAnnounceTimeFrom('');
-    setAnnounceTimeTo('');
-    setAnnouncePrice('');
-    setAnnounceComment('');
-    setRequestError('');
+      date: date || todayISO(),
+    });
+    rideshare.setRequestError('');
     setShowOfferModal(true);
   };
 
@@ -285,74 +264,12 @@ export const MizhgorodskiPage: React.FC = () => {
 
   const handlePublishAnnounce = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!announceFrom || !announceTo) {
-      setRequestError('Оберіть звідки та куди. Маршрути лише з/до Малина.');
-      return;
-    }
-    if (!announceDate) {
-      setRequestError('Вкажіть дату поїздки');
-      return;
-    }
-    const priceValue = announcePrice.trim();
-    const priceUah = priceValue ? Number.parseInt(priceValue, 10) : undefined;
-    setRequestError('');
-    setAnnounceSubmitting(true);
-    const timeFrom = announceTimeFrom.trim();
-    const timeTo = announceTimeTo.trim();
-    const timeValue = timeFrom && timeTo ? `${timeFrom}-${timeTo}` : timeFrom || timeTo || undefined;
-    try {
-      const { deepLink } = await apiClient.createAnnounceDraft({
-        role: announceRole,
-        from: announceFrom,
-        to: announceTo,
-        date: announceDate,
-        time: timeValue,
-        priceUah,
-        notes: announceComment.trim() || undefined,
-      });
-      window.open(deepLink, '_blank', 'noopener,noreferrer');
-      setShowOfferModal(false);
-    } catch (err) {
-      setRequestError(err instanceof Error ? err.message : 'Не вдалося створити оголошення. Спробуйте пізніше.');
-    } finally {
-      setAnnounceSubmitting(false);
-    }
-  };
-
-  const handleRequestRide = async (driverListingId: number) => {
-    if (!telegramUser?.id) {
-      navigate('/login');
-      return;
-    }
-    setRequestError('');
-    setRequestingListingId(driverListingId);
-    try {
-      const result = await apiClient.createRideShareRequestFromSite(driverListingId, telegramUser.id.toString());
-      const selectedListing = listings.find((item) => item.id === driverListingId) || null;
-      if (selectedListing) {
-        setRequestStatusData({
-          listing: selectedListing,
-          driverNotified: result.driverNotified,
-          message: result.message,
-        });
-        setShowRequestStatusModal(true);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Не вдалося створити запит на попутку';
-      if (message.includes('Ви вже надсилали запит')) {
-        const listing = listings.find((item) => item.id === driverListingId) || null;
-        if (listing) setAlreadyRequestedListing(listing);
-      } else {
-        setRequestError(message);
-      }
-    } finally {
-      setRequestingListingId(null);
-    }
+    const ok = await announce.publish();
+    if (ok) setShowOfferModal(false);
   };
 
   const results: ResultItem[] = useMemo(() => {
     const items: ResultItem[] = [];
-
     if (transport !== 'bus') {
       for (const listing of listings) {
         if (listingType && listing.listingType !== listingType) continue;
@@ -364,7 +281,6 @@ export const MizhgorodskiPage: React.FC = () => {
         });
       }
     }
-
     if (transport !== 'carpool') {
       for (const schedule of schedules) {
         items.push({
@@ -375,7 +291,6 @@ export const MizhgorodskiPage: React.FC = () => {
         });
       }
     }
-
     items.sort((a, b) => a.sortMinutes - b.sortMinutes);
     return items;
   }, [listings, schedules, transport, listingType]);
@@ -435,13 +350,7 @@ export const MizhgorodskiPage: React.FC = () => {
                 </select>
               </label>
 
-              <button
-                type="button"
-                className="mizh-swap-btn"
-                onClick={handleSwap}
-                aria-label="Поміняти місцями"
-                title="Поміняти місцями"
-              >
+              <button type="button" className="mizh-swap-btn" onClick={handleSwap} aria-label="Поміняти місцями">
                 ⇄
               </button>
 
@@ -475,6 +384,7 @@ export const MizhgorodskiPage: React.FC = () => {
                 {loading ? 'Шукаємо…' : 'Шукати'}
               </button>
             </div>
+
             <div className="mizh-date-chips" role="group" aria-label="Швидка дата">
               <button
                 type="button"
@@ -509,9 +419,9 @@ export const MizhgorodskiPage: React.FC = () => {
           <div className="mizh-transport-tabs" role="tablist" aria-label="Тип транспорту">
             {(
               [
-                { id: 'all', label: `Усі${hasSearched ? ` · ${carpoolCount + busCount}` : ''}` },
-                { id: 'carpool', label: `Попутки${hasSearched ? ` · ${carpoolCount}` : ''}` },
-                { id: 'bus', label: `Маршрутки${hasSearched ? ` · ${busCount}` : ''}` },
+                { id: 'all', label: `Усі · ${carpoolCount + busCount}` },
+                { id: 'carpool', label: `Попутки · ${carpoolCount}` },
+                { id: 'bus', label: `Маршрутки · ${busCount}` },
               ] as const
             ).map((tab) => (
               <button
@@ -527,54 +437,46 @@ export const MizhgorodskiPage: React.FC = () => {
             ))}
           </div>
           <div className="mizh-stats">
-            {hasSearched ? (
-              <>
-                <strong>
-                  {cityLabel(fromCity)} → {cityLabel(toCity)}
-                </strong>
-                {' · '}
-                {formatTripDate(date)}
-              </>
-            ) : (
-              'Оберіть маршрут і натисніть «Шукати»'
-            )}
+            <strong>
+              {cityLabel(fromCity)} → {cityLabel(toCity)}
+            </strong>
+            {' · '}
+            {formatTripDate(date)}
           </div>
         </div>
 
-        {hasSearched && (
-          <div className="mizh-side-filters">
-            {transport !== 'bus' && (
-              <select
-                className="mizh-field-control"
-                value={listingType}
-                onChange={(e) => setListingType(e.target.value as ViberListingType | '')}
-                aria-label="Тип оголошення"
-              >
-                <option value="">Водії і пасажири</option>
-                <option value="driver">Лише водії</option>
-                <option value="passenger">Лише пасажири</option>
-              </select>
-            )}
-            <button type="button" className="mizh-filter-btn" onClick={() => applySearch()} disabled={loading}>
-              Оновити
-            </button>
-            <button type="button" className="mizh-filter-btn" onClick={() => openOfferModal('passenger')}>
-              Шукаю попутку
-            </button>
-            <a
-              href={telegramScenarios.scenarios.view.deepLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mizh-filter-btn mizh-filter-btn--link"
+        <div className="mizh-side-filters">
+          {transport !== 'bus' && (
+            <select
+              className="mizh-field-control"
+              value={listingType}
+              onChange={(e) => setListingType(e.target.value as ViberListingType | '')}
+              aria-label="Тип оголошення"
             >
-              У Telegram
-            </a>
-          </div>
-        )}
+              <option value="">Водії і пасажири</option>
+              <option value="driver">Лише водії</option>
+              <option value="passenger">Лише пасажири</option>
+            </select>
+          )}
+          <button type="button" className="mizh-filter-btn" onClick={() => applySearch()} disabled={loading}>
+            Оновити
+          </button>
+          <button type="button" className="mizh-filter-btn" onClick={() => openOfferModal('passenger')}>
+            Шукаю попутку
+          </button>
+          <a
+            href={telegramScenarios.scenarios.view.deepLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mizh-filter-btn mizh-filter-btn--link"
+          >
+            У Telegram
+          </a>
+        </div>
 
         {error && <Alert variant="error">{error}</Alert>}
-        {requestError && !showOfferModal && <Alert variant="error">{requestError}</Alert>}
-        {hasSearched && !isTelegramLoggedIn && (
+        {rideshare.requestError && !showOfferModal && <Alert variant="error">{rideshare.requestError}</Alert>}
+        {!rideshare.isTelegramLoggedIn && (
           <Alert variant="info">Увійдіть через Telegram, щоб бронювати місце у водія прямо на сайті.</Alert>
         )}
 
@@ -640,16 +542,16 @@ export const MizhgorodskiPage: React.FC = () => {
                         )}
                       </div>
                       <div className="mizh-card-actions">
-                        {item.listing.listingType === 'driver' && isTelegramLoggedIn ? (
+                        {item.listing.listingType === 'driver' && rideshare.isTelegramLoggedIn ? (
                           <button
                             type="button"
                             className="mizh-card-cta mizh-card-cta--primary"
-                            onClick={() => setConfirmRequestListing(item.listing)}
-                            disabled={requestingListingId === item.listing.id}
+                            onClick={() => rideshare.setConfirmRequestListing(item.listing)}
+                            disabled={rideshare.requestingListingId === item.listing.id}
                           >
-                            {requestingListingId === item.listing.id ? 'Надсилаємо…' : 'Бронювання'}
+                            {rideshare.requestingListingId === item.listing.id ? 'Надсилаємо…' : 'Бронювання'}
                           </button>
-                        ) : item.listing.listingType === 'driver' && !isTelegramLoggedIn ? (
+                        ) : item.listing.listingType === 'driver' && !rideshare.isTelegramLoggedIn ? (
                           <>
                             <a
                               href={listingContactHref(item.listing.phone)}
@@ -705,22 +607,38 @@ export const MizhgorodskiPage: React.FC = () => {
                     <div className="mizh-card-meta">
                       <div className="mizh-card-bus-title">Регулярний рейс</div>
                       <div className="mizh-card-role">
-                        До {item.schedule.maxSeats} місць
+                        {availabilityById[item.schedule.id] ? (
+                          <>
+                            Вільних: {availabilityById[item.schedule.id].availableSeats} з{' '}
+                            {availabilityById[item.schedule.id].maxSeats}
+                          </>
+                        ) : (
+                          <>До {item.schedule.maxSeats} місць</>
+                        )}
                         {getRouteSuffix(item.schedule.route) ? ` · ${getRouteSuffix(item.schedule.route)}` : ''}
                       </div>
                       <div className="mizh-card-route-hint">{formatRouteLabel(item.schedule.route)}</div>
                     </div>
                     <div className="mizh-card-aside">
                       <div className="mizh-card-price mizh-card-price--soft">
-                        <strong>за розкладом</strong>
+                        {availabilityById[item.schedule.id] && !availabilityById[item.schedule.id].isAvailable ? (
+                          <strong>немає місць</strong>
+                        ) : (
+                          <strong>за розкладом</strong>
+                        )}
                       </div>
                       <div className="mizh-card-actions">
-                        <Link
-                          to={`/booking?from=${fromCity}&to=${toCity}`}
+                        <button
+                          type="button"
                           className="mizh-card-cta mizh-card-cta--bus"
+                          onClick={() => setBookingSchedule(item.schedule)}
+                          disabled={
+                            availabilityById[item.schedule.id] != null &&
+                            !availabilityById[item.schedule.id].isAvailable
+                          }
                         >
                           Забронювати
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -749,15 +667,15 @@ export const MizhgorodskiPage: React.FC = () => {
             <div className="mizh-role-toggle">
               <button
                 type="button"
-                className={`mizh-role-btn ${announceRole === 'driver' ? 'mizh-role-btn--active' : ''}`}
-                onClick={() => setAnnounceRole('driver')}
+                className={`mizh-role-btn ${announce.fields.role === 'driver' ? 'mizh-role-btn--active' : ''}`}
+                onClick={() => announce.patch({ role: 'driver' })}
               >
                 Я водій
               </button>
               <button
                 type="button"
-                className={`mizh-role-btn ${announceRole === 'passenger' ? 'mizh-role-btn--active' : ''}`}
-                onClick={() => setAnnounceRole('passenger')}
+                className={`mizh-role-btn ${announce.fields.role === 'passenger' ? 'mizh-role-btn--active' : ''}`}
+                onClick={() => announce.patch({ role: 'passenger' })}
               >
                 Я пасажир
               </button>
@@ -769,11 +687,13 @@ export const MizhgorodskiPage: React.FC = () => {
                   <span className="mizh-field-label">Звідки</span>
                   <select
                     className="mizh-field-control"
-                    value={announceFrom}
-                    onChange={(e) => {
-                      setAnnounceFrom((e.target.value || '') as BookingCity | '');
-                      setAnnounceTo('');
-                    }}
+                    value={announce.fields.from}
+                    onChange={(e) =>
+                      announce.patch({
+                        from: (e.target.value || '') as BookingCity | '',
+                        to: '',
+                      })
+                    }
                     required
                   >
                     <option value="">Оберіть</option>
@@ -788,9 +708,9 @@ export const MizhgorodskiPage: React.FC = () => {
                   <span className="mizh-field-label">Куди</span>
                   <select
                     className="mizh-field-control"
-                    value={announceTo}
-                    onChange={(e) => setAnnounceTo((e.target.value || '') as BookingCity | '')}
-                    disabled={!announceFrom}
+                    value={announce.fields.to}
+                    onChange={(e) => announce.patch({ to: (e.target.value || '') as BookingCity | '' })}
+                    disabled={!announce.fields.from}
                     required
                   >
                     <option value="">Оберіть</option>
@@ -808,9 +728,9 @@ export const MizhgorodskiPage: React.FC = () => {
                 <input
                   type="date"
                   className="mizh-field-control"
-                  value={announceDate}
+                  value={announce.fields.date}
                   min={todayISO()}
-                  onChange={(e) => setAnnounceDate(e.target.value)}
+                  onChange={(e) => announce.patch({ date: e.target.value })}
                   required
                 />
               </label>
@@ -821,8 +741,8 @@ export const MizhgorodskiPage: React.FC = () => {
                   <input
                     type="time"
                     className="mizh-field-control"
-                    value={announceTimeFrom}
-                    onChange={(e) => setAnnounceTimeFrom(e.target.value)}
+                    value={announce.fields.timeFrom}
+                    onChange={(e) => announce.patch({ timeFrom: e.target.value })}
                   />
                 </label>
                 <label className="mizh-field">
@@ -830,21 +750,21 @@ export const MizhgorodskiPage: React.FC = () => {
                   <input
                     type="time"
                     className="mizh-field-control"
-                    value={announceTimeTo}
-                    onChange={(e) => setAnnounceTimeTo(e.target.value)}
+                    value={announce.fields.timeTo}
+                    onChange={(e) => announce.patch({ timeTo: e.target.value })}
                   />
                 </label>
               </div>
 
-              {announceRole === 'driver' && (
+              {announce.fields.role === 'driver' && (
                 <label className="mizh-field">
                   <span className="mizh-field-label">Ціна, грн (опц.)</span>
                   <input
                     type="number"
                     min={0}
                     className="mizh-field-control"
-                    value={announcePrice}
-                    onChange={(e) => setAnnouncePrice(e.target.value)}
+                    value={announce.fields.price}
+                    onChange={(e) => announce.patch({ price: e.target.value })}
                     placeholder="наприклад 150"
                   />
                 </label>
@@ -855,16 +775,16 @@ export const MizhgorodskiPage: React.FC = () => {
                 <textarea
                   className="mizh-field-control mizh-field-textarea"
                   rows={3}
-                  value={announceComment}
-                  onChange={(e) => setAnnounceComment(e.target.value)}
+                  value={announce.fields.comment}
+                  onChange={(e) => announce.patch({ comment: e.target.value })}
                   placeholder="Додаткова інформація…"
                 />
               </label>
 
-              {requestError && <Alert variant="error">{requestError}</Alert>}
+              {announce.error && <Alert variant="error">{announce.error}</Alert>}
 
-              <button type="submit" className="mizh-offer-submit" disabled={announceSubmitting}>
-                {announceSubmitting ? 'Готуємо посилання…' : 'Опублікувати в Telegram'}
+              <button type="submit" className="mizh-offer-submit" disabled={announce.submitting}>
+                {announce.submitting ? 'Готуємо посилання…' : 'Опублікувати в Telegram'}
               </button>
               <p className="mizh-search-hint">
                 Дані підуть у бота — залишиться підтвердити або вказати телефон. Посилання діє 15 хв.
@@ -874,29 +794,34 @@ export const MizhgorodskiPage: React.FC = () => {
         </div>
       )}
 
-      {confirmRequestListing && (
+      {rideshare.confirmRequestListing && (
         <div className="mizh-modal-overlay">
           <div className="mizh-modal">
-            <button type="button" className="mizh-modal-close" onClick={() => setConfirmRequestListing(null)} aria-label="Закрити">
+            <button
+              type="button"
+              className="mizh-modal-close"
+              onClick={() => rideshare.setConfirmRequestListing(null)}
+              aria-label="Закрити"
+            >
               ×
             </button>
             <h3>Створити заявку на поїздку?</h3>
             <p className="mizh-modal-subtitle">Водію буде надіслано запит від вашого імені.</p>
             <div className="mizh-modal-details">
               <div>
-                <strong>Маршрут:</strong> {formatRouteLabel(confirmRequestListing.route)}
+                <strong>Маршрут:</strong> {formatRouteLabel(rideshare.confirmRequestListing.route)}
               </div>
               <div>
-                <strong>Дата:</strong> {formatTripDate(confirmRequestListing.date)}
+                <strong>Дата:</strong> {formatTripDate(rideshare.confirmRequestListing.date)}
               </div>
-              {confirmRequestListing.departureTime && (
+              {rideshare.confirmRequestListing.departureTime && (
                 <div>
-                  <strong>Час:</strong> {confirmRequestListing.departureTime}
+                  <strong>Час:</strong> {rideshare.confirmRequestListing.departureTime}
                 </div>
               )}
-              {confirmRequestListing.senderName && (
+              {rideshare.confirmRequestListing.senderName && (
                 <div>
-                  <strong>Водій:</strong> {maskSenderNameForDisplay(confirmRequestListing.senderName)}
+                  <strong>Водій:</strong> {maskSenderNameForDisplay(rideshare.confirmRequestListing.senderName)}
                 </div>
               )}
             </div>
@@ -905,14 +830,18 @@ export const MizhgorodskiPage: React.FC = () => {
                 type="button"
                 className="mizh-offer-submit"
                 onClick={async () => {
-                  const id = confirmRequestListing.id;
-                  setConfirmRequestListing(null);
-                  await handleRequestRide(id);
+                  const id = rideshare.confirmRequestListing!.id;
+                  rideshare.setConfirmRequestListing(null);
+                  await rideshare.requestRide(id);
                 }}
               >
                 Так, створити заявку
               </button>
-              <button type="button" className="mizh-card-cta mizh-card-cta--ghost" onClick={() => setConfirmRequestListing(null)}>
+              <button
+                type="button"
+                className="mizh-card-cta mizh-card-cta--ghost"
+                onClick={() => rideshare.setConfirmRequestListing(null)}
+              >
                 Скасувати
               </button>
             </div>
@@ -920,36 +849,27 @@ export const MizhgorodskiPage: React.FC = () => {
         </div>
       )}
 
-      {showRequestStatusModal && requestStatusData && (
+      {rideshare.showRequestStatusModal && rideshare.requestStatusData && (
         <div className="mizh-modal-overlay">
           <div className="mizh-modal">
-            <button
-              type="button"
-              className="mizh-modal-close"
-              onClick={() => {
-                setShowRequestStatusModal(false);
-                setRequestStatusData(null);
-              }}
-              aria-label="Закрити"
-            >
+            <button type="button" className="mizh-modal-close" onClick={rideshare.closeStatusModals} aria-label="Закрити">
               ×
             </button>
-            <h3>{requestStatusData.driverNotified ? 'Запит надіслано водію' : 'Водій ще не підключений до Telegram'}</h3>
-            <p className="mizh-modal-subtitle">{requestStatusData.message}</p>
+            <h3>
+              {rideshare.requestStatusData.driverNotified
+                ? 'Запит надіслано водію'
+                : 'Водій ще не підключений до Telegram'}
+            </h3>
+            <p className="mizh-modal-subtitle">{rideshare.requestStatusData.message}</p>
             <div className="mizh-modal-details">
               <div>
-                <strong>Маршрут:</strong> {formatRouteLabel(requestStatusData.listing.route)}
+                <strong>Маршрут:</strong> {formatRouteLabel(rideshare.requestStatusData.listing.route)}
               </div>
               <div>
-                <strong>Дата:</strong> {formatTripDate(requestStatusData.listing.date)}
+                <strong>Дата:</strong> {formatTripDate(rideshare.requestStatusData.listing.date)}
               </div>
-              {requestStatusData.listing.departureTime && (
-                <div>
-                  <strong>Час:</strong> {requestStatusData.listing.departureTime}
-                </div>
-              )}
             </div>
-            {requestStatusData.driverNotified ? (
+            {rideshare.requestStatusData.driverNotified ? (
               <a
                 href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
                 target="_blank"
@@ -960,26 +880,27 @@ export const MizhgorodskiPage: React.FC = () => {
               </a>
             ) : (
               <a
-                href={listingContactHref(requestStatusData.listing.phone)}
+                href={listingContactHref(rideshare.requestStatusData.listing.phone)}
                 className="mizh-offer-submit mizh-offer-submit--link"
-                {...(requestStatusData.listing.phone.trim().startsWith('@')
+                {...(rideshare.requestStatusData.listing.phone.trim().startsWith('@')
                   ? { target: '_blank', rel: 'noopener noreferrer' }
                   : {})}
               >
-                Зателефонувати: {formatListingContactDisplay(requestStatusData.listing.phone)}
+                Зателефонувати:{' '}
+                {formatListingContactDisplay(rideshare.requestStatusData.listing.phone)}
               </a>
             )}
           </div>
         </div>
       )}
 
-      {alreadyRequestedListing && (
+      {rideshare.alreadyRequestedListing && (
         <div className="mizh-modal-overlay">
           <div className="mizh-modal">
             <button
               type="button"
               className="mizh-modal-close"
-              onClick={() => setAlreadyRequestedListing(null)}
+              onClick={() => rideshare.setAlreadyRequestedListing(null)}
               aria-label="Закрити"
             >
               ×
@@ -988,14 +909,6 @@ export const MizhgorodskiPage: React.FC = () => {
             <p className="mizh-modal-subtitle">
               Ви вже надсилали запит цьому водію на цей маршрут і дату. Очікуйте підтвердження в Telegram.
             </p>
-            <div className="mizh-modal-details">
-              <div>
-                <strong>Маршрут:</strong> {formatRouteLabel(alreadyRequestedListing.route)}
-              </div>
-              <div>
-                <strong>Дата:</strong> {formatTripDate(alreadyRequestedListing.date)}
-              </div>
-            </div>
             <a
               href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
               target="_blank"
@@ -1004,11 +917,28 @@ export const MizhgorodskiPage: React.FC = () => {
             >
               Перевірити через Telegram
             </a>
-            <a href={supportPhoneToTelLink(alreadyRequestedListing.phone)} className="mizh-card-cta mizh-card-cta--ghost">
+            <a
+              href={supportPhoneToTelLink(rideshare.alreadyRequestedListing.phone)}
+              className="mizh-card-cta mizh-card-cta--ghost"
+            >
               Зателефонувати
             </a>
           </div>
         </div>
+      )}
+
+      {bookingSchedule && (
+        <BusBookingModal
+          schedule={bookingSchedule}
+          date={date}
+          fromCity={fromCity}
+          toCity={toCity}
+          initialAvailability={availabilityById[bookingSchedule.id] ?? null}
+          onClose={() => {
+            setBookingSchedule(null);
+            void loadResults(fromCity, toCity, date);
+          }}
+        />
       )}
     </div>
   );

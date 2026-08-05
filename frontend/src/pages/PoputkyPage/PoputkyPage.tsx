@@ -2,43 +2,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
-import type { TelegramScenariosResponse, ViberListing, ViberListingType } from '@/types';
+import {
+  useAnnounceDraft,
+  useRideShareRequest,
+  useTelegramScenarios,
+  TELEGRAM_BOT_USERNAME,
+} from '@/hooks';
+import type { ViberListing, ViberListingType } from '@/types';
 import {
   formatListingContactDisplay,
-  // formatPhoneDisplay,
   listingContactHref,
   supportPhoneToTelLink,
   BOOKING_CITY_LABELS,
   BOOKING_FROM_TO,
-  getDirectionFromCities,
 } from '@/utils/constants';
 import type { BookingCity } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
-import { userState } from '@/utils/userState';
 import './PoputkyPage.css';
-
-const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
-const DEFAULT_TELEGRAM_SCENARIOS: TelegramScenariosResponse = {
-  enabled: true,
-  scenarios: {
-    driver: {
-      title: 'Запит на поїздку як водій',
-      command: '/adddriverride',
-      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=driver`,
-    },
-    passenger: {
-      title: 'Запит на поїздку як пасажир',
-      command: '/addpassengerride',
-      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=passenger`,
-    },
-    view: {
-      title: 'Вільний перегляд поїздок',
-      command: '/poputky',
-      deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=view`,
-      webLink: 'https://malin.kiev.ua/poputky',
-    },
-  },
-};
 
 type RouteTab = 'kyiv' | 'zhytomyr' | 'korosten';
 
@@ -95,42 +75,41 @@ export const PoputkyPage: React.FC = () => {
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [requestError, setRequestError] = useState('');
-  const [requestingListingId, setRequestingListingId] = useState<number | null>(null);
-  const [showRequestStatusModal, setShowRequestStatusModal] = useState(false);
-  const [requestStatusData, setRequestStatusData] = useState<{
-    listing: ViberListing;
-    driverNotified: boolean;
-    message: string;
-  } | null>(null);
-  const [alreadyRequestedListing, setAlreadyRequestedListing] = useState<ViberListing | null>(null);
-  const [confirmRequestListing, setConfirmRequestListing] = useState<ViberListing | null>(null);
-  const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
   const [routeTab, setRouteTab] = useState<RouteTab>('kyiv');
   const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
-  const [announcePrice, setAnnouncePrice] = useState('');
   const [tripDate, setTripDate] = useState('');
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
   const [sortByTime, setSortByTime] = useState<'asc' | 'desc'>('asc');
-  const [announceRole, setAnnounceRole] = useState<'driver' | 'passenger'>('driver');
-  const [announceFrom, setAnnounceFrom] = useState<BookingCity | ''>('');
-  const [announceTo, setAnnounceTo] = useState<BookingCity | ''>('');
-  const [announceDate, setAnnounceDate] = useState('');
-  const [announceTimeFrom, setAnnounceTimeFrom] = useState('');
-  const [announceTimeTo, setAnnounceTimeTo] = useState('');
-  const [announceComment, setAnnounceComment] = useState('');
-  const [announceSubmitting, setAnnounceSubmitting] = useState(false);
-  const telegramUser = userState.getTelegramUser();
-  const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
+
+  const telegramScenarios = useTelegramScenarios();
+  const announce = useAnnounceDraft();
+  const rideshare = useRideShareRequest({
+    listings,
+    onNeedLogin: () => navigate('/login'),
+  });
+  const {
+    isTelegramLoggedIn,
+    requestingListingId,
+    confirmRequestListing,
+    setConfirmRequestListing,
+    showRequestStatusModal,
+    setShowRequestStatusModal,
+    requestStatusData,
+    setRequestStatusData,
+    alreadyRequestedListing,
+    setAlreadyRequestedListing,
+    requestError,
+    requestRide,
+  } = rideshare;
 
   const fromCityOptions = (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
     value,
     label,
   }));
 
-  const toCityOptions = announceFrom
-    ? BOOKING_FROM_TO.filter((p) => p.from === announceFrom).map((p) => ({
+  const toCityOptions = announce.fields.from
+    ? BOOKING_FROM_TO.filter((p) => p.from === announce.fields.from).map((p) => ({
         value: p.to,
         label: BOOKING_CITY_LABELS[p.to],
       }))
@@ -140,12 +119,6 @@ export const PoputkyPage: React.FC = () => {
     const id = window.setTimeout(() => setQuery(queryInput), 220);
     return () => window.clearTimeout(id);
   }, [queryInput]);
-
-  useEffect(() => {
-    if (announceFrom && announceTo && !getDirectionFromCities(announceFrom, announceTo)) {
-      setAnnounceTo('');
-    }
-  }, [announceFrom, announceTo]);
 
   const loadPoputky = async () => {
     setLoading(true);
@@ -162,20 +135,6 @@ export const PoputkyPage: React.FC = () => {
 
   useEffect(() => {
     loadPoputky();
-  }, []);
-
-  useEffect(() => {
-    const loadTelegramScenarios = async () => {
-      try {
-        const data = await apiClient.getTelegramScenarios();
-        if (data?.scenarios?.driver?.deepLink && data?.scenarios?.passenger?.deepLink && data?.scenarios?.view?.deepLink) {
-          setTelegramScenarios(data);
-        }
-      } catch {
-        // Non-blocking
-      }
-    };
-    loadTelegramScenarios();
   }, []);
 
   const filteredListings = useMemo(() => {
@@ -220,72 +179,9 @@ export const PoputkyPage: React.FC = () => {
     setSortByTime('asc');
   };
 
-  const handleRequestRide = async (driverListingId: number) => {
-    if (!telegramUser?.id) {
-      navigate('/login');
-      return;
-    }
-    setRequestError('');
-    setRequestingListingId(driverListingId);
-    try {
-      const result = await apiClient.createRideShareRequestFromSite(driverListingId, telegramUser.id.toString());
-      const selectedListing = listings.find((item) => item.id === driverListingId) || null;
-      if (selectedListing) {
-        setRequestStatusData({
-          listing: selectedListing,
-          driverNotified: result.driverNotified,
-          message: result.message,
-        });
-        setShowRequestStatusModal(true);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Не вдалося створити запит на попутку';
-      if (message.includes('Ви вже надсилали запит')) {
-        const listing = listings.find((item) => item.id === driverListingId) || null;
-        if (listing) setAlreadyRequestedListing(listing);
-      } else {
-        setRequestError(message);
-      }
-    } finally {
-      setRequestingListingId(null);
-    }
-  };
-
   const handlePublishAnnounce = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!announceFrom || !announceTo) {
-      setRequestError('Оберіть звідки та куди. Маршрути лише з/до Малина.');
-      return;
-    }
-    if (!announceDate) {
-      setRequestError('Вкажіть дату поїздки');
-      return;
-    }
-    const priceValue = announcePrice.trim();
-    const priceUah = priceValue ? Number.parseInt(priceValue, 10) : undefined;
-    setRequestError('');
-    setAnnounceSubmitting(true);
-    const timeFrom = announceTimeFrom.trim();
-    const timeTo = announceTimeTo.trim();
-    const timeValue = timeFrom && timeTo
-      ? `${timeFrom}-${timeTo}`
-      : timeFrom || timeTo || undefined;
-    try {
-      const { deepLink } = await apiClient.createAnnounceDraft({
-        role: announceRole,
-        from: announceFrom,
-        to: announceTo,
-        date: announceDate,
-        time: timeValue,
-        priceUah,
-        notes: announceComment.trim() || undefined,
-      });
-      window.open(deepLink, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      setRequestError(err instanceof Error ? err.message : 'Не вдалося створити оголошення. Спробуйте пізніше.');
-    } finally {
-      setAnnounceSubmitting(false);
-    }
+    await announce.publish();
   };
 
   const listRef = React.useRef<HTMLDivElement>(null);
@@ -502,15 +398,15 @@ export const PoputkyPage: React.FC = () => {
               <div className="poputky-role-toggle">
                 <button
                   type="button"
-                  className={`poputky-role-btn ${announceRole === 'driver' ? 'poputky-role-btn--active' : ''}`}
-                  onClick={() => setAnnounceRole('driver')}
+                  className={`poputky-role-btn ${announce.fields.role === 'driver' ? 'poputky-role-btn--active' : ''}`}
+                  onClick={() => announce.patch({ role: 'driver' })}
                 >
                   Я Водій
                 </button>
                 <button
                   type="button"
-                  className={`poputky-role-btn ${announceRole === 'passenger' ? 'poputky-role-btn--active' : ''}`}
-                  onClick={() => setAnnounceRole('passenger')}
+                  className={`poputky-role-btn ${announce.fields.role === 'passenger' ? 'poputky-role-btn--active' : ''}`}
+                  onClick={() => announce.patch({ role: 'passenger' })}
                 >
                   Я Пасажир
                 </button>
@@ -521,11 +417,12 @@ export const PoputkyPage: React.FC = () => {
                     <label className="poputky-form-label">
                       Звідки:
                       <select
-                        value={announceFrom}
+                        value={announce.fields.from}
                         onChange={(e) => {
-                          const next = (e.target.value || '') as BookingCity | '';
-                          setAnnounceFrom(next);
-                          setAnnounceTo('');
+                          announce.patch({
+                            from: (e.target.value || '') as BookingCity | '',
+                            to: '',
+                          });
                         }}
                         className="poputky-form-input"
                       >
@@ -541,10 +438,10 @@ export const PoputkyPage: React.FC = () => {
                     <label className="poputky-form-label">
                       Куди:
                       <select
-                        value={announceTo}
-                        onChange={(e) => setAnnounceTo((e.target.value || '') as BookingCity | '')}
+                        value={announce.fields.to}
+                        onChange={(e) => announce.patch({ to: (e.target.value || '') as BookingCity | '' })}
                         className="poputky-form-input"
-                        disabled={!announceFrom}
+                        disabled={!announce.fields.from}
                       >
                         <option value="">Оберіть</option>
                         {toCityOptions.map((opt) => (
@@ -561,8 +458,8 @@ export const PoputkyPage: React.FC = () => {
                   Дата поїздки:
                   <input
                     type="date"
-                    value={announceDate}
-                    onChange={(e) => setAnnounceDate(e.target.value)}
+                    value={announce.fields.date}
+                    onChange={(e) => announce.patch({ date: e.target.value })}
                     className="poputky-form-input"
                   />
                 </label>
@@ -570,8 +467,8 @@ export const PoputkyPage: React.FC = () => {
                   Час відправлення:
                   <input
                     type="time"
-                    value={announceTimeFrom}
-                    onChange={(e) => setAnnounceTimeFrom(e.target.value)}
+                    value={announce.fields.timeFrom}
+                    onChange={(e) => announce.patch({ timeFrom: e.target.value })}
                     className="poputky-form-input"
                   />
                 </label>
@@ -579,25 +476,25 @@ export const PoputkyPage: React.FC = () => {
                   До (крайній час, опціонально):
                   <input
                     type="time"
-                    value={announceTimeTo}
-                    onChange={(e) => setAnnounceTimeTo(e.target.value)}
+                    value={announce.fields.timeTo}
+                    onChange={(e) => announce.patch({ timeTo: e.target.value })}
                     className="poputky-form-input"
                   />
                 </label>
-                {((announceTimeFrom && !announceTimeTo) || (!announceTimeFrom && announceTimeTo)) && (
+                {((announce.fields.timeFrom && !announce.fields.timeTo) || (!announce.fields.timeFrom && announce.fields.timeTo)) && (
                   <p className="poputky-form-hint poputky-form-hint--inline">Одне поле — точний час відправки</p>
                 )}
-                {announceTimeFrom && announceTimeTo && (
-                  <p className="poputky-form-hint poputky-form-hint--inline">Обидва — проміжок {announceTimeFrom}–{announceTimeTo}</p>
+                {announce.fields.timeFrom && announce.fields.timeTo && (
+                  <p className="poputky-form-hint poputky-form-hint--inline">Обидва — проміжок {announce.fields.timeFrom}–{announce.fields.timeTo}</p>
                 )}
-                {announceRole === 'driver' && (
+                {announce.fields.role === 'driver' && (
                   <label className="poputky-form-label">
                     Ціна (грн, опціонально):
                     <input
                       type="number"
                       min={0}
-                      value={announcePrice}
-                      onChange={(e) => setAnnouncePrice(e.target.value)}
+                      value={announce.fields.price}
+                      onChange={(e) => announce.patch({ price: e.target.value })}
                       className="poputky-form-input"
                       placeholder="наприклад 150"
                     />
@@ -606,15 +503,16 @@ export const PoputkyPage: React.FC = () => {
                 <label className="poputky-form-label">
                   Коментар:
                   <textarea
-                    value={announceComment}
-                    onChange={(e) => setAnnounceComment(e.target.value)}
+                    value={announce.fields.comment}
+                    onChange={(e) => announce.patch({ comment: e.target.value })}
                     className="poputky-form-input poputky-form-textarea"
                     rows={3}
                     placeholder="Додаткова інформація..."
                   />
                 </label>
-                <button type="submit" className="poputky-btn poputky-btn--green poputky-btn--block" disabled={announceSubmitting}>
-                  {announceSubmitting ? 'Готуємо посилання...' : 'Опублікувати'}
+                {announce.error && <Alert variant="error">{announce.error}</Alert>}
+                <button type="submit" className="poputky-btn poputky-btn--green poputky-btn--block" disabled={announce.submitting}>
+                  {announce.submitting ? 'Готуємо посилання...' : 'Опублікувати'}
                 </button>
               </form>
               <p className="poputky-form-hint">
@@ -660,7 +558,7 @@ export const PoputkyPage: React.FC = () => {
                 onClick={async () => {
                   const id = confirmRequestListing.id;
                   setConfirmRequestListing(null);
-                  await handleRequestRide(id);
+                  await requestRide(id);
                 }}
               >
                 Так, створити заявку

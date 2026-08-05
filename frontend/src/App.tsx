@@ -41,16 +41,17 @@ function showGlobalPublicLegalFooter(pathname: string): boolean {
 function AppContent() {
   const { pathname } = useLocation();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
+  const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
 
   return (
-    <div className="app">
+    <div className={`app ${isAdminPath ? 'app--admin' : 'app--bbc'}`}>
       <GoogleAnalyticsTracker />
       <NavBar />
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<PoputkyPage />} />
-          <Route path="/poputky" element={<PoputkyPage />} />
+          <Route path="/" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/mizhgorodski" element={<MizhgorodskiPage />} />
+          <Route path="/poputky" element={<PoputkyPage />} />
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
           <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
@@ -85,30 +86,35 @@ function AppContent() {
 
 function NavBar() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const currentUser = userState.get();
   const isAdmin = userState.isAdmin();
   const isTelegramUser = userState.isTelegramUser();
+  const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
 
   const handleLogout = () => {
     userState.logout();
     apiClient.setAuthToken(null);
-    navigate('/');
+    navigate('/mizhgorodski');
   };
 
   return (
-    <nav className="app-nav">
+    <nav className={`app-nav ${isAdminPath ? 'app-nav--admin' : 'app-nav--bbc'}`}>
       <div className="nav-left">
-        <Link to="/" className="nav-link">
-          🚗 Попутки
+        <Link to="/mizhgorodski" className="nav-link nav-brand">
+          Міжміські
         </Link>
         <Link to="/mizhgorodski" className="nav-link">
-          🛣️ Міжміські
+          Пошук
+        </Link>
+        <Link to="/poputky" className="nav-link">
+          Попутки
         </Link>
         <Link to="/booking" className="nav-link">
-          🚌 Маршрутки
+          Маршрутки
         </Link>
         <Link to="/localtransport" className="nav-link">
-          🚏 Транспорт Малина
+          Транспорт Малина
         </Link>
         <Link to={COMPANY_LEGAL_PATH} className="nav-link">
           Про нас
@@ -122,29 +128,29 @@ function NavBar() {
         {isAdmin ? (
           <>
             <Link to="/admin" className="nav-link">
-              👨‍💼 Адмін панель
+              Адмін панель
             </Link>
-            <button 
-              onClick={handleLogout} 
+            <button
+              onClick={handleLogout}
               className="nav-link nav-button"
               title="Вийти з адмін панелі"
             >
-              🚪 Вийти
+              Вийти
             </button>
           </>
         ) : isTelegramUser ? (
           <>
             <Link to="/user" className="nav-link nav-user-info">
               {currentUser?.type === 'telegram' && currentUser.phone ? (
-                <>📱 {currentUser.phone}</>
+                <>{currentUser.phone}</>
               ) : currentUser?.type === 'telegram' && currentUser.user.first_name ? (
-                <>👤 {currentUser.user.first_name}</>
+                <>{currentUser.user.first_name}</>
               ) : (
-                <>👤 Telegram User</>
+                <>Telegram User</>
               )}
             </Link>
-            <button 
-              onClick={handleLogout} 
+            <button
+              onClick={handleLogout}
               className="nav-link nav-button"
               title="Вийти з Telegram акаунту"
             >
@@ -153,7 +159,7 @@ function NavBar() {
           </>
         ) : (
           <Link to="/login" className="nav-link">
-            🔑 Логін
+            Логін
           </Link>
         )}
       </div>

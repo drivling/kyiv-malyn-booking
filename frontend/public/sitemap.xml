@@ -6,7 +6,7 @@
            http://www.sitemaps.org/schemas/sitemap/0.9
            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-    <!-- Головна (= попутки) -->
+    <!-- Головна (редірект → /mizhgorodski) -->
     <url>
         <loc>https://malin.kiev.ua/</loc>
         <lastmod>2026-08-05</lastmod>
@@ -14,12 +14,20 @@
         <priority>1.0</priority>
     </url>
 
-    <!-- Попутки (явний URL) -->
+    <!-- Міжміські: пошук попуток і маршруток (основна сторінка) -->
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>hourly</changefreq>
+        <priority>1.0</priority>
+    </url>
+
+    <!-- Попутки (fallback / класичний список) -->
     <url>
         <loc>https://malin.kiev.ua/poputky</loc>
         <lastmod>2026-08-05</lastmod>
         <changefreq>hourly</changefreq>
-        <priority>0.95</priority>
+        <priority>0.85</priority>
     </url>
 
     <!-- Маршрутки / бронювання -->

@@ -46,7 +46,7 @@ export const LoginPage: React.FC = () => {
     const telegramUser = parseTelegramUserFromSearchParams(params);
     if (!telegramUser) return;
     userState.loginTelegram(telegramUser, telegramUser.phone || '');
-    window.location.replace('/poputky');
+    window.location.replace('/mizhgorodski');
   }, []);
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
@@ -81,7 +81,7 @@ export const LoginPage: React.FC = () => {
     }
     // Редірект на сторінку попуток через replace, щоб не залишати /login в історії.
     // Використовуємо window.location щоб гарантувати повне перезавантаження та оновлення стану в NavBar.
-    window.location.replace('/poputky');
+    window.location.replace('/mizhgorodski');
   };
 
   const handlePhoneLogin = () => {
@@ -100,7 +100,7 @@ export const LoginPage: React.FC = () => {
     };
     
     userState.loginTelegram(tempUser, phone);
-    window.location.replace('/poputky');
+    window.location.replace('/mizhgorodski');
   };
 
   return (

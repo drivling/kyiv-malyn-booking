@@ -107,7 +107,7 @@ const FAQ_UI: Array<{ q: string; a: ReactNode }> = [
     q: FAQ_PLAIN[5].q,
     a: (
       <>
-        Так: попутки на <Link to="/poputky">/poputky</Link>, маршрутки на <Link to="/booking">/booking</Link>. Але
+        Так: міжміські на <Link to="/mizhgorodski">/mizhgorodski</Link>, попутки на <Link to="/poputky">/poputky</Link>, маршрутки на <Link to="/booking">/booking</Link>. Але
         підтвердження бронювання, нагадування за день і бонуси акції зручніше отримувати в Telegram-боті.
       </>
     ),
