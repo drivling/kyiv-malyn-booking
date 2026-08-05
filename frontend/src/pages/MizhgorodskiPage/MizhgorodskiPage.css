@@ -325,6 +325,174 @@
   cursor: not-allowed;
 }
 
+.mizh-filter-btn--link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mizh-placeholder-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* —— Modals —— */
+.mizh-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 71, 82, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.mizh-modal {
+  width: 100%;
+  max-width: 460px;
+  max-height: min(90vh, 720px);
+  overflow: auto;
+  background: var(--mizh-surface);
+  border-radius: 20px;
+  box-shadow: var(--mizh-shadow-lg);
+  padding: 28px;
+  position: relative;
+  color: var(--mizh-navy);
+}
+
+.mizh-modal--offer {
+  max-width: 520px;
+}
+
+.mizh-modal-close {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--mizh-navy-soft);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.mizh-modal-close:hover {
+  background: var(--mizh-bg);
+  color: var(--mizh-navy);
+}
+
+.mizh-modal h2,
+.mizh-modal h3 {
+  margin: 0 32px 8px 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.mizh-modal-subtitle {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--mizh-navy-soft);
+  line-height: 1.5;
+}
+
+.mizh-modal-details {
+  background: var(--mizh-bg);
+  border: 1px solid var(--mizh-border);
+  border-radius: var(--mizh-radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.mizh-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mizh-role-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: var(--mizh-bg);
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.mizh-role-btn {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--mizh-navy-soft);
+}
+
+.mizh-role-btn--active {
+  background: var(--mizh-surface);
+  color: var(--mizh-navy);
+  box-shadow: var(--mizh-shadow);
+}
+
+.mizh-offer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mizh-offer-route {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mizh-field-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.mizh-offer-submit {
+  border: none;
+  border-radius: 999px;
+  background: var(--mizh-green);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 18px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  transition: background 0.15s;
+}
+
+.mizh-offer-submit:hover {
+  background: var(--mizh-green-hover);
+  color: #fff;
+}
+
+.mizh-offer-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mizh-offer-submit--link {
+  margin-bottom: 8px;
+}
+
 /* —— Results —— */
 .mizh-state {
   background: var(--mizh-surface);
@@ -333,6 +501,14 @@
   text-align: center;
   color: var(--mizh-navy-soft);
   box-shadow: var(--mizh-shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.mizh-state p {
+  margin: 0;
 }
 
 .mizh-state--error {
