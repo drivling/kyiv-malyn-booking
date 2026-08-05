@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <urlset
         xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -7,44 +6,60 @@
            http://www.sitemaps.org/schemas/sitemap/0.9
            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-    <!-- Главная -->
+    <!-- Головна (= попутки) -->
     <url>
         <loc>https://malin.kiev.ua/</loc>
-        <lastmod>2026-06-11</lastmod>
+        <lastmod>2026-08-05</lastmod>
         <changefreq>hourly</changefreq>
         <priority>1.0</priority>
     </url>
 
-    <!-- Попутки -->
+    <!-- Попутки (явний URL) -->
     <url>
         <loc>https://malin.kiev.ua/poputky</loc>
-        <lastmod>2026-06-11</lastmod>
+        <lastmod>2026-08-05</lastmod>
         <changefreq>hourly</changefreq>
         <priority>0.95</priority>
     </url>
 
-    <!-- Межгород маршрутки -->
+    <!-- Маршрутки / бронювання -->
     <url>
         <loc>https://malin.kiev.ua/booking</loc>
-        <lastmod>2026-06-11</lastmod>
+        <lastmod>2026-08-05</lastmod>
         <changefreq>hourly</changefreq>
         <priority>0.95</priority>
     </url>
 
-    <!-- Городской транспорт -->
+    <!-- Міський транспорт Малина -->
     <url>
         <loc>https://malin.kiev.ua/localtransport</loc>
-        <lastmod>2026-06-11</lastmod>
+        <lastmod>2026-08-05</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
 
-    <!-- Логин -->
+    <!-- Help-center: бот, FAQ, контакти (важливо для SEO/AEO) -->
     <url>
-        <loc>https://malin.kiev.ua/login</loc>
-        <lastmod>2026-06-11</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.2</priority>
+        <loc>https://malin.kiev.ua/support</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.85</priority>
     </url>
+
+    <!-- Про нас: реквізити, політика, умови, акція -->
+    <url>
+        <loc>https://malin.kiev.ua/about</loc>
+        <lastmod>2026-08-05</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <!--
+      Не індексуємо в sitemap (див. robots.txt):
+      /login, /user, /admin, /help (редірект → /support),
+      /privacy і /privacy-policy (редірект → /about#privacy-policy),
+      динамічні /localtransport/route/*, /localtransport/stop/* —
+      додамо окремо, коли з’являться стабільні SEO-лендінги зупинок.
+    -->
 
 </urlset>

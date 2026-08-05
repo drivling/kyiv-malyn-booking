@@ -1,9 +1,23 @@
-User-agent: *
+# malin.kiev.ua — robots
+# Публічні сторінки: /, /poputky, /booking, /localtransport, /support, /about
 
+User-agent: *
 Allow: /
 
+# Особисті / службові зони
 Disallow: /user
-Disallow: /api
+Disallow: /user/
 Disallow: /admin
+Disallow: /admin/
+Disallow: /api
+Disallow: /api/
+
+# Логін не для органічного пошуку
+Disallow: /login
+
+# Службові HTML табличок зупинок (не лендінги)
+Disallow: /stop-signs/
+
+# Редіректи (/help → /support тощо) дозволені; канонічні URL — у sitemap
 
 Sitemap: https://malin.kiev.ua/sitemap.xml

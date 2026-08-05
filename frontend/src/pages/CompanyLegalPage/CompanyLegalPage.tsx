@@ -30,8 +30,23 @@ export const CompanyLegalPage: React.FC = () => {
   useEffect(() => {
     const prev = document.title;
     document.title = `Про нас | ${SITE_PUBLIC_DOMAIN}`;
+    let desc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    const created = !desc;
+    const prevDesc = desc?.getAttribute('content') ?? null;
+    if (!desc) {
+      desc = document.createElement('meta');
+      desc.setAttribute('name', 'description');
+      document.head.appendChild(desc);
+    }
+    desc.setAttribute(
+      'content',
+      'Про сервіс malin.kiev.ua: реквізити компанії, політика конфіденційності, умови користування та акція «Приведи друга».'
+    );
     return () => {
       document.title = prev;
+      if (!desc) return;
+      if (created) desc.remove();
+      else if (prevDesc != null) desc.setAttribute('content', prevDesc);
     };
   }, []);
 

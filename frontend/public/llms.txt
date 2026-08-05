@@ -1,0 +1,33 @@
+# malin.kiev.ua
+
+> Попутки, маршрутки та міський транспорт у Малині (Україна). Онлайн-сервіс і Telegram-бот для поїздок Малин ↔ Київ, Житомир, Коростень.
+
+Сайт: https://malin.kiev.ua
+Бот Telegram: https://t.me/malin_kiev_ua_bot (@malin_kiev_ua_bot)
+
+## Головне
+
+- [Попутки](https://malin.kiev.ua/poputky): оголошення водіїв і пасажирів, запит до водія
+- [Маршрутки / бронювання](https://malin.kiev.ua/booking): розклад і місця
+- [Транспорт Малина](https://malin.kiev.ua/localtransport): місцеві маршрути й зупинки
+- [Допомога](https://malin.kiev.ua/support): інструкція Telegram-бота, FAQ, контакти
+- [Про нас](https://malin.kiev.ua/about): реквізити, політика, умови, акція «Приведи друга»
+
+## Telegram-бот (коротко)
+
+1. Відкрити @malin_kiev_ua_bot → Start → поділитися номером телефону.
+2. Меню: Маршрутки, Попутки, Акції, Довідка.
+3. Команди: /allrides (попутки + фільтри), /book, /adddriverride, /addpassengerride, /invite, /confirmride, /cancel, /help.
+4. Inline у будь-якому чаті: набрати @malin_kiev_ua_bot — меню, попутки сьогодні, посилання акції, бронювання.
+5. Акція «Приведи друга»: /invite, підтвердження поїздки двома фото /confirmride, виплата після модерації.
+
+Детально: https://malin.kiev.ua/support#bot
+
+## Контакти
+
+Див. https://malin.kiev.ua/support#contact і блок контактів на https://malin.kiev.ua/about
+
+## Файли для пошуку / ШІ
+
+- Sitemap: https://malin.kiev.ua/sitemap.xml
+- Robots: https://malin.kiev.ua/robots.txt

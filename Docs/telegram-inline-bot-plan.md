@@ -87,7 +87,7 @@ Inline **не заменяет** PM-потоки. Сложные шаги — ч
 
 **P2 · ~2ч · backend + опционально BotFather**
 
-- [ ] `/setinlinefeedback` в BotFather — **вручную**, если нужны метрики (см. user-guide §9)
+- [x] `/setinlinefeedback` в BotFather — Enable, **100%** (достатньо для 10–700 юзерів; логи `inline_chosen`)
 - [x] Обработчик `chosen_inline_result` → лог `inline_chosen`
 - [x] Лог latency в `logInlineQueryHandled`
 
@@ -99,7 +99,7 @@ Inline **не заменяет** PM-потоки. Сложные шаги — ч
 
 **P1 · ~1ч · копирайт**
 
-- [ ] Синхронизировать placeholder BotFather (рекомендация: «Попутки, акція…» — см. user-guide)
+- [x] Синхронизировать placeholder BotFather → **`Попутки, акція, бронювання…`** (`/setinline`, 1 минута вручную; user-guide §9)
 - [x] В `/help` блок «У групі (inline)»
 - [x] В `buildReferralHelpSection`: кнопка або `@бот ref_share`
 

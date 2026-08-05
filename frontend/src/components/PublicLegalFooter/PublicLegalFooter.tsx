@@ -5,6 +5,7 @@ import {
   REFERRAL_PROMO_PAGE_LINK,
   TERMS_PAGE_LINK,
 } from '@/legal/sitePublic';
+import { SUPPORT_PATH } from '@/pages/SupportPage';
 import './PublicLegalFooter.css';
 
 export const PublicLegalFooter: React.FC = () => {
@@ -12,6 +13,10 @@ export const PublicLegalFooter: React.FC = () => {
     <footer className="public-legal-footer" role="contentinfo">
       <div className="public-legal-footer-inner">
         <p className="public-legal-footer-line public-legal-footer-links">
+          <Link to={SUPPORT_PATH} className="public-legal-footer-link">
+            Допомога
+          </Link>
+          {' · '}
           <Link to={PRIVACY_POLICY_PAGE_LINK} className="public-legal-footer-link">
             Політика конфіденційності
           </Link>

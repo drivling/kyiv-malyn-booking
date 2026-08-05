@@ -7,6 +7,7 @@ import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
+import { SupportPage, SUPPORT_PATH } from '@/pages/SupportPage';
 import { GoogleAnalyticsTracker } from '@/analytics/GoogleAnalyticsTracker';
 import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
@@ -55,6 +56,8 @@ function AppContent() {
           <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
           <Route path="/localtransport" element={<LocalTransportPage />} />
           <Route path={COMPANY_LEGAL_PATH} element={<CompanyLegalPage />} />
+          <Route path={SUPPORT_PATH} element={<SupportPage />} />
+          <Route path="/help" element={<Navigate to={SUPPORT_PATH} replace />} />
           <Route path="/privacy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/privacy-policy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
@@ -101,6 +104,9 @@ function NavBar() {
         </Link>
         <Link to={COMPANY_LEGAL_PATH} className="nav-link">
           Про нас
+        </Link>
+        <Link to={SUPPORT_PATH} className="nav-link">
+          Допомога
         </Link>
       </div>
 
