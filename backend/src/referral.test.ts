@@ -35,6 +35,12 @@ import {
   REFERRAL_BUDGET_HOLD_REASON,
   type RideTimeSlot,
 } from './referral';
+import {
+  cleanupExpiredPendingReferralCodes,
+  handleReferralStartParam,
+  storePendingReferralCode,
+  takePendingReferralCode,
+} from './telegram-referral';
 
 describe('referral pure helpers', () => {
   it('parseInviteContact: phone and username', () => {
@@ -108,6 +114,97 @@ describe('referral pure helpers', () => {
     assert.equal(isPersonConnectedToBot({ telegramChatId: '1', telegramUserId: null }), true);
     assert.equal(isPersonConnectedToBot({ telegramChatId: null, telegramUserId: '99' }), true);
     assert.equal(isPersonConnectedToBot({ telegramChatId: '  ', telegramUserId: '' }), false);
+  });
+});
+
+describe('pending referral code survives a restart', () => {
+  type PendingRow = { telegramChatId: string; code: string; referrerPersonId: number; expiresAt: Date };
+
+  function createPendingPrismaMock(rows: PendingRow[] = []) {
+    return {
+      pendingReferralCode: {
+        upsert: async ({
+          where,
+          create,
+          update,
+        }: {
+          where: { telegramChatId: string };
+          create: PendingRow;
+          update: Omit<PendingRow, 'telegramChatId'>;
+        }) => {
+          const existing = rows.find((r) => r.telegramChatId === where.telegramChatId);
+          if (existing) Object.assign(existing, update);
+          else rows.push(create);
+          return {};
+        },
+        findUnique: async ({ where }: { where: { telegramChatId: string } }) =>
+          rows.find((r) => r.telegramChatId === where.telegramChatId) ?? null,
+        delete: async ({ where }: { where: { telegramChatId: string } }) => {
+          const i = rows.findIndex((r) => r.telegramChatId === where.telegramChatId);
+          if (i >= 0) rows.splice(i, 1);
+          return {};
+        },
+        deleteMany: async ({ where }: { where: { expiresAt: { lt: Date } } }) => {
+          const before = rows.length;
+          for (let i = rows.length - 1; i >= 0; i--) {
+            if (rows[i].expiresAt < where.expiresAt.lt) rows.splice(i, 1);
+          }
+          return { count: before - rows.length };
+        },
+      },
+      person: {
+        findFirst: async ({ where }: { where: { referralCode: string } }) =>
+          where.referralCode === 'TESTCODE' ? { id: 7 } : null,
+      },
+      _rows: rows,
+    } as unknown as PrismaClient & { _rows: PendingRow[] };
+  }
+
+  it('handleReferralStartParam stores the code in the database', async () => {
+    const prisma = createPendingPrismaMock();
+    const ok = await handleReferralStartParam(prisma, '555', 'ref_TESTCODE');
+    assert.equal(ok, true);
+    assert.equal(prisma._rows.length, 1);
+    assert.equal(prisma._rows[0].code, 'TESTCODE');
+    assert.equal(prisma._rows[0].referrerPersonId, 7);
+    assert.ok(prisma._rows[0].expiresAt.getTime() > Date.now());
+  });
+
+  it('unknown code is not stored', async () => {
+    const prisma = createPendingPrismaMock();
+    assert.equal(await handleReferralStartParam(prisma, '555', 'ref_NOPE'), false);
+    assert.equal(prisma._rows.length, 0);
+  });
+
+  it('takePendingReferralCode returns the code once', async () => {
+    const prisma = createPendingPrismaMock();
+    await storePendingReferralCode(prisma, '555', 7, 'TESTCODE');
+
+    assert.equal(await takePendingReferralCode(prisma, '555'), 'TESTCODE');
+    // другий раз — уже нічого
+    assert.equal(await takePendingReferralCode(prisma, '555'), null);
+  });
+
+  it('expired code is dropped, not applied', async () => {
+    const prisma = createPendingPrismaMock([
+      {
+        telegramChatId: '555',
+        code: 'OLDCODE',
+        referrerPersonId: 7,
+        expiresAt: new Date(Date.now() - 1000),
+      },
+    ]);
+    assert.equal(await takePendingReferralCode(prisma, '555'), null);
+    assert.equal(prisma._rows.length, 0, 'протермінований рядок має видалятись');
+  });
+
+  it('cleanup removes only expired rows', async () => {
+    const prisma = createPendingPrismaMock([
+      { telegramChatId: '1', code: 'A', referrerPersonId: 7, expiresAt: new Date(Date.now() - 1000) },
+      { telegramChatId: '2', code: 'B', referrerPersonId: 7, expiresAt: new Date(Date.now() + 60_000) },
+    ]);
+    assert.equal(await cleanupExpiredPendingReferralCodes(prisma), 1);
+    assert.deepEqual(prisma._rows.map((r) => r.telegramChatId), ['2']);
   });
 });
 

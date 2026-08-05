@@ -2034,7 +2034,7 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
         return;
     try {
         const normalizedPhone = (0, exports.normalizePhone)(phoneInput);
-        const referralCodeFromStart = (0, telegram_referral_1.takePendingReferralCode)(chatId);
+        const referralCodeFromStart = await (0, telegram_referral_1.takePendingReferralCode)(tgPrisma, chatId);
         // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
         const personByTelegram = await (0, exports.getPersonByTelegram)(userId, chatId);
         const bookingByTelegram = await tgPrisma.booking.findFirst({
@@ -2626,7 +2626,7 @@ function setupBotCommands() {
                 const personAlready = await (0, exports.getPersonByTelegram)(userId, chatId);
                 if (personAlready) {
                     // Уже користувач бота — акційне «залучення» не застосовується
-                    (0, telegram_referral_1.takePendingReferralCode)(chatId);
+                    await (0, telegram_referral_1.takePendingReferralCode)(tgPrisma, chatId);
                     await bot?.sendMessage(chatId, '🙂 Ви вже з нами в боті — це запрошення для нових друзів.\n\n' +
                         'Можете самі когось запросити: /invite\n\n' +
                         '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
@@ -5406,9 +5406,24 @@ bot = productionTelegramBot;
 if (token) {
     console.log('✅ Telegram Bot ініціалізовано з polling');
     setupBotCommands();
+    startPendingReferralCodeCleanup();
 }
 else {
     console.log('⚠️ TELEGRAM_BOT_TOKEN не знайдено - Telegram notifications вимкнено');
+}
+/** Прибирання протермінованих ref-кодів: при старті і далі раз на добу */
+function startPendingReferralCodeCleanup() {
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const run = () => {
+        (0, telegram_referral_1.cleanupExpiredPendingReferralCodes)(tgPrisma)
+            .then((count) => {
+            if (count > 0)
+                console.log(`🧹 Видалено протермінованих ref-кодів: ${count}`);
+        })
+            .catch((e) => console.error('❌ cleanupExpiredPendingReferralCodes:', e));
+    };
+    run();
+    setInterval(run, ONE_DAY_MS).unref();
 }
 /** Юніт-тести: підставити мок TelegramBot (sendMessage тощо). */
 function setTelegramBotForTests(instance) {

@@ -38,26 +38,61 @@ export type RideProofFlowState = {
   since: number;
 };
 
-/** chatId -> referrerPersonId з ?start=ref_CODE до реєстрації */
-export const pendingReferralCodeMap = new Map<string, { referrerPersonId: number; code: string }>();
-
 export const referralFlowStateMap = new Map<string, ReferralFlowState>();
 export const rideProofFlowStateMap = new Map<string, RideProofFlowState>();
 
 const FLOW_TTL_MS = 30 * 60 * 1000;
 
+/** Скільки живе код із ?start=ref_CODE, поки людина не надіслала номер */
+export const PENDING_REFERRAL_CODE_TTL_DAYS = 7;
+
 function isFlowExpired(since: number): boolean {
   return Date.now() - since > FLOW_TTL_MS;
 }
 
-export function storePendingReferralCode(chatId: string, referrerPersonId: number, code: string): void {
-  pendingReferralCodeMap.set(chatId, { referrerPersonId, code });
+/**
+ * Запамʼятати реферальний код до реєстрації номера.
+ * Зберігаємо в БД: перезапуск бота не має губити реферера.
+ * Новий перехід за іншим посиланням замінює попередній.
+ */
+export async function storePendingReferralCode(
+  prisma: PrismaClient,
+  chatId: string,
+  referrerPersonId: number,
+  code: string
+): Promise<void> {
+  const expiresAt = new Date(Date.now() + PENDING_REFERRAL_CODE_TTL_DAYS * 24 * 60 * 60 * 1000);
+  await prisma.pendingReferralCode.upsert({
+    where: { telegramChatId: chatId },
+    create: { telegramChatId: chatId, code, referrerPersonId, expiresAt },
+    update: { code, referrerPersonId, expiresAt },
+  });
 }
 
-export function takePendingReferralCode(chatId: string): string | null {
-  const entry = pendingReferralCodeMap.get(chatId);
-  pendingReferralCodeMap.delete(chatId);
-  return entry?.code ?? null;
+/** Забрати збережений код (одноразово). Протермінований не повертаємо. */
+export async function takePendingReferralCode(
+  prisma: PrismaClient,
+  chatId: string
+): Promise<string | null> {
+  const entry = await prisma.pendingReferralCode.findUnique({
+    where: { telegramChatId: chatId },
+    select: { code: true, expiresAt: true },
+  });
+  if (!entry) return null;
+
+  await prisma.pendingReferralCode
+    .delete({ where: { telegramChatId: chatId } })
+    .catch(() => undefined);
+
+  return entry.expiresAt.getTime() >= Date.now() ? entry.code : null;
+}
+
+/** Прибрати протерміновані коди (виклик при старті бота і раз на добу) */
+export async function cleanupExpiredPendingReferralCodes(prisma: PrismaClient): Promise<number> {
+  const result = await prisma.pendingReferralCode.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
+  return result.count;
 }
 
 export async function handleReferralStartParam(
@@ -72,7 +107,7 @@ export async function handleReferralStartParam(
   const referrer = await findReferrerByCode(prisma, code);
   if (!referrer) return false;
 
-  storePendingReferralCode(chatId, referrer.id, code);
+  await storePendingReferralCode(prisma, chatId, referrer.id, code);
   return true;
 }
 
