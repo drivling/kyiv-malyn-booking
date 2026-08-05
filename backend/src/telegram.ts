@@ -40,7 +40,9 @@ import {
   handleRideProofCallback,
   handleRideProofPhoto,
   onReferralRegistration,
+  remindRideProofExpectsPhoto,
   sendInviteProgramMessage,
+  sendReferralTeaser,
   startRideProofFlow,
   takePendingReferralCode,
 } from './telegram-referral';
@@ -2499,7 +2501,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
           `3️⃣ Нижче з\'явилися кнопки меню — користуйтеся ними або командами з довідки /help.`,
         { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
       );
-      await sendInviteProgramMessage(bot, tgPrisma, chatId, created.id, telegramBotUsername);
+      await sendReferralTeaser(bot, chatId);
       console.log(`✅ Додано Person (без бронювань) для ${userId}, номер ${normalizedPhone}`);
       return;
     }
@@ -2554,7 +2556,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
       { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
     );
     if (linkedPersonId) {
-      await sendInviteProgramMessage(bot, tgPrisma, chatId, linkedPersonId, telegramBotUsername);
+      await sendReferralTeaser(bot, chatId);
     }
   } catch (error) {
     console.error('❌ Помилка реєстрації номера:', error);
@@ -3114,7 +3116,7 @@ function setupBotCommands() {
             { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
           );
           if (bot) {
-            await sendInviteProgramMessage(bot, tgPrisma, chatId, personAlready.id, telegramBotUsername);
+            await sendReferralTeaser(bot, chatId);
           }
           return;
         }
@@ -3239,7 +3241,7 @@ function setupBotCommands() {
       });
       if (await handleStartScenario()) return;
       if (bot) {
-        await sendInviteProgramMessage(bot, tgPrisma, chatId, person.id, telegramBotUsername);
+        await sendReferralTeaser(bot, chatId);
       }
     } else {
       if (existingBooking) {
@@ -3261,7 +3263,7 @@ function setupBotCommands() {
         });
         if (await handleStartScenario()) return;
         if (bot) {
-          await sendInviteProgramMessage(bot, tgPrisma, chatId, p.id, telegramBotUsername);
+          await sendReferralTeaser(bot, chatId);
         }
         return;
       }
@@ -4143,21 +4145,17 @@ ${buildReferralHelpSection()}
     await registerUserPhone(chatId, userId, phoneNumber, nameFromContact);
   });
 
-  // Фото для підтвердження поїздки пасажира (/confirmride)
-  bot.on('photo', async (msg) => {
-    const chatId = msg.chat.id.toString();
-    const userId = msg.from?.id.toString() || '';
-    const photos = msg.photo;
-    if (!photos?.length || !bot) return;
-    const best = photos[photos.length - 1];
+  /** Спільна обробка знімка для /confirmride: і стиснене фото, і файл-зображення */
+  const acceptRideProofPhoto = async (chatId: string, userId: string, fileId: string): Promise<void> => {
+    if (!bot) return;
     const person = await getPersonByTelegram(userId, chatId);
     if (!person) return;
-    const handled = await handleRideProofPhoto(
+    await handleRideProofPhoto(
       bot,
       tgPrisma,
       chatId,
       person.id,
-      best.file_id,
+      fileId,
       (text, photoFileIds) => {
         if (!bot || !adminChatId) return;
         bot.sendMessage(adminChatId, text, { parse_mode: 'HTML' }).catch(() => {});
@@ -4172,9 +4170,24 @@ ${buildReferralHelpSection()}
       console.error('Ride proof photo:', err);
       return false;
     });
-    if (!handled) {
-      // Не в потоці підтвердження — ігноруємо
-    }
+  };
+
+  // Фото для підтвердження поїздки пасажира (/confirmride)
+  bot.on('photo', async (msg) => {
+    const photos = msg.photo;
+    if (!photos?.length || !bot) return;
+    const best = photos[photos.length - 1];
+    await acceptRideProofPhoto(msg.chat.id.toString(), msg.from?.id.toString() || '', best.file_id);
+  });
+
+  // Фото, надіслане файлом («без стиснення») — інакше людина застрягає в кроці фото
+  bot.on('document', async (msg) => {
+    const doc = msg.document;
+    if (!doc || !bot) return;
+    const isImage =
+      doc.mime_type?.startsWith('image/') || /\.(jpe?g|png|heic|webp)$/i.test(doc.file_name ?? '');
+    if (!isImage) return;
+    await acceptRideProofPhoto(msg.chat.id.toString(), msg.from?.id.toString() || '', doc.file_id);
   });
 
   // Обробка текстових повідомлень (номер телефону або текст поїздки водія)
@@ -4204,8 +4217,14 @@ ${buildReferralHelpSection()}
     if (msg.text?.startsWith('/') || msg.contact) {
       return;
     }
-    // Фото обробляє bot.on('photo')
-    if (msg.photo) return;
+    // Фото обробляють bot.on('photo') / bot.on('document')
+    if (msg.photo || msg.document) return;
+
+    // Людина у кроці фото надіслала щось інше — підказуємо, що саме чекаємо
+    if (bot) {
+      const remindedAboutPhoto = await remindRideProofExpectsPhoto(bot, chatId).catch(() => false);
+      if (remindedAboutPhoto) return;
+    }
 
     if (!text) return;
 

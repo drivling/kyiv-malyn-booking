@@ -111,6 +111,26 @@ export async function handleReferralStartParam(
   return true;
 }
 
+/**
+ * Короткий тизер акції для входу в бот (/start, реєстрація номера).
+ * Повний текст — лише за явним інтересом: /invite, кнопка меню або «Дізнатись більше».
+ */
+export async function sendReferralTeaser(bot: TelegramBot, chatId: string): Promise<void> {
+  await bot.sendMessage(
+    chatId,
+    '🎁 <b>Приведи друга — обидва в плюсі</b>\n' +
+      'Друг проїде попуткою і підтвердить поїздку фото — бонус на мобільний отримаєте обидва.',
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎁 Дізнатись більше', callback_data: 'referral_show_program' }],
+        ],
+      },
+    }
+  );
+}
+
 export async function sendInviteProgramMessage(
   bot: TelegramBot,
   prisma: PrismaClient,
@@ -256,6 +276,16 @@ async function isRideProofDailyLimitReached(
   return today >= MAX_RIDE_PROOFS_PER_DAY;
 }
 
+const RIDE_PROOF_CANCEL_KEYBOARD: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [[{ text: '❌ Скасувати', callback_data: 'rideproof_cancel' }]],
+};
+
+/**
+ * Чати, де просто зараз обробляється фото.
+ * Альбом приходить двома апдейтами майже одночасно — без замка обидва прочитали б однаковий крок.
+ */
+const rideProofPhotoLocks = new Set<string>();
+
 const RIDE_PROOF_LIMIT_MESSAGE =
   '🚦 <b>На сьогодні досить</b>\n\n' +
   `Одна людина може підтвердити не більше ${MAX_RIDE_PROOFS_PER_DAY} поїздок на добу.\n` +
@@ -330,6 +360,7 @@ export async function startRideProofFlow(
       '📸 Далі надішліть:\n' +
       '1️⃣ Фото на <b>місці відправлення</b> (з табличкою/орієнтиром)\n' +
       '2️⃣ Фото <b>після прибуття</b> (наприклад, на зупинці чи біля авто)\n\n' +
+      '⚠️ <b>По одному фото за раз</b>, не альбомом — інакше друге може загубитись.\n\n' +
       '<i>Фото використаємо для рекламного посту — зробіть їх охайними 🙂</i>',
     { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }
   );
@@ -428,14 +459,23 @@ export async function handleRideProofCallback(
         (isResubmit
           ? '♻️ Попередні фото було відхилено — надішліть <b>нові</b>.\n\n'
           : '') +
-        '📸 Надішліть <b>перше фото</b> — на місці відправлення.\n\n' +
+        '📸 Надішліть <b>перше фото</b> — на місці відправлення.\n' +
+        '⚠️ Одним повідомленням, не альбомом.\n\n' +
         '<i>Порада: зніміть себе або авто біля зупинки/місця збору — так краще для рекламного посту.</i>',
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML', reply_markup: RIDE_PROOF_CANCEL_KEYBOARD }
     );
     return true;
   }
 
   return false;
+}
+
+/** Технічні статуси нагороди — людською мовою для клієнта */
+function describeRewardStatusForUser(status: string): string {
+  if (status === 'approved') return 'до виплати';
+  if (status === 'paid') return 'виплачено';
+  if (status === 'flagged') return 'потребує уваги';
+  return 'чекає перевірки';
 }
 
 export async function handleReferralCallback(
@@ -446,6 +486,10 @@ export async function handleReferralCallback(
   botUsername: string,
   data: string
 ): Promise<boolean> {
+  if (data === 'referral_show_program') {
+    await sendInviteProgramMessage(bot, prisma, chatId, personId, botUsername);
+    return true;
+  }
   if (data === 'referral_invite_contact') {
     await startReferralInviteFlow(bot, chatId);
     return true;
@@ -461,16 +505,29 @@ export async function handleReferralCallback(
             : r.rewardType === 'passenger_self_confirm'
               ? 'Моє підтвердження'
               : 'Друг-пасажир';
-      return `• ${typeLabel}: ${r.amountUah} грн — ${r.status}`;
+      return `• ${typeLabel}: ${r.amountUah} грн — ${describeRewardStatusForUser(r.status)}`;
     });
+
+    const hints: string[] = [];
+    if (stats.totalOnHoldUah > 0) {
+      hints.push('⏳ «Чекає перевірки» — модератор ще не подивився фото поїздки.');
+    }
+    if (stats.totalPayableUah > 0) {
+      hints.push('💸 «До виплати» — фото схвалено, чекайте поповнення мобільного.');
+    }
+    if (stats.flaggedCount > 0) {
+      hints.push('🚩 «Потребує уваги» — щось не зійшлося. Напишіть нам, розберемось.');
+    }
+
     await bot.sendMessage(
       chatId,
       `📊 <b>Ваша реферальна статистика</b>\n\n` +
         `Запрошено друзів: ${stats.referredCount}\n` +
-        `На перевірці фото: ${stats.totalOnHoldUah} грн\n` +
+        `Чекає перевірки: ${stats.totalOnHoldUah} грн\n` +
         `До виплати: <b>${stats.totalPayableUah} грн</b>\n` +
         `Виплачено: ${stats.totalPaidUah} грн\n\n` +
-        (lines.length ? `<b>Останні нагороди:</b>\n${lines.join('\n')}` : 'Поки немає нагород.'),
+        (lines.length ? `<b>Останні нагороди:</b>\n${lines.join('\n')}\n\n` : 'Поки немає нагород.\n\n') +
+        hints.join('\n'),
       { parse_mode: 'HTML' }
     );
     return true;
@@ -493,6 +550,37 @@ export async function handleRideProofPhoto(
     return false;
   }
 
+  // Друге фото з альбому приходить, поки перше ще пишеться — просимо надіслати окремо
+  if (rideProofPhotoLocks.has(chatId)) {
+    await bot
+      .sendMessage(
+        chatId,
+        '⏳ Обробляю попереднє фото.\n\n' +
+          'Схоже, ви надіслали кілька фото разом. Надішліть, будь ласка, <b>наступне окремим повідомленням</b>.',
+        { parse_mode: 'HTML' }
+      )
+      .catch(() => {});
+    return true;
+  }
+
+  rideProofPhotoLocks.add(chatId);
+  try {
+    return await processRideProofPhoto(bot, prisma, chatId, personId, photoFileId, flow, notifyAdmin, botUsername);
+  } finally {
+    rideProofPhotoLocks.delete(chatId);
+  }
+}
+
+async function processRideProofPhoto(
+  bot: TelegramBot,
+  prisma: PrismaClient,
+  chatId: string,
+  personId: number,
+  photoFileId: string,
+  flow: RideProofFlowState,
+  notifyAdmin?: (text: string, photoFileIds?: string[]) => void,
+  botUsername: string = 'malin_kiev_ua_bot'
+): Promise<boolean> {
   if (flow.step === 'photo_start' && flow.proofId) {
     await prisma.rideCompletionProof.update({
       where: { id: flow.proofId },
@@ -502,7 +590,7 @@ export async function handleRideProofPhoto(
     await bot.sendMessage(
       chatId,
       '✅ Перше фото збережено!\n\n📸 Тепер надішліть <b>друге фото</b> — після прибуття в пункт призначення.',
-      { parse_mode: 'HTML' }
+      { parse_mode: 'HTML', reply_markup: RIDE_PROOF_CANCEL_KEYBOARD }
     );
     return true;
   }
@@ -519,13 +607,12 @@ export async function handleRideProofPhoto(
     let rewardText = '';
     if (rewardResult.flagged) {
       rewardText = '\n\n⚠️ Поїздку передано на перевірку адміністратору.';
-    } else if (rewardResult.passengerSelfCreated) {
+    } else if (rewardResult.passengerSelfRewardId) {
+      // rewardId є і при повторній відправці фото — бонус нікуди не зник
       rewardText =
-        `\n\n💸 Вам нараховано <b>${rewardResult.passengerSelfUah} грн</b> за підтвердження` +
-        (rewardResult.passengerReferrerId
-          ? ` — і ваш друг також отримає бонус`
-          : '') +
-        '!';
+        `\n\n💸 Ваш бонус за підтвердження: <b>${REFERRAL_REWARD_UAH.passenger_self_confirm} грн</b>` +
+        (rewardResult.passengerReferrerId ? ' — і ваш друг теж отримає свій' : '') +
+        '.';
     } else if (rewardResult.limitReached) {
       rewardText = '\n\nДякуємо! Бонусний ліміт за підтвердження вже використано.';
     }
@@ -534,7 +621,9 @@ export async function handleRideProofPhoto(
       chatId,
       '✅ <b>Круто! Поїздку підтверджено.</b>\n\n' +
         'Фото прийнято. Дякуємо, що ділитесь дорогою з нами 🚗' +
-        rewardText,
+        rewardText +
+        '\n\n🕵️ Далі — перевірка модератором. Після схвалення бонус стане «до виплати», ' +
+        'і ми напишемо вам у цей чат.',
       { parse_mode: 'HTML' }
     );
 
@@ -606,6 +695,29 @@ export async function handleRideProofPhoto(
   }
 
   return false;
+}
+
+/**
+ * Людина у кроці фото надіслала щось інше (текст, стікер, геолокацію).
+ * Без цього повідомлення вона просто не розуміє, чому нічого не відбувається.
+ */
+export async function remindRideProofExpectsPhoto(
+  bot: TelegramBot,
+  chatId: string
+): Promise<boolean> {
+  const flow = rideProofFlowStateMap.get(chatId);
+  if (!flow || isFlowExpired(flow.since)) return false;
+  if (flow.step !== 'photo_start' && flow.step !== 'photo_end') return false;
+
+  await bot.sendMessage(
+    chatId,
+    '📷 Зараз я чекаю <b>фото</b>' +
+      (flow.step === 'photo_start' ? ' на місці відправлення' : ' після прибуття') +
+      '.\n\n' +
+      'Надішліть знімок або натисніть «Скасувати».',
+    { parse_mode: 'HTML', reply_markup: RIDE_PROOF_CANCEL_KEYBOARD }
+  );
+  return true;
 }
 
 export function buildReferralHelpSection(): string {

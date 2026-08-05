@@ -33,6 +33,9 @@ import {
   flagUnpaidRewardsForSelfReferral,
   SELF_REFERRAL_FLAG_REASON,
   REFERRAL_BUDGET_HOLD_REASON,
+  buildTelegramShareUrl,
+  buildReferralProgramInlineKeyboard,
+  REFERRAL_SHARE_TEXT,
   type RideTimeSlot,
 } from './referral';
 import {
@@ -114,6 +117,28 @@ describe('referral pure helpers', () => {
     assert.equal(isPersonConnectedToBot({ telegramChatId: '1', telegramUserId: null }), true);
     assert.equal(isPersonConnectedToBot({ telegramChatId: null, telegramUserId: '99' }), true);
     assert.equal(isPersonConnectedToBot({ telegramChatId: '  ', telegramUserId: '' }), false);
+  });
+});
+
+describe('referral sharing buttons', () => {
+  it('share url opens the native Telegram picker with the personal link', () => {
+    const link = 'https://t.me/malin_kiev_ua_bot?start=ref_TESTCODE';
+    const url = buildTelegramShareUrl(link);
+    assert.ok(url.startsWith('https://t.me/share/url?'));
+    assert.ok(url.includes(encodeURIComponent(link)));
+    assert.ok(url.includes(encodeURIComponent(REFERRAL_SHARE_TEXT)));
+  });
+
+  it('program keyboard offers share first, then copy', () => {
+    const link = 'https://t.me/malin_kiev_ua_bot?start=ref_TESTCODE';
+    const plain = buildReferralProgramInlineKeyboard(link);
+    assert.equal(plain.inline_keyboard.length, 2);
+    assert.ok(plain.inline_keyboard[0][0].url?.startsWith('https://t.me/share/url?'));
+    assert.equal(plain.inline_keyboard[1][0].copy_text?.text, link);
+
+    const withActions = buildReferralProgramInlineKeyboard(link, { withInviteActions: true });
+    const callbacks = withActions.inline_keyboard.flat().map((b) => b.callback_data).filter(Boolean);
+    assert.deepEqual(callbacks, ['referral_invite_contact', 'referral_my_stats']);
   });
 });
 

@@ -1181,12 +1181,30 @@ type ReferralInlineButton = {
   copy_text?: { text: string };
 };
 
-/** Inline-кнопки під промо «Приведи друга» (копіювання посилання + опційно дії в боті). */
+/** Короткий підпис для нативного «Поділитися» в Telegram */
+export const REFERRAL_SHARE_TEXT =
+  'Попутки Малин↔Київ у боті. Підтверди поїздку двома фото — бонус на мобільний обом 🎁';
+
+/**
+ * Посилання на рідний share-діалог Telegram: вибір чату і готове повідомлення.
+ * Через t.me/share, а не switch_inline_query — бот не має inline-режиму.
+ */
+export function buildTelegramShareUrl(referralLink: string, text = REFERRAL_SHARE_TEXT): string {
+  return (
+    'https://t.me/share/url?url=' +
+    encodeURIComponent(referralLink) +
+    '&text=' +
+    encodeURIComponent(text)
+  );
+}
+
+/** Inline-кнопки під промо «Приведи друга» (поділитися, копіювання + опційно дії в боті). */
 export function buildReferralProgramInlineKeyboard(
   referralLink: string,
   opts?: { withInviteActions?: boolean }
 ): { inline_keyboard: ReferralInlineButton[][] } {
   const rows: ReferralInlineButton[][] = [
+    [{ text: '📤 Поділитися з другом', url: buildTelegramShareUrl(referralLink) }],
     [{ text: '🔗 Копіювати посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
   ];
   if (opts?.withInviteActions) {

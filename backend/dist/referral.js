@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.REFERRAL_SHARE_TEXT = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
 exports.isRewardOnHold = isRewardOnHold;
 exports.isRewardPayable = isRewardPayable;
 exports.generateReferralCode = generateReferralCode;
@@ -31,6 +31,7 @@ exports.processReferralRegistrationReward = processReferralRegistrationReward;
 exports.processReferralPassengerProofReward = processReferralPassengerProofReward;
 exports.getReferralStatsForPerson = getReferralStatsForPerson;
 exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
+exports.buildTelegramShareUrl = buildTelegramShareUrl;
 exports.buildReferralProgramInlineKeyboard = buildReferralProgramInlineKeyboard;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
 exports.withAdminManualFlagReason = withAdminManualFlagReason;
@@ -977,9 +978,22 @@ function buildReferralProgramTermsHtml(referralLink) {
         '🌐 https://malin.kiev.ua/poputky\n' +
         '📜 Умови: https://malin.kiev.ua/about#referral-promo');
 }
-/** Inline-кнопки під промо «Приведи друга» (копіювання посилання + опційно дії в боті). */
+/** Короткий підпис для нативного «Поділитися» в Telegram */
+exports.REFERRAL_SHARE_TEXT = 'Попутки Малин↔Київ у боті. Підтверди поїздку двома фото — бонус на мобільний обом 🎁';
+/**
+ * Посилання на рідний share-діалог Telegram: вибір чату і готове повідомлення.
+ * Через t.me/share, а не switch_inline_query — бот не має inline-режиму.
+ */
+function buildTelegramShareUrl(referralLink, text = exports.REFERRAL_SHARE_TEXT) {
+    return ('https://t.me/share/url?url=' +
+        encodeURIComponent(referralLink) +
+        '&text=' +
+        encodeURIComponent(text));
+}
+/** Inline-кнопки під промо «Приведи друга» (поділитися, копіювання + опційно дії в боті). */
 function buildReferralProgramInlineKeyboard(referralLink, opts) {
     const rows = [
+        [{ text: '📤 Поділитися з другом', url: buildTelegramShareUrl(referralLink) }],
         [{ text: '🔗 Копіювати посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
     ];
     if (opts?.withInviteActions) {
