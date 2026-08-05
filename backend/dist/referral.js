@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
 exports.isRewardOnHold = isRewardOnHold;
 exports.isRewardPayable = isRewardPayable;
 exports.generateReferralCode = generateReferralCode;
@@ -17,6 +17,11 @@ exports.isPersonConnectedToBot = isPersonConnectedToBot;
 exports.isSameTelegramAccount = isSameTelegramAccount;
 exports.createReferralInvite = createReferralInvite;
 exports.linkReferralOnRegistration = linkReferralOnRegistration;
+exports.getReferralProgramSettings = getReferralProgramSettings;
+exports.getReferralBudgetStatus = getReferralBudgetStatus;
+exports.setReferralBudgetUah = setReferralBudgetUah;
+exports.getPersonTotalReferralUah = getPersonTotalReferralUah;
+exports.countRideProofsToday = countRideProofsToday;
 exports.collectPersonRideSlots = collectPersonRideSlots;
 exports.unlockRegistrationReward = unlockRegistrationReward;
 exports.hasDriverListingForReferral = hasDriverListingForReferral;
@@ -80,6 +85,17 @@ exports.REFERRAL_REWARD_UAH = {
 /** @deprecated використовуйте driver_qualified */
 exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = 'driver_first_listing';
 exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = 3;
+/** Бюджет акції за замовчуванням, грн (редагується в адмінці) */
+exports.REFERRAL_DEFAULT_BUDGET_UAH = 4000;
+/** Скільки нагород за поїздки людина може подати на добу (/confirmride) */
+exports.MAX_RIDE_PROOFS_PER_DAY = 2;
+/** Скільки грн на одну людину — привід придивитись (лише попередження в адмінці) */
+exports.REFERRAL_PERSON_TOTAL_WARN_UAH = 200;
+/**
+ * Бюджет акції вичерпано: нагорода створюється на утриманні.
+ * Причина захищена — схвалення фото її не розморожує, потрібне рішення адміна.
+ */
+exports.REFERRAL_BUDGET_HOLD_REASON = 'Бюджет акції вичерпано — нарахування на утриманні до рішення адміна';
 /** Мінімальний час однієї поїздки (хв) для анти-чит перевірки */
 exports.MIN_RIDE_DURATION_MINUTES = 75;
 const REFERRAL_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -441,6 +457,103 @@ async function hasRewardType(prisma, referrerId, referredPersonId, rewardType) {
     });
     return !!existing;
 }
+/** Один рядок налаштувань акції; створюється при першому зверненні */
+async function getReferralProgramSettings(prisma) {
+    const existing = await prisma.referralProgramSettings.findFirst({
+        orderBy: { id: 'asc' },
+        select: { id: true, budgetUah: true },
+    });
+    if (existing)
+        return existing;
+    return prisma.referralProgramSettings.create({
+        data: { budgetUah: exports.REFERRAL_DEFAULT_BUDGET_UAH },
+        select: { id: true, budgetUah: true },
+    });
+}
+/** Скільки бюджету вже витрачено і скільки лишилось */
+async function getReferralBudgetStatus(prisma) {
+    const { budgetUah } = await getReferralProgramSettings(prisma);
+    const [committed, held] = await Promise.all([
+        prisma.referralReward.aggregate({
+            _sum: { amountUah: true },
+            where: {
+                status: { in: [exports.REWARD_STATUS_PAID, exports.REWARD_STATUS_APPROVED, ...exports.REWARD_STATUSES_ON_HOLD] },
+                // утримані через бюджет не рахуємо — вони поки не обіцяні
+                OR: [{ flagReason: null }, { flagReason: { not: exports.REFERRAL_BUDGET_HOLD_REASON } }],
+            },
+        }),
+        prisma.referralReward.aggregate({
+            _sum: { amountUah: true },
+            _count: { _all: true },
+            where: { flagReason: exports.REFERRAL_BUDGET_HOLD_REASON },
+        }),
+    ]);
+    const committedUah = committed._sum.amountUah ?? 0;
+    return {
+        budgetUah,
+        committedUah,
+        remainingUah: Math.max(0, budgetUah - committedUah),
+        budgetHeldUah: held._sum.amountUah ?? 0,
+        budgetHeldCount: held._count._all ?? 0,
+        exceeded: committedUah >= budgetUah,
+    };
+}
+/**
+ * Змінити бюджет акції. Якщо бюджет підняли — знімаємо утримання з нагород,
+ * які тепер у нього вкладаються (у порядку нарахування).
+ */
+async function setReferralBudgetUah(prisma, budgetUah) {
+    const settings = await getReferralProgramSettings(prisma);
+    await prisma.referralProgramSettings.update({
+        where: { id: settings.id },
+        data: { budgetUah },
+    });
+    const status = await getReferralBudgetStatus(prisma);
+    let remaining = status.remainingUah;
+    if (remaining <= 0)
+        return { budgetUah, releasedCount: 0, releasedUah: 0 };
+    const heldRewards = await prisma.referralReward.findMany({
+        where: { flagReason: exports.REFERRAL_BUDGET_HOLD_REASON },
+        orderBy: { id: 'asc' },
+        select: { id: true, amountUah: true },
+    });
+    const releaseIds = [];
+    let releasedUah = 0;
+    for (const reward of heldRewards) {
+        if (reward.amountUah > remaining)
+            break;
+        remaining -= reward.amountUah;
+        releasedUah += reward.amountUah;
+        releaseIds.push(reward.id);
+    }
+    if (releaseIds.length === 0)
+        return { budgetUah, releasedCount: 0, releasedUah: 0 };
+    // Знімаємо лише позначку бюджету — статус лишається hold, гроші й далі чекають схвалення фото
+    await prisma.referralReward.updateMany({
+        where: { id: { in: releaseIds } },
+        data: { flagReason: null },
+    });
+    return { budgetUah, releasedCount: releaseIds.length, releasedUah };
+}
+/** Скільки людина заробила за весь час: виплачено + у черзі + на утриманні */
+async function getPersonTotalReferralUah(prisma, personId) {
+    const total = await prisma.referralReward.aggregate({
+        _sum: { amountUah: true },
+        where: {
+            referrerId: personId,
+            status: { in: [exports.REWARD_STATUS_PAID, exports.REWARD_STATUS_APPROVED, ...exports.REWARD_STATUSES_ON_HOLD] },
+        },
+    });
+    return total._sum.amountUah ?? 0;
+}
+/** Скільки підтверджень поїздки людина створила сьогодні (антиспам /confirmride) */
+async function countRideProofsToday(prisma, personId) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    return prisma.rideCompletionProof.count({
+        where: { personId, createdAt: { gte: startOfDay } },
+    });
+}
 /** Prisma P2002 — порушення unique-констрейнта */
 function isUniqueConstraintError(e) {
     return typeof e === 'object' && e !== null && e.code === 'P2002';
@@ -487,7 +600,7 @@ async function createRewardIfNotExists(prisma, data) {
                 viberListingId: data.viberListingId ?? null,
                 rideProofId: data.rideProofId ?? null,
                 status: data.flagReason ? exports.REWARD_STATUS_FLAGGED : exports.REWARD_STATUS_HOLD,
-                flagReason: data.flagReason ?? null,
+                flagReason: data.flagReason ?? data.holdReason ?? null,
             },
         });
         return { created: true, rewardId: reward.id };
@@ -578,6 +691,7 @@ async function unlockRegistrationReward(prisma, referredPersonId, opts) {
         rideProofId: opts?.rideProofId,
         viberListingId: opts?.viberListingId,
         flagReason: opts?.flagReason,
+        holdReason: opts?.holdReason,
     });
     return { created: result.created, rewardId: result.rewardId };
 }
@@ -606,6 +720,8 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
         registrationCreated: false,
         driverQualifiedCreated: false,
         totalNewUah: 0,
+        budgetHeldUah: 0,
+        personsOverWarnLimit: [],
     };
     const proof = await prisma.rideCompletionProof.findUnique({
         where: { id: proofId },
@@ -627,9 +743,26 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
     let totalNewUah = 0;
     const result = {
         ...empty,
+        personsOverWarnLimit: [],
         flagged: !!flagReason,
         flagReason,
     };
+    // Бюджет акції: те, що не вкладається, створюємо на утриманні (гроші не обіцяємо)
+    const budget = await getReferralBudgetStatus(prisma);
+    let budgetLeft = budget.remainingUah;
+    const takeFromBudget = (amountUah) => {
+        if (budgetLeft >= amountUah)
+            return undefined;
+        return exports.REFERRAL_BUDGET_HOLD_REASON;
+    };
+    const spendBudget = (amountUah, held) => {
+        if (held)
+            result.budgetHeldUah += amountUah;
+        else
+            budgetLeft -= amountUah;
+    };
+    /** Хто отримав нову нагороду — потім перевіримо їхні сумарні заробітки */
+    const touchedReceivers = new Set();
     // --- Шлях А: друг-пасажир підтвердив поїздку ---
     const passengerReferrerId = proof.person.referredByPersonId;
     if (passengerReferrerId) {
@@ -646,6 +779,7 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
             result.limitReached = true;
         }
         else {
+            const rideHeld = takeFromBudget(exports.REFERRAL_REWARD_UAH.passenger_completed_ride);
             const rideReward = await createRewardIfNotExists(prisma, {
                 referrerId: passengerReferrerId,
                 referredPersonId: passengerPersonId,
@@ -653,11 +787,15 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
                 amountUah: exports.REFERRAL_REWARD_UAH.passenger_completed_ride,
                 rideProofId: proofId,
                 flagReason: flagReason ?? undefined,
+                holdReason: rideHeld,
             });
             result.passengerRideCreated = rideReward.created;
             result.passengerRewardId = rideReward.rewardId;
-            if (rideReward.created)
+            if (rideReward.created) {
                 totalNewUah += exports.REFERRAL_REWARD_UAH.passenger_completed_ride;
+                spendBudget(exports.REFERRAL_REWARD_UAH.passenger_completed_ride, rideHeld);
+                touchedReceivers.add(passengerReferrerId);
+            }
             // Бонус самому запрошеному пасажиру (referrerId = passenger = хто отримує виплату)
             const selfCount = await prisma.referralReward.count({
                 where: {
@@ -668,6 +806,7 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
                 },
             });
             if (selfCount < exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED) {
+                const selfHeld = takeFromBudget(exports.REFERRAL_REWARD_UAH.passenger_self_confirm);
                 const selfReward = await createRewardIfNotExists(prisma, {
                     referrerId: passengerPersonId,
                     referredPersonId: passengerPersonId,
@@ -675,24 +814,32 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
                     amountUah: exports.REFERRAL_REWARD_UAH.passenger_self_confirm,
                     rideProofId: proofId,
                     flagReason: flagReason ?? undefined,
+                    holdReason: selfHeld,
                 });
                 result.passengerSelfCreated = selfReward.created;
                 result.passengerSelfRewardId = selfReward.rewardId;
                 if (selfReward.created) {
                     result.passengerSelfUah = exports.REFERRAL_REWARD_UAH.passenger_self_confirm;
                     totalNewUah += exports.REFERRAL_REWARD_UAH.passenger_self_confirm;
+                    spendBudget(exports.REFERRAL_REWARD_UAH.passenger_self_confirm, selfHeld);
+                    touchedReceivers.add(passengerPersonId);
                 }
             }
         }
         // 10 грн запрошувачу — при першій кваліфікації
+        const regHeld = takeFromBudget(exports.REFERRAL_REWARD_UAH.registration);
         const reg = await unlockRegistrationReward(prisma, passengerPersonId, {
             rideProofId: proofId,
             flagReason: flagReason ?? undefined,
+            holdReason: regHeld,
         });
         result.registrationCreated = reg.created;
         result.registrationRewardId = reg.rewardId;
-        if (reg.created)
+        if (reg.created) {
             totalNewUah += exports.REFERRAL_REWARD_UAH.registration;
+            spendBudget(exports.REFERRAL_REWARD_UAH.registration, regHeld);
+            touchedReceivers.add(passengerReferrerId);
+        }
     }
     // --- Шлях Б: пасажира запросив друг-водій → кваліфікація водія для реферера водія ---
     if (passengerReferrerId) {
@@ -709,6 +856,7 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
             const alreadyDriverReward = (await hasRewardType(prisma, driverReferrerId, driverPersonId, 'driver_qualified')) ||
                 (await hasRewardType(prisma, driverReferrerId, driverPersonId, exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER));
             if (!alreadyDriverReward) {
+                const driverHeld = takeFromBudget(exports.REFERRAL_REWARD_UAH.driver_qualified);
                 const driverReward = await createRewardIfNotExists(prisma, {
                     referrerId: driverReferrerId,
                     referredPersonId: driverPersonId,
@@ -717,21 +865,36 @@ async function processReferralRewardsAfterPassengerProof(prisma, proofId) {
                     viberListingId: driverListing?.id,
                     rideProofId: proofId,
                     flagReason: flagReason ?? undefined,
+                    holdReason: driverHeld,
                 });
                 result.driverQualifiedCreated = driverReward.created;
                 result.driverQualifiedRewardId = driverReward.rewardId;
-                if (driverReward.created)
+                if (driverReward.created) {
                     totalNewUah += exports.REFERRAL_REWARD_UAH.driver_qualified;
+                    spendBudget(exports.REFERRAL_REWARD_UAH.driver_qualified, driverHeld);
+                    touchedReceivers.add(driverReferrerId);
+                }
                 // 10 грн рефереру водія — якщо ще не розблоковано (інший referrer, ніж у шляху А)
+                const regDriverHeld = takeFromBudget(exports.REFERRAL_REWARD_UAH.registration);
                 const regDriver = await unlockRegistrationReward(prisma, driverPersonId, {
                     rideProofId: proofId,
                     viberListingId: driverListing?.id,
                     flagReason: flagReason ?? undefined,
+                    holdReason: regDriverHeld,
                 });
                 if (regDriver.created) {
                     totalNewUah += exports.REFERRAL_REWARD_UAH.registration;
+                    spendBudget(exports.REFERRAL_REWARD_UAH.registration, regDriverHeld);
+                    touchedReceivers.add(driverReferrerId);
                 }
             }
+        }
+    }
+    // Поріг уваги на людину — лише сигнал адміну, нічого не блокуємо
+    for (const personId of touchedReceivers) {
+        const totalUah = await getPersonTotalReferralUah(prisma, personId);
+        if (totalUah >= exports.REFERRAL_PERSON_TOTAL_WARN_UAH) {
+            result.personsOverWarnLimit.push({ personId, totalUah });
         }
     }
     result.totalNewUah = totalNewUah;
@@ -883,6 +1046,8 @@ function isProtectedFlagReason(flagReason) {
     if (flagReason === exports.BOT_BLOCKED_REWARD_FLAG_REASON)
         return true;
     if (flagReason === exports.SELF_REFERRAL_FLAG_REASON)
+        return true;
+    if (flagReason === exports.REFERRAL_BUDGET_HOLD_REASON)
         return true;
     if (flagReason.startsWith(exports.ADMIN_MANUAL_FLAG_PREFIX))
         return true;
@@ -1095,6 +1260,7 @@ prisma, opts) {
 }
 async function buildAdminReferralReport(prisma) {
     await syncFlaggedRewardsForApprovedProofs(prisma);
+    const budget = await getReferralBudgetStatus(prisma);
     const rewards = await prisma.referralReward.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
@@ -1165,7 +1331,9 @@ async function buildAdminReferralReport(prisma) {
             referredPersonsCount: referredPersons.length,
             payablePeopleCount: payablePeople.length,
             payableUah: payablePeople.reduce((s, p) => s + p.payableUah, 0),
+            personWarnLimitUah: exports.REFERRAL_PERSON_TOTAL_WARN_UAH,
         },
+        budget,
         payoutBalances,
         rewards,
         flagged,

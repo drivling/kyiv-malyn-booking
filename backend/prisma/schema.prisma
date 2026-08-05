@@ -268,6 +268,14 @@ model TelegramUserSendError {
   createdAt   DateTime @default(now())
 }
 
+/// Налаштування акції «Приведи друга». Використовується один рядок (найменший id).
+model ReferralProgramSettings {
+  id        Int      @id @default(autoincrement())
+  /// Загальний бюджет акції, грн. Понад нього нагороди створюються на утриманні
+  budgetUah Int      @default(4000)
+  updatedAt DateTime @updatedAt
+}
+
 /// Останній імпорт з Telegram групи PoDoroguem — щоб парсити тільки нові повідомлення
 model TelegramFetchState {
   id             Int      @id @default(autoincrement())

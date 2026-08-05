@@ -32,6 +32,7 @@ import {
   linkReferralOnRegistration,
   flagUnpaidRewardsForSelfReferral,
   SELF_REFERRAL_FLAG_REASON,
+  REFERRAL_BUDGET_HOLD_REASON,
   type RideTimeSlot,
 } from './referral';
 
@@ -252,6 +253,7 @@ type RewardRow = {
   rewardType: string;
   amountUah: number;
   status: string;
+  flagReason?: string | null;
   rideProofId?: number | null;
   viberListingId?: number | null;
 };
@@ -268,6 +270,8 @@ function createRewardPrismaMock(opts: {
   /** false = уже був у базі клієнтів → без 10 грн */
   passengerRegistrationBonusEligible?: boolean | null;
   driverRegistrationBonusEligible?: boolean | null;
+  /** Бюджет акції; за замовчуванням вистачає на все */
+  budgetUah?: number;
 }) {
   let nextRewardId = 1;
   const rewards: RewardRow[] = [...(opts.existingRewards ?? [])];
@@ -356,6 +360,19 @@ function createRewardPrismaMock(opts: {
         rewards.push(row);
         return row;
       },
+      aggregate: async ({ where }: { where?: { referrerId?: number } }) => {
+        const matching = rewards.filter(
+          (r) => r.status !== 'flagged' && (where?.referrerId == null || r.referrerId === where.referrerId)
+        );
+        return {
+          _sum: { amountUah: matching.reduce((s, r) => s + r.amountUah, 0) },
+          _count: { _all: matching.length },
+        };
+      },
+    },
+    referralProgramSettings: {
+      findFirst: async () => ({ id: 1, budgetUah: opts.budgetUah ?? 1_000_000 }),
+      create: async () => ({ id: 1, budgetUah: opts.budgetUah ?? 1_000_000 }),
     },
     _rewards: rewards,
     _proofsUpdated: proofsUpdated,
@@ -513,6 +530,25 @@ describe('processReferralRewardsAfterPassengerProof', () => {
     const result = await processReferralRewardsAfterPassengerProof(prisma, 301);
     assert.equal(result.driverQualifiedCreated, false);
     assert.equal(result.totalNewUah, 50); // B:10+20 + C:20
+  });
+
+  it('budget exhausted → rewards created on hold with a protected reason', async () => {
+    // бюджет 30 грн: вистачить на 20 (друг-пасажир), решта — на утриманні
+    const prisma = createRewardPrismaMock({
+      passengerId: 2,
+      passengerReferrerId: 1,
+      budgetUah: 30,
+    });
+
+    const result = await processReferralRewardsAfterPassengerProof(prisma, 100);
+    assert.equal(result.budgetHeldUah > 0, true);
+
+    const held = prisma._rewards.filter((r) => r.flagReason === REFERRAL_BUDGET_HOLD_REASON);
+    assert.equal(held.length > 0, true, 'частина нагород має бути на бюджетному утриманні');
+    // статус лишається hold — це не підозра у фроді
+    assert.equal(held.every((r) => r.status === 'hold'), true);
+    // схвалення фото не розморозить ці гроші
+    assert.equal(isProtectedFlagReason(REFERRAL_BUDGET_HOLD_REASON), true);
   });
 
   it('no referrer → no rewards', async () => {

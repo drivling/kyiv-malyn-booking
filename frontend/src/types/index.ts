@@ -336,6 +336,15 @@ export interface RideCompletionProofRow {
   referralRewards?: RideProofLinkedReward[];
 }
 
+export interface ReferralBudgetStatus {
+  budgetUah: number;
+  committedUah: number;
+  remainingUah: number;
+  budgetHeldUah: number;
+  budgetHeldCount: number;
+  exceeded: boolean;
+}
+
 export interface AdminReferralReport {
   summary: {
     totalRewards: number;
@@ -348,7 +357,9 @@ export interface AdminReferralReport {
     referredPersonsCount: number;
     payablePeopleCount: number;
     payableUah: number;
+    personWarnLimitUah: number;
   };
+  budget: ReferralBudgetStatus;
   payoutBalances: ReferralPayoutPersonRow[];
   rewards: ReferralRewardRow[];
   flagged: ReferralRewardRow[];

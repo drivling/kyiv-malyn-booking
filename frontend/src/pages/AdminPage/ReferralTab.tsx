@@ -108,6 +108,8 @@ export const ReferralTab: React.FC = () => {
   const [busyProofId, setBusyProofId] = useState<number | null>(null);
   const [busyRewardId, setBusyRewardId] = useState<number | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [budgetInput, setBudgetInput] = useState('');
+  const [budgetSaving, setBudgetSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,6 +117,7 @@ export const ReferralTab: React.FC = () => {
     try {
       const data = await apiClient.getReferralReport();
       setReport(data);
+      setBudgetInput(String(data.budget.budgetUah));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка завантаження');
     } finally {
@@ -162,6 +165,8 @@ export const ReferralTab: React.FC = () => {
     () => selfReferralFlagged.reduce((s, r) => s + r.amountUah, 0),
     [selfReferralFlagged]
   );
+
+  const personWarnLimitUah = report?.summary.personWarnLimitUah ?? 200;
 
   const pendingProofs = useMemo(
     () =>
@@ -218,6 +223,31 @@ export const ReferralTab: React.FC = () => {
       setError(e instanceof Error ? e.message : 'Помилка оновлення нагороди');
     } finally {
       setBusyRewardId(null);
+    }
+  };
+
+  const saveBudget = async () => {
+    const value = Number(budgetInput.trim());
+    if (!Number.isInteger(value) || value < 0) {
+      setError('Бюджет має бути цілим числом у гривнях');
+      return;
+    }
+    setBudgetSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await apiClient.setReferralBudget(value);
+      setSuccess(
+        `Бюджет акції: ${result.budgetUah} грн` +
+          (result.releasedCount > 0
+            ? `. Знято з утримання ${result.releasedCount} нагород на ${result.releasedUah} грн — тепер чекають схвалення фото.`
+            : '')
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не вдалося змінити бюджет');
+    } finally {
+      setBudgetSaving(false);
     }
   };
 
@@ -327,6 +357,41 @@ export const ReferralTab: React.FC = () => {
         </div>
       )}
 
+      {report?.budget && (
+        <section style={{ marginTop: 28 }}>
+          <h3>💰 Бюджет акції</h3>
+          <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
+            Витрачено <strong>{report.budget.committedUah} грн</strong> із {report.budget.budgetUah} грн,
+            лишилось {report.budget.remainingUah} грн. Понад бюджет нагороди створюються на утриманні —
+            схвалення фото їх не розморожує.
+          </p>
+          {report.budget.budgetHeldCount > 0 && (
+            <Alert variant="error">
+              Через вичерпаний бюджет утримано {report.budget.budgetHeldCount} нагород на{' '}
+              <strong>{report.budget.budgetHeldUah} грн</strong>. Підніміть бюджет — ті, що
+              вкладуться, автоматично повернуться в звичайну чергу модерації.
+            </Alert>
+          )}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 200 }}>
+              <Input
+                label="Загальний бюджет, грн"
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                placeholder="4000"
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={() => void saveBudget()}
+              disabled={budgetSaving || budgetInput.trim() === String(report.budget.budgetUah)}
+            >
+              {budgetSaving ? 'Збереження…' : 'Зберегти бюджет'}
+            </Button>
+          </div>
+        </section>
+      )}
+
       <section style={{ marginTop: 28 }}>
         <h3>💳 Черга виплат</h3>
         <p style={{ color: 'var(--pb-text-muted)', marginTop: 0 }}>
@@ -418,9 +483,11 @@ export const ReferralTab: React.FC = () => {
               {filteredBalances.map((row) => {
                 const open = expandedPersonId === row.personId;
                 const details = rewardsByPerson.get(row.personId) ?? [];
+                const totalEarnedUah = row.paidUah + row.payableUah + row.holdUah;
+                const overWarnLimit = totalEarnedUah >= personWarnLimitUah;
                 return (
                   <React.Fragment key={row.personId}>
-                    <tr>
+                    <tr className={overWarnLimit ? 'referral-row--watch' : undefined}>
                       <td>
                         <button
                           type="button"
@@ -430,6 +497,11 @@ export const ReferralTab: React.FC = () => {
                           {open ? '▼' : '▶'} {row.fullName || '—'}
                         </button>
                         {row.telegramUsername ? <div style={{ fontSize: 12, color: 'var(--pb-text-muted)' }}>@{row.telegramUsername}</div> : null}
+                        {overWarnLimit && (
+                          <div style={{ fontSize: 12, fontWeight: 600 }}>
+                            👀 усього {totalEarnedUah} грн — перевірте
+                          </div>
+                        )}
                       </td>
                       <td>{formatPhoneDisplay(row.phoneNormalized)}</td>
                       <td>

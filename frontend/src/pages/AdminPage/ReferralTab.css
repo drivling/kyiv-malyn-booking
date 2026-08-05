@@ -25,6 +25,11 @@
   box-shadow: 0 0 0 1px rgba(217, 45, 32, 0.2);
 }
 
+/* Людина перетнула поріг уваги за сумою бонусів */
+.referral-row--watch {
+  background: #fffaeb;
+}
+
 /* Само-реферал: гроші заморожені до рішення адміна */
 .referral-row--fraud {
   background: #fef3f2;

@@ -21,6 +21,7 @@ import type {
   BehaviorPromoScenarioKey,
   PhoneCheckAnalyzeResponse,
   AdminReferralReport,
+  ReferralBudgetStatus,
   ReferralRewardRow,
   RideCompletionProofRow,
 } from '@/types';
@@ -522,6 +523,15 @@ class ApiClient {
   // --- Реферальна програма (адмін) ---
   async getReferralReport(): Promise<AdminReferralReport> {
     return this.request<AdminReferralReport>('/admin/referrals/report');
+  }
+
+  async setReferralBudget(
+    budgetUah: number
+  ): Promise<ReferralBudgetStatus & { releasedCount: number; releasedUah: number }> {
+    return this.request('/admin/referrals/budget', {
+      method: 'PATCH',
+      body: JSON.stringify({ budgetUah }),
+    });
   }
 
   async markReferralPayout(data: {

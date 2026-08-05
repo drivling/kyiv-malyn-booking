@@ -125,7 +125,19 @@ async function onReferralRegistration(prisma, personId, phoneNormalized, telegra
                 : `<i>Нагорода ще не нарахована — чекаємо підтвердження поїздки.</i>`));
     }
 }
+/** Антиспам: скільки підтверджень поїздки людина вже подала сьогодні */
+async function isRideProofDailyLimitReached(prisma, personId) {
+    const today = await (0, referral_1.countRideProofsToday)(prisma, personId);
+    return today >= referral_1.MAX_RIDE_PROOFS_PER_DAY;
+}
+const RIDE_PROOF_LIMIT_MESSAGE = '🚦 <b>На сьогодні досить</b>\n\n' +
+    `Одна людина може підтвердити не більше ${referral_1.MAX_RIDE_PROOFS_PER_DAY} поїздок на добу.\n` +
+    'Спробуйте завтра — уже надіслані фото нікуди не зникнуть.';
 async function startRideProofFlow(bot, prisma, chatId, personId) {
+    if (await isRideProofDailyLimitReached(prisma, personId)) {
+        await bot.sendMessage(chatId, RIDE_PROOF_LIMIT_MESSAGE, { parse_mode: 'HTML' });
+        return;
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const listings = await prisma.viberListing.findMany({
@@ -197,6 +209,12 @@ async function handleRideProofCallback(bot, prisma, chatId, personId, data, botU
             await bot.sendMessage(chatId, existingProof.status === 'approved'
                 ? '✅ Цю поїздку вже підтверджено.'
                 : '⏳ Фото по цій поїздці вже на перевірці. Зачекайте рішення модератора.');
+            return true;
+        }
+        // Нове підтвердження впирається в добовий ліміт; повторне фото по старому — ні
+        if (!existingProof && (await isRideProofDailyLimitReached(prisma, personId))) {
+            exports.rideProofFlowStateMap.delete(chatId);
+            await bot.sendMessage(chatId, RIDE_PROOF_LIMIT_MESSAGE, { parse_mode: 'HTML' });
             return true;
         }
         const proof = existingProof
@@ -352,6 +370,14 @@ async function handleRideProofPhoto(bot, prisma, chatId, personId, photoFileId, 
             }
             if (rewardResult.flagged)
                 parts.push('⚠️ <b>Позначено підозрілим розкладом</b>');
+            if (rewardResult.budgetHeldUah > 0) {
+                parts.push(`💰 <b>Бюджет акції вичерпано</b> — ${rewardResult.budgetHeldUah} грн створено на утриманні. ` +
+                    'Підніміть бюджет в адмінці або лишіть як є.');
+            }
+            for (const person of rewardResult.personsOverWarnLimit) {
+                parts.push(`👀 Person #${person.personId} вже набрав <b>${person.totalUah} грн</b> ` +
+                    `(поріг ${referral_1.REFERRAL_PERSON_TOTAL_WARN_UAH} грн) — варто перевірити.`);
+            }
             notifyAdmin(parts.join('\n'), [proof.photoStartFileId, photoFileId]);
         }
         return true;

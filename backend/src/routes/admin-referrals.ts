@@ -4,7 +4,9 @@ import { requireAdmin } from '../middleware/require-admin';
 import {
   buildAdminReferralReport,
   findUnlockableFlaggedRewardIds,
+  getReferralBudgetStatus,
   markReferralPayout,
+  setReferralBudgetUah,
   withAdminManualFlagReason,
   REWARD_STATUS_APPROVED,
   REWARD_STATUS_FLAGGED,
@@ -25,6 +27,36 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
     } catch (e) {
       console.error('❌ GET /admin/referrals/report:', e);
       res.status(500).json({ error: 'Не вдалося сформувати звіт' });
+    }
+  });
+
+  /** Поточний бюджет акції та скільки з нього витрачено */
+  r.get('/admin/referrals/budget', requireAdmin, async (_req, res) => {
+    try {
+      res.json(await getReferralBudgetStatus(prisma));
+    } catch (e) {
+      console.error('❌ GET /admin/referrals/budget:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати бюджет' });
+    }
+  });
+
+  /**
+   * Змінити бюджет акції. Якщо підняли — нагороди, що тепер вкладаються,
+   * знімаються з бюджетного утримання (статус лишається hold).
+   */
+  r.patch('/admin/referrals/budget', requireAdmin, async (req, res) => {
+    try {
+      const raw = Number((req.body as { budgetUah?: number } | undefined)?.budgetUah);
+      if (!Number.isInteger(raw) || raw < 0 || raw > 10_000_000) {
+        res.status(400).json({ error: 'budgetUah: ціле число від 0 до 10000000' });
+        return;
+      }
+      const result = await setReferralBudgetUah(prisma, raw);
+      const status = await getReferralBudgetStatus(prisma);
+      res.json({ ...status, releasedCount: result.releasedCount, releasedUah: result.releasedUah });
+    } catch (e) {
+      console.error('❌ PATCH /admin/referrals/budget:', e);
+      res.status(500).json({ error: 'Не вдалося змінити бюджет' });
     }
   });
 
