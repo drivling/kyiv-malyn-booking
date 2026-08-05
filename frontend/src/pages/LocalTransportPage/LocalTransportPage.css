@@ -1,23 +1,24 @@
 /* ==========================================================================
-   Локальний транспорт — палітра та UX у дусі Google Maps (Directions)
+   Локальний транспорт — форми/кольори узгоджені з головною (Міжміські / BBC)
+   Логіка layout (panel + map) лишається; змінюємо лише tokens і вигляд форм.
    ========================================================================== */
 
 .lt-page {
-  /* Google Material / Maps (світла тема) */
-  --lt-accent: #1a73e8;
-  --lt-accent-hover: #1967d2;
-  --lt-accent-light: #e8f0fe;
-  --lt-bg: #f8f9fa;
+  /* BlaBlaCar-inspired cyan / navy (як .mizh-page) */
+  --lt-accent: #00aff5;
+  --lt-accent-hover: #0099d9;
+  --lt-accent-light: rgba(0, 175, 245, 0.12);
+  --lt-bg: #f1f4f5;
   --lt-card: #ffffff;
-  --lt-border: #dadce0;
-  --lt-border-light: #e8eaed;
-  --lt-text: #202124;
-  --lt-text-muted: #5f6368;
-  --lt-origin: #34a853;
-  --lt-destination: #ea4335;
-  --lt-font: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --lt-card-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
-  --lt-elev-1: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --lt-border: #dde3e6;
+  --lt-border-light: #e8ecee;
+  --lt-text: #054752;
+  --lt-text-muted: #708c91;
+  --lt-origin: #0fa573;
+  --lt-destination: #00aff5;
+  --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --lt-card-shadow: 0 2px 12px rgba(5, 71, 82, 0.08);
+  --lt-elev-1: 0 2px 12px rgba(5, 71, 82, 0.08);
   --lt-fs-xs: 0.6875rem;
   --lt-fs-sm: 0.75rem;
   --lt-fs-base: 0.875rem;
@@ -27,31 +28,33 @@
   --lt-panel-x: 16px;
   --lt-panel-y: 12px;
   --lt-panel-block: 14px;
+  --lt-radius: 16px;
+  --lt-radius-sm: 12px;
 }
 
-/* Тема Jakdojade — червоний бренд на нейтралях як у Google */
+/* Тема сторінки — ті самі BBC-токени */
 .lt-page.lt-theme-jakdojade {
-  --lt-accent: #1a73e8;
-  --lt-accent-hover: #1967d2;
-  --lt-accent-light: #e8f0fe;
-  --lt-bg: #f8f9fa;
+  --lt-accent: #00aff5;
+  --lt-accent-hover: #0099d9;
+  --lt-accent-light: rgba(0, 175, 245, 0.12);
+  --lt-bg: #f1f4f5;
   --lt-card: #ffffff;
-  --lt-border: #dadce0;
-  --lt-border-light: #e8eaed;
-  --lt-text: #202124;
-  --lt-text-muted: #5f6368;
-  --lt-font: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --lt-border: #dde3e6;
+  --lt-border-light: #e8ecee;
+  --lt-text: #054752;
+  --lt-text-muted: #708c91;
+  --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* Jakdojade: «До» — червоний акцент Google (кінцева точка) */
 .lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: var(--lt-destination); }
 .lt-theme-jakdojade .lt-stop-badge--to {
-  background: #fce8e6;
-  color: #c5221f;
+  background: rgba(0, 175, 245, 0.12);
+  color: #0087c0;
 }
 .lt-theme-jakdojade .lt-stop-item--to::before {
   background: var(--lt-destination);
-  box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.25);
+  box-shadow: 0 0 0 2px rgba(0, 175, 245, 0.25);
 }
 
 /* Поля всередині сторінки транспорту — фокус і hover у стилі Material */
@@ -63,7 +66,7 @@
 }
 .lt-page .combobox-input-wrap:focus-within {
   border-color: var(--lt-accent);
-  box-shadow: 0 0 0 1px var(--lt-accent);
+  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.18);
 }
 .lt-page .combobox-clear:hover {
   color: var(--lt-accent);
@@ -109,18 +112,18 @@
   outline-offset: 0;
 }
 
-/* ========== Dark layout — панель як у Google Maps (темна тема) ========== */
+/* ========== Split layout: світла BBC-панель + карта ========== */
 .lt-page.lt-layout-dark {
-  --lt-panel-bg: #202124;
-  --lt-panel-text: #e8eaed;
-  --lt-panel-text-muted: #9aa0a6;
-  --lt-panel-border: #3c4043;
-  /* Акцент у темній темі Google — блакитний, не зелений */
-  --lt-route-green: #8ab4f8;
+  --lt-panel-bg: #ffffff;
+  --lt-panel-text: #054752;
+  --lt-panel-text-muted: #708c91;
+  --lt-panel-border: #dde3e6;
+  /* Акцент маршрутів = cyan головної */
+  --lt-route-green: #00aff5;
   min-height: 100vh;
   min-height: 100dvh;
   padding: 0;
-  background: #1a1a1a;
+  background: #f1f4f5;
   font-family: var(--lt-font);
   overflow-x: hidden;
   width: 100%;
@@ -132,7 +135,7 @@
   border-radius: 0;
   box-shadow: none;
   border: none;
-  background: #1a1a1a;
+  background: #f1f4f5;
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 60px);
@@ -248,51 +251,60 @@
 .lt-layout-dark .lt-panel .lt-header--jakdojade { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); }
 
 .lt-layout-dark .lt-panel .lt-route-num--verified {
-  background: var(--lt-route-green) !important;
-  border-color: var(--lt-route-green) !important;
-  color: #202124 !important;
+  background: #0fa573 !important;
+  border-color: #0fa573 !important;
+  color: #fff !important;
 }
 
 .lt-layout-dark .lt-panel .lt-direction-btn--active {
-  background: rgba(138, 180, 248, 0.22) !important;
+  background: rgba(0, 175, 245, 0.12) !important;
   border: 1px solid var(--lt-route-green) !important;
   color: var(--lt-route-green) !important;
 }
 
 .lt-layout-dark .lt-panel .lt-direction-btn:not(.lt-direction-btn--active) {
-  background: #2b2c2f;
+  background: #f1f4f5;
   border-color: transparent;
   color: var(--lt-panel-text-muted);
 }
 
-.lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #1a1a1a !important; }
+.lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #f1f4f5 !important; }
 .lt-layout-dark .lt-panel .lt-timetable-table--tablica td { border-color: var(--lt-panel-border); background: var(--lt-panel-bg); }
-.lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: #3d3d3d !important; }
+.lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: rgba(0, 175, 245, 0.1) !important; }
 .lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap,
-.lt-layout-dark .lt-panel .lt-datetime-input { background: #3d3d3d; border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
+.lt-layout-dark .lt-panel .lt-datetime-input {
+  background: #fff;
+  border-color: var(--lt-panel-border);
+  color: var(--lt-panel-text);
+  border-radius: var(--lt-radius-sm, 12px);
+}
 .lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap::placeholder,
 .lt-layout-dark .lt-panel .lt-datetime-input::placeholder { color: var(--lt-panel-text-muted); }
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap:focus-within { border-color: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .combobox-list { background: #3d3d3d; border-color: var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap:focus-within {
+  border-color: var(--lt-route-green);
+  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.18);
+}
+.lt-layout-dark .lt-panel .combobox-list { background: #fff; border-color: var(--lt-panel-border); box-shadow: var(--lt-card-shadow); }
 .lt-layout-dark .lt-panel .combobox-option { color: var(--lt-panel-text); }
 .lt-layout-dark .lt-panel .combobox-option:hover,
-.lt-layout-dark .lt-panel .combobox-option--highlight { background: #4d4d4d; }
-.lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-route-green) !important; }
-.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: #9fc2fa !important; color: #202124 !important; }
-.lt-layout-dark .lt-panel .lt-geo-btn--small { background: #3d3d3d; color: var(--lt-panel-text); border: 1px solid var(--lt-panel-border); }
+.lt-layout-dark .lt-panel .combobox-option--highlight { background: rgba(0, 175, 245, 0.1); }
+.lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-accent) !important; color: #fff !important; }
+.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: var(--lt-accent-hover) !important; color: #fff !important; }
+.lt-layout-dark .lt-panel .lt-geo-btn--small { background: #fff; color: var(--lt-panel-text); border: 1px solid var(--lt-panel-border); }
 .lt-layout-dark .lt-panel .lt-from-to-swap {
-  background: #3d3d3d;
+  background: #fff;
   border-color: var(--lt-panel-border);
   color: var(--lt-panel-text-muted);
 }
 .lt-layout-dark .lt-panel .lt-from-to-swap:hover {
   border-color: var(--lt-route-green);
   color: var(--lt-route-green);
+  background: rgba(0, 175, 245, 0.08);
 }
 .lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
-.lt-layout-dark .lt-panel .lt-route-card:hover { background: #2f3033; }
+.lt-layout-dark .lt-panel .lt-route-card:hover { background: #f7fafb; }
 .lt-layout-dark .lt-panel .lt-route-card--jd { background: var(--lt-panel-bg); }
-.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #2f3033; }
+.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #f7fafb; }
 .lt-layout-dark .lt-panel .lt-route-card-time { border-color: var(--lt-panel-border); }
 .lt-layout-dark .lt-panel .lt-route-card-time-value { color: var(--lt-panel-text); }
 .lt-layout-dark .lt-panel .lt-route-card-main .lt-route-path { color: var(--lt-panel-text) !important; }
@@ -302,8 +314,8 @@
   background-image: none !important;
 }
 .lt-layout-dark .lt-panel .lt-stops-timeline-segment { background: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: #81c995 !important; }
-.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #f28b82 !important; }
+.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: #0fa573 !important; }
+.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #00aff5 !important; }
 .lt-layout-dark .lt-panel .lt-footer { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); color: var(--lt-panel-text-muted); }
 .lt-layout-dark .lt-panel .lt-footer a { color: var(--lt-route-green); }
 
@@ -316,13 +328,13 @@
 .lt-layout-dark .lt-panel .lt-timetable-section { background: var(--lt-panel-bg); }
 .lt-layout-dark .lt-panel .lt-print-btn,
 .lt-layout-dark .lt-panel .lt-print-btn--compact {
-  background: #3d3d3d !important;
+  background: #fff !important;
   border-color: var(--lt-panel-border) !important;
   color: var(--lt-panel-text) !important;
 }
 .lt-layout-dark .lt-panel .lt-print-btn:hover,
 .lt-layout-dark .lt-panel .lt-print-btn--compact:hover {
-  background: #4d4d4d !important;
+  background: rgba(0, 175, 245, 0.08) !important;
   border-color: var(--lt-route-green) !important;
   color: var(--lt-route-green) !important;
 }
@@ -353,9 +365,9 @@
 }
 
 .lt-layout-dark .lt-panel .lt-fare {
-  background: rgba(138, 180, 248, 0.12) !important;
+  background: rgba(0, 175, 245, 0.12) !important;
   color: var(--lt-route-green) !important;
-  border: 1px solid rgba(138, 180, 248, 0.35);
+  border: 1px solid rgba(0, 175, 245, 0.35);
 }
 .lt-layout-dark .lt-panel .lt-back,
 .lt-layout-dark .lt-panel .lt-back--header { color: var(--lt-panel-text-muted) !important; }
@@ -364,7 +376,7 @@
 .lt-layout-dark .lt-panel .lt-detail-summary-route,
 .lt-layout-dark .lt-panel .lt-detail-summary-meta { color: inherit; }
 .lt-layout-dark .lt-panel .lt-detail-summary-change { color: var(--lt-route-green); border-color: var(--lt-panel-border); }
-.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(138, 180, 248, 0.12); }
+.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(0, 175, 245, 0.12); }
 .lt-layout-dark .lt-panel .lt-detail-summary-arrow { color: var(--lt-route-green); }
 .lt-layout-dark .lt-panel .lt-route-num--unverified { color: var(--lt-panel-text-muted); }
 
@@ -389,10 +401,10 @@
   color: var(--lt-panel-text) !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-item--from .lt-stop-content {
-  color: #81c995 !important;
+  color: #0fa573 !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-item--to .lt-stop-content {
-  color: #f28b82 !important;
+  color: #0087c0 !important;
 }
 .lt-layout-dark .lt-panel .lt-stop-to-next {
   color: var(--lt-panel-text-muted) !important;
@@ -840,12 +852,14 @@
 }
 
 .lt-theme-jakdojade .lt-title {
-  font-size: var(--lt-fs-xl);
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
   font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #054752;
 }
 
 .lt-theme-jakdojade .lt-subtitle {
-  font-size: var(--lt-fs-base);
+  font-size: 14px;
   color: var(--lt-text-muted);
 }
 
@@ -863,14 +877,17 @@
   color: var(--lt-text-muted);
 }
 
-/* ========== Блок З / До — картка як у панелі Google Maps Directions ========== */
+/* ========== Блок З / До — картка як на головній (mizh-search) ========== */
 .lt-search--jakdojade {
-  padding: var(--lt-panel-block) var(--lt-panel-x) var(--lt-panel-block);
-  background: var(--lt-bg);
+  padding: 16px;
+  margin: 0 var(--lt-panel-x) var(--lt-panel-block);
+  background: var(--lt-card);
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid var(--lt-border-light);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius, 16px);
+  box-shadow: 0 8px 28px rgba(5, 71, 82, 0.1);
 }
 
 .lt-from-to-block {
@@ -947,23 +964,24 @@
 }
 
 .lt-from-to-cell .combobox-input-wrap {
-  border-radius: 8px;
+  border-radius: var(--lt-radius-sm, 12px);
   border: 1px solid var(--lt-border);
   transition: border-color 0.15s, box-shadow 0.15s;
+  padding: 2px 4px;
 }
 
 .lt-from-to-cell .combobox-input-wrap:focus-within {
   border-color: var(--lt-accent);
-  box-shadow: 0 0 0 1px var(--lt-accent);
+  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.18);
 }
 
 .lt-from-to-label {
   display: block;
-  font-size: var(--lt-fs-sm);
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--lt-text-muted);
-  text-transform: none;
-  letter-spacing: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
@@ -985,8 +1003,8 @@
 .lt-from-to-dot--from { background: var(--lt-origin, #34a853); }
 .lt-from-to-dot--to { background: var(--lt-destination, #ea4335); }
 
-.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: #81c995; }
-.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: #f28b82; }
+.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: #0fa573; }
+.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: #00aff5; }
 
 .lt-from-to-swap {
   flex-shrink: 0;
@@ -1031,22 +1049,24 @@
 
 .lt-datetime-label {
   display: block;
-  font-size: var(--lt-fs-sm);
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--lt-text-muted);
-  text-transform: none;
-  letter-spacing: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
 .lt-datetime-input {
   width: 100%;
   min-width: 90px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: var(--lt-fs-md);
+  font-family: inherit;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   border: 1px solid var(--lt-border);
-  border-radius: 8px;
+  border-radius: var(--lt-radius-sm, 12px);
   background: var(--lt-card);
   color: var(--lt-text);
   box-shadow: none;
@@ -1055,7 +1075,7 @@
 .lt-datetime-input:focus {
   outline: none;
   border-color: var(--lt-accent);
-  box-shadow: 0 0 0 1px var(--lt-accent);
+  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.18);
 }
 
 .lt-datetime-input[type="time"] {
@@ -1065,13 +1085,14 @@
 .lt-search-btn {
   flex: 1;
   min-width: 120px;
-  padding: 12px var(--lt-panel-x);
+  padding: 12px 22px;
   background: var(--lt-accent);
   color: #fff;
   border: none;
-  border-radius: 24px;
-  font-size: var(--lt-fs-md);
-  font-weight: 500;
+  border-radius: var(--lt-radius-sm, 12px);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -1087,9 +1108,8 @@
   cursor: not-allowed;
 }
 
-/* Jakdojade: кнопка «Знайти» на всю ширину в один ряд з полями */
 .lt-theme-jakdojade .lt-search--jakdojade {
-  padding: 12px 20px 16px;
+  padding: 16px;
 }
 
 .lt-theme-jakdojade .lt-datetime-row {
@@ -1098,8 +1118,9 @@
 
 .lt-theme-jakdojade .lt-search-btn {
   min-width: 100px;
-  padding: 11px var(--lt-panel-x);
-  font-size: var(--lt-fs-md);
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .lt-search-extra {
@@ -2714,34 +2735,39 @@
 
 /* Піднавігація: маршрути З→До ↔ табло зупинки */
 .lt-subnav {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding: 0 var(--lt-panel-x, 16px);
+  display: inline-flex;
+  gap: 2px;
+  margin: 0 var(--lt-panel-x, 16px) 14px;
+  padding: 4px;
+  width: calc(100% - 2 * var(--lt-panel-x, 16px));
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: var(--lt-card-shadow);
 }
 
 .lt-subnav-link {
   flex: 1;
   text-align: center;
   padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--lt-panel-text-muted, #9aa0a6);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lt-panel-text-muted, #708c91);
   text-decoration: none;
-  border: 1px solid transparent;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  border: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .lt-subnav-link:hover {
-  color: var(--lt-panel-text, #e8eaed);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--lt-panel-text, #054752);
+  background: rgba(0, 175, 245, 0.08);
 }
 
 .lt-layout-dark .lt-panel .lt-subnav-link--active {
-  color: var(--lt-route-green, #8ab4f8);
-  border-color: var(--lt-panel-border, #3c4043);
-  background: rgba(138, 180, 248, 0.1);
+  color: #fff;
+  background: #054752;
+  border-color: transparent;
 }
 
 /* Табло зупинки */
@@ -2911,17 +2937,18 @@
   gap: 16px 20px;
   align-items: stretch;
   padding: 16px 18px;
-  border-radius: 14px;
-  background: linear-gradient(165deg, #323336 0%, #28292c 100%);
-  border: 1px solid var(--lt-panel-border, #3c4043);
+  border-radius: var(--lt-radius, 16px);
+  background: #fff;
+  border: 1px solid var(--lt-panel-border, #dde3e6);
+  box-shadow: var(--lt-card-shadow);
   text-decoration: none;
   color: inherit;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
 }
 
 .lt-jd-card:hover {
-  border-color: rgba(138, 180, 248, 0.5);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 175, 245, 0.45);
+  box-shadow: 0 8px 28px rgba(5, 71, 82, 0.12);
   transform: translateY(-1px);
 }
 
@@ -2931,11 +2958,11 @@
 }
 
 .lt-jd-card--next {
-  border-color: rgba(129, 201, 149, 0.45);
+  border-color: rgba(15, 165, 115, 0.4);
   box-shadow:
-    0 0 0 1px rgba(129, 201, 149, 0.2),
-    inset 3px 0 0 0 rgba(129, 201, 149, 0.85);
-  background: linear-gradient(165deg, rgba(129, 201, 149, 0.12) 0%, #2a2b2e 52%);
+    0 2px 12px rgba(5, 71, 82, 0.08),
+    inset 3px 0 0 0 #0fa573;
+  background: linear-gradient(180deg, #fff 0%, #f7fbfc 100%);
 }
 
 .lt-jd-card__countdown {
@@ -2965,7 +2992,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: #aecbfa;
+  color: #054752;
 }
 
 .lt-jd-card__countdown-big--hm {
@@ -2977,7 +3004,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
-  color: #aecbfa;
+  color: #054752;
   letter-spacing: -0.02em;
 }
 
@@ -3007,7 +3034,7 @@
 .lt-jd-card__countdown-now {
   font-size: 1.35rem;
   font-weight: 700;
-  color: #81c995;
+  color: #0fa573;
 }
 
 .lt-jd-card__countdown-past {
@@ -3041,17 +3068,17 @@
   font-weight: 700;
   font-size: 0.9375rem;
   padding: 5px 12px;
-  border-radius: 10px;
-  background: rgba(138, 180, 248, 0.14);
-  color: #aecbfa;
-  border: 1px solid rgba(138, 180, 248, 0.22);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
+  background: rgba(0, 175, 245, 0.12);
+  color: #0087c0;
+  border: 1px solid rgba(0, 175, 245, 0.28);
+  box-shadow: none;
 }
 
 .lt-jd-card__route-num--verified {
-  background: rgba(52, 168, 83, 0.14);
-  color: #81c995;
-  border-bottom-color: rgba(52, 168, 83, 0.45);
+  background: rgba(15, 165, 115, 0.12);
+  color: #0fa573;
+  border-color: rgba(15, 165, 115, 0.35);
 }
 
 .lt-jd-card__route-arrow {
@@ -3085,9 +3112,9 @@
 }
 
 .lt-jd-card__pill--dep {
-  background: rgba(52, 168, 83, 0.18);
-  color: #81c995;
-  border: 1px solid rgba(52, 168, 83, 0.35);
+  background: rgba(15, 165, 115, 0.12);
+  color: #0fa573;
+  border: 1px solid rgba(15, 165, 115, 0.35);
 }
 
 .lt-jd-card__pill-hint {
