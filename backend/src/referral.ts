@@ -1179,15 +1179,43 @@ type ReferralInlineButton = {
   url?: string;
   callback_data?: string;
   copy_text?: { text: string };
+  switch_inline_query?: string;
 };
 
 /** Короткий підпис для нативного «Поділитися» в Telegram */
 export const REFERRAL_SHARE_TEXT =
   'Попутки Малин↔Київ у боті. Підтверди поїздку двома фото — бонус на мобільний обом 🎁';
 
+/** Префікс inline-запиту для кнопки switch_inline_query «Поділитися з другом» */
+export const REFERRAL_INLINE_QUERY_PREFIX = 'ref_share';
+
+/** Текст, який друг отримає у чаті (inline article або t.me/share fallback) */
+export function buildReferralShareMessageText(referralLink: string): string {
+  return `${REFERRAL_SHARE_TEXT}\n\n${referralLink}`;
+}
+
+/** Inline @бот у чаті: пустий запит або ref_share з кнопки */
+export function isReferralInlineShareQuery(query: string): boolean {
+  const q = query.trim();
+  return q === '' || q === REFERRAL_INLINE_QUERY_PREFIX || q.startsWith(`${REFERRAL_INLINE_QUERY_PREFIX} `);
+}
+
+/** Результат answerInlineQuery — готове приглашення з персональним посиланням */
+export function buildReferralShareInlineQueryResult(referralLink: string) {
+  return {
+    type: 'article' as const,
+    id: 'referral_share',
+    title: '📤 Поділитися з другом',
+    description: 'Персональне посилання для друга',
+    input_message_content: {
+      message_text: buildReferralShareMessageText(referralLink),
+    },
+  };
+}
+
 /**
- * Посилання на рідний share-діалог Telegram: вибір чату і готове повідомлення.
- * Через t.me/share, а не switch_inline_query — бот не має inline-режиму.
+ * Fallback без inline-режиму: t.me/share/url (Facebook, зовнішні лінки).
+ * Для кнопки в боті використовуємо switch_inline_query + answerInlineQuery.
  */
 export function buildTelegramShareUrl(referralLink: string, text = REFERRAL_SHARE_TEXT): string {
   return (
@@ -1204,7 +1232,12 @@ export function buildReferralProgramInlineKeyboard(
   opts?: { withInviteActions?: boolean }
 ): { inline_keyboard: ReferralInlineButton[][] } {
   const rows: ReferralInlineButton[][] = [
-    [{ text: '📤 Поділитися з другом', url: buildTelegramShareUrl(referralLink) }],
+    [
+      {
+        text: '📤 Поділитися з другом',
+        switch_inline_query: REFERRAL_INLINE_QUERY_PREFIX,
+      },
+    ],
     [{ text: '🔗 Копіювати посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
   ];
   if (opts?.withInviteActions) {

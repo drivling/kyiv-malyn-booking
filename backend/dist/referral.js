@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_PAYOUT_UNDONE_PREFIX = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.REFERRAL_SHARE_TEXT = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_PAYOUT_UNDONE_PREFIX = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.REFERRAL_INLINE_QUERY_PREFIX = exports.REFERRAL_SHARE_TEXT = exports.MIN_RIDE_DURATION_MINUTES = exports.REFERRAL_BUDGET_HOLD_REASON = exports.REFERRAL_PERSON_TOTAL_WARN_UAH = exports.MAX_RIDE_PROOFS_PER_DAY = exports.REFERRAL_DEFAULT_BUDGET_UAH = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
 exports.isRewardOnHold = isRewardOnHold;
 exports.isRewardPayable = isRewardPayable;
 exports.generateReferralCode = generateReferralCode;
@@ -31,6 +31,9 @@ exports.processReferralRegistrationReward = processReferralRegistrationReward;
 exports.processReferralPassengerProofReward = processReferralPassengerProofReward;
 exports.getReferralStatsForPerson = getReferralStatsForPerson;
 exports.buildReferralProgramTermsHtml = buildReferralProgramTermsHtml;
+exports.buildReferralShareMessageText = buildReferralShareMessageText;
+exports.isReferralInlineShareQuery = isReferralInlineShareQuery;
+exports.buildReferralShareInlineQueryResult = buildReferralShareInlineQueryResult;
 exports.buildTelegramShareUrl = buildTelegramShareUrl;
 exports.buildReferralProgramInlineKeyboard = buildReferralProgramInlineKeyboard;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
@@ -988,9 +991,32 @@ function buildReferralProgramTermsHtml(referralLink) {
 }
 /** Короткий підпис для нативного «Поділитися» в Telegram */
 exports.REFERRAL_SHARE_TEXT = 'Попутки Малин↔Київ у боті. Підтверди поїздку двома фото — бонус на мобільний обом 🎁';
+/** Префікс inline-запиту для кнопки switch_inline_query «Поділитися з другом» */
+exports.REFERRAL_INLINE_QUERY_PREFIX = 'ref_share';
+/** Текст, який друг отримає у чаті (inline article або t.me/share fallback) */
+function buildReferralShareMessageText(referralLink) {
+    return `${exports.REFERRAL_SHARE_TEXT}\n\n${referralLink}`;
+}
+/** Inline @бот у чаті: пустий запит або ref_share з кнопки */
+function isReferralInlineShareQuery(query) {
+    const q = query.trim();
+    return q === '' || q === exports.REFERRAL_INLINE_QUERY_PREFIX || q.startsWith(`${exports.REFERRAL_INLINE_QUERY_PREFIX} `);
+}
+/** Результат answerInlineQuery — готове приглашення з персональним посиланням */
+function buildReferralShareInlineQueryResult(referralLink) {
+    return {
+        type: 'article',
+        id: 'referral_share',
+        title: '📤 Поділитися з другом',
+        description: 'Персональне посилання для друга',
+        input_message_content: {
+            message_text: buildReferralShareMessageText(referralLink),
+        },
+    };
+}
 /**
- * Посилання на рідний share-діалог Telegram: вибір чату і готове повідомлення.
- * Через t.me/share, а не switch_inline_query — бот не має inline-режиму.
+ * Fallback без inline-режиму: t.me/share/url (Facebook, зовнішні лінки).
+ * Для кнопки в боті використовуємо switch_inline_query + answerInlineQuery.
  */
 function buildTelegramShareUrl(referralLink, text = exports.REFERRAL_SHARE_TEXT) {
     return ('https://t.me/share/url?url=' +
@@ -1001,7 +1027,12 @@ function buildTelegramShareUrl(referralLink, text = exports.REFERRAL_SHARE_TEXT)
 /** Inline-кнопки під промо «Приведи друга» (поділитися, копіювання + опційно дії в боті). */
 function buildReferralProgramInlineKeyboard(referralLink, opts) {
     const rows = [
-        [{ text: '📤 Поділитися з другом', url: buildTelegramShareUrl(referralLink) }],
+        [
+            {
+                text: '📤 Поділитися з другом',
+                switch_inline_query: exports.REFERRAL_INLINE_QUERY_PREFIX,
+            },
+        ],
         [{ text: '🔗 Копіювати посилання', copy_text: { text: clipForTelegramCopyText(referralLink) } }],
     ];
     if (opts?.withInviteActions) {

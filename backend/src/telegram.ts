@@ -50,8 +50,10 @@ import {
   buildAdminReferralSummary,
   buildReferralProgramTermsHtml,
   buildReferralProgramInlineKeyboard,
+  buildReferralShareInlineQueryResult,
   ensurePersonReferralCode,
   getReferralBotLink,
+  isReferralInlineShareQuery,
 } from './referral';
 
 const defaultTgPrisma = new PrismaClient();
@@ -4071,7 +4073,6 @@ ${buildReferralHelpSection()}
     await runAdminCheckClients(msg.chat.id.toString());
   });
 
-  // Обробка контакту (коли користувач ділиться номером через кнопку)
   bot.on('contact', async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
@@ -4802,6 +4803,54 @@ ${buildReferralHelpSection()}
   // Адмін: короткий звіт по реферальній програмі (чит / pending / фото)
   bot.onText(/^\/referralreport(?:@\w+)?$/i, async (msg) => {
     await runAdminReferralReport(msg.chat.id.toString());
+  });
+
+  /** Inline-режим: реферальне «Поділитися» та (порожній @бот) підказка */
+  bot.on('inline_query', async (query) => {
+    if (!bot) return;
+    try {
+      if (!isReferralInlineShareQuery(query.query)) {
+        await bot.answerInlineQuery(query.id, [], { cache_time: 5 });
+        return;
+      }
+
+      const userId = query.from.id.toString();
+      const person = await getPersonByTelegram(userId, '');
+
+      if (!person) {
+        await bot.answerInlineQuery(
+          query.id,
+          [
+            {
+              type: 'article',
+              id: 'referral_need_start',
+              title: 'Спочатку /start у боті',
+              description: 'Тоді знову «Поділитися з другом»',
+              input_message_content: {
+                message_text:
+                  `Спочатку відкрийте @${telegramBotUsername} і напишіть /start — тоді зможете поділитися персональним посиланням.`,
+              },
+            },
+          ],
+          { cache_time: 60 }
+        );
+        return;
+      }
+
+      const code = await ensurePersonReferralCode(tgPrisma, person.id);
+      const link = getReferralBotLink(telegramBotUsername, code);
+      await bot.answerInlineQuery(query.id, [buildReferralShareInlineQueryResult(link)], {
+        cache_time: 300,
+        is_personal: true,
+      });
+    } catch (e) {
+      console.error('❌ inline_query:', e);
+      try {
+        await bot.answerInlineQuery(query.id, [], { cache_time: 0 });
+      } catch {
+        /* ignore */
+      }
+    }
   });
 
   // Обробка callback query (натискання inline кнопок)

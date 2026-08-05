@@ -35,6 +35,10 @@ import {
   REFERRAL_BUDGET_HOLD_REASON,
   buildTelegramShareUrl,
   buildReferralProgramInlineKeyboard,
+  buildReferralShareInlineQueryResult,
+  buildReferralShareMessageText,
+  isReferralInlineShareQuery,
+  REFERRAL_INLINE_QUERY_PREFIX,
   REFERRAL_SHARE_TEXT,
   type RideTimeSlot,
 } from './referral';
@@ -121,7 +125,7 @@ describe('referral pure helpers', () => {
 });
 
 describe('referral sharing buttons', () => {
-  it('share url opens the native Telegram picker with the personal link', () => {
+  it('share url fallback for external links (t.me/share)', () => {
     const link = 'https://t.me/malin_kiev_ua_bot?start=ref_TESTCODE';
     const url = buildTelegramShareUrl(link);
     assert.ok(url.startsWith('https://t.me/share/url?'));
@@ -129,16 +133,27 @@ describe('referral sharing buttons', () => {
     assert.ok(url.includes(encodeURIComponent(REFERRAL_SHARE_TEXT)));
   });
 
-  it('program keyboard offers share first, then copy', () => {
+  it('program keyboard uses switch_inline_query for share, then copy', () => {
     const link = 'https://t.me/malin_kiev_ua_bot?start=ref_TESTCODE';
     const plain = buildReferralProgramInlineKeyboard(link);
     assert.equal(plain.inline_keyboard.length, 2);
-    assert.ok(plain.inline_keyboard[0][0].url?.startsWith('https://t.me/share/url?'));
+    assert.equal(plain.inline_keyboard[0][0].switch_inline_query, REFERRAL_INLINE_QUERY_PREFIX);
     assert.equal(plain.inline_keyboard[1][0].copy_text?.text, link);
 
     const withActions = buildReferralProgramInlineKeyboard(link, { withInviteActions: true });
     const callbacks = withActions.inline_keyboard.flat().map((b) => b.callback_data).filter(Boolean);
     assert.deepEqual(callbacks, ['referral_invite_contact', 'referral_my_stats']);
+  });
+
+  it('inline query matcher and share message', () => {
+    const link = 'https://t.me/malin_kiev_ua_bot?start=ref_ABCD';
+    assert.equal(isReferralInlineShareQuery(''), true);
+    assert.equal(isReferralInlineShareQuery('ref_share'), true);
+    assert.equal(isReferralInlineShareQuery('allrides'), false);
+    assert.ok(buildReferralShareMessageText(link).includes(link));
+    const result = buildReferralShareInlineQueryResult(link);
+    assert.equal(result.type, 'article');
+    assert.equal(result.input_message_content.message_text, buildReferralShareMessageText(link));
   });
 });
 
