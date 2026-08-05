@@ -94,5 +94,13 @@ export function cityLabel(city: BookingCity): string {
 
 export function todayISO(): string {
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  const local = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
+  return local.toISOString().split('T')[0];
+}
+
+export function tomorrowISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().split('T')[0];
 }

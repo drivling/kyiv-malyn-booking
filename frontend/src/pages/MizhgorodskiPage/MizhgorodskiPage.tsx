@@ -26,6 +26,7 @@ import {
   getTimeMinutes,
   routeMatchesCities,
   todayISO,
+  tomorrowISO,
   type CorridorId,
   type TransportFilter,
 } from './mizhUtils';
@@ -83,7 +84,7 @@ export const MizhgorodskiPage: React.FC = () => {
       : 'all') as TransportFilter
   );
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
-  const [hasSearched, setHasSearched] = useState(Boolean(searchParams.get('from') && searchParams.get('to')));
+  const [hasSearched, setHasSearched] = useState(true);
 
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -113,7 +114,6 @@ export const MizhgorodskiPage: React.FC = () => {
   const [alreadyRequestedListing, setAlreadyRequestedListing] = useState<ViberListing | null>(null);
   const [telegramScenarios, setTelegramScenarios] = useState<TelegramScenariosResponse>(DEFAULT_TELEGRAM_SCENARIOS);
 
-  const direction = getDirectionFromCities(fromCity, toCity);
   const telegramUser = userState.getTelegramUser();
   const isTelegramLoggedIn = userState.isTelegramUser() && !!telegramUser?.id;
 
@@ -182,9 +182,15 @@ export const MizhgorodskiPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (hasSearched && direction) {
-      void loadResults(fromCity, toCity, date);
-    }
+    document.title = 'Міжміські — попутки та маршрутки | malin.kiev.ua';
+    return () => {
+      document.title = 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень';
+    };
+  }, []);
+
+  useEffect(() => {
+    applySearch(fromCity, toCity, date, transport);
+    // initial search on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -198,6 +204,28 @@ export const MizhgorodskiPage: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+
+  const anyModalOpen =
+    showOfferModal || !!confirmRequestListing || showRequestStatusModal || !!alreadyRequestedListing;
+
+  useEffect(() => {
+    if (!anyModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setShowOfferModal(false);
+      setConfirmRequestListing(null);
+      setShowRequestStatusModal(false);
+      setRequestStatusData(null);
+      setAlreadyRequestedListing(null);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [anyModalOpen]);
 
   useEffect(() => {
     if (!hasSearched) return;
@@ -447,6 +475,30 @@ export const MizhgorodskiPage: React.FC = () => {
                 {loading ? 'Шукаємо…' : 'Шукати'}
               </button>
             </div>
+            <div className="mizh-date-chips" role="group" aria-label="Швидка дата">
+              <button
+                type="button"
+                className={`mizh-date-chip ${date === todayISO() ? 'mizh-date-chip--active' : ''}`}
+                onClick={() => {
+                  const next = todayISO();
+                  setDate(next);
+                  applySearch(fromCity, toCity, next, transport);
+                }}
+              >
+                Сьогодні
+              </button>
+              <button
+                type="button"
+                className={`mizh-date-chip ${date === tomorrowISO() ? 'mizh-date-chip--active' : ''}`}
+                onClick={() => {
+                  const next = tomorrowISO();
+                  setDate(next);
+                  applySearch(fromCity, toCity, next, transport);
+                }}
+              >
+                Завтра
+              </button>
+            </div>
             <p className="mizh-search-hint">Усі маршрути проходять через Малин — оберіть коридор чипом або міста вручну.</p>
           </form>
         </div>
@@ -526,20 +578,7 @@ export const MizhgorodskiPage: React.FC = () => {
           <Alert variant="info">Увійдіть через Telegram, щоб бронювати місце у водія прямо на сайті.</Alert>
         )}
 
-        {!hasSearched ? (
-          <section className="mizh-placeholder">
-            <h2>Куди їдете?</h2>
-            <p>Оберіть коридор згори або міста «звідки / куди», дату — і натисніть «Шукати».</p>
-            <div className="mizh-placeholder-actions">
-              <button type="button" className="mizh-card-cta mizh-card-cta--primary" onClick={() => openOfferModal('driver')}>
-                Я їду як водій
-              </button>
-              <button type="button" className="mizh-card-cta mizh-card-cta--ghost" onClick={() => openOfferModal('passenger')}>
-                Шукаю попутку
-              </button>
-            </div>
-          </section>
-        ) : loading ? (
+        {loading ? (
           <div className="mizh-state">Завантаження поїздок…</div>
         ) : results.length === 0 ? (
           <div className="mizh-state">

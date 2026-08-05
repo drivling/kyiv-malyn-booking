@@ -230,6 +230,37 @@
   color: var(--mizh-navy-soft);
 }
 
+.mizh-date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mizh-date-chip {
+  border: 1px solid var(--mizh-border);
+  background: #f7fafb;
+  color: var(--mizh-navy);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.mizh-date-chip--active {
+  background: rgba(0, 175, 245, 0.12);
+  border-color: var(--mizh-blue);
+  color: var(--mizh-blue-dark);
+}
+
+@media (max-width: 720px) {
+  .mizh-offer-route {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* —— Body —— */
 .mizh-body {
   max-width: 960px;
