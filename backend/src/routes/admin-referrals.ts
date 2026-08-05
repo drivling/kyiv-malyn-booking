@@ -141,6 +141,50 @@ export function createAdminReferralsRouter(deps: { prisma: PrismaClient }): Rout
    * Превʼю фото підтвердження поїздки (проксі з Telegram Bot API).
    * kind = start | end
    */
+  r.get('/admin/referrals/proofs/:id', requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ error: 'Невірний id' });
+        return;
+      }
+      const proof = await prisma.rideCompletionProof.findUnique({
+        where: { id },
+        include: {
+          person: {
+            select: {
+              id: true,
+              fullName: true,
+              phoneNormalized: true,
+              telegramUsername: true,
+              telegramChatId: true,
+            },
+          },
+          referralRewards: {
+            select: {
+              id: true,
+              rewardType: true,
+              amountUah: true,
+              status: true,
+              flagReason: true,
+              referrerId: true,
+              referrer: { select: { id: true, fullName: true, phoneNormalized: true } },
+            },
+            orderBy: { id: 'asc' },
+          },
+        },
+      });
+      if (!proof) {
+        res.status(404).json({ error: 'Заявку не знайдено' });
+        return;
+      }
+      res.json(proof);
+    } catch (e) {
+      console.error('❌ GET /admin/referrals/proofs/:id:', e);
+      res.status(500).json({ error: 'Не вдалося завантажити заявку' });
+    }
+  });
+
   r.get('/admin/referrals/proofs/:id/photo/:kind', requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);

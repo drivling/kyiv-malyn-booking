@@ -223,3 +223,18 @@
   flex-direction: column;
   gap: 6px;
 }
+
+.referral-proof-detail-modal {
+  max-width: 560px;
+  width: 100%;
+}
+
+.referral-proof-detail-meta {
+  font-size: 14px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.referral-proof-detail-meta p {
+  margin: 0 0 8px;
+}

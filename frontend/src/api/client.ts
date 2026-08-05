@@ -600,6 +600,10 @@ class ApiClient {
     });
   }
 
+  async getRideProof(id: number): Promise<RideCompletionProofRow> {
+    return this.request<RideCompletionProofRow>(`/admin/referrals/proofs/${id}`);
+  }
+
   /** CSV виплат (blob) — з авторизацією */
   async downloadReferralPayoutsCsv(): Promise<Blob> {
     const url = `${this.baseUrl}/admin/referrals/payouts.csv`;

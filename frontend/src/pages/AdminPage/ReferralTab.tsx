@@ -106,12 +106,147 @@ const ProofPhotoThumb: React.FC<{
   );
 };
 
-const scrollToProof = (proofId: number) => {
+const scrollToProof = (proofId: number): boolean => {
   const el = document.getElementById(`referral-proof-${proofId}`);
-  if (!el) return;
+  if (!el) return false;
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   el.classList.add('referral-proof-card--flash');
   window.setTimeout(() => el.classList.remove('referral-proof-card--flash'), 1600);
+  return true;
+};
+
+const ProofDetailModal: React.FC<{
+  proofId: number;
+  cachedProofs: RideCompletionProofRow[];
+  onClose: () => void;
+  onOpenLightbox: (url: string) => void;
+  onScrollToCard?: (proofId: number) => boolean;
+}> = ({ proofId, cachedProofs, onClose, onOpenLightbox, onScrollToCard }) => {
+  const [proof, setProof] = useState<RideCompletionProofRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    const cached = cachedProofs.find((p) => p.id === proofId);
+    if (cached) {
+      setProof(cached);
+      setLoading(false);
+      setLoadError('');
+      return;
+    }
+    setLoading(true);
+    setLoadError('');
+    void apiClient
+      .getRideProof(proofId)
+      .then((data) => {
+        if (alive) setProof(data);
+      })
+      .catch((e) => {
+        if (alive) setLoadError(e instanceof Error ? e.message : 'Не вдалося завантажити');
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [proofId, cachedProofs]);
+
+  const rewards = proof?.referralRewards ?? [];
+  const rewardSum = rewards.reduce((s, r) => s + r.amountUah, 0);
+  const canScrollToCard = onScrollToCard?.(proofId) ?? false;
+
+  return (
+    <div
+      className="modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Заявка #${proofId}`}
+    >
+      <div className="modal-content referral-proof-detail-modal">
+        <div className="modal-header">
+          <h3 style={{ margin: 0 }}>📷 Заявка #{proofId}</h3>
+          <button type="button" className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          {loading && <p>Завантаження…</p>}
+          {loadError && <Alert variant="error">{loadError}</Alert>}
+          {!loading && proof && (
+            <>
+              <div className="referral-proof-detail-meta">
+                <p>
+                  <strong>{proof.person.fullName || 'Без імені'}</strong>
+                  <br />
+                  {formatPhoneDisplay(proof.person.phoneNormalized)}
+                  {proof.person.telegramUsername ? ` · @${proof.person.telegramUsername}` : ''}
+                </p>
+                <p>
+                  <strong>Маршрут:</strong> {proof.route}
+                  <br />
+                  <strong>Дата:</strong> {String(proof.rideDate).slice(0, 10)}
+                  {proof.departureTime ? ` · ${proof.departureTime}` : ''}
+                </p>
+                <p>
+                  <strong>Статус:</strong> {proof.status}
+                </p>
+                {(proof.rejectionReason || proof.flagReason) && (
+                  <p className="referral-proof-reason is-rejected">
+                    <strong>Причина: </strong>
+                    {proof.rejectionReason || proof.flagReason}
+                  </p>
+                )}
+              </div>
+
+              <div className="referral-proof-photos">
+                <ProofPhotoThumb proofId={proof.id} kind="start" label="1️⃣ Старт" onOpen={onOpenLightbox} />
+                <ProofPhotoThumb proofId={proof.id} kind="end" label="2️⃣ Прибуття" onOpen={onOpenLightbox} />
+              </div>
+
+              {rewards.length > 0 ? (
+                <ul className="referral-proof-rewards">
+                  <li>
+                    <strong>Нагороди:</strong> {rewardSum} грн ({rewards.length})
+                  </li>
+                  {rewards.map((r) => (
+                    <li key={r.id}>
+                      #{r.id} {REWARD_TYPE_LABEL[r.rewardType] || r.rewardType} →{' '}
+                      {r.referrer.fullName || formatPhoneDisplay(r.referrer.phoneNormalized)} · {r.amountUah} грн ·{' '}
+                      {REWARD_STATUS_LABEL[r.status] || r.status}
+                      {r.flagReason ? ` (${r.flagReason})` : ''}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ color: 'var(--pb-text-muted)' }}>Немає привʼязаних нагород.</p>
+              )}
+
+              {canScrollToCard && (
+                <p style={{ marginTop: 12 }}>
+                  <button
+                    type="button"
+                    className="referral-link-btn"
+                    onClick={() => {
+                      onClose();
+                      window.setTimeout(() => scrollToProof(proofId), 150);
+                    }}
+                  >
+                    Показати у списку модерації нижче
+                  </button>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button type="button" variant="secondary" onClick={onClose}>Закрити</Button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export const ReferralTab: React.FC = () => {
@@ -146,6 +281,7 @@ export const ReferralTab: React.FC = () => {
   const [personSearch, setPersonSearch] = useState('');
   const [personSearchHits, setPersonSearchHits] = useState<ReferralPersonSearchHit[]>([]);
   const [personSearchBusy, setPersonSearchBusy] = useState(false);
+  const [proofDetailId, setProofDetailId] = useState<number | null>(null);
 
   const loadInvites = useCallback(async (skip: number, status: string) => {
     setInvitesLoading(true);
@@ -242,6 +378,8 @@ export const ReferralTab: React.FC = () => {
       ),
     [report]
   );
+
+  const pendingProofIds = useMemo(() => new Set(pendingProofs.map((p) => p.id)), [pendingProofs]);
 
   const openModal = (next: ModalState, preset = '') => {
     setModal(next);
@@ -826,6 +964,7 @@ export const ReferralTab: React.FC = () => {
                               }
                               onUndo={(id) => void undoPayout(id)}
                               onOpenPerson={(id) => void openPersonDetails(id)}
+                              onOpenProof={setProofDetailId}
                             />
                           )}
                         </td>
@@ -857,6 +996,7 @@ export const ReferralTab: React.FC = () => {
                 }
                 onUndo={(id) => void undoPayout(id)}
                 onOpenPerson={(id) => void openPersonDetails(id)}
+                onOpenProof={setProofDetailId}
               />
             )}
           </section>
@@ -1040,7 +1180,7 @@ export const ReferralTab: React.FC = () => {
                           <button
                             type="button"
                             className="referral-link-btn"
-                            onClick={() => scrollToProof(r.rideProof!.id)}
+                            onClick={() => setProofDetailId(r.rideProof!.id)}
                           >
                             заявка #{r.rideProof.id}
                           </button>
@@ -1138,6 +1278,16 @@ export const ReferralTab: React.FC = () => {
         </div>
       </section>
 
+      {proofDetailId != null && (
+        <ProofDetailModal
+          proofId={proofDetailId}
+          cachedProofs={report?.promoPhotoProofs ?? []}
+          onClose={() => setProofDetailId(null)}
+          onOpenLightbox={setLightboxUrl}
+          onScrollToCard={(id) => pendingProofIds.has(id)}
+        />
+      )}
+
       {modal && (
         <div
           className="modal"
@@ -1225,7 +1375,8 @@ const PersonDetailsPanel: React.FC<{
   onFlag: (id: number, reason?: string | null) => void;
   onUndo: (id: number) => void;
   onOpenPerson: (id: number) => void;
-}> = ({ details, busyRewardId, undoingRewardId, onApprove, onFlag, onUndo, onOpenPerson }) => {
+  onOpenProof: (proofId: number) => void;
+}> = ({ details, busyRewardId, undoingRewardId, onApprove, onFlag, onUndo, onOpenPerson, onOpenProof }) => {
   const { person, rewards, invitedPersons, sharedAccountPersons } = details;
   return (
     <div className="referral-person-panel">
@@ -1317,7 +1468,7 @@ const PersonDetailsPanel: React.FC<{
                   <button
                     type="button"
                     className="referral-link-btn"
-                    onClick={() => scrollToProof(r.rideProof!.id)}
+                    onClick={() => onOpenProof(r.rideProof!.id)}
                     title={`${r.rideProof.route} · ${String(r.rideProof.rideDate).slice(0, 10)} · ${r.rideProof.status}`}
                   >
                     заявка #{r.rideProof.id}
