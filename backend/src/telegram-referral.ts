@@ -9,6 +9,7 @@ import {
   createReferralInvite,
   ensurePersonReferralCode,
   findReferrerByCode,
+  flagUnpaidRewardsForSelfReferral,
   getReferralBotLink,
   getReferralStatsForPerson,
   linkReferralOnRegistration,
@@ -124,7 +125,7 @@ export async function handleReferralContactInput(
   referralFlowStateMap.delete(chatId);
 
   if (!result.ok) {
-    if (result.alreadyOurUser) {
+    if (result.alreadyOurUser || result.selfReferral) {
       await bot.sendMessage(chatId, result.error, { parse_mode: 'HTML' });
     } else {
       await bot.sendMessage(chatId, `❌ ${result.error}`, { parse_mode: 'HTML' });
@@ -161,14 +162,39 @@ export async function onReferralRegistration(
   notifyAdmin?: (text: string) => void,
   personWasNewToClientsDb?: boolean
 ): Promise<void> {
-  const { linked, referrerId, registrationBonusEligible } = await linkReferralOnRegistration(
-    prisma,
-    personId,
-    phoneNormalized,
-    telegramUsername,
-    referralCodeFromStart,
-    personWasNewToClientsDb
-  );
+  const { linked, referrerId, registrationBonusEligible, selfReferralBlocked } =
+    await linkReferralOnRegistration(
+      prisma,
+      personId,
+      phoneNormalized,
+      telegramUsername,
+      referralCodeFromStart,
+      personWasNewToClientsDb
+    );
+
+  if (selfReferralBlocked && referrerId) {
+    const frozen = await flagUnpaidRewardsForSelfReferral(prisma, [referrerId, personId]).catch(
+      (err) => {
+        console.error('Self-referral freeze:', err);
+        return 0;
+      }
+    );
+    console.warn(
+      `🚨 Само-реферал заблоковано: Person #${personId} ← реферер Person #${referrerId}, заморожено нагород: ${frozen}`
+    );
+    notifyAdmin?.(
+      `🚨 <b>Реферал: спроба запросити себе</b>\n` +
+        `Другий номер у тому самому Telegram-акаунті.\n\n` +
+        `Запрошений Person #${personId} (${phoneNormalized})\n` +
+        `Реферер Person #${referrerId}\n\n` +
+        `Звʼязок <b>не створено</b>.\n` +
+        (frozen > 0
+          ? `❄️ Заморожено невиплачених нагород: <b>${frozen}</b> — дивіться «Підозрілі нагороди» в адмінці.`
+          : `Невиплачених нагород не було.`)
+    );
+    return;
+  }
+
   if (!linked || !referrerId) return;
 
   if (notifyAdmin) {

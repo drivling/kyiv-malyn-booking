@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
+exports.TELEGRAM_COPY_TEXT_MAX_CHARS = exports.SELF_REFERRAL_FLAG_REASON = exports.ADMIN_MANUAL_FLAG_PREFIX = exports.BOT_BLOCKED_REWARD_FLAG_REASON = exports.MIN_RIDE_DURATION_MINUTES = exports.MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED = exports.REFERRAL_REWARD_TYPE_LEGACY_DRIVER = exports.REFERRAL_REWARD_UAH = exports.REWARD_STATUSES_UNPAID = exports.REWARD_STATUSES_ON_HOLD = exports.REWARD_STATUS_FLAGGED = exports.REWARD_STATUS_PAID = exports.REWARD_STATUS_APPROVED = exports.REWARD_STATUS_HOLD = void 0;
 exports.isRewardOnHold = isRewardOnHold;
 exports.isRewardPayable = isRewardPayable;
 exports.generateReferralCode = generateReferralCode;
@@ -14,6 +14,7 @@ exports.detectTimeConflict = detectTimeConflict;
 exports.ensurePersonReferralCode = ensurePersonReferralCode;
 exports.findReferrerByCode = findReferrerByCode;
 exports.isPersonConnectedToBot = isPersonConnectedToBot;
+exports.isSameTelegramAccount = isSameTelegramAccount;
 exports.createReferralInvite = createReferralInvite;
 exports.linkReferralOnRegistration = linkReferralOnRegistration;
 exports.collectPersonRideSlots = collectPersonRideSlots;
@@ -29,6 +30,7 @@ exports.buildReferralProgramInlineKeyboard = buildReferralProgramInlineKeyboard;
 exports.buildPayoutBalancesFromRewards = buildPayoutBalancesFromRewards;
 exports.withAdminManualFlagReason = withAdminManualFlagReason;
 exports.isProtectedFlagReason = isProtectedFlagReason;
+exports.flagUnpaidRewardsForSelfReferral = flagUnpaidRewardsForSelfReferral;
 exports.buildBotBlockedPayoutsFrozenMessage = buildBotBlockedPayoutsFrozenMessage;
 exports.flagUnpaidReferralRewardsForBotBlocked = flagUnpaidReferralRewardsForBotBlocked;
 exports.markReferralPayout = markReferralPayout;
@@ -196,6 +198,27 @@ function isPersonConnectedToBot(person) {
     const user = person.telegramUserId?.trim();
     return !!(chat || user);
 }
+function normalizeTelegramId(value) {
+    const trimmed = value?.trim();
+    if (!trimmed || trimmed === '0')
+        return null;
+    return trimmed;
+}
+/**
+ * Два Person — це насправді один Telegram-акаунт (другий номер у тому самому чаті).
+ * Основа анти-фроду: реферер не може запросити сам себе.
+ */
+function isSameTelegramAccount(a, b) {
+    const aChat = normalizeTelegramId(a.telegramChatId);
+    const bChat = normalizeTelegramId(b.telegramChatId);
+    if (aChat && bChat && aChat === bChat)
+        return true;
+    const aUser = normalizeTelegramId(a.telegramUserId);
+    const bUser = normalizeTelegramId(b.telegramUserId);
+    if (aUser && bUser && aUser === bUser)
+        return true;
+    return false;
+}
 async function createReferralInvite(prisma, referrerId, contactInput) {
     const parsed = parseInviteContact(contactInput);
     if (!parsed) {
@@ -209,7 +232,21 @@ async function createReferralInvite(prisma, referrerId, contactInput) {
             },
         });
     if (existingPerson?.id === referrerId) {
-        return { ok: false, error: 'Не можна запросити самого себе' };
+        return { ok: false, error: 'Не можна запросити самого себе', selfReferral: true };
+    }
+    // Другий номер того самого Telegram-акаунта — це запрошення самого себе
+    if (existingPerson) {
+        const referrer = await prisma.person.findUnique({
+            where: { id: referrerId },
+            select: { telegramChatId: true, telegramUserId: true },
+        });
+        if (referrer && isSameTelegramAccount(referrer, existingPerson)) {
+            return {
+                ok: false,
+                selfReferral: true,
+                error: 'Не можна запросити самого себе: цей контакт привʼязаний до вашого ж Telegram-акаунта.',
+            };
+        }
     }
     // Уже користувач бота — м’яко відхиляємо
     if (existingPerson && isPersonConnectedToBot(existingPerson)) {
@@ -322,7 +359,12 @@ async function markMatchingInvitesRegistered(prisma, referredPersonId, referrerP
 async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormalized, telegramUsername, referralCodeFromStart, personWasNewToClientsDb) {
     const person = await prisma.person.findUnique({
         where: { id: referredPersonId },
-        select: { referredByPersonId: true, referralRegistrationBonusEligible: true },
+        select: {
+            referredByPersonId: true,
+            referralRegistrationBonusEligible: true,
+            telegramChatId: true,
+            telegramUserId: true,
+        },
     });
     if (person?.referredByPersonId) {
         return {
@@ -333,6 +375,7 @@ async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormali
     }
     let referrerId = null;
     let inviteBonusEligible = null;
+    let pendingInviteId = null;
     if (referralCodeFromStart) {
         const referrer = await findReferrerByCode(prisma, referralCodeFromStart);
         if (referrer && referrer.id !== referredPersonId)
@@ -353,14 +396,31 @@ async function linkReferralOnRegistration(prisma, referredPersonId, phoneNormali
         if (pendingInvite && pendingInvite.referrerId !== referredPersonId) {
             referrerId = pendingInvite.referrerId;
             inviteBonusEligible = pendingInvite.registrationBonusEligible;
-            await prisma.referralInvite.update({
-                where: { id: pendingInvite.id },
-                data: { referredPersonId, status: 'registered', registeredAt: new Date() },
-            });
+            pendingInviteId = pendingInvite.id;
         }
     }
     if (!referrerId)
         return { linked: false };
+    // Другий номер у тому самому Telegram — звʼязок не створюємо, запрошення позначаємо як blocked
+    const referrer = await prisma.person.findUnique({
+        where: { id: referrerId },
+        select: { telegramChatId: true, telegramUserId: true },
+    });
+    if (referrer && person && isSameTelegramAccount(referrer, person)) {
+        if (pendingInviteId) {
+            await prisma.referralInvite.update({
+                where: { id: pendingInviteId },
+                data: { status: 'blocked_self_referral', referredPersonId },
+            });
+        }
+        return { linked: false, referrerId, selfReferralBlocked: true };
+    }
+    if (pendingInviteId) {
+        await prisma.referralInvite.update({
+            where: { id: pendingInviteId },
+            data: { referredPersonId, status: 'registered', registeredAt: new Date() },
+        });
+    }
     // 10 грн лише якщо людина нова в базі клієнтів і запрошення теж це дозволяє
     const registrationBonusEligible = personWasNewToClientsDb === true && (inviteBonusEligible === null || inviteBonusEligible === true);
     const linked = await linkReferredPerson(prisma, referredPersonId, referrerId, {
@@ -380,6 +440,10 @@ async function hasRewardType(prisma, referrerId, referredPersonId, rewardType) {
         select: { id: true },
     });
     return !!existing;
+}
+/** Prisma P2002 — порушення unique-констрейнта */
+function isUniqueConstraintError(e) {
+    return typeof e === 'object' && e !== null && e.code === 'P2002';
 }
 async function createRewardIfNotExists(prisma, data) {
     // registration і driver_qualified — одна нагорода на пару referrer↔referred
@@ -413,19 +477,38 @@ async function createRewardIfNotExists(prisma, data) {
         if (legacy)
             return { created: false, rewardId: legacy.id };
     }
-    const reward = await prisma.referralReward.create({
-        data: {
-            referrerId: data.referrerId,
-            referredPersonId: data.referredPersonId,
-            rewardType: data.rewardType,
-            amountUah: data.amountUah,
-            viberListingId: data.viberListingId ?? null,
-            rideProofId: data.rideProofId ?? null,
-            status: data.flagReason ? exports.REWARD_STATUS_FLAGGED : exports.REWARD_STATUS_HOLD,
-            flagReason: data.flagReason ?? null,
-        },
-    });
-    return { created: true, rewardId: reward.id };
+    try {
+        const reward = await prisma.referralReward.create({
+            data: {
+                referrerId: data.referrerId,
+                referredPersonId: data.referredPersonId,
+                rewardType: data.rewardType,
+                amountUah: data.amountUah,
+                viberListingId: data.viberListingId ?? null,
+                rideProofId: data.rideProofId ?? null,
+                status: data.flagReason ? exports.REWARD_STATUS_FLAGGED : exports.REWARD_STATUS_HOLD,
+                flagReason: data.flagReason ?? null,
+            },
+        });
+        return { created: true, rewardId: reward.id };
+    }
+    catch (e) {
+        // Паралельний запит устиг створити ту саму нагороду (unique ReferralReward_dedupe_key)
+        if (!isUniqueConstraintError(e))
+            throw e;
+        const concurrent = await prisma.referralReward.findFirst({
+            where: {
+                referrerId: data.referrerId,
+                referredPersonId: data.referredPersonId,
+                rewardType: data.rewardType,
+                rideProofId: data.rideProofId ?? null,
+            },
+            select: { id: true },
+        });
+        if (!concurrent)
+            throw e;
+        return { created: false, rewardId: concurrent.id };
+    }
 }
 /**
  * Слоти для античиту. Підтвердження (proof) має пріоритет над оголошенням:
@@ -783,6 +866,11 @@ function buildPayoutBalancesFromRewards(rewards) {
 exports.BOT_BLOCKED_REWARD_FLAG_REASON = 'Бот Telegram заблоковано користувачем — прибрано з виплат';
 /** Префікс ручного Flag в адмінці — heal / approve-фото такі рядки не чіпають */
 exports.ADMIN_MANUAL_FLAG_PREFIX = '[admin] ';
+/**
+ * Спроба запросити себе з того самого Telegram-акаунта.
+ * Захищена причина: схвалення фото НЕ розморожує ці гроші — потрібне рішення адміна.
+ */
+exports.SELF_REFERRAL_FLAG_REASON = 'Само-реферал: запрошення з того самого Telegram-акаунта — потрібна перевірка адміна';
 function withAdminManualFlagReason(reason) {
     const trimmed = reason.trim() || 'Підозріла активність';
     if (trimmed.startsWith(exports.ADMIN_MANUAL_FLAG_PREFIX))
@@ -794,9 +882,31 @@ function isProtectedFlagReason(flagReason) {
         return false;
     if (flagReason === exports.BOT_BLOCKED_REWARD_FLAG_REASON)
         return true;
+    if (flagReason === exports.SELF_REFERRAL_FLAG_REASON)
+        return true;
     if (flagReason.startsWith(exports.ADMIN_MANUAL_FLAG_PREFIX))
         return true;
     return false;
+}
+/**
+ * Заморозити всі невиплачені нагороди обох Person, задіяних у спробі само-реферала.
+ * Причина захищена — зняти може лише адмін кнопкою «Схвалити».
+ */
+async function flagUnpaidRewardsForSelfReferral(prisma, personIds) {
+    const ids = [...new Set(personIds.filter((id) => Number.isInteger(id) && id > 0))];
+    if (ids.length === 0)
+        return 0;
+    const result = await prisma.referralReward.updateMany({
+        where: {
+            referrerId: { in: ids },
+            status: { in: exports.REWARD_STATUSES_UNPAID },
+        },
+        data: {
+            status: exports.REWARD_STATUS_FLAGGED,
+            flagReason: exports.SELF_REFERRAL_FLAG_REASON,
+        },
+    });
+    return result.count;
 }
 /**
  * Текст (без сум) для особистої розсилки після першого блоку бота.

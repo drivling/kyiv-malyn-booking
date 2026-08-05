@@ -20,6 +20,12 @@ const REWARD_TYPE_LABEL: Record<string, string> = {
   passenger_self_confirm: 'Своє підтвердження (20)',
 };
 
+/** Має збігатися з SELF_REFERRAL_FLAG_REASON у backend/src/referral.ts */
+const SELF_REFERRAL_FLAG_REASON =
+  'Само-реферал: запрошення з того самого Telegram-акаунта — потрібна перевірка адміна';
+
+const isSelfReferralFlag = (reason?: string | null): boolean => reason === SELF_REFERRAL_FLAG_REASON;
+
 const REWARD_STATUS_LABEL: Record<string, string> = {
   hold: 'на перевірці',
   pending: 'на перевірці (legacy)',
@@ -147,6 +153,16 @@ export const ReferralTab: React.FC = () => {
     return map;
   }, [report]);
 
+  const selfReferralFlagged = useMemo(
+    () => (report?.flagged ?? []).filter((r) => isSelfReferralFlag(r.flagReason)),
+    [report]
+  );
+
+  const selfReferralUah = useMemo(
+    () => selfReferralFlagged.reduce((s, r) => s + r.amountUah, 0),
+    [selfReferralFlagged]
+  );
+
   const pendingProofs = useMemo(
     () =>
       (report?.promoPhotoProofs ?? []).filter((p) =>
@@ -203,6 +219,22 @@ export const ReferralTab: React.FC = () => {
     } finally {
       setBusyRewardId(null);
     }
+  };
+
+  /** Само-реферал знімається лише свідомо: спершу підтвердження */
+  const approveFlaggedReward = async (r: ReferralRewardRow) => {
+    if (isSelfReferralFlag(r.flagReason)) {
+      const who = r.referrer.fullName || formatPhoneDisplay(r.referrer.phoneNormalized);
+      const friend = r.referredPerson.fullName || formatPhoneDisplay(r.referredPerson.phoneNormalized);
+      const ok = window.confirm(
+        `Нагорода #${r.id} на ${r.amountUah} грн позначена як само-реферал.\n\n` +
+          `Отримувач: ${who}\nЗапрошений: ${friend}\n\n` +
+          'Обидва номери привʼязані до одного Telegram-акаунта.\n' +
+          'Схвалити й поставити в чергу виплат?'
+      );
+      if (!ok) return;
+    }
+    await setRewardStatus(r.id, 'approved');
   };
 
   const flagReward = async (id: number, currentReason?: string | null) => {
@@ -640,6 +672,14 @@ export const ReferralTab: React.FC = () => {
       {(report?.flagged?.length ?? 0) > 0 && (
         <section style={{ marginTop: 36 }}>
           <h3>🚩 Підозрілі нагороди</h3>
+          {selfReferralFlagged.length > 0 && (
+            <Alert variant="error">
+              <strong>Само-реферал: {selfReferralFlagged.length} нагород на {selfReferralUah} грн.</strong>
+              {' '}Людина запросила свій же другий номер з того самого Telegram-акаунта. Звʼязок бот уже
+              заблокував, гроші заморожені. Схвалення фото їх <strong>не</strong> розморозить — рішення лише тут.
+              {' '}Перед «Схвалити» перевірте телефони: якщо це справді одна людина — лишайте flagged.
+            </Alert>
+          )}
           <div className="table-container">
             <table>
               <thead>
@@ -653,20 +693,41 @@ export const ReferralTab: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {report!.flagged.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.id}</td>
-                    <td>{formatPhoneDisplay(r.referrer.phoneNormalized)}</td>
-                    <td>{REWARD_TYPE_LABEL[r.rewardType] || r.rewardType}</td>
-                    <td>{r.amountUah}</td>
-                    <td style={{ fontSize: 12 }}>{r.flagReason || '—'}</td>
-                    <td>
-                      <Button type="button" disabled={busyRewardId === r.id} onClick={() => void setRewardStatus(r.id, 'approved')}>
-                        Схвалити
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {report!.flagged.map((r) => {
+                  const selfReferral = isSelfReferralFlag(r.flagReason);
+                  return (
+                    <tr key={r.id} className={selfReferral ? 'referral-row--fraud' : undefined}>
+                      <td>{r.id}</td>
+                      <td>
+                        {formatPhoneDisplay(r.referrer.phoneNormalized)}
+                        {selfReferral && (
+                          <div style={{ fontSize: 12 }}>
+                            друг: {formatPhoneDisplay(r.referredPerson.phoneNormalized)}
+                          </div>
+                        )}
+                      </td>
+                      <td>{REWARD_TYPE_LABEL[r.rewardType] || r.rewardType}</td>
+                      <td>{r.amountUah}</td>
+                      <td style={{ fontSize: 12 }}>
+                        {selfReferral ? <strong>🚨 Само-реферал</strong> : r.flagReason || '—'}
+                      </td>
+                      <td>
+                        <Button
+                          type="button"
+                          disabled={busyRewardId === r.id}
+                          onClick={() => void approveFlaggedReward(r)}
+                          title={
+                            selfReferral
+                              ? 'Виплатити попри підозру на само-реферал'
+                              : 'Повернути в чергу виплат'
+                          }
+                        >
+                          Схвалити
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -25,6 +25,15 @@
   box-shadow: 0 0 0 1px rgba(217, 45, 32, 0.2);
 }
 
+/* Само-реферал: гроші заморожені до рішення адміна */
+.referral-row--fraud {
+  background: #fef3f2;
+}
+
+.referral-row--fraud td {
+  color: #7a271a;
+}
+
 .referral-proof-card__head {
   display: flex;
   justify-content: space-between;

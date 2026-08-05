@@ -66,7 +66,7 @@ model ReferralInvite {
   invitePhoneNorm  String?
   inviteUsername   String?
   referredPersonId Int?
-  status           String    @default("pending") // pending | registered | expired
+  status           String    @default("pending") // pending | registered | expired | blocked_self_referral
   /// false — контакт уже був у Person (без бота); 10 грн за залучення не буде
   registrationBonusEligible Boolean @default(true)
   registeredAt     DateTime?
@@ -104,6 +104,8 @@ model ReferralReward {
   viberListing   ViberListing?       @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
   rideProof      RideCompletionProof? @relation(fields: [rideProofId], references: [id], onDelete: SetNull)
 
+  /// Одна нагорода одного типу на пару людей у межах заявки — захист від гонки (альбом з двох фото)
+  @@unique([referrerId, referredPersonId, rewardType, rideProofId], map: "ReferralReward_dedupe_key")
   @@index([referrerId])
   @@index([referredPersonId])
   @@index([status])

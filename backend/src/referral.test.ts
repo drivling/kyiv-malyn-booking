@@ -27,6 +27,11 @@ import {
   REFERRAL_REWARD_UAH,
   MAX_PASSENGER_RIDE_REWARDS_PER_REFERRED,
   markReferralPayout,
+  isSameTelegramAccount,
+  createReferralInvite,
+  linkReferralOnRegistration,
+  flagUnpaidRewardsForSelfReferral,
+  SELF_REFERRAL_FLAG_REASON,
   type RideTimeSlot,
 } from './referral';
 
@@ -102,6 +107,141 @@ describe('referral pure helpers', () => {
     assert.equal(isPersonConnectedToBot({ telegramChatId: '1', telegramUserId: null }), true);
     assert.equal(isPersonConnectedToBot({ telegramChatId: null, telegramUserId: '99' }), true);
     assert.equal(isPersonConnectedToBot({ telegramChatId: '  ', telegramUserId: '' }), false);
+  });
+});
+
+describe('self-referral guard (same Telegram account)', () => {
+  it('isSameTelegramAccount matches by chat or user, ignores empty and "0"', () => {
+    assert.equal(
+      isSameTelegramAccount({ telegramChatId: '555', telegramUserId: null }, { telegramChatId: '555', telegramUserId: null }),
+      true
+    );
+    assert.equal(
+      isSameTelegramAccount({ telegramChatId: null, telegramUserId: '77' }, { telegramChatId: null, telegramUserId: '77' }),
+      true
+    );
+    assert.equal(
+      isSameTelegramAccount({ telegramChatId: '555', telegramUserId: null }, { telegramChatId: '666', telegramUserId: null }),
+      false
+    );
+    // порожні та '0' не роблять людей однаковими
+    assert.equal(
+      isSameTelegramAccount({ telegramChatId: '0', telegramUserId: '' }, { telegramChatId: '0', telegramUserId: null }),
+      false
+    );
+    assert.equal(
+      isSameTelegramAccount({ telegramChatId: null, telegramUserId: null }, { telegramChatId: null, telegramUserId: null }),
+      false
+    );
+  });
+
+  it('createReferralInvite rejects a second phone of the same Telegram account', async () => {
+    const referrer = { id: 1, telegramChatId: '555', telegramUserId: '555' };
+    const secondPhonePerson = {
+      id: 2,
+      phoneNormalized: '380502222222',
+      telegramChatId: '555',
+      telegramUserId: '555',
+      referredByPersonId: null,
+    };
+    const created: unknown[] = [];
+    const prisma = {
+      person: {
+        findUnique: async ({ where }: { where: { phoneNormalized?: string; id?: number } }) => {
+          if (where.id === 1) return referrer;
+          if (where.phoneNormalized === '380502222222') return secondPhonePerson;
+          return null;
+        },
+        findFirst: async () => null,
+      },
+      referralInvite: {
+        findFirst: async () => null,
+        create: async ({ data }: { data: unknown }) => {
+          created.push(data);
+          return { id: 1 };
+        },
+      },
+    } as unknown as PrismaClient;
+
+    const result = await createReferralInvite(prisma, 1, '0502222222');
+    assert.equal(result.ok, false);
+    assert.equal(result.ok === false && result.selfReferral, true);
+    assert.equal(created.length, 0, 'запрошення не має створюватись');
+  });
+
+  it('linkReferralOnRegistration blocks the link and marks the invite', async () => {
+    const invites = [
+      {
+        id: 9,
+        referrerId: 1,
+        status: 'pending',
+        invitePhoneNorm: '380502222222',
+        inviteUsername: null,
+        registrationBonusEligible: true,
+      },
+    ];
+    const personUpdates: unknown[] = [];
+    const prisma = {
+      person: {
+        findUnique: async ({ where }: { where: { id: number } }) => {
+          if (where.id === 2) {
+            return {
+              referredByPersonId: null,
+              referralRegistrationBonusEligible: null,
+              telegramChatId: '555',
+              telegramUserId: '555',
+            };
+          }
+          return { telegramChatId: '555', telegramUserId: '555' };
+        },
+        findFirst: async () => null,
+        update: async ({ data }: { data: unknown }) => {
+          personUpdates.push(data);
+          return {};
+        },
+      },
+      referralInvite: {
+        findFirst: async () => invites[0],
+        update: async ({ where, data }: { where: { id: number }; data: { status: string } }) => {
+          const inv = invites.find((i) => i.id === where.id)!;
+          inv.status = data.status;
+          return inv;
+        },
+        updateMany: async () => ({ count: 0 }),
+      },
+    } as unknown as PrismaClient;
+
+    const result = await linkReferralOnRegistration(prisma, 2, '380502222222', null, null, true);
+    assert.equal(result.linked, false);
+    assert.equal(result.selfReferralBlocked, true);
+    assert.equal(result.referrerId, 1);
+    assert.equal(invites[0].status, 'blocked_self_referral');
+    assert.equal(personUpdates.length, 0, 'referredByPersonId не має проставлятись');
+  });
+
+  it('flagUnpaidRewardsForSelfReferral freezes unpaid rewards of both persons', async () => {
+    const calls: Array<{ where: unknown; data: unknown }> = [];
+    const prisma = {
+      referralReward: {
+        updateMany: async ({ where, data }: { where: unknown; data: unknown }) => {
+          calls.push({ where, data });
+          return { count: 3 };
+        },
+      },
+    } as unknown as PrismaClient;
+
+    const n = await flagUnpaidRewardsForSelfReferral(prisma, [1, 2, 2]);
+    assert.equal(n, 3);
+    assert.deepEqual(calls[0].where, {
+      referrerId: { in: [1, 2] },
+      status: { in: ['hold', 'pending', 'approved'] },
+    });
+    assert.deepEqual(calls[0].data, {
+      status: 'flagged',
+      flagReason: SELF_REFERRAL_FLAG_REASON,
+    });
+    // причина захищена — схвалення фото не розморозить
+    assert.equal(isProtectedFlagReason(SELF_REFERRAL_FLAG_REASON), true);
   });
 });
 
