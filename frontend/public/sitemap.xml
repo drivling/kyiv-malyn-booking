@@ -22,22 +22,6 @@
         <priority>1.0</priority>
     </url>
 
-    <!-- Попутки (fallback / класичний список) -->
-    <url>
-        <loc>https://malin.kiev.ua/poputky</loc>
-        <lastmod>2026-08-05</lastmod>
-        <changefreq>hourly</changefreq>
-        <priority>0.85</priority>
-    </url>
-
-    <!-- Маршрутки / бронювання -->
-    <url>
-        <loc>https://malin.kiev.ua/booking</loc>
-        <lastmod>2026-08-05</lastmod>
-        <changefreq>hourly</changefreq>
-        <priority>0.95</priority>
-    </url>
-
     <!-- Міський транспорт Малина -->
     <url>
         <loc>https://malin.kiev.ua/localtransport</loc>

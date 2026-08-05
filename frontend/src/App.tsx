@@ -104,15 +104,6 @@ function NavBar() {
         <Link to="/mizhgorodski" className="nav-link nav-brand">
           Міжміські
         </Link>
-        <Link to="/mizhgorodski" className="nav-link">
-          Пошук
-        </Link>
-        <Link to="/poputky" className="nav-link">
-          Попутки
-        </Link>
-        <Link to="/booking" className="nav-link">
-          Маршрутки
-        </Link>
         <Link to="/localtransport" className="nav-link">
           Транспорт Малина
         </Link>

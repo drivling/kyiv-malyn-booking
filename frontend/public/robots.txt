@@ -1,5 +1,5 @@
 # malin.kiev.ua — robots
-# Публічні сторінки: /, /poputky, /booking, /localtransport, /support, /about
+# Публічні сторінки: /, /mizhgorodski, /localtransport, /support, /about
 
 User-agent: *
 Allow: /
@@ -14,6 +14,10 @@ Disallow: /api/
 
 # Логін не для органічного пошуку
 Disallow: /login
+
+# Старі окремі сторінки пошуку (контент на /mizhgorodski)
+Disallow: /poputky
+Disallow: /booking
 
 # Службові HTML табличок зупинок (не лендінги)
 Disallow: /stop-signs/
