@@ -520,6 +520,35 @@ describe('processReferralRewardsAfterPassengerProof', () => {
     assert.ok(forC.some((r) => r.rewardType === 'passenger_self_confirm' && r.amountUah === 20));
   });
 
+  it('driver registration bonus unlocks even when driver_qualified already exists', async () => {
+    // A=10 колись уже отримав 40 грн за водія B=20; реєстраційні 10 грн тоді не нарахувались
+    const prisma = createRewardPrismaMock({
+      passengerId: 30,
+      passengerReferrerId: 20,
+      driverReferrerId: 10,
+      driverHasListing: true,
+      existingRewards: [
+        {
+          id: 1,
+          referrerId: 10,
+          referredPersonId: 20,
+          rewardType: 'driver_qualified',
+          amountUah: 40,
+          status: 'approved',
+        },
+      ],
+    });
+
+    const result = await processReferralRewardsAfterPassengerProof(prisma, 301);
+    assert.equal(result.driverQualifiedCreated, false, 'другої нагороди водія бути не має');
+
+    const regForA = prisma._rewards.find(
+      (r) => r.referrerId === 10 && r.rewardType === 'registration' && r.referredPersonId === 20
+    );
+    assert.ok(regForA, 'реєстраційні 10 грн мають розблокуватись');
+    assert.equal(regForA?.amountUah, REFERRAL_REWARD_UAH.registration);
+  });
+
   it('driver without listing → no driver_qualified', async () => {
     const prisma = createRewardPrismaMock({
       passengerId: 30,

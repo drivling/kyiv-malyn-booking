@@ -1046,20 +1046,21 @@ export async function processReferralRewardsAfterPassengerProof(
           spendBudget(REFERRAL_REWARD_UAH.driver_qualified, driverHeld);
           touchedReceivers.add(driverReferrerId);
         }
+      }
 
-        // 10 грн рефереру водія — якщо ще не розблоковано (інший referrer, ніж у шляху А)
-        const regDriverHeld = takeFromBudget(REFERRAL_REWARD_UAH.registration);
-        const regDriver = await unlockRegistrationReward(prisma, driverPersonId, {
-          rideProofId: proofId,
-          viberListingId: driverListing?.id,
-          flagReason: flagReason ?? undefined,
-          holdReason: regDriverHeld,
-        });
-        if (regDriver.created) {
-          totalNewUah += REFERRAL_REWARD_UAH.registration;
-          spendBudget(REFERRAL_REWARD_UAH.registration, regDriverHeld);
-          touchedReceivers.add(driverReferrerId);
-        }
+      // 10 грн рефереру водія — поза перевіркою на driver_qualified:
+      // інакше вже нарахована нагорода водія назавжди блокує розблокування реєстраційної.
+      const regDriverHeld = takeFromBudget(REFERRAL_REWARD_UAH.registration);
+      const regDriver = await unlockRegistrationReward(prisma, driverPersonId, {
+        rideProofId: proofId,
+        viberListingId: driverListing?.id,
+        flagReason: flagReason ?? undefined,
+        holdReason: regDriverHeld,
+      });
+      if (regDriver.created) {
+        totalNewUah += REFERRAL_REWARD_UAH.registration;
+        spendBudget(REFERRAL_REWARD_UAH.registration, regDriverHeld);
+        touchedReceivers.add(driverReferrerId);
       }
     }
   }
