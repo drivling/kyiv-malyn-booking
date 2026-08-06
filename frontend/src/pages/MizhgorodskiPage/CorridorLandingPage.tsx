@@ -9,7 +9,7 @@ import {
   ROUTES,
   formatPhoneDisplay,
   getDirectionFromCities,
-  supportPhoneToTelLink,
+  splitSupportPhones,
 } from '@/utils/constants';
 import {
   CORRIDOR_LANDINGS,
@@ -236,7 +236,14 @@ export function CorridorLandingPage() {
                       <td>{ROUTES[s.route] ?? s.route}</td>
                       <td>
                         {s.supportPhone ? (
-                          <a href={supportPhoneToTelLink(s.supportPhone)}>{formatPhoneDisplay(s.supportPhone)}</a>
+                          <span className="corridor-phones">
+                            {splitSupportPhones(s.supportPhone).map((digits, i, arr) => (
+                              <span key={digits}>
+                                <a href={`tel:${digits}`}>{formatPhoneDisplay(digits)}</a>
+                                {i < arr.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </span>
                         ) : (
                           <span className="corridor-muted">—</span>
                         )}

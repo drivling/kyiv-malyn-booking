@@ -45,15 +45,66 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-/** Формат номера для відображення: +380(67)4476844 (38 + 0 + XX оператор + 7 цифр) */
-export function formatPhoneDisplay(phone: string | null | undefined): string {
-  if (!phone?.trim()) return '';
-  const normalized = normalizePhone(phone.trim());
+/**
+ * Розбирає поле з 1+ UA-номерами: через кому/пробіл або склеєні
+ * (напр. 073…068… чи 38073…38068…).
+ */
+export function splitSupportPhones(phone: string | null | undefined): string[] {
+  if (!phone?.trim()) return [];
+  const raw = phone.trim();
+  if (/[,;/|]/.test(raw)) {
+    return raw
+      .split(/[,;/|]+/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .flatMap((p) => splitSupportPhones(p));
+  }
+
+  const digits = raw.replace(/\D/g, '');
+  const chunks: string[] = [];
+
+  if (digits.length >= 24 && digits.startsWith('38') && digits.length % 12 === 0) {
+    for (let i = 0; i < digits.length; i += 12) {
+      const chunk = digits.slice(i, i + 12);
+      if (chunk.startsWith('38') && chunk.length === 12) chunks.push(chunk);
+    }
+    if (chunks.length > 0) return chunks;
+  }
+
+  if (digits.length >= 20 && digits.startsWith('0') && digits.length % 10 === 0) {
+    for (let i = 0; i < digits.length; i += 10) {
+      chunks.push('38' + digits.slice(i, i + 10));
+    }
+    if (chunks.length > 0) return chunks;
+  }
+
+  // 380XXXXXXXXX0XXXXXXXXX (другий з провідним 0 після першої дюжини)
+  if (digits.length >= 22 && digits.startsWith('38') && digits[12] === '0') {
+    chunks.push(digits.slice(0, 12));
+    chunks.push('38' + digits.slice(12, 22));
+    return chunks;
+  }
+
+  let single = digits;
+  if (single.startsWith('0')) single = '38' + single;
+  if (single.length >= 10) return [single.startsWith('38') ? single : single];
+  return [raw];
+}
+
+function formatOneUaPhoneDigits(normalized: string): string {
   if (normalized.length === 12 && normalized.startsWith('38')) {
     return `+380(${normalized.slice(3, 5)})${normalized.slice(5)}`;
   }
   if (normalized.length >= 10) return '+' + normalized;
-  return phone.trim();
+  return normalized;
+}
+
+/** Формат номера для відображення; кілька номерів — через кому */
+export function formatPhoneDisplay(phone: string | null | undefined): string {
+  if (!phone?.trim()) return '';
+  const parts = splitSupportPhones(phone);
+  if (parts.length === 0) return phone.trim();
+  return parts.map(formatOneUaPhoneDigits).join(', ');
 }
 
 /** З номера або @username отримати посилання для кнопки «Зателефонувати». */
@@ -79,10 +130,12 @@ export function formatListingContactDisplay(phone: string | null | undefined): s
   return formatPhoneDisplay(phone);
 }
 
-/** З номера отримати посилання tel: (тільки цифри) */
+/** З номера отримати посилання tel: (перший номер, якщо їх кілька) */
 export function supportPhoneToTelLink(phone: string | null | undefined): string {
   if (!phone) return '';
-  return 'tel:' + normalizePhone(phone);
+  const parts = splitSupportPhones(phone);
+  const first = parts[0] ?? normalizePhone(phone);
+  return 'tel:' + first;
 }
 
 export const ROUTES: Record<Route, string> = {
