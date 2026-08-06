@@ -18,10 +18,12 @@ import {
   TELEGRAM_BOT_START_URL,
   TELEGRAM_BOT_URL,
   TELEGRAM_BOT_USERNAME,
+  TRAVEL_FAQ,
   isSupportTopicId,
   supportTopicPath,
   type SupportTopicId,
 } from './supportContent';
+import { CORRIDOR_LANDINGS, corridorPath } from '@/pages/MizhgorodskiPage/corridorLandings';
 
 function upsertMeta(name: string, content: string): () => void {
   let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
@@ -120,6 +122,11 @@ const META: Record<SupportTopicId, { title: string; description: string }> = {
     title: `З чого почати | Допомога | ${SITE_PUBLIC_DOMAIN}`,
     description: 'Перші кроки в Telegram-боті malin.kiev.ua: Start, номер телефону, меню.',
   },
+  travel: {
+    title: `Як доїхати до Малина | Попутка й маршрутка | ${SITE_PUBLIC_DOMAIN}`,
+    description:
+      'Як доїхати до Малина з Києва, Житомира чи Коростеня: попутки, маршрутки, живий пошук на malin.kiev.ua.',
+  },
   bot: {
     title: `Telegram-бот | Допомога | ${SITE_PUBLIC_DOMAIN}`,
     description:
@@ -127,7 +134,7 @@ const META: Record<SupportTopicId, { title: string; description: string }> = {
   },
   site: {
     title: `Сайт | Допомога | ${SITE_PUBLIC_DOMAIN}`,
-    description: 'Розділи сайту malin.kiev.ua: попутки, маршрутки, транспорт Малина, про нас.',
+    description: 'Розділи сайту malin.kiev.ua: міжміські попутки й маршрутки, транспорт Малина, про нас.',
   },
   referral: {
     title: `Приведи друга | Допомога | ${SITE_PUBLIC_DOMAIN}`,
@@ -409,11 +416,85 @@ function BotArticle() {
   );
 }
 
+function TravelArticle() {
+  useEffect(() => {
+    return upsertJsonLd('support-travel-jsonld', {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: TRAVEL_FAQ.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: { '@type': 'Answer', text: item.a },
+      })),
+    });
+  }, []);
+
+  return (
+    <ArticleChrome topicId="travel">
+      <p className="support-lead">
+        <strong>Коротко:</strong> до Малина з Києва, Житомира чи Коростеня найзручніше доїхати попуткою або
+        маршруткою. Актуальні поїздки на обрану дату — у живому пошуку на{' '}
+        <Link to="/mizhgorodski">міжміських</Link>, а не в застарілих новинних «розкладах».
+      </p>
+
+      <h2>Три способи</h2>
+      <ol className="support-list">
+        <li>
+          <strong>Попутка</strong> — оголошення водія або заявка пасажира на конкретну дату. Безкоштовно
+          розмістити можна на сайті або в боті.
+        </li>
+        <li>
+          <strong>Маршрутка</strong> — регулярний рейс: оберіть час у пошуку й забронюйте місце онлайн;
+          підтвердження зручно отримати в @{TELEGRAM_BOT_USERNAME}.
+        </li>
+        <li>
+          <strong>Telegram-бот</strong> —{' '}
+          <a href={TELEGRAM_BOT_URL} target="_blank" rel="noopener noreferrer">
+            @{TELEGRAM_BOT_USERNAME}
+          </a>
+          : пошук, бронювання, нагадування.
+        </li>
+      </ol>
+
+      <h2>Напрямки (всі через Малин)</h2>
+      <ul className="support-list">
+        {CORRIDOR_LANDINGS.map((c) => (
+          <li key={c.slug}>
+            <Link to={corridorPath(c.slug)}>
+              {c.fromLabel} → {c.toLabel}
+            </Link>
+            {' — '}
+            попутка й маршрутка, FAQ на сторінці напрямку.
+          </li>
+        ))}
+      </ul>
+      <p>
+        Живий пошук з фільтрами:{' '}
+        <Link to="/mizhgorodski">malin.kiev.ua/mizhgorodski</Link>. Містом —{' '}
+        <Link to="/transport">транспорт Малина</Link>.
+      </p>
+
+      <h2>Часті питання</h2>
+      <div className="support-faq">
+        {TRAVEL_FAQ.map((item) => (
+          <div key={item.q} className="support-faq__item is-open">
+            <div className="support-faq__q" role="heading" aria-level={3}>
+              {item.q}
+            </div>
+            <div className="support-faq__a">{item.a}</div>
+          </div>
+        ))}
+      </div>
+    </ArticleChrome>
+  );
+}
+
 function SiteArticle() {
   return (
     <ArticleChrome topicId="site">
       <p className="support-lead">
-        Короткі «двері» в розділи сайту. Детальні FAQ по веб-формах додамо пізніше — зараз головний гайд у боті.
+        Короткі «двері» в розділи сайту. Як доїхати між містами — у статті{' '}
+        <Link to={supportTopicPath('travel')}>Як доїхати до Малина</Link>.
       </p>
       <div className="support-site-grid">
         <article className="support-site-card">
@@ -566,6 +647,8 @@ export function SupportArticle() {
   switch (topicId) {
     case 'start':
       return <StartArticle />;
+    case 'travel':
+      return <TravelArticle />;
     case 'bot':
       return <BotArticle />;
     case 'site':

@@ -36,7 +36,7 @@ export function SupportHub() {
     document.title = `Допомога | ${SITE_PUBLIC_DOMAIN}`;
     const restoreDesc = upsertMeta(
       'description',
-      'Центр допомоги malin.kiev.ua: Telegram-бот, попутки, акція «Приведи друга», FAQ і контакти.'
+      'Центр допомоги malin.kiev.ua: як доїхати до Малина, Telegram-бот, попутки, акція «Приведи друга», FAQ і контакти.'
     );
     return () => {
       document.title = prev;

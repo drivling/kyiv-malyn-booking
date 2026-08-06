@@ -3,6 +3,7 @@ export const SUPPORT_PATH = '/support';
 
 export type SupportTopicId =
   | 'start'
+  | 'travel'
   | 'bot'
   | 'site'
   | 'referral'
@@ -23,6 +24,12 @@ export const SUPPORT_TOPICS: SupportTopic[] = [
     title: 'З чого почати',
     shortTitle: 'Старт',
     blurb: 'Номер у боті, меню, перші кроки',
+  },
+  {
+    id: 'travel',
+    title: 'Як доїхати до Малина',
+    shortTitle: 'Доїхати',
+    blurb: 'Попутка, маршрутка, Київ / Житомир / Коростень',
   },
   {
     id: 'bot',
@@ -69,6 +76,7 @@ export const BOT_TOC: Array<{ id: string; label: string }> = [
 /** Старі якорі односторінкової версії → нова стаття */
 export const LEGACY_HASH_TO_TOPIC: Record<string, SupportTopicId> = {
   start: 'start',
+  travel: 'travel',
   bot: 'bot',
   'bot-menu': 'bot',
   'bot-rides': 'bot',
@@ -118,6 +126,25 @@ export const INLINE_QUERIES: Array<{ q: string; desc: string }> = [
   { q: 'help', desc: 'Короткий список команд' },
   { q: 'book', desc: 'Посилання на бронювання в боті' },
   { q: 'share_listing_123', desc: 'Поділитися своїм оголошенням #123' },
+];
+
+export const TRAVEL_FAQ: Array<{ q: string; a: string }> = [
+  {
+    q: 'Як доїхати до Малина з Києва?',
+    a: 'Попутка або маршрутка: відкрийте напрямок Київ — Малин на malin.kiev.ua або пошук з містами Київ → Малин. У Києві орієнтуйтеся на ст. м. Академмістечко / Святошин залежно від рейсу.',
+  },
+  {
+    q: 'Де шукати попутку Малин — Київ?',
+    a: 'На сторінці міжміських або в Telegram-боті @malin_kiev_ua_bot. Фільтр «Попутки» показує лише оголошення водіїв і пасажирів.',
+  },
+  {
+    q: 'Чи є маршрутки на Житомир і Коростень?',
+    a: 'Так. Усі підтримувані міжміські маршрути проходять через Малин: Київ, Житомир, Коростень — в обидва боки.',
+  },
+  {
+    q: 'Чим ви кращі за новини з «розкладом»?',
+    a: 'Новинні статті швидко застарівають. У нас живий пошук: актуальні оголошення й рейси на обрану дату з бронюванням.',
+  },
 ];
 
 export const FAQ_PLAIN: Array<{ q: string; aText: string }> = [
