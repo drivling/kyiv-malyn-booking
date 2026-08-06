@@ -8,6 +8,7 @@
     "trip_id",
     "trip_headsign",
     "direction_id",
+    "departure_time",
     "block_id",
     "shape_id",
     "wheelchair_accessible",
@@ -22,7 +23,8 @@
     "block_id": "Блок рейсів",
     "shape_id": "Лінія маршруту",
     "wheelchair_accessible": "Доступність",
-    "bikes_allowed": "Перевезення велосипедів"
+    "bikes_allowed": "Перевезення велосипедів",
+    "departure_time": "Час відправлення з першої зупинки"
   },
   "records": [
     {
@@ -151,7 +153,7 @@
       "trip_id": "2-01",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "7:00"
+      "departure_time": "07:00:00"
     },
     {
       "route_id": "2",
@@ -159,7 +161,7 @@
       "trip_id": "2-02",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "7:00"
+      "departure_time": "07:00:00"
     },
     {
       "route_id": "2",
@@ -167,7 +169,7 @@
       "trip_id": "2-03",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "7:40"
+      "departure_time": "07:40:00"
     },
     {
       "route_id": "2",
@@ -175,7 +177,7 @@
       "trip_id": "2-04",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "8:00"
+      "departure_time": "08:00:00"
     },
     {
       "route_id": "2",
@@ -183,7 +185,7 @@
       "trip_id": "2-05",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "8:20"
+      "departure_time": "08:20:00"
     },
     {
       "route_id": "2",
@@ -191,7 +193,7 @@
       "trip_id": "2-06",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "9:00"
+      "departure_time": "09:00:00"
     },
     {
       "route_id": "2",
@@ -199,7 +201,7 @@
       "trip_id": "2-07",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "9:00"
+      "departure_time": "09:00:00"
     },
     {
       "route_id": "2",
@@ -207,7 +209,7 @@
       "trip_id": "2-08",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "9:40"
+      "departure_time": "09:40:00"
     },
     {
       "route_id": "2",
@@ -215,7 +217,7 @@
       "trip_id": "2-09",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "10:00"
+      "departure_time": "10:00:00"
     },
     {
       "route_id": "2",
@@ -223,7 +225,7 @@
       "trip_id": "2-10",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "10:20"
+      "departure_time": "10:20:00"
     },
     {
       "route_id": "2",
@@ -231,7 +233,7 @@
       "trip_id": "2-11",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "11:00"
+      "departure_time": "11:00:00"
     },
     {
       "route_id": "2",
@@ -239,7 +241,7 @@
       "trip_id": "2-12",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "11:00"
+      "departure_time": "11:00:00"
     },
     {
       "route_id": "2",
@@ -247,7 +249,7 @@
       "trip_id": "2-13",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "11:40"
+      "departure_time": "11:40:00"
     },
     {
       "route_id": "2",
@@ -255,7 +257,7 @@
       "trip_id": "2-14",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "12:00"
+      "departure_time": "12:00:00"
     },
     {
       "route_id": "2",
@@ -263,7 +265,7 @@
       "trip_id": "2-15",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "12:20"
+      "departure_time": "12:20:00"
     },
     {
       "route_id": "2",
@@ -271,7 +273,7 @@
       "trip_id": "2-16",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "13:00"
+      "departure_time": "13:00:00"
     },
     {
       "route_id": "2",
@@ -279,7 +281,7 @@
       "trip_id": "2-17",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "14:00"
+      "departure_time": "14:00:00"
     },
     {
       "route_id": "2",
@@ -287,7 +289,7 @@
       "trip_id": "2-18",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "14:40"
+      "departure_time": "14:40:00"
     },
     {
       "route_id": "2",
@@ -295,7 +297,7 @@
       "trip_id": "2-19",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "15:00"
+      "departure_time": "15:00:00"
     },
     {
       "route_id": "2",
@@ -303,7 +305,7 @@
       "trip_id": "2-20",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "15:20"
+      "departure_time": "15:20:00"
     },
     {
       "route_id": "2",
@@ -311,7 +313,7 @@
       "trip_id": "2-21",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "16:00"
+      "departure_time": "16:00:00"
     },
     {
       "route_id": "2",
@@ -319,7 +321,7 @@
       "trip_id": "2-22",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "16:00"
+      "departure_time": "16:00:00"
     },
     {
       "route_id": "2",
@@ -327,7 +329,7 @@
       "trip_id": "2-23",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "16:40"
+      "departure_time": "16:40:00"
     },
     {
       "route_id": "2",
@@ -335,7 +337,7 @@
       "trip_id": "2-24",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "17:00"
+      "departure_time": "17:00:00"
     },
     {
       "route_id": "2",
@@ -343,7 +345,7 @@
       "trip_id": "2-25",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "17:20"
+      "departure_time": "17:20:00"
     },
     {
       "route_id": "2",
@@ -351,7 +353,7 @@
       "trip_id": "2-26",
       "trip_headsign": "Лікарня",
       "direction_id": "1",
-      "block_id": "18:00"
+      "departure_time": "18:00:00"
     },
     {
       "route_id": "2",
@@ -359,7 +361,7 @@
       "trip_id": "2-27",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "18:00"
+      "departure_time": "18:00:00"
     },
     {
       "route_id": "3",
@@ -367,7 +369,7 @@
       "trip_id": "3-01",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "6:40"
+      "departure_time": "06:40:00"
     },
     {
       "route_id": "3",
@@ -375,7 +377,7 @@
       "trip_id": "3-02",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "7:30"
+      "departure_time": "07:30:00"
     },
     {
       "route_id": "3",
@@ -383,7 +385,7 @@
       "trip_id": "3-03",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:15"
+      "departure_time": "08:15:00"
     },
     {
       "route_id": "3",
@@ -391,7 +393,7 @@
       "trip_id": "3-04",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "8:50"
+      "departure_time": "08:50:00"
     },
     {
       "route_id": "3",
@@ -399,7 +401,7 @@
       "trip_id": "3-05",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:20"
+      "departure_time": "09:20:00"
     },
     {
       "route_id": "3",
@@ -407,7 +409,7 @@
       "trip_id": "3-06",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "9:50"
+      "departure_time": "09:50:00"
     },
     {
       "route_id": "3",
@@ -415,7 +417,7 @@
       "trip_id": "3-07",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "10:35"
+      "departure_time": "10:35:00"
     },
     {
       "route_id": "3",
@@ -423,7 +425,7 @@
       "trip_id": "3-08",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "11:10"
+      "departure_time": "11:10:00"
     },
     {
       "route_id": "3",
@@ -431,7 +433,7 @@
       "trip_id": "3-09",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "11:40"
+      "departure_time": "11:40:00"
     },
     {
       "route_id": "3",
@@ -439,7 +441,7 @@
       "trip_id": "3-10",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "12:10"
+      "departure_time": "12:10:00"
     },
     {
       "route_id": "3",
@@ -447,7 +449,7 @@
       "trip_id": "3-11",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "13:30"
+      "departure_time": "13:30:00"
     },
     {
       "route_id": "3",
@@ -455,7 +457,7 @@
       "trip_id": "3-12",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "13:50"
+      "departure_time": "13:50:00"
     },
     {
       "route_id": "3",
@@ -463,7 +465,7 @@
       "trip_id": "3-13",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "14:20"
+      "departure_time": "14:20:00"
     },
     {
       "route_id": "3",
@@ -471,7 +473,7 @@
       "trip_id": "3-14",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "14:50"
+      "departure_time": "14:50:00"
     },
     {
       "route_id": "3",
@@ -479,7 +481,7 @@
       "trip_id": "3-15",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "15:25"
+      "departure_time": "15:25:00"
     },
     {
       "route_id": "3",
@@ -487,7 +489,7 @@
       "trip_id": "3-16",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "15:55"
+      "departure_time": "15:55:00"
     },
     {
       "route_id": "3",
@@ -495,7 +497,7 @@
       "trip_id": "3-17",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "16:30"
+      "departure_time": "16:30:00"
     },
     {
       "route_id": "3",
@@ -503,7 +505,7 @@
       "trip_id": "3-18",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "16:55"
+      "departure_time": "16:55:00"
     },
     {
       "route_id": "3",
@@ -511,7 +513,7 @@
       "trip_id": "3-19",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "17:20"
+      "departure_time": "17:20:00"
     },
     {
       "route_id": "3",
@@ -519,7 +521,7 @@
       "trip_id": "3-20",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:50"
+      "departure_time": "17:50:00"
     },
     {
       "route_id": "3",
@@ -527,7 +529,7 @@
       "trip_id": "3-21",
       "trip_headsign": "Лікарня (Лісотехнікум)",
       "direction_id": "0",
-      "block_id": "18:30"
+      "departure_time": "18:30:00"
     },
     {
       "route_id": "5",
@@ -535,7 +537,7 @@
       "trip_id": "5-01",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "6:40"
+      "departure_time": "06:40:00"
     },
     {
       "route_id": "5",
@@ -543,7 +545,7 @@
       "trip_id": "5-02",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "7:03"
+      "departure_time": "07:03:00"
     },
     {
       "route_id": "5",
@@ -551,7 +553,7 @@
       "trip_id": "5-03",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "7:23"
+      "departure_time": "07:23:00"
     },
     {
       "route_id": "5",
@@ -559,7 +561,7 @@
       "trip_id": "5-04",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "7:45"
+      "departure_time": "07:45:00"
     },
     {
       "route_id": "5",
@@ -567,7 +569,7 @@
       "trip_id": "5-05",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:08"
+      "departure_time": "08:08:00"
     },
     {
       "route_id": "5",
@@ -575,7 +577,7 @@
       "trip_id": "5-06",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "8:30"
+      "departure_time": "08:30:00"
     },
     {
       "route_id": "5",
@@ -583,7 +585,7 @@
       "trip_id": "5-07",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:53"
+      "departure_time": "08:53:00"
     },
     {
       "route_id": "5",
@@ -591,7 +593,7 @@
       "trip_id": "5-08",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "9:15"
+      "departure_time": "09:15:00"
     },
     {
       "route_id": "5",
@@ -599,7 +601,7 @@
       "trip_id": "5-09",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:38"
+      "departure_time": "09:38:00"
     },
     {
       "route_id": "5",
@@ -607,7 +609,7 @@
       "trip_id": "5-10",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "10:03"
+      "departure_time": "10:03:00"
     },
     {
       "route_id": "5",
@@ -615,7 +617,7 @@
       "trip_id": "5-11",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "10:23"
+      "departure_time": "10:23:00"
     },
     {
       "route_id": "5",
@@ -623,7 +625,7 @@
       "trip_id": "5-12",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "10:48"
+      "departure_time": "10:48:00"
     },
     {
       "route_id": "5",
@@ -631,7 +633,7 @@
       "trip_id": "5-13",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "11:08"
+      "departure_time": "11:08:00"
     },
     {
       "route_id": "5",
@@ -639,7 +641,7 @@
       "trip_id": "5-14",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "11:30"
+      "departure_time": "11:30:00"
     },
     {
       "route_id": "5",
@@ -647,7 +649,7 @@
       "trip_id": "5-15",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "11:55"
+      "departure_time": "11:55:00"
     },
     {
       "route_id": "5",
@@ -655,7 +657,7 @@
       "trip_id": "5-16",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "12:15"
+      "departure_time": "12:15:00"
     },
     {
       "route_id": "5",
@@ -663,7 +665,7 @@
       "trip_id": "5-17",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "12:38"
+      "departure_time": "12:38:00"
     },
     {
       "route_id": "5",
@@ -671,7 +673,7 @@
       "trip_id": "5-18",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "13:03"
+      "departure_time": "13:03:00"
     },
     {
       "route_id": "5",
@@ -679,7 +681,7 @@
       "trip_id": "5-19",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "13:20"
+      "departure_time": "13:20:00"
     },
     {
       "route_id": "5",
@@ -687,7 +689,7 @@
       "trip_id": "5-20",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "13:45"
+      "departure_time": "13:45:00"
     },
     {
       "route_id": "5",
@@ -695,7 +697,7 @@
       "trip_id": "5-21",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "14:53"
+      "departure_time": "14:53:00"
     },
     {
       "route_id": "5",
@@ -703,7 +705,7 @@
       "trip_id": "5-22",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "15:36"
+      "departure_time": "15:36:00"
     },
     {
       "route_id": "5",
@@ -711,7 +713,7 @@
       "trip_id": "5-23",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "16:03"
+      "departure_time": "16:03:00"
     },
     {
       "route_id": "5",
@@ -719,7 +721,7 @@
       "trip_id": "5-24",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "16:23"
+      "departure_time": "16:23:00"
     },
     {
       "route_id": "5",
@@ -727,7 +729,7 @@
       "trip_id": "5-25",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "16:48"
+      "departure_time": "16:48:00"
     },
     {
       "route_id": "5",
@@ -735,7 +737,7 @@
       "trip_id": "5-26",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:06"
+      "departure_time": "17:06:00"
     },
     {
       "route_id": "5",
@@ -743,7 +745,7 @@
       "trip_id": "5-27",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "17:30"
+      "departure_time": "17:30:00"
     },
     {
       "route_id": "5",
@@ -751,7 +753,7 @@
       "trip_id": "5-28",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:55"
+      "departure_time": "17:55:00"
     },
     {
       "route_id": "7",
@@ -759,7 +761,7 @@
       "trip_id": "7-01",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "7:15"
+      "departure_time": "07:15:00"
     },
     {
       "route_id": "7",
@@ -767,7 +769,7 @@
       "trip_id": "7-02",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "7:40"
+      "departure_time": "07:40:00"
     },
     {
       "route_id": "7",
@@ -775,7 +777,7 @@
       "trip_id": "7-03",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "8:00"
+      "departure_time": "08:00:00"
     },
     {
       "route_id": "7",
@@ -783,7 +785,7 @@
       "trip_id": "7-04",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:20"
+      "departure_time": "08:20:00"
     },
     {
       "route_id": "7",
@@ -791,7 +793,7 @@
       "trip_id": "7-05",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:10"
+      "departure_time": "09:10:00"
     },
     {
       "route_id": "7",
@@ -799,7 +801,7 @@
       "trip_id": "7-06",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "9:30"
+      "departure_time": "09:30:00"
     },
     {
       "route_id": "7",
@@ -807,7 +809,7 @@
       "trip_id": "7-07",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:50"
+      "departure_time": "09:50:00"
     },
     {
       "route_id": "7",
@@ -815,7 +817,7 @@
       "trip_id": "7-08",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "10:15"
+      "departure_time": "10:15:00"
     },
     {
       "route_id": "7",
@@ -823,7 +825,7 @@
       "trip_id": "7-09",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "10:40"
+      "departure_time": "10:40:00"
     },
     {
       "route_id": "7",
@@ -831,7 +833,7 @@
       "trip_id": "7-10",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "11:10"
+      "departure_time": "11:10:00"
     },
     {
       "route_id": "7",
@@ -839,7 +841,7 @@
       "trip_id": "7-11",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "11:35"
+      "departure_time": "11:35:00"
     },
     {
       "route_id": "7",
@@ -847,7 +849,7 @@
       "trip_id": "7-12",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "11:55"
+      "departure_time": "11:55:00"
     },
     {
       "route_id": "7",
@@ -855,7 +857,7 @@
       "trip_id": "7-13",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "13:20"
+      "departure_time": "13:20:00"
     },
     {
       "route_id": "7",
@@ -863,7 +865,7 @@
       "trip_id": "7-14",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "13:45"
+      "departure_time": "13:45:00"
     },
     {
       "route_id": "7",
@@ -871,7 +873,7 @@
       "trip_id": "7-15",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "14:10"
+      "departure_time": "14:10:00"
     },
     {
       "route_id": "7",
@@ -879,7 +881,7 @@
       "trip_id": "7-16",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "14:30"
+      "departure_time": "14:30:00"
     },
     {
       "route_id": "7",
@@ -887,7 +889,7 @@
       "trip_id": "7-17",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "14:55"
+      "departure_time": "14:55:00"
     },
     {
       "route_id": "7",
@@ -895,7 +897,7 @@
       "trip_id": "7-18",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "15:30"
+      "departure_time": "15:30:00"
     },
     {
       "route_id": "7",
@@ -903,7 +905,7 @@
       "trip_id": "7-19",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "16:30"
+      "departure_time": "16:30:00"
     },
     {
       "route_id": "7",
@@ -911,7 +913,7 @@
       "trip_id": "7-20",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "17:00"
+      "departure_time": "17:00:00"
     },
     {
       "route_id": "7",
@@ -919,7 +921,7 @@
       "trip_id": "7-21",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:20"
+      "departure_time": "17:20:00"
     },
     {
       "route_id": "7",
@@ -927,7 +929,7 @@
       "trip_id": "7-22",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "17:45"
+      "departure_time": "17:45:00"
     },
     {
       "route_id": "7",
@@ -935,7 +937,7 @@
       "trip_id": "7-23",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "18:06"
+      "departure_time": "18:06:00"
     },
     {
       "route_id": "7",
@@ -943,7 +945,7 @@
       "trip_id": "7-24",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "18:35"
+      "departure_time": "18:35:00"
     },
     {
       "route_id": "7",
@@ -951,7 +953,7 @@
       "trip_id": "7-25",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "18:50"
+      "departure_time": "18:50:00"
     },
     {
       "route_id": "7",
@@ -959,7 +961,7 @@
       "trip_id": "7-26",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "19:15"
+      "departure_time": "19:15:00"
     },
     {
       "route_id": "8",
@@ -967,7 +969,7 @@
       "trip_id": "8-01",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "7:00"
+      "departure_time": "07:00:00"
     },
     {
       "route_id": "8",
@@ -975,7 +977,7 @@
       "trip_id": "8-02",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "7:30"
+      "departure_time": "07:30:00"
     },
     {
       "route_id": "8",
@@ -983,7 +985,7 @@
       "trip_id": "8-03",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:00"
+      "departure_time": "08:00:00"
     },
     {
       "route_id": "8",
@@ -991,7 +993,7 @@
       "trip_id": "8-04",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "8:30"
+      "departure_time": "08:30:00"
     },
     {
       "route_id": "8",
@@ -999,7 +1001,7 @@
       "trip_id": "8-05",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:00"
+      "departure_time": "09:00:00"
     },
     {
       "route_id": "8",
@@ -1007,7 +1009,7 @@
       "trip_id": "8-06",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "9:25"
+      "departure_time": "09:25:00"
     },
     {
       "route_id": "8",
@@ -1015,7 +1017,7 @@
       "trip_id": "8-07",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "10:00"
+      "departure_time": "10:00:00"
     },
     {
       "route_id": "8",
@@ -1023,7 +1025,7 @@
       "trip_id": "8-08",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "10:30"
+      "departure_time": "10:30:00"
     },
     {
       "route_id": "8",
@@ -1031,7 +1033,7 @@
       "trip_id": "8-09",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "11:00"
+      "departure_time": "11:00:00"
     },
     {
       "route_id": "8",
@@ -1039,7 +1041,7 @@
       "trip_id": "8-10",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "11:30"
+      "departure_time": "11:30:00"
     },
     {
       "route_id": "8",
@@ -1047,7 +1049,7 @@
       "trip_id": "8-11",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "12:00"
+      "departure_time": "12:00:00"
     },
     {
       "route_id": "8",
@@ -1055,7 +1057,7 @@
       "trip_id": "8-12",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "12:30"
+      "departure_time": "12:30:00"
     },
     {
       "route_id": "8",
@@ -1063,7 +1065,7 @@
       "trip_id": "8-13",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "13:00"
+      "departure_time": "13:00:00"
     },
     {
       "route_id": "8",
@@ -1071,7 +1073,7 @@
       "trip_id": "8-14",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "13:30"
+      "departure_time": "13:30:00"
     },
     {
       "route_id": "8",
@@ -1079,7 +1081,7 @@
       "trip_id": "8-15",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "15:00"
+      "departure_time": "15:00:00"
     },
     {
       "route_id": "8",
@@ -1087,7 +1089,7 @@
       "trip_id": "8-16",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "15:20"
+      "departure_time": "15:20:00"
     },
     {
       "route_id": "8",
@@ -1095,7 +1097,7 @@
       "trip_id": "8-17",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "16:00"
+      "departure_time": "16:00:00"
     },
     {
       "route_id": "8",
@@ -1103,7 +1105,7 @@
       "trip_id": "8-18",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "16:30"
+      "departure_time": "16:30:00"
     },
     {
       "route_id": "8",
@@ -1111,7 +1113,7 @@
       "trip_id": "8-19",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:00"
+      "departure_time": "17:00:00"
     },
     {
       "route_id": "8",
@@ -1119,7 +1121,7 @@
       "trip_id": "8-20",
       "trip_headsign": "Базар (Базарна площа)",
       "direction_id": "0",
-      "block_id": "17:30"
+      "departure_time": "17:30:00"
     },
     {
       "route_id": "8",
@@ -1127,7 +1129,7 @@
       "trip_id": "8-21",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "18:00"
+      "departure_time": "18:00:00"
     },
     {
       "route_id": "9",
@@ -1135,7 +1137,7 @@
       "trip_id": "9-01",
       "trip_headsign": "Лікарня (через БАМ)",
       "direction_id": "1",
-      "block_id": "6:45"
+      "departure_time": "06:45:00"
     },
     {
       "route_id": "9",
@@ -1143,7 +1145,7 @@
       "trip_id": "9-02",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "8:10"
+      "departure_time": "08:10:00"
     },
     {
       "route_id": "9",
@@ -1151,7 +1153,7 @@
       "trip_id": "9-03",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "8:40"
+      "departure_time": "08:40:00"
     },
     {
       "route_id": "9",
@@ -1159,7 +1161,7 @@
       "trip_id": "9-04",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "9:00"
+      "departure_time": "09:00:00"
     },
     {
       "route_id": "9",
@@ -1167,7 +1169,7 @@
       "trip_id": "9-05",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "9:30"
+      "departure_time": "09:30:00"
     },
     {
       "route_id": "9",
@@ -1175,7 +1177,7 @@
       "trip_id": "9-06",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "10:00"
+      "departure_time": "10:00:00"
     },
     {
       "route_id": "9",
@@ -1183,7 +1185,7 @@
       "trip_id": "9-07",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "10:30"
+      "departure_time": "10:30:00"
     },
     {
       "route_id": "9",
@@ -1191,7 +1193,7 @@
       "trip_id": "9-08",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "11:00"
+      "departure_time": "11:00:00"
     },
     {
       "route_id": "9",
@@ -1199,7 +1201,7 @@
       "trip_id": "9-09",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "11:30"
+      "departure_time": "11:30:00"
     },
     {
       "route_id": "9",
@@ -1207,7 +1209,7 @@
       "trip_id": "9-10",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "12:00"
+      "departure_time": "12:00:00"
     },
     {
       "route_id": "9",
@@ -1215,7 +1217,7 @@
       "trip_id": "9-11",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "12:30"
+      "departure_time": "12:30:00"
     },
     {
       "route_id": "9",
@@ -1223,7 +1225,7 @@
       "trip_id": "9-12",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "13:00"
+      "departure_time": "13:00:00"
     },
     {
       "route_id": "9",
@@ -1231,7 +1233,7 @@
       "trip_id": "9-13",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "13:30"
+      "departure_time": "13:30:00"
     },
     {
       "route_id": "9",
@@ -1239,7 +1241,7 @@
       "trip_id": "9-14",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "15:00"
+      "departure_time": "15:00:00"
     },
     {
       "route_id": "9",
@@ -1247,7 +1249,7 @@
       "trip_id": "9-15",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "15:30"
+      "departure_time": "15:30:00"
     },
     {
       "route_id": "9",
@@ -1255,7 +1257,7 @@
       "trip_id": "9-16",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "16:00"
+      "departure_time": "16:00:00"
     },
     {
       "route_id": "9",
@@ -1263,7 +1265,7 @@
       "trip_id": "9-17",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "16:30"
+      "departure_time": "16:30:00"
     },
     {
       "route_id": "9",
@@ -1271,7 +1273,7 @@
       "trip_id": "9-18",
       "trip_headsign": "Малинівка, Юрівка, БАМ",
       "direction_id": "1",
-      "block_id": "17:20"
+      "departure_time": "17:20:00"
     },
     {
       "route_id": "9",
@@ -1279,7 +1281,7 @@
       "trip_id": "9-19",
       "trip_headsign": "Базарна площа (ТЦ «Промінь»)",
       "direction_id": "0",
-      "block_id": "17:40"
+      "departure_time": "17:40:00"
     },
     {
       "route_id": "11",
@@ -1287,7 +1289,7 @@
       "trip_id": "11-01",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "6:45"
+      "departure_time": "06:45:00"
     },
     {
       "route_id": "11",
@@ -1295,7 +1297,7 @@
       "trip_id": "11-02",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "6:45"
+      "departure_time": "06:45:00"
     },
     {
       "route_id": "11",
@@ -1303,7 +1305,7 @@
       "trip_id": "11-03",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:00"
+      "departure_time": "08:00:00"
     },
     {
       "route_id": "11",
@@ -1311,7 +1313,7 @@
       "trip_id": "11-04",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "8:00"
+      "departure_time": "08:00:00"
     },
     {
       "route_id": "11",
@@ -1319,7 +1321,7 @@
       "trip_id": "11-05",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:20"
+      "departure_time": "09:20:00"
     },
     {
       "route_id": "11",
@@ -1327,7 +1329,7 @@
       "trip_id": "11-06",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "9:35"
+      "departure_time": "09:35:00"
     },
     {
       "route_id": "11",
@@ -1335,7 +1337,7 @@
       "trip_id": "11-07",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "10:50"
+      "departure_time": "10:50:00"
     },
     {
       "route_id": "11",
@@ -1343,7 +1345,7 @@
       "trip_id": "11-08",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "11:05"
+      "departure_time": "11:05:00"
     },
     {
       "route_id": "11",
@@ -1351,7 +1353,7 @@
       "trip_id": "11-09",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "12:25"
+      "departure_time": "12:25:00"
     },
     {
       "route_id": "11",
@@ -1359,7 +1361,7 @@
       "trip_id": "11-10",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "14:00"
+      "departure_time": "14:00:00"
     },
     {
       "route_id": "11",
@@ -1367,7 +1369,7 @@
       "trip_id": "11-11",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "14:10"
+      "departure_time": "14:10:00"
     },
     {
       "route_id": "11",
@@ -1375,7 +1377,7 @@
       "trip_id": "11-12",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "15:40"
+      "departure_time": "15:40:00"
     },
     {
       "route_id": "11",
@@ -1383,7 +1385,7 @@
       "trip_id": "11-13",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "15:40"
+      "departure_time": "15:40:00"
     },
     {
       "route_id": "11",
@@ -1391,7 +1393,7 @@
       "trip_id": "11-14",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "17:00"
+      "departure_time": "17:00:00"
     },
     {
       "route_id": "11",
@@ -1399,7 +1401,7 @@
       "trip_id": "11-15",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:05"
+      "departure_time": "17:05:00"
     },
     {
       "route_id": "11",
@@ -1407,7 +1409,7 @@
       "trip_id": "11-16",
       "trip_headsign": "Паперова фабрика",
       "direction_id": "0",
-      "block_id": "18:40"
+      "departure_time": "18:40:00"
     },
     {
       "route_id": "11",
@@ -1415,7 +1417,7 @@
       "trip_id": "11-17",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "18:50"
+      "departure_time": "18:50:00"
     },
     {
       "route_id": "12",
@@ -1423,7 +1425,7 @@
       "trip_id": "12-01",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "6:25"
+      "departure_time": "06:25:00"
     },
     {
       "route_id": "12",
@@ -1431,7 +1433,7 @@
       "trip_id": "12-02",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "6:45"
+      "departure_time": "06:45:00"
     },
     {
       "route_id": "12",
@@ -1439,7 +1441,7 @@
       "trip_id": "12-03",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "7:05"
+      "departure_time": "07:05:00"
     },
     {
       "route_id": "12",
@@ -1447,7 +1449,7 @@
       "trip_id": "12-04",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "7:15"
+      "departure_time": "07:15:00"
     },
     {
       "route_id": "12",
@@ -1455,7 +1457,7 @@
       "trip_id": "12-05",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "7:25"
+      "departure_time": "07:25:00"
     },
     {
       "route_id": "12",
@@ -1463,7 +1465,7 @@
       "trip_id": "12-06",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:05"
+      "departure_time": "08:05:00"
     },
     {
       "route_id": "12",
@@ -1471,7 +1473,7 @@
       "trip_id": "12-07",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "8:25"
+      "departure_time": "08:25:00"
     },
     {
       "route_id": "12",
@@ -1479,7 +1481,7 @@
       "trip_id": "12-08",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "8:45"
+      "departure_time": "08:45:00"
     },
     {
       "route_id": "12",
@@ -1487,7 +1489,7 @@
       "trip_id": "12-09",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "9:18"
+      "departure_time": "09:18:00"
     },
     {
       "route_id": "12",
@@ -1495,7 +1497,7 @@
       "trip_id": "12-10",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "9:40"
+      "departure_time": "09:40:00"
     },
     {
       "route_id": "12",
@@ -1503,7 +1505,7 @@
       "trip_id": "12-11",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "10:15"
+      "departure_time": "10:15:00"
     },
     {
       "route_id": "12",
@@ -1511,7 +1513,7 @@
       "trip_id": "12-12",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "10:40"
+      "departure_time": "10:40:00"
     },
     {
       "route_id": "12",
@@ -1519,7 +1521,7 @@
       "trip_id": "12-13",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "11:05"
+      "departure_time": "11:05:00"
     },
     {
       "route_id": "12",
@@ -1527,7 +1529,7 @@
       "trip_id": "12-14",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "11:25"
+      "departure_time": "11:25:00"
     },
     {
       "route_id": "12",
@@ -1535,7 +1537,7 @@
       "trip_id": "12-15",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "11:55"
+      "departure_time": "11:55:00"
     },
     {
       "route_id": "12",
@@ -1543,7 +1545,7 @@
       "trip_id": "12-16",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "12:25"
+      "departure_time": "12:25:00"
     },
     {
       "route_id": "12",
@@ -1551,7 +1553,7 @@
       "trip_id": "12-17",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "12:45"
+      "departure_time": "12:45:00"
     },
     {
       "route_id": "12",
@@ -1559,7 +1561,7 @@
       "trip_id": "12-18",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "13:10"
+      "departure_time": "13:10:00"
     },
     {
       "route_id": "12",
@@ -1567,7 +1569,7 @@
       "trip_id": "12-19",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "14:44"
+      "departure_time": "14:44:00"
     },
     {
       "route_id": "12",
@@ -1575,7 +1577,7 @@
       "trip_id": "12-20",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "16:10"
+      "departure_time": "16:10:00"
     },
     {
       "route_id": "12",
@@ -1583,7 +1585,7 @@
       "trip_id": "12-21",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "16:40"
+      "departure_time": "16:40:00"
     },
     {
       "route_id": "12",
@@ -1591,7 +1593,7 @@
       "trip_id": "12-22",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "17:10"
+      "departure_time": "17:10:00"
     },
     {
       "route_id": "12",
@@ -1599,7 +1601,7 @@
       "trip_id": "12-23",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "17:40"
+      "departure_time": "17:40:00"
     },
     {
       "route_id": "12",
@@ -1607,7 +1609,7 @@
       "trip_id": "12-24",
       "trip_headsign": "Лікарня",
       "direction_id": "0",
-      "block_id": "18:00"
+      "departure_time": "18:00:00"
     },
     {
       "route_id": "12",
@@ -1615,7 +1617,7 @@
       "trip_id": "12-25",
       "trip_headsign": "Залізничний вокзал",
       "direction_id": "1",
-      "block_id": "18:25"
+      "departure_time": "18:25:00"
     }
   ],
   "supplement": {

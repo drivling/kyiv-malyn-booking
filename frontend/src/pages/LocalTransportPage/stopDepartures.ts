@@ -4,6 +4,7 @@
 import type { RouteStopWithOrder, TransportRecord, TransportData, SupplementRoute } from './types';
 import { getDurationFromStartSec, getMinsBetweenStops, isVerifiedRoute } from './routeTiming';
 import { getStopKey, invertNameToId, type StopsCatalog } from './stopCatalog';
+import { tripDepartureMinutes, sortTripsByDeparture } from './tripDeparture';
 
 export type StopDepartureRow = {
   routeId: string;
@@ -14,15 +15,8 @@ export type StopDepartureRow = {
   tripId: string;
 };
 
-function parseTime(s: string | undefined): number {
-  if (!s) return 0;
-  const m = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) return 0;
-  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-}
-
 function sortByTime(a: TransportRecord, b: TransportRecord): number {
-  return parseTime(a.block_id) - parseTime(b.block_id);
+  return sortTripsByDeparture(a, b);
 }
 
 function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
@@ -176,7 +170,7 @@ export function buildStopDepartures(
     if (stopThere && (stopThere.order_there ?? 0) > 0) {
       const order = stopThere.order_there;
       dir1.forEach((t) => {
-        const mins = parseTime(t.block_id);
+        const mins = tripDepartureMinutes(t);
         if (mins <= 0) return;
         const depMins = verified
           ? mins + getDurationFromStartSec(route.id, orderedKeysThere, order - 1) / 60
@@ -195,7 +189,7 @@ export function buildStopDepartures(
     if (stopBack && (stopBack.order_back ?? 0) > 0) {
       const order = stopBack.order_back;
       dir0.forEach((t) => {
-        const mins = parseTime(t.block_id);
+        const mins = tripDepartureMinutes(t);
         if (mins <= 0) return;
         const depMins = verified
           ? mins + getDurationFromStartSec(route.id, orderedKeysBack, order - 1) / 60

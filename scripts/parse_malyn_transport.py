@@ -195,7 +195,7 @@ def schedule_entries_to_trips(route_id: str, route_data: dict) -> Optional[List[
             "trip_id": f"{route_id}-{i:02d}",
             "trip_headsign": headsign,
             "direction_id": direction_id,
-            "block_id": time_str,
+            "departure_time": f"{time_str}:00" if len(time_str.split(":")) == 2 else time_str,
         })
     return result
 
@@ -258,7 +258,8 @@ def supplement_schedule_to_trips(route_id: str, route_data: dict) -> list[dict]:
             "trip_id": f"{route_id}-{i:02d}",
             "trip_headsign": headsign,
             "direction_id": direction_id,
-            "block_id": time_str,  # час відправлення (для supplement-маршрутів)
+            # GTFS-style first-stop departure; block_id reserved for vehicle/block
+            "departure_time": f"{time_str}:00" if len(time_str.split(":")) == 2 else time_str,
         })
     return result
 

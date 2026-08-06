@@ -17,6 +17,7 @@ import {
   getDurationFromStartSec,
   isVerifiedRoute,
 } from './routeTiming';
+import { tripDepartureMinutes, sortTripsByDeparture, parseClockToMinutes } from './tripDeparture';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 
@@ -173,20 +174,11 @@ function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecor
 }
 
 function sortByTime(a: TransportRecord, b: TransportRecord): number {
-  const ta = parseTime(a.block_id);
-  const tb = parseTime(b.block_id);
-  return ta - tb;
-}
-
-function parseTime(s: string | undefined): number {
-  if (!s) return 0;
-  const m = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) return 0;
-  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  return sortTripsByDeparture(a, b);
 }
 
 function getFirstTripTime(trips: TransportRecord[]): number {
-  const times = trips.map((t) => parseTime(t.block_id)).filter((t) => t > 0);
+  const times = trips.map((t) => tripDepartureMinutes(t)).filter((t) => t > 0);
   return times.length > 0 ? Math.min(...times) : 7 * 60; // 7:00 за замовчуванням
 }
 
@@ -224,8 +216,8 @@ function findNearestTrip(
   directionFilter?: 'there' | 'back'
 ): { time: number; direction: 'there' | 'back' } | null {
   const { dir0, dir1 } = groupTripsByDirection(trips);
-  const withTime0 = dir0.map((t) => parseTime(t.block_id)).filter((m) => m > 0);
-  const withTime1 = dir1.map((t) => parseTime(t.block_id)).filter((m) => m > 0);
+  const withTime0 = dir0.map((t) => tripDepartureMinutes(t)).filter((m) => m > 0);
+  const withTime1 = dir1.map((t) => tripDepartureMinutes(t)).filter((m) => m > 0);
   // Якщо майбутніх немає — беремо перший зранку (?? withTime[0])
   if (directionFilter === 'back') {
     const next = withTime0.find((m) => m >= nowMins) ?? withTime0[0];
@@ -354,7 +346,7 @@ function findBaseTimeByDepartureFromStop(
   const baseTime = depFromStopMins - durationMins;
   const { dir0, dir1 } = groupTripsByDirection(trips);
   const dirTrips = dir === 'there' ? dir1 : dir0;
-  const baseTimes = dirTrips.map((t) => parseTime(t.block_id)).filter((m) => m > 0);
+  const baseTimes = dirTrips.map((t) => tripDepartureMinutes(t)).filter((m) => m > 0);
   if (baseTimes.length === 0) return null;
   const closest = baseTimes.reduce((best, t) =>
     Math.abs(t - baseTime) < Math.abs(best - baseTime) ? t : best
@@ -801,7 +793,7 @@ export const LocalTransportPage: React.FC = () => {
         setToStop('');
       }
       if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
-        const depMins = parseTime(timeFromUrl);
+        const depMins = parseClockToMinutes(timeFromUrl);
         if (depMins > 0) {
           const fromForTime = fromOk;
           const baseTime =
@@ -830,7 +822,7 @@ export const LocalTransportPage: React.FC = () => {
   useEffect(() => {
     if (!detailRoute || !fromStop || !toStop || !timeFromUrl || (dirFromUrl !== 'there' && dirFromUrl !== 'back'))
       return;
-    const depMins = parseTime(timeFromUrl);
+    const depMins = parseClockToMinutes(timeFromUrl);
     if (depMins <= 0) return;
     const baseTime = findBaseTimeByDepartureFromStop(
       detailRoute.trips,
@@ -968,7 +960,7 @@ export const LocalTransportPage: React.FC = () => {
       });
     } else {
       const first = groupTripsByDirection(detailRoute.trips)[dir === 'there' ? 'dir1' : 'dir0'][0];
-      const mins = first ? parseTime(first.block_id) : null;
+      const mins = first ? tripDepartureMinutes(first) : null;
       if (mins != null && mins > 0) {
         setSelectedTripTime(mins);
         setSearchParams((prev) => {
@@ -1053,8 +1045,8 @@ export const LocalTransportPage: React.FC = () => {
     setToStop(newTo);
 
     const dirTrips = groupTripsByDirection(detailRoute.trips)[newDir === 'there' ? 'dir1' : 'dir0'];
-    const firstInDir = dirTrips.find((t) => parseTime(t.block_id) > 0);
-    const firstMins = firstInDir ? parseTime(firstInDir.block_id) : null;
+    const firstInDir = dirTrips.find((t) => tripDepartureMinutes(t) > 0);
+    const firstMins = firstInDir ? tripDepartureMinutes(firstInDir) : null;
     if (firstMins != null && firstMins > 0) {
       setSelectedTripTime(firstMins);
       setSelectedTripDirection(newDir);
@@ -1354,7 +1346,7 @@ export const LocalTransportPage: React.FC = () => {
                 const toOrderBack = toStop ? orderedStopsBack.find((s) => getStopKey(s) === toStop)?.order_back : nBack;
                 if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere && nThere > 0) {
                   dir1.forEach((t) => {
-                    const mins = parseTime(t.block_id);
+                    const mins = tripDepartureMinutes(t);
                     if (mins > 0) {
                       const depMins = verified
                         ? mins + getDurationFromStartSec(routeId, orderedKeysThere, fromOrderThere - 1) / 60
@@ -1368,7 +1360,7 @@ export const LocalTransportPage: React.FC = () => {
                 }
                 if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack && nBack > 0) {
                   dir0.forEach((t) => {
-                    const mins = parseTime(t.block_id);
+                    const mins = tripDepartureMinutes(t);
                     if (mins > 0) {
                       const depMins = verified
                         ? mins + getDurationFromStartSec(routeId, orderedKeysBack, fromOrderBack - 1) / 60

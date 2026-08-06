@@ -4,6 +4,15 @@ export interface TransportRecord {
   trip_id: string;
   trip_headsign: string;
   direction_id: string;
+  /**
+   * GTFS-style departure from the first stop (HH:MM or HH:MM:SS).
+   * Preferred time source for planner / stop board / GTFS export.
+   */
+  departure_time?: string;
+  /**
+   * GTFS block_id: vehicle / block only (e.g. plate). Do not store clock times here.
+   * Legacy: some older files still put HH:MM in block_id — readers fall back until migrated.
+   */
   block_id?: string;
   shape_id?: string;
   wheelchair_accessible?: string;
