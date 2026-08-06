@@ -1945,6 +1945,14 @@ export const LocalTransportPage: React.FC = () => {
             </footer>
           </>
           </div>
+          {isMobileMapExpanded && (
+            <button
+              type="button"
+              className="lt-mobile-map-backdrop"
+              aria-label="Закрити карту"
+              onClick={() => setMobileMapSnap('collapsed')}
+            />
+          )}
           <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
             <button
               type="button"
@@ -1988,6 +1996,8 @@ export const LocalTransportPage: React.FC = () => {
               onStopMarkerActivate={expandMobileMapSheetForStop}
               mapSheetSnap={mobileMapSnap}
               coordsData={mapCoordsData}
+              hideRadialPicker
+              dimUnselectedMarkers
               dark
             />
           </div>

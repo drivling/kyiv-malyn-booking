@@ -731,9 +731,9 @@
     margin: 10px 12px;
     min-height: 44px;
     border-radius: 999px;
-    border: 1px solid var(--lt-panel-border);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     background: #2b2c2f;
-    color: var(--lt-panel-text);
+    color: #f1f3f4;
     font-size: var(--lt-fs-base);
     font-weight: 600;
     -webkit-tap-highlight-color: transparent;
@@ -746,11 +746,15 @@
     width: 30px;
     height: 4px;
     border-radius: 999px;
-    background: #5f6368;
+    background: #9aa0a6;
     position: absolute;
     top: 6px;
     left: 50%;
     transform: translateX(-50%);
+  }
+
+  .lt-page.lt-layout-dark .lt-panel {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
   .lt-page.lt-layout-dark .lt-map-column .lt-map-wrapper {
@@ -991,6 +995,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
 }
 
 .lt-from-to-dot {

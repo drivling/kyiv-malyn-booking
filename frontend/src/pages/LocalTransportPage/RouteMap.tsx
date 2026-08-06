@@ -255,7 +255,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const segmentEnd = hasFromToSegment ? Math.max(fromIdx, toIdx) + 1 : 0;
   const fromToPositions = hasFromToSegment ? positions.slice(segmentStart, segmentEnd) : [];
 
-  // Зум: якщо вибрано З і До — підлаштовуємо видиму область під цю ділянку з невеликим відступом
+  // Зум: без З/До не підганяємо під усі маркери міста — лишаємо центр Малина
   const boundsStopNames = hasFromToSegment
     ? stopsWithCoords.slice(segmentStart, segmentEnd)
     : fromStopName && toStopName && stopsRecord[fromStopName] && stopsRecord[toStopName]
@@ -264,8 +264,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         ? [fromStopName]
         : toStopName && stopsRecord[toStopName]
           ? [toStopName]
-          : stopsWithCoords;
-  const boundsPadding: [number, number] = hasFromToSegment || (fromStopName && toStopName) ? [50, 50] : [30, 30];
+          : [];
+  const boundsPadding: [number, number] = hasFromToSegment || (fromStopName && toStopName) ? [50, 50] : [40, 40];
   const showBounds = boundsStopNames.length >= 1;
 
   return (
@@ -365,18 +365,20 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                   },
                 }}
               >
-                <Popup>
-                  <div className="lt-stop-popup">
-                    <div className="lt-stop-popup__title">
-                      {resolveStopLabel(n)}
-                      {isFrom ? ' (З)' : isTo ? ' (До)' : ''}
+                {!hideRadialPicker && (
+                  <Popup>
+                    <div className="lt-stop-popup">
+                      <div className="lt-stop-popup__title">
+                        {resolveStopLabel(n)}
+                        {isFrom ? ' (З)' : isTo ? ' (До)' : ''}
+                      </div>
+                      <div className="lt-stop-popup__actions">
+                        <button type="button" onClick={() => onPickFromStop?.(n)}>З</button>
+                        <button type="button" onClick={() => onPickToStop?.(n)}>До</button>
+                      </div>
                     </div>
-                    <div className="lt-stop-popup__actions">
-                      <button type="button" onClick={() => onPickFromStop?.(n)}>З</button>
-                      <button type="button" onClick={() => onPickToStop?.(n)}>До</button>
-                    </div>
-                  </div>
-                </Popup>
+                  </Popup>
+                )}
               </Marker>
             );
           })}
