@@ -29,8 +29,10 @@ PDF збережеться поруч з HTML.
 ## Формат посилання для QR
 
 ```
-https://malin.kiev.ua/localtransport/route/{routeId}?stop={stopName}&dir={there|back}
+https://malin.kiev.ua/transport/route/{routeId}?stop={stopId}&dir={there|back}
 ```
 
+- Без `time` — відкривається найближчий рейс (як `buildStopRouteQrUrl`).
 - `dir=there` — напрямок до кінцевої «to» (напр. на Вокзал для маршруту 11)
 - `dir=back` — напрямок до кінцевої «from» (напр. на Паперову фабрику для маршруту 11)
+- Старі URL `/localtransport/...` редіректяться на `/transport/...`.
