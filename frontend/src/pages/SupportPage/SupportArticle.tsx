@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { SiteContactBlock } from '@/components/SiteContactBlock/SiteContactBlock';
+import { usePageSeo } from '@/hooks';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import {
   PRIVACY_POLICY_PAGE_LINK,
@@ -24,23 +25,6 @@ import {
   type SupportTopicId,
 } from './supportContent';
 import { CORRIDOR_LANDINGS, corridorPath } from '@/pages/MizhgorodskiPage/corridorLandings';
-
-function upsertMeta(name: string, content: string): () => void {
-  let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
-  const created = !el;
-  const prev = el?.getAttribute('content') ?? null;
-  if (!el) {
-    el = document.createElement('meta');
-    el.setAttribute('name', name);
-    document.head.appendChild(el);
-  }
-  el.setAttribute('content', content);
-  return () => {
-    if (!el) return;
-    if (created) el.remove();
-    else if (prev != null) el.setAttribute('content', prev);
-  };
-}
 
 function upsertJsonLd(id: string, data: object): () => void {
   let el = document.getElementById(id) as HTMLScriptElement | null;
@@ -621,17 +605,22 @@ export function SupportArticle() {
   const { topicId } = useParams<{ topicId: string }>();
   const location = useLocation();
 
-  useEffect(() => {
-    if (!isSupportTopicId(topicId)) return;
+  const seo = useMemo(() => {
+    if (!isSupportTopicId(topicId)) {
+      return {
+        title: `Допомога | ${SITE_PUBLIC_DOMAIN}`,
+        canonicalUrl: `https://${SITE_PUBLIC_DOMAIN}${SUPPORT_PATH}`,
+      };
+    }
     const meta = META[topicId];
-    const prev = document.title;
-    document.title = meta.title;
-    const restoreDesc = upsertMeta('description', meta.description);
-    return () => {
-      document.title = prev;
-      restoreDesc();
+    return {
+      title: meta.title,
+      description: meta.description,
+      canonicalUrl: `https://${SITE_PUBLIC_DOMAIN}${supportTopicPath(topicId)}`,
     };
   }, [topicId]);
+
+  usePageSeo(seo);
 
   useEffect(() => {
     if (!location.hash) return;

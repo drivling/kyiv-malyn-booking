@@ -2630,6 +2630,27 @@
   text-decoration: underline;
 }
 
+.lt-stop-article {
+  margin: 8px var(--lt-panel-x) 0;
+  padding: 12px 0 8px;
+  border-top: 1px solid var(--lt-border-light);
+}
+
+.lt-stop-article-lead {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--lt-panel-text, #054752);
+}
+
+.lt-stop-article-tips {
+  margin: 10px 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--lt-panel-text-muted, #3d5a60);
+}
+
 /* Footer */
 .lt-footer {
   margin-top: 0;

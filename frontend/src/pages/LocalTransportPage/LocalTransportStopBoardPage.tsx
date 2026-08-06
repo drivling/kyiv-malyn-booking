@@ -10,6 +10,7 @@ import { isVerifiedRoute } from './routeTiming';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
+import { getStopArticle } from '@/content/stops';
 import './LocalTransportPage.css';
 
 const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
@@ -217,6 +218,8 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     [selectedStop, stopsCatalog]
   );
 
+  const stopArticle = useMemo(() => getStopArticle(selectedStop), [selectedStop]);
+
   const stopSeo = useMemo(() => {
     if (selectedStop && selectedStopTitle) {
       const routeIds = [
@@ -242,12 +245,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         },
         ...STOP_BOARD_HUB_FAQ.slice(1),
       ];
+      const description = stopArticle?.lead
+        ? stopArticle.lead
+        : `Табло зупинки «${selectedStopTitle}» у Малині${
+            routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : ''
+          }. Наступні відправлення міського транспорту.`;
       return {
         title: `Зупинка «${selectedStopTitle}» — розклад маршруток Малина | malin.kiev.ua`,
         canonicalUrl: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
-        description: `Табло зупинки «${selectedStopTitle}» у Малині${
-          routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : ''
-        }. Наступні відправлення міського транспорту.`,
+        description,
         jsonLdId: `transport-stop-jsonld-${selectedStop}`,
         jsonLd: {
           '@context': 'https://schema.org',
@@ -316,7 +322,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         })),
       },
     };
-  }, [selectedStop, selectedStopTitle, departures]);
+  }, [selectedStop, selectedStopTitle, departures, stopArticle]);
 
   usePageSeo(stopSeo);
 
@@ -467,6 +473,22 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {stopArticle ? (
+            <section className="lt-stop-article" aria-labelledby="lt-stop-article-h">
+              <h2 id="lt-stop-article-h" className="lt-aeo-title">
+                Про зупинку
+              </h2>
+              <p className="lt-stop-article-lead">{stopArticle.lead}</p>
+              {stopArticle.tips && stopArticle.tips.length > 0 ? (
+                <ul className="lt-stop-article-tips">
+                  {stopArticle.tips.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
 
           {!selectedStop ? (
             <p className="lt-empty lt-stop-board-empty">Оберіть зупинку, щоб побачити розклад відправлень.</p>

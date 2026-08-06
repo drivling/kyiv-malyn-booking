@@ -110,10 +110,29 @@ async function loadTransportIndex() {
   return collectFromLegacyJson(data);
 }
 
-function buildStopHtml(shell, stopId, name, routeIds) {
+function loadStopArticles() {
+  const dir = path.resolve(__dirname, '../src/content/stops');
+  const map = new Map();
+  if (!fs.existsSync(dir)) return map;
+  for (const f of fs.readdirSync(dir)) {
+    if (!/^st_\d+\.ts$/.test(f)) continue;
+    const text = fs.readFileSync(path.join(dir, f), 'utf8');
+    const id = f.replace(/\.ts$/, '');
+    const nameM = text.match(/name:\s*['"]([^'"]+)['"]/);
+    const leadM = text.match(/lead:\s*`([\s\S]*?)`/) || text.match(/lead:\s*['"]([^'"]+)['"]/);
+    if (leadM) {
+      map.set(id, { name: nameM?.[1], lead: leadM[1].replace(/\s+/g, ' ').trim() });
+    }
+  }
+  return map;
+}
+
+function buildStopHtml(shell, stopId, name, routeIds, article) {
   const canonical = `https://malin.kiev.ua/transport/stop/${encodeURIComponent(stopId)}`;
   const title = `Зупинка «${name}» — розклад маршруток Малина | malin.kiev.ua`;
-  const description = `Табло зупинки «${name}» у Малині: маршрути ${routeIds.map((r) => `№${r}`).join(', ') || 'міського транспорту'}. Актуальний розклад на malin.kiev.ua.`;
+  const description =
+    article?.lead ||
+    `Табло зупинки «${name}» у Малині: маршрути ${routeIds.map((r) => `№${r}`).join(', ') || 'міського транспорту'}. Актуальний розклад на malin.kiev.ua.`;
   const faq = [
     {
       q: `Які маршрутки зупиняються на «${name}»?`,
@@ -156,12 +175,17 @@ function buildStopHtml(shell, stopId, name, routeIds) {
         .join('')}</ul>`
     : '<p>Маршрути підвантажаться в додатку.</p>';
 
+  const articleHtml = article?.lead
+    ? `<h2>Про зупинку</h2><p>${escapeHtml(article.lead)}</p>`
+    : '';
+
   const body = `
 <div id="root">
   <main style="font-family:system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#054752">
     <p><a href="/transport">Транспорт Малина</a> / <a href="/transport/stop">Табло</a> / ${escapeHtml(name)}</p>
     <h1>Зупинка «${escapeHtml(name)}» — розклад</h1>
     <p>${escapeHtml(description)}</p>
+    ${articleHtml}
     <p><a href="/transport/stop/${encodeURIComponent(stopId)}">Відкрити інтерактивне табло</a> · <a href="/transport">Планер З → До</a></p>
     <h2>Маршрути через зупинку</h2>
     ${routesHtml}
@@ -242,17 +266,18 @@ async function main() {
   }
   const shell = fs.readFileSync(indexPath, 'utf8');
   const { catalog, stopToRoutes, routeIds } = await loadTransportIndex();
+  const articles = loadStopArticles();
   const stopIds = [...stopToRoutes.keys()].sort();
 
   for (const id of stopIds) {
-    const name = catalog[id]?.name || id;
+    const name = articles.get(id)?.name || catalog[id]?.name || id;
     const routes = [...(stopToRoutes.get(id) || [])].sort(compareRouteId);
-    const html = buildStopHtml(shell, id, name, routes);
+    const html = buildStopHtml(shell, id, name, routes, articles.get(id));
     const outDir = path.join(distDir, 'transport', 'stop', id);
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'index.html'), html, 'utf8');
   }
-  console.log(`prerender-transport-stops: wrote ${stopIds.length} stop pages`);
+  console.log(`prerender-transport-stops: wrote ${stopIds.length} stop pages (${articles.size} with articles)`);
   patchSitemap(stopIds, routeIds);
 }
 
