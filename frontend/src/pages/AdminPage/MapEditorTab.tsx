@@ -6,9 +6,12 @@ import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import './MapEditorTab.css';
 import { displayNameForStopKey, getStopKey, type StopsCatalog } from '../LocalTransportPage/stopCatalog';
-
-const TRANSPORT_URL = '/data/malyn_transport.json';
-const STOPS_COORDS_URL = '/data/stops_coords.json';
+import { apiClient } from '@/api/client';
+import {
+  datasetToEditor,
+  editorToDataset,
+  type TransportDataset,
+} from '@/api/transportDataset';
 
 const MARKER_EXCLUDED_COLOR = '#1e3a5f';
 
@@ -232,8 +235,11 @@ type EditorMode = 'coords' | 'direction';
 export const MapEditorTab: React.FC = () => {
   const [transportData, setTransportData] = useState<TransportData | null>(null);
   const [coordsData, setCoordsData] = useState<StopsCoordsData | null>(null);
+  const [baseDataset, setBaseDataset] = useState<TransportDataset | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<string>('');
   const [editorMode, setEditorMode] = useState<EditorMode>('coords');
   const [directionMode, setDirectionMode] = useState<'there' | 'back'>('there');
@@ -259,18 +265,64 @@ export const MapEditorTab: React.FC = () => {
     setEditStopName(displayNameForStopKey(modalStop, stopsCatalog));
   }, [modalStop, stopsCatalog]);
 
-  useEffect(() => {
-    Promise.all([
-      fetch(TRANSPORT_URL).then((r) => (r.ok ? r.json() : Promise.reject(new Error('Transport')))),
-      fetch(STOPS_COORDS_URL).then((r) => (r.ok ? r.json() : Promise.reject(new Error('Coords')))),
-    ])
-      .then(([transport, coords]) => {
-        setTransportData(transport);
-        setCoordsData(coords);
-      })
-      .catch((err) => setError(err.message || 'Не вдалося завантажити дані'))
-      .finally(() => setLoading(false));
+  const applyDataset = useCallback((dataset: TransportDataset) => {
+    const { transport, coords } = datasetToEditor(dataset);
+    setBaseDataset(dataset);
+    setTransportData(transport as TransportData);
+    setCoordsData(coords);
   }, []);
+
+  const loadFromDb = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    setStatusMsg('');
+    try {
+      const dataset = await apiClient.getTransportDataset();
+      applyDataset(dataset);
+      setStatusMsg('Завантажено з бази');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося завантажити дані з бази');
+    } finally {
+      setLoading(false);
+    }
+  }, [applyDataset]);
+
+  useEffect(() => {
+    void loadFromDb();
+  }, [loadFromDb]);
+
+  const handleSaveToDb = useCallback(async () => {
+    if (!transportData || !coordsData || !baseDataset) return;
+    if (!window.confirm('Зберегти поточні зміни в базу? Несхоронені правки інших вкладок не торкаються.')) {
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setStatusMsg('');
+    try {
+      const dataset = editorToDataset(transportData as any, coordsData, baseDataset);
+      const result = await apiClient.putTransportDataset(dataset);
+      applyDataset(dataset);
+      setStatusMsg(
+        `Збережено: ${result.counts.stops} зупинок, ${result.counts.routes} маршрутів, ${result.counts.trips} рейсів`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося зберегти в базу');
+    } finally {
+      setSaving(false);
+    }
+  }, [transportData, coordsData, baseDataset, applyDataset]);
+
+  const handleReloadFromDb = useCallback(async () => {
+    if (
+      !window.confirm(
+        'Завантажити з бази? Несхоронені зміни в редакторі буде втрачено.'
+      )
+    ) {
+      return;
+    }
+    await loadFromDb();
+  }, [loadFromDb]);
 
   const routeOptions = useMemo(() => {
     const opts = [{ value: '', label: 'Всі зупинки / виберіть маршрут' }];
@@ -384,19 +436,6 @@ export const MapEditorTab: React.FC = () => {
       },
     });
   }, [selectedRoute, transportData, coordsData, mapCenter, displayedStops]);
-
-  const handleDownloadCoords = useCallback(() => {
-    if (!coordsData) return;
-    const blob = new Blob([JSON.stringify(coordsData, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'stops_coords.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [coordsData]);
 
   const handleStopOrderChange = useCallback(
     (stopKey: string, newOrder: number) => {
@@ -548,19 +587,6 @@ export const MapEditorTab: React.FC = () => {
     [transportData]
   );
 
-  const handleDownloadTransport = useCallback(() => {
-    if (!transportData) return;
-    const blob = new Blob([JSON.stringify(transportData, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'malyn_transport.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [transportData]);
-
   const positions = useMemo(
     () => displayedStops.map((n) => coordsData?.stops[n]).filter(Boolean) as [number, number][],
     [displayedStops, coordsData]
@@ -622,17 +648,23 @@ export const MapEditorTab: React.FC = () => {
             >
               + Техн. зупинка
             </Button>
-            <Button onClick={handleDownloadCoords}>
-              ⬇ Завантажити stops_coords.json
+            <Button type="button" onClick={handleSaveToDb} disabled={saving || !baseDataset}>
+              {saving ? 'Збереження…' : 'Зберегти в базу'}
+            </Button>
+            <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving}>
+              Завантажити з бази
             </Button>
           </div>
         )}
       </div>
 
+      {statusMsg && <p className="map-editor-hint">{statusMsg}</p>}
+
       {editorMode === 'coords' && (
         <p className="map-editor-hint">
-          Перетягніть маркер для уточнення позиції. «+ Техн. зупинка» — точка тільки для карти (map_only), коротка назва типу №9 т.1.
-          Темно-синій — виключена (order = -1). Завантажте обидва JSON у <code>data/malyn-transport/runtime/</code>, потім <code>node scripts/sync-localtransport-data.mjs</code>.
+          Перетягніть маркер для уточнення позиції. «+ Техн. зупинка» — точка тільки для карти (map_only).
+          Темно-синій — виключена (order = -1). Зміни в памʼяті, поки не натиснете «Зберегти в базу».
+          «Завантажити з бази» скидає несхоронені правки.
         </p>
       )}
 
@@ -657,8 +689,11 @@ export const MapEditorTab: React.FC = () => {
               ← {routeEndpoints.from}
             </button>
           </div>
-          <Button onClick={handleDownloadTransport}>
-            ⬇ Завантажити malyn_transport.json
+          <Button type="button" onClick={handleSaveToDb} disabled={saving || !baseDataset}>
+            {saving ? 'Збереження…' : 'Зберегти в базу'}
+          </Button>
+          <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving}>
+            Завантажити з бази
           </Button>
         </div>
       )}

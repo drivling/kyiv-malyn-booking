@@ -30,6 +30,7 @@ import type {
   LunchDaySummary,
   LunchMenuImportResult,
 } from '@/types';
+import type { TransportDataset } from './transportDataset';
 
 class ApiClient {
   private baseUrl: string;
@@ -727,6 +728,26 @@ class ApiClient {
     return this.request(`/admin/lunch/orders/${orderId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  }
+
+  async getTransportDataset(): Promise<TransportDataset> {
+    return this.request('/transport/dataset');
+  }
+
+  async putTransportDataset(dataset: TransportDataset): Promise<{
+    ok: boolean;
+    counts: {
+      stops: number;
+      routes: number;
+      routeStops: number;
+      trips: number;
+      segments: number;
+    };
+  }> {
+    return this.request('/transport/dataset', {
+      method: 'PUT',
+      body: JSON.stringify(dataset),
     });
   }
 }
