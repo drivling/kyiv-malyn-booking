@@ -7,4 +7,5 @@ export {
   DEFAULT_TELEGRAM_SCENARIOS,
   TELEGRAM_BOT_USERNAME,
 } from './useTelegramScenarios';
-export { usePageSeo } from './usePageSeo';
+export { usePageSeo, upsertJsonLd } from './usePageSeo';
+export type { PageSeoOptions } from './usePageSeo';

@@ -54,10 +54,12 @@ function parseCity(value: string | null): BookingCity | '' {
 export const MizhgorodskiPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  usePageSeo(
-    'Міжміські — попутки та маршрутки | malin.kiev.ua',
-    'https://malin.kiev.ua/mizhgorodski'
-  );
+  usePageSeo({
+    title: 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень | malin.kiev.ua',
+    canonicalUrl: 'https://malin.kiev.ua/mizhgorodski',
+    description:
+      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Живий пошук поїздок і онлайн бронювання.',
+  });
 
   const initialFrom = parseCity(searchParams.get('from')) || 'Kyiv';
   const initialTo = parseCity(searchParams.get('to')) || 'Malyn';

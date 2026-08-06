@@ -1,5 +1,6 @@
 # malin.kiev.ua — robots
-# Публічні сторінки: /, /mizhgorodski, /localtransport, /support, /about
+# Публічні: /, /mizhgorodski, /transport, /support, /about
+# (коридорні /mizhgorodski/* — після I3)
 
 User-agent: *
 Allow: /
@@ -15,13 +16,15 @@ Disallow: /api/
 # Логін не для органічного пошуку
 Disallow: /login
 
-# Старі окремі сторінки пошуку (контент на /mizhgorodski)
+# Старі окремі сторінки пошуку (контент на /mizhgorodski).
+# Disallow лишаємо до SPA-редіректів у I2; після — приберемо, щоб Google
+# переобійшов URL і побачив редірект на канон.
 Disallow: /poputky
 Disallow: /booking
 
 # Службові HTML табличок зупинок (не лендінги)
 Disallow: /stop-signs/
 
-# Редіректи (/help → /support тощо) дозволені; канонічні URL — у sitemap
+# Редіректи (/help → /support, /localtransport → /transport) дозволені; канон — у sitemap
 
 Sitemap: https://malin.kiev.ua/sitemap.xml

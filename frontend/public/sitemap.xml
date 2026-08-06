@@ -9,7 +9,7 @@
     <!-- Головна (редірект → /mizhgorodski) -->
     <url>
         <loc>https://malin.kiev.ua/</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>hourly</changefreq>
         <priority>1.0</priority>
     </url>
@@ -17,15 +17,20 @@
     <!-- Міжміські: пошук попуток і маршруток (основна сторінка) -->
     <url>
         <loc>https://malin.kiev.ua/mizhgorodski</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>hourly</changefreq>
         <priority>1.0</priority>
     </url>
 
-    <!-- Міський транспорт Малина -->
+    <!--
+      Коридорні SEO-лендінги (I3): kyiv-malyn, malyn-kyiv, zhytomyr-malyn,
+      malyn-zhytomyr, korosten-malyn, malyn-korosten — додамо після сторінок.
+    -->
+
+    <!-- Міський транспорт Малина (канон /transport; /localtransport → редірект) -->
     <url>
-        <loc>https://malin.kiev.ua/localtransport</loc>
-        <lastmod>2026-08-05</lastmod>
+        <loc>https://malin.kiev.ua/transport</loc>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
@@ -33,7 +38,7 @@
     <!-- Help-center: хаб -->
     <url>
         <loc>https://malin.kiev.ua/support</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.85</priority>
     </url>
@@ -41,54 +46,56 @@
     <!-- Help-center: статті (IA hub → article) -->
     <url>
         <loc>https://malin.kiev.ua/support/start</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.75</priority>
     </url>
     <url>
         <loc>https://malin.kiev.ua/support/bot</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
     </url>
     <url>
         <loc>https://malin.kiev.ua/support/site</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
     <url>
         <loc>https://malin.kiev.ua/support/referral</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.75</priority>
     </url>
     <url>
         <loc>https://malin.kiev.ua/support/faq</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
     </url>
     <url>
         <loc>https://malin.kiev.ua/support/contact</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
+    <!-- /support/travel — додамо в I5 -->
 
     <!-- Про нас: реквізити, політика, умови, акція -->
     <url>
         <loc>https://malin.kiev.ua/about</loc>
-        <lastmod>2026-08-05</lastmod>
+        <lastmod>2026-08-07</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
 
     <!--
-      Не індексуємо в sitemap (див. robots.txt):
-      /login, /user, /admin, /help (редірект → /support),
-      /privacy і /privacy-policy (редірект → /about#privacy-policy),
-      динамічні /localtransport/route/*, /localtransport/stop/* —
+      Не індексуємо в sitemap:
+      /login, /user, /admin, /help (→ /support),
+      /privacy і /privacy-policy (→ /about#privacy-policy),
+      /poputky і /booking (→ /mizhgorodski після I2),
+      динамічні /transport/route/*, /transport/stop/* —
       додамо окремо, коли з’являться стабільні SEO-лендінги зупинок.
     -->
 
