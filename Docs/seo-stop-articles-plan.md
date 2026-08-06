@@ -21,7 +21,7 @@ Goal: short unique pages per stop at `/transport/stop/{st_id}` with lead paragra
 | st_0023 | ЗОШ № 3 (навпроти) | [x] |
 | st_0020 | ЗОШ " 3 | [x] |
 | st_0001 | 10 ОГШБ (навпр.РЕМу) | [x] |
-| st_0035 | Лікарня | [ ] |
+| st_0035 | Лікарня | [x] |
 | st_0098 | Шевченка 22 | [ ] |
 | st_0065 | Перемоги 15-17 | [ ] |
 
