@@ -27,7 +27,7 @@ Segments from `dataset.segments` / `meta.defaultSec`.
 - [x] **9** — QR/deep-links on `/transport`
 - [x] **10** — Remove dead duplicates; no static JSON
 - [x] **11** — Smoke checklist (`Docs/local-transport-jakdojade-smoke.md`)
-- [ ] **12** — Result report `Docs/local-transport-jakdojade-rebuild-result.md`
+- [x] **12** — Result report `Docs/local-transport-jakdojade-rebuild-result.md`
 
 ## Rules
 
