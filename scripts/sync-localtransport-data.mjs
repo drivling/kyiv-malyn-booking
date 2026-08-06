@@ -5,7 +5,6 @@
  * Canonical: data/malyn-transport/runtime/
  * Targets:
  *   - frontend/public/data/          (static site)
- *   - backend/localtransport-data/   (GET /localtransport/data)
  *   - frontend/src/pages/LocalTransportPage/segmentDurations.json (bundled)
  *
  * Usage:
@@ -29,11 +28,6 @@ const TARGETS = [
     name: 'frontend/public/data',
     dir: path.join(rootDir, 'frontend/public/data'),
     files: ['malyn_transport.json', 'stops_coords.json'],
-  },
-  {
-    name: 'backend/localtransport-data',
-    dir: path.join(rootDir, 'backend/localtransport-data'),
-    files: FILES,
   },
   {
     name: 'frontend LocalTransportPage',

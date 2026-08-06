@@ -61,14 +61,6 @@ test('GET /admin/check: токен з login проходить requireAdmin', as
   assert.equal(check.body.authenticated, true);
 });
 
-test('GET /localtransport/data: JSON з репозиторію (без Prisma)', async () => {
-  const res = await request(smokeApp()).get('/localtransport/data').expect(200);
-  assert.ok(res.body.transport);
-  assert.ok(res.body.coords);
-  assert.ok(res.body.segments);
-  assert.equal(res.headers['cache-control'], 'public, max-age=300');
-});
-
 test('фікстури: формати як у живій БД (документація для моків)', () => {
   assert.match(examplePersonRow.phoneNormalized, /^380\d{9}$/);
   assert.equal(exampleViberListingRow.listingType, 'driver');

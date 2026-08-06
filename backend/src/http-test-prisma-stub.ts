@@ -42,7 +42,7 @@ export const exampleViberListingRow = {
 
 /**
  * Prisma без методів: будь-який випадковий виклик на БД у тесті дасть зрозумілу помилку.
- * Для маршрутів фази 2 (/health, /status, /admin/login, /localtransport/data) БД не чіпається.
+ * Для маршрутів фази 2 (/health, /status, /admin/login) БД не чіпається.
  */
 export function createNoDbPrismaStub(): PrismaClient {
   return new Proxy({} as PrismaClient, {

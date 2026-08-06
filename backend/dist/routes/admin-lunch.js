@@ -200,7 +200,7 @@ function createAdminLunchRouter(deps) {
                 res.status(400).json({ error: 'Немає замовлень на сьогодні' });
                 return;
             }
-            const text = (0, lunch_1.formatLunchTotalsComment)(summary.orders);
+            const text = (0, lunch_1.formatLunchTotalsComment)(summary.orders, summary.menuItems);
             const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, text);
             res.json({
                 ok: result.ok,
