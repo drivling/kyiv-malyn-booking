@@ -2,11 +2,13 @@ import type { StopArticle } from './types';
 import { article as st_0019 } from './st_0019';
 import { article as st_0072 } from './st_0072';
 import { article as st_0062 } from './st_0062';
+import { article as st_0056 } from './st_0056';
 
 const STOP_ARTICLES: Record<string, StopArticle> = {
   [st_0019.id]: st_0019,
   [st_0072.id]: st_0072,
   [st_0062.id]: st_0062,
+  [st_0056.id]: st_0056,
 };
 
 export function getStopArticle(stopId: string | undefined | null): StopArticle | undefined {
