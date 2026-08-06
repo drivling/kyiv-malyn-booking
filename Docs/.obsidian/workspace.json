@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "referral-program-fix-plan.md",
+                "file": "telegram-inline-bot-plan.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "referral-program-fix-plan"
+              "title": "telegram-inline-bot-plan"
             }
           }
         ],
@@ -202,8 +202,10 @@
   },
   "active": "97f8429fafac3151",
   "lastOpenFiles": [
-    "На будущее.md",
+    "telegram-bot-user-guide.md",
+    "telegram-inline-bot-plan.md",
     "referral-program-fix-plan.md",
+    "На будущее.md",
     "Schema_telegram.svg",
     "referral-program-terms.md",
     "facebook-preview-assets/fb-story-bg.png",

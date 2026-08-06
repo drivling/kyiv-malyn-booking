@@ -176,6 +176,9 @@ def test_chat_noise():
 def test_payment():
     assert parse_payment("оплатив 150").amount_uah == 150
     assert parse_payment("Оплатила 90 грн").amount_uah == 90
+    assert parse_payment("Оплата 175").amount_uah == 175
+    assert parse_payment("оплата: 175").amount_uah == 175
+    assert parse_payment("175 оплата").amount_uah == 175
     assert parse_payment("!pay 200").amount_uah == 200
     assert parse_payment("перевів 120").amount_uah == 120
     assert parse_payment("привіт") is None
