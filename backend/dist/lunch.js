@@ -8,6 +8,7 @@ exports.formatLunchMenuText = formatLunchMenuText;
 exports.upsertLunchMenuForToday = upsertLunchMenuForToday;
 exports.getLunchDaySummary = getLunchDaySummary;
 exports.formatLunchTotalsComment = formatLunchTotalsComment;
+exports.updateLunchOrder = updateLunchOrder;
 exports.recordLunchPayment = recordLunchPayment;
 function todayKyivDate() {
     const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -143,10 +144,12 @@ async function getLunchDaySummary(prisma, date) {
             displayName: o.participant.displayName,
             username: o.participant.username,
             rawText: o.rawText,
+            unmatchedText: o.unmatchedText,
             totalUah: o.totalUah,
             paidUah: paid,
             debtUah: o.totalUah - paid,
             lines: o.lines.map((l) => ({
+                menuItemId: l.menuItemId,
                 rawName: l.rawName,
                 qty: l.qty,
                 unitPriceUah: l.unitPriceUah,
@@ -201,6 +204,61 @@ function formatLunchTotalsComment(orders) {
     lines.push('');
     lines.push(`Разом: ${grand} грн`);
     return lines.join('\n');
+}
+/**
+ * Ручне редагування замовлення оператором.
+ * rawText ніколи не змінюємо — оригінал повідомлення для аналізу.
+ */
+async function updateLunchOrder(prisma, orderId, opts) {
+    const order = await prisma.lunchOrder.findUnique({
+        where: { id: orderId },
+        include: { day: { include: { menuItems: true } } },
+    });
+    if (!order || order.status !== 'active') {
+        throw new Error('Замовлення не знайдено');
+    }
+    const menuById = new Map(order.day.menuItems.map((m) => [m.id, m]));
+    const ids = (opts.menuItemIds || []).map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
+    const linesData = [];
+    let total = 0;
+    for (const mid of ids) {
+        const item = menuById.get(mid);
+        if (!item) {
+            throw new Error(`Позиція меню #${mid} не належить цьому дню`);
+        }
+        const price = item.priceUah;
+        total += price;
+        linesData.push({
+            menuItemId: item.id,
+            rawName: item.name,
+            qty: 1,
+            unitPriceUah: price,
+            lineTotalUah: price,
+        });
+    }
+    const unmatched = opts.unmatchedText === undefined
+        ? order.unmatchedText
+        : opts.unmatchedText === null || String(opts.unmatchedText).trim() === ''
+            ? null
+            : String(opts.unmatchedText).trim();
+    await prisma.$transaction(async (tx) => {
+        await tx.lunchOrderLine.deleteMany({ where: { orderId } });
+        if (linesData.length) {
+            await tx.lunchOrderLine.createMany({
+                data: linesData.map((l) => ({ orderId, ...l })),
+            });
+        }
+        await tx.lunchOrder.update({
+            where: { id: orderId },
+            data: {
+                totalUah: total,
+                unmatchedText: unmatched,
+                // rawText не чіпаємо
+                updatedAt: new Date(),
+            },
+        });
+    });
+    return { ok: true, totalUah: total };
 }
 async function recordLunchPayment(prisma, opts) {
     const date = todayKyivDate();

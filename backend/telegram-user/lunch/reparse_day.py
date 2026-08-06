@@ -132,6 +132,7 @@ async def apply_day_summary(
             result.total_uah if result else 0,
             result.lines if result else [],
             source_message_id=source_message_id,
+            unmatched_text=(result.unmatched_text if result else draft.raw_text) or None,
         )
         stats.orders += 1
 
@@ -145,6 +146,7 @@ async def apply_day_summary(
             result.total_uah if result else 0,
             result.lines if result else [],
             source_message_id=source_message_id,
+            unmatched_text=(result.unmatched_text if result else parsed.dozazak_raw) or None,
         )
         stats.orders += 1
 
@@ -253,6 +255,7 @@ async def process_text_message(
         result.total_uah,
         result.lines,
         source_message_id=message_id,
+        unmatched_text=result.unmatched_text or None,
     )
     stats.orders += 1
 

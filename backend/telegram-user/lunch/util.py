@@ -7,6 +7,36 @@ import re
 import unicodedata
 from pathlib import Path
 
+# укр/рос розмовні відповідники після normalize (без ь/ї)
+_TOKEN_SYNONYMS = {
+    "овощи": "овочі",
+    "овощ": "овоч",
+    "бифштекс": "біфштекс",
+    "бифтекс": "біфштекс",
+    "печень": "печінкові",
+    "печен": "печінкові",
+    "печінкові": "печінкові",
+    "оладьи": "оладки",
+    "оладді": "оладки",
+    "яйцом": "яйцем",
+    "яйце": "яйцем",
+    "гриле": "грилі",
+    "гриль": "грилі",
+    "огурец": "огірок",
+    "огурцом": "огірком",
+    "огурца": "огірка",
+    "помидор": "помідор",
+    "курица": "курка",
+    "курицы": "курки",
+    "грецкий": "грецький",
+    "греческий": "грецький",
+    "суп": "суп",
+    "грибной": "грибний",
+    "вареники": "вареники",
+    "картошкой": "картоплею",
+    "картошка": "картопля",
+}
+
 
 def load_dotenv() -> None:
     """Завантажити .env з telegram-user/, backend/ або cwd (не перезаписує існуючі env)."""
@@ -33,7 +63,7 @@ def load_dotenv() -> None:
 
 
 def normalize_dish_name(name: str) -> str:
-    """Нормалізація для fuzzy-match: lower, є/е, апострофи, зайві пробіли."""
+    """Нормалізація для fuzzy-match: lower, є/е, синоніми укр/рос, зайві пробіли."""
     if not name:
         return ""
     s = unicodedata.normalize("NFKC", name).lower().strip()
@@ -41,29 +71,38 @@ def normalize_dish_name(name: str) -> str:
     s = s.replace("ь", "").replace("ъ", "")
     s = s.replace("ʼ", "'").replace("’", "'").replace("`", "'").replace("´", "'")
     s = s.replace("'", "")
+    s = re.sub(r"[«»\"„“]", " ", s)
     s = re.sub(r"[^\w\s]+", " ", s, flags=re.UNICODE)
     s = re.sub(r"\s+", " ", s).strip()
-    return s
+    tokens = []
+    for t in s.split():
+        tokens.append(_TOKEN_SYNONYMS.get(t, t))
+    return " ".join(tokens)
 
 
 def split_order_parts(text: str) -> list[str]:
-    """Розбити текст замовлення на частини (|, ;, переноси, коми між стравами)."""
+    """Розбити текст замовлення на частини (|, ;, переноси, коми, 2+ пробіли)."""
     if not text or not text.strip():
         return []
     raw = text.strip()
-    # Спочатку по | ; і переносах
     chunks = re.split(r"[|;\n]+", raw)
     parts: list[str] = []
     for chunk in chunks:
         chunk = chunk.strip()
         if not chunk:
             continue
-        # Коми: «пюре, котлети, салат»
         if "," in chunk:
             for sub in chunk.split(","):
                 sub = sub.strip()
                 if sub:
-                    parts.append(sub)
+                    # «бифштекс с яйцом  печень оладьи»
+                    for piece in re.split(r"\s{2,}", sub):
+                        piece = piece.strip()
+                        if piece:
+                            parts.append(piece)
         else:
-            parts.append(chunk)
+            for piece in re.split(r"\s{2,}", chunk):
+                piece = piece.strip()
+                if piece:
+                    parts.append(piece)
     return parts

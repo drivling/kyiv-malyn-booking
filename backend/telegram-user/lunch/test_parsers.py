@@ -140,6 +140,33 @@ def test_order_marta():
     assert r.total_uah >= 90
 
 
+def test_ru_typos_andrey_and_valeria():
+    """Реальні кейси: рос. написання + два блюда без коми через подвійний пробіл."""
+    dishes = [
+        ("Салат «Капуста молода з огірком»", 40),
+        ("Овочі на грилі", 50),
+        ("Салат «Грецький»", 45),
+        ("Биток Київський", 90),
+        ("Суп грибний з гречкою", 85),
+        ("Біфштекс з яйцем", 85),
+        ("Печінкові оладки", 65),
+    ]
+    menu = [
+        MenuItemRow(i, 1, n, normalize_dish_name(n), p)
+        for i, (n, p) in enumerate(dishes, 1)
+    ]
+    andrey = parse_order("Капуста огурец, бифштекс с яйцом  печень оладьи", menu)
+    assert andrey.total_uah == 40 + 85 + 65
+    assert andrey.unmatched == []
+
+    valeria = parse_order(
+        "Салат грецкий \nБиток Киевский \nОвощи на гриле \nСуп грибной",
+        menu,
+    )
+    assert valeria.total_uah == 45 + 90 + 50 + 85
+    assert valeria.unmatched == []
+
+
 def test_chat_noise():
     assert not looks_like_order("Бегом бегом")
     assert not looks_like_order("Даша 😁😁😁")
@@ -238,6 +265,7 @@ def main():
         test_order_lilia,
         test_order_diana,
         test_order_marta,
+        test_ru_typos_andrey_and_valeria,
         test_chat_noise,
         test_payment,
         test_card,

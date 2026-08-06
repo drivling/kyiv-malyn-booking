@@ -241,6 +241,7 @@ async def run() -> None:
                         result.total_uah,
                         result.lines,
                         source_message_id=msg.id,
+                        unmatched_text=result.unmatched_text or None,
                     )
                     total_all += result.total_uah
                     preview.append(f"• {draft.display_name}: {result.total_uah} грн")
@@ -252,6 +253,7 @@ async def run() -> None:
                         0,
                         [],
                         source_message_id=msg.id,
+                        unmatched_text=draft.raw_text,
                     )
                     preview.append(f"• {draft.display_name}: (без меню/цін)")
 
@@ -268,6 +270,7 @@ async def run() -> None:
                         result.total_uah,
                         result.lines,
                         source_message_id=msg.id,
+                        unmatched_text=result.unmatched_text or None,
                     )
                     total_all += result.total_uah
                     preview.append(f"• {DOZAZAK_DISPLAY_NAME}: {result.total_uah} грн")
@@ -279,6 +282,7 @@ async def run() -> None:
                         0,
                         [],
                         source_message_id=msg.id,
+                        unmatched_text=parsed.dozazak_raw,
                     )
                     preview.append(f"• {DOZAZAK_DISPLAY_NAME}: (без меню/цін)")
 
@@ -423,6 +427,7 @@ async def run() -> None:
             result.total_uah,
             result.lines,
             source_message_id=msg.id,
+            unmatched_text=result.unmatched_text or None,
         )
         await reply(
             event,

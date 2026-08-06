@@ -352,7 +352,10 @@ model LunchOrder {
   dayId           Int
   participantId   Int
   sourceMessageId BigInt?
+  /// Повний оригінальний текст повідомлення (для аналізу)
   rawText         String   @db.Text
+  /// Фрагменти, які автомат не зіставив з меню
+  unmatchedText   String?  @db.Text
   totalUah        Int      @default(0)
   /// active | cancelled
   status          String   @default("active")

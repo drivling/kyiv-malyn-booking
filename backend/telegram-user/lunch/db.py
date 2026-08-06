@@ -232,17 +232,20 @@ class LunchDB:
         total_uah: int,
         lines: list[OrderLineInput],
         source_message_id: Optional[int] = None,
+        unmatched_text: Optional[str] = None,
     ) -> int:
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
                     """
                     INSERT INTO "LunchOrder"
-                        ("dayId", "participantId", "sourceMessageId", "rawText", "totalUah", status, "updatedAt")
-                    VALUES ($1, $2, $3, $4, $5, 'active', NOW())
+                        ("dayId", "participantId", "sourceMessageId", "rawText", "unmatchedText",
+                         "totalUah", status, "updatedAt")
+                    VALUES ($1, $2, $3, $4, $5, $6, 'active', NOW())
                     ON CONFLICT ("dayId", "participantId") DO UPDATE SET
                         "sourceMessageId" = EXCLUDED."sourceMessageId",
                         "rawText" = EXCLUDED."rawText",
+                        "unmatchedText" = EXCLUDED."unmatchedText",
                         "totalUah" = EXCLUDED."totalUah",
                         status = 'active',
                         "updatedAt" = NOW()
@@ -252,6 +255,7 @@ class LunchDB:
                     participant_id,
                     source_message_id,
                     raw_text,
+                    unmatched_text,
                     total_uah,
                 )
                 order_id = int(row["id"])
@@ -323,7 +327,8 @@ class LunchDB:
         async with self.pool.acquire() as conn:
             orders = await conn.fetch(
                 """
-                SELECT o.id, o."rawText", o."totalUah", p.id AS pid, p."displayName", p.username
+                SELECT o.id, o."rawText", o."unmatchedText", o."totalUah",
+                       p.id AS pid, p."displayName", p.username
                 FROM "LunchOrder" o
                 JOIN "LunchParticipant" p ON p.id = o."participantId"
                 WHERE o."dayId" = $1 AND o.status = 'active'
@@ -347,7 +352,7 @@ class LunchDB:
                 paid = paid_map.get(pid, 0)
                 lines = await conn.fetch(
                     """
-                    SELECT "rawName", qty, "unitPriceUah", "lineTotalUah"
+                    SELECT "menuItemId", "rawName", qty, "unitPriceUah", "lineTotalUah"
                     FROM "LunchOrderLine" WHERE "orderId" = $1 ORDER BY id
                     """,
                     int(o["id"]),
@@ -358,6 +363,7 @@ class LunchDB:
                         "display_name": o["displayName"],
                         "username": o["username"],
                         "raw_text": o["rawText"],
+                        "unmatched_text": o["unmatchedText"],
                         "total_uah": total,
                         "paid_uah": paid,
                         "debt_uah": total - paid,

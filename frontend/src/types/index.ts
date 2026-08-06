@@ -462,11 +462,15 @@ export interface LunchOrderRow {
   participantId: number;
   displayName: string;
   username: string | null;
+  /** Повний оригінал повідомлення (не змінюється при ручному редагуванні) */
   rawText: string;
+  /** Фрагменти, які автомат не зіставив з меню */
+  unmatchedText: string | null;
   totalUah: number;
   paidUah: number;
   debtUah: number;
   lines: Array<{
+    menuItemId: number | null;
     rawName: string;
     qty: number;
     unitPriceUah: number;

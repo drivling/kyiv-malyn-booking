@@ -167,6 +167,31 @@ function createAdminLunchRouter(deps) {
             res.status(400).json({ error: msg });
         }
     });
+    /**
+     * Ручне редагування замовлення: замінити рядки на позиції меню,
+     * оновити unmatchedText. rawText (оригінал) не змінюється.
+     */
+    r.patch('/admin/lunch/orders/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const orderId = Number(req.params.id);
+            if (!Number.isFinite(orderId) || orderId <= 0) {
+                res.status(400).json({ error: 'Некоректний id замовлення' });
+                return;
+            }
+            const menuItemIds = Array.isArray(req.body?.menuItemIds)
+                ? req.body.menuItemIds.map((x) => Number(x))
+                : [];
+            const unmatchedText = req.body?.unmatchedText === undefined ? undefined : req.body.unmatchedText;
+            await (0, lunch_1.updateLunchOrder)(prisma, orderId, { menuItemIds, unmatchedText });
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка оновлення замовлення';
+            console.error('[admin/lunch/orders]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
     /** Пост «підсумку» в групу: імʼя, страви, сума (без судочків) */
     r.post('/admin/lunch/post-totals', require_admin_1.requireAdmin, async (_req, res) => {
         try {

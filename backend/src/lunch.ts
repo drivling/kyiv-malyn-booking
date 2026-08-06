@@ -161,10 +161,12 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
       displayName: o.participant.displayName,
       username: o.participant.username,
       rawText: o.rawText,
+      unmatchedText: o.unmatchedText,
       totalUah: o.totalUah,
       paidUah: paid,
       debtUah: o.totalUah - paid,
       lines: o.lines.map((l) => ({
+        menuItemId: l.menuItemId,
         rawName: l.rawName,
         qty: l.qty,
         unitPriceUah: l.unitPriceUah,
@@ -229,6 +231,80 @@ export function formatLunchTotalsComment(
   lines.push('');
   lines.push(`Разом: ${grand} грн`);
   return lines.join('\n');
+}
+
+/**
+ * Ручне редагування замовлення оператором.
+ * rawText ніколи не змінюємо — оригінал повідомлення для аналізу.
+ */
+export async function updateLunchOrder(
+  prisma: PrismaClient,
+  orderId: number,
+  opts: {
+    menuItemIds: number[];
+    unmatchedText?: string | null;
+  }
+): Promise<{ ok: boolean; totalUah: number }> {
+  const order = await prisma.lunchOrder.findUnique({
+    where: { id: orderId },
+    include: { day: { include: { menuItems: true } } },
+  });
+  if (!order || order.status !== 'active') {
+    throw new Error('Замовлення не знайдено');
+  }
+
+  const menuById = new Map(order.day.menuItems.map((m) => [m.id, m]));
+  const ids = (opts.menuItemIds || []).map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
+  const linesData: Array<{
+    menuItemId: number;
+    rawName: string;
+    qty: number;
+    unitPriceUah: number;
+    lineTotalUah: number;
+  }> = [];
+  let total = 0;
+  for (const mid of ids) {
+    const item = menuById.get(mid);
+    if (!item) {
+      throw new Error(`Позиція меню #${mid} не належить цьому дню`);
+    }
+    const price = item.priceUah;
+    total += price;
+    linesData.push({
+      menuItemId: item.id,
+      rawName: item.name,
+      qty: 1,
+      unitPriceUah: price,
+      lineTotalUah: price,
+    });
+  }
+
+  const unmatched =
+    opts.unmatchedText === undefined
+      ? order.unmatchedText
+      : opts.unmatchedText === null || String(opts.unmatchedText).trim() === ''
+        ? null
+        : String(opts.unmatchedText).trim();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.lunchOrderLine.deleteMany({ where: { orderId } });
+    if (linesData.length) {
+      await tx.lunchOrderLine.createMany({
+        data: linesData.map((l) => ({ orderId, ...l })),
+      });
+    }
+    await tx.lunchOrder.update({
+      where: { id: orderId },
+      data: {
+        totalUah: total,
+        unmatchedText: unmatched,
+        // rawText не чіпаємо
+        updatedAt: new Date(),
+      },
+    });
+  });
+
+  return { ok: true, totalUah: total };
 }
 
 export async function recordLunchPayment(

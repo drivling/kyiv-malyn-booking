@@ -719,6 +719,16 @@ class ApiClient {
   }> {
     return this.request('/admin/lunch/post-totals', { method: 'POST' });
   }
+
+  async updateLunchOrder(
+    orderId: number,
+    data: { menuItemIds: number[]; unmatchedText?: string | null }
+  ): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/orders/${orderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);
