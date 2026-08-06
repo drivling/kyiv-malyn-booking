@@ -1442,6 +1442,66 @@ export const LocalTransportPage: React.FC = () => {
                         Друк
                       </button>
                     </div>
+                    {tableTripsInDirection && tableTripsInDirection.length > 0 && (
+                      <div className="lt-timetable lt-timetable--jd">
+                        <table className="lt-timetable-table lt-timetable-table--tablica">
+                          <thead>
+                            <tr>
+                              <th>
+                                Відправлення
+                                {fromStop ? (
+                                  <span className="lt-th-stop">
+                                    {' '}
+                                    ({displayNameForStopKey(fromStop, stopsCatalog)})
+                                  </span>
+                                ) : null}
+                              </th>
+                              <th>
+                                Прибуття
+                                {toStop ? (
+                                  <span className="lt-th-stop">
+                                    {' '}
+                                    ({displayNameForStopKey(toStop, stopsCatalog)})
+                                  </span>
+                                ) : null}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tableTripsInDirection.map((row, i) => {
+                              const isSelected =
+                                selectedTripTime === row.baseTime && selectedTripDirection === row.direction;
+                              return (
+                                <tr
+                                  key={`${row.dep}-${row.arr}-${i}`}
+                                  className={`lt-timetable-row-clickable ${isSelected ? 'lt-timetable-row--selected' : ''}`}
+                                  onClick={() => {
+                                    setSelectedTripTime(row.baseTime);
+                                    setSelectedTripDirection(row.direction);
+                                    setStopsDirection(row.direction);
+                                    updateDetailUrl({ time: row.dep, dir: row.direction });
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      setSelectedTripTime(row.baseTime);
+                                      setSelectedTripDirection(row.direction);
+                                      setStopsDirection(row.direction);
+                                      updateDetailUrl({ time: row.dep, dir: row.direction });
+                                    }
+                                  }}
+                                >
+                                  <td className="lt-time-cell lt-time-cell--tablica">{row.dep}</td>
+                                  <td className="lt-time-cell lt-time-cell--tablica">{row.arr}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </section>
                 </>
               );

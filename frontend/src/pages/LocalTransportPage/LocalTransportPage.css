@@ -1645,6 +1645,13 @@
   min-height: auto;
 }
 
+@media (min-width: 768px) {
+  .lt-timetable-header--compact .lt-time-picker-label,
+  .lt-timetable-header--compact .lt-time-picker-select--compact {
+    display: none;
+  }
+}
+
 .lt-print-btn--compact {
   padding: 4px 10px;
   font-size: var(--lt-fs-sm);
