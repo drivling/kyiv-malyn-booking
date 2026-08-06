@@ -10,7 +10,8 @@ import { isVerifiedRoute } from './routeTiming';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
-import { getStopArticle } from '@/content/stops';
+import { getStopArticle, stopArticlePlainText } from '@/content/stops';
+import { RouteMap } from './RouteMap';
 import './LocalTransportPage.css';
 
 const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
@@ -245,8 +246,8 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         },
         ...STOP_BOARD_HUB_FAQ.slice(1),
       ];
-      const description = stopArticle?.lead
-        ? stopArticle.lead
+      const description = stopArticle
+        ? stopArticlePlainText(stopArticle)
         : `Табло зупинки «${selectedStopTitle}» у Малині${
             routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : ''
           }. Наступні відправлення міського транспорту.`;
@@ -374,6 +375,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     }
   };
 
+  const mapCoordsData = viewModel
+    ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
+    : null;
+
   const fare = data?.supplement?.fare ? `${data.supplement.fare.amount} грн` : null;
 
   if (loading) {
@@ -399,7 +404,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   }
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+    <div className="lt-page lt-theme-jakdojade lt-layout-dark lt-page--stop-board">
       <div className="lt-container lt-split-layout">
         <div className="lt-panel">
           <header className="lt-header lt-header--jakdojade">
@@ -479,7 +484,45 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               <h2 id="lt-stop-article-h" className="lt-aeo-title">
                 Про зупинку
               </h2>
-              <p className="lt-stop-article-lead">{stopArticle.lead}</p>
+              {stopArticle.place ? (
+                <div className="lt-stop-article-body">
+                  <p className="lt-stop-article-p">
+                    Зупинка <strong>«{stopArticle.name}»</strong> у Малині — {stopArticle.place}.
+                  </p>
+                  {stopArticle.routeIds && stopArticle.routeIds.length > 0 ? (
+                    <p className="lt-stop-article-p">
+                      Через неї курсують маршрути{' '}
+                      {stopArticle.routeIds.map((r, i) => (
+                        <span key={r}>
+                          {i > 0 ? ', ' : null}
+                          <Link className="lt-stop-article-route" to={`/transport/route/${encodeURIComponent(r)}`}>
+                            <strong>№{r}</strong>
+                          </Link>
+                        </span>
+                      ))}
+                      .
+                    </p>
+                  ) : null}
+                  {stopArticle.coords ? (
+                    <p className="lt-stop-article-p lt-stop-article-coords">
+                      Координати:{' '}
+                      <strong>
+                        {stopArticle.coords[0].toFixed(5)}, {stopArticle.coords[1].toFixed(5)}
+                      </strong>
+                      {' · '}
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${stopArticle.coords[0]}&mlon=${stopArticle.coords[1]}#map=17/${stopArticle.coords[0]}/${stopArticle.coords[1]}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        OpenStreetMap
+                      </a>
+                    </p>
+                  ) : null}
+                </div>
+              ) : stopArticle.lead ? (
+                <p className="lt-stop-article-lead">{stopArticle.lead}</p>
+              ) : null}
               {stopArticle.tips && stopArticle.tips.length > 0 ? (
                 <ul className="lt-stop-article-tips">
                   {stopArticle.tips.map((tip) => (
@@ -487,6 +530,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   ))}
                 </ul>
               ) : null}
+              <aside className="lt-stop-article-howto" aria-label="Як користуватися">
+                <p>
+                  Актуальний розклад — у картках нижче на цьому табло. Маршрут від зупинки до іншої точки — у{' '}
+                  <Link to={selectedStop ? `/transport?from=${encodeURIComponent(selectedStop)}` : '/transport'}>
+                    планері «З → До»
+                  </Link>
+                  .
+                </p>
+              </aside>
             </section>
           ) : null}
 
@@ -697,7 +749,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
           </footer>
         </div>
         <div className="lt-map-column">
-          <div className="lt-stop-board-map-placeholder" aria-hidden />
+          <RouteMap
+            routeId=""
+            stopNames={selectedStop ? [selectedStop] : []}
+            fromStopName={selectedStop || undefined}
+            dark
+            hideRadialPicker
+            coordsData={mapCoordsData}
+            resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
+          />
         </div>
       </div>
     </div>

@@ -2631,16 +2631,64 @@
 }
 
 .lt-stop-article {
-  margin: 8px var(--lt-panel-x) 0;
-  padding: 12px 0 8px;
-  border-top: 1px solid var(--lt-border-light);
+  margin: 4px var(--lt-panel-x) 12px;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--lt-panel-border, #3c4043);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lt-layout-dark .lt-stop-article .lt-aeo-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.lt-stop-article-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lt-stop-article-p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--lt-panel-text, #e8eaed);
+}
+
+.lt-stop-article-p strong {
+  font-weight: 700;
+  color: #fff;
+}
+
+.lt-stop-article-route {
+  color: var(--lt-route-green, #8ab4f8);
+  text-decoration: none;
+}
+
+.lt-stop-article-route:hover {
+  text-decoration: underline;
+}
+
+.lt-stop-article-coords {
+  font-size: 0.88rem;
+  color: var(--lt-panel-text-muted, #9aa0a6);
+}
+
+.lt-stop-article-coords a {
+  color: var(--lt-route-green, #8ab4f8);
+  text-decoration: none;
+}
+
+.lt-stop-article-coords a:hover {
+  text-decoration: underline;
 }
 
 .lt-stop-article-lead {
   margin: 0;
   font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--lt-panel-text, #054752);
+  line-height: 1.55;
+  color: var(--lt-panel-text, #e8eaed);
 }
 
 .lt-stop-article-tips {
@@ -2648,7 +2696,40 @@
   padding-left: 1.2rem;
   font-size: 0.9rem;
   line-height: 1.45;
-  color: var(--lt-panel-text-muted, #3d5a60);
+  color: var(--lt-panel-text-muted, #9aa0a6);
+}
+
+.lt-stop-article-howto {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--lt-panel-border, #5f6368);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.lt-stop-article-howto p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--lt-panel-text-muted, #9aa0a6);
+}
+
+.lt-stop-article-howto a {
+  color: var(--lt-route-green, #8ab4f8);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.lt-stop-article-howto a:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .lt-page--stop-board.lt-layout-dark .lt-panel {
+    width: min(460px, 44vw);
+    max-width: 520px;
+    min-width: 360px;
+  }
 }
 
 /* Footer */

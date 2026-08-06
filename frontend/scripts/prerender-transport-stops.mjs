@@ -119,9 +119,33 @@ function loadStopArticles() {
     const text = fs.readFileSync(path.join(dir, f), 'utf8');
     const id = f.replace(/\.ts$/, '');
     const nameM = text.match(/name:\s*['"]([^'"]+)['"]/);
+    const placeM = text.match(/place:\s*`([\s\S]*?)`/) || text.match(/place:\s*['"]([^'"]+)['"]/);
     const leadM = text.match(/lead:\s*`([\s\S]*?)`/) || text.match(/lead:\s*['"]([^'"]+)['"]/);
-    if (leadM) {
-      map.set(id, { name: nameM?.[1], lead: leadM[1].replace(/\s+/g, ' ').trim() });
+    const routesM = text.match(/routeIds:\s*\[([^\]]*)\]/);
+    const coordsM = text.match(/coords:\s*\[([^\]]+)\]/);
+    const routeIds = routesM
+      ? routesM[1]
+          .split(',')
+          .map((s) => s.replace(/['"\s]/g, ''))
+          .filter(Boolean)
+      : [];
+    let coords = null;
+    if (coordsM) {
+      const parts = coordsM[1].split(',').map((s) => Number(s.trim()));
+      if (parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+        coords = [parts[0], parts[1]];
+      }
+    }
+    const name = nameM?.[1] || id;
+    const place = placeM?.[1]?.replace(/\s+/g, ' ').trim();
+    const lead = leadM?.[1]?.replace(/\s+/g, ' ').trim();
+    let description = lead || '';
+    if (place) {
+      const routes = routeIds.length ? ` Маршрути: ${routeIds.map((r) => `№${r}`).join(', ')}.` : '';
+      description = `Зупинка «${name}» у Малині — ${place}.${routes}`;
+    }
+    if (description || place) {
+      map.set(id, { name, place, lead, routeIds, coords, description });
     }
   }
   return map;
@@ -130,14 +154,16 @@ function loadStopArticles() {
 function buildStopHtml(shell, stopId, name, routeIds, article) {
   const canonical = `https://malin.kiev.ua/transport/stop/${encodeURIComponent(stopId)}`;
   const title = `Зупинка «${name}» — розклад маршруток Малина | malin.kiev.ua`;
+  const effectiveRoutes = (article?.routeIds?.length ? article.routeIds : routeIds) || [];
   const description =
+    article?.description ||
     article?.lead ||
-    `Табло зупинки «${name}» у Малині: маршрути ${routeIds.map((r) => `№${r}`).join(', ') || 'міського транспорту'}. Актуальний розклад на malin.kiev.ua.`;
+    `Табло зупинки «${name}» у Малині: маршрути ${effectiveRoutes.map((r) => `№${r}`).join(', ') || 'міського транспорту'}. Актуальний розклад на malin.kiev.ua.`;
   const faq = [
     {
       q: `Які маршрутки зупиняються на «${name}»?`,
-      a: routeIds.length
-        ? `На зупинці «${name}» курсують маршрути: ${routeIds.map((r) => `№${r}`).join(', ')}. Повний розклад відправлень — на сторінці табло.`
+      a: effectiveRoutes.length
+        ? `На зупинці «${name}» курсують маршрути: ${effectiveRoutes.map((r) => `№${r}`).join(', ')}. Повний розклад відправлень — на сторінці табло.`
         : `Відкрийте табло «${name}» на malin.kiev.ua/transport/stop/${stopId}.`,
     },
     {
@@ -166,18 +192,35 @@ function buildStopHtml(shell, stopId, name, routeIds, article) {
     ],
   };
 
-  const routesHtml = routeIds.length
-    ? `<ul>${routeIds
+  const routesHtml = effectiveRoutes.length
+    ? `<ul>${effectiveRoutes
         .map(
           (r) =>
-            `<li><a href="/transport/route/${encodeURIComponent(r)}">Маршрут №${escapeHtml(r)}</a></li>`
+            `<li><a href="/transport/route/${encodeURIComponent(r)}"><strong>№${escapeHtml(r)}</strong></a></li>`
         )
         .join('')}</ul>`
     : '<p>Маршрути підвантажаться в додатку.</p>';
 
-  const articleHtml = article?.lead
-    ? `<h2>Про зупинку</h2><p>${escapeHtml(article.lead)}</p>`
-    : '';
+  let articleHtml = '';
+  if (article?.place) {
+    const coordsHtml = article.coords
+      ? `<p>Координати: <strong>${article.coords[0].toFixed(5)}, ${article.coords[1].toFixed(5)}</strong></p>`
+      : '';
+    const routesLine = article.routeIds?.length
+      ? `<p>Через неї курсують маршрути ${article.routeIds.map((r) => `<strong>№${escapeHtml(r)}</strong>`).join(', ')}.</p>`
+      : '';
+    articleHtml = `
+    <h2>Про зупинку</h2>
+    <p>Зупинка <strong>«${escapeHtml(name)}»</strong> у Малині — ${escapeHtml(article.place)}.</p>
+    ${routesLine}
+    ${coordsHtml}
+    <p style="font-size:0.85em;border:1px dashed #99a;padding:8px;border-radius:8px;color:#456">
+      Актуальний розклад — у картках на інтерактивному табло. Маршрут від зупинки до іншої точки — у
+      <a href="/transport?from=${encodeURIComponent(stopId)}">планері «З → До»</a>.
+    </p>`;
+  } else if (article?.lead) {
+    articleHtml = `<h2>Про зупинку</h2><p>${escapeHtml(article.lead)}</p>`;
+  }
 
   const body = `
 <div id="root">

@@ -49,3 +49,4 @@ export function listStopArticles(): StopArticle[] {
 }
 
 export type { StopArticle } from './types';
+export { stopArticlePlainText } from './types';
