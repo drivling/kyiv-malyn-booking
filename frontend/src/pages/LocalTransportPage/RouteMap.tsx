@@ -4,7 +4,10 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { VERIFIED_ROUTE_IDS } from './routeTiming';
 
-const STOPS_COORDS_URL = '/data/stops_coords.json';
+export interface RouteMapCoordsData {
+  center: [number, number];
+  stops: Record<string, [number, number]>;
+}
 
 interface RouteMapProps {
   /** Номер маршруту (для перевірених малюємо лінію) */
@@ -33,12 +36,11 @@ interface RouteMapProps {
   onStopMarkerActivate?: () => void;
   /** Стан mobile bottom-sheet: при зміні викликається invalidateSize для коректних тайлів */
   mapSheetSnap?: 'collapsed' | 'mid' | 'full' | null;
+  /** Координати з dataset (GET /transport/dataset); без окремого JSON-файлу */
+  coordsData?: RouteMapCoordsData | null;
 }
 
-interface CoordsData {
-  center: [number, number];
-  stops: Record<string, [number, number]>;
-}
+type CoordsData = RouteMapCoordsData;
 
 function MapBounds({
   stopNames,
@@ -171,12 +173,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   resolveStopLabel = (k) => k,
   onStopMarkerActivate,
   mapSheetSnap,
+  coordsData = null,
 }) => {
   const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
   const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
   const fromI = dark ? fromIconGreen : fromIcon;
   const toI = dark ? toIconBlue : toIcon;
-  const [coords, setCoords] = useState<CoordsData | null>(null);
+  const [coords, setCoords] = useState<CoordsData | null>(coordsData);
   const [mounted, setMounted] = useState(false);
   const [selectedStopOnMap, setSelectedStopOnMap] = useState<string>('');
   const [radialPosition, setRadialPosition] = useState<{ x: number; y: number } | null>(null);
@@ -187,11 +190,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   }, []);
 
   useEffect(() => {
-    fetch(STOPS_COORDS_URL)
-      .then((r) => r.json())
-      .then(setCoords)
-      .catch(() => setCoords(null));
-  }, []);
+    setCoords(coordsData ?? null);
+  }, [coordsData]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

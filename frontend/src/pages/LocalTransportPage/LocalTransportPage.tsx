@@ -18,11 +18,12 @@ import {
   isVerifiedRoute,
 } from './routeTiming';
 import { tripDepartureMinutes, sortTripsByDeparture, parseClockToMinutes } from './tripDeparture';
+import { useTransportDataset } from '../TransportPage/useTransportDataset';
+import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 
-const DATA_URL = '/data/malyn_transport.json';
-const STOPS_COORDS_URL = '/data/stops_coords.json';
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
 function haversineDistance(
@@ -407,9 +408,22 @@ export const LocalTransportPage: React.FC = () => {
   const dirFromUrl = rawDir.toLowerCase().startsWith('there') ? 'there' : rawDir.toLowerCase().startsWith('back') ? 'back' : rawDir;
   const dateFromUrl = searchParams.get('d') ?? '';
   const hourFromUrl = searchParams.get('h') ?? '';
-  const [data, setData] = useState<TransportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { dataset, loading, error } = useTransportDataset();
+  const viewModel = useMemo(
+    () => (dataset ? datasetToLocalViewModel(dataset) : null),
+    [dataset]
+  );
+  const data = viewModel?.data ?? null;
+  const stopsCoords = viewModel?.coords.stops ?? null;
+  const mapCoordsData = viewModel
+    ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
+    : null;
+
+  useEffect(() => {
+    if (!viewModel) return;
+    configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
+  }, [viewModel]);
+
   const [stopFilter, setStopFilter] = useState('');
   const [routeFilter] = useState('');
   const [searchFrom, setSearchFrom] = useState<string>('');
@@ -431,7 +445,6 @@ export const LocalTransportPage: React.FC = () => {
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [nearestStops, setNearestStops] = useState<Array<{ name: string; distance: number }> | null>(null);
-  const [stopsCoords, setStopsCoords] = useState<Record<string, [number, number]> | null>(null);
   const prevStopsDirectionRef = useRef<'there' | 'back'>('there');
   const latestStopRef = useRef<string>('');
   const searchFromInputRef = useRef<HTMLInputElement | null>(null);
@@ -578,27 +591,6 @@ export const LocalTransportPage: React.FC = () => {
   const queryTo = searchParams.get('to') ?? '';
   const isMainPage = !routeId;
   const isDetailPage = Boolean(routeId);
-
-  useEffect(() => {
-    fetch(DATA_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json: TransportData) => {
-        if (!json?.records) throw new Error('Невірний формат даних');
-        setData(json);
-      })
-      .catch((err) => setError(err.message || 'Не вдалося завантажити дані'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    fetch(STOPS_COORDS_URL)
-      .then((r) => r.json())
-      .then((json: { stops?: Record<string, [number, number]> }) => setStopsCoords(json?.stops ?? null))
-      .catch(() => setStopsCoords(null));
-  }, []);
 
   const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
   const stopsByRoute = data?.supplement?.stops?.stops_by_route;
@@ -1138,24 +1130,22 @@ export const LocalTransportPage: React.FC = () => {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         const { latitude, longitude } = pos.coords;
-        try {
-          const res = await fetch(STOPS_COORDS_URL);
-          const { stops } = await res.json();
-          const withDistance = Object.entries(stops as Record<string, [number, number]>)
-            .map(([name, coords]) => ({
-              name,
-              distance: haversineDistance(latitude, longitude, coords[0], coords[1]),
-            }))
-            .sort((a, b) => a.distance - b.distance)
-            .slice(0, 5);
-          setNearestStops(withDistance);
-        } catch {
+        if (!stopsCoords || Object.keys(stopsCoords).length === 0) {
           setGeoError('Не вдалося завантажити координати зупинок');
-        } finally {
           setGeoLoading(false);
+          return;
         }
+        const withDistance = Object.entries(stopsCoords)
+          .map(([name, coords]) => ({
+            name,
+            distance: haversineDistance(latitude, longitude, coords[0], coords[1]),
+          }))
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 5);
+        setNearestStops(withDistance);
+        setGeoLoading(false);
       },
       (err) => {
         setGeoError(
@@ -1628,6 +1618,7 @@ export const LocalTransportPage: React.FC = () => {
               frequentToStops={frequentToStops}
               onStopMarkerActivate={expandMobileMapSheetForStop}
               mapSheetSnap={mobileMapSnap}
+              coordsData={mapCoordsData}
               dark
             />
           </div>
@@ -1892,7 +1883,7 @@ export const LocalTransportPage: React.FC = () => {
           </>
           </div>
           <div className="lt-map-column">
-            <RouteMap stopNames={[]} dark />
+            <RouteMap stopNames={[]} coordsData={mapCoordsData} dark />
           </div>
           </>
         )}

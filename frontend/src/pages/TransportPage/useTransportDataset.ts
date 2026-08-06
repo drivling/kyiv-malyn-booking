@@ -21,6 +21,18 @@ export function invalidateTransportDatasetCache() {
   cached = null;
 }
 
+const STORAGE_INVALIDATE_KEY = 'transport-dataset-invalidate';
+
+/** Call after admin saves / recalculates so other tabs refetch. */
+export function broadcastTransportDatasetInvalidate() {
+  invalidateTransportDatasetCache();
+  try {
+    localStorage.setItem(STORAGE_INVALIDATE_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function useTransportDataset() {
   const [dataset, setDataset] = useState<TransportDataset | null>(cached);
   const [loading, setLoading] = useState(!cached);
@@ -57,6 +69,16 @@ export function useTransportDataset() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_INVALIDATE_KEY) {
+        void reload();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [reload]);
 
   return { dataset, loading, error, reload };
 }

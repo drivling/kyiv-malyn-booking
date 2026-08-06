@@ -6,10 +6,10 @@ import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './sto
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
+import { useTransportDataset } from '../TransportPage/useTransportDataset';
+import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
-
-const DATA_URL = '/data/malyn_transport.json';
-
 
 function formatDateUrl(date: Date): string {
   const d = date.getDate();
@@ -112,9 +112,17 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [data, setData] = useState<TransportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { dataset, loading, error } = useTransportDataset();
+  const viewModel = useMemo(
+    () => (dataset ? datasetToLocalViewModel(dataset) : null),
+    [dataset]
+  );
+  const data: TransportData | null = viewModel?.data ?? null;
+
+  useEffect(() => {
+    if (!viewModel) return;
+    configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
+  }, [viewModel]);
 
   const dParam = searchParams.get('d') ?? '';
   const hParam = searchParams.get('h') ?? '';
@@ -137,20 +145,6 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return () => window.clearInterval(id);
   }, []);
   const kyivNowMins = useMemo(() => getKyivMinutesNow(), [nowTick]);
-
-  useEffect(() => {
-    fetch(DATA_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json: TransportData) => {
-        if (!json?.records) throw new Error('Невірний формат даних');
-        setData(json);
-      })
-      .catch((err) => setError(err.message || 'Не вдалося завантажити дані'))
-      .finally(() => setLoading(false));
-  }, []);
 
   useEffect(() => {
     if (dParam) setSearchDate(dParam);

@@ -1,18 +1,30 @@
 /**
  * Тривалості переїзду між сусідніми зупинками (секунди).
- * Дані з segmentDurations.json — файл можна зручно редагувати (ключ: "routeId|stopFrom|stopTo").
- * Якщо для сегменту немає запису — використовується defaultSec (2 хв).
+ * Runtime-дані з GET /transport/dataset через configureSegmentDurations.
  */
 
-import segmentsData from './segmentDurations.json';
+let defaultSec = 120;
+let segments: Record<string, number> = {};
 
-const { defaultSec, segments } = segmentsData as { defaultSec: number; segments: Record<string, number> };
+/** Застосувати сегменти з адаптера dataset (єдине джерело для публічної сторінки). */
+export function configureSegmentDurations(
+  nextSegments: Record<string, number>,
+  nextDefaultSec = 120
+): void {
+  segments = nextSegments;
+  defaultSec = Number.isFinite(nextDefaultSec) && nextDefaultSec > 0 ? nextDefaultSec : 120;
+  DEFAULT_SEGMENT_DURATION_SEC = defaultSec;
+  SEGMENT_DURATIONS_SEC = segments;
+}
 
-export const DEFAULT_SEGMENT_DURATION_SEC = defaultSec;
+export function getDefaultSegmentDurationSec(): number {
+  return defaultSec;
+}
 
-export const SEGMENT_DURATIONS_SEC: Record<string, number> = segments;
+export let DEFAULT_SEGMENT_DURATION_SEC = 120;
+export let SEGMENT_DURATIONS_SEC: Record<string, number> = {};
 
-/** Повертає тривалість переїзду між двома зупинками (секунди). Якщо даних немає — defaultSec (2 хв). */
+/** Повертає тривалість переїзду між двома зупинками (секунди). Якщо даних немає — defaultSec. */
 export function getSegmentDurationSec(
   routeId: string,
   stopFrom: string,
@@ -20,12 +32,12 @@ export function getSegmentDurationSec(
 ): number {
   const key1 = `${routeId}|${stopFrom}|${stopTo}`;
   const key2 = `${routeId}|${stopTo}|${stopFrom}`;
-  return SEGMENT_DURATIONS_SEC[key1] ?? SEGMENT_DURATIONS_SEC[key2] ?? DEFAULT_SEGMENT_DURATION_SEC;
+  return segments[key1] ?? segments[key2] ?? defaultSec;
 }
 
 /**
  * Сума тривалостей сегментів від першої зупинки до зупинки з індексом toIndex (не включно).
- * orderedStopNames — масив назв зупинок у порядку руху.
+ * orderedStopNames — масив ключів зупинок (id) у порядку руху.
  */
 export function getDurationFromStartSec(
   routeId: string,
