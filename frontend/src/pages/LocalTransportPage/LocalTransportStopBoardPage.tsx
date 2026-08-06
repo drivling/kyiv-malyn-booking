@@ -487,35 +487,36 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               {stopArticle.place ? (
                 <div className="lt-stop-article-body">
                   <p className="lt-stop-article-p">
-                    Зупинка <strong>«{stopArticle.name}»</strong> у Малині — {stopArticle.place}.
+                    Зупинка <strong className="lt-stop-article-name">«{stopArticle.name}»</strong> у Малині —{' '}
+                    {stopArticle.place}.
                   </p>
                   {stopArticle.routeIds && stopArticle.routeIds.length > 0 ? (
-                    <p className="lt-stop-article-p">
-                      Через неї курсують маршрути{' '}
-                      {stopArticle.routeIds.map((r, i) => (
-                        <span key={r}>
-                          {i > 0 ? ', ' : null}
-                          <Link className="lt-stop-article-route" to={`/transport/route/${encodeURIComponent(r)}`}>
-                            <strong>№{r}</strong>
-                          </Link>
-                        </span>
-                      ))}
-                      .
-                    </p>
+                    <div className="lt-stop-article-routes">
+                      <span className="lt-stop-article-routes-label">Маршрути:</span>
+                      <ul className="lt-stop-article-route-list">
+                        {stopArticle.routeIds.map((r) => (
+                          <li key={r}>
+                            <Link className="lt-stop-article-route" to={`/transport/route/${encodeURIComponent(r)}`}>
+                              №{r}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ) : null}
                   {stopArticle.coords ? (
                     <p className="lt-stop-article-p lt-stop-article-coords">
-                      Координати:{' '}
-                      <strong>
+                      <span className="lt-stop-article-coords-label">Координати</span>
+                      <code className="lt-stop-article-coords-value">
                         {stopArticle.coords[0].toFixed(5)}, {stopArticle.coords[1].toFixed(5)}
-                      </strong>
-                      {' · '}
+                      </code>
                       <a
+                        className="lt-stop-article-coords-map"
                         href={`https://www.openstreetmap.org/?mlat=${stopArticle.coords[0]}&mlon=${stopArticle.coords[1]}#map=17/${stopArticle.coords[0]}/${stopArticle.coords[1]}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        OpenStreetMap
+                        на карті
                       </a>
                     </p>
                   ) : null}
@@ -532,7 +533,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               ) : null}
               <aside className="lt-stop-article-howto" aria-label="Як користуватися">
                 <p>
-                  Актуальний розклад — у картках нижче на цьому табло. Маршрут від зупинки до іншої точки — у{' '}
+                  Розклад — у картках нижче. Маршрут до іншої зупинки — у{' '}
                   <Link to={selectedStop ? `/transport?from=${encodeURIComponent(selectedStop)}` : '/transport'}>
                     планері «З → До»
                   </Link>

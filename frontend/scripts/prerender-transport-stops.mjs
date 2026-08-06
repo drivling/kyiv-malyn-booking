@@ -204,18 +204,19 @@ function buildStopHtml(shell, stopId, name, routeIds, article) {
   let articleHtml = '';
   if (article?.place) {
     const coordsHtml = article.coords
-      ? `<p>Координати: <strong>${article.coords[0].toFixed(5)}, ${article.coords[1].toFixed(5)}</strong></p>`
+      ? `<p>Координати: <code>${article.coords[0].toFixed(5)}, ${article.coords[1].toFixed(5)}</code>
+         · <a href="https://www.openstreetmap.org/?mlat=${article.coords[0]}&amp;mlon=${article.coords[1]}#map=17/${article.coords[0]}/${article.coords[1]}">на карті</a></p>`
       : '';
     const routesLine = article.routeIds?.length
-      ? `<p>Через неї курсують маршрути ${article.routeIds.map((r) => `<strong>№${escapeHtml(r)}</strong>`).join(', ')}.</p>`
+      ? `<p>Маршрути: ${article.routeIds.map((r) => `<a href="/transport/route/${encodeURIComponent(r)}"><strong>№${escapeHtml(r)}</strong></a>`).join(', ')}</p>`
       : '';
     articleHtml = `
     <h2>Про зупинку</h2>
     <p>Зупинка <strong>«${escapeHtml(name)}»</strong> у Малині — ${escapeHtml(article.place)}.</p>
     ${routesLine}
     ${coordsHtml}
-    <p style="font-size:0.85em;border:1px dashed #99a;padding:8px;border-radius:8px;color:#456">
-      Актуальний розклад — у картках на інтерактивному табло. Маршрут від зупинки до іншої точки — у
+    <p style="font-size:0.75em;border:1px dashed #b7c5c9;padding:6px 9px;border-radius:6px;color:#708c91">
+      Розклад — у картках на інтерактивному табло. Маршрут до іншої зупинки — у
       <a href="/transport?from=${encodeURIComponent(stopId)}">планері «З → До»</a>.
     </p>`;
   } else if (article?.lead) {
