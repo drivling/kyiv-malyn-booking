@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import './MapEditorTab.css';
-import { displayNameForStopKey, getStopKey, type StopsCatalog } from '../TransportPage/stopCatalog';
+import { displayNameForStopKey, getStopKey, type StopsCatalog } from '../LocalTransportPage/stopCatalog';
 import { apiClient } from '@/api/client';
 import {
   datasetToEditor,
