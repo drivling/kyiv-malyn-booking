@@ -1842,16 +1842,23 @@ export const LocalTransportPage: React.FC = () => {
               </div>
             </div>
 
-            {hasFromToSearch && routesConnectingFromTo.length === 0 && (
-              <div className="lt-no-routes">
-                <p>Між цими зупинками немає прямого маршруту. Оберіть інші зупинки або перегляньте всі маршрути нижче.</p>
-              </div>
-            )}
-
             <div className="lt-routes">
               {!hasFromToSearch ? (
-                <p className="lt-empty">Оберіть зупинки «З» та «До» (у формі або на карті) і натисніть «Знайти».</p>
-              ) : routesConnectingFromTo.length === 0 ? null : (
+                <p className="lt-empty">
+                  Оберіть зупинки «З» та «До» у формі або на карті, потім натисніть «Знайти».
+                </p>
+              ) : routesConnectingFromTo.length === 0 ? (
+                <div className="lt-no-routes" role="status">
+                  <p>
+                    Між цими зупинками немає прямого маршруту. Спробуйте інші зупинки на карті або
+                    відкрийте{' '}
+                    <Link to={`/transport/stop?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}>
+                      табло зупинки
+                    </Link>
+                    .
+                  </p>
+                </div>
+              ) : (
                 <>
                   <p className="lt-routes-heading">
                     З’єднання:{' '}
@@ -1861,6 +1868,8 @@ export const LocalTransportPage: React.FC = () => {
                   {routesConnectingFromTo.map((r) => {
                     const fromId = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
                     const toId = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
+                    const fromLabel = displayNameForStopKey(fromId, stopsCatalog);
+                    const toLabel = displayNameForStopKey(toId, stopsCatalog);
                     const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
                     const searchMins =
                       (() => {
@@ -1893,10 +1902,13 @@ export const LocalTransportPage: React.FC = () => {
                           >
                             №{r.id}
                           </span>
-                          {isVerifiedRoute(r.id) ? (
-                            <span className="lt-route-verified-pill">перевірено</span>
-                          ) : null}
-                          <span className="lt-route-path">{r.from ?? '?'} — {r.to ?? '?'}</span>
+                          <span className="lt-route-path">
+                            {fromLabel} → {toLabel}
+                          </span>
+                          <span className="lt-route-meta">
+                            {isVerifiedRoute(r.id) ? 'перевірено · ' : ''}
+                            лінія {r.from ?? '?'} — {r.to ?? '?'}
+                          </span>
                         </div>
                       </button>
                     );
