@@ -138,7 +138,7 @@ async def run() -> None:
             print(f"[lunch] reply failed: {e}", file=sys.stderr)
             await client.send_message(entity, text)
 
-    @client.on(events.NewMessage(chats=group_id))
+    @client.on(events.NewMessage(chats=group_id, incoming=True, outgoing=True))
     async def handler(event):
         msg = event.message
         if not msg:
@@ -149,6 +149,23 @@ async def run() -> None:
         uid = str(getattr(sender, "id", "")) if sender else ""
         username = getattr(sender, "username", None) if sender else None
         text = (msg.message or msg.text or "").strip() if (msg.message or msg.text) else ""
+
+        # Власні відповіді listener (антилуп): не парсити як замовлення
+        if getattr(msg, "out", False) and text:
+            echo_prefixes = (
+                "Меню на сьогодні:",
+                "Зведення обідів",
+                "Прийом замовлень",
+                "Хто ще винен:",
+                "Боргів немає",
+                "День закрито",
+                "День відкрито",
+                "Картка для оплати",
+                "Фото отримано",
+                "Зафіксовано людей:",
+            )
+            if text.startswith(echo_prefixes) or ", заказ:" in text.lower() or ": зараховано " in text.lower():
+                return
 
         # --- фото меню ---
         if msg.photo:
@@ -296,6 +313,7 @@ async def run() -> None:
         # --- команди ---
         if low.startswith("!"):
             cmd = low.split()[0]
+            print(f"[lunch] command {cmd!r} from {name} out={getattr(msg, 'out', False)} id={msg.id}")
             is_op = _is_operator(sender, operators, me_id)
             day = await db.get_day(today_kyiv())
             if cmd in ("!summary", "!зведення", "!сводка"):

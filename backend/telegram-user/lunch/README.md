@@ -98,3 +98,5 @@ pbpaste | python3 -m lunch.import_menu
 Опційно: `LUNCH_GROUP_ID=-5427750954`, `LUNCH_LISTENER_ENABLED=1` (default).
 
 Після деплою в логах шукай: `[lunch-listener] starting` і `[lunch] listening group=...`.
+
+Коротка інструкція: [HOW_TO_USE.md](HOW_TO_USE.md).
