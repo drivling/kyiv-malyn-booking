@@ -27,6 +27,8 @@ import type {
   ReferralPersonSearchHit,
   ReferralRewardRow,
   RideCompletionProofRow,
+  LunchDaySummary,
+  LunchMenuImportResult,
 } from '@/types';
 
 class ApiClient {
@@ -643,6 +645,41 @@ class ApiClient {
     }
     const blob = await response.blob();
     return URL.createObjectURL(blob);
+  }
+
+  // --- Столова / обіди ---
+  async getLunchToday(): Promise<LunchDaySummary> {
+    return this.request<LunchDaySummary>('/admin/lunch/today');
+  }
+
+  async importLunchMenu(data: {
+    rawJson?: string;
+    items?: Array<{ name: string; price: number }>;
+    postToGroup?: boolean;
+  }): Promise<LunchMenuImportResult> {
+    return this.request<LunchMenuImportResult>('/admin/lunch/menu', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async setLunchStatus(status: 'open' | 'ordering' | 'closed'): Promise<{
+    ok: boolean;
+    day: { id: number; date: string; status: string };
+  }> {
+    return this.request('/admin/lunch/status', {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async postLunchMenuToGroup(): Promise<{
+    ok: boolean;
+    queued?: boolean;
+    preview: string;
+    postError: string | null;
+  }> {
+    return this.request('/admin/lunch/post-menu', { method: 'POST' });
   }
 }
 

@@ -8,9 +8,10 @@ import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberLis
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
 import { ReferralTab } from './ReferralTab';
+import { LunchTab } from './LunchTab';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals';
+type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -953,6 +954,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('referrals')}
           >
             Реферали
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'lunch' ? 'active' : ''}`}
+            onClick={() => setActiveTab('lunch')}
+          >
+            Столова
           </button>
           <button
             className={`admin-tab ${activeTab === 'data' ? 'active' : ''}`}
@@ -2182,6 +2189,8 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'mapEditor' && <MapEditorTab />}
 
         {activeTab === 'referrals' && <ReferralTab />}
+
+        {activeTab === 'lunch' && <LunchTab />}
 
         {/* Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */}
         {activeTab === 'userSenderErrors' && (

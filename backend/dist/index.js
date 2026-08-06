@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createApp = exports.CODE_VERSION = void 0;
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
+const lunch_listener_1 = require("./lunch-listener");
 var create_app_2 = require("./create-app");
 Object.defineProperty(exports, "CODE_VERSION", { enumerable: true, get: function () { return create_app_2.CODE_VERSION; } });
 Object.defineProperty(exports, "createApp", { enumerable: true, get: function () { return create_app_2.createApp; } });
@@ -25,7 +26,15 @@ function main() {
             console.warn('[KYIV-MALYN-BACKEND] WARNING: Viber routes missing — likely old build/cache');
         console.log('========================================');
         console.log(`API on http://localhost:${PORT} [${create_app_1.CODE_VERSION}]`);
+        (0, lunch_listener_1.startLunchListener)();
     });
+    const shutdown = (signal) => {
+        console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener`);
+        (0, lunch_listener_1.stopLunchListener)();
+        process.exit(0);
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 }
 if (require.main === module) {
     main();

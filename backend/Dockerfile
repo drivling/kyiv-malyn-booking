@@ -16,9 +16,11 @@ COPY prisma ./prisma
 # 1) для telegram-user (Telethon)
 # 2) для opendatabot-fop-parser (requests + bs4 + lxml)
 COPY telegram-user/requirements.txt ./telegram-user/
+COPY telegram-user/lunch/requirements.txt ./telegram-user/lunch/
 COPY opendatabot-fop-parser/requirements.txt ./opendatabot-fop-parser/
 RUN npm ci \
     && python3 -m pip install --break-system-packages --no-cache-dir -r telegram-user/requirements.txt \
+    && python3 -m pip install --break-system-packages --no-cache-dir -r telegram-user/lunch/requirements.txt \
     && python3 -m pip install --break-system-packages --no-cache-dir -r opendatabot-fop-parser/requirements.txt
 
 # telegram-user (скрипти + файл сесії)

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
+import { startLunchListener, stopLunchListener } from './lunch-listener';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
 
@@ -19,7 +20,16 @@ function main(): void {
     if (!hasViber) console.warn('[KYIV-MALYN-BACKEND] WARNING: Viber routes missing — likely old build/cache');
     console.log('========================================');
     console.log(`API on http://localhost:${PORT} [${CODE_VERSION}]`);
+    startLunchListener();
   });
+
+  const shutdown = (signal: string) => {
+    console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener`);
+    stopLunchListener();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 if (require.main === module) {

@@ -448,3 +448,64 @@ export interface AdminReferralReport {
   sharedTelegramGroups: SharedTelegramAccountGroup[];
   promoPhotoProofs: RideCompletionProofRow[];
 }
+
+// --- Столова / обіди ---
+
+export interface LunchMenuItemRow {
+  id: number;
+  name: string;
+  priceUah: number;
+}
+
+export interface LunchOrderRow {
+  id: number;
+  participantId: number;
+  displayName: string;
+  username: string | null;
+  rawText: string;
+  totalUah: number;
+  paidUah: number;
+  debtUah: number;
+  lines: Array<{
+    rawName: string;
+    qty: number;
+    unitPriceUah: number;
+    lineTotalUah: number;
+  }>;
+}
+
+export interface LunchDaySummary {
+  date: string;
+  day: {
+    id: number;
+    status: string;
+    payeeCard: string | null;
+    menuMessageId: string | null;
+    updatedAt: string;
+  } | null;
+  menuItems: LunchMenuItemRow[];
+  orders: LunchOrderRow[];
+  payments: Array<{
+    id: number;
+    displayName: string;
+    amountUah: number;
+    rawText: string;
+    createdAt: string;
+  }>;
+  debts: LunchOrderRow[];
+  totals: {
+    orderUah: number;
+    paidUah: number;
+    debtUah: number;
+  };
+}
+
+export interface LunchMenuImportResult {
+  ok: boolean;
+  day: { id: number; date: string; status: string };
+  menuItems: Array<{ id: number; name: string; priceUah: number; nameNorm: string }>;
+  preview: string;
+  posted: boolean;
+  queued?: boolean;
+  postError: string | null;
+}

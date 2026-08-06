@@ -296,3 +296,119 @@ model TelegramFetchState {
   lastMessageId  Int      @default(0) // останній оброблений message ID
   updatedAt      DateTime @updatedAt
 }
+
+/// День замовлення обідів (група «Обіди для НЕ бідних»)
+model LunchDay {
+  id             Int       @id @default(autoincrement())
+  /// Календарна дата замовлення (Europe/Kyiv)
+  date           DateTime  @db.Date
+  /// open | ordering | closed
+  status         String    @default("open")
+  menuMessageId  BigInt?
+  menuPhotoPath  String?
+  parsedRawJson  String?   @db.Text
+  payeeCard      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  menuItems LunchMenuItem[]
+  orders    LunchOrder[]
+  payments  LunchPayment[]
+
+  @@unique([date])
+}
+
+model LunchMenuItem {
+  id        Int      @id @default(autoincrement())
+  dayId     Int
+  name      String
+  /// Нормалізована назва для матчингу
+  nameNorm  String
+  /// Ціна в гривнях (ціле)
+  priceUah  Int
+  createdAt DateTime @default(now())
+
+  day   LunchDay         @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  lines LunchOrderLine[]
+
+  @@index([dayId])
+  @@index([dayId, nameNorm])
+}
+
+model LunchParticipant {
+  id             Int      @id @default(autoincrement())
+  telegramUserId String   @unique
+  displayName    String
+  username       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders   LunchOrder[]
+  payments LunchPayment[]
+}
+
+model LunchOrder {
+  id              Int      @id @default(autoincrement())
+  dayId           Int
+  participantId   Int
+  sourceMessageId BigInt?
+  rawText         String   @db.Text
+  totalUah        Int      @default(0)
+  /// active | cancelled
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  day         LunchDay         @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  participant LunchParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  lines       LunchOrderLine[]
+
+  @@unique([dayId, participantId])
+  @@index([dayId])
+  @@index([participantId])
+}
+
+model LunchOrderLine {
+  id           Int    @id @default(autoincrement())
+  orderId      Int
+  menuItemId   Int?
+  rawName      String
+  qty          Int    @default(1)
+  unitPriceUah Int
+  lineTotalUah Int
+
+  order    LunchOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem LunchMenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
+
+model LunchPayment {
+  id              Int      @id @default(autoincrement())
+  dayId           Int
+  participantId   Int
+  amountUah       Int
+  sourceMessageId BigInt?
+  rawText         String   @db.Text
+  createdAt       DateTime @default(now())
+
+  day         LunchDay         @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  participant LunchParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([dayId])
+  @@index([participantId])
+  @@index([dayId, participantId])
+}
+
+/// Черга повідомлень у групу обідів (щоб не відкривати другу Telethon-сесію паралельно з listener)
+model LunchOutboundMessage {
+  id        Int       @id @default(autoincrement())
+  text      String    @db.Text
+  /// pending | sent | failed
+  status    String    @default("pending")
+  errorText String?   @db.Text
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([status, createdAt])
+}
