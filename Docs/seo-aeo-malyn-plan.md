@@ -4,23 +4,13 @@
 
 ## Чекліст ітерацій
 
-- [x] **I1** — usePageSeo + OG, sitemap `/transport`, robots, index.html
-- [x] **I2** — редіректи `/poputky`, `/booking` → `/mizhgorodski`; Allow у robots
-- [x] **I3** — 6 коридорних лендінгів + sitemap
-- [x] **I4** — AEO-блок на головній + FAQPage
-- [x] **I5** — `/support/travel` + SiteArticle
-- [x] **I6** — smoke-док + фінальні нотатки
+- [x] **I1–I6** — tooling, redirects, corridors, home AEO, travel, smoke
+- [x] **I7** — фіксований розклад маршруток з API на коридорних лендінгах
 
-## Після кроку I1–I5 (коротко)
+## Після кроку I7
 
-Див. коміти: tooling → redirects → corridors → home AEO → travel guide.
+**Що зробили:** на `/mizhgorodski/{slug}` — таблиця «Розклад маршруток» з `GET /schedules` (Irpin/Bucha тощо), CTA «Лише маршрутки» / «Забронювати», динамічний FAQ (перший/останній рейс), `ItemList` у JSON-LD; `/support/travel` пояснює де дивитися розклад.
 
-## Після кроку I6 (фінал циклу)
+**Що побачили:** у [site:malin.kiev.ua](https://www.google.com/search?q=site%3Amalin.kiev.ua) досі старі `/booking`/`/poputky` без годин — після deploy потрібен re-crawl коридорів із таблицею, щоб ІІ цитували наші часи, а не Infomalin 2022.
 
-**Що зробили:** [Docs/seo-aeo-malyn-smoke.md](seo-aeo-malyn-smoke.md) — ручний чекліст title/canonical/schema/редиректи/sitemap.
-
-**Вердикт на сьогодні:** продукт **готовий до індексації й цитування ІІ** по інтентах «як доїхати / попутка / маршрутка» для Київ, Житомир, Коростень. Фактичний №1 у Google — після deploy + GSC sitemap + переобхід старих URL і (бажано) оновлення зовнішніх згадок з `/poputky` на `/mizhgorodski` або коридори.
-
-**Що побачили в серпі раніше:** Polissya виграє довгими статтями з посадкою; BlaBlaCar — URL на коридор + FAQ. Ми закрили той самий шар без копіювання чужих розкладів.
-
-**Наступний цикл (поза скоупом):** оновлення прес-лінків; SSR/prerender за потреби; SEO зупинок `/transport`; guest post / локальні ЗМІ з анкорами на коридори.
+**Далі (опційно):** prerender HTML таблиці для ботів без JS; оновлення зовнішніх анкорів; SEO `/transport`.
