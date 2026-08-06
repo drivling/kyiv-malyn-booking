@@ -226,7 +226,7 @@ function StartArticle() {
         </li>
         <li>
           На сайті можна одразу перейти до <Link to="/poputky">попуток</Link>,{' '}
-          <Link to="/booking">маршруток</Link> або <Link to="/localtransport">транспорту Малина</Link> — а бот
+          <Link to="/booking">маршруток</Link> або <Link to="/transport">транспорту Малина</Link> — а бот
           тримати відкритим для підтверджень.
         </li>
       </ol>
@@ -428,7 +428,7 @@ function SiteArticle() {
         <article className="support-site-card">
           <h2>Транспорт Малина</h2>
           <p>Місцеві маршрути й зупинки.</p>
-          <Link to="/localtransport">Відкрити →</Link>
+          <Link to="/transport">Відкрити →</Link>
         </article>
         <article className="support-site-card">
           <h2>Про нас</h2>
