@@ -4,25 +4,23 @@
 
 ## Чекліст ітерацій
 
-- [x] **I1** — usePageSeo + OG, sitemap `/transport`, robots коментарі, index.html, цей файл
-- [x] **I2** — редіректи `/poputky`, `/booking` → `/mizhgorodski`; прибрати Disallow; лінки в support
+- [x] **I1** — usePageSeo + OG, sitemap `/transport`, robots, index.html
+- [x] **I2** — редіректи `/poputky`, `/booking` → `/mizhgorodski`; Allow у robots
 - [x] **I3** — 6 коридорних лендінгів + sitemap
-- [ ] **I4** — AEO-блок на головній + FAQPage
-- [ ] **I5** — `/support/travel` + SiteArticle
-- [ ] **I6** — smoke-док + фінальні нотатки
+- [x] **I4** — AEO-блок на головній + FAQPage
+- [x] **I5** — `/support/travel` + SiteArticle
+- [x] **I6** — smoke-док + фінальні нотатки
 
-## Після кроку I1
+## Після кроку I1–I5 (коротко)
 
-**Що зробили:** `usePageSeo` + OG + `upsertJsonLd`; sitemap `/transport`; index.html ключі «як доїхати».
+Див. коміти: tooling → redirects → corridors → home AEO → travel guide.
 
-## Після кроку I2
+## Після кроку I6 (фінал циклу)
 
-**Що зробили:** Navigate `/poputky`/`/booking` → `/mizhgorodski`; robots Allow; support/legal лінки на канон.
+**Що зробили:** [Docs/seo-aeo-malyn-smoke.md](seo-aeo-malyn-smoke.md) — ручний чекліст title/canonical/schema/редиректи/sitemap.
 
-## Після кроку I3
+**Вердикт на сьогодні:** продукт **готовий до індексації й цитування ІІ** по інтентах «як доїхати / попутка / маршрутка» для Київ, Житомир, Коростень. Фактичний №1 у Google — після deploy + GSC sitemap + переобхід старих URL і (бажано) оновлення зовнішніх згадок з `/poputky` на `/mizhgorodski` або коридори.
 
-**Що зробили:** 6 URL `/mizhgorodski/{slug}` з FAQPage + BreadcrumbList; CTA на `?from=&to=`; блок «Напрямки» на головній; sitemap priority 0.95.
+**Що побачили в серпі раніше:** Polissya виграє довгими статтями з посадкою; BlaBlaCar — URL на коридор + FAQ. Ми закрили той самий шар без копіювання чужих розкладів.
 
-**Що побачили:** контент навмисно без чужих таймтейблів — ставка на живий пошук (як відмінність від Polissya/новин). На I4 не дублювати довгі FAQ з лендінгів — коротший hub-FAQ на головній + лінки на коридори.
-
-**Дописали на I4:** FAQ на головній — 4 Q про «як доїхати / попутка vs маршрутка / бот»; jsonLd id `mizh-home-faq-jsonld` щоб не колізити з corridor-*.
+**Наступний цикл (поза скоупом):** оновлення прес-лінків; SSR/prerender за потреби; SEO зупинок `/transport`; guest post / локальні ЗМІ з анкорами на коридори.
