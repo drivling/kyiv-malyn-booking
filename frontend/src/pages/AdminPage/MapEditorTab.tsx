@@ -238,6 +238,7 @@ export const MapEditorTab: React.FC = () => {
   const [baseDataset, setBaseDataset] = useState<TransportDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<string>('');
@@ -323,6 +324,40 @@ export const MapEditorTab: React.FC = () => {
     }
     await loadFromDb();
   }, [loadFromDb]);
+
+  const handleRecalculateSegments = useCallback(async () => {
+    const scope = selectedRoute
+      ? `маршруту №${selectedRoute}`
+      : 'усіх перевірених маршрутів (2,3,5,7,8,9,11,12)';
+    if (
+      !window.confirm(
+        `Перерахувати час між зупинками (OSRM) для ${scope}?\n\n` +
+          'Береться те, що вже збережено в базі — спочатку натисніть «Зберегти в базу», якщо є несхоронені правки.\n' +
+          'Може зайняти кілька хвилин.'
+      )
+    ) {
+      return;
+    }
+    setRecalculating(true);
+    setError('');
+    setStatusMsg('Перерахунок сегментів через OSRM…');
+    try {
+      const result = await apiClient.recalculateTransportSegments(selectedRoute || undefined);
+      setStatusMsg(
+        `Сегменти оновлено: маршрути ${result.routes.join(', ')}, ` +
+          `записано ${result.segmentsWritten}, OSRM ${result.osrmRequested}` +
+          (result.osrmFailed ? ` (fallback: ${result.osrmFailed})` : '')
+      );
+      // підтягнути свіжі сегменти в baseDataset (для наступного збереження)
+      const dataset = await apiClient.getTransportDataset();
+      applyDataset(dataset);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося перерахувати сегменти');
+      setStatusMsg('');
+    } finally {
+      setRecalculating(false);
+    }
+  }, [selectedRoute, applyDataset]);
 
   const routeOptions = useMemo(() => {
     const opts = [{ value: '', label: 'Всі зупинки / виберіть маршрут' }];
@@ -648,11 +683,27 @@ export const MapEditorTab: React.FC = () => {
             >
               + Техн. зупинка
             </Button>
-            <Button type="button" onClick={handleSaveToDb} disabled={saving || !baseDataset}>
+            <Button type="button" onClick={handleSaveToDb} disabled={saving || recalculating || !baseDataset}>
               {saving ? 'Збереження…' : 'Зберегти в базу'}
             </Button>
-            <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving}>
+            <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving || recalculating}>
               Завантажити з бази
+            </Button>
+            <Button
+              type="button"
+              onClick={handleRecalculateSegments}
+              disabled={loading || saving || recalculating || !baseDataset}
+              title={
+                selectedRoute
+                  ? `OSRM-перерахунок сегментів маршруту №${selectedRoute} (з даних у БД)`
+                  : 'OSRM-перерахунок усіх перевірених маршрутів (з даних у БД)'
+              }
+            >
+              {recalculating
+                ? 'OSRM…'
+                : selectedRoute
+                  ? `Перерахувати час №${selectedRoute}`
+                  : 'Перерахувати час (усі)'}
             </Button>
           </div>
         )}
@@ -665,6 +716,7 @@ export const MapEditorTab: React.FC = () => {
           Перетягніть маркер для уточнення позиції. «+ Техн. зупинка» — точка тільки для карти (map_only).
           Темно-синій — виключена (order = -1). Зміни в памʼяті, поки не натиснете «Зберегти в базу».
           «Завантажити з бази» скидає несхоронені правки.
+          «Перерахувати час» — OSRM по збережених у БД координатах/порядку (спочатку збережіть).
         </p>
       )}
 
@@ -689,11 +741,18 @@ export const MapEditorTab: React.FC = () => {
               ← {routeEndpoints.from}
             </button>
           </div>
-          <Button type="button" onClick={handleSaveToDb} disabled={saving || !baseDataset}>
+          <Button type="button" onClick={handleSaveToDb} disabled={saving || recalculating || !baseDataset}>
             {saving ? 'Збереження…' : 'Зберегти в базу'}
           </Button>
-          <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving}>
+          <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving || recalculating}>
             Завантажити з бази
+          </Button>
+          <Button
+            type="button"
+            onClick={handleRecalculateSegments}
+            disabled={loading || saving || recalculating || !baseDataset}
+          >
+            {recalculating ? 'OSRM…' : `Перерахувати час №${selectedRoute}`}
           </Button>
         </div>
       )}

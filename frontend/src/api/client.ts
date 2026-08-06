@@ -750,6 +750,21 @@ class ApiClient {
       body: JSON.stringify(dataset),
     });
   }
+
+  async recalculateTransportSegments(routeId?: string): Promise<{
+    ok: boolean;
+    routes: string[];
+    segmentsWritten: number;
+    segmentsKept: number;
+    osrmRequested: number;
+    osrmFailed: number;
+    corrections: string[];
+  }> {
+    return this.request('/admin/transport/recalculate-segments', {
+      method: 'POST',
+      body: JSON.stringify(routeId ? { routeId } : {}),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

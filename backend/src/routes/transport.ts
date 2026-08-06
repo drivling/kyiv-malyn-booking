@@ -6,6 +6,7 @@ import {
   replaceTransportDataset,
   validateTransportDataset,
 } from '../local-transport';
+import { recalculateSegmentDurations } from '../transport-segments';
 
 export function createTransportRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -45,6 +46,26 @@ export function createTransportRouter(deps: { prisma: PrismaClient }): Router {
     } catch (e) {
       console.error('[PUT /transport/dataset]', e);
       res.status(500).json({ error: 'Failed to save transport dataset' });
+    }
+  });
+
+  /**
+   * Адмін: перерахунок сегментів через OSRM за даними вже збереженими в БД.
+   * Body: { routeId?: string } — без routeId перераховує всі verified маршрути.
+   * Може тривати хвилини (багато запитів до OSRM).
+   */
+  r.post('/admin/transport/recalculate-segments', requireAdmin, async (req, res) => {
+    try {
+      const routeId =
+        typeof req.body?.routeId === 'string' && req.body.routeId.trim()
+          ? req.body.routeId.trim()
+          : null;
+      const result = await recalculateSegmentDurations(prisma, { routeId });
+      res.json({ ok: true, ...result });
+    } catch (e) {
+      console.error('[POST /admin/transport/recalculate-segments]', e);
+      const message = e instanceof Error ? e.message : 'Failed to recalculate segments';
+      res.status(400).json({ error: message });
     }
   });
 
