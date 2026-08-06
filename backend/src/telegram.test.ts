@@ -77,7 +77,7 @@ test('getTelegramScenarioLinks: структура та deep link', () => {
   assert.match(links.driver, /^https:\/\/t\.me\/[^/]+\?start=driver$/);
   assert.match(links.passenger, /^https:\/\/t\.me\/[^/]+\?start=passenger$/);
   assert.match(links.view, /^https:\/\/t\.me\/[^/]+\?start=view$/);
-  assert.equal(links.poputkyWeb, 'https://malin.kiev.ua/poputky');
+  assert.equal(links.poputkyWeb, 'https://malin.kiev.ua/mizhgorodski');
 });
 
 test('BEHAVIOR_PROMO_SCENARIO_LABELS містить усі ключі', () => {

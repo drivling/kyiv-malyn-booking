@@ -137,7 +137,7 @@
       /privacy і /privacy-policy (→ /about#privacy-policy),
       /poputky і /booking (→ /mizhgorodski після I2),
       динамічні /transport/route/*, /transport/stop/* —
-      додамо окремо, коли з’являться стабільні SEO-лендінги зупинок.
+      додаються в dist/sitemap.xml на build (prerender-transport-stops).
     -->
 
 </urlset>

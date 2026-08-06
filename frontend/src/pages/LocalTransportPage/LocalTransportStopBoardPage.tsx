@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
+import { usePageSeo } from '@/hooks';
 import type { TransportData } from './types';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
@@ -10,6 +11,17 @@ import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
+
+const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
+  {
+    q: 'Як подивитися розклад з зупинки в Малині?',
+    a: 'Відкрийте malin.kiev.ua/transport/stop, оберіть зупинку — побачите наступні відправлення всіх маршрутів. Або перейдіть за прямим посиланням /transport/stop/st_…',
+  },
+  {
+    q: 'Чим табло відрізняється від планера З → До?',
+    a: 'Табло показує всі рейси з однієї зупинки. Планер /transport шукає прямі маршрути між двома зупинками.',
+  },
+];
 
 function formatDateUrl(date: Date): string {
   const d = date.getDate();
@@ -205,6 +217,109 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     [selectedStop, stopsCatalog]
   );
 
+  const stopSeo = useMemo(() => {
+    if (selectedStop && selectedStopTitle) {
+      const routeIds = [
+        ...new Set(departures.map((d) => d.routeId)),
+      ].sort((a, b) => Number(a) - Number(b) || String(a).localeCompare(String(b)));
+      const sample = departures
+        .slice()
+        .sort((a, b) => a.departureMins - b.departureMins)
+        .slice(0, 8)
+        .map((d) => `${formatMinsClock(Math.round(d.departureMins))} №${d.routeId}`);
+      const faq = [
+        {
+          q: `Які маршрутки зупиняються на «${selectedStopTitle}»?`,
+          a: routeIds.length
+            ? `На зупинці «${selectedStopTitle}» у Малині: ${routeIds.map((r) => `№${r}`).join(', ')}. Табло: malin.kiev.ua/transport/stop/${selectedStop}.`
+            : `Відкрийте табло зупинки «${selectedStopTitle}» на malin.kiev.ua/transport/stop/${selectedStop}.`,
+        },
+        {
+          q: `О котрій найближчі рейси з «${selectedStopTitle}»?`,
+          a: sample.length
+            ? `Приклади з розкладу: ${sample.join('; ')}. Повний список — на сторінці табло.`
+            : 'Оберіть дату й час на сторінці табло, щоб побачити відправлення.',
+        },
+        ...STOP_BOARD_HUB_FAQ.slice(1),
+      ];
+      return {
+        title: `Зупинка «${selectedStopTitle}» — розклад маршруток Малина | malin.kiev.ua`,
+        canonicalUrl: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
+        description: `Табло зупинки «${selectedStopTitle}» у Малині${
+          routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : ''
+        }. Наступні відправлення міського транспорту.`,
+        jsonLdId: `transport-stop-jsonld-${selectedStop}`,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Транспорт Малина',
+                  item: 'https://malin.kiev.ua/transport',
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: selectedStopTitle,
+                  item: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
+                },
+              ],
+            },
+            {
+              '@type': 'FAQPage',
+              mainEntity: faq.map((item) => ({
+                '@type': 'Question',
+                name: item.q,
+                acceptedAnswer: { '@type': 'Answer', text: item.a },
+              })),
+            },
+            ...(departures.length
+              ? [
+                  {
+                    '@type': 'ItemList',
+                    name: `Відправлення зі зупинки ${selectedStopTitle}`,
+                    numberOfItems: Math.min(departures.length, 40),
+                    itemListElement: departures
+                      .slice()
+                      .sort((a, b) => a.departureMins - b.departureMins)
+                      .slice(0, 40)
+                      .map((d, i) => ({
+                        '@type': 'ListItem',
+                        position: i + 1,
+                        name: `${formatMinsClock(Math.round(d.departureMins))} · №${d.routeId} → ${d.destination}`,
+                      })),
+                  },
+                ]
+              : []),
+          ],
+        },
+      };
+    }
+
+    return {
+      title: 'Табло зупинок Малина — розклад відправлень | malin.kiev.ua',
+      canonicalUrl: 'https://malin.kiev.ua/transport/stop',
+      description:
+        'Розклад з будь-якої зупинки міського транспорту Малина: наступні маршрутки в усіх напрямках. Оберіть зупинку на malin.kiev.ua/transport/stop.',
+      jsonLdId: 'transport-stop-hub-jsonld',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: STOP_BOARD_HUB_FAQ.map((item) => ({
+          '@type': 'Question',
+          name: item.q,
+          acceptedAnswer: { '@type': 'Answer', text: item.a },
+        })),
+      },
+    };
+  }, [selectedStop, selectedStopTitle, departures]);
+
+  usePageSeo(stopSeo);
+
   /** За замовчуванням — лише рейси з обраного часу або пізніше (як «наступні відправлення»). */
   const visibleDepartures = useMemo(() => {
     if (!departures.length || showFullDay) return departures;
@@ -282,8 +397,12 @@ export const LocalTransportStopBoardPage: React.FC = () => {
       <div className="lt-container lt-split-layout">
         <div className="lt-panel">
           <header className="lt-header lt-header--jakdojade">
-            <h1 className="lt-title">Як доїхати</h1>
-            <p className="lt-subtitle">Малин · місцевий транспорт</p>
+            <h1 className="lt-title">
+              {selectedStopTitle ? `Зупинка «${selectedStopTitle}»` : 'Табло зупинок'}
+            </h1>
+            <p className="lt-subtitle">
+              {selectedStopTitle ? 'Малин · розклад відправлень' : 'Малин · місцевий транспорт'}
+            </p>
           </header>
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
@@ -501,6 +620,47 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               </div>
             </section>
           )}
+
+          <section className="lt-aeo" aria-labelledby="lt-stop-aeo-faq">
+            <h2 id="lt-stop-aeo-faq" className="lt-aeo-title">
+              Часті питання
+            </h2>
+            <dl className="lt-aeo-faq">
+              {(selectedStopTitle
+                ? [
+                    {
+                      q: `Які маршрутки зупиняються на «${selectedStopTitle}»?`,
+                      a: (() => {
+                        const ids = [...new Set(departures.map((d) => d.routeId))];
+                        return ids.length
+                          ? `Маршрути: ${ids.map((r) => `№${r}`).join(', ')}. Картки вище — час відправлення зі зупинки.`
+                          : 'Оберіть зупинку з розкладом у даних.';
+                      })(),
+                    },
+                    STOP_BOARD_HUB_FAQ[1],
+                  ]
+                : STOP_BOARD_HUB_FAQ
+              ).map((item) => (
+                <div key={item.q} className="lt-aeo-faq__item">
+                  <dt>{item.q}</dt>
+                  <dd>{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="lt-aeo-more">
+              Планер <Link to="/transport">З → До</Link>
+              {selectedStop ? (
+                <>
+                  {' · '}
+                  <Link to={`/transport?from=${encodeURIComponent(selectedStop)}`}>
+                    Звідси в планер
+                  </Link>
+                </>
+              ) : null}
+              {' · '}
+              <Link to="/mizhgorodski">Міжміські</Link>
+            </p>
+          </section>
 
           <footer className="lt-footer">
             <a

@@ -825,7 +825,7 @@ describe('payout balances and FB caption', () => {
     });
     assert.match(text, /Kyiv → Malyn/);
     assert.match(text, /04\.08\.2026/);
-    assert.match(text, /malin\.kiev\.ua\/poputky/);
+    assert.match(text, /malin\.kiev\.ua\/mizhgorodski/);
     assert.match(text, /start=ref_TESTCODE/);
     assert.match(text, /мобільний/);
     // CopyTextButton Telegram — max 256

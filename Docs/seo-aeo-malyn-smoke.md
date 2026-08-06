@@ -10,6 +10,7 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] `/support/travel` — title «Як доїхати до Малина»; description з містами
 - [ ] `/transport` — title з «Транспорт Малина» / розклад; description; canonical `https://malin.kiev.ua/transport`
 - [ ] `/transport/route/{id}` — унікальний title з № і кінцевими; canonical на свій route
+- [ ] `/transport/stop/{st_*}` — title «Зупинка …»; canonical на `st_*`; години у картках/JSON-LD
 
 ## Structured data
 
@@ -19,6 +20,7 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] `/support/faq`: існуючий FAQPage без поломки
 - [ ] `/transport`: `transport-hub-jsonld` (FAQPage + ItemList маршрутів)
 - [ ] `/transport/route/{id}`: `transport-route-jsonld-*`
+- [ ] `/transport/stop/{id}`: `transport-stop-jsonld-*`
 
 ## URL hygiene
 
@@ -28,7 +30,9 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] `robots.txt` **не** Disallow `/poputky` / `/booking`
 - [ ] `sitemap.xml` містить `/transport`, 6 коридорів, `/support/travel`; **не** містить `/localtransport` як канон
 - [ ] Після build: є `dist/mizhgorodski/{slug}/index.html` з таблицею «Розклад маршруток» (view-source без JS)
-
+- [ ] Після build: `dist/sitemap.xml` містить `/transport/route/*` і `/transport/stop/st_*`
+- [ ] Після build: є `dist/transport/stop/st_*/index.html`
+- [ ] Telegram-повідомлення / referral caption ведуть на `/mizhgorodski`, не `/poputky`
 ## Content / AEO
 
 - [ ] Головна: блок «Як доїхати до Малина» + «Напрямки» + видимий FAQ

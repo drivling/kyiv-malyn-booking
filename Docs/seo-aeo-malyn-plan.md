@@ -8,21 +8,15 @@
 - [x] **I7** — фіксований розклад маршруток з API на коридорних лендінгах
 - [x] **I8** — prerender HTML таблиць коридорів + зовнішні анкори `/poputky` → `/mizhgorodski`
 - [x] **I9** — AEO/SEO `/transport` (каталог маршрутів, FAQ, meta/JSON-LD)
+- [x] **I10** — SEO-лендінги зупинок (`/transport/stop/st_*`) + sitemap на build
+- [x] **I11** — Telegram web-лінки → `/mizhgorodski` (+ тести)
 
-## Після кроку I7
+## Після кроку I10
 
-**Що зробили:** таблиця розкладу на коридорах; FAQ з першим/останнім рейсом; ItemList.
+**Що зробили:** SPA SEO на табло зупинки (H1, FAQ, ItemList); `prerender-transport-stops.mjs` пише `dist/transport/stop/{id}/index.html` і дописує stops/routes у `dist/sitemap.xml` (дані з API або local JSON).
 
-**Що побачили:** Google ще тримає старі `/booking`/`/poputky`; боти без повного JS не бачили таблицю в початковому HTML.
+## Після кроку I11
 
-## Після кроку I8
+**Що зробили:** `poputkyWeb` і хардкод URL у telegram/referral/inline → `https://malin.kiev.ua/mizhgorodski`; оновлені `telegram.test.ts` / `referral.test.ts`. Команда бота `/poputky` і API `POST /poputky/announce-draft` лишаються (це не URL сайту).
 
-**Що зробили:** `frontend/scripts/prerender-corridors.mjs` після `vite build` пише `dist/mizhgorodski/{slug}/index.html` з таблицею з `GET /schedules`; анкори в Docs + `llms.txt` на `/mizhgorodski`.
-
-**Що побачили:** у сусідніх містах (Коростень / Звягель / Рівне) міський транспорт індексується через **окремі сторінки маршрутів + списки зупинок + FAQ**, а не лише інтерактивну карту.
-
-## Після кроку I9
-
-**Що зробили:** на `/transport` — видимий каталог ліній + FAQ; `usePageSeo` + FAQPage/ItemList; на `/transport/route/:id` — title/description з годинами і BreadcrumbList.
-
-**Далі (опційно):** стабільні SEO-лендінги зупинок у sitemap; оновлення Telegram-лінків з `/poputky` на `/mizhgorodski` (окремий цикл + тести).
+**Далі (опційно):** guest posts / оновлення malyn.media; моніторинг GSC після deploy.

@@ -168,7 +168,7 @@ export function getTelegramScenarioLinks() {
     driver: `https://t.me/${telegramBotUsername}?start=driver`,
     passenger: `https://t.me/${telegramBotUsername}?start=passenger`,
     view: `https://t.me/${telegramBotUsername}?start=view`,
-    poputkyWeb: 'https://malin.kiev.ua/poputky',
+    poputkyWeb: 'https://malin.kiev.ua/mizhgorodski',
   };
 }
 
@@ -3134,7 +3134,7 @@ function setupBotCommands() {
             chatId,
             '🙂 Ви вже з нами в боті — це запрошення для нових друзів.\n\n' +
               'Можете самі когось запросити: /invite\n\n' +
-              '🌐 https://malin.kiev.ua/poputky',
+              '🌐 https://malin.kiev.ua/mizhgorodski',
             { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) }
           );
           if (bot) {
@@ -3147,7 +3147,7 @@ function setupBotCommands() {
           '🎁 <b>Вас запросили за акцією «Приведи друга»!</b>\n\n' +
             'Щоб взяти участь:\n' +
             '1️⃣ Поділіться номером телефону\n' +
-            '2️⃣ Відкрийте попутки: https://malin.kiev.ua/poputky\n' +
+            '2️⃣ Відкрийте міжміські: https://malin.kiev.ua/mizhgorodski\n' +
             '3️⃣ Додайте поїздку як водій або як пасажир через бота\n\n' +
             'Спочатку надішліть номер:',
           { parse_mode: 'HTML', reply_markup: getSharePhoneKeyboard() }
@@ -3487,7 +3487,7 @@ function setupBotCommands() {
             'Спробуйте змінити фільтр кнопками нижче або створіть свою поїздку:\n' +
             '🚗 /adddriverride\n' +
             '👤 /addpassengerride\n' +
-            '🌐 https://malin.kiev.ua/poputky',
+            '🌐 https://malin.kiev.ua/mizhgorodski',
           { parse_mode: 'HTML', reply_markup: { inline_keyboard: getAllridesFilterKeyboard() } }
         );
         return;

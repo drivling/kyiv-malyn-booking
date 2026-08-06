@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/prerender-corridors.mjs",
-    "preview": "vite preview --host 0.0.0.0 --port $PORT",
+    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs",
+    "preview": "node scripts/serve-dist.mjs",
     "start": "npm run preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "node --experimental-strip-types --test src/pages/TransportPage/datasetAdapter.test.ts"
