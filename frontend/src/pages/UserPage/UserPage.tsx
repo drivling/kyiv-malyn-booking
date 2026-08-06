@@ -285,7 +285,7 @@ export const UserPage: React.FC = () => {
             <p className="user-empty">Немає поточних бронювань</p>
           )}
           <div className="user-section-cta">
-            <Link to="/booking" className="user-btn user-btn-primary user-btn-new">
+            <Link to="/mizhgorodski" className="user-btn user-btn-primary user-btn-new">
               Нове бронювання
             </Link>
           </div>

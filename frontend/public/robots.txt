@@ -16,11 +16,7 @@ Disallow: /api/
 # Логін не для органічного пошуку
 Disallow: /login
 
-# Старі окремі сторінки пошуку (контент на /mizhgorodski).
-# Disallow лишаємо до SPA-редіректів у I2; після — приберемо, щоб Google
-# переобійшов URL і побачив редірект на канон.
-Disallow: /poputky
-Disallow: /booking
+# /poputky і /booking — SPA-редірект на /mizhgorodski (дозволені для переобходу)
 
 # Службові HTML табличок зупинок (не лендінги)
 Disallow: /stop-signs/

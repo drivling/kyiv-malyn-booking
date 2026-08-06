@@ -5,7 +5,7 @@
 ## Чекліст ітерацій
 
 - [x] **I1** — usePageSeo + OG, sitemap `/transport`, robots коментарі, index.html, цей файл
-- [ ] **I2** — редіректи `/poputky`, `/booking` → `/mizhgorodski`; прибрати Disallow; лінки в support
+- [x] **I2** — редіректи `/poputky`, `/booking` → `/mizhgorodski`; прибрати Disallow; лінки в support
 - [ ] **I3** — 6 коридорних лендінгів + sitemap
 - [ ] **I4** — AEO-блок на головній + FAQPage
 - [ ] **I5** — `/support/travel` + SiteArticle
@@ -13,8 +13,14 @@
 
 ## Після кроку I1
 
-**Що зробили:** розширено `usePageSeo` (description, og:*, `upsertJsonLd`); sitemap: `/transport` замість `/localtransport`, `lastmod` 2026-08-07; index.html — ключі «як доїхати» + SearchAction; robots — коментар про Disallow до I2.
+**Що зробили:** розширено `usePageSeo` (description, og:*, `upsertJsonLd`); sitemap: `/transport` замість `/localtransport`, `lastmod` 2026-08-07; index.html — ключі «як доїхати»; robots — Disallow до I2.
 
-**Що побачили:** Google ще індексує старі `/poputky` і `/booking` (site:); Disallow лишаємо до редіректів, інакше бот не переобійде URL і не побачить Navigate.
+**Що побачили:** Google ще індексує старі `/poputky` і `/booking` (site:). Невалідний SearchAction прибрали з index.html.
 
-**Дописали в план на наступні кроки:** після I2 обов’язково перевірити, що support FAQ більше не рекламує `/poputky` як окремий продукт-URL.
+## Після кроку I2
+
+**Що зробили:** SPA `Navigate` з `/poputky` і `/booking` на `/mizhgorodski`; прибрано Disallow у robots; support/FAQ/about/user лінки на канон; SiteArticle вже зливає попутки+маршрутки в одну картку.
+
+**Що побачили:** `PoputkyPage` / `BookingPage` лишаються в репо, але більше не в роутері — ок для I2; повне видалення — окремий цикл. Telegram-команди `/poputky` у боті не чіпаємо (це не URL сайту).
+
+**Дописали на I3:** лендінги мають відразу давати deep-link `?from=&to=` на живий пошук; на головній — блок «Напрямки» з 6 URL (не лише corridor chips).

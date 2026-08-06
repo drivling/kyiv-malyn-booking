@@ -275,8 +275,8 @@ export const CompanyLegalPage: React.FC = () => {
               <p>
                 У боті: кнопка «Приведи друга» або команда /invite. Надішліть другу посилання або вкажіть його
                 номер / @username. Друг додає попутку (водій або пасажир) через бот або сайт{' '}
-                <a href="https://malin.kiev.ua/poputky" className="privacy-policy-link">
-                  malin.kiev.ua/poputky
+                <a href="https://malin.kiev.ua/mizhgorodski" className="privacy-policy-link">
+                  malin.kiev.ua/mizhgorodski
                 </a>
                 .
               </p>

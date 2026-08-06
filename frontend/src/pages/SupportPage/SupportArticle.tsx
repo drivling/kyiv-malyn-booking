@@ -107,7 +107,8 @@ const FAQ_UI: Array<{ q: string; a: ReactNode }> = [
     q: FAQ_PLAIN[5].q,
     a: (
       <>
-        Так: міжміські на <Link to="/mizhgorodski">/mizhgorodski</Link>, попутки на <Link to="/poputky">/poputky</Link>, маршрутки на <Link to="/booking">/booking</Link>. Але
+        Так: міжміський пошук попуток і маршруток на <Link to="/mizhgorodski">/mizhgorodski</Link>, міський
+        транспорт — <Link to="/transport">/transport</Link>. Але
         підтвердження бронювання, нагадування за день і бонуси акції зручніше отримувати в Telegram-боті.
       </>
     ),
@@ -225,8 +226,8 @@ function StartArticle() {
           Знизу з’явиться меню: <strong>Маршрутки · Попутки · Акції · Довідка</strong>.
         </li>
         <li>
-          На сайті можна одразу перейти до <Link to="/poputky">попуток</Link>,{' '}
-          <Link to="/booking">маршруток</Link> або <Link to="/transport">транспорту Малина</Link> — а бот
+          На сайті можна одразу перейти до <Link to="/mizhgorodski">міжміських попуток і маршруток</Link> або{' '}
+          <Link to="/transport">транспорту Малина</Link> — а бот
           тримати відкритим для підтверджень.
         </li>
       </ol>
@@ -380,7 +381,7 @@ function BotArticle() {
             Запит до водія: <code>{TELEGRAM_BOT_START_URL}book_viber_123</code>.
           </li>
           <li>
-            Сайт: <Link to="/booking">/booking</Link>. Без Telegram підтвердження в чат не прийде.
+            Сайт: <Link to="/mizhgorodski">/mizhgorodski</Link>. Без Telegram підтвердження в чат не прийде.
           </li>
         </ul>
       </section>
@@ -416,14 +417,9 @@ function SiteArticle() {
       </p>
       <div className="support-site-grid">
         <article className="support-site-card">
-          <h2>Попутки</h2>
-          <p>Оголошення водій / пасажир, запит до водія.</p>
-          <Link to="/poputky">Відкрити →</Link>
-        </article>
-        <article className="support-site-card">
-          <h2>Маршрутки</h2>
-          <p>Розклад і бронювання місць.</p>
-          <Link to="/booking">Бронювання →</Link>
+          <h2>Міжміські</h2>
+          <p>Попутки й маршрутки Малин ↔ Київ, Житомир, Коростень — один пошук.</p>
+          <Link to="/mizhgorodski">Відкрити →</Link>
         </article>
         <article className="support-site-card">
           <h2>Транспорт Малина</h2>
