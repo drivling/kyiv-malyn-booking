@@ -16,8 +16,12 @@
  *   node scripts/calculate_segment_durations.js --route=11 # тільки маршрут 11
  *
  * Потрібні: мережевий доступ, canonical runtime JSON.
- * Читає/пише: data/malyn-transport/runtime/
- * Після запису викликає sync-localtransport-data.mjs (web + API copies).
+ * Читає/пише: data/malyn-transport/runtime/segmentDurations.json
+ *
+ * BACKLOG: після переносу транспорту в PostgreSQL цей скрипт лишається
+ * file-based. Щоб оновити сегменти в БД — перерахувати runtime JSON і
+ * запустити `cd backend && npm run seed:transport` (або зберегти через
+ * адмінський PUT після імпорту). Sync у frontend/public більше не потрібен.
  */
 
 const fs = require('fs');
@@ -201,11 +205,7 @@ async function main() {
   console.log('Маршрути:', routesToProcess.join(', '));
   console.log('Сегментів у файлі:', Object.keys(existing.segments).length);
   console.log('Запитів OSRM:', requested, ', без відповіді (fallback ' + DEFAULT_SEC + ' с):', failed);
-
-  const { execFileSync } = require('child_process');
-  execFileSync(process.execPath, [path.join(rootDir, 'scripts/sync-localtransport-data.mjs')], {
-    stdio: 'inherit',
-  });
+  console.log('Далі для БД: cd backend && npm run seed:transport  (або оновіть сегменти через адмінку)');
 }
 
 main().catch((e) => {

@@ -2,39 +2,47 @@
 
 Дані з порталу відкритих даних України [data.gov.ua](https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36).
 
-## Canonical runtime (сайт + API)
+## Production source of truth
 
-Єдине джерело правди для продакшен-даних:
+**PostgreSQL** (`TransportStop`, `TransportRoute`, `TransportRouteStop`, `TransportTrip`, `TransportSegment`, `TransportMeta`).
+
+- Site / admin: `GET` / `PUT` `/transport/dataset`
+- Public page: `/transport`
+- Seed from archive JSON (one-time / reset):
+
+```bash
+cd backend && npm run seed:transport
+```
+
+## Archive runtime JSON
+
+Kept in the repo as seed / backup / OSRM input:
 
 ```
 data/malyn-transport/runtime/
   malyn_transport.json
   stops_coords.json
   segmentDurations.json
+  agency.json
 ```
 
-Після правок (або після завантаження JSON з адмін-редактора карти) синхронізуйте копії для сайту та Android API:
+Admin Map Editor edits in memory and saves to the database (no file download).
 
-```bash
-node scripts/sync-localtransport-data.mjs
-node scripts/sync-localtransport-data.mjs --check   # перевірка без копіювання
-```
-
-Цілі sync:
-
-- `frontend/public/data/` — статичний сайт
-- `backend/localtransport-data/` — `GET /localtransport/data`
-- `frontend/src/pages/LocalTransportPage/segmentDurations.json` — бандл у JS
-
-Дорожня карта GTFS: `Docs/local-transport-gtfs-refactoring-plan.md`.
+Roadmap of the DB migration: `Docs/local-transport-db-refactoring-plan.md`.
+Result: `Docs/local-transport-db-refactoring-result.md`.
 
 ## GTFS export
 
 ```bash
-node scripts/export-malyn-gtfs.mjs
+cd backend && npm run export:gtfs
 ```
 
-Деталі: `Docs/local-transport-gtfs-feed.md`. Архів: `data/malyn-transport/gtfs/malyn-gtfs.zip`.
+Details: `Docs/local-transport-gtfs-feed.md`. Zip: `data/malyn-transport/gtfs/malyn-gtfs.zip`.
+
+## OSRM segment recalculation (backlog)
+
+`scripts/calculate_segment_durations.js` still writes `runtime/segmentDurations.json`.
+After recalculation, re-seed the DB (`npm run seed:transport`) or push segments via admin PUT.
 
 ## Парсинг та спільний файл
 
@@ -46,14 +54,12 @@ python scripts/parse_malyn_transport.py
 - **malyn_transport_unified.json** — повні дані з метаданими та stats
 - **malyn_transport_unified.csv** — для аналізу в Excel/Pandas
 
-Структура: GTFS-подібна (route_id, trip_id, trip_headsign, direction_id тощо).
-
 ## Як завантажити
 
 ### Автоматично (скрипт)
 
 ```bash
-pip install requests  # якщо ще не встановлено
+pip install requests
 python scripts/download_malyn_transport.py
 ```
 
@@ -62,14 +68,6 @@ python scripts/download_malyn_transport.py
 1. Відкрийте: https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36
 2. У розділі **«Дані та ресурси»** натисніть **«Завантажити»** біля файлу (зазвичай `Перелік рейсів.xlsx`)
 3. Збережіть файл у цю папку: `data/malyn-transport/`
-
-## Вміст набору даних
-
-- Суб'єкти господарювання (перевізники)
-- Зупинки громадського транспорту
-- Маршрути
-- Рейси
-- Графік відбуття та прибуття на зупинках
 
 ## Контакт
 

@@ -1,7 +1,7 @@
 # Local Transport: JSON → PostgreSQL + Jakdojade-style page
 
-**Status:** in progress
-**Created:** 2026-08-06
+**Status:** done  
+**Created:** 2026-08-06  
 **Scope:** city transport Malyn; intercity booking is untouched.
 
 Deep refactor of the local transport pipeline:
@@ -28,52 +28,52 @@ Seed (one-time)    ── data/malyn-transport/runtime/*.json ─▶ PostgreSQL
 
 ### Stage 1 — Remove Android support
 
-- [ ] Commit the already-staged deletion of `android-malyn-transport/` (44 files).
-- [ ] Remove `GET /localtransport/data` from `backend/src/routes/public-routes.ts` + its smoke test.
-- [ ] Delete `backend/localtransport-data/`, `LOCAL_TRANSPORT_ANDROID_APP.md`.
-- [ ] Drop the backend target from `scripts/sync-localtransport-data.mjs`.
-- [ ] Rebuild `backend/dist`, commit.
+- [x] Commit the already-staged deletion of `android-malyn-transport/` (44 files).
+- [x] Remove `GET /localtransport/data` from `backend/src/routes/public-routes.ts` + its smoke test.
+- [x] Delete `backend/localtransport-data/`, `LOCAL_TRANSPORT_ANDROID_APP.md`.
+- [x] Drop the backend target from `scripts/sync-localtransport-data.mjs`.
+- [x] Rebuild `backend/dist`, commit.
 
 ### Stage 2 — Prisma schema + seed
 
-- [ ] Models: `TransportStop`, `TransportRoute`, `TransportRouteStop`, `TransportTrip`, `TransportSegment`, `TransportMeta` (singleton JSONB).
-- [ ] `prisma migrate dev` migration.
-- [ ] Idempotent seed `backend/src/scripts/seed-local-transport.ts` reading `data/malyn-transport/runtime/*.json`.
-- [ ] Commit.
+- [x] Models: `TransportStop`, `TransportRoute`, `TransportRouteStop`, `TransportTrip`, `TransportSegment`, `TransportMeta` (singleton JSONB).
+- [x] `prisma migrate dev` migration.
+- [x] Idempotent seed `backend/src/scripts/seed-local-transport.ts` reading `data/malyn-transport/runtime/*.json`.
+- [x] Commit.
 
 ### Stage 3 — Backend API
 
-- [ ] `GET /transport/dataset` (public, cached) — full normalized dataset.
-- [ ] `PUT /transport/dataset` (requireAdmin) — transactional replace with validation.
-- [ ] Router `backend/src/routes/transport.ts`, mounted in `create-app.ts`; tests.
-- [ ] Commit.
+- [x] `GET /transport/dataset` (public, cached) — full normalized dataset.
+- [x] `PUT /transport/dataset` (requireAdmin) — transactional replace with validation.
+- [x] Router `backend/src/routes/transport.ts`, mounted in `create-app.ts`; tests.
+- [x] Commit.
 
 ### Stage 4 — GTFS export from DB
 
-- [ ] Port `scripts/export-malyn-gtfs.mjs` to `backend/src/scripts/export-gtfs.ts` (Prisma reads, same txt/zip output).
-- [ ] npm script; delete old exporter later in Stage 7.
-- [ ] Commit.
+- [x] Port `scripts/export-malyn-gtfs.mjs` to `backend/src/scripts/export-gtfs.ts` (Prisma reads, same txt/zip output).
+- [x] npm script; delete old exporter in Stage 7.
+- [x] Commit.
 
 ### Stage 5 — Admin saves to DB
 
-- [ ] `MapEditorTab` loads via `apiClient` from `GET /transport/dataset`.
-- [ ] "Зберегти в базу" → `PUT /transport/dataset` (with confirmation).
-- [ ] "Завантажити з бази" → re-GET, discard unsaved edits.
-- [ ] Remove file-download buttons. Commit.
+- [x] `MapEditorTab` loads via `apiClient` from `GET /transport/dataset`.
+- [x] "Зберегти в базу" → `PUT /transport/dataset` (with confirmation).
+- [x] "Завантажити з бази" → re-GET, discard unsaved edits.
+- [x] Remove file-download buttons. Commit.
 
 ### Stage 6 — New Jakdojade-style page
 
-- [ ] `frontend/src/pages/TransportPage/`: planner over full-screen map, stop autocomplete, departures.
-- [ ] Routes: `/transport`, `/transport/routes`, `/transport/route/:routeId`, `/transport/stop/:stopId`.
-- [ ] Data via `GET /transport/dataset`; timing helpers ported.
-- [ ] Delete `LocalTransportPage/`, old routes; NavBar link → `/transport`. Commit.
+- [x] `frontend/src/pages/TransportPage/`: planner over full-screen map, stop autocomplete, departures.
+- [x] Routes: `/transport`, `/transport/routes`, `/transport/route/:routeId`, `/transport/stop/:stopId`.
+- [x] Data via `GET /transport/dataset`; timing helpers ported.
+- [x] Delete `LocalTransportPage/`, old routes; NavBar link → `/transport`. Commit.
 
 ### Stage 7 — Cleanup + docs
 
-- [ ] Delete `frontend/public/data/*.json`, bundled `segmentDurations.json`, `sync-localtransport-data.mjs`, `migrate-departure-time.mjs`, `scripts/export-malyn-gtfs.mjs`.
-- [ ] Update `data/malyn-transport/README.md`, `Docs/local-transport-gtfs-feed.md`.
-- [ ] Result report `Docs/local-transport-db-refactoring-result.md`.
-- [ ] Final: tests, GTFS validation, commit, **push**.
+- [x] Delete `frontend/public/data/*.json`, bundled `segmentDurations.json`, `sync-localtransport-data.mjs`, `migrate-departure-time.mjs`, `scripts/export-malyn-gtfs.mjs`.
+- [x] Update `data/malyn-transport/README.md`, `Docs/local-transport-gtfs-feed.md`.
+- [x] Result report `Docs/local-transport-db-refactoring-result.md`.
+- [x] Final: tests, GTFS validation, commit, **push**.
 
 ## Notes / risks
 
