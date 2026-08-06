@@ -31,6 +31,7 @@ import {
   formatRouteLabel,
   formatTripDate,
   getTimeMinutes,
+  routeCityLabels,
   routeMatchesCities,
   todayISO,
   tomorrowISO,
@@ -255,11 +256,26 @@ export const MizhgorodskiPage: React.FC = () => {
 
   const handleFromChange = (value: BookingCity) => {
     setFromCity(value);
+    let nextTo = toCity;
     const stillValid = BOOKING_FROM_TO.some((p) => p.from === value && p.to === toCity);
     if (!stillValid) {
       const first = BOOKING_FROM_TO.find((p) => p.from === value);
-      if (first) setToCity(first.to);
+      if (first) {
+        nextTo = first.to;
+        setToCity(nextTo);
+      }
     }
+    applySearch(value, nextTo, date, transport);
+  };
+
+  const handleToChange = (value: BookingCity) => {
+    setToCity(value);
+    applySearch(fromCity, value, date, transport);
+  };
+
+  const handleDateChange = (value: string) => {
+    setDate(value);
+    applySearch(fromCity, toCity, value, transport);
   };
 
   const handlePublishAnnounce = async (e: React.FormEvent) => {
@@ -359,7 +375,7 @@ export const MizhgorodskiPage: React.FC = () => {
                 <select
                   className="mizh-field-control"
                   value={toCity}
-                  onChange={(e) => setToCity(e.target.value as BookingCity)}
+                  onChange={(e) => handleToChange(e.target.value as BookingCity)}
                 >
                   {toOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -376,7 +392,7 @@ export const MizhgorodskiPage: React.FC = () => {
                   className="mizh-field-control"
                   value={date}
                   min={todayISO()}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => handleDateChange(e.target.value)}
                 />
               </label>
 
@@ -507,8 +523,8 @@ export const MizhgorodskiPage: React.FC = () => {
                         <span className="mizh-card-dot" />
                       </div>
                       <div className="mizh-card-cities">
-                        <span>{cityLabel(fromCity)}</span>
-                        <span>{cityLabel(toCity)}</span>
+                        <span>{routeCityLabels(item.listing.route)?.from ?? cityLabel(fromCity)}</span>
+                        <span>{routeCityLabels(item.listing.route)?.to ?? cityLabel(toCity)}</span>
                       </div>
                     </div>
                     <div className="mizh-card-meta">
@@ -600,8 +616,8 @@ export const MizhgorodskiPage: React.FC = () => {
                         <span className="mizh-card-dot mizh-card-dot--bus" />
                       </div>
                       <div className="mizh-card-cities">
-                        <span>{cityLabel(fromCity)}</span>
-                        <span>{cityLabel(toCity)}</span>
+                        <span>{routeCityLabels(item.schedule.route)?.from ?? cityLabel(fromCity)}</span>
+                        <span>{routeCityLabels(item.schedule.route)?.to ?? cityLabel(toCity)}</span>
                       </div>
                     </div>
                     <div className="mizh-card-meta">

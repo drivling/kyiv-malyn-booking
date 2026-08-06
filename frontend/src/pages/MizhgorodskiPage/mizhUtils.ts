@@ -92,6 +92,22 @@ export function cityLabel(city: BookingCity): string {
   return BOOKING_CITY_LABELS[city];
 }
 
+const ROUTE_SEGMENT_TO_CITY: Record<string, BookingCity> = {
+  kyiv: 'Kyiv',
+  malyn: 'Malyn',
+  zhytomyr: 'Zhytomyr',
+  korosten: 'Korosten',
+};
+
+/** Міста з маршруту запису (наприклад "Kyiv-Malyn-Irpin" → Київ / Малин) */
+export function routeCityLabels(route: string): { from: string; to: string } | null {
+  const [fromPart, toPart] = route.toLowerCase().split('-');
+  const from = ROUTE_SEGMENT_TO_CITY[fromPart];
+  const to = ROUTE_SEGMENT_TO_CITY[toPart];
+  if (!from || !to) return null;
+  return { from: BOOKING_CITY_LABELS[from], to: BOOKING_CITY_LABELS[to] };
+}
+
 export function todayISO(): string {
   const today = new Date();
   const local = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
