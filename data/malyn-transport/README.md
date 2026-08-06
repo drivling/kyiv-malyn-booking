@@ -28,6 +28,14 @@ node scripts/sync-localtransport-data.mjs --check   # перевірка без 
 
 Дорожня карта GTFS: `Docs/local-transport-gtfs-refactoring-plan.md`.
 
+## GTFS export
+
+```bash
+node scripts/export-malyn-gtfs.mjs
+```
+
+Деталі: `Docs/local-transport-gtfs-feed.md`. Архів: `data/malyn-transport/gtfs/malyn-gtfs.zip`.
+
 ## Парсинг та спільний файл
 
 ```bash
