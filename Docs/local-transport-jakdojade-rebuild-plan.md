@@ -1,38 +1,37 @@
 # Rebuild /transport on LocalTransport + Jakdojade
 
-**Status:** in progress  
+**Status:** complete (local commits, no push)  
 **Created:** 2026-08-06  
-**Push:** none (local commits only)
 
 ## Goal
 
-Replace the thin `TransportPage` skeleton with the restored **LocalTransportPage** UX (planner, RouteMap, stop board, mobile sheet), fed only by `GET /transport/dataset`. Visual target: Jakdojade (left panel + full-bleed map; wtk-red `#E30613`).
+Replace the thin `TransportPage` skeleton with the restored **LocalTransportPage** UX (planner, RouteMap, stop board, mobile sheet), fed only by `GET /transport/dataset`. Layout: Jakdojade panel + map. Colors: site BBC cyan (not wtk-red).
 
 ## Data
 
 Admin MapEditor → `PUT /transport/dataset` → PostgreSQL → `GET /transport/dataset` → public `/transport*` UI.
 
-Segments from `dataset.segments` / `meta.defaultSec` — not from static JSON files.
+Segments from `dataset.segments` / `meta.defaultSec`.
 
 ## Commits checklist
 
-- [ ] **0** — This plan + fix broken `App.tsx` (imports + NavBar)
-- [ ] **1** — `TransportDataset` → Local view-model adapter + tests
-- [ ] **2** — Public page loads only via API hook
-- [ ] **3** — Mount Local UX under `/transport*`; drop `/localtransport` + thin UI
-- [ ] **4** — RouteMap 1:1 with coords from dataset
-- [ ] **5** — Planner panel+map, connecting routes, geo, mobile sheet
-- [ ] **6** — Route detail: bar, direction, tablica, timeline, print
-- [ ] **7** — Stop board + SubNav on dataset
-- [ ] **8** — Jakdojade wtk-red theme; update `JAKDOJADE_UX.md`
-- [ ] **9** — QR/deep-links on `/transport`
-- [ ] **10** — Remove dead duplicates; no static JSON
-- [ ] **11** — Smoke checklist + regressions
+- [x] **0** — This plan + fix broken `App.tsx` (imports + NavBar)
+- [x] **1** — `TransportDataset` → Local view-model adapter + tests
+- [x] **2** — Public page loads only via API hook
+- [x] **3** — Mount Local UX under `/transport*`; drop `/localtransport` + thin UI
+- [x] **4** — RouteMap 1:1 with coords from dataset
+- [x] **5** — Planner panel+map, connecting routes, geo, mobile sheet
+- [x] **6** — Route detail: bar, direction, tablica, timeline, print
+- [x] **7** — Stop board + SubNav on dataset
+- [x] **8** — Theme aligned to site cyan; update `JAKDOJADE_UX.md`
+- [x] **9** — QR/deep-links on `/transport`
+- [x] **10** — Remove dead duplicates; no static JSON
+- [x] **11** — Smoke checklist (`Docs/local-transport-jakdojade-smoke.md`)
 - [ ] **12** — Result report `Docs/local-transport-jakdojade-rebuild-result.md`
 
 ## Rules
 
 - One checklist item → one English git commit.
 - No `git push`.
-- UX conflicts → LocalTransport code wins; visual conflicts → Jakdojade red + panel/map layout.
+- UX conflicts → LocalTransport code wins; visual conflicts → Jakdojade panel/map + site brand colors.
 - Admin / Prisma / OSRM recalculate stay intact.
