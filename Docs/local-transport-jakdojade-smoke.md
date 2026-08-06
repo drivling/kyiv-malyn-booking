@@ -29,3 +29,32 @@ cd ../backend && npm test
 
 - Confirmed no remaining `frontend/src` fetches to `/data/*` or imports of `segmentDurations.json`.
 - Thin TransportPage UI removed; public shell is LocalTransport under `/transport*`.
+
+---
+
+## Planner UX v2 (З → До)
+
+Date: 2026-08-07  
+Goal: Jakdojade-like hierarchy — form → connection cards → map as stop picker only.
+
+### Desktop (≥768)
+
+- [ ] `/transport` — sticky form is calm (light chrome); results, not the form, draw the eye
+- [ ] Without З/До — markers are dim/smaller; map stays Malyn center (~zoom 13), not fitBounds on all city stops
+- [ ] Empty after «Знайти» — honest copy (no «перегляньте всі маршрути нижче»); one empty-state; link to stop board OK
+- [ ] With З + До → cards show **selected З → До**, departure time, line №, verified / line ends meta
+- [ ] Click marker → **one** picker: bottom stop-sheet («Звідси» / «Сюди»); no radial overlay; no Leaflet popup actions
+- [ ] Terms everywhere **З / До** (map strip / sheet / labels; no «ПО»)
+- [ ] Geo button text «Найближча» (no emoji); date invalid → soft «Формат: ДД.ММ.РР»
+- [ ] ⇄ in form and map strip stay in sync (swap З/До)
+
+### Mobile (≤767, DevTools iPhone)
+
+- [ ] Collapsed sheet does not cover last connection cards (`padding-bottom` on panel)
+- [ ] Snap collapsed → mid → full; backdrop in mid/full; after open map tiles OK (`invalidateSize`)
+- [ ] Marker tap → mid + stop-sheet only (no third competing UI)
+- [ ] `lt-mobile-map-toggle` — light text on dark pill, readable contrast
+
+### Do not break (this cycle)
+
+- [ ] Detail `/transport/route/...` and tablica `/transport/stop` still work (planner-only + shared map/sheet CSS)
