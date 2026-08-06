@@ -35,3 +35,11 @@ Goal: short unique pages per stop at `/transport/stop/{st_id}` with lead paragra
 ## After pilot
 
 Remaining ~96 stops with the same one-commit-per-stop pipeline.
+
+### Після пілоту (2026-08-07)
+
+**Що зробили:** шаблон `frontend/src/content/stops/` + блок «Про зупинку»; 18 статей окремими комітами; `/support/*` через `usePageSeo` (canonical); prerender підхоплює `lead` з `.ts`.
+
+**Що побачили:** абзаци базуються на назві + маршрутах + координатах (без вигаданої «історії»). Пари «навпроти» різняться формулюванням сторони вулиці — ок для окремого URL. Build: 114 stop pages, 18 with articles; sitemap routes без `?dir=`.
+
+**Далі:** решта ~96 тим самим пайплайном; після deploy — GSC на 5 пілотних URL.
