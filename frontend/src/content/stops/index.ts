@@ -1,11 +1,8 @@
 import type { StopArticle } from './types';
+import { article as st_0019 } from './st_0019';
 
-/**
- * Editorial stop articles. Each pilot file exports `article` and is imported here.
- * Lookup: getStopArticle(st_id)
- */
 const STOP_ARTICLES: Record<string, StopArticle> = {
-  // populated by side-effect imports below / explicit entries
+  [st_0019.id]: st_0019,
 };
 
 export function getStopArticle(stopId: string | undefined | null): StopArticle | undefined {
@@ -15,12 +12,6 @@ export function getStopArticle(stopId: string | undefined | null): StopArticle |
 
 export function listStopArticles(): StopArticle[] {
   return Object.values(STOP_ARTICLES).sort((a, b) => a.id.localeCompare(b.id));
-}
-
-/** Used by individual st_XXXX.ts modules */
-export function registerStopArticle(article: StopArticle): StopArticle {
-  STOP_ARTICLES[article.id] = article;
-  return article;
 }
 
 export type { StopArticle } from './types';
