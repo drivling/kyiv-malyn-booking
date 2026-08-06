@@ -39,10 +39,23 @@ cd backend && npm run export:gtfs
 
 Details: `Docs/local-transport-gtfs-feed.md`. Zip: `data/malyn-transport/gtfs/malyn-gtfs.zip`.
 
-## OSRM segment recalculation (backlog)
+## OSRM segment recalculation
 
-`scripts/calculate_segment_durations.js` still writes `runtime/segmentDurations.json`.
-After recalculation, re-seed the DB (`npm run seed:transport`) or push segments via admin PUT.
+After editing routes / technical points / coordinates in the Map Editor and saving to DB:
+
+```bash
+# all verified timed routes (2,3,5,7,8,9,11,12)
+node scripts/calculate_segment_durations.js
+
+# or one route
+node scripts/calculate_segment_durations.js --route=11
+
+# same from backend/
+cd backend && npm run calculate:segments -- --route=11
+```
+
+Reads stops/order from PostgreSQL, writes updated `TransportSegment` rows (other routes untouched).
+`--route=` accepts any route that exists in the DB (not only verified).
 
 ## Парсинг та спільний файл
 

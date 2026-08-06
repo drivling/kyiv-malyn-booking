@@ -13,6 +13,7 @@
     "find-self-referrals": "ts-node src/find-self-referrals.ts",
     "seed:transport": "ts-node src/scripts/seed-local-transport.ts",
     "export:gtfs": "ts-node src/scripts/export-gtfs.ts",
+    "calculate:segments": "ts-node src/scripts/calculate-segment-durations.ts",
     "test": "node -r ./test-pretest.cjs -r ts-node/register --test src/viber-parser.test.ts src/telegram.test.ts src/telegram-inline.test.ts src/telegram.prisma.test.ts src/telegram.bot.test.ts src/telegram-bot-blocked.test.ts src/index-helpers.test.ts src/viber-listing-dedupe-after-update.test.ts src/index-http.test.ts src/index-integration.test.ts src/validation/validation.test.ts src/referral.test.ts src/local-transport.test.ts src/transport-http.test.ts",
     "test:integration-db": "RUN_INTEGRATION_TESTS=1 npm run test"
   },

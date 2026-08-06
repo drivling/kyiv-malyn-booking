@@ -60,10 +60,13 @@ runtime/*.json  ──seed──▶  DB   ──export:gtfs──▶  data/malyn
 
 ## Backlog
 
-1. Rework `calculate_segment_durations.js` to write segments into Postgres directly.
-2. OSRM shape refinement for `shapes.txt`.
-3. Optional `frequencies.txt` for routes 1, 6, 10 (do not invent stop times).
-4. GTFS validator in CI.
+1. OSRM shape refinement for `shapes.txt`.
+2. Optional `frequencies.txt` for routes 1, 6, 10 (do not invent stop times).
+3. GTFS validator in CI.
+
+## Segment recalculation (done)
+
+`npm run calculate:segments` / `node scripts/calculate_segment_durations.js` reads the DB and writes OSRM-based `TransportSegment` rows after Map Editor changes.
 
 ## Verdict
 
