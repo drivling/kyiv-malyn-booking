@@ -1323,6 +1323,24 @@
   color: var(--lt-text);
 }
 
+.lt-route-card-time-label {
+  font-size: var(--lt-fs-xs);
+  color: var(--lt-text-muted);
+  text-transform: lowercase;
+}
+
+.lt-route-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--lt-fs-xs);
+  font-weight: 600;
+  color: var(--lt-origin);
+  background: rgba(15, 165, 115, 0.12);
+  border: 1px solid rgba(15, 165, 115, 0.35);
+}
+
 .lt-route-card-main {
   display: flex;
   flex-wrap: wrap;

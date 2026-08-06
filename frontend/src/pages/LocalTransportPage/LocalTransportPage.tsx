@@ -425,7 +425,6 @@ export const LocalTransportPage: React.FC = () => {
   }, [viewModel]);
 
   const [stopFilter, setStopFilter] = useState('');
-  const [routeFilter] = useState('');
   const [searchFrom, setSearchFrom] = useState<string>('');
   const [searchTo, setSearchTo] = useState<string>('');
   const [searchDate, setSearchDate] = useState<string>(() => formatDateUrl(new Date()));
@@ -636,17 +635,6 @@ export const LocalTransportPage: React.FC = () => {
   }, [isMainPage, fromPathDecoded, toPathDecoded, queryFrom, queryTo, dateFromUrl, hourFromUrl, stops.length, stops, stopsCatalog]);
 
   const effectiveStopFilter = stopFilter || selectedStopFromUrl;
-  const resolvedStopFilter = effectiveStopFilter
-    ? resolveStopIdInList(effectiveStopFilter, stops, stopsCatalog)
-    : '';
-  const filteredRoutes = useMemo(() => {
-    if (hasFromToSearch && routesConnectingFromTo.length > 0) return routesConnectingFromTo;
-    return routes.filter((r) => {
-      if (routeFilter && r.id !== routeFilter) return false;
-      if (resolvedStopFilter && !routeHasStop(r.id, resolvedStopFilter, r, stopsByRoute, stopsCatalog)) return false;
-      return true;
-    });
-  }, [routes, resolvedStopFilter, routeFilter, stopsByRoute, stopsCatalog, hasFromToSearch, routesConnectingFromTo]);
 
   const detailRoute = useMemo(
     () => (routeId ? routes.find((r) => r.id === routeId) : null),
@@ -1801,30 +1789,43 @@ export const LocalTransportPage: React.FC = () => {
             )}
 
             <div className="lt-routes">
-              {hasFromToSearch && routesConnectingFromTo.length > 0 ? (
+              {!hasFromToSearch ? (
+                <p className="lt-empty">Оберіть зупинки «З» та «До» (у формі або на карті) і натисніть «Знайти».</p>
+              ) : routesConnectingFromTo.length === 0 ? null : (
                 <>
                   <p className="lt-routes-heading">
-                    Маршрути:{' '}
+                    З’єднання:{' '}
                     {displayNameForStopKey(resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog), stopsCatalog)} →{' '}
                     {displayNameForStopKey(resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog), stopsCatalog)}
                   </p>
-                  {filteredRoutes.map((r) => {
+                  {routesConnectingFromTo.map((r) => {
+                    const fromId = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
+                    const toId = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
+                    const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
                     const searchMins =
                       (() => {
                         const [h, m] = searchTime.split(':').map(Number);
                         return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
                       })();
-                    const nearest = findNearestTrip(r.trips, searchMins);
-                    const nextTimeStr = nearest ? formatTime(nearest.time) : (r.trips.length > 0 ? formatTime(getFirstTripTime(r.trips)) : '—');
+                    const orderedKeys = getOrderedStopKeys(r.id, dir, stopsByRoute);
+                    const fromOrder = getFromOrder(fromId, dir, stopsByRoute, r.id) ?? 1;
+                    const offsetMins =
+                      isVerifiedRoute(r.id) && orderedKeys.length
+                        ? getDurationFromStartSec(r.id, orderedKeys, fromOrder - 1) / 60
+                        : (fromOrder - 1) * getMinsBetweenStops(r.id);
+                    const nearest = findNearestTrip(r.trips, Math.max(0, searchMins - offsetMins), dir);
+                    const nextDepAtStop = nearest ? nearest.time + offsetMins : null;
+                    const nextTimeStr = nextDepAtStop != null ? formatTime(nextDepAtStop) : '—';
                     return (
                       <button
-                        key={r.id}
+                        key={`${r.id}-${dir}`}
                         type="button"
                         className="lt-route-card lt-route-card--jd"
                         onClick={() => handleSelectRoute(r.id)}
                       >
                         <div className="lt-route-card-time">
                           <span className="lt-route-card-time-value">{nextTimeStr}</span>
+                          <span className="lt-route-card-time-label">відправлення</span>
                         </div>
                         <div className="lt-route-card-main">
                           <span
@@ -1832,41 +1833,9 @@ export const LocalTransportPage: React.FC = () => {
                           >
                             №{r.id}
                           </span>
-                          <span className="lt-route-path">{r.from ?? '?'} — {r.to ?? '?'}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </>
-              ) : filteredRoutes.length === 0 ? (
-                <p className="lt-empty">Введіть «З» та «До» і натисніть «Знайти», або перегляньте маршрути нижче.</p>
-              ) : (
-                <>
-                  <p className="lt-routes-heading">Усі маршрути</p>
-                  {filteredRoutes.map((r) => {
-                    const searchMins =
-                      (() => {
-                        const [h, m] = searchTime.split(':').map(Number);
-                        return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
-                      })();
-                    const nearest = findNearestTrip(r.trips, searchMins);
-                    const nextTimeStr = nearest ? formatTime(nearest.time) : (r.trips.length > 0 ? formatTime(getFirstTripTime(r.trips)) : '—');
-                    return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        className="lt-route-card lt-route-card--jd"
-                        onClick={() => handleSelectRoute(r.id)}
-                      >
-                        <div className="lt-route-card-time">
-                          <span className="lt-route-card-time-value">{nextTimeStr}</span>
-                        </div>
-                        <div className="lt-route-card-main">
-                          <span
-                            className={`lt-route-num lt-route-num--card ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
-                          >
-                            №{r.id}
-                          </span>
+                          {isVerifiedRoute(r.id) ? (
+                            <span className="lt-route-verified-pill">перевірено</span>
+                          ) : null}
                           <span className="lt-route-path">{r.from ?? '?'} — {r.to ?? '?'}</span>
                         </div>
                       </button>
@@ -1907,6 +1876,15 @@ export const LocalTransportPage: React.FC = () => {
               onPickToStop={(stopName) => {
                 setSearchTo(stopName);
                 rememberFrequentToStop(stopName);
+                const from = effectiveSearchFrom;
+                if (from && stopName && from !== stopName) {
+                  const pathFrom = encodeURIComponent(from);
+                  const pathTo = encodeURIComponent(stopName);
+                  const params = new URLSearchParams();
+                  params.set('d', searchDate);
+                  params.set('h', searchTime);
+                  navigate(`/transport/${pathFrom}/${pathTo}?${params.toString()}`);
+                }
               }}
               onSwapStops={() => {
                 setSearchFrom(effectiveSearchTo);
