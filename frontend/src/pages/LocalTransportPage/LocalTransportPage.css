@@ -3087,18 +3087,29 @@
   padding: 12px var(--lt-panel-x, 16px);
 }
 
+.lt-stop-board {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .lt-stop-board-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 8px 16px;
-  margin-bottom: 6px;
+  margin: 0;
+  padding: 0 var(--lt-panel-x, 16px) 6px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .lt-stop-board-table-title {
   margin: 0;
   font-size: 1.05rem;
   color: var(--lt-panel-text, #e8eaed);
+  overflow-wrap: anywhere;
 }
 
 .lt-stop-board-date {
@@ -3107,9 +3118,15 @@
 }
 
 .lt-stop-board-hint {
-  margin: 0 0 12px;
+  margin: 0;
+  padding: 0 var(--lt-panel-x, 16px) 12px;
+  max-width: 100%;
+  box-sizing: border-box;
   font-size: 0.75rem;
+  line-height: 1.45;
   color: var(--lt-panel-text-muted, #9aa0a6);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .lt-stop-board-table-wrap {
