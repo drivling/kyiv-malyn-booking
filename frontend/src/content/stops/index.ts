@@ -12,6 +12,7 @@ import { article as st_0034 } from './st_0034';
 import { article as st_0033 } from './st_0033';
 import { article as st_0080 } from './st_0080';
 import { article as st_0023 } from './st_0023';
+import { article as st_0020 } from './st_0020';
 
 const STOP_ARTICLES: Record<string, StopArticle> = {
   [st_0019.id]: st_0019,
@@ -27,6 +28,7 @@ const STOP_ARTICLES: Record<string, StopArticle> = {
   [st_0033.id]: st_0033,
   [st_0080.id]: st_0080,
   [st_0023.id]: st_0023,
+  [st_0020.id]: st_0020,
 };
 
 export function getStopArticle(stopId: string | undefined | null): StopArticle | undefined {
