@@ -194,67 +194,46 @@ Each stage: small PR-sized change → **commit + push**. Admin UX must keep work
 
 **Goal:** eliminate silent drift between web and API copies.
 
-- Create `data/malyn-transport/runtime/` as canonical.
-- Script `scripts/sync-localtransport-data.mjs` copies to:
-  - `frontend/public/data/`
-  - `backend/localtransport-data/`
-  - `frontend/src/.../segmentDurations.json` (from runtime)
-- Document: edit in runtime (or download from admin into runtime), then sync.
-- Update `calculate_segment_durations.js` paths to prefer runtime.
+- [x] Create `data/malyn-transport/runtime/` as canonical.
+- [x] Script `scripts/sync-localtransport-data.mjs`
+- [x] Document + update segment calculator paths
 
 **Done when:** one command refreshes all consumers; MD5 of the three trees match after sync.
 
 ### Stage 2 — Normalize `departure_time` / `block_id`
 
-**Goal:** GTFS-correct semantics in JSON without breaking the UI.
-
-- Add `departure_time` to types and records where time is known.
-- Migration script over `malyn_transport.json`.
-- Keep temporary fallback: if no `departure_time`, parse legacy time-like `block_id`.
-- Update Python parser to write `departure_time` for synthetic trips.
-
-**Done when:** verified timed routes have `departure_time`; plates remain in `block_id` only.
+- [x] Add `departure_time` to types and records
+- [x] Migration script + parser update
+- [x] UI dual-read helper (`tripDeparture.ts`)
 
 ### Stage 3 — GTFS export (required files)
 
-**Goal:** produce a zip Google/ validators can load.
-
-- `scripts/export-malyn-gtfs.mjs` → `data/malyn-transport/gtfs/`
-- Files: agency, stops, routes, trips, stop_times, calendar
-- Skip trips without `departure_time`
-- Document validation: MobilityData GTFS Validator / `gtfs-kit` / Google’s feed validator
-
-**Done when:** zip builds from runtime data; stop_times cover verified timed trips.
+- [x] `scripts/export-malyn-gtfs.mjs` → `data/malyn-transport/gtfs/`
+- [x] Feed docs: `Docs/local-transport-gtfs-feed.md`
 
 ### Stage 4 — App reads `departure_time`
 
-**Goal:** site/Android contract aligned with normalized model.
-
-- Shared `tripDepartureMinutes()` helper (web).
-- Replace direct `parseTime(block_id)` call sites in LocalTransport pages.
-- API bundle unchanged shape; new field flows through existing JSON.
-- Android: optional follow-up (field already in JSON; parse if present).
-
-**Done when:** planner/stop board behave as before on verified routes.
+- [x] Shared helper; LocalTransport pages updated (shipped with stage 2)
 
 ### Stage 5 — Calendar / agency polish + feed docs
 
-- Stable `service_id` values (`everyday`, `weekdays`, …) + `calendar.txt`
-- `agency.json` with name, URL, timezone `Europe/Kyiv`, phone
-- Short `Docs/local-transport-gtfs-feed.md` (how to build, validate, who can submit to Google)
+- [x] `agency.json`, `calendar.txt` (everyday / weekdays), feed docs
 
-### Stage 6 — Optional shapes (not blocking Google minimum)
+### Closing report
+
+- [x] `Docs/local-transport-gtfs-refactoring-result.md`
+
+### Stage 6 — Optional shapes (backlog)
 
 - Export `shapes.txt` / `shape_id` from ordered coords + `map_only`
-- Optional OSRM geometry refinement (script already experiments with road distance)
+- Optional OSRM geometry refinement
 
-### Stage 7 — Optional admin persist (later)
+### Stage 7 — Optional admin persist (backlog)
 
 - Authenticated `PUT` to write runtime JSON (or PR bot)
 - Keep download as fallback
-- **Out of scope** for initial GTFS readiness unless needed for ops
 
-### Stage 8 — Frequencies / incomplete routes (later)
+### Stage 8 — Frequencies / incomplete routes (backlog)
 
 - Routes 1, 6, 10: human schedule / intervals → `frequencies.txt` or stay app-only
 - Do not invent fake `stop_times`
