@@ -471,6 +471,8 @@ export interface LunchOrderRow {
   debtUah: number;
   lines: Array<{
     menuItemId: number | null;
+    /** Канонічна назва з меню (як у формі редагування) */
+    menuItemName?: string | null;
     rawName: string;
     qty: number;
     unitPriceUah: number;

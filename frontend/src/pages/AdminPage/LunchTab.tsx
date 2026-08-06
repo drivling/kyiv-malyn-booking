@@ -15,6 +15,18 @@ function splitUnmatched(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+/** Підпис рядка замовлення як у формі «Редагувати»: назва з меню + ціна */
+function formatOrderDishLabel(
+  line: LunchOrderRow['lines'][number],
+  menuById: Map<number, { id: number; name: string; priceUah: number }>
+): string {
+  const item = line.menuItemId != null ? menuById.get(line.menuItemId) : undefined;
+  const name = item?.name || line.menuItemName || line.rawName || '?';
+  const price = line.lineTotalUah ?? item?.priceUah ?? line.unitPriceUah;
+  const qty = line.qty > 1 ? `×${line.qty} ` : '';
+  return `${qty}${name} — ${price} грн`;
+}
+
 type EditState = {
   orderId: number;
   menuItemIds: number[];
@@ -371,7 +383,17 @@ export const LunchTab: React.FC = () => {
                         <tr className={o.unmatchedText ? 'lunch-row--warn' : undefined}>
                           <td>{o.displayName}</td>
                           <td className="lunch-dishes">
-                            {o.lines.map((l) => l.rawName).join(', ') || '—'}
+                            {o.lines.length > 0 ? (
+                              <ul className="lunch-dish-list">
+                                {o.lines.map((l, idx) => (
+                                  <li key={`${o.id}-${l.menuItemId ?? 'x'}-${idx}`}>
+                                    {formatOrderDishLabel(l, menuById)}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              '—'
+                            )}
                             {o.rawText ? (
                               <details className="lunch-raw">
                                 <summary>оригінал</summary>

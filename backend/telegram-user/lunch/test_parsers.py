@@ -158,6 +158,11 @@ def test_ru_typos_andrey_and_valeria():
     andrey = parse_order("Капуста огурец, бифштекс с яйцом  печень оладьи", menu)
     assert andrey.total_uah == 40 + 85 + 65
     assert andrey.unmatched == []
+    assert {ln.raw_name for ln in andrey.lines} == {
+        "Салат «Капуста молода з огірком»",
+        "Біфштекс з яйцем",
+        "Печінкові оладки",
+    }
 
     valeria = parse_order(
         "Салат грецкий \nБиток Киевский \nОвощи на гриле \nСуп грибной",

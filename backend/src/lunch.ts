@@ -122,7 +122,10 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
         where: { status: 'active' },
         include: {
           participant: true,
-          lines: { orderBy: { id: 'asc' } },
+          lines: {
+            orderBy: { id: 'asc' },
+            include: { menuItem: { select: { id: true, name: true, priceUah: true } } },
+          },
         },
         orderBy: { id: 'asc' },
       },
@@ -167,7 +170,9 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
       debtUah: o.totalUah - paid,
       lines: o.lines.map((l) => ({
         menuItemId: l.menuItemId,
-        rawName: l.rawName,
+        /** Канонічна назва з меню (як у редагуванні); для старих рядків — з join */
+        menuItemName: l.menuItem?.name ?? null,
+        rawName: l.menuItem?.name || l.rawName,
         qty: l.qty,
         unitPriceUah: l.unitPriceUah,
         lineTotalUah: l.lineTotalUah,
@@ -215,16 +220,38 @@ export function formatLunchTotalsComment(
     displayName: string;
     totalUah: number;
     rawText?: string;
-    lines: Array<{ rawName: string }>;
-  }>
+    lines: Array<{
+      rawName: string;
+      menuItemName?: string | null;
+      menuItemId?: number | null;
+      qty?: number;
+      unitPriceUah?: number;
+      lineTotalUah?: number;
+    }>;
+  }>,
+  menuItems?: Array<{ id: number; name: string; priceUah?: number }>
 ): string {
   if (!orders.length) return 'Замовлень немає.';
+  const menuById = new Map((menuItems || []).map((m) => [m.id, m]));
   const lines: string[] = [];
   let grand = 0;
   for (const o of orders) {
     grand += o.totalUah;
     const dishes =
-      o.lines.map((l) => l.rawName).filter(Boolean).join(', ') ||
+      o.lines
+        .map((l) => {
+          const fromMenu =
+            (l.menuItemId != null ? menuById.get(l.menuItemId)?.name : undefined) ||
+            l.menuItemName ||
+            null;
+          const name = fromMenu || l.rawName;
+          if (!name) return '';
+          const qty = l.qty && l.qty > 1 ? `×${l.qty} ` : '';
+          const price = l.lineTotalUah ?? l.unitPriceUah;
+          return price != null ? `${qty}${name} — ${price} грн` : `${qty}${name}`;
+        })
+        .filter(Boolean)
+        .join(', ') ||
       (o.rawText || '').replace(/\n/g, ', ');
     lines.push(`${o.displayName}: ${dishes} — ${o.totalUah} грн`);
   }

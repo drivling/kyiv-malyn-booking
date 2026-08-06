@@ -217,8 +217,16 @@ export function createAdminLunchRouter(deps: { prisma: PrismaClient }): Router {
           displayName: string;
           totalUah: number;
           rawText?: string;
-          lines: Array<{ rawName: string }>;
-        }>
+          lines: Array<{
+            rawName: string;
+            menuItemName?: string | null;
+            menuItemId?: number | null;
+            qty?: number;
+            unitPriceUah?: number;
+            lineTotalUah?: number;
+          }>;
+        }>,
+        summary.menuItems
       );
       const result = await postTextToLunchGroup(prisma, text);
       res.json({

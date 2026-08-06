@@ -207,8 +207,20 @@
 }
 
 .lunch-dishes {
-  max-width: 22rem;
-  color: var(--pb-text-muted, #5f6368);
+  max-width: 28rem;
+  color: var(--pb-text, #202124);
+}
+
+.lunch-dish-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.lunch-dish-list li + li {
+  margin-top: 2px;
 }
 
 .lunch-unmatched {

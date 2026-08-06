@@ -133,7 +133,9 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
         else:
             line = OrderLineInput(
                 menu_item_id=m.item.id,
-                raw_name=m.raw.strip(),
+                # Канонічна назва з меню (як у ручному редагуванні в адмінці),
+                # а не сирий фрагмент людини («капуста огурец»).
+                raw_name=m.item.name,
                 qty=1,
                 unit_price_uah=m.item.price_uah,
                 line_total_uah=m.item.price_uah,

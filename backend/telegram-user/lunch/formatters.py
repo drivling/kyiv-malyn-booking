@@ -7,6 +7,23 @@ from typing import Any, Sequence
 from .db import MenuItemRow
 
 
+def _line_dish_name(line: Any) -> str:
+    """Канонічна назва страви з меню (як у адмінці), не сирий фрагмент замовлення."""
+    if isinstance(line, dict):
+        return (
+            line.get("menuItemName")
+            or line.get("menu_item_name")
+            or line.get("rawName")
+            or line.get("raw_name")
+            or "?"
+        )
+    return (
+        getattr(line, "menu_item_name", None)
+        or getattr(line, "raw_name", None)
+        or "?"
+    )
+
+
 def format_menu(items: Sequence[MenuItemRow | tuple[str, int]]) -> str:
     lines = ["Меню на сьогодні:"]
     for it in items:
@@ -23,12 +40,22 @@ def format_menu(items: Sequence[MenuItemRow | tuple[str, int]]) -> str:
 def format_order_confirm(display_name: str, lines: Sequence[Any], total: int, unmatched: Sequence[str]) -> str:
     parts = [f"{display_name}, заказ:"]
     for line in lines:
-        raw = getattr(line, "raw_name", None) or line.get("rawName") or line.get("raw_name")
-        qty = getattr(line, "qty", None) or line.get("qty", 1)
-        unit = getattr(line, "unit_price_uah", None) or line.get("unitPriceUah") or line.get("unit_price_uah")
-        lt = getattr(line, "line_total_uah", None) or line.get("lineTotalUah") or line.get("line_total_uah")
+        name = _line_dish_name(line)
+        qty = getattr(line, "qty", None) if not isinstance(line, dict) else line.get("qty", 1)
+        if qty is None:
+            qty = 1
+        unit = (
+            getattr(line, "unit_price_uah", None)
+            if not isinstance(line, dict)
+            else line.get("unitPriceUah") or line.get("unit_price_uah")
+        )
+        lt = (
+            getattr(line, "line_total_uah", None)
+            if not isinstance(line, dict)
+            else line.get("lineTotalUah") or line.get("line_total_uah")
+        )
         q = f"×{qty} " if qty and int(qty) > 1 else ""
-        parts.append(f"• {q}{raw} — {lt} грн ({unit}/шт)")
+        parts.append(f"• {q}{name} — {lt} грн ({unit}/шт)")
     parts.append(f"Разом: {total} грн")
     if unmatched:
         parts.append("Не розпізнав: " + ", ".join(unmatched))
@@ -63,9 +90,7 @@ def format_summary(rows: Sequence[dict[str, Any]], day_status: str) -> str:
         debt = r["debt_uah"]
         grand += total
         paid_total += paid
-        dish = ", ".join(
-            (ln.get("rawName") or ln.get("raw_name") or "?") for ln in r.get("lines") or []
-        )
+        dish = ", ".join(_line_dish_name(ln) for ln in r.get("lines") or [])
         mark = "✓" if debt <= 0 else f"борг {debt}"
         lines.append(f"• {name}: {dish} = {total} грн [{mark}]")
     lines.append("")
@@ -106,7 +131,7 @@ def format_day_closed_from_summary(
 
 
 def format_totals_comment(rows: Sequence[dict[str, Any]]) -> str:
-    """Коментар у групу: імʼя, страви, сума (без судочків)."""
+    """Коментар у групу: імʼя, страви з меню + ціни, сума (як у адмінці)."""
     if not rows:
         return "Замовлень немає."
     lines: list[str] = []
@@ -115,9 +140,19 @@ def format_totals_comment(rows: Sequence[dict[str, Any]]) -> str:
         name = r.get("display_name") or r.get("displayName") or "?"
         total = int(r.get("total_uah") if r.get("total_uah") is not None else r.get("totalUah") or 0)
         grand += total
-        dishes = ", ".join(
-            (ln.get("rawName") or ln.get("raw_name") or "?") for ln in (r.get("lines") or [])
-        )
+        dish_bits: list[str] = []
+        for ln in r.get("lines") or []:
+            dname = _line_dish_name(ln)
+            qty = int(ln.get("qty") or 1)
+            lt = ln.get("lineTotalUah")
+            if lt is None:
+                lt = ln.get("line_total_uah")
+            q = f"×{qty} " if qty > 1 else ""
+            if lt is not None:
+                dish_bits.append(f"{q}{dname} — {lt} грн")
+            else:
+                dish_bits.append(f"{q}{dname}")
+        dishes = ", ".join(dish_bits)
         if not dishes:
             dishes = (r.get("raw_text") or r.get("rawText") or "").replace("\n", ", ")
         lines.append(f"{name}: {dishes} — {total} грн")

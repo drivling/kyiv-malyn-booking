@@ -352,8 +352,12 @@ class LunchDB:
                 paid = paid_map.get(pid, 0)
                 lines = await conn.fetch(
                     """
-                    SELECT "menuItemId", "rawName", qty, "unitPriceUah", "lineTotalUah"
-                    FROM "LunchOrderLine" WHERE "orderId" = $1 ORDER BY id
+                    SELECT l."menuItemId", l."rawName", l.qty, l."unitPriceUah", l."lineTotalUah",
+                           m.name AS "menuItemName"
+                    FROM "LunchOrderLine" l
+                    LEFT JOIN "LunchMenuItem" m ON m.id = l."menuItemId"
+                    WHERE l."orderId" = $1
+                    ORDER BY l.id
                     """,
                     int(o["id"]),
                 )
