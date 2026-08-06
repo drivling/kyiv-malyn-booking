@@ -7,6 +7,8 @@ exports.parseLunchMenuPayload = parseLunchMenuPayload;
 exports.formatLunchMenuText = formatLunchMenuText;
 exports.upsertLunchMenuForToday = upsertLunchMenuForToday;
 exports.getLunchDaySummary = getLunchDaySummary;
+exports.formatLunchTotalsComment = formatLunchTotalsComment;
+exports.recordLunchPayment = recordLunchPayment;
 function todayKyivDate() {
     const fmt = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Europe/Kyiv',
@@ -183,5 +185,61 @@ async function getLunchDaySummary(prisma, date) {
             paidUah,
             debtUah: orderUah - paidUah,
         },
+    };
+}
+function formatLunchTotalsComment(orders) {
+    if (!orders.length)
+        return 'Замовлень немає.';
+    const lines = [];
+    let grand = 0;
+    for (const o of orders) {
+        grand += o.totalUah;
+        const dishes = o.lines.map((l) => l.rawName).filter(Boolean).join(', ') ||
+            (o.rawText || '').replace(/\n/g, ', ');
+        lines.push(`${o.displayName}: ${dishes} — ${o.totalUah} грн`);
+    }
+    lines.push('');
+    lines.push(`Разом: ${grand} грн`);
+    return lines.join('\n');
+}
+async function recordLunchPayment(prisma, opts) {
+    const date = todayKyivDate();
+    const day = await prisma.lunchDay.findUnique({ where: { date } });
+    if (!day) {
+        throw new Error('Немає дня обідів на сьогодні');
+    }
+    const order = await prisma.lunchOrder.findUnique({
+        where: {
+            dayId_participantId: { dayId: day.id, participantId: opts.participantId },
+        },
+    });
+    if (!order || order.status !== 'active') {
+        throw new Error('Немає активного замовлення для цього учасника');
+    }
+    const paidAgg = await prisma.lunchPayment.aggregate({
+        where: { dayId: day.id, participantId: opts.participantId },
+        _sum: { amountUah: true },
+    });
+    const paidSoFar = paidAgg._sum.amountUah || 0;
+    const debt = order.totalUah - paidSoFar;
+    const amount = opts.amountUah != null ? Math.round(opts.amountUah) : debt;
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error(debt <= 0 ? 'Боргу немає' : 'Некоректна сума');
+    }
+    await prisma.lunchPayment.create({
+        data: {
+            dayId: day.id,
+            participantId: opts.participantId,
+            amountUah: amount,
+            rawText: opts.rawText || `admin pay ${amount}`,
+        },
+    });
+    const paid = paidSoFar + amount;
+    return {
+        ok: true,
+        amountUah: amount,
+        ordered: order.totalUah,
+        paid,
+        debt: order.totalUah - paid,
     };
 }

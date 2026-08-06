@@ -187,6 +187,31 @@ def test_summary_parse_sviatoslav():
     assert p.dozazak_raw is None
 
 
+def test_summary_no_blank_lines_in_last():
+    """Дамп без порожніх рядків після замовлення Святослава — не повинен весь потрапити йому."""
+    text = """> Marta:
+пюре, голубці ліниві
+
+> Диана:
+рис з овочами
+філе курки з ананасом
+
+> Святослав:
+Пюре
+Філе курки запечене з ананасом
+рис з овочами
+філе курки з ананасом
+пюре, голубці ліниві
+"""
+    p = parse_day_summary(text)
+    assert p.ok
+    sv = [n for n in p.named if n.display_name == "Святослав"][0]
+    assert "Вареники" not in sv.raw_text
+    sig = order_signature(sv.raw_text)
+    assert len(sig) <= 5
+    assert "пюре" in sig or any("пюре" in x for x in sig)
+
+
 def test_summary_dozazak_extra():
     text = """> Marta:
 пюре, голубці ліниві
@@ -219,6 +244,7 @@ def main():
         test_ocr_payload,
         test_summary_detect,
         test_summary_parse_sviatoslav,
+        test_summary_no_blank_lines_in_last,
         test_summary_dozazak_extra,
     ]
     failed = 0

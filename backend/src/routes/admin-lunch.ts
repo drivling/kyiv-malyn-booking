@@ -3,8 +3,10 @@ import type { PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../middleware/require-admin';
 import {
   formatLunchMenuText,
+  formatLunchTotalsComment,
   getLunchDaySummary,
   parseLunchMenuPayload,
+  recordLunchPayment,
   todayKyivDate,
   upsertLunchMenuForToday,
 } from '../lunch';
@@ -145,6 +147,62 @@ export function createAdminLunchRouter(deps: { prisma: PrismaClient }): Router {
     } catch (e) {
       console.error('[admin/lunch/reparse]', e);
       res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
+    }
+  });
+
+  /** Позначити оплату (за замовч. — весь борг учасника) */
+  r.post('/admin/lunch/pay', requireAdmin, async (req, res) => {
+    try {
+      const participantId = Number(req.body?.participantId);
+      const amountRaw = req.body?.amountUah;
+      const amountUah =
+        amountRaw === undefined || amountRaw === null || amountRaw === ''
+          ? undefined
+          : Number(amountRaw);
+      if (!Number.isFinite(participantId) || participantId <= 0) {
+        res.status(400).json({ error: 'participantId обовʼязковий' });
+        return;
+      }
+      const pay = await recordLunchPayment(prisma, {
+        participantId,
+        amountUah,
+        rawText: 'admin',
+      });
+      const summary = await getLunchDaySummary(prisma);
+      res.json({ ok: true, payment: pay, summary });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Помилка оплати';
+      console.error('[admin/lunch/pay]', e);
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  /** Пост «підсумку» в групу: імʼя, страви, сума (без судочків) */
+  r.post('/admin/lunch/post-totals', requireAdmin, async (_req, res) => {
+    try {
+      const summary = await getLunchDaySummary(prisma);
+      if (!summary.orders.length) {
+        res.status(400).json({ error: 'Немає замовлень на сьогодні' });
+        return;
+      }
+      const text = formatLunchTotalsComment(
+        summary.orders as Array<{
+          displayName: string;
+          totalUah: number;
+          rawText?: string;
+          lines: Array<{ rawName: string }>;
+        }>
+      );
+      const result = await postTextToLunchGroup(prisma, text);
+      res.json({
+        ok: result.ok,
+        queued: result.queued,
+        preview: text,
+        postError: result.ok ? null : result.error || 'Не вдалося надіслати',
+      });
+    } catch (e) {
+      console.error('[admin/lunch/post-totals]', e);
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка посту' });
     }
   });
 

@@ -215,3 +215,9 @@
   color: #c5221f;
   font-weight: 700;
 }
+
+.lunch-pay-btn {
+  padding: 4px 10px !important;
+  font-size: 0.75rem !important;
+  white-space: nowrap;
+}

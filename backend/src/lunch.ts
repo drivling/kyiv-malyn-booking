@@ -207,3 +207,77 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
     },
   };
 }
+
+export function formatLunchTotalsComment(
+  orders: Array<{
+    displayName: string;
+    totalUah: number;
+    rawText?: string;
+    lines: Array<{ rawName: string }>;
+  }>
+): string {
+  if (!orders.length) return 'Замовлень немає.';
+  const lines: string[] = [];
+  let grand = 0;
+  for (const o of orders) {
+    grand += o.totalUah;
+    const dishes =
+      o.lines.map((l) => l.rawName).filter(Boolean).join(', ') ||
+      (o.rawText || '').replace(/\n/g, ', ');
+    lines.push(`${o.displayName}: ${dishes} — ${o.totalUah} грн`);
+  }
+  lines.push('');
+  lines.push(`Разом: ${grand} грн`);
+  return lines.join('\n');
+}
+
+export async function recordLunchPayment(
+  prisma: PrismaClient,
+  opts: { participantId: number; amountUah?: number; rawText?: string }
+): Promise<{
+  ok: boolean;
+  amountUah: number;
+  ordered: number;
+  paid: number;
+  debt: number;
+}> {
+  const date = todayKyivDate();
+  const day = await prisma.lunchDay.findUnique({ where: { date } });
+  if (!day) {
+    throw new Error('Немає дня обідів на сьогодні');
+  }
+  const order = await prisma.lunchOrder.findUnique({
+    where: {
+      dayId_participantId: { dayId: day.id, participantId: opts.participantId },
+    },
+  });
+  if (!order || order.status !== 'active') {
+    throw new Error('Немає активного замовлення для цього учасника');
+  }
+  const paidAgg = await prisma.lunchPayment.aggregate({
+    where: { dayId: day.id, participantId: opts.participantId },
+    _sum: { amountUah: true },
+  });
+  const paidSoFar = paidAgg._sum.amountUah || 0;
+  const debt = order.totalUah - paidSoFar;
+  const amount = opts.amountUah != null ? Math.round(opts.amountUah) : debt;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error(debt <= 0 ? 'Боргу немає' : 'Некоректна сума');
+  }
+  await prisma.lunchPayment.create({
+    data: {
+      dayId: day.id,
+      participantId: opts.participantId,
+      amountUah: amount,
+      rawText: opts.rawText || `admin pay ${amount}`,
+    },
+  });
+  const paid = paidSoFar + amount;
+  return {
+    ok: true,
+    amountUah: amount,
+    ordered: order.totalUah,
+    paid,
+    debt: order.totalUah - paid,
+  };
+}

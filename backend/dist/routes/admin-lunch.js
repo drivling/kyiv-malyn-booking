@@ -141,5 +141,53 @@ function createAdminLunchRouter(deps) {
             res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
         }
     });
+    /** Позначити оплату (за замовч. — весь борг учасника) */
+    r.post('/admin/lunch/pay', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const participantId = Number(req.body?.participantId);
+            const amountRaw = req.body?.amountUah;
+            const amountUah = amountRaw === undefined || amountRaw === null || amountRaw === ''
+                ? undefined
+                : Number(amountRaw);
+            if (!Number.isFinite(participantId) || participantId <= 0) {
+                res.status(400).json({ error: 'participantId обовʼязковий' });
+                return;
+            }
+            const pay = await (0, lunch_1.recordLunchPayment)(prisma, {
+                participantId,
+                amountUah,
+                rawText: 'admin',
+            });
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, payment: pay, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка оплати';
+            console.error('[admin/lunch/pay]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
+    /** Пост «підсумку» в групу: імʼя, страви, сума (без судочків) */
+    r.post('/admin/lunch/post-totals', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            if (!summary.orders.length) {
+                res.status(400).json({ error: 'Немає замовлень на сьогодні' });
+                return;
+            }
+            const text = (0, lunch_1.formatLunchTotalsComment)(summary.orders);
+            const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, text);
+            res.json({
+                ok: result.ok,
+                queued: result.queued,
+                preview: text,
+                postError: result.ok ? null : result.error || 'Не вдалося надіслати',
+            });
+        }
+        catch (e) {
+            console.error('[admin/lunch/post-totals]', e);
+            res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка посту' });
+        }
+    });
     return r;
 }

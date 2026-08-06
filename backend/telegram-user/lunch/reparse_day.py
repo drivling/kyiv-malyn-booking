@@ -15,6 +15,7 @@ from .parse_summary import (
     DOZAZAK_DISPLAY_NAME,
     DOZAZAK_TELEGRAM_ID,
     looks_like_day_summary,
+    looks_like_mega_personal_order,
     parse_day_summary,
     synthetic_telegram_id,
 )
@@ -220,6 +221,26 @@ async def process_text_message(
     if not result.lines:
         stats.skipped += 1
         return
+
+    dish_count = sum(l.qty for l in result.lines)
+    if looks_like_mega_personal_order(dish_count):
+        # Підсумок без розпізнаних заголовків — не вішати весь дамп на одну людину
+        if looks_like_day_summary(text) or _headerish(text):
+            await apply_day_summary(
+                db,
+                day_id,
+                text,
+                sender_uid=uid,
+                sender_name=name,
+                sender_username=username,
+                source_message_id=message_id,
+                stats=stats,
+            )
+            return
+        stats.skipped += 1
+        stats.errors.append(f"msg {message_id}: skipped mega-order ({dish_count} dishes) from {name}")
+        return
+
     if not uid:
         stats.skipped += 1
         return
@@ -234,6 +255,12 @@ async def process_text_message(
         source_message_id=message_id,
     )
     stats.orders += 1
+
+
+def _headerish(text: str) -> bool:
+    from lunch.parse_summary import _header_count
+
+    return _header_count(text) >= 2
 
 
 def kyiv_day_bounds(d: date) -> tuple[datetime, datetime]:

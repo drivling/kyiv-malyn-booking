@@ -31,6 +31,7 @@ from lunch.parse_summary import (  # noqa: E402
     DOZAZAK_DISPLAY_NAME,
     DOZAZAK_TELEGRAM_ID,
     looks_like_day_summary,
+    looks_like_mega_personal_order,
     parse_day_summary,
     synthetic_telegram_id,
 )
@@ -370,15 +371,28 @@ async def run() -> None:
         if not menu:
             return
 
+        # Підсумок інколи приходить без «>» у тексті Telethon — перевірка ще раз
+        if looks_like_day_summary(text):
+            # handled above; сюди не маємо потрапити
+            return
+
         result = parse_order(text, menu)
-        # якщо нічого не збіглося — ігноруємо як звичайний чат (або відповідаємо якщо схоже на замовлення)
         if not result.lines and result.unmatched:
-            # лише якщо виглядає як список страв
             if "|" in text or "," in text or len(split_order_parts(text)) >= 2:
                 await reply(event, f"{name}, не розпізнав замовлення. Уточни назви по меню.")
             return
 
         if not result.lines:
+            return
+
+        dish_count = sum(l.qty for l in result.lines)
+        if looks_like_mega_personal_order(dish_count):
+            print(f"[lunch] skip mega-order ({dish_count}) from {name} id={msg.id}")
+            await reply(
+                event,
+                f"{name}, схоже на підсумок/дамп ({dish_count} позицій), не записав як особисте замовлення. "
+                "Надішли підсумок з цитатами або натисни «Розібрати день» в адмінці.",
+            )
             return
 
         if not uid:

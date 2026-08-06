@@ -103,3 +103,24 @@ def format_day_closed_from_summary(
     lines.append("")
     lines.append("Нові замовлення не приймаються. !debts — борги, !summary — зведення.")
     return "\n".join(lines)
+
+
+def format_totals_comment(rows: Sequence[dict[str, Any]]) -> str:
+    """Коментар у групу: імʼя, страви, сума (без судочків)."""
+    if not rows:
+        return "Замовлень немає."
+    lines: list[str] = []
+    grand = 0
+    for r in rows:
+        name = r.get("display_name") or r.get("displayName") or "?"
+        total = int(r.get("total_uah") if r.get("total_uah") is not None else r.get("totalUah") or 0)
+        grand += total
+        dishes = ", ".join(
+            (ln.get("rawName") or ln.get("raw_name") or "?") for ln in (r.get("lines") or [])
+        )
+        if not dishes:
+            dishes = (r.get("raw_text") or r.get("rawText") or "").replace("\n", ", ")
+        lines.append(f"{name}: {dishes} — {total} грн")
+    lines.append("")
+    lines.append(f"Разом: {grand} грн")
+    return "\n".join(lines)

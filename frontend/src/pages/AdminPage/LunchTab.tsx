@@ -120,6 +120,43 @@ export const LunchTab: React.FC = () => {
     }
   };
 
+  const markPaid = async (participantId: number, debtUah: number) => {
+    if (debtUah <= 0) return;
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.payLunchDebt(participantId);
+      setSuccess(`Оплату зараховано: ${res.payment.amountUah} грн (борг тепер ${res.payment.debt} грн).`);
+      if (res.summary) setSummary(res.summary);
+      else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка оплати');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const postTotals = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.postLunchTotals();
+      if (!res.ok) {
+        setError(res.postError || 'Не вдалося надіслати підсумок');
+      } else if (res.queued) {
+        setSuccess('Підсумок у черзі — listener надішле в групу за кілька секунд.');
+      } else {
+        setSuccess('Підсумок надіслано в групу.');
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка посту підсумку');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="lunch-tab">
       <div className="lunch-tab__head">
@@ -191,11 +228,14 @@ export const LunchTab: React.FC = () => {
             <Button type="button" onClick={() => void reparse()} disabled={saving}>
               {saving ? 'Розбір…' : 'Розібрати поточний день'}
             </Button>
+            <Button type="button" variant="secondary" onClick={() => void postTotals()} disabled={saving}>
+              Ітог у групу
+            </Button>
           </div>
         </div>
         <p className="lunch-card__hint" style={{ marginTop: 4 }}>
           «Розібрати поточний день» — знову читає повідомлення з групи за сьогодні, скидає замовлення/оплати
-          (меню лишається) і парсить заново.
+          (меню лишається) і парсить заново. «Ітог у групу» — імʼя, страви, сума (без судочків).
         </p>
 
         {loading && !summary && <p className="lunch-muted">Завантаження…</p>}
@@ -250,6 +290,7 @@ export const LunchTab: React.FC = () => {
                       <th>Сума</th>
                       <th>Оплачено</th>
                       <th>Борг</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -262,6 +303,21 @@ export const LunchTab: React.FC = () => {
                         <td>{o.totalUah}</td>
                         <td>{o.paidUah}</td>
                         <td className={o.debtUah > 0 ? 'lunch-debt' : ''}>{o.debtUah}</td>
+                        <td>
+                          {o.debtUah > 0 ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="lunch-pay-btn"
+                              disabled={saving}
+                              onClick={() => void markPaid(o.participantId, o.debtUah)}
+                            >
+                              Оплатив
+                            </Button>
+                          ) : (
+                            <span className="lunch-muted">✓</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -697,6 +697,28 @@ class ApiClient {
   }> {
     return this.request('/admin/lunch/reparse', { method: 'POST' });
   }
+
+  async payLunchDebt(participantId: number, amountUah?: number): Promise<{
+    ok: boolean;
+    payment: { amountUah: number; ordered: number; paid: number; debt: number };
+    summary: LunchDaySummary;
+  }> {
+    return this.request('/admin/lunch/pay', {
+      method: 'POST',
+      body: JSON.stringify(
+        amountUah != null ? { participantId, amountUah } : { participantId }
+      ),
+    });
+  }
+
+  async postLunchTotals(): Promise<{
+    ok: boolean;
+    queued?: boolean;
+    preview: string;
+    postError: string | null;
+  }> {
+    return this.request('/admin/lunch/post-totals', { method: 'POST' });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);
