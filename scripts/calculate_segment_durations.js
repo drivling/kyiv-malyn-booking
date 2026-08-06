@@ -15,8 +15,9 @@
  *   node scripts/calculate_segment_durations.js           # усі перевірені маршрути
  *   node scripts/calculate_segment_durations.js --route=11 # тільки маршрут 11
  *
- * Потрібні: мережевий доступ, frontend/public/data/stops_coords.json, malyn_transport.json.
- * Результат: frontend/src/pages/LocalTransportPage/segmentDurations.json
+ * Потрібні: мережевий доступ, canonical runtime JSON.
+ * Читає/пише: data/malyn-transport/runtime/
+ * Після запису викликає sync-localtransport-data.mjs (web + API copies).
  */
 
 const fs = require('fs');
@@ -84,9 +85,10 @@ async function main() {
   }
 
   const rootDir = path.join(__dirname, '..');
-  const coordsPath = path.join(rootDir, 'frontend/public/data/stops_coords.json');
-  const transportPath = path.join(rootDir, 'frontend/public/data/malyn_transport.json');
-  const outPath = path.join(rootDir, 'frontend/src/pages/LocalTransportPage/segmentDurations.json');
+  const runtimeDir = path.join(rootDir, 'data/malyn-transport/runtime');
+  const coordsPath = path.join(runtimeDir, 'stops_coords.json');
+  const transportPath = path.join(runtimeDir, 'malyn_transport.json');
+  const outPath = path.join(runtimeDir, 'segmentDurations.json');
 
   if (!fs.existsSync(coordsPath)) {
     console.error('Не знайдено:', coordsPath);
@@ -199,6 +201,11 @@ async function main() {
   console.log('Маршрути:', routesToProcess.join(', '));
   console.log('Сегментів у файлі:', Object.keys(existing.segments).length);
   console.log('Запитів OSRM:', requested, ', без відповіді (fallback ' + DEFAULT_SEC + ' с):', failed);
+
+  const { execFileSync } = require('child_process');
+  execFileSync(process.execPath, [path.join(rootDir, 'scripts/sync-localtransport-data.mjs')], {
+    stdio: 'inherit',
+  });
 }
 
 main().catch((e) => {

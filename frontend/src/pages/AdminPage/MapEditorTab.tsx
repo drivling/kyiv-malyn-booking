@@ -632,7 +632,7 @@ export const MapEditorTab: React.FC = () => {
       {editorMode === 'coords' && (
         <p className="map-editor-hint">
           Перетягніть маркер для уточнення позиції. «+ Техн. зупинка» — точка тільки для карти (map_only), коротка назва типу №9 т.1.
-          Темно-синій — виключена (order = -1). Завантажте обидва JSON і замініть у <code>public/data/</code>.
+          Темно-синій — виключена (order = -1). Завантажте обидва JSON у <code>data/malyn-transport/runtime/</code>, потім <code>node scripts/sync-localtransport-data.mjs</code>.
         </p>
       )}
 

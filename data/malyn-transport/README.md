@@ -2,6 +2,32 @@
 
 Дані з порталу відкритих даних України [data.gov.ua](https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36).
 
+## Canonical runtime (сайт + API)
+
+Єдине джерело правди для продакшен-даних:
+
+```
+data/malyn-transport/runtime/
+  malyn_transport.json
+  stops_coords.json
+  segmentDurations.json
+```
+
+Після правок (або після завантаження JSON з адмін-редактора карти) синхронізуйте копії для сайту та Android API:
+
+```bash
+node scripts/sync-localtransport-data.mjs
+node scripts/sync-localtransport-data.mjs --check   # перевірка без копіювання
+```
+
+Цілі sync:
+
+- `frontend/public/data/` — статичний сайт
+- `backend/localtransport-data/` — `GET /localtransport/data`
+- `frontend/src/pages/LocalTransportPage/segmentDurations.json` — бандл у JS
+
+Дорожня карта GTFS: `Docs/local-transport-gtfs-refactoring-plan.md`.
+
 ## Парсинг та спільний файл
 
 ```bash
