@@ -1,6 +1,6 @@
 # Інструкція: Telegram-бот попуток (Київ ↔ Малин)
 
-Бот: [@malin_kiev_ua_bot](https://t.me/malin_kiev_ua_bot) · Сайт: [malin.kiev.ua/poputky](https://malin.kiev.ua/poputky)
+Бот: [@malin_kiev_ua_bot](https://t.me/malin_kiev_ua_bot) · Сайт: [malin.kiev.ua/mizhgorodski](https://malin.kiev.ua/mizhgorodski)
 
 **Публічна сторінка допомоги (для користувачів):** [malin.kiev.ua/support](https://malin.kiev.ua/support) — хаб тем; гайд бота: [/support/bot](https://malin.kiev.ua/support/bot). Редірект `/help` → `/support`. Старі якорі `#bot` тощо на хабі перенаправляють на відповідну статтю.
 

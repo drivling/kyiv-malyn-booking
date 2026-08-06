@@ -7,9 +7,10 @@
 
 ## Головне
 
-- [Попутки](https://malin.kiev.ua/poputky): оголошення водіїв і пасажирів, запит до водія
-- [Маршрутки / бронювання](https://malin.kiev.ua/booking): розклад і місця
-- [Транспорт Малина](https://malin.kiev.ua/localtransport): місцеві маршрути й зупинки
+- [Міжміські (попутки та маршрутки)](https://malin.kiev.ua/mizhgorodski): пошук поїздок Малин ↔ Київ, Житомир, Коростень
+- [Напрямки](https://malin.kiev.ua/mizhgorodski/malyn-kyiv): розклад маршруток і FAQ по коридорах
+- [Транспорт Малина](https://malin.kiev.ua/transport): місцеві маршрути, зупинки, планер «З → До»
+- [Як доїхати до Малина](https://malin.kiev.ua/support/travel): короткий гід для людей і ІІ
 - [Допомога](https://malin.kiev.ua/support): центр допомоги (хаб → статті)
 - [Telegram-бот](https://malin.kiev.ua/support/bot): команди, попутки, inline
 - [FAQ](https://malin.kiev.ua/support/faq) · [Контакти](https://malin.kiev.ua/support/contact)

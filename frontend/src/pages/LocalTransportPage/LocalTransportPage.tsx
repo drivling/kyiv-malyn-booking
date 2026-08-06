@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
+import { usePageSeo } from '@/hooks';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
 import type { StopsCatalog } from './stopCatalog';
@@ -25,6 +26,26 @@ import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
+
+/** AEO FAQ for city transit hub (pattern: Korosten/Zvyagel official + local news pages) */
+const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
+  {
+    q: 'Як доїхати міським транспортом у Малині?',
+    a: 'Відкрийте malin.kiev.ua/transport, оберіть зупинки «З» і «До» (або на карті) і натисніть «Знайти». Сервіс покаже прямі маршрути й найближче відправлення.',
+  },
+  {
+    q: 'Де подивитися розклад маршруток Малина?',
+    a: 'На сторінці маршруту (/transport/route/…) — таблиця відправлень і список зупинок. На головній /transport — планер і перелік ліній.',
+  },
+  {
+    q: 'Які маршрути є в Малині?',
+    a: 'Актуальний список ліній з кінцевими зупинками — у блоці «Маршрути Малина» на цій сторінці. Дані з тієї ж бази, що й карта та табло зупинок.',
+  },
+  {
+    q: 'Чим відрізняється від міжміських маршруток?',
+    a: 'Тут — місцевий транспорт Малина (зупинки в місті). Міжміські попутки й маршрутки Київ / Житомир / Коростень — на /mizhgorodski.',
+  },
+];
 
 function haversineDistance(
   lat1: number,
@@ -640,6 +661,134 @@ export const LocalTransportPage: React.FC = () => {
     () => (routeId ? routes.find((r) => r.id === routeId) : null),
     [routes, routeId]
   );
+
+  const transportSeo = useMemo(() => {
+    if (isDetailPage && detailRoute) {
+      const path = `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`;
+      const times = [...detailRoute.trips]
+        .map((t) => tripDepartureMinutes(t))
+        .filter((m) => m > 0)
+        .sort((a, b) => a - b);
+      const first = times[0] != null ? formatTime(times[0]) : null;
+      const last = times.length ? formatTime(times[times.length - 1]) : null;
+      const tripHint =
+        first && last
+          ? ` Відправлення з кінцевої: з ${first} до ${last} (${times.length} рейсів).`
+          : '';
+      const faq = [
+        {
+          q: `Який розклад маршруту №${detailRoute.id} у Малині?`,
+          a:
+            first && last
+              ? `На malin.kiev.ua/transport/route/${detailRoute.id}: рейси з ${first} до ${last}. Повний список зупинок і табло — на сторінці маршруту.`
+              : `Відкрийте malin.kiev.ua/transport/route/${detailRoute.id} — таблиця відправлень і список зупинок.`,
+        },
+        {
+          q: `Куди їде маршрутка №${detailRoute.id}?`,
+          a: `Лінія ${path}. Планер «З → До» і карта: malin.kiev.ua/transport.`,
+        },
+      ];
+      return {
+        title: `Маршрут №${detailRoute.id} ${path} | Транспорт Малина | malin.kiev.ua`,
+        canonicalUrl: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
+        description: `Розклад і зупинки маршруту №${detailRoute.id} (${path}) у Малині.${tripHint}`,
+        jsonLdId: `transport-route-jsonld-${detailRoute.id}`,
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Транспорт Малина',
+                  item: 'https://malin.kiev.ua/transport',
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: `№${detailRoute.id} ${path}`,
+                  item: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
+                },
+              ],
+            },
+            {
+              '@type': 'FAQPage',
+              mainEntity: faq.map((item) => ({
+                '@type': 'Question',
+                name: item.q,
+                acceptedAnswer: { '@type': 'Answer', text: item.a },
+              })),
+            },
+            ...(times.length
+              ? [
+                  {
+                    '@type': 'ItemList',
+                    name: `Рейси маршруту №${detailRoute.id}`,
+                    numberOfItems: times.length,
+                    itemListElement: times.slice(0, 40).map((m, i) => ({
+                      '@type': 'ListItem',
+                      position: i + 1,
+                      name: formatTime(m),
+                    })),
+                  },
+                ]
+              : []),
+          ],
+        },
+      };
+    }
+
+    const routeCount = routes.length;
+    return {
+      title: 'Транспорт Малина — розклад маршруток і як доїхати | malin.kiev.ua',
+      canonicalUrl: 'https://malin.kiev.ua/transport',
+      description:
+        routeCount > 0
+          ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «З → До», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
+          : 'Міський транспорт Малина: планер «З → До», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
+      jsonLdId: 'transport-hub-jsonld',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'WebPage',
+            name: 'Транспорт Малина',
+            url: 'https://malin.kiev.ua/transport',
+            description:
+              'Місцеві маршрутки Малина: як доїхати між зупинками, розклад і карта.',
+            inLanguage: 'uk-UA',
+          },
+          {
+            '@type': 'FAQPage',
+            mainEntity: TRANSPORT_HUB_FAQ.map((item) => ({
+              '@type': 'Question',
+              name: item.q,
+              acceptedAnswer: { '@type': 'Answer', text: item.a },
+            })),
+          },
+          ...(routeCount
+            ? [
+                {
+                  '@type': 'ItemList',
+                  name: 'Маршрути міського транспорту Малина',
+                  numberOfItems: routeCount,
+                  itemListElement: routes.map((r, i) => ({
+                    '@type': 'ListItem',
+                    position: i + 1,
+                    name: `№${r.id} ${(r.from ?? '?')} — ${(r.to ?? '?')}`,
+                    url: `https://malin.kiev.ua/transport/route/${encodeURIComponent(r.id)}`,
+                  })),
+                },
+              ]
+            : []),
+        ],
+      },
+    };
+  }, [isDetailPage, detailRoute, routes]);
+
+  usePageSeo(transportSeo);
 
   const detailMapStopNames = useMemo(() => {
     if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
@@ -1938,6 +2087,43 @@ export const LocalTransportPage: React.FC = () => {
                 </>
               )}
             </div>
+            <section className="lt-aeo" aria-labelledby="lt-aeo-routes">
+              <h2 id="lt-aeo-routes" className="lt-aeo-title">
+                Маршрути Малина
+              </h2>
+              <p className="lt-aeo-lead">
+                Актуальний список міських ліній: розклад, зупинки й карта. Оберіть номер або скористайтеся
+                планером «З → До» вище.
+              </p>
+              {routes.length > 0 ? (
+                <ul className="lt-aeo-route-list">
+                  {routes.map((r) => (
+                    <li key={r.id}>
+                      <Link to={`/transport/route/${encodeURIComponent(r.id)}`}>
+                        №{r.id} {(r.from ?? '?')} — {(r.to ?? '?')}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="lt-aeo-lead">Завантаження маршрутів…</p>
+              )}
+              <h2 id="lt-aeo-faq" className="lt-aeo-title">
+                Часті питання
+              </h2>
+              <dl className="lt-aeo-faq">
+                {TRANSPORT_HUB_FAQ.map((item) => (
+                  <div key={item.q} className="lt-aeo-faq__item">
+                    <dt>{item.q}</dt>
+                    <dd>{item.a}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="lt-aeo-more">
+                Міжміські попутки й маршрутки — <Link to="/mizhgorodski">/mizhgorodski</Link>. Довідка —{' '}
+                <Link to="/support/travel">як доїхати до Малина</Link>.
+              </p>
+            </section>
             <footer className="lt-footer">
               <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
               {' · '}

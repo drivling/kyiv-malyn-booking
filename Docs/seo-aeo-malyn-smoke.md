@@ -8,6 +8,8 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] `/mizhgorodski` — title містить попутки/маршрутки + Малин + міста; description з «як доїхати»; canonical `https://malin.kiev.ua/mizhgorodski`
 - [ ] `/mizhgorodski/kyiv-malyn` (і решта 5) — унікальні title/description/H1; og:title/url; canonical на свій slug
 - [ ] `/support/travel` — title «Як доїхати до Малина»; description з містами
+- [ ] `/transport` — title з «Транспорт Малина» / розклад; description; canonical `https://malin.kiev.ua/transport`
+- [ ] `/transport/route/{id}` — унікальний title з № і кінцевими; canonical на свій route
 
 ## Structured data
 
@@ -15,6 +17,8 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] Коридор: `BreadcrumbList` + `FAQPage` (id `corridor-jsonld-*`)
 - [ ] `/support/travel`: `FAQPage` id `support-travel-jsonld`
 - [ ] `/support/faq`: існуючий FAQPage без поломки
+- [ ] `/transport`: `transport-hub-jsonld` (FAQPage + ItemList маршрутів)
+- [ ] `/transport/route/{id}`: `transport-route-jsonld-*`
 
 ## URL hygiene
 
@@ -23,6 +27,7 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] `/localtransport` → `/transport`
 - [ ] `robots.txt` **не** Disallow `/poputky` / `/booking`
 - [ ] `sitemap.xml` містить `/transport`, 6 коридорів, `/support/travel`; **не** містить `/localtransport` як канон
+- [ ] Після build: є `dist/mizhgorodski/{slug}/index.html` з таблицею «Розклад маршруток» (view-source без JS)
 
 ## Content / AEO
 
@@ -31,7 +36,8 @@ Goal: готовність конкурувати з Polissya / новинами
 - [ ] Коридор: таблиця «Розклад маршруток» з API (`GET /schedules`), години відправлення видимі в HTML
 - [ ] Коридор: FAQ згадує перший/останній рейс коли є дані; ItemList у JSON-LD
 - [ ] Support hub показує картку «Як доїхати до Малина»; travel згадує розклад на напрямках
-
+- [ ] `/transport`: блок «Маршрути Малина» + FAQ; лінки на `/transport/route/{id}`
+- [ ] `llms.txt` / Docs анкори вказують на `/mizhgorodski`, не `/poputky`
 ## After deploy
 
 - [ ] GSC: надіслати оновлений sitemap

@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "telegram-inline-bot-plan.md",
+                "file": "local-transport-jakdojade-smoke.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "telegram-inline-bot-plan"
+              "title": "local-transport-jakdojade-smoke"
             }
           }
         ],
@@ -61,7 +61,7 @@
                 "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
-              "title": "Файловый менеджер"
+              "title": "Файловий менеджер"
             }
           },
           {
@@ -191,29 +191,39 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:Меню быстрого перехода": false,
-      "canvas:Создать новый холст": false,
-      "daily-notes:Сегодняшняя заметка": false,
-      "templates:Вставить шаблон": false,
-      "command-palette:Открыть палитру команд": false,
-      "bases:Создать новую базу": false,
+      "switcher:Відкрити провідник файлів": false,
+      "canvas:Створити нове полотно": false,
+      "daily-notes:Сьогоднішня нотатка": false,
+      "templates:Вставити шаблон": false,
+      "command-palette:Відкрити меню команд": false,
+      "bases:Створити нову базу": false,
       "graph:Граф": false
     }
   },
   "active": "97f8429fafac3151",
   "lastOpenFiles": [
-    "telegram-bot-user-guide.md",
-    "telegram-inline-bot-plan.md",
-    "referral-program-fix-plan.md",
-    "На будущее.md",
-    "Schema_telegram.svg",
+    "seo-aeo-malyn-smoke.md",
+    "seo-aeo-malyn-plan.md",
+    "local-transport-jakdojade-rebuild-result.md",
+    "local-transport-jakdojade-smoke.md",
     "referral-program-terms.md",
+    "Schema_telegram.svg",
+    "telegram-inline-bot-plan.md",
+    "telegram-bot-user-guide.md",
+    "На будущее.md",
+    "local-transport-gtfs-feed.md",
+    "local-transport-jakdojade-rebuild-plan.md",
+    "local-transport-db-refactoring-result.md",
+    "local-transport-db-refactoring-plan.md",
+    "local-transport-gtfs-refactoring-plan.md",
+    "local-transport-gtfs-refactoring-result.md",
+    "referral-facebook-post.md",
+    "referral-program-fix-plan.md",
     "facebook-preview-assets/fb-story-bg.png",
     "facebook-preview-assets/fb-ride-start.png",
     "facebook-preview-assets/fb-ride-arrive.png",
     "facebook-preview-assets/fb-promo-cover.png",
     "facebook-preview-assets",
-    "facebook-ride-post-preview.html",
-    "referral-facebook-post.md"
+    "facebook-ride-post-preview.html"
   ]
 }

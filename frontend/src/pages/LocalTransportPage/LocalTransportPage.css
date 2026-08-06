@@ -2541,6 +2541,95 @@
   min-height: 280px;
 }
 
+/* AEO / SEO crawlable hub (route directory + FAQ) */
+.lt-aeo {
+  margin: 8px var(--lt-panel-x) 0;
+  padding: 16px 0 8px;
+  border-top: 1px solid var(--lt-border-light);
+}
+
+.lt-aeo-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--lt-panel-text, #054752);
+}
+
+.lt-aeo-title + .lt-aeo-title,
+.lt-aeo-faq + .lt-aeo-title,
+.lt-aeo-route-list + .lt-aeo-title {
+  margin-top: 20px;
+}
+
+.lt-aeo-lead {
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--lt-panel-text-muted, #708c91);
+}
+
+.lt-aeo-route-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px 12px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.lt-aeo-route-list a {
+  color: var(--lt-accent, #00aff5);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.lt-aeo-route-list a:hover {
+  text-decoration: underline;
+}
+
+.lt-aeo-faq {
+  margin: 0;
+}
+
+.lt-aeo-faq__item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--lt-border-light);
+}
+
+.lt-aeo-faq__item:first-child {
+  padding-top: 0;
+}
+
+.lt-aeo-faq dt {
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+}
+
+.lt-aeo-faq dd {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--lt-panel-text-muted, #3d5a60);
+}
+
+.lt-aeo-more {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+  color: var(--lt-panel-text-muted, #708c91);
+}
+
+.lt-aeo-more a {
+  color: var(--lt-accent, #00aff5);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.lt-aeo-more a:hover {
+  text-decoration: underline;
+}
+
 /* Footer */
 .lt-footer {
   margin-top: 0;

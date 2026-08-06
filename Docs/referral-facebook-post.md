@@ -34,7 +34,7 @@
 Зайди в бот → **«Приведи друга»**
 
 🤖 https://t.me/malin_kiev_ua_bot  
-🌐 Попутки: https://malin.kiev.ua/poputky  
+🌐 Міжміські: https://malin.kiev.ua/mizhgorodski  
 📜 Умови акції: https://malin.kiev.ua/about#referral-promo
 
 Поділись з тим, з ким завжди їздите разом.
@@ -71,7 +71,7 @@
 
 Попутки Малин↔Київ у боті + бонус на мобільний 💸
 https://t.me/malin_kiev_ua_bot?start=ref_XXXX
-🌐 malin.kiev.ua/poputky
+🌐 malin.kiev.ua/mizhgorodski
 #Малин #Київ #Попутки #КиївМалин #malinkievua
 ```
 
