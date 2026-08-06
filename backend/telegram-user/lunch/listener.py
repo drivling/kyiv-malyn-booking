@@ -409,6 +409,24 @@ async def run() -> None:
                     except Exception as e:
                         print(f"[lunch] outbound fail id={row['id']}: {e}", file=sys.stderr)
                         await db.mark_outbound_failed(row["id"], str(e))
+
+                jobs = await db.fetch_pending_jobs(limit=2)
+                for job in jobs:
+                    if job["type"] == "reparse_today":
+                        try:
+                            from lunch.reparse_day import reparse_day_with_client
+
+                            print(f"[lunch] job reparse_today id={job['id']}")
+                            stats = await reparse_day_with_client(
+                                client, entity, db, clear_orders=True
+                            )
+                            await db.complete_job(job["id"], stats.as_dict())
+                            print(f"[lunch] job done id={job['id']} {stats.as_dict()}")
+                        except Exception as e:
+                            print(f"[lunch] job fail id={job['id']}: {e}", file=sys.stderr)
+                            await db.fail_job(job["id"], str(e))
+                    else:
+                        await db.fail_job(job["id"], f"unknown job type: {job['type']}")
             except Exception as e:
                 print(f"[lunch] outbound loop: {e}", file=sys.stderr)
             await asyncio.sleep(2)

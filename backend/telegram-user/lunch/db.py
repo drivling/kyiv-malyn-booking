@@ -370,6 +370,57 @@ class LunchDB:
         rows = await self.summary_rows(day_id)
         return [r for r in rows if r["debt_uah"] > 0]
 
+    async def clear_day_orders_and_payments(self, day_id: int) -> None:
+        """Видалити замовлення (з lines) та оплати за день. Меню лишається."""
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    DELETE FROM "LunchOrderLine"
+                    WHERE "orderId" IN (SELECT id FROM "LunchOrder" WHERE "dayId" = $1)
+                    """,
+                    day_id,
+                )
+                await conn.execute("""DELETE FROM "LunchOrder" WHERE "dayId" = $1""", day_id)
+                await conn.execute("""DELETE FROM "LunchPayment" WHERE "dayId" = $1""", day_id)
+
+    async def fetch_pending_jobs(self, limit: int = 3) -> list[dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, type FROM "LunchAdminJob"
+                WHERE status = 'pending'
+                ORDER BY "createdAt" ASC
+                LIMIT $1
+                """,
+                limit,
+            )
+            return [{"id": int(r["id"]), "type": r["type"]} for r in rows]
+
+    async def complete_job(self, job_id: int, result: Any) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "LunchAdminJob"
+                SET status = 'done', "resultJson" = $2, "finishedAt" = NOW(), "errorText" = NULL
+                WHERE id = $1
+                """,
+                job_id,
+                json.dumps(result, ensure_ascii=False),
+            )
+
+    async def fail_job(self, job_id: int, error: str) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "LunchAdminJob"
+                SET status = 'failed', "errorText" = $2, "finishedAt" = NOW()
+                WHERE id = $1
+                """,
+                job_id,
+                (error or "")[:2000],
+            )
+
     async def fetch_pending_outbound(self, limit: int = 5) -> list[dict[str, Any]]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(

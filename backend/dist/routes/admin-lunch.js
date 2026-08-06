@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const lunch_1 = require("../lunch");
 const lunch_telegram_1 = require("../lunch-telegram");
+const lunch_reparse_1 = require("../lunch-reparse");
 function createAdminLunchRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -122,6 +123,22 @@ function createAdminLunchRouter(deps) {
         catch (e) {
             console.error('[admin/lunch/post-menu]', e);
             res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка посту' });
+        }
+    });
+    /** Знову розібрати повідомлення групи за сьогодні (замовлення / оплати / підсумок) */
+    r.post('/admin/lunch/reparse', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const result = await (0, lunch_reparse_1.reparseLunchToday)(prisma);
+            if (!result.ok) {
+                res.status(500).json({ error: result.error || 'Reparse failed', ...result });
+                return;
+            }
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, reparse: result, summary });
+        }
+        catch (e) {
+            console.error('[admin/lunch/reparse]', e);
+            res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
         }
     });
     return r;

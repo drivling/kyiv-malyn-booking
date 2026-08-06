@@ -412,3 +412,18 @@ model LunchOutboundMessage {
 
   @@index([status, createdAt])
 }
+
+/// Адмін-задачі для listener (reparse_today тощо)
+model LunchAdminJob {
+  id          Int       @id @default(autoincrement())
+  /// reparse_today
+  type        String
+  /// pending | done | failed
+  status      String    @default("pending")
+  resultJson  String?   @db.Text
+  errorText   String?   @db.Text
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([status, createdAt])
+}

@@ -681,6 +681,22 @@ class ApiClient {
   }> {
     return this.request('/admin/lunch/post-menu', { method: 'POST' });
   }
+
+  async reparseLunchToday(): Promise<{
+    ok: boolean;
+    reparse: {
+      scanned?: number;
+      orders?: number;
+      payments?: number;
+      cards?: number;
+      summaries?: number;
+      skipped?: number;
+      errors?: string[];
+    };
+    summary: LunchDaySummary;
+  }> {
+    return this.request('/admin/lunch/reparse', { method: 'POST' });
+  }
 }
 
 export const apiClient = new ApiClient(API_URL);

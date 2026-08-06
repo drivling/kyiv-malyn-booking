@@ -9,6 +9,7 @@ import {
   upsertLunchMenuForToday,
 } from '../lunch';
 import { postTextToLunchGroup } from '../lunch-telegram';
+import { reparseLunchToday } from '../lunch-reparse';
 
 export function createAdminLunchRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -128,6 +129,22 @@ export function createAdminLunchRouter(deps: { prisma: PrismaClient }): Router {
     } catch (e) {
       console.error('[admin/lunch/post-menu]', e);
       res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка посту' });
+    }
+  });
+
+  /** Знову розібрати повідомлення групи за сьогодні (замовлення / оплати / підсумок) */
+  r.post('/admin/lunch/reparse', requireAdmin, async (_req, res) => {
+    try {
+      const result = await reparseLunchToday(prisma);
+      if (!result.ok) {
+        res.status(500).json({ error: result.error || 'Reparse failed', ...result });
+        return;
+      }
+      const summary = await getLunchDaySummary(prisma);
+      res.json({ ok: true, reparse: result, summary });
+    } catch (e) {
+      console.error('[admin/lunch/reparse]', e);
+      res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
     }
   });
 

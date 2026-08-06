@@ -101,6 +101,25 @@ export const LunchTab: React.FC = () => {
     }
   };
 
+  const reparse = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.reparseLunchToday();
+      const r = res.reparse || {};
+      setSuccess(
+        `День розібрано знову: повідомлень ${r.scanned ?? 0}, замовлень ${r.orders ?? 0}, оплат ${r.payments ?? 0}, підсумків ${r.summaries ?? 0}, пропущено ${r.skipped ?? 0}.`
+      );
+      if (res.summary) setSummary(res.summary);
+      else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка повторного розбору');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="lunch-tab">
       <div className="lunch-tab__head">
@@ -169,8 +188,15 @@ export const LunchTab: React.FC = () => {
             <Button type="button" variant="secondary" onClick={() => void repost()} disabled={saving}>
               Повторити пост меню
             </Button>
+            <Button type="button" onClick={() => void reparse()} disabled={saving}>
+              {saving ? 'Розбір…' : 'Розібрати поточний день'}
+            </Button>
           </div>
         </div>
+        <p className="lunch-card__hint" style={{ marginTop: 4 }}>
+          «Розібрати поточний день» — знову читає повідомлення з групи за сьогодні, скидає замовлення/оплати
+          (меню лишається) і парсить заново.
+        </p>
 
         {loading && !summary && <p className="lunch-muted">Завантаження…</p>}
 
