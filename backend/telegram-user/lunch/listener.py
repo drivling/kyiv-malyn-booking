@@ -31,7 +31,6 @@ from lunch.parse_summary import (  # noqa: E402
     DOZAZAK_DISPLAY_NAME,
     DOZAZAK_TELEGRAM_ID,
     looks_like_day_summary,
-    looks_like_mega_personal_order,
     parse_day_summary,
     synthetic_telegram_id,
 )
@@ -43,7 +42,12 @@ from lunch.formatters import (  # noqa: E402
     format_payment_reply,
     format_summary,
 )
-from lunch.util import load_dotenv, split_order_parts  # noqa: E402
+from lunch.order_reply import (  # noqa: E402
+    PersonalOrderAction,
+    decide_personal_order_action,
+    ocr_enabled,
+)
+from lunch.util import load_dotenv  # noqa: E402
 
 load_dotenv()
 
@@ -170,12 +174,9 @@ async def run() -> None:
         # --- фото меню ---
         if msg.photo:
             print(f"[lunch] photo from {name} id={msg.id}")
-            if not (os.environ.get("OPENAI_API_KEY") or "").strip():
-                await reply(
-                    event,
-                    "Фото отримано. OCR вимкнено (немає OPENAI_API_KEY). "
-                    "Імпортуй меню через адмінку «Столова» (JSON з ChatGPT).",
-                )
+            # Без OPENAI_API_KEY — мовчки ігноруємо (меми після обіду не спамимо)
+            if not ocr_enabled(os.environ.get("OPENAI_API_KEY")):
+                print("[lunch] photo ignored (OCR off)")
                 return
             try:
                 with tempfile.TemporaryDirectory() as tmp:
@@ -385,9 +386,6 @@ async def run() -> None:
         day = await db.get_day(today_kyiv())
         if not day:
             return
-        if day.status == "closed":
-            await reply(event, "Прийом замовлень закрито.")
-            return
 
         menu = await db.list_menu_items(day.id)
         if not menu:
@@ -395,20 +393,22 @@ async def run() -> None:
 
         # Підсумок інколи приходить без «>» у тексті Telethon — перевірка ще раз
         if looks_like_day_summary(text):
-            # handled above; сюди не маємо потрапити
             return
 
         result = parse_order(text, menu)
-        if not result.lines and result.unmatched:
-            if "|" in text or "," in text or len(split_order_parts(text)) >= 2:
-                await reply(event, f"{name}, не розпізнав замовлення. Уточни назви по меню.")
-            return
-
-        if not result.lines:
-            return
-
         dish_count = sum(l.qty for l in result.lines)
-        if looks_like_mega_personal_order(dish_count):
+        action = decide_personal_order_action(
+            day_status=day.status,
+            matched_line_count=len(result.lines),
+            dish_qty_total=dish_count,
+        )
+        if action == PersonalOrderAction.IGNORE:
+            # Чат/меми/нерозпізнане — мовчати (не спамити «не розпізнав» / «закрито»)
+            return
+        if action == PersonalOrderAction.DAY_CLOSED:
+            await reply(event, "Прийом замовлень закрито.")
+            return
+        if action == PersonalOrderAction.MEGA:
             print(f"[lunch] skip mega-order ({dish_count}) from {name} id={msg.id}")
             await reply(
                 event,

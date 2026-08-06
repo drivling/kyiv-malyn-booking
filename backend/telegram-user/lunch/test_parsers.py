@@ -12,6 +12,7 @@ if str(_ROOT) not in sys.path:
 
 from lunch.db import MenuItemRow
 from lunch.ocr_menu import parse_menu_items_payload
+from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
 from lunch.parse_order import looks_like_order, parse_order
 from lunch.parse_payment import looks_like_card_number, parse_payment
 from lunch.parse_summary import (
@@ -178,6 +179,83 @@ def test_chat_noise():
     assert looks_like_order("Пюре | Котлети курячі")
 
 
+def test_ocr_gate_silent_without_key():
+    assert ocr_enabled(None) is False
+    assert ocr_enabled("") is False
+    assert ocr_enabled("   ") is False
+    assert ocr_enabled("sk-test") is True
+
+
+def test_order_reply_policy_closed_only_when_matched():
+    # мем / чат з комами — heuristic looks_like_order може спрацювати,
+    # але без matched lines мовчимо навіть якщо день closed
+    assert (
+        decide_personal_order_action(
+            day_status="closed", matched_line_count=0, dish_qty_total=0
+        )
+        == PersonalOrderAction.IGNORE
+    )
+    assert (
+        decide_personal_order_action(
+            day_status="closed", matched_line_count=2, dish_qty_total=2
+        )
+        == PersonalOrderAction.DAY_CLOSED
+    )
+    assert (
+        decide_personal_order_action(
+            day_status="ordering", matched_line_count=2, dish_qty_total=2
+        )
+        == PersonalOrderAction.ACCEPT
+    )
+    assert (
+        decide_personal_order_action(
+            day_status="ordering", matched_line_count=0, dish_qty_total=0
+        )
+        == PersonalOrderAction.IGNORE
+    )
+    # mega dump
+    assert (
+        decide_personal_order_action(
+            day_status="ordering", matched_line_count=20, dish_qty_total=20
+        )
+        == PersonalOrderAction.MEGA
+    )
+
+
+def test_closed_day_real_order_vs_meme_text():
+    """Інтеграція parse + policy: реальний заказ → closed; «мем» → ignore."""
+    dishes = [
+        ("Салат «Капуста молода з огірком»", 40),
+        ("Біфштекс з яйцем", 85),
+        ("Печінкові оладки", 65),
+    ]
+    menu = [
+        MenuItemRow(i, 1, n, normalize_dish_name(n), p)
+        for i, (n, p) in enumerate(dishes, 1)
+    ]
+    order = parse_order("Капуста огурец, бифштекс с яйцом, печень оладьи", menu)
+    assert len(order.lines) == 3
+    assert (
+        decide_personal_order_action(
+            day_status="closed",
+            matched_line_count=len(order.lines),
+            dish_qty_total=sum(l.qty for l in order.lines),
+        )
+        == PersonalOrderAction.DAY_CLOSED
+    )
+
+    meme = parse_order("А запостіть сюди ще якихось картинок, мемів", menu)
+    assert len(meme.lines) == 0
+    assert (
+        decide_personal_order_action(
+            day_status="closed",
+            matched_line_count=len(meme.lines),
+            dish_qty_total=0,
+        )
+        == PersonalOrderAction.IGNORE
+    )
+
+
 def test_payment():
     assert parse_payment("оплатив 150").amount_uah == 150
     assert parse_payment("Оплатила 90 грн").amount_uah == 90
@@ -275,6 +353,9 @@ def main():
         test_order_marta,
         test_ru_typos_andrey_and_valeria,
         test_chat_noise,
+        test_ocr_gate_silent_without_key,
+        test_order_reply_policy_closed_only_when_matched,
+        test_closed_day_real_order_vs_meme_text,
         test_payment,
         test_card,
         test_ocr_payload,
