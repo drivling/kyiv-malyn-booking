@@ -430,3 +430,96 @@ model LunchAdminJob {
 
   @@index([status, createdAt])
 }
+
+// ============================================================
+// Міський транспорт Малина (GTFS-подібна модель, редагується
+// цілком через PUT /transport/dataset у адмінці)
+// ============================================================
+
+/// Зупинка (GTFS stop). id — стабільний ключ st_XXXX
+model TransportStop {
+  id        String   @id // st_0001
+  name      String
+  lat       Float
+  lng       Float
+  updatedAt DateTime @updatedAt
+
+  routeStops TransportRouteStop[]
+}
+
+/// Маршрут (GTFS route). id — номер маршруту ("2", "11")
+model TransportRoute {
+  id        String   @id
+  fromName  String   @default("")
+  toName    String   @default("")
+  scheme    String   @default("") @db.Text
+  note      String   @default("") @db.Text
+  sourceUrl String   @default("")
+  /// Людське розписання з міськради: { schedule_entries, lunch_break, note }
+  schedule  Json?
+  updatedAt DateTime @updatedAt
+
+  routeStops TransportRouteStop[]
+  trips      TransportTrip[]
+  segments   TransportSegment[]
+}
+
+/// Зупинка в межах маршруту: порядок «туди»/«назад», технічні точки для карти
+model TransportRouteStop {
+  id         Int     @id @default(autoincrement())
+  routeId    String
+  stopId     String
+  /// Порядок у напрямку «туди»; -1 — не входить у послідовність
+  orderThere Int     @default(-1)
+  /// Порядок у напрямку «назад»; -1 — не входить у послідовність
+  orderBack  Int     @default(-1)
+  /// Технічна точка лише для малювання лінії маршруту (не пасажирська)
+  mapOnly    Boolean @default(false)
+
+  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stop  TransportStop  @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, stopId])
+  @@index([stopId])
+}
+
+/// Рейс (GTFS trip). id — trip_id ("2-01")
+model TransportTrip {
+  id                   String  @id
+  routeId              String
+  /// Ключ календаря ("everyday" | "weekdays" | легасі-рядок)
+  serviceId            String  @default("everyday")
+  headsign             String  @default("")
+  /// "0" | "1"
+  directionId          String  @default("1")
+  /// Час відправлення з першої зупинки, HH:MM:SS. Немає — рейс без розкладу
+  departureTime        String?
+  /// GTFS block_id: борт/номер машини, НЕ час
+  blockId              String?
+  wheelchairAccessible String  @default("")
+  bikesAllowed         String  @default("")
+
+  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId])
+}
+
+/// Тривалість перегону між сусідніми зупинками маршруту (секунди)
+model TransportSegment {
+  id         Int    @id @default(autoincrement())
+  routeId    String
+  fromStopId String
+  toStopId   String
+  seconds    Int
+
+  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, fromStopId, toStopId])
+}
+
+/// Singleton-мета датасету: fare, contacts, news, sources, agency, центр карти, defaultSec
+model TransportMeta {
+  id        Int      @id @default(1)
+  payload   Json
+  updatedAt DateTime @updatedAt
+}
