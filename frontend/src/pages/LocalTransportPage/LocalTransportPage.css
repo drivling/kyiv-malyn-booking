@@ -46,7 +46,7 @@
   --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Jakdojade: «До» — червоний акцент Google (кінцева точка) */
+/* Кінцева «До» — destination token (cyan сайту) */
 .lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: var(--lt-destination); }
 .lt-theme-jakdojade .lt-stop-badge--to {
   background: rgba(0, 175, 245, 0.12);
