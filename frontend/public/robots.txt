@@ -1,6 +1,5 @@
 # malin.kiev.ua — robots
-# Публічні: /, /mizhgorodski, /transport, /support, /about
-# (коридорні /mizhgorodski/* — після I3)
+# Публічні: /, /mizhgorodski, /mizhgorodski/{kyiv-malyn|…}, /transport, /support, /about
 
 User-agent: *
 Allow: /

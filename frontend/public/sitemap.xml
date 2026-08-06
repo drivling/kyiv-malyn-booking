@@ -23,9 +23,44 @@
     </url>
 
     <!--
-      Коридорні SEO-лендінги (I3): kyiv-malyn, malyn-kyiv, zhytomyr-malyn,
-      malyn-zhytomyr, korosten-malyn, malyn-korosten — додамо після сторінок.
+      Коридорні SEO-лендінги (попутка / маршрутка / як доїхати)
     -->
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski/kyiv-malyn</loc>
+        <lastmod>2026-08-07</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.95</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski/malyn-kyiv</loc>
+        <lastmod>2026-08-07</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.95</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski/zhytomyr-malyn</loc>
+        <lastmod>2026-08-07</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.95</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski/malyn-zhytomyr</loc>
+        <lastmod>2026-08-07</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.95</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski/korosten-malyn</loc>
+        <lastmod>2026-08-07</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.95</priority>
+    </url>
+    <url>
+        <loc>https://malin.kiev.ua/mizhgorodski/malyn-korosten</loc>
+        <lastmod>2026-08-07</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.95</priority>
+    </url>
 
     <!-- Міський транспорт Малина (канон /transport; /localtransport → редірект) -->
     <url>

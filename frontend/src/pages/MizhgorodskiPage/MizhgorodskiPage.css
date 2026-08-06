@@ -880,3 +880,44 @@
     min-width: 140px;
   }
 }
+
+/* SEO corridor directory (indexable links) */
+.mizh-seo-dirs {
+  margin: 28px 0 8px;
+  padding: 20px 18px;
+  background: var(--mizh-surface);
+  border: 1px solid var(--mizh-border);
+  border-radius: var(--mizh-radius);
+}
+
+.mizh-seo-dirs__title {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.mizh-seo-dirs__lead {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  color: var(--mizh-navy-soft);
+}
+
+.mizh-seo-dirs__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mizh-seo-dirs__list a {
+  color: var(--mizh-blue-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mizh-seo-dirs__list a:hover {
+  text-decoration: underline;
+  color: var(--mizh-blue);
+}

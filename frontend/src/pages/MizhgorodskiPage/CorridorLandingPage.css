@@ -1,0 +1,161 @@
+.corridor-page {
+  --corridor-navy: #054752;
+  --corridor-blue: #00aff5;
+  --corridor-bg: #f1f4f5;
+  --corridor-surface: #fff;
+  --corridor-border: #dde3e6;
+  min-height: 100%;
+  background: var(--corridor-bg);
+  color: var(--corridor-navy);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 24px 16px 48px;
+}
+
+.corridor-article {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--corridor-surface);
+  border: 1px solid var(--corridor-border);
+  border-radius: 16px;
+  padding: 28px 24px 36px;
+  box-shadow: 0 2px 12px rgba(5, 71, 82, 0.06);
+}
+
+.corridor-crumbs {
+  font-size: 14px;
+  margin-bottom: 16px;
+  color: #708c91;
+}
+
+.corridor-crumbs a {
+  color: var(--corridor-blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.corridor-crumbs a:hover {
+  text-decoration: underline;
+}
+
+.corridor-hero h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.45rem, 3.5vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.corridor-lead {
+  margin: 0 0 20px;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.corridor-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.corridor-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.corridor-cta--primary {
+  background: var(--corridor-blue);
+  color: #fff;
+}
+
+.corridor-cta--primary:hover {
+  background: #0099d9;
+}
+
+.corridor-cta--ghost {
+  background: transparent;
+  color: var(--corridor-navy);
+  border: 1px solid var(--corridor-border);
+}
+
+.corridor-section {
+  margin-top: 28px;
+}
+
+.corridor-section h2 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.corridor-ways {
+  margin: 0;
+  padding-left: 1.15rem;
+  line-height: 1.55;
+}
+
+.corridor-ways li + li {
+  margin-top: 10px;
+}
+
+.corridor-muted {
+  color: #708c91;
+  font-size: 0.95rem;
+}
+
+.corridor-faq {
+  margin: 0;
+}
+
+.corridor-faq__item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--corridor-border);
+}
+
+.corridor-faq__item:first-child {
+  padding-top: 0;
+}
+
+.corridor-faq dt {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.corridor-faq dd {
+  margin: 0;
+  line-height: 1.5;
+  color: #3d5a60;
+}
+
+.corridor-dir-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.corridor-dir-list a {
+  color: var(--corridor-blue);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.corridor-dir-list a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+  .corridor-article {
+    padding: 20px 16px 28px;
+  }
+}

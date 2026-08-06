@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import {
@@ -23,6 +23,7 @@ import {
 } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { BusBookingModal } from './BusBookingModal';
+import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
 import {
   CORRIDORS,
   citiesFromCorridor,
@@ -665,6 +666,24 @@ export const MizhgorodskiPage: React.FC = () => {
             )}
           </ul>
         )}
+
+        <nav className="mizh-seo-dirs" aria-labelledby="mizh-seo-dirs-title">
+          <h2 id="mizh-seo-dirs-title" className="mizh-seo-dirs__title">
+            Напрямки
+          </h2>
+          <p className="mizh-seo-dirs__lead">
+            Попутки й маршрутки по кожному місту — окрема сторінка з підказками, як доїхати.
+          </p>
+          <ul className="mizh-seo-dirs__list">
+            {CORRIDOR_LANDINGS.map((c) => (
+              <li key={c.slug}>
+                <Link to={corridorPath(c.slug)}>
+                  {c.fromLabel} → {c.toLabel}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
 
       {showOfferModal && (

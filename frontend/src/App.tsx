@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { MizhgorodskiPage } from '@/pages/MizhgorodskiPage';
+import { MizhgorodskiPage, CorridorLandingPage } from '@/pages/MizhgorodskiPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
@@ -55,6 +55,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/mizhgorodski" element={<MizhgorodskiPage />} />
+          <Route path="/mizhgorodski/:corridorSlug" element={<CorridorLandingPage />} />
           <Route path="/poputky" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/booking" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/transport/route/:routeId" element={<LocalTransportPage />} />
