@@ -1,45 +1,59 @@
 # SEO stop articles — living plan (Malyn)
 
-Goal: short unique pages per stop at `/transport/stop/{st_id}` with lead paragraph + live departures.
+Goal: short unique pages per stop at `/transport/stop/{st_id}` with structured «Про зупинку» + live departures.
 
-## Pilot (18)
+## Template (2026-08-07)
 
-| id | Stop | Article |
-|----|------|---------|
-| st_0019 | Залізничний вокзал | [x] |
-| st_0072 | Поліклініка | [x] |
-| st_0062 | Огієнка 65 (БАМ) | [x] |
-| st_0056 | маркет "Соборний" | [x] |
-| st_0054 | Малинівський круг | [x] |
-| st_0089 | Хлібзавод | [x] |
-| st_0070 | пл. Соборна (біля РБК) | [x] |
-| st_0063 | Огієнка 65 (БАМ) (навпроти) | [x] |
-| st_0060 | Молокозавод | [x] |
-| st_0034 | Ливарний завод (а/стоянка) | [x] |
-| st_0033 | Ливарний завод | [x] |
-| st_0080 | РЕМ | [x] |
-| st_0023 | ЗОШ № 3 (навпроти) | [x] |
-| st_0020 | ЗОШ " 3 | [x] |
-| st_0001 | 10 ОГШБ (навпр.РЕМу) | [x] |
-| st_0035 | Лікарня | [x] |
-| st_0098 | Шевченка 22 | [x] |
-| st_0065 | Перемоги 15-17 | [x] |
+Structured fields (not a wall-of-text `lead`):
+
+- `place` — роль / орієнтир у місті
+- `routeIds` — чипи-посилання на маршрути
+- `coords` — моноширинний блок + OSM
+- техблок howto — дрібний, у пунктирній рамці (табло / планер «З → До»)
+
+UI: `LocalTransportStopBoardPage` + `.lt-stop-article*`.
+
+## Coverage
+
+- **117 / 118** stops have articles (`frontend/src/content/stops/st_*.ts`)
+- Missing coords in runtime: `st_0118` (№9 т.3) — skipped
+- 4 stops with empty `routeIds` in `stops_by_route` (orphan / inactive): `st_0006`, `st_0008`, `st_0018`, `st_0046`
+
+### Pilot (18) — human place text
+
+| id | Stop |
+|----|------|
+| st_0019 | Залізничний вокзал |
+| st_0072 | Поліклініка |
+| st_0062 | Огієнка 65 (БАМ) |
+| st_0056 | маркет "Соборний" |
+| st_0054 | Малинівський круг |
+| st_0089 | Хлібзавод |
+| st_0070 | пл. Соборна (біля РБК) |
+| st_0063 | Огієнка 65 (БАМ) (навпроти) |
+| st_0060 | Молокозавод |
+| st_0034 | Ливарний завод (а/стоянка) |
+| st_0033 | Ливарний завод |
+| st_0080 | РЕМ |
+| st_0023 | ЗОШ № 3 (навпроти) |
+| st_0020 | ЗОШ " 3 |
+| st_0001 | 10 ОГШБ (навпр.РЕМу) |
+| st_0035 | Лікарня |
+| st_0098 | Шевченка 22 |
+| st_0065 | Перемоги 15-17 |
+
+### Rest (99)
+
+Generated from catalog + `stops_by_route` + `stops_coords.json` with name-based `place` templates (same UI).
 
 ## Infra
 
-- Content: `frontend/src/content/stops/`
+- Content: `frontend/src/content/stops/` (+ `index.ts`)
 - UI: «Про зупинку» on `LocalTransportStopBoardPage`
-- Sitemap: `/transport/route/{id}` and `/transport/stop/st_*` on build (no `?dir=`)
-- `/support/site` already in public sitemap
+- Sitemap / prerender: `/transport/stop/st_*` on build
 
-## After pilot
+## Next
 
-Remaining ~96 stops with the same one-commit-per-stop pipeline.
-
-### Після пілоту (2026-08-07)
-
-**Що зробили:** шаблон `frontend/src/content/stops/` + блок «Про зупинку»; 18 статей окремими комітами; `/support/*` через `usePageSeo` (canonical); prerender підхоплює `lead` з `.ts`.
-
-**Що побачили:** абзаци базуються на назві + маршрутах + координатах (без вигаданої «історії»). Пари «навпроти» різняться формулюванням сторони вулиці — ок для окремого URL. Build: 114 stop pages, 18 with articles; sitemap routes без `?dir=`.
-
-**Далі:** решта ~96 тим самим пайплайном; після deploy — GSC на 5 пілотних URL.
+- Optionally hand-polish high-traffic auto `place` strings
+- Add `st_0118` when coords appear
+- Deploy + GSC smoke on pilot URLs
