@@ -4,7 +4,6 @@ import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { PoputkyPage } from '@/pages/PoputkyPage';
 import { MizhgorodskiPage } from '@/pages/MizhgorodskiPage';
-import { TransportPlannerPage, TransportRoutesPage, TransportRoutePage, TransportStopPage } from '@/pages/TransportPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
@@ -39,6 +38,12 @@ function showGlobalPublicLegalFooter(pathname: string): boolean {
   return isPublicSitePath(pathname);
 }
 
+function LocalTransportLegacyRedirect() {
+  const location = useLocation();
+  const nextPath = location.pathname.replace(/^\/localtransport/, '/transport') || '/transport';
+  return <Navigate to={`${nextPath}${location.search}`} replace />;
+}
+
 function AppContent() {
   const { pathname } = useLocation();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
@@ -54,16 +59,13 @@ function AppContent() {
           <Route path="/mizhgorodski" element={<MizhgorodskiPage />} />
           <Route path="/poputky" element={<PoputkyPage />} />
           <Route path="/booking" element={<BookingPage />} />
-          <Route path="/transport/route/:routeId" element={<TransportRoutePage />} />
-          <Route path="/transport/routes" element={<TransportRoutesPage />} />
-          <Route path="/transport/stop/:stopId" element={<TransportStopPage />} />
-          <Route path="/transport/stop" element={<TransportStopPage />} />
-          <Route path="/transport" element={<TransportPlannerPage />} />
-          <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
-          <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
-          <Route path="/localtransport/stop" element={<LocalTransportStopBoardPage />} />
-          <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
-          <Route path="/localtransport" element={<LocalTransportPage />} />
+          <Route path="/transport/route/:routeId" element={<LocalTransportPage />} />
+          <Route path="/transport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
+          <Route path="/transport/stop" element={<LocalTransportStopBoardPage />} />
+          <Route path="/transport/:fromStop/:toStop" element={<LocalTransportPage />} />
+          <Route path="/transport" element={<LocalTransportPage />} />
+          <Route path="/localtransport/*" element={<LocalTransportLegacyRedirect />} />
+          <Route path="/localtransport" element={<LocalTransportLegacyRedirect />} />
           <Route path={COMPANY_LEGAL_PATH} element={<CompanyLegalPage />} />
           <Route path={SUPPORT_PATH} element={<SupportLayout />}>
             <Route index element={<SupportHub />} />

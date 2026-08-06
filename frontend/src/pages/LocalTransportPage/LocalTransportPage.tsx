@@ -361,13 +361,13 @@ function findBaseTimeByDepartureFromStop(
  * @param routeId — номер маршруту (напр. "9")
  * @param stopName — назва зупинки (напр. "Малинівка")
  * @param direction — напрямок: "there" (туди, до кінцевої) або "back" (назад)
- * @param basePath — базовий шлях (за замовчуванням "/localtransport")
+ * @param basePath — базовий шлях (за замовчуванням "/transport")
  */
 export function buildStopRouteQrUrl(
   routeId: string,
   stopName: string,
   direction: 'there' | 'back',
-  basePath = '/localtransport'
+  basePath = '/transport'
 ): string {
   const path = `${basePath}/route/${routeId}`;
   const params = new URLSearchParams();
@@ -1066,7 +1066,7 @@ export const LocalTransportPage: React.FC = () => {
     const params = new URLSearchParams();
     params.set('d', searchDate);
     params.set('h', searchTime);
-    navigate(`/localtransport/${pathFrom}/${pathTo}?${params.toString()}`);
+    navigate(`/transport/${pathFrom}/${pathTo}?${params.toString()}`);
   };
 
   const handleSelectRoute = (id: string) => {
@@ -1088,7 +1088,7 @@ export const LocalTransportPage: React.FC = () => {
       const dir = getImpliedDirection(fromOnRoute, toOnRoute, stopsByRoute, id);
       if (dir) params.set('dir', dir);
     }
-    navigate(`/localtransport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
+    navigate(`/transport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
   };
 
   const handleShowTimetableFromPicker = () => {
@@ -1100,7 +1100,7 @@ export const LocalTransportPage: React.FC = () => {
     if (searchTime) params.set('h', searchTime);
     const dir = getImpliedDirection(pickerFrom, pickerTo, stopsByRoute, detailRoute.id);
     if (dir) params.set('dir', dir);
-    navigate(`/localtransport/route/${detailRoute.id}?${params.toString()}`);
+    navigate(`/transport/route/${detailRoute.id}?${params.toString()}`);
   };
 
   const handleBack = () => {
@@ -1108,15 +1108,15 @@ export const LocalTransportPage: React.FC = () => {
       const params = new URLSearchParams();
       params.set('d', dateFromUrl || formatDateUrl(new Date()));
       params.set('h', timeFromUrl || hourFromUrl || '12:00');
-      navigate(`/localtransport/${encodeURIComponent(selectedStopFromUrl)}/${encodeURIComponent(toFromUrl)}?${params.toString()}`);
+      navigate(`/transport/${encodeURIComponent(selectedStopFromUrl)}/${encodeURIComponent(toFromUrl)}?${params.toString()}`);
     } else if (isMainPage && hasPathSearch) {
       const params = new URLSearchParams();
       if (searchDate) params.set('d', searchDate);
       if (searchTime) params.set('h', searchTime);
-      navigate(`/localtransport/${encodeURIComponent(effectiveSearchFrom)}/${encodeURIComponent(effectiveSearchTo)}?${params.toString()}`);
+      navigate(`/transport/${encodeURIComponent(effectiveSearchFrom)}/${encodeURIComponent(effectiveSearchTo)}?${params.toString()}`);
     } else {
       const stop = selectedStopFromUrl || effectiveStopFilter;
-      navigate(stop ? `/localtransport?stop=${encodeURIComponent(stop)}` : '/localtransport');
+      navigate(stop ? `/transport?stop=${encodeURIComponent(stop)}` : '/transport');
     }
   };
 
@@ -1549,7 +1549,7 @@ export const LocalTransportPage: React.FC = () => {
                                   <span className="lt-stop-content">
                                     <Link
                                       className="lt-stop-content-link"
-                                      to={`/localtransport/stop/${encodeURIComponent(getStopKey(s))}?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`}
+                                      to={`/transport/stop/${encodeURIComponent(getStopKey(s))}?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`}
                                       title="Розклад з цієї зупинки (усі маршрути)"
                                     >
                                       {displayNameForStopKey(getStopKey(s), stopsCatalog)}
@@ -1657,7 +1657,7 @@ export const LocalTransportPage: React.FC = () => {
                           const params = new URLSearchParams();
                           if (searchDate) params.set('d', searchDate);
                           if (searchTime) params.set('h', searchTime);
-                          navigate(`/localtransport${params.toString() ? `?${params.toString()}` : ''}`);
+                          navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`);
                         }
                       }}
                       placeholder="Наприклад Малинівка"
@@ -1705,7 +1705,7 @@ export const LocalTransportPage: React.FC = () => {
                           if (effectiveSearchFrom) params.set('from', effectiveSearchFrom);
                           if (searchDate) params.set('d', searchDate);
                           if (searchTime) params.set('h', searchTime);
-                          navigate(`/localtransport${params.toString() ? `?${params.toString()}` : ''}`);
+                          navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`);
                         }
                       }}
                       placeholder="Наприклад Царське село"
@@ -1779,7 +1779,7 @@ export const LocalTransportPage: React.FC = () => {
                                 </button>
                                 <Link
                                   className="lt-nearest-tablo-link"
-                                  to={`/localtransport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
+                                  to={`/transport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
                                 >
                                   Табло
                                 </Link>

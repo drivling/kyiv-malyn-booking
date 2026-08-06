@@ -225,7 +225,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     const hNorm = normalizeTimeInput(time);
     if (hNorm) params.set('h', hNorm);
     const search = params.toString() ? `?${params.toString()}` : '';
-    const pathname = stop ? `/localtransport/stop/${encodeURIComponent(stop)}` : '/localtransport/stop';
+    const pathname = stop ? `/transport/stop/${encodeURIComponent(stop)}` : '/transport/stop';
     navigate({ pathname, search }, { replace: true });
   };
 
@@ -249,7 +249,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
       if (d) params.set('d', d);
       if (t) params.set('h', t);
       const search = params.toString() ? `?${params.toString()}` : '';
-      navigate({ pathname: '/localtransport/stop', search }, { replace: true });
+      navigate({ pathname: '/transport/stop', search }, { replace: true });
     }
   };
 
@@ -412,7 +412,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   qs.set('time', depClock);
                   if (searchDate) qs.set('d', searchDate);
                   qs.set('h', depClock);
-                  const toRoute = `/localtransport/route/${row.routeId}?${qs.toString()}`;
+                  const toRoute = `/transport/route/${row.routeId}?${qs.toString()}`;
                   let deltaMins = 0;
                   if (travelDayOffsetDays === 0) {
                     deltaMins = depMins - countdownBaselineMins;

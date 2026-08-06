@@ -9,7 +9,7 @@ type Props = {
 
 /**
  * Міні-навігація між пошуком «З→До» та табло зупинки (як окремі режими одного розділу).
- * Режим маршруту (`/localtransport/route/...`) вважається частиною «Маршрути».
+ * Режим маршруту (`/transport/route/...`) вважається частиною «Маршрути».
  */
 export function LocalTransportSubNav({ searchDate, searchTime }: Props) {
   const location = useLocation();
@@ -18,20 +18,20 @@ export function LocalTransportSubNav({ searchDate, searchTime }: Props) {
   if (searchTime) qs.set('h', searchTime);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
 
-  const isStop = location.pathname.startsWith('/localtransport/stop');
+  const isStop = location.pathname.startsWith('/transport/stop');
   const isSearch = !isStop;
 
   return (
     <nav className="lt-subnav" aria-label="Режим розкладу">
       <Link
         className={`lt-subnav-link ${isSearch ? 'lt-subnav-link--active' : ''}`}
-        to={`/localtransport${suffix}`}
+        to={`/transport${suffix}`}
       >
         Маршрути (З → До)
       </Link>
       <Link
         className={`lt-subnav-link ${isStop ? 'lt-subnav-link--active' : ''}`}
-        to={`/localtransport/stop${suffix}`}
+        to={`/transport/stop${suffix}`}
       >
         Зупинка (табло)
       </Link>
