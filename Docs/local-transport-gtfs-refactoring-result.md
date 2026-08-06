@@ -84,15 +84,15 @@ Engineering cannot publish to Google Maps without the operator. Contact on the o
 
 ## Files to know
 
-| Path | Role |
-|------|------|
-| `Docs/local-transport-gtfs-refactoring-plan.md` | Full review + roadmap |
-| `Docs/local-transport-gtfs-feed.md` | Build / validate / Google handoff |
-| `data/malyn-transport/runtime/` | Canonical dataset + `agency.json` |
-| `scripts/sync-localtransport-data.mjs` | Copy runtime → consumers |
-| `scripts/migrate-departure-time.mjs` | Time field normalization |
-| `scripts/export-malyn-gtfs.mjs` | GTFS generator |
-| `frontend/.../tripDeparture.ts` | Site departure helper |
+| Path                                            | Role                              |
+| ----------------------------------------------- | --------------------------------- |
+| `Docs/local-transport-gtfs-refactoring-plan.md` | Full review + roadmap             |
+| `Docs/local-transport-gtfs-feed.md`             | Build / validate / Google handoff |
+| `data/malyn-transport/runtime/`                 | Canonical dataset + `agency.json` |
+| `scripts/sync-localtransport-data.mjs`          | Copy runtime → consumers          |
+| `scripts/migrate-departure-time.mjs`            | Time field normalization          |
+| `scripts/export-malyn-gtfs.mjs`                 | GTFS generator                    |
+| `frontend/.../tripDeparture.ts`                 | Site departure helper             |
 
 ---
 

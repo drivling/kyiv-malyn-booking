@@ -54,3 +54,6 @@ android-malyn-transport/java_pid*.hprof
 *.hprof
 # Parser golden-set dumps (PII: phones in listings)
 backend/testdata/
+
+# GTFS validator reports (generated)
+data/malyn-transport/validation/

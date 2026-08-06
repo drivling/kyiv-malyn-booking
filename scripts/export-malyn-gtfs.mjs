@@ -25,6 +25,8 @@ const agencyPath = path.join(runtimeDir, 'agency.json');
 
 const DEFAULT_SEC = 120;
 const FALLBACK_MINS = 2;
+const SERVICE_START_DATE = '20240101';
+const SERVICE_END_DATE = '20271231';
 
 const SERVICE_MAP = {
   'пн-вт-ср-чт-пт-сб-нд': 'everyday',
@@ -161,8 +163,8 @@ function main() {
         friday: 1,
         saturday: 1,
         sunday: 1,
-        start_date: '20240101',
-        end_date: '20271231',
+        start_date: SERVICE_START_DATE,
+        end_date: SERVICE_END_DATE,
       },
       {
         service_id: 'weekdays',
@@ -173,28 +175,21 @@ function main() {
         friday: 1,
         saturday: 0,
         sunday: 0,
-        start_date: '20240101',
-        end_date: '20271231',
+        start_date: SERVICE_START_DATE,
+        end_date: SERVICE_END_DATE,
       },
     ]
   );
 
-  // --- stops.txt ---
-  const stopRows = [];
+  // Stops eligible for export: in catalog and with coordinates.
+  // stops.txt is written later, filtered to stops actually referenced by stop_times
+  // (excludes map_only shape points and stops served only by routes outside the feed).
   const usedStopIds = new Set();
-  for (const [stopId, meta] of Object.entries(catalog)) {
+  for (const [stopId] of Object.entries(catalog)) {
     const c = coords[stopId];
     if (!c || c.length < 2) continue;
     usedStopIds.add(stopId);
-    stopRows.push({
-      stop_id: stopId,
-      stop_name: meta.name || stopId,
-      stop_lat: Number(c[0]).toFixed(6),
-      stop_lon: Number(c[1]).toFixed(6),
-      location_type: 0,
-    });
   }
-  writeTable(path.join(outDir, 'stops.txt'), ['stop_id', 'stop_name', 'stop_lat', 'stop_lon', 'location_type'], stopRows);
 
   // Collect timed trips first to know which routes appear
   const timedTrips = (transport.records || []).filter((r) => toGtfsTime(r.departure_time));
@@ -218,6 +213,31 @@ function main() {
     routeRows
   );
 
+  // --- shapes: one polyline per route+direction from all ordered points (incl. map_only) ---
+  const shapeRows = [];
+  const shapeIdByRouteDir = new Map();
+
+  function ensureShape(routeId, direction, directionId) {
+    const cacheKey = `${routeId}|${direction}`;
+    if (shapeIdByRouteDir.has(cacheKey)) return shapeIdByRouteDir.get(cacheKey);
+    const points = orderedAllStops(stopsByRoute[routeId] || [], direction)
+      .map((s) => coords[getStopKey(s)])
+      .filter((c) => c && c.length >= 2);
+    const shapeId = points.length >= 2 ? `shp_${routeId}_${directionId}` : '';
+    if (shapeId) {
+      points.forEach((c, i) => {
+        shapeRows.push({
+          shape_id: shapeId,
+          shape_pt_lat: Number(c[0]).toFixed(6),
+          shape_pt_lon: Number(c[1]).toFixed(6),
+          shape_pt_sequence: i + 1,
+        });
+      });
+    }
+    shapeIdByRouteDir.set(cacheKey, shapeId);
+    return shapeId;
+  }
+
   // --- trips.txt + stop_times.txt ---
   const tripRows = [];
   const stopTimeRows = [];
@@ -239,13 +259,15 @@ function main() {
       continue;
     }
 
+    const directionId = directionThere ? 1 : 0;
     tripRows.push({
       route_id: routeId,
       service_id: serviceId,
       trip_id: rec.trip_id,
       trip_headsign: rec.trip_headsign || '',
-      direction_id: String(rec.direction_id) === '1' ? 1 : 0,
+      direction_id: directionId,
       block_id: rec.block_id || '',
+      shape_id: ensureShape(routeId, direction, directionId),
     });
 
     const baseMins = parseMinutes(dep);
@@ -270,8 +292,13 @@ function main() {
 
   writeTable(
     path.join(outDir, 'trips.txt'),
-    ['route_id', 'service_id', 'trip_id', 'trip_headsign', 'direction_id', 'block_id'],
+    ['route_id', 'service_id', 'trip_id', 'trip_headsign', 'direction_id', 'block_id', 'shape_id'],
     tripRows
+  );
+  writeTable(
+    path.join(outDir, 'shapes.txt'),
+    ['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'],
+    shapeRows
   );
   writeTable(
     path.join(outDir, 'stop_times.txt'),
@@ -279,14 +306,50 @@ function main() {
     stopTimeRows
   );
 
+  // --- stops.txt (only stops referenced by stop_times) ---
+  const referencedStopIds = new Set(stopTimeRows.map((r) => r.stop_id));
+  const stopRows = [];
+  for (const stopId of referencedStopIds) {
+    const meta = catalog[stopId] || {};
+    const c = coords[stopId];
+    stopRows.push({
+      stop_id: stopId,
+      stop_name: meta.name || stopId,
+      stop_lat: Number(c[0]).toFixed(6),
+      stop_lon: Number(c[1]).toFixed(6),
+      location_type: 0,
+    });
+  }
+  stopRows.sort((a, b) => a.stop_id.localeCompare(b.stop_id));
+  writeTable(path.join(outDir, 'stops.txt'), ['stop_id', 'stop_name', 'stop_lat', 'stop_lon', 'location_type'], stopRows);
+
+  // --- feed_info.txt ---
+  const today = new Date();
+  const feedVersion = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  writeTable(
+    path.join(outDir, 'feed_info.txt'),
+    ['feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'feed_contact_email', 'feed_start_date', 'feed_end_date', 'feed_version'],
+    [
+      {
+        feed_publisher_name: 'Technologies LLC',
+        feed_publisher_url: 'https://malin.kiev.ua/',
+        feed_lang: 'uk',
+        feed_contact_email: 'mer.sergei@gmail.com',
+        feed_start_date: SERVICE_START_DATE,
+        feed_end_date: SERVICE_END_DATE,
+        feed_version: feedVersion,
+      },
+    ]
+  );
+
   // Zip
   const zipPath = path.join(outDir, 'malyn-gtfs.zip');
   if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
-  const files = ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt'];
+  const files = ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt'];
   execFileSync('zip', ['-q', '-j', zipPath, ...files.map((f) => path.join(outDir, f))], { cwd: outDir });
 
   console.log(`GTFS written to ${outDir}`);
-  console.log(`Routes: ${routeRows.length}, trips: ${tripRows.length}, stop_times: ${stopTimeRows.length}, stops: ${stopRows.length}`);
+  console.log(`Routes: ${routeRows.length}, trips: ${tripRows.length}, stop_times: ${stopTimeRows.length}, stops: ${stopRows.length}, shapes: ${shapeIdByRouteDir.size} (${shapeRows.length} points)`);
   console.log(`Skipped trips (no passenger stops): ${skippedNoStops}`);
   console.log(`Timed records in source: ${timedTrips.length}; plate-only trips omitted from feed.`);
   console.log(`Zip: ${zipPath}`);
