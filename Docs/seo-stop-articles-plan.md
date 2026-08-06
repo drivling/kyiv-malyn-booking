@@ -7,7 +7,7 @@ Goal: short unique pages per stop at `/transport/stop/{st_id}` with lead paragra
 | id | Stop | Article |
 |----|------|---------|
 | st_0019 | Залізничний вокзал | [x] |
-| st_0072 | Поліклініка | [ ] |
+| st_0072 | Поліклініка | [x] |
 | st_0062 | Огієнка 65 (БАМ) | [ ] |
 | st_0056 | маркет "Соборний" | [ ] |
 | st_0054 | Малинівський круг | [ ] |
