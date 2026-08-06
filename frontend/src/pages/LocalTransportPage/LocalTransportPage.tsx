@@ -1686,8 +1686,11 @@ export const LocalTransportPage: React.FC = () => {
               <div className="lt-from-to-block">
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
-                    <label className="lt-from-to-label lt-from-to-label--with-icon">
-                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Звідки їдемо?
+                    <label
+                      className="lt-from-to-label lt-from-to-label--with-icon"
+                      onClick={() => searchFromInputRef.current?.focus()}
+                    >
+                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> З
                     </label>
                     <Combobox
                       label=""
@@ -1708,7 +1711,7 @@ export const LocalTransportPage: React.FC = () => {
                           navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`);
                         }
                       }}
-                      placeholder="Наприклад Малинівка"
+                      placeholder="Звідки їдемо?"
                       emptyMessage="Зупинок не знайдено"
                       clearable
                       inputRef={searchFromInputRef}
@@ -1736,8 +1739,11 @@ export const LocalTransportPage: React.FC = () => {
                     ⇄
                   </button>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
-                    <label className="lt-from-to-label lt-from-to-label--with-icon">
-                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> Куди їдемо?
+                    <label
+                      className="lt-from-to-label lt-from-to-label--with-icon"
+                      onClick={() => searchToInputRef.current?.focus()}
+                    >
+                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> До
                     </label>
                     <Combobox
                       label=""
@@ -1756,7 +1762,7 @@ export const LocalTransportPage: React.FC = () => {
                           navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`);
                         }
                       }}
-                      placeholder="Наприклад Царське село"
+                      placeholder="Куди їдемо?"
                       emptyMessage="Зупинок не знайдено"
                       clearable
                       inputRef={searchToInputRef}
@@ -1765,19 +1771,35 @@ export const LocalTransportPage: React.FC = () => {
                 </div>
                 <div className="lt-datetime-row">
                   <div className="lt-datetime-field">
-                    <label className="lt-datetime-label">Дата</label>
+                    <label className="lt-datetime-label" htmlFor="lt-search-date">
+                      Дата
+                    </label>
                     <input
+                      id="lt-search-date"
                       type="text"
-                      className="lt-datetime-input"
+                      className={`lt-datetime-input${searchDate && !parseDateUrl(searchDate) ? ' lt-datetime-input--invalid' : ''}`}
                       value={searchDate}
                       onChange={(e) => setSearchDate(e.target.value)}
                       placeholder="ДД.ММ.РР"
                       maxLength={8}
+                      inputMode="numeric"
+                      pattern="\d{1,2}\.\d{1,2}\.\d{2}"
+                      autoComplete="off"
+                      aria-invalid={Boolean(searchDate && !parseDateUrl(searchDate))}
+                      aria-describedby={searchDate && !parseDateUrl(searchDate) ? 'lt-search-date-hint' : undefined}
                     />
+                    {searchDate && !parseDateUrl(searchDate) ? (
+                      <p id="lt-search-date-hint" className="lt-datetime-hint">
+                        Формат: ДД.ММ.РР
+                      </p>
+                    ) : null}
                   </div>
                   <div className="lt-datetime-field">
-                    <label className="lt-datetime-label">Час</label>
+                    <label className="lt-datetime-label" htmlFor="lt-search-time">
+                      Час
+                    </label>
                     <input
+                      id="lt-search-time"
                       type="time"
                       className="lt-datetime-input"
                       value={searchTime}
@@ -1801,7 +1823,7 @@ export const LocalTransportPage: React.FC = () => {
                     disabled={geoLoading}
                     title="Найближчі зупинки"
                   >
-                    {geoLoading ? '…' : '📍'} Найближча
+                    {geoLoading ? 'Шукаємо…' : 'Найближча'}
                   </button>
                   {(geoError || (nearestStops && nearestStops.length > 0)) && (
                     <div className="lt-geo-results">

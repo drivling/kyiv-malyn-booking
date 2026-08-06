@@ -22,13 +22,13 @@ interface RouteMapProps {
   toStopName?: string;
   /** Темна тема + зелена лінія (як Jakdojade) */
   dark?: boolean;
-  /** Клік по зупинці: вибрати як "Звідси" */
+  /** Клік по зупинці: вибрати як "З" */
   onPickFromStop?: (stopName: string) => void;
-  /** Клік по зупинці: вибрати як "ПО" */
+  /** Клік по зупинці: вибрати як "До" */
   onPickToStop?: (stopName: string) => void;
-  /** Поміняти "З" та "ПО" місцями */
+  /** Поміняти "З" та "До" місцями */
   onSwapStops?: () => void;
-  /** Часті кінцеві зупинки (id) для швидкого вибору "ПО" */
+  /** Часті кінцеві зупинки (id) для швидкого вибору "До" */
   frequentToStops?: string[];
   /** Підпис зупинки для UI (id → назва); якщо немає — показується id */
   resolveStopLabel?: (stopKey: string) => string;
@@ -38,6 +38,10 @@ interface RouteMapProps {
   mapSheetSnap?: 'collapsed' | 'mid' | 'full' | null;
   /** Координати з dataset (GET /transport/dataset); без окремого JSON-файлу */
   coordsData?: RouteMapCoordsData | null;
+  /** Сховати radial picker (planner: лише stop-sheet) */
+  hideRadialPicker?: boolean;
+  /** Приглушити невибрані маркери (огляд міста) */
+  dimUnselectedMarkers?: boolean;
 }
 
 type CoordsData = RouteMapCoordsData;
@@ -174,11 +178,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   onStopMarkerActivate,
   mapSheetSnap,
   coordsData = null,
+  hideRadialPicker = false,
+  dimUnselectedMarkers = false,
 }) => {
   const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
   const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
   const fromI = dark ? fromIconGreen : fromIcon;
   const toI = dark ? toIconBlue : toIcon;
+  const dimIcon = createCircleIcon(dark ? '#9aa0a6' : '#94a3b8', 10);
   const [coords, setCoords] = useState<CoordsData | null>(coordsData);
   const [mounted, setMounted] = useState(false);
   const [selectedStopOnMap, setSelectedStopOnMap] = useState<string>('');
@@ -213,9 +220,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const hasBothStops = Boolean(fromStopName && toStopName);
   const hasOneStop = Boolean((fromStopName && !toStopName) || (!fromStopName && toStopName));
   const secondStepHint = fromStopName && !toStopName
-    ? 'Обрано "Звідси". Тепер виберіть куди їхати.'
+    ? 'Обрано «З». Тепер виберіть «До».'
     : toStopName && !fromStopName
-      ? 'Обрано "ПО". Тепер виберіть звідки їхати.'
+      ? 'Обрано «До». Тепер виберіть «З».'
       : '';
   const filteredFrequentToStops = frequentToStops.filter((n) => n && n !== fromStopName && n !== toStopName).slice(0, 3);
 
@@ -271,11 +278,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           onClick={onSwapStops}
           disabled={!hasBothStops}
           title="Поміняти місцями"
-          aria-label="Поміняти місцями З та ПО"
+          aria-label="Поміняти місцями З та До"
         >
           ⇄
         </button>
-        <span className="lt-direction-strip__to">ПО {toStopName ? resolveStopLabel(toStopName) : '—'}</span>
+        <span className="lt-direction-strip__to">До {toStopName ? resolveStopLabel(toStopName) : '—'}</span>
       </div>
       {hasOneStop && secondStepHint && (
         <p className="lt-direction-strip__hint">{secondStepHint}</p>
@@ -343,12 +350,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           {hasAnyStops && namesForMarkers.map((n) => {
             const isFrom = n === fromStopName;
             const isTo = n === toStopName;
-            const icon = isFrom ? fromI : isTo ? toI : defaultIcon;
+            const icon = isFrom ? fromI : isTo ? toI : dimUnselectedMarkers ? dimIcon : defaultIcon;
             return (
               <Marker
                 key={n}
                 position={stopsRecord[n] as [number, number]}
                 icon={icon}
+                opacity={dimUnselectedMarkers && !isFrom && !isTo ? 0.65 : 1}
+                zIndexOffset={isFrom || isTo ? 200 : 0}
                 eventHandlers={{
                   click: () => {
                     setSelectedStopOnMap(n);
@@ -360,11 +369,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                   <div className="lt-stop-popup">
                     <div className="lt-stop-popup__title">
                       {resolveStopLabel(n)}
-                      {isFrom ? ' (З)' : isTo ? ' (ПО)' : ''}
+                      {isFrom ? ' (З)' : isTo ? ' (До)' : ''}
                     </div>
                     <div className="lt-stop-popup__actions">
                       <button type="button" onClick={() => onPickFromStop?.(n)}>З</button>
-                      <button type="button" onClick={() => onPickToStop?.(n)}>ПО</button>
+                      <button type="button" onClick={() => onPickToStop?.(n)}>До</button>
                     </div>
                   </div>
                 </Popup>
@@ -372,12 +381,12 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             );
           })}
         </MapContainer>
-        {selectedStopOnMap && radialPosition && (
+        {!hideRadialPicker && selectedStopOnMap && radialPosition && (
           <div
             className="lt-radial-picker"
             style={{ left: radialPosition.x, top: radialPosition.y }}
             role="group"
-            aria-label="Швидкий вибір З або ПО"
+            aria-label="Швидкий вибір З або До"
           >
             <button
               type="button"
@@ -397,7 +406,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 setSelectedStopOnMap('');
               }}
             >
-              ПО
+              До
             </button>
           </div>
         )}
@@ -429,7 +438,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 setSelectedStopOnMap('');
               }}
             >
-              Сюди (ПО)
+              Сюди (До)
             </button>
           </div>
           {filteredFrequentToStops.length > 0 && (

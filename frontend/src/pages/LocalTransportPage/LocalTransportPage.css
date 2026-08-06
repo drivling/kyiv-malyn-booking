@@ -879,15 +879,15 @@
 
 /* ========== Блок З / До — картка як на головній (mizh-search) ========== */
 .lt-search--jakdojade {
-  padding: 16px;
+  padding: 12px 14px;
   margin: 0 var(--lt-panel-x) var(--lt-panel-block);
   background: var(--lt-card);
   position: sticky;
   top: 0;
   z-index: 20;
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius, 16px);
-  box-shadow: 0 8px 28px rgba(5, 71, 82, 0.1);
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--lt-radius-sm, 12px);
+  box-shadow: 0 1px 3px rgba(5, 71, 82, 0.04);
 }
 
 .lt-from-to-block {
@@ -1109,7 +1109,7 @@
 }
 
 .lt-theme-jakdojade .lt-search--jakdojade {
-  padding: 16px;
+  padding: 12px 14px;
 }
 
 .lt-theme-jakdojade .lt-datetime-row {
@@ -1130,10 +1130,15 @@
   gap: 8px;
 }
 
-.lt-geo-btn--small {
-  padding: 8px 12px;
-  min-height: 40px;
-  font-size: var(--lt-fs-base);
+.lt-datetime-hint {
+  margin: 4px 0 0;
+  font-size: var(--lt-fs-xs);
+  color: #b45309;
+}
+
+.lt-datetime-input--invalid {
+  border-color: #f59e0b;
+  outline-color: rgba(245, 158, 11, 0.35);
 }
 
 .lt-routes-heading {
