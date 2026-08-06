@@ -5,6 +5,8 @@ import { LoginPage } from '@/pages/LoginPage';
 import { PoputkyPage } from '@/pages/PoputkyPage';
 import { MizhgorodskiPage } from '@/pages/MizhgorodskiPage';
 import { TransportPlannerPage, TransportRoutesPage, TransportRoutePage, TransportStopPage } from '@/pages/TransportPage';
+import { LocalTransportPage } from '@/pages/LocalTransportPage';
+import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
 import { SupportLayout, SupportHub, SupportArticle, SUPPORT_PATH } from '@/pages/SupportPage';
@@ -57,6 +59,11 @@ function AppContent() {
           <Route path="/transport/stop/:stopId" element={<TransportStopPage />} />
           <Route path="/transport/stop" element={<TransportStopPage />} />
           <Route path="/transport" element={<TransportPlannerPage />} />
+          <Route path="/localtransport/route/:routeId" element={<LocalTransportPage />} />
+          <Route path="/localtransport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
+          <Route path="/localtransport/stop" element={<LocalTransportStopBoardPage />} />
+          <Route path="/localtransport/:fromStop/:toStop" element={<LocalTransportPage />} />
+          <Route path="/localtransport" element={<LocalTransportPage />} />
           <Route path={COMPANY_LEGAL_PATH} element={<CompanyLegalPage />} />
           <Route path={SUPPORT_PATH} element={<SupportLayout />}>
             <Route index element={<SupportHub />} />
