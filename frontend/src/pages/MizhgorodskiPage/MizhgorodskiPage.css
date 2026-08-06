@@ -921,3 +921,74 @@
   text-decoration: underline;
   color: var(--mizh-blue);
 }
+
+.mizh-aeo,
+.mizh-home-faq {
+  margin: 28px 0 8px;
+  padding: 20px 18px;
+  background: var(--mizh-surface);
+  border: 1px solid var(--mizh-border);
+  border-radius: var(--mizh-radius);
+}
+
+.mizh-aeo__title,
+.mizh-home-faq__title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.mizh-aeo__lead {
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.mizh-aeo__ways {
+  margin: 0 0 12px;
+  padding-left: 1.2rem;
+  line-height: 1.5;
+}
+
+.mizh-aeo__ways li + li {
+  margin-top: 6px;
+}
+
+.mizh-aeo__more {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.mizh-aeo__more a,
+.mizh-home-faq a {
+  color: var(--mizh-blue-dark);
+  font-weight: 600;
+}
+
+.mizh-home-faq__list {
+  margin: 0;
+}
+
+.mizh-home-faq__item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--mizh-border);
+}
+
+.mizh-home-faq__item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.mizh-home-faq__item:first-child {
+  padding-top: 0;
+}
+
+.mizh-home-faq dt {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.mizh-home-faq dd {
+  margin: 0;
+  color: var(--mizh-navy-soft);
+  line-height: 1.45;
+}

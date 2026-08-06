@@ -43,6 +43,26 @@ import './MizhgorodskiPage.css';
 
 const VALID_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
 
+/** Короткий FAQ для головної (AEO); детальніше — коридорні лендінги та /support/travel */
+const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
+  {
+    q: 'Як доїхати до Малина з Києва, Житомира чи Коростеня?',
+    a: 'Оберіть міста в пошуку на malin.kiev.ua/mizhgorodski або відкрийте сторінку напрямку (наприклад Київ — Малин). Доступні попутки від водіїв і регулярні маршрутки з бронюванням.',
+  },
+  {
+    q: 'Чим відрізняється попутка від маршрутки?',
+    a: 'Попутка — оголошення приватного водія або пасажира на конкретну дату. Маршрутка — регулярний рейс з розкладом і онлайн-бронюванням місця.',
+  },
+  {
+    q: 'Чи потрібен Telegram?',
+    a: 'Шукати поїздки можна на сайті. Підтвердження бронювання маршрутки, нагадування й оголошення зручніше вести в боті @malin_kiev_ua_bot.',
+  },
+  {
+    q: 'Які міста підтримуються?',
+    a: 'Усі міжміські маршрути проходять через Малин: Київ, Житомир і Коростень — в обидва боки.',
+  },
+];
+
 type ResultItem =
   | { kind: 'carpool'; id: string; listing: ViberListing; sortMinutes: number }
   | { kind: 'bus'; id: string; schedule: Schedule; sortMinutes: number };
@@ -60,6 +80,16 @@ export const MizhgorodskiPage: React.FC = () => {
     canonicalUrl: 'https://malin.kiev.ua/mizhgorodski',
     description:
       'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Живий пошук поїздок і онлайн бронювання.',
+    jsonLdId: 'mizh-home-faq-jsonld',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: MIZH_HOME_FAQ.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: { '@type': 'Answer', text: item.a },
+      })),
+    },
   });
 
   const initialFrom = parseCity(searchParams.get('from')) || 'Kyiv';
@@ -325,7 +355,7 @@ export const MizhgorodskiPage: React.FC = () => {
             <div>
               <h1 className="mizh-brand">Міжміські</h1>
               <p className="mizh-brand-sub">
-                Попутки та маршрутки Малин — Київ, Житомир, Коростень в одному пошуку
+                Як доїхати до Малина: попутки та маршрутки ↔ Київ, Житомир, Коростень — актуальний пошук
               </p>
             </div>
             <button type="button" className="mizh-offer-btn" onClick={() => openOfferModal('driver')}>
@@ -667,6 +697,33 @@ export const MizhgorodskiPage: React.FC = () => {
           </ul>
         )}
 
+        <section className="mizh-aeo" aria-labelledby="mizh-aeo-title">
+          <h2 id="mizh-aeo-title" className="mizh-aeo__title">
+            Як доїхати до Малина
+          </h2>
+          <p className="mizh-aeo__lead">
+            Три способи: попутка від водія, регулярна маршрутка з бронюванням, або Telegram-бот @
+            {TELEGRAM_BOT_USERNAME}. Усі міжміські маршрути проходять через Малин.
+          </p>
+          <ol className="mizh-aeo__ways">
+            <li>
+              <strong>Попутка</strong> — оберіть оголошення водія або опублікуйте «шукаю поїздку».
+            </li>
+            <li>
+              <strong>Маршрутка</strong> — фільтр «Маршрутки» у пошуку вище, потім «Забронювати».
+            </li>
+            <li>
+              <strong>Бот</strong> — підтвердження й нагадування в чаті з ботом.
+            </li>
+          </ol>
+          <p className="mizh-aeo__more">
+            Детальний гід:{' '}
+            <Link to="/support/travel">Як доїхати до Малина</Link>
+            {' · '}
+            <Link to="/support">центр допомоги</Link>.
+          </p>
+        </section>
+
         <nav className="mizh-seo-dirs" aria-labelledby="mizh-seo-dirs-title">
           <h2 id="mizh-seo-dirs-title" className="mizh-seo-dirs__title">
             Напрямки
@@ -684,6 +741,20 @@ export const MizhgorodskiPage: React.FC = () => {
             ))}
           </ul>
         </nav>
+
+        <section className="mizh-home-faq" aria-labelledby="mizh-home-faq-title">
+          <h2 id="mizh-home-faq-title" className="mizh-home-faq__title">
+            Часті питання
+          </h2>
+          <dl className="mizh-home-faq__list">
+            {MIZH_HOME_FAQ.map((item) => (
+              <div key={item.q} className="mizh-home-faq__item">
+                <dt>{item.q}</dt>
+                <dd>{item.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
 
       {showOfferModal && (
