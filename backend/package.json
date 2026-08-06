@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "build": "rm -rf dist && prisma generate && tsc",
-    "start": "prisma migrate deploy && node dist/index.js",
+    "start": "prisma migrate deploy && node dist/scripts/seed-local-transport.js --if-empty && node dist/index.js",
     "prisma:init": "prisma init",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -11,7 +11,8 @@
     "fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
     "migrate-to-person": "ts-node src/migrate-to-person.ts",
     "find-self-referrals": "ts-node src/find-self-referrals.ts",
-    "seed:transport": "ts-node src/scripts/seed-local-transport.ts",
+    "seed:transport": "node dist/scripts/seed-local-transport.js",
+    "seed:transport:ts": "ts-node src/scripts/seed-local-transport.ts",
     "export:gtfs": "ts-node src/scripts/export-gtfs.ts",
     "calculate:segments": "ts-node src/scripts/calculate-segment-durations.ts",
     "test": "node -r ./test-pretest.cjs -r ts-node/register --test src/viber-parser.test.ts src/telegram.test.ts src/telegram-inline.test.ts src/telegram.prisma.test.ts src/telegram.bot.test.ts src/telegram-bot-blocked.test.ts src/index-helpers.test.ts src/viber-listing-dedupe-after-update.test.ts src/index-http.test.ts src/index-integration.test.ts src/validation/validation.test.ts src/referral.test.ts src/local-transport.test.ts src/transport-http.test.ts",
