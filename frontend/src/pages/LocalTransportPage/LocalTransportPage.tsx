@@ -1882,8 +1882,42 @@ export const LocalTransportPage: React.FC = () => {
             </footer>
           </>
           </div>
-          <div className="lt-map-column">
-            <RouteMap stopNames={[]} coordsData={mapCoordsData} dark />
+          <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
+            <button
+              type="button"
+              className="lt-mobile-map-toggle"
+              onClick={cycleMobileMapSnap}
+              onTouchStart={handleMobileMapTouchStart}
+              onTouchEnd={handleMobileMapTouchEnd}
+              aria-label={mobileMapSnap === 'collapsed' ? 'Відкрити карту' : mobileMapSnap === 'mid' ? 'Розгорнути карту на весь екран' : 'Згорнути карту'}
+            >
+              {mobileMapSnap === 'collapsed' ? 'Карта' : mobileMapSnap === 'mid' ? 'Ще більше' : 'Список'}
+            </button>
+            <RouteMap
+              stopNames={stops}
+              markerStopNames={stops}
+              fromStopName={effectiveSearchFrom || undefined}
+              toStopName={effectiveSearchTo || undefined}
+              resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
+              onPickFromStop={(stopName) => {
+                setSearchFrom(stopName);
+                latestStopRef.current = stopName;
+                setStopFilter(stopName);
+              }}
+              onPickToStop={(stopName) => {
+                setSearchTo(stopName);
+                rememberFrequentToStop(stopName);
+              }}
+              onSwapStops={() => {
+                setSearchFrom(effectiveSearchTo);
+                setSearchTo(effectiveSearchFrom);
+              }}
+              frequentToStops={frequentToStops}
+              onStopMarkerActivate={expandMobileMapSheetForStop}
+              mapSheetSnap={mobileMapSnap}
+              coordsData={mapCoordsData}
+              dark
+            />
           </div>
           </>
         )}

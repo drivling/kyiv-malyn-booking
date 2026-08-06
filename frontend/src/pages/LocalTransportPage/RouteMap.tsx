@@ -251,8 +251,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   // Зум: якщо вибрано З і До — підлаштовуємо видиму область під цю ділянку з невеликим відступом
   const boundsStopNames = hasFromToSegment
     ? stopsWithCoords.slice(segmentStart, segmentEnd)
-    : stopsWithCoords;
-  const boundsPadding: [number, number] = hasFromToSegment ? [50, 50] : [30, 30];
+    : fromStopName && toStopName && stopsRecord[fromStopName] && stopsRecord[toStopName]
+      ? [fromStopName, toStopName]
+      : fromStopName && stopsRecord[fromStopName]
+        ? [fromStopName]
+        : toStopName && stopsRecord[toStopName]
+          ? [toStopName]
+          : stopsWithCoords;
+  const boundsPadding: [number, number] = hasFromToSegment || (fromStopName && toStopName) ? [50, 50] : [30, 30];
   const showBounds = boundsStopNames.length >= 1;
 
   return (
