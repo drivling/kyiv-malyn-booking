@@ -500,113 +500,188 @@ function TransportArticle() {
 
   return (
     <ArticleChrome topicId="transport" toc={CITY_TRANSPORT_TOC}>
-      <p className="support-lead">
-        <strong>Коротко:</strong> у Малині нарешті можна відкрити телефон і побачити,{' '}
-        <em>коли</em> підійде міська маршрутка — не лише «десь поїде». Планер, табло зупинок і
-        сторінки ліній зібрані на <Link to="/transport">malin.kiev.ua/transport</Link>. Між містами —
-        окрема історія: <Link to={supportTopicPath('travel')}>як доїхати до Малина</Link>.
-      </p>
+      <div className="support-article-flow support-article-flow--transport">
+        <p className="support-lead">
+          <strong>Коротко.</strong>
+          <br />
+          У Малині нарешті можна відкрити телефон і побачити, <em>коли</em> підійде міська маршрутка —
+          не лише «десь поїде».
+        </p>
+        <p className="support-lead support-lead--follow">
+          Планер, табло зупинок і сторінки ліній — на{' '}
+          <Link to="/transport">malin.kiev.ua/transport</Link>.
+          <br />
+          Між містами — окрема історія:{' '}
+          <Link to={supportTopicPath('travel')}>як доїхати до Малина</Link>.
+        </p>
 
-      <h2 id="city-why">Чому це взагалі з’явилось</h2>
-      <p>
-        Спробуйте в пошуку набрати щось на кшталт «Малин розклад маршруток». З великою ймовірністю
-        випадуть{' '}
-        <strong>міжміські</strong> таблиці: автостанція, рейси на Київ чи Житомир, новини на кшталт
-        Polissya.today чи довідники автовокзалу. Це корисно, якщо ви їдете <em>з міста</em> — і майже
-        марно, якщо треба з БАМу до лікарні чи з вокзалу на Соборну.
-      </p>
-      <p>
-        Міський графік роками жив у паралельному всесвіті: пост міськради у Facebook, переказ у
-        місцевих новинах («з понеділка новий розклад…»), фото папірця на зупинці, питання в чатах
-        «а №5 ще ходить?». Навіть коли з’являвся набір на data.gov.ua — це був архів для чиновників,
-        а не табло для людини з сумкою й дитиною. Люди звикли орієнтуватися «на око»: вийти раніше,
-        почекати довше, спитати у водія.
-      </p>
-      <p>
-        Ми зібрали зупинки, лінії й відправлення в один сервіс — щоб розклад Малина можна було{' '}
-        <strong>знайти</strong>, відкрити з телефону й поділитися посиланням. Офіційні зміни схеми
-        чи графіка окремої лінії (як оголошення ради про маршрут №2) лишаються джерелом правди для
-        перевізників; наша задача — щоб щоденна поїздка не починалася з археології в стрічці новин.
-      </p>
+        <section className="support-block" aria-labelledby="city-why">
+          <h2 id="city-why">Чому це взагалі з’явилось</h2>
 
-      <h2 id="city-how">Три способи користуватися</h2>
-      <ol className="support-list">
-        <li>
-          <strong>Планер «З → До»</strong> на <Link to="/transport">/transport</Link> — оберіть дві
-          зупинки (або тицьніть на карті) і натисніть «Знайти». Побачите прямі маршрути й найближче
-          відправлення. Це відповідь на класичне «як мені доїхати звідси туди містом».
-        </li>
-        <li>
-          <strong>Табло зупинки</strong> —{' '}
-          <Link to="/transport/stop">/transport/stop</Link>: список відправлень з конкретної точки
-          на дату й орієнтовний час. Зручно вдома перед виходом і прямо на зупинці. У багатьох
-          зупинок є коротка картка «Про зупинку» з маршрутами й координатами.
-        </li>
-        <li>
-          <strong>Сторінка маршруту</strong> —{' '}
-          <Link to="/transport">каталог ліній</Link> → № маршруту: напрямки «Туди / Назад», список
-          зупинок, таблиця рейсів, проїзд. Якщо стоїте на лінії й хочете зрозуміти, куди вона везе в
-          цей бік — це ваш екран.
-        </li>
-      </ol>
-      <p>
-        Підказка: міжміський бот @{TELEGRAM_BOT_USERNAME} бронює рейси Київ / Житомир / Коростень.
-        Міський транспорт — на сайті; бот тут не замінює табло зупинки.
-      </p>
+          <p>
+            Спробуйте в пошуку: «Малин розклад маршруток».
+          </p>
+          <p>
+            З великою ймовірністю випадуть <strong>міжміські</strong> таблиці — автостанція, рейси на
+            Київ чи Житомир, новини на кшталт Polissya.today.
+          </p>
+          <p>
+            Це корисно, якщо ви їдете <em>з міста</em>.
+            <br />
+            І майже марно, якщо треба з БАМу до лікарні чи з вокзалу на Соборну.
+          </p>
 
-      <h2 id="city-hubs">Зручні точки в місті</h2>
-      <p>
-        Не обов’язково знати всі коди зупинок. Ось кілька «якорів», з яких зручно починати — далі
-        планер або табло підкажуть решту:
-      </p>
-      <ul className="support-list">
-        <li>
-          <Link to="/transport/stop/st_0019">Залізничний вокзал</Link> — пересадка з поїзда на міські
-          лінії.
-        </li>
-        <li>
-          <Link to="/transport/stop/st_0054">Малинівський круг</Link> — вузол між центром і східними
-          кварталами.
-        </li>
-        <li>
-          <Link to="/transport/stop/st_0070">пл. Соборна (біля РБК)</Link> — центр для піших переходів.
-        </li>
-        <li>
-          <Link to="/transport/stop/st_0035">Лікарня</Link> ·{' '}
-          <Link to="/transport/stop/st_0072">Поліклініка</Link> — медичні орієнтири.
-        </li>
-        <li>
-          <Link to="/transport/stop/st_0062">Огієнка 65 (БАМ)</Link> — східний сектор.
-        </li>
-      </ul>
-      <p>
-        Повний каталог ліній і карта — знову ж на <Link to="/transport">транспорті Малина</Link>.
-      </p>
-
-      <h2 id="city-fare">Проїзд</h2>
-      <p>
-        У даних сервісу для міських ліній зараз відображається тариф <strong>20₴</strong> за
-        поїздку (на сторінці маршруту — біля номера лінії). Якщо виконком змінить тариф окремим
-        рішенням — орієнтуйтеся на офіційне повідомлення; ми підтягнемо цифру в інтерфейсі.
-      </p>
-
-      <h2 id="city-faq">Часті питання</h2>
-      <div className="support-faq">
-        {CITY_TRANSPORT_FAQ.map((item) => (
-          <div key={item.q} className="support-faq__item is-open">
-            <div className="support-faq__q" role="heading" aria-level={3}>
-              {item.q}
-            </div>
-            <div className="support-faq__a">{item.a}</div>
+          <div className="support-callout support-callout--stack">
+            <p className="support-callout__title">Де жив міський графік роками</p>
+            <ul className="support-list support-list--compact">
+              <li>пост міськради у Facebook;</li>
+              <li>переказ у місцевих новинах («з понеділка новий розклад…»);</li>
+              <li>фото папірця на зупинці;</li>
+              <li>питання в чатах: «а №5 ще ходить?».</li>
+            </ul>
+            <p>
+              Навіть набір на data.gov.ua — це архів для чиновників, а не табло для людини з сумкою й
+              дитиною.
+            </p>
+            <p>
+              Тож люди орієнтувалися «на око»: вийти раніше, почекати довше, спитати у водія.
+            </p>
           </div>
-        ))}
-      </div>
 
-      <p>
-        Приїхали з Києва чи Житомира і далі треба містом? Спочатку{' '}
-        <Link to={supportTopicPath('travel')}>міжміський гід</Link>, потім цей — і відкритий{' '}
-        <Link to="/transport">планер</Link>.
-      </p>
+          <p>
+            Ми зібрали зупинки, лінії й відправлення в один сервіс — щоб розклад Малина можна було{' '}
+            <strong>знайти</strong>, відкрити з телефону й поділитися посиланням.
+          </p>
+          <p>
+            Офіційні зміни схеми чи графіка окремої лінії лишаються джерелом правди для перевізників.
+            <br />
+            Наша задача — щоб щоденна поїздка не починалася з археології в стрічці новин.
+          </p>
+        </section>
+
+        <section className="support-block" aria-labelledby="city-how">
+          <h2 id="city-how">Три способи користуватися</h2>
+
+          <div className="support-how-grid">
+            <article className="support-how-card">
+              <h3>1. Планер «З → До»</h3>
+              <p>
+                На <Link to="/transport">/transport</Link> оберіть дві зупинки (або тицьніть на
+                карті) і натисніть «Знайти».
+              </p>
+              <p>Побачите прямі маршрути й найближче відправлення.</p>
+              <p className="support-how-card__hint">«Як мені доїхати звідси туди містом?»</p>
+            </article>
+
+            <article className="support-how-card">
+              <h3>2. Табло зупинки</h3>
+              <p>
+                <Link to="/transport/stop">/transport/stop</Link> — відправлення з конкретної точки
+                на дату й орієнтовний час.
+              </p>
+              <p>Зручно вдома перед виходом і прямо на зупинці.</p>
+              <p className="support-how-card__hint">У багатьох зупинок є картка «Про зупинку».</p>
+            </article>
+
+            <article className="support-how-card">
+              <h3>3. Сторінка маршруту</h3>
+              <p>
+                <Link to="/transport">Каталог ліній</Link> → № маршруту.
+              </p>
+              <p>Напрямки «Туди / Назад», список зупинок, таблиця рейсів, проїзд.</p>
+              <p className="support-how-card__hint">Коли вже стоїте на лінії й питаєте «куди вона везе?».</p>
+            </article>
+          </div>
+
+          <aside className="support-callout support-callout--note" aria-label="Підказка">
+            <p>
+              <strong>Підказка.</strong> Міжміський бот @{TELEGRAM_BOT_USERNAME} бронює рейси Київ /
+              Житомир / Коростень.
+            </p>
+            <p>Міський транспорт — на сайті. Бот тут не замінює табло зупинки.</p>
+          </aside>
+        </section>
+
+        <section className="support-block" aria-labelledby="city-hubs">
+          <h2 id="city-hubs">Зручні точки в місті</h2>
+          <p>
+            Не обов’язково знати всі коди зупинок.
+            <br />
+            Ось кілька «якорів», з яких зручно починати — далі планер або табло підкажуть решту.
+          </p>
+
+          <ul className="support-hub-chips">
+            <li>
+              <Link to="/transport/stop/st_0019">Залізничний вокзал</Link>
+              <span>пересадка з поїзда</span>
+            </li>
+            <li>
+              <Link to="/transport/stop/st_0054">Малинівський круг</Link>
+              <span>центр ↔ схід</span>
+            </li>
+            <li>
+              <Link to="/transport/stop/st_0070">пл. Соборна (біля РБК)</Link>
+              <span>центр міста</span>
+            </li>
+            <li>
+              <Link to="/transport/stop/st_0035">Лікарня</Link>
+              <span>медицина</span>
+            </li>
+            <li>
+              <Link to="/transport/stop/st_0072">Поліклініка</Link>
+              <span>медицина</span>
+            </li>
+            <li>
+              <Link to="/transport/stop/st_0062">Огієнка 65 (БАМ)</Link>
+              <span>східний сектор</span>
+            </li>
+          </ul>
+
+          <p>
+            Повний каталог ліній і карта — на <Link to="/transport">транспорті Малина</Link>.
+          </p>
+        </section>
+
+        <section className="support-block" aria-labelledby="city-fare">
+          <h2 id="city-fare">Проїзд</h2>
+          <div className="support-fare-chip" aria-label="Тариф 20 гривень">
+            <span className="support-fare-chip__label">Тариф у сервісі</span>
+            <span className="support-fare-chip__amount">
+              20<span aria-hidden>₴</span>
+            </span>
+            <span className="support-fare-chip__meta">за поїздку · біля № лінії</span>
+          </div>
+          <p>
+            Якщо виконком змінить тариф окремим рішенням — орієнтуйтеся на офіційне повідомлення.
+            <br />
+            Ми підтягнемо цифру в інтерфейсі.
+          </p>
+        </section>
+
+        <section className="support-block" aria-labelledby="city-faq">
+          <h2 id="city-faq">Часті питання</h2>
+          <div className="support-faq">
+            {CITY_TRANSPORT_FAQ.map((item) => (
+              <div key={item.q} className="support-faq__item is-open">
+                <div className="support-faq__q" role="heading" aria-level={3}>
+                  {item.q}
+                </div>
+                <div className="support-faq__a">{item.a}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <aside className="support-callout support-callout--note">
+          <p>
+            Приїхали з Києва чи Житомира і далі треба містом?
+          </p>
+          <p>
+            Спочатку <Link to={supportTopicPath('travel')}>міжміський гід</Link>, потім цей — і
+            відкритий <Link to="/transport">планер</Link>.
+          </p>
+        </aside>
+      </div>
     </ArticleChrome>
   );
 }
