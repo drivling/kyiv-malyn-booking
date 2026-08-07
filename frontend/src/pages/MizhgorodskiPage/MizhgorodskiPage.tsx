@@ -546,7 +546,9 @@ export const MizhgorodskiPage: React.FC = () => {
             {results.map((item) =>
               item.kind === 'carpool' ? (
                 <li key={item.id} className="mizh-card mizh-card--carpool">
-                  <div className="mizh-card-badge mizh-card-badge--carpool">Попутка</div>
+                  <div className="mizh-card-badge mizh-card-badge--carpool">
+                    {item.listing.listingType === 'driver' ? 'Попутка' : 'Пасажир'}
+                  </div>
                   <div className="mizh-card-body">
                     <div className="mizh-card-timeline">
                       <div className="mizh-card-time">{item.listing.departureTime || '—:—'}</div>
