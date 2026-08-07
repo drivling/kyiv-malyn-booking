@@ -20,3 +20,9 @@
 **Що зробили:** `poputkyWeb` і хардкод URL у telegram/referral/inline → `https://malin.kiev.ua/mizhgorodski`; оновлені `telegram.test.ts` / `referral.test.ts`. Команда бота `/poputky` і API `POST /poputky/announce-draft` лишаються (це не URL сайту).
 
 **Далі (опційно):** guest posts / оновлення malyn.media; моніторинг GSC після deploy.
+
+## I12 — AEO гід міського транспорту
+
+- [x] `/support/transport` — розгорнута стаття (чому не було розкладу в пошуку, планер, табло, FAQ, JSON-LD)
+- [x] `llms.txt` + sitemap
+- [x] крос-лінки з travel / site / `/transport`

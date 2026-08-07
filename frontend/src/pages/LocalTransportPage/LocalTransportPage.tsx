@@ -2144,7 +2144,9 @@ export const LocalTransportPage: React.FC = () => {
                 ))}
               </dl>
               <p className="lt-aeo-more">
-                Міжміські попутки й маршрутки — <Link to="/mizhgorodski">/mizhgorodski</Link>. Довідка —{' '}
+                Гід:{' '}
+                <Link to="/support/transport">як їздити міським транспортом у Малині</Link>. Міжміські —{' '}
+                <Link to="/mizhgorodski">/mizhgorodski</Link> ·{' '}
                 <Link to="/support/travel">як доїхати до Малина</Link>.
               </p>
             </section>

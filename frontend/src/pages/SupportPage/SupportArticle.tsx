@@ -20,6 +20,8 @@ import {
   TELEGRAM_BOT_URL,
   TELEGRAM_BOT_USERNAME,
   TRAVEL_FAQ,
+  CITY_TRANSPORT_FAQ,
+  CITY_TRANSPORT_TOC,
   isSupportTopicId,
   supportTopicPath,
   type SupportTopicId,
@@ -110,6 +112,11 @@ const META: Record<SupportTopicId, { title: string; description: string }> = {
     title: `Як доїхати до Малина | Попутка й маршрутка | ${SITE_PUBLIC_DOMAIN}`,
     description:
       'Як доїхати до Малина з Києва, Житомира чи Коростеня: попутки, маршрутки, живий пошук на malin.kiev.ua.',
+  },
+  transport: {
+    title: `Транспорт Малина | Розклад міських маршруток | ${SITE_PUBLIC_DOMAIN}`,
+    description:
+      'Як їздити міськими маршрутками в Малині: планер З → До, табло зупинок, розклад ліній. Живий гід замість постів у Facebook.',
   },
   bot: {
     title: `Telegram-бот | Допомога | ${SITE_PUBLIC_DOMAIN}`,
@@ -459,7 +466,8 @@ function TravelArticle() {
       <p>
         Живий пошук з фільтрами:{' '}
         <Link to="/mizhgorodski">malin.kiev.ua/mizhgorodski</Link>. Містом —{' '}
-        <Link to="/transport">транспорт Малина</Link>.
+        <Link to="/transport">транспорт Малина</Link> і гід{' '}
+        <Link to={supportTopicPath('transport')}>як їздити містом</Link>.
       </p>
 
       <h2>Часті питання</h2>
@@ -477,12 +485,139 @@ function TravelArticle() {
   );
 }
 
+function TransportArticle() {
+  useEffect(() => {
+    return upsertJsonLd('support-transport-jsonld', {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: CITY_TRANSPORT_FAQ.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: { '@type': 'Answer', text: item.a },
+      })),
+    });
+  }, []);
+
+  return (
+    <ArticleChrome topicId="transport" toc={CITY_TRANSPORT_TOC}>
+      <p className="support-lead">
+        <strong>Коротко:</strong> у Малині нарешті можна відкрити телефон і побачити,{' '}
+        <em>коли</em> підійде міська маршрутка — не лише «десь поїде». Планер, табло зупинок і
+        сторінки ліній зібрані на <Link to="/transport">malin.kiev.ua/transport</Link>. Між містами —
+        окрема історія: <Link to={supportTopicPath('travel')}>як доїхати до Малина</Link>.
+      </p>
+
+      <h2 id="city-why">Чому це взагалі з’явилось</h2>
+      <p>
+        Спробуйте в пошуку набрати щось на кшталт «Малин розклад маршруток». З великою ймовірністю
+        випадуть{' '}
+        <strong>міжміські</strong> таблиці: автостанція, рейси на Київ чи Житомир, новини на кшталт
+        Polissya.today чи довідники автовокзалу. Це корисно, якщо ви їдете <em>з міста</em> — і майже
+        марно, якщо треба з БАМу до лікарні чи з вокзалу на Соборну.
+      </p>
+      <p>
+        Міський графік роками жив у паралельному всесвіті: пост міськради у Facebook, переказ у
+        місцевих новинах («з понеділка новий розклад…»), фото папірця на зупинці, питання в чатах
+        «а №5 ще ходить?». Навіть коли з’являвся набір на data.gov.ua — це був архів для чиновників,
+        а не табло для людини з сумкою й дитиною. Люди звикли орієнтуватися «на око»: вийти раніше,
+        почекати довше, спитати у водія.
+      </p>
+      <p>
+        Ми зібрали зупинки, лінії й відправлення в один сервіс — щоб розклад Малина можна було{' '}
+        <strong>знайти</strong>, відкрити з телефону й поділитися посиланням. Офіційні зміни схеми
+        чи графіка окремої лінії (як оголошення ради про маршрут №2) лишаються джерелом правди для
+        перевізників; наша задача — щоб щоденна поїздка не починалася з археології в стрічці новин.
+      </p>
+
+      <h2 id="city-how">Три способи користуватися</h2>
+      <ol className="support-list">
+        <li>
+          <strong>Планер «З → До»</strong> на <Link to="/transport">/transport</Link> — оберіть дві
+          зупинки (або тицьніть на карті) і натисніть «Знайти». Побачите прямі маршрути й найближче
+          відправлення. Це відповідь на класичне «як мені доїхати звідси туди містом».
+        </li>
+        <li>
+          <strong>Табло зупинки</strong> —{' '}
+          <Link to="/transport/stop">/transport/stop</Link>: список відправлень з конкретної точки
+          на дату й орієнтовний час. Зручно вдома перед виходом і прямо на зупинці. У багатьох
+          зупинок є коротка картка «Про зупинку» з маршрутами й координатами.
+        </li>
+        <li>
+          <strong>Сторінка маршруту</strong> —{' '}
+          <Link to="/transport">каталог ліній</Link> → № маршруту: напрямки «Туди / Назад», список
+          зупинок, таблиця рейсів, проїзд. Якщо стоїте на лінії й хочете зрозуміти, куди вона везе в
+          цей бік — це ваш екран.
+        </li>
+      </ol>
+      <p>
+        Підказка: міжміський бот @{TELEGRAM_BOT_USERNAME} бронює рейси Київ / Житомир / Коростень.
+        Міський транспорт — на сайті; бот тут не замінює табло зупинки.
+      </p>
+
+      <h2 id="city-hubs">Зручні точки в місті</h2>
+      <p>
+        Не обов’язково знати всі коди зупинок. Ось кілька «якорів», з яких зручно починати — далі
+        планер або табло підкажуть решту:
+      </p>
+      <ul className="support-list">
+        <li>
+          <Link to="/transport/stop/st_0019">Залізничний вокзал</Link> — пересадка з поїзда на міські
+          лінії.
+        </li>
+        <li>
+          <Link to="/transport/stop/st_0054">Малинівський круг</Link> — вузол між центром і східними
+          кварталами.
+        </li>
+        <li>
+          <Link to="/transport/stop/st_0070">пл. Соборна (біля РБК)</Link> — центр для піших переходів.
+        </li>
+        <li>
+          <Link to="/transport/stop/st_0035">Лікарня</Link> ·{' '}
+          <Link to="/transport/stop/st_0072">Поліклініка</Link> — медичні орієнтири.
+        </li>
+        <li>
+          <Link to="/transport/stop/st_0062">Огієнка 65 (БАМ)</Link> — східний сектор.
+        </li>
+      </ul>
+      <p>
+        Повний каталог ліній і карта — знову ж на <Link to="/transport">транспорті Малина</Link>.
+      </p>
+
+      <h2 id="city-fare">Проїзд</h2>
+      <p>
+        У даних сервісу для міських ліній зараз відображається тариф <strong>20₴</strong> за
+        поїздку (на сторінці маршруту — біля номера лінії). Якщо виконком змінить тариф окремим
+        рішенням — орієнтуйтеся на офіційне повідомлення; ми підтягнемо цифру в інтерфейсі.
+      </p>
+
+      <h2 id="city-faq">Часті питання</h2>
+      <div className="support-faq">
+        {CITY_TRANSPORT_FAQ.map((item) => (
+          <div key={item.q} className="support-faq__item is-open">
+            <div className="support-faq__q" role="heading" aria-level={3}>
+              {item.q}
+            </div>
+            <div className="support-faq__a">{item.a}</div>
+          </div>
+        ))}
+      </div>
+
+      <p>
+        Приїхали з Києва чи Житомира і далі треба містом? Спочатку{' '}
+        <Link to={supportTopicPath('travel')}>міжміський гід</Link>, потім цей — і відкритий{' '}
+        <Link to="/transport">планер</Link>.
+      </p>
+    </ArticleChrome>
+  );
+}
+
 function SiteArticle() {
   return (
     <ArticleChrome topicId="site">
       <p className="support-lead">
-        Короткі «двері» в розділи сайту. Як доїхати між містами — у статті{' '}
-        <Link to={supportTopicPath('travel')}>Як доїхати до Малина</Link>.
+        Короткі «двері» в розділи сайту. Між містами —{' '}
+        <Link to={supportTopicPath('travel')}>Як доїхати до Малина</Link>; містом —{' '}
+        <Link to={supportTopicPath('transport')}>Транспорт Малина</Link>.
       </p>
       <div className="support-site-grid">
         <article className="support-site-card">
@@ -492,8 +627,11 @@ function SiteArticle() {
         </article>
         <article className="support-site-card">
           <h2>Транспорт Малина</h2>
-          <p>Місцеві маршрути й зупинки.</p>
+          <p>Планер, табло зупинок, розклад ліній — гід у допомозі.</p>
           <Link to="/transport">Відкрити →</Link>
+          <span className="support-site-card__links">
+            <Link to={supportTopicPath('transport')}>Як їздити містом</Link>
+          </span>
         </article>
         <article className="support-site-card">
           <h2>Про нас</h2>
@@ -642,6 +780,8 @@ export function SupportArticle() {
       return <StartArticle />;
     case 'travel':
       return <TravelArticle />;
+    case 'transport':
+      return <TransportArticle />;
     case 'bot':
       return <BotArticle />;
     case 'site':
