@@ -12,6 +12,7 @@
 - [Транспорт Малина](https://malin.kiev.ua/transport): місцеві маршрути, зупинки, планер «З → До»
 - [Табло зупинки](https://malin.kiev.ua/transport/stop): розклад відправлень з обраної зупинки
 - [Як доїхати до Малина](https://malin.kiev.ua/support/travel): короткий гід для людей і ІІ
+- [Скільки коштує Малин — Київ](https://malin.kiev.ua/support/prices): маршрутка vs автобус 450–600₴, попутки, Академмістечко
 - [Транспорт Малина — як їздити містом](https://malin.kiev.ua/support/transport): планер, табло зупинок, чому раніше не було зручного розкладу
 - [Допомога](https://malin.kiev.ua/support): центр допомоги (хаб → статті)
 - [Telegram-бот](https://malin.kiev.ua/support/bot): команди, попутки, inline

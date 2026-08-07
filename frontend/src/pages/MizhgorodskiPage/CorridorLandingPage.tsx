@@ -131,7 +131,9 @@ export function CorridorLandingPage() {
         itemListElement: schedules.map((s, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          name: `${s.departureTime} · ${ROUTES[s.route] ?? s.route}`,
+          name: `${s.departureTime} · ${ROUTES[s.route] ?? s.route}${
+            s.priceUah != null ? ` · ${s.priceUah} грн` : ''
+          }`,
         })),
       });
     }
@@ -221,6 +223,7 @@ export function CorridorLandingPage() {
                   <tr>
                     <th scope="col">Відправлення</th>
                     <th scope="col">Маршрут</th>
+                    <th scope="col">Ціна</th>
                     <th scope="col">Контакт</th>
                     <th scope="col">
                       <span className="visually-hidden">Дія</span>
@@ -234,6 +237,13 @@ export function CorridorLandingPage() {
                         <strong>{s.departureTime}</strong>
                       </td>
                       <td>{ROUTES[s.route] ?? s.route}</td>
+                      <td>
+                        {s.priceUah != null ? (
+                          <strong>{s.priceUah} грн</strong>
+                        ) : (
+                          <span className="corridor-muted">—</span>
+                        )}
+                      </td>
                       <td>
                         {s.supportPhone ? (
                           <span className="corridor-phones">
@@ -309,7 +319,9 @@ export function CorridorLandingPage() {
           </ul>
           <p className="corridor-muted">
             Міський транспорт Малина — <Link to="/transport">/transport</Link>. Довідка —{' '}
-            <Link to="/support/travel">Як доїхати</Link>.
+            <Link to="/support/travel">Як доїхати</Link>
+            {' · '}
+            <Link to="/support/prices">Скільки коштує</Link>.
           </p>
         </section>
       </article>

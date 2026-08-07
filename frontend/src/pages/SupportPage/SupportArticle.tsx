@@ -20,6 +20,8 @@ import {
   TELEGRAM_BOT_URL,
   TELEGRAM_BOT_USERNAME,
   TRAVEL_FAQ,
+  PRICES_FAQ,
+  PRICES_TOC,
   CITY_TRANSPORT_FAQ,
   CITY_TRANSPORT_TOC,
   isSupportTopicId,
@@ -112,6 +114,11 @@ const META: Record<SupportTopicId, { title: string; description: string }> = {
     title: `Як доїхати до Малина | Попутка й маршрутка | ${SITE_PUBLIC_DOMAIN}`,
     description:
       'Як доїхати до Малина з Києва, Житомира чи Коростеня: попутки, маршрутки, живий пошук на malin.kiev.ua.',
+  },
+  prices: {
+    title: `Скільки коштує маршрутка Малин — Київ | Ціни попуток | ${SITE_PUBLIC_DOMAIN}`,
+    description:
+      'Скільки коштує маршрутка й попутка Малин ↔ Київ, Житомир, Коростень. Чому в Google часто 450–600₴ і як не плутати з локальними рейсами. Академмістечко, Святошин.',
   },
   transport: {
     title: `Транспорт Малина | Розклад міських маршруток | ${SITE_PUBLIC_DOMAIN}`,
@@ -465,7 +472,8 @@ function TravelArticle() {
       </ul>
       <p>
         Живий пошук з фільтрами:{' '}
-        <Link to="/mizhgorodski">malin.kiev.ua/mizhgorodski</Link>. Містом —{' '}
+        <Link to="/mizhgorodski">malin.kiev.ua/mizhgorodski</Link>. Ціни —{' '}
+        <Link to={supportTopicPath('prices')}>скільки коштує Малин — Київ</Link>. Містом —{' '}
         <Link to="/transport">транспорт Малина</Link> і гід{' '}
         <Link to={supportTopicPath('transport')}>як їздити містом</Link>.
       </p>
@@ -480,6 +488,178 @@ function TravelArticle() {
             <div className="support-faq__a">{item.a}</div>
           </div>
         ))}
+      </div>
+    </ArticleChrome>
+  );
+}
+
+function PricesArticle() {
+  useEffect(() => {
+    return upsertJsonLd('support-prices-jsonld', {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: PRICES_FAQ.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: { '@type': 'Answer', text: item.a },
+      })),
+    });
+  }, []);
+
+  return (
+    <ArticleChrome topicId="prices" toc={PRICES_TOC}>
+      <div className="support-article-flow support-article-flow--transport">
+        <p className="support-lead">
+          <strong>Коротко.</strong>
+          <br />
+          Питання «скільки коштує маршрутка Київ — Малин?» у пошуку часто відповідають цифрами{' '}
+          <strong>450–600₴</strong> з агрегаторів автобусів.
+        </p>
+        <p className="support-lead support-lead--follow">
+          Для Малина це майже завжди <em>інший</em> продукт.
+          <br />
+          Локальна маршрутка Малин ↔ Київ у нашій базі — <strong>280 грн</strong> за місце; попутки —
+          ціна водія в картці. Дивіться пошук на{' '}
+          <Link to="/mizhgorodski">malin.kiev.ua/mizhgorodski</Link>.
+        </p>
+
+        <section className="support-block" aria-labelledby="prices-short">
+          <h2 id="prices-short">Чому Google показує 450–600₴</h2>
+          <p>
+            Огляди ШІ й сайти на кшталт Tickets.ua / Busfor добретують <strong>міжміські автобусні
+            квитки</strong> — часто інші рейси, інші точки посадки, інший тариф.
+          </p>
+          <p>
+            Люди з Малина зазвичай шукають <strong>локальну маршрутку</strong> (Академмістечко /
+            Святошин) або <strong>попутку</strong> від водія.
+          </p>
+          <div className="support-callout support-callout--stack">
+            <p className="support-callout__title">Три різні «ціни»</p>
+            <ul className="support-list support-list--compact">
+              <li>
+                <strong>Автобус з агрегатора</strong> — часто від ~450–600₴ (те, що любить цитувати
+                ШІ).
+              </li>
+              <li>
+                <strong>Локальна маршрутка</strong> Малин ↔ Київ — <strong>280 грн</strong> у базі
+                malin.kiev.ua.
+              </li>
+              <li>
+                <strong>Попутка</strong> — ціну ставить водій у картці (часто орієнтир ~200–250₴).
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="support-block" aria-labelledby="prices-kyiv">
+          <h2 id="prices-kyiv">Малин ↔ Київ</h2>
+          <p>
+            Напрямки:{' '}
+            <Link to="/mizhgorodski/malyn-kyiv">Малин → Київ</Link>
+            {' · '}
+            <Link to="/mizhgorodski/kyiv-malyn">Київ → Малин</Link>.
+          </p>
+
+          <div className="support-fare-chip" aria-label="Тариф маршрутки 280 гривень">
+            <span className="support-fare-chip__label">Маршрутка Малин ↔ Київ</span>
+            <span className="support-fare-chip__amount">
+              280<span aria-hidden>₴</span>
+            </span>
+            <span className="support-fare-chip__meta">за місце · у базі розкладу</span>
+          </div>
+
+          <div className="support-how-grid">
+            <article className="support-how-card">
+              <h3>Маршрутка</h3>
+              <p>
+                Регулярні рейси з бронюванням місця на сайті / у боті — тариф <strong>280 грн</strong>.
+              </p>
+              <p>
+                У Києві орієнтири: <strong>ст. м. Академмістечко</strong> (часто через Ірпінь) або{' '}
+                <strong>Святошин</strong> (частина рейсів через Бучу).
+              </p>
+              <p className="support-how-card__hint">
+                Не порівнюйте «в лоб» з квитком 600₴ на центральний автовокзал Києва — це різні
+                поїздки.
+              </p>
+            </article>
+            <article className="support-how-card">
+              <h3>Попутка</h3>
+              <p>
+                Оголошення водія на конкретну дату. Ціна — у картці (або «за домовленістю»).
+              </p>
+              <p>
+                У живих оголошеннях коридору Малин — Київ часто фігурує орієнтир близько{' '}
+                <strong>200–250₴</strong> за місце.
+              </p>
+              <p className="support-how-card__hint">
+                Це не прайс-лист: дивіться поїздку на свою дату в пошуку.
+              </p>
+            </article>
+            <article className="support-how-card">
+              <h3>Час у дорозі</h3>
+              <p>Орієнтовно 1,5–2 години залежно від трафіку й маршруту (Ірпінь / Буча).</p>
+              <p>
+                Точний час відправлення — у розкладі маршруток і в оголошенні попутки.
+              </p>
+              <p className="support-how-card__hint">
+                Як доїхати загалом — <Link to={supportTopicPath('travel')}>гід «до Малина»</Link>.
+              </p>
+            </article>
+          </div>
+
+          <aside className="support-callout support-callout--note">
+            <p>
+              <strong>Що зробити зараз.</strong> Відкрийте пошук{' '}
+              <Link to="/mizhgorodski?from=Malyn&to=Kyiv">Малин → Київ</Link> або{' '}
+              <Link to="/mizhgorodski?from=Kyiv&to=Malyn">Київ → Малин</Link>, порівняйте попутки й
+              маршрутки на дату — і побачите реальні суми, а не «середнє по інтернету».
+            </p>
+          </aside>
+        </section>
+
+        <section className="support-block" aria-labelledby="prices-other">
+          <h2 id="prices-other">Житомир і Коростень</h2>
+          <p>
+            Ціну маршрутки на Житомир / Коростень у базі <strong>ще уточнюємо</strong> — з’явиться в
+            картках рейсів, щойно зафіксуємо.
+          </p>
+          <p>
+            Попутка = ціна водія в оголошенні. Порівняйте варіанти в пошуку.
+          </p>
+          <ul className="support-hub-chips">
+            <li>
+              <Link to="/mizhgorodski/malyn-zhytomyr">Малин → Житомир</Link>
+              <span>попутка + маршрутка</span>
+            </li>
+            <li>
+              <Link to="/mizhgorodski/zhytomyr-malyn">Житомир → Малин</Link>
+              <span>попутка + маршрутка</span>
+            </li>
+            <li>
+              <Link to="/mizhgorodski/malyn-korosten">Малин → Коростень</Link>
+              <span>попутка + маршрутка</span>
+            </li>
+            <li>
+              <Link to="/mizhgorodski/korosten-malyn">Коростень → Малин</Link>
+              <span>попутка + маршрутка</span>
+            </li>
+          </ul>
+        </section>
+
+        <section className="support-block" aria-labelledby="prices-faq">
+          <h2 id="prices-faq">Часті питання</h2>
+          <div className="support-faq">
+            {PRICES_FAQ.map((item) => (
+              <div key={item.q} className="support-faq__item is-open">
+                <div className="support-faq__q" role="heading" aria-level={3}>
+                  {item.q}
+                </div>
+                <div className="support-faq__a">{item.a}</div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </ArticleChrome>
   );
@@ -691,7 +871,9 @@ function SiteArticle() {
     <ArticleChrome topicId="site">
       <p className="support-lead">
         Короткі «двері» в розділи сайту. Між містами —{' '}
-        <Link to={supportTopicPath('travel')}>Як доїхати до Малина</Link>; містом —{' '}
+        <Link to={supportTopicPath('travel')}>Як доїхати до Малина</Link>
+        {' · '}
+        <Link to={supportTopicPath('prices')}>Скільки коштує</Link>; містом —{' '}
         <Link to={supportTopicPath('transport')}>Транспорт Малина</Link>.
       </p>
       <div className="support-site-grid">
@@ -855,6 +1037,8 @@ export function SupportArticle() {
       return <StartArticle />;
     case 'travel':
       return <TravelArticle />;
+    case 'prices':
+      return <PricesArticle />;
     case 'transport':
       return <TransportArticle />;
     case 'bot':

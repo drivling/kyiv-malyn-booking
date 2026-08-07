@@ -26,3 +26,9 @@
 - [x] `/support/transport` — розгорнута стаття (чому не було розкладу в пошуку, планер, табло, FAQ, JSON-LD)
 - [x] `llms.txt` + sitemap
 - [x] крос-лінки з travel / site / `/transport`
+
+## I13 — AEO ціни міжміських
+
+- [x] `/support/prices` — «Скільки коштує маршрутка Малин — Київ» (vs 450–600₴ агрегаторів, попутки, Академмістечко)
+- [x] FAQ на `/mizhgorodski` + коридори kyiv-malyn / malyn-kyiv
+- [x] `llms.txt` + sitemap

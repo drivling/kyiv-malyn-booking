@@ -36,6 +36,7 @@ export const AdminPage: React.FC = () => {
     departureTime: '',
     maxSeats: 20,
     supportPhone: '',
+    priceUah: 280,
   });
 
   // Viber listings
@@ -767,6 +768,7 @@ export const AdminPage: React.FC = () => {
         departureTime: schedule.departureTime,
         maxSeats: schedule.maxSeats,
         supportPhone: schedule.supportPhone ?? '',
+        priceUah: schedule.priceUah ?? null,
       });
     } else {
       setEditingSchedule(null);
@@ -775,6 +777,7 @@ export const AdminPage: React.FC = () => {
         departureTime: '',
         maxSeats: 20,
         supportPhone: '',
+        priceUah: 280,
       });
     }
     setIsScheduleModalOpen(true);
@@ -1150,6 +1153,7 @@ export const AdminPage: React.FC = () => {
                       <th>Маршрут</th>
                       <th>Час відправлення</th>
                       <th>Макс. місць</th>
+                      <th>Ціна, грн</th>
                       <th>Телефон підтримки</th>
                       <th>Створено</th>
                       <th>Оновлено</th>
@@ -1167,6 +1171,7 @@ export const AdminPage: React.FC = () => {
                         </td>
                         <td><strong>{schedule.departureTime}</strong></td>
                         <td><strong>{schedule.maxSeats}</strong></td>
+                        <td>{schedule.priceUah != null ? <strong>{schedule.priceUah}</strong> : '—'}</td>
                         <td>{schedule.supportPhone ? formatPhoneDisplay(schedule.supportPhone) : '—'}</td>
                         <td>{new Date(schedule.createdAt).toLocaleString('uk-UA')}</td>
                         <td>{new Date(schedule.updatedAt).toLocaleString('uk-UA')}</td>
@@ -2298,6 +2303,20 @@ export const AdminPage: React.FC = () => {
                   value={scheduleForm.maxSeats}
                   onChange={(e) => setScheduleForm({ ...scheduleForm, maxSeats: Number(e.target.value) })}
                   required
+                />
+                <Input
+                  label="Ціна місця, грн (порожньо = ще не задано)"
+                  type="number"
+                  min={0}
+                  max={9999}
+                  placeholder="280"
+                  value={scheduleForm.priceUah ?? ''}
+                  onChange={(e) =>
+                    setScheduleForm({
+                      ...scheduleForm,
+                      priceUah: e.target.value === '' ? null : Number(e.target.value),
+                    })
+                  }
                 />
                 <Input
                   label="Телефон підтримки (напр. +380(93)1701835)"

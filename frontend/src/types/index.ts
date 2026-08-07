@@ -19,6 +19,8 @@ export interface Schedule {
   departureTime: string;
   maxSeats: number;
   supportPhone: string | null;
+  /** Ціна місця в грн; null якщо ще не задано */
+  priceUah?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +62,7 @@ export interface ScheduleFormData {
   departureTime: string;
   maxSeats: number;
   supportPhone?: string;
+  priceUah?: number | null;
 }
 
 // Telegram User Data

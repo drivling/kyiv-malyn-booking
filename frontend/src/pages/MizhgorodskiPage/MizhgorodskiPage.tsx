@@ -46,6 +46,10 @@ const VALID_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
 /** Короткий FAQ для головної (AEO); детальніше — коридорні лендінги та /support/travel */
 const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
   {
+    q: 'Скільки коштує маршрутка Київ — Малин?',
+    a: 'Локальна маршрутка Малин ↔ Київ (Академмістечко / Святошин) у базі malin.kiev.ua — 280 грн за місце. Не плутайте з квитками 450–600₴ з агрегаторів автобусів. Попутки — ціна водія в картці (часто ~200–250₴). Детально: /support/prices.',
+  },
+  {
     q: 'Як доїхати до Малина з Києва, Житомира чи Коростеня?',
     a: 'Оберіть міста в пошуку на malin.kiev.ua/mizhgorodski або відкрийте сторінку напрямку (наприклад Київ — Малин). Доступні попутки від водіїв і регулярні маршрутки з бронюванням.',
   },
@@ -79,7 +83,7 @@ export const MizhgorodskiPage: React.FC = () => {
     title: 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень | malin.kiev.ua',
     canonicalUrl: 'https://malin.kiev.ua/mizhgorodski',
     description:
-      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Живий пошук поїздок і онлайн бронювання.',
+      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Ціни, живий пошук і онлайн бронювання.',
     jsonLdId: 'mizh-home-faq-jsonld',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -671,11 +675,16 @@ export const MizhgorodskiPage: React.FC = () => {
                       <div className="mizh-card-route-hint">{formatRouteLabel(item.schedule.route)}</div>
                     </div>
                     <div className="mizh-card-aside">
-                      <div className="mizh-card-price mizh-card-price--soft">
+                      <div className="mizh-card-price">
                         {availabilityById[item.schedule.id] && !availabilityById[item.schedule.id].isAvailable ? (
                           <strong>немає місць</strong>
+                        ) : item.schedule.priceUah != null ? (
+                          <>
+                            <strong>{item.schedule.priceUah}</strong>
+                            <span> грн</span>
+                          </>
                         ) : (
-                          <strong>за розкладом</strong>
+                          <strong className="mizh-card-price--soft">за розкладом</strong>
                         )}
                       </div>
                       <div className="mizh-card-actions">
