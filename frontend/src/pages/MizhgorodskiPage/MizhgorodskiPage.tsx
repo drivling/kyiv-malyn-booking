@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
+import { FaqAnswerText } from '@/components/FaqAnswerText';
 import {
   useAnnounceDraft,
   usePageSeo,
@@ -731,6 +732,8 @@ export const MizhgorodskiPage: React.FC = () => {
             Детальний гід:{' '}
             <Link to="/support/travel">Як доїхати до Малина</Link>
             {' · '}
+            <Link to="/support/prices">Скільки коштує</Link>
+            {' · '}
             <Link to="/support">центр допомоги</Link>.
           </p>
         </section>
@@ -761,7 +764,9 @@ export const MizhgorodskiPage: React.FC = () => {
             {MIZH_HOME_FAQ.map((item) => (
               <div key={item.q} className="mizh-home-faq__item">
                 <dt>{item.q}</dt>
-                <dd>{item.a}</dd>
+                <dd>
+                  <FaqAnswerText text={item.a} />
+                </dd>
               </div>
             ))}
           </dl>

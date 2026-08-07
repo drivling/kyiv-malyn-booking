@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
+import { FaqAnswerText } from '@/components/FaqAnswerText';
 import { usePageSeo } from '@/hooks';
 import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '@/pages/SupportPage/supportContent';
 import type { Schedule } from '@/types';
@@ -276,7 +277,7 @@ export function CorridorLandingPage() {
           <ul className="corridor-ways">
             {landing.ways.map((w) => (
               <li key={w.title}>
-                <strong>{w.title}.</strong> {w.text}
+                <strong>{w.title}.</strong> <FaqAnswerText text={w.text} />
               </li>
             ))}
           </ul>
@@ -294,7 +295,9 @@ export function CorridorLandingPage() {
             {faq.map((item) => (
               <div key={item.q} className="corridor-faq__item">
                 <dt>{item.q}</dt>
-                <dd>{item.a}</dd>
+                <dd>
+                  <FaqAnswerText text={item.a} />
+                </dd>
               </div>
             ))}
           </dl>

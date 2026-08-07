@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
+import { FaqAnswerText } from '@/components/FaqAnswerText';
 import { SiteContactBlock } from '@/components/SiteContactBlock/SiteContactBlock';
 import { usePageSeo } from '@/hooks';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
@@ -485,7 +486,9 @@ function TravelArticle() {
             <div className="support-faq__q" role="heading" aria-level={3}>
               {item.q}
             </div>
-            <div className="support-faq__a">{item.a}</div>
+            <div className="support-faq__a">
+              <FaqAnswerText text={item.a} />
+            </div>
           </div>
         ))}
       </div>
@@ -655,7 +658,9 @@ function PricesArticle() {
                 <div className="support-faq__q" role="heading" aria-level={3}>
                   {item.q}
                 </div>
-                <div className="support-faq__a">{item.a}</div>
+                <div className="support-faq__a">
+                  <FaqAnswerText text={item.a} />
+                </div>
               </div>
             ))}
           </div>
@@ -846,7 +851,9 @@ function TransportArticle() {
                 <div className="support-faq__q" role="heading" aria-level={3}>
                   {item.q}
                 </div>
-                <div className="support-faq__a">{item.a}</div>
+                <div className="support-faq__a">
+                  <FaqAnswerText text={item.a} />
+                </div>
               </div>
             ))}
           </div>
