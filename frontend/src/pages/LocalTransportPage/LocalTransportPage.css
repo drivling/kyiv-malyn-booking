@@ -268,6 +268,19 @@
   color: var(--lt-panel-text-muted);
 }
 
+.lt-layout-dark .lt-panel .lt-direction-toggle .lt-direction-btn:not(.lt-direction-btn--active) {
+  background: transparent;
+  border: none;
+  color: var(--lt-panel-text-muted);
+}
+
+.lt-layout-dark .lt-panel .lt-direction-toggle .lt-direction-btn--active {
+  background: #fff !important;
+  border: none !important;
+  color: var(--lt-route-green) !important;
+  box-shadow: inset 0 0 0 1px var(--lt-route-green);
+}
+
 .lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #f1f4f5 !important; }
 .lt-layout-dark .lt-panel .lt-timetable-table--tablica td { border-color: var(--lt-panel-border); background: var(--lt-panel-bg); }
 .lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: rgba(0, 175, 245, 0.1) !important; }
@@ -364,10 +377,16 @@
   outline-offset: 0;
 }
 
-.lt-layout-dark .lt-panel .lt-fare {
+.lt-layout-dark .lt-panel .lt-fare:not(.lt-fare--header) {
   background: rgba(0, 175, 245, 0.12) !important;
   color: var(--lt-route-green) !important;
   border: 1px solid rgba(0, 175, 245, 0.35);
+}
+
+.lt-layout-dark .lt-panel .lt-fare--header {
+  background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 .lt-layout-dark .lt-panel .lt-back,
 .lt-layout-dark .lt-panel .lt-back--header { color: var(--lt-panel-text-muted) !important; }
@@ -473,13 +492,18 @@
   padding-right: var(--lt-panel-x);
 }
 
-.lt-detail--jakdojade .lt-detail-header-actions {
-  margin-top: 8px;
-  gap: 6px 10px;
+.lt-detail--jakdojade .lt-detail-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 10px;
 }
 
 .lt-detail--jakdojade .lt-route-title--jd {
-  margin-bottom: 6px;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .lt-detail--jakdojade .lt-route-title--jd .lt-route-num {
@@ -490,15 +514,85 @@
   font-size: var(--lt-fs-md);
 }
 
-.lt-detail--jakdojade .lt-detail-header-actions .lt-direction-btn {
-  min-width: 90px;
-  padding: 6px 10px;
-  font-size: var(--lt-fs-sm);
+.lt-detail--jakdojade .lt-fare--header {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 11px 6px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+  line-height: 1;
+  background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 2px rgba(5, 71, 82, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.lt-detail--jakdojade .lt-fare {
-  padding: 2px 8px;
+.lt-detail--jakdojade .lt-fare--header .lt-fare-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.lt-detail--jakdojade .lt-fare--header .lt-fare-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.lt-detail--jakdojade .lt-fare--header .lt-fare-currency {
+  margin-left: 1px;
+  font-size: 0.95em;
+  font-weight: 700;
+  color: #5ee4b5;
+}
+
+.lt-detail--jakdojade .lt-detail-header-actions {
+  margin-top: 0;
+}
+
+.lt-detail--jakdojade .lt-direction-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--lt-panel-border, #dde3e6);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f1f4f5;
+}
+
+.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 0;
   font-size: var(--lt-fs-sm);
+  font-weight: 600;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn + .lt-direction-btn {
+  border-left: 1px solid var(--lt-panel-border, #dde3e6);
+}
+
+.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn--active {
+  background: #fff;
+  color: var(--lt-route-green, #00aff5);
+  box-shadow: inset 0 0 0 1px var(--lt-route-green, #00aff5);
 }
 
 .lt-detail-search {
@@ -1523,6 +1617,13 @@
   border-bottom: 1px solid var(--lt-border-light);
 }
 
+.lt-detail-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+
 .lt-detail-header-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1534,10 +1635,6 @@
 .lt-detail-header-actions .lt-direction-btn {
   flex: 1;
   min-width: 100px;
-}
-
-.lt-detail-header-actions .lt-fare {
-  margin-left: auto;
 }
 
 .lt-back {
@@ -1574,7 +1671,7 @@
 }
 
 .lt-route-title--jd {
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .lt-route-title--jd .lt-route-num {
@@ -1591,13 +1688,15 @@
 }
 
 .lt-fare {
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   padding: 4px 10px;
   background: var(--lt-accent-light);
   color: var(--lt-accent);
   font-size: var(--lt-fs-sm);
   font-weight: 600;
-  border-radius: var(--pb-radius-sm);
+  border-radius: 10px;
 }
 
 /* Секції з заголовками як у Jakdojade */
@@ -2176,7 +2275,7 @@
   padding: 8px 12px;
   background: #f1f3f4;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: var(--lt-fs-base);
   font-weight: 500;
   color: var(--lt-text-muted);
@@ -2853,8 +2952,13 @@
 }
 
 .lt-direction-btn {
-  min-height: 48px;
-  padding: 12px 16px;
+  min-height: 44px;
+  padding: 10px 14px;
+}
+
+.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn {
+  min-height: 40px;
+  padding: 8px 12px;
 }
 
 .lt-time {

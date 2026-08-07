@@ -379,7 +379,8 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
     : null;
 
-  const fare = data?.supplement?.fare ? `${data.supplement.fare.amount} грн` : null;
+  const fareAmount =
+    typeof data?.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
 
   if (loading) {
     return (
@@ -556,7 +557,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 {parseDateUrl(searchDate) && (
                   <span className="lt-stop-board-date">
                     {searchDate}
-                    {fare && <span className="lt-stop-board-fare"> · Проїзд {fare}</span>}
+                    {fareAmount != null && (
+                      <span className="lt-stop-board-fare"> · Проїзд {fareAmount}₴</span>
+                    )}
                   </span>
                 )}
               </div>
@@ -576,7 +579,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 {parseDateUrl(searchDate) && (
                   <span className="lt-stop-board-date">
                     {searchDate}
-                    {fare && <span className="lt-stop-board-fare"> · Проїзд {fare}</span>}
+                    {fareAmount != null && (
+                      <span className="lt-stop-board-fare"> · Проїзд {fareAmount}₴</span>
+                    )}
                   </span>
                 )}
               </div>

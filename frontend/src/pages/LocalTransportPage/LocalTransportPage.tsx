@@ -1320,7 +1320,8 @@ export const LocalTransportPage: React.FC = () => {
     );
   }
 
-  const fare = data.supplement?.fare ? `${data.supplement.fare.amount} грн` : null;
+  const fareAmount =
+    typeof data.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
 
   return (
     <div className="lt-page lt-theme-jakdojade lt-layout-dark">
@@ -1347,34 +1348,57 @@ export const LocalTransportPage: React.FC = () => {
 
             {/* Заголовок маршруту + перемикач напрямку */}
             <header className="lt-detail-header lt-detail-header--jd">
-              <h1 className="lt-route-title lt-route-title--jd">
-                <span
-                  className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
-                >
-                  №{detailRoute.id}
-                </span>
-                <span className="lt-route-title-path">
-                  {stopsDirection === 'there'
-                    ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
-                    : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
-                </span>
-              </h1>
-              <div className="lt-detail-header-actions">
+              <div className="lt-detail-header-top">
+                <h1 className="lt-route-title lt-route-title--jd">
+                  <span
+                    className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                  >
+                    №{detailRoute.id}
+                  </span>
+                  <span className="lt-route-title-path">
+                    {stopsDirection === 'there'
+                      ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
+                      : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
+                  </span>
+                </h1>
+                {fareAmount != null && (
+                  <span
+                    className="lt-fare lt-fare--header"
+                    aria-label={`Проїзд ${fareAmount} гривень`}
+                  >
+                    <span className="lt-fare-label">Проїзд</span>
+                    <span className="lt-fare-amount">
+                      {fareAmount}
+                      <span className="lt-fare-currency" aria-hidden>
+                        ₴
+                      </span>
+                    </span>
+                  </span>
+                )}
+              </div>
+              <div
+                className="lt-detail-header-actions lt-direction-toggle"
+                role="group"
+                aria-label="Напрямок руху"
+              >
                 <button
                   type="button"
                   className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
+                  aria-pressed={stopsDirection === 'there'}
+                  title={detailRoute.to ? `Туди: ${detailRoute.to}` : 'Туди'}
                   onClick={() => reverseDirectionAndFromTo('there')}
                 >
-                  {detailRoute.to} →
+                  Туди
                 </button>
                 <button
                   type="button"
                   className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
+                  aria-pressed={stopsDirection === 'back'}
+                  title={detailRoute.from ? `Назад: ${detailRoute.from}` : 'Назад'}
                   onClick={() => reverseDirectionAndFromTo('back')}
                 >
-                  ← {detailRoute.from}
+                  Назад
                 </button>
-                {fare && <span className="lt-fare">Проїзд {fare}</span>}
               </div>
             </header>
 
