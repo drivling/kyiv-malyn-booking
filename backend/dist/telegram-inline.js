@@ -73,7 +73,7 @@ function buildInlineHelpMessageText(botUsername) {
         'У групі: @' +
         botUsername +
         ' → виберіть карточку зі списку.\n\n' +
-        '🌐 https://malin.kiev.ua/poputky');
+        '🌐 https://malin.kiev.ua/mizhgorodski');
 }
 function buildListingShareMessageText(listing, botUsername, formatDate, getRouteName) {
     const routeName = getRouteName(listing.route);
@@ -89,7 +89,7 @@ function buildListingShareMessageText(listing, botUsername, formatDate, getRoute
         listing.senderName ? `👤 ${listing.senderName}` : null,
         '',
         `Забронювати: ${bookLink}`,
-        '🌐 https://malin.kiev.ua/poputky',
+        '🌐 https://malin.kiev.ua/mizhgorodski',
     ];
     return lines.filter((line) => line != null).join('\n');
 }
@@ -134,7 +134,7 @@ async function answerRidesInline(bot, queryId, kind, payload, ctx) {
     const listings = await (0, inline_listings_1.searchListingsForInline)(ctx.prisma, searchOpts);
     if (listings.length === 0) {
         await bot.answerInlineQuery(queryId, [
-            article('rides_empty', 'Немає активних попуток', 'Змініть дату або додайте оголошення', `📭 Зараз немає попуток за цим фільтром.\n\nДодати: https://t.me/${ctx.botUsername}?start=driver\n🌐 https://malin.kiev.ua/poputky`),
+            article('rides_empty', 'Немає активних попуток', 'Змініть дату або додайте оголошення', `📭 Зараз немає попуток за цим фільтром.\n\nДодати: https://t.me/${ctx.botUsername}?start=driver\n🌐 https://malin.kiev.ua/mizhgorodski`),
         ], { cache_time: exports.INLINE_CACHE.RIDES });
         return;
     }

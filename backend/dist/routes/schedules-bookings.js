@@ -10,6 +10,7 @@ const support_phone_route_1 = require("../support-phone-route");
 const schedule_departure_time_1 = require("../validation/schedule-departure-time");
 const booking_phone_1 = require("../validation/booking-phone");
 const require_admin_1 = require("../middleware/require-admin");
+const schedule_price_1 = require("../schedule-price");
 function createSchedulesBookingsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -90,13 +91,15 @@ function createSchedulesBookingsRouter(deps) {
         }
     });
     r.post('/schedules', require_admin_1.requireAdmin, async (req, res) => {
-        const { route, departureTime, maxSeats, supportPhone } = req.body;
+        const { route, departureTime, maxSeats, supportPhone, priceUah } = req.body;
         if (!route || !departureTime) {
             return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
         }
         if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
             return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
         }
+        const parsedPrice = (0, schedule_price_1.parseOptionalPriceUah)(priceUah);
+        const resolvedPrice = parsedPrice !== undefined ? parsedPrice : (0, schedule_price_1.defaultSchedulePriceUah)(String(route));
         try {
             const schedule = await prisma.schedule.create({
                 data: {
@@ -104,6 +107,7 @@ function createSchedulesBookingsRouter(deps) {
                     departureTime,
                     maxSeats: maxSeats ? Number(maxSeats) : 20,
                     supportPhone: supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null,
+                    priceUah: resolvedPrice,
                 },
             });
             res.status(201).json(schedule);
@@ -118,13 +122,14 @@ function createSchedulesBookingsRouter(deps) {
     });
     r.put('/schedules/:id', require_admin_1.requireAdmin, async (req, res) => {
         const { id } = req.params;
-        const { route, departureTime, maxSeats, supportPhone } = req.body;
+        const { route, departureTime, maxSeats, supportPhone, priceUah } = req.body;
         if (!route || !departureTime) {
             return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
         }
         if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
             return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
         }
+        const parsedPrice = (0, schedule_price_1.parseOptionalPriceUah)(priceUah);
         try {
             const schedule = await prisma.schedule.update({
                 where: { id: Number(id) },
@@ -137,6 +142,7 @@ function createSchedulesBookingsRouter(deps) {
                             ? String(supportPhone).trim()
                             : null
                         : undefined,
+                    ...(parsedPrice !== undefined ? { priceUah: parsedPrice } : {}),
                 },
             });
             res.json(schedule);

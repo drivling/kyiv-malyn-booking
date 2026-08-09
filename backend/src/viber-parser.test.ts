@@ -141,6 +141,14 @@ test('extractSeats: словесні форми', () => {
   assert.equal(extractSeats('є два місця'), 2);
   assert.equal(extractSeats('Двоє позаду 200грн'), 2);
   assert.equal(extractSeats('2 людини'), 2);
+  assert.equal(extractSeats('потрібно одне місце 0967625757'), 1);
+  // дата DD.MM перед «пасажир» — не seats
+  assert.equal(extractSeats('08.08 пасажир з 9:00 до 10:00 Малин Київ потрібно одне місце'), 1);
+  assert.equal(extractSeats('2 місяця'), null);
+  assert.equal(
+    extractSeats('Залишилось 1 місцe(максимум  три пасажира в салоні)'),
+    1
+  );
 });
 
 test('extractRoute: bot-формат', () => {
@@ -167,6 +175,8 @@ test('extractPrice', () => {
   assert.equal(extractPrice('150грн.'), 150);
   assert.equal(extractPrice('ціна 200 грн'), 200);
   assert.equal(extractPrice('99 UAH'), 99);
+  assert.equal(extractPrice('250 гр 0973127473'), 250);
+  assert.equal(extractPrice('250гр'), 250);
   assert.equal(extractPrice('9 грн'), null);
   assert.equal(extractPrice('без ціни'), null);
 });
@@ -178,7 +188,20 @@ test('extractNotes: є місця / орієнтири / позаду / дужк
   assert.match(extractNotes('від південного залізничного вокзалу. Є вільні місця.') || '', /від південного/);
   assert.match(extractNotes('від південного залізничного вокзалу. Є вільні місця.') || '', /є місця/i);
   assert.equal(extractNotes('Двоє позаду 200грн'), 'Двоє позаду');
+  assert.equal(extractNotes('Два місця позаду. Ціна -250 грн.'), 'Двоє позаду');
   assert.equal(extractNotes('(позаду двоє)'), 'Двоє позаду');
+  assert.match(
+    extractNotes('Малин-Київ( Академмістечко , Теремки) о 07:45. Два місця позаду.') || '',
+    /Академмістечко/
+  );
+  assert.match(
+    extractNotes('Малин-Київ( Академмістечко , Теремки) о 07:45. Два місця позаду.') || '',
+    /Двоє позаду/
+  );
+  assert.equal(
+    extractNotes('Київ Академ - Малин | В авто доброзичливий пес 🐶'),
+    'В авто пес'
+  );
   assert.equal(
     extractNotes('мЖитомирська на Малин (дзвоніть або пишіть)'),
     'м. Житомирська (дзвоніть або пишіть у Viber).'

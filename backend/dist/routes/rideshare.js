@@ -27,7 +27,7 @@ function createRideshareRouter(deps) {
                 });
             }
             const { listing: passengerListing } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
-                rawMessage: `[Сайт /poputky] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
+                rawMessage: `[Сайт /mizhgorodski] ${driverListing.route} ${driverListing.date.toISOString().slice(0, 10)} ${driverListing.departureTime ?? ''}`,
                 source: 'Viber1',
                 senderName: person.fullName?.trim() || 'Пасажир',
                 listingType: 'passenger',
@@ -36,7 +36,7 @@ function createRideshareRouter(deps) {
                 departureTime: driverListing.departureTime,
                 seats: null,
                 phone: person.phoneNormalized,
-                notes: 'Запит створено з сайту /poputky',
+                notes: 'Запит створено з сайту /mizhgorodski',
                 isActive: true,
                 personId: person.id,
             });

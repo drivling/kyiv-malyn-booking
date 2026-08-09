@@ -986,7 +986,7 @@ function buildReferralProgramTermsHtml(referralLink) {
         `👤 Друг поїхав пасажиром — вам від <b>${exports.REFERRAL_REWARD_UAH.registration + exports.REFERRAL_REWARD_UAH.passenger_completed_ride} грн</b>, йому <b>${exports.REFERRAL_REWARD_UAH.passenger_self_confirm} грн</b>\n` +
         `🚗 Друг віз людей як водій — вам до <b>${exports.REFERRAL_REWARD_UAH.registration + exports.REFERRAL_REWARD_UAH.driver_qualified} грн</b>\n\n` +
         `🔗 Твоє посилання:\n<code>${referralLink}</code>\n\n` +
-        '🌐 https://malin.kiev.ua/poputky\n' +
+        '🌐 https://malin.kiev.ua/mizhgorodski\n' +
         '📜 Умови: https://malin.kiev.ua/about#referral-promo');
 }
 /** Короткий підпис для нативного «Поділитися» в Telegram */
@@ -1312,7 +1312,7 @@ function buildRideFacebookShareCaption(opts) {
         `(${dateNice})\n\n` +
         `Попутки Малин↔Київ у боті + бонус на мобільний 💸\n` +
         `${opts.referralLink}\n` +
-        `🌐 malin.kiev.ua/poputky\n` +
+        `🌐 malin.kiev.ua/mizhgorodski\n` +
         `#Малин #Київ #Попутки #КиївМалин #malinkievua`);
 }
 function buildRideFacebookSharePromptHtml(caption) {

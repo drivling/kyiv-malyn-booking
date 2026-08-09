@@ -112,7 +112,7 @@ function getTelegramScenarioLinks() {
         driver: `https://t.me/${telegramBotUsername}?start=driver`,
         passenger: `https://t.me/${telegramBotUsername}?start=passenger`,
         view: `https://t.me/${telegramBotUsername}?start=view`,
-        poputkyWeb: 'https://malin.kiev.ua/poputky',
+        poputkyWeb: 'https://malin.kiev.ua/mizhgorodski',
     };
 }
 exports.BEHAVIOR_PROMO_SCENARIO_LABELS = {
@@ -2650,7 +2650,7 @@ function setupBotCommands() {
                     await (0, telegram_referral_1.takePendingReferralCode)(tgPrisma, chatId);
                     await bot?.sendMessage(chatId, '🙂 Ви вже з нами в боті — це запрошення для нових друзів.\n\n' +
                         'Можете самі когось запросити: /invite\n\n' +
-                        '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
+                        '🌐 https://malin.kiev.ua/mizhgorodski', { parse_mode: 'HTML', reply_markup: getMainMenuKeyboard(chatId) });
                     if (bot) {
                         await (0, telegram_referral_1.sendReferralTeaser)(bot, chatId);
                     }
@@ -2659,7 +2659,7 @@ function setupBotCommands() {
                 await bot?.sendMessage(chatId, '🎁 <b>Вас запросили за акцією «Приведи друга»!</b>\n\n' +
                     'Щоб взяти участь:\n' +
                     '1️⃣ Поділіться номером телефону\n' +
-                    '2️⃣ Відкрийте попутки: https://malin.kiev.ua/poputky\n' +
+                    '2️⃣ Відкрийте міжміські: https://malin.kiev.ua/mizhgorodski\n' +
                     '3️⃣ Додайте поїздку як водій або як пасажир через бота\n\n' +
                     'Спочатку надішліть номер:', { parse_mode: 'HTML', reply_markup: getSharePhoneKeyboard() });
                 return;
@@ -2967,7 +2967,7 @@ function setupBotCommands() {
                     'Спробуйте змінити фільтр кнопками нижче або створіть свою поїздку:\n' +
                     '🚗 /adddriverride\n' +
                     '👤 /addpassengerride\n' +
-                    '🌐 https://malin.kiev.ua/poputky', { parse_mode: 'HTML', reply_markup: { inline_keyboard: getAllridesFilterKeyboard() } });
+                    '🌐 https://malin.kiev.ua/mizhgorodski', { parse_mode: 'HTML', reply_markup: { inline_keyboard: getAllridesFilterKeyboard() } });
                 return;
             }
             const driverListings = activeListings.filter((l) => l.listingType === 'driver');

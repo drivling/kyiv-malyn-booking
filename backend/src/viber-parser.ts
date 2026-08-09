@@ -328,22 +328,37 @@ export function extractTime(text: string): string | null {
  * Витягує кількість місць
  */
 export function extractSeats(text: string): number | null {
-  // "2 пасажира", "3 особи", "є місця", "4 місця", "2 місць"
-  const seatsMatch = text.match(/(\d+)\s*(пасажир|особ|місц|людин)/i);
-  if (seatsMatch) {
-    return parseInt(seatsMatch[1], 10);
-  }
-
-  // Словесні: "два/двоє/три місця", "двоє позаду"
   const wordMap: { [key: string]: number } = {
     одне: 1, один: 1, одна: 1,
     два: 2, двоє: 2, двох: 2,
     три: 3, трьох: 3,
     чотири: 4,
   };
-  const wordMatch = text.match(/(одне|один|одна|два|двоє|двох|три|трьох|чотири)\s*(?:вільн\w*\s+)?(?:місц|пасажир|позаду|людин)/i);
+
+  // "Залишилось 1 місце" має пріоритет над «максимум три пасажира…»
+  // «місцe» інколи з латинською e
+  const leftMatch = text.match(/залишило(?:сь|ся)\s+(\d{1,2})\s*місц[еeіяь]/iu);
+  if (leftMatch) {
+    const n = parseInt(leftMatch[1], 10);
+    if (n >= 1 && n <= 7) return n;
+  }
+
+  // Словесні: "потрібно одне місце", "два місця", "двоє позаду"
+  // (інакше "08.08 пасажир" → seats=8 з дати)
+  const wordMatch = text.match(
+    /(?:^|[^\p{L}])(одне|один|одна|два|двоє|двох|три|трьох|чотири)\s+(?:вільн\p{L}*\s+)?(?:місц(?!яц)|пасажир|позаду|людин)/iu
+  );
   if (wordMatch) {
     return wordMap[wordMatch[1].toLowerCase()] ?? null;
+  }
+
+  // "2 пасажира", "3 особи", "4 місця" — не брати цифру з дати DD.MM (lookbehind на крапку)
+  const seatsMatch = text.match(
+    /(?<![.\d])(\d{1,2})\s*(?:вільн\p{L}*\s+)?(?:пасажир|особ|місц(?!яц)[еeіяь]?|людин)/iu
+  );
+  if (seatsMatch) {
+    const n = parseInt(seatsMatch[1], 10);
+    if (n >= 1 && n <= 7) return n;
   }
 
   return null;
@@ -351,13 +366,15 @@ export function extractSeats(text: string): number | null {
 
 /**
  * Витягує ціну поїздки
- * Підтримує формати: "150 грн", "150грн.", "ціна 200 грн"
+ * Підтримує: "150 грн", "150грн.", "250 гр", "250гр", "ціна 200 грн", "uah"
  */
 export function extractPrice(text: string): number | null {
-  const priceMatch = text.match(/(\d{2,4})\s*(?:грн|uah)/i);
-  if (priceMatch) {
-    const value = parseInt(priceMatch[1], 10);
-    if (!Number.isNaN(value) && value > 0) {
+  // грн / гр (скорочення без «н») / uah; не чіпати «градус» тощо.
+  // Якщо цін кілька (Харківська 350 / Житомирська 250) — беремо останню.
+  const matches = [...text.matchAll(/(\d{2,4})\s*(?:грн\.?|uah|гр(?![\p{L}]))/giu)];
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const value = parseInt(matches[i][1], 10);
+    if (!Number.isNaN(value) && value >= 50 && value <= 2000) {
       return value;
     }
   }
@@ -395,15 +412,23 @@ export function extractNotes(text: string): string | null {
     push(upper ? 'Є місця' : 'є місця');
   }
 
-  // 2. Розсадка «позаду» (\b не працює з кирилицею)
+  // 2. Розсадка «позаду» / «два місця позаду» (\b не працює з кирилицею)
   const rear =
-    text.match(/(?:^|[^\p{L}])((?:двоє|два|одне|один|[123])\s+позаду)(?=[^\p{L}]|$)/iu) ||
+    text.match(
+      /(?:^|[^\p{L}])((?:двоє|два|одне|один|[123])\s+(?:місц\p{L}*\s+)?позаду)(?=[^\p{L}]|$)/iu
+    ) ||
     text.match(/(?:^|[^\p{L}])(позаду\s+(?:двоє|два|одне|один|\d+))(?=[^\p{L}]|$)/iu);
   if (rear) {
     const r = rear[1].toLowerCase().replace(/\s+/g, ' ').trim();
-    if (/^(?:двоє|два|2)\s+позаду$/.test(r) || /^позаду\s+(?:двоє|два|2)$/.test(r)) {
+    if (
+      /^(?:двоє|два|2)(?:\s+місц\p{L}*)?\s+позаду$/u.test(r) ||
+      /^позаду\s+(?:двоє|два|2)$/.test(r)
+    ) {
       push('Двоє позаду');
-    } else if (/^(?:одне|один|1)\s+позаду$/.test(r) || /^позаду\s+(?:одне|один|1)$/.test(r)) {
+    } else if (
+      /^(?:одне|один|1)(?:\s+місц\p{L}*)?\s+позаду$/u.test(r) ||
+      /^позаду\s+(?:одне|один|1)$/.test(r)
+    ) {
       push('Одне позаду');
     } else {
       push(r.charAt(0).toUpperCase() + r.slice(1));
@@ -451,18 +476,20 @@ export function extractNotes(text: string): string | null {
   }
 
   // 8. Академмістечко як старт маршруту / у дужках біля Києва
+  // також «( Академмістечко , Теремки)»
   if (/академмістечко\s*[-–—]\s*малин|малин\s*[-–—]\s*академмістечко/i.test(text)) {
     push('Академмістечко');
   } else {
     const akadInKyiv = text.match(
       /ки[їєи][вї][а-я]*\s*\(\s*(Акад\.?|Академ\.?|Академмістечко)\s*\)/i
     );
+    const akadLoose = text.match(/\(\s*([^)]*академ[^)]*)\)/iu);
     if (akadInKyiv) {
       const inner = akadInKyiv[1].trim();
-      // «Акад» → «м Академмістечко»; інакше повна назва
       push(/^акад\.?$/i.test(inner) ? 'м Академмістечко' : 'Академмістечко');
-    } else if (/\(\s*(Академ\.?|Академмістечко)\s*\)/i.test(text)) {
+    } else if (akadLoose) {
       push('Академмістечко');
+      if (/теремки/i.test(akadLoose[1])) push('Теремки');
     }
   }
 
@@ -501,13 +528,21 @@ export function extractNotes(text: string): string | null {
     push('Ірпінь -> Малин');
   }
 
-  // 10. Вільний текст у дужках (прохання писати у вайбер…)
+  // 10. Пес у авто
+  if (
+    /(?:добро.?зичлив\p{L}*\s+)?пес/iu.test(text) &&
+    /(?:авто|салон|машин)/i.test(text)
+  ) {
+    push('В авто пес');
+  }
+
+  // 11. Вільний текст у дужках (прохання писати у вайбер…)
   for (const m of text.matchAll(/\(([^)]{8,120})\)/g)) {
     const inner = m[1].trim();
     if (/^\+?\d[\d\s()-]{7,}$/.test(inner)) continue;
     if (WEEKDAY_PREFIX.test(inner) && /\d/.test(inner)) continue;
     if (/^\d{1,2}[./]\d{1,2}/.test(inner)) continue;
-    if (/позаду|вокзал|шулявк|оболонь|академ|лукъ?янів|почайн|чайки|житомирськ/i.test(inner)) {
+    if (/позаду|вокзал|шулявк|оболонь|академ|лукъ?янів|почайн|чайки|житомирськ|теремки/i.test(inner)) {
       continue;
     }
     if (/дзвоніть|пишіть/i.test(inner) && parts.some((p) => /житомирськ/i.test(p))) continue;
