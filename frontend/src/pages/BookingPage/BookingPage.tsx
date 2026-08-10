@@ -597,8 +597,8 @@ export const BookingPage: React.FC = () => {
         {/* Попутки з розділу Попутки */}
         {viberListings.length > 0 && (
           <div className="viber-listings-section">
-            <h3>Також доступні поїздки в розділі <Link to="/poputky" className="booking-poputky-link">Попутки</Link></h3>
-            <p className="viber-subtitle">Для бронювання зателефонуйте за вказаним номером. Інші оголошення — у <Link to="/poputky" className="booking-poputky-link">розділі Попутки</Link>.</p>
+            <h3>Також доступні поїздки в розділі <Link to="/mizhgorodski" className="booking-poputky-link">Попутки</Link></h3>
+            <p className="viber-subtitle">Для бронювання зателефонуйте за вказаним номером. Інші оголошення — у <Link to="/mizhgorodski" className="booking-poputky-link">розділі Попутки</Link>.</p>
             <div className="viber-listings">
               {viberListings.map((listing) => (
                 <div 
@@ -807,7 +807,7 @@ export const BookingPage: React.FC = () => {
               <p className="viber-modal-note">
                 {selectedViberListing.phone
                   ? 'Зателефонуйте за вказаним номером для бронювання.'
-                  : <>В цьому оголошенні немає телефону. <Link to="/poputky" className="booking-poputky-link" onClick={() => { setShowViberModal(false); setSelectedViberListing(null); }}>Подивитись контакти можна в розділі Попутки</Link>.</>}
+                  : <>В цьому оголошенні немає телефону. <Link to="/mizhgorodski" className="booking-poputky-link" onClick={() => { setShowViberModal(false); setSelectedViberListing(null); }}>Подивитись контакти можна в розділі Попутки</Link>.</>}
               </p>
               <button
                 className="telegram-skip booking-modal-close-btn"

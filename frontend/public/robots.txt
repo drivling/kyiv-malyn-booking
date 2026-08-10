@@ -15,7 +15,7 @@ Disallow: /api/
 # Логін не для органічного пошуку
 Disallow: /login
 
-# /poputky і /booking — SPA-редірект на /mizhgorodski (дозволені для переобходу)
+# /poputky і /booking — HTTP 301 на /mizhgorodski (дозволені для переобходу)
 
 # Службові HTML табличок зупинок (не лендінги)
 Disallow: /stop-signs/

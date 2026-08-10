@@ -4,6 +4,8 @@
  *
  * vite preview (sirv + SPA) only serves nested index.html for ".../path/" —
  * ".../path" falls through to the root shell, so prerender is invisible to bots.
+ *
+ * Legacy public URLs get HTTP 301 before SPA shell (Google-friendly redirects).
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -32,6 +34,55 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.map': 'application/json',
 };
+
+/** Exact pathname (no trailing slash except `/`) → Location path+optional hash */
+const EXACT_REDIRECTS = new Map([
+  ['/', '/mizhgorodski'],
+  ['/poputky', '/mizhgorodski'],
+  ['/booking', '/mizhgorodski'],
+  ['/help', '/support'],
+  ['/privacy', '/about#privacy-policy'],
+  ['/privacy-policy', '/about#privacy-policy'],
+]);
+
+function splitUrl(urlPath) {
+  const q = urlPath.indexOf('?');
+  const pathPart = q >= 0 ? urlPath.slice(0, q) : urlPath;
+  const search = q >= 0 ? urlPath.slice(q) : '';
+  let pathname;
+  try {
+    pathname = decodeURIComponent(pathPart.split('#')[0] || '/');
+  } catch {
+    pathname = pathPart.split('#')[0] || '/';
+  }
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
+  if (!pathname.startsWith('/')) pathname = `/${pathname}`;
+  return { pathname, search };
+}
+
+function withSearch(target, search) {
+  if (!search) return target;
+  const hashIdx = target.indexOf('#');
+  if (hashIdx === -1) return `${target}${search}`;
+  return `${target.slice(0, hashIdx)}${search}${target.slice(hashIdx)}`;
+}
+
+/** @returns {string|null} absolute path for Location (path + optional query + hash) */
+function permanentRedirectLocation(urlPath) {
+  const { pathname, search } = splitUrl(urlPath);
+
+  const exact = EXACT_REDIRECTS.get(pathname);
+  if (exact) return withSearch(exact, search);
+
+  if (pathname === '/localtransport' || pathname.startsWith('/localtransport/')) {
+    const next = pathname.replace(/^\/localtransport/, '/transport') || '/transport';
+    return `${next}${search}`;
+  }
+
+  return null;
+}
 
 function safeJoin(root, urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0].split('#')[0]);
@@ -69,6 +120,16 @@ const server = http.createServer((req, res) => {
   const urlPath = req.url || '/';
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405);
+    res.end();
+    return;
+  }
+
+  const redirectTo = permanentRedirectLocation(urlPath);
+  if (redirectTo) {
+    res.writeHead(301, {
+      Location: redirectTo,
+      'Cache-Control': 'public, max-age=86400',
+    });
     res.end();
     return;
   }
