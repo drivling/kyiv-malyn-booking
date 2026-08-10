@@ -3183,8 +3183,23 @@
   padding-top: 0;
 }
 
-.lt-stop-board-row {
+/* Одна колонка: не наслідувати сітку З/До (1fr | swap | 1fr), інакше combobox ~половина ширини */
+.lt-theme-jakdojade .lt-from-to-row.lt-stop-board-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
+}
+
+.lt-stop-board-row .lt-from-to-cell {
+  width: 100%;
+  min-width: 0;
+}
+
+.lt-stop-board-row .combobox,
+.lt-stop-board-row .combobox-input-wrap {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .lt-stop-board-empty {

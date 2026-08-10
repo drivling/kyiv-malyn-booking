@@ -1,5 +1,6 @@
 # malin.kiev.ua — robots
 # Публічні: /, /mizhgorodski, /mizhgorodski/{kyiv-malyn|…}, /transport, /support, /about
+# Канонікал головної пошукової сторінки: /mizhgorodski ( / віддає той самий контент )
 
 User-agent: *
 Allow: /

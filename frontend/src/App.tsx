@@ -53,7 +53,7 @@ function AppContent() {
       <NavBar />
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Navigate to="/mizhgorodski" replace />} />
+          <Route path="/" element={<MizhgorodskiPage />} />
           <Route path="/mizhgorodski" element={<MizhgorodskiPage />} />
           <Route path="/mizhgorodski/:corridorSlug" element={<CorridorLandingPage />} />
           <Route path="/poputky" element={<Navigate to="/mizhgorodski" replace />} />

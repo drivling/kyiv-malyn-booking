@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import { FaqAnswerText } from '@/components/FaqAnswerText';
@@ -79,6 +79,7 @@ function parseCity(value: string | null): BookingCity | '' {
 
 export const MizhgorodskiPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   usePageSeo({
     title: 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень | malin.kiev.ua',
@@ -109,6 +110,14 @@ export const MizhgorodskiPage: React.FC = () => {
     (['all', 'carpool', 'bus'].includes(searchParams.get('type') || '')
       ? searchParams.get('type')
       : 'all') as TransportFilter
+  );
+  /** Не підставляти ?from=&to=&date= на чистий /mizhgorodski — Google бачить це як редірект. */
+  const [persistSearchInUrl, setPersistSearchInUrl] = useState(
+    () =>
+      searchParams.has('from') ||
+      searchParams.has('to') ||
+      searchParams.has('date') ||
+      searchParams.has('type')
   );
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
   const [listings, setListings] = useState<ViberListing[]>([]);
@@ -178,32 +187,55 @@ export const MizhgorodskiPage: React.FC = () => {
     }
   }, []);
 
-  const applySearch = (nextFrom = fromCity, nextTo = toCity, nextDate = date, nextType = transport) => {
-    if (!getDirectionFromCities(nextFrom, nextTo)) return;
-    const params: Record<string, string> = {
-      from: nextFrom,
-      to: nextTo,
-      date: nextDate,
-    };
-    if (nextType !== 'all') params.type = nextType;
+  const writeSearchParams = (params: Record<string, string>) => {
+    setPersistSearchInUrl(true);
+    // Пошуковий state живе лише під /mizhgorodski — не плодимо /?from=
+    if (location.pathname === '/') {
+      const qs = new URLSearchParams(params).toString();
+      navigate(qs ? `/mizhgorodski?${qs}` : '/mizhgorodski', { replace: true });
+      return;
+    }
     setSearchParams(params, { replace: true });
+  };
+
+  const applySearch = (
+    nextFrom = fromCity,
+    nextTo = toCity,
+    nextDate = date,
+    nextType = transport,
+    options?: { updateUrl?: boolean }
+  ) => {
+    if (!getDirectionFromCities(nextFrom, nextTo)) return;
+    const updateUrl = options?.updateUrl ?? true;
+    if (updateUrl) {
+      const params: Record<string, string> = {
+        from: nextFrom,
+        to: nextTo,
+        date: nextDate,
+      };
+      if (nextType !== 'all') params.type = nextType;
+      writeSearchParams(params);
+    }
     void loadResults(nextFrom, nextTo, nextDate);
   };
 
   useEffect(() => {
-    applySearch(fromCity, toCity, date, transport);
+    // Перший захід на чистий /mizhgorodski — без rewrite URL (інакше GSC: «сторінка з переадресацією»).
+    applySearch(fromCity, toCity, date, transport, { updateUrl: persistSearchInUrl });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!persistSearchInUrl) return;
     const params: Record<string, string> = {
       from: fromCity,
       to: toCity,
       date,
     };
     if (transport !== 'all') params.type = transport;
-    setSearchParams(params, { replace: true });
-  }, [transport, fromCity, toCity, date, setSearchParams]);
+    writeSearchParams(params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transport, fromCity, toCity, date, persistSearchInUrl]);
 
   useEffect(() => {
     if (!schedules.length || !date) {
@@ -484,7 +516,10 @@ export const MizhgorodskiPage: React.FC = () => {
                 role="tab"
                 aria-selected={transport === tab.id}
                 className={`mizh-transport-tab ${transport === tab.id ? 'mizh-transport-tab--active' : ''}`}
-                onClick={() => setTransport(tab.id)}
+                onClick={() => {
+                  setPersistSearchInUrl(true);
+                  setTransport(tab.id);
+                }}
               >
                 {tab.label}
               </button>

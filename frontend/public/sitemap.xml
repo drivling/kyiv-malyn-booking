@@ -6,18 +6,13 @@
            http://www.sitemaps.org/schemas/sitemap/0.9
            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-    <!-- Головна (редірект → /mizhgorodski) -->
-    <url>
-        <loc>https://malin.kiev.ua/</loc>
-        <lastmod>2026-08-07</lastmod>
-        <changefreq>hourly</changefreq>
-        <priority>1.0</priority>
-    </url>
-
-    <!-- Міжміські: пошук попуток і маршруток (основна сторінка) -->
+    <!--
+      Головна для індексації — /mizhgorodski (канонікал).
+      / теж віддає той самий контент, але в sitemap лише канон.
+    -->
     <url>
         <loc>https://malin.kiev.ua/mizhgorodski</loc>
-        <lastmod>2026-08-07</lastmod>
+        <lastmod>2026-08-10</lastmod>
         <changefreq>hourly</changefreq>
         <priority>1.0</priority>
     </url>
