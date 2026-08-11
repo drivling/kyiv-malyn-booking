@@ -99,7 +99,9 @@ function parseTelegramMessage(rawMessage) {
         const price = (0, viber_parser_1.extractPrice)(messageBody);
         const seats = (0, viber_parser_1.extractSeats)(messageBody);
         let notes = (0, viber_parser_1.extractNotes)(messageBody);
-        // Якщо телефону немає, а є @username — посилання на Telegram як контакт у notes
+        // Якщо телефону немає, а є @username — посилання на Telegram у notes.
+        // phone лишаємо порожнім: resolveTelegramImportPerson знайде/створить Person
+        // через findOrCreatePersonByTelegramUsername і поставить listing.phone = @user.
         const username = extractTelegramUsername(rawMessage);
         if (username && (!phone || phone === '')) {
             const tme = `https://t.me/${username.replace(/^@/, '')}`;

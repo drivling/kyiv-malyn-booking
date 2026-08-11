@@ -135,6 +135,10 @@ test('extractDate: не плутає час з датою', () => {
   assert.equal(ymd(extractDate('26 07 Малин-Київ', ref)), '2026-07-26');
   assert.equal(ymd(extractDate('Академмістечко -Малин 20.07. 17.10-17.30', ref)), '2026-07-20');
   assert.equal(ymd(extractDate('21.07. 15:40. Академ', ref)), '2026-07-21');
+  // «на DD.MM» — дата поїздки; час після «на» зазвичай «на 9:00»
+  assert.equal(ymd(extractDate('Потрібно одне місце на 16.08 Малин Коростень', ref)), '2026-08-16');
+  assert.equal(ymd(extractDate('Пасажир на 09.07 на Коростень до 7.00', ref)), '2026-07-09');
+  assert.equal(ymd(extractDate('є місця на 9.00 тел', ref)), '2026-07-14');
 });
 
 test('extractSeats: словесні форми', () => {
@@ -161,6 +165,8 @@ test('extractListingType: неявний пасажир', () => {
     extractListingType('можливо хтось їде сьогодні з академмістечко в малин'),
     'passenger'
   );
+  assert.equal(extractListingType('Потрібно одне місце на 16.08 Малин Коростень'), 'passenger');
+  assert.equal(extractListingType('потрібно 2 місця Київ-Малин'), 'passenger');
 });
 
 test('extractSeats', () => {
