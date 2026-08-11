@@ -81,6 +81,7 @@ import {
   getReferralBotLink,
 } from './referral';
 import { INLINE_QUERY_PREFIX, handleChosenInlineResult, handleInlineQuery } from './telegram-inline';
+import { isScheduleActiveOnDate } from './schedule-trip';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -1309,6 +1310,88 @@ const getRouteName = (route: string): string => {
 };
 
 export const getTelegramRouteName = getRouteName;
+
+/** Напрямки для бронювання (маршрут / електричка). */
+const BOOK_DIRECTION_OPTIONS: Array<{ route: string; label: string }> = [
+  { route: 'Kyiv-Malyn', label: 'Київ → Малин' },
+  { route: 'Malyn-Kyiv', label: 'Малин → Київ' },
+  { route: 'Malyn-Zhytomyr', label: 'Малин → Житомир' },
+  { route: 'Zhytomyr-Malyn', label: 'Житомир → Малин' },
+  { route: 'Korosten-Malyn', label: 'Коростень → Малин' },
+  { route: 'Malyn-Korosten', label: 'Малин → Коростень' },
+];
+
+function buildBookTypeKeyboard(): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
+  return {
+    inline_keyboard: [
+      [{ text: '🚌 Маршрутка', callback_data: 'book_type_marshrutka' }],
+      [{ text: '🚆 Електричка', callback_data: 'book_type_elektrichka' }],
+      [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
+    ],
+  };
+}
+
+function buildBookDirectionKeyboard(
+  prefix: 'book_dir' | 'el_dir',
+  emoji: string
+): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
+  return {
+    inline_keyboard: [
+      ...BOOK_DIRECTION_OPTIONS.map((d) => [
+        { text: `${emoji} ${d.label}`, callback_data: `${prefix}_${d.route}` },
+      ]),
+      [
+        { text: '⬅️ Назад', callback_data: 'book_type_back' },
+        { text: '❌ Скасувати', callback_data: 'book_cancel' },
+      ],
+    ],
+  };
+}
+
+export type ElektrichkaPurchaseSchedule = {
+  route: string;
+  departureTime: string;
+  tripNumber?: string | null;
+  ticketPurchaseUrl?: string | null;
+};
+
+/** Текст покупки квитка на електричку (без booking.create). */
+export function buildElektrichkaPurchaseMessage(
+  schedule: ElektrichkaPurchaseSchedule,
+  options?: { dateLabel?: string; routeDisplayName?: string }
+): string {
+  const routeName = options?.routeDisplayName ?? getRouteName(schedule.route);
+  const dateLine = options?.dateLabel ? `\n📅 <b>Дата:</b> ${options.dateLabel}` : '';
+  const tripLine = schedule.tripNumber
+    ? `\n🔢 <b>Номер рейсу:</b> ${escapeHtml(String(schedule.tripNumber))}`
+    : '';
+  return (
+    '🚆 <b>Електричка</b>\n\n' +
+    `📍 <b>Маршрут:</b> ${routeName}\n` +
+    `🕐 <b>Час:</b> ${escapeHtml(schedule.departureTime)}` +
+    dateLine +
+    tripLine +
+    '\n\n' +
+    'Квитки на електричку купуються в застосунку перевізника. Натисніть кнопку нижче — відкриється сторінка покупки.'
+  );
+}
+
+/** Inline-клавіатура з URL покупки (якщо є) + скасування. */
+export function buildElektrichkaPurchaseKeyboard(
+  schedule: ElektrichkaPurchaseSchedule
+): { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> } {
+  const rows: Array<Array<{ text: string; url?: string; callback_data?: string }>> = [];
+  const url = schedule.ticketPurchaseUrl?.trim();
+  if (url) {
+    rows.push([{ text: '🎫 Купити квиток', url }]);
+  }
+  rows.push([{ text: '❌ Закрити', callback_data: 'book_cancel' }]);
+  return { inline_keyboard: rows };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 /**
  * Відправка повідомлення про нове бронювання адміністратору.
@@ -3733,17 +3816,11 @@ function setupBotCommands() {
       await sendSharePhoneOnly(chatId);
       return;
     }
-    const directionKeyboard = {
-      inline_keyboard: [
-        [{ text: '🚌 Київ → Малин', callback_data: 'book_dir_Kyiv-Malyn' }],
-        [{ text: '🚌 Малин → Київ', callback_data: 'book_dir_Malyn-Kyiv' }],
-        [{ text: '🚌 Малин → Житомир', callback_data: 'book_dir_Malyn-Zhytomyr' }],
-        [{ text: '🚌 Житомир → Малин', callback_data: 'book_dir_Zhytomyr-Malyn' }],
-        [{ text: '🚌 Коростень → Малин', callback_data: 'book_dir_Korosten-Malyn' }],
-        [{ text: '🚌 Малин → Коростень', callback_data: 'book_dir_Malyn-Korosten' }]
-      ]
-    };
-    await bot?.sendMessage(chatId, '🎫 <b>Нове бронювання</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: directionKeyboard });
+    await bot?.sendMessage(
+      chatId,
+      '🎫 <b>Нове бронювання</b>\n\nОберіть тип поїздки:',
+      { parse_mode: 'HTML', reply_markup: buildBookTypeKeyboard() }
+    );
   };
 
   const handleHelp = async (chatId: string, userId: string) => {
@@ -5963,6 +6040,46 @@ ${buildReferralHelpSection()}
         await bot?.answerCallbackQuery(query.id, { text: '✅ Залишено' });
       }
       
+      // Вибір типу поїздки (маршрутка / електричка)
+      if (data === 'book_type_marshrutka') {
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n1️⃣ Оберіть напрямок:',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildBookDirectionKeyboard('book_dir', '🚌'),
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      if (data === 'book_type_elektrichka') {
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b> · 🚆 Електричка\n\n1️⃣ Оберіть напрямок:',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildBookDirectionKeyboard('el_dir', '🚆'),
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      if (data === 'book_type_back') {
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b>\n\nОберіть тип поїздки:',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildBookTypeKeyboard(),
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+      
       // Вибір напрямку для нового бронювання
       if (data.startsWith('book_dir_')) {
         const direction = data.replace('book_dir_', '');
@@ -5982,12 +6099,13 @@ ${buildReferralHelpSection()}
         
         const dateKeyboard = {
           inline_keyboard: dates.map(d => [d]).concat([[
+            { text: '⬅️ Назад', callback_data: 'book_type_marshrutka' },
             { text: '❌ Скасувати', callback_data: 'book_cancel' }
           ]])
         };
         
         await bot?.editMessageText(
-          '🎫 <b>Нове бронювання</b>\n\n' +
+          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
           `✅ Напрямок: ${getRouteName(direction)}\n\n` +
           '2️⃣ Оберіть дату:',
           {
@@ -6009,11 +6127,17 @@ ${buildReferralHelpSection()}
         // Direction - все що до дати
         const direction = parts.slice(0, -3).join('-');
         
-        // Отримати графіки для обраного напрямку
-        const schedules = await tgPrisma.schedule.findMany({
-          where: { route: { startsWith: direction } },
+        // Отримати графіки маршруток для обраного напрямку
+        const allSchedules = await tgPrisma.schedule.findMany({
+          where: {
+            route: { startsWith: direction },
+            NOT: { vehicleType: 'elektrichka' },
+          },
           orderBy: { departureTime: 'asc' }
         });
+        const schedules = allSchedules.filter((s) =>
+          isScheduleActiveOnDate(s.activeWeekdays, selectedDate)
+        );
         
         if (schedules.length === 0) {
           // Запропонувати поїздки з Viber, якщо є
@@ -6118,7 +6242,7 @@ ${buildReferralHelpSection()}
         };
         
         await bot?.editMessageText(
-          '🎫 <b>Нове бронювання</b>\n\n' +
+          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
           `✅ Напрямок: ${getRouteName(direction)}\n` +
           `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
           '3️⃣ Оберіть час відправлення:',
@@ -6131,6 +6255,175 @@ ${buildReferralHelpSection()}
         );
         
         await bot?.answerCallbackQuery(query.id);
+      }
+
+      // ——— Електричка: напрямок → дата → час → посилання на покупку (без booking.create) ———
+      if (data.startsWith('el_dir_')) {
+        const direction = data.replace('el_dir_', '');
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          const label = i === 0 ? ' (сьогодні)' : i === 1 ? ' (завтра)' : '';
+          dates.push({
+            text: formatDate(date) + label,
+            callback_data: `el_date_${direction}_${dateStr.replace(/-/g, '_')}`,
+          });
+        }
+        const dateKeyboard = {
+          inline_keyboard: dates.map((d) => [d]).concat([[
+            { text: '⬅️ Назад', callback_data: 'book_type_elektrichka' },
+            { text: '❌ Скасувати', callback_data: 'book_cancel' },
+          ]]),
+        };
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b> · 🚆 Електричка\n\n' +
+            `✅ Напрямок: ${getRouteName(direction)}\n\n` +
+            '2️⃣ Оберіть дату:',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: dateKeyboard,
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      if (data.startsWith('el_date_')) {
+        const parts = data.replace('el_date_', '').split('_');
+        const selectedDate = parts.slice(-3).join('-');
+        const direction = parts.slice(0, -3).join('-');
+
+        const allSchedules = await tgPrisma.schedule.findMany({
+          where: {
+            route: { startsWith: direction },
+            vehicleType: 'elektrichka',
+          },
+          orderBy: { departureTime: 'asc' },
+        });
+        const schedules = allSchedules.filter((s) =>
+          isScheduleActiveOnDate(s.activeWeekdays, selectedDate)
+        );
+
+        if (schedules.length === 0) {
+          await bot?.editMessageText(
+            '❌ <b>Немає рейсів електрички</b> на цю дату.\n\n' +
+              'Спробуйте інший напрямок або дату.\n\n' +
+              '🎫 /book - Почати заново',
+            {
+              chat_id: chatId,
+              message_id: messageId,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: '⬅️ Назад', callback_data: `el_dir_${direction}` },
+                  { text: '❌ Скасувати', callback_data: 'book_cancel' },
+                ]],
+              },
+            }
+          );
+          await bot?.answerCallbackQuery(query.id);
+          return;
+        }
+
+        const dateForCallback = selectedDate.replace(/-/g, '_');
+        const timeButtons = schedules.map((schedule) => {
+          const tripLabel = schedule.tripNumber ? ` №${schedule.tripNumber}` : '';
+          const routeLabel = schedule.route.includes('Irpin')
+            ? ' (Ірпінь)'
+            : schedule.route.includes('Bucha')
+              ? ' (Буча)'
+              : '';
+          return {
+            text: `🚆 ${schedule.departureTime}${tripLabel}${routeLabel}`,
+            callback_data: `el_time_${schedule.route}_${schedule.departureTime}_${dateForCallback}`,
+          };
+        });
+
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b> · 🚆 Електричка\n\n' +
+            `✅ Напрямок: ${getRouteName(direction)}\n` +
+            `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
+            '3️⃣ Оберіть час відправлення:',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: timeButtons.map((b) => [b]).concat([[
+                { text: '⬅️ Назад', callback_data: `el_dir_${direction}` },
+                { text: '❌ Скасувати', callback_data: 'book_cancel' },
+              ]]),
+            },
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      if (data.startsWith('el_time_')) {
+        const parts = data.replace('el_time_', '').split('_');
+        const selectedDate = parts.slice(-3).join('-');
+        const time = parts[parts.length - 4];
+        const route = parts.slice(0, -4).join('-');
+
+        const schedule = await tgPrisma.schedule.findFirst({
+          where: {
+            route,
+            departureTime: time,
+            vehicleType: 'elektrichka',
+          },
+        });
+
+        if (!schedule) {
+          await bot?.answerCallbackQuery(query.id, {
+            text: '❌ Рейс не знайдено',
+            show_alert: true,
+          });
+          return;
+        }
+
+        if (!isScheduleActiveOnDate(schedule.activeWeekdays, selectedDate)) {
+          await bot?.answerCallbackQuery(query.id, {
+            text: '❌ Рейс не курсує в цей день',
+            show_alert: true,
+          });
+          return;
+        }
+
+        const purchaseText = buildElektrichkaPurchaseMessage(schedule, {
+          dateLabel: formatDate(new Date(selectedDate)),
+          routeDisplayName: getRouteName(schedule.route),
+        });
+        const purchaseKeyboard = buildElektrichkaPurchaseKeyboard(schedule);
+        // Додати «Назад» до списку часів
+        const dateForCallback = selectedDate.replace(/-/g, '_');
+        const direction = BOOK_DIRECTION_OPTIONS.find((d) =>
+          schedule.route.startsWith(d.route)
+        )?.route ?? route.split('-').slice(0, 2).join('-');
+        purchaseKeyboard.inline_keyboard.push([
+          {
+            text: '⬅️ Назад',
+            callback_data: `el_date_${direction}_${dateForCallback}`,
+          },
+        ]);
+
+        await bot?.editMessageText(purchaseText, {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: 'HTML',
+          reply_markup: purchaseKeyboard,
+        });
+
+        if (!schedule.ticketPurchaseUrl?.trim()) {
+          await bot?.answerCallbackQuery(query.id, {
+            text: '⚠️ Посилання на покупку ще не налаштоване',
+            show_alert: true,
+          });
+        } else {
+          await bot?.answerCallbackQuery(query.id);
+        }
       }
       
       // Вибір часу - запитати кількість місць
@@ -6246,6 +6539,14 @@ ${buildReferralHelpSection()}
           
           if (!schedule) {
             throw new Error('Графік не знайдено');
+          }
+
+          if (schedule.vehicleType === 'elektrichka') {
+            throw new Error('Квитки на електричку купуються в застосунку перевізника');
+          }
+
+          if (!isScheduleActiveOnDate(schedule.activeWeekdays, selectedDate)) {
+            throw new Error('Рейс не курсує в цей день');
           }
           
           const existingBookings = await tgPrisma.booking.findMany({

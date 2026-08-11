@@ -8,18 +8,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Точка міжміського маршруту (Київ, Малин, Ірпінь, …)
+model TripPoint {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique // Kyiv, Malyn, Irpin, …
+  nameUk          String
+  /// Обов'язкова на рейсі (Малин): start, end або via
+  requiredOnTrip  Boolean  @default(false)
+  /// Показувати в селектах «звідки / куди» на сайті
+  appearInFromTo  Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  schedulesAsStart Schedule[] @relation("ScheduleStartPoint")
+  schedulesAsEnd   Schedule[] @relation("ScheduleEndPoint")
+}
+
 model Schedule {
   id            Int      @id @default(autoincrement())
-  route         String   // "Kyiv-Malyn-Irpin", "Malyn-Kyiv-Irpin", "Kyiv-Malyn-Bucha", "Malyn-Kyiv-Bucha"
+  route         String   // Legacy key: "Kyiv-Malyn-Irpin", "Malyn-Zhytomyr", …
   departureTime String   // Формат "HH:MM" (наприклад "08:00")
   maxSeats      Int      @default(20) // Максимальна кількість місць
   supportPhone  String?  // Телефон підтримки для уточнення бронювання (напр. +380(93) 170 18 35), для напрямків з Києвом
   /// Ціна місця в грн (маршрутка). null — ще не задано (напр. Житомир уточнюється)
   priceUah      Int?
+
+  startPointId  Int?
+  endPointId    Int?
+  startPoint    TripPoint? @relation("ScheduleStartPoint", fields: [startPointId], references: [id], onDelete: SetNull)
+  endPoint      TripPoint? @relation("ScheduleEndPoint", fields: [endPointId], references: [id], onDelete: SetNull)
+  /// Упорядкований масив id проміжних TripPoint
+  viaPointIds   Json     @default("[]")
+
+  /// marshrutka | elektrichka
+  vehicleType   String   @default("marshrutka")
+  boardingPlace String?
+  alightingPlace String?
+  /// Номер рейсу (електричка; пізніше ширше)
+  tripNumber    String?
+  arrivalTime   String?  // HH:MM
+  durationMinutes Int?
+  ticketPurchaseUrl String?
+  /// 1=пн … 7=нд
+  activeWeekdays Json    @default("[1,2,3,4,5,6,7]")
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@unique([route, departureTime])
+  @@index([startPointId])
+  @@index([endPointId])
+  @@index([vehicleType])
 }
 
 // Єдина база людей: прив'язка номера до імені та Telegram для всіх сценаріїв

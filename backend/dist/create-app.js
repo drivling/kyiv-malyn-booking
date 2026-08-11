@@ -15,6 +15,7 @@ const public_routes_1 = require("./routes/public-routes");
 const admin_session_1 = require("./routes/admin-session");
 const admin_maintenance_1 = require("./routes/admin-maintenance");
 const schedules_bookings_1 = require("./routes/schedules-bookings");
+const trip_points_1 = require("./routes/trip-points");
 const user_profile_1 = require("./routes/user-profile");
 const viber_listings_user_1 = require("./routes/viber-listings-user");
 const telegram_routes_1 = require("./routes/telegram-routes");
@@ -68,6 +69,7 @@ function createApp(deps) {
     app.use((0, admin_session_1.createAdminSessionRouter)({ adminPassword: ADMIN_PASSWORD }));
     app.use((0, admin_maintenance_1.createAdminMaintenanceRouter)({ prisma }));
     app.use((0, schedules_bookings_1.createSchedulesBookingsRouter)({ prisma }));
+    app.use((0, trip_points_1.createTripPointsRouter)({ prisma }));
     app.use((0, user_profile_1.createUserProfileRouter)({ prisma }));
     app.use((0, viber_listings_user_1.createViberListingsUserRouter)({ prisma }));
     app.use((0, telegram_routes_1.createTelegramRoutesRouter)({ prisma }));

@@ -5,7 +5,30 @@ import type { Direction } from '@/types';
 /** Коридор через Малин: один «далекий» кінець + напрямок */
 export type CorridorId = 'kyiv' | 'zhytomyr' | 'korosten';
 
-export type TransportFilter = 'all' | 'carpool' | 'bus';
+export type TransportFilter = 'all' | 'carpool' | 'bus' | 'train';
+
+/** ISO weekday 1=Mon … 7=Sun for YYYY-MM-DD */
+export function isoWeekdayFromDate(date: string): number {
+  const d = new Date(`${date.slice(0, 10)}T12:00:00`);
+  const js = d.getDay();
+  return js === 0 ? 7 : js;
+}
+
+export function isScheduleActiveOnDate(activeWeekdays: number[] | undefined | null, date: string): boolean {
+  const days =
+    Array.isArray(activeWeekdays) && activeWeekdays.length > 0
+      ? activeWeekdays
+      : [1, 2, 3, 4, 5, 6, 7];
+  return days.includes(isoWeekdayFromDate(date));
+}
+
+export function isElektrichka(schedule: { vehicleType?: string | null }): boolean {
+  return schedule.vehicleType === 'elektrichka';
+}
+
+export function isMarshrutka(schedule: { vehicleType?: string | null }): boolean {
+  return !isElektrichka(schedule);
+}
 
 export const CORRIDORS: {
   id: CorridorId;

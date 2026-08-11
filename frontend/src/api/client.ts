@@ -102,13 +102,21 @@ class ApiClient {
   }
 
   // Schedule endpoints
-  async getSchedules(route?: string): Promise<Schedule[]> {
-    const endpoint = route ? `/schedules?route=${route}` : '/schedules';
-    return this.request<Schedule[]>(endpoint);
+  async getSchedules(route?: string, opts?: { vehicleType?: string; date?: string }): Promise<Schedule[]> {
+    const params = new URLSearchParams();
+    if (route) params.set('route', route);
+    if (opts?.vehicleType) params.set('vehicleType', opts.vehicleType);
+    if (opts?.date) params.set('date', opts.date);
+    const qs = params.toString();
+    return this.request<Schedule[]>(qs ? `/schedules?${qs}` : '/schedules');
   }
 
-  async getSchedulesByRoute(route: string): Promise<Schedule[]> {
-    return this.request<Schedule[]>(`/schedules/${route}`);
+  async getSchedulesByRoute(route: string, opts?: { vehicleType?: string; date?: string }): Promise<Schedule[]> {
+    const params = new URLSearchParams();
+    if (opts?.vehicleType) params.set('vehicleType', opts.vehicleType);
+    if (opts?.date) params.set('date', opts.date);
+    const qs = params.toString();
+    return this.request<Schedule[]>(qs ? `/schedules/${route}?${qs}` : `/schedules/${route}`);
   }
 
   async createSchedule(data: ScheduleFormData): Promise<Schedule> {
@@ -129,6 +137,38 @@ class ApiClient {
     return this.request<void>(`/schedules/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  async getTripPoints(opts?: { appearInFromTo?: boolean }): Promise<import('@/types').TripPoint[]> {
+    const qs = opts?.appearInFromTo ? '?appearInFromTo=true' : '';
+    return this.request(`/trip-points${qs}`);
+  }
+
+  async createTripPoint(data: {
+    code: string;
+    nameUk: string;
+    requiredOnTrip?: boolean;
+    appearInFromTo?: boolean;
+    sortOrder?: number;
+  }): Promise<import('@/types').TripPoint> {
+    return this.request('/trip-points', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateTripPoint(
+    id: number,
+    data: Partial<{
+      code: string;
+      nameUk: string;
+      requiredOnTrip: boolean;
+      appearInFromTo: boolean;
+      sortOrder: number;
+    }>
+  ): Promise<import('@/types').TripPoint> {
+    return this.request(`/trip-points/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteTripPoint(id: number): Promise<void> {
+    return this.request(`/trip-points/${id}`, { method: 'DELETE' });
   }
 
   /** Телефон підтримки для уточнення бронювання (з графіка; для напрямків з Києвом) */

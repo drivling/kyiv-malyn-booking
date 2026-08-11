@@ -42,6 +42,8 @@ npm run test:e2e
 
 Pre-commit (husky) runs `npm test` (unit only, no Playwright).
 
+CI also runs Playwright e2e (mocked API, Vite on port 4177).
+
 ## Stack
 
 | Layer | Tooling |
@@ -63,12 +65,13 @@ Pre-commit (husky) runs `npm test` (unit only, no Playwright).
 - `src/test/utils.tsx` — `renderWithProviders` (`MemoryRouter`).
 - `src/test/msw/handlers.ts` — stubs for `/api/admin/login`, `/api/admin/check`, `/api/transport/dataset`.
 
-## P0 for iteration 2 (product coverage)
+## P0 coverage (iteration 2)
 
-1. Admin auth: login / check / ProtectedRoute.
-2. Admin HTTP round-trips (transport dataset, referrals, viber listings).
-3. Transport page adapter / UI smoke.
-4. Playwright: `/admin` login, `/transport`, booking happy-path with route mocks.
+- Admin auth: `ProtectedRoute`, `LoginPage` admin mode, `apiClient` token helpers (Vitest + MSW).
+- Admin HTTP: login/check (existing), transport dataset (existing), viber listings POST (existing), `GET /admin/referrals/report`.
+- Transport smoke: `stopCatalog`, `tripDeparture`, `LocalTransportSubNav`, `useTransportDataset`.
+- Intercity trips: `schedule-trip` util, schedules/trip-points HTTP, `mizhUtils` train filter, Telegram elektrichka helpers.
+- Playwright: `e2e/auth.spec.ts`, `e2e/transport.spec.ts`, `e2e/booking.spec.ts`, `e2e/train.spec.ts` (API mocked via `page.route`).
 
 ## Out of CI
 

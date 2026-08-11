@@ -46,7 +46,7 @@ Goal: готовність конкурувати з Polissya / новинами
 
 ## After deploy
 
-- [ ] GSC: надіслати оновлений sitemap
+- [x] GSC: надіслати оновлений sitemap
 - [ ] URL Inspection на `/mizhgorodski/malyn-kyiv` і `/support/travel`
 - [ ] Запит на переобхід `/poputky` (має дати **301** → `/mizhgorodski`)
 - [ ] Перевірити в AI Overview / site: що з’являються години рейсів з лендінгів

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import { Button } from '@/components/Button';
@@ -38,7 +37,6 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginMode, setLoginMode] = useState<'admin' | 'telegram'>('telegram');
-  const navigate = useNavigate();
 
   // Обробка повернення з Telegram через redirect (data-auth-url): URL містить ?id=...&first_name=...&hash=...&auth_date=...
   useEffect(() => {
@@ -59,7 +57,9 @@ export const LoginPage: React.FC = () => {
       if (result.success && result.token) {
         userState.loginAdmin(result.token);
         apiClient.setAuthToken(result.token);
-        navigate('/admin');
+        // Full reload so ProtectedRoute remounts and re-checks the new token
+        // (same-route navigate('/admin') would leave isAuthenticated=false).
+        window.location.replace('/admin');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка авторизації');

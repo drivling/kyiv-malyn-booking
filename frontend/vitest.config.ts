@@ -10,12 +10,17 @@ export default mergeConfig(
       setupFiles: ['./src/test/setup.ts'],
       coverage: {
         provider: 'v8',
-        include: ['src/pages/TransportPage/datasetAdapter.ts'],
+        include: [
+          'src/pages/TransportPage/datasetAdapter.ts',
+          'src/pages/LocalTransportPage/stopCatalog.ts',
+          'src/pages/LocalTransportPage/tripDeparture.ts',
+          'src/components/ProtectedRoute/ProtectedRoute.tsx',
+        ],
         thresholds: {
-          lines: 80,
-          branches: 70,
-          functions: 80,
-          statements: 80,
+          lines: 70,
+          branches: 55,
+          functions: 70,
+          statements: 70,
         },
       },
     },

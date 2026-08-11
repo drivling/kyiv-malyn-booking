@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, Route, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError } from '@/types';
+import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
 import { ReferralTab } from './ReferralTab';
@@ -17,6 +17,7 @@ export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [tripPoints, setTripPoints] = useState<TripPoint[]>([]);
   const [viberListings, setViberListings] = useState<ViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,11 +33,21 @@ export const AdminPage: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormData>({
-    route: 'Kyiv-Malyn-Irpin',
     departureTime: '',
     maxSeats: 20,
     supportPhone: '',
     priceUah: 280,
+    startPointId: undefined,
+    endPointId: undefined,
+    viaPointIds: [],
+    vehicleType: 'marshrutka',
+    boardingPlace: '',
+    alightingPlace: '',
+    tripNumber: '',
+    arrivalTime: '',
+    durationMinutes: null,
+    ticketPurchaseUrl: '',
+    activeWeekdays: [1, 2, 3, 4, 5, 6, 7],
   });
 
   // Viber listings
@@ -666,9 +677,13 @@ export const AdminPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = scheduleRouteFilter
-        ? await apiClient.getSchedules(scheduleRouteFilter)
-        : await apiClient.getSchedules();
+      const [data, points] = await Promise.all([
+        scheduleRouteFilter
+          ? apiClient.getSchedules(scheduleRouteFilter)
+          : apiClient.getSchedules(),
+        apiClient.getTripPoints(),
+      ]);
+      setTripPoints(points);
       // Сортування: спочатку по маршруту, потім по часу
       const sorted = [...data].sort((a, b) => {
         if (a.route !== b.route) {
@@ -760,6 +775,24 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const emptyScheduleForm = (): ScheduleFormData => ({
+    departureTime: '',
+    maxSeats: 20,
+    supportPhone: '',
+    priceUah: 280,
+    startPointId: tripPoints.find((p) => p.code === 'Kyiv')?.id,
+    endPointId: tripPoints.find((p) => p.code === 'Malyn')?.id,
+    viaPointIds: tripPoints.find((p) => p.code === 'Irpin') ? [tripPoints.find((p) => p.code === 'Irpin')!.id] : [],
+    vehicleType: 'marshrutka',
+    boardingPlace: '',
+    alightingPlace: '',
+    tripNumber: '',
+    arrivalTime: '',
+    durationMinutes: null,
+    ticketPurchaseUrl: '',
+    activeWeekdays: [1, 2, 3, 4, 5, 6, 7],
+  });
+
   const openScheduleModal = (schedule?: Schedule) => {
     if (schedule) {
       setEditingSchedule(schedule);
@@ -769,16 +802,23 @@ export const AdminPage: React.FC = () => {
         maxSeats: schedule.maxSeats,
         supportPhone: schedule.supportPhone ?? '',
         priceUah: schedule.priceUah ?? null,
+        startPointId: schedule.startPointId ?? undefined,
+        endPointId: schedule.endPointId ?? undefined,
+        viaPointIds: Array.isArray(schedule.viaPointIds) ? schedule.viaPointIds : [],
+        vehicleType: schedule.vehicleType || 'marshrutka',
+        boardingPlace: schedule.boardingPlace ?? '',
+        alightingPlace: schedule.alightingPlace ?? '',
+        tripNumber: schedule.tripNumber ?? '',
+        arrivalTime: schedule.arrivalTime ?? '',
+        durationMinutes: schedule.durationMinutes ?? null,
+        ticketPurchaseUrl: schedule.ticketPurchaseUrl ?? '',
+        activeWeekdays: Array.isArray(schedule.activeWeekdays)
+          ? schedule.activeWeekdays
+          : [1, 2, 3, 4, 5, 6, 7],
       });
     } else {
       setEditingSchedule(null);
-      setScheduleForm({
-        route: 'Kyiv-Malyn-Irpin',
-        departureTime: '',
-        maxSeats: 20,
-        supportPhone: '',
-        priceUah: 280,
-      });
+      setScheduleForm(emptyScheduleForm());
     }
     setIsScheduleModalOpen(true);
   };
@@ -1137,6 +1177,56 @@ export const AdminPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="table-container" style={{ marginBottom: 24 }}>
+              <h3 style={{ margin: '0 0 8px' }}>Точки маршруту</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Назва</th>
+                    <th>Обовʼязкова на рейсі</th>
+                    <th>У «звідки/куди»</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tripPoints.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.code}</td>
+                      <td>{p.nameUk}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={p.requiredOnTrip}
+                          onChange={async (e) => {
+                            try {
+                              await apiClient.updateTripPoint(p.id, { requiredOnTrip: e.target.checked });
+                              loadSchedules();
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : 'Помилка');
+                            }
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={p.appearInFromTo}
+                          onChange={async (e) => {
+                            try {
+                              await apiClient.updateTripPoint(p.id, { appearInFromTo: e.target.checked });
+                              loadSchedules();
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : 'Помилка');
+                            }
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             {loading ? (
               <div className="admin-loading" aria-live="polite">Завантаження...</div>
             ) : schedules.length === 0 ? (
@@ -1150,13 +1240,13 @@ export const AdminPage: React.FC = () => {
                   <thead>
                     <tr>
                       <th>ID</th>
+                      <th>Тип</th>
                       <th>Маршрут</th>
-                      <th>Час відправлення</th>
-                      <th>Макс. місць</th>
-                      <th>Ціна, грн</th>
-                      <th>Телефон підтримки</th>
-                      <th>Створено</th>
-                      <th>Оновлено</th>
+                      <th>Час</th>
+                      <th>Номер</th>
+                      <th>Місць</th>
+                      <th>Ціна</th>
+                      <th>Посадка / висадка</th>
                       <th>Дії</th>
                     </tr>
                   </thead>
@@ -1164,17 +1254,19 @@ export const AdminPage: React.FC = () => {
                     {schedules.map((schedule) => (
                       <tr key={schedule.id}>
                         <td>#{schedule.id}</td>
+                        <td>{schedule.vehicleType === 'elektrichka' ? 'Електричка' : 'Маршрутка'}</td>
                         <td>
                           <span className={`badge ${getRouteBadgeClass(schedule.route)}`}>
                             {getRouteLabel(schedule.route)}
                           </span>
                         </td>
-                        <td><strong>{schedule.departureTime}</strong></td>
+                        <td><strong>{schedule.departureTime}</strong>{schedule.arrivalTime ? ` → ${schedule.arrivalTime}` : ''}</td>
+                        <td>{schedule.tripNumber || '—'}</td>
                         <td><strong>{schedule.maxSeats}</strong></td>
                         <td>{schedule.priceUah != null ? <strong>{schedule.priceUah}</strong> : '—'}</td>
-                        <td>{schedule.supportPhone ? formatPhoneDisplay(schedule.supportPhone) : '—'}</td>
-                        <td>{new Date(schedule.createdAt).toLocaleString('uk-UA')}</td>
-                        <td>{new Date(schedule.updatedAt).toLocaleString('uk-UA')}</td>
+                        <td>
+                          {[schedule.boardingPlace, schedule.alightingPlace].filter(Boolean).join(' / ') || '—'}
+                        </td>
                         <td>
                           <Button
                             variant="secondary"
@@ -2280,14 +2372,61 @@ export const AdminPage: React.FC = () => {
               </div>
               <form onSubmit={handleSaveSchedule}>
                 <Select
-                  label="Маршрут *"
-                  options={routeOptions}
-                  value={scheduleForm.route}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, route: e.target.value as Route })}
+                  label="Тип рейсу *"
+                  options={[
+                    { value: 'marshrutka', label: 'Маршрутка' },
+                    { value: 'elektrichka', label: 'Електричка' },
+                  ]}
+                  value={scheduleForm.vehicleType || 'marshrutka'}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, vehicleType: e.target.value })}
                   required
                 />
+                <Select
+                  label="Початкова точка *"
+                  options={tripPoints.map((p) => ({ value: String(p.id), label: `${p.nameUk} (${p.code})` }))}
+                  value={scheduleForm.startPointId != null ? String(scheduleForm.startPointId) : ''}
+                  onChange={(e) =>
+                    setScheduleForm({ ...scheduleForm, startPointId: Number(e.target.value) || undefined })
+                  }
+                  required
+                />
+                <Select
+                  label="Кінцева точка *"
+                  options={tripPoints.map((p) => ({ value: String(p.id), label: `${p.nameUk} (${p.code})` }))}
+                  value={scheduleForm.endPointId != null ? String(scheduleForm.endPointId) : ''}
+                  onChange={(e) =>
+                    setScheduleForm({ ...scheduleForm, endPointId: Number(e.target.value) || undefined })
+                  }
+                  required
+                />
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label>Проміжні точки</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {tripPoints
+                      .filter((p) => p.id !== scheduleForm.startPointId && p.id !== scheduleForm.endPointId)
+                      .map((p) => {
+                        const checked = (scheduleForm.viaPointIds || []).includes(p.id);
+                        return (
+                          <label key={p.id} className="admin-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                const cur = scheduleForm.viaPointIds || [];
+                                setScheduleForm({
+                                  ...scheduleForm,
+                                  viaPointIds: checked ? cur.filter((id) => id !== p.id) : [...cur, p.id],
+                                });
+                              }}
+                            />
+                            <span>{p.nameUk}</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
                 <Input
-                  label="Час відправлення * (формат HH:MM)"
+                  label="Час відправлення * (HH:MM)"
                   type="text"
                   placeholder="08:00"
                   value={scheduleForm.departureTime}
@@ -2296,35 +2435,120 @@ export const AdminPage: React.FC = () => {
                   required
                 />
                 <Input
-                  label="Максимальна кількість місць *"
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={scheduleForm.maxSeats}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, maxSeats: Number(e.target.value) })}
-                  required
+                  label="Час прибуття (HH:MM, опційно)"
+                  type="text"
+                  placeholder="10:00"
+                  value={scheduleForm.arrivalTime ?? ''}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, arrivalTime: e.target.value })}
                 />
                 <Input
-                  label="Ціна місця, грн (порожньо = ще не задано)"
+                  label="Тривалість, хв (якщо немає прибуття)"
                   type="number"
                   min={0}
-                  max={9999}
-                  placeholder="280"
-                  value={scheduleForm.priceUah ?? ''}
+                  value={scheduleForm.durationMinutes ?? ''}
                   onChange={(e) =>
                     setScheduleForm({
                       ...scheduleForm,
-                      priceUah: e.target.value === '' ? null : Number(e.target.value),
+                      durationMinutes: e.target.value === '' ? null : Number(e.target.value),
                     })
                   }
                 />
                 <Input
-                  label="Телефон підтримки (напр. +380(93)1701835)"
+                  label="Місце посадки"
                   type="text"
-                  placeholder="+380(93)1701835"
-                  value={scheduleForm.supportPhone ?? ''}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, supportPhone: e.target.value })}
+                  value={scheduleForm.boardingPlace ?? ''}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, boardingPlace: e.target.value })}
                 />
+                <Input
+                  label="Місце висадки"
+                  type="text"
+                  value={scheduleForm.alightingPlace ?? ''}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, alightingPlace: e.target.value })}
+                />
+                {scheduleForm.vehicleType === 'elektrichka' && (
+                  <>
+                    <Input
+                      label="Номер рейсу"
+                      type="text"
+                      value={scheduleForm.tripNumber ?? ''}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, tripNumber: e.target.value })}
+                    />
+                    <Input
+                      label="Посилання на купівлю квитка *"
+                      type="url"
+                      required
+                      value={scheduleForm.ticketPurchaseUrl ?? ''}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, ticketPurchaseUrl: e.target.value })}
+                    />
+                  </>
+                )}
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label>Дні тижня (1=пн … 7=нд)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {[
+                      [1, 'Пн'],
+                      [2, 'Вт'],
+                      [3, 'Ср'],
+                      [4, 'Чт'],
+                      [5, 'Пт'],
+                      [6, 'Сб'],
+                      [7, 'Нд'],
+                    ].map(([d, label]) => {
+                      const day = Number(d);
+                      const checked = (scheduleForm.activeWeekdays || []).includes(day);
+                      return (
+                        <label key={day} className="admin-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const cur = scheduleForm.activeWeekdays || [];
+                              setScheduleForm({
+                                ...scheduleForm,
+                                activeWeekdays: checked ? cur.filter((x) => x !== day) : [...cur, day].sort((a, b) => a - b),
+                              });
+                            }}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                {scheduleForm.vehicleType !== 'elektrichka' && (
+                  <>
+                    <Input
+                      label="Максимальна кількість місць *"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={scheduleForm.maxSeats}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, maxSeats: Number(e.target.value) })}
+                      required
+                    />
+                    <Input
+                      label="Ціна місця, грн"
+                      type="number"
+                      min={0}
+                      max={9999}
+                      placeholder="280"
+                      value={scheduleForm.priceUah ?? ''}
+                      onChange={(e) =>
+                        setScheduleForm({
+                          ...scheduleForm,
+                          priceUah: e.target.value === '' ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                    <Input
+                      label="Телефон підтримки"
+                      type="text"
+                      placeholder="+380(93)1701835"
+                      value={scheduleForm.supportPhone ?? ''}
+                      onChange={(e) => setScheduleForm({ ...scheduleForm, supportPhone: e.target.value })}
+                    />
+                  </>
+                )}
                 <div className="form-actions">
                   <Button type="button" variant="secondary" onClick={() => setIsScheduleModalOpen(false)}>
                     Скасувати

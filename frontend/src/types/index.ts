@@ -13,6 +13,19 @@ export type Direction = 'Kyiv-Malyn' | 'Malyn-Kyiv' | 'Malyn-Zhytomyr' | 'Zhytom
 // Синонім для сумісності зі старим кодом
 export type BaseDirection = Direction;
 
+export type VehicleType = 'marshrutka' | 'elektrichka';
+
+export interface TripPoint {
+  id: number;
+  code: string;
+  nameUk: string;
+  requiredOnTrip: boolean;
+  appearInFromTo: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Schedule {
   id: number;
   route: Route;
@@ -21,6 +34,19 @@ export interface Schedule {
   supportPhone: string | null;
   /** Ціна місця в грн; null якщо ще не задано */
   priceUah?: number | null;
+  startPointId?: number | null;
+  endPointId?: number | null;
+  startPoint?: TripPoint | null;
+  endPoint?: TripPoint | null;
+  viaPointIds?: number[];
+  vehicleType?: VehicleType | string;
+  boardingPlace?: string | null;
+  alightingPlace?: string | null;
+  tripNumber?: string | null;
+  arrivalTime?: string | null;
+  durationMinutes?: number | null;
+  ticketPurchaseUrl?: string | null;
+  activeWeekdays?: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -58,11 +84,22 @@ export interface BookingFormData {
 }
 
 export interface ScheduleFormData {
-  route: Route;
+  route?: Route;
   departureTime: string;
   maxSeats: number;
   supportPhone?: string;
   priceUah?: number | null;
+  startPointId?: number;
+  endPointId?: number;
+  viaPointIds?: number[];
+  vehicleType?: VehicleType | string;
+  boardingPlace?: string | null;
+  alightingPlace?: string | null;
+  tripNumber?: string | null;
+  arrivalTime?: string | null;
+  durationMinutes?: number | null;
+  ticketPurchaseUrl?: string | null;
+  activeWeekdays?: number[];
 }
 
 // Telegram User Data

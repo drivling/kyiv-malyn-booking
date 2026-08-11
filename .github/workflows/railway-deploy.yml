@@ -59,9 +59,8 @@ jobs:
           cd backend && npx tsc --noEmit
           cd ../frontend && npx tsc --noEmit
 
-  # Playwright job — enable when real e2e specs replace e2e/skeleton.spec.ts
+  # Playwright smoke (mocked API, Vite dev server — no production build)
   e2e:
-    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +73,5 @@ jobs:
         run: cd frontend && npm ci
       - name: Install Playwright Browsers
         run: cd frontend && npx playwright install --with-deps chromium
-      - name: Build Frontend
-        run: cd frontend && npm run build
       - name: Run E2E
         run: cd frontend && npm run test:e2e

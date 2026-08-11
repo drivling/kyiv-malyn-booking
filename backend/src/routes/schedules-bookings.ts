@@ -14,27 +14,170 @@ import { isValidScheduleDepartureTime, SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE }
 import { validateBookingPhoneInput } from '../validation/booking-phone';
 import { requireAdmin } from '../middleware/require-admin';
 import { defaultSchedulePriceUah, parseOptionalPriceUah } from '../schedule-price';
+import {
+  buildLegacyRouteKey,
+  isScheduleActiveOnDate,
+  isVehicleType,
+  normalizeActiveWeekdays,
+  normalizeViaPointIds,
+  parseHhMm,
+  parseLegacyRoute,
+  validateTripPointSelection,
+  type VehicleType,
+} from '../schedule-trip';
+
+const scheduleInclude = {
+  startPoint: true,
+  endPoint: true,
+} as const;
+
+async function loadPointsMap(prisma: PrismaClient) {
+  const points = await prisma.tripPoint.findMany();
+  return new Map(points.map((p) => [p.id, p]));
+}
+
+function optionalTrimmedString(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  const s = String(raw).trim();
+  return s === '' ? null : s;
+}
+
+function parseOptionalDuration(raw: unknown): number | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n);
+}
+
+async function resolveScheduleTripFields(
+  prisma: PrismaClient,
+  body: Record<string, unknown>,
+  existing?: {
+    route: string;
+    startPointId: number | null;
+    endPointId: number | null;
+    viaPointIds: unknown;
+    vehicleType: string;
+    ticketPurchaseUrl: string | null;
+  }
+): Promise<{ ok: true; data: Record<string, unknown>; route: string } | { ok: false; status: number; error: string }> {
+  const pointsById = await loadPointsMap(prisma);
+
+  let startPointId =
+    body.startPointId !== undefined ? Number(body.startPointId) : existing?.startPointId ?? null;
+  let endPointId = body.endPointId !== undefined ? Number(body.endPointId) : existing?.endPointId ?? null;
+  let viaPointIds =
+    body.viaPointIds !== undefined
+      ? normalizeViaPointIds(body.viaPointIds)
+      : normalizeViaPointIds(existing?.viaPointIds);
+
+  // Legacy: allow route-only create/update and derive points
+  if ((startPointId == null || endPointId == null) && (body.route || existing?.route)) {
+    const { startCode, endCode, viaCodes } = parseLegacyRoute(String(body.route || existing?.route));
+    const byCode = new Map([...pointsById.values()].map((p) => [p.code, p]));
+    const start = byCode.get(startCode);
+    const end = byCode.get(endCode);
+    if (start && end) {
+      startPointId = start.id;
+      endPointId = end.id;
+      if (body.viaPointIds === undefined) {
+        viaPointIds = viaCodes.map((c) => byCode.get(c)?.id).filter((id): id is number => id != null);
+      }
+    }
+  }
+
+  if (startPointId == null || endPointId == null || !Number.isInteger(startPointId) || !Number.isInteger(endPointId)) {
+    return { ok: false, status: 400, error: 'startPointId and endPointId are required (or provide legacy route)' };
+  }
+
+  const validated = validateTripPointSelection({
+    startPointId,
+    endPointId,
+    viaPointIds,
+    pointsById,
+  });
+  if (!validated.ok) {
+    return { ok: false, status: 400, error: validated.error };
+  }
+
+  const start = pointsById.get(startPointId)!;
+  const end = pointsById.get(endPointId)!;
+  const viaCodes = validated.viaPointIds.map((id) => pointsById.get(id)!.code);
+  const route = buildLegacyRouteKey(start.code, end.code, viaCodes);
+
+  const vehicleTypeRaw =
+    body.vehicleType !== undefined ? body.vehicleType : existing?.vehicleType ?? 'marshrutka';
+  if (!isVehicleType(vehicleTypeRaw)) {
+    return { ok: false, status: 400, error: 'vehicleType must be marshrutka or elektrichka' };
+  }
+  const vehicleType: VehicleType = vehicleTypeRaw;
+
+  const ticketPurchaseUrl = optionalTrimmedString(body.ticketPurchaseUrl);
+  const arrivalTime = optionalTrimmedString(body.arrivalTime);
+  if (arrivalTime && !parseHhMm(arrivalTime)) {
+    return { ok: false, status: 400, error: 'arrivalTime must be HH:MM' };
+  }
+
+  const data: Record<string, unknown> = {
+    route,
+    startPointId,
+    endPointId,
+    viaPointIds: validated.viaPointIds,
+    vehicleType,
+  };
+
+  if (body.boardingPlace !== undefined) data.boardingPlace = optionalTrimmedString(body.boardingPlace);
+  if (body.alightingPlace !== undefined) data.alightingPlace = optionalTrimmedString(body.alightingPlace);
+  if (body.tripNumber !== undefined) data.tripNumber = optionalTrimmedString(body.tripNumber);
+  if (body.arrivalTime !== undefined) data.arrivalTime = arrivalTime ?? null;
+  if (body.durationMinutes !== undefined) data.durationMinutes = parseOptionalDuration(body.durationMinutes);
+  if (body.ticketPurchaseUrl !== undefined) data.ticketPurchaseUrl = ticketPurchaseUrl ?? null;
+  if (body.activeWeekdays !== undefined) data.activeWeekdays = normalizeActiveWeekdays(body.activeWeekdays);
+
+  return { ok: true, data, route };
+}
 
 export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
   const r = express.Router();
 
   r.get('/schedules', async (req, res) => {
-    const { route } = req.query;
-    const where = route ? { route: route as string } : {};
-    const schedules = await prisma.schedule.findMany({
+    const { route, vehicleType, date } = req.query;
+    const where: Record<string, unknown> = {};
+    if (route) where.route = route as string;
+    if (vehicleType && isVehicleType(vehicleType)) where.vehicleType = vehicleType;
+
+    let schedules = await prisma.schedule.findMany({
       where,
+      include: scheduleInclude,
       orderBy: [{ route: 'asc' }, { departureTime: 'asc' }],
     });
+
+    if (date && typeof date === 'string') {
+      schedules = schedules.filter((s) => isScheduleActiveOnDate(s.activeWeekdays, date));
+    }
+
     res.json(schedules);
   });
 
   r.get('/schedules/:route', async (req, res) => {
     const { route } = req.params;
-    const schedules = await prisma.schedule.findMany({
-      where: { route },
+    const { date, vehicleType } = req.query;
+    const where: Record<string, unknown> = { route };
+    if (vehicleType && isVehicleType(vehicleType)) where.vehicleType = vehicleType;
+
+    let schedules = await prisma.schedule.findMany({
+      where,
+      include: scheduleInclude,
       orderBy: { departureTime: 'asc' },
     });
+
+    if (date && typeof date === 'string') {
+      schedules = schedules.filter((s) => isScheduleActiveOnDate(s.activeWeekdays, date));
+    }
+
     res.json(schedules);
   });
 
@@ -72,6 +215,29 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
         return res.status(404).json({ error: 'Schedule not found' });
       }
 
+      if (schedule.vehicleType === 'elektrichka') {
+        return res.json({
+          scheduleId: schedule.id,
+          maxSeats: schedule.maxSeats,
+          bookedSeats: 0,
+          availableSeats: 0,
+          isAvailable: false,
+          vehicleType: schedule.vehicleType,
+          ticketPurchaseUrl: schedule.ticketPurchaseUrl,
+        });
+      }
+
+      if (!isScheduleActiveOnDate(schedule.activeWeekdays, date as string)) {
+        return res.json({
+          scheduleId: schedule.id,
+          maxSeats: schedule.maxSeats,
+          bookedSeats: 0,
+          availableSeats: 0,
+          isAvailable: false,
+          inactiveOnDate: true,
+        });
+      }
+
       const bookingDate = new Date(date as string);
       const startOfDay = new Date(bookingDate);
       startOfDay.setHours(0, 0, 0, 0);
@@ -105,28 +271,41 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
   });
 
   r.post('/schedules', requireAdmin, async (req, res) => {
-    const { route, departureTime, maxSeats, supportPhone, priceUah } = req.body;
-    if (!route || !departureTime) {
-      return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
+    const body = req.body ?? {};
+    const { departureTime, maxSeats, supportPhone, priceUah } = body;
+    if (!departureTime) {
+      return res.status(400).json({ error: 'Missing fields: departureTime is required' });
     }
 
     if (!isValidScheduleDepartureTime(departureTime)) {
       return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
     }
 
+    const trip = await resolveScheduleTripFields(prisma, body);
+    if (!trip.ok) {
+      return res.status(trip.status).json({ error: trip.error });
+    }
+
+    if (trip.data.vehicleType === 'elektrichka' && !trip.data.ticketPurchaseUrl) {
+      return res.status(400).json({ error: 'ticketPurchaseUrl is required for elektrichka' });
+    }
+
     const parsedPrice = parseOptionalPriceUah(priceUah);
     const resolvedPrice =
-      parsedPrice !== undefined ? parsedPrice : defaultSchedulePriceUah(String(route));
+      parsedPrice !== undefined ? parsedPrice : defaultSchedulePriceUah(trip.route);
 
     try {
       const schedule = await prisma.schedule.create({
         data: {
-          route,
+          ...trip.data,
           departureTime,
           maxSeats: maxSeats ? Number(maxSeats) : 20,
-          supportPhone: supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null,
+          supportPhone:
+            supportPhone != null && String(supportPhone).trim() !== '' ? String(supportPhone).trim() : null,
           priceUah: resolvedPrice,
-        },
+          activeWeekdays: trip.data.activeWeekdays ?? normalizeActiveWeekdays(undefined),
+        } as never,
+        include: scheduleInclude,
       });
       res.status(201).json(schedule);
     } catch (error: unknown) {
@@ -134,20 +313,41 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       if (err.code === 'P2002') {
         return res.status(409).json({ error: 'Schedule with this route and time already exists' });
       }
+      console.error('Failed to create schedule', error);
       res.status(500).json({ error: 'Failed to create schedule' });
     }
   });
 
   r.put('/schedules/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { route, departureTime, maxSeats, supportPhone, priceUah } = req.body;
+    const body = req.body ?? {};
+    const { departureTime, maxSeats, supportPhone, priceUah } = body;
 
-    if (!route || !departureTime) {
-      return res.status(400).json({ error: 'Missing fields: route and departureTime are required' });
+    if (!departureTime) {
+      return res.status(400).json({ error: 'Missing fields: departureTime is required' });
     }
 
     if (!isValidScheduleDepartureTime(departureTime)) {
       return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
+    }
+
+    const existing = await prisma.schedule.findUnique({ where: { id: Number(id) } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Schedule not found' });
+    }
+
+    const trip = await resolveScheduleTripFields(prisma, body, existing);
+    if (!trip.ok) {
+      return res.status(trip.status).json({ error: trip.error });
+    }
+
+    const vehicleType = (trip.data.vehicleType as string) || existing.vehicleType;
+    const nextUrl =
+      trip.data.ticketPurchaseUrl !== undefined
+        ? (trip.data.ticketPurchaseUrl as string | null)
+        : existing.ticketPurchaseUrl;
+    if (vehicleType === 'elektrichka' && !nextUrl) {
+      return res.status(400).json({ error: 'ticketPurchaseUrl is required for elektrichka' });
     }
 
     const parsedPrice = parseOptionalPriceUah(priceUah);
@@ -156,7 +356,7 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       const schedule = await prisma.schedule.update({
         where: { id: Number(id) },
         data: {
-          route,
+          ...trip.data,
           departureTime,
           maxSeats: maxSeats ? Number(maxSeats) : undefined,
           supportPhone:
@@ -166,7 +366,8 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
                 : null
               : undefined,
           ...(parsedPrice !== undefined ? { priceUah: parsedPrice } : {}),
-        },
+        } as never,
+        include: scheduleInclude,
       });
       res.json(schedule);
     } catch (error: unknown) {
@@ -177,6 +378,7 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       if (err.code === 'P2002') {
         return res.status(409).json({ error: 'Schedule with this route and time already exists' });
       }
+      console.error('Failed to update schedule', error);
       res.status(500).json({ error: 'Failed to update schedule' });
     }
   });
@@ -221,6 +423,17 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
           },
         },
       });
+
+      if (schedule?.vehicleType === 'elektrichka') {
+        return res.status(400).json({
+          error: 'Електрички не бронюються на сайті. Купіть квиток за посиланням перевізника.',
+          ticketPurchaseUrl: schedule.ticketPurchaseUrl,
+        });
+      }
+
+      if (schedule && !isScheduleActiveOnDate(schedule.activeWeekdays, date)) {
+        return res.status(400).json({ error: 'Рейс не курсує в обрану дату' });
+      }
 
       if (schedule) {
         const bookingDate = new Date(date);

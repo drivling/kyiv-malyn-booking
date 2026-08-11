@@ -24,6 +24,7 @@ import {
 } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { BusBookingModal } from './BusBookingModal';
+import { TrainTicketModal } from './TrainTicketModal';
 import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
 import {
   CORRIDORS,
@@ -33,6 +34,9 @@ import {
   formatRouteLabel,
   formatTripDate,
   getTimeMinutes,
+  isElektrichka,
+  isMarshrutka,
+  isScheduleActiveOnDate,
   routeCityLabels,
   routeMatchesCities,
   todayISO,
@@ -70,7 +74,8 @@ const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
 
 type ResultItem =
   | { kind: 'carpool'; id: string; listing: ViberListing; sortMinutes: number }
-  | { kind: 'bus'; id: string; schedule: Schedule; sortMinutes: number };
+  | { kind: 'bus'; id: string; schedule: Schedule; sortMinutes: number }
+  | { kind: 'train'; id: string; schedule: Schedule; sortMinutes: number };
 
 function parseCity(value: string | null): BookingCity | '' {
   if (!value) return '';
@@ -107,7 +112,7 @@ export const MizhgorodskiPage: React.FC = () => {
   const [toCity, setToCity] = useState<BookingCity>(initialValid ? (initialTo as BookingCity) : 'Malyn');
   const [date, setDate] = useState(initialDate);
   const [transport, setTransport] = useState<TransportFilter>(
-    (['all', 'carpool', 'bus'].includes(searchParams.get('type') || '')
+    (['all', 'carpool', 'bus', 'train'].includes(searchParams.get('type') || '')
       ? searchParams.get('type')
       : 'all') as TransportFilter
   );
@@ -127,6 +132,7 @@ export const MizhgorodskiPage: React.FC = () => {
   const [error, setError] = useState('');
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [bookingSchedule, setBookingSchedule] = useState<Schedule | null>(null);
+  const [trainSchedule, setTrainSchedule] = useState<Schedule | null>(null);
 
   const telegramScenarios = useTelegramScenarios();
   const announce = useAnnounceDraft();
@@ -245,7 +251,9 @@ export const MizhgorodskiPage: React.FC = () => {
     let cancelled = false;
     (async () => {
       const entries = await Promise.all(
-        schedules.map(async (schedule) => {
+        schedules
+          .filter((schedule) => isMarshrutka(schedule))
+          .map(async (schedule) => {
           try {
             const availability = await apiClient.checkAvailability(
               schedule.route,
@@ -272,6 +280,8 @@ export const MizhgorodskiPage: React.FC = () => {
 
   const anyModalOpen =
     showOfferModal ||
+    !!bookingSchedule ||
+    !!trainSchedule ||
     !!rideshare.confirmRequestListing ||
     rideshare.showRequestStatusModal ||
     !!rideshare.alreadyRequestedListing;
@@ -281,6 +291,8 @@ export const MizhgorodskiPage: React.FC = () => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setShowOfferModal(false);
+      setBookingSchedule(null);
+      setTrainSchedule(null);
       rideshare.setConfirmRequestListing(null);
       rideshare.setShowRequestStatusModal(false);
       rideshare.setRequestStatusData(null);
@@ -356,7 +368,8 @@ export const MizhgorodskiPage: React.FC = () => {
 
   const results: ResultItem[] = useMemo(() => {
     const items: ResultItem[] = [];
-    if (transport !== 'bus') {
+    const activeSchedules = schedules.filter((s) => isScheduleActiveOnDate(s.activeWeekdays, date));
+    if (transport !== 'bus' && transport !== 'train') {
       for (const listing of listings) {
         if (listingType && listing.listingType !== listingType) continue;
         items.push({
@@ -367,8 +380,8 @@ export const MizhgorodskiPage: React.FC = () => {
         });
       }
     }
-    if (transport !== 'carpool') {
-      for (const schedule of schedules) {
+    if (transport === 'all' || transport === 'bus') {
+      for (const schedule of activeSchedules.filter(isMarshrutka)) {
         items.push({
           kind: 'bus',
           id: `bus-${schedule.id}`,
@@ -377,12 +390,24 @@ export const MizhgorodskiPage: React.FC = () => {
         });
       }
     }
+    if (transport === 'all' || transport === 'train') {
+      for (const schedule of activeSchedules.filter(isElektrichka)) {
+        items.push({
+          kind: 'train',
+          id: `train-${schedule.id}`,
+          schedule,
+          sortMinutes: getTimeMinutes(schedule.departureTime) ?? 0,
+        });
+      }
+    }
     items.sort((a, b) => a.sortMinutes - b.sortMinutes);
     return items;
-  }, [listings, schedules, transport, listingType]);
+  }, [listings, schedules, transport, listingType, date]);
 
   const carpoolCount = listings.filter((l) => !listingType || l.listingType === listingType).length;
-  const busCount = schedules.length;
+  const activeSchedules = schedules.filter((s) => isScheduleActiveOnDate(s.activeWeekdays, date));
+  const busCount = activeSchedules.filter(isMarshrutka).length;
+  const trainCount = activeSchedules.filter(isElektrichka).length;
 
   return (
     <div className="mizh-page">
@@ -505,9 +530,10 @@ export const MizhgorodskiPage: React.FC = () => {
           <div className="mizh-transport-tabs" role="tablist" aria-label="Тип транспорту">
             {(
               [
-                { id: 'all', label: `Усі · ${carpoolCount + busCount}` },
+                { id: 'all', label: `Усі · ${carpoolCount + busCount + trainCount}` },
                 { id: 'carpool', label: `Попутки · ${carpoolCount}` },
                 { id: 'bus', label: `Маршрутки · ${busCount}` },
+                { id: 'train', label: `Електрички · ${trainCount}` },
               ] as const
             ).map((tab) => (
               <button
@@ -535,7 +561,7 @@ export const MizhgorodskiPage: React.FC = () => {
         </div>
 
         <div className="mizh-side-filters">
-          {transport !== 'bus' && (
+          {transport !== 'bus' && transport !== 'train' && (
             <select
               className="mizh-field-control"
               value={listingType}
@@ -679,6 +705,48 @@ export const MizhgorodskiPage: React.FC = () => {
                     </div>
                   </div>
                 </li>
+              ) : item.kind === 'train' ? (
+                <li key={item.id} className="mizh-card mizh-card--bus">
+                  <div className="mizh-card-badge mizh-card-badge--bus">Електричка</div>
+                  <div className="mizh-card-body">
+                    <div className="mizh-card-timeline">
+                      <div className="mizh-card-time">{item.schedule.departureTime}</div>
+                      <div className="mizh-card-rail" aria-hidden>
+                        <span className="mizh-card-dot mizh-card-dot--bus" />
+                        <span className="mizh-card-line mizh-card-line--bus" />
+                        <span className="mizh-card-dot mizh-card-dot--bus" />
+                      </div>
+                      <div className="mizh-card-cities">
+                        <span>{routeCityLabels(item.schedule.route)?.from ?? cityLabel(fromCity)}</span>
+                        <span>{routeCityLabels(item.schedule.route)?.to ?? cityLabel(toCity)}</span>
+                      </div>
+                    </div>
+                    <div className="mizh-card-meta">
+                      <div className="mizh-card-bus-title">
+                        {item.schedule.tripNumber ? `Рейс №${item.schedule.tripNumber}` : 'Залізничний рейс'}
+                      </div>
+                      <div className="mizh-card-role">
+                        {[item.schedule.boardingPlace, item.schedule.alightingPlace].filter(Boolean).join(' · ') ||
+                          'Квиток у перевізника'}
+                      </div>
+                      <div className="mizh-card-route-hint">{formatRouteLabel(item.schedule.route)}</div>
+                    </div>
+                    <div className="mizh-card-aside">
+                      <div className="mizh-card-price">
+                        <strong className="mizh-card-price--soft">квиток онлайн</strong>
+                      </div>
+                      <div className="mizh-card-actions">
+                        <button
+                          type="button"
+                          className="mizh-card-cta mizh-card-cta--bus"
+                          onClick={() => setTrainSchedule(item.schedule)}
+                        >
+                          Купити квиток
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </li>
               ) : (
                 <li key={item.id} className="mizh-card mizh-card--bus">
                   <div className="mizh-card-badge mizh-card-badge--bus">Маршрутка</div>
@@ -707,6 +775,7 @@ export const MizhgorodskiPage: React.FC = () => {
                           <>До {item.schedule.maxSeats} місць</>
                         )}
                         {getRouteSuffix(item.schedule.route) ? ` · ${getRouteSuffix(item.schedule.route)}` : ''}
+                        {item.schedule.boardingPlace ? ` · ${item.schedule.boardingPlace}` : ''}
                       </div>
                       <div className="mizh-card-route-hint">{formatRouteLabel(item.schedule.route)}</div>
                     </div>
@@ -1098,6 +1167,10 @@ export const MizhgorodskiPage: React.FC = () => {
             void loadResults(fromCity, toCity, date);
           }}
         />
+      )}
+
+      {trainSchedule && (
+        <TrainTicketModal schedule={trainSchedule} onClose={() => setTrainSchedule(null)} />
       )}
     </div>
   );
