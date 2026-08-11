@@ -6,6 +6,8 @@ import path from 'path';
 
 let child: ChildProcess | null = null;
 let stopping = false;
+/** >0 — тимчасово зупинили listener, щоб інший Telethon (fetch/send) міг відкрити ту саму .session */
+let exclusivePauseDepth = 0;
 let restartTimer: ReturnType<typeof setTimeout> | null = null;
 let restartAttempt = 0;
 
@@ -76,7 +78,7 @@ export function startLunchListener(): void {
   child.on('exit', (code, signal) => {
     console.warn(`[lunch-listener] exited code=${code} signal=${signal} pid=${pid}`);
     child = null;
-    if (stopping) return;
+    if (stopping || exclusivePauseDepth > 0) return;
     restartAttempt += 1;
     const delay = Math.min(60_000, 2000 * Math.pow(2, Math.min(restartAttempt, 5)));
     console.log(`[lunch-listener] restart in ${delay}ms (attempt ${restartAttempt})`);
@@ -91,8 +93,59 @@ export function startLunchListener(): void {
   restartAttempt = 0;
 }
 
+/**
+ * Зупиняє lunch.listener і чекає exit — щоб звільнити SQLite Telethon-сесію
+ * для коротких скриптів (fetch_telegram_messages / send_message).
+ */
+export async function pauseLunchListenerForExclusiveSession(): Promise<void> {
+  exclusivePauseDepth += 1;
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
+  const proc = child;
+  if (!proc || proc.killed) {
+    child = null;
+    return;
+  }
+  console.log(`[lunch-listener] pause for exclusive session pid=${proc.pid} depth=${exclusivePauseDepth}`);
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      console.warn('[lunch-listener] pause timeout — SIGKILL');
+      try {
+        proc.kill('SIGKILL');
+      } catch {
+        /* ignore */
+      }
+      done();
+    }, 8000);
+    proc.once('exit', done);
+    try {
+      proc.kill('SIGTERM');
+    } catch {
+      done();
+    }
+  });
+  child = null;
+}
+
+export function resumeLunchListenerAfterExclusiveSession(): void {
+  exclusivePauseDepth = Math.max(0, exclusivePauseDepth - 1);
+  if (exclusivePauseDepth > 0 || stopping) return;
+  console.log('[lunch-listener] resume after exclusive session');
+  startLunchListener();
+}
+
 export function stopLunchListener(): void {
   stopping = true;
+  exclusivePauseDepth = 0;
   if (restartTimer) {
     clearTimeout(restartTimer);
     restartTimer = null;

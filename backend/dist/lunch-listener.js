@@ -6,12 +6,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isLunchListenerWanted = isLunchListenerWanted;
 exports.startLunchListener = startLunchListener;
+exports.pauseLunchListenerForExclusiveSession = pauseLunchListenerForExclusiveSession;
+exports.resumeLunchListenerAfterExclusiveSession = resumeLunchListenerAfterExclusiveSession;
 exports.stopLunchListener = stopLunchListener;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 let child = null;
 let stopping = false;
+/** >0 — тимчасово зупинили listener, щоб інший Telethon (fetch/send) міг відкрити ту саму .session */
+let exclusivePauseDepth = 0;
 let restartTimer = null;
 let restartAttempt = 0;
 function telegramUserDir() {
@@ -76,7 +80,7 @@ function startLunchListener() {
     child.on('exit', (code, signal) => {
         console.warn(`[lunch-listener] exited code=${code} signal=${signal} pid=${pid}`);
         child = null;
-        if (stopping)
+        if (stopping || exclusivePauseDepth > 0)
             return;
         restartAttempt += 1;
         const delay = Math.min(60000, 2000 * Math.pow(2, Math.min(restartAttempt, 5)));
@@ -91,8 +95,61 @@ function startLunchListener() {
     });
     restartAttempt = 0;
 }
+/**
+ * Зупиняє lunch.listener і чекає exit — щоб звільнити SQLite Telethon-сесію
+ * для коротких скриптів (fetch_telegram_messages / send_message).
+ */
+async function pauseLunchListenerForExclusiveSession() {
+    exclusivePauseDepth += 1;
+    if (restartTimer) {
+        clearTimeout(restartTimer);
+        restartTimer = null;
+    }
+    const proc = child;
+    if (!proc || proc.killed) {
+        child = null;
+        return;
+    }
+    console.log(`[lunch-listener] pause for exclusive session pid=${proc.pid} depth=${exclusivePauseDepth}`);
+    await new Promise((resolve) => {
+        let settled = false;
+        const done = () => {
+            if (settled)
+                return;
+            settled = true;
+            clearTimeout(timer);
+            resolve();
+        };
+        const timer = setTimeout(() => {
+            console.warn('[lunch-listener] pause timeout — SIGKILL');
+            try {
+                proc.kill('SIGKILL');
+            }
+            catch {
+                /* ignore */
+            }
+            done();
+        }, 8000);
+        proc.once('exit', done);
+        try {
+            proc.kill('SIGTERM');
+        }
+        catch {
+            done();
+        }
+    });
+    child = null;
+}
+function resumeLunchListenerAfterExclusiveSession() {
+    exclusivePauseDepth = Math.max(0, exclusivePauseDepth - 1);
+    if (exclusivePauseDepth > 0 || stopping)
+        return;
+    console.log('[lunch-listener] resume after exclusive session');
+    startLunchListener();
+}
 function stopLunchListener() {
     stopping = true;
+    exclusivePauseDepth = 0;
     if (restartTimer) {
         clearTimeout(restartTimer);
         restartTimer = null;

@@ -130,7 +130,21 @@ async def fetch_messages(limit_per_topic=50, topic_ids=None, hours=None, full_fe
 
     client = TelegramClient(session_path, api_id, api_hash)
     try:
-        await client.connect()
+        last_err = None
+        for attempt in range(5):
+            try:
+                await client.connect()
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                msg = str(e).lower()
+                if "locked" in msg or "database is locked" in msg:
+                    await asyncio.sleep(0.4 * (attempt + 1))
+                    continue
+                raise
+        if last_err is not None:
+            raise last_err
         if not await client.is_user_authorized():
             print("Сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
             sys.exit(2)

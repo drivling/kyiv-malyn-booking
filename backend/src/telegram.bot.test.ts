@@ -159,7 +159,7 @@ test('fetchTelegramGroupMessages: текст і upsert last ids', async () => {
   );
   setSpawnForTests(mockSpawnFetch('New msg\n__LAST_IDS__{"2":42}', 0));
   const text = await fetchTelegramGroupMessages({ limit: 5, fullFetch: true });
-  assert.equal(text, 'New msg');
+  assert.equal(text.text, 'New msg');
   assert.equal(upsert.mock.calls.length, 1);
   const up = upsert.mock.calls[0] as unknown as {
     arguments: [{ where: { topicId: number }; create: { lastMessageId: number } }];
@@ -176,7 +176,8 @@ test('fetchTelegramGroupMessages: null при ненульовому коді sp
   setTelegramPrismaForTests(asPrisma({ telegramFetchState: { findMany: mock.fn(async () => []) } }));
   setSpawnForTests(mockSpawnFetch('err', 1));
   const text = await fetchTelegramGroupMessages({ limit: 5, fullFetch: true });
-  assert.equal(text, null);
+  assert.equal(text.text, null);
+  assert.ok(text.error);
 });
 
 test('fetchTelegramGroupMessages: null без env', async () => {
@@ -185,5 +186,6 @@ test('fetchTelegramGroupMessages: null без env', async () => {
   delete process.env.TELEGRAM_API_ID;
   delete process.env.TELEGRAM_API_HASH;
   const text = await fetchTelegramGroupMessages({ fullFetch: true });
-  assert.equal(text, null);
+  assert.equal(text.text, null);
+  assert.ok(text.error);
 });
