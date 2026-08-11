@@ -2,7 +2,11 @@
   "name": "kyiv-malyn-booking",
   "private": true,
   "scripts": {
+    "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "npm run test --prefix backend",
+    "test:frontend": "npm run test --prefix frontend",
+    "test:coverage": "npm run test:coverage --prefix backend && npm run test:coverage --prefix frontend",
+    "test:e2e": "npm run test:e2e --prefix frontend",
     "prepare": "husky"
   },
   "devDependencies": {

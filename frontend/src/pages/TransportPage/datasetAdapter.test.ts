@@ -1,16 +1,15 @@
 /**
  * Unit tests for TransportDataset → Local view-model adapter.
- * Run: npx tsx --test src/pages/TransportPage/datasetAdapter.test.ts
  */
 
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import type { TransportDataset } from '../../api/transportDataset.ts';
+import { describe, it } from 'vitest';
+import type { TransportDataset } from '../../api/transportDataset';
 import {
   datasetToLocalViewModel,
   getDurationFromStartSec,
   getSegmentDurationSec,
-} from './datasetAdapter.ts';
+} from './datasetAdapter';
 
 function sampleDataset(): TransportDataset {
   return {

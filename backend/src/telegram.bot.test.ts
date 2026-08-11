@@ -2,7 +2,7 @@
  * Тести TelegramBot.sendMessage та spawn-обгорток без реального API / Python.
  */
 import { EventEmitter } from 'events';
-import test, { afterEach, mock } from 'node:test';
+import { test, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import type { ChildProcess } from 'child_process';
 import type { spawn as nodeSpawnType } from 'child_process';
@@ -93,17 +93,15 @@ afterEach(() => {
 });
 
 test('sendBehaviorPromoMessage: sendMessage з parse_mode HTML та текстом', async () => {
-  const sendMessage = mock.fn(async () => ({}));
+  const sendMessage = vi.fn(async () => ({}));
   setTelegramBotForTests({ sendMessage } as unknown as TelegramBot);
   await sendBehaviorPromoMessage('chat99', 'driver_passengers', { fullName: 'Оля' });
   assert.equal(sendMessage.mock.calls.length, 1);
-  const c = sendMessage.mock.calls[0] as unknown as {
-    arguments: [string, string, { parse_mode: string }];
-  };
-  assert.equal(c.arguments[0], 'chat99');
-  assert.equal(c.arguments[2].parse_mode, 'HTML');
-  assert.ok(c.arguments[1].includes('Оля'));
-  assert.ok(c.arguments[1].includes('<b>'));
+  const c = sendMessage.mock.calls[0] as unknown as [string, string, { parse_mode: string }];
+  assert.equal(c[0], 'chat99');
+  assert.equal(c[2].parse_mode, 'HTML');
+  assert.ok(c[1].includes('Оля'));
+  assert.ok(c[1].includes('<b>'));
 });
 
 test('sendBehaviorPromoMessage: без бота — помилка', async () => {
@@ -139,7 +137,7 @@ test('sendMessageViaUserAccount: false без env сесії', async () => {
   delete process.env.TELEGRAM_USER_SESSION_PATH;
   delete process.env.TELEGRAM_API_ID;
   delete process.env.TELEGRAM_API_HASH;
-  setSpawnForTests(mock.fn(() => {
+  setSpawnForTests(vi.fn(() => {
     throw new Error('spawn should not run');
   }) as unknown as typeof nodeSpawnType);
   const ok = await sendMessageViaUserAccount('0670000000', 'x');
@@ -151,21 +149,22 @@ test('fetchTelegramGroupMessages: текст і upsert last ids', async () => {
   process.env.TELEGRAM_USER_SESSION_PATH = '/tmp/mock-tg-session-path';
   process.env.TELEGRAM_API_ID = '11111';
   process.env.TELEGRAM_API_HASH = 'mockhash';
-  const upsert = mock.fn(async () => ({}));
+  const upsert = vi.fn(async () => ({}));
   setTelegramPrismaForTests(
     asPrisma({
-      telegramFetchState: { findMany: mock.fn(async () => []), upsert },
+      telegramFetchState: { findMany: vi.fn(async () => []), upsert },
     })
   );
   setSpawnForTests(mockSpawnFetch('New msg\n__LAST_IDS__{"2":42}', 0));
   const text = await fetchTelegramGroupMessages({ limit: 5, fullFetch: true });
   assert.equal(text.text, 'New msg');
   assert.equal(upsert.mock.calls.length, 1);
-  const up = upsert.mock.calls[0] as unknown as {
-    arguments: [{ where: { topicId: number }; create: { lastMessageId: number } }];
+  const up = upsert.mock.calls[0]![0] as {
+    where: { topicId: number };
+    create: { lastMessageId: number };
   };
-  assert.equal(up.arguments[0].where.topicId, 2);
-  assert.equal(up.arguments[0].create.lastMessageId, 42);
+  assert.equal(up.where.topicId, 2);
+  assert.equal(up.create.lastMessageId, 42);
 });
 
 test('fetchTelegramGroupMessages: null при ненульовому коді spawn', async () => {
@@ -173,7 +172,7 @@ test('fetchTelegramGroupMessages: null при ненульовому коді sp
   process.env.TELEGRAM_USER_SESSION_PATH = '/tmp/mock-tg-session-path';
   process.env.TELEGRAM_API_ID = '11111';
   process.env.TELEGRAM_API_HASH = 'mockhash';
-  setTelegramPrismaForTests(asPrisma({ telegramFetchState: { findMany: mock.fn(async () => []) } }));
+  setTelegramPrismaForTests(asPrisma({ telegramFetchState: { findMany: vi.fn(async () => []) } }));
   setSpawnForTests(mockSpawnFetch('err', 1));
   const text = await fetchTelegramGroupMessages({ limit: 5, fullFetch: true });
   assert.equal(text.text, null);

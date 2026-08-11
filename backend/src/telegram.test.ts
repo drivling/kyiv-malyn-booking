@@ -2,7 +2,7 @@
  * Юніт-тести для експортованої логіки з telegram.ts без живого бота та БД.
  * Запускайте з вимкненим TELEGRAM_BOT_TOKEN (у CI/pre-commit так і є).
  */
-import test, { afterEach } from 'node:test';
+import { test, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   normalizePhone,
@@ -154,15 +154,15 @@ test('setAnnounceDraft / getAnnounceDraft', () => {
   assert.equal(d.notes, 'тест');
 });
 
-test('getAnnounceDraft: прострочена чернетка — null', async (t) => {
-  t.mock.timers.enable({ apis: ['Date'] });
+test('getAnnounceDraft: прострочена чернетка — null', () => {
+  vi.useFakeTimers();
   try {
     const token = `draft-ttl-${Date.now()}`;
     setAnnounceDraft(token, { role: 'passenger', route: 'Malyn-Kyiv', date: '2026-06-02' });
     assert.ok(getAnnounceDraft(token));
-    t.mock.timers.tick(15 * 60 * 1000 + 1);
+    vi.advanceTimersByTime(15 * 60 * 1000 + 1);
     assert.equal(getAnnounceDraft(token), null);
   } finally {
-    t.mock.timers.reset();
+    vi.useRealTimers();
   }
 });

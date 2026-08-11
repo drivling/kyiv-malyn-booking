@@ -1,4 +1,4 @@
-# Railway автоматично деплоїть при push, але цей workflow може бути корисним для додаткових перевірок
+# Railway автоматически деплоит при push; здесь — сборка, typecheck и unit-тесты
 
 name: Railway Deploy Check
 
@@ -11,40 +11,70 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: |
             backend/package-lock.json
             frontend/package-lock.json
-      
+
       - name: Install Backend Dependencies
         run: |
           cd backend
           npm ci
-      
+
+      - name: Test Backend
+        run: |
+          cd backend
+          npm test
+
       - name: Build Backend
         run: |
           cd backend
           npm run build
-      
+
       - name: Install Frontend Dependencies
         run: |
           cd frontend
           npm ci
-      
+
+      - name: Test Frontend
+        run: |
+          cd frontend
+          npm test
+
       - name: Build Frontend
         run: |
           cd frontend
           npm run build
-      
+
       - name: Type Check
         run: |
           cd backend && npx tsc --noEmit
           cd ../frontend && npx tsc --noEmit
+
+  # Playwright job — enable when real e2e specs replace e2e/skeleton.spec.ts
+  e2e:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Frontend Dependencies
+        run: cd frontend && npm ci
+      - name: Install Playwright Browsers
+        run: cd frontend && npx playwright install --with-deps chromium
+      - name: Build Frontend
+        run: cd frontend && npm run build
+      - name: Run E2E
+        run: cd frontend && npm run test:e2e

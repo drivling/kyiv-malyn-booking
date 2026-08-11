@@ -2,7 +2,7 @@
  * Інтеграційні HTTP-тести: Prisma-mок для POST /viber-listings; poputky без БД;
  * опційно — реальна БД за RUN_INTEGRATION_TESTS=1 та DATABASE_URL (локальна Postgres).
  */
-import test, { afterEach } from 'node:test';
+import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
@@ -96,9 +96,8 @@ const runRealDb =
   process.env.RUN_INTEGRATION_TESTS === '1' &&
   Boolean(process.env.DATABASE_URL?.trim() || process.env.INTEGRATION_DATABASE_URL?.trim());
 
-test(
+test.skipIf(!runRealDb)(
   'POST /viber-listings: реальна БД (видаляємо лише створений ViberListing)',
-  { skip: !runRealDb },
   async () => {
     const url = process.env.INTEGRATION_DATABASE_URL?.trim() || process.env.DATABASE_URL!.trim();
     const prisma = new PrismaClient({ datasources: { db: { url } } });
