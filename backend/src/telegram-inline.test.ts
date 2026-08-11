@@ -1,7 +1,7 @@
 /**
  * Юніт-тести inline-роутера (@бот у чатах).
  */
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   INLINE_QUERY_PREFIX,

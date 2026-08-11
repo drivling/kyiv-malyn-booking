@@ -1,7 +1,7 @@
 /**
  * HTTP tests for GET/PUT /transport/dataset with an in-memory Prisma stub.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';

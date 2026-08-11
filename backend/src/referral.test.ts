@@ -1,7 +1,7 @@
 /**
  * Юніт-тести реферальної програми (чиста логіка + мок Prisma для нарахувань).
  */
-import { describe, it } from 'node:test';
+import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import {

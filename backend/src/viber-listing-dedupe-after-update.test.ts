@@ -1,7 +1,7 @@
 /**
  * Юніт-тести ключу злиття (без Prisma).
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { listingsAreMergeDuplicates } from './viber-listing-dedupe-after-update';
 

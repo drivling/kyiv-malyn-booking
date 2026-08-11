@@ -1,7 +1,7 @@
 /**
  * Юніт-тести модулів validation/*.
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { mapFromToToRoute } from '../index-helpers';
 import { validatePoputkyAnnounceDraft } from './poputky-announce-draft';

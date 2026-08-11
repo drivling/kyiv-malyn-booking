@@ -1,7 +1,7 @@
 /**
  * HTTP-даун-тести Express через supertest (без listen, без реальної БД для цих маршрутів).
  */
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { createApp, CODE_VERSION } from './create-app';
