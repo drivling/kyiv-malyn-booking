@@ -161,6 +161,41 @@ class ApiClient {
     return this.request(qs ? `/trip-routes?${qs}` : '/trip-routes');
   }
 
+  async createTripRoute(data: {
+    startPointId: number;
+    endPointId: number;
+    viaPointIds?: number[];
+    labelUk?: string;
+    stopOffsets?: Array<{ pointId: number; departureOffsetMinutes: number | null }>;
+  }): Promise<import('@/types').TripRoute> {
+    return this.request('/trip-routes', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateTripRoute(
+    id: number,
+    data: Partial<{
+      startPointId: number;
+      endPointId: number;
+      viaPointIds: number[];
+      labelUk: string;
+      stopOffsets: Array<{ pointId: number; departureOffsetMinutes: number | null }>;
+    }>
+  ): Promise<import('@/types').TripRoute> {
+    return this.request(`/trip-routes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteTripRoute(id: number): Promise<void> {
+    return this.request(`/trip-routes/${id}`, { method: 'DELETE' });
+  }
+
+  async rebindScheduleTripRoutes(): Promise<{
+    updated: number;
+    unchanged: number;
+    errors: Array<{ id: number; error: string }>;
+  }> {
+    return this.request('/schedules-rebind-trip-routes', { method: 'POST', body: '{}' });
+  }
+
   async createTripPoint(data: {
     code: string;
     nameUk: string;
