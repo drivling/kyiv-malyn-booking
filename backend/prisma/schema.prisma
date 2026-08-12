@@ -15,8 +15,10 @@ model TripPoint {
   nameUk          String
   /// Обов'язкова на рейсі (Малин): start, end або via
   requiredOnTrip  Boolean  @default(false)
-  /// Показувати в селектах «звідки / куди» на сайті
+  /// Показувати в селектах «звідки / куди» на сайті (маршрутки)
   appearInFromTo  Boolean  @default(true)
+  /// Участвует в попутках (бот / сайт / матчинг OD)
+  appearInPoputky Boolean  @default(false)
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -26,6 +28,10 @@ model TripPoint {
   tripRoutesAsStart TripRoute[] @relation("TripRouteStartPoint")
   tripRoutesAsEnd   TripRoute[] @relation("TripRouteEndPoint")
   tripRouteStops    TripRouteStop[]
+  viberListingsAsFrom ViberListing[] @relation("ViberListingFromPoint")
+  viberListingsAsTo   ViberListing[] @relation("ViberListingToPoint")
+  bookingsAsFrom      Booking[]      @relation("BookingFromPoint")
+  bookingsAsTo        Booking[]      @relation("BookingToPoint")
 }
 
 /// Канонічний міжміський маршрут (corridor без via або variant з via). Identity = id, slug = legacy cache.
@@ -240,13 +246,19 @@ model Booking {
   personId        Int?     // Посилання на людину (єдине джерело імені/телефону/Telegram)
   source          String   @default("schedule") // "schedule" — маршрутка, "viber_match" — попутка (водій підтвердив)
   viberListingId  Int?     // Якщо source=viber_match — оголошення водія (ViberListing)
+  /// OD identity for viber_match (optional for schedule bookings)
+  fromPointId     Int?
+  toPointId       Int?
   createdAt       DateTime @default(now())
 
   schedule     Schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
   person       Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
   viberListing ViberListing? @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
+  fromPoint    TripPoint?    @relation("BookingFromPoint", fields: [fromPointId], references: [id], onDelete: SetNull)
+  toPoint      TripPoint?    @relation("BookingToPoint", fields: [toPointId], references: [id], onDelete: SetNull)
 
   @@index([scheduleId])
+  @@index([fromPointId, toPointId])
 }
 
 // Запит пасажира на бронювання у водія (пряме співпадіння). Водій має 1 год на підтвердження.
@@ -269,8 +281,10 @@ model ViberListing {
   source        String   @default("Viber1") // "Viber1" — з Viber, "telegram1" — з Telegram (PoDoroguem)
   senderName    String?  // Ім'я відправника (деноралізовано; джерело — Person)
   listingType   String   // "driver" або "passenger"
-  route         String   // Snapshot corridor slug (parser writes string; tripRouteId is identity)
-  tripRouteId   Int?     // Corridor TripRoute FK
+  route         String   // Snapshot slug (e.g. Kyiv-Malyn or Irpin-Malyn); OD identity = from/to points
+  tripRouteId   Int?     // Optional corridor TripRoute FK when pair matches a corridor
+  fromPointId   Int?     // OD identity (origin)
+  toPointId     Int?     // OD identity (destination)
   date          DateTime // Дата поїздки
   departureTime String?  // Час відправлення (може бути діапазон "18:00-18:30")
   seats         Int?     // Кількість місць (для пасажира) або вільних місць (для водія)
@@ -283,6 +297,8 @@ model ViberListing {
   updatedAt     DateTime @updatedAt
 
   tripRoute                TripRoute?         @relation(fields: [tripRouteId], references: [id], onDelete: SetNull)
+  fromPoint                TripPoint?         @relation("ViberListingFromPoint", fields: [fromPointId], references: [id], onDelete: SetNull)
+  toPoint                  TripPoint?         @relation("ViberListingToPoint", fields: [toPointId], references: [id], onDelete: SetNull)
   person                   Person?            @relation(fields: [personId], references: [id], onDelete: SetNull)
   bookingsFromRideShare    Booking[]
   rideShareRequestsAsPassenger RideShareRequest[] @relation("RideShareAsPassenger")
@@ -293,6 +309,7 @@ model ViberListing {
   rideCompletionProofs        RideCompletionProof[]
 
   @@index([tripRouteId])
+  @@index([fromPointId, toPointId, date, listingType])
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).

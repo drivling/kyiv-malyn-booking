@@ -36,6 +36,19 @@ function asPrisma(p: unknown): PrismaClient {
   return p as PrismaClient;
 }
 
+const odPrismaExtras = {
+  tripPoint: {
+    findMany: vi.fn(async () => [
+      { id: 1, code: 'Kyiv', nameUk: 'Київ' },
+      { id: 2, code: 'Malyn', nameUk: 'Малин' },
+      { id: 3, code: 'Irpin', nameUk: 'Ірпінь' },
+    ]),
+  },
+  tripRoute: {
+    findUnique: vi.fn(async () => ({ id: 10, corridorTripRouteId: null })),
+  },
+};
+
 test('getChatIdByPhone: з Person.telegramChatId', async () => {
   const findUnique = vi.fn(async () => ({
     telegramChatId: '999888',
@@ -192,7 +205,7 @@ test('createOrMergeViberListing: новий запис — create', async () => 
     source: 'Viber1',
     ...args.data,
   }));
-  setTelegramPrismaForTests(asPrisma({ viberListing: { findMany, create, update: vi.fn() } }));
+  setTelegramPrismaForTests(asPrisma({ viberListing: { findMany, create, update: vi.fn() }, ...odPrismaExtras }));
   const date = new Date(2026, 5, 15);
   const { listing, isNew } = await createOrMergeViberListing({
     rawMessage: 'нове',
@@ -209,6 +222,9 @@ test('createOrMergeViberListing: новий запис — create', async () => 
   assert.equal(listing.id, 100);
   assert.equal(create.mock.calls.length, 1);
   assert.equal(findMany.mock.calls.length, 1);
+  const created = create.mock.calls[0]?.[0] as { data: { fromPointId?: number; toPointId?: number } };
+  assert.equal(created?.data?.fromPointId, 1);
+  assert.equal(created?.data?.toPointId, 2);
 });
 
 test('createOrMergeViberListing: merge за телефоном — update', async () => {
@@ -230,7 +246,7 @@ test('createOrMergeViberListing: merge за телефоном — update', asyn
     ...existing,
     ...data,
   }));
-  setTelegramPrismaForTests(asPrisma({ viberListing: { findMany, create: vi.fn(), update } }));
+  setTelegramPrismaForTests(asPrisma({ viberListing: { findMany, create: vi.fn(), update }, ...odPrismaExtras }));
   const { listing, isNew } = await createOrMergeViberListing({
     rawMessage: 'додаток',
     listingType: 'driver',
@@ -511,6 +527,7 @@ test('executeBookViberRideShare: ok + rideShareRequest.create', async () => {
         }),
       },
       booking: { findMany: vi.fn(async () => []) },
+      ...odPrismaExtras,
     })
   );
   const result = await executeBookViberRideShare('chat1', 'user1', 5);

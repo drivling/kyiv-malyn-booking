@@ -33,6 +33,8 @@ export function createRideshareRouter(deps: { prisma: PrismaClient }): Router {
         senderName: person.fullName?.trim() || 'Пасажир',
         listingType: 'passenger',
         route: driverListing.route,
+        fromPointId: driverListing.fromPointId,
+        toPointId: driverListing.toPointId,
         date: driverListing.date,
         departureTime: driverListing.departureTime,
         seats: null,

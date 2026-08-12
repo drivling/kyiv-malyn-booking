@@ -19,10 +19,34 @@ describe('mizh transport filters', () => {
     expect(isScheduleActiveOnDate([6, 7], '2026-08-12')).toBe(false);
   });
 
-  test('listingMatchesCities dual-read', async () => {
+  test('listingMatchesCities dual-read and OD points', async () => {
     const { listingMatchesCities } = await import('./mizhUtils');
     const map = new Map([[10, { slug: 'Kyiv-Malyn' }]]);
     expect(listingMatchesCities({ route: 'Kyiv-Malyn', tripRouteId: 10 }, 'Kyiv', 'Malyn', map)).toBe(true);
     expect(listingMatchesCities({ route: 'Malyn-Kyiv', tripRouteId: null }, 'Kyiv', 'Malyn')).toBe(false);
+    const pointIds = new Map([
+      ['Irpin', 3],
+      ['Malyn', 2],
+      ['Kyiv', 1],
+    ]);
+    expect(
+      listingMatchesCities(
+        { route: 'Irpin-Malyn', fromPointId: 3, toPointId: 2 },
+        'Irpin',
+        'Malyn',
+        undefined,
+        pointIds
+      )
+    ).toBe(true);
+    expect(
+      listingMatchesCities(
+        { route: 'Kyiv-Malyn', fromPointId: 1, toPointId: 2 },
+        'Irpin',
+        'Malyn',
+        undefined,
+        pointIds
+      )
+    ).toBe(false);
+    expect(listingMatchesCities({ route: 'Irpin-Malyn' }, 'Irpin', 'Malyn')).toBe(true);
   });
 });

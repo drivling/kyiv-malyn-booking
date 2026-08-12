@@ -15,6 +15,7 @@ type Point = {
   nameUk: string;
   requiredOnTrip: boolean;
   appearInFromTo: boolean;
+  appearInPoputky: boolean;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -55,10 +56,10 @@ type TripRouteRow = {
 function seedPoints(): Point[] {
   const now = new Date();
   return [
-    { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, sortOrder: 10, createdAt: now, updatedAt: now },
-    { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, sortOrder: 20, createdAt: now, updatedAt: now },
-    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, sortOrder: 50, createdAt: now, updatedAt: now },
-    { id: 4, code: 'Korosten', nameUk: 'Коростень', requiredOnTrip: false, appearInFromTo: true, sortOrder: 40, createdAt: now, updatedAt: now },
+    { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, sortOrder: 10, createdAt: now, updatedAt: now },
+    { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, appearInPoputky: true, sortOrder: 20, createdAt: now, updatedAt: now },
+    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, appearInPoputky: true, sortOrder: 50, createdAt: now, updatedAt: now },
+    { id: 4, code: 'Korosten', nameUk: 'Коростень', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, sortOrder: 40, createdAt: now, updatedAt: now },
   ];
 }
 
@@ -81,6 +82,7 @@ function createTripPrismaStub(store: {
       findMany: async ({ where, orderBy }: any = {}) => {
         let rows = [...store.points];
         if (where?.appearInFromTo != null) rows = rows.filter((p) => p.appearInFromTo === where.appearInFromTo);
+        if (where?.appearInPoputky != null) rows = rows.filter((p) => p.appearInPoputky === where.appearInPoputky);
         if (orderBy) rows.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
         return rows;
       },
@@ -91,6 +93,7 @@ function createTripPrismaStub(store: {
           nameUk: data.nameUk,
           requiredOnTrip: Boolean(data.requiredOnTrip),
           appearInFromTo: data.appearInFromTo !== false,
+          appearInPoputky: Boolean(data.appearInPoputky),
           sortOrder: data.sortOrder ?? 0,
           createdAt: new Date(),
           updatedAt: new Date(),

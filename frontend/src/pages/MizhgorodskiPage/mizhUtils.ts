@@ -62,15 +62,21 @@ export function directionFromCities(from: BookingCity, to: BookingCity): Directi
 }
 
 export function formatRouteLabel(route: string): string {
-  return route
-    .replace('Kyiv-Malyn', 'Київ → Малин')
-    .replace('Malyn-Kyiv', 'Малин → Київ')
-    .replace('Malyn-Zhytomyr', 'Малин → Житомир')
-    .replace('Zhytomyr-Malyn', 'Житомир → Малин')
-    .replace('Korosten-Malyn', 'Коростень → Малин')
-    .replace('Malyn-Korosten', 'Малин → Коростень')
-    .replace('-Irpin', ' (через Ірпінь)')
-    .replace('-Bucha', ' (через Бучу)');
+  const labels: Record<string, string> = {
+    Kyiv: 'Київ',
+    Malyn: 'Малин',
+    Zhytomyr: 'Житомир',
+    Korosten: 'Коростень',
+    Irpin: 'Ірпінь',
+    Bucha: 'Буча',
+  };
+  const parts = route.split('-').filter(Boolean);
+  if (parts.length < 2) return route;
+  const from = labels[parts[0]] ?? parts[0];
+  const to = labels[parts[1]] ?? parts[1];
+  const via = parts.slice(2).map((p) => labels[p] ?? p);
+  if (via.length > 0) return `${from} → ${to} (через ${via.join(', ')})`;
+  return `${from} → ${to}`;
 }
 
 export function formatTripDate(date: string): string {
@@ -102,46 +108,61 @@ export function getTimeMinutes(time: string | null | undefined): number | null {
   return hours * 60 + minutes;
 }
 
-export function routeMatchesCities(route: string, from: BookingCity, to: BookingCity): boolean {
-  const direction = getDirectionFromCities(from, to);
-  if (!direction) return false;
+export function routeMatchesCities(route: string, from: string, to: string): boolean {
+  const direction = getDirectionFromCities(from as BookingCity, to as BookingCity);
   const r = route.toLowerCase();
-  const d = direction.toLowerCase();
-  // direction e.g. kyiv-malyn; route may be kyiv-malyn-irpin OR corridor kyiv-malyn
-  return r === d || r.startsWith(`${d}-`) || r.includes(d);
+  if (direction) {
+    const d = direction.toLowerCase();
+    // direction e.g. kyiv-malyn; route may be kyiv-malyn-irpin OR corridor kyiv-malyn
+    return r === d || r.startsWith(`${d}-`) || r.includes(d);
+  }
+  // Free OD pair (e.g. Irpin-Malyn): exact slug match on first two segments
+  const slug = `${from}-${to}`.toLowerCase();
+  return r === slug || r.startsWith(`${slug}-`);
 }
 
-/** Dual-read: prefer tripRouteId corridor match, fallback to route string. */
+/** Dual-read: prefer from/to point ids, then tripRouteId corridor, then route string. */
 export function listingMatchesCities(
-  listing: { route: string; tripRouteId?: number | null },
-  from: BookingCity,
-  to: BookingCity,
-  corridorById?: Map<number, { slug: string }>
+  listing: {
+    route: string;
+    tripRouteId?: number | null;
+    fromPointId?: number | null;
+    toPointId?: number | null;
+  },
+  from: string,
+  to: string,
+  corridorById?: Map<number, { slug: string }>,
+  pointIdByCode?: Map<string, number>
 ): boolean {
+  const fromId = pointIdByCode?.get(from);
+  const toId = pointIdByCode?.get(to);
+  if (
+    listing.fromPointId != null &&
+    listing.toPointId != null &&
+    fromId != null &&
+    toId != null
+  ) {
+    return listing.fromPointId === fromId && listing.toPointId === toId;
+  }
   if (listing.tripRouteId != null && corridorById?.has(listing.tripRouteId)) {
     return routeMatchesCities(corridorById.get(listing.tripRouteId)!.slug, from, to);
   }
   return routeMatchesCities(listing.route, from, to);
 }
 
-export function cityLabel(city: BookingCity): string {
-  return BOOKING_CITY_LABELS[city];
+export function cityLabel(city: BookingCity | string): string {
+  if (city in BOOKING_CITY_LABELS) return BOOKING_CITY_LABELS[city as BookingCity];
+  return String(city);
 }
-
-const ROUTE_SEGMENT_TO_CITY: Record<string, BookingCity> = {
-  kyiv: 'Kyiv',
-  malyn: 'Malyn',
-  zhytomyr: 'Zhytomyr',
-  korosten: 'Korosten',
-};
 
 /** Міста з маршруту запису (наприклад "Kyiv-Malyn-Irpin" → Київ / Малин) */
 export function routeCityLabels(route: string): { from: string; to: string } | null {
-  const [fromPart, toPart] = route.toLowerCase().split('-');
-  const from = ROUTE_SEGMENT_TO_CITY[fromPart];
-  const to = ROUTE_SEGMENT_TO_CITY[toPart];
+  const parts = route.split('-').filter(Boolean);
+  if (parts.length < 2) return null;
+  const label = formatRouteLabel(`${parts[0]}-${parts[1]}`);
+  const [from, to] = label.split(' → ');
   if (!from || !to) return null;
-  return { from: BOOKING_CITY_LABELS[from], to: BOOKING_CITY_LABELS[to] };
+  return { from, to };
 }
 
 export function todayISO(): string {

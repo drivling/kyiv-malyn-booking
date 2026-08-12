@@ -8,7 +8,7 @@ import {
   useTelegramScenarios,
   TELEGRAM_BOT_USERNAME,
 } from '@/hooks';
-import type { ViberListing, ViberListingType } from '@/types';
+import type { TripPoint, ViberListing, ViberListingType } from '@/types';
 import {
   formatListingContactDisplay,
   listingContactHref,
@@ -28,16 +28,23 @@ const ROUTE_TABS: { id: RouteTab; label: string }[] = [
   { id: 'korosten', label: 'Малин ↔ Коростень' },
 ];
 
-const formatRouteLabel = (route: string): string =>
-  route
-    .replace('Kyiv-Malyn', 'Київ → Малин')
-    .replace('Malyn-Kyiv', 'Малин → Київ')
-    .replace('Malyn-Zhytomyr', 'Малин → Житомир')
-    .replace('Zhytomyr-Malyn', 'Житомир → Малин')
-    .replace('Korosten-Malyn', 'Коростень → Малин')
-    .replace('Malyn-Korosten', 'Малин → Коростень')
-    .replace('-Irpin', ' (через Ірпінь)')
-    .replace('-Bucha', ' (через Бучу)');
+const POINT_LABELS: Record<string, string> = {
+  Kyiv: 'Київ',
+  Malyn: 'Малин',
+  Zhytomyr: 'Житомир',
+  Korosten: 'Коростень',
+  Irpin: 'Ірпінь',
+  Bucha: 'Буча',
+};
+
+const formatRouteLabel = (route: string): string => {
+  const parts = route.split('-').filter(Boolean);
+  if (parts.length < 2) return route;
+  const from = POINT_LABELS[parts[0]] ?? parts[0];
+  const to = POINT_LABELS[parts[1]] ?? parts[1];
+  const via = parts.slice(2).map((p) => POINT_LABELS[p] ?? p);
+  return via.length ? `${from} → ${to} (через ${via.join(', ')})` : `${from} → ${to}`;
+};
 
 const formatTripDate = (date: string): string => {
   const parsed = new Date(date);
@@ -103,17 +110,30 @@ export const PoputkyPage: React.FC = () => {
     requestRide,
   } = rideshare;
 
-  const fromCityOptions = (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
-    value,
-    label,
-  }));
+  const [poputkyPoints, setPoputkyPoints] = useState<TripPoint[]>([]);
+
+  const fromCityOptions = (poputkyPoints.length
+    ? poputkyPoints.map((p) => ({ value: p.code, label: p.nameUk }))
+    : (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
+        value,
+        label,
+      }))
+  );
 
   const toCityOptions = announce.fields.from
-    ? BOOKING_FROM_TO.filter((p) => p.from === announce.fields.from).map((p) => ({
-        value: p.to,
-        label: BOOKING_CITY_LABELS[p.to],
-      }))
+    ? (poputkyPoints.length
+        ? poputkyPoints
+            .filter((p) => p.code !== announce.fields.from)
+            .map((p) => ({ value: p.code, label: p.nameUk }))
+        : BOOKING_FROM_TO.filter((p) => p.from === announce.fields.from).map((p) => ({
+            value: p.to,
+            label: BOOKING_CITY_LABELS[p.to],
+          })))
     : [];
+
+  useEffect(() => {
+    apiClient.getTripPoints({ appearInPoputky: true }).then(setPoputkyPoints).catch(() => setPoputkyPoints([]));
+  }, []);
 
   useEffect(() => {
     const id = window.setTimeout(() => setQuery(queryInput), 220);

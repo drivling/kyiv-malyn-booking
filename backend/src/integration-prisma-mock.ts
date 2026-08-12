@@ -160,11 +160,23 @@ export function createListingFlowPrismaMock(options?: { firstPersonId?: number; 
     },
   };
 
+  const tripPoint = {
+    findMany: async () => [
+      { id: 1, code: 'Kyiv', nameUk: 'Київ', appearInPoputky: true },
+      { id: 2, code: 'Malyn', nameUk: 'Малин', appearInPoputky: true },
+      { id: 3, code: 'Zhytomyr', nameUk: 'Житомир', appearInPoputky: true },
+      { id: 4, code: 'Korosten', nameUk: 'Коростень', appearInPoputky: true },
+      { id: 5, code: 'Irpin', nameUk: 'Ірпінь', appearInPoputky: true },
+      { id: 6, code: 'Bucha', nameUk: 'Буча', appearInPoputky: true },
+    ],
+  };
+
   const shell: Record<string, unknown> = {
     person,
     booking,
     viberListing,
     tripRoute,
+    tripPoint,
     tripRouteStop: { createMany: async () => ({ count: 0 }) },
     $connect: async () => {},
     $disconnect: async () => {},

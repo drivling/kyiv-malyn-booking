@@ -139,9 +139,12 @@ class ApiClient {
     });
   }
 
-  async getTripPoints(opts?: { appearInFromTo?: boolean }): Promise<import('@/types').TripPoint[]> {
-    const qs = opts?.appearInFromTo ? '?appearInFromTo=true' : '';
-    return this.request(`/trip-points${qs}`);
+  async getTripPoints(opts?: { appearInFromTo?: boolean; appearInPoputky?: boolean }): Promise<import('@/types').TripPoint[]> {
+    const params = new URLSearchParams();
+    if (opts?.appearInFromTo) params.set('appearInFromTo', 'true');
+    if (opts?.appearInPoputky) params.set('appearInPoputky', 'true');
+    const qs = params.toString();
+    return this.request(`/trip-points${qs ? `?${qs}` : ''}`);
   }
 
   async getTripRoutes(opts?: { corridors?: boolean; variants?: boolean }): Promise<import('@/types').TripRoute[]> {
@@ -157,6 +160,7 @@ class ApiClient {
     nameUk: string;
     requiredOnTrip?: boolean;
     appearInFromTo?: boolean;
+    appearInPoputky?: boolean;
     sortOrder?: number;
   }): Promise<import('@/types').TripPoint> {
     return this.request('/trip-points', { method: 'POST', body: JSON.stringify(data) });
@@ -169,6 +173,7 @@ class ApiClient {
       nameUk: string;
       requiredOnTrip: boolean;
       appearInFromTo: boolean;
+      appearInPoputky: boolean;
       sortOrder: number;
     }>
   ): Promise<import('@/types').TripPoint> {

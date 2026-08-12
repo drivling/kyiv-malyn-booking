@@ -7,16 +7,22 @@ export function createTripPointsRouter(deps: { prisma: PrismaClient }): Router {
   const r = express.Router();
 
   r.get('/trip-points', async (req, res) => {
-    const appearOnly = req.query.appearInFromTo === 'true' || req.query.appearInFromTo === '1';
+    const appearFromTo =
+      req.query.appearInFromTo === 'true' || req.query.appearInFromTo === '1';
+    const appearPoputky =
+      req.query.appearInPoputky === 'true' || req.query.appearInPoputky === '1';
+    const where: { appearInFromTo?: boolean; appearInPoputky?: boolean } = {};
+    if (appearFromTo) where.appearInFromTo = true;
+    if (appearPoputky) where.appearInPoputky = true;
     const points = await prisma.tripPoint.findMany({
-      where: appearOnly ? { appearInFromTo: true } : undefined,
+      where: Object.keys(where).length ? where : undefined,
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
     res.json(points);
   });
 
   r.post('/trip-points', requireAdmin, async (req, res) => {
-    const { code, nameUk, requiredOnTrip, appearInFromTo, sortOrder } = req.body ?? {};
+    const { code, nameUk, requiredOnTrip, appearInFromTo, appearInPoputky, sortOrder } = req.body ?? {};
     if (!code || !String(code).trim() || !nameUk || !String(nameUk).trim()) {
       return res.status(400).json({ error: 'code and nameUk are required' });
     }
@@ -27,6 +33,7 @@ export function createTripPointsRouter(deps: { prisma: PrismaClient }): Router {
           nameUk: String(nameUk).trim(),
           requiredOnTrip: Boolean(requiredOnTrip),
           appearInFromTo: appearInFromTo === undefined ? true : Boolean(appearInFromTo),
+          appearInPoputky: appearInPoputky === undefined ? false : Boolean(appearInPoputky),
           sortOrder: sortOrder != null ? Number(sortOrder) : 0,
         },
       });
@@ -42,7 +49,7 @@ export function createTripPointsRouter(deps: { prisma: PrismaClient }): Router {
 
   r.put('/trip-points/:id', requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
-    const { code, nameUk, requiredOnTrip, appearInFromTo, sortOrder } = req.body ?? {};
+    const { code, nameUk, requiredOnTrip, appearInFromTo, appearInPoputky, sortOrder } = req.body ?? {};
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Invalid id' });
     }
@@ -54,6 +61,7 @@ export function createTripPointsRouter(deps: { prisma: PrismaClient }): Router {
           ...(nameUk !== undefined ? { nameUk: String(nameUk).trim() } : {}),
           ...(requiredOnTrip !== undefined ? { requiredOnTrip: Boolean(requiredOnTrip) } : {}),
           ...(appearInFromTo !== undefined ? { appearInFromTo: Boolean(appearInFromTo) } : {}),
+          ...(appearInPoputky !== undefined ? { appearInPoputky: Boolean(appearInPoputky) } : {}),
           ...(sortOrder !== undefined ? { sortOrder: Number(sortOrder) } : {}),
         },
       });

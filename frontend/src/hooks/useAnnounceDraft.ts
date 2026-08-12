@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
-import type { BookingCity } from '@/utils/constants';
-import { getDirectionFromCities } from '@/utils/constants';
 
 export type AnnounceRole = 'driver' | 'passenger';
 
 export type AnnounceDraftFields = {
   role: AnnounceRole;
-  from: BookingCity | '';
-  to: BookingCity | '';
+  from: string;
+  to: string;
   date: string;
   timeFrom: string;
   timeTo: string;
@@ -34,7 +32,7 @@ export function useAnnounceDraft() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (fields.from && fields.to && !getDirectionFromCities(fields.from, fields.to)) {
+    if (fields.from && fields.to && fields.from === fields.to) {
       setFields((prev) => ({ ...prev, to: '' }));
     }
   }, [fields.from, fields.to]);
@@ -51,7 +49,11 @@ export function useAnnounceDraft() {
 
   const publish = async (): Promise<boolean> => {
     if (!fields.from || !fields.to) {
-      setError('Оберіть звідки та куди. Маршрути лише з/до Малина.');
+      setError('Оберіть звідки та куди зі списку міст попуток.');
+      return false;
+    }
+    if (fields.from === fields.to) {
+      setError('Звідки і куди мають відрізнятися.');
       return false;
     }
     if (!fields.date) {

@@ -13,6 +13,7 @@ export interface TripPoint {
   nameUk: string;
   requiredOnTrip: boolean;
   appearInFromTo: boolean;
+  appearInPoputky: boolean;
   sortOrder: number;
   createdAt?: string;
   updatedAt?: string;
@@ -147,6 +148,8 @@ export interface ViberListing {
   listingType: ViberListingType;
   route: string;
   tripRouteId?: number | null;
+  fromPointId?: number | null;
+  toPointId?: number | null;
   date: string;
   departureTime: string | null;
   seats: number | null;

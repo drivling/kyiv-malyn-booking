@@ -25,6 +25,8 @@ const VIBER_LISTING_UPDATE_FIELDS = [
   'senderName',
   'listingType',
   'route',
+  'fromPointId',
+  'toPointId',
   'date',
   'departureTime',
   'seats',
@@ -307,7 +309,13 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
     try {
       if (typeof updates.route === 'string' && updates.route) {
         const { resolveCorridorTripRouteId } = await import('../schedule-trip');
+        const { resolveOdPointIdsFromRoute } = await import('../poputky-od');
         updates.tripRouteId = await resolveCorridorTripRouteId(prisma, String(updates.route));
+        const od = await resolveOdPointIdsFromRoute(prisma, String(updates.route));
+        if (od) {
+          updates.fromPointId = od.fromPointId;
+          updates.toPointId = od.toPointId;
+        }
       }
       let listing = await prisma.viberListing.update({
         where: { id: Number(id) },

@@ -10,7 +10,7 @@ import {
   useTelegramScenarios,
   TELEGRAM_BOT_USERNAME,
 } from '@/hooks';
-import type { Availability, Schedule, ViberListing, ViberListingType } from '@/types';
+import type { Availability, Schedule, TripPoint, ViberListing, ViberListingType } from '@/types';
 import type { BookingCity } from '@/utils/constants';
 import {
   BOOKING_CITY_LABELS,
@@ -46,7 +46,7 @@ import {
 } from './mizhUtils';
 import './MizhgorodskiPage.css';
 
-const VALID_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
+const VALID_CITIES: string[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten', 'Irpin', 'Bucha'];
 
 /** Короткий FAQ для головної (AEO); детальніше — коридорні лендінги та /support/travel */
 const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
@@ -79,7 +79,7 @@ type ResultItem =
 
 function parseCity(value: string | null): BookingCity | '' {
   if (!value) return '';
-  return VALID_CITIES.includes(value as BookingCity) ? (value as BookingCity) : '';
+  return VALID_CITIES.includes(value) ? (value as BookingCity) : '';
 }
 
 export const MizhgorodskiPage: React.FC = () => {
@@ -106,7 +106,7 @@ export const MizhgorodskiPage: React.FC = () => {
   const initialFrom = parseCity(searchParams.get('from')) || 'Kyiv';
   const initialTo = parseCity(searchParams.get('to')) || 'Malyn';
   const initialDate = searchParams.get('date') || todayISO();
-  const initialValid = Boolean(getDirectionFromCities(initialFrom as BookingCity, initialTo as BookingCity));
+  const initialValid = Boolean(initialFrom && initialTo && initialFrom !== initialTo);
 
   const [fromCity, setFromCity] = useState<BookingCity>(initialValid ? (initialFrom as BookingCity) : 'Kyiv');
   const [toCity, setToCity] = useState<BookingCity>(initialValid ? (initialTo as BookingCity) : 'Malyn');
@@ -126,6 +126,7 @@ export const MizhgorodskiPage: React.FC = () => {
   );
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
   const [listings, setListings] = useState<ViberListing[]>([]);
+  const [poputkyPoints, setPoputkyPoints] = useState<TripPoint[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [availabilityById, setAvailabilityById] = useState<Record<number, Availability>>({});
   const [loading, setLoading] = useState(false);
@@ -141,47 +142,61 @@ export const MizhgorodskiPage: React.FC = () => {
     onNeedLogin: () => navigate('/login'),
   });
 
+  useEffect(() => {
+    apiClient.getTripPoints({ appearInPoputky: true }).then(setPoputkyPoints).catch(() => setPoputkyPoints([]));
+  }, []);
+
   const activeCorridor: CorridorId | null = useMemo(() => {
     return corridorFromCity(fromCity === 'Malyn' ? toCity : fromCity);
   }, [fromCity, toCity]);
 
-  const fromOptions = (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
-    value,
-    label,
-  }));
+  const fromOptions = (poputkyPoints.length
+    ? poputkyPoints.map((p) => ({ value: p.code as BookingCity, label: p.nameUk }))
+    : (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({ value, label }))
+  );
 
-  const toOptions = BOOKING_FROM_TO.filter((p) => p.from === fromCity).map((p) => ({
-    value: p.to,
-    label: BOOKING_CITY_LABELS[p.to],
-  }));
-
-  const announceToOptions = announce.fields.from
-    ? BOOKING_FROM_TO.filter((p) => p.from === announce.fields.from).map((p) => ({
+  const toOptions = (poputkyPoints.length
+    ? poputkyPoints.filter((p) => p.code !== fromCity).map((p) => ({ value: p.code as BookingCity, label: p.nameUk }))
+    : BOOKING_FROM_TO.filter((p) => p.from === fromCity).map((p) => ({
         value: p.to,
         label: BOOKING_CITY_LABELS[p.to],
       }))
+  );
+
+  const announceToOptions = announce.fields.from
+    ? (poputkyPoints.length
+        ? poputkyPoints
+            .filter((p) => p.code !== announce.fields.from)
+            .map((p) => ({ value: p.code, label: p.nameUk }))
+        : BOOKING_FROM_TO.filter((p) => p.from === announce.fields.from).map((p) => ({
+            value: p.to,
+            label: BOOKING_CITY_LABELS[p.to],
+          })))
     : [];
 
   const loadResults = useCallback(async (from: BookingCity, to: BookingCity, tripDate: string) => {
+    if (!from || !to || from === to) return;
     const dir = getDirectionFromCities(from, to);
-    if (!dir) return;
     setLoading(true);
     setError('');
     setAvailabilityById({});
     try {
-      const routes = DIRECTION_ROUTES[dir] || [];
-      const [allListings, scheduleBatches, corridors] = await Promise.all([
+      const routes = dir ? DIRECTION_ROUTES[dir] || [] : [];
+      const [allListings, scheduleBatches, corridors, points] = await Promise.all([
         apiClient.getViberListings(true),
         Promise.all(routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => [] as Schedule[]))),
         apiClient.getTripRoutes({ corridors: true }).catch(() => []),
+        apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
       ]);
+      if (points.length) setPoputkyPoints(points);
       const corridorById = new Map(corridors.map((c) => [c.id, c]));
+      const pointIdByCode = new Map(points.map((p) => [p.code, p.id]));
       const dateKey = tripDate.slice(0, 10);
       const filteredListings = allListings.filter(
         (item) =>
           item.isActive &&
           item.date.slice(0, 10) === dateKey &&
-          listingMatchesCities(item, from, to, corridorById)
+          listingMatchesCities(item, from, to, corridorById, pointIdByCode)
       );
       const allSchedules = scheduleBatches.flat().sort((a, b) => a.departureTime.localeCompare(b.departureTime));
       setListings(filteredListings);
@@ -213,7 +228,7 @@ export const MizhgorodskiPage: React.FC = () => {
     nextType = transport,
     options?: { updateUrl?: boolean }
   ) => {
-    if (!getDirectionFromCities(nextFrom, nextTo)) return;
+    if (!nextFrom || !nextTo || nextFrom === nextTo) return;
     const updateUrl = options?.updateUrl ?? true;
     if (updateUrl) {
       const params: Record<string, string> = {
@@ -332,7 +347,7 @@ export const MizhgorodskiPage: React.FC = () => {
   const handleSwap = () => {
     const nextFrom = toCity;
     const nextTo = fromCity;
-    if (!getDirectionFromCities(nextFrom, nextTo)) return;
+    if (!nextFrom || !nextTo || nextFrom === nextTo) return;
     setFromCity(nextFrom);
     setToCity(nextTo);
     applySearch(nextFrom, nextTo, date, transport);
@@ -341,13 +356,12 @@ export const MizhgorodskiPage: React.FC = () => {
   const handleFromChange = (value: BookingCity) => {
     setFromCity(value);
     let nextTo = toCity;
-    const stillValid = BOOKING_FROM_TO.some((p) => p.from === value && p.to === toCity);
-    if (!stillValid) {
-      const first = BOOKING_FROM_TO.find((p) => p.from === value);
-      if (first) {
-        nextTo = first.to;
-        setToCity(nextTo);
-      }
+    if (value === toCity) {
+      const alt = (poputkyPoints.find((p) => p.code !== value)?.code ||
+        BOOKING_FROM_TO.find((p) => p.from === value)?.to ||
+        'Malyn') as BookingCity;
+      nextTo = alt;
+      setToCity(nextTo);
     }
     applySearch(value, nextTo, date, transport);
   };

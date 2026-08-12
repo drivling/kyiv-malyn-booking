@@ -67,7 +67,7 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use('/poputky', createPoputkyRouter());
+app.use('/poputky', createPoputkyRouter({ prisma }));
 
 const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
 

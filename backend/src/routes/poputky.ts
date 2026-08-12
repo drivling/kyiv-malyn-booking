@@ -3,15 +3,25 @@
  */
 import crypto from 'crypto';
 import express, { type Router } from 'express';
-import { mapFromToToRoute } from '../index-helpers';
+import type { PrismaClient } from '@prisma/client';
+import { resolvePoputkyOdPair } from '../poputky-od';
 import { validatePoputkyAnnounceDraft } from '../validation/poputky-announce-draft';
 import { setAnnounceDraft } from '../telegram';
 
-export function createPoputkyRouter(): Router {
+export function createPoputkyRouter(deps: { prisma: PrismaClient }): Router {
+  const { prisma } = deps;
   const r = express.Router();
 
-  r.post('/announce-draft', express.json(), (req, res) => {
-    const parsed = validatePoputkyAnnounceDraft(req.body, mapFromToToRoute);
+  r.post('/announce-draft', express.json(), async (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const from = (body.from ?? '').toString();
+    const to = (body.to ?? '').toString();
+    const od = await resolvePoputkyOdPair(prisma, from, to);
+    if (!od.ok) {
+      return res.status(400).json({ error: od.error });
+    }
+
+    const parsed = validatePoputkyAnnounceDraft(body, () => od.route);
     if (!parsed.ok) {
       return res.status(400).json({ error: parsed.error });
     }
@@ -20,6 +30,8 @@ export function createPoputkyRouter(): Router {
     setAnnounceDraft(token, {
       role: v.role,
       route: v.route,
+      fromPointId: od.from.id,
+      toPointId: od.to.id,
       date: v.dateStr,
       departureTime: v.departureTime || undefined,
       notes: v.notes,

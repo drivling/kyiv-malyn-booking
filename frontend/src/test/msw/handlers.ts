@@ -34,8 +34,9 @@ export const handlers = [
 
   http.get(`${TEST_API_URL}/trip-points`, () =>
     HttpResponse.json([
-      { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, sortOrder: 10 },
-      { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, sortOrder: 20 },
+      { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, sortOrder: 10 },
+      { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, appearInPoputky: true, sortOrder: 20 },
+      { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, appearInPoputky: true, sortOrder: 50 },
     ])
   ),
 

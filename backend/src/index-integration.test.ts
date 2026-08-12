@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
-import { createNoDbPrismaStub } from './http-test-prisma-stub';
+import { createNoDbPrismaStub, createPoputkyAnnouncePrismaStub } from './http-test-prisma-stub';
 import { createListingFlowPrismaMock, EXAMPLE_PHONE_NORMALIZED } from './integration-prisma-mock';
 import {
   resetTelegramPrismaForTests,
@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 test('POST /poputky/announce-draft: 400 при невідомому маршруті', async () => {
-  const app = createApp({ prisma: createNoDbPrismaStub() });
+  const app = createApp({ prisma: createPoputkyAnnouncePrismaStub() });
   await request(app)
     .post('/poputky/announce-draft')
     .send({
@@ -45,7 +45,7 @@ test('POST /poputky/announce-draft: 400 при невідомому маршру
 });
 
 test('POST /poputky/announce-draft: 200, deepLink і token', async () => {
-  const app = createApp({ prisma: createNoDbPrismaStub() });
+  const app = createApp({ prisma: createPoputkyAnnouncePrismaStub() });
   const res = await request(app)
     .post('/poputky/announce-draft')
     .send({
@@ -61,6 +61,20 @@ test('POST /poputky/announce-draft: 200, deepLink і token', async () => {
   assert.match(res.body.token, /^[a-f0-9]{16}$/);
   assert.match(res.body.deepLink, /^https:\/\/t\.me\//);
   assert.ok(res.body.deepLink.includes('driver_'));
+});
+
+test('POST /poputky/announce-draft: Irpin-Malyn ok', async () => {
+  const app = createApp({ prisma: createPoputkyAnnouncePrismaStub() });
+  const res = await request(app)
+    .post('/poputky/announce-draft')
+    .send({
+      role: 'passenger',
+      from: 'irpin',
+      to: 'malyn',
+      date: '2026-04-11',
+    })
+    .expect(200);
+  assert.ok(res.body.deepLink.includes('passenger_'));
 });
 
 test('POST /viber-listings: 401 без адмін-токена', async () => {

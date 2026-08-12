@@ -53,3 +53,20 @@ export function createNoDbPrismaStub(): PrismaClient {
     },
   });
 }
+
+/** Stub with TripPoint catalog for poputky announce-draft tests. */
+export function createPoputkyAnnouncePrismaStub(): PrismaClient {
+  const points = [
+    { id: 1, code: 'Kyiv', nameUk: 'Київ', appearInPoputky: true },
+    { id: 2, code: 'Malyn', nameUk: 'Малин', appearInPoputky: true },
+    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', appearInPoputky: true },
+  ];
+  return {
+    tripPoint: {
+      findMany: async (args?: { where?: { appearInPoputky?: boolean } }) => {
+        if (args?.where?.appearInPoputky) return points.filter((p) => p.appearInPoputky);
+        return points;
+      },
+    },
+  } as unknown as PrismaClient;
+}

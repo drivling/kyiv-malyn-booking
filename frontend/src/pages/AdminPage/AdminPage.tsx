@@ -1186,6 +1186,7 @@ export const AdminPage: React.FC = () => {
                     <th>Назва</th>
                     <th>Обовʼязкова на рейсі</th>
                     <th>У «звідки/куди»</th>
+                    <th>У попутках</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1214,6 +1215,20 @@ export const AdminPage: React.FC = () => {
                           onChange={async (e) => {
                             try {
                               await apiClient.updateTripPoint(p.id, { appearInFromTo: e.target.checked });
+                              loadSchedules();
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : 'Помилка');
+                            }
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={p.appearInPoputky}
+                          onChange={async (e) => {
+                            try {
+                              await apiClient.updateTripPoint(p.id, { appearInPoputky: e.target.checked });
                               loadSchedules();
                             } catch (err) {
                               alert(err instanceof Error ? err.message : 'Помилка');

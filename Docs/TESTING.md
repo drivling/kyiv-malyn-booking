@@ -71,6 +71,7 @@ CI also runs Playwright e2e (mocked API, Vite on port 4177).
 - Admin HTTP: login/check (existing), transport dataset (existing), viber listings POST (existing), `GET /admin/referrals/report`.
 - Transport smoke: `stopCatalog`, `tripDeparture`, `LocalTransportSubNav`, `useTransportDataset`.
 - Intercity trips: `schedule-trip` util, schedules/trip-points/trip-routes HTTP, `mizhUtils` train filter + listing dual-read, Telegram elektrichka helpers, gold `TripRoute` identity (see `Docs/gold-route-model-smoke.md`).
+- Poputky OD scale: `TripPoint.appearInPoputky`, listing/booking `fromPointId`/`toPointId`, exact OD match + dual-read (`poputky-od.test.ts`, `mizhUtils`); smoke: `Docs/poputky-od-city-scale-smoke.md`.
 - Playwright: `e2e/auth.spec.ts`, `e2e/transport.spec.ts`, `e2e/booking.spec.ts`, `e2e/train.spec.ts` (API mocked via `page.route`).
 
 ## Out of CI
