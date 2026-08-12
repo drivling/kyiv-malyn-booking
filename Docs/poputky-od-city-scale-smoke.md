@@ -56,3 +56,14 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 - Site `/mizhgorodski`: cookie `malin_home_city` (default Malyn); chips from home’s quick-direct list.
 - Bot marshrutka book: **звідки → куди → дата → час** (schedules whose TripRoute stops contain OD); no via text on buttons.
 - `TripRouteStop.departureOffsetMinutes`: boarding time = schedule start + offset; editable in schedule modal.
+## Deferred (explicitly not in this ship)
+
+1. **Viber parser → new cities** — keep corridor whitelist until a dedicated change. Before expanding cities: run `cd backend && npm test -- --run src/viber-parser.test.ts` and `npx ts-node scripts/eval-viber-parser.ts` (golden `testdata/viber-golden.json`). Baseline after this work: **route 821/821 (100%)**, unit suite green. Do not expand cities without re-running golden and fixing regressions.
+
+2. **Drop legacy `route` string in one step** — **not OK as a single cutover**. Keep dual-read (`fromPointId`/`toPointId` + `route` snapshot) until listings/bookings/parser/admin clients all write points. Big-bang removal would break parser imports and old rows.
+
+3. **Auto-detect home city (geo/IP)** — later. Cookie + manual select is enough for launch; detect can write the same `malin_home_city` cookie when ready.
+
+## Non-goals (still)
+
+- Matching against passenger’s `tripRouteId` (itinerary is always the driver’s).
