@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint } from '@/types';
+import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
 import { ReferralTab } from './ReferralTab';
@@ -63,6 +63,7 @@ export const AdminPage: React.FC = () => {
   const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
   const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
   const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
+  const [tripRoutesForViber, setTripRoutesForViber] = useState<TripRoute[]>([]);
   // Реклама каналу: база = без Telegram бота; вибір = усі / до кого не комунікували / не знайдено в Telegram
   type PromoFilter = 'no_telegram' | 'no_communication' | 'promo_not_found';
   const [promoFilter, setPromoFilter] = useState<PromoFilter>('no_communication');
@@ -101,6 +102,7 @@ export const AdminPage: React.FC = () => {
     senderName: string;
     listingType: ViberListingType;
     route: string;
+    tripRouteId: string;
     date: string;
     departureTime: string;
     seats: string;
@@ -113,6 +115,7 @@ export const AdminPage: React.FC = () => {
     senderName: '',
     listingType: 'driver' as ViberListingType,
     route: '',
+    tripRouteId: '',
     date: '',
     departureTime: '',
     seats: '',
@@ -167,6 +170,7 @@ export const AdminPage: React.FC = () => {
       loadSchedules();
     } else if (activeTab === 'viber') {
       loadViberListings();
+      apiClient.getTripRoutes().then(setTripRoutesForViber).catch(() => setTripRoutesForViber([]));
     } else if (activeTab === 'promo') {
       loadPromoPersons();
       loadTelegramReminderPersons();
@@ -891,6 +895,7 @@ export const AdminPage: React.FC = () => {
       senderName: listing.senderName ?? '',
       listingType: listing.listingType,
       route: listing.route,
+      tripRouteId: listing.tripRouteId != null ? String(listing.tripRouteId) : '',
       date: dateStr,
       departureTime: listing.departureTime ?? '',
       seats: listing.seats != null ? String(listing.seats) : '',
@@ -908,11 +913,15 @@ export const AdminPage: React.FC = () => {
     setError('');
     setSuccess('');
     try {
+      const tripRouteId = viberEditForm.tripRouteId.trim()
+        ? parseInt(viberEditForm.tripRouteId, 10)
+        : null;
       await apiClient.updateViberListing(editingViberListing.id, {
         rawMessage: viberEditForm.rawMessage,
         senderName: viberEditForm.senderName || null,
         listingType: viberEditForm.listingType,
         route: viberEditForm.route,
+        tripRouteId,
         date: viberEditForm.date,
         departureTime: viberEditForm.departureTime || null,
         seats: viberEditForm.seats ? parseInt(viberEditForm.seats, 10) : null,
@@ -1390,6 +1399,7 @@ export const AdminPage: React.FC = () => {
                       </th>
                       <th>Тип</th>
                       <th>Маршрут</th>
+                      <th>TripRoute</th>
                       <th
                         className="sortable"
                         onClick={() => {
@@ -1418,6 +1428,18 @@ export const AdminPage: React.FC = () => {
                           </span>
                         </td>
                         <td>{listing.route}</td>
+                        <td style={{ fontSize: 12, maxWidth: 180 }}>
+                          {(() => {
+                            const tr = tripRoutesForViber.find((r) => r.id === listing.tripRouteId);
+                            if (!tr) return listing.tripRouteId != null ? `#${listing.tripRouteId}` : '—';
+                            return (
+                              <span title={tr.slug}>
+                                {tr.labelUk}
+                                {tr.corridorTripRouteId ? ' · v' : ' · c'}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td>
                           {new Date(listing.date).toLocaleDateString('uk-UA')}
                           {listing.departureTime ? ` ${listing.departureTime}` : ''}
@@ -1550,10 +1572,35 @@ export const AdminPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                   <Input
-                    label="Маршрут"
+                    label="Маршрут (snapshot)"
                     value={viberEditForm.route}
                     onChange={(e) => setViberEditForm((f) => ({ ...f, route: e.target.value }))}
                   />
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>TripRoute (corridor / variant)</label>
+                    <Select
+                      value={viberEditForm.tripRouteId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const tr = tripRoutesForViber.find((r) => String(r.id) === id);
+                        setViberEditForm((f) => ({
+                          ...f,
+                          tripRouteId: id,
+                          ...(tr ? { route: tr.slug } : {}),
+                        }));
+                      }}
+                      options={[
+                        { value: '', label: '— не привʼязано —' },
+                        ...tripRoutesForViber.map((r) => ({
+                          value: String(r.id),
+                          label: `${r.labelUk}${r.corridorTripRouteId ? ' (variant)' : ' (corridor)'} · ${r.slug}`,
+                        })),
+                      ]}
+                    />
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>
+                      Можна привʼязати variant (напр. Київ–Малин через Ірпінь). Матчинг «по дороге» поки exact OD — це курація маршруту.
+                    </p>
+                  </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Дата поїздки</label>
                     <input

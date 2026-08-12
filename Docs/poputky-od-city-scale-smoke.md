@@ -34,4 +34,4 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 ## Non-goals
 
 - Viber parser city expansion
-- Along-corridor matching (driver Kyiv→Malyn vs passenger Irpin→Malyn)
+- Along-corridor matching (driver Kyiv→Malyn vs passenger Irpin→Malyn) — **not auto**; admin can pin `tripRouteId` to a **variant** (e.g. `Kyiv-Malyn-Irpin`) on the Viber tab for curation/display. Match logic still exact OD until a dedicated graph phase.

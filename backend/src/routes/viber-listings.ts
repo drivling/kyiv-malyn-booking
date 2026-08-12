@@ -25,6 +25,7 @@ const VIBER_LISTING_UPDATE_FIELDS = [
   'senderName',
   'listingType',
   'route',
+  'tripRouteId',
   'fromPointId',
   'toPointId',
   'date',
@@ -298,6 +299,17 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
         } else if (key === 'priceUah') {
           const v = body[key];
           updates[key] = v === null || v === '' ? null : typeof v === 'number' ? v : parseInt(String(v), 10);
+        } else if (key === 'tripRouteId' || key === 'fromPointId' || key === 'toPointId') {
+          const v = body[key];
+          if (v === null || v === '' || v === 'null') {
+            updates[key] = null;
+          } else {
+            const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+            if (!Number.isInteger(n) || n <= 0) {
+              return res.status(400).json({ error: `${key} must be a positive integer or null` });
+            }
+            updates[key] = n;
+          }
         } else {
           updates[key] = body[key];
         }
@@ -307,12 +319,25 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       return res.status(400).json({ error: 'No allowed fields to update' });
     }
     try {
-      if (typeof updates.route === 'string' && updates.route) {
+      const explicitTripRouteId = Object.prototype.hasOwnProperty.call(body, 'tripRouteId');
+      if (explicitTripRouteId && updates.tripRouteId != null) {
+        const tr = await prisma.tripRoute.findUnique({ where: { id: updates.tripRouteId as number } });
+        if (!tr) {
+          return res.status(400).json({ error: 'TripRoute not found' });
+        }
+        // Admin can pin corridor OR variant (e.g. Kyiv-Malyn-Irpin). Keep route snapshot in sync if not overridden.
+        if (updates.route === undefined) {
+          updates.route = tr.slug;
+        }
+      } else if (!explicitTripRouteId && typeof updates.route === 'string' && updates.route) {
+        // Legacy: changing route alone still auto-binds corridor (not variant).
         const { resolveCorridorTripRouteId } = await import('../schedule-trip');
-        const { resolveOdPointIdsFromRoute } = await import('../poputky-od');
         updates.tripRouteId = await resolveCorridorTripRouteId(prisma, String(updates.route));
+      }
+      if (typeof updates.route === 'string' && updates.route) {
+        const { resolveOdPointIdsFromRoute } = await import('../poputky-od');
         const od = await resolveOdPointIdsFromRoute(prisma, String(updates.route));
-        if (od) {
+        if (od && updates.fromPointId === undefined && updates.toPointId === undefined) {
           updates.fromPointId = od.fromPointId;
           updates.toPointId = od.toPointId;
         }
