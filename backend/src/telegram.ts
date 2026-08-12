@@ -1570,6 +1570,58 @@ function odPairLabel(fromName: string, toName: string): string {
   return `${fromName} → ${toName}`;
 }
 
+export function parseBookOdDateCallback(
+  data: string,
+  prefix: 'book_m_date_' | 'book_m_poputky_'
+): { fromCode: string; toCode: string; dateYmd: string } | null {
+  if (!data.startsWith(prefix)) return null;
+  const parts = data.slice(prefix.length).split('_');
+  if (parts.length < 5) return null;
+  const dateYmd = parts.slice(-3).join('-');
+  const fromCode = parts[0];
+  const toCode = parts.slice(1, -3).join('_');
+  if (!fromCode || !toCode || !/^\d{4}-\d{2}-\d{2}$/.test(dateYmd)) return null;
+  return { fromCode, toCode, dateYmd };
+}
+
+function buildPassengerTimeKeyboard(): {
+  inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
+} {
+  return {
+    inline_keyboard: [
+      [
+        { text: '08:00', callback_data: 'addpassenger_time_08:00' },
+        { text: '09:00', callback_data: 'addpassenger_time_09:00' },
+        { text: '10:00', callback_data: 'addpassenger_time_10:00' },
+      ],
+      [
+        { text: '11:00', callback_data: 'addpassenger_time_11:00' },
+        { text: '12:00', callback_data: 'addpassenger_time_12:00' },
+        { text: '13:00', callback_data: 'addpassenger_time_13:00' },
+      ],
+      [
+        { text: '14:00', callback_data: 'addpassenger_time_14:00' },
+        { text: '15:00', callback_data: 'addpassenger_time_15:00' },
+        { text: '16:00', callback_data: 'addpassenger_time_16:00' },
+      ],
+      [
+        { text: '17:00', callback_data: 'addpassenger_time_17:00' },
+        { text: '18:00', callback_data: 'addpassenger_time_18:00' },
+        { text: '19:00', callback_data: 'addpassenger_time_19:00' },
+      ],
+      [
+        { text: '✏️ Свій час', callback_data: 'addpassenger_time_custom' },
+        { text: 'Пропустити', callback_data: 'addpassenger_time_skip' },
+      ],
+      [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }],
+    ],
+  };
+}
+
+function passengerRideHasOdAndDate(state: PassengerRideFlowState): boolean {
+  return Boolean(state.route && state.date && state.fromPointId && state.toPointId);
+}
+
 export type ElektrichkaPurchaseSchedule = {
   route: string;
   departureTime: string;
@@ -3491,6 +3543,83 @@ function setupBotCommands() {
     await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: fromKeyboard });
   };
 
+  /** З бронювання маршрутки: попутка-пасажир з уже відомими звідки/куди/дата. */
+  const startPassengerRideFromBookOd = async (
+    chatId: string,
+    userId: string,
+    fromCode: string,
+    toCode: string,
+    dateYmd: string,
+    messageId: number
+  ): Promise<boolean> => {
+    let points = await loadPoputkyPoints();
+    let from = points.find((p) => p.code === fromCode);
+    let to = points.find((p) => p.code === toCode);
+    if (!from || !to) {
+      const all = await tgPrisma.tripPoint.findMany({
+        select: { id: true, code: true, nameUk: true },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      });
+      from = from || all.find((p) => p.code === fromCode);
+      to = to || all.find((p) => p.code === toCode);
+    }
+    if (!from || !to || from.id === to.id) {
+      return false;
+    }
+    const route = buildOdRouteSlug(from.code, to.code);
+    const userPhone = await getPhoneByTelegramUser(userId, chatId);
+    const summary =
+      '👤 <b>Шукаю попутку (пасажир)</b>\n\n' +
+      `✅ Звідки: ${from.nameUk}\n` +
+      `✅ Куди: ${to.nameUk}\n` +
+      `✅ Дата: ${formatDate(new Date(dateYmd))}\n\n`;
+
+    if (!userPhone) {
+      passengerRideStateMap.set(chatId, {
+        state: 'passenger_ride_flow',
+        step: 'phone',
+        route,
+        fromPointId: from.id,
+        toPointId: to.id,
+        fromCode: from.code,
+        date: dateYmd,
+        since: Date.now(),
+      });
+      await bot?.editMessageText(summary + 'Спочатку вкажіть номер телефону для контакту.', {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'HTML',
+      });
+      await bot?.sendMessage(chatId, 'Натисніть кнопку нижче або напишіть номер, наприклад 0501234567', {
+        reply_markup: {
+          keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      });
+      return true;
+    }
+
+    passengerRideStateMap.set(chatId, {
+      state: 'passenger_ride_flow',
+      step: 'time',
+      route,
+      fromPointId: from.id,
+      toPointId: to.id,
+      fromCode: from.code,
+      date: dateYmd,
+      phone: userPhone,
+      since: Date.now(),
+    });
+    await bot?.editMessageText(summary + '4️⃣ Оберіть час (або Пропустити):', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'HTML',
+      reply_markup: buildPassengerTimeKeyboard(),
+    });
+    return true;
+  };
+
   const sendFreeViewInfo = async (chatId: string, replyMarkup?: TelegramBot.ReplyKeyboardMarkup) => {
     const links = getTelegramScenarioLinks();
     await bot?.sendMessage(
@@ -4567,6 +4696,15 @@ const routeKeyboard = buildPoputkyFromKeyboard('adddriver', points);
           return;
         }
       }
+      if (passengerRideHasOdAndDate({ ...passengerState, phone })) {
+        passengerRideStateMap.set(chatId, { ...passengerState, step: 'time', phone, since: Date.now() });
+        await bot?.sendMessage(
+          chatId,
+          `🛣 ${getRouteName(passengerState.route!)}\n📅 ${formatDate(new Date(passengerState.date!))}\n\n🕐 Оберіть час (або Пропустити):`,
+          { parse_mode: 'HTML', reply_markup: buildPassengerTimeKeyboard() }
+        );
+        return;
+      }
       passengerRideStateMap.set(chatId, { ...passengerState, step: 'from', phone, since: Date.now() });
       const points = await loadPoputkyPoints();
 const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
@@ -5118,6 +5256,15 @@ const routeKeyboard = buildPoputkyFromKeyboard('adddriver', points);
             await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\nДодати примітку (опціонально)? Напишіть текст або натисніть Пропустити.${notesHint}`, { parse_mode: 'HTML', reply_markup: notesKeyboard });
             return;
           }
+        }
+        if (passengerRideHasOdAndDate({ ...passengerState, phone })) {
+          passengerRideStateMap.set(chatId, { ...passengerState, step: 'time', phone, since: Date.now() });
+          await bot?.sendMessage(
+            chatId,
+            `🛣 ${getRouteName(passengerState.route!)}\n📅 ${formatDate(new Date(passengerState.date!))}\n\n🕐 Оберіть час (або Пропустити):`,
+            { parse_mode: 'HTML', reply_markup: buildPassengerTimeKeyboard() }
+          );
+          return;
         }
         passengerRideStateMap.set(chatId, { ...passengerState, step: 'from', phone, since: Date.now() });
         const points = await loadPoputkyPoints();
@@ -6514,6 +6661,12 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
               reply_markup: {
                 inline_keyboard: [
                   [
+                    {
+                      text: '👤 Попутка?',
+                      callback_data: `book_m_poputky_${fromCode}_${toCode}_${selectedDate.replace(/-/g, '_')}`,
+                    },
+                  ],
+                  [
                     { text: '⬅️ Назад', callback_data: `book_m_to_${fromCode}_${toCode}` },
                     { text: '❌ Скасувати', callback_data: 'book_cancel' },
                   ],
@@ -6582,6 +6735,30 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         );
 
         await bot?.answerCallbackQuery(query.id);
+      }
+
+      if (data.startsWith('book_m_poputky_')) {
+        const parsed = parseBookOdDateCallback(data, 'book_m_poputky_');
+        if (!parsed || messageId == null) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Некоректні дані' });
+          return;
+        }
+        const ok = await startPassengerRideFromBookOd(
+          chatId,
+          userId,
+          parsed.fromCode,
+          parsed.toCode,
+          parsed.dateYmd,
+          messageId
+        );
+        if (!ok) {
+          await bot?.answerCallbackQuery(query.id, {
+            text: 'Ці міста ще не в попутках. Увімкніть «У попутках» в адмінці.',
+            show_alert: true,
+          });
+          return;
+        }
+        await bot?.answerCallbackQuery(query.id, { text: 'Перехід до попутки' });
       }
 
       // Legacy book_dir_* kept for old messages / deep links — redirect to OD flow

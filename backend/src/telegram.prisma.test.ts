@@ -23,6 +23,7 @@ import {
   notifyPassengerAboutDriverPair,
   notifyDriverAboutPassengerPair,
   executeBookViberRideShare,
+  parseBookOdDateCallback,
 } from './telegram';
 
 afterEach(() => {
@@ -584,4 +585,13 @@ test('executeBookViberRideShare: без телефону в Person — поми�
   const r = await executeBookViberRideShare('c', 'u', 5);
   assert.equal(r.ok, false);
   assert.ok(r.error?.includes('телефон'));
+});
+
+test('parseBookOdDateCallback: book_m_poputky_ Irpin→Bucha', () => {
+  assert.deepEqual(parseBookOdDateCallback('book_m_poputky_Irpin_Bucha_2026_08_14', 'book_m_poputky_'), {
+    fromCode: 'Irpin',
+    toCode: 'Bucha',
+    dateYmd: '2026-08-14',
+  });
+  assert.equal(parseBookOdDateCallback('book_m_poputky_bad', 'book_m_poputky_'), null);
 });
