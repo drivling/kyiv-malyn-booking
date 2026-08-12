@@ -5690,7 +5690,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     // Створити бронювання (прив'язка до Person якщо є)
                     const booking = await tgPrisma.booking.create({
                         data: {
-                            route,
+                            route: schedule.route,
                             date: new Date(selectedDate),
                             departureTime: time,
                             seats,
@@ -5699,6 +5699,8 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                             telegramChatId: chatId,
                             telegramUserId: userId,
                             personId: userPersonId ?? undefined,
+                            scheduleId: schedule.id,
+                            source: 'schedule',
                         },
                     });
                     console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);

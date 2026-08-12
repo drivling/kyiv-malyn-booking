@@ -151,10 +151,21 @@ export function createListingFlowPrismaMock(options?: { firstPersonId?: number; 
     },
   };
 
+  const tripRoute = {
+    findUnique: async () => null,
+    findFirst: async () => null,
+    findMany: async () => [],
+    create: async () => {
+      throw new Error('integration-prisma-mock: tripRoute.create not needed');
+    },
+  };
+
   const shell: Record<string, unknown> = {
     person,
     booking,
     viberListing,
+    tripRoute,
+    tripRouteStop: { createMany: async () => ({ count: 0 }) },
     $connect: async () => {},
     $disconnect: async () => {},
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(shell),

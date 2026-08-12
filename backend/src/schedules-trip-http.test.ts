@@ -27,6 +27,7 @@ type Sched = {
   maxSeats: number;
   supportPhone: string | null;
   priceUah: number | null;
+  tripRouteId: number | null;
   startPointId: number | null;
   endPointId: number | null;
   viaPointIds: number[];
@@ -42,6 +43,15 @@ type Sched = {
   updatedAt: Date;
 };
 
+type TripRouteRow = {
+  id: number;
+  slug: string;
+  labelUk: string;
+  startPointId: number;
+  endPointId: number;
+  corridorTripRouteId: number | null;
+};
+
 function seedPoints(): Point[] {
   const now = new Date();
   return [
@@ -52,11 +62,18 @@ function seedPoints(): Point[] {
   ];
 }
 
-function createTripPrismaStub(store: { points: Point[]; schedules: Sched[]; bookings: any[] }): PrismaClient {
+function createTripPrismaStub(store: {
+  points: Point[];
+  schedules: Sched[];
+  bookings: any[];
+  tripRoutes?: TripRouteRow[];
+}): PrismaClient {
+  if (!store.tripRoutes) store.tripRoutes = [];
   const withPoints = (s: Sched) => ({
     ...s,
     startPoint: store.points.find((p) => p.id === s.startPointId) ?? null,
     endPoint: store.points.find((p) => p.id === s.endPointId) ?? null,
+    tripRoute: store.tripRoutes!.find((t) => t.id === s.tripRouteId) ?? null,
   });
 
   const stub: any = {
@@ -102,6 +119,35 @@ function createTripPrismaStub(store: { points: Point[]; schedules: Sched[]; book
         return row;
       },
     },
+    tripRoute: {
+      findUnique: async ({ where }: any) => store.tripRoutes!.find((t) => t.id === where.id || t.slug === where.slug) ?? null,
+      findFirst: async ({ where }: any = {}) =>
+        store.tripRoutes!.find((t) => {
+          if (where?.slug) return t.slug === where.slug;
+          return true;
+        }) ?? null,
+      findMany: async ({ where }: any = {}) => {
+        let rows = [...store.tripRoutes!];
+        if (where?.corridorTripRouteId === null) rows = rows.filter((t) => t.corridorTripRouteId == null);
+        if (where?.corridorTripRouteId?.not != null) rows = rows.filter((t) => t.corridorTripRouteId != null);
+        return rows.map((t) => ({ ...t, startPoint: store.points.find((p) => p.id === t.startPointId), endPoint: store.points.find((p) => p.id === t.endPointId), stops: [], corridorRoute: null }));
+      },
+      create: async ({ data }: any) => {
+        const row: TripRouteRow = {
+          id: store.tripRoutes!.length + 1,
+          slug: data.slug,
+          labelUk: data.labelUk,
+          startPointId: data.startPointId,
+          endPointId: data.endPointId,
+          corridorTripRouteId: data.corridorTripRouteId ?? null,
+        };
+        store.tripRoutes!.push(row);
+        return row;
+      },
+    },
+    tripRouteStop: {
+      createMany: async () => ({ count: 0 }),
+    },
     schedule: {
       findMany: async ({ where }: any = {}) => {
         let rows = store.schedules.map(withPoints);
@@ -143,6 +189,7 @@ function createTripPrismaStub(store: { points: Point[]; schedules: Sched[]; book
           maxSeats: data.maxSeats ?? 20,
           supportPhone: data.supportPhone ?? null,
           priceUah: data.priceUah ?? null,
+          tripRouteId: data.tripRouteId ?? null,
           startPointId: data.startPointId ?? null,
           endPointId: data.endPointId ?? null,
           viaPointIds: data.viaPointIds ?? [],
@@ -299,6 +346,7 @@ test('POST /bookings rejects elektrichka', async () => {
         startPointId: 4,
         endPointId: 2,
         viaPointIds: [],
+        tripRouteId: 1,
         vehicleType: 'elektrichka',
         boardingPlace: null,
         alightingPlace: null,

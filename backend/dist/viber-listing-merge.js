@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizePhoneForMerge = normalizePhoneForMerge;
 exports.createOrMergeViberListing = createOrMergeViberListing;
 const index_helpers_1 = require("./index-helpers");
+const schedule_trip_1 = require("./schedule-trip");
 function normalizePhoneForMerge(phone) {
     const trimmed = phone.trim();
     if (trimmed.startsWith('@')) {
@@ -41,13 +42,21 @@ async function createOrMergeViberListing(prisma, data) {
         existing = candidates.find((c) => c.personId === personId) ?? null;
     }
     if (!existing) {
+        let tripRouteId = data.tripRouteId ?? null;
+        if (tripRouteId == null && data.route) {
+            tripRouteId = await (0, schedule_trip_1.resolveCorridorTripRouteId)(prisma, data.route);
+        }
         const listing = await prisma.viberListing.create({
-            data: { ...data, source: data.source ?? 'Viber1' },
+            data: { ...data, source: data.source ?? 'Viber1', tripRouteId },
         });
         return { listing, isNew: true };
     }
     const mergedNotes = (0, index_helpers_1.mergeTextField)(existing.notes, data.notes);
     const mergedSenderName = (0, index_helpers_1.mergeSenderName)(existing.senderName, data.senderName ?? null);
+    let tripRouteId = existing.tripRouteId;
+    if (tripRouteId == null) {
+        tripRouteId = data.tripRouteId ?? (await (0, schedule_trip_1.resolveCorridorTripRouteId)(prisma, data.route));
+    }
     const updated = await prisma.viberListing.update({
         where: { id: existing.id },
         data: {
@@ -55,6 +64,7 @@ async function createOrMergeViberListing(prisma, data) {
             senderName: mergedSenderName ?? undefined,
             seats: data.seats != null ? data.seats : existing.seats,
             phone: existing.phone || data.phone,
+            tripRouteId: tripRouteId ?? undefined,
             notes: mergedNotes,
             priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
             isActive: existing.isActive || data.isActive,

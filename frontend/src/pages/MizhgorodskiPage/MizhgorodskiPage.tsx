@@ -37,8 +37,8 @@ import {
   isElektrichka,
   isMarshrutka,
   isScheduleActiveOnDate,
+  listingMatchesCities,
   routeCityLabels,
-  routeMatchesCities,
   todayISO,
   tomorrowISO,
   type CorridorId,
@@ -170,16 +170,18 @@ export const MizhgorodskiPage: React.FC = () => {
     setAvailabilityById({});
     try {
       const routes = DIRECTION_ROUTES[dir] || [];
-      const [allListings, scheduleBatches] = await Promise.all([
+      const [allListings, scheduleBatches, corridors] = await Promise.all([
         apiClient.getViberListings(true),
         Promise.all(routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => [] as Schedule[]))),
+        apiClient.getTripRoutes({ corridors: true }).catch(() => []),
       ]);
+      const corridorById = new Map(corridors.map((c) => [c.id, c]));
       const dateKey = tripDate.slice(0, 10);
       const filteredListings = allListings.filter(
         (item) =>
           item.isActive &&
           item.date.slice(0, 10) === dateKey &&
-          routeMatchesCities(item.route, from, to)
+          listingMatchesCities(item, from, to, corridorById)
       );
       const allSchedules = scheduleBatches.flat().sort((a, b) => a.departureTime.localeCompare(b.departureTime));
       setListings(filteredListings);

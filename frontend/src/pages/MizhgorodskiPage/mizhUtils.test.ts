@@ -18,4 +18,11 @@ describe('mizh transport filters', () => {
     expect(isScheduleActiveOnDate([1, 2, 3, 4, 5], '2026-08-12')).toBe(true);
     expect(isScheduleActiveOnDate([6, 7], '2026-08-12')).toBe(false);
   });
+
+  test('listingMatchesCities dual-read', async () => {
+    const { listingMatchesCities } = await import('./mizhUtils');
+    const map = new Map([[10, { slug: 'Kyiv-Malyn' }]]);
+    expect(listingMatchesCities({ route: 'Kyiv-Malyn', tripRouteId: 10 }, 'Kyiv', 'Malyn', map)).toBe(true);
+    expect(listingMatchesCities({ route: 'Malyn-Kyiv', tripRouteId: null }, 'Kyiv', 'Malyn')).toBe(false);
+  });
 });

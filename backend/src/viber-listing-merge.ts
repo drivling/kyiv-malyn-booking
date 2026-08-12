@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
+import { resolveCorridorTripRouteId } from './schedule-trip';
 
 export type ViberListingMergeInput = {
   rawMessage: string;
@@ -7,6 +8,7 @@ export type ViberListingMergeInput = {
   senderName?: string | null;
   listingType: 'driver' | 'passenger';
   route: string;
+  tripRouteId?: number | null;
   date: Date;
   departureTime: string | null;
   seats: number | null;
@@ -62,14 +64,22 @@ export async function createOrMergeViberListing(
   }
 
   if (!existing) {
+    let tripRouteId = data.tripRouteId ?? null;
+    if (tripRouteId == null && data.route) {
+      tripRouteId = await resolveCorridorTripRouteId(prisma, data.route);
+    }
     const listing = await prisma.viberListing.create({
-      data: { ...data, source: data.source ?? 'Viber1' },
+      data: { ...data, source: data.source ?? 'Viber1', tripRouteId },
     });
     return { listing, isNew: true };
   }
 
   const mergedNotes = mergeTextField(existing.notes, data.notes);
   const mergedSenderName = mergeSenderName(existing.senderName, data.senderName ?? null);
+  let tripRouteId = existing.tripRouteId;
+  if (tripRouteId == null) {
+    tripRouteId = data.tripRouteId ?? (await resolveCorridorTripRouteId(prisma, data.route));
+  }
 
   const updated = await prisma.viberListing.update({
     where: { id: existing.id },
@@ -78,6 +88,7 @@ export async function createOrMergeViberListing(
       senderName: mergedSenderName ?? undefined,
       seats: data.seats != null ? data.seats : existing.seats,
       phone: existing.phone || data.phone,
+      tripRouteId: tripRouteId ?? undefined,
       notes: mergedNotes,
       priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
       isActive: existing.isActive || data.isActive,

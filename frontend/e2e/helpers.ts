@@ -141,6 +141,14 @@ export async function mockBackendApi(page: Page) {
       ]);
     }
 
+    if (method === 'GET' && path === '/trip-routes') {
+      return json(route, 200, [
+        { id: 1, slug: 'Kyiv-Malyn', labelUk: 'Київ → Малин', startPointId: 1, endPointId: 2, corridorTripRouteId: null },
+        { id: 2, slug: 'Malyn-Kyiv', labelUk: 'Малин → Київ', startPointId: 2, endPointId: 1, corridorTripRouteId: null },
+        { id: 3, slug: 'Korosten-Malyn', labelUk: 'Коростень → Малин', startPointId: 3, endPointId: 2, corridorTripRouteId: null },
+      ]);
+    }
+
     if (method === 'GET' && path === '/schedules') {
       return json(route, 200, []);
     }

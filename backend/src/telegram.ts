@@ -6570,7 +6570,7 @@ ${buildReferralHelpSection()}
           // Створити бронювання (прив'язка до Person якщо є)
           const booking = await tgPrisma.booking.create({
             data: {
-              route,
+              route: schedule.route,
               date: new Date(selectedDate),
               departureTime: time,
               seats,
@@ -6579,6 +6579,8 @@ ${buildReferralHelpSection()}
               telegramChatId: chatId,
               telegramUserId: userId,
               personId: userPersonId ?? undefined,
+              scheduleId: schedule.id,
+              source: 'schedule',
             },
           });
           

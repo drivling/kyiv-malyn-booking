@@ -23,22 +23,68 @@ model TripPoint {
 
   schedulesAsStart Schedule[] @relation("ScheduleStartPoint")
   schedulesAsEnd   Schedule[] @relation("ScheduleEndPoint")
+  tripRoutesAsStart TripRoute[] @relation("TripRouteStartPoint")
+  tripRoutesAsEnd   TripRoute[] @relation("TripRouteEndPoint")
+  tripRouteStops    TripRouteStop[]
+}
+
+/// Канонічний міжміський маршрут (corridor без via або variant з via). Identity = id, slug = legacy cache.
+model TripRoute {
+  id                   Int      @id @default(autoincrement())
+  /// Legacy-compatible: Kyiv-Malyn, Kyiv-Malyn-Irpin, …
+  slug                 String   @unique
+  labelUk              String
+  startPointId         Int
+  endPointId           Int
+  /// Для variant (з via) — parent corridor; для corridor = null
+  corridorTripRouteId  Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  startPoint      TripPoint  @relation("TripRouteStartPoint", fields: [startPointId], references: [id], onDelete: Restrict)
+  endPoint        TripPoint  @relation("TripRouteEndPoint", fields: [endPointId], references: [id], onDelete: Restrict)
+  corridorRoute   TripRoute? @relation("TripRouteCorridor", fields: [corridorTripRouteId], references: [id], onDelete: SetNull)
+  variantRoutes   TripRoute[] @relation("TripRouteCorridor")
+  stops           TripRouteStop[]
+  schedules       Schedule[]
+  viberListings   ViberListing[]
+
+  @@index([startPointId, endPointId])
+  @@index([corridorTripRouteId])
+}
+
+model TripRouteStop {
+  id          Int    @id @default(autoincrement())
+  tripRouteId Int
+  pointId     Int
+  position    Int    // 0=start … n=end
+  role        String // start | via | end
+
+  tripRoute TripRoute @relation(fields: [tripRouteId], references: [id], onDelete: Cascade)
+  point     TripPoint @relation(fields: [pointId], references: [id], onDelete: Restrict)
+
+  @@unique([tripRouteId, position])
+  @@unique([tripRouteId, pointId])
+  @@index([pointId])
 }
 
 model Schedule {
   id            Int      @id @default(autoincrement())
-  route         String   // Legacy key: "Kyiv-Malyn-Irpin", "Malyn-Zhytomyr", …
+  route         String   // Snapshot of TripRoute.slug (legacy clients / unique bridge)
   departureTime String   // Формат "HH:MM" (наприклад "08:00")
   maxSeats      Int      @default(20) // Максимальна кількість місць
   supportPhone  String?  // Телефон підтримки для уточнення бронювання (напр. +380(93) 170 18 35), для напрямків з Києвом
   /// Ціна місця в грн (маршрутка). null — ще не задано (напр. Житомир уточнюється)
   priceUah      Int?
 
+  tripRouteId   Int
+  tripRoute     TripRoute @relation(fields: [tripRouteId], references: [id], onDelete: Restrict)
+
   startPointId  Int?
   endPointId    Int?
   startPoint    TripPoint? @relation("ScheduleStartPoint", fields: [startPointId], references: [id], onDelete: SetNull)
   endPoint      TripPoint? @relation("ScheduleEndPoint", fields: [endPointId], references: [id], onDelete: SetNull)
-  /// Упорядкований масив id проміжних TripPoint
+  /// Упорядкований масив id проміжних TripPoint (cache; SoT = TripRouteStop)
   viaPointIds   Json     @default("[]")
 
   /// marshrutka | elektrichka
@@ -56,7 +102,10 @@ model Schedule {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  bookings      Booking[]
+
   @@unique([route, departureTime])
+  @@unique([tripRouteId, departureTime])
   @@index([startPointId])
   @@index([endPointId])
   @@index([vehicleType])
@@ -179,7 +228,7 @@ model RideCompletionProof {
 
 model Booking {
   id              Int       @id @default(autoincrement())
-  route           String
+  route           String   // Immutable snapshot (TripRoute.slug at booking time)
   date            DateTime
   departureTime   String   // Час відправлення у форматі "HH:MM"
   seats           Int
@@ -187,14 +236,17 @@ model Booking {
   phone           String   // Денормалізовано; джерело істини — Person.phoneNormalized
   telegramChatId  String?  // Копія з Person для зворотної сумісності
   telegramUserId  String?  // Копія з Person для зворотної сумісності
-  scheduleId      Int?     // Посилання на графік (опціонально)
+  scheduleId      Int?     // Required for source=schedule (app + DB check)
   personId        Int?     // Посилання на людину (єдине джерело імені/телефону/Telegram)
   source          String   @default("schedule") // "schedule" — маршрутка, "viber_match" — попутка (водій підтвердив)
   viberListingId  Int?     // Якщо source=viber_match — оголошення водія (ViberListing)
   createdAt       DateTime @default(now())
 
+  schedule     Schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
   person       Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
   viberListing ViberListing? @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
+
+  @@index([scheduleId])
 }
 
 // Запит пасажира на бронювання у водія (пряме співпадіння). Водій має 1 год на підтвердження.
@@ -217,7 +269,8 @@ model ViberListing {
   source        String   @default("Viber1") // "Viber1" — з Viber, "telegram1" — з Telegram (PoDoroguem)
   senderName    String?  // Ім'я відправника (деноралізовано; джерело — Person)
   listingType   String   // "driver" або "passenger"
-  route         String   // Напрямок (наприклад "Київ-Малин", "Малин-Київ")
+  route         String   // Snapshot corridor slug (parser writes string; tripRouteId is identity)
+  tripRouteId   Int?     // Corridor TripRoute FK
   date          DateTime // Дата поїздки
   departureTime String?  // Час відправлення (може бути діапазон "18:00-18:30")
   seats         Int?     // Кількість місць (для пасажира) або вільних місць (для водія)
@@ -229,6 +282,7 @@ model ViberListing {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  tripRoute                TripRoute?         @relation(fields: [tripRouteId], references: [id], onDelete: SetNull)
   person                   Person?            @relation(fields: [personId], references: [id], onDelete: SetNull)
   bookingsFromRideShare    Booking[]
   rideShareRequestsAsPassenger RideShareRequest[] @relation("RideShareAsPassenger")
@@ -237,6 +291,8 @@ model ViberListing {
   matchNotifyAsDriver         ViberMatchPairNotification[] @relation("MatchNotifyDriverListing")
   referralRewards             ReferralReward[]
   rideCompletionProofs        RideCompletionProof[]
+
+  @@index([tripRouteId])
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).

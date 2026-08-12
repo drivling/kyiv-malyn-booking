@@ -70,7 +70,7 @@ CI also runs Playwright e2e (mocked API, Vite on port 4177).
 - Admin auth: `ProtectedRoute`, `LoginPage` admin mode, `apiClient` token helpers (Vitest + MSW).
 - Admin HTTP: login/check (existing), transport dataset (existing), viber listings POST (existing), `GET /admin/referrals/report`.
 - Transport smoke: `stopCatalog`, `tripDeparture`, `LocalTransportSubNav`, `useTransportDataset`.
-- Intercity trips: `schedule-trip` util, schedules/trip-points HTTP, `mizhUtils` train filter, Telegram elektrichka helpers.
+- Intercity trips: `schedule-trip` util, schedules/trip-points/trip-routes HTTP, `mizhUtils` train filter + listing dual-read, Telegram elektrichka helpers, gold `TripRoute` identity (see `Docs/gold-route-model-smoke.md`).
 - Playwright: `e2e/auth.spec.ts`, `e2e/transport.spec.ts`, `e2e/booking.spec.ts`, `e2e/train.spec.ts` (API mocked via `page.route`).
 
 ## Out of CI

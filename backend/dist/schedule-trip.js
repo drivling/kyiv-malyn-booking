@@ -15,6 +15,10 @@ exports.validateTripPointSelection = validateTripPointSelection;
 exports.matchesTerminals = matchesTerminals;
 exports.buildFromToPairs = buildFromToPairs;
 exports.isVehicleType = isVehicleType;
+exports.corridorSlugFromRouteSlug = corridorSlugFromRouteSlug;
+exports.defaultLabelUk = defaultLabelUk;
+exports.resolveCorridorTripRouteId = resolveCorridorTripRouteId;
+exports.findOrCreateTripRoute = findOrCreateTripRoute;
 exports.VEHICLE_TYPES = ['marshrutka', 'elektrichka'];
 exports.ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]; // 1=Mon … 7=Sun
 /** Parse legacy route string e.g. Kyiv-Malyn-Irpin → terminals + vias. */
@@ -153,3 +157,111 @@ exports.WEEKDAY_PRESETS = {
     exceptSun: [1, 2, 3, 4, 5, 6],
     onlySun: [7],
 };
+/** Corridor slug = first two segments of legacy/variant slug. */
+function corridorSlugFromRouteSlug(slug) {
+    const { startCode, endCode } = parseLegacyRoute(slug);
+    return buildLegacyRouteKey(startCode, endCode, []);
+}
+function defaultLabelUk(startCode, endCode, viaCodes = []) {
+    const map = {
+        Kyiv: 'Київ',
+        Malyn: 'Малин',
+        Zhytomyr: 'Житомир',
+        Korosten: 'Коростень',
+        Irpin: 'Ірпінь',
+        Bucha: 'Буча',
+    };
+    const base = `${map[startCode] || startCode} → ${map[endCode] || endCode}`;
+    if (viaCodes.includes('Irpin'))
+        return `${base} (через Ірпінь)`;
+    if (viaCodes.includes('Bucha'))
+        return `${base} (через Бучу)`;
+    if (viaCodes.length)
+        return `${base} (через ${viaCodes.map((c) => map[c] || c).join(', ')})`;
+    return base;
+}
+/** Resolve corridor TripRoute by legacy slug (Kyiv-Malyn). */
+async function resolveCorridorTripRouteId(prisma, routeSlug) {
+    if (!prisma?.tripRoute?.findUnique)
+        return null;
+    const corridorSlug = corridorSlugFromRouteSlug(routeSlug);
+    const row = await prisma.tripRoute.findUnique({ where: { slug: corridorSlug } });
+    if (!row)
+        return null;
+    // Prefer corridor (no parent); if slug itself is corridor, ok
+    if (row.corridorTripRouteId == null)
+        return row.id;
+    return row.corridorTripRouteId;
+}
+/** Find or create TripRoute from points; creates RouteStops. */
+async function findOrCreateTripRoute(prisma, input) {
+    const points = await prisma.tripPoint.findMany();
+    const byId = new Map(points.map((p) => [p.id, p]));
+    const validated = validateTripPointSelection({
+        startPointId: input.startPointId,
+        endPointId: input.endPointId,
+        viaPointIds: input.viaPointIds ?? [],
+        pointsById: byId,
+    });
+    if (!validated.ok) {
+        throw new Error(validated.error);
+    }
+    const start = byId.get(input.startPointId);
+    const end = byId.get(input.endPointId);
+    const viaCodes = validated.viaPointIds.map((id) => byId.get(id).code);
+    const slug = buildLegacyRouteKey(start.code, end.code, viaCodes);
+    const existing = await prisma.tripRoute.findUnique({ where: { slug } });
+    if (existing)
+        return existing;
+    const corridorSlug = buildLegacyRouteKey(start.code, end.code, []);
+    let corridorTripRouteId = null;
+    if (viaCodes.length > 0) {
+        const corridor = await prisma.tripRoute.findUnique({ where: { slug: corridorSlug } });
+        if (corridor)
+            corridorTripRouteId = corridor.id;
+        else {
+            const createdCorridor = await prisma.tripRoute.create({
+                data: {
+                    slug: corridorSlug,
+                    labelUk: defaultLabelUk(start.code, end.code),
+                    startPointId: start.id,
+                    endPointId: end.id,
+                    corridorTripRouteId: null,
+                },
+            });
+            await prisma.tripRouteStop.createMany({
+                data: [
+                    { tripRouteId: createdCorridor.id, pointId: start.id, position: 0, role: 'start' },
+                    { tripRouteId: createdCorridor.id, pointId: end.id, position: 1, role: 'end' },
+                ],
+            });
+            corridorTripRouteId = createdCorridor.id;
+        }
+    }
+    const created = await prisma.tripRoute.create({
+        data: {
+            slug,
+            labelUk: defaultLabelUk(start.code, end.code, viaCodes),
+            startPointId: start.id,
+            endPointId: end.id,
+            corridorTripRouteId,
+        },
+    });
+    const stopRows = [
+        { tripRouteId: created.id, pointId: start.id, position: 0, role: 'start' },
+        ...validated.viaPointIds.map((pid, i) => ({
+            tripRouteId: created.id,
+            pointId: pid,
+            position: i + 1,
+            role: 'via',
+        })),
+        {
+            tripRouteId: created.id,
+            pointId: end.id,
+            position: 1 + validated.viaPointIds.length,
+            role: 'end',
+        },
+    ];
+    await prisma.tripRouteStop.createMany({ data: stopRows });
+    return created;
+}

@@ -16,6 +16,7 @@ import { requireAdmin } from '../middleware/require-admin';
 import { defaultSchedulePriceUah, parseOptionalPriceUah } from '../schedule-price';
 import {
   buildLegacyRouteKey,
+  findOrCreateTripRoute,
   isScheduleActiveOnDate,
   isVehicleType,
   normalizeActiveWeekdays,
@@ -29,6 +30,7 @@ import {
 const scheduleInclude = {
   startPoint: true,
   endPoint: true,
+  tripRoute: { include: { startPoint: true, endPoint: true, corridorRoute: true } },
 } as const;
 
 async function loadPointsMap(prisma: PrismaClient) {
@@ -56,6 +58,7 @@ async function resolveScheduleTripFields(
   body: Record<string, unknown>,
   existing?: {
     route: string;
+    tripRouteId?: number;
     startPointId: number | null;
     endPointId: number | null;
     viaPointIds: unknown;
@@ -107,6 +110,21 @@ async function resolveScheduleTripFields(
   const viaCodes = validated.viaPointIds.map((id) => pointsById.get(id)!.code);
   const route = buildLegacyRouteKey(start.code, end.code, viaCodes);
 
+  let tripRouteId =
+    body.tripRouteId !== undefined ? Number(body.tripRouteId) : (existing as { tripRouteId?: number } | undefined)?.tripRouteId;
+  if (tripRouteId == null || !Number.isInteger(tripRouteId)) {
+    try {
+      const tr = await findOrCreateTripRoute(prisma, {
+        startPointId,
+        endPointId,
+        viaPointIds: validated.viaPointIds,
+      });
+      tripRouteId = tr.id;
+    } catch (e) {
+      return { ok: false, status: 400, error: e instanceof Error ? e.message : 'Failed to resolve trip route' };
+    }
+  }
+
   const vehicleTypeRaw =
     body.vehicleType !== undefined ? body.vehicleType : existing?.vehicleType ?? 'marshrutka';
   if (!isVehicleType(vehicleTypeRaw)) {
@@ -122,6 +140,7 @@ async function resolveScheduleTripFields(
 
   const data: Record<string, unknown> = {
     route,
+    tripRouteId,
     startPointId,
     endPointId,
     viaPointIds: validated.viaPointIds,
@@ -414,57 +433,51 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
     }
 
-    try {
-      const schedule = await prisma.schedule.findUnique({
+    let resolvedSchedule =
+      scheduleId != null
+        ? await prisma.schedule.findUnique({ where: { id: Number(scheduleId) } })
+        : await prisma.schedule.findUnique({
+            where: { route_departureTime: { route, departureTime } },
+          });
+
+    if (!resolvedSchedule) {
+      return res.status(400).json({ error: 'Schedule not found for this route and time' });
+    }
+
+    if (resolvedSchedule.vehicleType === 'elektrichka') {
+      return res.status(400).json({
+        error: 'Електрички не бронюються на сайті. Купіть квиток за посиланням перевізника.',
+        ticketPurchaseUrl: resolvedSchedule.ticketPurchaseUrl,
+      });
+    }
+
+    if (!isScheduleActiveOnDate(resolvedSchedule.activeWeekdays, date)) {
+      return res.status(400).json({ error: 'Рейс не курсує в обрану дату' });
+    }
+
+    {
+      const bookingDate = new Date(date);
+      const startOfDay = new Date(bookingDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(bookingDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const existingBookings = await prisma.booking.findMany({
         where: {
-          route_departureTime: {
-            route,
-            departureTime,
-          },
+          scheduleId: resolvedSchedule.id,
+          date: { gte: startOfDay, lte: endOfDay },
         },
       });
 
-      if (schedule?.vehicleType === 'elektrichka') {
+      const bookedSeats = existingBookings.reduce((sum, booking) => sum + booking.seats, 0);
+      const requestedSeats = Number(seats);
+      const availableSeats = resolvedSchedule.maxSeats - bookedSeats;
+
+      if (requestedSeats > availableSeats) {
         return res.status(400).json({
-          error: 'Електрички не бронюються на сайті. Купіть квиток за посиланням перевізника.',
-          ticketPurchaseUrl: schedule.ticketPurchaseUrl,
+          error: `Недостатньо місць. Доступно: ${availableSeats}, запитується: ${requestedSeats}`,
         });
       }
-
-      if (schedule && !isScheduleActiveOnDate(schedule.activeWeekdays, date)) {
-        return res.status(400).json({ error: 'Рейс не курсує в обрану дату' });
-      }
-
-      if (schedule) {
-        const bookingDate = new Date(date);
-        const startOfDay = new Date(bookingDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(bookingDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const existingBookings = await prisma.booking.findMany({
-          where: {
-            route,
-            departureTime,
-            date: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-        });
-
-        const bookedSeats = existingBookings.reduce((sum, booking) => sum + booking.seats, 0);
-        const requestedSeats = Number(seats);
-        const availableSeats = schedule.maxSeats - bookedSeats;
-
-        if (requestedSeats > availableSeats) {
-          return res.status(400).json({
-            error: `Недостатньо місць. Доступно: ${availableSeats}, запитується: ${requestedSeats}`,
-          });
-        }
-      }
-    } catch {
-      // Якщо графік не знайдено, все одно дозволяємо бронювання
     }
 
     let telegramChatId: string | null = null;
@@ -550,16 +563,17 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
 
     const booking = await prisma.booking.create({
       data: {
-        route,
+        route: resolvedSchedule.route,
         date: new Date(date),
-        departureTime,
+        departureTime: resolvedSchedule.departureTime,
         seats: Number(seats),
         name,
         phone,
-        scheduleId: scheduleId ? Number(scheduleId) : null,
+        scheduleId: resolvedSchedule.id,
         telegramChatId,
         telegramUserId: bookingTelegramUserId,
         personId: person.id,
+        source: 'schedule',
       },
     });
 

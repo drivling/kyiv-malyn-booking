@@ -305,6 +305,10 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       return res.status(400).json({ error: 'No allowed fields to update' });
     }
     try {
+      if (typeof updates.route === 'string' && updates.route) {
+        const { resolveCorridorTripRouteId } = await import('../schedule-trip');
+        updates.tripRouteId = await resolveCorridorTripRouteId(prisma, String(updates.route));
+      }
       let listing = await prisma.viberListing.update({
         where: { id: Number(id) },
         data: updates,

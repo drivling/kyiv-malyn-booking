@@ -9,6 +9,7 @@ import { createAdminSessionRouter } from './routes/admin-session';
 import { createAdminMaintenanceRouter } from './routes/admin-maintenance';
 import { createSchedulesBookingsRouter } from './routes/schedules-bookings';
 import { createTripPointsRouter } from './routes/trip-points';
+import { createTripRoutesRouter } from './routes/trip-routes';
 import { createUserProfileRouter } from './routes/user-profile';
 import { createViberListingsUserRouter } from './routes/viber-listings-user';
 import { createTelegramRoutesRouter } from './routes/telegram-routes';
@@ -75,6 +76,7 @@ app.use(createAdminSessionRouter({ adminPassword: ADMIN_PASSWORD }));
 app.use(createAdminMaintenanceRouter({ prisma }));
 app.use(createSchedulesBookingsRouter({ prisma }));
 app.use(createTripPointsRouter({ prisma }));
+app.use(createTripRoutesRouter({ prisma }));
 
 app.use(createUserProfileRouter({ prisma }));
 app.use(createViberListingsUserRouter({ prisma }));

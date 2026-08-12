@@ -1,12 +1,4 @@
-export type Route =
-  | 'Kyiv-Malyn-Irpin'
-  | 'Malyn-Kyiv-Irpin'
-  | 'Kyiv-Malyn-Bucha'
-  | 'Malyn-Kyiv-Bucha'
-  | 'Malyn-Zhytomyr'
-  | 'Zhytomyr-Malyn'
-  | 'Korosten-Malyn'
-  | 'Malyn-Korosten';
+export type Route = string;
 
 // Спрощений напрямок для UI бронювання
 export type Direction = 'Kyiv-Malyn' | 'Malyn-Kyiv' | 'Malyn-Zhytomyr' | 'Zhytomyr-Malyn' | 'Korosten-Malyn' | 'Malyn-Korosten';
@@ -26,6 +18,18 @@ export interface TripPoint {
   updatedAt?: string;
 }
 
+export interface TripRoute {
+  id: number;
+  slug: string;
+  labelUk: string;
+  startPointId: number;
+  endPointId: number;
+  corridorTripRouteId?: number | null;
+  startPoint?: TripPoint | null;
+  endPoint?: TripPoint | null;
+  stops?: Array<{ id: number; pointId: number; position: number; role: string; point?: TripPoint }>;
+}
+
 export interface Schedule {
   id: number;
   route: Route;
@@ -34,6 +38,8 @@ export interface Schedule {
   supportPhone: string | null;
   /** Ціна місця в грн; null якщо ще не задано */
   priceUah?: number | null;
+  tripRouteId?: number;
+  tripRoute?: TripRoute | null;
   startPointId?: number | null;
   endPointId?: number | null;
   startPoint?: TripPoint | null;
@@ -140,6 +146,7 @@ export interface ViberListing {
   senderName: string | null;
   listingType: ViberListingType;
   route: string;
+  tripRouteId?: number | null;
   date: string;
   departureTime: string | null;
   seats: number | null;

@@ -107,8 +107,21 @@ export function routeMatchesCities(route: string, from: BookingCity, to: Booking
   if (!direction) return false;
   const r = route.toLowerCase();
   const d = direction.toLowerCase();
-  // direction e.g. kyiv-malyn; route may be kyiv-malyn-irpin
-  return r.includes(d) || r.startsWith(d);
+  // direction e.g. kyiv-malyn; route may be kyiv-malyn-irpin OR corridor kyiv-malyn
+  return r === d || r.startsWith(`${d}-`) || r.includes(d);
+}
+
+/** Dual-read: prefer tripRouteId corridor match, fallback to route string. */
+export function listingMatchesCities(
+  listing: { route: string; tripRouteId?: number | null },
+  from: BookingCity,
+  to: BookingCity,
+  corridorById?: Map<number, { slug: string }>
+): boolean {
+  if (listing.tripRouteId != null && corridorById?.has(listing.tripRouteId)) {
+    return routeMatchesCities(corridorById.get(listing.tripRouteId)!.slug, from, to);
+  }
+  return routeMatchesCities(listing.route, from, to);
 }
 
 export function cityLabel(city: BookingCity): string {

@@ -144,6 +144,14 @@ class ApiClient {
     return this.request(`/trip-points${qs}`);
   }
 
+  async getTripRoutes(opts?: { corridors?: boolean; variants?: boolean }): Promise<import('@/types').TripRoute[]> {
+    const params = new URLSearchParams();
+    if (opts?.corridors) params.set('corridors', 'true');
+    if (opts?.variants) params.set('variants', 'true');
+    const qs = params.toString();
+    return this.request(qs ? `/trip-routes?${qs}` : '/trip-routes');
+  }
+
   async createTripPoint(data: {
     code: string;
     nameUk: string;

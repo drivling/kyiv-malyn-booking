@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 import {
   buildFromToPairs,
   buildLegacyRouteKey,
+  corridorSlugFromRouteSlug,
+  defaultLabelUk,
   isScheduleActiveOnDate,
   matchesTerminals,
   normalizeViaPointIds,
@@ -91,5 +93,7 @@ describe('weekdays / arrival / terminals', () => {
     ]);
     expect(pairs).toHaveLength(2);
     expect(normalizeViaPointIds([3, 3, 'x', 2])).toEqual([3, 2]);
+    expect(corridorSlugFromRouteSlug('Kyiv-Malyn-Irpin')).toBe('Kyiv-Malyn');
+    expect(defaultLabelUk('Kyiv', 'Malyn', ['Irpin'])).toContain('Ірпінь');
   });
 });

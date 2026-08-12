@@ -39,5 +39,11 @@ export const handlers = [
     ])
   ),
 
+  http.get(`${TEST_API_URL}/trip-routes`, () =>
+    HttpResponse.json([
+      { id: 1, slug: 'Kyiv-Malyn', labelUk: 'Київ → Малин', startPointId: 1, endPointId: 2, corridorTripRouteId: null },
+    ])
+  ),
+
   http.get(`${TEST_API_URL}/bookings`, () => HttpResponse.json([])),
 ];
