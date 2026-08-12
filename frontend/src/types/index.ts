@@ -62,6 +62,8 @@ export interface Schedule {
   arrivalTime?: string | null;
   durationMinutes?: number | null;
   ticketPurchaseUrl?: string | null;
+  /** URL сторінки розкладу (SW Railway) для парсера */
+  timetableSourceUrl?: string | null;
   activeWeekdays?: number[];
   createdAt: string;
   updatedAt: string;
@@ -117,7 +119,53 @@ export interface ScheduleFormData {
   arrivalTime?: string | null;
   durationMinutes?: number | null;
   ticketPurchaseUrl?: string | null;
+  timetableSourceUrl?: string | null;
   activeWeekdays?: number[];
+}
+
+export type TimetableChangeStatus =
+  | 'changed'
+  | 'unchanged'
+  | 'not_found'
+  | 'ambiguous'
+  | 'no_board_time';
+
+export interface TimetablePatchFields {
+  departureTime: string | null;
+  arrivalTime: string | null;
+  durationMinutes: number | null;
+  activeWeekdays: number[];
+  alightingPlace: string | null;
+  daysNote: string | null;
+}
+
+export interface TimetableChangeRow {
+  scheduleId: number;
+  tripNumber: string;
+  route: string;
+  timetableSourceUrl: string;
+  status: TimetableChangeStatus;
+  before: TimetablePatchFields;
+  after: TimetablePatchFields;
+}
+
+export interface TimetablePreviewResponse {
+  previewToken: string;
+  changes: TimetableChangeRow[];
+  pageTrainsUnmatched: Array<{
+    url: string;
+    tripNumber: string;
+    daysNote: string;
+    destinationLabel: string;
+  }>;
+  errors: Array<{ url: string; error: string }>;
+  summary: {
+    changed: number;
+    unchanged: number;
+    notFound: number;
+    ambiguous: number;
+    errors: number;
+  };
 }
 
 // Telegram User Data

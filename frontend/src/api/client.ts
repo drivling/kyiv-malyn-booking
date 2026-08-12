@@ -196,6 +196,20 @@ class ApiClient {
     return this.request('/schedules-rebind-trip-routes', { method: 'POST', body: '{}' });
   }
 
+  async previewScheduleTimetable(): Promise<import('@/types').TimetablePreviewResponse> {
+    return this.request('/schedules/timetable-preview', { method: 'POST', body: '{}' });
+  }
+
+  async applyScheduleTimetable(data: {
+    previewToken: string;
+    scheduleIds: number[];
+  }): Promise<{ updated: number; conflicts: Array<{ scheduleId: number; error: string }> }> {
+    return this.request('/schedules/timetable-apply', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async createTripPoint(data: {
     code: string;
     nameUk: string;

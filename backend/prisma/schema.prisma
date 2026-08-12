@@ -106,6 +106,8 @@ model Schedule {
   arrivalTime   String?  // HH:MM
   durationMinutes Int?
   ticketPurchaseUrl String?
+  /// URL сторінки розкладу (SW Railway eltrain) для оновлення через парсер
+  timetableSourceUrl String?
   /// 1=пн … 7=нд
   activeWeekdays Json    @default("[1,2,3,4,5,6,7]")
 

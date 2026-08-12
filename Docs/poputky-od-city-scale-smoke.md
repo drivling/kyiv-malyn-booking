@@ -55,6 +55,7 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 - Admin → **Маршрути** tab → **Міста / точки маршруту**: add / edit / delete cities; flags; **Швидкі напрямки** (`quickDirectPointIds`).
 - Same tab → **Маршрути (TripRoute)** CRUD: start/end/via, label, stop offsets.
 - Admin → **Графіки**: schedules only; **Перепривʼязати TripRoute** repairs `route` ↔ `tripRouteId` mismatches.
+- Admin → **Графіки** → **Оновити графіки (через парсер)**: requires `timetableSourceUrl` + `tripNumber` on електричка; preview diff → apply selected.
 - Site `/mizhgorodski`: cookie `malin_home_city` (default Malyn); chips from home’s quick-direct list.
 - Bot marshrutka book: **звідки → куди → дата → час** (schedules whose TripRoute stops contain OD); no via text on buttons.
 - `TripRouteStop.departureOffsetMinutes`: boarding time = schedule start + offset; editable in schedule / TripRoute modal.
@@ -71,6 +72,14 @@ Canonical slug: **`Kyiv-Korosten-Malyn`** (terminals + vias), stops order: Kyiv 
 4. Poputky: pin **driver** Viber listing to this variant; passenger Kyiv→Malyn or Malyn→Korosten same date → match «по дорозі»; full Kyiv→Korosten → `exact`.
 
 **Note:** Viber parser does **not** auto-emit `Kyiv-Korosten`; long-haul needs manual TripRoute + driver pin.
+
+## Електрички: оновлення з SW Railway (парсер)
+
+1. Адмін → рейс електрички → поле **URL розкладу (парсер)** (напр. `...?gid=1&rid=68&reverse=2&half=1&count=4`); номер рейсу = колонка на сторінці.
+2. Для Київ→Малин: `reverse=1`; у **Місце посадки** вказувати реальний старт (`Київ-Пас. (Приміський)` / `з.п. Борщагівка` / `Святошин`) — парсер розрізняє дублікати номерів (напр. два 6621).
+3. **Оновити графіки (через парсер)** → модалка: changed / unchanged / not_found; чекбокси на changed.
+4. **Застосувати вибрані** → транзакція; при unique-конфлікті часу — 409, нічого не пишеться.
+5. Повторний preview після успішного apply → переважно `unchanged` (ідемпотентність за часом/днями з шапки колонки; спец. «Зміни руху» v1 не парсить).
 
 ## Deferred (explicitly not in this ship)
 

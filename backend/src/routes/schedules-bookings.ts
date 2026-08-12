@@ -27,6 +27,7 @@ import {
   validateTripPointSelection,
   type VehicleType,
 } from '../schedule-trip';
+import { applyTimetablePreview, buildTimetablePreview } from '../schedule-timetable-sync';
 
 const scheduleInclude = {
   startPoint: true,
@@ -198,6 +199,9 @@ async function resolveScheduleTripFields(
   if (body.arrivalTime !== undefined) data.arrivalTime = arrivalTime ?? null;
   if (body.durationMinutes !== undefined) data.durationMinutes = parseOptionalDuration(body.durationMinutes);
   if (body.ticketPurchaseUrl !== undefined) data.ticketPurchaseUrl = ticketPurchaseUrl ?? null;
+  if (body.timetableSourceUrl !== undefined) {
+    data.timetableSourceUrl = optionalTrimmedString(body.timetableSourceUrl) ?? null;
+  }
   if (body.activeWeekdays !== undefined) data.activeWeekdays = normalizeActiveWeekdays(body.activeWeekdays);
 
   return { ok: true, data, route };
@@ -267,6 +271,46 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       res.json({ supportPhone: schedule?.supportPhone ?? null });
     } catch (_error) {
       res.status(500).json({ supportPhone: null });
+    }
+  });
+
+  /** Preview SW Railway timetable diffs for schedules with timetableSourceUrl. */
+  r.post('/schedules/timetable-preview', requireAdmin, async (_req, res) => {
+    try {
+      const preview = await buildTimetablePreview(prisma);
+      res.json(preview);
+    } catch (error) {
+      console.error('timetable-preview failed', error);
+      res.status(500).json({ error: 'Failed to build timetable preview' });
+    }
+  });
+
+  /** Apply selected patches from a preview token (fail-all on unique conflicts). */
+  r.post('/schedules/timetable-apply', requireAdmin, async (req, res) => {
+    try {
+      const previewToken = String(req.body?.previewToken || '').trim();
+      const scheduleIds = Array.isArray(req.body?.scheduleIds)
+        ? req.body.scheduleIds.map((x: unknown) => Number(x)).filter((n: number) => Number.isInteger(n) && n > 0)
+        : [];
+      if (!previewToken) {
+        return res.status(400).json({ error: 'previewToken is required' });
+      }
+      const result = await applyTimetablePreview(prisma, previewToken, scheduleIds);
+      if (result.conflicts.length > 0) {
+        return res.status(409).json({
+          error: 'Unique time conflicts — nothing applied',
+          ...result,
+        });
+      }
+      res.json(result);
+    } catch (error) {
+      const status = (error as { status?: number }).status ?? 500;
+      const message = error instanceof Error ? error.message : 'Failed to apply timetable';
+      if (status >= 400 && status < 500) {
+        return res.status(status).json({ error: message });
+      }
+      console.error('timetable-apply failed', error);
+      res.status(500).json({ error: 'Failed to apply timetable' });
     }
   });
 

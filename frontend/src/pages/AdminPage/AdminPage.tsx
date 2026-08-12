@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport } from '@/types';
+import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
 import { ReferralTab } from './ReferralTab';
@@ -69,8 +69,13 @@ export const AdminPage: React.FC = () => {
     arrivalTime: '',
     durationMinutes: null,
     ticketPurchaseUrl: '',
+    timetableSourceUrl: '',
     activeWeekdays: [1, 2, 3, 4, 5, 6, 7],
   });
+  const [timetablePreview, setTimetablePreview] = useState<TimetablePreviewResponse | null>(null);
+  const [timetablePreviewLoading, setTimetablePreviewLoading] = useState(false);
+  const [timetableApplyLoading, setTimetableApplyLoading] = useState(false);
+  const [timetableSelectedIds, setTimetableSelectedIds] = useState<Set<number>>(new Set());
 
   // Viber listings
   const [isViberModalOpen, setIsViberModalOpen] = useState(false);
@@ -868,6 +873,7 @@ export const AdminPage: React.FC = () => {
     arrivalTime: '',
     durationMinutes: null,
     ticketPurchaseUrl: '',
+    timetableSourceUrl: '',
     activeWeekdays: [1, 2, 3, 4, 5, 6, 7],
   });
 
@@ -1011,6 +1017,55 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleTimetablePreview = async () => {
+    setTimetablePreviewLoading(true);
+    setError('');
+    try {
+      const preview = await apiClient.previewScheduleTimetable();
+      setTimetablePreview(preview);
+      setTimetableSelectedIds(
+        new Set(preview.changes.filter((c) => c.status === 'changed').map((c) => c.scheduleId))
+      );
+      if (preview.changes.length === 0 && preview.errors.length === 0) {
+        setSuccess('Немає рейсів з URL розкладу — додайте «URL розкладу (парсер)» у картці рейсу');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка превʼю розкладу');
+    } finally {
+      setTimetablePreviewLoading(false);
+    }
+  };
+
+  const handleTimetableApply = async () => {
+    if (!timetablePreview) return;
+    const ids = [...timetableSelectedIds];
+    if (ids.length === 0) {
+      alert('Оберіть хоча б один рейс зі змінами');
+      return;
+    }
+    setTimetableApplyLoading(true);
+    try {
+      const result = await apiClient.applyScheduleTimetable({
+        previewToken: timetablePreview.previewToken,
+        scheduleIds: ids,
+      });
+      if (result.conflicts?.length) {
+        alert(
+          'Конфлікти часу (нічого не застосовано):\n' +
+            result.conflicts.map((c) => `#${c.scheduleId}: ${c.error}`).join('\n')
+        );
+        return;
+      }
+      setTimetablePreview(null);
+      setSuccess(`Оновлено графіків: ${result.updated}`);
+      loadSchedules();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Помилка застосування');
+    } finally {
+      setTimetableApplyLoading(false);
+    }
+  };
+
   const openScheduleModal = (schedule?: Schedule) => {
     if (schedule) {
       setEditingSchedule(schedule);
@@ -1035,6 +1090,7 @@ export const AdminPage: React.FC = () => {
         arrivalTime: schedule.arrivalTime ?? '',
         durationMinutes: schedule.durationMinutes ?? null,
         ticketPurchaseUrl: schedule.ticketPurchaseUrl ?? '',
+        timetableSourceUrl: schedule.timetableSourceUrl ?? '',
         activeWeekdays: Array.isArray(schedule.activeWeekdays)
           ? schedule.activeWeekdays
           : [1, 2, 3, 4, 5, 6, 7],
@@ -1410,9 +1466,17 @@ export const AdminPage: React.FC = () => {
                 />
               </div>
               <div className="admin-controls-actions">
-                <Button onClick={loadSchedules}>Оновити</Button>
+                <Button onClick={() => loadSchedules()}>Оновити</Button>
                 <Button type="button" variant="secondary" onClick={handleRebindScheduleTripRoutes}>
                   Перепривʼязати TripRoute
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleTimetablePreview}
+                  disabled={timetablePreviewLoading}
+                >
+                  {timetablePreviewLoading ? 'Парсинг…' : 'Оновити графіки (через парсер)'}
                 </Button>
                 <Button onClick={() => openScheduleModal()}>Додати рейс</Button>
               </div>
@@ -1459,7 +1523,17 @@ export const AdminPage: React.FC = () => {
                           </div>
                         </td>
                         <td><strong>{schedule.departureTime}</strong>{schedule.arrivalTime ? ` → ${schedule.arrivalTime}` : ''}</td>
-                        <td>{schedule.tripNumber || '—'}</td>
+                        <td>
+                          {schedule.tripNumber || '—'}
+                          {schedule.timetableSourceUrl ? (
+                            <span
+                              title={schedule.timetableSourceUrl}
+                              style={{ marginLeft: 6, fontSize: 11, color: 'var(--pb-primary, #1a73e8)' }}
+                            >
+                              🔗
+                            </span>
+                          ) : null}
+                        </td>
                         <td><strong>{schedule.maxSeats}</strong></td>
                         <td>{schedule.priceUah != null ? <strong>{schedule.priceUah}</strong> : '—'}</td>
                         <td>
@@ -3235,6 +3309,19 @@ export const AdminPage: React.FC = () => {
                             setScheduleForm({ ...scheduleForm, ticketPurchaseUrl: e.target.value })
                           }
                         />
+                        <Input
+                          label="URL розкладу (парсер)"
+                          type="url"
+                          placeholder="https://swrailway.gov.ua/timetable/eltrain/?..."
+                          value={scheduleForm.timetableSourceUrl ?? ''}
+                          onChange={(e) =>
+                            setScheduleForm({ ...scheduleForm, timetableSourceUrl: e.target.value })
+                          }
+                        />
+                        <p className="modal-hint" style={{ marginTop: -4 }}>
+                          Сторінка SW Railway eltrain (`reverse=1` Київ→Малин, `reverse=2` Малин→Київ).
+                          Для Києва в «Місце посадки» вкажіть старт: Київ-Пас. / Борщагівка / Святошин.
+                        </p>
                       </>
                     ) : (
                       <>
@@ -3288,6 +3375,134 @@ export const AdminPage: React.FC = () => {
                   <Button type="submit">Зберегти</Button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {timetablePreview && (
+          <div className="modal" onClick={(e) => e.target === e.currentTarget && setTimetablePreview(null)}>
+            <div className="modal-content modal-content--schedule">
+              <div className="modal-header">
+                <h2>Оновлення графіків (парсер)</h2>
+                <button className="close-btn" onClick={() => setTimetablePreview(null)}>
+                  &times;
+                </button>
+              </div>
+              <p className="modal-hint">
+                Зміниться {timetablePreview.summary.changed}, без змін {timetablePreview.summary.unchanged},
+                не знайдено {timetablePreview.summary.notFound}, неоднозначно{' '}
+                {timetablePreview.summary.ambiguous}
+                {timetablePreview.summary.errors
+                  ? `, помилок URL ${timetablePreview.summary.errors}`
+                  : ''}
+                . Застосування — одна транзакція; при конфлікті часу нічого не пишеться.
+              </p>
+              {timetablePreview.errors.length > 0 && (
+                <Alert variant="error">
+                  {timetablePreview.errors.map((e) => `${e.url}: ${e.error}`).join(' · ')}
+                </Alert>
+              )}
+              <div className="table-container" style={{ maxHeight: '50vh', overflow: 'auto' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>ID</th>
+                      <th>№</th>
+                      <th>Маршрут</th>
+                      <th>Статус</th>
+                      <th>Було → стане</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {timetablePreview.changes.map((row) => {
+                      const selectable = row.status === 'changed';
+                      const checked = timetableSelectedIds.has(row.scheduleId);
+                      const fmtDays = (d: number[]) => (d?.length ? d.join(',') : '—');
+                      const diffLines = [
+                        row.before.departureTime !== row.after.departureTime
+                          ? `відпр. ${row.before.departureTime || '—'} → ${row.after.departureTime || '—'}`
+                          : null,
+                        (row.before.arrivalTime || '') !== (row.after.arrivalTime || '')
+                          ? `приб. ${row.before.arrivalTime || '—'} → ${row.after.arrivalTime || '—'}`
+                          : null,
+                        fmtDays(row.before.activeWeekdays) !== fmtDays(row.after.activeWeekdays)
+                          ? `дні ${fmtDays(row.before.activeWeekdays)} → ${fmtDays(row.after.activeWeekdays)}`
+                          : null,
+                        (row.before.alightingPlace || '') !== (row.after.alightingPlace || '')
+                          ? `висадка ${row.before.alightingPlace || '—'} → ${row.after.alightingPlace || '—'}`
+                          : null,
+                      ].filter(Boolean);
+                      return (
+                        <tr
+                          key={row.scheduleId}
+                          style={
+                            row.status === 'changed'
+                              ? { background: 'rgba(26, 115, 232, 0.06)' }
+                              : undefined
+                          }
+                        >
+                          <td>
+                            <input
+                              type="checkbox"
+                              disabled={!selectable}
+                              checked={checked}
+                              onChange={() => {
+                                setTimetableSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(row.scheduleId)) next.delete(row.scheduleId);
+                                  else next.add(row.scheduleId);
+                                  return next;
+                                });
+                              }}
+                            />
+                          </td>
+                          <td>#{row.scheduleId}</td>
+                          <td>{row.tripNumber}</td>
+                          <td style={{ fontSize: 12 }}>{row.route}</td>
+                          <td style={{ fontSize: 12 }}>{row.status}</td>
+                          <td style={{ fontSize: 12 }}>
+                            {row.status === 'unchanged'
+                              ? 'без змін'
+                              : diffLines.length
+                                ? diffLines.join('; ')
+                                : row.after.daysNote || row.status}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {timetablePreview.pageTrainsUnmatched.length > 0 && (
+                <details style={{ marginTop: 12 }}>
+                  <summary style={{ cursor: 'pointer' }}>
+                    Потяги на сторінці без рейсу в БД ({timetablePreview.pageTrainsUnmatched.length})
+                  </summary>
+                  <ul style={{ fontSize: 13, marginTop: 8 }}>
+                    {timetablePreview.pageTrainsUnmatched.slice(0, 40).map((t) => (
+                      <li key={`${t.url}-${t.tripNumber}`}>
+                        {t.tripNumber} — {t.daysNote}
+                        {t.destinationLabel ? ` (${t.destinationLabel})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              <div className="form-actions">
+                <Button type="button" variant="secondary" onClick={() => setTimetablePreview(null)}>
+                  Скасувати
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleTimetableApply}
+                  disabled={timetableApplyLoading || timetableSelectedIds.size === 0}
+                >
+                  {timetableApplyLoading
+                    ? 'Застосування…'
+                    : `Застосувати вибрані (${timetableSelectedIds.size})`}
+                </Button>
+              </div>
             </div>
           </div>
         )}
