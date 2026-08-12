@@ -42,14 +42,14 @@ describe('validateTripPointSelection', () => {
     [4, { id: 4, code: 'Zhytomyr', nameUk: 'Житомир', requiredOnTrip: false }],
   ]);
 
-  test('requires Malyn on trip', () => {
+  test('allows trips without requiredOnTrip hub (e.g. Kyiv–Zhytomyr)', () => {
     const r = validateTripPointSelection({
       startPointId: 1,
       endPointId: 4,
       viaPointIds: [],
       pointsById: points,
     });
-    expect(r.ok).toBe(false);
+    expect(r).toEqual({ ok: true, viaPointIds: [] });
   });
 
   test('allows Kyiv-Malyn with Irpin via', () => {
@@ -93,6 +93,7 @@ describe('weekdays / arrival / terminals', () => {
       { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true },
       { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false },
     ]);
+    // Irpin hidden from from/to; Kyiv↔Malyn both ways
     expect(pairs).toHaveLength(2);
     expect(normalizeViaPointIds([3, 3, 'x', 2])).toEqual([3, 2]);
     expect(corridorSlugFromRouteSlug('Kyiv-Malyn-Irpin')).toBe('Kyiv-Malyn');

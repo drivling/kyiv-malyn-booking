@@ -58,7 +58,7 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 - `TripRouteStop.departureOffsetMinutes`: boarding time = schedule start + offset; editable in schedule modal.
 ## Deferred (explicitly not in this ship)
 
-1. **Viber parser → new cities** — keep corridor whitelist until a dedicated change. Before expanding cities: run `cd backend && npm test -- --run src/viber-parser.test.ts` and `npx ts-node scripts/eval-viber-parser.ts` (golden `testdata/viber-golden.json`). Baseline after this work: **route 821/821 (100%)**, unit suite green. Do not expand cities without re-running golden and fixing regressions.
+1. **Viber parser → new cities** — expanded for Bucha/Irpin OD pairs from prod active listings (golden +5: 7496–7499, 7502). Classic Kyiv↔Malyn still wins when both cities appear (via in parentheses). Re-check: `npm test -- --run src/viber-parser.test.ts` + `npx ts-node scripts/eval-viber-parser.ts` → **route 826/826 (100%)**.
 
 2. **Drop legacy `route` string in one step** — **not OK as a single cutover**. Keep dual-read (`fromPointId`/`toPointId` + `route` snapshot) until listings/bookings/parser/admin clients all write points. Big-bang removal would break parser imports and old rows.
 
@@ -67,3 +67,7 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 ## Non-goals (still)
 
 - Matching against passenger’s `tripRouteId` (itinerary is always the driver’s).
+
+## TripRoute on listing (example #7502)
+
+Active passenger `Korosten-Bucha`, `tripRouteId=null`, OD points set. Pinning TripRoute on this **passenger** does not change match: along-route uses the **driver’s** itinerary. Exact OD already matches drivers with the same from/to. Bind a variant on a **driver** (e.g. Kyiv–Malyn via Irpin) so passengers on subset stops match «по дорозі».

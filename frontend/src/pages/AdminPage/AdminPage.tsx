@@ -1678,7 +1678,9 @@ export const AdminPage: React.FC = () => {
                       ]}
                     />
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>
-                      Можна привʼязати variant (напр. Київ–Малин через Ірпінь). Матчинг «по дороге» поки exact OD — це курація маршруту.
+                      Для <b>водія</b>: variant (напр. Київ–Малин через Ірпінь) вмикає матчинг «по дорозі» —
+                      пасажир з OD на stops itinerary (Ірпінь→Малин) знайде цю поїздку. Для пасажира
+                      TripRoute майже не впливає — матч йде по exact OD (`fromPointId`/`toPointId`).
                     </p>
                   </div>
                   <div>

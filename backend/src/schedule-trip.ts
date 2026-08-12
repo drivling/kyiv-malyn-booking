@@ -165,14 +165,6 @@ export function validateTripPointSelection(input: {
     }
   }
 
-  const allIds = new Set([startPointId, endPointId, ...viaPointIds]);
-  const required = [...pointsById.values()].filter((p) => p.requiredOnTrip);
-  for (const p of required) {
-    if (!allIds.has(p.id)) {
-      return { ok: false, error: `Required point «${p.nameUk}» must be on the trip (start, end, or via)` };
-    }
-  }
-
   return { ok: true, viaPointIds };
 }
 
@@ -186,14 +178,13 @@ export function matchesTerminals(
   return startCode === fromCode && endCode === toCode;
 }
 
-/** Valid from/to pairs: both appearInFromTo; at least one requiredOnTrip. */
+/** Valid from/to pairs: both appearInFromTo (requiredOnTrip no longer gates pairs). */
 export function buildFromToPairs(points: TripPointLike[]): Array<{ from: TripPointLike; to: TripPointLike }> {
   const terminals = points.filter((p) => p.appearInFromTo !== false);
   const pairs: Array<{ from: TripPointLike; to: TripPointLike }> = [];
   for (const from of terminals) {
     for (const to of terminals) {
       if (from.id === to.id) continue;
-      if (!from.requiredOnTrip && !to.requiredOnTrip) continue;
       pairs.push({ from, to });
     }
   }

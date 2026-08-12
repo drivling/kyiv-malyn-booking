@@ -561,7 +561,7 @@ export function extractRoute(text: string): string {
 
   // Структуровані bot-повідомлення: "[Бот] Kyiv-Malyn 2026-07-24 ..."
   const botRoute = normalizedText.match(
-    /\b(kyiv-malyn|malyn-kyiv|malyn-zhytomyr|zhytomyr-malyn|malyn-korosten|korosten-malyn)\b/i
+    /\b(kyiv-malyn|malyn-kyiv|malyn-zhytomyr|zhytomyr-malyn|malyn-korosten|korosten-malyn|malyn-bucha|bucha-malyn|bucha-irpin|irpin-bucha|bucha-korosten|korosten-bucha|malyn-irpin|irpin-malyn|kyiv-bucha|bucha-kyiv|kyiv-irpin|irpin-kyiv)\b/i
   );
   if (botRoute) {
     const map: Record<string, string> = {
@@ -571,41 +571,93 @@ export function extractRoute(text: string): string {
       'zhytomyr-malyn': 'Zhytomyr-Malyn',
       'malyn-korosten': 'Malyn-Korosten',
       'korosten-malyn': 'Korosten-Malyn',
+      'malyn-bucha': 'Malyn-Bucha',
+      'bucha-malyn': 'Bucha-Malyn',
+      'bucha-irpin': 'Bucha-Irpin',
+      'irpin-bucha': 'Irpin-Bucha',
+      'bucha-korosten': 'Bucha-Korosten',
+      'korosten-bucha': 'Korosten-Bucha',
+      'malyn-irpin': 'Malyn-Irpin',
+      'irpin-malyn': 'Irpin-Malyn',
+      'kyiv-bucha': 'Kyiv-Bucha',
+      'bucha-kyiv': 'Bucha-Kyiv',
+      'kyiv-irpin': 'Kyiv-Irpin',
+      'irpin-kyiv': 'Irpin-Kyiv',
     };
     return map[botRoute[1].toLowerCase()] || 'Unknown';
   }
-  
+
+  // Класичні коридори через Малин — ПЕРШИМИ (Буча/Ірпінь у дужках = via, не окремий OD)
   // Київ → Малин (враховуємо різні відмінки: Київ, Києва, Києві, Києвом, Києву)
   // "мЖитомирська" / "м Житомирська" / "м.Житомирська" — станція метро Житомирська в Києві
   if (/ки[їєи][вї][а-я]*.*малин|киев.*малин|академ.*малин|м\.?\s*житомирська.*малин/i.test(normalizedText)) {
     return 'Kyiv-Malyn';
   }
-  
+
   // Малин → Київ (враховуємо різні відмінки)
   if (/малин.*ки[їєи][вї][а-я]*|малин.*киев|малин.*академ|малин.*м\.?\s*житомирська/i.test(normalizedText)) {
     return 'Malyn-Kyiv';
   }
-  
+
   // Малин → Житомир (місто, не станція метро Житомирська)
   if (/малин.*житомир(?!ська)/i.test(normalizedText)) {
     return 'Malyn-Zhytomyr';
   }
-  
+
   // Житомир → Малин (місто, не станція метро Житомирська)
   if (/житомир(?!ська).*малин/i.test(normalizedText)) {
     return 'Zhytomyr-Malyn';
   }
-  
+
   // Коростень → Малин (враховуємо варіанти написання)
   if (/коростен[ья].*малин|коростень.*малин/i.test(normalizedText)) {
     return 'Korosten-Malyn';
   }
-  
+
   // Малин → Коростень
   if (/малин.*коростен[ья]|малин.*коростень/i.test(normalizedText)) {
     return 'Malyn-Korosten';
   }
-  
+
+  // Нові OD-пари (Буча / Ірпінь) — лише якщо класичний коридор Київ↔Малин не спрацював
+  if (/(?:буч[аіиуе]|bucha).*(?:ірпін|ирпен|irpin)|(?:ірпін|ирпен|irpin).*(?:буч[аіиуе]|bucha)/i.test(normalizedText)) {
+    if (/(?:ірпін|ирпен|irpin).*(?:буч[аіиуе]|bucha)/i.test(normalizedText)) return 'Irpin-Bucha';
+    return 'Bucha-Irpin';
+  }
+
+  if (/коростен[ья]?.*(?:буч[аіиуе]|bucha)|(?:буч[аіиуе]|bucha).*коростен[ья]?/i.test(normalizedText)) {
+    if (/(?:буч[аіиуе]|bucha).*коростен/i.test(normalizedText)) return 'Bucha-Korosten';
+    return 'Korosten-Bucha';
+  }
+
+  if (/малин.*(?:буч[аіиуе]|bucha)|(?:буч[аіиуе]|bucha).*малин/i.test(normalizedText)) {
+    if (/(?:буч[аіиуе]|bucha).*малин/i.test(normalizedText)) return 'Bucha-Malyn';
+    return 'Malyn-Bucha';
+  }
+
+  if (/малин.*(?:ірпін|ирпен|irpin)|(?:ірпін|ирпен|irpin).*малин/i.test(normalizedText)) {
+    if (/(?:ірпін|ирпен|irpin).*малин/i.test(normalizedText)) return 'Irpin-Malyn';
+    return 'Malyn-Irpin';
+  }
+
+  if (
+    /(?:ки[їєи][вї][а-я]*|киев|академ).*(?:буч[аіиуе]|bucha)|(?:буч[аіиуе]|bucha).*(?:ки[їєи][вї][а-я]*|киев|академ)/i.test(
+      normalizedText
+    )
+  ) {
+    if (/(?:буч[аіиуе]|bucha).*(?:ки[їєи][вї]|киев|академ)/i.test(normalizedText)) return 'Bucha-Kyiv';
+    return 'Kyiv-Bucha';
+  }
+
+  if (
+    /(?:ки[їєи][вї][а-я]*|киев|академ).*(?:ірпін|ирпен|irpin)|(?:ірпін|ирпен|irpin).*(?:ки[їєи][вї][а-я]*|киев|академ)/i.test(
+      normalizedText
+    )
+  ) {
+    if (/(?:ірпін|ирпен|irpin).*(?:ки[їєи][вї]|киев|академ)/i.test(normalizedText)) return 'Irpin-Kyiv';
+    return 'Kyiv-Irpin';
+  }
+
   return 'Unknown';
 }
 

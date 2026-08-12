@@ -247,6 +247,14 @@ test('extractRoute', () => {
   assert.equal(extractRoute('м Житомирська Малин'), 'Kyiv-Malyn');
   assert.equal(extractRoute('м.Житомирська Малин'), 'Kyiv-Malyn');
   assert.equal(extractRoute('Малин мЖитомирська'), 'Malyn-Kyiv');
+
+  assert.equal(extractRoute('Коростень-Буча 2026-08-18 12:00-14:00'), 'Korosten-Bucha');
+  assert.equal(extractRoute('[Бот] Bucha-Irpin 2026-08-12 11:55'), 'Bucha-Irpin');
+  assert.equal(extractRoute('[Бот-пасажир] Bucha-Korosten 2026-08-13 15:00'), 'Bucha-Korosten');
+  assert.equal(extractRoute('[Бот] Malyn-Bucha 2026-09-10 11:00'), 'Malyn-Bucha');
+  assert.equal(extractRoute('Буча Ірпінь'), 'Bucha-Irpin');
+  assert.equal(extractRoute('Ірпінь Буча'), 'Irpin-Bucha');
+  assert.equal(extractRoute('Малин Буча'), 'Malyn-Bucha');
 });
 
 test('extractListingType', () => {
