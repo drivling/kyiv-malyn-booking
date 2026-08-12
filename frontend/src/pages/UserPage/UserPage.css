@@ -24,9 +24,43 @@
   padding-top: 12px;
 }
 
+.user-dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .user-page-inner {
+    max-width: 960px;
+  }
+
+  .user-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .user-page-header,
+  .user-dashboard-grid > .user-section {
+    margin-bottom: 0;
+    min-height: 100%;
+  }
+
+  .user-dashboard-grid > .user-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .user-dashboard-grid > .user-section .user-section-cta {
+    margin-top: auto;
+  }
+}
+
 /* Заголовок + профіль */
 .user-page-header {
-  margin-bottom: 24px;
+  margin-bottom: 0;
   position: relative;
 }
 
@@ -102,7 +136,7 @@
   background: var(--user-card-bg);
   border-radius: 12px;
   padding: 24px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   box-shadow: var(--user-card-shadow);
   border: 1px solid var(--user-border);
 }

@@ -187,6 +187,13 @@ export const UserPage: React.FC = () => {
   return (
     <div className="user-page">
       <div className="user-page-inner">
+        {error && (
+          <div className="alert-wrapper">
+            <Alert variant="error">{error}</Alert>
+          </div>
+        )}
+
+        <div className="user-dashboard-grid">
         {/* Профіль: обкладинка + аватар + ім'я + дані */}
         <header className="user-page-header">
           <div className="user-page-cover" aria-hidden />
@@ -246,12 +253,6 @@ export const UserPage: React.FC = () => {
             </div>
           </div>
         </header>
-
-        {error && (
-          <div className="alert-wrapper">
-            <Alert variant="error">{error}</Alert>
-          </div>
-        )}
 
         {/* Мої бронювання маршруток */}
         <section className="user-section">
@@ -379,6 +380,7 @@ export const UserPage: React.FC = () => {
             </a>
           </div>
         </section>
+        </div>
       </div>
 
       {/* Модалка редагування оголошення */}
