@@ -52,10 +52,26 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 
 ## Admin cities + home city (follow-up)
 
-- Admin → schedules tab → **Міста / точки маршруту**: add / edit / delete cities; flags; **Швидкі напрямки** (`quickDirectPointIds`).
+- Admin → **Маршрути** tab → **Міста / точки маршруту**: add / edit / delete cities; flags; **Швидкі напрямки** (`quickDirectPointIds`).
+- Same tab → **Маршрути (TripRoute)** CRUD: start/end/via, label, stop offsets.
+- Admin → **Графіки**: schedules only; **Перепривʼязати TripRoute** repairs `route` ↔ `tripRouteId` mismatches.
 - Site `/mizhgorodski`: cookie `malin_home_city` (default Malyn); chips from home’s quick-direct list.
 - Bot marshrutka book: **звідки → куди → дата → час** (schedules whose TripRoute stops contain OD); no via text on buttons.
-- `TripRouteStop.departureOffsetMinutes`: boarding time = schedule start + offset; editable in schedule modal.
+- `TripRouteStop.departureOffsetMinutes`: boarding time = schedule start + offset; editable in schedule / TripRoute modal.
+
+## Kyiv → Malyn → Korosten (long-haul via)
+
+Canonical slug: **`Kyiv-Korosten-Malyn`** (terminals + vias), stops order: Kyiv → Malyn → Korosten.
+
+**Smoke:**
+
+1. Admin → **Маршрути** → Додати маршрут: start=Kyiv, end=Korosten, via=Malyn → slug `Kyiv-Korosten-Malyn`.
+2. Admin → **Графіки**: edit/create elektrichka or marshrutka with same points → after save, row shows label + slug; `tripRouteId` matches (no «FK≠route»). If old rows broken → **Перепривʼязати TripRoute**.
+3. Bot `/book`: звідки Київ → куди Малин **and** Малин → Коростень → schedule appears (along-stops OD filter).
+4. Poputky: pin **driver** Viber listing to this variant; passenger Kyiv→Malyn or Malyn→Korosten same date → match «по дорозі»; full Kyiv→Korosten → `exact`.
+
+**Note:** Viber parser does **not** auto-emit `Kyiv-Korosten`; long-haul needs manual TripRoute + driver pin.
+
 ## Deferred (explicitly not in this ship)
 
 1. **Viber parser → new cities** — expanded for Bucha/Irpin OD pairs from prod active listings (golden +5: 7496–7499, 7502). Classic Kyiv↔Malyn still wins when both cities appear (via in parentheses). Re-check: `npm test -- --run src/viber-parser.test.ts` + `npx ts-node scripts/eval-viber-parser.ts` → **route 826/826 (100%)**.

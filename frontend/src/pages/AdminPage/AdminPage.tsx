@@ -11,13 +11,23 @@ import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
 
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [tripPoints, setTripPoints] = useState<TripPoint[]>([]);
+  const [adminTripRoutes, setAdminTripRoutes] = useState<TripRoute[]>([]);
+  const [isTripRouteModalOpen, setIsTripRouteModalOpen] = useState(false);
+  const [editingTripRoute, setEditingTripRoute] = useState<TripRoute | null>(null);
+  const [tripRouteForm, setTripRouteForm] = useState({
+    startPointId: undefined as number | undefined,
+    endPointId: undefined as number | undefined,
+    viaPointIds: [] as number[],
+    labelUk: '',
+    stopOffsets: [] as Array<{ pointId: number; departureOffsetMinutes: number | null }>,
+  });
   const [isTripPointModalOpen, setIsTripPointModalOpen] = useState(false);
   const [editingTripPoint, setEditingTripPoint] = useState<TripPoint | null>(null);
   const [tripPointForm, setTripPointForm] = useState({
@@ -184,6 +194,8 @@ export const AdminPage: React.FC = () => {
       loadBookings();
     } else if (activeTab === 'schedules') {
       loadSchedules();
+    } else if (activeTab === 'routes') {
+      loadRoutesTab();
     } else if (activeTab === 'viber') {
       loadViberListings();
       apiClient.getTripRoutes().then(setTripRoutesForViber).catch(() => setTripRoutesForViber([]));
@@ -742,6 +754,23 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const loadRoutesTab = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [points, routes] = await Promise.all([
+        apiClient.getTripPoints(),
+        apiClient.getTripRoutes(),
+      ]);
+      setTripPoints(points);
+      setAdminTripRoutes(routes);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка завантаження маршрутів');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadViberListings = async () => {
     setLoading(true);
     setError('');
@@ -873,7 +902,8 @@ export const AdminPage: React.FC = () => {
         await apiClient.createTripPoint(tripPointForm);
       }
       setIsTripPointModalOpen(false);
-      loadSchedules();
+      if (activeTab === 'routes') loadRoutesTab();
+      else loadSchedules();
       setSuccess(editingTripPoint ? 'Місто оновлено' : 'Місто додано');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Помилка збереження міста');
@@ -884,10 +914,95 @@ export const AdminPage: React.FC = () => {
     if (!window.confirm(`Видалити місто «${point.nameUk}» (${point.code})?`)) return;
     try {
       await apiClient.deleteTripPoint(point.id);
-      loadSchedules();
+      if (activeTab === 'routes') loadRoutesTab();
+      else loadSchedules();
       setSuccess('Місто видалено');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Не вдалося видалити (можливо, місто вже використовується)');
+    }
+  };
+
+  const openTripRouteModal = (route?: TripRoute) => {
+    if (route) {
+      setEditingTripRoute(route);
+      const vias = (route.stops || [])
+        .filter((s) => s.role === 'via')
+        .sort((a, b) => a.position - b.position)
+        .map((s) => s.pointId);
+      setTripRouteForm({
+        startPointId: route.startPointId,
+        endPointId: route.endPointId,
+        viaPointIds: vias,
+        labelUk: route.labelUk,
+        stopOffsets: (route.stops || []).map((s) => ({
+          pointId: s.pointId,
+          departureOffsetMinutes: s.departureOffsetMinutes ?? null,
+        })),
+      });
+    } else {
+      setEditingTripRoute(null);
+      setTripRouteForm({
+        startPointId: tripPoints.find((p) => p.code === 'Kyiv')?.id,
+        endPointId: tripPoints.find((p) => p.code === 'Korosten')?.id,
+        viaPointIds: tripPoints.find((p) => p.code === 'Malyn')
+          ? [tripPoints.find((p) => p.code === 'Malyn')!.id]
+          : [],
+        labelUk: '',
+        stopOffsets: [],
+      });
+    }
+    setIsTripRouteModalOpen(true);
+  };
+
+  const handleSaveTripRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (tripRouteForm.startPointId == null || tripRouteForm.endPointId == null) {
+      alert('Оберіть початкову і кінцеву точки');
+      return;
+    }
+    try {
+      const payload = {
+        startPointId: tripRouteForm.startPointId,
+        endPointId: tripRouteForm.endPointId,
+        viaPointIds: tripRouteForm.viaPointIds,
+        labelUk: tripRouteForm.labelUk.trim() || undefined,
+        stopOffsets: tripRouteForm.stopOffsets,
+      };
+      if (editingTripRoute) {
+        await apiClient.updateTripRoute(editingTripRoute.id, payload);
+      } else {
+        await apiClient.createTripRoute(payload);
+      }
+      setIsTripRouteModalOpen(false);
+      loadRoutesTab();
+      setSuccess(editingTripRoute ? 'Маршрут оновлено' : 'Маршрут створено');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Помилка збереження маршруту');
+    }
+  };
+
+  const handleDeleteTripRoute = async (route: TripRoute) => {
+    if (!window.confirm(`Видалити маршрут «${route.labelUk}» (${route.slug})?`)) return;
+    try {
+      await apiClient.deleteTripRoute(route.id);
+      loadRoutesTab();
+      setSuccess('Маршрут видалено');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Не вдалося видалити маршрут');
+    }
+  };
+
+  const handleRebindScheduleTripRoutes = async () => {
+    if (!window.confirm('Перепривʼязати TripRoute для всіх рейсів (route ↔ slug)?')) return;
+    try {
+      const result = await apiClient.rebindScheduleTripRoutes();
+      setSuccess(
+        `Перепривʼязка: оновлено ${result.updated}, без змін ${result.unchanged}` +
+          (result.errors.length ? `, помилок ${result.errors.length}` : '')
+      );
+      loadSchedules();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Помилка перепривʼязки');
     }
   };
 
@@ -930,12 +1045,13 @@ export const AdminPage: React.FC = () => {
     e.preventDefault();
     setError('');
     try {
-      if (editingSchedule) {
-        await apiClient.updateSchedule(editingSchedule.id, scheduleForm);
-      } else {
-        await apiClient.createSchedule(scheduleForm);
-      }
+      const saved = editingSchedule
+        ? await apiClient.updateSchedule(editingSchedule.id, scheduleForm)
+        : await apiClient.createSchedule(scheduleForm);
       setIsScheduleModalOpen(false);
+      const label = saved.tripRoute?.labelUk || getRouteLabel(saved.route);
+      const slug = saved.tripRoute?.slug || saved.route;
+      setSuccess(`Рейс збережено: ${label} (${slug})`);
       loadSchedules();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Помилка збереження');
@@ -1087,6 +1203,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('schedules')}
           >
             Графіки
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'routes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('routes')}
+          >
+            Маршрути
           </button>
           <button
             className={`admin-tab ${activeTab === 'viber' ? 'active' : ''}`}
@@ -1281,10 +1403,86 @@ export const AdminPage: React.FC = () => {
               </div>
               <div className="admin-controls-actions">
                 <Button onClick={loadSchedules}>Оновити</Button>
+                <Button type="button" variant="secondary" onClick={handleRebindScheduleTripRoutes}>
+                  Перепривʼязати TripRoute
+                </Button>
                 <Button onClick={() => openScheduleModal()}>Додати рейс</Button>
               </div>
             </div>
 
+            {loading ? (
+              <div className="admin-loading" aria-live="polite">Завантаження...</div>
+            ) : schedules.length === 0 ? (
+              <div className="admin-empty">
+                <p className="admin-empty-text">Ще немає рейсів у графіку</p>
+                <Button onClick={() => openScheduleModal()}>Додати перший рейс</Button>
+              </div>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Тип</th>
+                      <th>Маршрут</th>
+                      <th>Час</th>
+                      <th>Номер</th>
+                      <th>Місць</th>
+                      <th>Ціна</th>
+                      <th>Посадка / висадка</th>
+                      <th>Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedules.map((schedule) => (
+                      <tr key={schedule.id}>
+                        <td>#{schedule.id}</td>
+                        <td>{schedule.vehicleType === 'elektrichka' ? 'Електричка' : 'Маршрутка'}</td>
+                        <td>
+                          <span className={`badge ${getRouteBadgeClass(schedule.route)}`}>
+                            {schedule.tripRoute?.labelUk || getRouteLabel(schedule.route)}
+                          </span>
+                          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                            {schedule.tripRoute?.slug || schedule.route}
+                            {schedule.tripRoute &&
+                              schedule.tripRoute.slug !== schedule.route && (
+                                <span style={{ color: '#b45309' }}> · FK≠route</span>
+                              )}
+                          </div>
+                        </td>
+                        <td><strong>{schedule.departureTime}</strong>{schedule.arrivalTime ? ` → ${schedule.arrivalTime}` : ''}</td>
+                        <td>{schedule.tripNumber || '—'}</td>
+                        <td><strong>{schedule.maxSeats}</strong></td>
+                        <td>{schedule.priceUah != null ? <strong>{schedule.priceUah}</strong> : '—'}</td>
+                        <td>
+                          {[schedule.boardingPlace, schedule.alightingPlace].filter(Boolean).join(' / ') || '—'}
+                        </td>
+                        <td>
+                          <Button
+                            variant="secondary"
+                            onClick={() => openScheduleModal(schedule)}
+                            style={{ marginRight: '8px' }}
+                          >
+                            Редагувати
+                          </Button>
+                          <Button
+                            variant="danger"
+                            onClick={() => handleDeleteSchedule(schedule.id)}
+                          >
+                            Видалити
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'routes' && (
+          <div className="tab-content">
             <div className="table-container" style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
                 <h3 style={{ margin: 0 }}>Міста / точки маршруту</h3>
@@ -1331,63 +1529,67 @@ export const AdminPage: React.FC = () => {
               </table>
             </div>
 
+            <div className="admin-controls" style={{ marginBottom: 12 }}>
+              <div className="admin-controls-actions">
+                <Button type="button" onClick={loadRoutesTab}>Оновити</Button>
+                <Button type="button" onClick={() => openTripRouteModal()}>Додати маршрут</Button>
+              </div>
+            </div>
+
             {loading ? (
               <div className="admin-loading" aria-live="polite">Завантаження...</div>
-            ) : schedules.length === 0 ? (
+            ) : adminTripRoutes.length === 0 ? (
               <div className="admin-empty">
-                <p className="admin-empty-text">Ще немає рейсів у графіку</p>
-                <Button onClick={() => openScheduleModal()}>Додати перший рейс</Button>
+                <p className="admin-empty-text">Ще немає маршрутів TripRoute</p>
+                <Button onClick={() => openTripRouteModal()}>Додати перший маршрут</Button>
               </div>
             ) : (
               <div className="table-container">
+                <h3 style={{ marginTop: 0 }}>Маршрути (TripRoute)</h3>
                 <table>
                   <thead>
                     <tr>
                       <th>ID</th>
+                      <th>Slug</th>
+                      <th>Назва</th>
+                      <th>Start → End</th>
+                      <th>Via</th>
                       <th>Тип</th>
-                      <th>Маршрут</th>
-                      <th>Час</th>
-                      <th>Номер</th>
-                      <th>Місць</th>
-                      <th>Ціна</th>
-                      <th>Посадка / висадка</th>
-                      <th>Дії</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {schedules.map((schedule) => (
-                      <tr key={schedule.id}>
-                        <td>#{schedule.id}</td>
-                        <td>{schedule.vehicleType === 'elektrichka' ? 'Електричка' : 'Маршрутка'}</td>
-                        <td>
-                          <span className={`badge ${getRouteBadgeClass(schedule.route)}`}>
-                            {getRouteLabel(schedule.route)}
-                          </span>
-                        </td>
-                        <td><strong>{schedule.departureTime}</strong>{schedule.arrivalTime ? ` → ${schedule.arrivalTime}` : ''}</td>
-                        <td>{schedule.tripNumber || '—'}</td>
-                        <td><strong>{schedule.maxSeats}</strong></td>
-                        <td>{schedule.priceUah != null ? <strong>{schedule.priceUah}</strong> : '—'}</td>
-                        <td>
-                          {[schedule.boardingPlace, schedule.alightingPlace].filter(Boolean).join(' / ') || '—'}
-                        </td>
-                        <td>
-                          <Button
-                            variant="secondary"
-                            onClick={() => openScheduleModal(schedule)}
-                            style={{ marginRight: '8px' }}
-                          >
-                            Редагувати
-                          </Button>
-                          <Button
-                            variant="danger"
-                            onClick={() => handleDeleteSchedule(schedule.id)}
-                          >
-                            Видалити
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {adminTripRoutes.map((r) => {
+                      const vias = (r.stops || [])
+                        .filter((s) => s.role === 'via')
+                        .sort((a, b) => a.position - b.position)
+                        .map((s) => s.point?.nameUk || `#${s.pointId}`)
+                        .join(', ');
+                      const kind = r.corridorTripRouteId
+                        ? `variant → #${r.corridorTripRouteId}`
+                        : 'corridor';
+                      return (
+                        <tr key={r.id}>
+                          <td>#{r.id}</td>
+                          <td><code>{r.slug}</code></td>
+                          <td>{r.labelUk}</td>
+                          <td>
+                            {r.startPoint?.nameUk || `#${r.startPointId}`} →{' '}
+                            {r.endPoint?.nameUk || `#${r.endPointId}`}
+                          </td>
+                          <td style={{ fontSize: 13 }}>{vias || '—'}</td>
+                          <td style={{ fontSize: 12 }}>{kind}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <Button type="button" variant="secondary" onClick={() => openTripRouteModal(r)}>
+                              Редагувати
+                            </Button>{' '}
+                            <Button type="button" variant="secondary" onClick={() => handleDeleteTripRoute(r)}>
+                              Видалити
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2547,7 +2749,7 @@ export const AdminPage: React.FC = () => {
           </div>
         )}
 
-        {/* Модальне вікно для графіку */}
+        {/* Модальне вікно для міста */}
         {isTripPointModalOpen && (
           <div className="modal" onClick={(e) => e.target === e.currentTarget && setIsTripPointModalOpen(false)}>
             <div className="modal-content">
@@ -2641,6 +2843,140 @@ export const AdminPage: React.FC = () => {
                 </div>
                 <div className="form-actions">
                   <Button type="button" variant="secondary" onClick={() => setIsTripPointModalOpen(false)}>
+                    Скасувати
+                  </Button>
+                  <Button type="submit">Зберегти</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {isTripRouteModalOpen && (
+          <div className="modal" onClick={(e) => e.target === e.currentTarget && setIsTripRouteModalOpen(false)}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>{editingTripRoute ? `Редагувати маршрут #${editingTripRoute.id}` : 'Додати маршрут'}</h2>
+                <button className="close-btn" onClick={() => setIsTripRouteModalOpen(false)}>
+                  &times;
+                </button>
+              </div>
+              <form onSubmit={handleSaveTripRoute}>
+                {editingTripRoute && (
+                  <p style={{ marginTop: 0, fontSize: 13, color: '#666' }}>
+                    Slug: <code>{editingTripRoute.slug}</code>
+                  </p>
+                )}
+                <Select
+                  label="Початкова точка *"
+                  options={tripPoints.map((p) => ({ value: String(p.id), label: `${p.nameUk} (${p.code})` }))}
+                  value={tripRouteForm.startPointId != null ? String(tripRouteForm.startPointId) : ''}
+                  onChange={(e) =>
+                    setTripRouteForm({
+                      ...tripRouteForm,
+                      startPointId: Number(e.target.value) || undefined,
+                    })
+                  }
+                  required
+                />
+                <Select
+                  label="Кінцева точка *"
+                  options={tripPoints.map((p) => ({ value: String(p.id), label: `${p.nameUk} (${p.code})` }))}
+                  value={tripRouteForm.endPointId != null ? String(tripRouteForm.endPointId) : ''}
+                  onChange={(e) =>
+                    setTripRouteForm({
+                      ...tripRouteForm,
+                      endPointId: Number(e.target.value) || undefined,
+                    })
+                  }
+                  required
+                />
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label>Проміжні точки (via)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {tripPoints
+                      .filter(
+                        (p) => p.id !== tripRouteForm.startPointId && p.id !== tripRouteForm.endPointId
+                      )
+                      .map((p) => {
+                        const checked = tripRouteForm.viaPointIds.includes(p.id);
+                        return (
+                          <label key={p.id} className="admin-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                const cur = tripRouteForm.viaPointIds;
+                                setTripRouteForm({
+                                  ...tripRouteForm,
+                                  viaPointIds: checked
+                                    ? cur.filter((id) => id !== p.id)
+                                    : [...cur, p.id],
+                                });
+                              }}
+                            />
+                            <span>{p.nameUk}</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <Input
+                  label="Назва (uk)"
+                  value={tripRouteForm.labelUk}
+                  onChange={(e) => setTripRouteForm({ ...tripRouteForm, labelUk: e.target.value })}
+                  placeholder="Київ — Коростень (через Малин)"
+                />
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>
+                    Зсув часу посадки на зупинках (хв від старту)
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      tripRouteForm.startPointId,
+                      ...tripRouteForm.viaPointIds,
+                      tripRouteForm.endPointId,
+                    ]
+                      .filter((id): id is number => id != null)
+                      .map((pointId) => {
+                        const p = tripPoints.find((x) => x.id === pointId);
+                        const cur =
+                          tripRouteForm.stopOffsets.find((s) => s.pointId === pointId)
+                            ?.departureOffsetMinutes ?? '';
+                        return (
+                          <label
+                            key={pointId}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
+                          >
+                            <span style={{ minWidth: 120 }}>{p?.nameUk || `#${pointId}`}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              value={cur === null || cur === undefined ? '' : cur}
+                              onChange={(e) => {
+                                const val =
+                                  e.target.value === ''
+                                    ? null
+                                    : Math.max(0, Math.round(Number(e.target.value)));
+                                const rest = tripRouteForm.stopOffsets.filter(
+                                  (s) => s.pointId !== pointId
+                                );
+                                setTripRouteForm({
+                                  ...tripRouteForm,
+                                  stopOffsets: [...rest, { pointId, departureOffsetMinutes: val }],
+                                });
+                              }}
+                              style={{ width: 80, padding: '4px 8px' }}
+                            />
+                            <span style={{ color: '#666', fontSize: 12 }}>хв</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <Button type="button" variant="secondary" onClick={() => setIsTripRouteModalOpen(false)}>
                     Скасувати
                   </Button>
                   <Button type="submit">Зберегти</Button>

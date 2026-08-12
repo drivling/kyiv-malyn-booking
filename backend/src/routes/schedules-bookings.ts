@@ -146,19 +146,28 @@ async function resolveScheduleTripFields(
   const viaCodes = validated.viaPointIds.map((id) => pointsById.get(id)!.code);
   const route = buildLegacyRouteKey(start.code, end.code, viaCodes);
 
-  let tripRouteId =
-    body.tripRouteId !== undefined ? Number(body.tripRouteId) : (existing as { tripRouteId?: number } | undefined)?.tripRouteId;
-  if (tripRouteId == null || !Number.isInteger(tripRouteId)) {
-    try {
-      const tr = await findOrCreateTripRoute(prisma, {
-        startPointId,
-        endPointId,
-        viaPointIds: validated.viaPointIds,
-      });
-      tripRouteId = tr.id;
-    } catch (e) {
-      return { ok: false, status: 400, error: e instanceof Error ? e.message : 'Failed to resolve trip route' };
+  // Always resolve TripRoute from current points so Schedule.route and tripRouteId stay in sync.
+  // Explicit body.tripRouteId is honored only when it already matches the computed slug.
+  let tripRouteId: number;
+  try {
+    const resolved = await findOrCreateTripRoute(prisma, {
+      startPointId,
+      endPointId,
+      viaPointIds: validated.viaPointIds,
+    });
+    tripRouteId = resolved.id;
+    if (body.tripRouteId !== undefined) {
+      const requested = Number(body.tripRouteId);
+      if (Number.isInteger(requested) && requested > 0 && requested !== resolved.id) {
+        const requestedRow = await prisma.tripRoute.findUnique({ where: { id: requested } });
+        if (requestedRow && requestedRow.slug === route) {
+          tripRouteId = requestedRow.id;
+        }
+        // else ignore mismatched FK — keep findOrCreate result
+      }
     }
+  } catch (e) {
+    return { ok: false, status: 400, error: e instanceof Error ? e.message : 'Failed to resolve trip route' };
   }
 
   const vehicleTypeRaw =
@@ -258,6 +267,65 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       res.json({ supportPhone: schedule?.supportPhone ?? null });
     } catch (_error) {
       res.status(500).json({ supportPhone: null });
+    }
+  });
+
+  /** Rebind all schedules whose tripRoute.slug ≠ schedule.route (or points mismatch). */
+  r.post('/schedules-rebind-trip-routes', requireAdmin, async (_req, res) => {
+    try {
+      const schedules = await prisma.schedule.findMany({
+        include: { tripRoute: true },
+      });
+      let updated = 0;
+      let unchanged = 0;
+      const errors: Array<{ id: number; error: string }> = [];
+      for (const s of schedules) {
+        const trip = await resolveScheduleTripFields(
+          prisma,
+          {
+            startPointId: s.startPointId,
+            endPointId: s.endPointId,
+            viaPointIds: s.viaPointIds,
+            vehicleType: s.vehicleType,
+            ticketPurchaseUrl: s.ticketPurchaseUrl,
+            route: s.route,
+          },
+          {
+            route: s.route,
+            tripRouteId: s.tripRouteId,
+            startPointId: s.startPointId,
+            endPointId: s.endPointId,
+            viaPointIds: s.viaPointIds,
+            vehicleType: s.vehicleType,
+            ticketPurchaseUrl: s.ticketPurchaseUrl,
+          }
+        );
+        if (!trip.ok) {
+          errors.push({ id: s.id, error: trip.error });
+          continue;
+        }
+        const nextId = Number(trip.data.tripRouteId);
+        const nextRoute = String(trip.data.route);
+        if (nextId === s.tripRouteId && nextRoute === s.route) {
+          unchanged++;
+          continue;
+        }
+        await prisma.schedule.update({
+          where: { id: s.id },
+          data: {
+            tripRouteId: nextId,
+            route: nextRoute,
+            startPointId: trip.data.startPointId as number,
+            endPointId: trip.data.endPointId as number,
+            viaPointIds: trip.data.viaPointIds as number[],
+          },
+        });
+        updated++;
+      }
+      res.json({ updated, unchanged, errors });
+    } catch (error) {
+      console.error('schedules-rebind-trip-routes failed', error);
+      res.status(500).json({ error: 'Failed to rebind schedules' });
     }
   });
 
