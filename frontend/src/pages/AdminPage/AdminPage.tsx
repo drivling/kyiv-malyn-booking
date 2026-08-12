@@ -4,7 +4,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute } from '@/types';
+import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, ROUTES, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
 import { ReferralTab } from './ReferralTab';
@@ -160,6 +160,10 @@ export const AdminPage: React.FC = () => {
   const [phoneCheckSummary, setPhoneCheckSummary] = useState('');
   const [checkUsernamesLoading, setCheckUsernamesLoading] = useState(false);
   const [checkUsernamesSummary, setCheckUsernamesSummary] = useState('');
+  const [phoneLookupPhone, setPhoneLookupPhone] = useState('');
+  const [phoneLookupLoading, setPhoneLookupLoading] = useState(false);
+  const [phoneLookupReport, setPhoneLookupReport] = useState<PhoneLookupReport | null>(null);
+  const [phoneLookupError, setPhoneLookupError] = useState('');
   const [userSenderErrors, setUserSenderErrors] = useState<TelegramUserSendError[]>([]);
   const [userSenderErrorsLoading, setUserSenderErrorsLoading] = useState(false);
   const [userSenderErrorsClearing, setUserSenderErrorsClearing] = useState(false);
@@ -673,6 +677,29 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка аналізу через phonecheck.top');
     } finally {
       setPhoneCheckLoading(false);
+    }
+  };
+
+  const handlePhoneLookup = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const phone = phoneLookupPhone.trim();
+    if (!phone) {
+      setPhoneLookupError('Вкажіть номер телефону');
+      return;
+    }
+    setPhoneLookupLoading(true);
+    setPhoneLookupError('');
+    setPhoneLookupReport(null);
+    try {
+      const report = await apiClient.lookupPhone(phone);
+      setPhoneLookupReport(report);
+      if (report.suggestedName) {
+        setSuccess(`Знайдено: ${report.suggestedName}`);
+      }
+    } catch (err) {
+      setPhoneLookupError(err instanceof Error ? err.message : 'Помилка пошуку за телефоном');
+    } finally {
+      setPhoneLookupLoading(false);
     }
   };
 
@@ -2118,6 +2145,49 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'data' && (
           <div className="tab-content">
+            <div className="phone-lookup-panel">
+              <h3 className="phone-lookup-panel__title">Хто це (пошук за телефоном)</h3>
+              <p className="phone-lookup-panel__hint">
+                База, Telegram (ResolvePhone), Opendatabot (ФОП), phonecheck.top
+              </p>
+              <form className="phone-lookup-panel__form" onSubmit={handlePhoneLookup}>
+                <Input
+                  label="Телефон"
+                  type="text"
+                  placeholder="+380XXXXXXXXX"
+                  value={phoneLookupPhone}
+                  onChange={(e) => setPhoneLookupPhone(e.target.value)}
+                />
+                <Button type="submit" disabled={phoneLookupLoading}>
+                  {phoneLookupLoading ? 'Пошук…' : 'Пошук'}
+                </Button>
+              </form>
+              {phoneLookupError && <Alert variant="error">{phoneLookupError}</Alert>}
+              {phoneLookupReport && (
+                <div className="phone-lookup-panel__result">
+                  {phoneLookupReport.suggestedName && (
+                    <p className="phone-lookup-panel__suggested">
+                      Рекомендоване імʼя: <strong>{phoneLookupReport.suggestedName}</strong>
+                      {phoneLookupReport.opendatabot.shortName &&
+                        phoneLookupReport.opendatabot.shortName !== phoneLookupReport.suggestedName && (
+                          <> · ФОП: {phoneLookupReport.opendatabot.shortName}</>
+                        )}
+                    </p>
+                  )}
+                  <label className="phone-lookup-panel__report-label" htmlFor="phone-lookup-report">
+                    Детальний звіт
+                  </label>
+                  <textarea
+                    id="phone-lookup-report"
+                    className="phone-lookup-panel__report"
+                    readOnly
+                    rows={16}
+                    value={phoneLookupReport.reportText}
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="controls">
               <input
                 type="text"

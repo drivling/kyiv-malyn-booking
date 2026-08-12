@@ -6,10 +6,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAdminPersonsRouter = createAdminPersonsRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
+const phone_lookup_1 = require("../phone-lookup");
 const require_admin_1 = require("../middleware/require-admin");
 function createAdminPersonsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
+    /** Детальний пошук «хто це» за телефоном: база, Telegram, Opendatabot (ФОП), phonecheck. */
+    r.post('/admin/phone-lookup', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const body = (req.body || {});
+            const rawPhone = typeof body.phone === 'string' ? body.phone.trim() : '';
+            if (!rawPhone) {
+                res.status(400).json({ error: 'Потрібен номер телефону' });
+                return;
+            }
+            const report = await (0, phone_lookup_1.lookupPhoneReport)(prisma, rawPhone);
+            res.json(report);
+        }
+        catch (e) {
+            const message = e instanceof Error ? e.message : 'Не вдалося виконати пошук';
+            console.error('❌ POST /admin/phone-lookup:', e);
+            if (message.includes('Некоректний')) {
+                res.status(400).json({ error: message });
+                return;
+            }
+            res.status(500).json({ error: 'Не вдалося виконати пошук за телефоном' });
+        }
+    });
     r.post('/admin/person', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const { phone, fullName } = req.body;

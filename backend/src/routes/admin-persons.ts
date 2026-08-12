@@ -8,11 +8,34 @@ import {
   pickBestNameFromCandidates,
   resolveUsernameByPhoneFromTelegram,
 } from '../telegram';
+import { lookupPhoneReport } from '../phone-lookup';
 import { requireAdmin } from '../middleware/require-admin';
 
 export function createAdminPersonsRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
   const r = express.Router();
+
+/** Детальний пошук «хто це» за телефоном: база, Telegram, Opendatabot (ФОП), phonecheck. */
+r.post('/admin/phone-lookup', requireAdmin, async (req, res) => {
+  try {
+    const body = (req.body || {}) as { phone?: string };
+    const rawPhone = typeof body.phone === 'string' ? body.phone.trim() : '';
+    if (!rawPhone) {
+      res.status(400).json({ error: 'Потрібен номер телефону' });
+      return;
+    }
+    const report = await lookupPhoneReport(prisma, rawPhone);
+    res.json(report);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Не вдалося виконати пошук';
+    console.error('❌ POST /admin/phone-lookup:', e);
+    if (message.includes('Некоректний')) {
+      res.status(400).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: 'Не вдалося виконати пошук за телефоном' });
+  }
+});
 
 r.post('/admin/person', requireAdmin, async (req, res) => {
   try {

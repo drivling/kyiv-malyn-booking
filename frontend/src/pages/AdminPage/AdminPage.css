@@ -475,6 +475,65 @@
   flex-wrap: wrap;
 }
 
+.phone-lookup-panel {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-muted, #f8fafc);
+}
+
+.phone-lookup-panel__title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.phone-lookup-panel__hint {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #666);
+}
+
+.phone-lookup-panel__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.phone-lookup-panel__result {
+  margin-top: 8px;
+}
+
+.phone-lookup-panel__suggested {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.phone-lookup-panel__report-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.phone-lookup-panel__report {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 280px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-primary, #1a1a1a);
+  resize: vertical;
+  white-space: pre;
+}
+
 @media (max-width: 768px) {
   .admin-page {
     padding: 0 max(16px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));

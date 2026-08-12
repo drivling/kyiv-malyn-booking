@@ -312,6 +312,38 @@ export interface PhoneCheckAnalyzeResponse {
   results: PhoneCheckResult[];
 }
 
+/** Детальний звіт «хто це» за телефоном (адмінка → Дані). */
+export interface PhoneLookupReport {
+  phone: string;
+  person: {
+    id: number;
+    phoneNormalized: string;
+    fullName: string | null;
+    telegramChatId: string | null;
+    telegramUserId: string | null;
+    telegramUsername: string | null;
+    bookings: number;
+    viberListings: number;
+  } | null;
+  telegram: {
+    name: string | null;
+    username: string | null;
+  };
+  opendatabot: {
+    url: string;
+    foundCountDeclared: number | null;
+    entries: Array<{ type: string; name: string }>;
+    shortName: string | null;
+    error?: string;
+  };
+  phonecheck: {
+    url: string;
+    hasData: boolean;
+  } | null;
+  suggestedName: string | null;
+  reportText: string;
+}
+
 /** Профіль користувача (GET /user/profile): персона, бронювання маршруток, оголошення попуток */
 export interface UserProfilePerson {
   id: number;

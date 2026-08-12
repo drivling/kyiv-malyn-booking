@@ -20,6 +20,7 @@ import type {
   SendPersonPromoResponse,
   BehaviorPromoScenarioKey,
   PhoneCheckAnalyzeResponse,
+  PhoneLookupReport,
   AdminReferralReport,
   PersonReferralDetails,
   ReferralBudgetStatus,
@@ -533,6 +534,14 @@ class ApiClient {
     return this.request<PhoneCheckAnalyzeResponse>('/admin/phonecheck/analyze', {
       method: 'POST',
       body: JSON.stringify({ phones }),
+    });
+  }
+
+  /** Детальний пошук «хто це» за одним телефоном: база, Telegram, ФОП (Opendatabot), phonecheck. */
+  async lookupPhone(phone: string): Promise<PhoneLookupReport> {
+    return this.request<PhoneLookupReport>('/admin/phone-lookup', {
+      method: 'POST',
+      body: JSON.stringify({ phone: phone.trim() }),
     });
   }
 
