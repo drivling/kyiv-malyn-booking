@@ -23,6 +23,7 @@ import {
   normalizeViaPointIds,
   parseHhMm,
   parseLegacyRoute,
+  scheduleMatchesOdAlongStops,
   validateTripPointSelection,
   type VehicleType,
 } from '../schedule-trip';
@@ -30,8 +31,43 @@ import {
 const scheduleInclude = {
   startPoint: true,
   endPoint: true,
-  tripRoute: { include: { startPoint: true, endPoint: true, corridorRoute: true } },
+  tripRoute: {
+    include: {
+      startPoint: true,
+      endPoint: true,
+      corridorRoute: true,
+      stops: { include: { point: true }, orderBy: { position: 'asc' as const } },
+    },
+  },
 } as const;
+
+async function applyStopOffsets(
+  prisma: PrismaClient,
+  tripRouteId: number,
+  stopOffsets: unknown
+): Promise<void> {
+  if (!Array.isArray(stopOffsets)) return;
+  for (const raw of stopOffsets) {
+    if (!raw || typeof raw !== 'object') continue;
+    const row = raw as { pointId?: unknown; departureOffsetMinutes?: unknown };
+    const pointId = Number(row.pointId);
+    if (!Number.isInteger(pointId) || pointId <= 0) continue;
+    let offset: number | null = null;
+    if (row.departureOffsetMinutes === null || row.departureOffsetMinutes === '') {
+      offset = null;
+    } else if (row.departureOffsetMinutes !== undefined) {
+      const n = Number(row.departureOffsetMinutes);
+      if (!Number.isFinite(n) || n < 0) continue;
+      offset = Math.round(n);
+    } else {
+      continue;
+    }
+    await prisma.tripRouteStop.updateMany({
+      where: { tripRouteId, pointId },
+      data: { departureOffsetMinutes: offset },
+    });
+  }
+}
 
 async function loadPointsMap(prisma: PrismaClient) {
   const points = await prisma.tripPoint.findMany();
@@ -163,7 +199,7 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
   const r = express.Router();
 
   r.get('/schedules', async (req, res) => {
-    const { route, vehicleType, date } = req.query;
+    const { route, vehicleType, date, fromCode, toCode } = req.query;
     const where: Record<string, unknown> = {};
     if (route) where.route = route as string;
     if (vehicleType && isVehicleType(vehicleType)) where.vehicleType = vehicleType;
@@ -176,6 +212,19 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
 
     if (date && typeof date === 'string') {
       schedules = schedules.filter((s) => isScheduleActiveOnDate(s.activeWeekdays, date));
+    }
+
+    if (typeof fromCode === 'string' && typeof toCode === 'string' && fromCode.trim() && toCode.trim()) {
+      const points = await prisma.tripPoint.findMany();
+      const from = points.find((p) => p.code.toLowerCase() === fromCode.trim().toLowerCase());
+      const to = points.find((p) => p.code.toLowerCase() === toCode.trim().toLowerCase());
+      if (from && to) {
+        schedules = schedules.filter((s) =>
+          scheduleMatchesOdAlongStops(s.tripRoute?.stops, from.id, to.id)
+        );
+      } else {
+        schedules = [];
+      }
     }
 
     res.json(schedules);
@@ -326,7 +375,12 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
         } as never,
         include: scheduleInclude,
       });
-      res.status(201).json(schedule);
+      await applyStopOffsets(prisma, Number(trip.data.tripRouteId), body.stopOffsets);
+      const refreshed = await prisma.schedule.findUnique({
+        where: { id: schedule.id },
+        include: scheduleInclude,
+      });
+      res.status(201).json(refreshed ?? schedule);
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err.code === 'P2002') {
@@ -388,7 +442,13 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
         } as never,
         include: scheduleInclude,
       });
-      res.json(schedule);
+      const tripRouteId = Number(trip.data.tripRouteId ?? schedule.tripRouteId);
+      await applyStopOffsets(prisma, tripRouteId, body.stopOffsets);
+      const refreshed = await prisma.schedule.findUnique({
+        where: { id: schedule.id },
+        include: scheduleInclude,
+      });
+      res.json(refreshed ?? schedule);
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err.code === 'P2025') {

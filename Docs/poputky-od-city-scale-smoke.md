@@ -10,7 +10,9 @@
 
 - `TripPoint.appearInPoputky` — city participates in rideshare (bot + site).
 - `ViberListing.fromPointId` / `toPointId` — OD identity; `route` remains snapshot.
-- Matching: exact OD with dual-read fallback on `route` when points are null.
+- Matching:
+  - **exact OD** (same from/to or legacy `route`), or
+  - **along-route**: passenger OD is an ordered subset of the **driver** `TripRoute` stops (`tripRouteId` → corridor or variant).
 - Seed: Kyiv, Malyn, Zhytomyr, Korosten, Irpin, Bucha → `appearInPoputky=true`.
 
 ## Checks after migrate
@@ -28,10 +30,29 @@ Expect: Irpin/Bucha have `appearInPoputky=true` and `appearInFromTo=false`; list
 1. Admin: Trip points — column «У попутках» toggles.
 2. `GET /trip-points?appearInPoputky=true` returns 6 cities including Irpin/Bucha.
 3. Site `/mizhgorodski` and `/poputky`: announce from/to includes Irpin; publish Irpin→Malyn draft.
-4. Bot `/adddriverride`: Звідки → Куди (dynamic); create Irpin→Malyn; match only same OD (not Kyiv→Malyn).
+4. Bot `/adddriverride`: Звідки → Куди (dynamic); create Irpin→Malyn; exact match only same OD unless driver has variant with Irpin.
 5. Parser import: still creates corridor listing; points filled via resolve/backfill; dual-read match works.
+6. Along-route: driver Kyiv→Malyn pinned to variant `Kyiv-Malyn-Irpin` matches passenger Irpin→Malyn (same date); corridor-only does not.
 
-## Non-goals
+## Along-route ops instruction (how to run this)
 
-- Viber parser city expansion
-- Along-corridor matching (driver Kyiv→Malyn vs passenger Irpin→Malyn) — **not auto**; admin can pin `tripRouteId` to a **variant** (e.g. `Kyiv-Malyn-Irpin`) on the Viber tab for curation/display. Match logic still exact OD until a dedicated graph phase.
+1. **Cities** — Admin → trip points → enable **«У попутках»** (`appearInPoputky`). Otherwise the city never appears in bot/site selects.
+
+2. **Variant with via** — Need a `TripRoute` variant with ordered stops, e.g. Kyiv → Irpin → Malyn (`Kyiv-Malyn-Irpin`). Plain corridor `Kyiv-Malyn` (two terminals only) will **not** match Irpin passengers.
+
+3. **Pin driver listing** — Admin → **Viber** → Edit → **TripRoute (corridor / variant)** → pick the variant → Save. Table column shows label + `v`.
+
+4. **When match fires** — Passenger OD points both sit on the driver’s itinerary in the same direction; same date; time bands unchanged (exact / approximate / same_day). Exact OD still matches without a variant.
+
+5. **When it does not** — Driver has corridor-only / empty `tripRouteId`; reverse direction; missing stop; parser listings without manual variant pin stay exact-only.
+
+6. **Verify** — Driver Kyiv→Malyn + variant via Irpin; passenger Irpin→Malyn same date → bot notifications (+ «по дорозі») and `/mizhgorodski` filter. Control: corridor-only must not match Irpin.
+
+7. **Rollback** — Clear TripRoute on the listing or switch to corridor without via → along-route off for that ride; exact OD remains.
+
+## Admin cities + home city (follow-up)
+
+- Admin → schedules tab → **Міста / точки маршруту**: add / edit / delete cities; flags; **Швидкі напрямки** (`quickDirectPointIds`).
+- Site `/mizhgorodski`: cookie `malin_home_city` (default Malyn); chips from home’s quick-direct list.
+- Bot marshrutka book: **звідки → куди → дата → час** (schedules whose TripRoute stops contain OD); no via text on buttons.
+- `TripRouteStop.departureOffsetMinutes`: boarding time = schedule start + offset; editable in schedule modal.

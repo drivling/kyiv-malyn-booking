@@ -19,6 +19,8 @@ model TripPoint {
   appearInFromTo  Boolean  @default(true)
   /// Участвует в попутках (бот / сайт / матчинг OD)
   appearInPoputky Boolean  @default(false)
+  /// Curated ids of TripPoint for quick-pick chips «X ↔ this city» on the site
+  quickDirectPointIds Int[]  @default([])
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -65,6 +67,8 @@ model TripRouteStop {
   pointId     Int
   position    Int    // 0=start … n=end
   role        String // start | via | end
+  /// Minutes after Schedule.departureTime when boarding at this stop (null = same as start)
+  departureOffsetMinutes Int?
 
   tripRoute TripRoute @relation(fields: [tripRouteId], references: [id], onDelete: Cascade)
   point     TripPoint @relation(fields: [pointId], references: [id], onDelete: Restrict)

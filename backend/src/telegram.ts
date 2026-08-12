@@ -49,10 +49,12 @@ import {
   type ViberListingMergeInput,
 } from './viber-listing-merge';
 import {
-  buildOdMatchWhere,
   buildOdRouteSlug,
+  classifyPoputkyRouteMatch,
   DEFAULT_POINT_LABELS_UK,
   formatOdRouteLabel,
+  orderedPointIdsFromStops,
+  type PoputkyRouteMatchKind,
 } from './poputky-od';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
@@ -87,7 +89,7 @@ import {
   getReferralBotLink,
 } from './referral';
 import { INLINE_QUERY_PREFIX, handleChosenInlineResult, handleInlineQuery } from './telegram-inline';
-import { isScheduleActiveOnDate } from './schedule-trip';
+import { boardingTimeAtStop, isScheduleActiveOnDate, scheduleMatchesOdAlongStops } from './schedule-trip';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -617,20 +619,49 @@ function toDateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Знайти активні оголошення пасажирів, що збігаються по OD (або legacy route) та даті з оголошенням водія. */
-async function findMatchingPassengersForDriver(driverListing: {
+async function loadItineraryPointIds(tripRouteId: number | null | undefined): Promise<number[] | null> {
+  if (tripRouteId == null) return null;
+  const stops = await tgPrisma.tripRouteStop.findMany({
+    where: { tripRouteId },
+    select: { pointId: true, position: true },
+    orderBy: { position: 'asc' },
+  });
+  if (!stops.length) return null;
+  return orderedPointIdsFromStops(stops);
+}
+
+type OdListingFields = {
   route: string;
-  date: Date;
-  departureTime: string | null;
   fromPointId?: number | null;
   toPointId?: number | null;
-}): Promise<Array<{ listing: { id: number; route: string; date: Date; departureTime: string | null; phone: string; senderName: string | null; notes: string | null }; matchType: MatchType }>> {
+  tripRouteId?: number | null;
+};
+
+/** Знайти активні оголошення пасажирів: exact OD або along driver's itinerary; дата збігається. */
+async function findMatchingPassengersForDriver(driverListing: OdListingFields & {
+  date: Date;
+  departureTime: string | null;
+}): Promise<Array<{
+  listing: {
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+    fromPointId: number | null;
+    toPointId: number | null;
+  };
+  matchType: MatchType;
+  routeMatchKind: PoputkyRouteMatchKind;
+}>> {
   const dateKey = toDateKey(driverListing.date);
+  const itineraryPointIds = await loadItineraryPointIds(driverListing.tripRouteId);
   const passengers = await tgPrisma.viberListing.findMany({
     where: {
       listingType: 'passenger',
       isActive: true,
-      ...buildOdMatchWhere(driverListing),
       date: {
         gte: new Date(dateKey + 'T00:00:00.000Z'),
         lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
@@ -639,26 +670,61 @@ async function findMatchingPassengersForDriver(driverListing: {
     orderBy: { createdAt: 'desc' },
   });
   const driverTime = driverListing.departureTime;
-  return passengers.map((p) => {
-    const matchType = resolveMatchType(driverTime, p.departureTime);
-    return { listing: p, matchType };
-  });
+  const out: Array<{
+    listing: (typeof passengers)[0];
+    matchType: MatchType;
+    routeMatchKind: PoputkyRouteMatchKind;
+  }> = [];
+  for (const p of passengers) {
+    const routeMatchKind = classifyPoputkyRouteMatch({
+      driver: {
+        route: driverListing.route,
+        fromPointId: driverListing.fromPointId,
+        toPointId: driverListing.toPointId,
+        itineraryPointIds,
+      },
+      passenger: {
+        route: p.route,
+        fromPointId: p.fromPointId,
+        toPointId: p.toPointId,
+      },
+    });
+    if (!routeMatchKind) continue;
+    out.push({
+      listing: p,
+      matchType: resolveMatchType(driverTime, p.departureTime),
+      routeMatchKind,
+    });
+  }
+  return out;
 }
 
-/** Знайти активні оголошення водіїв, що збігаються по OD (або legacy route) та даті з оголошенням пасажира. */
-async function findMatchingDriversForPassenger(passengerListing: {
-  route: string;
+/** Знайти активні оголошення водіїв: exact OD або passenger OD along driver's itinerary. */
+async function findMatchingDriversForPassenger(passengerListing: OdListingFields & {
   date: Date;
   departureTime: string | null;
-  fromPointId?: number | null;
-  toPointId?: number | null;
-}): Promise<Array<{ listing: { id: number; route: string; date: Date; departureTime: string | null; seats: number | null; phone: string; senderName: string | null; notes: string | null }; matchType: MatchType }>> {
+}): Promise<Array<{
+  listing: {
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    seats: number | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+    fromPointId: number | null;
+    toPointId: number | null;
+    tripRouteId: number | null;
+  };
+  matchType: MatchType;
+  routeMatchKind: PoputkyRouteMatchKind;
+}>> {
   const dateKey = toDateKey(passengerListing.date);
   const drivers = await tgPrisma.viberListing.findMany({
     where: {
       listingType: 'driver',
       isActive: true,
-      ...buildOdMatchWhere(passengerListing),
       date: {
         gte: new Date(dateKey + 'T00:00:00.000Z'),
         lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
@@ -667,10 +733,43 @@ async function findMatchingDriversForPassenger(passengerListing: {
     orderBy: { createdAt: 'desc' },
   });
   const passengerTime = passengerListing.departureTime;
-  return drivers.map((d) => {
-    const matchType = resolveMatchType(passengerTime, d.departureTime);
-    return { listing: d, matchType };
-  });
+  const itineraryCache = new Map<number, number[] | null>();
+  const out: Array<{
+    listing: (typeof drivers)[0];
+    matchType: MatchType;
+    routeMatchKind: PoputkyRouteMatchKind;
+  }> = [];
+  for (const d of drivers) {
+    let itineraryPointIds: number[] | null = null;
+    if (d.tripRouteId != null) {
+      if (itineraryCache.has(d.tripRouteId)) {
+        itineraryPointIds = itineraryCache.get(d.tripRouteId) ?? null;
+      } else {
+        itineraryPointIds = await loadItineraryPointIds(d.tripRouteId);
+        itineraryCache.set(d.tripRouteId, itineraryPointIds);
+      }
+    }
+    const routeMatchKind = classifyPoputkyRouteMatch({
+      driver: {
+        route: d.route,
+        fromPointId: d.fromPointId,
+        toPointId: d.toPointId,
+        itineraryPointIds,
+      },
+      passenger: {
+        route: passengerListing.route,
+        fromPointId: passengerListing.fromPointId,
+        toPointId: passengerListing.toPointId,
+      },
+    });
+    if (!routeMatchKind) continue;
+    out.push({
+      listing: d,
+      matchType: resolveMatchType(passengerTime, d.departureTime),
+      routeMatchKind,
+    });
+  }
+  return out;
 }
 
 export type SendMatchMessageToPersonStub = (
@@ -750,7 +849,8 @@ export async function notifyPassengerAboutDriverPair(
     notes: string | null;
   },
   passengerListing: { id: number; phone: string },
-  matchType: MatchType
+  matchType: MatchType,
+  routeMatchKind: PoputkyRouteMatchKind = 'exact'
 ): Promise<CounterpartNotifyOutcome> {
   const row = await tgPrisma.viberMatchPairNotification.findUnique({
     where: {
@@ -762,12 +862,14 @@ export async function notifyPassengerAboutDriverPair(
   });
   if (row?.passengerNotifiedAt) return { kind: 'skipped' };
 
-  const label =
+  const timeLabel =
     matchType === 'exact'
       ? '🎯 Пряме співпадіння (час близький, ±45 хв)'
       : matchType === 'approximate'
         ? '📌 Приблизне співпадіння (час близький, ±2 год)'
         : '🗓️ Поїздки цього дня';
+  const alongNote = routeMatchKind === 'along_route' ? ' · по дорозі (підмаршрут)' : '';
+  const label = `${timeLabel}${alongNote}`;
   const msg =
     `${label}: з\'явився водій на ваш маршрут і дату.\n\n` +
     `🛣 ${getRouteName(driverListing.route)}\n` +
@@ -833,7 +935,8 @@ export async function notifyDriverAboutPassengerPair(
     senderName: string | null;
     notes: string | null;
   },
-  matchType: MatchType
+  matchType: MatchType,
+  routeMatchKind: PoputkyRouteMatchKind = 'exact'
 ): Promise<CounterpartNotifyOutcome> {
   const row = await tgPrisma.viberMatchPairNotification.findUnique({
     where: {
@@ -845,12 +948,14 @@ export async function notifyDriverAboutPassengerPair(
   });
   if (row?.driverNotifiedAt) return { kind: 'skipped' };
 
-  const label =
+  const timeLabel =
     matchType === 'exact'
       ? '🎯 Пряме співпадіння (час близький, ±45 хв)'
       : matchType === 'approximate'
         ? '📌 Приблизне співпадіння (час близький, ±2 год)'
         : '🗓️ Поїздки цього дня';
+  const alongNote = routeMatchKind === 'along_route' ? ' · по дорозі (підмаршрут)' : '';
+  const label = `${timeLabel}${alongNote}`;
   const msg =
     `${label}: новий запит пасажира на ваш маршрут і дату.\n\n` +
     `🛣 ${getRouteName(passengerListing.route)}\n` +
@@ -925,7 +1030,19 @@ async function sendAdminNewListingMatchReport(
 /** Після додавання поїздки водія: сповістити водія та всіх пасажирів, що збігаються. */
 /** Викликати після створення оголошення водія (бот або адмінка). driverChatId — якщо є (з бота), сповістимо водія про збіги. */
 export async function notifyMatchingPassengersForNewDriver(
-  driverListing: { id: number; route: string; date: Date; departureTime: string | null; seats: number | null; phone: string; senderName: string | null; notes: string | null },
+  driverListing: {
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    seats: number | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+    fromPointId?: number | null;
+    toPointId?: number | null;
+    tripRouteId?: number | null;
+  },
   driverChatId?: string | null
 ): Promise<void> {
   const matches = await findMatchingPassengersForDriver(driverListing);
@@ -976,8 +1093,8 @@ export async function notifyMatchingPassengersForNewDriver(
   let sent = 0;
   let skipped = 0;
   let failed = 0;
-  for (const { listing: p, matchType } of matches) {
-    const out = await notifyPassengerAboutDriverPair(driverListing, { id: p.id, phone: p.phone }, matchType);
+  for (const { listing: p, matchType, routeMatchKind } of matches) {
+    const out = await notifyPassengerAboutDriverPair(driverListing, { id: p.id, phone: p.phone }, matchType, routeMatchKind);
     if (out.kind === 'sent') sent++;
     else if (out.kind === 'skipped') skipped++;
     else failed++;
@@ -989,7 +1106,17 @@ export async function notifyMatchingPassengersForNewDriver(
 
 /** Викликати після створення запиту пасажира (бот або адмінка). passengerChatId — якщо є (з бота), сповістимо пасажира про збіги. */
 export async function notifyMatchingDriversForNewPassenger(
-  passengerListing: { id: number; route: string; date: Date; departureTime: string | null; phone: string; senderName: string | null; notes: string | null },
+  passengerListing: {
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+    fromPointId?: number | null;
+    toPointId?: number | null;
+  },
   passengerChatId?: string | null
 ): Promise<void> {
   const matches = await findMatchingDriversForPassenger(passengerListing);
@@ -1038,8 +1165,8 @@ export async function notifyMatchingDriversForNewPassenger(
   let sent = 0;
   let skipped = 0;
   let failed = 0;
-  for (const { listing: d, matchType } of matches) {
-    const out = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, passengerListing, matchType);
+  for (const { listing: d, matchType, routeMatchKind } of matches) {
+    const out = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, passengerListing, matchType, routeMatchKind);
     if (out.kind === 'sent') sent++;
     else if (out.kind === 'skipped') skipped++;
     else failed++;
@@ -1367,7 +1494,7 @@ function buildPoputkyToKeyboard(
   return { inline_keyboard: rows };
 }
 
-/** Напрямки для бронювання (маршрут / електричка). */
+/** Напрямки для електрички (поки corridor-based). */
 const BOOK_DIRECTION_OPTIONS: Array<{ route: string; label: string }> = [
   { route: 'Kyiv-Malyn', label: 'Київ → Малин' },
   { route: 'Malyn-Kyiv', label: 'Малин → Київ' },
@@ -1402,6 +1529,45 @@ function buildBookDirectionKeyboard(
       ],
     ],
   };
+}
+
+type BookOdPoint = { id: number; code: string; nameUk: string };
+
+async function loadMarshrutkaOdPoints(): Promise<BookOdPoint[]> {
+  return tgPrisma.tripPoint.findMany({
+    where: { appearInFromTo: true },
+    select: { id: true, code: true, nameUk: true },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+  });
+}
+
+function buildBookOdFromKeyboard(
+  points: BookOdPoint[]
+): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
+  const rows = points.map((p) => [{ text: `📍 ${p.nameUk}`, callback_data: `book_m_from_${p.code}` }]);
+  rows.push([
+    { text: '⬅️ Назад', callback_data: 'book_type_back' },
+    { text: '❌ Скасувати', callback_data: 'book_cancel' },
+  ]);
+  return { inline_keyboard: rows };
+}
+
+function buildBookOdToKeyboard(
+  points: BookOdPoint[],
+  fromCode: string
+): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
+  const rows = points
+    .filter((p) => p.code !== fromCode)
+    .map((p) => [{ text: `📍 ${p.nameUk}`, callback_data: `book_m_to_${fromCode}_${p.code}` }]);
+  rows.push([
+    { text: '⬅️ Назад', callback_data: 'book_type_marshrutka' },
+    { text: '❌ Скасувати', callback_data: 'book_cancel' },
+  ]);
+  return { inline_keyboard: rows };
+}
+
+function odPairLabel(fromName: string, toName: string): string {
+  return `${fromName} → ${toName}`;
 }
 
 export type ElektrichkaPurchaseSchedule = {
@@ -3056,28 +3222,51 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
   const [drivers, passengers] = await Promise.all([
     tgPrisma.viberListing.findMany({
       where: { listingType: 'driver', isActive: true, date: { gte: now } },
-      select: { id: true, route: true, date: true, departureTime: true, seats: true, phone: true, senderName: true, notes: true },
+      select: {
+        id: true,
+        route: true,
+        date: true,
+        departureTime: true,
+        seats: true,
+        phone: true,
+        senderName: true,
+        notes: true,
+        fromPointId: true,
+        toPointId: true,
+        tripRouteId: true,
+      },
       orderBy: { date: 'asc' },
     }),
     tgPrisma.viberListing.findMany({
       where: { listingType: 'passenger', isActive: true, date: { gte: now } },
-      select: { id: true, route: true, date: true, departureTime: true, phone: true, senderName: true, notes: true },
+      select: {
+        id: true,
+        route: true,
+        date: true,
+        departureTime: true,
+        phone: true,
+        senderName: true,
+        notes: true,
+        fromPointId: true,
+        toPointId: true,
+      },
       orderBy: { date: 'asc' },
     }),
   ]);
 
-  const passengersByKey = new Map<string, typeof passengers>();
+  const passengersByDate = new Map<string, typeof passengers>();
   for (const p of passengers) {
-    const key = `${p.route}__${toDateKey(p.date)}`;
-    const arr = passengersByKey.get(key);
+    const key = toDateKey(p.date);
+    const arr = passengersByDate.get(key);
     if (arr) arr.push(p);
-    else passengersByKey.set(key, [p]);
+    else passengersByDate.set(key, [p]);
   }
 
   let pairCount = 0;
   let exactPairCount = 0;
   let approximatePairCount = 0;
   let sameDayPairCount = 0;
+  let alongRoutePairCount = 0;
   let passengerSent = 0;
   let passengerSkipped = 0;
   let passengerFailed = 0;
@@ -3091,12 +3280,36 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
     approximate: [],
     same_day: [],
   };
+  const itineraryCache = new Map<number, number[] | null>();
 
   for (const d of drivers) {
-    const key = `${d.route}__${toDateKey(d.date)}`;
-    const ps = passengersByKey.get(key);
+    const ps = passengersByDate.get(toDateKey(d.date));
     if (!ps || ps.length === 0) continue;
+    let itineraryPointIds: number[] | null = null;
+    if (d.tripRouteId != null) {
+      if (itineraryCache.has(d.tripRouteId)) {
+        itineraryPointIds = itineraryCache.get(d.tripRouteId) ?? null;
+      } else {
+        itineraryPointIds = await loadItineraryPointIds(d.tripRouteId);
+        itineraryCache.set(d.tripRouteId, itineraryPointIds);
+      }
+    }
     for (const p of ps) {
+      const routeMatchKind = classifyPoputkyRouteMatch({
+        driver: {
+          route: d.route,
+          fromPointId: d.fromPointId,
+          toPointId: d.toPointId,
+          itineraryPointIds,
+        },
+        passenger: {
+          route: p.route,
+          fromPointId: p.fromPointId,
+          toPointId: p.toPointId,
+        },
+      });
+      if (!routeMatchKind) continue;
+      if (routeMatchKind === 'along_route') alongRoutePairCount++;
       pairCount++;
       const matchType = resolveMatchType(d.departureTime, p.departureTime);
       if (pairLinesByType[matchType].length < CHECKCLIENTS_PAIR_LINES_LIMIT) {
@@ -3114,15 +3327,16 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
                 return `Δ${gap}хв`;
               })()
             : 'час не вказано';
+        const alongTag = routeMatchKind === 'along_route' ? ' · по дорозі' : '';
         pairLinesByType[matchType].push(
-          `• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`
+          `• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} ↔ ${getRouteName(p.route)}${alongTag} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`
         );
       }
       if (matchType === 'exact') exactPairCount++;
       else if (matchType === 'approximate') approximatePairCount++;
       else sameDayPairCount++;
 
-      const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType);
+      const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType, routeMatchKind);
       if (pOut.kind === 'sent') {
         passengerSent++;
         if (pOut.via === 'user') sentViaUser++;
@@ -3130,7 +3344,7 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
       } else if (pOut.kind === 'skipped') passengerSkipped++;
       else passengerFailed++;
 
-      const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType);
+      const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType, routeMatchKind);
       if (dOut.kind === 'sent') {
         driverSent++;
         if (dOut.via === 'user') sentViaUser++;
@@ -3149,7 +3363,7 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
   await bot.sendMessage(
     chatId,
     '✅ <b>/checkclients завершено</b>\n\n' +
-      `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount})\n` +
+      `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount}; з них по дорозі: ${alongRoutePairCount})\n` +
       `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
       `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
       `• Через бот: ${sentViaBot}` +
@@ -6140,13 +6354,22 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
       
       // Вибір типу поїздки (маршрутка / електричка)
       if (data === 'book_type_marshrutka') {
+        const points = await loadMarshrutkaOdPoints();
+        if (points.length < 2) {
+          await bot?.editMessageText(
+            '❌ Немає доступних міст для бронювання маршрутки.\n\nАдмін має увімкнути «У звідки/куди» для міст.',
+            { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' }
+          );
+          await bot?.answerCallbackQuery(query.id);
+          return;
+        }
         await bot?.editMessageText(
-          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n1️⃣ Оберіть напрямок:',
+          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n1️⃣ Оберіть звідки:',
           {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: buildBookDirectionKeyboard('book_dir', '🚌'),
+            reply_markup: buildBookOdFromKeyboard(points),
           }
         );
         await bot?.answerCallbackQuery(query.id);
@@ -6177,12 +6400,42 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         );
         await bot?.answerCallbackQuery(query.id);
       }
-      
-      // Вибір напрямку для нового бронювання
-      if (data.startsWith('book_dir_')) {
-        const direction = data.replace('book_dir_', '');
-        
-        // Створити кнопки з датами (наступні 7 днів)
+
+      // Маршрутка OD: звідки
+      if (data.startsWith('book_m_from_')) {
+        const fromCode = data.replace('book_m_from_', '');
+        const points = await loadMarshrutkaOdPoints();
+        const from = points.find((p) => p.code === fromCode);
+        if (!from) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Невідоме місто' });
+          return;
+        }
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
+            `✅ Звідки: ${from.nameUk}\n\n2️⃣ Оберіть куди:`,
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildBookOdToKeyboard(points, fromCode),
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      // Маршрутка OD: куди → дати
+      if (data.startsWith('book_m_to_')) {
+        const rest = data.replace('book_m_to_', '');
+        const sep = rest.indexOf('_');
+        const fromCode = sep >= 0 ? rest.slice(0, sep) : '';
+        const toCode = sep >= 0 ? rest.slice(sep + 1) : '';
+        const points = await loadMarshrutkaOdPoints();
+        const from = points.find((p) => p.code === fromCode);
+        const to = points.find((p) => p.code === toCode);
+        if (!from || !to) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Невідома пара міст' });
+          return;
+        }
         const dates = [];
         for (let i = 0; i < 7; i++) {
           const date = new Date();
@@ -6191,167 +6444,171 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           const label = i === 0 ? ' (сьогодні)' : i === 1 ? ' (завтра)' : '';
           dates.push({
             text: formatDate(date) + label,
-            callback_data: `book_date_${direction}_${dateStr.replace(/-/g, '_')}`
+            callback_data: `book_m_date_${fromCode}_${toCode}_${dateStr.replace(/-/g, '_')}`,
           });
         }
-        
         const dateKeyboard = {
-          inline_keyboard: dates.map(d => [d]).concat([[
-            { text: '⬅️ Назад', callback_data: 'book_type_marshrutka' },
-            { text: '❌ Скасувати', callback_data: 'book_cancel' }
-          ]])
+          inline_keyboard: dates.map((d) => [d]).concat([
+            [
+              { text: '⬅️ Назад', callback_data: `book_m_from_${fromCode}` },
+              { text: '❌ Скасувати', callback_data: 'book_cancel' },
+            ],
+          ]),
         };
-        
         await bot?.editMessageText(
           '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
-          `✅ Напрямок: ${getRouteName(direction)}\n\n` +
-          '2️⃣ Оберіть дату:',
+            `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n\n` +
+            '3️⃣ Оберіть дату:',
           {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: dateKeyboard
+            reply_markup: dateKeyboard,
           }
         );
-        
         await bot?.answerCallbackQuery(query.id);
       }
-      
-      // Вибір дати - показати доступні часи
-      if (data.startsWith('book_date_')) {
-        const parts = data.replace('book_date_', '').split('_');
-        // Дата завжди остання (YYYY-MM-DD = 3 частини)
+
+      // Маршрутка OD: дата → часи (рейси, де OD на itinerary)
+      if (data.startsWith('book_m_date_')) {
+        const parts = data.replace('book_m_date_', '').split('_');
+        // … from to YYYY MM DD
+        if (parts.length < 5) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Некоректні дані' });
+          return;
+        }
         const selectedDate = parts.slice(-3).join('-');
-        // Direction - все що до дати
-        const direction = parts.slice(0, -3).join('-');
-        
-        // Отримати графіки маршруток для обраного напрямку
+        const fromCode = parts[0];
+        const toCode = parts.slice(1, -3).join('_'); // rare multi-segment codes
+        const points = await loadMarshrutkaOdPoints();
+        const from = points.find((p) => p.code === fromCode);
+        const to = points.find((p) => p.code === toCode);
+        if (!from || !to) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Невідома пара міст' });
+          return;
+        }
+
         const allSchedules = await tgPrisma.schedule.findMany({
-          where: {
-            route: { startsWith: direction },
-            NOT: { vehicleType: 'elektrichka' },
+          where: { NOT: { vehicleType: 'elektrichka' } },
+          include: {
+            tripRoute: { include: { stops: { orderBy: { position: 'asc' } } } },
           },
-          orderBy: { departureTime: 'asc' }
+          orderBy: { departureTime: 'asc' },
         });
-        const schedules = allSchedules.filter((s) =>
-          isScheduleActiveOnDate(s.activeWeekdays, selectedDate)
+        const schedules = allSchedules.filter(
+          (s) =>
+            isScheduleActiveOnDate(s.activeWeekdays, selectedDate) &&
+            scheduleMatchesOdAlongStops(s.tripRoute?.stops, from.id, to.id)
         );
-        
+
         if (schedules.length === 0) {
-          // Запропонувати поїздки з Viber, якщо є
-          const startOfDay = new Date(selectedDate);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = new Date(selectedDate);
-          endOfDay.setHours(23, 59, 59, 999);
-          const viberListings = await tgPrisma.viberListing.findMany({
-            where: {
-              route: direction,
-              date: { gte: startOfDay, lte: endOfDay },
-              isActive: true
-            },
-            orderBy: [{ departureTime: 'asc' }]
-          });
-          const driverListings = viberListings.filter((l) => l.listingType === 'driver');
-          const viberBlock =
-            viberListings.length > 0
-              ? '\n\n📱 <b>Поїздки з Viber</b> (можна замовити по телефону або натиснути кнопку):\n' +
-                `🛣 ${getRouteName(direction)}\n\n` +
-                viberListings
-                  .map((l) => {
-                    const type = l.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
-                    const time = l.departureTime || '—';
-                    const seats = l.seats != null ? `, ${l.seats} місць` : '';
-                    const notes = l.notes != null ? `\n💡 ${l.notes}` : '';
-                    const namePart = l.senderName ? ` — ${l.senderName}` : '';
-                    return `${type} ${time}${seats}${notes}\n📞 ${formatPhoneTelLink(l.phone)}${namePart}`;
-                  })
-                  .join('\n\n')
-              : '';
-          const helpBlock =
-            viberListings.length === 0
-              ? '\n\n<b>Ви можете:</b>\n' +
-                '🎫 /book - Почати заново\n' +
-                '🌐 /allrides - Переглянути всі активні попутки\n' +
-                '📋 /mybookings - Переглянути існуючі бронювання\n' +
-                '🌐 https://malin.kiev.ua - Забронювати на сайті'
-              : '';
-          const bookViberButtons =
-            driverListings.length > 0
-              ? { inline_keyboard: driverListings.map((d) => [{ text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `book_viber_${d.id}` }]) }
-              : undefined;
           await bot?.editMessageText(
-            '❌ <b>Немає доступних рейсів</b> за розкладом.\n\n' +
-              'Спробуйте інший напрямок або дату.' +
-              viberBlock +
-              helpBlock,
+            '❌ <b>Немає доступних рейсів</b> за розкладом для цього напрямку.\n\n' +
+              `Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
+              `Дата: ${formatDate(new Date(selectedDate))}\n\n` +
+              '🎫 /book - Почати заново',
             {
               chat_id: chatId,
               message_id: messageId,
               parse_mode: 'HTML',
-              ...(bookViberButtons && { reply_markup: bookViberButtons })
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '⬅️ Назад', callback_data: `book_m_to_${fromCode}_${toCode}` },
+                    { text: '❌ Скасувати', callback_data: 'book_cancel' },
+                  ],
+                ],
+              },
             }
           );
           await bot?.answerCallbackQuery(query.id);
           return;
         }
-        
-        // Перевірити доступність для кожного часу
+
         const timeButtons = await Promise.all(
           schedules.map(async (schedule) => {
-            // Підрахувати зайняті місця
             const startOfDay = new Date(selectedDate);
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(selectedDate);
             endOfDay.setHours(23, 59, 59, 999);
-            
+
             const existingBookings = await tgPrisma.booking.findMany({
               where: {
                 route: schedule.route,
                 departureTime: schedule.departureTime,
-                date: {
-                  gte: startOfDay,
-                  lte: endOfDay
-                }
-              }
+                date: { gte: startOfDay, lte: endOfDay },
+              },
             });
-            
+
             const bookedSeats = existingBookings.reduce((sum, b) => sum + b.seats, 0);
             const availableSeats = schedule.maxSeats - bookedSeats;
             const isAvailable = availableSeats > 0;
-            
             const emoji = isAvailable ? '✅' : '❌';
-            const routeLabel = schedule.route.includes('Irpin') ? ' (Ірпінь)' :
-                              schedule.route.includes('Bucha') ? ' (Буча)' : '';
-            
+            const boardTime = boardingTimeAtStop(
+              schedule.departureTime,
+              schedule.tripRoute?.stops,
+              from.id
+            );
+
             return {
-              text: `${emoji} ${schedule.departureTime}${routeLabel} (${availableSeats}/${schedule.maxSeats})`,
-              callback_data: isAvailable ? 
-                `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate.replace(/-/g, '_')}` : 
-                'book_unavailable'
+              text: `${emoji} ${boardTime} (${availableSeats}/${schedule.maxSeats})`,
+              callback_data: isAvailable
+                ? `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate.replace(/-/g, '_')}`
+                : 'book_unavailable',
             };
           })
         );
-        
+
         const timeKeyboard = {
-          inline_keyboard: timeButtons.map(b => [b]).concat([[
-            { text: '⬅️ Назад', callback_data: `book_dir_${direction}` },
-            { text: '❌ Скасувати', callback_data: 'book_cancel' }
-          ]])
+          inline_keyboard: timeButtons.map((b) => [b]).concat([
+            [
+              { text: '⬅️ Назад', callback_data: `book_m_to_${fromCode}_${toCode}` },
+              { text: '❌ Скасувати', callback_data: 'book_cancel' },
+            ],
+          ]),
         };
-        
+
         await bot?.editMessageText(
           '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
-          `✅ Напрямок: ${getRouteName(direction)}\n` +
-          `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
-          '3️⃣ Оберіть час відправлення:',
+            `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
+            `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
+            '4️⃣ Оберіть час посадки:',
           {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: timeKeyboard
+            reply_markup: timeKeyboard,
           }
         );
-        
+
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      // Legacy book_dir_* kept for old messages / deep links — redirect to OD flow
+      if (data.startsWith('book_dir_')) {
+        await bot?.editMessageText(
+          '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\nОберіть звідки (оновлений потік):',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildBookOdFromKeyboard(await loadMarshrutkaOdPoints()),
+          }
+        );
+        await bot?.answerCallbackQuery(query.id);
+      }
+
+      // Legacy book_date_* for marshrutka — ignore / redirect
+      if (data.startsWith('book_date_') && !data.startsWith('book_m_date_')) {
+        await bot?.editMessageText(
+          '🎫 Цей крок застарів. Почніть бронювання знову: /book',
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildBookTypeKeyboard(),
+          }
+        );
         await bot?.answerCallbackQuery(query.id);
       }
 

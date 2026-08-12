@@ -27,26 +27,30 @@ import { BusBookingModal } from './BusBookingModal';
 import { TrainTicketModal } from './TrainTicketModal';
 import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
 import {
-  CORRIDORS,
-  citiesFromCorridor,
+  boardingTimeAtStop,
+  buildQuickDirectChips,
+  citiesFromQuickChip,
   cityLabel,
-  corridorFromCity,
   formatRouteLabel,
   formatTripDate,
   getTimeMinutes,
   isElektrichka,
   isMarshrutka,
   isScheduleActiveOnDate,
+  legacyMalynCorridorChips,
   listingMatchesCities,
+  readHomeCityCookie,
   routeCityLabels,
   todayISO,
   tomorrowISO,
-  type CorridorId,
+  writeHomeCityCookie,
+  type QuickDirectChip,
   type TransportFilter,
 } from './mizhUtils';
 import './MizhgorodskiPage.css';
 
 const VALID_CITIES: string[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten', 'Irpin', 'Bucha'];
+const HOME_CITY_STORAGE_FALLBACK = 'Malyn';
 
 /** Короткий FAQ для головної (AEO); детальніше — коридорні лендінги та /support/travel */
 const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
@@ -127,6 +131,14 @@ export const MizhgorodskiPage: React.FC = () => {
   const [listingType, setListingType] = useState<ViberListingType | ''>('');
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [poputkyPoints, setPoputkyPoints] = useState<TripPoint[]>([]);
+  const [allTripPoints, setAllTripPoints] = useState<TripPoint[]>([]);
+  const [homeCityCode, setHomeCityCode] = useState(() => {
+    try {
+      return readHomeCityCookie() || HOME_CITY_STORAGE_FALLBACK;
+    } catch {
+      return HOME_CITY_STORAGE_FALLBACK;
+    }
+  });
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [availabilityById, setAvailabilityById] = useState<Record<number, Availability>>({});
   const [loading, setLoading] = useState(false);
@@ -143,12 +155,37 @@ export const MizhgorodskiPage: React.FC = () => {
   });
 
   useEffect(() => {
-    apiClient.getTripPoints({ appearInPoputky: true }).then(setPoputkyPoints).catch(() => setPoputkyPoints([]));
+    Promise.all([
+      apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
+      apiClient.getTripPoints().catch(() => [] as TripPoint[]),
+    ]).then(([pop, all]) => {
+      setPoputkyPoints(pop);
+      setAllTripPoints(all.length ? all : pop);
+    });
   }, []);
 
-  const activeCorridor: CorridorId | null = useMemo(() => {
-    return corridorFromCity(fromCity === 'Malyn' ? toCity : fromCity);
-  }, [fromCity, toCity]);
+  const homePoint = useMemo(
+    () => allTripPoints.find((p) => p.code === homeCityCode) || null,
+    [allTripPoints, homeCityCode]
+  );
+
+  const quickChips: QuickDirectChip[] = useMemo(() => {
+    const built = buildQuickDirectChips(homePoint, allTripPoints);
+    if (built.length) return built;
+    if (homeCityCode === 'Malyn') return legacyMalynCorridorChips();
+    return [];
+  }, [homePoint, allTripPoints, homeCityCode]);
+
+  const activeChipId = useMemo(() => {
+    const other = fromCity === homeCityCode ? toCity : toCity === homeCityCode ? fromCity : '';
+    if (!other) return null;
+    return quickChips.find((c) => c.otherCode === other)?.id ?? null;
+  }, [fromCity, toCity, homeCityCode, quickChips]);
+
+  const fromPointId = useMemo(
+    () => allTripPoints.find((p) => p.code === fromCity)?.id ?? poputkyPoints.find((p) => p.code === fromCity)?.id,
+    [allTripPoints, poputkyPoints, fromCity]
+  );
 
   const fromOptions = (poputkyPoints.length
     ? poputkyPoints.map((p) => ({ value: p.code as BookingCity, label: p.nameUk }))
@@ -182,27 +219,56 @@ export const MizhgorodskiPage: React.FC = () => {
     setAvailabilityById({});
     try {
       const routes = dir ? DIRECTION_ROUTES[dir] || [] : [];
-      const [allListings, scheduleBatches, corridors, points] = await Promise.all([
+      const [allListings, scheduleBatches, odSchedules, allTripRoutes, points] = await Promise.all([
         apiClient.getViberListings(true),
         Promise.all(routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => [] as Schedule[]))),
-        apiClient.getTripRoutes({ corridors: true }).catch(() => []),
+        apiClient.getSchedules(undefined, { fromCode: from, toCode: to }).catch(() => [] as Schedule[]),
+        apiClient.getTripRoutes().catch(() => []),
         apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
       ]);
       if (points.length) setPoputkyPoints(points);
-      const corridorById = new Map(corridors.map((c) => [c.id, c]));
-      const pointIdByCode = new Map(points.map((p) => [p.code, p.id]));
-      const dateKey = tripDate.slice(0, 10);
-      const filteredListings = allListings.filter(
-        (item) =>
-          item.isActive &&
-          item.date.slice(0, 10) === dateKey &&
-          listingMatchesCities(item, from, to, corridorById, pointIdByCode)
+      const corridorById = new Map(
+        allTripRoutes.filter((c) => c.corridorTripRouteId == null).map((c) => [c.id, c])
       );
-      const allSchedules = scheduleBatches.flat().sort((a, b) => a.departureTime.localeCompare(b.departureTime));
-      setListings(filteredListings);
-      setSchedules(allSchedules);
+      const stopsByTripRouteId = new Map<number, number[]>();
+      for (const tr of allTripRoutes) {
+        if (!tr.stops?.length) continue;
+        const ordered = [...tr.stops]
+          .sort((a, b) => a.position - b.position || a.pointId - b.pointId)
+          .map((s) => s.pointId);
+        stopsByTripRouteId.set(tr.id, ordered);
+      }
+      const pointIdByCode = new Map(points.map((p) => [p.code, p.id]));
+      const byRouteId = new Map<number, Schedule>();
+      for (const s of scheduleBatches.flat()) byRouteId.set(s.id, s);
+      for (const s of odSchedules) byRouteId.set(s.id, s);
+      const mergedSchedules = [...byRouteId.values()];
+      setSchedules(mergedSchedules);
+      setListings(
+        allListings.filter(
+          (item) =>
+            item.isActive &&
+            item.date.slice(0, 10) === tripDate.slice(0, 10) &&
+            listingMatchesCities(item, from, to, corridorById, pointIdByCode, stopsByTripRouteId)
+        )
+      );
+      const availEntries = await Promise.all(
+        mergedSchedules.filter(isMarshrutka).map(async (s) => {
+          try {
+            const a = await apiClient.checkAvailability(s.route, s.departureTime, tripDate);
+            return [s.id, a] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const nextAvail: Record<number, Availability> = {};
+      for (const row of availEntries) {
+        if (row) nextAvail[row[0]] = row[1];
+      }
+      setAvailabilityById(nextAvail);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не вдалося завантажити результати');
+      setError(err instanceof Error ? err.message : 'Помилка завантаження');
       setListings([]);
       setSchedules([]);
     } finally {
@@ -336,12 +402,25 @@ export const MizhgorodskiPage: React.FC = () => {
     setShowOfferModal(true);
   };
 
-  const handleCorridor = (corridor: CorridorId) => {
-    const fromMalyn = fromCity === 'Malyn';
-    const { from, to } = citiesFromCorridor(corridor, fromMalyn);
-    setFromCity(from);
-    setToCity(to);
-    applySearch(from, to, date, transport);
+  const handleQuickChip = (chip: QuickDirectChip) => {
+    const fromHome = fromCity === homeCityCode;
+    const { from, to } = citiesFromQuickChip(homeCityCode, chip.otherCode, fromHome);
+    setFromCity(from as BookingCity);
+    setToCity(to as BookingCity);
+    applySearch(from as BookingCity, to as BookingCity, date, transport);
+  };
+
+  const handleHomeCityChange = (code: string) => {
+    setHomeCityCode(code);
+    writeHomeCityCookie(code);
+    const home = allTripPoints.find((p) => p.code === code);
+    const firstDirect = home?.quickDirectPointIds?.[0];
+    const other = firstDirect != null ? allTripPoints.find((p) => p.id === firstDirect) : null;
+    if (other) {
+      setFromCity(other.code as BookingCity);
+      setToCity(code as BookingCity);
+      applySearch(other.code as BookingCity, code as BookingCity, date, transport);
+    }
   };
 
   const handleSwap = () => {
@@ -398,27 +477,37 @@ export const MizhgorodskiPage: React.FC = () => {
     }
     if (transport === 'all' || transport === 'bus') {
       for (const schedule of activeSchedules.filter(isMarshrutka)) {
+        const boardTime = boardingTimeAtStop(
+          schedule.departureTime,
+          schedule.tripRoute?.stops,
+          fromPointId
+        );
         items.push({
           kind: 'bus',
           id: `bus-${schedule.id}`,
           schedule,
-          sortMinutes: getTimeMinutes(schedule.departureTime) ?? 0,
+          sortMinutes: getTimeMinutes(boardTime) ?? 0,
         });
       }
     }
     if (transport === 'all' || transport === 'train') {
       for (const schedule of activeSchedules.filter(isElektrichka)) {
+        const boardTime = boardingTimeAtStop(
+          schedule.departureTime,
+          schedule.tripRoute?.stops,
+          fromPointId
+        );
         items.push({
           kind: 'train',
           id: `train-${schedule.id}`,
           schedule,
-          sortMinutes: getTimeMinutes(schedule.departureTime) ?? 0,
+          sortMinutes: getTimeMinutes(boardTime) ?? 0,
         });
       }
     }
     items.sort((a, b) => a.sortMinutes - b.sortMinutes);
     return items;
-  }, [listings, schedules, transport, listingType, date]);
+  }, [listings, schedules, transport, listingType, date, fromPointId]);
 
   const carpoolCount = listings.filter((l) => !listingType || l.listingType === listingType).length;
   const activeSchedules = schedules.filter((s) => isScheduleActiveOnDate(s.activeWeekdays, date));
@@ -433,8 +522,28 @@ export const MizhgorodskiPage: React.FC = () => {
             <div>
               <h1 className="mizh-brand">Міжміські</h1>
               <p className="mizh-brand-sub">
-                Як доїхати до Малина: попутки та маршрутки ↔ Київ, Житомир, Коростень — актуальний пошук
+                Як доїхати до {homePoint?.nameUk || cityLabel(homeCityCode)}: попутки та маршрутки — актуальний пошук
               </p>
+              <label className="mizh-home-city">
+                <span className="mizh-home-city-label">Рідне місто</span>
+                <select
+                  className="mizh-home-city-select"
+                  value={homeCityCode}
+                  onChange={(e) => handleHomeCityChange(e.target.value)}
+                >
+                  {(allTripPoints.length
+                    ? allTripPoints
+                    : Object.entries(BOOKING_CITY_LABELS).map(([code, nameUk]) => ({
+                        code,
+                        nameUk,
+                      }))
+                  ).map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.nameUk}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
             <button type="button" className="mizh-offer-btn" onClick={() => openOfferModal('driver')}>
               Запропонувати поїздку
@@ -448,13 +557,13 @@ export const MizhgorodskiPage: React.FC = () => {
               applySearch();
             }}
           >
-            <div className="mizh-corridors" role="group" aria-label="Коридори">
-              {CORRIDORS.map((c) => (
+            <div className="mizh-corridors" role="group" aria-label="Швидкі напрямки">
+              {quickChips.map((c) => (
                 <button
                   key={c.id}
                   type="button"
-                  className={`mizh-corridor-chip ${activeCorridor === c.id ? 'mizh-corridor-chip--active' : ''}`}
-                  onClick={() => handleCorridor(c.id)}
+                  className={`mizh-corridor-chip ${activeChipId === c.id ? 'mizh-corridor-chip--active' : ''}`}
+                  onClick={() => handleQuickChip(c)}
                 >
                   {c.label}
                 </button>
@@ -726,7 +835,13 @@ export const MizhgorodskiPage: React.FC = () => {
                   <div className="mizh-card-badge mizh-card-badge--bus">Електричка</div>
                   <div className="mizh-card-body">
                     <div className="mizh-card-timeline">
-                      <div className="mizh-card-time">{item.schedule.departureTime}</div>
+                      <div className="mizh-card-time">
+                        {boardingTimeAtStop(
+                          item.schedule.departureTime,
+                          item.schedule.tripRoute?.stops,
+                          fromPointId
+                        )}
+                      </div>
                       <div className="mizh-card-rail" aria-hidden>
                         <span className="mizh-card-dot mizh-card-dot--bus" />
                         <span className="mizh-card-line mizh-card-line--bus" />
@@ -768,7 +883,13 @@ export const MizhgorodskiPage: React.FC = () => {
                   <div className="mizh-card-badge mizh-card-badge--bus">Маршрутка</div>
                   <div className="mizh-card-body">
                     <div className="mizh-card-timeline">
-                      <div className="mizh-card-time">{item.schedule.departureTime}</div>
+                      <div className="mizh-card-time">
+                        {boardingTimeAtStop(
+                          item.schedule.departureTime,
+                          item.schedule.tripRoute?.stops,
+                          fromPointId
+                        )}
+                      </div>
                       <div className="mizh-card-rail" aria-hidden>
                         <span className="mizh-card-dot mizh-card-dot--bus" />
                         <span className="mizh-card-line mizh-card-line--bus" />

@@ -274,6 +274,8 @@ test('notifyMatchingPassengersForNewDriver: findMany для пасажирів �
   const passenger = {
     id: 201,
     route: 'Kyiv-Malyn',
+    fromPointId: 1,
+    toPointId: 2,
     date: new Date('2026-06-15T00:00:00.000Z'),
     departureTime: '10:00',
     phone: '0501111111',
@@ -289,11 +291,14 @@ test('notifyMatchingPassengersForNewDriver: findMany для пасажирів �
       viberMatchPairNotification: { findUnique, upsert },
       person: { findUnique: vi.fn(async () => null) },
       booking: { findMany: vi.fn(async () => []) },
+      tripRouteStop: { findMany: vi.fn(async () => []) },
     })
   );
   const driverListing = {
     id: 100,
     route: 'Kyiv-Malyn',
+    fromPointId: 1,
+    toPointId: 2,
     date: new Date('2026-06-15T12:00:00.000Z'),
     departureTime: '10:15',
     seats: 3,
@@ -304,11 +309,12 @@ test('notifyMatchingPassengersForNewDriver: findMany для пасажирів �
   await notifyMatchingPassengersForNewDriver(driverListing, null);
   assert.equal(findMany.mock.calls.length, 1);
   const fmCall = findMany.mock.calls[0]?.[0] as
-    | { where: { listingType: string; route: string } }
+    | { where: { listingType: string; route?: string; date?: unknown } }
     | undefined;
   const where = fmCall?.where;
   assert.equal(where?.listingType, 'passenger');
-  assert.equal(where?.route, 'Kyiv-Malyn');
+  assert.equal(where?.route, undefined);
+  assert.ok(where?.date);
 });
 
 const driverListingStub = {

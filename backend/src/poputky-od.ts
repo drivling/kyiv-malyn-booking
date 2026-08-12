@@ -1,6 +1,7 @@
 /**
  * Poputky OD (origin–destination) helpers.
  * Identity = fromPointId + toPointId; route string is a display/legacy snapshot.
+ * Along-route: passenger OD is an ordered subset of the driver's TripRoute stops.
  */
 import { buildLegacyRouteKey, parseLegacyRoute } from './schedule-trip';
 
@@ -10,6 +11,8 @@ export type TripPointOd = {
   nameUk: string;
   appearInPoputky?: boolean;
 };
+
+export type PoputkyRouteMatchKind = 'exact' | 'along_route';
 
 type PrismaOdClient = {
   tripPoint: {
@@ -95,6 +98,77 @@ export function buildOdMatchWhere(listing: {
     };
   }
   return { route: listing.route };
+}
+
+/** Ordered point ids from TripRouteStop rows (by position). */
+export function orderedPointIdsFromStops(
+  stops: Array<{ pointId: number; position: number }>
+): number[] {
+  return [...stops]
+    .sort((a, b) => a.position - b.position || a.pointId - b.pointId)
+    .map((s) => s.pointId);
+}
+
+/** Passenger OD lies on driver itinerary in the same direction. */
+export function isOdAlongItinerary(
+  itineraryPointIds: number[],
+  fromPointId: number,
+  toPointId: number
+): boolean {
+  if (!itineraryPointIds.length || fromPointId === toPointId) return false;
+  const fromIdx = itineraryPointIds.indexOf(fromPointId);
+  const toIdx = itineraryPointIds.indexOf(toPointId);
+  if (fromIdx < 0 || toIdx < 0) return false;
+  return fromIdx < toIdx;
+}
+
+function isExactOdPair(
+  a: { route: string; fromPointId?: number | null; toPointId?: number | null },
+  b: { route: string; fromPointId?: number | null; toPointId?: number | null }
+): boolean {
+  if (
+    a.fromPointId != null &&
+    a.toPointId != null &&
+    b.fromPointId != null &&
+    b.toPointId != null
+  ) {
+    return a.fromPointId === b.fromPointId && a.toPointId === b.toPointId;
+  }
+  return Boolean(a.route) && a.route === b.route;
+}
+
+/**
+ * Classify route compatibility: exact OD first, else along driver's itinerary.
+ * Itinerary is always the driver's TripRoute stops (corridor or variant).
+ */
+export function classifyPoputkyRouteMatch(input: {
+  driver: {
+    route: string;
+    fromPointId?: number | null;
+    toPointId?: number | null;
+    itineraryPointIds?: number[] | null;
+  };
+  passenger: {
+    route: string;
+    fromPointId?: number | null;
+    toPointId?: number | null;
+  };
+}): PoputkyRouteMatchKind | null {
+  if (isExactOdPair(input.driver, input.passenger)) return 'exact';
+
+  const itinerary = input.driver.itineraryPointIds;
+  const fromId = input.passenger.fromPointId;
+  const toId = input.passenger.toPointId;
+  if (
+    itinerary &&
+    itinerary.length >= 2 &&
+    fromId != null &&
+    toId != null &&
+    isOdAlongItinerary(itinerary, fromId, toId)
+  ) {
+    return 'along_route';
+  }
+  return null;
 }
 
 /** Human label from route slug using optional code→nameUk map. */

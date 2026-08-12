@@ -121,7 +121,25 @@ export function routeMatchesCities(route: string, from: string, to: string): boo
   return r === slug || r.startsWith(`${slug}-`);
 }
 
-/** Dual-read: prefer from/to point ids, then tripRouteId corridor, then route string. */
+/** Passenger OD lies on itinerary stops in the same direction. */
+export function isOdAlongItinerary(
+  itineraryPointIds: number[],
+  fromPointId: number,
+  toPointId: number
+): boolean {
+  if (!itineraryPointIds.length || fromPointId === toPointId) return false;
+  const fromIdx = itineraryPointIds.indexOf(fromPointId);
+  const toIdx = itineraryPointIds.indexOf(toPointId);
+  if (fromIdx < 0 || toIdx < 0) return false;
+  return fromIdx < toIdx;
+}
+
+/**
+ * Dual-read listing filter for search from/to:
+ * 1) exact OD by point ids
+ * 2) along-route: listing.tripRouteId stops contain from→to in order
+ * 3) corridor slug / route string fallback
+ */
 export function listingMatchesCities(
   listing: {
     route: string;
@@ -132,22 +150,115 @@ export function listingMatchesCities(
   from: string,
   to: string,
   corridorById?: Map<number, { slug: string }>,
-  pointIdByCode?: Map<string, number>
+  pointIdByCode?: Map<string, number>,
+  stopsByTripRouteId?: Map<number, number[]>
 ): boolean {
   const fromId = pointIdByCode?.get(from);
   const toId = pointIdByCode?.get(to);
-  if (
-    listing.fromPointId != null &&
-    listing.toPointId != null &&
-    fromId != null &&
-    toId != null
-  ) {
-    return listing.fromPointId === fromId && listing.toPointId === toId;
+  if (fromId != null && toId != null) {
+    if (listing.fromPointId === fromId && listing.toPointId === toId) {
+      return true;
+    }
+    if (
+      listing.tripRouteId != null &&
+      stopsByTripRouteId?.has(listing.tripRouteId) &&
+      isOdAlongItinerary(stopsByTripRouteId.get(listing.tripRouteId)!, fromId, toId)
+    ) {
+      return true;
+    }
   }
   if (listing.tripRouteId != null && corridorById?.has(listing.tripRouteId)) {
     return routeMatchesCities(corridorById.get(listing.tripRouteId)!.slug, from, to);
   }
   return routeMatchesCities(listing.route, from, to);
+}
+
+export const HOME_CITY_COOKIE = 'malin_home_city';
+export const DEFAULT_HOME_CITY_CODE = 'Malyn';
+
+export function readHomeCityCookie(): string {
+  if (typeof document === 'undefined') return DEFAULT_HOME_CITY_CODE;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${HOME_CITY_COOKIE}=([^;]*)`));
+  const raw = match ? decodeURIComponent(match[1]) : '';
+  return raw.trim() || DEFAULT_HOME_CITY_CODE;
+}
+
+export function writeHomeCityCookie(code: string, maxAgeDays = 365): void {
+  if (typeof document === 'undefined') return;
+  const maxAge = Math.max(1, Math.round(maxAgeDays * 24 * 60 * 60));
+  document.cookie = `${HOME_CITY_COOKIE}=${encodeURIComponent(code)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+export type QuickDirectChip = {
+  id: string;
+  otherCode: string;
+  otherNameUk: string;
+  label: string;
+};
+
+/** Build «Other ↔ Home» chips from home city's quickDirectPointIds. */
+export function buildQuickDirectChips(
+  home: { id: number; code: string; nameUk: string; quickDirectPointIds?: number[] } | null | undefined,
+  allPoints: Array<{ id: number; code: string; nameUk: string }>
+): QuickDirectChip[] {
+  if (!home) return [];
+  const byId = new Map(allPoints.map((p) => [p.id, p]));
+  const chips: QuickDirectChip[] = [];
+  for (const id of home.quickDirectPointIds || []) {
+    const other = byId.get(id);
+    if (!other || other.id === home.id) continue;
+    chips.push({
+      id: `${other.code}-${home.code}`,
+      otherCode: other.code,
+      otherNameUk: other.nameUk,
+      label: `${other.nameUk} ↔ ${home.nameUk}`,
+    });
+  }
+  return chips;
+}
+
+/** Fallback chips when DB quickDirect is empty (legacy Malyn corridors). */
+export function legacyMalynCorridorChips(): QuickDirectChip[] {
+  return CORRIDORS.map((c) => ({
+    id: c.id,
+    otherCode: c.city,
+    otherNameUk: c.shortLabel,
+    label: c.label,
+  }));
+}
+
+export function citiesFromQuickChip(
+  homeCode: string,
+  otherCode: string,
+  /** true = from home outward */
+  fromHome: boolean
+): { from: string; to: string } {
+  return fromHome ? { from: homeCode, to: otherCode } : { from: otherCode, to: homeCode };
+}
+
+export function addMinutesToHhMm(departureTime: string, offsetMinutes: number | null | undefined): string {
+  if (offsetMinutes == null || !Number.isFinite(offsetMinutes) || offsetMinutes === 0) {
+    return departureTime;
+  }
+  const base = getTimeMinutes(departureTime);
+  if (base == null) return departureTime;
+  const total = ((base + Math.round(offsetMinutes)) % (24 * 60) + 24 * 60) % (24 * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function boardingTimeAtStop(
+  scheduleDepartureTime: string,
+  stops: Array<{ pointId: number; position: number; departureOffsetMinutes?: number | null }> | undefined,
+  boardPointId: number | undefined
+): string {
+  if (boardPointId == null || !stops?.length) return scheduleDepartureTime;
+  const stop = [...stops]
+    .sort((a, b) => a.position - b.position || a.pointId - b.pointId)
+    .find((s) => s.pointId === boardPointId);
+  if (!stop) return scheduleDepartureTime;
+  return addMinutesToHhMm(scheduleDepartureTime, stop.departureOffsetMinutes ?? 0);
 }
 
 export function cityLabel(city: BookingCity | string): string {

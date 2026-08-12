@@ -85,6 +85,47 @@ export function formatHhMm(h: number, m: number): string {
 }
 
 /** Resolve arrival HH:MM from explicit arrival or departure + durationMinutes. */
+/** Add minutes to HH:MM (wraps 24h). */
+export function addMinutesToHhMm(departureTime: string, offsetMinutes: number | null | undefined): string {
+  if (offsetMinutes == null || !Number.isFinite(offsetMinutes) || offsetMinutes === 0) {
+    return departureTime;
+  }
+  const dep = parseHhMm(departureTime);
+  if (!dep) return departureTime;
+  const total = dep.h * 60 + dep.m + Math.round(offsetMinutes);
+  const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  return formatHhMm(Math.floor(wrapped / 60), wrapped % 60);
+}
+
+/** Boarding time at a stop: schedule start + stop offset (0/null for start). */
+export function boardingTimeAtStop(
+  scheduleDepartureTime: string,
+  stops: Array<{ pointId: number; position: number; departureOffsetMinutes?: number | null }>,
+  boardPointId: number
+): string {
+  const ordered = [...stops].sort((a, b) => a.position - b.position || a.pointId - b.pointId);
+  const stop = ordered.find((s) => s.pointId === boardPointId);
+  if (!stop) return scheduleDepartureTime;
+  return addMinutesToHhMm(scheduleDepartureTime, stop.departureOffsetMinutes ?? 0);
+}
+
+/** True if schedule tripRoute stops contain from→to in order. */
+export function scheduleMatchesOdAlongStops(
+  stops: Array<{ pointId: number; position: number }> | undefined | null,
+  fromPointId: number,
+  toPointId: number
+): boolean {
+  if (!stops?.length || fromPointId === toPointId) return false;
+  const ordered = [...stops]
+    .sort((a, b) => a.position - b.position || a.pointId - b.pointId)
+    .map((s) => s.pointId);
+  const fromIdx = ordered.indexOf(fromPointId);
+  const toIdx = ordered.indexOf(toPointId);
+  if (fromIdx < 0 || toIdx < 0) return false;
+  return fromIdx < toIdx;
+}
+
+/** Resolve arrival HH:MM from explicit arrival or departure + durationMinutes. */
 export function resolveArrivalTime(
   departureTime: string,
   arrivalTime?: string | null,
@@ -98,6 +139,7 @@ export function resolveArrivalTime(
   const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
   return formatHhMm(Math.floor(wrapped / 60), wrapped % 60);
 }
+
 
 export type ValidateTripPointsResult =
   | { ok: true; viaPointIds: number[] }

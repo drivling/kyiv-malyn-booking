@@ -14,6 +14,8 @@ export interface TripPoint {
   requiredOnTrip: boolean;
   appearInFromTo: boolean;
   appearInPoputky: boolean;
+  /** Curated ids for quick-pick chips «X ↔ this city» */
+  quickDirectPointIds?: number[];
   sortOrder: number;
   createdAt?: string;
   updatedAt?: string;
@@ -28,7 +30,14 @@ export interface TripRoute {
   corridorTripRouteId?: number | null;
   startPoint?: TripPoint | null;
   endPoint?: TripPoint | null;
-  stops?: Array<{ id: number; pointId: number; position: number; role: string; point?: TripPoint }>;
+  stops?: Array<{
+    id: number;
+    pointId: number;
+    position: number;
+    role: string;
+    departureOffsetMinutes?: number | null;
+    point?: TripPoint;
+  }>;
 }
 
 export interface Schedule {
@@ -99,6 +108,8 @@ export interface ScheduleFormData {
   startPointId?: number;
   endPointId?: number;
   viaPointIds?: number[];
+  /** Minutes after schedule departure for each stop point (shared on TripRouteStop). */
+  stopOffsets?: Array<{ pointId: number; departureOffsetMinutes: number | null }>;
   vehicleType?: VehicleType | string;
   boardingPlace?: string | null;
   alightingPlace?: string | null;

@@ -102,11 +102,16 @@ class ApiClient {
   }
 
   // Schedule endpoints
-  async getSchedules(route?: string, opts?: { vehicleType?: string; date?: string }): Promise<Schedule[]> {
+  async getSchedules(
+    route?: string,
+    opts?: { vehicleType?: string; date?: string; fromCode?: string; toCode?: string }
+  ): Promise<Schedule[]> {
     const params = new URLSearchParams();
     if (route) params.set('route', route);
     if (opts?.vehicleType) params.set('vehicleType', opts.vehicleType);
     if (opts?.date) params.set('date', opts.date);
+    if (opts?.fromCode) params.set('fromCode', opts.fromCode);
+    if (opts?.toCode) params.set('toCode', opts.toCode);
     const qs = params.toString();
     return this.request<Schedule[]>(qs ? `/schedules?${qs}` : '/schedules');
   }
@@ -162,6 +167,7 @@ class ApiClient {
     appearInFromTo?: boolean;
     appearInPoputky?: boolean;
     sortOrder?: number;
+    quickDirectPointIds?: number[];
   }): Promise<import('@/types').TripPoint> {
     return this.request('/trip-points', { method: 'POST', body: JSON.stringify(data) });
   }
@@ -175,6 +181,7 @@ class ApiClient {
       appearInFromTo: boolean;
       appearInPoputky: boolean;
       sortOrder: number;
+      quickDirectPointIds: number[];
     }>
   ): Promise<import('@/types').TripPoint> {
     return this.request(`/trip-points/${id}`, { method: 'PUT', body: JSON.stringify(data) });

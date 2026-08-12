@@ -48,5 +48,54 @@ describe('mizh transport filters', () => {
       )
     ).toBe(false);
     expect(listingMatchesCities({ route: 'Irpin-Malyn' }, 'Irpin', 'Malyn')).toBe(true);
+
+    const stopsByTripRouteId = new Map([[20, [1, 3, 2]]]); // Kyiv, Irpin, Malyn
+    expect(
+      listingMatchesCities(
+        { route: 'Kyiv-Malyn', tripRouteId: 20, fromPointId: 1, toPointId: 2 },
+        'Irpin',
+        'Malyn',
+        undefined,
+        pointIds,
+        stopsByTripRouteId
+      )
+    ).toBe(true);
+    expect(
+      listingMatchesCities(
+        { route: 'Kyiv-Malyn', tripRouteId: 20, fromPointId: 1, toPointId: 2 },
+        'Malyn',
+        'Irpin',
+        undefined,
+        pointIds,
+        stopsByTripRouteId
+      )
+    ).toBe(false);
+  });
+
+  test('quick chips and boarding time helpers', async () => {
+    const {
+      buildQuickDirectChips,
+      boardingTimeAtStop,
+      citiesFromQuickChip,
+    } = await import('./mizhUtils');
+    const points = [
+      { id: 1, code: 'Kyiv', nameUk: 'Київ' },
+      { id: 2, code: 'Malyn', nameUk: 'Малин', quickDirectPointIds: [1, 4] },
+      { id: 4, code: 'Korosten', nameUk: 'Коростень' },
+    ];
+    const chips = buildQuickDirectChips(points[1], points);
+    expect(chips.map((c) => c.label)).toEqual(['Київ ↔ Малин', 'Коростень ↔ Малин']);
+    expect(citiesFromQuickChip('Malyn', 'Kyiv', true)).toEqual({ from: 'Malyn', to: 'Kyiv' });
+    expect(
+      boardingTimeAtStop(
+        '08:00',
+        [
+          { pointId: 1, position: 0, departureOffsetMinutes: 0 },
+          { pointId: 3, position: 1, departureOffsetMinutes: 45 },
+          { pointId: 2, position: 2, departureOffsetMinutes: 90 },
+        ],
+        3
+      )
+    ).toBe('08:45');
   });
 });

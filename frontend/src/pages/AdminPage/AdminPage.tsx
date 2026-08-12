@@ -18,6 +18,17 @@ export const AdminPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [tripPoints, setTripPoints] = useState<TripPoint[]>([]);
+  const [isTripPointModalOpen, setIsTripPointModalOpen] = useState(false);
+  const [editingTripPoint, setEditingTripPoint] = useState<TripPoint | null>(null);
+  const [tripPointForm, setTripPointForm] = useState({
+    code: '',
+    nameUk: '',
+    sortOrder: 0,
+    requiredOnTrip: false,
+    appearInFromTo: true,
+    appearInPoputky: false,
+    quickDirectPointIds: [] as number[],
+  });
   const [viberListings, setViberListings] = useState<ViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +51,7 @@ export const AdminPage: React.FC = () => {
     startPointId: undefined,
     endPointId: undefined,
     viaPointIds: [],
+    stopOffsets: [],
     vehicleType: 'marshrutka',
     boardingPlace: '',
     alightingPlace: '',
@@ -787,6 +799,7 @@ export const AdminPage: React.FC = () => {
     startPointId: tripPoints.find((p) => p.code === 'Kyiv')?.id,
     endPointId: tripPoints.find((p) => p.code === 'Malyn')?.id,
     viaPointIds: tripPoints.find((p) => p.code === 'Irpin') ? [tripPoints.find((p) => p.code === 'Irpin')!.id] : [],
+    stopOffsets: [],
     vehicleType: 'marshrutka',
     boardingPlace: '',
     alightingPlace: '',
@@ -797,9 +810,64 @@ export const AdminPage: React.FC = () => {
     activeWeekdays: [1, 2, 3, 4, 5, 6, 7],
   });
 
+  const openTripPointModal = (point?: TripPoint) => {
+    if (point) {
+      setEditingTripPoint(point);
+      setTripPointForm({
+        code: point.code,
+        nameUk: point.nameUk,
+        sortOrder: point.sortOrder,
+        requiredOnTrip: point.requiredOnTrip,
+        appearInFromTo: point.appearInFromTo,
+        appearInPoputky: point.appearInPoputky,
+        quickDirectPointIds: Array.isArray(point.quickDirectPointIds) ? [...point.quickDirectPointIds] : [],
+      });
+    } else {
+      setEditingTripPoint(null);
+      setTripPointForm({
+        code: '',
+        nameUk: '',
+        sortOrder: (tripPoints[tripPoints.length - 1]?.sortOrder ?? 0) + 10,
+        requiredOnTrip: false,
+        appearInFromTo: true,
+        appearInPoputky: false,
+        quickDirectPointIds: [],
+      });
+    }
+    setIsTripPointModalOpen(true);
+  };
+
+  const handleSaveTripPoint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingTripPoint) {
+        await apiClient.updateTripPoint(editingTripPoint.id, tripPointForm);
+      } else {
+        await apiClient.createTripPoint(tripPointForm);
+      }
+      setIsTripPointModalOpen(false);
+      loadSchedules();
+      setSuccess(editingTripPoint ? 'Місто оновлено' : 'Місто додано');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Помилка збереження міста');
+    }
+  };
+
+  const handleDeleteTripPoint = async (point: TripPoint) => {
+    if (!window.confirm(`Видалити місто «${point.nameUk}» (${point.code})?`)) return;
+    try {
+      await apiClient.deleteTripPoint(point.id);
+      loadSchedules();
+      setSuccess('Місто видалено');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Не вдалося видалити (можливо, місто вже використовується)');
+    }
+  };
+
   const openScheduleModal = (schedule?: Schedule) => {
     if (schedule) {
       setEditingSchedule(schedule);
+      const stops = schedule.tripRoute?.stops ?? [];
       setScheduleForm({
         route: schedule.route,
         departureTime: schedule.departureTime,
@@ -809,6 +877,10 @@ export const AdminPage: React.FC = () => {
         startPointId: schedule.startPointId ?? undefined,
         endPointId: schedule.endPointId ?? undefined,
         viaPointIds: Array.isArray(schedule.viaPointIds) ? schedule.viaPointIds : [],
+        stopOffsets: stops.map((s) => ({
+          pointId: s.pointId,
+          departureOffsetMinutes: s.departureOffsetMinutes ?? null,
+        })),
         vehicleType: schedule.vehicleType || 'marshrutka',
         boardingPlace: schedule.boardingPlace ?? '',
         alightingPlace: schedule.alightingPlace ?? '',
@@ -1187,15 +1259,21 @@ export const AdminPage: React.FC = () => {
             </div>
 
             <div className="table-container" style={{ marginBottom: 24 }}>
-              <h3 style={{ margin: '0 0 8px' }}>Точки маршруту</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                <h3 style={{ margin: 0 }}>Міста / точки маршруту</h3>
+                <Button type="button" onClick={() => openTripPointModal()}>Додати місто</Button>
+              </div>
               <table>
                 <thead>
                   <tr>
                     <th>Code</th>
                     <th>Назва</th>
-                    <th>Обовʼязкова на рейсі</th>
+                    <th>Sort</th>
+                    <th>Обовʼязкова</th>
                     <th>У «звідки/куди»</th>
                     <th>У попутках</th>
+                    <th>Швидкі напрямки</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1203,47 +1281,22 @@ export const AdminPage: React.FC = () => {
                     <tr key={p.id}>
                       <td>{p.code}</td>
                       <td>{p.nameUk}</td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={p.requiredOnTrip}
-                          onChange={async (e) => {
-                            try {
-                              await apiClient.updateTripPoint(p.id, { requiredOnTrip: e.target.checked });
-                              loadSchedules();
-                            } catch (err) {
-                              alert(err instanceof Error ? err.message : 'Помилка');
-                            }
-                          }}
-                        />
+                      <td>{p.sortOrder}</td>
+                      <td>{p.requiredOnTrip ? 'так' : '—'}</td>
+                      <td>{p.appearInFromTo ? 'так' : '—'}</td>
+                      <td>{p.appearInPoputky ? 'так' : '—'}</td>
+                      <td style={{ fontSize: 12, maxWidth: 220 }}>
+                        {(p.quickDirectPointIds || [])
+                          .map((id) => tripPoints.find((x) => x.id === id)?.nameUk || `#${id}`)
+                          .join(', ') || '—'}
                       </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={p.appearInFromTo}
-                          onChange={async (e) => {
-                            try {
-                              await apiClient.updateTripPoint(p.id, { appearInFromTo: e.target.checked });
-                              loadSchedules();
-                            } catch (err) {
-                              alert(err instanceof Error ? err.message : 'Помилка');
-                            }
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={p.appearInPoputky}
-                          onChange={async (e) => {
-                            try {
-                              await apiClient.updateTripPoint(p.id, { appearInPoputky: e.target.checked });
-                              loadSchedules();
-                            } catch (err) {
-                              alert(err instanceof Error ? err.message : 'Помилка');
-                            }
-                          }}
-                        />
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <Button type="button" variant="secondary" onClick={() => openTripPointModal(p)}>
+                          Редагувати
+                        </Button>{' '}
+                        <Button type="button" variant="secondary" onClick={() => handleDeleteTripPoint(p)}>
+                          Видалити
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -2423,6 +2476,108 @@ export const AdminPage: React.FC = () => {
         )}
 
         {/* Модальне вікно для графіку */}
+        {isTripPointModalOpen && (
+          <div className="modal" onClick={(e) => e.target === e.currentTarget && setIsTripPointModalOpen(false)}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>{editingTripPoint ? `Редагувати місто #${editingTripPoint.id}` : 'Додати місто'}</h2>
+                <button className="close-btn" onClick={() => setIsTripPointModalOpen(false)}>
+                  &times;
+                </button>
+              </div>
+              <form onSubmit={handleSaveTripPoint}>
+                <Input
+                  label="Code * (латиниця, унікальний)"
+                  value={tripPointForm.code}
+                  onChange={(e) => setTripPointForm({ ...tripPointForm, code: e.target.value })}
+                  required
+                  placeholder="Zviahel"
+                />
+                <Input
+                  label="Назва (uk) *"
+                  value={tripPointForm.nameUk}
+                  onChange={(e) => setTripPointForm({ ...tripPointForm, nameUk: e.target.value })}
+                  required
+                  placeholder="Звягель"
+                />
+                <Input
+                  label="Sort order"
+                  type="number"
+                  value={tripPointForm.sortOrder}
+                  onChange={(e) =>
+                    setTripPointForm({ ...tripPointForm, sortOrder: Number(e.target.value) || 0 })
+                  }
+                />
+                <label className="admin-checkbox" style={{ display: 'block', marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={tripPointForm.requiredOnTrip}
+                    onChange={(e) =>
+                      setTripPointForm({ ...tripPointForm, requiredOnTrip: e.target.checked })
+                    }
+                  />
+                  <span>Обовʼязкова на рейсі</span>
+                </label>
+                <label className="admin-checkbox" style={{ display: 'block', marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={tripPointForm.appearInFromTo}
+                    onChange={(e) =>
+                      setTripPointForm({ ...tripPointForm, appearInFromTo: e.target.checked })
+                    }
+                  />
+                  <span>У «звідки/куди» (маршрутки)</span>
+                </label>
+                <label className="admin-checkbox" style={{ display: 'block', marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={tripPointForm.appearInPoputky}
+                    onChange={(e) =>
+                      setTripPointForm({ ...tripPointForm, appearInPoputky: e.target.checked })
+                    }
+                  />
+                  <span>У попутках</span>
+                </label>
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>
+                    Швидкі напрямки (без пересадки) для чипів на сайті
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {tripPoints
+                      .filter((p) => p.id !== editingTripPoint?.id)
+                      .map((p) => {
+                        const checked = tripPointForm.quickDirectPointIds.includes(p.id);
+                        return (
+                          <label key={p.id} className="admin-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setTripPointForm({
+                                  ...tripPointForm,
+                                  quickDirectPointIds: checked
+                                    ? tripPointForm.quickDirectPointIds.filter((id) => id !== p.id)
+                                    : [...tripPointForm.quickDirectPointIds, p.id],
+                                });
+                              }}
+                            />
+                            <span>{p.nameUk}</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <Button type="button" variant="secondary" onClick={() => setIsTripPointModalOpen(false)}>
+                    Скасувати
+                  </Button>
+                  <Button type="submit">Зберегти</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {isScheduleModalOpen && (
           <div className="modal" onClick={(e) => e.target === e.currentTarget && setIsScheduleModalOpen(false)}>
             <div className="modal-content">
@@ -2482,6 +2637,52 @@ export const AdminPage: React.FC = () => {
                               }}
                             />
                             <span>{p.nameUk}</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>
+                    Зсув часу посадки на зупинках (хв від старту рейсу)
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[
+                      scheduleForm.startPointId,
+                      ...(scheduleForm.viaPointIds || []),
+                      scheduleForm.endPointId,
+                    ]
+                      .filter((id): id is number => id != null)
+                      .map((pointId) => {
+                        const p = tripPoints.find((x) => x.id === pointId);
+                        const cur =
+                          scheduleForm.stopOffsets?.find((s) => s.pointId === pointId)
+                            ?.departureOffsetMinutes ?? '';
+                        return (
+                          <label
+                            key={pointId}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}
+                          >
+                            <span style={{ minWidth: 120 }}>{p?.nameUk || `#${pointId}`}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              value={cur === null || cur === undefined ? '' : cur}
+                              onChange={(e) => {
+                                const val =
+                                  e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value)));
+                                const rest = (scheduleForm.stopOffsets || []).filter(
+                                  (s) => s.pointId !== pointId
+                                );
+                                setScheduleForm({
+                                  ...scheduleForm,
+                                  stopOffsets: [...rest, { pointId, departureOffsetMinutes: val }],
+                                });
+                              }}
+                              style={{ width: 80, padding: '4px 8px' }}
+                            />
+                            <span style={{ color: '#666', fontSize: 12 }}>хв</span>
                           </label>
                         );
                       })}

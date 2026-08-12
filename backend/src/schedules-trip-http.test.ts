@@ -16,6 +16,7 @@ type Point = {
   requiredOnTrip: boolean;
   appearInFromTo: boolean;
   appearInPoputky: boolean;
+  quickDirectPointIds: number[];
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -56,10 +57,10 @@ type TripRouteRow = {
 function seedPoints(): Point[] {
   const now = new Date();
   return [
-    { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, sortOrder: 10, createdAt: now, updatedAt: now },
-    { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, appearInPoputky: true, sortOrder: 20, createdAt: now, updatedAt: now },
-    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, appearInPoputky: true, sortOrder: 50, createdAt: now, updatedAt: now },
-    { id: 4, code: 'Korosten', nameUk: 'Коростень', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, sortOrder: 40, createdAt: now, updatedAt: now },
+    { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 10, createdAt: now, updatedAt: now },
+    { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 20, createdAt: now, updatedAt: now },
+    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 50, createdAt: now, updatedAt: now },
+    { id: 4, code: 'Korosten', nameUk: 'Коростень', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 40, createdAt: now, updatedAt: now },
   ];
 }
 
@@ -94,6 +95,7 @@ function createTripPrismaStub(store: {
           requiredOnTrip: Boolean(data.requiredOnTrip),
           appearInFromTo: data.appearInFromTo !== false,
           appearInPoputky: Boolean(data.appearInPoputky),
+          quickDirectPointIds: Array.isArray(data.quickDirectPointIds) ? data.quickDirectPointIds : [],
           sortOrder: data.sortOrder ?? 0,
           createdAt: new Date(),
           updatedAt: new Date(),

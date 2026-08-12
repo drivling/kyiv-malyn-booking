@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   buildFromToPairs,
   buildLegacyRouteKey,
+  boardingTimeAtStop,
   corridorSlugFromRouteSlug,
   defaultLabelUk,
   isScheduleActiveOnDate,
@@ -9,6 +10,7 @@ import {
   normalizeViaPointIds,
   parseLegacyRoute,
   resolveArrivalTime,
+  scheduleMatchesOdAlongStops,
   validateTripPointSelection,
 } from './schedule-trip';
 
@@ -95,5 +97,17 @@ describe('weekdays / arrival / terminals', () => {
     expect(normalizeViaPointIds([3, 3, 'x', 2])).toEqual([3, 2]);
     expect(corridorSlugFromRouteSlug('Kyiv-Malyn-Irpin')).toBe('Kyiv-Malyn');
     expect(defaultLabelUk('Kyiv', 'Malyn', ['Irpin'])).toContain('Ірпінь');
+  });
+
+  test('boarding time and OD along stops', () => {
+    const stops = [
+      { pointId: 1, position: 0, departureOffsetMinutes: 0 },
+      { pointId: 3, position: 1, departureOffsetMinutes: 40 },
+      { pointId: 2, position: 2, departureOffsetMinutes: 95 },
+    ];
+    expect(scheduleMatchesOdAlongStops(stops, 3, 2)).toBe(true);
+    expect(scheduleMatchesOdAlongStops(stops, 2, 3)).toBe(false);
+    expect(boardingTimeAtStop('07:00', stops, 3)).toBe('07:40');
+    expect(boardingTimeAtStop('07:00', stops, 1)).toBe('07:00');
   });
 });
