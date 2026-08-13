@@ -4,6 +4,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildOdMatchWhere,
+  buildOdPairsFromTripRoutes,
   buildOdRouteSlug,
   classifyPoputkyRouteMatch,
   formatOdRouteLabel,
@@ -23,6 +24,41 @@ describe('poputky-od', () => {
 
   test('buildOdRouteSlug', () => {
     expect(buildOdRouteSlug('Irpin', 'Malyn')).toBe('Irpin-Malyn');
+  });
+
+  test('buildOdPairsFromTripRoutes: corridor + along-variant non-hub', () => {
+    const pairs = buildOdPairsFromTripRoutes([
+      {
+        id: 1,
+        slug: 'Kyiv-Malyn',
+        corridorTripRouteId: null,
+        startPoint: { id: 1, code: 'Kyiv', nameUk: 'Київ' },
+        endPoint: { id: 2, code: 'Malyn', nameUk: 'Малин' },
+        stops: [
+          { position: 0, point: { id: 1, code: 'Kyiv', nameUk: 'Київ' } },
+          { position: 1, point: { id: 2, code: 'Malyn', nameUk: 'Малин' } },
+        ],
+      },
+      {
+        id: 10,
+        slug: 'Kyiv-Korosten-Malyn',
+        corridorTripRouteId: 1,
+        startPoint: { id: 1, code: 'Kyiv', nameUk: 'Київ' },
+        endPoint: { id: 2, code: 'Malyn', nameUk: 'Малин' },
+        stops: [
+          { position: 0, point: { id: 1, code: 'Kyiv', nameUk: 'Київ' } },
+          { position: 1, point: { id: 3, code: 'Korosten', nameUk: 'Коростень' } },
+          { position: 2, point: { id: 2, code: 'Malyn', nameUk: 'Малин' } },
+        ],
+      },
+    ]);
+    const keys = pairs.map((p) => `${p.fromCode}-${p.toCode}`);
+    expect(keys).toContain('Kyiv-Malyn');
+    expect(keys).toContain('Kyiv-Korosten');
+    expect(keys).toContain('Korosten-Malyn');
+    expect(pairs.find((p) => p.fromCode === 'Kyiv' && p.toCode === 'Korosten')?.labelUk).toBe(
+      'Київ → Коростень'
+    );
   });
 
   test('formatOdRouteLabel uses default map', () => {

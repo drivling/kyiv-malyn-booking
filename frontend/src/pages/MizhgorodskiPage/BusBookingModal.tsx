@@ -40,7 +40,7 @@ export const BusBookingModal: React.FC<Props> = ({
     let cancelled = false;
     setLoadingAvailability(true);
     apiClient
-      .checkAvailability(schedule.route, schedule.departureTime, date)
+      .checkAvailabilityByScheduleId(schedule.id, date)
       .then((data) => {
         if (!cancelled) setAvailability(data);
       })
@@ -53,7 +53,7 @@ export const BusBookingModal: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [schedule.route, schedule.departureTime, date]);
+  }, [schedule.id, date]);
 
   useEffect(() => {
     if (schedule.supportPhone) {
@@ -117,6 +117,7 @@ export const BusBookingModal: React.FC<Props> = ({
         telegramUserId = currentUser.user.id.toString();
       }
       await apiClient.createBooking({
+        scheduleId: schedule.id,
         route: schedule.route,
         date,
         departureTime: schedule.departureTime,

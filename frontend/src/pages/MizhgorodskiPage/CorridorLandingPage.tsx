@@ -6,10 +6,8 @@ import { usePageSeo } from '@/hooks';
 import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '@/pages/SupportPage/supportContent';
 import type { Schedule } from '@/types';
 import {
-  DIRECTION_ROUTES,
   ROUTES,
   formatPhoneDisplay,
-  getDirectionFromCities,
   splitSupportPhones,
 } from '@/utils/constants';
 import {
@@ -52,15 +50,8 @@ export function CorridorLandingPage() {
   const [schedulesLoading, setSchedulesLoading] = useState(Boolean(landing));
   const [schedulesError, setSchedulesError] = useState('');
 
-  const direction = landing ? getDirectionFromCities(landing.from, landing.to) : null;
-  const routesKey = direction ? DIRECTION_ROUTES[direction].join('|') : '';
-  const routes = useMemo(
-    () => (direction ? DIRECTION_ROUTES[direction] : []),
-    [direction]
-  );
-
   useEffect(() => {
-    if (!landing || routes.length === 0) {
+    if (!landing) {
       setSchedules([]);
       setSchedulesLoading(false);
       return;
@@ -68,11 +59,11 @@ export function CorridorLandingPage() {
     let cancelled = false;
     setSchedulesLoading(true);
     setSchedulesError('');
-    Promise.all(routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => [] as Schedule[])))
-      .then((chunks) => {
+    apiClient
+      .getSchedules(undefined, { fromCode: landing.from, toCode: landing.to })
+      .then((rows) => {
         if (cancelled) return;
-        const merged = chunks
-          .flat()
+        const merged = rows
           .slice()
           .sort((a, b) => a.departureTime.localeCompare(b.departureTime) || a.route.localeCompare(b.route));
         setSchedules(merged);
@@ -86,7 +77,7 @@ export function CorridorLandingPage() {
     return () => {
       cancelled = true;
     };
-  }, [landing, routes, routesKey]);
+  }, [landing]);
 
   const faq = useMemo(
     () => (landing ? buildScheduleFaq(landing, schedules) : []),

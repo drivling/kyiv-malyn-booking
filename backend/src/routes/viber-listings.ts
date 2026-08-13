@@ -59,10 +59,18 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
   });
 
   r.get('/viber-listings/search', async (req, res) => {
-    const { route, date } = req.query;
+    const { route, date, fromCode, toCode } = req.query;
 
-    if (!route || !date) {
-      return res.status(400).json({ error: 'Route and date are required' });
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+    const hasOd =
+      typeof fromCode === 'string' &&
+      typeof toCode === 'string' &&
+      fromCode.trim() &&
+      toCode.trim();
+    if (!route && !hasOd) {
+      return res.status(400).json({ error: 'fromCode+toCode or route is required' });
     }
 
     try {
@@ -72,17 +80,67 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       const endOfDay = new Date(searchDate);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const listings = await prisma.viberListing.findMany({
-        where: {
-          route: route as string,
-          date: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          isActive: true,
+      const dateFilter = {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
         },
-        orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
-      });
+        isActive: true,
+      };
+
+      let listings;
+      if (hasOd) {
+        const points = await prisma.tripPoint.findMany();
+        const from = points.find(
+          (p) => p.code.toLowerCase() === String(fromCode).trim().toLowerCase()
+        );
+        const to = points.find(
+          (p) => p.code.toLowerCase() === String(toCode).trim().toLowerCase()
+        );
+        if (!from || !to) {
+          return res.json([]);
+        }
+        const tripRoutes = await prisma.tripRoute.findMany({
+          include: {
+            stops: { orderBy: { position: 'asc' }, select: { pointId: true, position: true } },
+          },
+        });
+        const alongTripRouteIds = tripRoutes
+          .filter((tr) => {
+            const ids = tr.stops.map((s) => s.pointId);
+            const fi = ids.indexOf(from.id);
+            const ti = ids.indexOf(to.id);
+            return fi >= 0 && ti >= 0 && fi < ti;
+          })
+          .map((tr) => tr.id);
+
+        listings = await prisma.viberListing.findMany({
+          where: {
+            ...dateFilter,
+            OR: [
+              { fromPointId: from.id, toPointId: to.id },
+              ...(alongTripRouteIds.length
+                ? [{ tripRouteId: { in: alongTripRouteIds } }]
+                : []),
+              ...(route ? [{ route: route as string, fromPointId: null, toPointId: null }] : []),
+              {
+                route: `${from.code}-${to.code}`,
+                fromPointId: null,
+                toPointId: null,
+              },
+            ],
+          },
+          orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+        });
+      } else {
+        listings = await prisma.viberListing.findMany({
+          where: {
+            ...dateFilter,
+            route: route as string,
+          },
+          orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+        });
+      }
 
       res.json(listings.map(serializeViberListing));
     } catch (error) {

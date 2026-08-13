@@ -10,7 +10,7 @@ export const BOOKING_CITY_LABELS: Record<BookingCity, string> = {
   Korosten: 'Коростень',
 };
 
-/** Валідні пари «звідки → куди»: лише маршрути через Малин (немає Київ–Коростень тощо) */
+/** Валідні пари «звідки → куди» (fallback, якщо /od-pairs недоступний). Primary = API od-pairs. */
 export const BOOKING_FROM_TO: { from: BookingCity; to: BookingCity; direction: Direction }[] = [
   { from: 'Kyiv', to: 'Malyn', direction: 'Kyiv-Malyn' },
   { from: 'Malyn', to: 'Kyiv', direction: 'Malyn-Kyiv' },
@@ -159,7 +159,7 @@ export const DIRECTIONS: Record<Direction, string> = {
   'Malyn-Korosten': 'Малин → Коростень',
 };
 
-// Маршрути для кожного напрямку
+// Маршрути для кожного напрямку (i18n / legacy fallback; primary schedules via fromCode+toCode)
 export const DIRECTION_ROUTES: Record<Direction, Route[]> = {
   'Kyiv-Malyn': ['Kyiv-Malyn-Irpin', 'Kyiv-Malyn-Bucha'],
   'Malyn-Kyiv': ['Malyn-Kyiv-Irpin', 'Malyn-Kyiv-Bucha'],

@@ -69,13 +69,19 @@ export async function createOrMergeViberListing(
   const candidates = await prisma.viberListing.findMany({
     where: {
       listingType: data.listingType,
-      route: data.route,
       isActive: true,
       date: {
         gte: startOfDay,
         lt: endOfDay,
       },
       departureTime: data.departureTime ?? null,
+      OR: [
+        ...(odFields.fromPointId != null && odFields.toPointId != null
+          ? [{ fromPointId: odFields.fromPointId, toPointId: odFields.toPointId }]
+          : []),
+        ...(odFields.tripRouteId != null ? [{ tripRouteId: odFields.tripRouteId }] : []),
+        { route: data.route },
+      ],
     },
     orderBy: { createdAt: 'desc' },
   });

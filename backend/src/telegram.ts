@@ -53,6 +53,7 @@ import {
   classifyPoputkyRouteMatch,
   DEFAULT_POINT_LABELS_UK,
   formatOdRouteLabel,
+  listOdPairs,
   orderedPointIdsFromStops,
   type PoputkyRouteMatchKind,
 } from './poputky-od';
@@ -1494,8 +1495,8 @@ function buildPoputkyToKeyboard(
   return { inline_keyboard: rows };
 }
 
-/** Напрямки для електрички (поки corridor-based). */
-const BOOK_DIRECTION_OPTIONS: Array<{ route: string; label: string }> = [
+/** Напрямки для електрички — fallback; primary = listOdPairs(). */
+const BOOK_DIRECTION_OPTIONS_FALLBACK: Array<{ route: string; label: string }> = [
   { route: 'Kyiv-Malyn', label: 'Київ → Малин' },
   { route: 'Malyn-Kyiv', label: 'Малин → Київ' },
   { route: 'Malyn-Zhytomyr', label: 'Малин → Житомир' },
@@ -1504,29 +1505,45 @@ const BOOK_DIRECTION_OPTIONS: Array<{ route: string; label: string }> = [
   { route: 'Malyn-Korosten', label: 'Малин → Коростень' },
 ];
 
-function buildBookTypeKeyboard(): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
-  return {
-    inline_keyboard: [
-      [{ text: '🚌 Маршрутка', callback_data: 'book_type_marshrutka' }],
-      [{ text: '🚆 Електричка', callback_data: 'book_type_elektrichka' }],
-      [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
-    ],
-  };
+async function loadBookDirectionOptions(): Promise<Array<{ route: string; label: string }>> {
+  try {
+    const pairs = await listOdPairs(tgPrisma);
+    if (pairs.length) {
+      return pairs.map((p) => ({
+        route: `${p.fromCode}-${p.toCode}`,
+        label: p.labelUk,
+      }));
+    }
+  } catch (err) {
+    console.error('loadBookDirectionOptions failed', err);
+  }
+  return BOOK_DIRECTION_OPTIONS_FALLBACK;
 }
 
-function buildBookDirectionKeyboard(
+async function buildBookDirectionKeyboard(
   prefix: 'book_dir' | 'el_dir',
   emoji: string
-): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
+): Promise<{ inline_keyboard: Array<Array<{ text: string; callback_data: string }>> }> {
+  const options = await loadBookDirectionOptions();
   return {
     inline_keyboard: [
-      ...BOOK_DIRECTION_OPTIONS.map((d) => [
+      ...options.map((d) => [
         { text: `${emoji} ${d.label}`, callback_data: `${prefix}_${d.route}` },
       ]),
       [
         { text: '⬅️ Назад', callback_data: 'book_type_back' },
         { text: '❌ Скасувати', callback_data: 'book_cancel' },
       ],
+    ],
+  };
+}
+
+function buildBookTypeKeyboard(): { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> } {
+  return {
+    inline_keyboard: [
+      [{ text: '🚌 Маршрутка', callback_data: 'book_type_marshrutka' }],
+      [{ text: '🚆 Електричка', callback_data: 'book_type_elektrichka' }],
+      [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
     ],
   };
 }
@@ -6529,7 +6546,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: buildBookDirectionKeyboard('el_dir', '🚆'),
+            reply_markup: await buildBookDirectionKeyboard('el_dir', '🚆'),
           }
         );
         await bot?.answerCallbackQuery(query.id);
@@ -6687,8 +6704,14 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
 
             const existingBookings = await tgPrisma.booking.findMany({
               where: {
-                route: schedule.route,
-                departureTime: schedule.departureTime,
+                OR: [
+                  { scheduleId: schedule.id },
+                  {
+                    scheduleId: null,
+                    route: schedule.route,
+                    departureTime: schedule.departureTime,
+                  },
+                ],
                 date: { gte: startOfDay, lte: endOfDay },
               },
             });
@@ -6706,7 +6729,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             return {
               text: `${emoji} ${boardTime} (${availableSeats}/${schedule.maxSeats})`,
               callback_data: isAvailable
-                ? `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate.replace(/-/g, '_')}`
+                ? `book_sched_${schedule.id}_${selectedDate.replace(/-/g, '_')}`
                 : 'book_unavailable',
             };
           })
@@ -6931,9 +6954,9 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         const purchaseKeyboard = buildElektrichkaPurchaseKeyboard(schedule);
         // Додати «Назад» до списку часів
         const dateForCallback = selectedDate.replace(/-/g, '_');
-        const direction = BOOK_DIRECTION_OPTIONS.find((d) =>
-          schedule.route.startsWith(d.route)
-        )?.route ?? route.split('-').slice(0, 2).join('-');
+        const direction =
+          schedule.route.split('-').slice(0, 2).join('-') ||
+          (typeof route === 'string' ? route.split('-').slice(0, 2).join('-') : 'Kyiv-Malyn');
         purchaseKeyboard.inline_keyboard.push([
           {
             text: '⬅️ Назад',
@@ -6958,117 +6981,143 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         }
       }
       
-      // Вибір часу - запитати кількість місць
+      // Legacy book_time_* — no dual-read; ask user to restart
       if (data.startsWith('book_time_') && data !== 'book_unavailable') {
-        const parts = data.replace('book_time_', '').split('_');
-        // Формат: route_time_YYYY_MM_DD (дата - останні 3 частини)
-        const selectedDate = parts.slice(-3).join('-');
-        const time = parts[parts.length - 4]; // час перед датою
-        // Route - все що до часу
-        const route = parts.slice(0, -4).join('-');
-        
+        await bot?.answerCallbackQuery(query.id, {
+          text: 'Оновіть меню: /book',
+          show_alert: true,
+        });
+        return;
+      }
+
+      // Вибір часу за scheduleId — запитати кількість місць
+      if (
+        data.startsWith('book_sched_') &&
+        !data.startsWith('book_sched_seats_') &&
+        !data.startsWith('book_sched_confirm_')
+      ) {
+        const parts = data.replace('book_sched_', '').split('_');
+        // Format: scheduleId_YYYY_MM_DD
+        if (parts.length < 4) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Некоректні дані' });
+          return;
+        }
+        const scheduleId = Number(parts[0]);
+        const selectedDate = parts.slice(1).join('-');
         const dateForCallback = selectedDate.replace(/-/g, '_');
+
+        const schedule = await tgPrisma.schedule.findUnique({
+          where: { id: scheduleId },
+          include: { tripRoute: { include: { startPoint: true, endPoint: true } } },
+        });
+        if (!schedule) {
+          await bot?.answerCallbackQuery(query.id, { text: 'Рейс не знайдено', show_alert: true });
+          return;
+        }
+
+        const routeLabel = schedule.tripRoute?.labelUk?.trim() || getRouteName(schedule.route);
+
         const seatsKeyboard = {
           inline_keyboard: [
-            [{ text: '1 місце', callback_data: `book_seats_${route}_${time}_${dateForCallback}_1` }],
-            [{ text: '2 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_2` }],
-            [{ text: '3 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_3` }],
-            [{ text: '4 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_4` }],
-            [
-              { text: '⬅️ Назад', callback_data: `book_date_${route}_${dateForCallback}` },
-              { text: '❌ Скасувати', callback_data: 'book_cancel' }
-            ]
-          ]
+            [{ text: '1 місце', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_1` }],
+            [{ text: '2 місця', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_2` }],
+            [{ text: '3 місця', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_3` }],
+            [{ text: '4 місця', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_4` }],
+            [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
+          ],
         };
-        
+
         await bot?.editMessageText(
           '🎫 <b>Нове бронювання</b>\n\n' +
-          `✅ Напрямок: ${getRouteName(route)}\n` +
-          `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
-          `✅ Час: ${time}\n\n` +
-          '4️⃣ Скільки місць забронювати?',
+            `✅ Напрямок: ${routeLabel}\n` +
+            `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
+            `✅ Час: ${schedule.departureTime}\n\n` +
+            '4️⃣ Скільки місць забронювати?',
           {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: seatsKeyboard
+            reply_markup: seatsKeyboard,
           }
         );
-        
+
         await bot?.answerCallbackQuery(query.id);
       }
-      
-      // Вибір кількості місць - показати підтвердження
-      if (data.startsWith('book_seats_')) {
-        const parts = data.replace('book_seats_', '').split('_');
-        // Формат: route_time_YYYY_MM_DD_seats (останній - seats, перед ним дата)
+
+      if (data.startsWith('book_sched_seats_')) {
+        const parts = data.replace('book_sched_seats_', '').split('_');
+        // scheduleId_YYYY_MM_DD_seats
         const seats = parts[parts.length - 1];
-        const selectedDate = parts.slice(-4, -1).join('-');
-        const time = parts[parts.length - 5];
-        const route = parts.slice(0, -5).join('-');
+        const selectedDate = parts.slice(1, -1).join('-');
+        const scheduleId = Number(parts[0]);
         const dateForCallback = selectedDate.replace(/-/g, '_');
-        
+
+        const schedule = await tgPrisma.schedule.findUnique({
+          where: { id: scheduleId },
+          include: { tripRoute: true },
+        });
+        const routeLabel =
+          schedule?.tripRoute?.labelUk?.trim() || (schedule ? getRouteName(schedule.route) : '—');
+
         const confirmKeyboard = {
           inline_keyboard: [
-            [{ text: '✅ Підтвердити бронювання', callback_data: `book_confirm_${route}_${time}_${dateForCallback}_${seats}` }],
-            [{ text: '❌ Скасувати', callback_data: 'book_cancel' }]
-          ]
+            [
+              {
+                text: '✅ Підтвердити бронювання',
+                callback_data: `book_sched_confirm_${scheduleId}_${dateForCallback}_${seats}`,
+              },
+            ],
+            [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
+          ],
         };
-        
+
         await bot?.editMessageText(
           '🎫 <b>Підтвердження бронювання</b>\n\n' +
-          `📍 <b>Маршрут:</b> ${getRouteName(route)}\n` +
-          `📅 <b>Дата:</b> ${formatDate(new Date(selectedDate))}\n` +
-          `🕐 <b>Час:</b> ${time}\n` +
-          `🎫 <b>Місць:</b> ${seats}\n\n` +
-          '⚠️ Підтверджуєте бронювання?',
+            `📍 <b>Маршрут:</b> ${routeLabel}\n` +
+            `📅 <b>Дата:</b> ${formatDate(new Date(selectedDate))}\n` +
+            `🕐 <b>Час:</b> ${schedule?.departureTime ?? '—'}\n` +
+            `🎫 <b>Місць:</b> ${seats}\n\n` +
+            '⚠️ Підтверджуєте бронювання?',
           {
             chat_id: chatId,
             message_id: messageId,
             parse_mode: 'HTML',
-            reply_markup: confirmKeyboard
+            reply_markup: confirmKeyboard,
           }
         );
-        
+
         await bot?.answerCallbackQuery(query.id);
       }
-      
-      // Підтвердження створення бронювання
-      if (data.startsWith('book_confirm_')) {
-        const parts = data.replace('book_confirm_', '').split('_');
-        // Формат: route_time_YYYY_MM_DD_seats
+
+      if (data.startsWith('book_sched_confirm_')) {
+        const parts = data.replace('book_sched_confirm_', '').split('_');
         const seats = Number(parts[parts.length - 1]);
-        const selectedDate = parts.slice(-4, -1).join('-');
-        const time = parts[parts.length - 5];
-        const route = parts.slice(0, -5).join('-');
-        
+        const selectedDate = parts.slice(1, -1).join('-');
+        const scheduleId = Number(parts[0]);
+
         try {
-          // Дані користувача: з останнього бронювання або з Person (якщо реєструвався тільки через бота)
           const userBooking = await tgPrisma.booking.findFirst({
-            where: { telegramUserId: userId }
+            where: { telegramUserId: userId },
           });
           const person = await getPersonByTelegram(userId, chatId);
           const userName = userBooking?.name ?? person?.fullName?.trim() ?? 'Клієнт';
           const userPhone = userBooking?.phone ?? person?.phoneNormalized;
           const userPersonId = userBooking?.personId ?? person?.id;
-          
+
           if (!userPhone) {
             throw new Error('Користувач не знайдений. Напишіть /start і надішліть номер телефону.');
           }
-          
-          // Перевірити доступність місць
+
           const startOfDay = new Date(selectedDate);
           startOfDay.setHours(0, 0, 0, 0);
           const endOfDay = new Date(selectedDate);
           endOfDay.setHours(23, 59, 59, 999);
-          
-          const schedule = await tgPrisma.schedule.findFirst({
-            where: {
-              route,
-              departureTime: time
-            }
+
+          const schedule = await tgPrisma.schedule.findUnique({
+            where: { id: scheduleId },
+            include: { tripRoute: true },
           });
-          
+
           if (!schedule) {
             throw new Error('Графік не знайдено');
           }
@@ -7080,31 +7129,36 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           if (!isScheduleActiveOnDate(schedule.activeWeekdays, selectedDate)) {
             throw new Error('Рейс не курсує в цей день');
           }
-          
+
           const existingBookings = await tgPrisma.booking.findMany({
             where: {
-              route,
-              departureTime: time,
+              OR: [
+                { scheduleId: schedule.id },
+                {
+                  scheduleId: null,
+                  route: schedule.route,
+                  departureTime: schedule.departureTime,
+                },
+              ],
               date: {
                 gte: startOfDay,
-                lte: endOfDay
-              }
-            }
+                lte: endOfDay,
+              },
+            },
           });
-          
+
           const bookedSeats = existingBookings.reduce((sum, b) => sum + b.seats, 0);
           const availableSeats = schedule.maxSeats - bookedSeats;
-          
+
           if (availableSeats < seats) {
             throw new Error(`Недостатньо місць. Доступно: ${availableSeats}, запитано: ${seats}`);
           }
-          
-          // Створити бронювання (прив'язка до Person якщо є)
+
           const booking = await tgPrisma.booking.create({
             data: {
               route: schedule.route,
               date: new Date(selectedDate),
-              departureTime: time,
+              departureTime: schedule.departureTime,
               seats,
               name: userName,
               phone: userPhone,
@@ -7112,63 +7166,83 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
               telegramUserId: userId,
               personId: userPersonId ?? undefined,
               scheduleId: schedule.id,
+              tripRouteId: schedule.tripRouteId,
               source: 'schedule',
             },
           });
-          
+
           console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
-          
+
+          const routeLabel = schedule.tripRoute?.labelUk?.trim() || getRouteName(booking.route);
           const supportPhoneLine = schedule.supportPhone
             ? `\n⚠️ Краще уточнити бронювання за телефоном: ${schedule.supportPhone}\n\n`
             : '\n\n';
           await bot?.editMessageText(
             '📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
-            `🎫 <b>Номер:</b> #${booking.id}\n` +
-            `📍 <b>Маршрут:</b> ${getRouteName(booking.route)}\n` +
-            `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
-            `🕐 <b>Час:</b> ${booking.departureTime}\n` +
-            `🎫 <b>Місць:</b> ${booking.seats}\n` +
-            `👤 <b>Пасажир:</b> ${booking.name}` +
-            supportPhoneLine +
-            '💡 Корисні команди:\n' +
-            '📋 /mybookings - Переглянути всі бронювання\n' +
-            '🌐 /allrides - Переглянути всі активні попутки\n' +
-            '🚫 /cancel - Скасувати бронювання або оголошення попуток\n' +
-            '🎫 /book - Створити ще одне бронювання',
+              `🎫 <b>Номер:</b> #${booking.id}\n` +
+              `📍 <b>Маршрут:</b> ${routeLabel}\n` +
+              `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
+              `🕐 <b>Час:</b> ${booking.departureTime}\n` +
+              `🎫 <b>Місць:</b> ${booking.seats}\n` +
+              `👤 <b>Пасажир:</b> ${booking.name}` +
+              supportPhoneLine +
+              '💡 Корисні команди:\n' +
+              '📋 /mybookings - Переглянути всі бронювання\n' +
+              '🌐 /allrides - Переглянути всі активні попутки\n' +
+              '🚫 /cancel - Скасувати бронювання або оголошення попуток\n' +
+              '🎫 /book - Створити ще одне бронювання',
             {
               chat_id: chatId,
               message_id: messageId,
-              parse_mode: 'HTML'
+              parse_mode: 'HTML',
             }
           );
-          
+
           await bot?.answerCallbackQuery(query.id, {
             text: schedule.supportPhone
               ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
-              : '✅ Заявку прийнято!'
+              : '✅ Заявку прийнято!',
           });
-          
-          // Відправити сповіщення адміну (використовується TELEGRAM_ADMIN_CHAT_ID)
-          await sendBookingNotificationToAdmin(booking).catch((err) => console.error('Telegram notify admin:', err));
+
+          await sendBookingNotificationToAdmin(booking).catch((err) =>
+            console.error('Telegram notify admin:', err)
+          );
         } catch (error: any) {
           console.error('❌ Помилка створення бронювання:', error);
           await bot?.editMessageText(
             '❌ <b>Помилка при створенні бронювання</b>\n\n' +
-            `Деталі: ${error.message || 'Невідома помилка'}\n\n` +
-            'Спробуйте:\n' +
-            '🎫 /book - Почати заново\n' +
-            '🌐 https://malin.kiev.ua - Забронювати на сайті',
+              `Деталі: ${error.message || 'Невідома помилка'}\n\n` +
+              'Спробуйте:\n' +
+              '🎫 /book - Почати заново\n' +
+              '🌐 https://malin.kiev.ua - Забронювати на сайті',
             {
               chat_id: chatId,
               message_id: messageId,
-              parse_mode: 'HTML'
+              parse_mode: 'HTML',
             }
           );
-          
+
           await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
         }
       }
-      
+
+      // Legacy book_seats_ / book_confirm_ (route string SoT) — restart
+      if (data.startsWith('book_seats_') && !data.startsWith('book_sched_seats_')) {
+        await bot?.answerCallbackQuery(query.id, {
+          text: 'Оновіть меню: /book',
+          show_alert: true,
+        });
+        return;
+      }
+
+      if (data.startsWith('book_confirm_') && !data.startsWith('book_sched_confirm_')) {
+        await bot?.answerCallbackQuery(query.id, {
+          text: 'Оновіть меню: /book',
+          show_alert: true,
+        });
+        return;
+      }
+
       // Скасування процесу бронювання
       if (data === 'book_cancel') {
         await bot?.editMessageText(

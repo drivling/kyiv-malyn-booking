@@ -86,6 +86,13 @@ describe('mizh transport filters', () => {
     const chips = buildQuickDirectChips(points[1], points);
     expect(chips.map((c) => c.label)).toEqual(['Київ ↔ Малин', 'Коростень ↔ Малин']);
     expect(citiesFromQuickChip('Malyn', 'Kyiv', true)).toEqual({ from: 'Malyn', to: 'Kyiv' });
+    const { chipsFromOdPairs } = await import('./mizhUtils');
+    const odChips = chipsFromOdPairs('Malyn', [
+      { fromCode: 'Kyiv', toCode: 'Malyn', fromNameUk: 'Київ', toNameUk: 'Малин' },
+      { fromCode: 'Kyiv', toCode: 'Korosten', fromNameUk: 'Київ', toNameUk: 'Коростень' },
+      { fromCode: 'Malyn', toCode: 'Korosten', fromNameUk: 'Малин', toNameUk: 'Коростень' },
+    ]);
+    expect(odChips.map((c) => c.otherCode).sort()).toEqual(['Korosten', 'Kyiv']);
     expect(
       boardingTimeAtStop(
         '08:00',

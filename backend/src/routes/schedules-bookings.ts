@@ -29,6 +29,73 @@ import {
 } from '../schedule-trip';
 import { applyTimetablePreview, buildTimetablePreview, parseTimetablePages } from '../schedule-timetable-sync';
 
+async function buildAvailabilityPayload(
+  prisma: PrismaClient,
+  schedule: {
+    id: number;
+    route: string;
+    departureTime: string;
+    maxSeats: number;
+    vehicleType: string;
+    ticketPurchaseUrl: string | null;
+    activeWeekdays: unknown;
+  },
+  date: string
+) {
+  if (schedule.vehicleType === 'elektrichka') {
+    return {
+      scheduleId: schedule.id,
+      maxSeats: schedule.maxSeats,
+      bookedSeats: 0,
+      availableSeats: 0,
+      isAvailable: false,
+      vehicleType: schedule.vehicleType,
+      ticketPurchaseUrl: schedule.ticketPurchaseUrl,
+    };
+  }
+
+  if (!isScheduleActiveOnDate(schedule.activeWeekdays, date)) {
+    return {
+      scheduleId: schedule.id,
+      maxSeats: schedule.maxSeats,
+      bookedSeats: 0,
+      availableSeats: 0,
+      isAvailable: false,
+      inactiveOnDate: true,
+    };
+  }
+
+  const bookingDate = new Date(date);
+  const startOfDay = new Date(bookingDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(bookingDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      OR: [
+        { scheduleId: schedule.id },
+        { scheduleId: null, route: schedule.route, departureTime: schedule.departureTime },
+      ],
+      date: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+  });
+
+  const bookedSeats = bookings.reduce((sum, booking) => sum + booking.seats, 0);
+  const availableSeats = schedule.maxSeats - bookedSeats;
+
+  return {
+    scheduleId: schedule.id,
+    maxSeats: schedule.maxSeats,
+    bookedSeats,
+    availableSeats,
+    isAvailable: availableSeats > 0,
+  };
+}
+
 const scheduleInclude = {
   startPoint: true,
   endPoint: true,
@@ -379,6 +446,28 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
     }
   });
 
+  /** Preferred availability by scheduleId — register before /schedules/:route/:departureTime/availability. */
+  r.get('/schedules/by-id/:scheduleId/availability', async (req, res) => {
+    const scheduleId = Number(req.params.scheduleId);
+    const { date } = req.query;
+    if (!Number.isInteger(scheduleId) || scheduleId <= 0) {
+      return res.status(400).json({ error: 'Invalid scheduleId' });
+    }
+    if (!date || typeof date !== 'string') {
+      return res.status(400).json({ error: 'Date parameter is required' });
+    }
+    try {
+      const schedule = await prisma.schedule.findUnique({ where: { id: scheduleId } });
+      if (!schedule) {
+        return res.status(404).json({ error: 'Schedule not found' });
+      }
+      return res.json(await buildAvailabilityPayload(prisma, schedule, date));
+    } catch (_error) {
+      res.status(500).json({ error: 'Failed to check availability' });
+    }
+  });
+
+  /** @deprecated Prefer GET /schedules/by-id/:scheduleId/availability */
   r.get('/schedules/:route/:departureTime/availability', async (req, res) => {
     const { route, departureTime } = req.params;
     const { date } = req.query;
@@ -388,12 +477,12 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
     }
 
     try {
-      const schedule = await prisma.schedule.findUnique({
+      const schedule = await prisma.schedule.findFirst({
         where: {
-          route_departureTime: {
-            route,
-            departureTime,
-          },
+          OR: [
+            { tripRoute: { slug: route }, departureTime },
+            { route, departureTime },
+          ],
         },
       });
 
@@ -401,56 +490,7 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
         return res.status(404).json({ error: 'Schedule not found' });
       }
 
-      if (schedule.vehicleType === 'elektrichka') {
-        return res.json({
-          scheduleId: schedule.id,
-          maxSeats: schedule.maxSeats,
-          bookedSeats: 0,
-          availableSeats: 0,
-          isAvailable: false,
-          vehicleType: schedule.vehicleType,
-          ticketPurchaseUrl: schedule.ticketPurchaseUrl,
-        });
-      }
-
-      if (!isScheduleActiveOnDate(schedule.activeWeekdays, date as string)) {
-        return res.json({
-          scheduleId: schedule.id,
-          maxSeats: schedule.maxSeats,
-          bookedSeats: 0,
-          availableSeats: 0,
-          isAvailable: false,
-          inactiveOnDate: true,
-        });
-      }
-
-      const bookingDate = new Date(date as string);
-      const startOfDay = new Date(bookingDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(bookingDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const bookings = await prisma.booking.findMany({
-        where: {
-          route,
-          departureTime,
-          date: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-        },
-      });
-
-      const bookedSeats = bookings.reduce((sum, booking) => sum + booking.seats, 0);
-      const availableSeats = schedule.maxSeats - bookedSeats;
-
-      res.json({
-        scheduleId: schedule.id,
-        maxSeats: schedule.maxSeats,
-        bookedSeats,
-        availableSeats,
-        isAvailable: availableSeats > 0,
-      });
+      res.json(await buildAvailabilityPayload(prisma, schedule, date as string));
     } catch (_error) {
       res.status(500).json({ error: 'Failed to check availability' });
     }
@@ -598,8 +638,13 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
 
   r.post('/bookings', async (req, res) => {
     const { route, date, departureTime, seats, name, phone, scheduleId, telegramUserId } = req.body;
-    if (!route || !date || !departureTime || !seats || !name || !phone) {
+    if (!date || !seats || !name || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+    if (scheduleId == null && (!route || !departureTime)) {
+      return res.status(400).json({
+        error: 'scheduleId is required (or legacy route + departureTime)',
+      });
     }
 
     const phoneValid = validateBookingPhoneInput(phone);
@@ -607,19 +652,38 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       return res.status(400).json({ error: phoneValid.error });
     }
 
-    if (!isValidScheduleDepartureTime(departureTime)) {
+    if (departureTime && !isValidScheduleDepartureTime(departureTime)) {
       return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
     }
 
     let resolvedSchedule =
       scheduleId != null
         ? await prisma.schedule.findUnique({ where: { id: Number(scheduleId) } })
-        : await prisma.schedule.findUnique({
-            where: { route_departureTime: { route, departureTime } },
+        : await prisma.schedule.findFirst({
+            where: {
+              OR: [
+                { tripRoute: { slug: route }, departureTime },
+                { route, departureTime },
+              ],
+            },
           });
 
     if (!resolvedSchedule) {
       return res.status(400).json({ error: 'Schedule not found for this route and time' });
+    }
+
+    if (route && resolvedSchedule.route !== route && resolvedSchedule.tripRouteId) {
+      const tr = await prisma.tripRoute.findUnique({
+        where: { id: resolvedSchedule.tripRouteId },
+        select: { slug: true },
+      });
+      if (tr && tr.slug !== route && resolvedSchedule.route !== route) {
+        return res.status(400).json({ error: 'route does not match scheduleId' });
+      }
+    }
+
+    if (departureTime && resolvedSchedule.departureTime !== departureTime) {
+      return res.status(400).json({ error: 'departureTime does not match scheduleId' });
     }
 
     if (resolvedSchedule.vehicleType === 'elektrichka') {
@@ -748,6 +812,7 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
         name,
         phone,
         scheduleId: resolvedSchedule.id,
+        tripRouteId: resolvedSchedule.tripRouteId,
         telegramChatId,
         telegramUserId: bookingTelegramUserId,
         personId: person.id,

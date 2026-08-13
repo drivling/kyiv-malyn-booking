@@ -56,6 +56,7 @@ model TripRoute {
   stops           TripRouteStop[]
   schedules       Schedule[]
   viberListings   ViberListing[]
+  bookings        Booking[]
 
   @@index([startPointId, endPointId])
   @@index([corridorTripRouteId])
@@ -80,7 +81,7 @@ model TripRouteStop {
 
 model Schedule {
   id            Int      @id @default(autoincrement())
-  route         String   // Snapshot of TripRoute.slug (legacy clients / unique bridge)
+  route         String   // Denormalized TripRoute.slug cache (not SoT; unique is tripRouteId+time)
   departureTime String   // Формат "HH:MM" (наприклад "08:00")
   maxSeats      Int      @default(20) // Максимальна кількість місць
   supportPhone  String?  // Телефон підтримки для уточнення бронювання (напр. +380(93) 170 18 35), для напрямків з Києвом
@@ -116,8 +117,8 @@ model Schedule {
 
   bookings      Booking[]
 
-  @@unique([route, departureTime])
   @@unique([tripRouteId, departureTime])
+  @@index([route, departureTime])
   @@index([startPointId])
   @@index([endPointId])
   @@index([vehicleType])
@@ -240,7 +241,7 @@ model RideCompletionProof {
 
 model Booking {
   id              Int       @id @default(autoincrement())
-  route           String   // Immutable snapshot (TripRoute.slug at booking time)
+  route           String   // Denormalized slug snapshot (not SoT); prefer tripRouteId / scheduleId
   date            DateTime
   departureTime   String   // Час відправлення у форматі "HH:MM"
   seats           Int
@@ -249,6 +250,7 @@ model Booking {
   telegramChatId  String?  // Копія з Person для зворотної сумісності
   telegramUserId  String?  // Копія з Person для зворотної сумісності
   scheduleId      Int?     // Required for source=schedule (app + DB check)
+  tripRouteId     Int?     // Snapshot FK to TripRoute at booking time
   personId        Int?     // Посилання на людину (єдине джерело імені/телефону/Telegram)
   source          String   @default("schedule") // "schedule" — маршрутка, "viber_match" — попутка (водій підтвердив)
   viberListingId  Int?     // Якщо source=viber_match — оголошення водія (ViberListing)
@@ -258,12 +260,14 @@ model Booking {
   createdAt       DateTime @default(now())
 
   schedule     Schedule?     @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  tripRoute    TripRoute?    @relation(fields: [tripRouteId], references: [id], onDelete: SetNull)
   person       Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
   viberListing ViberListing? @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
   fromPoint    TripPoint?    @relation("BookingFromPoint", fields: [fromPointId], references: [id], onDelete: SetNull)
   toPoint      TripPoint?    @relation("BookingToPoint", fields: [toPointId], references: [id], onDelete: SetNull)
 
   @@index([scheduleId])
+  @@index([tripRouteId])
   @@index([fromPointId, toPointId])
 }
 
