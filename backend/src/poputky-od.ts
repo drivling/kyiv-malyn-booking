@@ -200,3 +200,106 @@ export const DEFAULT_POINT_LABELS_UK: Record<string, string> = {
   Irpin: 'Ірпінь',
   Bucha: 'Буча',
 };
+
+/** One unique origin→destination pair derived from TripRoute stops (corridors + along-variant). */
+export type OdPair = {
+  fromCode: string;
+  toCode: string;
+  fromNameUk: string;
+  toNameUk: string;
+  labelUk: string;
+  /** Corridor TripRoute id when known (variant → its corridor; pure corridor → itself). */
+  corridorTripRouteId: number | null;
+  /** TripRoute that contributed this pair (first wins on dedupe). */
+  sourceTripRouteId: number;
+};
+
+export type TripRouteForOdPairs = {
+  id: number;
+  slug: string;
+  labelUk?: string | null;
+  corridorTripRouteId?: number | null;
+  startPoint?: { id: number; code: string; nameUk: string } | null;
+  endPoint?: { id: number; code: string; nameUk: string } | null;
+  stops?: Array<{
+    position: number;
+    point?: { id: number; code: string; nameUk: string } | null;
+    pointId?: number;
+  }>;
+};
+
+/**
+ * Build unique OD pairs from TripRoutes:
+ * - corridor terminals (start→end)
+ * - all ordered along-stop pairs for variants (and corridors with via stops)
+ */
+export function buildOdPairsFromTripRoutes(routes: TripRouteForOdPairs[]): OdPair[] {
+  const byKey = new Map<string, OdPair>();
+
+  for (const tr of routes) {
+    const orderedStops: Array<{ code: string; nameUk: string }> = [];
+    if (tr.stops?.length) {
+      const sorted = [...tr.stops].sort((a, b) => a.position - b.position);
+      for (const s of sorted) {
+        const p = s.point;
+        if (p?.code) orderedStops.push({ code: p.code, nameUk: p.nameUk });
+      }
+    }
+    if (orderedStops.length < 2 && tr.startPoint && tr.endPoint) {
+      orderedStops.length = 0;
+      orderedStops.push(
+        { code: tr.startPoint.code, nameUk: tr.startPoint.nameUk },
+        { code: tr.endPoint.code, nameUk: tr.endPoint.nameUk }
+      );
+    }
+    if (orderedStops.length < 2) continue;
+
+    const corridorTripRouteId =
+      tr.corridorTripRouteId != null ? tr.corridorTripRouteId : tr.id;
+
+    for (let i = 0; i < orderedStops.length; i++) {
+      for (let j = i + 1; j < orderedStops.length; j++) {
+        const from = orderedStops[i];
+        const to = orderedStops[j];
+        const key = `${from.code}\0${to.code}`;
+        if (byKey.has(key)) continue;
+        byKey.set(key, {
+          fromCode: from.code,
+          toCode: to.code,
+          fromNameUk: from.nameUk,
+          toNameUk: to.nameUk,
+          labelUk: `${from.nameUk} → ${to.nameUk}`,
+          corridorTripRouteId,
+          sourceTripRouteId: tr.id,
+        });
+      }
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => {
+    const c = a.fromCode.localeCompare(b.fromCode);
+    return c !== 0 ? c : a.toCode.localeCompare(b.toCode);
+  });
+}
+
+type PrismaOdPairsClient = {
+  tripRoute: {
+    findMany: (args?: any) => Promise<TripRouteForOdPairs[]>;
+  };
+};
+
+/** Load TripRoutes with stops and return unique OD pairs. */
+export async function listOdPairs(prisma: PrismaOdPairsClient): Promise<OdPair[]> {
+  const routes = await prisma.tripRoute.findMany({
+    include: {
+      startPoint: { select: { id: true, code: true, nameUk: true } },
+      endPoint: { select: { id: true, code: true, nameUk: true } },
+      stops: {
+        include: { point: { select: { id: true, code: true, nameUk: true } } },
+        orderBy: { position: 'asc' },
+      },
+    },
+    orderBy: [{ slug: 'asc' }],
+  });
+  return buildOdPairsFromTripRoutes(routes);
+}

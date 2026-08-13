@@ -92,7 +92,10 @@ export interface Availability {
 }
 
 export interface BookingFormData {
-  route: Route;
+  /** Preferred identity for marshrutka bookings */
+  scheduleId?: number;
+  /** Denormalized slug snapshot / legacy clients */
+  route?: Route;
   date: string;
   departureTime: string;
   seats: number;

@@ -217,7 +217,7 @@ export function buildQuickDirectChips(
   return chips;
 }
 
-/** Fallback chips when DB quickDirect is empty (legacy Malyn corridors). */
+/** Fallback chips when DB quickDirect / od-pairs empty (legacy Malyn corridors). */
 export function legacyMalynCorridorChips(): QuickDirectChip[] {
   return CORRIDORS.map((c) => ({
     id: c.id,
@@ -225,6 +225,35 @@ export function legacyMalynCorridorChips(): QuickDirectChip[] {
     otherNameUk: c.shortLabel,
     label: c.label,
   }));
+}
+
+/** Chips for home city from /od-pairs (non-hub corridors included). */
+export function chipsFromOdPairs(
+  homeCode: string,
+  pairs: Array<{ fromCode: string; toCode: string; fromNameUk: string; toNameUk: string }>
+): QuickDirectChip[] {
+  const byOther = new Map<string, QuickDirectChip>();
+  for (const p of pairs) {
+    let otherCode = '';
+    let otherNameUk = '';
+    if (p.fromCode === homeCode) {
+      otherCode = p.toCode;
+      otherNameUk = p.toNameUk;
+    } else if (p.toCode === homeCode) {
+      otherCode = p.fromCode;
+      otherNameUk = p.fromNameUk;
+    } else {
+      continue;
+    }
+    if (!otherCode || byOther.has(otherCode)) continue;
+    byOther.set(otherCode, {
+      id: `${otherCode}-${homeCode}`,
+      otherCode,
+      otherNameUk,
+      label: `${otherNameUk} ↔ ${p.fromCode === homeCode ? p.fromNameUk : p.toNameUk}`,
+    });
+  }
+  return [...byOther.values()].sort((a, b) => a.otherNameUk.localeCompare(b.otherNameUk, 'uk'));
 }
 
 export function citiesFromQuickChip(

@@ -8,6 +8,7 @@ import {
   normalizeViaPointIds,
   validateTripPointSelection,
 } from '../schedule-trip';
+import { listOdPairs } from '../poputky-od';
 
 const includeStops = {
   startPoint: true,
@@ -96,6 +97,17 @@ export function createTripRoutesRouter(deps: { prisma: PrismaClient }): Router {
       orderBy: [{ slug: 'asc' }],
     });
     res.json(rows);
+  });
+
+  /** Unique OD chips from corridor terminals + along-stop pairs on variants. */
+  r.get('/od-pairs', async (_req, res) => {
+    try {
+      const pairs = await listOdPairs(prisma);
+      res.json(pairs);
+    } catch (error) {
+      console.error('od-pairs failed', error);
+      res.status(500).json({ error: 'Failed to load OD pairs' });
+    }
   });
 
   r.get('/trip-routes/:id', async (req, res) => {

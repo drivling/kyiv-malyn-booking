@@ -15,9 +15,7 @@ import type { BookingCity } from '@/utils/constants';
 import {
   BOOKING_CITY_LABELS,
   BOOKING_FROM_TO,
-  DIRECTION_ROUTES,
   formatListingContactDisplay,
-  getDirectionFromCities,
   getRouteSuffix,
   listingContactHref,
   supportPhoneToTelLink,
@@ -29,6 +27,7 @@ import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
 import {
   boardingTimeAtStop,
   buildQuickDirectChips,
+  chipsFromOdPairs,
   citiesFromQuickChip,
   cityLabel,
   formatRouteLabel,
@@ -140,6 +139,9 @@ export const MizhgorodskiPage: React.FC = () => {
     }
   });
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [odPairs, setOdPairs] = useState<
+    Array<{ fromCode: string; toCode: string; fromNameUk: string; toNameUk: string }>
+  >([]);
   const [availabilityById, setAvailabilityById] = useState<Record<number, Availability>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -158,9 +160,11 @@ export const MizhgorodskiPage: React.FC = () => {
     Promise.all([
       apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
       apiClient.getTripPoints().catch(() => [] as TripPoint[]),
-    ]).then(([pop, all]) => {
+      apiClient.getOdPairs().catch(() => []),
+    ]).then(([pop, all, pairs]) => {
       setPoputkyPoints(pop);
       setAllTripPoints(all.length ? all : pop);
+      setOdPairs(pairs);
     });
   }, []);
 
@@ -170,11 +174,13 @@ export const MizhgorodskiPage: React.FC = () => {
   );
 
   const quickChips: QuickDirectChip[] = useMemo(() => {
+    const fromOd = chipsFromOdPairs(homeCityCode, odPairs);
+    if (fromOd.length) return fromOd;
     const built = buildQuickDirectChips(homePoint, allTripPoints);
     if (built.length) return built;
     if (homeCityCode === 'Malyn') return legacyMalynCorridorChips();
     return [];
-  }, [homePoint, allTripPoints, homeCityCode]);
+  }, [homePoint, allTripPoints, homeCityCode, odPairs]);
 
   const activeChipId = useMemo(() => {
     const other = fromCity === homeCityCode ? toCity : toCity === homeCityCode ? fromCity : '';
@@ -213,15 +219,12 @@ export const MizhgorodskiPage: React.FC = () => {
 
   const loadResults = useCallback(async (from: BookingCity, to: BookingCity, tripDate: string) => {
     if (!from || !to || from === to) return;
-    const dir = getDirectionFromCities(from, to);
     setLoading(true);
     setError('');
     setAvailabilityById({});
     try {
-      const routes = dir ? DIRECTION_ROUTES[dir] || [] : [];
-      const [allListings, scheduleBatches, odSchedules, allTripRoutes, points] = await Promise.all([
+      const [allListings, odSchedules, allTripRoutes, points] = await Promise.all([
         apiClient.getViberListings(true),
-        Promise.all(routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => [] as Schedule[]))),
         apiClient.getSchedules(undefined, { fromCode: from, toCode: to }).catch(() => [] as Schedule[]),
         apiClient.getTripRoutes().catch(() => []),
         apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
@@ -240,7 +243,6 @@ export const MizhgorodskiPage: React.FC = () => {
       }
       const pointIdByCode = new Map(points.map((p) => [p.code, p.id]));
       const byRouteId = new Map<number, Schedule>();
-      for (const s of scheduleBatches.flat()) byRouteId.set(s.id, s);
       for (const s of odSchedules) byRouteId.set(s.id, s);
       const mergedSchedules = [...byRouteId.values()];
       setSchedules(mergedSchedules);
@@ -255,7 +257,7 @@ export const MizhgorodskiPage: React.FC = () => {
       const availEntries = await Promise.all(
         mergedSchedules.filter(isMarshrutka).map(async (s) => {
           try {
-            const a = await apiClient.checkAvailability(s.route, s.departureTime, tripDate);
+            const a = await apiClient.checkAvailabilityByScheduleId(s.id, tripDate);
             return [s.id, a] as const;
           } catch {
             return null;
@@ -338,11 +340,7 @@ export const MizhgorodskiPage: React.FC = () => {
           .filter((schedule) => isMarshrutka(schedule))
           .map(async (schedule) => {
           try {
-            const availability = await apiClient.checkAvailability(
-              schedule.route,
-              schedule.departureTime,
-              date
-            );
+            const availability = await apiClient.checkAvailabilityByScheduleId(schedule.id, date);
             return [schedule.id, availability] as const;
           } catch {
             return null;

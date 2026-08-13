@@ -161,6 +161,21 @@ class ApiClient {
     return this.request(qs ? `/trip-routes?${qs}` : '/trip-routes');
   }
 
+  /** Unique OD pairs from TripRoutes (corridor terminals + along-variant stops). */
+  async getOdPairs(): Promise<
+    Array<{
+      fromCode: string;
+      toCode: string;
+      fromNameUk: string;
+      toNameUk: string;
+      labelUk: string;
+      corridorTripRouteId: number | null;
+      sourceTripRouteId: number;
+    }>
+  > {
+    return this.request('/od-pairs');
+  }
+
   async createTripRoute(data: {
     startPointId: number;
     endPointId: number;
@@ -253,6 +268,13 @@ class ApiClient {
   ): Promise<Availability> {
     return this.request<Availability>(
       `/schedules/${route}/${departureTime}/availability?date=${date}`
+    );
+  }
+
+  /** Preferred availability lookup by schedule id (route string deprecated as SoT). */
+  async checkAvailabilityByScheduleId(scheduleId: number, date: string): Promise<Availability> {
+    return this.request<Availability>(
+      `/schedules/by-id/${scheduleId}/availability?date=${encodeURIComponent(date)}`
     );
   }
 
@@ -472,8 +494,21 @@ class ApiClient {
     return this.request<ViberListing[]>(endpoint);
   }
 
-  async searchViberListings(route: string, date: string): Promise<ViberListing[]> {
-    return this.request<ViberListing[]>(`/viber-listings/search?route=${route}&date=${date}`);
+  async searchViberListings(
+    routeOrOpts: string | { route?: string; fromCode?: string; toCode?: string; date: string },
+    dateArg?: string
+  ): Promise<ViberListing[]> {
+    const params = new URLSearchParams();
+    if (typeof routeOrOpts === 'string') {
+      params.set('route', routeOrOpts);
+      if (dateArg) params.set('date', dateArg);
+    } else {
+      if (routeOrOpts.route) params.set('route', routeOrOpts.route);
+      if (routeOrOpts.fromCode) params.set('fromCode', routeOrOpts.fromCode);
+      if (routeOrOpts.toCode) params.set('toCode', routeOrOpts.toCode);
+      params.set('date', routeOrOpts.date);
+    }
+    return this.request<ViberListing[]>(`/viber-listings/search?${params.toString()}`);
   }
 
   async createViberListing(data: ViberListingFormData): Promise<ViberListing> {

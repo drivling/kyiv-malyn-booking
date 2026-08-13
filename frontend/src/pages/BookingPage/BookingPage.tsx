@@ -6,19 +6,46 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Route, BaseDirection, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
-import { DIRECTION_ROUTES, supportPhoneToTelLink, formatPhoneDisplay, BOOKING_CITY_LABELS, BOOKING_FROM_TO, getDirectionFromCities, BOOKING_POPULAR_ROUTES } from '@/utils/constants';
+import type { Route, Schedule, Availability, BookingFormData, ViberListing } from '@/types';
+import { supportPhoneToTelLink, formatPhoneDisplay, BOOKING_CITY_LABELS, BOOKING_FROM_TO, getDirectionFromCities, BOOKING_POPULAR_ROUTES } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import type { BookingCity } from '@/utils/constants';
 import './BookingPage.css';
 
-const VALID_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
+type OdPairRow = {
+  fromCode: string;
+  toCode: string;
+  fromNameUk: string;
+  toNameUk: string;
+  labelUk: string;
+};
 
-function parseFromToFromSearchParams(searchParams: URLSearchParams): { from: BookingCity; to: BookingCity } | null {
-  const from = searchParams.get('from') as BookingCity | null;
-  const to = searchParams.get('to') as BookingCity | null;
-  if (!from || !to || !VALID_CITIES.includes(from) || !VALID_CITIES.includes(to)) return null;
-  if (!getDirectionFromCities(from, to)) return null;
+const FALLBACK_CITIES: BookingCity[] = ['Kyiv', 'Malyn', 'Zhytomyr', 'Korosten'];
+
+function cityLabel(code: string, pairs: OdPairRow[]): string {
+  const hit = pairs.find((p) => p.fromCode === code || p.toCode === code);
+  if (hit) return hit.fromCode === code ? hit.fromNameUk : hit.toNameUk;
+  return BOOKING_CITY_LABELS[code as BookingCity] ?? code;
+}
+
+function parseFromToFromSearchParams(
+  searchParams: URLSearchParams,
+  pairs: OdPairRow[]
+): { from: string; to: string } | null {
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+  if (!from || !to) return null;
+  if (pairs.length) {
+    if (pairs.some((p) => p.fromCode === from && p.toCode === to)) return { from, to };
+    return null;
+  }
+  if (
+    !FALLBACK_CITIES.includes(from as BookingCity) ||
+    !FALLBACK_CITIES.includes(to as BookingCity)
+  ) {
+    return null;
+  }
+  if (!getDirectionFromCities(from as BookingCity, to as BookingCity)) return null;
   return { from, to };
 }
 
@@ -27,10 +54,10 @@ export const BookingPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialFromTo = useMemo(() => parseFromToFromSearchParams(searchParams), []);
-  const [fromCity, setFromCity] = useState<BookingCity | ''>(() => initialFromTo?.from ?? '');
-  const [toCity, setToCity] = useState<BookingCity | ''>(() => initialFromTo?.to ?? '');
-  const direction: BaseDirection | '' = fromCity && toCity ? (getDirectionFromCities(fromCity, toCity) ?? '') : '';
+  const [odPairs, setOdPairs] = useState<OdPairRow[]>([]);
+  const initialFromTo = useMemo(() => parseFromToFromSearchParams(searchParams, []), []);
+  const [fromCity, setFromCity] = useState<string>(() => initialFromTo?.from ?? '');
+  const [toCity, setToCity] = useState<string>(() => initialFromTo?.to ?? '');
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   // Встановлюємо сьогоднішню дату за замовчуванням
   const [date, setDate] = useState(() => {
@@ -62,6 +89,21 @@ export const BookingPage: React.FC = () => {
   /** Телефон підтримки, зафіксований при відкритті модалки «Бронювання створено» (з БД, не хардкод) */
   const [successModalSupportPhone, setSuccessModalSupportPhone] = useState<string | null>(null);
 
+  useEffect(() => {
+    apiClient
+      .getOdPairs()
+      .then((pairs) => {
+        setOdPairs(pairs);
+        const fromUrl = parseFromToFromSearchParams(searchParams, pairs);
+        if (fromUrl) {
+          setFromCity(fromUrl.from);
+          setToCity(fromUrl.to);
+        }
+      })
+      .catch(() => setOdPairs([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Синхронізація from/to з URL (ділитися посиланням на маршрут)
   useEffect(() => {
     if (fromCity && toCity) {
@@ -78,7 +120,7 @@ export const BookingPage: React.FC = () => {
 
   // Завантаження розкладу та Viber оголошень при зміні напрямку або дати
   useEffect(() => {
-    if (!direction) {
+    if (!fromCity || !toCity || fromCity === toCity) {
       setSchedules([]);
       setSelectedSchedule(null);
       setViberListings([]);
@@ -89,11 +131,9 @@ export const BookingPage: React.FC = () => {
       setLoadingSchedules(true);
       setError('');
       try {
-        const routes = DIRECTION_ROUTES[direction as BaseDirection] || [];
-        const results = await Promise.all(
-          routes.map((route) => apiClient.getSchedulesByRoute(route).catch(() => []))
-        );
-        const allSchedules = results.flat();
+        const allSchedules = await apiClient
+          .getSchedules(undefined, { fromCode: fromCity, toCode: toCity })
+          .catch(() => [] as Schedule[]);
         allSchedules.sort((a, b) => a.departureTime.localeCompare(b.departureTime));
         setSchedules(allSchedules);
         if (allSchedules.length === 0) {
@@ -108,9 +148,13 @@ export const BookingPage: React.FC = () => {
 
     const loadViberListings = async () => {
       if (!date) return;
-      
+
       try {
-        const listings = await apiClient.searchViberListings(direction, date);
+        const listings = await apiClient.searchViberListings({
+          fromCode: fromCity,
+          toCode: toCity,
+          date,
+        });
         setViberListings(listings);
       } catch (err) {
         console.error('Не вдалося завантажити Viber оголошення:', err);
@@ -120,7 +164,7 @@ export const BookingPage: React.FC = () => {
 
     loadSchedules();
     loadViberListings();
-  }, [direction, date]);
+  }, [fromCity, toCity, date]);
 
   // Показати повідомлення якщо потрібен номер після Telegram Login
   useEffect(() => {
@@ -178,11 +222,7 @@ export const BookingPage: React.FC = () => {
 
     const checkAvailability = async () => {
       try {
-        const data = await apiClient.checkAvailability(
-          selectedSchedule.route, 
-          selectedSchedule.departureTime, 
-          date
-        );
+        const data = await apiClient.checkAvailabilityByScheduleId(selectedSchedule.id, date);
         setAvailability(data);
         if (!data.isAvailable) {
           setWarning(`Місця закінчились. Доступно: 0 з ${data.maxSeats}`);
@@ -204,8 +244,8 @@ export const BookingPage: React.FC = () => {
     setSuccess(false);
 
     // Детальна валідація з конкретними повідомленнями
-    if (!fromCity || !toCity || !direction) {
-      setError('Оберіть звідки та куди (маршрути тільки через Малин)');
+    if (!fromCity || !toCity || fromCity === toCity) {
+      setError('Оберіть звідки та куди');
       return;
     }
     if (!selectedSchedule) {
@@ -248,6 +288,7 @@ export const BookingPage: React.FC = () => {
       }
 
       const formData: BookingFormData = {
+        scheduleId: selectedSchedule.id,
         route: selectedSchedule.route,
         date,
         departureTime: selectedSchedule.departureTime,
@@ -290,17 +331,40 @@ export const BookingPage: React.FC = () => {
     }
   };
 
-  const fromCityOptions = (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
-    value,
-    label,
-  }));
+  const fromCityOptions = useMemo(() => {
+    if (odPairs.length) {
+      const codes = [...new Set(odPairs.map((p) => p.fromCode))];
+      return codes.map((value) => ({ value, label: cityLabel(value, odPairs) }));
+    }
+    return (Object.entries(BOOKING_CITY_LABELS) as [BookingCity, string][]).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [odPairs]);
 
-  const toCityOptions = fromCity
-    ? BOOKING_FROM_TO.filter((p) => p.from === fromCity).map((p) => ({
-        value: p.to,
-        label: BOOKING_CITY_LABELS[p.to],
-      }))
-    : [];
+  const toCityOptions = useMemo(() => {
+    if (!fromCity) return [];
+    if (odPairs.length) {
+      return odPairs
+        .filter((p) => p.fromCode === fromCity)
+        .map((p) => ({ value: p.toCode, label: p.toNameUk }));
+    }
+    return BOOKING_FROM_TO.filter((p) => p.from === fromCity).map((p) => ({
+      value: p.to,
+      label: BOOKING_CITY_LABELS[p.to],
+    }));
+  }, [fromCity, odPairs]);
+
+  const popularRoutes = useMemo(() => {
+    if (odPairs.length) {
+      return odPairs.slice(0, 8).map((p) => ({
+        from: p.fromCode,
+        to: p.toCode,
+        label: p.labelUk,
+      }));
+    }
+    return BOOKING_POPULAR_ROUTES;
+  }, [odPairs]);
 
   const getRouteLabel = (route: Route) => {
     if (route.includes('Irpin')) return 'через Ірпінь';
@@ -344,7 +408,7 @@ export const BookingPage: React.FC = () => {
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handlePopularRoute = (from: BookingCity, to: BookingCity) => {
+  const handlePopularRoute = (from: string, to: string) => {
     setFromCity(from);
     setToCity(to);
     setSelectedSchedule(null);
@@ -360,7 +424,7 @@ export const BookingPage: React.FC = () => {
       <div className="booking-container">
         <div className="booking-header">
           <h2>Бронювання поїздки</h2>
-          <p className="booking-subtitle">Маршрути тільки через Малин · Київ, Житомир, Коростень</p>
+          <p className="booking-subtitle">Оберіть міста та рейс · дані з розкладу TripRoute</p>
         </div>
 
         <nav className="booking-progress" aria-label="Прогрес бронювання">
@@ -385,7 +449,7 @@ export const BookingPage: React.FC = () => {
             <h3 className="booking-step-title">Маршрут</h3>
             <div className="booking-quick-routes">
               <span className="booking-quick-label">Популярні:</span>
-              {BOOKING_POPULAR_ROUTES.map(({ from, to, label }) => (
+              {popularRoutes.map(({ from, to, label }) => (
                 <button
                   key={`${from}-${to}`}
                   type="button"
@@ -402,7 +466,7 @@ export const BookingPage: React.FC = () => {
                 options={[{ value: '', label: 'Оберіть місто' }, ...fromCityOptions]}
                 value={fromCity}
                 onChange={(e) => {
-                  const next = (e.target.value || '') as BookingCity | '';
+                  const next = e.target.value || '';
                   setFromCity(next);
                   setToCity('');
                   setSelectedSchedule(null);
@@ -415,14 +479,14 @@ export const BookingPage: React.FC = () => {
                 options={[{ value: '', label: 'Оберіть місто' }, ...toCityOptions]}
                 value={toCity}
                 onChange={(e) => {
-                  setToCity((e.target.value || '') as BookingCity | '');
+                  setToCity(e.target.value || '');
                   setSelectedSchedule(null);
                 }}
                 required
                 disabled={!fromCity}
               />
             </div>
-            <p className="booking-route-hint">Усі маршрути проходять через Малин</p>
+            <p className="booking-route-hint">Пари міст з розкладу (у т.ч. non-hub коридори)</p>
             <div className="booking-step-actions">
               <button
                 type="button"
