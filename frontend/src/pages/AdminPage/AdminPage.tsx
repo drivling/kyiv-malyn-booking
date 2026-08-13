@@ -13,6 +13,17 @@ import './AdminPage.css';
 
 type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
 
+function eltrainPageLabel(url: string): string {
+  try {
+    const reverse = new URL(url).searchParams.get('reverse');
+    if (reverse === '1') return 'Київ → Коростень (reverse=1)';
+    if (reverse === '2') return 'Коростень → Київ (reverse=2)';
+  } catch {
+    /* ignore */
+  }
+  return url;
+}
+
 export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -76,6 +87,7 @@ export const AdminPage: React.FC = () => {
   const [timetablePreviewLoading, setTimetablePreviewLoading] = useState(false);
   const [timetableApplyLoading, setTimetableApplyLoading] = useState(false);
   const [timetableSelectedIds, setTimetableSelectedIds] = useState<Set<number>>(new Set());
+  const [timetableHtmlByUrl, setTimetableHtmlByUrl] = useState<Record<string, string>>({});
 
   // Viber listings
   const [isViberModalOpen, setIsViberModalOpen] = useState(false);
@@ -1017,11 +1029,11 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleTimetablePreview = async () => {
+  const handleTimetablePreview = async (pages?: Array<{ url: string; html: string }>) => {
     setTimetablePreviewLoading(true);
     setError('');
     try {
-      const preview = await apiClient.previewScheduleTimetable();
+      const preview = await apiClient.previewScheduleTimetable(pages?.length ? { pages } : undefined);
       setTimetablePreview(preview);
       setTimetableSelectedIds(
         new Set(preview.changes.filter((c) => c.status === 'changed').map((c) => c.scheduleId))
@@ -1034,6 +1046,32 @@ export const AdminPage: React.FC = () => {
     } finally {
       setTimetablePreviewLoading(false);
     }
+  };
+
+  const handleTimetableHtmlFile = async (url: string, file: File | undefined) => {
+    if (!file) {
+      setTimetableHtmlByUrl((prev) => {
+        const next = { ...prev };
+        delete next[url];
+        return next;
+      });
+      return;
+    }
+    const html = await file.text();
+    setTimetableHtmlByUrl((prev) => ({ ...prev, [url]: html }));
+  };
+
+  const handleTimetablePreviewFromHtml = async () => {
+    if (!timetablePreview) return;
+    const pages = timetablePreview.errors
+      .map((e) => e.url)
+      .filter((url, i, arr) => arr.indexOf(url) === i && timetableHtmlByUrl[url])
+      .map((url) => ({ url, html: timetableHtmlByUrl[url]! }));
+    if (pages.length === 0) {
+      alert('Завантажте HTML хоча б для однієї сторінки УЗ');
+      return;
+    }
+    await handleTimetablePreview(pages);
   };
 
   const handleTimetableApply = async () => {
@@ -1473,7 +1511,7 @@ export const AdminPage: React.FC = () => {
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={handleTimetablePreview}
+                  onClick={() => handleTimetablePreview()}
                   disabled={timetablePreviewLoading}
                 >
                   {timetablePreviewLoading ? 'Парсинг…' : 'Оновити графіки (через парсер)'}
@@ -3399,8 +3437,47 @@ export const AdminPage: React.FC = () => {
               </p>
               {timetablePreview.errors.length > 0 && (
                 <Alert variant="error">
-                  {timetablePreview.errors.map((e) => `${e.url}: ${e.error}`).join(' · ')}
+                  Європейський хостинг не дістає swrailway.gov.ua (УЗ блокує з-за кордону). У браузері
+                  відкрийте сторінку → Зберегти як → «Веб-сторінка, лише HTML», потім завантажте файл
+                  сюди.
+                  <div style={{ marginTop: 8, fontSize: 12 }}>
+                    {timetablePreview.errors.map((e) => `${eltrainPageLabel(e.url)}: ${e.error}`).join(' · ')}
+                  </div>
                 </Alert>
+              )}
+              {timetablePreview.errors.length > 0 && (
+                <div style={{ margin: '12px 0', display: 'grid', gap: 10 }}>
+                  {[...new Set(timetablePreview.errors.map((e) => e.url))].map((url) => (
+                    <label key={url} style={{ display: 'grid', gap: 4, fontSize: 13 }}>
+                      <span>
+                        {eltrainPageLabel(url)}{' '}
+                        <a href={url} target="_blank" rel="noreferrer">
+                          відкрити
+                        </a>
+                        {timetableHtmlByUrl[url]
+                          ? ` · файл ${(timetableHtmlByUrl[url].length / 1024).toFixed(0)} КБ`
+                          : ''}
+                      </span>
+                      <input
+                        type="file"
+                        accept=".html,.htm,text/html"
+                        onChange={(e) => handleTimetableHtmlFile(url, e.target.files?.[0])}
+                      />
+                    </label>
+                  ))}
+                  <Button
+                    type="button"
+                    onClick={handleTimetablePreviewFromHtml}
+                    disabled={
+                      timetablePreviewLoading ||
+                      ![...new Set(timetablePreview.errors.map((e) => e.url))].every(
+                        (url) => timetableHtmlByUrl[url]
+                      )
+                    }
+                  >
+                    {timetablePreviewLoading ? 'Парсинг…' : 'Превʼю з HTML'}
+                  </Button>
+                </div>
               )}
               <div className="table-container" style={{ maxHeight: '50vh', overflow: 'auto' }}>
                 <table>

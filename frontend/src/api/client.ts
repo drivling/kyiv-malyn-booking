@@ -211,8 +211,13 @@ class ApiClient {
     return this.request('/schedules-rebind-trip-routes', { method: 'POST', body: '{}' });
   }
 
-  async previewScheduleTimetable(): Promise<import('@/types').TimetablePreviewResponse> {
-    return this.request('/schedules/timetable-preview', { method: 'POST', body: '{}' });
+  async previewScheduleTimetable(data?: {
+    pages?: Array<{ url: string; html: string }>;
+  }): Promise<import('@/types').TimetablePreviewResponse> {
+    return this.request('/schedules/timetable-preview', {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    });
   }
 
   async applyScheduleTimetable(data: {
