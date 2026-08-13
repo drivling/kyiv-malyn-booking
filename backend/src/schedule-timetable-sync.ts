@@ -86,7 +86,31 @@ function diffStatus(before: TimetablePatchFields, after: TimetablePatchFields): 
   return same ? 'unchanged' : 'changed';
 }
 
-export async function buildTimetablePreview(prisma: PrismaClient): Promise<TimetablePreviewResult> {
+const MAX_ELTRAIN_HTML_CHARS = 1_500_000;
+
+export function parseTimetablePages(raw: unknown): Array<{ url: string; html: string }> {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    throw Object.assign(new Error('pages must be an array of { url, html }'), { status: 400 });
+  }
+  const pages: Array<{ url: string; html: string }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const url = String((item as { url?: unknown }).url || '').trim();
+    const html = String((item as { html?: unknown }).html || '');
+    if (!url || !html) continue;
+    if (html.length > MAX_ELTRAIN_HTML_CHARS) {
+      throw Object.assign(new Error(`HTML too large for ${url}`), { status: 400 });
+    }
+    pages.push({ url, html });
+  }
+  return pages;
+}
+
+export async function buildTimetablePreview(
+  prisma: PrismaClient,
+  opts?: { pages?: Array<{ url: string; html: string }> }
+): Promise<TimetablePreviewResult> {
   prunePreviewStore();
 
   const schedules = await prisma.schedule.findMany({
@@ -113,13 +137,21 @@ export async function buildTimetablePreview(prisma: PrismaClient): Promise<Timet
 
   const errors: Array<{ url: string; error: string }> = [];
   const trainsByUrl = new Map<string, EltrainTrain[]>();
+  const htmlByUrl = new Map((opts?.pages ?? []).map((p) => [p.url.trim(), p.html]));
 
   for (const url of byUrl.keys()) {
     try {
-      const html = await fetchEltrainPage(url);
+      const provided = htmlByUrl.get(url);
+      const html = provided ?? (await fetchEltrainPage(url));
       trainsByUrl.set(url, parseEltrainTimetable(html));
     } catch (e) {
-      errors.push({ url, error: e instanceof Error ? e.message : 'fetch/parse failed' });
+      const msg = e instanceof Error ? e.message : 'fetch/parse failed';
+      errors.push({
+        url,
+        error: htmlByUrl.has(url)
+          ? msg
+          : `${msg} — likely geo-blocked from EU hosting; upload the saved HTML page`,
+      });
       trainsByUrl.set(url, []);
     }
   }

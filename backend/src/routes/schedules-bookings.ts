@@ -27,7 +27,7 @@ import {
   validateTripPointSelection,
   type VehicleType,
 } from '../schedule-trip';
-import { applyTimetablePreview, buildTimetablePreview } from '../schedule-timetable-sync';
+import { applyTimetablePreview, buildTimetablePreview, parseTimetablePages } from '../schedule-timetable-sync';
 
 const scheduleInclude = {
   startPoint: true,
@@ -275,11 +275,17 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
   });
 
   /** Preview SW Railway timetable diffs for schedules with timetableSourceUrl. */
-  r.post('/schedules/timetable-preview', requireAdmin, async (_req, res) => {
+  r.post('/schedules/timetable-preview', requireAdmin, async (req, res) => {
     try {
-      const preview = await buildTimetablePreview(prisma);
+      const pages = parseTimetablePages(req.body?.pages);
+      const preview = await buildTimetablePreview(prisma, { pages });
       res.json(preview);
     } catch (error) {
+      const status = (error as { status?: number }).status ?? 500;
+      const message = error instanceof Error ? error.message : 'Failed to build timetable preview';
+      if (status >= 400 && status < 500) {
+        return res.status(status).json({ error: message });
+      }
       console.error('timetable-preview failed', error);
       res.status(500).json({ error: 'Failed to build timetable preview' });
     }
