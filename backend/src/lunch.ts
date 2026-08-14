@@ -1,8 +1,46 @@
 /** Логіка обідів (столова) для адмін-API — дзеркало Python lunch/. */
 
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 
 export type LunchMenuItemInput = { name: string; price: number };
+
+export type LunchTrayRole = 'soup' | 'second' | 'salad';
+
+export type MenuUnavailableNotice = {
+  orderId: number;
+  displayName: string;
+  sourceMessageId: string | null;
+  missingDishes: string[];
+};
+
+const TOKEN_SYNONYMS: Record<string, string> = {
+  овощи: 'овочі',
+  овощ: 'овоч',
+  бифштекс: 'біфштекс',
+  бифтекс: 'біфштекс',
+  печень: 'печінкові',
+  печен: 'печінкові',
+  печінкові: 'печінкові',
+  оладьи: 'оладки',
+  оладді: 'оладки',
+  яйцом: 'яйцем',
+  яйце: 'яйцем',
+  гриле: 'грилі',
+  гриль: 'грилі',
+  огурец: 'огірок',
+  огурцом: 'огірком',
+  огурца: 'огірка',
+  помидор: 'помідор',
+  курица: 'курка',
+  курицы: 'курки',
+  грецкий: 'грецький',
+  греческий: 'грецький',
+  суп: 'суп',
+  грибной: 'грибний',
+  вареники: 'вареники',
+  картошкой: 'картоплею',
+  картошка: 'картопля',
+};
 
 export function todayKyivDate(): Date {
   const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -23,7 +61,54 @@ export function normalizeDishName(name: string): string {
   s = s.replace(/[ʼ’`´']/g, '');
   s = s.replace(/[^\p{L}\p{N}\s]+/gu, ' ');
   s = s.replace(/\s+/g, ' ').trim();
-  return s;
+  return s
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => TOKEN_SYNONYMS[t] || t)
+    .join(' ');
+}
+
+export function guessTrayRole(name: string): LunchTrayRole {
+  const n = normalizeDishName(name);
+  if (
+    n.includes('суп') ||
+    n.includes('борщ') ||
+    n.includes('солянка') ||
+    n.includes('розсольник') ||
+    n.includes('юшка') ||
+    n.includes('бульйон')
+  ) {
+    return 'soup';
+  }
+  if (n.includes('салат')) return 'salad';
+  return 'second';
+}
+
+export function computeTrayCount(
+  lines: Array<{ trayRole?: string | null; qty?: number | null }>
+): number {
+  const active = lines.filter((l) => (l.qty || 1) > 0);
+  if (active.length === 0) return 0;
+  let soupQty = 0;
+  let hasSecond = false;
+  for (const l of active) {
+    const role = l.trayRole || 'second';
+    const qty = l.qty && l.qty > 0 ? l.qty : 1;
+    if (role === 'soup') soupQty += qty;
+    else if (role === 'second') hasSecond = true;
+  }
+  let trays = soupQty + (hasSecond ? 1 : 0);
+  if (active.length === 1) trays = Math.max(trays, 1);
+  return trays;
+}
+
+export async function getLunchSettings(prisma: PrismaClient): Promise<{ trayPriceUah: number }> {
+  const row = await prisma.lunchSettings.upsert({
+    where: { id: 1 },
+    create: { id: 1, trayPriceUah: 5 },
+    update: {},
+  });
+  return { trayPriceUah: row.trayPriceUah };
 }
 
 export function parseLunchMenuPayload(body: unknown): LunchMenuItemInput[] {
@@ -58,14 +143,68 @@ export function parseLunchMenuPayload(body: unknown): LunchMenuItemInput[] {
 }
 
 export function formatLunchMenuText(
-  items: Array<{ name: string; priceUah: number }>
+  items: Array<{ name: string; priceUah: number }>,
+  trayPriceUah = 5
 ): string {
   const lines = ['Меню на сьогодні:'];
   for (const it of items) {
     lines.push(`• ${it.name} — ${it.priceUah} грн`);
   }
-  if (lines.length === 1) lines.push('(порожньо)');
+  lines.push(`• Лоток — ${trayPriceUah} грн`);
   return lines.join('\n');
+}
+
+async function findDishByNorm(
+  tx: Prisma.TransactionClient | PrismaClient,
+  nameNorm: string
+): Promise<{ id: number; name: string; nameNorm: string; priceUah: number; trayRole: string } | null> {
+  const byName = await tx.lunchDish.findUnique({ where: { nameNorm } });
+  if (byName) return byName;
+  const syn = await tx.lunchDishSynonym.findFirst({
+    where: { rawNorm: nameNorm },
+    include: { dish: true },
+  });
+  return syn?.dish ?? null;
+}
+
+async function findOrCreateDish(
+  tx: Prisma.TransactionClient | PrismaClient,
+  name: string,
+  priceUah: number
+): Promise<{ id: number; name: string; nameNorm: string; priceUah: number; trayRole: string }> {
+  const nameNorm = normalizeDishName(name);
+  const existing = await findDishByNorm(tx, nameNorm);
+  if (existing) {
+    return tx.lunchDish.update({
+      where: { id: existing.id },
+      data: { priceUah, updatedAt: new Date() },
+    });
+  }
+  return tx.lunchDish.create({
+    data: {
+      name,
+      nameNorm,
+      priceUah,
+      trayRole: guessTrayRole(name),
+    },
+  });
+}
+
+export async function saveDishSynonym(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  dishId: number,
+  rawText: string
+): Promise<void> {
+  const raw = (rawText || '').trim();
+  const rawNorm = normalizeDishName(raw);
+  if (!raw || !rawNorm) return;
+  const dish = await prisma.lunchDish.findUnique({ where: { id: dishId } });
+  if (!dish || dish.nameNorm === rawNorm) return;
+  await prisma.lunchDishSynonym.upsert({
+    where: { dishId_rawNorm: { dishId, rawNorm } },
+    create: { dishId, rawText: raw, rawNorm },
+    update: {},
+  });
 }
 
 export async function upsertLunchMenuForToday(
@@ -74,57 +213,195 @@ export async function upsertLunchMenuForToday(
   parsedRaw: unknown
 ): Promise<{
   day: { id: number; date: Date; status: string };
-  menuItems: Array<{ id: number; name: string; priceUah: number; nameNorm: string }>;
+  menuItems: Array<{
+    id: number;
+    dishId: number;
+    name: string;
+    priceUah: number;
+    nameNorm: string;
+    trayRole: string;
+  }>;
+  notices: MenuUnavailableNotice[];
 }> {
   const date = todayKyivDate();
-  const day = await prisma.lunchDay.upsert({
-    where: { date },
-    create: { date, status: 'ordering', parsedRawJson: JSON.stringify(parsedRaw) },
-    update: {
-      status: 'ordering',
-      parsedRawJson: JSON.stringify(parsedRaw),
-      updatedAt: new Date(),
+  const { menuItems, dayId } = await prisma.$transaction(async (tx) => {
+    const day = await tx.lunchDay.upsert({
+      where: { date },
+      create: { date, status: 'ordering', parsedRawJson: JSON.stringify(parsedRaw) },
+      update: {
+        status: 'ordering',
+        parsedRawJson: JSON.stringify(parsedRaw),
+        updatedAt: new Date(),
+      },
+    });
+
+    const dishIds: number[] = [];
+    const created: Array<{
+      id: number;
+      dishId: number;
+      name: string;
+      priceUah: number;
+      nameNorm: string;
+      trayRole: string;
+    }> = [];
+
+    for (const it of items) {
+      const dish = await findOrCreateDish(tx, it.name, it.price);
+      dishIds.push(dish.id);
+      const row = await tx.lunchMenuItem.upsert({
+        where: { dayId_dishId: { dayId: day.id, dishId: dish.id } },
+        create: {
+          dayId: day.id,
+          dishId: dish.id,
+          name: dish.name,
+          nameNorm: dish.nameNorm,
+          priceUah: dish.priceUah,
+        },
+        update: {
+          priceUah: dish.priceUah,
+          name: dish.name,
+          nameNorm: dish.nameNorm,
+        },
+      });
+      created.push({
+        id: row.id,
+        dishId: dish.id,
+        name: dish.name,
+        priceUah: dish.priceUah,
+        nameNorm: dish.nameNorm,
+        trayRole: dish.trayRole,
+      });
+    }
+
+    await tx.lunchMenuItem.deleteMany({
+      where: { dayId: day.id, dishId: { notIn: dishIds } },
+    });
+
+    return { menuItems: created, dayId: day.id };
+  });
+
+  const day = await prisma.lunchDay.findUniqueOrThrow({ where: { id: dayId } });
+  const notices = await syncOrdersAfterMenuChange(prisma, day.id);
+  return {
+    day: { id: day.id, date: day.date, status: day.status },
+    menuItems,
+    notices,
+  };
+}
+
+export async function syncOrdersAfterMenuChange(
+  prisma: PrismaClient,
+  dayId: number
+): Promise<MenuUnavailableNotice[]> {
+  const settings = await getLunchSettings(prisma);
+  const todayItems = await prisma.lunchMenuItem.findMany({
+    where: { dayId },
+    include: { dish: true },
+  });
+  const todayByDish = new Map(todayItems.map((m) => [m.dishId, m]));
+
+  const orders = await prisma.lunchOrder.findMany({
+    where: { dayId, status: 'active' },
+    include: {
+      participant: true,
+      lines: { include: { dish: true } },
     },
   });
 
-  await prisma.lunchMenuItem.deleteMany({ where: { dayId: day.id } });
-  const created = await Promise.all(
-    items.map((it) =>
-      prisma.lunchMenuItem.create({
-        data: {
-          dayId: day.id,
-          name: it.name,
-          nameNorm: normalizeDishName(it.name),
-          priceUah: it.price,
-        },
-      })
-    )
-  );
+  const notices: MenuUnavailableNotice[] = [];
 
-  return {
-    day: { id: day.id, date: day.date, status: day.status },
-    menuItems: created.map((r) => ({
-      id: r.id,
-      name: r.name,
-      priceUah: r.priceUah,
-      nameNorm: r.nameNorm,
-    })),
-  };
+  for (const order of orders) {
+    const missing: string[] = [];
+    let foodTotal = 0;
+    const roles: Array<{ trayRole: string; qty: number }> = [];
+
+    for (const line of order.lines) {
+      const dishId = line.dishId;
+      const today = dishId != null ? todayByDish.get(dishId) : undefined;
+      if (today) {
+        const qty = line.qty || 1;
+        const unit = today.priceUah;
+        const lineTotal = unit * qty;
+        foodTotal += lineTotal;
+        roles.push({ trayRole: today.dish.trayRole, qty });
+        await prisma.lunchOrderLine.update({
+          where: { id: line.id },
+          data: {
+            menuItemId: today.id,
+            unitPriceUah: unit,
+            lineTotalUah: lineTotal,
+            unavailable: false,
+            rawName: today.name,
+          },
+        });
+      } else {
+        const name = line.dish?.name || line.rawName;
+        missing.push(name);
+        await prisma.lunchOrderLine.update({
+          where: { id: line.id },
+          data: { unavailable: true, menuItemId: null },
+        });
+        roles.push({ trayRole: line.dish?.trayRole || 'second', qty: line.qty || 1 });
+        foodTotal += line.lineTotalUah;
+      }
+    }
+
+    const trayCount = order.trayCountManual
+      ? order.trayCount
+      : computeTrayCount(roles);
+    const trayTotalUah = trayCount * settings.trayPriceUah;
+    await prisma.lunchOrder.update({
+      where: { id: order.id },
+      data: {
+        trayCount,
+        trayTotalUah,
+        totalUah: foodTotal + trayTotalUah,
+        updatedAt: new Date(),
+      },
+    });
+
+    if (missing.length) {
+      notices.push({
+        orderId: order.id,
+        displayName: order.participant.displayName,
+        sourceMessageId: order.sourceMessageId != null ? String(order.sourceMessageId) : null,
+        missingDishes: missing,
+      });
+    }
+  }
+
+  return notices;
 }
 
 export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
   const d = date ?? todayKyivDate();
+  const settings = await getLunchSettings(prisma);
+  const catalog = await prisma.lunchDish.findMany({
+    orderBy: { name: 'asc' },
+    include: { synonyms: { orderBy: { id: 'asc' } } },
+  });
+  const dishes = catalog.map((c) => ({
+    id: c.id,
+    name: c.name,
+    priceUah: c.priceUah,
+    trayRole: c.trayRole,
+    synonyms: c.synonyms.map((s) => s.rawText),
+  }));
+
   const day = await prisma.lunchDay.findUnique({
     where: { date: d },
     include: {
-      menuItems: { orderBy: { id: 'asc' } },
+      menuItems: { orderBy: { id: 'asc' }, include: { dish: true } },
       orders: {
         where: { status: 'active' },
         include: {
           participant: true,
           lines: {
             orderBy: { id: 'asc' },
-            include: { menuItem: { select: { id: true, name: true, priceUah: true } } },
+            include: {
+              menuItem: { select: { id: true, name: true, priceUah: true } },
+              dish: { select: { id: true, name: true, priceUah: true, trayRole: true } },
+            },
           },
         },
         orderBy: { id: 'asc' },
@@ -140,7 +417,15 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
     return {
       date: d.toISOString().slice(0, 10),
       day: null,
-      menuItems: [] as Array<{ id: number; name: string; priceUah: number }>,
+      trayPriceUah: settings.trayPriceUah,
+      dishes,
+      menuItems: [] as Array<{
+        id: number;
+        dishId: number;
+        name: string;
+        priceUah: number;
+        trayRole: string;
+      }>,
       orders: [] as unknown[],
       payments: [] as unknown[],
       debts: [] as unknown[],
@@ -166,16 +451,22 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
       rawText: o.rawText,
       unmatchedText: o.unmatchedText,
       totalUah: o.totalUah,
+      trayCount: o.trayCount,
+      trayTotalUah: o.trayTotalUah,
+      trayCountManual: o.trayCountManual,
+      hasReply: o.replyMessageId != null,
       paidUah: paid,
       debtUah: o.totalUah - paid,
       lines: o.lines.map((l) => ({
         menuItemId: l.menuItemId,
-        /** Канонічна назва з меню (як у редагуванні); для старих рядків — з join */
-        menuItemName: l.menuItem?.name ?? null,
-        rawName: l.menuItem?.name || l.rawName,
+        dishId: l.dishId,
+        menuItemName: l.dish?.name ?? l.menuItem?.name ?? null,
+        trayRole: l.dish?.trayRole ?? null,
+        rawName: l.dish?.name || l.menuItem?.name || l.rawName,
         qty: l.qty,
         unitPriceUah: l.unitPriceUah,
         lineTotalUah: l.lineTotalUah,
+        unavailable: l.unavailable,
       })),
     };
   });
@@ -193,10 +484,14 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
       menuMessageId: day.menuMessageId != null ? String(day.menuMessageId) : null,
       updatedAt: day.updatedAt.toISOString(),
     },
+    trayPriceUah: settings.trayPriceUah,
+    dishes,
     menuItems: day.menuItems.map((m) => ({
       id: m.id,
-      name: m.name,
-      priceUah: m.priceUah,
+      dishId: m.dishId,
+      name: m.dish?.name || m.name,
+      priceUah: m.dish?.priceUah ?? m.priceUah,
+      trayRole: m.dish?.trayRole || 'second',
     })),
     orders,
     payments: day.payments.map((p) => ({
@@ -219,6 +514,8 @@ export function formatLunchTotalsComment(
   orders: Array<{
     displayName: string;
     totalUah: number;
+    trayCount?: number;
+    trayTotalUah?: number;
     rawText?: string;
     lines: Array<{
       rawName: string;
@@ -227,9 +524,11 @@ export function formatLunchTotalsComment(
       qty?: number;
       unitPriceUah?: number;
       lineTotalUah?: number;
+      unavailable?: boolean;
     }>;
   }>,
-  menuItems?: Array<{ id: number; name: string; priceUah?: number }>
+  menuItems?: Array<{ id: number; name: string; priceUah?: number }>,
+  trayPriceUah = 5
 ): string {
   if (!orders.length) return 'Замовлень немає.';
   const menuById = new Map((menuItems || []).map((m) => [m.id, m]));
@@ -239,6 +538,7 @@ export function formatLunchTotalsComment(
     grand += o.totalUah;
     const dishes =
       o.lines
+        .filter((l) => !l.unavailable)
         .map((l) => {
           const fromMenu =
             (l.menuItemId != null ? menuById.get(l.menuItemId)?.name : undefined) ||
@@ -253,11 +553,50 @@ export function formatLunchTotalsComment(
         .filter(Boolean)
         .join(', ') ||
       (o.rawText || '').replace(/\n/g, ', ');
-    lines.push(`${o.displayName}: ${dishes} — ${o.totalUah} грн`);
+    const trays = o.trayCount || 0;
+    const traySum = o.trayTotalUah ?? trays * trayPriceUah;
+    const trayBit = trays > 0 ? `; лотки ${trays} × ${trayPriceUah} = ${traySum} грн` : '';
+    lines.push(`${o.displayName}: ${dishes}${trayBit} — ${o.totalUah} грн`);
   }
   lines.push('');
   lines.push(`Разом: ${grand} грн`);
   return lines.join('\n');
+}
+
+export function formatOrderConfirmText(opts: {
+  displayName: string;
+  lines: Array<{
+    rawName?: string;
+    menuItemName?: string | null;
+    qty?: number;
+    unitPriceUah?: number;
+    lineTotalUah?: number;
+  }>;
+  foodTotal: number;
+  trayCount: number;
+  trayPriceUah: number;
+  trayTotalUah: number;
+  totalUah: number;
+  unmatched?: string[];
+}): string {
+  const parts = [`${opts.displayName}, заказ:`];
+  for (const line of opts.lines) {
+    const name = line.menuItemName || line.rawName || '?';
+    const qty = line.qty || 1;
+    const q = qty > 1 ? `×${qty} ` : '';
+    const lt = line.lineTotalUah ?? (line.unitPriceUah || 0) * qty;
+    const unit = line.unitPriceUah;
+    parts.push(unit != null ? `• ${q}${name} — ${lt} грн (${unit}/шт)` : `• ${q}${name} — ${lt} грн`);
+  }
+  if (opts.trayCount > 0) {
+    parts.push(`Лотки: ${opts.trayCount} × ${opts.trayPriceUah} = ${opts.trayTotalUah} грн`);
+  }
+  parts.push(`Разом: ${opts.totalUah} грн`);
+  if (opts.unmatched && opts.unmatched.length) {
+    parts.push('Не розпізнав: ' + opts.unmatched.join(', '));
+    parts.push('Уточни назви по меню.');
+  }
+  return parts.join('\n');
 }
 
 /**
@@ -268,43 +607,76 @@ export async function updateLunchOrder(
   prisma: PrismaClient,
   orderId: number,
   opts: {
-    menuItemIds: number[];
+    menuItemIds?: number[];
+    lines?: Array<{ menuItemId: number; asWritten?: string; qty?: number }>;
     unmatchedText?: string | null;
+    trayCount?: number | null;
   }
-): Promise<{ ok: boolean; totalUah: number }> {
+): Promise<{
+  ok: boolean;
+  totalUah: number;
+  confirmText: string;
+  replyMessageId: string | null;
+  sourceMessageId: string | null;
+}> {
   const order = await prisma.lunchOrder.findUnique({
     where: { id: orderId },
-    include: { day: { include: { menuItems: true } } },
+    include: {
+      participant: true,
+      day: { include: { menuItems: { include: { dish: true } } } },
+    },
   });
   if (!order || order.status !== 'active') {
     throw new Error('Замовлення не знайдено');
   }
 
+  const settings = await getLunchSettings(prisma);
   const menuById = new Map(order.day.menuItems.map((m) => [m.id, m]));
-  const ids = (opts.menuItemIds || []).map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
+  const rawLines =
+    opts.lines && opts.lines.length
+      ? opts.lines
+      : (opts.menuItemIds || []).map((id) => ({ menuItemId: id, asWritten: '', qty: 1 }));
+
   const linesData: Array<{
     menuItemId: number;
+    dishId: number;
     rawName: string;
     qty: number;
     unitPriceUah: number;
     lineTotalUah: number;
+    asWritten: string;
+    trayRole: string;
   }> = [];
-  let total = 0;
-  for (const mid of ids) {
+  let foodTotal = 0;
+  for (const raw of rawLines) {
+    const mid = Number(raw.menuItemId);
     const item = menuById.get(mid);
     if (!item) {
       throw new Error(`Позиція меню #${mid} не належить цьому дню`);
     }
-    const price = item.priceUah;
-    total += price;
+    const qty = raw.qty && raw.qty > 0 ? Math.round(raw.qty) : 1;
+    const price = item.dish?.priceUah ?? item.priceUah;
+    const lineTotal = price * qty;
+    foodTotal += lineTotal;
+    const asWritten = (raw.asWritten || '').trim();
     linesData.push({
       menuItemId: item.id,
-      rawName: item.name,
-      qty: 1,
+      dishId: item.dishId,
+      rawName: asWritten || item.dish?.name || item.name,
+      qty,
       unitPriceUah: price,
-      lineTotalUah: price,
+      lineTotalUah: lineTotal,
+      asWritten,
+      trayRole: item.dish?.trayRole || 'second',
     });
   }
+
+  const autoTrays = computeTrayCount(linesData);
+  const manual =
+    opts.trayCount != null && Number.isFinite(Number(opts.trayCount)) && Number(opts.trayCount) >= 0;
+  const trayCount = manual ? Math.round(Number(opts.trayCount)) : autoTrays;
+  const trayTotalUah = trayCount * settings.trayPriceUah;
+  const total = foodTotal + trayTotalUah;
 
   const unmatched =
     opts.unmatchedText === undefined
@@ -317,21 +689,110 @@ export async function updateLunchOrder(
     await tx.lunchOrderLine.deleteMany({ where: { orderId } });
     if (linesData.length) {
       await tx.lunchOrderLine.createMany({
-        data: linesData.map((l) => ({ orderId, ...l })),
+        data: linesData.map((l) => ({
+          orderId,
+          menuItemId: l.menuItemId,
+          dishId: l.dishId,
+          rawName: l.rawName,
+          qty: l.qty,
+          unitPriceUah: l.unitPriceUah,
+          lineTotalUah: l.lineTotalUah,
+          unavailable: false,
+        })),
       });
     }
     await tx.lunchOrder.update({
       where: { id: orderId },
       data: {
         totalUah: total,
+        trayCount,
+        trayTotalUah,
+        trayCountManual: manual,
         unmatchedText: unmatched,
-        // rawText не чіпаємо
         updatedAt: new Date(),
       },
     });
+    for (const l of linesData) {
+      if (l.asWritten) {
+        await saveDishSynonym(tx, l.dishId, l.asWritten);
+      }
+    }
   });
 
-  return { ok: true, totalUah: total };
+  const unmatchedParts = unmatched
+    ? unmatched
+        .split(/[;\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const confirmText = formatOrderConfirmText({
+    displayName: order.participant.displayName,
+    lines: linesData.map((l) => ({
+      menuItemName: menuById.get(l.menuItemId)?.dish?.name || menuById.get(l.menuItemId)?.name,
+      rawName: l.rawName,
+      qty: l.qty,
+      unitPriceUah: l.unitPriceUah,
+      lineTotalUah: l.lineTotalUah,
+    })),
+    foodTotal,
+    trayCount,
+    trayPriceUah: settings.trayPriceUah,
+    trayTotalUah,
+    totalUah: total,
+    unmatched: unmatchedParts,
+  });
+
+  return {
+    ok: true,
+    totalUah: total,
+    confirmText,
+    replyMessageId: order.replyMessageId != null ? String(order.replyMessageId) : null,
+    sourceMessageId: order.sourceMessageId != null ? String(order.sourceMessageId) : null,
+  };
+}
+
+export async function updateLunchDish(
+  prisma: PrismaClient,
+  dishId: number,
+  opts: { priceUah?: number; trayRole?: string }
+): Promise<void> {
+  const data: { priceUah?: number; trayRole?: string; updatedAt: Date } = { updatedAt: new Date() };
+  if (opts.priceUah != null) {
+    const p = Math.round(Number(opts.priceUah));
+    if (!Number.isFinite(p) || p <= 0) throw new Error('Некоректна ціна');
+    data.priceUah = p;
+  }
+  if (opts.trayRole) {
+    if (!['soup', 'second', 'salad'].includes(opts.trayRole)) {
+      throw new Error('trayRole: soup | second | salad');
+    }
+    data.trayRole = opts.trayRole;
+  }
+  await prisma.lunchDish.update({ where: { id: dishId }, data });
+  const date = todayKyivDate();
+  const day = await prisma.lunchDay.findUnique({ where: { date } });
+  if (day) {
+    if (data.priceUah != null) {
+      await prisma.lunchMenuItem.updateMany({
+        where: { dayId: day.id, dishId },
+        data: { priceUah: data.priceUah },
+      });
+    }
+    await syncOrdersAfterMenuChange(prisma, day.id);
+  }
+}
+
+export async function updateLunchTrayPrice(prisma: PrismaClient, trayPriceUah: number): Promise<void> {
+  const p = Math.round(Number(trayPriceUah));
+  if (!Number.isFinite(p) || p < 0) throw new Error('Некоректна ціна лотка');
+  await prisma.lunchSettings.upsert({
+    where: { id: 1 },
+    create: { id: 1, trayPriceUah: p },
+    update: { trayPriceUah: p },
+  });
+  const date = todayKyivDate();
+  const day = await prisma.lunchDay.findUnique({ where: { date } });
+  if (day) await syncOrdersAfterMenuChange(prisma, day.id);
 }
 
 export async function recordLunchPayment(

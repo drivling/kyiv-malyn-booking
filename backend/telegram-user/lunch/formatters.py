@@ -24,7 +24,7 @@ def _line_dish_name(line: Any) -> str:
     )
 
 
-def format_menu(items: Sequence[MenuItemRow | tuple[str, int]]) -> str:
+def format_menu(items: Sequence[MenuItemRow | tuple[str, int]], tray_price_uah: int = 5) -> str:
     lines = ["Меню на сьогодні:"]
     for it in items:
         if isinstance(it, tuple):
@@ -32,12 +32,21 @@ def format_menu(items: Sequence[MenuItemRow | tuple[str, int]]) -> str:
         else:
             name, price = it.name, it.price_uah
         lines.append(f"• {name} — {price} грн")
-    if len(lines) == 1:
-        lines.append("(порожньо)")
+    lines.append(f"• Лоток — {tray_price_uah} грн")
     return "\n".join(lines)
 
 
-def format_order_confirm(display_name: str, lines: Sequence[Any], total: int, unmatched: Sequence[str]) -> str:
+def format_order_confirm(
+    display_name: str,
+    lines: Sequence[Any],
+    total: int,
+    unmatched: Sequence[str],
+    *,
+    tray_count: int = 0,
+    tray_price_uah: int = 5,
+    tray_total_uah: int = 0,
+    unavailable: Sequence[str] = (),
+) -> str:
     parts = [f"{display_name}, заказ:"]
     for line in lines:
         name = _line_dish_name(line)
@@ -56,11 +65,20 @@ def format_order_confirm(display_name: str, lines: Sequence[Any], total: int, un
         )
         q = f"×{qty} " if qty and int(qty) > 1 else ""
         parts.append(f"• {q}{name} — {lt} грн ({unit}/шт)")
+    if tray_count > 0:
+        parts.append(f"Лотки: {tray_count} × {tray_price_uah} = {tray_total_uah} грн")
     parts.append(f"Разом: {total} грн")
+    if unavailable:
+        parts.append("Сьогодні немає: " + ", ".join(unavailable) + ".")
     if unmatched:
         parts.append("Не розпізнав: " + ", ".join(unmatched))
         parts.append("Уточни назви по меню.")
     return "\n".join(parts)
+
+
+def format_unavailable(display_name: str, dishes: Sequence[str]) -> str:
+    names = ", ".join(dishes)
+    return f"{display_name}, сьогодні немає: {names}."
 
 
 def format_payment_reply(display_name: str, amount: int, ordered: int, paid: int, debt: int) -> str:
@@ -155,7 +173,12 @@ def format_totals_comment(rows: Sequence[dict[str, Any]]) -> str:
         dishes = ", ".join(dish_bits)
         if not dishes:
             dishes = (r.get("raw_text") or r.get("rawText") or "").replace("\n", ", ")
-        lines.append(f"{name}: {dishes} — {total} грн")
+        trays = int(r.get("tray_count") if r.get("tray_count") is not None else r.get("trayCount") or 0)
+        tray_sum = int(
+            r.get("tray_total_uah") if r.get("tray_total_uah") is not None else r.get("trayTotalUah") or 0
+        )
+        tray_bit = f"; лотки {trays} = {tray_sum} грн" if trays > 0 else ""
+        lines.append(f"{name}: {dishes}{tray_bit} — {total} грн")
     lines.append("")
     lines.append(f"Разом: {grand} грн")
     return "\n".join(lines)

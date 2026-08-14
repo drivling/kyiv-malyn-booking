@@ -881,11 +881,39 @@ class ApiClient {
 
   async updateLunchOrder(
     orderId: number,
-    data: { menuItemIds: number[]; unmatchedText?: string | null }
-  ): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    data: {
+      menuItemIds?: number[];
+      lines?: Array<{ menuItemId: number; asWritten?: string; qty?: number }>;
+      unmatchedText?: string | null;
+      trayCount?: number | null;
+    }
+  ): Promise<{
+    ok: boolean;
+    summary: LunchDaySummary;
+    telegramQueued?: boolean;
+    telegramError?: string | null;
+    hasReply?: boolean;
+  }> {
     return this.request(`/admin/lunch/orders/${orderId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  }
+
+  async updateLunchDish(
+    dishId: number,
+    data: { priceUah?: number; trayRole?: string }
+  ): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/dishes/${dishId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLunchSettings(trayPriceUah: number): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request('/admin/lunch/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ trayPriceUah }),
     });
   }
 

@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
-from .util import normalize_dish_name
+from .util import compute_tray_count, guess_tray_role, normalize_dish_name
 
 KYIV = ZoneInfo("Europe/Kyiv")
 
@@ -23,6 +23,9 @@ class MenuItemRow:
     name: str
     name_norm: str
     price_uah: int
+    dish_id: Optional[int] = None
+    tray_role: str = "second"
+    synonym_norms: tuple[str, ...] = ()
 
 
 @dataclass
@@ -41,6 +44,10 @@ class OrderLineInput:
     qty: int
     unit_price_uah: int
     line_total_uah: int
+    dish_id: Optional[int] = None
+    as_written: str = ""
+    tray_role: str = "second"
+    unavailable: bool = False
 
 
 def today_kyiv() -> date:
@@ -143,6 +150,82 @@ class LunchDB:
                 status,
             )
 
+    async def get_tray_price(self) -> int:
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("""SELECT "trayPriceUah" FROM "LunchSettings" WHERE id = 1""")
+            if row:
+                return int(row["trayPriceUah"])
+            await conn.execute(
+                """
+                INSERT INTO "LunchSettings" (id, "trayPriceUah", "updatedAt")
+                VALUES (1, 5, NOW())
+                ON CONFLICT (id) DO NOTHING
+                """
+            )
+            return 5
+
+    async def _find_or_create_dish(self, conn: asyncpg.Connection, name: str, price: int) -> dict[str, Any]:
+        nn = normalize_dish_name(name)
+        row = await conn.fetchrow(
+            """SELECT id, name, "nameNorm", "priceUah", "trayRole" FROM "LunchDish" WHERE "nameNorm" = $1""",
+            nn,
+        )
+        if not row:
+            syn = await conn.fetchrow(
+                """
+                SELECT d.id, d.name, d."nameNorm", d."priceUah", d."trayRole"
+                FROM "LunchDishSynonym" s
+                JOIN "LunchDish" d ON d.id = s."dishId"
+                WHERE s."rawNorm" = $1
+                LIMIT 1
+                """,
+                nn,
+            )
+            row = syn
+        if row:
+            updated = await conn.fetchrow(
+                """
+                UPDATE "LunchDish" SET "priceUah" = $2, "updatedAt" = NOW()
+                WHERE id = $1
+                RETURNING id, name, "nameNorm", "priceUah", "trayRole"
+                """,
+                int(row["id"]),
+                int(price),
+            )
+            return dict(updated)
+        created = await conn.fetchrow(
+            """
+            INSERT INTO "LunchDish" (name, "nameNorm", "priceUah", "trayRole", "updatedAt")
+            VALUES ($1, $2, $3, $4, NOW())
+            RETURNING id, name, "nameNorm", "priceUah", "trayRole"
+            """,
+            name,
+            nn,
+            int(price),
+            guess_tray_role(name),
+        )
+        return dict(created)
+
+    async def save_synonym(self, dish_id: int, raw_text: str) -> None:
+        raw = (raw_text or "").strip()
+        raw_norm = normalize_dish_name(raw)
+        if not raw or not raw_norm:
+            return
+        async with self.pool.acquire() as conn:
+            dish = await conn.fetchrow("""SELECT "nameNorm" FROM "LunchDish" WHERE id = $1""", dish_id)
+            if not dish or dish["nameNorm"] == raw_norm:
+                return
+            await conn.execute(
+                """
+                INSERT INTO "LunchDishSynonym" ("dishId", "rawText", "rawNorm")
+                VALUES ($1, $2, $3)
+                ON CONFLICT ("dishId", "rawNorm") DO NOTHING
+                """,
+                dish_id,
+                raw,
+                raw_norm,
+            )
+
     async def replace_menu(
         self,
         day_id: int,
@@ -153,7 +236,7 @@ class LunchDB:
         parsed_raw: Optional[Any] = None,
         payee_card: Optional[str] = None,
     ) -> list[MenuItemRow]:
-        """Замінити меню дня (видалити старі позиції) і поставити status=ordering."""
+        """Увімкнути страви дня з каталогу (без wipe каталогу). Оновлює ціни."""
         raw_json = json.dumps(parsed_raw, ensure_ascii=False) if parsed_raw is not None else None
         async with self.pool.acquire() as conn:
             async with conn.transaction():
@@ -174,24 +257,31 @@ class LunchDB:
                     raw_json,
                     payee_card,
                 )
-                await conn.execute("""DELETE FROM "LunchMenuItem" WHERE "dayId" = $1""", day_id)
+                dish_ids: list[int] = []
                 result: list[MenuItemRow] = []
                 for name, price in items:
                     name = (name or "").strip()
                     if not name:
                         continue
-                    price_i = int(price)
-                    nn = normalize_dish_name(name)
+                    dish = await self._find_or_create_dish(conn, name, int(price))
+                    dish_id = int(dish["id"])
+                    dish_ids.append(dish_id)
                     row = await conn.fetchrow(
                         """
-                        INSERT INTO "LunchMenuItem" ("dayId", name, "nameNorm", "priceUah")
-                        VALUES ($1, $2, $3, $4)
-                        RETURNING id, "dayId", name, "nameNorm", "priceUah"
+                        INSERT INTO "LunchMenuItem"
+                            ("dayId", "dishId", name, "nameNorm", "priceUah")
+                        VALUES ($1, $2, $3, $4, $5)
+                        ON CONFLICT ("dayId", "dishId") DO UPDATE SET
+                            "priceUah" = EXCLUDED."priceUah",
+                            name = EXCLUDED.name,
+                            "nameNorm" = EXCLUDED."nameNorm"
+                        RETURNING id, "dayId", "dishId", name, "nameNorm", "priceUah"
                         """,
                         day_id,
-                        name,
-                        nn,
-                        price_i,
+                        dish_id,
+                        dish["name"],
+                        dish["nameNorm"],
+                        int(dish["priceUah"]),
                     )
                     result.append(
                         MenuItemRow(
@@ -200,29 +290,92 @@ class LunchDB:
                             name=row["name"],
                             name_norm=row["nameNorm"],
                             price_uah=int(row["priceUah"]),
+                            dish_id=dish_id,
+                            tray_role=str(dish["trayRole"] or "second"),
                         )
                     )
-                return result
+                if dish_ids:
+                    await conn.execute(
+                        """DELETE FROM "LunchMenuItem" WHERE "dayId" = $1 AND "dishId" <> ALL($2::int[])""",
+                        day_id,
+                        dish_ids,
+                    )
+                else:
+                    await conn.execute("""DELETE FROM "LunchMenuItem" WHERE "dayId" = $1""", day_id)
+        return await self.list_menu_items(day_id)
 
-    async def list_menu_items(self, day_id: int) -> list[MenuItemRow]:
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT id, "dayId", name, "nameNorm", "priceUah"
-                FROM "LunchMenuItem" WHERE "dayId" = $1 ORDER BY id
-                """,
-                day_id,
+    async def _rows_to_menu(self, conn: asyncpg.Connection, rows: list) -> list[MenuItemRow]:
+        dish_ids = [int(r["dishId"]) for r in rows if r["dishId"] is not None]
+        syn_map: dict[int, list[str]] = {}
+        if dish_ids:
+            syn_rows = await conn.fetch(
+                """SELECT "dishId", "rawNorm" FROM "LunchDishSynonym" WHERE "dishId" = ANY($1::int[])""",
+                dish_ids,
             )
-            return [
+            for s in syn_rows:
+                syn_map.setdefault(int(s["dishId"]), []).append(s["rawNorm"])
+        out: list[MenuItemRow] = []
+        for r in rows:
+            dish_id = int(r["dishId"]) if r["dishId"] is not None else None
+            out.append(
                 MenuItemRow(
                     id=int(r["id"]),
                     day_id=int(r["dayId"]),
                     name=r["name"],
                     name_norm=r["nameNorm"],
                     price_uah=int(r["priceUah"]),
+                    dish_id=dish_id,
+                    tray_role=str(r["trayRole"] or "second"),
+                    synonym_norms=tuple(syn_map.get(dish_id or -1, [])),
                 )
-                for r in rows
-            ]
+            )
+        return out
+
+    async def list_menu_items(self, day_id: int) -> list[MenuItemRow]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT m.id, m."dayId", m."dishId", m.name, m."nameNorm", m."priceUah",
+                       COALESCE(d."trayRole", 'second') AS "trayRole"
+                FROM "LunchMenuItem" m
+                LEFT JOIN "LunchDish" d ON d.id = m."dishId"
+                WHERE m."dayId" = $1
+                ORDER BY m.id
+                """,
+                day_id,
+            )
+            return await self._rows_to_menu(conn, rows)
+
+    async def get_fallback_menu(self, day_id: int) -> list[MenuItemRow]:
+        """Меню попереднього дня, в якого вже були позиції."""
+        async with self.pool.acquire() as conn:
+            prev = await conn.fetchrow(
+                """
+                SELECT d.id FROM "LunchDay" d
+                WHERE d.date < (SELECT date FROM "LunchDay" WHERE id = $1)
+                  AND EXISTS (SELECT 1 FROM "LunchMenuItem" m WHERE m."dayId" = d.id)
+                ORDER BY d.date DESC
+                LIMIT 1
+                """,
+                day_id,
+            )
+        if not prev:
+            return []
+        return await self.list_menu_items(int(prev["id"]))
+
+    async def apply_trays_to_lines(
+        self, lines: list[OrderLineInput], tray_count_override: Optional[int] = None
+    ) -> tuple[int, int, int]:
+        """Повертає (tray_count, tray_total, food+tray total)."""
+        tray_price = await self.get_tray_price()
+        food = sum(l.line_total_uah for l in lines if not l.unavailable)
+        trays = (
+            int(tray_count_override)
+            if tray_count_override is not None
+            else compute_tray_count(lines)
+        )
+        tray_total = trays * tray_price
+        return trays, tray_total, food + tray_total
 
     async def upsert_order(
         self,
@@ -233,20 +386,34 @@ class LunchDB:
         lines: list[OrderLineInput],
         source_message_id: Optional[int] = None,
         unmatched_text: Optional[str] = None,
+        reply_message_id: Optional[int] = None,
+        tray_count: Optional[int] = None,
+        tray_total_uah: Optional[int] = None,
+        tray_count_manual: bool = False,
     ) -> int:
+        if tray_count is None or tray_total_uah is None:
+            trays, tray_sum, grand = await self.apply_trays_to_lines(lines)
+            tray_count = trays
+            tray_total_uah = tray_sum
+            total_uah = grand
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
                     """
                     INSERT INTO "LunchOrder"
-                        ("dayId", "participantId", "sourceMessageId", "rawText", "unmatchedText",
-                         "totalUah", status, "updatedAt")
-                    VALUES ($1, $2, $3, $4, $5, $6, 'active', NOW())
+                        ("dayId", "participantId", "sourceMessageId", "replyMessageId", "rawText",
+                         "unmatchedText", "totalUah", "trayCount", "trayTotalUah", "trayCountManual",
+                         status, "updatedAt")
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', NOW())
                     ON CONFLICT ("dayId", "participantId") DO UPDATE SET
-                        "sourceMessageId" = EXCLUDED."sourceMessageId",
+                        "sourceMessageId" = COALESCE(EXCLUDED."sourceMessageId", "LunchOrder"."sourceMessageId"),
+                        "replyMessageId" = COALESCE(EXCLUDED."replyMessageId", "LunchOrder"."replyMessageId"),
                         "rawText" = EXCLUDED."rawText",
                         "unmatchedText" = EXCLUDED."unmatchedText",
                         "totalUah" = EXCLUDED."totalUah",
+                        "trayCount" = EXCLUDED."trayCount",
+                        "trayTotalUah" = EXCLUDED."trayTotalUah",
+                        "trayCountManual" = EXCLUDED."trayCountManual",
                         status = 'active',
                         "updatedAt" = NOW()
                     RETURNING id
@@ -254,9 +421,13 @@ class LunchDB:
                     day_id,
                     participant_id,
                     source_message_id,
+                    reply_message_id,
                     raw_text,
                     unmatched_text,
                     total_uah,
+                    tray_count,
+                    tray_total_uah,
+                    tray_count_manual,
                 )
                 order_id = int(row["id"])
                 await conn.execute("""DELETE FROM "LunchOrderLine" WHERE "orderId" = $1""", order_id)
@@ -264,17 +435,162 @@ class LunchDB:
                     await conn.execute(
                         """
                         INSERT INTO "LunchOrderLine"
-                            ("orderId", "menuItemId", "rawName", qty, "unitPriceUah", "lineTotalUah")
-                        VALUES ($1, $2, $3, $4, $5, $6)
+                            ("orderId", "menuItemId", "dishId", "rawName", qty,
+                             "unitPriceUah", "lineTotalUah", unavailable)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                         """,
                         order_id,
                         line.menu_item_id,
+                        line.dish_id,
                         line.raw_name,
                         line.qty,
                         line.unit_price_uah,
                         line.line_total_uah,
+                        line.unavailable,
                     )
                 return order_id
+
+    async def set_order_reply_message_id(self, order_id: int, reply_message_id: int) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """UPDATE "LunchOrder" SET "replyMessageId" = $2, "updatedAt" = NOW() WHERE id = $1""",
+                order_id,
+                reply_message_id,
+            )
+
+    async def sync_orders_after_menu(self, day_id: int) -> list[dict[str, Any]]:
+        """Перерахувати ціни/лотки; позначити страви, яких немає сьогодні. Повертає notices."""
+        today = await self.list_menu_items(day_id)
+        today_by_dish = {int(i.dish_id): i for i in today if i.dish_id}
+        tray_price = await self.get_tray_price()
+        notices: list[dict[str, Any]] = []
+        async with self.pool.acquire() as conn:
+            orders = await conn.fetch(
+                """
+                SELECT o.id, o."sourceMessageId", o."trayCountManual", o."trayCount",
+                       p."displayName"
+                FROM "LunchOrder" o
+                JOIN "LunchParticipant" p ON p.id = o."participantId"
+                WHERE o."dayId" = $1 AND o.status = 'active'
+                """,
+                day_id,
+            )
+            for o in orders:
+                order_id = int(o["id"])
+                lines = await conn.fetch(
+                    """
+                    SELECT l.id, l."dishId", l.qty, l."lineTotalUah", l."rawName",
+                           d.name AS dish_name, d."trayRole"
+                    FROM "LunchOrderLine" l
+                    LEFT JOIN "LunchDish" d ON d.id = l."dishId"
+                    WHERE l."orderId" = $1
+                    ORDER BY l.id
+                    """,
+                    order_id,
+                )
+                missing: list[str] = []
+                food = 0
+                role_lines = []
+                for line in lines:
+                    dish_id = int(line["dishId"]) if line["dishId"] is not None else None
+                    today_item = today_by_dish.get(dish_id) if dish_id else None
+                    qty = int(line["qty"] or 1)
+                    if today_item:
+                        unit = today_item.price_uah
+                        lt = unit * qty
+                        food += lt
+                        role_lines.append(
+                            OrderLineInput(
+                                menu_item_id=today_item.id,
+                                dish_id=today_item.dish_id,
+                                raw_name=today_item.name,
+                                qty=qty,
+                                unit_price_uah=unit,
+                                line_total_uah=lt,
+                                tray_role=today_item.tray_role,
+                            )
+                        )
+                        await conn.execute(
+                            """
+                            UPDATE "LunchOrderLine"
+                            SET "menuItemId" = $2, "unitPriceUah" = $3, "lineTotalUah" = $4,
+                                unavailable = false, "rawName" = $5
+                            WHERE id = $1
+                            """,
+                            int(line["id"]),
+                            today_item.id,
+                            unit,
+                            lt,
+                            today_item.name,
+                        )
+                    else:
+                        name = line["dish_name"] or line["rawName"]
+                        missing.append(name)
+                        food += int(line["lineTotalUah"] or 0)
+                        role_lines.append(
+                            OrderLineInput(
+                                menu_item_id=None,
+                                dish_id=dish_id,
+                                raw_name=name,
+                                qty=qty,
+                                unit_price_uah=0,
+                                line_total_uah=int(line["lineTotalUah"] or 0),
+                                tray_role=str(line["trayRole"] or "second"),
+                                unavailable=True,
+                            )
+                        )
+                        await conn.execute(
+                            """UPDATE "LunchOrderLine" SET unavailable = true, "menuItemId" = NULL WHERE id = $1""",
+                            int(line["id"]),
+                        )
+                if o["trayCountManual"]:
+                    trays = int(o["trayCount"] or 0)
+                else:
+                    trays = compute_tray_count(role_lines)
+                tray_total = trays * tray_price
+                await conn.execute(
+                    """
+                    UPDATE "LunchOrder"
+                    SET "trayCount" = $2, "trayTotalUah" = $3, "totalUah" = $4, "updatedAt" = NOW()
+                    WHERE id = $1
+                    """,
+                    order_id,
+                    trays,
+                    tray_total,
+                    food + tray_total,
+                )
+                if missing:
+                    mid = o["sourceMessageId"]
+                    notices.append(
+                        {
+                            "order_id": order_id,
+                            "display_name": o["displayName"],
+                            "source_message_id": int(mid) if mid is not None else None,
+                            "missing_dishes": missing,
+                        }
+                    )
+        return notices
+
+    async def enqueue_outbound(
+        self,
+        text: str,
+        *,
+        kind: str = "send",
+        telegram_message_id: Optional[int] = None,
+        reply_to_message_id: Optional[int] = None,
+    ) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO "LunchOutboundMessage"
+                    (text, kind, "telegramMessageId", "replyToMessageId", status)
+                VALUES ($1, $2, $3, $4, 'pending')
+                """,
+                text,
+                kind,
+                telegram_message_id,
+                reply_to_message_id,
+            )
 
     async def add_payment(
         self,
@@ -328,6 +644,7 @@ class LunchDB:
             orders = await conn.fetch(
                 """
                 SELECT o.id, o."rawText", o."unmatchedText", o."totalUah",
+                       o."trayCount", o."trayTotalUah",
                        p.id AS pid, p."displayName", p.username
                 FROM "LunchOrder" o
                 JOIN "LunchParticipant" p ON p.id = o."participantId"
@@ -352,10 +669,12 @@ class LunchDB:
                 paid = paid_map.get(pid, 0)
                 lines = await conn.fetch(
                     """
-                    SELECT l."menuItemId", l."rawName", l.qty, l."unitPriceUah", l."lineTotalUah",
-                           m.name AS "menuItemName"
+                    SELECT l."menuItemId", l."dishId", l."rawName", l.qty, l."unitPriceUah",
+                           l."lineTotalUah", l.unavailable,
+                           COALESCE(d.name, m.name) AS "menuItemName"
                     FROM "LunchOrderLine" l
                     LEFT JOIN "LunchMenuItem" m ON m.id = l."menuItemId"
+                    LEFT JOIN "LunchDish" d ON d.id = l."dishId"
                     WHERE l."orderId" = $1
                     ORDER BY l.id
                     """,
@@ -369,6 +688,8 @@ class LunchDB:
                         "raw_text": o["rawText"],
                         "unmatched_text": o["unmatchedText"],
                         "total_uah": total,
+                        "tray_count": int(o["trayCount"] or 0),
+                        "tray_total_uah": int(o["trayTotalUah"] or 0),
                         "paid_uah": paid,
                         "debt_uah": total - paid,
                         "lines": [dict(l) for l in lines],
@@ -435,14 +756,24 @@ class LunchDB:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, text FROM "LunchOutboundMessage"
+                SELECT id, text, kind, "telegramMessageId", "replyToMessageId"
+                FROM "LunchOutboundMessage"
                 WHERE status = 'pending'
                 ORDER BY "createdAt" ASC
                 LIMIT $1
                 """,
                 limit,
             )
-            return [{"id": int(r["id"]), "text": r["text"]} for r in rows]
+            return [
+                {
+                    "id": int(r["id"]),
+                    "text": r["text"],
+                    "kind": r["kind"] or "send",
+                    "telegram_message_id": int(r["telegramMessageId"]) if r["telegramMessageId"] is not None else None,
+                    "reply_to_message_id": int(r["replyToMessageId"]) if r["replyToMessageId"] is not None else None,
+                }
+                for r in rows
+            ]
 
     async def mark_outbound_sent(self, msg_id: int) -> None:
         async with self.pool.acquire() as conn:

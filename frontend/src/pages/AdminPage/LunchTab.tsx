@@ -7,6 +7,12 @@ import './LunchTab.css';
 
 const EXAMPLE_JSON = `{"items":[{"name":"Яйце з кабачковою ікрою","price":40},{"name":"Салат «Овочевий мікс»","price":45},{"name":"Пюре","price":45},{"name":"Котлети курячі","price":70}]}`;
 
+const TRAY_ROLE_LABEL: Record<string, string> = {
+  soup: 'суп',
+  second: 'друге',
+  salad: 'салат',
+};
+
 function splitUnmatched(text: string | null | undefined): string[] {
   if (!text || !text.trim()) return [];
   return text
@@ -15,7 +21,21 @@ function splitUnmatched(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-/** Підпис рядка замовлення як у формі «Редагувати»: назва з меню + ціна */
+function computeTrayCount(roles: Array<{ trayRole?: string | null; qty?: number | null }>): number {
+  if (!roles.length) return 0;
+  let soupQty = 0;
+  let hasSecond = false;
+  for (const l of roles) {
+    const role = l.trayRole || 'second';
+    const qty = l.qty && l.qty > 0 ? l.qty : 1;
+    if (role === 'soup') soupQty += qty;
+    else if (role === 'second') hasSecond = true;
+  }
+  let trays = soupQty + (hasSecond ? 1 : 0);
+  if (roles.length === 1) trays = Math.max(trays, 1);
+  return trays;
+}
+
 function formatOrderDishLabel(
   line: LunchOrderRow['lines'][number],
   menuById: Map<number, { id: number; name: string; priceUah: number }>
@@ -24,13 +44,18 @@ function formatOrderDishLabel(
   const name = item?.name || line.menuItemName || line.rawName || '?';
   const price = line.lineTotalUah ?? item?.priceUah ?? line.unitPriceUah;
   const qty = line.qty > 1 ? `×${line.qty} ` : '';
-  return `${qty}${name} — ${price} грн`;
+  const miss = line.unavailable ? ' (немає сьогодні)' : '';
+  return `${qty}${name} — ${price} грн${miss}`;
 }
 
+type EditLine = { menuItemId: number; asWritten: string };
 type EditState = {
   orderId: number;
-  menuItemIds: number[];
+  lines: EditLine[];
   unmatchedParts: string[];
+  trayCount: number;
+  trayManual: boolean;
+  asWrittenDraft: string;
 };
 
 export const LunchTab: React.FC = () => {
@@ -43,6 +68,7 @@ export const LunchTab: React.FC = () => {
   const [postToGroup, setPostToGroup] = useState(true);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [addMenuId, setAddMenuId] = useState('');
+  const [trayPriceDraft, setTrayPriceDraft] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +76,7 @@ export const LunchTab: React.FC = () => {
     try {
       const data = await apiClient.getLunchToday();
       setSummary(data);
+      setTrayPriceDraft(String(data.trayPriceUah ?? 5));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка завантаження');
     } finally {
@@ -62,22 +89,42 @@ export const LunchTab: React.FC = () => {
   }, [load]);
 
   const menuById = useMemo(() => {
-    const m = new Map<number, { id: number; name: string; priceUah: number }>();
+    const m = new Map<number, { id: number; name: string; priceUah: number; trayRole?: string }>();
     for (const item of summary?.menuItems || []) m.set(item.id, item);
     return m;
   }, [summary?.menuItems]);
 
-  const editPreviewTotal = useMemo(() => {
+  const trayPrice = summary?.trayPriceUah ?? 5;
+
+  const autoTrayFromEdit = useMemo(() => {
     if (!edit) return 0;
-    return edit.menuItemIds.reduce((s, id) => s + (menuById.get(id)?.priceUah || 0), 0);
+    return computeTrayCount(
+      edit.lines.map((l) => ({ trayRole: menuById.get(l.menuItemId)?.trayRole, qty: 1 }))
+    );
   }, [edit, menuById]);
 
+  const editPreviewFood = useMemo(() => {
+    if (!edit) return 0;
+    return edit.lines.reduce((s, l) => s + (menuById.get(l.menuItemId)?.priceUah || 0), 0);
+  }, [edit, menuById]);
+
+  const editTrayCount = edit ? (edit.trayManual ? edit.trayCount : autoTrayFromEdit) : 0;
+  const editPreviewTotal = editPreviewFood + editTrayCount * trayPrice;
+
   const startEdit = (o: LunchOrderRow) => {
-    const ids = o.lines.map((l) => l.menuItemId).filter((id): id is number => id != null && id > 0);
+    const lines = o.lines
+      .filter((l) => l.menuItemId != null && l.menuItemId > 0 && !l.unavailable)
+      .map((l) => ({
+        menuItemId: l.menuItemId as number,
+        asWritten: l.rawName && l.rawName !== l.menuItemName ? l.rawName : '',
+      }));
     setEdit({
       orderId: o.id,
-      menuItemIds: ids,
+      lines,
       unmatchedParts: splitUnmatched(o.unmatchedText),
+      trayCount: o.trayCount ?? 0,
+      trayManual: Boolean(o.trayCountManual),
+      asWrittenDraft: '',
     });
     setAddMenuId('');
     setError('');
@@ -98,10 +145,23 @@ export const LunchTab: React.FC = () => {
       const unmatchedText =
         edit.unmatchedParts.length > 0 ? edit.unmatchedParts.join('; ') : null;
       const res = await apiClient.updateLunchOrder(edit.orderId, {
-        menuItemIds: edit.menuItemIds,
+        lines: edit.lines.map((l) => ({
+          menuItemId: l.menuItemId,
+          asWritten: l.asWritten,
+          qty: 1,
+        })),
         unmatchedText,
+        trayCount: edit.trayManual ? edit.trayCount : null,
       });
-      setSuccess('Замовлення оновлено. Оригінальний текст повідомлення збережено.');
+      const tg =
+        res.telegramError
+          ? ` Відповідь у групі не підправлено: ${res.telegramError}`
+          : res.hasReply
+            ? ' Відповідь у групі поставлено в чергу на правку.'
+            : res.telegramQueued
+              ? ' Уточнення в групу в черзі.'
+              : ' (немає id вашої відповіді — у групу не підправлено.)';
+      setSuccess(`Замовлення оновлено.${tg}`);
       setEdit(null);
       if (res.summary) setSummary(res.summary);
       else await load();
@@ -121,20 +181,22 @@ export const LunchTab: React.FC = () => {
         rawJson: jsonText.trim(),
         postToGroup,
       });
+      const noticeN = res.notices?.length ?? 0;
+      const extra = noticeN ? ` Сповіщено ${noticeN} осіб про страви, яких немає сьогодні.` : '';
       if (!postToGroup) {
-        setSuccess(`Меню збережено (${res.menuItems.length} позицій).`);
+        setSuccess(`Меню збережено (${res.menuItems.length} позицій).${extra}`);
       } else if (res.postError) {
         setSuccess(
-          `Меню збережено (${res.menuItems.length}), але пост у групу не вдався: ${res.postError}`
+          `Меню збережено (${res.menuItems.length}), але пост у групу не вдався: ${res.postError}${extra}`
         );
       } else if (res.queued) {
         setSuccess(
-          `Меню збережено (${res.menuItems.length}). Повідомлення в черзі — listener надішле в групу за кілька секунд.`
+          `Меню збережено (${res.menuItems.length}). Повідомлення в черзі — listener надішле в групу за кілька секунд.${extra}`
         );
       } else if (res.posted) {
-        setSuccess(`Меню збережено (${res.menuItems.length} позицій) і надіслано в групу.`);
+        setSuccess(`Меню збережено (${res.menuItems.length} позицій) і надіслано в групу.${extra}`);
       } else {
-        setSuccess(`Меню збережено (${res.menuItems.length} позицій).`);
+        setSuccess(`Меню збережено (${res.menuItems.length} позицій).${extra}`);
       }
       setJsonText('');
       await load();
@@ -237,6 +299,43 @@ export const LunchTab: React.FC = () => {
     }
   };
 
+  const saveTrayPrice = async () => {
+    const n = Number(trayPriceDraft);
+    if (!Number.isFinite(n) || n < 0) {
+      setError('Некоректна ціна лотка');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.updateLunchSettings(n);
+      setSuccess(`Ціна лотка: ${n} грн.`);
+      if (res.summary) setSummary(res.summary);
+      else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка ціни лотка');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDish = async (dishId: number, priceUah: number, trayRole: string) => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.updateLunchDish(dishId, { priceUah, trayRole });
+      setSuccess('Страву оновлено.');
+      if (res.summary) setSummary(res.summary);
+      else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка страви');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const editingOrder = summary?.orders.find((o) => o.id === edit?.orderId) || null;
 
   return (
@@ -246,7 +345,7 @@ export const LunchTab: React.FC = () => {
           <h2 className="lunch-tab__title">Столова — обіди</h2>
           <p className="lunch-tab__sub">
             Група «Обіди для НЕ бідних». Встав JSON з ChatGPT → збережи в БД і (опційно) напиши в групу від свого
-            акаунта.
+            акаунта. Каталог страв не обнуляється — імпорт лише вмикає доступні на сьогодні.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={() => void load()} disabled={loading}>
@@ -317,8 +416,8 @@ export const LunchTab: React.FC = () => {
         </div>
         <p className="lunch-card__hint" style={{ marginTop: 4 }}>
           «Розібрати поточний день» — знову читає повідомлення з групи за сьогодні, скидає замовлення/оплати
-          (меню лишається) і парсить заново. «Ітог у групу» — імʼя, страви, сума (без судочків). Оригінал
-          повідомлення завжди зберігається — можна правити страви вручну.
+          (меню лишається) і парсить заново. «Ітог у групу» — імʼя, страви, лотки, сума. Чуже повідомлення людини
+          в Telegram не редагується; підправляється ваша відповідь «Не розпізнав», якщо її id збережено.
         </p>
 
         {loading && !summary && <p className="lunch-muted">Завантаження…</p>}
@@ -348,15 +447,39 @@ export const LunchTab: React.FC = () => {
 
             <h4 className="lunch-section-title">Меню ({summary.menuItems.length})</h4>
             {summary.menuItems.length === 0 ? (
-              <p className="lunch-muted">Ще немає — встав JSON вище.</p>
+              <p className="lunch-muted">Ще немає — встав JSON вище. До появи меню замовлення приймаються з учорашнього.</p>
             ) : (
               <ul className="lunch-menu-list">
                 {summary.menuItems.map((m) => (
                   <li key={m.id}>
-                    <span>{m.name}</span>
+                    <span>
+                      {m.name}{' '}
+                      <span className="lunch-muted">({TRAY_ROLE_LABEL[m.trayRole || 'second'] || m.trayRole})</span>
+                    </span>
                     <span>{m.priceUah} грн</span>
                   </li>
                 ))}
+                <li className="lunch-menu-tray">
+                  <span>Лоток</span>
+                  <span className="lunch-tray-edit">
+                    <input
+                      type="number"
+                      min={0}
+                      className="lunch-input lunch-input--sm"
+                      value={trayPriceDraft}
+                      onChange={(e) => setTrayPriceDraft(e.target.value)}
+                    />
+                    <span>грн</span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={saving}
+                      onClick={() => void saveTrayPrice()}
+                    >
+                      Зберегти ціну лотка
+                    </Button>
+                  </span>
+                </li>
               </ul>
             )}
 
@@ -370,6 +493,7 @@ export const LunchTab: React.FC = () => {
                     <tr>
                       <th>Хто</th>
                       <th>Що</th>
+                      <th>Лотки</th>
                       <th>Не розпізнано</th>
                       <th>Сума</th>
                       <th>Оплачено</th>
@@ -380,13 +504,22 @@ export const LunchTab: React.FC = () => {
                   <tbody>
                     {summary.orders.map((o) => (
                       <React.Fragment key={o.id}>
-                        <tr className={o.unmatchedText ? 'lunch-row--warn' : undefined}>
+                        <tr
+                          className={
+                            o.unmatchedText || o.lines.some((l) => l.unavailable)
+                              ? 'lunch-row--warn'
+                              : undefined
+                          }
+                        >
                           <td>{o.displayName}</td>
                           <td className="lunch-dishes">
                             {o.lines.length > 0 ? (
                               <ul className="lunch-dish-list">
                                 {o.lines.map((l, idx) => (
-                                  <li key={`${o.id}-${l.menuItemId ?? 'x'}-${idx}`}>
+                                  <li
+                                    key={`${o.id}-${l.menuItemId ?? 'x'}-${idx}`}
+                                    className={l.unavailable ? 'lunch-dish--miss' : undefined}
+                                  >
                                     {formatOrderDishLabel(l, menuById)}
                                   </li>
                                 ))}
@@ -400,6 +533,11 @@ export const LunchTab: React.FC = () => {
                                 <pre>{o.rawText}</pre>
                               </details>
                             ) : null}
+                          </td>
+                          <td>
+                            {o.trayCount > 0
+                              ? `${o.trayCount} × ${trayPrice} = ${o.trayTotalUah} грн`
+                              : '—'}
                           </td>
                           <td className="lunch-unmatched">
                             {o.unmatchedText ? (
@@ -438,21 +576,24 @@ export const LunchTab: React.FC = () => {
                         </tr>
                         {edit?.orderId === o.id && editingOrder && (
                           <tr className="lunch-edit-row">
-                            <td colSpan={7}>
+                            <td colSpan={8}>
                               <div className="lunch-edit">
                                 <div className="lunch-edit__col">
                                   <strong>Страви з меню</strong>
                                   <ul className="lunch-edit-list">
-                                    {edit.menuItemIds.length === 0 && (
+                                    {edit.lines.length === 0 && (
                                       <li className="lunch-muted">Порожньо — додай з меню нижче</li>
                                     )}
-                                    {edit.menuItemIds.map((id, idx) => {
-                                      const item = menuById.get(id);
+                                    {edit.lines.map((line, idx) => {
+                                      const item = menuById.get(line.menuItemId);
                                       return (
-                                        <li key={`${id}-${idx}`}>
+                                        <li key={`${line.menuItemId}-${idx}`}>
                                           <span>
-                                            {item?.name || `#${id}`}
+                                            {item?.name || `#${line.menuItemId}`}
                                             {item ? ` — ${item.priceUah} грн` : ''}
+                                            {line.asWritten ? (
+                                              <span className="lunch-muted"> ({line.asWritten})</span>
+                                            ) : null}
                                           </span>
                                           <button
                                             type="button"
@@ -460,7 +601,7 @@ export const LunchTab: React.FC = () => {
                                             onClick={() =>
                                               setEdit({
                                                 ...edit,
-                                                menuItemIds: edit.menuItemIds.filter((_, i) => i !== idx),
+                                                lines: edit.lines.filter((_, i) => i !== idx),
                                               })
                                             }
                                           >
@@ -483,6 +624,12 @@ export const LunchTab: React.FC = () => {
                                         </option>
                                       ))}
                                     </select>
+                                    <input
+                                      className="lunch-input"
+                                      placeholder="як писала людина"
+                                      value={edit.asWrittenDraft}
+                                      onChange={(e) => setEdit({ ...edit, asWrittenDraft: e.target.value })}
+                                    />
                                     <Button
                                       type="button"
                                       variant="secondary"
@@ -492,13 +639,51 @@ export const LunchTab: React.FC = () => {
                                         if (!id) return;
                                         setEdit({
                                           ...edit,
-                                          menuItemIds: [...edit.menuItemIds, id],
+                                          lines: [
+                                            ...edit.lines,
+                                            { menuItemId: id, asWritten: edit.asWrittenDraft.trim() },
+                                          ],
+                                          asWrittenDraft: '',
                                         });
                                         setAddMenuId('');
                                       }}
                                     >
                                       Додати
                                     </Button>
+                                  </div>
+                                  <label className="lunch-check">
+                                    <input
+                                      type="checkbox"
+                                      checked={edit.trayManual}
+                                      onChange={(e) =>
+                                        setEdit({
+                                          ...edit,
+                                          trayManual: e.target.checked,
+                                          trayCount: e.target.checked ? editTrayCount : autoTrayFromEdit,
+                                        })
+                                      }
+                                    />
+                                    Лотки вручну
+                                  </label>
+                                  <div className="lunch-tray-edit">
+                                    <span>Лотки:</span>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      className="lunch-input lunch-input--sm"
+                                      disabled={!edit.trayManual}
+                                      value={edit.trayManual ? edit.trayCount : autoTrayFromEdit}
+                                      onChange={(e) =>
+                                        setEdit({
+                                          ...edit,
+                                          trayCount: Number(e.target.value) || 0,
+                                          trayManual: true,
+                                        })
+                                      }
+                                    />
+                                    <span>
+                                      × {trayPrice} = {editTrayCount * trayPrice} грн
+                                    </span>
                                   </div>
                                   <p className="lunch-edit-total">
                                     Нова сума: <strong>{editPreviewTotal} грн</strong>
@@ -522,6 +707,7 @@ export const LunchTab: React.FC = () => {
                                               unmatchedParts: edit.unmatchedParts.filter(
                                                 (_, i) => i !== idx
                                               ),
+                                              asWrittenDraft: edit.asWrittenDraft || part,
                                             })
                                           }
                                         >
@@ -530,6 +716,12 @@ export const LunchTab: React.FC = () => {
                                       </li>
                                     ))}
                                   </ul>
+                                  <p className="lunch-card__hint">
+                                    Хрестик прибирає фрагмент і підставляє його в «як писала людина».
+                                    {editingOrder.hasReply
+                                      ? ' Вашу відповідь у групі буде підправлено.'
+                                      : ' Id відповіді немає — чуже повідомлення людини редагувати не можна.'}
+                                  </p>
                                   <details className="lunch-raw lunch-raw--open">
                                     <summary>Оригінал повідомлення (тільки читання)</summary>
                                     <pre>{editingOrder.rawText}</pre>
@@ -575,6 +767,94 @@ export const LunchTab: React.FC = () => {
           </>
         )}
       </section>
+
+      <section className="lunch-card">
+        <h3 className="lunch-card__title">База страв ({summary?.dishes?.length || 0})</h3>
+        <p className="lunch-card__hint">
+          Каталог не стирається щодня. Роль лотка: суп — окремий лоток на порцію; друге — один спільний; салат —
+          без лотка (крім єдиної страви в заказі).
+        </p>
+        {!summary?.dishes?.length ? (
+          <p className="lunch-muted">Порожньо — зʼявиться після першого імпорту меню.</p>
+        ) : (
+          <CatalogTable dishes={summary.dishes} saving={saving} onSave={saveDish} />
+        )}
+      </section>
+    </div>
+  );
+};
+
+const CatalogTable: React.FC<{
+  dishes: LunchDaySummary['dishes'];
+  saving: boolean;
+  onSave: (id: number, priceUah: number, trayRole: string) => void;
+}> = ({ dishes, saving, onSave }) => {
+  const [drafts, setDrafts] = useState<Record<number, { price: string; role: string }>>({});
+  useEffect(() => {
+    const next: Record<number, { price: string; role: string }> = {};
+    for (const d of dishes) next[d.id] = { price: String(d.priceUah), role: d.trayRole };
+    setDrafts(next);
+  }, [dishes]);
+
+  return (
+    <div className="lunch-table-wrap">
+      <table className="lunch-table">
+        <thead>
+          <tr>
+            <th>Страва</th>
+            <th>Ціна</th>
+            <th>Лоток</th>
+            <th>Синоніми</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {dishes.map((d) => {
+            const draft = drafts[d.id] || { price: String(d.priceUah), role: d.trayRole };
+            return (
+              <tr key={d.id}>
+                <td>{d.name}</td>
+                <td>
+                  <input
+                    type="number"
+                    min={1}
+                    className="lunch-input lunch-input--sm"
+                    value={draft.price}
+                    onChange={(e) =>
+                      setDrafts({ ...drafts, [d.id]: { ...draft, price: e.target.value } })
+                    }
+                  />
+                </td>
+                <td>
+                  <select
+                    className="lunch-input"
+                    value={draft.role}
+                    onChange={(e) =>
+                      setDrafts({ ...drafts, [d.id]: { ...draft, role: e.target.value } })
+                    }
+                  >
+                    <option value="soup">суп</option>
+                    <option value="second">друге</option>
+                    <option value="salad">салат</option>
+                  </select>
+                </td>
+                <td className="lunch-muted">{d.synonyms.length ? d.synonyms.join(', ') : '—'}</td>
+                <td>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="lunch-pay-btn"
+                    disabled={saving}
+                    onClick={() => onSave(d.id, Number(draft.price), draft.role)}
+                  >
+                    Зберегти
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };

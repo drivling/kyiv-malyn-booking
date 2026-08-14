@@ -12,6 +12,23 @@ export type PostLunchResult = {
   error?: string;
 };
 
+export type LunchOutboundKind = 'send' | 'edit';
+
+export type PostLunchOpts = {
+  kind?: LunchOutboundKind;
+  telegramMessageId?: string | number | bigint | null;
+  replyToMessageId?: string | number | bigint | null;
+};
+
+function toBigIntOrNull(v: string | number | bigint | null | undefined): bigint | null {
+  if (v === null || v === undefined || v === '') return null;
+  try {
+    return BigInt(v);
+  } catch {
+    return null;
+  }
+}
+
 function sessionPathBase(): string {
   const env = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
   if (env) return env.replace(/\.session$/, '');
@@ -72,13 +89,28 @@ function spawnPostText(text: string): Promise<boolean> {
  */
 export async function postTextToLunchGroup(
   prisma: PrismaClient,
-  text: string
+  text: string,
+  opts: PostLunchOpts = {}
 ): Promise<PostLunchResult> {
+  const kind: LunchOutboundKind = opts.kind || 'send';
   if (isLunchListenerWanted()) {
     await prisma.lunchOutboundMessage.create({
-      data: { text, status: 'pending' },
+      data: {
+        text,
+        status: 'pending',
+        kind,
+        telegramMessageId: toBigIntOrNull(opts.telegramMessageId),
+        replyToMessageId: toBigIntOrNull(opts.replyToMessageId),
+      },
     });
     return { ok: true, queued: true };
+  }
+  if (kind === 'edit') {
+    return {
+      ok: false,
+      queued: false,
+      error: 'Правка повідомлення в групі потребує увімкненого lunch-listener',
+    };
   }
   const ok = await spawnPostText(text);
   return ok

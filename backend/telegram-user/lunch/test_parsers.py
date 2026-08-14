@@ -10,17 +10,17 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from lunch.db import MenuItemRow
+from lunch.db import MenuItemRow, OrderLineInput
 from lunch.ocr_menu import parse_menu_items_payload
 from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
-from lunch.parse_order import looks_like_order, parse_order
+from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
 from lunch.parse_payment import looks_like_card_number, parse_payment
 from lunch.parse_summary import (
     looks_like_day_summary,
     order_signature,
     parse_day_summary,
 )
-from lunch.util import normalize_dish_name, split_order_parts
+from lunch.util import compute_tray_count, guess_tray_role, normalize_dish_name, split_order_parts
 
 
 EXAMPLE_SUMMARY = """> Диана:
@@ -344,6 +344,68 @@ def test_summary_dozazak_extra():
     assert "борщ" in p.dozazak_raw.lower() or "салат" in p.dozazak_raw.lower()
 
 
+def test_guess_tray_role():
+    assert guess_tray_role("Суп грибний") == "soup"
+    assert guess_tray_role("Борщ український") == "soup"
+    assert guess_tray_role("Салат грецький") == "salad"
+    assert guess_tray_role("Пюре") == "second"
+    assert guess_tray_role("Котлети курячі") == "second"
+
+
+def test_tray_count_rules():
+    soup = OrderLineInput(1, "Суп", 1, 50, 50, tray_role="soup")
+    salad = OrderLineInput(2, "Салат", 1, 40, 40, tray_role="salad")
+    potato = OrderLineInput(3, "Пюре", 1, 40, 40, tray_role="second")
+    meat = OrderLineInput(4, "Котлета", 1, 70, 70, tray_role="second")
+    assert compute_tray_count([potato, meat]) == 1
+    assert compute_tray_count([potato]) == 1
+    assert compute_tray_count([meat]) == 1
+    assert compute_tray_count([soup]) == 1
+    assert compute_tray_count([soup, potato, meat]) == 2
+    assert compute_tray_count([salad]) == 1  # єдина страва → мін. 1
+    assert compute_tray_count([salad, salad]) == 0  # два салати без другого
+    soup2 = OrderLineInput(1, "Суп", 2, 50, 100, tray_role="soup")
+    assert compute_tray_count([soup2]) == 2
+
+
+def test_synonym_match():
+    menu = [
+        MenuItemRow(
+            1,
+            1,
+            "Овочі на грилі",
+            normalize_dish_name("Овочі на грилі"),
+            50,
+            dish_id=1,
+            synonym_norms=(normalize_dish_name("овощи на гриле"),),
+        )
+    ]
+    r = parse_order("овощи на гриле", menu)
+    assert len(r.lines) == 1
+    assert r.lines[0].raw_name == "Овочі на грилі"
+
+
+def test_fallback_silent_before_today_menu():
+    yesterday = [
+        MenuItemRow(1, 1, "Пюре", normalize_dish_name("Пюре"), 40, dish_id=10, tray_role="second")
+    ]
+    r = parse_order_contextual("Пюре", [], yesterday)
+    assert len(r.lines) == 1
+    assert r.unavailable == []
+
+
+def test_unavailable_when_today_menu_exists():
+    today = [
+        MenuItemRow(2, 2, "Салат", normalize_dish_name("Салат"), 35, dish_id=20, tray_role="salad")
+    ]
+    yesterday = [
+        MenuItemRow(1, 1, "Пюре", normalize_dish_name("Пюре"), 40, dish_id=10, tray_role="second")
+    ]
+    r = parse_order_contextual("Пюре, Салат", today, yesterday)
+    assert [ln.raw_name for ln in r.lines] == ["Салат"]
+    assert r.unavailable == ["Пюре"]
+
+
 def main():
     tests = [
         test_normalize,
@@ -363,6 +425,11 @@ def main():
         test_summary_parse_sviatoslav,
         test_summary_no_blank_lines_in_last,
         test_summary_dozazak_extra,
+        test_guess_tray_role,
+        test_tray_count_rules,
+        test_synonym_match,
+        test_fallback_silent_before_today_menu,
+        test_unavailable_when_today_menu_exists,
     ]
     failed = 0
     for t in tests:
