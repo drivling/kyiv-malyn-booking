@@ -358,3 +358,33 @@
   font-size: 0.75rem !important;
   white-space: nowrap;
 }
+
+.lunch-input {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--pb-border, #dadce0);
+  font-size: 0.85rem;
+  min-width: 8rem;
+}
+
+.lunch-input--sm {
+  width: 5.5rem;
+  min-width: 5.5rem;
+}
+
+.lunch-tray-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.lunch-menu-tray {
+  background: #eef6ff !important;
+  font-weight: 600;
+}
+
+.lunch-dish--miss {
+  color: #c5221f;
+}

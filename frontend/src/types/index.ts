@@ -597,8 +597,18 @@ export interface AdminReferralReport {
 
 export interface LunchMenuItemRow {
   id: number;
+  dishId?: number;
   name: string;
   priceUah: number;
+  trayRole?: string;
+}
+
+export interface LunchDishRow {
+  id: number;
+  name: string;
+  priceUah: number;
+  trayRole: string;
+  synonyms: string[];
 }
 
 export interface LunchOrderRow {
@@ -611,16 +621,23 @@ export interface LunchOrderRow {
   /** Фрагменти, які автомат не зіставив з меню */
   unmatchedText: string | null;
   totalUah: number;
+  trayCount: number;
+  trayTotalUah: number;
+  trayCountManual?: boolean;
+  hasReply?: boolean;
   paidUah: number;
   debtUah: number;
   lines: Array<{
     menuItemId: number | null;
+    dishId?: number | null;
     /** Канонічна назва з меню (як у формі редагування) */
     menuItemName?: string | null;
+    trayRole?: string | null;
     rawName: string;
     qty: number;
     unitPriceUah: number;
     lineTotalUah: number;
+    unavailable?: boolean;
   }>;
 }
 
@@ -633,6 +650,8 @@ export interface LunchDaySummary {
     menuMessageId: string | null;
     updatedAt: string;
   } | null;
+  trayPriceUah: number;
+  dishes: LunchDishRow[];
   menuItems: LunchMenuItemRow[];
   orders: LunchOrderRow[];
   payments: Array<{
@@ -654,6 +673,7 @@ export interface LunchMenuImportResult {
   ok: boolean;
   day: { id: number; date: string; status: string };
   menuItems: Array<{ id: number; name: string; priceUah: number; nameNorm: string }>;
+  notices?: Array<{ displayName: string; missingDishes: string[] }>;
   preview: string;
   posted: boolean;
   queued?: boolean;

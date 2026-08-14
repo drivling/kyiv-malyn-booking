@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
 from .db import LunchDB, today_kyiv
-from .parse_order import looks_like_order, parse_order
+from .parse_order import looks_like_order, parse_order_contextual
 from .parse_payment import looks_like_card_number, parse_payment
 from .parse_summary import (
     DOZAZAK_DISPLAY_NAME,
@@ -66,6 +65,8 @@ def is_system_echo(text: str) -> bool:
     )
     if t.startswith(prefixes):
         return True
+    if ", сьогодні немає:" in t.lower():
+        return True
     # «Імʼя, заказ:» / «Імʼя: зараховано»
     if ", заказ:" in t.lower() or "заказ:" in t.lower()[:80]:
         return True
@@ -107,6 +108,7 @@ async def apply_day_summary(
         stats.skipped += 1
         return
     menu = await db.list_menu_items(day_id)
+    fallback = await db.get_fallback_menu(day_id)
     for draft in parsed.named:
         sender_first = (sender_name.split()[0].lower() if sender_name else "")
         draft_l = draft.display_name.strip().lower()
@@ -124,7 +126,7 @@ async def apply_day_summary(
                     draft.display_name,
                     None,
                 )
-        result = parse_order(draft.raw_text, menu) if menu else None
+        result = parse_order_contextual(draft.raw_text, menu, fallback) if (menu or fallback) else None
         await db.upsert_order(
             day_id,
             pid,
@@ -138,7 +140,7 @@ async def apply_day_summary(
 
     if parsed.dozazak_raw:
         pid = await db.upsert_participant(DOZAZAK_TELEGRAM_ID, DOZAZAK_DISPLAY_NAME, None)
-        result = parse_order(parsed.dozazak_raw, menu) if menu else None
+        result = parse_order_contextual(parsed.dozazak_raw, menu, fallback) if (menu or fallback) else None
         await db.upsert_order(
             day_id,
             pid,
@@ -215,11 +217,12 @@ async def process_text_message(
         return
 
     menu = await db.list_menu_items(day_id)
-    if not menu:
+    fallback = await db.get_fallback_menu(day_id)
+    if not menu and not fallback:
         stats.skipped += 1
         return
 
-    result = parse_order(text, menu)
+    result = parse_order_contextual(text, menu, fallback)
     if not result.lines:
         stats.skipped += 1
         return

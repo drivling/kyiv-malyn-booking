@@ -92,8 +92,12 @@ async def run(raw: str, *, post: bool) -> None:
     try:
         day = await db.get_or_create_day(today_kyiv())
         rows = await db.replace_menu(day.id, items, parsed_raw=data)
-        msg = format_menu(rows)
+        notices = await db.sync_orders_after_menu(day.id)
+        tray_price = await db.get_tray_price()
+        msg = format_menu(rows, tray_price)
         print("[import_menu] saved day_id=", day.id, "items=", len(rows))
+        if notices:
+            print("[import_menu] unavailable notices:", notices)
     finally:
         await db.close()
 

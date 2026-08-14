@@ -42,8 +42,9 @@ function createAdminLunchRouter(deps) {
                     }
                 })()
                 : rawPayload;
-            const { day, menuItems } = await (0, lunch_1.upsertLunchMenuForToday)(prisma, items, parsedForStore);
-            const text = (0, lunch_1.formatLunchMenuText)(menuItems);
+            const { day, menuItems, notices } = await (0, lunch_1.upsertLunchMenuForToday)(prisma, items, parsedForStore);
+            const settings = await (0, lunch_1.getLunchSettings)(prisma);
+            const text = (0, lunch_1.formatLunchMenuText)(menuItems, settings.trayPriceUah);
             let posted = false;
             let queued = false;
             let postError = null;
@@ -60,6 +61,17 @@ function createAdminLunchRouter(deps) {
                     postError = e instanceof Error ? e.message : String(e);
                 }
             }
+            for (const n of notices) {
+                const msg = `${n.displayName}, сьогодні немає: ${n.missingDishes.join(', ')}.`;
+                try {
+                    await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, msg, {
+                        replyToMessageId: n.sourceMessageId,
+                    });
+                }
+                catch (e) {
+                    console.error('[admin/lunch/menu] unavailable notice', e);
+                }
+            }
             res.json({
                 ok: true,
                 day: {
@@ -68,6 +80,7 @@ function createAdminLunchRouter(deps) {
                     status: day.status,
                 },
                 menuItems,
+                notices,
                 preview: text,
                 posted,
                 queued,
@@ -111,7 +124,7 @@ function createAdminLunchRouter(deps) {
                 res.status(400).json({ error: 'Меню на сьогодні порожнє' });
                 return;
             }
-            const text = (0, lunch_1.formatLunchMenuText)(summary.menuItems);
+            const text = (0, lunch_1.formatLunchMenuText)(summary.menuItems, summary.trayPriceUah);
             const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, text);
             res.json({
                 ok: result.ok,
@@ -170,6 +183,7 @@ function createAdminLunchRouter(deps) {
     /**
      * Ручне редагування замовлення: замінити рядки на позиції меню,
      * оновити unmatchedText. rawText (оригінал) не змінюється.
+     * Підправляє нашу відповідь у групі, якщо є replyMessageId.
      */
     r.patch('/admin/lunch/orders/:id', require_admin_1.requireAdmin, async (req, res) => {
         try {
@@ -181,10 +195,50 @@ function createAdminLunchRouter(deps) {
             const menuItemIds = Array.isArray(req.body?.menuItemIds)
                 ? req.body.menuItemIds.map((x) => Number(x))
                 : [];
+            const lines = Array.isArray(req.body?.lines)
+                ? req.body.lines.map((l) => ({
+                    menuItemId: Number(l.menuItemId),
+                    asWritten: l.asWritten != null ? String(l.asWritten) : '',
+                    qty: l.qty != null ? Number(l.qty) : 1,
+                }))
+                : undefined;
             const unmatchedText = req.body?.unmatchedText === undefined ? undefined : req.body.unmatchedText;
-            await (0, lunch_1.updateLunchOrder)(prisma, orderId, { menuItemIds, unmatchedText });
+            const trayCount = req.body?.trayCount === undefined || req.body?.trayCount === null || req.body?.trayCount === ''
+                ? null
+                : Number(req.body.trayCount);
+            const updated = await (0, lunch_1.updateLunchOrder)(prisma, orderId, {
+                menuItemIds,
+                lines,
+                unmatchedText,
+                trayCount,
+            });
+            let telegramQueued = false;
+            let telegramError = null;
+            if (updated.replyMessageId) {
+                const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, updated.confirmText, {
+                    kind: 'edit',
+                    telegramMessageId: updated.replyMessageId,
+                });
+                telegramQueued = result.queued;
+                if (!result.ok)
+                    telegramError = result.error || 'Не вдалося підправити відповідь у групі';
+            }
+            else if (updated.sourceMessageId) {
+                const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, updated.confirmText, {
+                    replyToMessageId: updated.sourceMessageId,
+                });
+                telegramQueued = result.queued;
+                if (!result.ok)
+                    telegramError = result.error || 'Не вдалося надіслати уточнення в групу';
+            }
             const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
-            res.json({ ok: true, summary });
+            res.json({
+                ok: true,
+                summary,
+                telegramQueued,
+                telegramError,
+                hasReply: Boolean(updated.replyMessageId),
+            });
         }
         catch (e) {
             const msg = e instanceof Error ? e.message : 'Помилка оновлення замовлення';
@@ -192,7 +246,40 @@ function createAdminLunchRouter(deps) {
             res.status(400).json({ error: msg });
         }
     });
-    /** Пост «підсумку» в групу: імʼя, страви, сума (без судочків) */
+    r.patch('/admin/lunch/dishes/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const dishId = Number(req.params.id);
+            if (!Number.isFinite(dishId) || dishId <= 0) {
+                res.status(400).json({ error: 'Некоректний id страви' });
+                return;
+            }
+            await (0, lunch_1.updateLunchDish)(prisma, dishId, {
+                priceUah: req.body?.priceUah !== undefined ? Number(req.body.priceUah) : undefined,
+                trayRole: req.body?.trayRole != null ? String(req.body.trayRole) : undefined,
+            });
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка оновлення страви';
+            console.error('[admin/lunch/dishes]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
+    r.patch('/admin/lunch/settings', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const trayPriceUah = Number(req.body?.trayPriceUah);
+            await (0, lunch_1.updateLunchTrayPrice)(prisma, trayPriceUah);
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка налаштувань';
+            console.error('[admin/lunch/settings]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
+    /** Пост «підсумку» в групу: імʼя, страви, лотки, сума */
     r.post('/admin/lunch/post-totals', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
@@ -200,7 +287,7 @@ function createAdminLunchRouter(deps) {
                 res.status(400).json({ error: 'Немає замовлень на сьогодні' });
                 return;
             }
-            const text = (0, lunch_1.formatLunchTotalsComment)(summary.orders, summary.menuItems);
+            const text = (0, lunch_1.formatLunchTotalsComment)(summary.orders, summary.menuItems, summary.trayPriceUah);
             const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, text);
             res.json({
                 ok: result.ok,

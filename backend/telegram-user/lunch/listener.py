@@ -25,7 +25,7 @@ if str(_ROOT) not in sys.path:
 
 from lunch.db import LunchDB, today_kyiv  # noqa: E402
 from lunch.ocr_menu import ocr_menu_from_image_bytes  # noqa: E402
-from lunch.parse_order import looks_like_order, parse_order  # noqa: E402
+from lunch.parse_order import looks_like_order, parse_order_contextual  # noqa: E402
 from lunch.parse_payment import looks_like_card_number, parse_payment  # noqa: E402
 from lunch.parse_summary import (  # noqa: E402
     DOZAZAK_DISPLAY_NAME,
@@ -41,6 +41,7 @@ from lunch.formatters import (  # noqa: E402
     format_order_confirm,
     format_payment_reply,
     format_summary,
+    format_unavailable,
 )
 from lunch.order_reply import (  # noqa: E402
     PersonalOrderAction,
@@ -135,12 +136,18 @@ async def run() -> None:
     entity = await client.get_entity(group_id)
     print(f"[lunch] listening group={getattr(entity, 'title', group_id)} id={group_id} me={me_id}")
 
-    async def reply(event, text: str) -> None:
+    async def reply(event, text: str) -> Optional[int]:
         try:
-            await event.reply(text)
+            sent = await event.reply(text)
+            return int(getattr(sent, "id", 0) or 0) or None
         except Exception as e:
             print(f"[lunch] reply failed: {e}", file=sys.stderr)
-            await client.send_message(entity, text)
+            try:
+                sent = await client.send_message(entity, text)
+                return int(getattr(sent, "id", 0) or 0) or None
+            except Exception as e2:
+                print(f"[lunch] send_message failed: {e2}", file=sys.stderr)
+                return None
 
     @client.on(events.NewMessage(chats=group_id, incoming=True, outgoing=True))
     async def handler(event):
@@ -168,7 +175,7 @@ async def run() -> None:
                 "Фото отримано",
                 "Зафіксовано людей:",
             )
-            if text.startswith(echo_prefixes) or ", заказ:" in text.lower() or ": зараховано " in text.lower():
+            if text.startswith(echo_prefixes) or ", заказ:" in text.lower() or ": зараховано " in text.lower() or ", сьогодні немає:" in text.lower():
                 return
 
         # --- фото меню ---
@@ -197,7 +204,11 @@ async def run() -> None:
                     menu_message_id=msg.id,
                     parsed_raw=raw,
                 )
-                await reply(event, format_menu(menu_rows))
+                tray_price = await db.get_tray_price()
+                await reply(event, format_menu(menu_rows, tray_price))
+                notices = await db.sync_orders_after_menu(day.id)
+                for n in notices:
+                    await reply(event, format_unavailable(n["display_name"], n["missing_dishes"]))
             except Exception as e:
                 print(f"[lunch] OCR error: {e}", file=sys.stderr)
                 await reply(event, f"Помилка OCR меню: {e}")
@@ -213,6 +224,7 @@ async def run() -> None:
                 return
             day = await db.get_or_create_day(today_kyiv())
             menu = await db.list_menu_items(day.id)
+            fallback = await db.get_fallback_menu(day.id)
             preview: list[str] = []
             total_all = 0
             for draft in parsed.named:
@@ -233,59 +245,35 @@ async def run() -> None:
                             draft.display_name,
                             None,
                         )
-                if menu:
-                    result = parse_order(draft.raw_text, menu)
-                    await db.upsert_order(
-                        day.id,
-                        pid,
-                        draft.raw_text,
-                        result.total_uah,
-                        result.lines,
-                        source_message_id=msg.id,
-                        unmatched_text=result.unmatched_text or None,
-                    )
-                    total_all += result.total_uah
-                    preview.append(f"• {draft.display_name}: {result.total_uah} грн")
-                else:
-                    await db.upsert_order(
-                        day.id,
-                        pid,
-                        draft.raw_text,
-                        0,
-                        [],
-                        source_message_id=msg.id,
-                        unmatched_text=draft.raw_text,
-                    )
-                    preview.append(f"• {draft.display_name}: (без меню/цін)")
+                result = parse_order_contextual(draft.raw_text, menu, fallback)
+                await db.upsert_order(
+                    day.id,
+                    pid,
+                    draft.raw_text,
+                    result.total_uah,
+                    result.lines,
+                    source_message_id=msg.id,
+                    unmatched_text=result.unmatched_text or None,
+                )
+                total_all += result.total_uah
+                preview.append(f"• {draft.display_name}: {result.total_uah} грн")
 
             has_dozazak = False
             if parsed.dozazak_raw:
                 has_dozazak = True
                 pid = await db.upsert_participant(DOZAZAK_TELEGRAM_ID, DOZAZAK_DISPLAY_NAME, None)
-                if menu:
-                    result = parse_order(parsed.dozazak_raw, menu)
-                    await db.upsert_order(
-                        day.id,
-                        pid,
-                        parsed.dozazak_raw,
-                        result.total_uah,
-                        result.lines,
-                        source_message_id=msg.id,
-                        unmatched_text=result.unmatched_text or None,
-                    )
-                    total_all += result.total_uah
-                    preview.append(f"• {DOZAZAK_DISPLAY_NAME}: {result.total_uah} грн")
-                else:
-                    await db.upsert_order(
-                        day.id,
-                        pid,
-                        parsed.dozazak_raw,
-                        0,
-                        [],
-                        source_message_id=msg.id,
-                        unmatched_text=parsed.dozazak_raw,
-                    )
-                    preview.append(f"• {DOZAZAK_DISPLAY_NAME}: (без меню/цін)")
+                result = parse_order_contextual(parsed.dozazak_raw, menu, fallback)
+                await db.upsert_order(
+                    day.id,
+                    pid,
+                    parsed.dozazak_raw,
+                    result.total_uah,
+                    result.lines,
+                    source_message_id=msg.id,
+                    unmatched_text=result.unmatched_text or None,
+                )
+                total_all += result.total_uah
+                preview.append(f"• {DOZAZAK_DISPLAY_NAME}: {result.total_uah} грн")
 
             await db.set_day_status(day.id, "closed")
             await reply(
@@ -356,7 +344,8 @@ async def run() -> None:
                     await reply(event, "Меню ще немає.")
                     return
                 items = await db.list_menu_items(day.id)
-                await reply(event, format_menu(items))
+                tray_price = await db.get_tray_price()
+                await reply(event, format_menu(items, tray_price))
                 return
             if cmd in ("!pay",) or low.startswith("!pay "):
                 # handled below as payment
@@ -383,28 +372,26 @@ async def run() -> None:
         if not looks_like_order(text):
             return
 
-        day = await db.get_day(today_kyiv())
-        if not day:
-            return
+        day = await db.get_or_create_day(today_kyiv())
 
-        menu = await db.list_menu_items(day.id)
-        if not menu:
+        today_menu = await db.list_menu_items(day.id)
+        fallback = await db.get_fallback_menu(day.id)
+        if not today_menu and not fallback:
             return
 
         # Підсумок інколи приходить без «>» у тексті Telethon — перевірка ще раз
         if looks_like_day_summary(text):
             return
 
-        result = parse_order(text, menu)
+        result = parse_order_contextual(text, today_menu, fallback)
         dish_count = sum(l.qty for l in result.lines)
+        if not result.lines and not result.unavailable:
+            return
         action = decide_personal_order_action(
             day_status=day.status,
-            matched_line_count=len(result.lines),
-            dish_qty_total=dish_count,
+            matched_line_count=max(len(result.lines), 1 if result.unavailable else 0),
+            dish_qty_total=dish_count or (1 if result.unavailable else 0),
         )
-        if action == PersonalOrderAction.IGNORE:
-            # Чат/меми/нерозпізнане — мовчати (не спамити «не розпізнав» / «закрито»)
-            return
         if action == PersonalOrderAction.DAY_CLOSED:
             await reply(event, "Прийом замовлень закрито.")
             return
@@ -419,8 +406,13 @@ async def run() -> None:
 
         if not uid:
             return
+
+        if result.unavailable and not result.lines:
+            await reply(event, format_unavailable(name, result.unavailable))
+            return
+
         pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
-        await db.upsert_order(
+        order_id = await db.upsert_order(
             day.id,
             pid,
             text,
@@ -429,10 +421,24 @@ async def run() -> None:
             source_message_id=msg.id,
             unmatched_text=result.unmatched_text or None,
         )
-        await reply(
-            event,
-            format_order_confirm(name, result.lines, result.total_uah, result.unmatched),
+        for line in result.lines:
+            if line.dish_id and line.as_written:
+                await db.save_synonym(line.dish_id, line.as_written)
+        tray_price = await db.get_tray_price()
+        trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
+        confirm = format_order_confirm(
+            name,
+            result.lines,
+            grand,
+            result.unmatched,
+            tray_count=trays,
+            tray_price_uah=tray_price,
+            tray_total_uah=tray_sum,
+            unavailable=result.unavailable,
         )
+        reply_id = await reply(event, confirm)
+        if reply_id:
+            await db.set_order_reply_message_id(order_id, reply_id)
 
     async def outbound_loop() -> None:
         while True:
@@ -440,9 +446,17 @@ async def run() -> None:
                 pending = await db.fetch_pending_outbound(limit=5)
                 for row in pending:
                     try:
-                        await client.send_message(entity, row["text"])
+                        kind = row.get("kind") or "send"
+                        if kind == "edit" and row.get("telegram_message_id"):
+                            await client.edit_message(entity, int(row["telegram_message_id"]), row["text"])
+                        elif row.get("reply_to_message_id"):
+                            await client.send_message(
+                                entity, row["text"], reply_to=int(row["reply_to_message_id"])
+                            )
+                        else:
+                            await client.send_message(entity, row["text"])
                         await db.mark_outbound_sent(row["id"])
-                        print(f"[lunch] outbound sent id={row['id']}")
+                        print(f"[lunch] outbound sent id={row['id']} kind={kind}")
                     except Exception as e:
                         print(f"[lunch] outbound fail id={row['id']}: {e}", file=sys.stderr)
                         await db.mark_outbound_failed(row["id"], str(e))

@@ -80,6 +80,47 @@ def normalize_dish_name(name: str) -> str:
     return " ".join(tokens)
 
 
+def guess_tray_role(name: str) -> str:
+    """soup | second | salad за назвою (для нової страви в каталозі)."""
+    n = normalize_dish_name(name)
+    if any(k in n for k in ("суп", "борщ", "солянка", "розсольник", "юшка", "бульйон")):
+        return "soup"
+    if "салат" in n:
+        return "salad"
+    return "second"
+
+
+def compute_tray_count(lines: list) -> int:
+    """
+    Лоток на людину:
+    - soup: qty лотків
+    - second: один спільний, якщо є хоч одне друге
+    - salad: 0
+    - одна страва в заказі → мінімум 1
+    """
+    if not lines:
+        return 0
+    soup_qty = 0
+    has_second = False
+    for line in lines:
+        if isinstance(line, dict):
+            role = (line.get("tray_role") or line.get("trayRole") or "second") or "second"
+            qty = int(line.get("qty") or 1)
+        else:
+            role = getattr(line, "tray_role", None) or "second"
+            qty = int(getattr(line, "qty", 1) or 1)
+        if qty <= 0:
+            continue
+        if role == "soup":
+            soup_qty += qty
+        elif role == "second":
+            has_second = True
+    trays = soup_qty + (1 if has_second else 0)
+    if len(lines) == 1:
+        trays = max(trays, 1)
+    return trays
+
+
 def split_order_parts(text: str) -> list[str]:
     """Розбити текст замовлення на частини (|, ;, переноси, коми, 2+ пробіли)."""
     if not text or not text.strip():

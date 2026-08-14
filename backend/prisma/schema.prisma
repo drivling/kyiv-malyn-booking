@@ -422,6 +422,43 @@ model TelegramFetchState {
   updatedAt      DateTime @updatedAt
 }
 
+/// Глобальні налаштування столової (singleton id=1)
+model LunchSettings {
+  id           Int      @id
+  /// Фіксована ціна одного лотка, грн
+  trayPriceUah Int      @default(5)
+  updatedAt    DateTime @updatedAt
+}
+
+/// Постійний каталог страв (не обнуляється щодня)
+model LunchDish {
+  id        Int      @id @default(autoincrement())
+  name      String
+  nameNorm  String   @unique
+  priceUah  Int
+  /// soup | second | salad
+  trayRole  String   @default("second")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  synonyms  LunchDishSynonym[]
+  menuItems LunchMenuItem[]
+  lines     LunchOrderLine[]
+}
+
+model LunchDishSynonym {
+  id        Int      @id @default(autoincrement())
+  dishId    Int
+  rawText   String
+  rawNorm   String
+  createdAt DateTime @default(now())
+
+  dish LunchDish @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@unique([dishId, rawNorm])
+  @@index([rawNorm])
+}
+
 /// День замовлення обідів (група «Обіди для НЕ бідних»)
 model LunchDay {
   id             Int       @id @default(autoincrement())
@@ -446,18 +483,22 @@ model LunchDay {
 model LunchMenuItem {
   id        Int      @id @default(autoincrement())
   dayId     Int
+  dishId    Int
   name      String
   /// Нормалізована назва для матчингу
   nameNorm  String
-  /// Ціна в гривнях (ціле)
+  /// Ціна в гривнях (ціле) — копія з каталогу на момент імпорту
   priceUah  Int
   createdAt DateTime @default(now())
 
   day   LunchDay         @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  dish  LunchDish        @relation(fields: [dishId], references: [id], onDelete: Restrict)
   lines LunchOrderLine[]
 
+  @@unique([dayId, dishId])
   @@index([dayId])
   @@index([dayId, nameNorm])
+  @@index([dishId])
 }
 
 model LunchParticipant {
@@ -473,19 +514,25 @@ model LunchParticipant {
 }
 
 model LunchOrder {
-  id              Int      @id @default(autoincrement())
-  dayId           Int
-  participantId   Int
-  sourceMessageId BigInt?
+  id               Int      @id @default(autoincrement())
+  dayId            Int
+  participantId    Int
+  sourceMessageId  BigInt?
+  /// Id нашої відповіді в групі (можна edit)
+  replyMessageId   BigInt?
   /// Повний оригінальний текст повідомлення (для аналізу)
-  rawText         String   @db.Text
+  rawText          String   @db.Text
   /// Фрагменти, які автомат не зіставив з меню
-  unmatchedText   String?  @db.Text
-  totalUah        Int      @default(0)
+  unmatchedText    String?  @db.Text
+  totalUah         Int      @default(0)
+  trayCount        Int      @default(0)
+  trayTotalUah     Int      @default(0)
+  /// true = оператор задав кількість лотків вручну
+  trayCountManual  Boolean  @default(false)
   /// active | cancelled
-  status          String   @default("active")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   day         LunchDay         @relation(fields: [dayId], references: [id], onDelete: Cascade)
   participant LunchParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
@@ -497,18 +544,23 @@ model LunchOrder {
 }
 
 model LunchOrderLine {
-  id           Int    @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   orderId      Int
   menuItemId   Int?
+  dishId       Int?
   rawName      String
-  qty          Int    @default(1)
+  qty          Int     @default(1)
   unitPriceUah Int
   lineTotalUah Int
+  /// Страва розпізнана, але її немає в сьогоднішньому меню
+  unavailable  Boolean @default(false)
 
   order    LunchOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem LunchMenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  dish     LunchDish?     @relation(fields: [dishId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([dishId])
 }
 
 model LunchPayment {
@@ -530,13 +582,17 @@ model LunchPayment {
 
 /// Черга повідомлень у групу обідів (щоб не відкривати другу Telethon-сесію паралельно з listener)
 model LunchOutboundMessage {
-  id        Int       @id @default(autoincrement())
-  text      String    @db.Text
+  id                  Int       @id @default(autoincrement())
+  text                String    @db.Text
+  /// send | edit
+  kind                String    @default("send")
+  telegramMessageId   BigInt?
+  replyToMessageId    BigInt?
   /// pending | sent | failed
-  status    String    @default("pending")
-  errorText String?   @db.Text
-  createdAt DateTime  @default(now())
-  sentAt    DateTime?
+  status              String    @default("pending")
+  errorText           String?   @db.Text
+  createdAt           DateTime  @default(now())
+  sentAt              DateTime?
 
   @@index([status, createdAt])
 }

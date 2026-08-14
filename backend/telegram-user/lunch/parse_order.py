@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Sequence
 
 from .db import MenuItemRow, OrderLineInput
@@ -22,10 +22,11 @@ class OrderParseResult:
     total_uah: int
     matched: list[MatchedPart]
     unmatched: list[str]
+    unavailable: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        return len(self.lines) > 0 and len(self.unmatched) == 0
+        return len(self.lines) > 0 and len(self.unmatched) == 0 and len(self.unavailable) == 0
 
     @property
     def unmatched_text(self) -> str:
@@ -62,10 +63,14 @@ def match_part_to_menu(part: str, menu: Sequence[MenuItemRow], min_score: float 
     best: Optional[MenuItemRow] = None
     best_score = 0.0
     for item in menu:
-        sc = _similarity(norm, item.name_norm)
-        if sc > best_score:
-            best_score = sc
-            best = item
+        candidates = [item.name_norm, *getattr(item, "synonym_norms", ())]
+        for cand in candidates:
+            if not cand:
+                continue
+            sc = _similarity(norm, cand)
+            if sc > best_score:
+                best_score = sc
+                best = item
     if best is None or best_score < min_score:
         return MatchedPart(raw=part, item=None, score=best_score)
     return MatchedPart(raw=part, item=best, score=best_score)
@@ -126,21 +131,24 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
         if m.item is None:
             unmatched.append(m.raw)
             return
-        existing = by_id.get(m.item.id)
+        key = getattr(m.item, "dish_id", None) or m.item.id
+        existing = by_id.get(key)
         if existing:
             existing.qty += 1
             existing.line_total_uah = existing.qty * existing.unit_price_uah
         else:
             line = OrderLineInput(
                 menu_item_id=m.item.id,
-                # Канонічна назва з меню (як у ручному редагуванні в адмінці),
-                # а не сирий фрагмент людини («капуста огурец»).
+                dish_id=getattr(m.item, "dish_id", None),
+                # Канонічна назва з меню (як у ручному редагуванні в адмінці)
                 raw_name=m.item.name,
+                as_written=m.raw,
                 qty=1,
                 unit_price_uah=m.item.price_uah,
                 line_total_uah=m.item.price_uah,
+                tray_role=getattr(m.item, "tray_role", None) or "second",
             )
-            by_id[m.item.id] = line
+            by_id[key] = line
             lines.append(line)
 
     for part in parts:
@@ -167,6 +175,52 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
     # прибрати з unmatched порожні / дублікати після успішного match того ж raw
     unmatched = [u for u in unmatched if u and u.strip()]
     return OrderParseResult(lines=lines, total_uah=total, matched=matched, unmatched=unmatched)
+
+
+def parse_order_contextual(
+    text: str,
+    today_menu: Sequence[MenuItemRow],
+    fallback_menu: Sequence[MenuItemRow] | None = None,
+    *,
+    today_published: bool = True,
+    min_score: float = 0.42,
+) -> OrderParseResult:
+    """
+    Сьогоднішнє меню + fallback (вчора).
+    Якщо сьогоднішнього ще немає — тихо приймаємо з вчорашнього.
+    Якщо сьогодні вже є, а страва лише з вчора — unavailable (не в заказ).
+    """
+    fallback_menu = fallback_menu or []
+    if today_menu:
+        today_published = True
+        result = parse_order(text, today_menu, min_score=min_score)
+        if not fallback_menu:
+            return result
+        leftover = list(result.unmatched)
+        if not leftover:
+            return result
+        unavailable: list[str] = []
+        still_unmatched: list[str] = []
+        extra_matched: list[MatchedPart] = []
+        for part in leftover:
+            extra = parse_order(part, fallback_menu, min_score=min_score)
+            extra_matched.extend(extra.matched)
+            if extra.lines:
+                unavailable.extend(ln.raw_name for ln in extra.lines)
+            still_unmatched.extend(extra.unmatched)
+        return OrderParseResult(
+            lines=result.lines,
+            total_uah=result.total_uah,
+            matched=result.matched + extra_matched,
+            unmatched=still_unmatched,
+            unavailable=unavailable,
+        )
+
+    if fallback_menu:
+        # Меню сьогодні ще немає — тихо з вчорашнього
+        return parse_order(text, fallback_menu, min_score=min_score)
+
+    return parse_order(text, [], min_score=min_score)
 
 
 def looks_like_order(text: str) -> bool:

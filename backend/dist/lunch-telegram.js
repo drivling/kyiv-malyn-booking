@@ -9,6 +9,16 @@ const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const lunch_listener_1 = require("./lunch-listener");
+function toBigIntOrNull(v) {
+    if (v === null || v === undefined || v === '')
+        return null;
+    try {
+        return BigInt(v);
+    }
+    catch {
+        return null;
+    }
+}
 function sessionPathBase() {
     const env = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
     if (env)
@@ -64,12 +74,26 @@ function spawnPostText(text) {
  * Якщо listener увімкнений — ставимо в чергу LunchOutboundMessage (listener відправить).
  * Інакше — одноразовий spawn post_text.py.
  */
-async function postTextToLunchGroup(prisma, text) {
+async function postTextToLunchGroup(prisma, text, opts = {}) {
+    const kind = opts.kind || 'send';
     if ((0, lunch_listener_1.isLunchListenerWanted)()) {
         await prisma.lunchOutboundMessage.create({
-            data: { text, status: 'pending' },
+            data: {
+                text,
+                status: 'pending',
+                kind,
+                telegramMessageId: toBigIntOrNull(opts.telegramMessageId),
+                replyToMessageId: toBigIntOrNull(opts.replyToMessageId),
+            },
         });
         return { ok: true, queued: true };
+    }
+    if (kind === 'edit') {
+        return {
+            ok: false,
+            queued: false,
+            error: 'Правка повідомлення в групі потребує увімкненого lunch-listener',
+        };
     }
     const ok = await spawnPostText(text);
     return ok
