@@ -197,7 +197,8 @@ function createAdminLunchRouter(deps) {
                 : [];
             const lines = Array.isArray(req.body?.lines)
                 ? req.body.lines.map((l) => ({
-                    menuItemId: Number(l.menuItemId),
+                    dishId: l.dishId != null && l.dishId !== '' ? Number(l.dishId) : undefined,
+                    menuItemId: l.menuItemId != null && l.menuItemId !== '' ? Number(l.menuItemId) : undefined,
                     asWritten: l.asWritten != null ? String(l.asWritten) : '',
                     qty: l.qty != null ? Number(l.qty) : 1,
                 }))

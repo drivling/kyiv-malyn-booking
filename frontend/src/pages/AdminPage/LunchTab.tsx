@@ -38,17 +38,17 @@ function computeTrayCount(roles: Array<{ trayRole?: string | null; qty?: number 
 
 function formatOrderDishLabel(
   line: LunchOrderRow['lines'][number],
-  menuById: Map<number, { id: number; name: string; priceUah: number }>
+  dishById: Map<number, { id: number; name: string; priceUah: number }>
 ): string {
-  const item = line.menuItemId != null ? menuById.get(line.menuItemId) : undefined;
-  const name = item?.name || line.menuItemName || line.rawName || '?';
-  const price = line.lineTotalUah ?? item?.priceUah ?? line.unitPriceUah;
+  const dish = line.dishId != null ? dishById.get(line.dishId) : undefined;
+  const name = dish?.name || line.menuItemName || line.rawName || '?';
+  const price = line.lineTotalUah ?? dish?.priceUah ?? line.unitPriceUah;
   const qty = line.qty > 1 ? `×${line.qty} ` : '';
   const miss = line.unavailable ? ' (немає сьогодні)' : '';
   return `${qty}${name} — ${price} грн${miss}`;
 }
 
-type EditLine = { menuItemId: number; asWritten: string };
+type EditLine = { dishId: number; asWritten: string };
 type EditState = {
   orderId: number;
   lines: EditLine[];
@@ -67,7 +67,7 @@ export const LunchTab: React.FC = () => {
   const [jsonText, setJsonText] = useState('');
   const [postToGroup, setPostToGroup] = useState(true);
   const [edit, setEdit] = useState<EditState | null>(null);
-  const [addMenuId, setAddMenuId] = useState('');
+  const [addDishId, setAddDishId] = useState('');
   const [trayPriceDraft, setTrayPriceDraft] = useState('');
 
   const load = useCallback(async () => {
@@ -88,36 +88,74 @@ export const LunchTab: React.FC = () => {
     void load();
   }, [load]);
 
-  const menuById = useMemo(() => {
+  const dishById = useMemo(() => {
     const m = new Map<number, { id: number; name: string; priceUah: number; trayRole?: string }>();
-    for (const item of summary?.menuItems || []) m.set(item.id, item);
+    for (const d of summary?.dishes || []) m.set(d.id, d);
+    for (const item of summary?.menuItems || []) {
+      if (item.dishId && !m.has(item.dishId)) {
+        m.set(item.dishId, {
+          id: item.dishId,
+          name: item.name,
+          priceUah: item.priceUah,
+          trayRole: item.trayRole,
+        });
+      }
+    }
     return m;
+  }, [summary?.dishes, summary?.menuItems]);
+
+  const todayDishIds = useMemo(() => {
+    const s = new Set<number>();
+    for (const item of summary?.menuItems || []) {
+      if (item.dishId) s.add(item.dishId);
+    }
+    return s;
   }, [summary?.menuItems]);
+
+  const addDishOptions = useMemo(() => {
+    const dishes = [...(summary?.dishes || [])].sort((a, b) => a.name.localeCompare(b.name, 'uk'));
+    return {
+      today: dishes.filter((d) => todayDishIds.has(d.id)),
+      rest: dishes.filter((d) => !todayDishIds.has(d.id)),
+    };
+  }, [summary?.dishes, todayDishIds]);
 
   const trayPrice = summary?.trayPriceUah ?? 5;
 
   const autoTrayFromEdit = useMemo(() => {
     if (!edit) return 0;
     return computeTrayCount(
-      edit.lines.map((l) => ({ trayRole: menuById.get(l.menuItemId)?.trayRole, qty: 1 }))
+      edit.lines.map((l) => ({ trayRole: dishById.get(l.dishId)?.trayRole, qty: 1 }))
     );
-  }, [edit, menuById]);
+  }, [edit, dishById]);
 
   const editPreviewFood = useMemo(() => {
     if (!edit) return 0;
-    return edit.lines.reduce((s, l) => s + (menuById.get(l.menuItemId)?.priceUah || 0), 0);
-  }, [edit, menuById]);
+    return edit.lines.reduce((s, l) => s + (dishById.get(l.dishId)?.priceUah || 0), 0);
+  }, [edit, dishById]);
 
   const editTrayCount = edit ? (edit.trayManual ? edit.trayCount : autoTrayFromEdit) : 0;
   const editPreviewTotal = editPreviewFood + editTrayCount * trayPrice;
 
   const startEdit = (o: LunchOrderRow) => {
     const lines = o.lines
-      .filter((l) => l.menuItemId != null && l.menuItemId > 0 && !l.unavailable)
-      .map((l) => ({
-        menuItemId: l.menuItemId as number,
-        asWritten: l.rawName && l.rawName !== l.menuItemName ? l.rawName : '',
-      }));
+      .map((l) => {
+        let dishId = l.dishId != null && l.dishId > 0 ? l.dishId : 0;
+        if (!dishId && l.menuItemName) {
+          for (const d of dishById.values()) {
+            if (d.name === l.menuItemName) {
+              dishId = d.id;
+              break;
+            }
+          }
+        }
+        if (!dishId) return null;
+        return {
+          dishId,
+          asWritten: l.rawName && l.rawName !== l.menuItemName ? l.rawName : '',
+        };
+      })
+      .filter((x): x is EditLine => x != null);
     setEdit({
       orderId: o.id,
       lines,
@@ -126,14 +164,14 @@ export const LunchTab: React.FC = () => {
       trayManual: Boolean(o.trayCountManual),
       asWrittenDraft: '',
     });
-    setAddMenuId('');
+    setAddDishId('');
     setError('');
     setSuccess('');
   };
 
   const cancelEdit = () => {
     setEdit(null);
-    setAddMenuId('');
+    setAddDishId('');
   };
 
   const saveEdit = async () => {
@@ -146,7 +184,7 @@ export const LunchTab: React.FC = () => {
         edit.unmatchedParts.length > 0 ? edit.unmatchedParts.join('; ') : null;
       const res = await apiClient.updateLunchOrder(edit.orderId, {
         lines: edit.lines.map((l) => ({
-          menuItemId: l.menuItemId,
+          dishId: l.dishId,
           asWritten: l.asWritten,
           qty: 1,
         })),
@@ -447,7 +485,10 @@ export const LunchTab: React.FC = () => {
 
             <h4 className="lunch-section-title">Меню ({summary.menuItems.length})</h4>
             {summary.menuItems.length === 0 ? (
-              <p className="lunch-muted">Ще немає — встав JSON вище. До появи меню замовлення приймаються з учорашнього.</p>
+              <p className="lunch-muted">
+                Ще немає — встав JSON вище. До появи меню замовлення приймаються з учорашнього, а в редагуванні
+                можна додати страву з каталогу.
+              </p>
             ) : (
               <ul className="lunch-menu-list">
                 {summary.menuItems.map((m) => (
@@ -459,29 +500,31 @@ export const LunchTab: React.FC = () => {
                     <span>{m.priceUah} грн</span>
                   </li>
                 ))}
-                <li className="lunch-menu-tray">
-                  <span>Лоток</span>
-                  <span className="lunch-tray-edit">
-                    <input
-                      type="number"
-                      min={0}
-                      className="lunch-input lunch-input--sm"
-                      value={trayPriceDraft}
-                      onChange={(e) => setTrayPriceDraft(e.target.value)}
-                    />
-                    <span>грн</span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={saving}
-                      onClick={() => void saveTrayPrice()}
-                    >
-                      Зберегти ціну лотка
-                    </Button>
-                  </span>
-                </li>
               </ul>
             )}
+            <ul className="lunch-menu-list" style={{ marginTop: 8, maxHeight: 'none' }}>
+              <li className="lunch-menu-tray">
+                <span>Лоток</span>
+                <span className="lunch-tray-edit">
+                  <input
+                    type="number"
+                    min={0}
+                    className="lunch-input lunch-input--sm"
+                    value={trayPriceDraft}
+                    onChange={(e) => setTrayPriceDraft(e.target.value)}
+                  />
+                  <span>грн</span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={saving}
+                    onClick={() => void saveTrayPrice()}
+                  >
+                    Зберегти ціну лотка
+                  </Button>
+                </span>
+              </li>
+            </ul>
 
             <h4 className="lunch-section-title">Замовлення ({summary.orders.length})</h4>
             {summary.orders.length === 0 ? (
@@ -517,10 +560,10 @@ export const LunchTab: React.FC = () => {
                               <ul className="lunch-dish-list">
                                 {o.lines.map((l, idx) => (
                                   <li
-                                    key={`${o.id}-${l.menuItemId ?? 'x'}-${idx}`}
+                                    key={`${o.id}-${l.dishId ?? l.menuItemId ?? 'x'}-${idx}`}
                                     className={l.unavailable ? 'lunch-dish--miss' : undefined}
                                   >
-                                    {formatOrderDishLabel(l, menuById)}
+                                    {formatOrderDishLabel(l, dishById)}
                                   </li>
                                 ))}
                               </ul>
@@ -579,17 +622,17 @@ export const LunchTab: React.FC = () => {
                             <td colSpan={8}>
                               <div className="lunch-edit">
                                 <div className="lunch-edit__col">
-                                  <strong>Страви з меню</strong>
+                                  <strong>Страви</strong>
                                   <ul className="lunch-edit-list">
                                     {edit.lines.length === 0 && (
-                                      <li className="lunch-muted">Порожньо — додай з меню нижче</li>
+                                      <li className="lunch-muted">Порожньо — додай з каталогу нижче</li>
                                     )}
                                     {edit.lines.map((line, idx) => {
-                                      const item = menuById.get(line.menuItemId);
+                                      const item = dishById.get(line.dishId);
                                       return (
-                                        <li key={`${line.menuItemId}-${idx}`}>
+                                        <li key={`${line.dishId}-${idx}`}>
                                           <span>
-                                            {item?.name || `#${line.menuItemId}`}
+                                            {item?.name || `#${line.dishId}`}
                                             {item ? ` — ${item.priceUah} грн` : ''}
                                             {line.asWritten ? (
                                               <span className="lunch-muted"> ({line.asWritten})</span>
@@ -613,14 +656,25 @@ export const LunchTab: React.FC = () => {
                                   </ul>
                                   <div className="lunch-edit-add">
                                     <select
-                                      value={addMenuId}
-                                      onChange={(e) => setAddMenuId(e.target.value)}
-                                      disabled={!summary.menuItems.length}
+                                      value={addDishId}
+                                      onChange={(e) => setAddDishId(e.target.value)}
+                                      disabled={!addDishOptions.today.length && !addDishOptions.rest.length}
                                     >
                                       <option value="">Додати страву…</option>
-                                      {summary.menuItems.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                          {m.name} — {m.priceUah} грн
+                                      {addDishOptions.today.length > 0 && (
+                                        <option disabled>── сьогодні ──</option>
+                                      )}
+                                      {addDishOptions.today.map((d) => (
+                                        <option key={`t-${d.id}`} value={d.id}>
+                                          {d.name} — {d.priceUah} грн
+                                        </option>
+                                      ))}
+                                      {addDishOptions.rest.length > 0 && (
+                                        <option disabled>── каталог ──</option>
+                                      )}
+                                      {addDishOptions.rest.map((d) => (
+                                        <option key={`c-${d.id}`} value={d.id}>
+                                          {d.name} — {d.priceUah} грн
                                         </option>
                                       ))}
                                     </select>
@@ -633,19 +687,19 @@ export const LunchTab: React.FC = () => {
                                     <Button
                                       type="button"
                                       variant="secondary"
-                                      disabled={!addMenuId}
+                                      disabled={!addDishId}
                                       onClick={() => {
-                                        const id = Number(addMenuId);
+                                        const id = Number(addDishId);
                                         if (!id) return;
                                         setEdit({
                                           ...edit,
                                           lines: [
                                             ...edit.lines,
-                                            { menuItemId: id, asWritten: edit.asWrittenDraft.trim() },
+                                            { dishId: id, asWritten: edit.asWrittenDraft.trim() },
                                           ],
                                           asWrittenDraft: '',
                                         });
-                                        setAddMenuId('');
+                                        setAddDishId('');
                                       }}
                                     >
                                       Додати
