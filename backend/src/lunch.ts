@@ -608,7 +608,7 @@ export async function updateLunchOrder(
   orderId: number,
   opts: {
     menuItemIds?: number[];
-    lines?: Array<{ menuItemId: number; asWritten?: string; qty?: number }>;
+    lines?: Array<{ dishId?: number; menuItemId?: number; asWritten?: string; qty?: number }>;
     unmatchedText?: string | null;
     trayCount?: number | null;
   }
@@ -632,14 +632,17 @@ export async function updateLunchOrder(
 
   const settings = await getLunchSettings(prisma);
   const menuById = new Map(order.day.menuItems.map((m) => [m.id, m]));
-  const rawLines =
-    opts.lines && opts.lines.length
+  const menuByDishId = new Map(order.day.menuItems.map((m) => [m.dishId, m]));
+  type IncomingLine = { dishId?: number; menuItemId?: number; asWritten?: string; qty?: number };
+  const rawLines: IncomingLine[] =
+    opts.lines !== undefined
       ? opts.lines
       : (opts.menuItemIds || []).map((id) => ({ menuItemId: id, asWritten: '', qty: 1 }));
 
   const linesData: Array<{
-    menuItemId: number;
+    menuItemId: number | null;
     dishId: number;
+    dishName: string;
     rawName: string;
     qty: number;
     unitPriceUah: number;
@@ -649,25 +652,33 @@ export async function updateLunchOrder(
   }> = [];
   let foodTotal = 0;
   for (const raw of rawLines) {
-    const mid = Number(raw.menuItemId);
-    const item = menuById.get(mid);
-    if (!item) {
-      throw new Error(`Позиція меню #${mid} не належить цьому дню`);
-    }
     const qty = raw.qty && raw.qty > 0 ? Math.round(raw.qty) : 1;
-    const price = item.dish?.priceUah ?? item.priceUah;
+    const asWritten = (raw.asWritten || '').trim();
+    const dishIdRaw = raw.dishId != null ? Number(raw.dishId) : 0;
+    const mid = raw.menuItemId != null ? Number(raw.menuItemId) : 0;
+    const fromMenu = mid > 0 ? menuById.get(mid) : undefined;
+    const dishId = dishIdRaw > 0 ? dishIdRaw : fromMenu?.dishId;
+    if (!dishId) {
+      throw new Error('Потрібен dishId або позиція сьогоднішнього меню');
+    }
+    const dish = await prisma.lunchDish.findUnique({ where: { id: dishId } });
+    if (!dish) {
+      throw new Error(`Страву #${dishId} не знайдено в каталозі`);
+    }
+    const todayItem = menuByDishId.get(dish.id) || fromMenu;
+    const price = dish.priceUah;
     const lineTotal = price * qty;
     foodTotal += lineTotal;
-    const asWritten = (raw.asWritten || '').trim();
     linesData.push({
-      menuItemId: item.id,
-      dishId: item.dishId,
-      rawName: asWritten || item.dish?.name || item.name,
+      menuItemId: todayItem?.id ?? null,
+      dishId: dish.id,
+      dishName: dish.name,
+      rawName: asWritten || dish.name,
       qty,
       unitPriceUah: price,
       lineTotalUah: lineTotal,
       asWritten,
-      trayRole: item.dish?.trayRole || 'second',
+      trayRole: dish.trayRole || 'second',
     });
   }
 
@@ -728,7 +739,7 @@ export async function updateLunchOrder(
   const confirmText = formatOrderConfirmText({
     displayName: order.participant.displayName,
     lines: linesData.map((l) => ({
-      menuItemName: menuById.get(l.menuItemId)?.dish?.name || menuById.get(l.menuItemId)?.name,
+      menuItemName: l.dishName,
       rawName: l.rawName,
       qty: l.qty,
       unitPriceUah: l.unitPriceUah,

@@ -214,13 +214,19 @@ export function createAdminLunchRouter(deps: { prisma: PrismaClient }): Router {
         ? req.body.menuItemIds.map((x: unknown) => Number(x))
         : [];
       const lines = Array.isArray(req.body?.lines)
-        ? (req.body.lines as Array<{ menuItemId?: unknown; asWritten?: unknown; qty?: unknown }>).map(
-            (l) => ({
-              menuItemId: Number(l.menuItemId),
-              asWritten: l.asWritten != null ? String(l.asWritten) : '',
-              qty: l.qty != null ? Number(l.qty) : 1,
-            })
-          )
+        ? (
+            req.body.lines as Array<{
+              dishId?: unknown;
+              menuItemId?: unknown;
+              asWritten?: unknown;
+              qty?: unknown;
+            }>
+          ).map((l) => ({
+            dishId: l.dishId != null && l.dishId !== '' ? Number(l.dishId) : undefined,
+            menuItemId: l.menuItemId != null && l.menuItemId !== '' ? Number(l.menuItemId) : undefined,
+            asWritten: l.asWritten != null ? String(l.asWritten) : '',
+            qty: l.qty != null ? Number(l.qty) : 1,
+          }))
         : undefined;
       const unmatchedText =
         req.body?.unmatchedText === undefined ? undefined : req.body.unmatchedText;

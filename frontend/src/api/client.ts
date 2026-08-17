@@ -883,7 +883,7 @@ class ApiClient {
     orderId: number,
     data: {
       menuItemIds?: number[];
-      lines?: Array<{ menuItemId: number; asWritten?: string; qty?: number }>;
+      lines?: Array<{ dishId?: number; menuItemId?: number; asWritten?: string; qty?: number }>;
       unmatchedText?: string | null;
       trayCount?: number | null;
     }
