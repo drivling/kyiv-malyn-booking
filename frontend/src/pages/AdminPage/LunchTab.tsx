@@ -358,6 +358,11 @@ export const LunchTab: React.FC = () => {
     }
   };
 
+  const applySummary = (next?: LunchDaySummary) => {
+    if (next) setSummary(next);
+    else void load();
+  };
+
   const saveDish = async (dishId: number, priceUah: number, trayRole: string) => {
     setSaving(true);
     setError('');
@@ -365,10 +370,59 @@ export const LunchTab: React.FC = () => {
     try {
       const res = await apiClient.updateLunchDish(dishId, { priceUah, trayRole });
       setSuccess('Страву оновлено.');
-      if (res.summary) setSummary(res.summary);
-      else await load();
+      applySummary(res.summary);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка страви');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addSynonym = async (dishId: number, rawText: string) => {
+    const raw = rawText.trim();
+    if (!raw) {
+      setError('Порожній синонім');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.addLunchDishSynonym(dishId, raw);
+      setSuccess('Синонім додано.');
+      applySummary(res.summary);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка синоніма');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteSynonym = async (synonymId: number) => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.deleteLunchDishSynonym(synonymId);
+      setSuccess('Синонім прибрано.');
+      applySummary(res.summary);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка синоніма');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const moveSynonym = async (synonymId: number, dishId: number) => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.moveLunchDishSynonym(synonymId, dishId);
+      setSuccess('Синонім перенесено.');
+      applySummary(res.summary);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка переносу синоніма');
     } finally {
       setSaving(false);
     }
@@ -826,12 +880,20 @@ export const LunchTab: React.FC = () => {
         <h3 className="lunch-card__title">База страв ({summary?.dishes?.length || 0})</h3>
         <p className="lunch-card__hint">
           Каталог не стирається щодня. Роль лотка: суп — окремий лоток на порцію; друге — один спільний; салат —
-          без лотка (крім єдиної страви в заказі).
+          без лотка (крім єдиної страви в заказі). Синоніми впливають на розпізнавання замовлень — хибні можна
+          прибрати або перенести на іншу страву.
         </p>
         {!summary?.dishes?.length ? (
           <p className="lunch-muted">Порожньо — зʼявиться після першого імпорту меню.</p>
         ) : (
-          <CatalogTable dishes={summary.dishes} saving={saving} onSave={saveDish} />
+          <CatalogTable
+            dishes={summary.dishes}
+            saving={saving}
+            onSave={saveDish}
+            onAddSynonym={addSynonym}
+            onDeleteSynonym={deleteSynonym}
+            onMoveSynonym={moveSynonym}
+          />
         )}
       </section>
     </div>
@@ -842,8 +904,12 @@ const CatalogTable: React.FC<{
   dishes: LunchDaySummary['dishes'];
   saving: boolean;
   onSave: (id: number, priceUah: number, trayRole: string) => void;
-}> = ({ dishes, saving, onSave }) => {
+  onAddSynonym: (dishId: number, rawText: string) => void;
+  onDeleteSynonym: (synonymId: number) => void;
+  onMoveSynonym: (synonymId: number, dishId: number) => void;
+}> = ({ dishes, saving, onSave, onAddSynonym, onDeleteSynonym, onMoveSynonym }) => {
   const [drafts, setDrafts] = useState<Record<number, { price: string; role: string }>>({});
+  const [addDrafts, setAddDrafts] = useState<Record<number, string>>({});
   useEffect(() => {
     const next: Record<number, { price: string; role: string }> = {};
     for (const d of dishes) next[d.id] = { price: String(d.priceUah), role: d.trayRole };
@@ -865,6 +931,7 @@ const CatalogTable: React.FC<{
         <tbody>
           {dishes.map((d) => {
             const draft = drafts[d.id] || { price: String(d.priceUah), role: d.trayRole };
+            const addVal = addDrafts[d.id] || '';
             return (
               <tr key={d.id}>
                 <td>{d.name}</td>
@@ -892,7 +959,77 @@ const CatalogTable: React.FC<{
                     <option value="salad">салат</option>
                   </select>
                 </td>
-                <td className="lunch-muted">{d.synonyms.length ? d.synonyms.join(', ') : '—'}</td>
+                <td className="lunch-synonyms">
+                  {d.synonyms.length > 0 ? (
+                    <div className="lunch-syn-list">
+                      {d.synonyms.map((s) => (
+                        <span key={s.id} className="lunch-syn-chip">
+                          <span className="lunch-syn-chip__text">{s.rawText}</span>
+                          <select
+                            className="lunch-syn-move"
+                            value=""
+                            disabled={saving}
+                            aria-label="Перенести синонім"
+                            onChange={(e) => {
+                              const id = Number(e.target.value);
+                              e.target.value = '';
+                              if (id) onMoveSynonym(s.id, id);
+                            }}
+                          >
+                            <option value="">на іншу…</option>
+                            {dishes
+                              .filter((other) => other.id !== d.id)
+                              .map((other) => (
+                                <option key={other.id} value={other.id}>
+                                  {other.name}
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="lunch-chip-x"
+                            disabled={saving}
+                            aria-label="Прибрати синонім"
+                            onClick={() => onDeleteSynonym(s.id)}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="lunch-muted">—</span>
+                  )}
+                  <div className="lunch-syn-add">
+                    <input
+                      className="lunch-input"
+                      placeholder="додати синонім"
+                      value={addVal}
+                      disabled={saving}
+                      onChange={(e) => setAddDrafts({ ...addDrafts, [d.id]: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        if (!addVal.trim()) return;
+                        onAddSynonym(d.id, addVal);
+                        setAddDrafts({ ...addDrafts, [d.id]: '' });
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="lunch-pay-btn"
+                      disabled={saving || !addVal.trim()}
+                      onClick={() => {
+                        if (!addVal.trim()) return;
+                        onAddSynonym(d.id, addVal);
+                        setAddDrafts({ ...addDrafts, [d.id]: '' });
+                      }}
+                    >
+                      Додати
+                    </Button>
+                  </div>
+                </td>
                 <td>
                   <Button
                     type="button"

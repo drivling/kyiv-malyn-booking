@@ -406,6 +406,28 @@ def test_unavailable_when_today_menu_exists():
     assert r.unavailable == ["Пюре"]
 
 
+def test_collect_confirmation_reply_map():
+    from lunch.reparse_day import collect_confirmation_reply_map
+
+    class Msg:
+        def __init__(self, mid, out, text, reply_to=None):
+            self.id = mid
+            self.out = out
+            self.message = text
+            self.text = text
+            self.reply_to_msg_id = reply_to
+
+    msgs = [
+        Msg(10, False, "суп і салат"),
+        Msg(11, True, "Імʼя, заказ: суп", 10),
+        Msg(12, True, "Меню на сьогодні:\nсуп"),
+        Msg(13, True, "Імʼя, заказ: салат (уточнення)", 10),
+        Msg(14, True, "", 10),
+    ]
+    got = collect_confirmation_reply_map(msgs)
+    assert got == {10: 13}
+
+
 def main():
     tests = [
         test_normalize,
@@ -430,6 +452,7 @@ def main():
         test_synonym_match,
         test_fallback_silent_before_today_menu,
         test_unavailable_when_today_menu_exists,
+        test_collect_confirmation_reply_map,
     ]
     failed = 0
     for t in tests:

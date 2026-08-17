@@ -910,6 +910,30 @@ class ApiClient {
     });
   }
 
+  async addLunchDishSynonym(
+    dishId: number,
+    rawText: string
+  ): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/dishes/${dishId}/synonyms`, {
+      method: 'POST',
+      body: JSON.stringify({ rawText }),
+    });
+  }
+
+  async deleteLunchDishSynonym(synonymId: number): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/synonyms/${synonymId}`, { method: 'DELETE' });
+  }
+
+  async moveLunchDishSynonym(
+    synonymId: number,
+    dishId: number
+  ): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/synonyms/${synonymId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dishId }),
+    });
+  }
+
   async updateLunchSettings(trayPriceUah: number): Promise<{ ok: boolean; summary: LunchDaySummary }> {
     return this.request('/admin/lunch/settings', {
       method: 'PATCH',

@@ -9,6 +9,9 @@ exports.getLunchSettings = getLunchSettings;
 exports.parseLunchMenuPayload = parseLunchMenuPayload;
 exports.formatLunchMenuText = formatLunchMenuText;
 exports.saveDishSynonym = saveDishSynonym;
+exports.addLunchDishSynonym = addLunchDishSynonym;
+exports.deleteLunchDishSynonym = deleteLunchDishSynonym;
+exports.moveLunchDishSynonym = moveLunchDishSynonym;
 exports.upsertLunchMenuForToday = upsertLunchMenuForToday;
 exports.syncOrdersAfterMenuChange = syncOrdersAfterMenuChange;
 exports.getLunchDaySummary = getLunchDaySummary;
@@ -193,6 +196,55 @@ async function saveDishSynonym(prisma, dishId, rawText) {
         update: {},
     });
 }
+async function addLunchDishSynonym(prisma, dishId, rawText) {
+    const raw = (rawText || '').trim();
+    const rawNorm = normalizeDishName(raw);
+    if (!raw || !rawNorm)
+        throw new Error('Порожній синонім');
+    const dish = await prisma.lunchDish.findUnique({ where: { id: dishId } });
+    if (!dish)
+        throw new Error(`Страву #${dishId} не знайдено`);
+    if (dish.nameNorm === rawNorm)
+        throw new Error('Це канонічна назва страви, не синонім');
+    await prisma.lunchDishSynonym.upsert({
+        where: { dishId_rawNorm: { dishId, rawNorm } },
+        create: { dishId, rawText: raw, rawNorm },
+        update: {},
+    });
+}
+async function deleteLunchDishSynonym(prisma, synonymId) {
+    const deleted = await prisma.lunchDishSynonym.deleteMany({ where: { id: synonymId } });
+    if (!deleted.count)
+        throw new Error('Синонім не знайдено');
+}
+async function moveLunchDishSynonym(prisma, synonymId, targetDishId) {
+    if (!Number.isFinite(targetDishId) || targetDishId <= 0) {
+        throw new Error('Некоректна страва');
+    }
+    const syn = await prisma.lunchDishSynonym.findUnique({ where: { id: synonymId } });
+    if (!syn)
+        throw new Error('Синонім не знайдено');
+    if (syn.dishId === targetDishId)
+        return;
+    const dish = await prisma.lunchDish.findUnique({ where: { id: targetDishId } });
+    if (!dish)
+        throw new Error(`Страву #${targetDishId} не знайдено`);
+    if (dish.nameNorm === syn.rawNorm) {
+        await prisma.lunchDishSynonym.delete({ where: { id: synonymId } });
+        return;
+    }
+    const existing = await prisma.lunchDishSynonym.findUnique({
+        where: { dishId_rawNorm: { dishId: targetDishId, rawNorm: syn.rawNorm } },
+    });
+    if (existing) {
+        await prisma.lunchDishSynonym.delete({ where: { id: synonymId } });
+        return;
+    }
+    await prisma.lunchDishSynonym.update({
+        where: { id: synonymId },
+        data: { dishId: targetDishId },
+    });
+}
 async function upsertLunchMenuForToday(prisma, items, parsedRaw) {
     const date = todayKyivDate();
     const { menuItems, dayId } = await prisma.$transaction(async (tx) => {
@@ -333,7 +385,7 @@ async function getLunchDaySummary(prisma, date) {
         name: c.name,
         priceUah: c.priceUah,
         trayRole: c.trayRole,
-        synonyms: c.synonyms.map((s) => s.rawText),
+        synonyms: c.synonyms.map((s) => ({ id: s.id, rawText: s.rawText })),
     }));
     const day = await prisma.lunchDay.findUnique({
         where: { date: d },

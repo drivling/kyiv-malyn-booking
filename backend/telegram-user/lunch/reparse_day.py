@@ -44,6 +44,33 @@ class ReparseStats:
         }
 
 
+def _reply_to_msg_id(msg) -> Optional[int]:
+    rid = getattr(msg, "reply_to_msg_id", None)
+    if rid:
+        return int(rid)
+    reply_to = getattr(msg, "reply_to", None)
+    if reply_to is not None:
+        inner = getattr(reply_to, "reply_to_msg_id", None)
+        if inner:
+            return int(inner)
+    return None
+
+
+def collect_confirmation_reply_map(messages: list) -> dict[int, int]:
+    """sourceMessageId → останній id нашої confirmation-відповіді."""
+    out: dict[int, int] = {}
+    for msg in messages:
+        if not getattr(msg, "out", False):
+            continue
+        text = (getattr(msg, "message", None) or getattr(msg, "text", None) or "").strip()
+        if not text or not is_system_echo(text):
+            continue
+        source_id = _reply_to_msg_id(msg)
+        if source_id:
+            out[source_id] = int(msg.id)
+    return out
+
+
 def is_system_echo(text: str) -> bool:
     """Відповіді нашого listener / адмінки — не парсити як замовлення."""
     t = (text or "").strip()
@@ -313,6 +340,7 @@ async def reparse_day_with_client(
 
     # хронологічно: старі → нові
     messages.reverse()
+    reply_by_source = collect_confirmation_reply_map(messages)
 
     # до появи підсумку дозволяємо замовлення навіть якщо день був closed до clear
     closed_by_summary = False
@@ -350,5 +378,11 @@ async def reparse_day_with_client(
                 closed_by_summary = True
         except Exception as e:
             stats.errors.append(f"msg {getattr(msg, 'id', '?')}: {e}")
+
+    if reply_by_source:
+        try:
+            await db.set_reply_ids_by_source(day_row.id, reply_by_source)
+        except Exception as e:
+            stats.errors.append(f"reply_ids: {e}")
 
     return stats

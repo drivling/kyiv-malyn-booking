@@ -447,15 +447,20 @@ async def run() -> None:
                 for row in pending:
                     try:
                         kind = row.get("kind") or "send"
+                        sent = None
                         if kind == "edit" and row.get("telegram_message_id"):
                             await client.edit_message(entity, int(row["telegram_message_id"]), row["text"])
                         elif row.get("reply_to_message_id"):
-                            await client.send_message(
+                            sent = await client.send_message(
                                 entity, row["text"], reply_to=int(row["reply_to_message_id"])
                             )
                         else:
-                            await client.send_message(entity, row["text"])
+                            sent = await client.send_message(entity, row["text"])
                         await db.mark_outbound_sent(row["id"])
+                        sent_id = getattr(sent, "id", None) if sent is not None else None
+                        reply_to = row.get("reply_to_message_id")
+                        if sent_id and reply_to:
+                            await db.set_order_reply_message_id_by_source(int(reply_to), int(sent_id))
                         print(f"[lunch] outbound sent id={row['id']} kind={kind}")
                     except Exception as e:
                         print(f"[lunch] outbound fail id={row['id']}: {e}", file=sys.stderr)

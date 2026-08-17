@@ -267,6 +267,58 @@ function createAdminLunchRouter(deps) {
             res.status(400).json({ error: msg });
         }
     });
+    r.post('/admin/lunch/dishes/:id/synonyms', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const dishId = Number(req.params.id);
+            if (!Number.isFinite(dishId) || dishId <= 0) {
+                res.status(400).json({ error: 'Некоректний id страви' });
+                return;
+            }
+            await (0, lunch_1.addLunchDishSynonym)(prisma, dishId, String(req.body?.rawText ?? ''));
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка синоніма';
+            console.error('[admin/lunch/dishes/synonyms]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
+    r.delete('/admin/lunch/synonyms/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const synonymId = Number(req.params.id);
+            if (!Number.isFinite(synonymId) || synonymId <= 0) {
+                res.status(400).json({ error: 'Некоректний id синоніма' });
+                return;
+            }
+            await (0, lunch_1.deleteLunchDishSynonym)(prisma, synonymId);
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка видалення синоніма';
+            console.error('[admin/lunch/synonyms]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
+    r.patch('/admin/lunch/synonyms/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const synonymId = Number(req.params.id);
+            const dishId = Number(req.body?.dishId);
+            if (!Number.isFinite(synonymId) || synonymId <= 0) {
+                res.status(400).json({ error: 'Некоректний id синоніма' });
+                return;
+            }
+            await (0, lunch_1.moveLunchDishSynonym)(prisma, synonymId, dishId);
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка переносу синоніма';
+            console.error('[admin/lunch/synonyms]', e);
+            res.status(400).json({ error: msg });
+        }
+    });
     r.patch('/admin/lunch/settings', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const trayPriceUah = Number(req.body?.trayPriceUah);

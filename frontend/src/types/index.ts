@@ -603,12 +603,17 @@ export interface LunchMenuItemRow {
   trayRole?: string;
 }
 
+export interface LunchDishSynonymRow {
+  id: number;
+  rawText: string;
+}
+
 export interface LunchDishRow {
   id: number;
   name: string;
   priceUah: number;
   trayRole: string;
-  synonyms: string[];
+  synonyms: LunchDishSynonymRow[];
 }
 
 export interface LunchOrderRow {

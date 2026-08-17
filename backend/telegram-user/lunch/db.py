@@ -458,6 +458,40 @@ class LunchDB:
                 reply_message_id,
             )
 
+    async def set_order_reply_message_id_by_source(
+        self, source_message_id: int, reply_message_id: int
+    ) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "LunchOrder"
+                SET "replyMessageId" = $2, "updatedAt" = NOW()
+                WHERE "sourceMessageId" = $1
+                """,
+                source_message_id,
+                reply_message_id,
+            )
+
+    async def set_reply_ids_by_source(self, day_id: int, source_to_reply: dict[int, int]) -> int:
+        if not source_to_reply:
+            return 0
+        updated = 0
+        async with self.pool.acquire() as conn:
+            for source_id, reply_id in source_to_reply.items():
+                result = await conn.execute(
+                    """
+                    UPDATE "LunchOrder"
+                    SET "replyMessageId" = $3, "updatedAt" = NOW()
+                    WHERE "dayId" = $1 AND "sourceMessageId" = $2
+                    """,
+                    day_id,
+                    source_id,
+                    reply_id,
+                )
+                if result and result.endswith("1"):
+                    updated += 1
+        return updated
+
     async def sync_orders_after_menu(self, day_id: int) -> list[dict[str, Any]]:
         """Перерахувати ціни/лотки; позначити страви, яких немає сьогодні. Повертає notices."""
         today = await self.list_menu_items(day_id)
