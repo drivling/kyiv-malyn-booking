@@ -154,34 +154,6 @@ function formatLunchMenuText(items, trayPriceUah = 5) {
     lines.push(`• Лоток — ${trayPriceUah} грн`);
     return lines.join('\n');
 }
-async function findDishByNorm(tx, nameNorm) {
-    const byName = await tx.lunchDish.findUnique({ where: { nameNorm } });
-    if (byName)
-        return byName;
-    const syn = await tx.lunchDishSynonym.findFirst({
-        where: { rawNorm: nameNorm },
-        include: { dish: true },
-    });
-    return syn?.dish ?? null;
-}
-async function findOrCreateDish(tx, name, priceUah) {
-    const nameNorm = normalizeDishName(name);
-    const existing = await findDishByNorm(tx, nameNorm);
-    if (existing) {
-        return tx.lunchDish.update({
-            where: { id: existing.id },
-            data: { priceUah, updatedAt: new Date() },
-        });
-    }
-    return tx.lunchDish.create({
-        data: {
-            name,
-            nameNorm,
-            priceUah,
-            trayRole: guessTrayRole(name),
-        },
-    });
-}
 async function saveDishSynonym(prisma, dishId, rawText) {
     const raw = (rawText || '').trim();
     const rawNorm = normalizeDishName(raw);
@@ -247,6 +219,8 @@ async function moveLunchDishSynonym(prisma, synonymId, targetDishId) {
 }
 async function upsertLunchMenuForToday(prisma, items, parsedRaw) {
     const date = todayKyivDate();
+    const normItems = items.map((it) => ({ ...it, nameNorm: normalizeDishName(it.name) }));
+    const allNorms = normItems.map((it) => it.nameNorm);
     const { menuItems, dayId } = await prisma.$transaction(async (tx) => {
         const day = await tx.lunchDay.upsert({
             where: { date },
@@ -257,10 +231,42 @@ async function upsertLunchMenuForToday(prisma, items, parsedRaw) {
                 updatedAt: new Date(),
             },
         });
+        // Prefetch all dishes/synonyms in bulk up front so the per-item loop below
+        // does zero extra reads — with 30+ items, per-item findUnique/findFirst calls
+        // pushed this interactive transaction past Prisma's default 5s timeout and it
+        // got closed mid-loop ("Transaction not found").
+        const byNormDish = new Map();
+        const existingDishes = await tx.lunchDish.findMany({ where: { nameNorm: { in: allNorms } } });
+        for (const d of existingDishes)
+            byNormDish.set(d.nameNorm, d);
+        const missingNorms = allNorms.filter((n) => !byNormDish.has(n));
+        if (missingNorms.length > 0) {
+            const synonyms = await tx.lunchDishSynonym.findMany({
+                where: { rawNorm: { in: missingNorms } },
+                include: { dish: true },
+            });
+            for (const syn of synonyms) {
+                if (!byNormDish.has(syn.rawNorm))
+                    byNormDish.set(syn.rawNorm, syn.dish);
+            }
+        }
         const dishIds = [];
         const created = [];
-        for (const it of items) {
-            const dish = await findOrCreateDish(tx, it.name, it.price);
+        for (const it of normItems) {
+            const existing = byNormDish.get(it.nameNorm);
+            const dish = existing
+                ? await tx.lunchDish.update({
+                    where: { id: existing.id },
+                    data: { priceUah: it.price, updatedAt: new Date() },
+                })
+                : await tx.lunchDish.create({
+                    data: {
+                        name: it.name,
+                        nameNorm: it.nameNorm,
+                        priceUah: it.price,
+                        trayRole: guessTrayRole(it.name),
+                    },
+                });
             dishIds.push(dish.id);
             const row = await tx.lunchMenuItem.upsert({
                 where: { dayId_dishId: { dayId: day.id, dishId: dish.id } },
@@ -290,7 +296,7 @@ async function upsertLunchMenuForToday(prisma, items, parsedRaw) {
             where: { dayId: day.id, dishId: { notIn: dishIds } },
         });
         return { menuItems: created, dayId: day.id };
-    });
+    }, { timeout: 20000, maxWait: 10000 });
     const day = await prisma.lunchDay.findUniqueOrThrow({ where: { id: dayId } });
     const notices = await syncOrdersAfterMenuChange(prisma, day.id);
     return {
