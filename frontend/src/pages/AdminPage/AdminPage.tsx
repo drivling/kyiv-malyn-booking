@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
@@ -13,6 +14,25 @@ import './AdminPage.css';
 
 type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
 
+const DEFAULT_TAB: Tab = 'bookings';
+
+const TAB_SLUGS: Record<Tab, string> = {
+  bookings: 'bookings',
+  schedules: 'schedules',
+  routes: 'routes',
+  viber: 'viber',
+  promo: 'promo',
+  referrals: 'referrals',
+  lunch: 'lunch',
+  data: 'data',
+  mapEditor: 'map-editor',
+  userSenderErrors: 'user-sender-errors',
+};
+
+const SLUG_TO_TAB: Record<string, Tab> = Object.fromEntries(
+  Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab as Tab])
+);
+
 function eltrainPageLabel(url: string): string {
   try {
     const reverse = new URL(url).searchParams.get('reverse');
@@ -25,7 +45,15 @@ function eltrainPageLabel(url: string): string {
 }
 
 export const AdminPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('bookings');
+  const navigate = useNavigate();
+  const { tab: tabSlug } = useParams<{ tab?: string }>();
+  const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
+  const setActiveTab = useCallback(
+    (tab: Tab) => {
+      navigate(tab === DEFAULT_TAB ? '/admin' : `/admin/${TAB_SLUGS[tab]}`);
+    },
+    [navigate]
+  );
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [tripPoints, setTripPoints] = useState<TripPoint[]>([]);
