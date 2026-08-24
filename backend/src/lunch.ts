@@ -154,42 +154,6 @@ export function formatLunchMenuText(
   return lines.join('\n');
 }
 
-async function findDishByNorm(
-  tx: Prisma.TransactionClient | PrismaClient,
-  nameNorm: string
-): Promise<{ id: number; name: string; nameNorm: string; priceUah: number; trayRole: string } | null> {
-  const byName = await tx.lunchDish.findUnique({ where: { nameNorm } });
-  if (byName) return byName;
-  const syn = await tx.lunchDishSynonym.findFirst({
-    where: { rawNorm: nameNorm },
-    include: { dish: true },
-  });
-  return syn?.dish ?? null;
-}
-
-async function findOrCreateDish(
-  tx: Prisma.TransactionClient | PrismaClient,
-  name: string,
-  priceUah: number
-): Promise<{ id: number; name: string; nameNorm: string; priceUah: number; trayRole: string }> {
-  const nameNorm = normalizeDishName(name);
-  const existing = await findDishByNorm(tx, nameNorm);
-  if (existing) {
-    return tx.lunchDish.update({
-      where: { id: existing.id },
-      data: { priceUah, updatedAt: new Date() },
-    });
-  }
-  return tx.lunchDish.create({
-    data: {
-      name,
-      nameNorm,
-      priceUah,
-      trayRole: guessTrayRole(name),
-    },
-  });
-}
-
 export async function saveDishSynonym(
   prisma: PrismaClient | Prisma.TransactionClient,
   dishId: number,
@@ -277,61 +241,98 @@ export async function upsertLunchMenuForToday(
   notices: MenuUnavailableNotice[];
 }> {
   const date = todayKyivDate();
-  const { menuItems, dayId } = await prisma.$transaction(async (tx) => {
-    const day = await tx.lunchDay.upsert({
-      where: { date },
-      create: { date, status: 'ordering', parsedRawJson: JSON.stringify(parsedRaw) },
-      update: {
-        status: 'ordering',
-        parsedRawJson: JSON.stringify(parsedRaw),
-        updatedAt: new Date(),
-      },
-    });
+  const normItems = items.map((it) => ({ ...it, nameNorm: normalizeDishName(it.name) }));
+  const allNorms = normItems.map((it) => it.nameNorm);
 
-    const dishIds: number[] = [];
-    const created: Array<{
-      id: number;
-      dishId: number;
-      name: string;
-      priceUah: number;
-      nameNorm: string;
-      trayRole: string;
-    }> = [];
+  const { menuItems, dayId } = await prisma.$transaction(
+    async (tx) => {
+      const day = await tx.lunchDay.upsert({
+        where: { date },
+        create: { date, status: 'ordering', parsedRawJson: JSON.stringify(parsedRaw) },
+        update: {
+          status: 'ordering',
+          parsedRawJson: JSON.stringify(parsedRaw),
+          updatedAt: new Date(),
+        },
+      });
 
-    for (const it of items) {
-      const dish = await findOrCreateDish(tx, it.name, it.price);
-      dishIds.push(dish.id);
-      const row = await tx.lunchMenuItem.upsert({
-        where: { dayId_dishId: { dayId: day.id, dishId: dish.id } },
-        create: {
-          dayId: day.id,
+      // Prefetch all dishes/synonyms in bulk up front so the per-item loop below
+      // does zero extra reads — with 30+ items, per-item findUnique/findFirst calls
+      // pushed this interactive transaction past Prisma's default 5s timeout and it
+      // got closed mid-loop ("Transaction not found").
+      const byNormDish = new Map<string, { id: number; name: string; nameNorm: string; priceUah: number; trayRole: string }>();
+      const existingDishes = await tx.lunchDish.findMany({ where: { nameNorm: { in: allNorms } } });
+      for (const d of existingDishes) byNormDish.set(d.nameNorm, d);
+      const missingNorms = allNorms.filter((n) => !byNormDish.has(n));
+      if (missingNorms.length > 0) {
+        const synonyms = await tx.lunchDishSynonym.findMany({
+          where: { rawNorm: { in: missingNorms } },
+          include: { dish: true },
+        });
+        for (const syn of synonyms) {
+          if (!byNormDish.has(syn.rawNorm)) byNormDish.set(syn.rawNorm, syn.dish);
+        }
+      }
+
+      const dishIds: number[] = [];
+      const created: Array<{
+        id: number;
+        dishId: number;
+        name: string;
+        priceUah: number;
+        nameNorm: string;
+        trayRole: string;
+      }> = [];
+
+      for (const it of normItems) {
+        const existing = byNormDish.get(it.nameNorm);
+        const dish = existing
+          ? await tx.lunchDish.update({
+              where: { id: existing.id },
+              data: { priceUah: it.price, updatedAt: new Date() },
+            })
+          : await tx.lunchDish.create({
+              data: {
+                name: it.name,
+                nameNorm: it.nameNorm,
+                priceUah: it.price,
+                trayRole: guessTrayRole(it.name),
+              },
+            });
+        dishIds.push(dish.id);
+        const row = await tx.lunchMenuItem.upsert({
+          where: { dayId_dishId: { dayId: day.id, dishId: dish.id } },
+          create: {
+            dayId: day.id,
+            dishId: dish.id,
+            name: dish.name,
+            nameNorm: dish.nameNorm,
+            priceUah: dish.priceUah,
+          },
+          update: {
+            priceUah: dish.priceUah,
+            name: dish.name,
+            nameNorm: dish.nameNorm,
+          },
+        });
+        created.push({
+          id: row.id,
           dishId: dish.id,
           name: dish.name,
-          nameNorm: dish.nameNorm,
           priceUah: dish.priceUah,
-        },
-        update: {
-          priceUah: dish.priceUah,
-          name: dish.name,
           nameNorm: dish.nameNorm,
-        },
-      });
-      created.push({
-        id: row.id,
-        dishId: dish.id,
-        name: dish.name,
-        priceUah: dish.priceUah,
-        nameNorm: dish.nameNorm,
-        trayRole: dish.trayRole,
-      });
-    }
+          trayRole: dish.trayRole,
+        });
+      }
 
-    await tx.lunchMenuItem.deleteMany({
-      where: { dayId: day.id, dishId: { notIn: dishIds } },
-    });
+      await tx.lunchMenuItem.deleteMany({
+        where: { dayId: day.id, dishId: { notIn: dishIds } },
+      });
 
-    return { menuItems: created, dayId: day.id };
-  });
+      return { menuItems: created, dayId: day.id };
+    },
+    { timeout: 20000, maxWait: 10000 }
+  );
 
   const day = await prisma.lunchDay.findUniqueOrThrow({ where: { id: dayId } });
   const notices = await syncOrdersAfterMenuChange(prisma, day.id);
