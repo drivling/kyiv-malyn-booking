@@ -8,11 +8,12 @@ import { Alert } from '@/components/Alert';
 import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
+import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
 
 const DEFAULT_TAB: Tab = 'bookings';
 
@@ -26,6 +27,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   lunch: 'lunch',
   data: 'data',
   mapEditor: 'map-editor',
+  scheduleEditor: 'route-schedule',
   userSenderErrors: 'user-sender-errors',
 };
 
@@ -251,6 +253,8 @@ export const AdminPage: React.FC = () => {
       loadPersons();
     } else if (activeTab === 'mapEditor') {
       // MapEditor завантажує дані сам
+    } else if (activeTab === 'scheduleEditor') {
+      // ScheduleEditor завантажує дані сам
     } else if (activeTab === 'userSenderErrors') {
       loadUserSenderErrors();
     }
@@ -1374,6 +1378,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('mapEditor')}
           >
             Редактор карти
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'scheduleEditor' ? 'active' : ''}`}
+            onClick={() => setActiveTab('scheduleEditor')}
+          >
+            Графік транспорту
           </button>
           <button
             className={`admin-tab ${activeTab === 'userSenderErrors' ? 'active' : ''}`}
@@ -2821,6 +2831,7 @@ export const AdminPage: React.FC = () => {
         )}
 
         {activeTab === 'mapEditor' && <MapEditorTab />}
+        {activeTab === 'scheduleEditor' && <ScheduleEditorTab />}
 
         {activeTab === 'referrals' && <ReferralTab />}
 
