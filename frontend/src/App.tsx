@@ -76,7 +76,7 @@ function AppContent() {
           <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route
-            path="/admin"
+            path="/admin/:tab?"
             element={
               <ProtectedRoute>
                 <AdminPage />
