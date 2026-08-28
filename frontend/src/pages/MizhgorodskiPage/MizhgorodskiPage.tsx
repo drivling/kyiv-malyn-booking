@@ -174,10 +174,13 @@ export const MizhgorodskiPage: React.FC = () => {
   );
 
   const quickChips: QuickDirectChip[] = useMemo(() => {
-    const fromOd = chipsFromOdPairs(homeCityCode, odPairs);
-    if (fromOd.length) return fromOd;
+    // Admin-curated quickDirectPointIds (checkboxes in AdminPage) take priority over
+    // od-pairs derived from route stops — those include "via" stops (e.g. Irpin/Bucha
+    // on Kyiv-Malyn variants) that aren't meant to be home-page corridor toggles.
     const built = buildQuickDirectChips(homePoint, allTripPoints);
     if (built.length) return built;
+    const fromOd = chipsFromOdPairs(homeCityCode, odPairs);
+    if (fromOd.length) return fromOd;
     if (homeCityCode === 'Malyn') return legacyMalynCorridorChips();
     return [];
   }, [homePoint, allTripPoints, homeCityCode, odPairs]);
