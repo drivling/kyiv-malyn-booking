@@ -49,6 +49,9 @@ const VIBER_LISTING_UPDATE_FIELDS = [
     'senderName',
     'listingType',
     'route',
+    'tripRouteId',
+    'fromPointId',
+    'toPointId',
     'date',
     'departureTime',
     'seats',
@@ -77,9 +80,16 @@ function createViberListingsRouter(deps) {
         }
     });
     r.get('/viber-listings/search', async (req, res) => {
-        const { route, date } = req.query;
-        if (!route || !date) {
-            return res.status(400).json({ error: 'Route and date are required' });
+        const { route, date, fromCode, toCode } = req.query;
+        if (!date) {
+            return res.status(400).json({ error: 'Date is required' });
+        }
+        const hasOd = typeof fromCode === 'string' &&
+            typeof toCode === 'string' &&
+            fromCode.trim() &&
+            toCode.trim();
+        if (!route && !hasOd) {
+            return res.status(400).json({ error: 'fromCode+toCode or route is required' });
         }
         try {
             const searchDate = new Date(date);
@@ -87,17 +97,62 @@ function createViberListingsRouter(deps) {
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(searchDate);
             endOfDay.setHours(23, 59, 59, 999);
-            const listings = await prisma.viberListing.findMany({
-                where: {
-                    route: route,
-                    date: {
-                        gte: startOfDay,
-                        lte: endOfDay,
-                    },
-                    isActive: true,
+            const dateFilter = {
+                date: {
+                    gte: startOfDay,
+                    lte: endOfDay,
                 },
-                orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
-            });
+                isActive: true,
+            };
+            let listings;
+            if (hasOd) {
+                const points = await prisma.tripPoint.findMany();
+                const from = points.find((p) => p.code.toLowerCase() === String(fromCode).trim().toLowerCase());
+                const to = points.find((p) => p.code.toLowerCase() === String(toCode).trim().toLowerCase());
+                if (!from || !to) {
+                    return res.json([]);
+                }
+                const tripRoutes = await prisma.tripRoute.findMany({
+                    include: {
+                        stops: { orderBy: { position: 'asc' }, select: { pointId: true, position: true } },
+                    },
+                });
+                const alongTripRouteIds = tripRoutes
+                    .filter((tr) => {
+                    const ids = tr.stops.map((s) => s.pointId);
+                    const fi = ids.indexOf(from.id);
+                    const ti = ids.indexOf(to.id);
+                    return fi >= 0 && ti >= 0 && fi < ti;
+                })
+                    .map((tr) => tr.id);
+                listings = await prisma.viberListing.findMany({
+                    where: {
+                        ...dateFilter,
+                        OR: [
+                            { fromPointId: from.id, toPointId: to.id },
+                            ...(alongTripRouteIds.length
+                                ? [{ tripRouteId: { in: alongTripRouteIds } }]
+                                : []),
+                            ...(route ? [{ route: route, fromPointId: null, toPointId: null }] : []),
+                            {
+                                route: `${from.code}-${to.code}`,
+                                fromPointId: null,
+                                toPointId: null,
+                            },
+                        ],
+                    },
+                    orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+                });
+            }
+            else {
+                listings = await prisma.viberListing.findMany({
+                    where: {
+                        ...dateFilter,
+                        route: route,
+                    },
+                    orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+                });
+            }
             res.json(listings.map(index_helpers_1.serializeViberListing));
         }
         catch (error) {
@@ -297,6 +352,19 @@ function createViberListingsRouter(deps) {
                     const v = body[key];
                     updates[key] = v === null || v === '' ? null : typeof v === 'number' ? v : parseInt(String(v), 10);
                 }
+                else if (key === 'tripRouteId' || key === 'fromPointId' || key === 'toPointId') {
+                    const v = body[key];
+                    if (v === null || v === '' || v === 'null') {
+                        updates[key] = null;
+                    }
+                    else {
+                        const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+                        if (!Number.isInteger(n) || n <= 0) {
+                            return res.status(400).json({ error: `${key} must be a positive integer or null` });
+                        }
+                        updates[key] = n;
+                    }
+                }
                 else {
                     updates[key] = body[key];
                 }
@@ -306,9 +374,29 @@ function createViberListingsRouter(deps) {
             return res.status(400).json({ error: 'No allowed fields to update' });
         }
         try {
-            if (typeof updates.route === 'string' && updates.route) {
+            const explicitTripRouteId = Object.prototype.hasOwnProperty.call(body, 'tripRouteId');
+            if (explicitTripRouteId && updates.tripRouteId != null) {
+                const tr = await prisma.tripRoute.findUnique({ where: { id: updates.tripRouteId } });
+                if (!tr) {
+                    return res.status(400).json({ error: 'TripRoute not found' });
+                }
+                // Admin can pin corridor OR variant (e.g. Kyiv-Malyn-Irpin). Keep route snapshot in sync if not overridden.
+                if (updates.route === undefined) {
+                    updates.route = tr.slug;
+                }
+            }
+            else if (!explicitTripRouteId && typeof updates.route === 'string' && updates.route) {
+                // Legacy: changing route alone still auto-binds corridor (not variant).
                 const { resolveCorridorTripRouteId } = await Promise.resolve().then(() => __importStar(require('../schedule-trip')));
                 updates.tripRouteId = await resolveCorridorTripRouteId(prisma, String(updates.route));
+            }
+            if (typeof updates.route === 'string' && updates.route) {
+                const { resolveOdPointIdsFromRoute } = await Promise.resolve().then(() => __importStar(require('../poputky-od')));
+                const od = await resolveOdPointIdsFromRoute(prisma, String(updates.route));
+                if (od && updates.fromPointId === undefined && updates.toPointId === undefined) {
+                    updates.fromPointId = od.fromPointId;
+                    updates.toPointId = od.toPointId;
+                }
             }
             let listing = await prisma.viberListing.update({
                 where: { id: Number(id) },

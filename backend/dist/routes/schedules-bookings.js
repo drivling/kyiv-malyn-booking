@@ -12,11 +12,97 @@ const booking_phone_1 = require("../validation/booking-phone");
 const require_admin_1 = require("../middleware/require-admin");
 const schedule_price_1 = require("../schedule-price");
 const schedule_trip_1 = require("../schedule-trip");
+const schedule_timetable_sync_1 = require("../schedule-timetable-sync");
+async function buildAvailabilityPayload(prisma, schedule, date) {
+    if (schedule.vehicleType === 'elektrichka') {
+        return {
+            scheduleId: schedule.id,
+            maxSeats: schedule.maxSeats,
+            bookedSeats: 0,
+            availableSeats: 0,
+            isAvailable: false,
+            vehicleType: schedule.vehicleType,
+            ticketPurchaseUrl: schedule.ticketPurchaseUrl,
+        };
+    }
+    if (!(0, schedule_trip_1.isScheduleActiveOnDate)(schedule.activeWeekdays, date)) {
+        return {
+            scheduleId: schedule.id,
+            maxSeats: schedule.maxSeats,
+            bookedSeats: 0,
+            availableSeats: 0,
+            isAvailable: false,
+            inactiveOnDate: true,
+        };
+    }
+    const bookingDate = new Date(date);
+    const startOfDay = new Date(bookingDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(bookingDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    const bookings = await prisma.booking.findMany({
+        where: {
+            OR: [
+                { scheduleId: schedule.id },
+                { scheduleId: null, route: schedule.route, departureTime: schedule.departureTime },
+            ],
+            date: {
+                gte: startOfDay,
+                lte: endOfDay,
+            },
+        },
+    });
+    const bookedSeats = bookings.reduce((sum, booking) => sum + booking.seats, 0);
+    const availableSeats = schedule.maxSeats - bookedSeats;
+    return {
+        scheduleId: schedule.id,
+        maxSeats: schedule.maxSeats,
+        bookedSeats,
+        availableSeats,
+        isAvailable: availableSeats > 0,
+    };
+}
 const scheduleInclude = {
     startPoint: true,
     endPoint: true,
-    tripRoute: { include: { startPoint: true, endPoint: true, corridorRoute: true } },
+    tripRoute: {
+        include: {
+            startPoint: true,
+            endPoint: true,
+            corridorRoute: true,
+            stops: { include: { point: true }, orderBy: { position: 'asc' } },
+        },
+    },
 };
+async function applyStopOffsets(prisma, tripRouteId, stopOffsets) {
+    if (!Array.isArray(stopOffsets))
+        return;
+    for (const raw of stopOffsets) {
+        if (!raw || typeof raw !== 'object')
+            continue;
+        const row = raw;
+        const pointId = Number(row.pointId);
+        if (!Number.isInteger(pointId) || pointId <= 0)
+            continue;
+        let offset = null;
+        if (row.departureOffsetMinutes === null || row.departureOffsetMinutes === '') {
+            offset = null;
+        }
+        else if (row.departureOffsetMinutes !== undefined) {
+            const n = Number(row.departureOffsetMinutes);
+            if (!Number.isFinite(n) || n < 0)
+                continue;
+            offset = Math.round(n);
+        }
+        else {
+            continue;
+        }
+        await prisma.tripRouteStop.updateMany({
+            where: { tripRouteId, pointId },
+            data: { departureOffsetMinutes: offset },
+        });
+    }
+}
 async function loadPointsMap(prisma) {
     const points = await prisma.tripPoint.findMany();
     return new Map(points.map((p) => [p.id, p]));
@@ -76,19 +162,29 @@ async function resolveScheduleTripFields(prisma, body, existing) {
     const end = pointsById.get(endPointId);
     const viaCodes = validated.viaPointIds.map((id) => pointsById.get(id).code);
     const route = (0, schedule_trip_1.buildLegacyRouteKey)(start.code, end.code, viaCodes);
-    let tripRouteId = body.tripRouteId !== undefined ? Number(body.tripRouteId) : existing?.tripRouteId;
-    if (tripRouteId == null || !Number.isInteger(tripRouteId)) {
-        try {
-            const tr = await (0, schedule_trip_1.findOrCreateTripRoute)(prisma, {
-                startPointId,
-                endPointId,
-                viaPointIds: validated.viaPointIds,
-            });
-            tripRouteId = tr.id;
+    // Always resolve TripRoute from current points so Schedule.route and tripRouteId stay in sync.
+    // Explicit body.tripRouteId is honored only when it already matches the computed slug.
+    let tripRouteId;
+    try {
+        const resolved = await (0, schedule_trip_1.findOrCreateTripRoute)(prisma, {
+            startPointId,
+            endPointId,
+            viaPointIds: validated.viaPointIds,
+        });
+        tripRouteId = resolved.id;
+        if (body.tripRouteId !== undefined) {
+            const requested = Number(body.tripRouteId);
+            if (Number.isInteger(requested) && requested > 0 && requested !== resolved.id) {
+                const requestedRow = await prisma.tripRoute.findUnique({ where: { id: requested } });
+                if (requestedRow && requestedRow.slug === route) {
+                    tripRouteId = requestedRow.id;
+                }
+                // else ignore mismatched FK — keep findOrCreate result
+            }
         }
-        catch (e) {
-            return { ok: false, status: 400, error: e instanceof Error ? e.message : 'Failed to resolve trip route' };
-        }
+    }
+    catch (e) {
+        return { ok: false, status: 400, error: e instanceof Error ? e.message : 'Failed to resolve trip route' };
     }
     const vehicleTypeRaw = body.vehicleType !== undefined ? body.vehicleType : existing?.vehicleType ?? 'marshrutka';
     if (!(0, schedule_trip_1.isVehicleType)(vehicleTypeRaw)) {
@@ -120,6 +216,9 @@ async function resolveScheduleTripFields(prisma, body, existing) {
         data.durationMinutes = parseOptionalDuration(body.durationMinutes);
     if (body.ticketPurchaseUrl !== undefined)
         data.ticketPurchaseUrl = ticketPurchaseUrl ?? null;
+    if (body.timetableSourceUrl !== undefined) {
+        data.timetableSourceUrl = optionalTrimmedString(body.timetableSourceUrl) ?? null;
+    }
     if (body.activeWeekdays !== undefined)
         data.activeWeekdays = (0, schedule_trip_1.normalizeActiveWeekdays)(body.activeWeekdays);
     return { ok: true, data, route };
@@ -128,7 +227,7 @@ function createSchedulesBookingsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
     r.get('/schedules', async (req, res) => {
-        const { route, vehicleType, date } = req.query;
+        const { route, vehicleType, date, fromCode, toCode } = req.query;
         const where = {};
         if (route)
             where.route = route;
@@ -141,6 +240,17 @@ function createSchedulesBookingsRouter(deps) {
         });
         if (date && typeof date === 'string') {
             schedules = schedules.filter((s) => (0, schedule_trip_1.isScheduleActiveOnDate)(s.activeWeekdays, date));
+        }
+        if (typeof fromCode === 'string' && typeof toCode === 'string' && fromCode.trim() && toCode.trim()) {
+            const points = await prisma.tripPoint.findMany();
+            const from = points.find((p) => p.code.toLowerCase() === fromCode.trim().toLowerCase());
+            const to = points.find((p) => p.code.toLowerCase() === toCode.trim().toLowerCase());
+            if (from && to) {
+                schedules = schedules.filter((s) => (0, schedule_trip_1.scheduleMatchesOdAlongStops)(s.tripRoute?.stops, from.id, to.id));
+            }
+            else {
+                schedules = [];
+            }
         }
         res.json(schedules);
     });
@@ -172,6 +282,129 @@ function createSchedulesBookingsRouter(deps) {
             res.status(500).json({ supportPhone: null });
         }
     });
+    /** Preview SW Railway timetable diffs for schedules with timetableSourceUrl. */
+    r.post('/schedules/timetable-preview', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const pages = (0, schedule_timetable_sync_1.parseTimetablePages)(req.body?.pages);
+            const preview = await (0, schedule_timetable_sync_1.buildTimetablePreview)(prisma, { pages });
+            res.json(preview);
+        }
+        catch (error) {
+            const status = error.status ?? 500;
+            const message = error instanceof Error ? error.message : 'Failed to build timetable preview';
+            if (status >= 400 && status < 500) {
+                return res.status(status).json({ error: message });
+            }
+            console.error('timetable-preview failed', error);
+            res.status(500).json({ error: 'Failed to build timetable preview' });
+        }
+    });
+    /** Apply selected patches from a preview token (fail-all on unique conflicts). */
+    r.post('/schedules/timetable-apply', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const previewToken = String(req.body?.previewToken || '').trim();
+            const scheduleIds = Array.isArray(req.body?.scheduleIds)
+                ? req.body.scheduleIds.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0)
+                : [];
+            if (!previewToken) {
+                return res.status(400).json({ error: 'previewToken is required' });
+            }
+            const result = await (0, schedule_timetable_sync_1.applyTimetablePreview)(prisma, previewToken, scheduleIds);
+            if (result.conflicts.length > 0) {
+                return res.status(409).json({
+                    error: 'Unique time conflicts — nothing applied',
+                    ...result,
+                });
+            }
+            res.json(result);
+        }
+        catch (error) {
+            const status = error.status ?? 500;
+            const message = error instanceof Error ? error.message : 'Failed to apply timetable';
+            if (status >= 400 && status < 500) {
+                return res.status(status).json({ error: message });
+            }
+            console.error('timetable-apply failed', error);
+            res.status(500).json({ error: 'Failed to apply timetable' });
+        }
+    });
+    /** Rebind all schedules whose tripRoute.slug ≠ schedule.route (or points mismatch). */
+    r.post('/schedules-rebind-trip-routes', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const schedules = await prisma.schedule.findMany({
+                include: { tripRoute: true },
+            });
+            let updated = 0;
+            let unchanged = 0;
+            const errors = [];
+            for (const s of schedules) {
+                const trip = await resolveScheduleTripFields(prisma, {
+                    startPointId: s.startPointId,
+                    endPointId: s.endPointId,
+                    viaPointIds: s.viaPointIds,
+                    vehicleType: s.vehicleType,
+                    ticketPurchaseUrl: s.ticketPurchaseUrl,
+                    route: s.route,
+                }, {
+                    route: s.route,
+                    tripRouteId: s.tripRouteId,
+                    startPointId: s.startPointId,
+                    endPointId: s.endPointId,
+                    viaPointIds: s.viaPointIds,
+                    vehicleType: s.vehicleType,
+                    ticketPurchaseUrl: s.ticketPurchaseUrl,
+                });
+                if (!trip.ok) {
+                    errors.push({ id: s.id, error: trip.error });
+                    continue;
+                }
+                const nextId = Number(trip.data.tripRouteId);
+                const nextRoute = String(trip.data.route);
+                if (nextId === s.tripRouteId && nextRoute === s.route) {
+                    unchanged++;
+                    continue;
+                }
+                await prisma.schedule.update({
+                    where: { id: s.id },
+                    data: {
+                        tripRouteId: nextId,
+                        route: nextRoute,
+                        startPointId: trip.data.startPointId,
+                        endPointId: trip.data.endPointId,
+                        viaPointIds: trip.data.viaPointIds,
+                    },
+                });
+                updated++;
+            }
+            res.json({ updated, unchanged, errors });
+        }
+        catch (error) {
+            console.error('schedules-rebind-trip-routes failed', error);
+            res.status(500).json({ error: 'Failed to rebind schedules' });
+        }
+    });
+    /** Preferred availability by scheduleId — register before /schedules/:route/:departureTime/availability. */
+    r.get('/schedules/by-id/:scheduleId/availability', async (req, res) => {
+        const scheduleId = Number(req.params.scheduleId);
+        const { date } = req.query;
+        if (!Number.isInteger(scheduleId) || scheduleId <= 0) {
+            return res.status(400).json({ error: 'Invalid scheduleId' });
+        }
+        if (!date || typeof date !== 'string') {
+            return res.status(400).json({ error: 'Date parameter is required' });
+        }
+        try {
+            const schedule = await prisma.schedule.findUnique({ where: { id: scheduleId } });
+            if (!schedule) {
+                return res.status(404).json({ error: 'Schedule not found' });
+            }
+            return res.json(await buildAvailabilityPayload(prisma, schedule, date));
+        }
+        catch (_error) {
+            res.status(500).json({ error: 'Failed to check availability' });
+        }
+    });
+    /** @deprecated Prefer GET /schedules/by-id/:scheduleId/availability */
     r.get('/schedules/:route/:departureTime/availability', async (req, res) => {
         const { route, departureTime } = req.params;
         const { date } = req.query;
@@ -179,62 +412,18 @@ function createSchedulesBookingsRouter(deps) {
             return res.status(400).json({ error: 'Date parameter is required' });
         }
         try {
-            const schedule = await prisma.schedule.findUnique({
+            const schedule = await prisma.schedule.findFirst({
                 where: {
-                    route_departureTime: {
-                        route,
-                        departureTime,
-                    },
+                    OR: [
+                        { tripRoute: { slug: route }, departureTime },
+                        { route, departureTime },
+                    ],
                 },
             });
             if (!schedule) {
                 return res.status(404).json({ error: 'Schedule not found' });
             }
-            if (schedule.vehicleType === 'elektrichka') {
-                return res.json({
-                    scheduleId: schedule.id,
-                    maxSeats: schedule.maxSeats,
-                    bookedSeats: 0,
-                    availableSeats: 0,
-                    isAvailable: false,
-                    vehicleType: schedule.vehicleType,
-                    ticketPurchaseUrl: schedule.ticketPurchaseUrl,
-                });
-            }
-            if (!(0, schedule_trip_1.isScheduleActiveOnDate)(schedule.activeWeekdays, date)) {
-                return res.json({
-                    scheduleId: schedule.id,
-                    maxSeats: schedule.maxSeats,
-                    bookedSeats: 0,
-                    availableSeats: 0,
-                    isAvailable: false,
-                    inactiveOnDate: true,
-                });
-            }
-            const bookingDate = new Date(date);
-            const startOfDay = new Date(bookingDate);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(bookingDate);
-            endOfDay.setHours(23, 59, 59, 999);
-            const bookings = await prisma.booking.findMany({
-                where: {
-                    route,
-                    departureTime,
-                    date: {
-                        gte: startOfDay,
-                        lte: endOfDay,
-                    },
-                },
-            });
-            const bookedSeats = bookings.reduce((sum, booking) => sum + booking.seats, 0);
-            const availableSeats = schedule.maxSeats - bookedSeats;
-            res.json({
-                scheduleId: schedule.id,
-                maxSeats: schedule.maxSeats,
-                bookedSeats,
-                availableSeats,
-                isAvailable: availableSeats > 0,
-            });
+            res.json(await buildAvailabilityPayload(prisma, schedule, date));
         }
         catch (_error) {
             res.status(500).json({ error: 'Failed to check availability' });
@@ -270,7 +459,12 @@ function createSchedulesBookingsRouter(deps) {
                 },
                 include: scheduleInclude,
             });
-            res.status(201).json(schedule);
+            await applyStopOffsets(prisma, Number(trip.data.tripRouteId), body.stopOffsets);
+            const refreshed = await prisma.schedule.findUnique({
+                where: { id: schedule.id },
+                include: scheduleInclude,
+            });
+            res.status(201).json(refreshed ?? schedule);
         }
         catch (error) {
             const err = error;
@@ -323,7 +517,13 @@ function createSchedulesBookingsRouter(deps) {
                 },
                 include: scheduleInclude,
             });
-            res.json(schedule);
+            const tripRouteId = Number(trip.data.tripRouteId ?? schedule.tripRouteId);
+            await applyStopOffsets(prisma, tripRouteId, body.stopOffsets);
+            const refreshed = await prisma.schedule.findUnique({
+                where: { id: schedule.id },
+                include: scheduleInclude,
+            });
+            res.json(refreshed ?? schedule);
         }
         catch (error) {
             const err = error;
@@ -355,23 +555,45 @@ function createSchedulesBookingsRouter(deps) {
     });
     r.post('/bookings', async (req, res) => {
         const { route, date, departureTime, seats, name, phone, scheduleId, telegramUserId } = req.body;
-        if (!route || !date || !departureTime || !seats || !name || !phone) {
+        if (!date || !seats || !name || !phone) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+        if (scheduleId == null && (!route || !departureTime)) {
+            return res.status(400).json({
+                error: 'scheduleId is required (or legacy route + departureTime)',
+            });
         }
         const phoneValid = (0, booking_phone_1.validateBookingPhoneInput)(phone);
         if (!phoneValid.ok) {
             return res.status(400).json({ error: phoneValid.error });
         }
-        if (!(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
+        if (departureTime && !(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
             return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
         }
         let resolvedSchedule = scheduleId != null
             ? await prisma.schedule.findUnique({ where: { id: Number(scheduleId) } })
-            : await prisma.schedule.findUnique({
-                where: { route_departureTime: { route, departureTime } },
+            : await prisma.schedule.findFirst({
+                where: {
+                    OR: [
+                        { tripRoute: { slug: route }, departureTime },
+                        { route, departureTime },
+                    ],
+                },
             });
         if (!resolvedSchedule) {
             return res.status(400).json({ error: 'Schedule not found for this route and time' });
+        }
+        if (route && resolvedSchedule.route !== route && resolvedSchedule.tripRouteId) {
+            const tr = await prisma.tripRoute.findUnique({
+                where: { id: resolvedSchedule.tripRouteId },
+                select: { slug: true },
+            });
+            if (tr && tr.slug !== route && resolvedSchedule.route !== route) {
+                return res.status(400).json({ error: 'route does not match scheduleId' });
+            }
+        }
+        if (departureTime && resolvedSchedule.departureTime !== departureTime) {
+            return res.status(400).json({ error: 'departureTime does not match scheduleId' });
         }
         if (resolvedSchedule.vehicleType === 'elektrichka') {
             return res.status(400).json({
@@ -487,6 +709,7 @@ function createSchedulesBookingsRouter(deps) {
                 name,
                 phone,
                 scheduleId: resolvedSchedule.id,
+                tripRouteId: resolvedSchedule.tripRouteId,
                 telegramChatId,
                 telegramUserId: bookingTelegramUserId,
                 personId: person.id,

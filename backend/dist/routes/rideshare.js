@@ -32,6 +32,8 @@ function createRideshareRouter(deps) {
                 senderName: person.fullName?.trim() || 'Пасажир',
                 listingType: 'passenger',
                 route: driverListing.route,
+                fromPointId: driverListing.fromPointId,
+                toPointId: driverListing.toPointId,
                 date: driverListing.date,
                 departureTime: driverListing.departureTime,
                 seats: null,

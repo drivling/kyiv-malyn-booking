@@ -20,6 +20,7 @@ exports.notifyDriverAboutPassengerPair = notifyDriverAboutPassengerPair;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.getNextTechnicalPhoneNumber = getNextTechnicalPhoneNumber;
+exports.parseBookOdDateCallback = parseBookOdDateCallback;
 exports.buildElektrichkaPurchaseMessage = buildElektrichkaPurchaseMessage;
 exports.buildElektrichkaPurchaseKeyboard = buildElektrichkaPurchaseKeyboard;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
@@ -77,6 +78,7 @@ const client_1 = require("@prisma/client");
 const viber_parser_1 = require("./viber-parser");
 const telegram_parser_1 = require("./telegram-parser");
 const viber_listing_merge_1 = require("./viber-listing-merge");
+const poputky_od_1 = require("./poputky-od");
 const revoke_telegram_bot_1 = require("./revoke-telegram-bot");
 const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
 const telegram_contact_1 = require("./telegram-contact");
@@ -282,6 +284,8 @@ async function createDriverListingFromState(chatId, state, notes, senderName) {
         senderName: resolvedSenderName,
         listingType: 'driver',
         route: state.route,
+        fromPointId: state.fromPointId ?? null,
+        toPointId: state.toPointId ?? null,
         date,
         departureTime: state.departureTime ?? null,
         seats: state.seats ?? null,
@@ -354,6 +358,8 @@ async function createPassengerListingFromState(chatId, state, notes, senderName)
         senderName: resolvedSenderName,
         listingType: 'passenger',
         route: state.route,
+        fromPointId: state.fromPointId ?? null,
+        toPointId: state.toPointId ?? null,
         date,
         departureTime: state.departureTime ?? null,
         seats: null,
@@ -462,14 +468,26 @@ function allridesListingMatchesTimeSlot(departureTime, slot) {
 function toDateKey(d) {
     return d.toISOString().slice(0, 10);
 }
-/** Знайти активні оголошення пасажирів, що збігаються по маршруту та даті з оголошенням водія. */
+async function loadItineraryPointIds(tripRouteId) {
+    if (tripRouteId == null)
+        return null;
+    const stops = await tgPrisma.tripRouteStop.findMany({
+        where: { tripRouteId },
+        select: { pointId: true, position: true },
+        orderBy: { position: 'asc' },
+    });
+    if (!stops.length)
+        return null;
+    return (0, poputky_od_1.orderedPointIdsFromStops)(stops);
+}
+/** Знайти активні оголошення пасажирів: exact OD або along driver's itinerary; дата збігається. */
 async function findMatchingPassengersForDriver(driverListing) {
     const dateKey = toDateKey(driverListing.date);
+    const itineraryPointIds = await loadItineraryPointIds(driverListing.tripRouteId);
     const passengers = await tgPrisma.viberListing.findMany({
         where: {
             listingType: 'passenger',
             isActive: true,
-            route: driverListing.route,
             date: {
                 gte: new Date(dateKey + 'T00:00:00.000Z'),
                 lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
@@ -478,19 +496,38 @@ async function findMatchingPassengersForDriver(driverListing) {
         orderBy: { createdAt: 'desc' },
     });
     const driverTime = driverListing.departureTime;
-    return passengers.map((p) => {
-        const matchType = resolveMatchType(driverTime, p.departureTime);
-        return { listing: p, matchType };
-    });
+    const out = [];
+    for (const p of passengers) {
+        const routeMatchKind = (0, poputky_od_1.classifyPoputkyRouteMatch)({
+            driver: {
+                route: driverListing.route,
+                fromPointId: driverListing.fromPointId,
+                toPointId: driverListing.toPointId,
+                itineraryPointIds,
+            },
+            passenger: {
+                route: p.route,
+                fromPointId: p.fromPointId,
+                toPointId: p.toPointId,
+            },
+        });
+        if (!routeMatchKind)
+            continue;
+        out.push({
+            listing: p,
+            matchType: resolveMatchType(driverTime, p.departureTime),
+            routeMatchKind,
+        });
+    }
+    return out;
 }
-/** Знайти активні оголошення водіїв, що збігаються по маршруту та даті з оголошенням пасажира. */
+/** Знайти активні оголошення водіїв: exact OD або passenger OD along driver's itinerary. */
 async function findMatchingDriversForPassenger(passengerListing) {
     const dateKey = toDateKey(passengerListing.date);
     const drivers = await tgPrisma.viberListing.findMany({
         where: {
             listingType: 'driver',
             isActive: true,
-            route: passengerListing.route,
             date: {
                 gte: new Date(dateKey + 'T00:00:00.000Z'),
                 lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
@@ -499,10 +536,41 @@ async function findMatchingDriversForPassenger(passengerListing) {
         orderBy: { createdAt: 'desc' },
     });
     const passengerTime = passengerListing.departureTime;
-    return drivers.map((d) => {
-        const matchType = resolveMatchType(passengerTime, d.departureTime);
-        return { listing: d, matchType };
-    });
+    const itineraryCache = new Map();
+    const out = [];
+    for (const d of drivers) {
+        let itineraryPointIds = null;
+        if (d.tripRouteId != null) {
+            if (itineraryCache.has(d.tripRouteId)) {
+                itineraryPointIds = itineraryCache.get(d.tripRouteId) ?? null;
+            }
+            else {
+                itineraryPointIds = await loadItineraryPointIds(d.tripRouteId);
+                itineraryCache.set(d.tripRouteId, itineraryPointIds);
+            }
+        }
+        const routeMatchKind = (0, poputky_od_1.classifyPoputkyRouteMatch)({
+            driver: {
+                route: d.route,
+                fromPointId: d.fromPointId,
+                toPointId: d.toPointId,
+                itineraryPointIds,
+            },
+            passenger: {
+                route: passengerListing.route,
+                fromPointId: passengerListing.fromPointId,
+                toPointId: passengerListing.toPointId,
+            },
+        });
+        if (!routeMatchKind)
+            continue;
+        out.push({
+            listing: d,
+            matchType: resolveMatchType(passengerTime, d.departureTime),
+            routeMatchKind,
+        });
+    }
+    return out;
 }
 let sendMatchMessageToPersonTestStub = null;
 /** Юніт-тести: підміна доставки match-повідомлень (інакше без бота завжди failed). */
@@ -552,7 +620,7 @@ async function sleepTelethonBatchDelay() {
     }
 }
 /** Пасажир отримує повідомлення про водія для пари (дедуп у БД). */
-async function notifyPassengerAboutDriverPair(driverListing, passengerListing, matchType) {
+async function notifyPassengerAboutDriverPair(driverListing, passengerListing, matchType, routeMatchKind = 'exact') {
     const row = await tgPrisma.viberMatchPairNotification.findUnique({
         where: {
             passengerListingId_driverListingId: {
@@ -563,11 +631,13 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
     });
     if (row?.passengerNotifiedAt)
         return { kind: 'skipped' };
-    const label = matchType === 'exact'
+    const timeLabel = matchType === 'exact'
         ? '🎯 Пряме співпадіння (час близький, ±45 хв)'
         : matchType === 'approximate'
             ? '📌 Приблизне співпадіння (час близький, ±2 год)'
             : '🗓️ Поїздки цього дня';
+    const alongNote = routeMatchKind === 'along_route' ? ' · по дорозі (підмаршрут)' : '';
+    const label = `${timeLabel}${alongNote}`;
     const msg = `${label}: з\'явився водій на ваш маршрут і дату.\n\n` +
         `🛣 ${getRouteName(driverListing.route)}\n` +
         `📅 ${formatDate(driverListing.date)}\n` +
@@ -613,7 +683,7 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
     return { kind: 'sent', via: result.via === 'user' ? 'user' : 'bot' };
 }
 /** Водій отримує повідомлення про пасажира для пари (дедуп у БД). */
-async function notifyDriverAboutPassengerPair(driverListing, passengerListing, matchType) {
+async function notifyDriverAboutPassengerPair(driverListing, passengerListing, matchType, routeMatchKind = 'exact') {
     const row = await tgPrisma.viberMatchPairNotification.findUnique({
         where: {
             passengerListingId_driverListingId: {
@@ -624,11 +694,13 @@ async function notifyDriverAboutPassengerPair(driverListing, passengerListing, m
     });
     if (row?.driverNotifiedAt)
         return { kind: 'skipped' };
-    const label = matchType === 'exact'
+    const timeLabel = matchType === 'exact'
         ? '🎯 Пряме співпадіння (час близький, ±45 хв)'
         : matchType === 'approximate'
             ? '📌 Приблизне співпадіння (час близький, ±2 год)'
             : '🗓️ Поїздки цього дня';
+    const alongNote = routeMatchKind === 'along_route' ? ' · по дорозі (підмаршрут)' : '';
+    const label = `${timeLabel}${alongNote}`;
     const msg = `${label}: новий запит пасажира на ваш маршрут і дату.\n\n` +
         `🛣 ${getRouteName(passengerListing.route)}\n` +
         `📅 ${formatDate(passengerListing.date)}\n` +
@@ -721,8 +793,8 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
     let sent = 0;
     let skipped = 0;
     let failed = 0;
-    for (const { listing: p, matchType } of matches) {
-        const out = await notifyPassengerAboutDriverPair(driverListing, { id: p.id, phone: p.phone }, matchType);
+    for (const { listing: p, matchType, routeMatchKind } of matches) {
+        const out = await notifyPassengerAboutDriverPair(driverListing, { id: p.id, phone: p.phone }, matchType, routeMatchKind);
         if (out.kind === 'sent')
             sent++;
         else if (out.kind === 'skipped')
@@ -768,8 +840,8 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
     let sent = 0;
     let skipped = 0;
     let failed = 0;
-    for (const { listing: d, matchType } of matches) {
-        const out = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, passengerListing, matchType);
+    for (const { listing: d, matchType, routeMatchKind } of matches) {
+        const out = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, passengerListing, matchType, routeMatchKind);
         if (out.kind === 'sent')
             sent++;
         else if (out.kind === 'skipped')
@@ -1045,36 +1117,31 @@ function formatPhoneTelLink(phone) {
     return `<a href="tel:${digits}">${displayEscaped}</a>`;
 }
 /**
- * Отримання назви маршруту
+ * Отримання назви маршруту з OD slug (будь-які міста з каталогу).
  */
-const getRouteName = (route) => {
-    if (route.includes('Kyiv-Malyn')) {
-        if (route.includes('Irpin'))
-            return 'Київ → Малин (через Ірпінь)';
-        if (route.includes('Bucha'))
-            return 'Київ → Малин (через Бучу)';
-        return 'Київ → Малин';
-    }
-    if (route.includes('Malyn-Kyiv')) {
-        if (route.includes('Irpin'))
-            return 'Малин → Київ (через Ірпінь)';
-        if (route.includes('Bucha'))
-            return 'Малин → Київ (через Бучу)';
-        return 'Малин → Київ';
-    }
-    if (route.includes('Malyn-Zhytomyr'))
-        return 'Малин → Житомир';
-    if (route.includes('Zhytomyr-Malyn'))
-        return 'Житомир → Малин';
-    if (route.includes('Korosten-Malyn'))
-        return 'Коростень → Малин';
-    if (route.includes('Malyn-Korosten'))
-        return 'Малин → Коростень';
-    return route;
-};
+const getRouteName = (route) => (0, poputky_od_1.formatOdRouteLabel)(route, poputky_od_1.DEFAULT_POINT_LABELS_UK);
 exports.getTelegramRouteName = getRouteName;
-/** Напрямки для бронювання (маршрут / електричка). */
-const BOOK_DIRECTION_OPTIONS = [
+async function loadPoputkyPoints() {
+    return tgPrisma.tripPoint.findMany({
+        where: { appearInPoputky: true },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        select: { id: true, code: true, nameUk: true },
+    });
+}
+function buildPoputkyFromKeyboard(prefix, points) {
+    const rows = points.map((p) => [{ text: `📍 ${p.nameUk}`, callback_data: `${prefix}_from_${p.code}` }]);
+    rows.push([{ text: '❌ Скасувати', callback_data: `${prefix}_cancel` }]);
+    return { inline_keyboard: rows };
+}
+function buildPoputkyToKeyboard(prefix, points, fromCode) {
+    const rows = points
+        .filter((p) => p.code !== fromCode)
+        .map((p) => [{ text: `📍 ${p.nameUk}`, callback_data: `${prefix}_to_${p.code}` }]);
+    rows.push([{ text: '❌ Скасувати', callback_data: `${prefix}_cancel` }]);
+    return { inline_keyboard: rows };
+}
+/** Напрямки для електрички — fallback; primary = listOdPairs(). */
+const BOOK_DIRECTION_OPTIONS_FALLBACK = [
     { route: 'Kyiv-Malyn', label: 'Київ → Малин' },
     { route: 'Malyn-Kyiv', label: 'Малин → Київ' },
     { route: 'Malyn-Zhytomyr', label: 'Малин → Житомир' },
@@ -1082,6 +1149,35 @@ const BOOK_DIRECTION_OPTIONS = [
     { route: 'Korosten-Malyn', label: 'Коростень → Малин' },
     { route: 'Malyn-Korosten', label: 'Малин → Коростень' },
 ];
+async function loadBookDirectionOptions() {
+    try {
+        const pairs = await (0, poputky_od_1.listOdPairs)(tgPrisma);
+        if (pairs.length) {
+            return pairs.map((p) => ({
+                route: `${p.fromCode}-${p.toCode}`,
+                label: p.labelUk,
+            }));
+        }
+    }
+    catch (err) {
+        console.error('loadBookDirectionOptions failed', err);
+    }
+    return BOOK_DIRECTION_OPTIONS_FALLBACK;
+}
+async function buildBookDirectionKeyboard(prefix, emoji) {
+    const options = await loadBookDirectionOptions();
+    return {
+        inline_keyboard: [
+            ...options.map((d) => [
+                { text: `${emoji} ${d.label}`, callback_data: `${prefix}_${d.route}` },
+            ]),
+            [
+                { text: '⬅️ Назад', callback_data: 'book_type_back' },
+                { text: '❌ Скасувати', callback_data: 'book_cancel' },
+            ],
+        ],
+    };
+}
 function buildBookTypeKeyboard() {
     return {
         inline_keyboard: [
@@ -1091,18 +1187,80 @@ function buildBookTypeKeyboard() {
         ],
     };
 }
-function buildBookDirectionKeyboard(prefix, emoji) {
+async function loadMarshrutkaOdPoints() {
+    return tgPrisma.tripPoint.findMany({
+        where: { appearInFromTo: true },
+        select: { id: true, code: true, nameUk: true },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+}
+function buildBookOdFromKeyboard(points) {
+    const rows = points.map((p) => [{ text: `📍 ${p.nameUk}`, callback_data: `book_m_from_${p.code}` }]);
+    rows.push([
+        { text: '⬅️ Назад', callback_data: 'book_type_back' },
+        { text: '❌ Скасувати', callback_data: 'book_cancel' },
+    ]);
+    return { inline_keyboard: rows };
+}
+function buildBookOdToKeyboard(points, fromCode) {
+    const rows = points
+        .filter((p) => p.code !== fromCode)
+        .map((p) => [{ text: `📍 ${p.nameUk}`, callback_data: `book_m_to_${fromCode}_${p.code}` }]);
+    rows.push([
+        { text: '⬅️ Назад', callback_data: 'book_type_marshrutka' },
+        { text: '❌ Скасувати', callback_data: 'book_cancel' },
+    ]);
+    return { inline_keyboard: rows };
+}
+function odPairLabel(fromName, toName) {
+    return `${fromName} → ${toName}`;
+}
+function parseBookOdDateCallback(data, prefix) {
+    if (!data.startsWith(prefix))
+        return null;
+    const parts = data.slice(prefix.length).split('_');
+    if (parts.length < 5)
+        return null;
+    const dateYmd = parts.slice(-3).join('-');
+    const fromCode = parts[0];
+    const toCode = parts.slice(1, -3).join('_');
+    if (!fromCode || !toCode || !/^\d{4}-\d{2}-\d{2}$/.test(dateYmd))
+        return null;
+    return { fromCode, toCode, dateYmd };
+}
+function buildPassengerTimeKeyboard() {
     return {
         inline_keyboard: [
-            ...BOOK_DIRECTION_OPTIONS.map((d) => [
-                { text: `${emoji} ${d.label}`, callback_data: `${prefix}_${d.route}` },
-            ]),
             [
-                { text: '⬅️ Назад', callback_data: 'book_type_back' },
-                { text: '❌ Скасувати', callback_data: 'book_cancel' },
+                { text: '08:00', callback_data: 'addpassenger_time_08:00' },
+                { text: '09:00', callback_data: 'addpassenger_time_09:00' },
+                { text: '10:00', callback_data: 'addpassenger_time_10:00' },
             ],
+            [
+                { text: '11:00', callback_data: 'addpassenger_time_11:00' },
+                { text: '12:00', callback_data: 'addpassenger_time_12:00' },
+                { text: '13:00', callback_data: 'addpassenger_time_13:00' },
+            ],
+            [
+                { text: '14:00', callback_data: 'addpassenger_time_14:00' },
+                { text: '15:00', callback_data: 'addpassenger_time_15:00' },
+                { text: '16:00', callback_data: 'addpassenger_time_16:00' },
+            ],
+            [
+                { text: '17:00', callback_data: 'addpassenger_time_17:00' },
+                { text: '18:00', callback_data: 'addpassenger_time_18:00' },
+                { text: '19:00', callback_data: 'addpassenger_time_19:00' },
+            ],
+            [
+                { text: '✏️ Свій час', callback_data: 'addpassenger_time_custom' },
+                { text: 'Пропустити', callback_data: 'addpassenger_time_skip' },
+            ],
+            [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }],
         ],
     };
+}
+function passengerRideHasOdAndDate(state) {
+    return Boolean(state.route && state.date && state.fromPointId && state.toPointId);
 }
 /** Текст покупки квитка на електричку (без booking.create). */
 function buildElektrichkaPurchaseMessage(schedule, options) {
@@ -2500,28 +2658,51 @@ async function runAdminCheckClients(chatId) {
     const [drivers, passengers] = await Promise.all([
         tgPrisma.viberListing.findMany({
             where: { listingType: 'driver', isActive: true, date: { gte: now } },
-            select: { id: true, route: true, date: true, departureTime: true, seats: true, phone: true, senderName: true, notes: true },
+            select: {
+                id: true,
+                route: true,
+                date: true,
+                departureTime: true,
+                seats: true,
+                phone: true,
+                senderName: true,
+                notes: true,
+                fromPointId: true,
+                toPointId: true,
+                tripRouteId: true,
+            },
             orderBy: { date: 'asc' },
         }),
         tgPrisma.viberListing.findMany({
             where: { listingType: 'passenger', isActive: true, date: { gte: now } },
-            select: { id: true, route: true, date: true, departureTime: true, phone: true, senderName: true, notes: true },
+            select: {
+                id: true,
+                route: true,
+                date: true,
+                departureTime: true,
+                phone: true,
+                senderName: true,
+                notes: true,
+                fromPointId: true,
+                toPointId: true,
+            },
             orderBy: { date: 'asc' },
         }),
     ]);
-    const passengersByKey = new Map();
+    const passengersByDate = new Map();
     for (const p of passengers) {
-        const key = `${p.route}__${toDateKey(p.date)}`;
-        const arr = passengersByKey.get(key);
+        const key = toDateKey(p.date);
+        const arr = passengersByDate.get(key);
         if (arr)
             arr.push(p);
         else
-            passengersByKey.set(key, [p]);
+            passengersByDate.set(key, [p]);
     }
     let pairCount = 0;
     let exactPairCount = 0;
     let approximatePairCount = 0;
     let sameDayPairCount = 0;
+    let alongRoutePairCount = 0;
     let passengerSent = 0;
     let passengerSkipped = 0;
     let passengerFailed = 0;
@@ -2535,12 +2716,39 @@ async function runAdminCheckClients(chatId) {
         approximate: [],
         same_day: [],
     };
+    const itineraryCache = new Map();
     for (const d of drivers) {
-        const key = `${d.route}__${toDateKey(d.date)}`;
-        const ps = passengersByKey.get(key);
+        const ps = passengersByDate.get(toDateKey(d.date));
         if (!ps || ps.length === 0)
             continue;
+        let itineraryPointIds = null;
+        if (d.tripRouteId != null) {
+            if (itineraryCache.has(d.tripRouteId)) {
+                itineraryPointIds = itineraryCache.get(d.tripRouteId) ?? null;
+            }
+            else {
+                itineraryPointIds = await loadItineraryPointIds(d.tripRouteId);
+                itineraryCache.set(d.tripRouteId, itineraryPointIds);
+            }
+        }
         for (const p of ps) {
+            const routeMatchKind = (0, poputky_od_1.classifyPoputkyRouteMatch)({
+                driver: {
+                    route: d.route,
+                    fromPointId: d.fromPointId,
+                    toPointId: d.toPointId,
+                    itineraryPointIds,
+                },
+                passenger: {
+                    route: p.route,
+                    fromPointId: p.fromPointId,
+                    toPointId: p.toPointId,
+                },
+            });
+            if (!routeMatchKind)
+                continue;
+            if (routeMatchKind === 'along_route')
+                alongRoutePairCount++;
             pairCount++;
             const matchType = resolveMatchType(d.departureTime, p.departureTime);
             if (pairLinesByType[matchType].length < CHECKCLIENTS_PAIR_LINES_LIMIT) {
@@ -2558,7 +2766,8 @@ async function runAdminCheckClients(chatId) {
                         return `Δ${gap}хв`;
                     })()
                     : 'час не вказано';
-                pairLinesByType[matchType].push(`• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`);
+                const alongTag = routeMatchKind === 'along_route' ? ' · по дорозі' : '';
+                pairLinesByType[matchType].push(`• #D${d.id}/#P${p.id} · ${getRouteName(d.route)} ↔ ${getRouteName(p.route)}${alongTag} · ${formatDate(d.date)} · 🚗 ${driverTime} ↔ 👤 ${passengerTime} (${timeDelta})`);
             }
             if (matchType === 'exact')
                 exactPairCount++;
@@ -2566,7 +2775,7 @@ async function runAdminCheckClients(chatId) {
                 approximatePairCount++;
             else
                 sameDayPairCount++;
-            const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType);
+            const pOut = await notifyPassengerAboutDriverPair(d, { id: p.id, phone: p.phone }, matchType, routeMatchKind);
             if (pOut.kind === 'sent') {
                 passengerSent++;
                 if (pOut.via === 'user')
@@ -2578,7 +2787,7 @@ async function runAdminCheckClients(chatId) {
                 passengerSkipped++;
             else
                 passengerFailed++;
-            const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType);
+            const dOut = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, p, matchType, routeMatchKind);
             if (dOut.kind === 'sent') {
                 driverSent++;
                 if (dOut.via === 'user')
@@ -2597,7 +2806,7 @@ async function runAdminCheckClients(chatId) {
         ? `\n• Усього відправок через ваш акаунт (Telethon): ${sentViaUser}`
         : `\n• Через ваш акаунт (Telethon): вимкнено (немає TELEGRAM_USER_SESSION_PATH / TELEGRAM_API_ID / TELEGRAM_API_HASH)`;
     await bot.sendMessage(chatId, '✅ <b>/checkclients завершено</b>\n\n' +
-        `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount})\n` +
+        `• Пар (маршрут+дата): ${pairCount} (точний ±45 хв: ${exactPairCount}, приблизний ±2 год: ${approximatePairCount}, поїздки цього дня: ${sameDayPairCount}; з них по дорозі: ${alongRoutePairCount})\n` +
         `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
         `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
         `• Через бот: ${sentViaBot}` +
@@ -2671,17 +2880,8 @@ function setupBotCommands() {
     };
     const startDriverRideFlow = async (chatId, userId) => {
         const userPhone = await (0, exports.getPhoneByTelegramUser)(userId, chatId);
-        const routeKeyboard = {
-            inline_keyboard: [
-                [{ text: '🚌 Київ → Малин', callback_data: 'adddriver_route_Kyiv-Malyn' }],
-                [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
-                [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
-                [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
-                [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
-                [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
-                [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
-            ]
-        };
+        const points = await loadPoputkyPoints();
+        const fromKeyboard = buildPoputkyFromKeyboard('adddriver', points);
         if (!userPhone) {
             driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'phone', since: Date.now() });
             const keyboard = {
@@ -2695,22 +2895,13 @@ function setupBotCommands() {
                 '• напишіть номер, наприклад 0501234567', { parse_mode: 'HTML', reply_markup: keyboard });
             return;
         }
-        driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'route', phone: userPhone, since: Date.now() });
-        await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+        driverRideStateMap.set(chatId, { state: 'driver_ride_flow', step: 'from', phone: userPhone, since: Date.now() });
+        await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: fromKeyboard });
     };
     const startPassengerRideFlow = async (chatId, userId) => {
         const userPhone = await (0, exports.getPhoneByTelegramUser)(userId, chatId);
-        const routeKeyboard = {
-            inline_keyboard: [
-                [{ text: '🚌 Київ → Малин', callback_data: 'addpassenger_route_Kyiv-Malyn' }],
-                [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
-                [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
-                [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
-                [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
-                [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
-                [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
-            ]
-        };
+        const points = await loadPoputkyPoints();
+        const fromKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         if (!userPhone) {
             passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'phone', since: Date.now() });
             const keyboard = {
@@ -2724,8 +2915,74 @@ function setupBotCommands() {
                 '• напишіть номер, наприклад 0501234567', { parse_mode: 'HTML', reply_markup: keyboard });
             return;
         }
-        passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'route', phone: userPhone, since: Date.now() });
-        await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+        passengerRideStateMap.set(chatId, { state: 'passenger_ride_flow', step: 'from', phone: userPhone, since: Date.now() });
+        await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: fromKeyboard });
+    };
+    /** З бронювання маршрутки: попутка-пасажир з уже відомими звідки/куди/дата. */
+    const startPassengerRideFromBookOd = async (chatId, userId, fromCode, toCode, dateYmd, messageId) => {
+        let points = await loadPoputkyPoints();
+        let from = points.find((p) => p.code === fromCode);
+        let to = points.find((p) => p.code === toCode);
+        if (!from || !to) {
+            const all = await tgPrisma.tripPoint.findMany({
+                select: { id: true, code: true, nameUk: true },
+                orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+            });
+            from = from || all.find((p) => p.code === fromCode);
+            to = to || all.find((p) => p.code === toCode);
+        }
+        if (!from || !to || from.id === to.id) {
+            return false;
+        }
+        const route = (0, poputky_od_1.buildOdRouteSlug)(from.code, to.code);
+        const userPhone = await (0, exports.getPhoneByTelegramUser)(userId, chatId);
+        const summary = '👤 <b>Шукаю попутку (пасажир)</b>\n\n' +
+            `✅ Звідки: ${from.nameUk}\n` +
+            `✅ Куди: ${to.nameUk}\n` +
+            `✅ Дата: ${formatDate(new Date(dateYmd))}\n\n`;
+        if (!userPhone) {
+            passengerRideStateMap.set(chatId, {
+                state: 'passenger_ride_flow',
+                step: 'phone',
+                route,
+                fromPointId: from.id,
+                toPointId: to.id,
+                fromCode: from.code,
+                date: dateYmd,
+                since: Date.now(),
+            });
+            await bot?.editMessageText(summary + 'Спочатку вкажіть номер телефону для контакту.', {
+                chat_id: chatId,
+                message_id: messageId,
+                parse_mode: 'HTML',
+            });
+            await bot?.sendMessage(chatId, 'Натисніть кнопку нижче або напишіть номер, наприклад 0501234567', {
+                reply_markup: {
+                    keyboard: [[{ text: '📱 Поділитися номером', request_contact: true }]],
+                    resize_keyboard: true,
+                    one_time_keyboard: true,
+                },
+            });
+            return true;
+        }
+        passengerRideStateMap.set(chatId, {
+            state: 'passenger_ride_flow',
+            step: 'time',
+            route,
+            fromPointId: from.id,
+            toPointId: to.id,
+            fromCode: from.code,
+            date: dateYmd,
+            phone: userPhone,
+            since: Date.now(),
+        });
+        await bot?.editMessageText(summary + '4️⃣ Оберіть час (або Пропустити):', {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: buildPassengerTimeKeyboard(),
+        });
+        return true;
     };
     const sendFreeViewInfo = async (chatId, replyMarkup) => {
         const links = getTelegramScenarioLinks();
@@ -2810,11 +3067,11 @@ function setupBotCommands() {
                 const senderName = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
                 if (userPhone) {
                     if (role === 'driver') {
-                        const state = { state: 'driver_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, priceUah: draft.priceUah ?? null, phone: userPhone, since: Date.now() };
+                        const state = { state: 'driver_ride_flow', step: 'notes', route: draft.route, fromPointId: draft.fromPointId ?? null, toPointId: draft.toPointId ?? null, date: draft.date, departureTime: draft.departureTime ?? undefined, seats: null, priceUah: draft.priceUah ?? null, phone: userPhone, since: Date.now() };
                         await createDriverListingFromState(chatId, state, draft.notes ?? null, senderName);
                     }
                     else {
-                        const state = { state: 'passenger_ride_flow', step: 'notes', route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, phone: userPhone, since: Date.now() };
+                        const state = { state: 'passenger_ride_flow', step: 'notes', route: draft.route, fromPointId: draft.fromPointId ?? null, toPointId: draft.toPointId ?? null, date: draft.date, departureTime: draft.departureTime ?? null, phone: userPhone, since: Date.now() };
                         await createPassengerListingFromState(chatId, state, draft.notes ?? null, senderName);
                     }
                     await bot?.sendMessage(chatId, '✅ Дані з сайту прийнято. Оголошення опубліковано!', { parse_mode: 'HTML' });
@@ -3665,7 +3922,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (driverState.draftToken) {
                 const draft = getAnnounceDraft(driverState.draftToken);
                 if (draft) {
-                    driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+                    driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, fromPointId: draft.fromPointId ?? null, toPointId: draft.toPointId ?? null, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
                     const seatsKeyboard = { inline_keyboard: [
                             [{ text: '1', callback_data: 'adddriver_seats_1' }, { text: '2', callback_data: 'adddriver_seats_2' }, { text: '3', callback_data: 'adddriver_seats_3' }],
                             [{ text: '4', callback_data: 'adddriver_seats_4' }, { text: '5', callback_data: 'adddriver_seats_5' }],
@@ -3676,19 +3933,10 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     return;
                 }
             }
-            driverRideStateMap.set(chatId, { ...driverState, step: 'route', phone, since: Date.now() });
-            const routeKeyboard = {
-                inline_keyboard: [
-                    [{ text: '🚌 Київ → Малин', callback_data: 'adddriver_route_Kyiv-Malyn' }],
-                    [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
-                    [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
-                    [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
-                    [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
-                    [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
-                    [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
-                ]
-            };
-            await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+            driverRideStateMap.set(chatId, { ...driverState, step: 'from', phone, since: Date.now() });
+            const points = await loadPoputkyPoints();
+            const routeKeyboard = buildPoputkyFromKeyboard('adddriver', points);
+            await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: routeKeyboard });
             return;
         }
         const passengerState = passengerRideStateMap.get(chatId);
@@ -3697,26 +3945,22 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (passengerState.draftToken) {
                 const draft = getAnnounceDraft(passengerState.draftToken);
                 if (draft) {
-                    passengerRideStateMap.set(chatId, { ...passengerState, step: 'notes', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+                    passengerRideStateMap.set(chatId, { ...passengerState, step: 'notes', phone, route: draft.route, fromPointId: draft.fromPointId ?? null, toPointId: draft.toPointId ?? null, date: draft.date, departureTime: draft.departureTime ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
                     const notesKeyboard = { inline_keyboard: [[{ text: 'Пропустити', callback_data: 'addpassenger_notes_skip' }], [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]] };
                     const notesHint = draft.notes ? `\n\nПримітка з сайту: ${draft.notes}\nМожете залишити або змінити:` : '';
                     await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\nДодати примітку (опціонально)? Напишіть текст або натисніть Пропустити.${notesHint}`, { parse_mode: 'HTML', reply_markup: notesKeyboard });
                     return;
                 }
             }
-            passengerRideStateMap.set(chatId, { ...passengerState, step: 'route', phone, since: Date.now() });
-            const routeKeyboard = {
-                inline_keyboard: [
-                    [{ text: '🚌 Київ → Малин', callback_data: 'addpassenger_route_Kyiv-Malyn' }],
-                    [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
-                    [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
-                    [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
-                    [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
-                    [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
-                    [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
-                ]
-            };
-            await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+            if (passengerRideHasOdAndDate({ ...passengerState, phone })) {
+                passengerRideStateMap.set(chatId, { ...passengerState, step: 'time', phone, since: Date.now() });
+                await bot?.sendMessage(chatId, `🛣 ${getRouteName(passengerState.route)}\n📅 ${formatDate(new Date(passengerState.date))}\n\n🕐 Оберіть час (або Пропустити):`, { parse_mode: 'HTML', reply_markup: buildPassengerTimeKeyboard() });
+                return;
+            }
+            passengerRideStateMap.set(chatId, { ...passengerState, step: 'from', phone, since: Date.now() });
+            const points = await loadPoputkyPoints();
+            const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
+            await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: routeKeyboard });
             return;
         }
         const nameFromContact = msg.from?.first_name ? [msg.from.first_name, msg.from?.last_name].filter(Boolean).join(' ') : null;
@@ -4148,7 +4392,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 if (driverState.draftToken) {
                     const draft = getAnnounceDraft(driverState.draftToken);
                     if (draft) {
-                        driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+                        driverRideStateMap.set(chatId, { ...driverState, step: 'seats', phone, route: draft.route, fromPointId: draft.fromPointId ?? null, toPointId: draft.toPointId ?? null, date: draft.date, departureTime: draft.departureTime ?? undefined, priceUah: draft.priceUah ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
                         const seatsKeyboard = { inline_keyboard: [
                                 [{ text: '1', callback_data: 'adddriver_seats_1' }, { text: '2', callback_data: 'adddriver_seats_2' }, { text: '3', callback_data: 'adddriver_seats_3' }],
                                 [{ text: '4', callback_data: 'adddriver_seats_4' }, { text: '5', callback_data: 'adddriver_seats_5' }],
@@ -4159,19 +4403,10 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         return;
                     }
                 }
-                driverRideStateMap.set(chatId, { ...driverState, step: 'route', phone, since: Date.now() });
-                const routeKeyboard = {
-                    inline_keyboard: [
-                        [{ text: '🚌 Київ → Малин', callback_data: 'adddriver_route_Kyiv-Malyn' }],
-                        [{ text: '🚌 Малин → Київ', callback_data: 'adddriver_route_Malyn-Kyiv' }],
-                        [{ text: '🚌 Малин → Житомир', callback_data: 'adddriver_route_Malyn-Zhytomyr' }],
-                        [{ text: '🚌 Житомир → Малин', callback_data: 'adddriver_route_Zhytomyr-Malyn' }],
-                        [{ text: '🚌 Коростень → Малин', callback_data: 'adddriver_route_Korosten-Malyn' }],
-                        [{ text: '🚌 Малин → Коростень', callback_data: 'adddriver_route_Malyn-Korosten' }],
-                        [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
-                    ]
-                };
-                await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+                driverRideStateMap.set(chatId, { ...driverState, step: 'from', phone, since: Date.now() });
+                const points = await loadPoputkyPoints();
+                const routeKeyboard = buildPoputkyFromKeyboard('adddriver', points);
+                await bot?.sendMessage(chatId, '🚗 <b>Додати поїздку (водій)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: routeKeyboard });
                 return;
             }
         }
@@ -4238,26 +4473,22 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 if (passengerState.draftToken) {
                     const draft = getAnnounceDraft(passengerState.draftToken);
                     if (draft) {
-                        passengerRideStateMap.set(chatId, { ...passengerState, step: 'notes', phone, route: draft.route, date: draft.date, departureTime: draft.departureTime ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
+                        passengerRideStateMap.set(chatId, { ...passengerState, step: 'notes', phone, route: draft.route, fromPointId: draft.fromPointId ?? null, toPointId: draft.toPointId ?? null, date: draft.date, departureTime: draft.departureTime ?? null, draftToken: undefined, notesFromDraft: draft.notes ?? null, since: Date.now() });
                         const notesKeyboard = { inline_keyboard: [[{ text: 'Пропустити', callback_data: 'addpassenger_notes_skip' }], [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]] };
                         const notesHint = draft.notes ? `\n\nПримітка з сайту: ${draft.notes}\nМожете залишити або змінити:` : '';
                         await bot?.sendMessage(chatId, `🛣 ${getRouteName(draft.route)}\n📅 ${formatDate(new Date(draft.date))}\n${draft.departureTime ? `🕐 ${draft.departureTime}\n` : ''}\nДодати примітку (опціонально)? Напишіть текст або натисніть Пропустити.${notesHint}`, { parse_mode: 'HTML', reply_markup: notesKeyboard });
                         return;
                     }
                 }
-                passengerRideStateMap.set(chatId, { ...passengerState, step: 'route', phone, since: Date.now() });
-                const routeKeyboard = {
-                    inline_keyboard: [
-                        [{ text: '🚌 Київ → Малин', callback_data: 'addpassenger_route_Kyiv-Malyn' }],
-                        [{ text: '🚌 Малин → Київ', callback_data: 'addpassenger_route_Malyn-Kyiv' }],
-                        [{ text: '🚌 Малин → Житомир', callback_data: 'addpassenger_route_Malyn-Zhytomyr' }],
-                        [{ text: '🚌 Житомир → Малин', callback_data: 'addpassenger_route_Zhytomyr-Malyn' }],
-                        [{ text: '🚌 Коростень → Малин', callback_data: 'addpassenger_route_Korosten-Malyn' }],
-                        [{ text: '🚌 Малин → Коростень', callback_data: 'addpassenger_route_Malyn-Korosten' }],
-                        [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
-                    ]
-                };
-                await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Оберіть напрямок:', { parse_mode: 'HTML', reply_markup: routeKeyboard });
+                if (passengerRideHasOdAndDate({ ...passengerState, phone })) {
+                    passengerRideStateMap.set(chatId, { ...passengerState, step: 'time', phone, since: Date.now() });
+                    await bot?.sendMessage(chatId, `🛣 ${getRouteName(passengerState.route)}\n📅 ${formatDate(new Date(passengerState.date))}\n\n🕐 Оберіть час (або Пропустити):`, { parse_mode: 'HTML', reply_markup: buildPassengerTimeKeyboard() });
+                    return;
+                }
+                passengerRideStateMap.set(chatId, { ...passengerState, step: 'from', phone, since: Date.now() });
+                const points = await loadPoputkyPoints();
+                const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
+                await bot?.sendMessage(chatId, '👤 <b>Шукаю поїздку (пасажир)</b>\n\n1️⃣ Звідки їдете?', { parse_mode: 'HTML', reply_markup: routeKeyboard });
                 return;
             }
         }
@@ -4503,14 +4734,54 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
-            if (data.startsWith('adddriver_route_')) {
-                const route = data.replace('adddriver_route_', '');
+            if (data.startsWith('adddriver_from_')) {
+                const fromCode = data.replace('adddriver_from_', '');
                 const state = driverRideStateMap.get(chatId);
-                if (!state || state.state !== 'driver_ride_flow' || state.step !== 'route') {
+                if (!state || state.state !== 'driver_ride_flow' || state.step !== 'from') {
                     await bot?.answerCallbackQuery(query.id);
                     return;
                 }
-                driverRideStateMap.set(chatId, { ...state, step: 'date', route, since: Date.now() });
+                const points = await loadPoputkyPoints();
+                const fromPoint = points.find((p) => p.code === fromCode);
+                if (!fromPoint) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідоме місто' });
+                    return;
+                }
+                driverRideStateMap.set(chatId, {
+                    ...state,
+                    step: 'to',
+                    fromCode,
+                    fromPointId: fromPoint.id,
+                    since: Date.now(),
+                });
+                const toKeyboard = buildPoputkyToKeyboard('adddriver', points, fromCode);
+                await bot?.editMessageText(`📍 Звідки: ${fromPoint.nameUk}\n\n2️⃣ Куди їдете?`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: toKeyboard });
+                await bot?.answerCallbackQuery(query.id);
+                return;
+            }
+            if (data.startsWith('adddriver_to_')) {
+                const toCode = data.replace('adddriver_to_', '');
+                const state = driverRideStateMap.get(chatId);
+                if (!state || state.state !== 'driver_ride_flow' || state.step !== 'to' || !state.fromCode) {
+                    await bot?.answerCallbackQuery(query.id);
+                    return;
+                }
+                const points = await loadPoputkyPoints();
+                const toPoint = points.find((p) => p.code === toCode);
+                const fromPoint = points.find((p) => p.code === state.fromCode);
+                if (!toPoint || !fromPoint || toPoint.id === fromPoint.id) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідоме місто' });
+                    return;
+                }
+                const route = (0, poputky_od_1.buildOdRouteSlug)(fromPoint.code, toPoint.code);
+                driverRideStateMap.set(chatId, {
+                    ...state,
+                    step: 'date',
+                    route,
+                    fromPointId: fromPoint.id,
+                    toPointId: toPoint.id,
+                    since: Date.now(),
+                });
                 const today = new Date();
                 const tomorrow = new Date(today);
                 tomorrow.setDate(tomorrow.getDate() + 1);
@@ -4522,7 +4793,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         [{ text: '❌ Скасувати', callback_data: 'adddriver_cancel' }]
                     ]
                 };
-                await bot?.editMessageText(`🛣 Напрямок: ${getRouteName(route)}\n\n2️⃣ Оберіть дату:`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: dateKeyboard });
+                await bot?.editMessageText(`🛣 Напрямок: ${getRouteName(route)}\n\n3️⃣ Оберіть дату:`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: dateKeyboard });
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
@@ -4658,14 +4929,54 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
-            if (data.startsWith('addpassenger_route_')) {
-                const route = data.replace('addpassenger_route_', '');
+            if (data.startsWith('addpassenger_from_')) {
+                const fromCode = data.replace('addpassenger_from_', '');
                 const state = passengerRideStateMap.get(chatId);
-                if (!state || state.state !== 'passenger_ride_flow' || state.step !== 'route') {
+                if (!state || state.state !== 'passenger_ride_flow' || state.step !== 'from') {
                     await bot?.answerCallbackQuery(query.id);
                     return;
                 }
-                passengerRideStateMap.set(chatId, { ...state, step: 'date', route, since: Date.now() });
+                const points = await loadPoputkyPoints();
+                const fromPoint = points.find((p) => p.code === fromCode);
+                if (!fromPoint) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідоме місто' });
+                    return;
+                }
+                passengerRideStateMap.set(chatId, {
+                    ...state,
+                    step: 'to',
+                    fromCode,
+                    fromPointId: fromPoint.id,
+                    since: Date.now(),
+                });
+                const toKeyboard = buildPoputkyToKeyboard('addpassenger', points, fromCode);
+                await bot?.editMessageText(`📍 Звідки: ${fromPoint.nameUk}\n\n2️⃣ Куди їдете?`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: toKeyboard });
+                await bot?.answerCallbackQuery(query.id);
+                return;
+            }
+            if (data.startsWith('addpassenger_to_')) {
+                const toCode = data.replace('addpassenger_to_', '');
+                const state = passengerRideStateMap.get(chatId);
+                if (!state || state.state !== 'passenger_ride_flow' || state.step !== 'to' || !state.fromCode) {
+                    await bot?.answerCallbackQuery(query.id);
+                    return;
+                }
+                const points = await loadPoputkyPoints();
+                const toPoint = points.find((p) => p.code === toCode);
+                const fromPoint = points.find((p) => p.code === state.fromCode);
+                if (!toPoint || !fromPoint || toPoint.id === fromPoint.id) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідоме місто' });
+                    return;
+                }
+                const route = (0, poputky_od_1.buildOdRouteSlug)(fromPoint.code, toPoint.code);
+                passengerRideStateMap.set(chatId, {
+                    ...state,
+                    step: 'date',
+                    route,
+                    fromPointId: fromPoint.id,
+                    toPointId: toPoint.id,
+                    since: Date.now(),
+                });
                 const today = new Date();
                 const tomorrow = new Date(today);
                 tomorrow.setDate(tomorrow.getDate() + 1);
@@ -4677,7 +4988,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         [{ text: '❌ Скасувати', callback_data: 'addpassenger_cancel' }]
                     ]
                 };
-                await bot?.editMessageText(`🛣 Напрямок: ${getRouteName(route)}\n\n2️⃣ Оберіть дату:`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: dateKeyboard });
+                await bot?.editMessageText(`🛣 Напрямок: ${getRouteName(route)}\n\n3️⃣ Оберіть дату:`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', reply_markup: dateKeyboard });
                 await bot?.answerCallbackQuery(query.id);
                 return;
             }
@@ -4935,7 +5246,9 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         telegramChatId: passengerPerson.telegramChatId,
                         telegramUserId: passengerPerson.telegramUserId,
                         source: 'viber_match',
-                        viberListingId: driverListing.id
+                        viberListingId: driverListing.id,
+                        fromPointId: driverListing.fromPointId,
+                        toPointId: driverListing.toPointId,
                     }
                 });
                 await tgPrisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
@@ -5006,6 +5319,8 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         telegramUserId: passengerPerson.telegramUserId,
                         source: 'viber_match',
                         viberListingId: driverListing.id,
+                        fromPointId: driverListing.fromPointId,
+                        toPointId: driverListing.toPointId,
                     },
                 });
                 await tgPrisma.rideShareRequest.update({ where: { id: requestId }, data: { status: 'confirmed' } });
@@ -5256,11 +5571,17 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             }
             // Вибір типу поїздки (маршрутка / електричка)
             if (data === 'book_type_marshrutka') {
-                await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n1️⃣ Оберіть напрямок:', {
+                const points = await loadMarshrutkaOdPoints();
+                if (points.length < 2) {
+                    await bot?.editMessageText('❌ Немає доступних міст для бронювання маршрутки.\n\nАдмін має увімкнути «У звідки/куди» для міст.', { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' });
+                    await bot?.answerCallbackQuery(query.id);
+                    return;
+                }
+                await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n1️⃣ Оберіть звідки:', {
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML',
-                    reply_markup: buildBookDirectionKeyboard('book_dir', '🚌'),
+                    reply_markup: buildBookOdFromKeyboard(points),
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
@@ -5269,7 +5590,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML',
-                    reply_markup: buildBookDirectionKeyboard('el_dir', '🚆'),
+                    reply_markup: await buildBookDirectionKeyboard('el_dir', '🚆'),
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
@@ -5282,10 +5603,37 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
-            // Вибір напрямку для нового бронювання
-            if (data.startsWith('book_dir_')) {
-                const direction = data.replace('book_dir_', '');
-                // Створити кнопки з датами (наступні 7 днів)
+            // Маршрутка OD: звідки
+            if (data.startsWith('book_m_from_')) {
+                const fromCode = data.replace('book_m_from_', '');
+                const points = await loadMarshrutkaOdPoints();
+                const from = points.find((p) => p.code === fromCode);
+                if (!from) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідоме місто' });
+                    return;
+                }
+                await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
+                    `✅ Звідки: ${from.nameUk}\n\n2️⃣ Оберіть куди:`, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: buildBookOdToKeyboard(points, fromCode),
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Маршрутка OD: куди → дати
+            if (data.startsWith('book_m_to_')) {
+                const rest = data.replace('book_m_to_', '');
+                const sep = rest.indexOf('_');
+                const fromCode = sep >= 0 ? rest.slice(0, sep) : '';
+                const toCode = sep >= 0 ? rest.slice(sep + 1) : '';
+                const points = await loadMarshrutkaOdPoints();
+                const from = points.find((p) => p.code === fromCode);
+                const to = points.find((p) => p.code === toCode);
+                if (!from || !to) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідома пара міст' });
+                    return;
+                }
                 const dates = [];
                 for (let i = 0; i < 7; i++) {
                     const date = new Date();
@@ -5294,136 +5642,162 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     const label = i === 0 ? ' (сьогодні)' : i === 1 ? ' (завтра)' : '';
                     dates.push({
                         text: formatDate(date) + label,
-                        callback_data: `book_date_${direction}_${dateStr.replace(/-/g, '_')}`
+                        callback_data: `book_m_date_${fromCode}_${toCode}_${dateStr.replace(/-/g, '_')}`,
                     });
                 }
                 const dateKeyboard = {
-                    inline_keyboard: dates.map(d => [d]).concat([[
-                            { text: '⬅️ Назад', callback_data: 'book_type_marshrutka' },
-                            { text: '❌ Скасувати', callback_data: 'book_cancel' }
-                        ]])
+                    inline_keyboard: dates.map((d) => [d]).concat([
+                        [
+                            { text: '⬅️ Назад', callback_data: `book_m_from_${fromCode}` },
+                            { text: '❌ Скасувати', callback_data: 'book_cancel' },
+                        ],
+                    ]),
                 };
                 await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
-                    `✅ Напрямок: ${getRouteName(direction)}\n\n` +
-                    '2️⃣ Оберіть дату:', {
+                    `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n\n` +
+                    '3️⃣ Оберіть дату:', {
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML',
-                    reply_markup: dateKeyboard
+                    reply_markup: dateKeyboard,
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
-            // Вибір дати - показати доступні часи
-            if (data.startsWith('book_date_')) {
-                const parts = data.replace('book_date_', '').split('_');
-                // Дата завжди остання (YYYY-MM-DD = 3 частини)
+            // Маршрутка OD: дата → часи (рейси, де OD на itinerary)
+            if (data.startsWith('book_m_date_')) {
+                const parts = data.replace('book_m_date_', '').split('_');
+                // … from to YYYY MM DD
+                if (parts.length < 5) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Некоректні дані' });
+                    return;
+                }
                 const selectedDate = parts.slice(-3).join('-');
-                // Direction - все що до дати
-                const direction = parts.slice(0, -3).join('-');
-                // Отримати графіки маршруток для обраного напрямку
+                const fromCode = parts[0];
+                const toCode = parts.slice(1, -3).join('_'); // rare multi-segment codes
+                const points = await loadMarshrutkaOdPoints();
+                const from = points.find((p) => p.code === fromCode);
+                const to = points.find((p) => p.code === toCode);
+                if (!from || !to) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Невідома пара міст' });
+                    return;
+                }
                 const allSchedules = await tgPrisma.schedule.findMany({
-                    where: {
-                        route: { startsWith: direction },
-                        NOT: { vehicleType: 'elektrichka' },
+                    where: { NOT: { vehicleType: 'elektrichka' } },
+                    include: {
+                        tripRoute: { include: { stops: { orderBy: { position: 'asc' } } } },
                     },
-                    orderBy: { departureTime: 'asc' }
+                    orderBy: { departureTime: 'asc' },
                 });
-                const schedules = allSchedules.filter((s) => (0, schedule_trip_1.isScheduleActiveOnDate)(s.activeWeekdays, selectedDate));
+                const schedules = allSchedules.filter((s) => (0, schedule_trip_1.isScheduleActiveOnDate)(s.activeWeekdays, selectedDate) &&
+                    (0, schedule_trip_1.scheduleMatchesOdAlongStops)(s.tripRoute?.stops, from.id, to.id));
                 if (schedules.length === 0) {
-                    // Запропонувати поїздки з Viber, якщо є
-                    const startOfDay = new Date(selectedDate);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    const endOfDay = new Date(selectedDate);
-                    endOfDay.setHours(23, 59, 59, 999);
-                    const viberListings = await tgPrisma.viberListing.findMany({
-                        where: {
-                            route: direction,
-                            date: { gte: startOfDay, lte: endOfDay },
-                            isActive: true
-                        },
-                        orderBy: [{ departureTime: 'asc' }]
-                    });
-                    const driverListings = viberListings.filter((l) => l.listingType === 'driver');
-                    const viberBlock = viberListings.length > 0
-                        ? '\n\n📱 <b>Поїздки з Viber</b> (можна замовити по телефону або натиснути кнопку):\n' +
-                            `🛣 ${getRouteName(direction)}\n\n` +
-                            viberListings
-                                .map((l) => {
-                                const type = l.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
-                                const time = l.departureTime || '—';
-                                const seats = l.seats != null ? `, ${l.seats} місць` : '';
-                                const notes = l.notes != null ? `\n💡 ${l.notes}` : '';
-                                const namePart = l.senderName ? ` — ${l.senderName}` : '';
-                                return `${type} ${time}${seats}${notes}\n📞 ${formatPhoneTelLink(l.phone)}${namePart}`;
-                            })
-                                .join('\n\n')
-                        : '';
-                    const helpBlock = viberListings.length === 0
-                        ? '\n\n<b>Ви можете:</b>\n' +
-                            '🎫 /book - Почати заново\n' +
-                            '🌐 /allrides - Переглянути всі активні попутки\n' +
-                            '📋 /mybookings - Переглянути існуючі бронювання\n' +
-                            '🌐 https://malin.kiev.ua - Забронювати на сайті'
-                        : '';
-                    const bookViberButtons = driverListings.length > 0
-                        ? { inline_keyboard: driverListings.map((d) => [{ text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `book_viber_${d.id}` }]) }
-                        : undefined;
-                    await bot?.editMessageText('❌ <b>Немає доступних рейсів</b> за розкладом.\n\n' +
-                        'Спробуйте інший напрямок або дату.' +
-                        viberBlock +
-                        helpBlock, {
+                    await bot?.editMessageText('❌ <b>Немає доступних рейсів</b> за розкладом для цього напрямку.\n\n' +
+                        `Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
+                        `Дата: ${formatDate(new Date(selectedDate))}\n\n` +
+                        '🎫 /book - Почати заново', {
                         chat_id: chatId,
                         message_id: messageId,
                         parse_mode: 'HTML',
-                        ...(bookViberButtons && { reply_markup: bookViberButtons })
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    {
+                                        text: '👤 Попутка?',
+                                        callback_data: `book_m_poputky_${fromCode}_${toCode}_${selectedDate.replace(/-/g, '_')}`,
+                                    },
+                                ],
+                                [
+                                    { text: '⬅️ Назад', callback_data: `book_m_to_${fromCode}_${toCode}` },
+                                    { text: '❌ Скасувати', callback_data: 'book_cancel' },
+                                ],
+                            ],
+                        },
                     });
                     await bot?.answerCallbackQuery(query.id);
                     return;
                 }
-                // Перевірити доступність для кожного часу
                 const timeButtons = await Promise.all(schedules.map(async (schedule) => {
-                    // Підрахувати зайняті місця
                     const startOfDay = new Date(selectedDate);
                     startOfDay.setHours(0, 0, 0, 0);
                     const endOfDay = new Date(selectedDate);
                     endOfDay.setHours(23, 59, 59, 999);
                     const existingBookings = await tgPrisma.booking.findMany({
                         where: {
-                            route: schedule.route,
-                            departureTime: schedule.departureTime,
-                            date: {
-                                gte: startOfDay,
-                                lte: endOfDay
-                            }
-                        }
+                            OR: [
+                                { scheduleId: schedule.id },
+                                {
+                                    scheduleId: null,
+                                    route: schedule.route,
+                                    departureTime: schedule.departureTime,
+                                },
+                            ],
+                            date: { gte: startOfDay, lte: endOfDay },
+                        },
                     });
                     const bookedSeats = existingBookings.reduce((sum, b) => sum + b.seats, 0);
                     const availableSeats = schedule.maxSeats - bookedSeats;
                     const isAvailable = availableSeats > 0;
                     const emoji = isAvailable ? '✅' : '❌';
-                    const routeLabel = schedule.route.includes('Irpin') ? ' (Ірпінь)' :
-                        schedule.route.includes('Bucha') ? ' (Буча)' : '';
+                    const boardTime = (0, schedule_trip_1.boardingTimeAtStop)(schedule.departureTime, schedule.tripRoute?.stops, from.id);
                     return {
-                        text: `${emoji} ${schedule.departureTime}${routeLabel} (${availableSeats}/${schedule.maxSeats})`,
-                        callback_data: isAvailable ?
-                            `book_time_${schedule.route}_${schedule.departureTime}_${selectedDate.replace(/-/g, '_')}` :
-                            'book_unavailable'
+                        text: `${emoji} ${boardTime} (${availableSeats}/${schedule.maxSeats})`,
+                        callback_data: isAvailable
+                            ? `book_sched_${schedule.id}_${selectedDate.replace(/-/g, '_')}`
+                            : 'book_unavailable',
                     };
                 }));
                 const timeKeyboard = {
-                    inline_keyboard: timeButtons.map(b => [b]).concat([[
-                            { text: '⬅️ Назад', callback_data: `book_dir_${direction}` },
-                            { text: '❌ Скасувати', callback_data: 'book_cancel' }
-                        ]])
+                    inline_keyboard: timeButtons.map((b) => [b]).concat([
+                        [
+                            { text: '⬅️ Назад', callback_data: `book_m_to_${fromCode}_${toCode}` },
+                            { text: '❌ Скасувати', callback_data: 'book_cancel' },
+                        ],
+                    ]),
                 };
                 await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
-                    `✅ Напрямок: ${getRouteName(direction)}\n` +
+                    `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
                     `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
-                    '3️⃣ Оберіть час відправлення:', {
+                    '4️⃣ Оберіть час посадки:', {
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML',
-                    reply_markup: timeKeyboard
+                    reply_markup: timeKeyboard,
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            if (data.startsWith('book_m_poputky_')) {
+                const parsed = parseBookOdDateCallback(data, 'book_m_poputky_');
+                if (!parsed || messageId == null) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Некоректні дані' });
+                    return;
+                }
+                const ok = await startPassengerRideFromBookOd(chatId, userId, parsed.fromCode, parsed.toCode, parsed.dateYmd, messageId);
+                if (!ok) {
+                    await bot?.answerCallbackQuery(query.id, {
+                        text: 'Ці міста ще не в попутках. Увімкніть «У попутках» в адмінці.',
+                        show_alert: true,
+                    });
+                    return;
+                }
+                await bot?.answerCallbackQuery(query.id, { text: 'Перехід до попутки' });
+            }
+            // Legacy book_dir_* kept for old messages / deep links — redirect to OD flow
+            if (data.startsWith('book_dir_')) {
+                await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\nОберіть звідки (оновлений потік):', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: buildBookOdFromKeyboard(await loadMarshrutkaOdPoints()),
+                });
+                await bot?.answerCallbackQuery(query.id);
+            }
+            // Legacy book_date_* for marshrutka — ignore / redirect
+            if (data.startsWith('book_date_') && !data.startsWith('book_m_date_')) {
+                await bot?.editMessageText('🎫 Цей крок застарів. Почніть бронювання знову: /book', {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: buildBookTypeKeyboard(),
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
@@ -5548,7 +5922,8 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 const purchaseKeyboard = buildElektrichkaPurchaseKeyboard(schedule);
                 // Додати «Назад» до списку часів
                 const dateForCallback = selectedDate.replace(/-/g, '_');
-                const direction = BOOK_DIRECTION_OPTIONS.find((d) => schedule.route.startsWith(d.route))?.route ?? route.split('-').slice(0, 2).join('-');
+                const direction = schedule.route.split('-').slice(0, 2).join('-') ||
+                    (typeof route === 'string' ? route.split('-').slice(0, 2).join('-') : 'Kyiv-Malyn');
                 purchaseKeyboard.inline_keyboard.push([
                     {
                         text: '⬅️ Назад',
@@ -5571,79 +5946,101 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     await bot?.answerCallbackQuery(query.id);
                 }
             }
-            // Вибір часу - запитати кількість місць
+            // Legacy book_time_* — no dual-read; ask user to restart
             if (data.startsWith('book_time_') && data !== 'book_unavailable') {
-                const parts = data.replace('book_time_', '').split('_');
-                // Формат: route_time_YYYY_MM_DD (дата - останні 3 частини)
-                const selectedDate = parts.slice(-3).join('-');
-                const time = parts[parts.length - 4]; // час перед датою
-                // Route - все що до часу
-                const route = parts.slice(0, -4).join('-');
+                await bot?.answerCallbackQuery(query.id, {
+                    text: 'Оновіть меню: /book',
+                    show_alert: true,
+                });
+                return;
+            }
+            // Вибір часу за scheduleId — запитати кількість місць
+            if (data.startsWith('book_sched_') &&
+                !data.startsWith('book_sched_seats_') &&
+                !data.startsWith('book_sched_confirm_')) {
+                const parts = data.replace('book_sched_', '').split('_');
+                // Format: scheduleId_YYYY_MM_DD
+                if (parts.length < 4) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Некоректні дані' });
+                    return;
+                }
+                const scheduleId = Number(parts[0]);
+                const selectedDate = parts.slice(1).join('-');
                 const dateForCallback = selectedDate.replace(/-/g, '_');
+                const schedule = await tgPrisma.schedule.findUnique({
+                    where: { id: scheduleId },
+                    include: { tripRoute: { include: { startPoint: true, endPoint: true } } },
+                });
+                if (!schedule) {
+                    await bot?.answerCallbackQuery(query.id, { text: 'Рейс не знайдено', show_alert: true });
+                    return;
+                }
+                const routeLabel = schedule.tripRoute?.labelUk?.trim() || getRouteName(schedule.route);
                 const seatsKeyboard = {
                     inline_keyboard: [
-                        [{ text: '1 місце', callback_data: `book_seats_${route}_${time}_${dateForCallback}_1` }],
-                        [{ text: '2 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_2` }],
-                        [{ text: '3 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_3` }],
-                        [{ text: '4 місця', callback_data: `book_seats_${route}_${time}_${dateForCallback}_4` }],
-                        [
-                            { text: '⬅️ Назад', callback_data: `book_date_${route}_${dateForCallback}` },
-                            { text: '❌ Скасувати', callback_data: 'book_cancel' }
-                        ]
-                    ]
+                        [{ text: '1 місце', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_1` }],
+                        [{ text: '2 місця', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_2` }],
+                        [{ text: '3 місця', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_3` }],
+                        [{ text: '4 місця', callback_data: `book_sched_seats_${scheduleId}_${dateForCallback}_4` }],
+                        [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
+                    ],
                 };
                 await bot?.editMessageText('🎫 <b>Нове бронювання</b>\n\n' +
-                    `✅ Напрямок: ${getRouteName(route)}\n` +
+                    `✅ Напрямок: ${routeLabel}\n` +
                     `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
-                    `✅ Час: ${time}\n\n` +
+                    `✅ Час: ${schedule.departureTime}\n\n` +
                     '4️⃣ Скільки місць забронювати?', {
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML',
-                    reply_markup: seatsKeyboard
+                    reply_markup: seatsKeyboard,
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
-            // Вибір кількості місць - показати підтвердження
-            if (data.startsWith('book_seats_')) {
-                const parts = data.replace('book_seats_', '').split('_');
-                // Формат: route_time_YYYY_MM_DD_seats (останній - seats, перед ним дата)
+            if (data.startsWith('book_sched_seats_')) {
+                const parts = data.replace('book_sched_seats_', '').split('_');
+                // scheduleId_YYYY_MM_DD_seats
                 const seats = parts[parts.length - 1];
-                const selectedDate = parts.slice(-4, -1).join('-');
-                const time = parts[parts.length - 5];
-                const route = parts.slice(0, -5).join('-');
+                const selectedDate = parts.slice(1, -1).join('-');
+                const scheduleId = Number(parts[0]);
                 const dateForCallback = selectedDate.replace(/-/g, '_');
+                const schedule = await tgPrisma.schedule.findUnique({
+                    where: { id: scheduleId },
+                    include: { tripRoute: true },
+                });
+                const routeLabel = schedule?.tripRoute?.labelUk?.trim() || (schedule ? getRouteName(schedule.route) : '—');
                 const confirmKeyboard = {
                     inline_keyboard: [
-                        [{ text: '✅ Підтвердити бронювання', callback_data: `book_confirm_${route}_${time}_${dateForCallback}_${seats}` }],
-                        [{ text: '❌ Скасувати', callback_data: 'book_cancel' }]
-                    ]
+                        [
+                            {
+                                text: '✅ Підтвердити бронювання',
+                                callback_data: `book_sched_confirm_${scheduleId}_${dateForCallback}_${seats}`,
+                            },
+                        ],
+                        [{ text: '❌ Скасувати', callback_data: 'book_cancel' }],
+                    ],
                 };
                 await bot?.editMessageText('🎫 <b>Підтвердження бронювання</b>\n\n' +
-                    `📍 <b>Маршрут:</b> ${getRouteName(route)}\n` +
+                    `📍 <b>Маршрут:</b> ${routeLabel}\n` +
                     `📅 <b>Дата:</b> ${formatDate(new Date(selectedDate))}\n` +
-                    `🕐 <b>Час:</b> ${time}\n` +
+                    `🕐 <b>Час:</b> ${schedule?.departureTime ?? '—'}\n` +
                     `🎫 <b>Місць:</b> ${seats}\n\n` +
                     '⚠️ Підтверджуєте бронювання?', {
                     chat_id: chatId,
                     message_id: messageId,
                     parse_mode: 'HTML',
-                    reply_markup: confirmKeyboard
+                    reply_markup: confirmKeyboard,
                 });
                 await bot?.answerCallbackQuery(query.id);
             }
-            // Підтвердження створення бронювання
-            if (data.startsWith('book_confirm_')) {
-                const parts = data.replace('book_confirm_', '').split('_');
-                // Формат: route_time_YYYY_MM_DD_seats
+            if (data.startsWith('book_sched_confirm_')) {
+                const parts = data.replace('book_sched_confirm_', '').split('_');
                 const seats = Number(parts[parts.length - 1]);
-                const selectedDate = parts.slice(-4, -1).join('-');
-                const time = parts[parts.length - 5];
-                const route = parts.slice(0, -5).join('-');
+                const selectedDate = parts.slice(1, -1).join('-');
+                const scheduleId = Number(parts[0]);
                 try {
-                    // Дані користувача: з останнього бронювання або з Person (якщо реєструвався тільки через бота)
                     const userBooking = await tgPrisma.booking.findFirst({
-                        where: { telegramUserId: userId }
+                        where: { telegramUserId: userId },
                     });
                     const person = await (0, exports.getPersonByTelegram)(userId, chatId);
                     const userName = userBooking?.name ?? person?.fullName?.trim() ?? 'Клієнт';
@@ -5652,16 +6049,13 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     if (!userPhone) {
                         throw new Error('Користувач не знайдений. Напишіть /start і надішліть номер телефону.');
                     }
-                    // Перевірити доступність місць
                     const startOfDay = new Date(selectedDate);
                     startOfDay.setHours(0, 0, 0, 0);
                     const endOfDay = new Date(selectedDate);
                     endOfDay.setHours(23, 59, 59, 999);
-                    const schedule = await tgPrisma.schedule.findFirst({
-                        where: {
-                            route,
-                            departureTime: time
-                        }
+                    const schedule = await tgPrisma.schedule.findUnique({
+                        where: { id: scheduleId },
+                        include: { tripRoute: true },
                     });
                     if (!schedule) {
                         throw new Error('Графік не знайдено');
@@ -5674,25 +6068,30 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     }
                     const existingBookings = await tgPrisma.booking.findMany({
                         where: {
-                            route,
-                            departureTime: time,
+                            OR: [
+                                { scheduleId: schedule.id },
+                                {
+                                    scheduleId: null,
+                                    route: schedule.route,
+                                    departureTime: schedule.departureTime,
+                                },
+                            ],
                             date: {
                                 gte: startOfDay,
-                                lte: endOfDay
-                            }
-                        }
+                                lte: endOfDay,
+                            },
+                        },
                     });
                     const bookedSeats = existingBookings.reduce((sum, b) => sum + b.seats, 0);
                     const availableSeats = schedule.maxSeats - bookedSeats;
                     if (availableSeats < seats) {
                         throw new Error(`Недостатньо місць. Доступно: ${availableSeats}, запитано: ${seats}`);
                     }
-                    // Створити бронювання (прив'язка до Person якщо є)
                     const booking = await tgPrisma.booking.create({
                         data: {
                             route: schedule.route,
                             date: new Date(selectedDate),
-                            departureTime: time,
+                            departureTime: schedule.departureTime,
                             seats,
                             name: userName,
                             phone: userPhone,
@@ -5700,16 +6099,18 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                             telegramUserId: userId,
                             personId: userPersonId ?? undefined,
                             scheduleId: schedule.id,
+                            tripRouteId: schedule.tripRouteId,
                             source: 'schedule',
                         },
                     });
                     console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
+                    const routeLabel = schedule.tripRoute?.labelUk?.trim() || getRouteName(booking.route);
                     const supportPhoneLine = schedule.supportPhone
                         ? `\n⚠️ Краще уточнити бронювання за телефоном: ${schedule.supportPhone}\n\n`
                         : '\n\n';
                     await bot?.editMessageText('📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
                         `🎫 <b>Номер:</b> #${booking.id}\n` +
-                        `📍 <b>Маршрут:</b> ${getRouteName(booking.route)}\n` +
+                        `📍 <b>Маршрут:</b> ${routeLabel}\n` +
                         `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
                         `🕐 <b>Час:</b> ${booking.departureTime}\n` +
                         `🎫 <b>Місць:</b> ${booking.seats}\n` +
@@ -5722,14 +6123,13 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         '🎫 /book - Створити ще одне бронювання', {
                         chat_id: chatId,
                         message_id: messageId,
-                        parse_mode: 'HTML'
+                        parse_mode: 'HTML',
                     });
                     await bot?.answerCallbackQuery(query.id, {
                         text: schedule.supportPhone
                             ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
-                            : '✅ Заявку прийнято!'
+                            : '✅ Заявку прийнято!',
                     });
-                    // Відправити сповіщення адміну (використовується TELEGRAM_ADMIN_CHAT_ID)
                     await (0, exports.sendBookingNotificationToAdmin)(booking).catch((err) => console.error('Telegram notify admin:', err));
                 }
                 catch (error) {
@@ -5741,10 +6141,25 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         '🌐 https://malin.kiev.ua - Забронювати на сайті', {
                         chat_id: chatId,
                         message_id: messageId,
-                        parse_mode: 'HTML'
+                        parse_mode: 'HTML',
                     });
                     await bot?.answerCallbackQuery(query.id, { text: '❌ Помилка' });
                 }
+            }
+            // Legacy book_seats_ / book_confirm_ (route string SoT) — restart
+            if (data.startsWith('book_seats_') && !data.startsWith('book_sched_seats_')) {
+                await bot?.answerCallbackQuery(query.id, {
+                    text: 'Оновіть меню: /book',
+                    show_alert: true,
+                });
+                return;
+            }
+            if (data.startsWith('book_confirm_') && !data.startsWith('book_sched_confirm_')) {
+                await bot?.answerCallbackQuery(query.id, {
+                    text: 'Оновіть меню: /book',
+                    show_alert: true,
+                });
+                return;
             }
             // Скасування процесу бронювання
             if (data === 'book_cancel') {

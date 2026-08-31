@@ -7,12 +7,68 @@ exports.createTripRoutesRouter = createTripRoutesRouter;
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const schedule_trip_1 = require("../schedule-trip");
+const poputky_od_1 = require("../poputky-od");
 const includeStops = {
     startPoint: true,
     endPoint: true,
     stops: { include: { point: true }, orderBy: { position: 'asc' } },
     corridorRoute: true,
 };
+function normalizeStopOffsets(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    const out = [];
+    for (const item of raw) {
+        if (!item || typeof item !== 'object')
+            continue;
+        const row = item;
+        const pointId = Number(row.pointId);
+        if (!Number.isInteger(pointId) || pointId <= 0)
+            continue;
+        let offset = null;
+        if (row.departureOffsetMinutes === null || row.departureOffsetMinutes === '') {
+            offset = null;
+        }
+        else if (row.departureOffsetMinutes !== undefined) {
+            const n = Number(row.departureOffsetMinutes);
+            if (!Number.isFinite(n) || n < 0)
+                continue;
+            offset = Math.round(n);
+        }
+        else {
+            continue;
+        }
+        out.push({ pointId, departureOffsetMinutes: offset });
+    }
+    return out;
+}
+async function applyStopOffsets(prisma, tripRouteId, stopOffsets) {
+    for (const row of stopOffsets) {
+        await prisma.tripRouteStop.updateMany({
+            where: { tripRouteId, pointId: row.pointId },
+            data: { departureOffsetMinutes: row.departureOffsetMinutes },
+        });
+    }
+}
+async function rebuildStops(prisma, tripRouteId, startPointId, endPointId, viaPointIds) {
+    await prisma.tripRouteStop.deleteMany({ where: { tripRouteId } });
+    const stopRows = [
+        { tripRouteId, pointId: startPointId, position: 0, role: 'start' },
+        ...viaPointIds.map((pid, i) => ({
+            tripRouteId,
+            pointId: pid,
+            position: i + 1,
+            role: 'via',
+        })),
+        {
+            tripRouteId,
+            pointId: endPointId,
+            position: 1 + viaPointIds.length,
+            role: 'end',
+        },
+    ];
+    await prisma.tripRouteStop.createMany({ data: stopRows });
+}
 function createTripRoutesRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -31,6 +87,17 @@ function createTripRoutesRouter(deps) {
         });
         res.json(rows);
     });
+    /** Unique OD chips from corridor terminals + along-stop pairs on variants. */
+    r.get('/od-pairs', async (_req, res) => {
+        try {
+            const pairs = await (0, poputky_od_1.listOdPairs)(prisma);
+            res.json(pairs);
+        }
+        catch (error) {
+            console.error('od-pairs failed', error);
+            res.status(500).json({ error: 'Failed to load OD pairs' });
+        }
+    });
     r.get('/trip-routes/:id', async (req, res) => {
         const id = Number(req.params.id);
         if (!Number.isInteger(id) || id <= 0)
@@ -41,7 +108,7 @@ function createTripRoutesRouter(deps) {
         res.json(row);
     });
     r.post('/trip-routes', require_admin_1.requireAdmin, async (req, res) => {
-        const { startPointId, endPointId, viaPointIds } = req.body ?? {};
+        const { startPointId, endPointId, viaPointIds, labelUk, stopOffsets } = req.body ?? {};
         if (startPointId == null || endPointId == null) {
             return res.status(400).json({ error: 'startPointId and endPointId are required' });
         }
@@ -51,6 +118,15 @@ function createTripRoutesRouter(deps) {
                 endPointId: Number(endPointId),
                 viaPointIds: Array.isArray(viaPointIds) ? viaPointIds.map(Number) : [],
             });
+            if (labelUk != null && String(labelUk).trim()) {
+                await prisma.tripRoute.update({
+                    where: { id: created.id },
+                    data: { labelUk: String(labelUk).trim() },
+                });
+            }
+            const offsets = normalizeStopOffsets(stopOffsets);
+            if (offsets.length)
+                await applyStopOffsets(prisma, created.id, offsets);
             const full = await prisma.tripRoute.findUnique({ where: { id: created.id }, include: includeStops });
             res.status(201).json(full);
         }
@@ -58,6 +134,121 @@ function createTripRoutesRouter(deps) {
             const msg = error instanceof Error ? error.message : 'Failed to create trip route';
             res.status(400).json({ error: msg });
         }
+    });
+    r.put('/trip-routes/:id', require_admin_1.requireAdmin, async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0)
+            return res.status(400).json({ error: 'Invalid id' });
+        const existing = await prisma.tripRoute.findUnique({
+            where: { id },
+            include: { stops: { orderBy: { position: 'asc' } } },
+        });
+        if (!existing)
+            return res.status(404).json({ error: 'Trip route not found' });
+        const body = req.body ?? {};
+        const startPointId = body.startPointId !== undefined ? Number(body.startPointId) : existing.startPointId;
+        const endPointId = body.endPointId !== undefined ? Number(body.endPointId) : existing.endPointId;
+        const viaFromBody = body.viaPointIds !== undefined
+            ? (0, schedule_trip_1.normalizeViaPointIds)(body.viaPointIds)
+            : existing.stops.filter((s) => s.role === 'via').map((s) => s.pointId);
+        const points = await prisma.tripPoint.findMany();
+        const pointsById = new Map(points.map((p) => [p.id, p]));
+        const validated = (0, schedule_trip_1.validateTripPointSelection)({
+            startPointId,
+            endPointId,
+            viaPointIds: viaFromBody,
+            pointsById,
+        });
+        if (!validated.ok)
+            return res.status(400).json({ error: validated.error });
+        const start = pointsById.get(startPointId);
+        const end = pointsById.get(endPointId);
+        const viaCodes = validated.viaPointIds.map((pid) => pointsById.get(pid).code);
+        const nextSlug = (0, schedule_trip_1.buildLegacyRouteKey)(start.code, end.code, viaCodes);
+        const slugOwner = await prisma.tripRoute.findUnique({ where: { slug: nextSlug } });
+        if (slugOwner && slugOwner.id !== id) {
+            return res.status(409).json({ error: `TripRoute slug «${nextSlug}» already exists` });
+        }
+        let corridorTripRouteId = null;
+        if (validated.viaPointIds.length > 0) {
+            const corridorSlug = (0, schedule_trip_1.buildLegacyRouteKey)(start.code, end.code, []);
+            let corridor = await prisma.tripRoute.findUnique({ where: { slug: corridorSlug } });
+            if (!corridor) {
+                const createdCorridor = await (0, schedule_trip_1.findOrCreateTripRoute)(prisma, {
+                    startPointId,
+                    endPointId,
+                    viaPointIds: [],
+                });
+                corridor = await prisma.tripRoute.findUnique({ where: { id: createdCorridor.id } });
+            }
+            corridorTripRouteId = corridor && corridor.id !== id ? corridor.id : null;
+        }
+        const labelUk = body.labelUk !== undefined
+            ? String(body.labelUk).trim() || (0, schedule_trip_1.defaultLabelUk)(start.code, end.code, viaCodes)
+            : existing.labelUk;
+        try {
+            await prisma.tripRoute.update({
+                where: { id },
+                data: {
+                    slug: nextSlug,
+                    labelUk,
+                    startPointId,
+                    endPointId,
+                    corridorTripRouteId,
+                },
+            });
+            await rebuildStops(prisma, id, startPointId, endPointId, validated.viaPointIds);
+            const offsets = normalizeStopOffsets(body.stopOffsets);
+            if (offsets.length)
+                await applyStopOffsets(prisma, id, offsets);
+            // Keep schedule snapshots in sync when slug/terminals change
+            await prisma.schedule.updateMany({
+                where: { tripRouteId: id },
+                data: {
+                    route: nextSlug,
+                    startPointId,
+                    endPointId,
+                    viaPointIds: validated.viaPointIds,
+                },
+            });
+            const full = await prisma.tripRoute.findUnique({ where: { id }, include: includeStops });
+            res.json(full);
+        }
+        catch (error) {
+            const err = error;
+            if (err.code === 'P2002') {
+                return res.status(409).json({ error: `TripRoute slug «${nextSlug}» already exists` });
+            }
+            console.error('Failed to update trip route', error);
+            res.status(500).json({ error: 'Failed to update trip route' });
+        }
+    });
+    r.delete('/trip-routes/:id', require_admin_1.requireAdmin, async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0)
+            return res.status(400).json({ error: 'Invalid id' });
+        const existing = await prisma.tripRoute.findUnique({ where: { id } });
+        if (!existing)
+            return res.status(404).json({ error: 'Trip route not found' });
+        const scheduleCount = await prisma.schedule.count({ where: { tripRouteId: id } });
+        if (scheduleCount > 0) {
+            return res.status(409).json({
+                error: `TripRoute is used by ${scheduleCount} schedule(s)`,
+            });
+        }
+        const variantCount = await prisma.tripRoute.count({ where: { corridorTripRouteId: id } });
+        if (variantCount > 0) {
+            return res.status(409).json({
+                error: `TripRoute is parent corridor for ${variantCount} variant(s)`,
+            });
+        }
+        // ViberListing.tripRouteId is onDelete: SetNull
+        await prisma.viberListing.updateMany({
+            where: { tripRouteId: id },
+            data: { tripRouteId: null },
+        });
+        await prisma.tripRoute.delete({ where: { id } });
+        res.status(204).send();
     });
     return r;
 }

@@ -10,6 +10,9 @@ exports.isoWeekdayFromDate = isoWeekdayFromDate;
 exports.isScheduleActiveOnDate = isScheduleActiveOnDate;
 exports.parseHhMm = parseHhMm;
 exports.formatHhMm = formatHhMm;
+exports.addMinutesToHhMm = addMinutesToHhMm;
+exports.boardingTimeAtStop = boardingTimeAtStop;
+exports.scheduleMatchesOdAlongStops = scheduleMatchesOdAlongStops;
 exports.resolveArrivalTime = resolveArrivalTime;
 exports.validateTripPointSelection = validateTripPointSelection;
 exports.matchesTerminals = matchesTerminals;
@@ -91,6 +94,40 @@ function formatHhMm(h, m) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 /** Resolve arrival HH:MM from explicit arrival or departure + durationMinutes. */
+/** Add minutes to HH:MM (wraps 24h). */
+function addMinutesToHhMm(departureTime, offsetMinutes) {
+    if (offsetMinutes == null || !Number.isFinite(offsetMinutes) || offsetMinutes === 0) {
+        return departureTime;
+    }
+    const dep = parseHhMm(departureTime);
+    if (!dep)
+        return departureTime;
+    const total = dep.h * 60 + dep.m + Math.round(offsetMinutes);
+    const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+    return formatHhMm(Math.floor(wrapped / 60), wrapped % 60);
+}
+/** Boarding time at a stop: schedule start + stop offset (0/null for start). */
+function boardingTimeAtStop(scheduleDepartureTime, stops, boardPointId) {
+    const ordered = [...stops].sort((a, b) => a.position - b.position || a.pointId - b.pointId);
+    const stop = ordered.find((s) => s.pointId === boardPointId);
+    if (!stop)
+        return scheduleDepartureTime;
+    return addMinutesToHhMm(scheduleDepartureTime, stop.departureOffsetMinutes ?? 0);
+}
+/** True if schedule tripRoute stops contain from→to in order. */
+function scheduleMatchesOdAlongStops(stops, fromPointId, toPointId) {
+    if (!stops?.length || fromPointId === toPointId)
+        return false;
+    const ordered = [...stops]
+        .sort((a, b) => a.position - b.position || a.pointId - b.pointId)
+        .map((s) => s.pointId);
+    const fromIdx = ordered.indexOf(fromPointId);
+    const toIdx = ordered.indexOf(toPointId);
+    if (fromIdx < 0 || toIdx < 0)
+        return false;
+    return fromIdx < toIdx;
+}
+/** Resolve arrival HH:MM from explicit arrival or departure + durationMinutes. */
 function resolveArrivalTime(departureTime, arrivalTime, durationMinutes) {
     if (arrivalTime && parseHhMm(arrivalTime))
         return arrivalTime.trim();
@@ -119,28 +156,19 @@ function validateTripPointSelection(input) {
             return { ok: false, error: 'Via points must not duplicate terminals' };
         }
     }
-    const allIds = new Set([startPointId, endPointId, ...viaPointIds]);
-    const required = [...pointsById.values()].filter((p) => p.requiredOnTrip);
-    for (const p of required) {
-        if (!allIds.has(p.id)) {
-            return { ok: false, error: `Required point «${p.nameUk}» must be on the trip (start, end, or via)` };
-        }
-    }
     return { ok: true, viaPointIds };
 }
 /** Match trip terminals to from/to city codes (order matters). */
 function matchesTerminals(startCode, endCode, fromCode, toCode) {
     return startCode === fromCode && endCode === toCode;
 }
-/** Valid from/to pairs: both appearInFromTo; at least one requiredOnTrip. */
+/** Valid from/to pairs: both appearInFromTo (requiredOnTrip no longer gates pairs). */
 function buildFromToPairs(points) {
     const terminals = points.filter((p) => p.appearInFromTo !== false);
     const pairs = [];
     for (const from of terminals) {
         for (const to of terminals) {
             if (from.id === to.id)
-                continue;
-            if (!from.requiredOnTrip && !to.requiredOnTrip)
                 continue;
             pairs.push({ from, to });
         }

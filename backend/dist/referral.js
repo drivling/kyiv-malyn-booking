@@ -10,6 +10,7 @@ exports.parseInviteContact = parseInviteContact;
 exports.parseDepartureMinutes = parseDepartureMinutes;
 exports.toDateKey = toDateKey;
 exports.isReverseRoute = isReverseRoute;
+exports.isReverseOd = isReverseOd;
 exports.detectTimeConflict = detectTimeConflict;
 exports.ensurePersonReferralCode = ensurePersonReferralCode;
 exports.findReferrerByCode = findReferrerByCode;
@@ -160,13 +161,22 @@ function parseDepartureMinutes(departureTime) {
 function toDateKey(d) {
     return d.toISOString().slice(0, 10);
 }
-/** Чи маршрут «назад» (зміна напрямку між містами) */
+/** Чи маршрут «назад» (термінали swapped; via ігноруються). */
 function isReverseRoute(a, b) {
-    const partsA = a.split('-');
-    const partsB = b.split('-');
+    const partsA = a.split('-').filter(Boolean);
+    const partsB = b.split('-').filter(Boolean);
     if (partsA.length < 2 || partsB.length < 2)
         return false;
     return partsA[0] === partsB[partsB.length - 1] && partsA[partsA.length - 1] === partsB[0];
+}
+/** Reverse OD by terminal codes when available; else slug heuristics. */
+function isReverseOd(a, b) {
+    if (a.fromCode && a.toCode && b.fromCode && b.toCode) {
+        return a.fromCode === b.toCode && a.toCode === b.fromCode;
+    }
+    if (a.route && b.route)
+        return isReverseRoute(a.route, b.route);
+    return false;
 }
 /**
  * Перевірка фізичної можливості поїздок в один день.
