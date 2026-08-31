@@ -179,6 +179,17 @@ def test_chat_noise():
     assert looks_like_order("Пюре | Котлети курячі")
 
 
+def test_short_single_dish_order_not_dropped_as_noise():
+    """Регрес: "Салат оригінальний" (2 слова, без роздільників) раніше
+    мовчки ігнорувався looks_like_order (вимагав 3+ слів), навіть при
+    reparse — людина лишалася без замовлення без жодного сліду в БД."""
+    menu = _menu()
+    assert looks_like_order("Салат оригінальний")
+    r = parse_order_contextual("Салат оригінальний", menu)
+    assert len(r.lines) == 1
+    assert looks_like_order("Гречка")
+
+
 def test_ocr_gate_silent_without_key():
     assert ocr_enabled(None) is False
     assert ocr_enabled("") is False
