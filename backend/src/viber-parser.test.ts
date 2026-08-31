@@ -274,6 +274,8 @@ test('extractSenderName', () => {
   const header = '[ 9 лютого 2026 р. 12:55 ] ⁨Іван⁩: текст';
   assert.equal(extractSenderName(header), 'Іван');
   assert.equal(extractSenderName('без заголовка'), null);
+  // Viber інколи обгортає ім'я подвійними bidi-символами
+  assert.equal(extractSenderName('[ 31 серпня 2026 р. 20:44 ] ⁨⁨Vlad⁩⁩: текст'), 'Vlad');
 });
 
 test('extractMessageDate', () => {
@@ -304,6 +306,29 @@ test('extractMessageBody: багаторядковий текст', () => {
 
 test('extractMessageBody: без Viber-шапки', () => {
   assert.equal(extractMessageBody('  просто текст  '), 'просто текст');
+});
+
+test('extractMessageBody: подвійні bidi-обгортки імені — час заголовка не протікає', () => {
+  const raw = `[ 31 серпня 2026 р. 20:44 ] ⁨⁨Vlad⁩⁩: Водій. 1.09 6:00
+Малин-Академмістечко
+0687408579`;
+  const body = extractMessageBody(raw);
+  assert.equal(body.startsWith('Водій. 1.09 6:00'), true);
+  assert.equal(body.includes('20:44'), false);
+});
+
+test('parseViberMessage: час поїздки з тіла, а не час повідомлення Viber (20:44)', () => {
+  const raw = `[ 31 серпня 2026 р. 20:44 ] ⁨⁨Vlad⁩⁩: Водій. 1.09 6:00
+Малин-Академмістечко
+0687408579`;
+  const p = parseViberMessage(raw);
+  assert(p);
+  assert.equal(p.senderName, 'Vlad');
+  assert.equal(p.listingType, 'driver');
+  assert.equal(p.route, 'Malyn-Kyiv');
+  assert.equal(p.departureTime, '06:00');
+  assert.equal(ymd(p.date), '2026-09-01');
+  assert.equal(p.phone, '0687408579');
 });
 
 test('parseViberMessage: повний успішний розбір', () => {
