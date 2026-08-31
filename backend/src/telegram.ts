@@ -2095,7 +2095,7 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
   const apiHash = process.env.TELEGRAM_API_HASH;
   if (!sessionPath || !apiId || !apiHash || !phone?.trim()) return null;
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
-  return new Promise((resolve) => {
+  return withTelegramUserSessionExclusive(() => new Promise<string | null>((resolve) => {
     const child = spawnChild(pythonCmd, [scriptPath, '--resolve', phone.trim()], {
       env: {
         ...process.env,
@@ -2120,7 +2120,7 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
       }
     });
     child.on('error', () => resolve(null));
-  });
+  }));
 }
 
 /**
@@ -2135,7 +2135,7 @@ export async function resolveUsernameByPhoneFromTelegram(phone: string): Promise
   const apiHash = process.env.TELEGRAM_API_HASH;
   if (!sessionPath || !apiId || !apiHash || !phone?.trim()) return null;
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
-  return new Promise((resolve) => {
+  return withTelegramUserSessionExclusive(() => new Promise<string | null>((resolve) => {
     const child = spawnChild(pythonCmd, [scriptPath, '--resolve-username', phone.trim()], {
       env: {
         ...process.env,
@@ -2166,7 +2166,7 @@ export async function resolveUsernameByPhoneFromTelegram(phone: string): Promise
       }
     });
     child.on('error', () => resolve(null));
-  });
+  }));
 }
 
 const TELEGRAM_TOPICS = [2, 6, 108] as const;
@@ -2530,22 +2530,26 @@ export async function sendMessageViaUserAccount(
   options?: { telegramUsername?: string | null }
 ): Promise<boolean> {
   const username = options?.telegramUsername?.trim().replace(/^@/, '');
-  // Якщо є @username — спочатку пробуємо по ньому (1 API call). Інакше ResolvePhone (до 3 викликів) + send = багато запитів підряд → Too many requests.
-  if (username) {
-    const sentByUsername = await spawnSendMessage(username, message, true);
-    if (sentByUsername) {
-      console.log(`ℹ️ Telegram user-sender: надіслано по @${username}`);
-      return true;
+  // Серіалізуємо разом із lunch.listener та іншими Telethon-скриптами: спільний
+  // .session — це SQLite, паралельний доступ дає "database is locked".
+  return withTelegramUserSessionExclusive(async () => {
+    // Якщо є @username — спочатку пробуємо по ньому (1 API call). Інакше ResolvePhone (до 3 викликів) + send = багато запитів підряд → Too many requests.
+    if (username) {
+      const sentByUsername = await spawnSendMessage(username, message, true);
+      if (sentByUsername) {
+        console.log(`ℹ️ Telegram user-sender: надіслано по @${username}`);
+        return true;
+      }
+      // Пауза перед спробою по телефону, щоб не перевищити rate limit
+      await new Promise((r) => setTimeout(r, 10000));
     }
-    // Пауза перед спробою по телефону, щоб не перевищити rate limit
-    await new Promise((r) => setTimeout(r, 10000));
-  }
-  const sentByPhone = await spawnSendMessage(phone, message, false);
-  if (sentByPhone) return true;
-  if (username) {
-    console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
-  }
-  return false;
+    const sentByPhone = await spawnSendMessage(phone, message, false);
+    if (sentByPhone) return true;
+    if (username) {
+      console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
+    }
+    return false;
+  });
 }
 
 function spawnSendMessage(value: string, message: string, isUsername: boolean): Promise<boolean> {

@@ -91,6 +91,25 @@ def get_phone_formats_for_resolve(phone_normalized: str):
     ]
 
 
+async def connect_with_retry(client, attempts: int = 6, base_delay: float = 0.4) -> None:
+    """Telethon-сесія — це SQLite-файл. Якщо його тимчасово тримає lunch.listener
+    або інший короткий скрипт, connect() падає з 'database is locked'. Кілька спроб
+    із наростаючою паузою зазвичай достатньо (бекенд і так серіалізує ці виклики)."""
+    last_err = None
+    for i in range(attempts):
+        try:
+            await client.connect()
+            return
+        except Exception as e:  # sqlite3.OperationalError та обгортки Telethon
+            if "database is locked" not in str(e).lower():
+                raise
+            last_err = e
+            await asyncio.sleep(min(base_delay * (2 ** i), 5.0))
+    if last_err:
+        raise last_err
+    raise RuntimeError("connect failed")
+
+
 async def resolve_phone_to_username(phone_arg: str) -> str:
     """Пошук контакту в Telegram по номеру; повертає @username (без @) або порожній рядок."""
     from telethon import TelegramClient
@@ -104,7 +123,7 @@ async def resolve_phone_to_username(phone_arg: str) -> str:
 
     client = TelegramClient(session_path, api_id, api_hash)
     try:
-        await client.connect()
+        await connect_with_retry(client)
         if not await client.is_user_authorized():
             return ""
         result = None
@@ -140,7 +159,7 @@ async def resolve_phone_to_name(phone_arg: str) -> str:
 
     client = TelegramClient(session_path, api_id, api_hash)
     try:
-        await client.connect()
+        await connect_with_retry(client)
         if not await client.is_user_authorized():
             return ""
         result = None
@@ -226,7 +245,7 @@ async def main():
     client = TelegramClient(session_path, api_id, api_hash)
 
     try:
-        await client.connect()
+        await connect_with_retry(client)
         if not await client.is_user_authorized():
             print("Сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
             sys.exit(2)
