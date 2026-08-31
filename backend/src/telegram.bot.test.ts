@@ -132,6 +132,46 @@ test('sendMessageViaUserAccount: спочатку username — той самий
   assert.equal(ok, true);
 });
 
+test('sendMessageViaUserAccount: паралельні виклики серіалізуються (spawn не перекриваються)', async () => {
+  saveUserTelegramEnv();
+  process.env.TELEGRAM_USER_SESSION_PATH = '/tmp/mock-tg-session-path';
+  process.env.TELEGRAM_API_ID = '11111';
+  process.env.TELEGRAM_API_HASH = 'mockhash';
+
+  let active = 0;
+  let maxActive = 0;
+  const slowSpawn = ((_cmd, _args, _opts) => {
+    const child = new EventEmitter();
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    return Object.assign(child, {
+      stdout,
+      stderr,
+      stdin: {
+        end: () => {
+          active += 1;
+          maxActive = Math.max(maxActive, active);
+          setTimeout(() => {
+            active -= 1;
+            stderr.emit('end');
+            stderr.emit('close');
+            child.emit('close', 0);
+          }, 15);
+        },
+      },
+    }) as unknown as ChildProcess;
+  }) as unknown as typeof nodeSpawnType;
+  setSpawnForTests(slowSpawn);
+
+  await Promise.all([
+    sendMessageViaUserAccount('0670000001', 'a'),
+    sendMessageViaUserAccount('0670000002', 'b'),
+    sendMessageViaUserAccount('0670000003', 'c'),
+  ]);
+
+  assert.equal(maxActive, 1); // жоден send_message.py не стартував, поки працює інший
+});
+
 test('sendMessageViaUserAccount: false без env сесії', async () => {
   saveUserTelegramEnv();
   delete process.env.TELEGRAM_USER_SESSION_PATH;

@@ -10,6 +10,20 @@ let stopping = false;
 let exclusivePauseDepth = 0;
 let restartTimer: ReturnType<typeof setTimeout> | null = null;
 let restartAttempt = 0;
+/**
+ * Після exclusive-сесії не піднімаємо listener миттєво: серія коротких Telethon-скриптів
+ * (send_message / resolve) йде впритул, і кожен рестарт listener'а тільки б знову ловив
+ * "database is locked". Тримаємо паузу ще кілька секунд після останньої операції.
+ */
+const RESUME_LINGER_MS = 4000;
+let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearResumeTimer(): void {
+  if (resumeTimer) {
+    clearTimeout(resumeTimer);
+    resumeTimer = null;
+  }
+}
 
 function telegramUserDir(): string {
   return path.join(process.cwd(), 'telegram-user');
@@ -99,6 +113,7 @@ export function startLunchListener(): void {
  */
 export async function pauseLunchListenerForExclusiveSession(): Promise<void> {
   exclusivePauseDepth += 1;
+  clearResumeTimer();
   if (restartTimer) {
     clearTimeout(restartTimer);
     restartTimer = null;
@@ -139,13 +154,21 @@ export async function pauseLunchListenerForExclusiveSession(): Promise<void> {
 export function resumeLunchListenerAfterExclusiveSession(): void {
   exclusivePauseDepth = Math.max(0, exclusivePauseDepth - 1);
   if (exclusivePauseDepth > 0 || stopping) return;
-  console.log('[lunch-listener] resume after exclusive session');
-  startLunchListener();
+  clearResumeTimer();
+  if (!isLunchListenerWanted()) return;
+  resumeTimer = setTimeout(() => {
+    resumeTimer = null;
+    if (exclusivePauseDepth > 0 || stopping) return;
+    console.log('[lunch-listener] resume after exclusive session (linger elapsed)');
+    startLunchListener();
+  }, RESUME_LINGER_MS);
+  resumeTimer.unref?.();
 }
 
 export function stopLunchListener(): void {
   stopping = true;
   exclusivePauseDepth = 0;
+  clearResumeTimer();
   if (restartTimer) {
     clearTimeout(restartTimer);
     restartTimer = null;
