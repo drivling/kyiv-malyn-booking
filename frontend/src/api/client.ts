@@ -30,6 +30,9 @@ import type {
   RideCompletionProofRow,
   LunchDaySummary,
   LunchMenuImportResult,
+  NotificationSettings,
+  NotificationSettingsPatch,
+  NotificationSettingsUsage,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
@@ -938,6 +941,21 @@ class ApiClient {
     return this.request('/admin/lunch/settings', {
       method: 'PATCH',
       body: JSON.stringify({ trayPriceUah }),
+    });
+  }
+
+  async getNotificationSettings(): Promise<NotificationSettings> {
+    return this.request('/admin/notification-settings');
+  }
+
+  async getNotificationSettingsUsage(): Promise<NotificationSettingsUsage> {
+    return this.request('/admin/notification-settings/usage');
+  }
+
+  async updateNotificationSettings(patch: NotificationSettingsPatch): Promise<NotificationSettings> {
+    return this.request('/admin/notification-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
     });
   }
 

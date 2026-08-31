@@ -59,6 +59,7 @@ import {
 } from './poputky-od';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
+import { sendPaidFallbackSms } from './sms-fallback';
 import {
   formatTelegramContactHtmlLink,
   formatTelegramUsernameForDisplay,
@@ -773,11 +774,22 @@ async function findMatchingDriversForPassenger(passengerListing: OdListingFields
   return out;
 }
 
+type MatchMessageBotOptions = {
+  replyMarkup?: TelegramBot.InlineKeyboardMarkup;
+  forceBotOnly?: boolean;
+  /** Тип збігу — щоб платний SMS-фолбек порівняв його з порогом у налаштуваннях. */
+  matchType?: MatchType;
+  /** Готовий plain-text для платного SMS-фолбеку (без HTML). Немає → SMS не пробуємо. */
+  smsFallbackText?: string;
+  /** Прив'язка для журналу платних відправок (traceability; дедуп match робиться окремо). */
+  smsContext?: { type: 'viberListing'; id: number };
+};
+
 export type SendMatchMessageToPersonStub = (
   phone: string,
   messageHtml: string,
-  botOptions?: { replyMarkup?: TelegramBot.InlineKeyboardMarkup; forceBotOnly?: boolean }
-) => Promise<{ sent: boolean; via: 'bot' | 'user' | 'none' }>;
+  botOptions?: MatchMessageBotOptions
+) => Promise<{ sent: boolean; via: 'bot' | 'user' | 'sms' | 'none' }>;
 
 let sendMatchMessageToPersonTestStub: SendMatchMessageToPersonStub | null = null;
 
@@ -789,8 +801,8 @@ export function setSendMatchMessageToPersonForTests(stub: SendMatchMessageToPers
 async function sendMatchMessageToPerson(
   phone: string,
   messageHtml: string,
-  botOptions?: { replyMarkup?: TelegramBot.InlineKeyboardMarkup; forceBotOnly?: boolean }
-): Promise<{ sent: boolean; via: 'bot' | 'user' | 'none' }> {
+  botOptions?: MatchMessageBotOptions
+): Promise<{ sent: boolean; via: 'bot' | 'user' | 'sms' | 'none' }> {
   if (sendMatchMessageToPersonTestStub) {
     return sendMatchMessageToPersonTestStub(phone, messageHtml, botOptions);
   }
@@ -818,12 +830,50 @@ async function sendMatchMessageToPerson(
   }
   if (botOptions?.forceBotOnly) return { sent: false, via: 'none' };
 
-  if (!isTelegramUserSenderEnabled()) return { sent: false, via: 'none' };
-  const person = await getPersonByPhone(phone).catch(() => null);
-  const ok = await sendMessageViaUserAccount(phone, messageHtml, {
-    telegramUsername: person?.telegramUsername ?? null,
-  }).catch(() => false);
-  return ok ? { sent: true, via: 'user' } : { sent: false, via: 'none' };
+  // Безкоштовний канал: особистий акаунт (Telethon) — по @username або номеру.
+  if (isTelegramUserSenderEnabled()) {
+    const person = await getPersonByPhone(phone).catch(() => null);
+    const ok = await sendMessageViaUserAccount(phone, messageHtml, {
+      telegramUsername: person?.telegramUsername ?? null,
+    }).catch(() => false);
+    if (ok) return { sent: true, via: 'user' };
+  }
+
+  // Платний фолбек: SMS через TurboSMS (усі запобіжники всередині sendPaidFallbackSms).
+  if (botOptions?.smsFallbackText) {
+    const r = await sendPaidFallbackSms(tgPrisma, {
+      phone,
+      text: botOptions.smsFallbackText,
+      useCase: 'match',
+      matchType: botOptions.matchType,
+      context: botOptions.smsContext,
+    });
+    if (r.sent) return { sent: true, via: 'sms' };
+  }
+
+  return { sent: false, via: 'none' };
+}
+
+/** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер). */
+function buildMatchSms(
+  counterpart: {
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    senderName: string | null;
+    phone: string;
+  },
+  kind: 'driver' | 'passenger'
+): string {
+  const who = kind === 'driver' ? 'водій' : 'пасажир';
+  const name = counterpart.senderName?.trim() || (kind === 'driver' ? 'Водій' : 'Пасажир');
+  const time = counterpart.departureTime ? ` ${counterpart.departureTime}` : '';
+  const tel = '+' + normalizePhone(counterpart.phone);
+  return (
+    `Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +
+    `є ${who} ${name}, тел ${tel}. ` +
+    `Ви отримали це як учасник групи попуток Київ–Малин.`
+  );
 }
 
 async function sleepTelethonBatchDelay(): Promise<void> {
@@ -835,7 +885,7 @@ async function sleepTelethonBatchDelay(): Promise<void> {
 type CounterpartNotifyOutcome =
   | { kind: 'skipped' }
   | { kind: 'failed' }
-  | { kind: 'sent'; via: 'bot' | 'user' };
+  | { kind: 'sent'; via: 'bot' | 'user' | 'sms' };
 
 /** Пасажир отримує повідомлення про водія для пари (дедуп у БД). */
 export async function notifyPassengerAboutDriverPair(
@@ -898,12 +948,18 @@ export async function notifyPassengerAboutDriverPair(
         }
       : undefined;
 
+  const smsFallbackText = buildMatchSms(driverListing, 'driver');
   const result = await sendMatchMessageToPerson(
     passengerListing.phone,
     msg,
     matchType === 'same_day'
       ? { ...(replyMarkup ? { replyMarkup } : {}), forceBotOnly: true }
-      : (replyMarkup ? { replyMarkup } : undefined)
+      : {
+          ...(replyMarkup ? { replyMarkup } : {}),
+          matchType,
+          smsFallbackText,
+          smsContext: { type: 'viberListing', id: passengerListing.id },
+        }
   );
   if (!result.sent) return { kind: 'failed' };
 
@@ -921,7 +977,7 @@ export async function notifyPassengerAboutDriverPair(
     },
     update: { passengerNotifiedAt: new Date() },
   });
-  return { kind: 'sent', via: result.via === 'user' ? 'user' : 'bot' };
+  return { kind: 'sent', via: result.via === 'none' ? 'bot' : result.via };
 }
 
 /** Водій отримує повідомлення про пасажира для пари (дедуп у БД). */
@@ -980,12 +1036,18 @@ export async function notifyDriverAboutPassengerPair(
         }
       : undefined;
 
+  const smsFallbackText = buildMatchSms(passengerListing, 'passenger');
   const result = await sendMatchMessageToPerson(
     driverListing.phone,
     msg,
     matchType === 'same_day'
       ? { ...(replyMarkup ? { replyMarkup } : {}), forceBotOnly: true }
-      : (replyMarkup ? { replyMarkup } : undefined)
+      : {
+          ...(replyMarkup ? { replyMarkup } : {}),
+          matchType,
+          smsFallbackText,
+          smsContext: { type: 'viberListing', id: driverListing.id },
+        }
   );
   if (!result.sent) return { kind: 'failed' };
 
@@ -1003,26 +1065,28 @@ export async function notifyDriverAboutPassengerPair(
     },
     update: { driverNotifiedAt: new Date() },
   });
-  return { kind: 'sent', via: result.via === 'user' ? 'user' : 'bot' };
+  return { kind: 'sent', via: result.via === 'none' ? 'bot' : result.via };
 }
 
 async function sendAdminNewListingMatchReport(
   listingId: number,
   listingType: 'driver' | 'passenger',
   pairCount: number,
-  stats: { sent: number; skipped: number; failed: number }
+  stats: { sent: number; skipped: number; failed: number; smsSent?: number }
 ): Promise<void> {
   if (pairCount === 0 || !bot || !adminChatId) return;
   // Після merge усі пари часто лише «skipped» — не засмічуємо адмін-чат
   if (stats.sent === 0 && stats.failed === 0) return;
   const typeUa = listingType === 'driver' ? 'водій' : 'пасажир';
   const targetUa = listingType === 'driver' ? 'пасажирів' : 'водіїв';
+  const smsLine = stats.smsSent ? `\n• З них через платний SMS: ${stats.smsSent}` : '';
   await bot
     .sendMessage(
       adminChatId,
       `🔔 <b>Збіги після збереження оголошення</b> #${listingId} (${typeUa})\n\n` +
         `• Пар по маршруту/даті: ${pairCount}\n` +
-        `• Сповіщено ${targetUa} (бот або ваш акаунт): надіслано ${stats.sent}, уже отримували цю пару: ${stats.skipped}, не доставлено: ${stats.failed}`,
+        `• Сповіщено ${targetUa} (бот або ваш акаунт): надіслано ${stats.sent}, уже отримували цю пару: ${stats.skipped}, не доставлено: ${stats.failed}` +
+        smsLine,
       { parse_mode: 'HTML' }
     )
     .catch(() => {});
@@ -1094,15 +1158,18 @@ export async function notifyMatchingPassengersForNewDriver(
   let sent = 0;
   let skipped = 0;
   let failed = 0;
+  let smsSent = 0;
   for (const { listing: p, matchType, routeMatchKind } of matches) {
     const out = await notifyPassengerAboutDriverPair(driverListing, { id: p.id, phone: p.phone }, matchType, routeMatchKind);
-    if (out.kind === 'sent') sent++;
-    else if (out.kind === 'skipped') skipped++;
+    if (out.kind === 'sent') {
+      sent++;
+      if (out.via === 'sms') smsSent++;
+    } else if (out.kind === 'skipped') skipped++;
     else failed++;
     await sleepTelethonBatchDelay();
   }
 
-  await sendAdminNewListingMatchReport(driverListing.id, 'driver', matches.length, { sent, skipped, failed });
+  await sendAdminNewListingMatchReport(driverListing.id, 'driver', matches.length, { sent, skipped, failed, smsSent });
 }
 
 /** Викликати після створення запиту пасажира (бот або адмінка). passengerChatId — якщо є (з бота), сповістимо пасажира про збіги. */
@@ -1166,15 +1233,18 @@ export async function notifyMatchingDriversForNewPassenger(
   let sent = 0;
   let skipped = 0;
   let failed = 0;
+  let smsSent = 0;
   for (const { listing: d, matchType, routeMatchKind } of matches) {
     const out = await notifyDriverAboutPassengerPair({ id: d.id, phone: d.phone }, passengerListing, matchType, routeMatchKind);
-    if (out.kind === 'sent') sent++;
-    else if (out.kind === 'skipped') skipped++;
+    if (out.kind === 'sent') {
+      sent++;
+      if (out.via === 'sms') smsSent++;
+    } else if (out.kind === 'skipped') skipped++;
     else failed++;
     await sleepTelethonBatchDelay();
   }
 
-  await sendAdminNewListingMatchReport(passengerListing.id, 'passenger', matches.length, { sent, skipped, failed });
+  await sendAdminNewListingMatchReport(passengerListing.id, 'passenger', matches.length, { sent, skipped, failed, smsSent });
 }
 
 // --- Робота з Person (єдина база людей) ---
@@ -1850,14 +1920,12 @@ export const sendViberListingConfirmationToUser = async (
   try {
     if (isTelegramUsernameContact(trimmed)) {
       const person = await getPersonByTelegramUsername(trimmed);
-      const PROMO_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-      const shouldSendPromo =
-        person &&
-        isTelegramUserSenderEnabled() &&
-        (!person.telegramPromoSentAt || Date.now() - person.telegramPromoSentAt.getTime() > PROMO_COOLDOWN_MS);
-      if (shouldSendPromo) {
+      // Безкоштовний канал пробуємо ЗАВЖДИ (це транзакційне підтвердження щойно
+      // створеного оголошення), без 7-денного кулдауну telegramPromoSentAt.
+      let sent = false;
+      if (person && isTelegramUserSenderEnabled()) {
         const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
-        const sent = await sendMessageViaUserAccount(person.phoneNormalized, promoMessage, {
+        sent = await sendMessageViaUserAccount(person.phoneNormalized, promoMessage, {
           telegramUsername: normalizeTelegramUsername(trimmed),
         });
         if (sent) {
@@ -1866,9 +1934,17 @@ export const sendViberListingConfirmationToUser = async (
             data: { telegramPromoSentAt: new Date() },
           });
           console.log(
-            `✅ Telegram: автору Viber оголошення #${listing.id} надіслано одноразове промо по @${normalizeTelegramUsername(trimmed)}`,
+            `✅ Telegram: автору Viber оголошення #${listing.id} надіслано підтвердження по @${normalizeTelegramUsername(trimmed)}`,
           );
         }
+      }
+      if (!sent && person?.phoneNormalized && !isTechnicalPlaceholderPhone(person.phoneNormalized)) {
+        await sendPaidFallbackSms(tgPrisma, {
+          phone: person.phoneNormalized,
+          text: buildAuthorConfirmationSms(listing),
+          useCase: 'authorConfirmation',
+          context: { type: 'viberListing', id: listing.id },
+        });
       }
       return;
     }
@@ -1900,28 +1976,35 @@ export const sendViberListingConfirmationToUser = async (
 
     if (!chatId || botSendFailedChatNotFound) {
       const person = await getPersonByPhone(trimmed);
-      const PROMO_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 днів
-      const shouldSendPromo =
-        person &&
-        isTelegramUserSenderEnabled() &&
-        (!person.telegramPromoSentAt || Date.now() - person.telegramPromoSentAt.getTime() > PROMO_COOLDOWN_MS);
-      if (shouldSendPromo) {
+      const phoneForApi = normalizePhone(trimmed);
+      // Безкоштовний канал (Telethon по номеру) пробуємо ЗАВЖДИ — без кулдауну
+      // telegramPromoSentAt. Кулдаун лишається лише для масової розсилки неактивним.
+      let sent = false;
+      if (isTelegramUserSenderEnabled()) {
         const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
-        const phoneForApi = normalizePhone(trimmed);
-        const sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
-          telegramUsername: person.telegramUsername,
+        sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
+          telegramUsername: person?.telegramUsername ?? null,
         });
-        if (sent) {
+        if (sent && person) {
           await tgPrisma.person.update({
             where: { id: person.id },
             data: { telegramPromoSentAt: new Date() },
           });
-          console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано одноразове промо від вашого акаунта, Person.telegramPromoSentAt оновлено`);
+          console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано підтвердження від вашого акаунта`);
         }
-        return;
       }
-      if (!person?.telegramPromoSentAt) {
-        console.log(`ℹ️ Viber оголошення #${listing.id}: по телефону ${trimmed} Telegram не знайдено, пропускаємо сповіщення`);
+      if (!sent) {
+        const r = await sendPaidFallbackSms(tgPrisma, {
+          phone: phoneForApi,
+          text: buildAuthorConfirmationSms(listing),
+          useCase: 'authorConfirmation',
+          context: { type: 'viberListing', id: listing.id },
+        });
+        if (!r.sent) {
+          console.log(
+            `ℹ️ Viber оголошення #${listing.id}: автор недосяжний (Telegram + SMS), причина SMS: ${r.reason ?? 'n/a'}`,
+          );
+        }
       }
     }
   } catch (error) {
@@ -1978,6 +2061,26 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 Після реєстрації номера в боті ми більше не надсилатимемо листи на цей чат.`;
   }
   return message;
+}
+
+/** Короткий plain-text для платного SMS автору оголошення (без HTML). */
+function buildAuthorConfirmationSms(listing: {
+  route: string;
+  date: Date | string;
+  departureTime: string | null;
+}): string {
+  const dateStr =
+    listing.date instanceof Date
+      ? formatDate(listing.date)
+      : listing.date && String(listing.date).slice(0, 10)
+        ? formatDate(new Date(listing.date))
+        : '';
+  const time = listing.departureTime ? ` ${listing.departureTime}` : '';
+  return (
+    `Ваше оголошення ${getRouteName(listing.route)} ${dateStr}${time} опубліковано на malin.kiev.ua. ` +
+    `Інші учасники побачать його і зателефонують вам. ` +
+    `Ви отримали це як учасник групи попуток Київ–Малин.`
+  );
 }
 
 /**
@@ -2650,21 +2753,53 @@ ${booking.supportPhone ? `\n⚠️ Краще уточнити бронюван�
 /**
  * Відправка нагадування про поїздку (можна викликати через cron job)
  */
+export type TripReminderBooking = {
+  route: string;
+  date: Date;
+  departureTime: string;
+  name: string;
+  driver?: { senderName: string | null; phone: string };
+  personId?: number | null;
+  phone?: string | null;
+  bookingId?: number | null;
+};
+
+export type TripReminderDelivery = { delivered: 'bot' | 'sms' | 'none' };
+
+/** Короткий plain-text нагадування для платного SMS (без HTML). */
+function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorrow' | 'today'): string {
+  const lead = when === 'today' ? 'Сьогодні у вас поїздка' : 'Нагадування: завтра поїздка';
+  const drv = booking.driver
+    ? ` Водій ${booking.driver.senderName ?? '—'}, тел +${normalizePhone(booking.driver.phone)}.`
+    : '';
+  return (
+    `${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
+    `Перевірте бронювання за телефоном — інакше воно не гарантоване. malin.kiev.ua`
+  );
+}
+
+/** Платний SMS-фолбек нагадування (коли Telegram недосяжний). */
+export async function sendTripReminderSmsOnly(
+  booking: TripReminderBooking,
+  when: 'tomorrow' | 'today'
+): Promise<TripReminderDelivery> {
+  if (!booking.phone) return { delivered: 'none' };
+  const r = await sendPaidFallbackSms(tgPrisma, {
+    phone: booking.phone,
+    text: buildTripReminderSms(booking, when),
+    useCase: 'bookingReminder',
+    context: booking.bookingId ? { type: 'booking', id: booking.bookingId } : undefined,
+  });
+  return { delivered: r.sent ? 'sms' : 'none' };
+}
+
 export const sendTripReminder = async (
   chatId: string,
-  booking: {
-    route: string;
-    date: Date;
-    departureTime: string;
-    name: string;
-    driver?: { senderName: string | null; phone: string };
-    personId?: number | null;
-    phone?: string | null;
-  }
-) => {
+  booking: TripReminderBooking
+): Promise<TripReminderDelivery> => {
   if (!bot) {
     console.log('⚠️ Telegram bot не налаштовано');
-    return;
+    return sendTripReminderSmsOnly(booking, 'tomorrow');
   }
 
   try {
@@ -2696,6 +2831,7 @@ ${driverLine}${supportPhoneLine}
 
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
     console.log(`✅ Telegram нагадування надіслано`);
+    return { delivered: 'bot' };
   } catch (error) {
     await handleTelegramBotBlockedFromOutboundSend(tgPrisma, error, {
       chatId,
@@ -2703,6 +2839,7 @@ ${driverLine}${supportPhoneLine}
       normalizedPhone: booking.phone ? normalizePhone(booking.phone) : null,
     });
     console.error('❌ Помилка відправки Telegram нагадування:', error);
+    return sendTripReminderSmsOnly(booking, 'tomorrow');
   }
 };
 
@@ -2711,19 +2848,11 @@ ${driverLine}${supportPhoneLine}
  */
 export const sendTripReminderToday = async (
   chatId: string,
-  booking: {
-    route: string;
-    date: Date;
-    departureTime: string;
-    name: string;
-    driver?: { senderName: string | null; phone: string };
-    personId?: number | null;
-    phone?: string | null;
-  }
-) => {
+  booking: TripReminderBooking
+): Promise<TripReminderDelivery> => {
   if (!bot) {
     console.log('⚠️ Telegram bot не налаштовано');
-    return;
+    return sendTripReminderSmsOnly(booking, 'today');
   }
 
   try {
@@ -2755,6 +2884,7 @@ ${driverLine}${supportPhoneLine}
 
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
     console.log(`✅ Telegram нагадування (сьогодні) надіслано`);
+    return { delivered: 'bot' };
   } catch (error) {
     await handleTelegramBotBlockedFromOutboundSend(tgPrisma, error, {
       chatId,
@@ -2762,6 +2892,7 @@ ${driverLine}${supportPhoneLine}
       normalizedPhone: booking.phone ? normalizePhone(booking.phone) : null,
     });
     console.error('❌ Помилка відправки Telegram нагадування (сьогодні):', error);
+    return sendTripReminderSmsOnly(booking, 'today');
   }
 };
 
@@ -3344,6 +3475,7 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
   let driverFailed = 0;
   let sentViaUser = 0;
   let sentViaBot = 0;
+  let sentViaSms = 0;
   const pairLinesByType: Record<MatchType, string[]> = {
     exact: [],
     approximate: [],
@@ -3409,6 +3541,7 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
       if (pOut.kind === 'sent') {
         passengerSent++;
         if (pOut.via === 'user') sentViaUser++;
+        else if (pOut.via === 'sms') sentViaSms++;
         else sentViaBot++;
       } else if (pOut.kind === 'skipped') passengerSkipped++;
       else passengerFailed++;
@@ -3417,6 +3550,7 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
       if (dOut.kind === 'sent') {
         driverSent++;
         if (dOut.via === 'user') sentViaUser++;
+        else if (dOut.via === 'sms') sentViaSms++;
         else sentViaBot++;
       } else if (dOut.kind === 'skipped') driverSkipped++;
       else driverFailed++;
@@ -3436,6 +3570,7 @@ async function runAdminCheckClients(chatId: string): Promise<void> {
       `• Пасажири: надіслано ${passengerSent}, пропущено (вже було): ${passengerSkipped}, не доставлено: ${passengerFailed}\n` +
       `• Водії: надіслано ${driverSent}, пропущено (вже було): ${driverSkipped}, не доставлено: ${driverFailed}\n` +
       `• Через бот: ${sentViaBot}` +
+      (sentViaSms ? `\n• Через платний SMS: ${sentViaSms}` : '') +
       userSenderHint,
     { parse_mode: 'HTML' }
   ).catch(() => {});
