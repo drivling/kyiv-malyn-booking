@@ -688,15 +688,28 @@ export function extractListingType(text: string): 'driver' | 'passenger' {
 }
 
 /**
+ * Символи двонаправленого форматування Unicode (isolate/embedding), якими Viber
+ * інколи (і навіть подвійно) обгортає ім'я відправника: FSI/LRI/RLI … PDI, LRE/RLE … PDF.
+ * Роблять регулярки для «⁨Ім'я⁩:» ненадійними, тож допускаємо їх у будь-якій кількості.
+ */
+const BIDI_OPEN = '[\\u2066-\\u2068\\u202A\\u202B\\u202D]';
+const BIDI_CLOSE = '[\\u2069\\u202C]';
+
+/** Заголовок-дата з часом повідомлення: «[ 31 серпня 2026 р. 20:44 ]». Не чіпає «[Бот]». */
+const DATE_HEADER_RE = /^\s*\[[^\]\n]*\d{1,2}:\d{2}[^\]\n]*\]\s*/;
+
+/**
  * Витягує ім'я відправника з заголовка повідомлення
  */
 export function extractSenderName(text: string): string | null {
-  // Формат: [ дата ] ⁨Ім'я⁩: повідомлення
-  const nameMatch = text.match(/\]\s*⁨([^⁩]+)⁩:/);
+  // Формат: [ дата ] ⁨Ім'я⁩: повідомлення (ім'я може бути обгорнуте кількома bidi-символами)
+  const nameMatch = text.match(
+    new RegExp(`\\]\\s*${BIDI_OPEN}+([^\\u2066-\\u2069\\u202A-\\u202E]+?)${BIDI_CLOSE}+\\s*:`)
+  );
   if (nameMatch) {
     return nameMatch[1].trim();
   }
-  
+
   return null;
 }
 
@@ -730,15 +743,32 @@ export function extractMessageDate(text: string): Date | null {
 }
 
 /**
- * Витягує текст повідомлення (без заголовка)
+ * Витягує текст повідомлення (без заголовка).
+ * Важливо: заголовок містить час самого повідомлення у Viber (напр. 20:44) — якщо він
+ * протече в тіло, extractTime помилково візьме його за час поїздки.
  */
 export function extractMessageBody(text: string): string {
-  // Видаляємо заголовок [ дата ] ⁨Ім'я⁩:
-  const bodyMatch = text.match(/\]\s*⁨[^⁩]+⁩:\s*(.+)/s);
+  // Головний варіант: [ дата ] ⁨Ім'я⁩: тіло (ім'я може бути обгорнуте кількома bidi-символами)
+  const bodyMatch = text.match(
+    new RegExp(
+      `\\]\\s*${BIDI_OPEN}+[^\\u2066-\\u2069\\u202A-\\u202E]+?${BIDI_CLOSE}+\\s*:\\s*([\\s\\S]+)`
+    )
+  );
   if (bodyMatch) {
     return bodyMatch[1].trim();
   }
-  
+
+  // Запасний варіант (без bidi-обгортки або з нестандартною): зрізаємо дата-заголовок,
+  // потім — необов'язковий bidi-обгорнутий префікс «Ім'я:».
+  if (DATE_HEADER_RE.test(text)) {
+    const withoutHeader = text.replace(DATE_HEADER_RE, '');
+    const withoutName = withoutHeader.replace(
+      new RegExp(`^${BIDI_OPEN}+[^\\u2066-\\u2069\\u202A-\\u202E\\n]{1,60}${BIDI_CLOSE}+\\s*:\\s*`),
+      ''
+    );
+    return withoutName.trim();
+  }
+
   return text.trim();
 }
 
