@@ -20,6 +20,7 @@ import { createAdminMessagingRouter } from './routes/admin-messaging';
 import { createAdminViberAnalyticsRouter } from './routes/admin-viber-analytics';
 import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
+import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
 
 export type CreateAppDeps = {
@@ -88,6 +89,7 @@ app.use(createAdminMessagingRouter({ prisma }));
 app.use(createAdminViberAnalyticsRouter({ prisma }));
 app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
+app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(createTransportRouter({ prisma }));
 
 // Глобальний обробник помилок — завжди повертаємо JSON

@@ -136,6 +136,8 @@ model Person {
   telegramReminderSentAt  DateTime? // Остання дата нагадування/реклами для Telegram-клієнтів (щоб не спамити)
   /// Коли зафіксовано, що користувач заблокував бота (outbound send). Для вибірок і аудиту; chat/user id очищені.
   telegramBotBlockedAt    DateTime?
+  /// Відмова від платних SMS-сповіщень (STOP / ручне вимкнення адміном)
+  smsOptOut               Boolean   @default(false)
   createdAt               DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -430,6 +432,30 @@ model LunchSettings {
   updatedAt    DateTime @updatedAt
 }
 
+/// Налаштування логіки сповіщень + платного SMS-фолбеку (singleton id=1). Редагується з адмінки, без редеплою.
+model NotificationSettings {
+  id                            Int      @id
+  /// Головний вимикач платного SMS-фолбеку (кнопка «стоп-бюджет»)
+  smsFallbackEnabled            Boolean  @default(false)
+  /// Сповіщення про збіг пари водій/пасажир
+  smsMatchEnabled               Boolean  @default(false)
+  /// Підтвердження автору оголошення, коли він недосяжний у Telegram
+  smsAuthorConfirmationEnabled  Boolean  @default(false)
+  /// Нагадування про бронювання для тих, хто заблокував/не запускав бота
+  smsBookingReminderEnabled     Boolean  @default(false)
+  /// Поріг типу збігу для платної відправки: exact | exact_approximate | all
+  smsMatchTypeThreshold         String   @default("exact")
+  /// Ліміт платних відправок на добу (захист бюджету)
+  smsDailyCap                   Int      @default(50)
+  /// Ліміт платних відправок на місяць
+  smsMonthlyCap                 Int      @default(1000)
+  /// Токен TurboSMS (REST). Зберігається тут, щоб не робити редеплой при ротації.
+  turboSmsToken                 String?
+  /// Зареєстроване альфа-ім'я відправника TurboSMS
+  turboSmsSender                String?
+  updatedAt                     DateTime @updatedAt
+}
+
 /// Постійний каталог страв (не обнуляється щодня)
 model LunchDish {
   id        Int      @id @default(autoincrement())
@@ -595,6 +621,32 @@ model LunchOutboundMessage {
   sentAt              DateTime?
 
   @@index([status, createdAt])
+}
+
+/// Журнал платних відправок (SMS/Viber через TurboSMS) — для лімітів, дедупу та обліку витрат
+model SmsSendLog {
+  id                Int       @id @default(autoincrement())
+  phoneNormalized   String
+  /// match | authorConfirmation | bookingReminder
+  useCase           String
+  provider          String    @default("turbosms")
+  /// sms | viber (на майбутнє)
+  channel           String    @default("sms")
+  /// pending | sent | failed | skipped
+  status            String    @default("pending")
+  providerMessageId String?
+  errorText         String?   @db.Text
+  /// Оцінка кількості SMS-сегментів (для обліку вартості)
+  segments          Int?
+  /// Прив'язка для дедупу: viberMatchPair | viberListing | booking
+  contextType       String?
+  contextId         Int?
+  createdAt         DateTime  @default(now())
+  sentAt            DateTime?
+
+  @@index([createdAt])
+  @@index([useCase, createdAt])
+  @@index([contextType, contextId])
 }
 
 /// Адмін-задачі для listener (reparse_today тощо)

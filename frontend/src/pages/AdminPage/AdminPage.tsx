@@ -11,9 +11,10 @@ import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
+import { NotificationSettingsTab } from './NotificationSettingsTab';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch';
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch' | 'notifications';
 
 const DEFAULT_TAB: Tab = 'bookings';
 
@@ -25,6 +26,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   promo: 'promo',
   referrals: 'referrals',
   lunch: 'lunch',
+  notifications: 'notifications',
   data: 'data',
   mapEditor: 'map-editor',
   scheduleEditor: 'route-schedule',
@@ -1366,6 +1368,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('lunch')}
           >
             Столова
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            Сповіщення / SMS
           </button>
           <button
             className={`admin-tab ${activeTab === 'data' ? 'active' : ''}`}
@@ -2836,6 +2844,8 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'referrals' && <ReferralTab />}
 
         {activeTab === 'lunch' && <LunchTab />}
+
+        {activeTab === 'notifications' && <NotificationSettingsTab />}
 
         {/* Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */}
         {activeTab === 'userSenderErrors' && (

@@ -684,3 +684,54 @@ export interface LunchMenuImportResult {
   queued?: boolean;
   postError: string | null;
 }
+
+export type SmsMatchTypeThreshold = 'exact' | 'exact_approximate' | 'all';
+
+/** Налаштування логіки сповіщень + платного SMS-фолбеку (токен ніколи не повертається). */
+export interface NotificationSettings {
+  id: number;
+  smsFallbackEnabled: boolean;
+  smsMatchEnabled: boolean;
+  smsAuthorConfirmationEnabled: boolean;
+  smsBookingReminderEnabled: boolean;
+  smsMatchTypeThreshold: SmsMatchTypeThreshold;
+  smsDailyCap: number;
+  smsMonthlyCap: number;
+  turboSmsSender: string | null;
+  hasToken: boolean;
+  tokenHint: string | null;
+  updatedAt: string;
+}
+
+export type NotificationSettingsPatch = Partial<{
+  smsFallbackEnabled: boolean;
+  smsMatchEnabled: boolean;
+  smsAuthorConfirmationEnabled: boolean;
+  smsBookingReminderEnabled: boolean;
+  smsMatchTypeThreshold: SmsMatchTypeThreshold;
+  smsDailyCap: number;
+  smsMonthlyCap: number;
+  turboSmsSender: string | null;
+  /** Порожній рядок / маска → бекенд не чіпає наявний токен; null → очищення. */
+  turboSmsToken: string | null;
+}>;
+
+export interface SmsSendLogEntry {
+  id: number;
+  phoneNormalized: string;
+  useCase: string;
+  channel: string;
+  status: string;
+  segments: number | null;
+  errorText: string | null;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+export interface NotificationSettingsUsage {
+  sentToday: number;
+  capToday: number;
+  sentThisMonth: number;
+  capThisMonth: number;
+  recent: SmsSendLogEntry[];
+}

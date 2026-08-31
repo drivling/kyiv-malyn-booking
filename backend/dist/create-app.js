@@ -27,6 +27,7 @@ const admin_messaging_1 = require("./routes/admin-messaging");
 const admin_viber_analytics_1 = require("./routes/admin-viber-analytics");
 const admin_referrals_1 = require("./routes/admin-referrals");
 const admin_lunch_1 = require("./routes/admin-lunch");
+const admin_notification_settings_1 = require("./routes/admin-notification-settings");
 const transport_1 = require("./routes/transport");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
@@ -82,6 +83,7 @@ function createApp(deps) {
     app.use((0, admin_viber_analytics_1.createAdminViberAnalyticsRouter)({ prisma }));
     app.use((0, admin_referrals_1.createAdminReferralsRouter)({ prisma }));
     app.use((0, admin_lunch_1.createAdminLunchRouter)({ prisma }));
+    app.use((0, admin_notification_settings_1.createAdminNotificationSettingsRouter)({ prisma }));
     app.use((0, transport_1.createTransportRouter)({ prisma }));
     // Глобальний обробник помилок — завжди повертаємо JSON
     app.use((err, _req, res, _next) => {
