@@ -27,7 +27,7 @@ function validatePoputkyAnnounceDraft(body, mapFromToToRoute) {
     if (!route) {
         return {
             ok: false,
-            error: 'Поїздки можуть бути лише з/до Малина. Оберіть звідки та куди (наприклад Малин ↔ Київ).',
+            error: 'Оберіть звідки та куди зі списку міст попуток.',
         };
     }
     const dateStr = (b.date ?? '').toString().trim().slice(0, 10);

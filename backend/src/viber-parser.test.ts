@@ -212,6 +212,10 @@ test('extractNotes: є місця / орієнтири / позаду / дужк
     extractNotes('мЖитомирська на Малин (дзвоніть або пишіть)'),
     'м. Житомирська (дзвоніть або пишіть у Viber).'
   );
+  assert.equal(
+    extractNotes('метро Житомирська на Малин (дзвоніть або пишіть)'),
+    'м. Житомирська (дзвоніть або пишіть у Viber).'
+  );
   assert.equal(extractNotes('Київ (Акад)-Малин'), 'м Академмістечко');
   assert.equal(extractNotes('Київ (Академ.)-Малин'), 'Академмістечко');
   assert.equal(extractNotes('Академмістечко -Малин 17.10'), 'Академмістечко');
@@ -246,7 +250,9 @@ test('extractRoute', () => {
   assert.equal(extractRoute('мЖитомирська Малин'), 'Kyiv-Malyn');
   assert.equal(extractRoute('м Житомирська Малин'), 'Kyiv-Malyn');
   assert.equal(extractRoute('м.Житомирська Малин'), 'Kyiv-Malyn');
+  assert.equal(extractRoute('метро Житомирська на Малин'), 'Kyiv-Malyn');
   assert.equal(extractRoute('Малин мЖитомирська'), 'Malyn-Kyiv');
+  assert.equal(extractRoute('Малин метро Житомирська'), 'Malyn-Kyiv');
 
   assert.equal(extractRoute('Коростень-Буча 2026-08-18 12:00-14:00'), 'Korosten-Bucha');
   assert.equal(extractRoute('[Бот] Bucha-Irpin 2026-08-12 11:55'), 'Bucha-Irpin');

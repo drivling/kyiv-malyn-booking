@@ -9,13 +9,21 @@ exports.createPoputkyRouter = createPoputkyRouter;
  */
 const crypto_1 = __importDefault(require("crypto"));
 const express_1 = __importDefault(require("express"));
-const index_helpers_1 = require("../index-helpers");
+const poputky_od_1 = require("../poputky-od");
 const poputky_announce_draft_1 = require("../validation/poputky-announce-draft");
 const telegram_1 = require("../telegram");
-function createPoputkyRouter() {
+function createPoputkyRouter(deps) {
+    const { prisma } = deps;
     const r = express_1.default.Router();
-    r.post('/announce-draft', express_1.default.json(), (req, res) => {
-        const parsed = (0, poputky_announce_draft_1.validatePoputkyAnnounceDraft)(req.body, index_helpers_1.mapFromToToRoute);
+    r.post('/announce-draft', express_1.default.json(), async (req, res) => {
+        const body = (req.body ?? {});
+        const from = (body.from ?? '').toString();
+        const to = (body.to ?? '').toString();
+        const od = await (0, poputky_od_1.resolvePoputkyOdPair)(prisma, from, to);
+        if (!od.ok) {
+            return res.status(400).json({ error: od.error });
+        }
+        const parsed = (0, poputky_announce_draft_1.validatePoputkyAnnounceDraft)(body, () => od.route);
         if (!parsed.ok) {
             return res.status(400).json({ error: parsed.error });
         }
@@ -24,6 +32,8 @@ function createPoputkyRouter() {
         (0, telegram_1.setAnnounceDraft)(token, {
             role: v.role,
             route: v.route,
+            fromPointId: od.from.id,
+            toPointId: od.to.id,
             date: v.dateStr,
             departureTime: v.departureTime || undefined,
             notes: v.notes,

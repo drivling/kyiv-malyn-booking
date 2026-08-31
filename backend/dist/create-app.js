@@ -63,8 +63,8 @@ function createApp(deps) {
         credentials: true,
     };
     app.use((0, cors_1.default)(corsOptions));
-    app.use(express_1.default.json());
-    app.use('/poputky', (0, poputky_1.createPoputkyRouter)());
+    app.use(express_1.default.json({ limit: '2mb' }));
+    app.use('/poputky', (0, poputky_1.createPoputkyRouter)({ prisma }));
     const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
     app.use((0, public_routes_1.createPublicRoutesRouter)({ codeVersion: exports.CODE_VERSION }));
     app.use((0, admin_session_1.createAdminSessionRouter)({ adminPassword: ADMIN_PASSWORD }));
