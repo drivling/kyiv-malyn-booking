@@ -1457,11 +1457,29 @@ async function resetTelegramBindingForPhone(phone) {
         });
     }
 }
+/**
+ * Позначити, що автору оголошення надіслано підтвердження про публікацію.
+ * Ставиться лише після реальної доставки (бот / особистий акаунт / платне SMS),
+ * щоб повторні пости, мерж і апдейти не спамили людину.
+ */
+async function markViberListingAuthorNotified(listingId) {
+    await tgPrisma.viberListing
+        .update({ where: { id: listingId }, data: { authorNotifiedAt: new Date() } })
+        .catch((e) => console.error('❌ markViberListingAuthorNotified:', e));
+}
 const sendViberListingConfirmationToUser = async (phone, listing) => {
     const trimmed = phone?.trim();
     if (!trimmed)
         return;
     try {
+        // Одне сповіщення на оголошення — не спамимо при повторних постах / мержі / апдейті.
+        const notifyState = await tgPrisma.viberListing
+            .findUnique({ where: { id: listing.id }, select: { authorNotifiedAt: true } })
+            .catch(() => null);
+        if (notifyState?.authorNotifiedAt) {
+            console.log(`ℹ️ Viber оголошення #${listing.id}: автора вже сповіщено (${notifyState.authorNotifiedAt.toISOString()}), пропускаємо`);
+            return;
+        }
         if ((0, telegram_contact_1.isTelegramUsernameContact)(trimmed)) {
             const person = await (0, exports.getPersonByTelegramUsername)(trimmed);
             // Безкоштовний канал пробуємо ЗАВЖДИ (це транзакційне підтвердження щойно
@@ -1477,16 +1495,19 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
                         where: { id: person.id },
                         data: { telegramPromoSentAt: new Date() },
                     });
+                    await markViberListingAuthorNotified(listing.id);
                     console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано підтвердження по @${(0, telegram_contact_1.normalizeTelegramUsername)(trimmed)}`);
                 }
             }
             if (!sent && person?.phoneNormalized && !(0, telegram_contact_1.isTechnicalPlaceholderPhone)(person.phoneNormalized)) {
-                await (0, sms_fallback_1.sendPaidFallbackSms)(tgPrisma, {
+                const r = await (0, sms_fallback_1.sendPaidFallbackSms)(tgPrisma, {
                     phone: person.phoneNormalized,
                     text: buildAuthorConfirmationSms(listing),
                     useCase: 'authorConfirmation',
                     context: { type: 'viberListing', id: listing.id },
                 });
+                if (r.sent)
+                    await markViberListingAuthorNotified(listing.id);
             }
             return;
         }
@@ -1496,6 +1517,7 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
             try {
                 const message = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: false });
                 await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+                await markViberListingAuthorNotified(listing.id);
                 console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано сповіщення про публікацію (бот)`);
                 return;
             }
@@ -1525,11 +1547,14 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
                 sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
                     telegramUsername: person?.telegramUsername ?? null,
                 });
-                if (sent && person) {
-                    await tgPrisma.person.update({
-                        where: { id: person.id },
-                        data: { telegramPromoSentAt: new Date() },
-                    });
+                if (sent) {
+                    if (person) {
+                        await tgPrisma.person.update({
+                            where: { id: person.id },
+                            data: { telegramPromoSentAt: new Date() },
+                        });
+                    }
+                    await markViberListingAuthorNotified(listing.id);
                     console.log(`✅ Telegram: автору Viber оголошення #${listing.id} надіслано підтвердження від вашого акаунта`);
                 }
             }
@@ -1540,7 +1565,10 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
                     useCase: 'authorConfirmation',
                     context: { type: 'viberListing', id: listing.id },
                 });
-                if (!r.sent) {
+                if (r.sent) {
+                    await markViberListingAuthorNotified(listing.id);
+                }
+                else {
                     console.log(`ℹ️ Viber оголошення #${listing.id}: автор недосяжний (Telegram + SMS), причина SMS: ${r.reason ?? 'n/a'}`);
                 }
             }

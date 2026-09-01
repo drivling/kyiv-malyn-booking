@@ -36,7 +36,7 @@ export function listingsAreMergeDuplicates(
   return false;
 }
 
-function buildMergedUpdateData(survivor: ViberListing, twin: ViberListing): Partial<ViberListing> {
+export function buildMergedUpdateData(survivor: ViberListing, twin: ViberListing): Partial<ViberListing> {
   return {
     rawMessage: mergeRawMessage(survivor.rawMessage, twin.rawMessage),
     notes: mergeTextField(survivor.notes, twin.notes),
@@ -46,6 +46,8 @@ function buildMergedUpdateData(survivor: ViberListing, twin: ViberListing): Part
     phone: survivor.phone?.trim() ? survivor.phone : twin.phone,
     personId: survivor.personId ?? twin.personId,
     isActive: survivor.isActive || twin.isActive,
+    // Якщо автора вже сповістили хоч по одному з рядків — не сповіщаємо повторно.
+    authorNotifiedAt: survivor.authorNotifiedAt ?? twin.authorNotifiedAt,
   };
 }
 

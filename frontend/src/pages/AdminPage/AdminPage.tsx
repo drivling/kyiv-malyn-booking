@@ -1900,6 +1900,11 @@ export const AdminPage: React.FC = () => {
                           <span className={`badge ${listing.isActive ? 'badge-success' : 'badge-secondary'}`}>
                             {listing.isActive ? 'Активне' : 'Неактивне'}
                           </span>
+                          <div style={{ fontSize: 11, marginTop: 4, color: listing.authorNotifiedAt ? '#2e7d32' : '#999' }}>
+                            {listing.authorNotifiedAt
+                              ? `✅ автора сповіщено ${new Date(listing.authorNotifiedAt).toLocaleDateString('uk-UA')}`
+                              : '— автора не сповіщено'}
+                          </div>
                         </td>
                         <td>
                           <Button
