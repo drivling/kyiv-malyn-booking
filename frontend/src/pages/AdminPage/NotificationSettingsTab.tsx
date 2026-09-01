@@ -18,6 +18,8 @@ type Draft = {
   smsMatchEnabled: boolean;
   smsAuthorConfirmationEnabled: boolean;
   smsBookingReminderEnabled: boolean;
+  smsInactivityReminderEnabled: boolean;
+  smsChannelPromoEnabled: boolean;
   smsMatchTypeThreshold: SmsMatchTypeThreshold;
   smsDailyCap: string;
   smsMonthlyCap: string;
@@ -34,6 +36,8 @@ const USE_CASE_LABEL: Record<string, string> = {
   match: 'збіг пари',
   authorConfirmation: 'підтвердження автору',
   bookingReminder: 'нагадування',
+  inactivityReminder: 'реактивація',
+  channelPromo: 'реклама каналу',
 };
 
 function toDraft(s: NotificationSettings): Draft {
@@ -42,6 +46,8 @@ function toDraft(s: NotificationSettings): Draft {
     smsMatchEnabled: s.smsMatchEnabled,
     smsAuthorConfirmationEnabled: s.smsAuthorConfirmationEnabled,
     smsBookingReminderEnabled: s.smsBookingReminderEnabled,
+    smsInactivityReminderEnabled: s.smsInactivityReminderEnabled,
+    smsChannelPromoEnabled: s.smsChannelPromoEnabled,
     smsMatchTypeThreshold: s.smsMatchTypeThreshold,
     smsDailyCap: String(s.smsDailyCap),
     smsMonthlyCap: String(s.smsMonthlyCap),
@@ -96,6 +102,10 @@ export const NotificationSettingsTab: React.FC = () => {
       body.smsAuthorConfirmationEnabled = draft.smsAuthorConfirmationEnabled;
     if (draft.smsBookingReminderEnabled !== settings.smsBookingReminderEnabled)
       body.smsBookingReminderEnabled = draft.smsBookingReminderEnabled;
+    if (draft.smsInactivityReminderEnabled !== settings.smsInactivityReminderEnabled)
+      body.smsInactivityReminderEnabled = draft.smsInactivityReminderEnabled;
+    if (draft.smsChannelPromoEnabled !== settings.smsChannelPromoEnabled)
+      body.smsChannelPromoEnabled = draft.smsChannelPromoEnabled;
     if (draft.smsMatchTypeThreshold !== settings.smsMatchTypeThreshold)
       body.smsMatchTypeThreshold = draft.smsMatchTypeThreshold;
 
@@ -207,6 +217,22 @@ export const NotificationSettingsTab: React.FC = () => {
             onChange={(e) => patch({ smsBookingReminderEnabled: e.target.checked })}
           />
           <span>Нагадування про бронювання (для тих, хто не в боті / заблокував)</span>
+        </label>
+        <label className="notif-check">
+          <input
+            type="checkbox"
+            checked={draft.smsInactivityReminderEnabled}
+            onChange={(e) => patch({ smsInactivityReminderEnabled: e.target.checked })}
+          />
+          <span>Реактивація неактивних / заблокували бота (кнопка «Нагадати їм»)</span>
+        </label>
+        <label className="notif-check">
+          <input
+            type="checkbox"
+            checked={draft.smsChannelPromoEnabled}
+            onChange={(e) => patch({ smsChannelPromoEnabled: e.target.checked })}
+          />
+          <span>Реклама каналу (сторінка /admin/promo — тим, до кого не достукались)</span>
         </label>
       </section>
 

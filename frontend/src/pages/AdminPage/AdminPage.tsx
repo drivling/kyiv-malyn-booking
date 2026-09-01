@@ -140,8 +140,9 @@ export const AdminPage: React.FC = () => {
   const [promoFilter, setPromoFilter] = useState<PromoFilter>('no_communication');
   const [promoPersons, setPromoPersons] = useState<Array<{ id: number; phoneNormalized: string; fullName: string | null }>>([]);
   const [promoResults, setPromoResults] = useState<{
-    sent: Array<{ phone: string; fullName: string | null }>;
+    sent: Array<{ phone: string; fullName: string | null; via?: 'telegram' | 'sms' }>;
     notFound: Array<{ phone: string; fullName: string | null }>;
+    smsSent?: number;
   } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState('');
@@ -2195,12 +2196,16 @@ export const AdminPage: React.FC = () => {
             </div>
             {promoResults && (
               <div className="table-container" style={{ marginTop: '16px' }}>
-                <h3 style={{ marginBottom: '8px' }}>Доставлено ({promoResults.sent.length})</h3>
+                <h3 style={{ marginBottom: '8px' }}>
+                  Доставлено ({promoResults.sent.length})
+                  {promoResults.smsSent ? ` · платних SMS: ${promoResults.smsSent}` : ''}
+                </h3>
                 <table>
                   <thead>
                     <tr>
                       <th>Телефон</th>
                       <th>Імʼя</th>
+                      <th>Канал</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2208,10 +2213,11 @@ export const AdminPage: React.FC = () => {
                       <tr key={`sent-${i}`}>
                         <td>{formatPhoneDisplay(r.phone)}</td>
                         <td>{r.fullName ?? '—'}</td>
+                        <td>{r.via === 'sms' ? 'SMS (платно)' : 'Telegram'}</td>
                       </tr>
                     ))}
                     {promoResults.sent.length === 0 && (
-                      <tr><td colSpan={2}>—</td></tr>
+                      <tr><td colSpan={3}>—</td></tr>
                     )}
                   </tbody>
                 </table>

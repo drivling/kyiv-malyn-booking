@@ -46,6 +46,8 @@ function createAdminNotificationSettingsRouter(deps) {
                 'smsMatchEnabled',
                 'smsAuthorConfirmationEnabled',
                 'smsBookingReminderEnabled',
+                'smsInactivityReminderEnabled',
+                'smsChannelPromoEnabled',
                 'smsMatchTypeThreshold',
                 'smsDailyCap',
                 'smsMonthlyCap',

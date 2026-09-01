@@ -15,6 +15,8 @@ const USE_CASE_FLAG = {
     match: 'smsMatchEnabled',
     authorConfirmation: 'smsAuthorConfirmationEnabled',
     bookingReminder: 'smsBookingReminderEnabled',
+    inactivityReminder: 'smsInactivityReminderEnabled',
+    channelPromo: 'smsChannelPromoEnabled',
 };
 /** Чи проходить тип збігу поточний поріг. */
 function matchTypePassesThreshold(matchType, threshold) {

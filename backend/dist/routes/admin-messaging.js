@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAdminMessagingRouter = createAdminMessagingRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
+const sms_fallback_1 = require("../sms-fallback");
 const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
 const telegram_bot_blocked_1 = require("../telegram-bot-blocked");
@@ -21,6 +22,10 @@ function buildChannelPromoMessage() {
 
 Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
   `.trim();
+}
+/** Короткий plain-text для платного SMS (реклама каналу). Одна SMS. */
+function buildChannelPromoSms() {
+    return 'Маршрутки та попутки Київ↔Малин: бронювання на https://malin.kiev.ua';
 }
 function createAdminMessagingRouter(deps) {
     const { prisma } = deps;
@@ -242,8 +247,10 @@ function createAdminMessagingRouter(deps) {
                 : [2, 15, 25, 30];
             const delaysMs = delaysSec.length > 0 ? delaysSec.map((s) => s * 1000) : [];
             const message = (0, telegram_1.buildInactivityReminderMessage)();
+            const smsText = (0, telegram_1.buildInactivityReminderSms)();
             let sent = 0;
             let failed = 0;
+            let smsSent = 0;
             for (let i = 0; i < phones.length; i++) {
                 const rawPhone = phones[i];
                 const phone = (0, telegram_1.normalizePhone)(rawPhone);
@@ -255,19 +262,33 @@ function createAdminMessagingRouter(deps) {
                     const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                         telegramUsername: person?.telegramUsername ?? undefined,
                     });
-                    if (ok)
+                    if (ok) {
                         sent++;
-                    else
-                        failed++;
+                    }
+                    else {
+                        // Особистий акаунт не дійшов (заблокований бот + прихований номер) —
+                        // пробуємо платний SMS (усі запобіжники всередині sendPaidFallbackSms).
+                        const r = await (0, sms_fallback_1.sendPaidFallbackSms)(prisma, {
+                            phone,
+                            text: smsText,
+                            useCase: 'inactivityReminder',
+                        });
+                        if (r.sent)
+                            smsSent++;
+                        else
+                            failed++;
+                    }
                 }
                 if (delaysMs.length > 0 && i < phones.length - 1) {
                     const delayMs = delaysMs[i % delaysMs.length] ?? 30000;
                     await new Promise((r) => setTimeout(r, delayMs));
                 }
             }
-            const resultMessage = `Відправлено від вашого імені: ${sent}, помилок: ${failed}`;
-            console.log(`📢 Reminder via user account: ${sent} sent, ${failed} failed`);
-            res.json({ success: true, sent, failed, message: resultMessage });
+            const resultMessage = `Відправлено від вашого імені: ${sent}` +
+                (smsSent > 0 ? `, платних SMS: ${smsSent}` : '') +
+                `, помилок: ${failed}`;
+            console.log(`📢 Reminder via user account: ${sent} sent, ${smsSent} sms, ${failed} failed`);
+            res.json({ success: true, sent, smsSent, failed, message: resultMessage });
         }
         catch (e) {
             console.error('❌ send-reminder-via-user-account:', e);
@@ -313,6 +334,7 @@ function createAdminMessagingRouter(deps) {
                 persons = persons.slice(0, limit);
             }
             const message = buildChannelPromoMessage();
+            const smsText = buildChannelPromoSms();
             const sent = [];
             const notFound = [];
             for (let i = 0; i < persons.length; i++) {
@@ -320,11 +342,20 @@ function createAdminMessagingRouter(deps) {
                 const phone = (0, telegram_1.normalizePhone)(p.phoneNormalized);
                 if (!phone)
                     continue;
-                const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
+                let ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                     telegramUsername: p.telegramUsername ?? undefined,
                 });
+                let via = 'telegram';
+                if (!ok) {
+                    // Telegram (особистий акаунт) не дійшов — пробуємо платний SMS.
+                    const r = await (0, sms_fallback_1.sendPaidFallbackSms)(prisma, { phone, text: smsText, useCase: 'channelPromo' });
+                    if (r.sent) {
+                        ok = true;
+                        via = 'sms';
+                    }
+                }
                 if (ok) {
-                    sent.push({ phone: p.phoneNormalized, fullName: p.fullName });
+                    sent.push({ phone: p.phoneNormalized, fullName: p.fullName, via });
                     await prisma.person.update({
                         where: { id: p.id },
                         data: { telegramPromoSentAt: new Date() },
@@ -343,8 +374,9 @@ function createAdminMessagingRouter(deps) {
                         await new Promise((r) => setTimeout(r, delayMs));
                 }
             }
-            console.log(`📢 Channel promo (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent.length}, notFound=${notFound.length}`);
-            res.json({ sent, notFound });
+            const smsSent = sent.filter((s) => s.via === 'sms').length;
+            console.log(`📢 Channel promo (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent.length} (sms=${smsSent}), notFound=${notFound.length}`);
+            res.json({ sent, notFound, smsSent });
         }
         catch (e) {
             console.error('❌ send-channel-promo:', e);
