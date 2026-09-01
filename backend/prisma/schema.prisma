@@ -448,6 +448,8 @@ model NotificationSettings {
   smsBookingReminderEnabled     Boolean  @default(false)
   /// Ре-активація неактивних / тих, хто заблокував бота (кнопка «Нагадати їм»)
   smsInactivityReminderEnabled  Boolean  @default(false)
+  /// Рекламна розсилка каналу тим, до кого не достукались у Telegram (/admin/promo)
+  smsChannelPromoEnabled        Boolean  @default(false)
   /// Поріг типу збігу для платної відправки: exact | exact_approximate | all
   smsMatchTypeThreshold         String   @default("exact")
   /// Ліміт платних відправок на добу (захист бюджету)

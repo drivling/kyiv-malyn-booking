@@ -21,6 +21,7 @@ function settings(over: Partial<NotificationSettings> = {}): NotificationSetting
     smsAuthorConfirmationEnabled: false,
     smsBookingReminderEnabled: false,
     smsInactivityReminderEnabled: true,
+    smsChannelPromoEnabled: true,
     smsMatchTypeThreshold: 'exact',
     smsDailyCap: 50,
     smsMonthlyCap: 1000,
@@ -80,5 +81,22 @@ test('усе увімкнено → SMS відправляється', async () 
   const r = await sendPaidFallbackSms(stubPrisma(), ARGS);
   assert.equal(r.sent, true);
   assert.equal(r.via, 'sms');
+  assert.equal(fetchCalls, 1);
+});
+
+test('channelPromo: свій прапорець (smsChannelPromoEnabled)', async () => {
+  const promoArgs = { phone: '0991383172', text: 'реклама', useCase: 'channelPromo' as const };
+
+  setNotificationSettingsCacheForTests(settings({ smsChannelPromoEnabled: false }));
+  armFetch();
+  let r = await sendPaidFallbackSms(stubPrisma(), promoArgs);
+  assert.equal(r.sent, false);
+  assert.equal(r.reason, 'usecase_off');
+  assert.equal(fetchCalls, 0);
+
+  setNotificationSettingsCacheForTests(settings());
+  armFetch();
+  r = await sendPaidFallbackSms(stubPrisma(), promoArgs);
+  assert.equal(r.sent, true);
   assert.equal(fetchCalls, 1);
 });

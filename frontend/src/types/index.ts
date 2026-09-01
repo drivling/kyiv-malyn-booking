@@ -697,6 +697,7 @@ export interface NotificationSettings {
   smsAuthorConfirmationEnabled: boolean;
   smsBookingReminderEnabled: boolean;
   smsInactivityReminderEnabled: boolean;
+  smsChannelPromoEnabled: boolean;
   smsMatchTypeThreshold: SmsMatchTypeThreshold;
   smsDailyCap: number;
   smsMonthlyCap: number;
@@ -712,6 +713,7 @@ export type NotificationSettingsPatch = Partial<{
   smsAuthorConfirmationEnabled: boolean;
   smsBookingReminderEnabled: boolean;
   smsInactivityReminderEnabled: boolean;
+  smsChannelPromoEnabled: boolean;
   smsMatchTypeThreshold: SmsMatchTypeThreshold;
   smsDailyCap: number;
   smsMonthlyCap: number;

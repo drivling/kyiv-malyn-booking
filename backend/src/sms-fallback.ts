@@ -26,7 +26,8 @@ export type PaidSmsUseCase =
   | 'match'
   | 'authorConfirmation'
   | 'bookingReminder'
-  | 'inactivityReminder';
+  | 'inactivityReminder'
+  | 'channelPromo';
 export type PaidSmsMatchType = 'exact' | 'approximate' | 'same_day';
 
 export type PaidSmsContext = {
@@ -56,6 +57,7 @@ const USE_CASE_FLAG: Record<PaidSmsUseCase, keyof Awaited<ReturnType<typeof getN
     authorConfirmation: 'smsAuthorConfirmationEnabled',
     bookingReminder: 'smsBookingReminderEnabled',
     inactivityReminder: 'smsInactivityReminderEnabled',
+    channelPromo: 'smsChannelPromoEnabled',
   };
 
 /** Чи проходить тип збігу поточний поріг. */

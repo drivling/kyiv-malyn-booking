@@ -410,14 +410,19 @@ class ApiClient {
     limit?: number;
     delaysMs?: number[];
   }): Promise<{
-    sent: Array<{ phone: string; fullName: string | null }>;
+    sent: Array<{ phone: string; fullName: string | null; via?: 'telegram' | 'sms' }>;
     notFound: Array<{ phone: string; fullName: string | null }>;
+    smsSent?: number;
   }> {
     const { filter = 'no_telegram', limit, delaysMs } = options;
-    return this.request<{ sent: Array<{ phone: string; fullName: string | null }>; notFound: Array<{ phone: string; fullName: string | null }> }>(
-      '/admin/send-channel-promo',
-      { method: 'POST', body: JSON.stringify({ filter, limit, delaysMs }) }
-    );
+    return this.request<{
+      sent: Array<{ phone: string; fullName: string | null; via?: 'telegram' | 'sms' }>;
+      notFound: Array<{ phone: string; fullName: string | null }>;
+      smsSent?: number;
+    }>('/admin/send-channel-promo', {
+      method: 'POST',
+      body: JSON.stringify({ filter, limit, delaysMs }),
+    });
   }
 
   /** Персони з Telegram ботом для нагадувань. filter: all, no_active_viber, no_reminder_7_days. */

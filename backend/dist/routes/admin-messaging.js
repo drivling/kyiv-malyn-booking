@@ -23,6 +23,10 @@ function buildChannelPromoMessage() {
 Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
   `.trim();
 }
+/** Короткий plain-text для платного SMS (реклама каналу). Одна SMS. */
+function buildChannelPromoSms() {
+    return 'Маршрутки та попутки Київ↔Малин: бронювання на https://malin.kiev.ua';
+}
 function createAdminMessagingRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -330,6 +334,7 @@ function createAdminMessagingRouter(deps) {
                 persons = persons.slice(0, limit);
             }
             const message = buildChannelPromoMessage();
+            const smsText = buildChannelPromoSms();
             const sent = [];
             const notFound = [];
             for (let i = 0; i < persons.length; i++) {
@@ -337,11 +342,20 @@ function createAdminMessagingRouter(deps) {
                 const phone = (0, telegram_1.normalizePhone)(p.phoneNormalized);
                 if (!phone)
                     continue;
-                const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
+                let ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                     telegramUsername: p.telegramUsername ?? undefined,
                 });
+                let via = 'telegram';
+                if (!ok) {
+                    // Telegram (особистий акаунт) не дійшов — пробуємо платний SMS.
+                    const r = await (0, sms_fallback_1.sendPaidFallbackSms)(prisma, { phone, text: smsText, useCase: 'channelPromo' });
+                    if (r.sent) {
+                        ok = true;
+                        via = 'sms';
+                    }
+                }
                 if (ok) {
-                    sent.push({ phone: p.phoneNormalized, fullName: p.fullName });
+                    sent.push({ phone: p.phoneNormalized, fullName: p.fullName, via });
                     await prisma.person.update({
                         where: { id: p.id },
                         data: { telegramPromoSentAt: new Date() },
@@ -360,8 +374,9 @@ function createAdminMessagingRouter(deps) {
                         await new Promise((r) => setTimeout(r, delayMs));
                 }
             }
-            console.log(`📢 Channel promo (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent.length}, notFound=${notFound.length}`);
-            res.json({ sent, notFound });
+            const smsSent = sent.filter((s) => s.via === 'sms').length;
+            console.log(`📢 Channel promo (filter=${filter}${limit ? `, limit=${limit}` : ''}): sent=${sent.length} (sms=${smsSent}), notFound=${notFound.length}`);
+            res.json({ sent, notFound, smsSent });
         }
         catch (e) {
             console.error('❌ send-channel-promo:', e);
