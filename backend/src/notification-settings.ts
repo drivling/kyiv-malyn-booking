@@ -17,6 +17,7 @@ export const NOTIFICATION_SETTINGS_DEFAULTS = {
   smsMatchEnabled: false,
   smsAuthorConfirmationEnabled: false,
   smsBookingReminderEnabled: false,
+  smsInactivityReminderEnabled: false,
   smsMatchTypeThreshold: 'exact' as SmsMatchTypeThreshold,
   smsDailyCap: 50,
   smsMonthlyCap: 1000,
@@ -55,6 +56,7 @@ export type NotificationSettingsPatch = Partial<{
   smsMatchEnabled: boolean;
   smsAuthorConfirmationEnabled: boolean;
   smsBookingReminderEnabled: boolean;
+  smsInactivityReminderEnabled: boolean;
   smsMatchTypeThreshold: string;
   smsDailyCap: number;
   smsMonthlyCap: number;
@@ -100,6 +102,11 @@ export async function updateNotificationSettings(
     data.smsBookingReminderEnabled = coerceBool(
       patch.smsBookingReminderEnabled,
       'smsBookingReminderEnabled'
+    );
+  if ('smsInactivityReminderEnabled' in patch)
+    data.smsInactivityReminderEnabled = coerceBool(
+      patch.smsInactivityReminderEnabled,
+      'smsInactivityReminderEnabled'
     );
 
   if ('smsMatchTypeThreshold' in patch) {

@@ -22,7 +22,11 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-export type PaidSmsUseCase = 'match' | 'authorConfirmation' | 'bookingReminder';
+export type PaidSmsUseCase =
+  | 'match'
+  | 'authorConfirmation'
+  | 'bookingReminder'
+  | 'inactivityReminder';
 export type PaidSmsMatchType = 'exact' | 'approximate' | 'same_day';
 
 export type PaidSmsContext = {
@@ -51,6 +55,7 @@ const USE_CASE_FLAG: Record<PaidSmsUseCase, keyof Awaited<ReturnType<typeof getN
     match: 'smsMatchEnabled',
     authorConfirmation: 'smsAuthorConfirmationEnabled',
     bookingReminder: 'smsBookingReminderEnabled',
+    inactivityReminder: 'smsInactivityReminderEnabled',
   };
 
 /** Чи проходить тип збігу поточний поріг. */

@@ -446,6 +446,8 @@ model NotificationSettings {
   smsAuthorConfirmationEnabled  Boolean  @default(false)
   /// Нагадування про бронювання для тих, хто заблокував/не запускав бота
   smsBookingReminderEnabled     Boolean  @default(false)
+  /// Ре-активація неактивних / тих, хто заблокував бота (кнопка «Нагадати їм»)
+  smsInactivityReminderEnabled  Boolean  @default(false)
   /// Поріг типу збігу для платної відправки: exact | exact_approximate | all
   smsMatchTypeThreshold         String   @default("exact")
   /// Ліміт платних відправок на добу (захист бюджету)

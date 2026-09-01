@@ -52,6 +52,7 @@ export function createAdminNotificationSettingsRouter(deps: { prisma: PrismaClie
         'smsMatchEnabled',
         'smsAuthorConfirmationEnabled',
         'smsBookingReminderEnabled',
+        'smsInactivityReminderEnabled',
         'smsMatchTypeThreshold',
         'smsDailyCap',
         'smsMonthlyCap',

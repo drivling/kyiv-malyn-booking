@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAdminMessagingRouter = createAdminMessagingRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
+const sms_fallback_1 = require("../sms-fallback");
 const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
 const telegram_bot_blocked_1 = require("../telegram-bot-blocked");
@@ -242,8 +243,10 @@ function createAdminMessagingRouter(deps) {
                 : [2, 15, 25, 30];
             const delaysMs = delaysSec.length > 0 ? delaysSec.map((s) => s * 1000) : [];
             const message = (0, telegram_1.buildInactivityReminderMessage)();
+            const smsText = (0, telegram_1.buildInactivityReminderSms)();
             let sent = 0;
             let failed = 0;
+            let smsSent = 0;
             for (let i = 0; i < phones.length; i++) {
                 const rawPhone = phones[i];
                 const phone = (0, telegram_1.normalizePhone)(rawPhone);
@@ -255,19 +258,33 @@ function createAdminMessagingRouter(deps) {
                     const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                         telegramUsername: person?.telegramUsername ?? undefined,
                     });
-                    if (ok)
+                    if (ok) {
                         sent++;
-                    else
-                        failed++;
+                    }
+                    else {
+                        // Особистий акаунт не дійшов (заблокований бот + прихований номер) —
+                        // пробуємо платний SMS (усі запобіжники всередині sendPaidFallbackSms).
+                        const r = await (0, sms_fallback_1.sendPaidFallbackSms)(prisma, {
+                            phone,
+                            text: smsText,
+                            useCase: 'inactivityReminder',
+                        });
+                        if (r.sent)
+                            smsSent++;
+                        else
+                            failed++;
+                    }
                 }
                 if (delaysMs.length > 0 && i < phones.length - 1) {
                     const delayMs = delaysMs[i % delaysMs.length] ?? 30000;
                     await new Promise((r) => setTimeout(r, delayMs));
                 }
             }
-            const resultMessage = `Відправлено від вашого імені: ${sent}, помилок: ${failed}`;
-            console.log(`📢 Reminder via user account: ${sent} sent, ${failed} failed`);
-            res.json({ success: true, sent, failed, message: resultMessage });
+            const resultMessage = `Відправлено від вашого імені: ${sent}` +
+                (smsSent > 0 ? `, платних SMS: ${smsSent}` : '') +
+                `, помилок: ${failed}`;
+            console.log(`📢 Reminder via user account: ${sent} sent, ${smsSent} sms, ${failed} failed`);
+            res.json({ success: true, sent, smsSent, failed, message: resultMessage });
         }
         catch (e) {
             console.error('❌ send-reminder-via-user-account:', e);

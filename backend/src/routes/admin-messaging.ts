@@ -2,6 +2,7 @@ import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import {
   buildInactivityReminderMessage,
+  buildInactivityReminderSms,
   getTelegramScenarioLinks,
   getPersonByPhone,
   isTelegramEnabled,
@@ -10,6 +11,7 @@ import {
   sendMessageViaUserAccount,
   sendReferralInvitePromo,
 } from '../telegram';
+import { sendPaidFallbackSms } from '../sms-fallback';
 import { getTelegramReminderWhere, getChannelPromoWhere, PROMO_NOT_FOUND_SENTINEL } from '../index-helpers';
 import { requireAdmin } from '../middleware/require-admin';
 import { isTelegramBotBlockedByUserError } from '../telegram-bot-blocked';
@@ -255,8 +257,10 @@ r.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res) =
       : [2, 15, 25, 30];
     const delaysMs = delaysSec.length > 0 ? delaysSec.map((s) => s * 1000) : [];
     const message = buildInactivityReminderMessage();
+    const smsText = buildInactivityReminderSms();
     let sent = 0;
     let failed = 0;
+    let smsSent = 0;
     for (let i = 0; i < phones.length; i++) {
       const rawPhone = phones[i];
       const phone = normalizePhone(rawPhone);
@@ -267,17 +271,31 @@ r.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res) =
         const ok = await sendMessageViaUserAccount(phone, message, {
           telegramUsername: person?.telegramUsername ?? undefined,
         });
-        if (ok) sent++;
-        else failed++;
+        if (ok) {
+          sent++;
+        } else {
+          // Особистий акаунт не дійшов (заблокований бот + прихований номер) —
+          // пробуємо платний SMS (усі запобіжники всередині sendPaidFallbackSms).
+          const r = await sendPaidFallbackSms(prisma, {
+            phone,
+            text: smsText,
+            useCase: 'inactivityReminder',
+          });
+          if (r.sent) smsSent++;
+          else failed++;
+        }
       }
       if (delaysMs.length > 0 && i < phones.length - 1) {
         const delayMs = delaysMs[i % delaysMs.length] ?? 30000;
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
-    const resultMessage = `Відправлено від вашого імені: ${sent}, помилок: ${failed}`;
-    console.log(`📢 Reminder via user account: ${sent} sent, ${failed} failed`);
-    res.json({ success: true, sent, failed, message: resultMessage });
+    const resultMessage =
+      `Відправлено від вашого імені: ${sent}` +
+      (smsSent > 0 ? `, платних SMS: ${smsSent}` : '') +
+      `, помилок: ${failed}`;
+    console.log(`📢 Reminder via user account: ${sent} sent, ${smsSent} sms, ${failed} failed`);
+    res.json({ success: true, sent, smsSent, failed, message: resultMessage });
   } catch (e) {
     console.error('❌ send-reminder-via-user-account:', e);
     res.status(500).json({ error: 'Failed to send reminder via user account' });

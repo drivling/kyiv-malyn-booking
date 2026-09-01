@@ -16,6 +16,7 @@ exports.NOTIFICATION_SETTINGS_DEFAULTS = {
     smsMatchEnabled: false,
     smsAuthorConfirmationEnabled: false,
     smsBookingReminderEnabled: false,
+    smsInactivityReminderEnabled: false,
     smsMatchTypeThreshold: 'exact',
     smsDailyCap: 50,
     smsMonthlyCap: 1000,
@@ -75,6 +76,8 @@ async function updateNotificationSettings(prisma, patch) {
         data.smsAuthorConfirmationEnabled = coerceBool(patch.smsAuthorConfirmationEnabled, 'smsAuthorConfirmationEnabled');
     if ('smsBookingReminderEnabled' in patch)
         data.smsBookingReminderEnabled = coerceBool(patch.smsBookingReminderEnabled, 'smsBookingReminderEnabled');
+    if ('smsInactivityReminderEnabled' in patch)
+        data.smsInactivityReminderEnabled = coerceBool(patch.smsInactivityReminderEnabled, 'smsInactivityReminderEnabled');
     if ('smsMatchTypeThreshold' in patch) {
         const t = String(patch.smsMatchTypeThreshold);
         if (!exports.SMS_MATCH_TYPE_THRESHOLDS.includes(t)) {

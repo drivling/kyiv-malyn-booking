@@ -31,6 +31,7 @@ exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessage
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
 exports.sendTripReminderSmsOnly = sendTripReminderSmsOnly;
+exports.buildInactivityReminderSms = buildInactivityReminderSms;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
 exports.sendTelegramHtmlToChat = sendTelegramHtmlToChat;
 exports.fetchTelegramFileById = fetchTelegramFileById;
@@ -2319,6 +2320,10 @@ exports.sendTripReminderToday = sendTripReminderToday;
 /**
  * Текст нагадування неактивним (з посиланнями на сценарії). Використовується ботом та відправкою від особистого акаунта.
  */
+/** Короткий plain-text для платного SMS (реактивація неактивних). Одна SMS. */
+function buildInactivityReminderSms() {
+    return 'Давно не бачилися! Попутки Київ↔Малин на https://malin.kiev.ua';
+}
 function buildInactivityReminderMessage() {
     const links = getTelegramScenarioLinks();
     return `

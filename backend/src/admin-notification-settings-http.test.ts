@@ -18,6 +18,7 @@ const BASE_ROW = {
   smsMatchEnabled: false,
   smsAuthorConfirmationEnabled: false,
   smsBookingReminderEnabled: false,
+  smsInactivityReminderEnabled: false,
   smsMatchTypeThreshold: 'exact',
   smsDailyCap: 50,
   smsMonthlyCap: 1000,
@@ -78,6 +79,17 @@ test('PATCH: зберігає прапорці', async () => {
   assert.equal(res.body.smsFallbackEnabled, true);
   assert.equal(res.body.smsMatchEnabled, true);
   assert.equal(h.upsertArgs.at(-1)?.smsFallbackEnabled, true);
+});
+
+test('PATCH: прапорець реактивації (smsInactivityReminderEnabled)', async () => {
+  const h = makeApp();
+  const res = await request(h.app)
+    .patch('/admin/notification-settings')
+    .set('Authorization', await token(h.app))
+    .send({ smsInactivityReminderEnabled: true })
+    .expect(200);
+  assert.equal(res.body.smsInactivityReminderEnabled, true);
+  assert.equal(h.upsertArgs.at(-1)?.smsInactivityReminderEnabled, true);
 });
 
 test('PATCH: порожній/маскований токен не перезаписує наявний', async () => {

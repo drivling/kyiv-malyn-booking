@@ -2935,6 +2935,11 @@ ${driverLine}${supportPhoneLine}
 /**
  * Текст нагадування неактивним (з посиланнями на сценарії). Використовується ботом та відправкою від особистого акаунта.
  */
+/** Короткий plain-text для платного SMS (реактивація неактивних). Одна SMS. */
+export function buildInactivityReminderSms(): string {
+  return 'Давно не бачилися! Попутки Київ↔Малин на https://malin.kiev.ua';
+}
+
 export function buildInactivityReminderMessage(): string {
   const links = getTelegramScenarioLinks();
   return `

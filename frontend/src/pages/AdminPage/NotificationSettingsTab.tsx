@@ -18,6 +18,7 @@ type Draft = {
   smsMatchEnabled: boolean;
   smsAuthorConfirmationEnabled: boolean;
   smsBookingReminderEnabled: boolean;
+  smsInactivityReminderEnabled: boolean;
   smsMatchTypeThreshold: SmsMatchTypeThreshold;
   smsDailyCap: string;
   smsMonthlyCap: string;
@@ -34,6 +35,7 @@ const USE_CASE_LABEL: Record<string, string> = {
   match: 'збіг пари',
   authorConfirmation: 'підтвердження автору',
   bookingReminder: 'нагадування',
+  inactivityReminder: 'реактивація',
 };
 
 function toDraft(s: NotificationSettings): Draft {
@@ -42,6 +44,7 @@ function toDraft(s: NotificationSettings): Draft {
     smsMatchEnabled: s.smsMatchEnabled,
     smsAuthorConfirmationEnabled: s.smsAuthorConfirmationEnabled,
     smsBookingReminderEnabled: s.smsBookingReminderEnabled,
+    smsInactivityReminderEnabled: s.smsInactivityReminderEnabled,
     smsMatchTypeThreshold: s.smsMatchTypeThreshold,
     smsDailyCap: String(s.smsDailyCap),
     smsMonthlyCap: String(s.smsMonthlyCap),
@@ -96,6 +99,8 @@ export const NotificationSettingsTab: React.FC = () => {
       body.smsAuthorConfirmationEnabled = draft.smsAuthorConfirmationEnabled;
     if (draft.smsBookingReminderEnabled !== settings.smsBookingReminderEnabled)
       body.smsBookingReminderEnabled = draft.smsBookingReminderEnabled;
+    if (draft.smsInactivityReminderEnabled !== settings.smsInactivityReminderEnabled)
+      body.smsInactivityReminderEnabled = draft.smsInactivityReminderEnabled;
     if (draft.smsMatchTypeThreshold !== settings.smsMatchTypeThreshold)
       body.smsMatchTypeThreshold = draft.smsMatchTypeThreshold;
 
@@ -207,6 +212,14 @@ export const NotificationSettingsTab: React.FC = () => {
             onChange={(e) => patch({ smsBookingReminderEnabled: e.target.checked })}
           />
           <span>Нагадування про бронювання (для тих, хто не в боті / заблокував)</span>
+        </label>
+        <label className="notif-check">
+          <input
+            type="checkbox"
+            checked={draft.smsInactivityReminderEnabled}
+            onChange={(e) => patch({ smsInactivityReminderEnabled: e.target.checked })}
+          />
+          <span>Реактивація неактивних / заблокували бота (кнопка «Нагадати їм»)</span>
         </label>
       </section>
 
