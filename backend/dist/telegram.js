@@ -23,6 +23,7 @@ exports.getNextTechnicalPhoneNumber = getNextTechnicalPhoneNumber;
 exports.parseBookOdDateCallback = parseBookOdDateCallback;
 exports.buildElektrichkaPurchaseMessage = buildElektrichkaPurchaseMessage;
 exports.buildElektrichkaPurchaseKeyboard = buildElektrichkaPurchaseKeyboard;
+exports.buildAuthorConfirmationSms = buildAuthorConfirmationSms;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
 exports.resolveUsernameByPhoneFromTelegram = resolveUsernameByPhoneFromTelegram;
 exports.fetchTelegramGroupMessages = fetchTelegramGroupMessages;
@@ -1617,17 +1618,19 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
     }
     return message;
 }
-/** Короткий plain-text для платного SMS автору оголошення (без HTML). */
+/** Короткий plain-text для платного SMS автору оголошення (без HTML). Тримаємо в одну SMS. */
 function buildAuthorConfirmationSms(listing) {
-    const dateStr = listing.date instanceof Date
-        ? formatDate(listing.date)
-        : listing.date && String(listing.date).slice(0, 10)
-            ? formatDate(new Date(listing.date))
-            : '';
+    const d = listing.date instanceof Date
+        ? listing.date
+        : listing.date
+            ? new Date(listing.date)
+            : null;
+    // dd.mm без року
+    const dateStr = d && !Number.isNaN(d.getTime()) ? formatDate(d).replace(/\.\d{4}$/, '') : '';
+    const route = getRouteName(listing.route).replace(/\s*→\s*/g, '→');
     const time = listing.departureTime ? ` ${listing.departureTime}` : '';
-    return (`Ваше оголошення ${getRouteName(listing.route)} ${dateStr}${time} опубліковано на malin.kiev.ua. ` +
-        `Інші учасники побачать його і зателефонують вам. ` +
-        `Ви отримали це як учасник групи попуток Київ–Малин.`);
+    return (`Ваше оголошення ${route} ${dateStr}${time} опубліковано на https://malin.kiev.ua. ` +
+        `Інші люди побачать його і зателефонують вам.`);
 }
 /**
  * Знайти ім'я в Telegram по номеру телефону (Python send_message.py --resolve).

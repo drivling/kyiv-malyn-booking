@@ -2093,23 +2093,25 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
   return message;
 }
 
-/** Короткий plain-text для платного SMS автору оголошення (без HTML). */
-function buildAuthorConfirmationSms(listing: {
+/** Короткий plain-text для платного SMS автору оголошення (без HTML). Тримаємо в одну SMS. */
+export function buildAuthorConfirmationSms(listing: {
   route: string;
   date: Date | string;
   departureTime: string | null;
 }): string {
-  const dateStr =
+  const d =
     listing.date instanceof Date
-      ? formatDate(listing.date)
-      : listing.date && String(listing.date).slice(0, 10)
-        ? formatDate(new Date(listing.date))
-        : '';
+      ? listing.date
+      : listing.date
+        ? new Date(listing.date)
+        : null;
+  // dd.mm без року
+  const dateStr = d && !Number.isNaN(d.getTime()) ? formatDate(d).replace(/\.\d{4}$/, '') : '';
+  const route = getRouteName(listing.route).replace(/\s*→\s*/g, '→');
   const time = listing.departureTime ? ` ${listing.departureTime}` : '';
   return (
-    `Ваше оголошення ${getRouteName(listing.route)} ${dateStr}${time} опубліковано на malin.kiev.ua. ` +
-    `Інші учасники побачать його і зателефонують вам. ` +
-    `Ви отримали це як учасник групи попуток Київ–Малин.`
+    `Ваше оголошення ${route} ${dateStr}${time} опубліковано на https://malin.kiev.ua. ` +
+    `Інші люди побачать його і зателефонують вам.`
   );
 }
 

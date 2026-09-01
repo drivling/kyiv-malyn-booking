@@ -16,6 +16,7 @@ import {
   getAnnounceDraft,
   resetTelegramBotForTests,
   resetSpawnForTests,
+  buildAuthorConfirmationSms,
   BEHAVIOR_PROMO_SCENARIO_LABELS,
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
@@ -24,6 +25,29 @@ import {
 afterEach(() => {
   resetTelegramBotForTests();
   resetSpawnForTests();
+});
+
+test('buildAuthorConfirmationSms: компактний текст в одну SMS', () => {
+  const text = buildAuthorConfirmationSms({
+    route: 'Malyn-Korosten',
+    date: new Date('2026-09-01T12:00:00.000Z'),
+    departureTime: '14:00-17:00',
+  });
+  assert.equal(
+    text,
+    'Ваше оголошення Малин→Коростень 01.09 14:00-17:00 опубліковано на https://malin.kiev.ua. Інші люди побачать його і зателефонують вам.',
+  );
+  assert.equal(text.includes('2026'), false); // без року
+  assert.equal(text.includes(' → '), false); // стрілка без пробілів
+});
+
+test('buildAuthorConfirmationSms: без часу', () => {
+  const text = buildAuthorConfirmationSms({
+    route: 'Kyiv-Malyn',
+    date: '2026-09-05T12:00:00.000Z',
+    departureTime: null,
+  });
+  assert.match(text, /^Ваше оголошення Київ→Малин 05\.09 опубліковано на https:\/\/malin\.kiev\.ua\./);
 });
 
 test('normalizePhone', () => {
