@@ -62,6 +62,10 @@ export function serializeViberListing(row: {
     date: row.date instanceof Date ? row.date.toISOString() : row.date,
     createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
     updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+    authorNotifiedAt:
+      row.authorNotifiedAt instanceof Date
+        ? row.authorNotifiedAt.toISOString()
+        : (row.authorNotifiedAt ?? null),
   };
 }
 

@@ -305,6 +305,9 @@ model ViberListing {
   priceUah      Int?     // Ціна в гривнях (опціонально)
   isActive      Boolean  @default(true) // Чи активне оголошення
   personId      Int?     // Посилання на людину
+  /// Коли автору надіслано підтвердження про публікацію (бот / особистий акаунт / платне SMS).
+  /// Одне сповіщення на оголошення: повторні пости, мерж і апдейти не спамлять людину.
+  authorNotifiedAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

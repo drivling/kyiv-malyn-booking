@@ -219,6 +219,8 @@ export interface ViberListing {
   notes: string | null;
   priceUah?: number | null;
   isActive: boolean;
+  /** Коли автору надіслано підтвердження про публікацію (бот / акаунт / SMS). null — ще ні. */
+  authorNotifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

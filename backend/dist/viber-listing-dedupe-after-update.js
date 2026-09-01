@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.listingsAreMergeDuplicates = listingsAreMergeDuplicates;
+exports.buildMergedUpdateData = buildMergedUpdateData;
 exports.dedupeViberListingsAfterUpdate = dedupeViberListingsAfterUpdate;
 const index_helpers_1 = require("./index-helpers");
 const telegram_1 = require("./telegram");
@@ -34,6 +35,8 @@ function buildMergedUpdateData(survivor, twin) {
         phone: survivor.phone?.trim() ? survivor.phone : twin.phone,
         personId: survivor.personId ?? twin.personId,
         isActive: survivor.isActive || twin.isActive,
+        // Якщо автора вже сповістили хоч по одному з рядків — не сповіщаємо повторно.
+        authorNotifiedAt: survivor.authorNotifiedAt ?? twin.authorNotifiedAt,
     };
 }
 async function repointRideShareRequests(tx, fromId, toId) {
