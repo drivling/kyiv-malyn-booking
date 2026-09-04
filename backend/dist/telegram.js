@@ -642,7 +642,7 @@ function buildMatchSms(counterpart, kind) {
     const tel = '+' + (0, exports.normalizePhone)(counterpart.phone);
     return (`Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +
         `є ${who} ${name}, тел ${tel}. ` +
-        `Ви отримали це як учасник групи попуток Київ–Малин.`);
+        `https://malin.kiev.ua`);
 }
 async function sleepTelethonBatchDelay() {
     if (isTelegramUserSenderEnabled()) {

@@ -872,7 +872,7 @@ function buildMatchSms(
   return (
     `Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +
     `є ${who} ${name}, тел ${tel}. ` +
-    `Ви отримали це як учасник групи попуток Київ–Малин.`
+    `https://malin.kiev.ua`
   );
 }
 
