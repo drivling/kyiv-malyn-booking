@@ -17,6 +17,7 @@ import {
   sendBehaviorPromoMessage,
   sendMessageViaUserAccount,
   fetchTelegramGroupMessages,
+  describeTelegramUserSessionError,
 } from './telegram';
 import type { PrismaClient } from '@prisma/client';
 
@@ -227,4 +228,24 @@ test('fetchTelegramGroupMessages: null без env', async () => {
   const text = await fetchTelegramGroupMessages({ fullFetch: true });
   assert.equal(text.text, null);
   assert.ok(text.error);
+});
+
+test('describeTelegramUserSessionError: AUTH_KEY_DUPLICATED — підказка про сесію, не про групу', () => {
+  const hint = describeTelegramUserSessionError(
+    'Помилка: The authorization key (session file) was used under two different IP addresses simultaneously'
+  );
+  assert.ok(hint);
+  assert.ok(hint!.includes('auth_session.py'));
+  assert.ok(!hint!.includes('PoDoroguem'));
+});
+
+test('describeTelegramUserSessionError: невідома помилка → null', () => {
+  assert.equal(describeTelegramUserSessionError('python exit 2'), null);
+  assert.equal(describeTelegramUserSessionError(''), null);
+  assert.equal(describeTelegramUserSessionError(undefined), null);
+});
+
+test('describeTelegramUserSessionError: locked і неавторизована сесія', () => {
+  assert.ok(describeTelegramUserSessionError('sqlite3.OperationalError: database is locked'));
+  assert.ok(describeTelegramUserSessionError('Сесія не авторизована. Запустіть auth_session.py'));
 });

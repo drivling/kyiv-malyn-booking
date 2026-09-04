@@ -2448,6 +2448,43 @@ async function afterTelegramListingImported(listing: {
 }
 
 /**
+ * Розпізнати типові помилки Telethon-сесії, щоб підказка в боті була по суті,
+ * а не «перевірте, чи ви в групі» (найчастіша плутанина при AUTH_KEY_DUPLICATED).
+ * Повертає готовий текст або null, якщо помилка невідома.
+ */
+export function describeTelegramUserSessionError(detail?: string | null): string | null {
+  const text = (detail || '').toLowerCase();
+  if (!text) return null;
+  if (text.includes('auth_key_duplicated') || text.includes('two different ip addresses')) {
+    return (
+      '🔑 Сесію Telegram-акаунта відкликано Telegram: один і той самий session-файл ' +
+      'працював з двох IP одночасно (локальний запуск + Railway).\n' +
+      'Це не про членство в групі — доступ до групи ні до чого.\n' +
+      'Потрібна нова авторизація: backend/telegram-user → python3 auth_session.py, ' +
+      'потім оновити session-файл на сервері.'
+    );
+  }
+  if (
+    text.includes('auth_key_unregistered') ||
+    text.includes('session_revoked') ||
+    text.includes('user_deactivated') ||
+    text.includes('не авторизована')
+  ) {
+    return (
+      '🔑 Сесія Telegram-акаунта недійсна (відкликана або розлогінена). ' +
+      'Перезапустіть авторизацію: backend/telegram-user → python3 auth_session.py.'
+    );
+  }
+  if (text.includes('database is locked')) {
+    return (
+      '⏳ Session-файл зайнятий іншим Telethon-процесом (lunch listener). ' +
+      'Спробуйте ще раз за кілька секунд.'
+    );
+  }
+  return null;
+}
+
+/**
  * Завантажити нові повідомлення з групи PoDoroguem і імпортувати їх у Viber listings.
  * Використовує TelegramFetchState — тільки нові повідомлення.
  * Для cron: POST /telegram/fetch-group-messages кожні 2 год.
@@ -5619,10 +5656,12 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         const rawText = fetched.text;
         if (rawText === null) {
           const detail = fetched.error ? `\n\n<code>${fetched.error.replace(/</g, '&lt;').slice(0, 300)}</code>` : '';
+          const sessionHint = describeTelegramUserSessionError(fetched.error);
           await bot?.editMessageText(
-            '❌ Не вдалося завантажити повідомлення. Перевірте:\n' +
-            '• Ваш акаунт додано в групу https://t.me/PoDoroguem\n' +
-            '• TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH налаштовані' +
+            (sessionHint ??
+              '❌ Не вдалося завантажити повідомлення. Перевірте:\n' +
+              '• Ваш акаунт додано в групу https://t.me/PoDoroguem\n' +
+              '• TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH налаштовані') +
             detail,
             { chat_id: chatId, message_id: statusMsg?.message_id, parse_mode: 'HTML' }
           );
