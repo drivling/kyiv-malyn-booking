@@ -2201,7 +2201,11 @@ export async function resolveUsernameByPhoneFromTelegram(phone: string): Promise
   }));
 }
 
-const TELEGRAM_TOPICS = [2, 6, 108] as const;
+/** Групи-джерела для fetch_telegram_messages.py. topicId 0 = плоска група без топіків. */
+const TELEGRAM_GROUPS: Array<{ chat: string; topicIds: number[] }> = [
+  { chat: 'PoDoroguem', topicIds: [2, 6, 108] },
+  { chat: 'poputka_zhytomyr_kyiv', topicIds: [0] },
+];
 
 export type FetchTelegramGroupMessagesResult = {
   /** Текст для парсера; "" = успіх без нових; null = помилка */
@@ -2236,17 +2240,19 @@ export async function fetchTelegramGroupMessages(options?: {
   const hours = options?.hours;
   const fullFetch = options?.fullFetch ?? false;
 
-  let lastIds: Record<string, number> = {};
+  // Вкладена мапа курсорів по групах: { [chat]: { [topicId]: lastMessageId } }
+  const lastIds: Record<string, Record<string, number>> = {};
+  for (const g of TELEGRAM_GROUPS) {
+    lastIds[g.chat] = {};
+    for (const t of g.topicIds) lastIds[g.chat][String(t)] = 0;
+  }
   if (!fullFetch) {
     const states = await tgPrisma.telegramFetchState.findMany();
     for (const s of states) {
-      lastIds[String(s.topicId)] = s.lastMessageId;
+      const chat = s.chat || 'PoDoroguem';
+      if (!lastIds[chat]) lastIds[chat] = {};
+      lastIds[chat][String(s.topicId)] = s.lastMessageId;
     }
-    for (const t of TELEGRAM_TOPICS) {
-      if (!(String(t) in lastIds)) lastIds[String(t)] = 0;
-    }
-  } else {
-    lastIds = { '2': 0, '6': 0, '108': 0 };
   }
 
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
@@ -2306,15 +2312,29 @@ export async function fetchTelegramGroupMessages(options?: {
 
     if (newLastIdsJson) {
       try {
-        const newLastIds = JSON.parse(newLastIdsJson) as Record<string, number>;
-        for (const [topicStr, msgId] of Object.entries(newLastIds)) {
-          const topicId = parseInt(topicStr, 10);
-          if (Number.isNaN(topicId) || msgId <= 0) continue;
-          await tgPrisma.telegramFetchState.upsert({
-            where: { topicId },
-            create: { topicId, lastMessageId: msgId },
-            update: { lastMessageId: msgId },
-          });
+        const parsed = JSON.parse(newLastIdsJson) as unknown;
+        // Приймаємо вкладений { chat: { topic: id } } і старий плоский { topic: id } (→ PoDoroguem)
+        const nested: Record<string, Record<string, number>> = {};
+        if (parsed && typeof parsed === 'object') {
+          for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+            if (v && typeof v === 'object') {
+              nested[k] = v as Record<string, number>;
+            } else {
+              (nested.PoDoroguem ??= {})[k] = Number(v);
+            }
+          }
+        }
+        for (const [chat, topics] of Object.entries(nested)) {
+          for (const [topicStr, msgIdRaw] of Object.entries(topics)) {
+            const topicId = parseInt(topicStr, 10);
+            const msgId = Number(msgIdRaw);
+            if (Number.isNaN(topicId) || !Number.isFinite(msgId) || msgId <= 0) continue;
+            await tgPrisma.telegramFetchState.upsert({
+              where: { chat_topicId: { chat, topicId } },
+              create: { chat, topicId, lastMessageId: msgId },
+              update: { lastMessageId: msgId },
+            });
+          }
         }
       } catch (e) {
         console.error('fetchTelegramGroupMessages: parse LAST_IDS', e);

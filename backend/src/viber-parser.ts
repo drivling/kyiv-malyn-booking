@@ -561,7 +561,7 @@ export function extractRoute(text: string): string {
 
   // Структуровані bot-повідомлення: "[Бот] Kyiv-Malyn 2026-07-24 ..."
   const botRoute = normalizedText.match(
-    /\b(kyiv-malyn|malyn-kyiv|malyn-zhytomyr|zhytomyr-malyn|malyn-korosten|korosten-malyn|malyn-bucha|bucha-malyn|bucha-irpin|irpin-bucha|bucha-korosten|korosten-bucha|malyn-irpin|irpin-malyn|kyiv-bucha|bucha-kyiv|kyiv-irpin|irpin-kyiv)\b/i
+    /\b(kyiv-malyn|malyn-kyiv|malyn-zhytomyr|zhytomyr-malyn|kyiv-zhytomyr|zhytomyr-kyiv|malyn-korosten|korosten-malyn|malyn-bucha|bucha-malyn|bucha-irpin|irpin-bucha|bucha-korosten|korosten-bucha|malyn-irpin|irpin-malyn|kyiv-bucha|bucha-kyiv|kyiv-irpin|irpin-kyiv)\b/i
   );
   if (botRoute) {
     const map: Record<string, string> = {
@@ -569,6 +569,8 @@ export function extractRoute(text: string): string {
       'malyn-kyiv': 'Malyn-Kyiv',
       'malyn-zhytomyr': 'Malyn-Zhytomyr',
       'zhytomyr-malyn': 'Zhytomyr-Malyn',
+      'kyiv-zhytomyr': 'Kyiv-Zhytomyr',
+      'zhytomyr-kyiv': 'Zhytomyr-Kyiv',
       'malyn-korosten': 'Malyn-Korosten',
       'korosten-malyn': 'Korosten-Malyn',
       'malyn-bucha': 'Malyn-Bucha',
@@ -656,6 +658,16 @@ export function extractRoute(text: string): string {
   ) {
     if (/(?:ірпін|ирпен|irpin).*(?:ки[їєи][вї]|киев|академ)/i.test(normalizedText)) return 'Irpin-Kyiv';
     return 'Kyiv-Irpin';
+  }
+
+  // Житомир ↔ Київ напряму (група poputka_zhytomyr_kyiv). Малин тут вже не зустрічається
+  // (усі коридори через Малин перевірені вище). "Житомирська" (метро в Києві) не рахуємо.
+  {
+    const zMatch = normalizedText.match(/житомир(?!ська)/i);
+    const kMatch = normalizedText.match(/ки[їєи][вї]|киев/i);
+    if (zMatch && kMatch) {
+      return (zMatch.index ?? 0) < (kMatch.index ?? 0) ? 'Zhytomyr-Kyiv' : 'Kyiv-Zhytomyr';
+    }
   }
 
   return 'Unknown';
