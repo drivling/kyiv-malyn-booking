@@ -254,6 +254,15 @@ test('extractRoute', () => {
   assert.equal(extractRoute('Малин мЖитомирська'), 'Malyn-Kyiv');
   assert.equal(extractRoute('Малин метро Житомирська'), 'Malyn-Kyiv');
 
+  // Житомир ↔ Київ напряму (група poputka_zhytomyr_kyiv)
+  assert.equal(extractRoute('Житомир Київ 8:00'), 'Zhytomyr-Kyiv');
+  assert.equal(extractRoute('Житомир - Київ, виїзд зранку'), 'Zhytomyr-Kyiv');
+  assert.equal(extractRoute('Київ Житомир завтра о 17'), 'Kyiv-Zhytomyr');
+  assert.equal(extractRoute('з Києва до Житомира'), 'Kyiv-Zhytomyr');
+  assert.equal(extractRoute('[Бот] Zhytomyr-Kyiv 2026-09-02 08:00'), 'Zhytomyr-Kyiv');
+  // метро Житомирська в Києві — не місто Житомир, і не Zhytomyr-Kyiv
+  assert.equal(extractRoute('метро Житомирська, потрібно в Київ'), 'Unknown');
+
   assert.equal(extractRoute('Коростень-Буча 2026-08-18 12:00-14:00'), 'Korosten-Bucha');
   assert.equal(extractRoute('[Бот] Bucha-Irpin 2026-08-12 11:55'), 'Bucha-Irpin');
   assert.equal(extractRoute('[Бот-пасажир] Bucha-Korosten 2026-08-13 15:00'), 'Bucha-Korosten');

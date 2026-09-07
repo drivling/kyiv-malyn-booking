@@ -422,9 +422,13 @@ model ReferralProgramSettings {
 /// Останній імпорт з Telegram групи PoDoroguem — щоб парсити тільки нові повідомлення
 model TelegramFetchState {
   id             Int      @id @default(autoincrement())
-  topicId        Int      @unique // 2, 6, 108
+  /// Група-джерело: "PoDoroguem" (форум з топіками) або "poputka_zhytomyr_kyiv" (плоска група)
+  chat           String   @default("PoDoroguem")
+  topicId        Int      // 2/6/108 для PoDoroguem; 0 для плоских груп без топіків
   lastMessageId  Int      @default(0) // останній оброблений message ID
   updatedAt      DateTime @updatedAt
+
+  @@unique([chat, topicId])
 }
 
 /// Глобальні налаштування столової (singleton id=1)

@@ -196,16 +196,44 @@ test('fetchTelegramGroupMessages: текст і upsert last ids', async () => {
       telegramFetchState: { findMany: vi.fn(async () => []), upsert },
     })
   );
+  // Старий плоский формат __LAST_IDS__ трактується як PoDoroguem
   setSpawnForTests(mockSpawnFetch('New msg\n__LAST_IDS__{"2":42}', 0));
   const text = await fetchTelegramGroupMessages({ limit: 5, fullFetch: true });
   assert.equal(text.text, 'New msg');
   assert.equal(upsert.mock.calls.length, 1);
   const up = upsert.mock.calls[0]![0] as {
-    where: { topicId: number };
-    create: { lastMessageId: number };
+    where: { chat_topicId: { chat: string; topicId: number } };
+    create: { chat: string; lastMessageId: number };
   };
-  assert.equal(up.where.topicId, 2);
+  assert.equal(up.where.chat_topicId.chat, 'PoDoroguem');
+  assert.equal(up.where.chat_topicId.topicId, 2);
   assert.equal(up.create.lastMessageId, 42);
+});
+
+test('fetchTelegramGroupMessages: вкладений формат __LAST_IDS__ по групах', async () => {
+  saveUserTelegramEnv();
+  process.env.TELEGRAM_USER_SESSION_PATH = '/tmp/mock-tg-session-path';
+  process.env.TELEGRAM_API_ID = '11111';
+  process.env.TELEGRAM_API_HASH = 'mockhash';
+  const upsert = vi.fn(async () => ({}));
+  setTelegramPrismaForTests(
+    asPrisma({ telegramFetchState: { findMany: vi.fn(async () => []), upsert } })
+  );
+  setSpawnForTests(
+    mockSpawnFetch(
+      'msg\n__LAST_IDS__{"PoDoroguem":{"2":10,"6":0},"poputka_zhytomyr_kyiv":{"0":77}}',
+      0
+    )
+  );
+  await fetchTelegramGroupMessages({ limit: 5, fullFetch: true });
+  const calls = upsert.mock.calls.map(
+    (c) => c[0] as { where: { chat_topicId: { chat: string; topicId: number } }; create: { lastMessageId: number } }
+  );
+  // topic 6 має msgId 0 — пропускається; лишаються PoDoroguem/2 і poputka_zhytomyr_kyiv/0
+  assert.equal(calls.length, 2);
+  const pzk = calls.find((c) => c.where.chat_topicId.chat === 'poputka_zhytomyr_kyiv');
+  assert.equal(pzk?.where.chat_topicId.topicId, 0);
+  assert.equal(pzk?.create.lastMessageId, 77);
 });
 
 test('fetchTelegramGroupMessages: null при ненульовому коді spawn', async () => {
