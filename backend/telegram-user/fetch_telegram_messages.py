@@ -8,7 +8,8 @@
       2:  Малин-Київ
       6:  Малин-Житомир
       108: Малин-Коростень
-  - poputka_zhytomyr_kyiv (звичайна група без топіків) — topicId 0
+  - poputka_zhytomyr_kyiv, poputka_zhitomir, Korosten_Kyiv — звичайні групи без топіків,
+    topicId 0
 
 Виклик:
   python3 fetch_telegram_messages.py [--limit N] [--topic ID] [--hours H] [--full]
@@ -67,11 +68,12 @@ GROUPS = {
     PODOROGUEM: {2: "Малин-Київ", 6: "Малин-Житомир", 108: "Малин-Коростень"},
     "poputka_zhytomyr_kyiv": {0: "Житомир-Київ"},
     "poputka_zhitomir": {0: "Житомир-Київ"},
+    "Korosten_Kyiv": {0: "Коростень-Київ"},
 }
 
 # Скільки годин історії тягнути при першому запуску групи/топіка (min_id == 0), щоб не
-# завалити бекенд бекфілом. --full і --hours цей ліміт не чіпають.
-COLD_START_HOURS = 300
+# завалити бекенд бекфілом. --full і --hours цей ліміт не чіпають. 120 год = 5 діб.
+COLD_START_HOURS = 120
 
 
 def get_session_path():

@@ -15,6 +15,7 @@ import { parseViberMessage, parseViberMessages } from '../viber-parser';
 import {
   serializeViberListing,
   getViberListingEndDateTime,
+  isPastRideDate,
 } from '../index-helpers';
 import { requireAdmin } from '../middleware/require-admin';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
@@ -175,7 +176,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
         ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
         : null;
 
-      const { listing } = await createOrMergeViberListing(prisma, {
+      const { listing, isPastDate } = await createOrMergeViberListing(prisma, {
         rawMessage,
         senderName: senderName ?? undefined,
         listingType: parsed.listingType,
@@ -194,10 +195,11 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
         route: listing.route,
         date: listing.date,
         phone: listing.phone,
+        archived: isPastDate,
       });
 
       const matchingRecheckTriggered = isTelegramEnabled();
-      if (matchingRecheckTriggered) {
+      if (matchingRecheckTriggered && !isPastDate) {
         sendViberListingNotificationToAdmin({
           id: listing.id,
           listingType: listing.listingType,
@@ -273,7 +275,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
           const person = parsed.phone
             ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
             : null;
-          const { listing, isNew } = await createOrMergeViberListing(prisma, {
+          const { listing, isNew, isPastDate } = await createOrMergeViberListing(prisma, {
             rawMessage: rawText,
             senderName: senderName ?? undefined,
             listingType: parsed.listingType,
@@ -289,7 +291,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
           if (isNew) {
             created.push(listing);
           }
-          if (matchingRecheckTriggered) {
+          if (matchingRecheckTriggered && !isPastDate) {
             sendViberListingNotificationToAdmin({
               id: listing.id,
               listingType: listing.listingType,

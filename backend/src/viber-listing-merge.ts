@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
+import { isPastRideDate, mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
 import { resolveCorridorTripRouteId } from './schedule-trip';
 import { resolveOdPointIdsFromRoute } from './poputky-od';
 
@@ -57,12 +57,15 @@ async function resolveOdFields(
 export async function createOrMergeViberListing(
   prisma: PrismaClient,
   data: ViberListingMergeInput,
-): Promise<{ listing: Awaited<ReturnType<PrismaClient['viberListing']['create']>>; isNew: boolean }> {
+): Promise<{ listing: Awaited<ReturnType<PrismaClient['viberListing']['create']>>; isNew: boolean; isPastDate: boolean }> {
   const personId = data.personId ?? null;
   const date = data.date;
   const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
   const normalizedPhone = data.phone?.trim() ? normalizePhoneForMerge(data.phone) : '';
+  // Поїздка вже минула (вчора чи раніше) — архівуємо одразу (для аналітики) і ніколи
+  // не активуємо/сповіщуємо про неї, незалежно від джерела (Viber, Telegram-групи).
+  const isPastDate = isPastRideDate(date);
 
   const odFields = await resolveOdFields(prisma, data);
 
@@ -98,13 +101,19 @@ export async function createOrMergeViberListing(
     const listing = await prisma.viberListing.create({
       data: {
         ...data,
+        isActive: isPastDate ? false : data.isActive,
         source: data.source ?? 'Viber1',
         tripRouteId: odFields.tripRouteId,
         fromPointId: odFields.fromPointId,
         toPointId: odFields.toPointId,
       },
     });
-    return { listing, isNew: true };
+    if (isPastDate) {
+      console.log(
+        `🗄️ Listing #${listing.id} archived on import — ride date ${date.toISOString().slice(0, 10)} is in the past, isActive forced to false`,
+      );
+    }
+    return { listing, isNew: true, isPastDate };
   }
 
   const mergedNotes = mergeTextField(existing.notes, data.notes);
@@ -125,7 +134,7 @@ export async function createOrMergeViberListing(
       toPointId: toPointId ?? undefined,
       notes: mergedNotes,
       priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
-      isActive: existing.isActive || data.isActive,
+      isActive: isPastDate ? false : existing.isActive || data.isActive,
       personId: existing.personId ?? personId,
       // source не оновлюємо — залишаємо перший
     },
@@ -134,6 +143,9 @@ export async function createOrMergeViberListing(
   console.log(
     `♻️ Listing merged with existing #${existing.id} (route+date+time+phone match, source=${existing.source})`,
   );
+  if (isPastDate) {
+    console.log(`🗄️ Listing #${updated.id} archived on merge — ride date is in the past`);
+  }
 
-  return { listing: updated, isNew: false };
+  return { listing: updated, isNew: false, isPastDate };
 }

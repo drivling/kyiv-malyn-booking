@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.personTelegramBotBlockedCondition = exports.PROMO_NOT_FOUND_SENTINEL = exports.noTelegramCondition = exports.hasTelegramReminderBaseCondition = void 0;
+exports.isPastRideDate = isPastRideDate;
 exports.mapFromToToRoute = mapFromToToRoute;
 exports.hasNonEmptyText = hasNonEmptyText;
 exports.mergeTextField = mergeTextField;
@@ -15,6 +16,21 @@ exports.getScenarioKeysForProfile = getScenarioKeysForProfile;
  * Чиста логіка, винесена з index.ts для юніт-тестів без підняття HTTP-сервера.
  */
 const telegram_1 = require("./telegram");
+/**
+ * «Вчора і раніше» відносно поточної дати в Києві — порівняння лише календарного дня,
+ * без урахування часу відправлення (він зберігається окремо в departureTime).
+ * Використовується парсерами (Viber, Telegram-групи), щоб ніколи не створювати
+ * активне/сповіщуване оголошення на поїздку, яка вже минула.
+ */
+function isPastRideDate(rideDate, now = new Date()) {
+    const dayKey = (d) => new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Kyiv',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(d);
+    return dayKey(rideDate) < dayKey(now);
+}
 /** Маппінг "звідки–куди" (сайт) → route (бот). Значення: malyn, kyiv, zhytomyr, korosten */
 function mapFromToToRoute(from, to) {
     const f = (from || '').toLowerCase().trim();

@@ -60,6 +60,7 @@ import {
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
 import { sendPaidFallbackSms } from './sms-fallback';
+import { isPastRideDate } from './index-helpers';
 import {
   formatTelegramContactHtmlLink,
   formatTelegramUsernameForDisplay,
@@ -108,7 +109,7 @@ export function resetTelegramPrismaForTests(): void {
 
 export async function createOrMergeViberListing(
   data: ViberListingMergeInput
-): Promise<{ listing: any; isNew: boolean }> {
+): Promise<{ listing: any; isNew: boolean; isPastDate: boolean }> {
   return createOrMergeViberListingShared(tgPrisma, data);
 }
 
@@ -2206,6 +2207,7 @@ const TELEGRAM_GROUPS: Array<{ chat: string; topicIds: number[] }> = [
   { chat: 'PoDoroguem', topicIds: [2, 6, 108] },
   { chat: 'poputka_zhytomyr_kyiv', topicIds: [0] },
   { chat: 'poputka_zhitomir', topicIds: [0] },
+  { chat: 'Korosten_Kyiv', topicIds: [0] },
 ];
 
 export type FetchTelegramGroupMessagesResult = {
@@ -2433,6 +2435,12 @@ async function afterTelegramListingImported(listing: {
   personId: number | null;
 }): Promise<void> {
   if (!isTelegramEnabled()) return;
+  if (isPastRideDate(listing.date)) {
+    // Поїздка вже минула — createOrMergeViberListing вже архівував запис
+    // (isActive:false); ніколи не сповіщаємо людей про вчорашні/старіші події.
+    console.log(`🗄️ Telegram-імпорт: оголошення #${listing.id} у минулому, сповіщення пропущено`);
+    return;
+  }
   await sendViberListingNotificationToAdmin({
     id: listing.id,
     listingType: listing.listingType,
@@ -5159,7 +5167,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
               const person = parsed.phone
                 ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
                 : null;
-          const { listing, isNew } = await createOrMergeViberListing({
+          const { listing, isNew, isPastDate } = await createOrMergeViberListing({
             rawMessage: rawText,
             source: 'Viber1',
             senderName: senderName ?? undefined,
@@ -5177,7 +5185,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           if (isNew) {
             created++;
           }
-              if (isTelegramEnabled()) {
+              if (isTelegramEnabled() && !isPastDate) {
                 await sendViberListingNotificationToAdmin({
                   id: listing.id,
                   listingType: listing.listingType,
@@ -5245,7 +5253,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           const person = parsed.phone
             ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
             : null;
-          const { listing, isNew } = await createOrMergeViberListing({
+          const { listing, isNew, isPastDate } = await createOrMergeViberListing({
             rawMessage: text,
             source: 'Viber1',
             senderName: senderName ?? undefined,
@@ -5260,7 +5268,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             isActive: true,
             personId: person?.id ?? undefined,
           });
-          if (isTelegramEnabled()) {
+          if (isTelegramEnabled() && !isPastDate) {
             await sendViberListingNotificationToAdmin({
               id: listing.id,
               listingType: listing.listingType,
@@ -5292,7 +5300,10 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             }
           }
           const verb = isNew ? 'створено' : 'оновлено';
-          await bot?.sendMessage(chatId, `✅ Оголошення #${listing.id} ${verb}. Адміну надіслано сповіщення.`, { parse_mode: 'HTML' });
+          const statusNote = isPastDate
+            ? 'Дата в минулому — оголошення архівовано (isActive=false), сповіщень не надіслано.'
+            : 'Адміну надіслано сповіщення.';
+          await bot?.sendMessage(chatId, `✅ Оголошення #${listing.id} ${verb}. ${statusNote}`, { parse_mode: 'HTML' });
         }
       } catch (err) {
         console.error('AddViber error:', err);

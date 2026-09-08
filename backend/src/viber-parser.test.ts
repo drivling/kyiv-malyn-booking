@@ -263,6 +263,14 @@ test('extractRoute', () => {
   // метро Житомирська в Києві — не місто Житомир, і не Zhytomyr-Kyiv
   assert.equal(extractRoute('метро Житомирська, потрібно в Київ'), 'Unknown');
 
+  // Коростень ↔ Київ напряму (група Korosten_Kyiv)
+  assert.equal(extractRoute('Коростень Київ 7:30'), 'Korosten-Kyiv');
+  assert.equal(extractRoute('Коростень - Київ, є місце'), 'Korosten-Kyiv');
+  assert.equal(extractRoute('Київ Коростень завтра'), 'Kyiv-Korosten');
+  assert.equal(extractRoute('[Бот] Korosten-Kyiv 2026-09-02 07:00'), 'Korosten-Kyiv');
+  // "малин" присутній — коридор через Малин перевіряється раніше прямого Коростень-Київ
+  assert.equal(extractRoute('Коростень Малин Київ'), 'Malyn-Kyiv');
+
   assert.equal(extractRoute('Коростень-Буча 2026-08-18 12:00-14:00'), 'Korosten-Bucha');
   assert.equal(extractRoute('[Бот] Bucha-Irpin 2026-08-12 11:55'), 'Bucha-Irpin');
   assert.equal(extractRoute('[Бот-пасажир] Bucha-Korosten 2026-08-13 15:00'), 'Bucha-Korosten');
