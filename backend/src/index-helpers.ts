@@ -6,6 +6,23 @@ import {
   type BehaviorPromoScenarioKey,
 } from './telegram';
 
+/**
+ * «Вчора і раніше» відносно поточної дати в Києві — порівняння лише календарного дня,
+ * без урахування часу відправлення (він зберігається окремо в departureTime).
+ * Використовується парсерами (Viber, Telegram-групи), щоб ніколи не створювати
+ * активне/сповіщуване оголошення на поїздку, яка вже минула.
+ */
+export function isPastRideDate(rideDate: Date, now: Date = new Date()): boolean {
+  const dayKey = (d: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Kyiv',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  return dayKey(rideDate) < dayKey(now);
+}
+
 /** Маппінг "звідки–куди" (сайт) → route (бот). Значення: malyn, kyiv, zhytomyr, korosten */
 export function mapFromToToRoute(from: string, to: string): string | null {
   const f = (from || '').toLowerCase().trim();

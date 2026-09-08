@@ -17,6 +17,7 @@ import {
   noTelegramCondition,
   PROMO_NOT_FOUND_SENTINEL,
   getScenarioKeysForProfile,
+  isPastRideDate,
 } from './index-helpers';
 
 test('mapFromToToRoute: відомі пари', () => {
@@ -136,4 +137,32 @@ test('getScenarioKeysForProfile узгоджено з BEHAVIOR_PROMO_SCENARIO_PR
     'mixed_unified',
     'mixed_both',
   ]);
+});
+
+test('isPastRideDate: вчорашня дата — true', () => {
+  const now = new Date('2026-09-08T10:00:00.000Z'); // 13:00 Київ
+  assert.equal(isPastRideDate(new Date('2026-09-07T00:00:00.000Z'), now), true);
+});
+
+test('isPastRideDate: сьогоднішня дата — false', () => {
+  const now = new Date('2026-09-08T10:00:00.000Z');
+  assert.equal(isPastRideDate(new Date('2026-09-08T00:00:00.000Z'), now), false);
+});
+
+test('isPastRideDate: майбутня дата — false', () => {
+  const now = new Date('2026-09-08T10:00:00.000Z');
+  assert.equal(isPastRideDate(new Date('2026-09-09T00:00:00.000Z'), now), false);
+});
+
+test('isPastRideDate: раннє UTC-опівночі того самого київського дня — false', () => {
+  // Опівночі UTC на дату поїздки = 02:00-03:00 у Києві того ж календарного дня
+  const now = new Date('2026-09-08T01:00:00.000Z'); // 03:00-04:00 Київ, 8 вересня
+  assert.equal(isPastRideDate(new Date('2026-09-08T00:00:00.000Z'), now), false);
+});
+
+test('isPastRideDate: пізній вечір Києва — «сьогодні» вже наступна доба UTC', () => {
+  // 23:30 у Києві 8 вересня (літній час, UTC+3) = 20:30 UTC того самого дня
+  const now = new Date('2026-09-08T20:30:00.000Z');
+  assert.equal(isPastRideDate(new Date('2026-09-08T00:00:00.000Z'), now), false); // сьогодні
+  assert.equal(isPastRideDate(new Date('2026-09-07T00:00:00.000Z'), now), true); // вчора
 });

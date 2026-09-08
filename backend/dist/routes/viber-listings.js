@@ -182,7 +182,7 @@ function createViberListingsRouter(deps) {
             const person = parsed.phone
                 ? await (0, telegram_1.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
                 : null;
-            const { listing } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
+            const { listing, isPastDate } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
                 rawMessage,
                 senderName: senderName ?? undefined,
                 listingType: parsed.listingType,
@@ -200,9 +200,10 @@ function createViberListingsRouter(deps) {
                 route: listing.route,
                 date: listing.date,
                 phone: listing.phone,
+                archived: isPastDate,
             });
             const matchingRecheckTriggered = (0, telegram_1.isTelegramEnabled)();
-            if (matchingRecheckTriggered) {
+            if (matchingRecheckTriggered && !isPastDate) {
                 (0, telegram_1.sendViberListingNotificationToAdmin)({
                     id: listing.id,
                     listingType: listing.listingType,
@@ -270,7 +271,7 @@ function createViberListingsRouter(deps) {
                     const person = parsed.phone
                         ? await (0, telegram_1.findOrCreatePersonByPhone)(parsed.phone, { fullName: senderName ?? undefined })
                         : null;
-                    const { listing, isNew } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
+                    const { listing, isNew, isPastDate } = await (0, viber_listing_merge_1.createOrMergeViberListing)(prisma, {
                         rawMessage: rawText,
                         senderName: senderName ?? undefined,
                         listingType: parsed.listingType,
@@ -286,7 +287,7 @@ function createViberListingsRouter(deps) {
                     if (isNew) {
                         created.push(listing);
                     }
-                    if (matchingRecheckTriggered) {
+                    if (matchingRecheckTriggered && !isPastDate) {
                         (0, telegram_1.sendViberListingNotificationToAdmin)({
                             id: listing.id,
                             listingType: listing.listingType,
