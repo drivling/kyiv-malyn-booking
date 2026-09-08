@@ -691,6 +691,12 @@ export function extractListingType(text: string): 'driver' | 'passenger' {
   if (/водій/i.test(text)) {
     return 'driver';
   }
+  // «Заберу по дорозі/місту» — сам водій пропонує підвезти; переважає над словом
+  // «пасажир(а/и)», яке в таких повідомленнях зазвичай лише описує місткість авто
+  // ("на задньому сидінні два пасажира"), а не самоідентифікацію автора.
+  if (/заберу/i.test(text)) {
+    return 'driver';
+  }
   if (/\[?\s*бот-пасажир\s*\]?/i.test(text)) {
     return 'passenger';
   }
