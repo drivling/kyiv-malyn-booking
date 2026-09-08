@@ -17,6 +17,8 @@ import {
   resetTelegramBotForTests,
   resetSpawnForTests,
   buildAuthorConfirmationSms,
+  buildViberListingConfirmationMessage,
+  buildTripReminderSms,
   BEHAVIOR_PROMO_SCENARIO_LABELS,
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
@@ -27,6 +29,48 @@ afterEach(() => {
   resetSpawnForTests();
 });
 
+test('buildViberListingConfirmationMessage: сайт і платформа за маршрутом поїздки', () => {
+  const korosten = buildViberListingConfirmationMessage(
+    {
+      route: 'Korosten-Kyiv',
+      date: new Date('2026-09-11T12:00:00.000Z'),
+      departureTime: '05:00',
+      seats: 3,
+      listingType: 'driver',
+    },
+    { addSubscribeInstruction: false },
+  );
+  assert.match(korosten, /Поїздки Коростень ↔️ Київ, Житомир, Малин/);
+  assert.match(korosten, /Сайт: <a href="https:\/\/korosten\.kiev\.ua">korosten\.kiev\.ua<\/a>/);
+  assert.equal(korosten.includes('malin.kiev.ua'), false);
+
+  const malyn = buildViberListingConfirmationMessage(
+    {
+      route: 'Kyiv-Malyn',
+      date: new Date('2026-09-11T12:00:00.000Z'),
+      departureTime: '05:00',
+      seats: null,
+      listingType: 'passenger',
+    },
+    { addSubscribeInstruction: false },
+  );
+  assert.match(malyn, /Поїздки Київ, Житомир, Коростень ↔️ Малин/);
+  assert.match(malyn, /Сайт: <a href="https:\/\/malin\.kiev\.ua">malin\.kiev\.ua<\/a>/);
+});
+
+test('buildTripReminderSms: домен за маршрутом бронювання', () => {
+  const base = {
+    date: new Date('2026-09-11T12:00:00.000Z'),
+    departureTime: '05:00',
+    name: 'Тест',
+  };
+  assert.match(
+    buildTripReminderSms({ ...base, route: 'Korosten-Malyn' }, 'tomorrow'),
+    /korosten\.kiev\.ua$/,
+  );
+  assert.match(buildTripReminderSms({ ...base, route: 'Kyiv-Malyn' }, 'today'), /malin\.kiev\.ua$/);
+});
+
 test('buildAuthorConfirmationSms: компактний текст в одну SMS', () => {
   const text = buildAuthorConfirmationSms({
     route: 'Malyn-Korosten',
@@ -35,10 +79,20 @@ test('buildAuthorConfirmationSms: компактний текст в одну SM
   });
   assert.equal(
     text,
-    'Ваше оголошення Малин→Коростень 01.09 14:00-17:00 опубліковано на https://malin.kiev.ua. Інші люди побачать його і зателефонують вам.',
+    // маршрут через Коростень → сайт Коростеня
+    'Ваше оголошення Малин→Коростень 01.09 14:00-17:00 опубліковано на https://korosten.kiev.ua. Інші люди побачать його і зателефонують вам.',
   );
   assert.equal(text.includes('2026'), false); // без року
   assert.equal(text.includes(' → '), false); // стрілка без пробілів
+});
+
+test('buildAuthorConfirmationSms: маршрут без власного домену лишається на malin.kiev.ua', () => {
+  const text = buildAuthorConfirmationSms({
+    route: 'Zhytomyr-Kyiv',
+    date: new Date('2026-09-01T12:00:00.000Z'),
+    departureTime: '08:00',
+  });
+  assert.match(text, /опубліковано на https:\/\/malin\.kiev\.ua\./);
 });
 
 test('buildAuthorConfirmationSms: без часу', () => {
@@ -140,6 +194,12 @@ test('buildBehaviorPromoMessage: усі сценарії містять поси
 test('buildBehaviorPromoMessage: привітання з іменем', () => {
   const text = buildBehaviorPromoMessage('driver_passengers', { fullName: '  Олена  ' });
   assert.ok(text.startsWith('Привіт, Олена!'));
+});
+
+test('buildBehaviorPromoMessage: коростенський маршрут веде на korosten.kiev.ua', () => {
+  const text = buildBehaviorPromoMessage('driver_passengers', { mainRoute: 'Korosten-Kyiv' });
+  assert.match(text, /https:\/\/korosten\.kiev\.ua\/mizhgorodski/);
+  assert.equal(text.includes('malin.kiev.ua'), false);
 });
 
 test('buildBehaviorPromoMessage: passenger_notify з mainRoute', () => {

@@ -185,11 +185,17 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `currentSiteDomain()` and list every domain via `siteDomainsLabel()` (`src/legal/sitePublic.ts`);
   their canonical points at the primary domain. Never hardcode a domain in page copy or links —
   use a relative path so a link works on every site.
+- Notifications follow the ride: `backend/src/site-domains.ts` maps a route slug to the site that
+  owns it (`Korosten-Kyiv` → korosten.kiev.ua), and the ride-specific messages — the publication
+  confirmation (Telegram + userbot), its SMS twin, the match-found SMS, the trip-reminder SMS and
+  the behaviour promos — link that domain instead of the primary one. Generic bot UI (menus,
+  welcome, help, broadcasts) keeps the primary domain: there is one bot for all sites.
 
 **Adding a domain for another city** (Zhytomyr is already stubbed): buy it, add it to the Railway
-frontend service, then flip `active: true` on its entry in `frontend/scripts/site-hosts.mjs`.
-Everything else — redirects, home-city pinning, noindex, the transport stub, the legal wording on
-`/about` — is derived from that map.
+frontend service, then flip `active: true` on its entry in **both** maps —
+`frontend/scripts/site-hosts.mjs` and `backend/src/site-domains.ts`. Everything else — redirects,
+home-city pinning, noindex, the transport stub, the legal wording on `/about` and the domain in
+notifications — is derived from them. Keep the two maps in sync.
 
 ## Cross-cutting notes
 
