@@ -1,6 +1,7 @@
 import { describe, expect, test, afterEach, vi } from 'vitest';
 import {
   SITES,
+  SITE_DOMAINS,
   PRIMARY_SITE,
   buildCitySwitchUrl,
   getCurrentSite,
@@ -52,6 +53,17 @@ describe('siteForCityCode', () => {
     expect(siteForCityCode('Malyn').key).toBe('malyn');
     expect(siteForCityCode('Kyiv').key).toBe('malyn');
     expect(siteForCityCode('').key).toBe('malyn');
+  });
+
+  test('місто з неактивним доменом лишається на головному сайті', () => {
+    // Житомир уже описаний у мапі, але active: false — домену ще нема
+    expect(SITES.zhytomyr.active).toBe(false);
+    expect(siteForCityCode('Zhytomyr').key).toBe('malyn');
+    expect(SITE_DOMAINS).toEqual(['malin.kiev.ua', 'korosten.kiev.ua']);
+  });
+
+  test('неактивний домен не перехоплює хост', () => {
+    expect(resolveSite('zhytomyr.kiev.ua').key).toBe('malyn');
   });
 });
 

@@ -56,7 +56,7 @@ export function SiteContactBlock({
           </dd>
         </div>
         <div>
-          <dt>Місто</dt>
+          <dt>Місто реєстрації</dt>
           <dd>{COMPANY_CITY_UA}</dd>
         </div>
       </dl>

@@ -181,6 +181,15 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   dataset itself is still single-tenant Malyn.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
+- Shared pages that name the service (`/about`) read the current domain via
+  `currentSiteDomain()` and list every domain via `siteDomainsLabel()` (`src/legal/sitePublic.ts`);
+  their canonical points at the primary domain. Never hardcode a domain in page copy or links —
+  use a relative path so a link works on every site.
+
+**Adding a domain for another city** (Zhytomyr is already stubbed): buy it, add it to the Railway
+frontend service, then flip `active: true` on its entry in `frontend/scripts/site-hosts.mjs`.
+Everything else — redirects, home-city pinning, noindex, the transport stub, the legal wording on
+`/about` — is derived from that map.
 
 ## Cross-cutting notes
 

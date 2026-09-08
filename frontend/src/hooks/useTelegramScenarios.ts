@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { TelegramScenariosResponse } from '@/types';
-
-const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
+import { TELEGRAM_BOT_USERNAME } from '@/legal/sitePublic';
 
 export const DEFAULT_TELEGRAM_SCENARIOS: TelegramScenariosResponse = {
   enabled: true,
@@ -21,7 +20,8 @@ export const DEFAULT_TELEGRAM_SCENARIOS: TelegramScenariosResponse = {
       title: 'Вільний перегляд поїздок',
       command: '/poputky',
       deepLink: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=view`,
-      webLink: 'https://malin.kiev.ua/mizhgorodski',
+      // відносне посилання — працює на будь-якому домені сервісу
+      webLink: '/mizhgorodski',
     },
   },
 };

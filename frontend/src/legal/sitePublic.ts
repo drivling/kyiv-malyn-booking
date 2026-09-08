@@ -1,7 +1,24 @@
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
+import { getCurrentSite, SITE_DOMAINS } from '@/site/siteConfig';
 
-/** Домен сервісу (для згадок у текстах) */
+/** Головний домен сервісу (канонікали, згадки за замовчуванням) */
 export const SITE_PUBLIC_DOMAIN = 'malin.kiev.ua';
+
+/** Домен, на якому користувач зараз (malin.kiev.ua або korosten.kiev.ua) */
+export function currentSiteDomain(): string {
+  return getCurrentSite().domain;
+}
+
+/** Один Telegram-бот на всі домени сервісу */
+export const TELEGRAM_BOT_USERNAME =
+  import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
+export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`;
+
+/** Усі домени сервісу одним рядком: «malin.kiev.ua і korosten.kiev.ua» */
+export function siteDomainsLabel(): string {
+  if (SITE_DOMAINS.length < 2) return SITE_DOMAINS[0] ?? SITE_PUBLIC_DOMAIN;
+  return `${SITE_DOMAINS.slice(0, -1).join(', ')} і ${SITE_DOMAINS[SITE_DOMAINS.length - 1]}`;
+}
 
 /** Публічний help-center */
 export const SUPPORT_PAGE_PATH = '/support';
