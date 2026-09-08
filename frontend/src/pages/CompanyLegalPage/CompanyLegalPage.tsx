@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { SiteContactBlock } from '@/components/SiteContactBlock/SiteContactBlock';
 import {
+  COMPANY_LEGAL_PATH,
   COMPANY_EDR_INFO_URL,
   companyEdrRecord,
   COMPANY_LEGAL_ADDRESS_UA,
@@ -12,11 +13,16 @@ import {
   COMPANY_FOOTER_SUFFIX,
 } from '@/legal/companyLegal';
 import {
+  currentSiteDomain,
   PRIVACY_SECTION_ID,
   REFERRAL_PROMO_SECTION_ID,
-  SITE_PUBLIC_DOMAIN,
+  siteDomainsLabel,
+  TELEGRAM_BOT_URL,
+  TELEGRAM_BOT_USERNAME,
   TERMS_SECTION_ID,
 } from '@/legal/sitePublic';
+import { primaryUrl, SITE_DOMAINS } from '@/site/siteConfig';
+import { usePageSeo } from '@/hooks/usePageSeo';
 import './privacyPolicyContent.css';
 import './CompanyLegalPage.css';
 
@@ -27,28 +33,17 @@ export const CompanyLegalPage: React.FC = () => {
     () => typeof window !== 'undefined' && window.location.hash === `#${REFERRAL_PROMO_SECTION_ID}`
   );
 
-  useEffect(() => {
-    const prev = document.title;
-    document.title = `Про нас | ${SITE_PUBLIC_DOMAIN}`;
-    let desc = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    const created = !desc;
-    const prevDesc = desc?.getAttribute('content') ?? null;
-    if (!desc) {
-      desc = document.createElement('meta');
-      desc.setAttribute('name', 'description');
-      document.head.appendChild(desc);
-    }
-    desc.setAttribute(
-      'content',
-      'Про сервіс malin.kiev.ua: реквізити компанії, політика конфіденційності, умови користування та акція «Приведи друга».'
-    );
-    return () => {
-      document.title = prev;
-      if (!desc) return;
-      if (created) desc.remove();
-      else if (prevDesc != null) desc.setAttribute('content', prevDesc);
-    };
-  }, []);
+  // Сторінка спільна для всіх доменів сервісу: назва домену — поточна,
+  // канонікал — на головному домені (контент однаковий).
+  const siteDomain = currentSiteDomain();
+  const domainsLabel = siteDomainsLabel();
+  const hasSeveralDomains = SITE_DOMAINS.length > 1;
+
+  usePageSeo({
+    title: `Про нас | ${siteDomain}`,
+    canonicalUrl: primaryUrl(COMPANY_LEGAL_PATH),
+    description: `Про сервіс ${siteDomain}: реквізити компанії, політика конфіденційності, умови користування та акція «Приведи друга».`,
+  });
 
   useEffect(() => {
     const legalHashes = new Set([
@@ -161,7 +156,7 @@ export const CompanyLegalPage: React.FC = () => {
               </dd>
             </div>
             <div>
-              <dt>Місто</dt>
+              <dt>Місто реєстрації</dt>
               <dd>{COMPANY_CITY_UA}</dd>
             </div>
           </dl>
@@ -235,9 +230,9 @@ export const CompanyLegalPage: React.FC = () => {
               <strong>
                 {c.shortNameUa}, код ЄДРПОУ {c.edrpou}
               </strong>
-              {COMPANY_FOOTER_SUFFIX} Сервіс: <strong>{SITE_PUBLIC_DOMAIN}</strong>, Telegram-бот{' '}
-              <a href="https://t.me/malin_kiev_ua_bot" className="privacy-policy-link">
-                @malin_kiev_ua_bot
+              {COMPANY_FOOTER_SUFFIX} Сервіс: <strong>{domainsLabel}</strong>, Telegram-бот{' '}
+              <a href={TELEGRAM_BOT_URL} className="privacy-policy-link">
+                @{TELEGRAM_BOT_USERNAME}
               </a>
               .
             </p>
@@ -275,9 +270,9 @@ export const CompanyLegalPage: React.FC = () => {
               <p>
                 У боті: кнопка «Приведи друга» або команда /invite. Надішліть другу посилання або вкажіть його
                 номер / @username. Друг додає попутку (водій або пасажир) через бот або сайт{' '}
-                <a href="https://malin.kiev.ua/mizhgorodski" className="privacy-policy-link">
-                  malin.kiev.ua/mizhgorodski
-                </a>
+                <Link to="/mizhgorodski" className="privacy-policy-link">
+                  {siteDomain}/mizhgorodski
+                </Link>
                 .
               </p>
               <p>
@@ -393,8 +388,15 @@ export const CompanyLegalPage: React.FC = () => {
             {COMPANY_FOOTER_SUFFIX}
           </p>
           <p className="privacy-policy-lead">
-            Тут просто і прозоро пояснюємо, які дані збирає сайт <strong>{SITE_PUBLIC_DOMAIN}</strong>, на яких
+            Тут просто і прозоро пояснюємо, які дані збирає сайт <strong>{siteDomain}</strong>, на яких
             підставах ми їх обробляємо, як довго зберігаємо та які права має користувач.
+            {hasSeveralDomains ? (
+              <>
+                {' '}
+                Політика однакова для всіх доменів сервісу: <strong>{domainsLabel}</strong> — це один сервіс,
+                спільна база даних і той самий Telegram-бот.
+              </>
+            ) : null}
           </p>
 
           <section className="privacy-policy-section" aria-labelledby="privacy-who">
@@ -523,8 +525,8 @@ export const CompanyLegalPage: React.FC = () => {
             <h2 id="privacy-changes">Зміни до політики</h2>
             <p>
               Ми можемо час від часу оновлювати цей текст — наприклад, якщо з’являться нові функції сайту або зміниться
-              законодавство. Актуальна версія для домену <strong>{SITE_PUBLIC_DOMAIN}</strong> завжди в розділі
-              «Політика конфіденційності» на цій сторінці.
+              законодавство. Актуальна версія для {hasSeveralDomains ? 'доменів' : 'домену'}{' '}
+              <strong>{domainsLabel}</strong> завжди в розділі «Політика конфіденційності» на цій сторінці.
             </p>
           </section>
         </div>
@@ -534,8 +536,16 @@ export const CompanyLegalPage: React.FC = () => {
             Умови користування
           </h2>
           <p>
-            Платформа <strong>{SITE_PUBLIC_DOMAIN}</strong> є виключно інформаційним сервісом для встановлення контакту
-            між користувачами щодо спільних поїздок. Сервіс не є перевізником, не надає транспортних послуг і не є
+            {hasSeveralDomains ? (
+              <>
+                Платформа — сайти <strong>{domainsLabel}</strong> — є
+              </>
+            ) : (
+              <>
+                Платформа <strong>{domainsLabel}</strong> є
+              </>
+            )}{' '}
+            виключно інформаційним сервісом для встановлення контакту між користувачами щодо спільних поїздок. Сервіс не є перевізником, не надає транспортних послуг і не є
             стороною домовленостей між користувачами.
           </p>
           <ul className="privacy-policy-list">

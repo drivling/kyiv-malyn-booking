@@ -8,13 +8,15 @@
  */
 import {
   SITES as SITE_MAP,
+  ACTIVE_SITES as ACTIVE,
+  ACTIVE_SITE_DOMAINS as ACTIVE_DOMAINS,
   PRIMARY_SITE as PRIMARY,
   isPrimaryOnlyPath as isPrimaryOnlyPathRaw,
   primaryUrl as primaryUrlRaw,
   resolveSiteKey as resolveSiteKeyRaw,
 } from '../../scripts/site-hosts.mjs';
 
-export type SiteKey = 'malyn' | 'korosten';
+export type SiteKey = 'malyn' | 'korosten' | 'zhytomyr';
 
 export interface SiteConfig {
   key: SiteKey;
@@ -26,10 +28,16 @@ export interface SiteConfig {
   /** Родовий відмінок: «Транспорт Малина» */
   cityNameUkGenitive: string;
   isPrimary: boolean;
+  /** Домен підключено і він обслуговує трафік (неактивні міста живуть на головному сайті) */
+  active: boolean;
 }
 
 export const SITES: Record<SiteKey, SiteConfig> = SITE_MAP as Record<SiteKey, SiteConfig>;
 export const PRIMARY_SITE: SiteConfig = PRIMARY as SiteConfig;
+/** Сайти з підключеним доменом (Житомир поки неактивний — чекає на власний домен) */
+export const ACTIVE_SITES: SiteConfig[] = ACTIVE as SiteConfig[];
+/** Домени сервісу — для юридичних текстів («політика діє для доменів …») */
+export const SITE_DOMAINS: string[] = ACTIVE_DOMAINS;
 
 /** Параметр, яким рідне місто переїжджає між доменами (куки не ходять між доменами) */
 export const CITY_HANDOFF_PARAM = 'city';
@@ -43,22 +51,22 @@ export function resolveSite(hostname: string): SiteConfig {
 /** Сайт поточного вікна (SSR/тести без window → головний) */
 export function getCurrentSite(): SiteConfig {
   if (typeof window === 'undefined') return PRIMARY_SITE;
-  const override = new URLSearchParams(window.location.search).get(SITE_OVERRIDE_PARAM);
-  if (override && (override === 'malyn' || override === 'korosten')) return SITES[override];
+  const override = new URLSearchParams(window.location.search).get(SITE_OVERRIDE_PARAM) as SiteKey | null;
+  if (override && SITES[override]) return SITES[override];
   return resolveSite(window.location.hostname);
 }
 
 /** Місто → його домен. Власний домен поки лише в Коростеня, решта міст живе на головному сайті. */
 export function siteForCityCode(cityCode: string): SiteConfig {
   const code = (cityCode || '').trim();
-  if (code && code === SITES.korosten.cityCode) return SITES.korosten;
-  return PRIMARY_SITE;
+  if (!code) return PRIMARY_SITE;
+  return ACTIVE_SITES.find((s) => !s.isPrimary && s.cityCode === code) ?? PRIMARY_SITE;
 }
 
 export function siteOrigin(site: SiteConfig): string {
   if (typeof window !== 'undefined' && window.location.hostname.endsWith('localhost')) {
-    // Локальна розробка: korosten.localhost:5173 ↔ localhost:5173
-    const host = site.isPrimary ? 'localhost' : 'korosten.localhost';
+    // Локальна розробка: <місто>.localhost:5173 ↔ localhost:5173
+    const host = site.isPrimary ? 'localhost' : `${site.domain.split('.')[0]}.localhost`;
     const port = window.location.port ? `:${window.location.port}` : '';
     return `${window.location.protocol}//${host}${port}`;
   }

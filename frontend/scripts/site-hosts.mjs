@@ -5,8 +5,13 @@
  * (scripts/serve-dist.mjs), і фронтенд (src/site/siteConfig.ts).
  */
 
-/** @typedef {'malyn' | 'korosten'} SiteKey */
+/** @typedef {'malyn' | 'korosten' | 'zhytomyr'} SiteKey */
 
+/**
+ * Щоб додати місту власний домен: купити домен, додати його в Railway (сервіс frontend)
+ * і поставити тут `active: true`. Більше нічого міняти не треба — редиректи, пінінг рідного
+ * міста, noindex і заглушка транспорту працюють від цієї мапи.
+ */
 export const SITES = {
   malyn: {
     key: 'malyn',
@@ -17,6 +22,8 @@ export const SITES = {
     cityNameUkGenitive: 'Малина',
     /** Головний сайт: адмінка, Telegram-логін, індексація в пошуку */
     isPrimary: true,
+    /** Домен підключено і він обслуговує трафік */
+    active: true,
   },
   korosten: {
     key: 'korosten',
@@ -25,8 +32,23 @@ export const SITES = {
     cityNameUk: 'Коростень',
     cityNameUkGenitive: 'Коростеня',
     isPrimary: false,
+    active: true,
+  },
+  zhytomyr: {
+    key: 'zhytomyr',
+    domain: 'zhytomyr.kiev.ua',
+    cityCode: 'Zhytomyr',
+    cityNameUk: 'Житомир',
+    cityNameUkGenitive: 'Житомира',
+    isPrimary: false,
+    // Домен ще не куплено/не підключено: Житомир поки живе на головному сайті.
+    active: false,
   },
 };
+
+/** Домени, які реально обслуговують трафік (для юридичних текстів і редиректів) */
+export const ACTIVE_SITES = Object.values(SITES).filter((s) => s.active);
+export const ACTIVE_SITE_DOMAINS = ACTIVE_SITES.map((s) => s.domain);
 
 export const PRIMARY_SITE = SITES.malyn;
 export const PRIMARY_ORIGIN = `https://${PRIMARY_SITE.domain}`;
@@ -58,9 +80,12 @@ export function normalizeHost(host) {
 export function resolveSiteKey(host) {
   const value = normalizeHost(host);
   if (!value) return PRIMARY_SITE.key;
-  if (value === 'korosten' || value === SITES.korosten.domain) return SITES.korosten.key;
-  // korosten.localhost, korosten.kiev.ua, будь-який korosten.* для локальної розробки
-  if (value.startsWith('korosten.')) return SITES.korosten.key;
+  for (const site of ACTIVE_SITES) {
+    if (site.isPrimary) continue;
+    // korosten.kiev.ua, а також korosten / korosten.localhost для локальної розробки
+    const prefix = site.domain.split('.')[0];
+    if (value === site.domain || value === prefix || value.startsWith(`${prefix}.`)) return site.key;
+  }
   return PRIMARY_SITE.key;
 }
 
