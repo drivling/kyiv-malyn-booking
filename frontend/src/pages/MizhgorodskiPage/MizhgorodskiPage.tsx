@@ -21,6 +21,7 @@ import {
   supportPhoneToTelLink,
 } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
+import { buildCitySwitchUrl, getCurrentSite } from '@/site/siteConfig';
 import { BusBookingModal } from './BusBookingModal';
 import { TrainTicketModal } from './TrainTicketModal';
 import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
@@ -106,13 +107,15 @@ export const MizhgorodskiPage: React.FC = () => {
     },
   });
 
+  // Дефолтний напрямок — «Київ → рідне місто цього домену» (Малин або Коростень)
+  const siteCityCode = getCurrentSite().cityCode as BookingCity;
   const initialFrom = parseCity(searchParams.get('from')) || 'Kyiv';
-  const initialTo = parseCity(searchParams.get('to')) || 'Malyn';
+  const initialTo = parseCity(searchParams.get('to')) || siteCityCode;
   const initialDate = searchParams.get('date') || todayISO();
   const initialValid = Boolean(initialFrom && initialTo && initialFrom !== initialTo);
 
   const [fromCity, setFromCity] = useState<BookingCity>(initialValid ? (initialFrom as BookingCity) : 'Kyiv');
-  const [toCity, setToCity] = useState<BookingCity>(initialValid ? (initialTo as BookingCity) : 'Malyn');
+  const [toCity, setToCity] = useState<BookingCity>(initialValid ? (initialTo as BookingCity) : siteCityCode);
   const [date, setDate] = useState(initialDate);
   const [transport, setTransport] = useState<TransportFilter>(
     (['all', 'carpool', 'bus', 'train'].includes(searchParams.get('type') || '')
@@ -131,7 +134,10 @@ export const MizhgorodskiPage: React.FC = () => {
   const [listings, setListings] = useState<ViberListing[]>([]);
   const [poputkyPoints, setPoputkyPoints] = useState<TripPoint[]>([]);
   const [allTripPoints, setAllTripPoints] = useState<TripPoint[]>([]);
+  // На вторинному домені (korosten.kiev.ua) рідне місто задає сам домен, кука не враховується.
   const [homeCityCode, setHomeCityCode] = useState(() => {
+    const site = getCurrentSite();
+    if (!site.isPrimary) return site.cityCode;
     try {
       return readHomeCityCookie() || HOME_CITY_STORAGE_FALLBACK;
     } catch {
@@ -412,6 +418,18 @@ export const MizhgorodskiPage: React.FC = () => {
   };
 
   const handleHomeCityChange = (code: string) => {
+    // Місто з власним доменом (Коростень) живе на іншому сайті — переносимо туди
+    // той самий шлях і query, місто передаємо параметром (куки між доменами не ходять).
+    const switchUrl = buildCitySwitchUrl(
+      getCurrentSite(),
+      code,
+      window.location.pathname,
+      window.location.search,
+    );
+    if (switchUrl) {
+      window.location.assign(switchUrl);
+      return;
+    }
     setHomeCityCode(code);
     writeHomeCityCookie(code);
     const home = allTripPoints.find((p) => p.code === code);

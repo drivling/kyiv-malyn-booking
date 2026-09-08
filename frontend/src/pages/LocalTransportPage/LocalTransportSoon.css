@@ -1,0 +1,48 @@
+/* Заглушка «локальний транспорт скоро» для міст без розкладу (напр. Коростень) */
+.lt-soon {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 56px 20px 72px;
+  text-align: center;
+}
+
+.lt-soon-badge {
+  display: inline-block;
+  margin: 0 0 16px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--lt-accent, #ffd400);
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lt-soon-title {
+  margin: 0 0 16px;
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+.lt-soon-text {
+  margin: 0 0 14px;
+  color: var(--lt-text-muted);
+  line-height: 1.55;
+}
+
+.lt-soon-cta {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  background: var(--lt-accent, #ffd400);
+  color: #1a1a1a;
+  font-weight: 600;
+  text-decoration: none;
+  min-height: 44px;
+}
+
+.lt-soon-cta:hover {
+  filter: brightness(0.95);
+}

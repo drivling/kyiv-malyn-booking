@@ -7,6 +7,15 @@
     "test:frontend": "npm run test --prefix frontend",
     "test:coverage": "npm run test:coverage --prefix backend && npm run test:coverage --prefix frontend",
     "test:e2e": "npm run test:e2e --prefix frontend",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d",
+    "db:psql": "docker exec -it kyiv-malyn-postgres psql -U booking -d booking",
+    "setup:local": "npm run db:up && npm --prefix backend run prisma:migrate:deploy && npm --prefix backend run build && npm --prefix backend run seed:transport",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "lint": "npm run lint --prefix frontend",
+    "typecheck": "cd backend && npx tsc --noEmit && cd ../frontend && npx tsc --noEmit",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -51,7 +51,7 @@ function normalizeTimeInput(s: string): string {
   x = x.replace(/[\u200B-\u200D\uFEFF]/g, '');
   x = x.replace(/[\uFF10-\uFF19]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xff10 + 0x30));
   x = x.replace(/\s/g, '');
-  let m = x.match(/^(\d{1,2})[\u003A\uFF1A\uFE55\uFF0E\.](\d{2})(?::\d{2})?/);
+  let m = x.match(/^(\d{1,2})[\u003A\uFF1A\uFE55\uFF0E.](\d{2})(?::\d{2})?/);
   if (!m && /^\d{4}$/.test(x)) {
     m = [x, x.slice(0, 2), x.slice(2)] as unknown as RegExpMatchArray;
   }

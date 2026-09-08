@@ -13,6 +13,7 @@ import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRo
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
+import { DomainGuard, LocalTransportGate, getCurrentSite, useHomeCityHandoff } from '@/site';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import './App.css';
@@ -44,12 +45,14 @@ function LocalTransportLegacyRedirect() {
 
 function AppContent() {
   const { pathname } = useLocation();
+  useHomeCityHandoff();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
 
   return (
     <div className={`app ${isAdminPath ? 'app--admin' : 'app--bbc'}`}>
       <GoogleAnalyticsTracker />
+      <DomainGuard />
       <NavBar />
       <main className="app-main">
         <Routes>
@@ -58,11 +61,23 @@ function AppContent() {
           <Route path="/mizhgorodski/:corridorSlug" element={<CorridorLandingPage />} />
           <Route path="/poputky" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/booking" element={<Navigate to="/mizhgorodski" replace />} />
-          <Route path="/transport/route/:routeId" element={<LocalTransportPage />} />
-          <Route path="/transport/stop/:stopSlug" element={<LocalTransportStopBoardPage />} />
-          <Route path="/transport/stop" element={<LocalTransportStopBoardPage />} />
-          <Route path="/transport/:fromStop/:toStop" element={<LocalTransportPage />} />
-          <Route path="/transport" element={<LocalTransportPage />} />
+          <Route
+            path="/transport/route/:routeId"
+            element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>}
+          />
+          <Route
+            path="/transport/stop/:stopSlug"
+            element={<LocalTransportGate><LocalTransportStopBoardPage /></LocalTransportGate>}
+          />
+          <Route
+            path="/transport/stop"
+            element={<LocalTransportGate><LocalTransportStopBoardPage /></LocalTransportGate>}
+          />
+          <Route
+            path="/transport/:fromStop/:toStop"
+            element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>}
+          />
+          <Route path="/transport" element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>} />
           <Route path="/localtransport/*" element={<LocalTransportLegacyRedirect />} />
           <Route path="/localtransport" element={<LocalTransportLegacyRedirect />} />
           <Route path={COMPANY_LEGAL_PATH} element={<CompanyLegalPage />} />
@@ -112,7 +127,7 @@ function NavBar() {
           Міжміські
         </Link>
         <Link to="/transport" className="nav-link">
-          Транспорт Малина
+          Транспорт {getCurrentSite().cityNameUkGenitive}
         </Link>
         <Link to={COMPANY_LEGAL_PATH} className="nav-link">
           Про нас

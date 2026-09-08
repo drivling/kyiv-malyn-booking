@@ -191,6 +191,16 @@ curl -X POST "https://YOUR_BACKEND_URL/admin/viber-analytics/import" \
 
 ### 7. Локальна розробка й тест для девелопера
 
+> **Швидкий старт «з нуля» — `Docs/local-dev.md`:** локальний Postgres у Docker, міграції,
+> сіди, обидва домени (`localhost:5173` і `korosten.localhost:5173`), адмінка й усі перевірки.
+>
+> ```bash
+> cp backend/.env.example backend/.env && cp frontend/.env.example frontend/.env
+> npm run setup:local     # Postgres у Docker + міграції + build + seed транспорту
+> npm run dev:backend     # http://localhost:3000
+> npm run dev:frontend    # http://localhost:5173
+> ```
+
 #### 7.1. Підготовка backend
 
 ```bash

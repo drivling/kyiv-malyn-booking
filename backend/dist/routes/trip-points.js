@@ -37,7 +37,7 @@ function createTripPointsRouter(deps) {
         res.json(points);
     });
     r.post('/trip-points', require_admin_1.requireAdmin, async (req, res) => {
-        const { code, nameUk, requiredOnTrip, appearInFromTo, appearInPoputky, sortOrder, quickDirectPointIds } = req.body ?? {};
+        const { code, nameUk, requiredOnTrip, appearInFromTo, appearInPoputky, hasLocalTransport, sortOrder, quickDirectPointIds, } = req.body ?? {};
         if (!code || !String(code).trim() || !nameUk || !String(nameUk).trim()) {
             return res.status(400).json({ error: 'code and nameUk are required' });
         }
@@ -50,6 +50,7 @@ function createTripPointsRouter(deps) {
                     requiredOnTrip: Boolean(requiredOnTrip),
                     appearInFromTo: appearInFromTo === undefined ? true : Boolean(appearInFromTo),
                     appearInPoputky: appearInPoputky === undefined ? false : Boolean(appearInPoputky),
+                    hasLocalTransport: hasLocalTransport === undefined ? false : Boolean(hasLocalTransport),
                     sortOrder: sortOrder != null ? Number(sortOrder) : 0,
                     ...(quickIds !== undefined ? { quickDirectPointIds: quickIds } : {}),
                 },
@@ -66,7 +67,7 @@ function createTripPointsRouter(deps) {
     });
     r.put('/trip-points/:id', require_admin_1.requireAdmin, async (req, res) => {
         const id = Number(req.params.id);
-        const { code, nameUk, requiredOnTrip, appearInFromTo, appearInPoputky, sortOrder, quickDirectPointIds } = req.body ?? {};
+        const { code, nameUk, requiredOnTrip, appearInFromTo, appearInPoputky, hasLocalTransport, sortOrder, quickDirectPointIds, } = req.body ?? {};
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({ error: 'Invalid id' });
         }
@@ -91,6 +92,9 @@ function createTripPointsRouter(deps) {
                     ...(requiredOnTrip !== undefined ? { requiredOnTrip: Boolean(requiredOnTrip) } : {}),
                     ...(appearInFromTo !== undefined ? { appearInFromTo: Boolean(appearInFromTo) } : {}),
                     ...(appearInPoputky !== undefined ? { appearInPoputky: Boolean(appearInPoputky) } : {}),
+                    ...(hasLocalTransport !== undefined
+                        ? { hasLocalTransport: Boolean(hasLocalTransport) }
+                        : {}),
                     ...(sortOrder !== undefined ? { sortOrder: Number(sortOrder) } : {}),
                     ...(quickIds !== undefined ? { quickDirectPointIds: quickIds } : {}),
                 },

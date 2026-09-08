@@ -200,3 +200,28 @@
 3. Детальну інструкцію в README
 4. Налаштування змінних оточення
 5. Налаштування Prisma міграцій
+
+---
+
+## 🌐 Два домени на одному фронтенді (malin.kiev.ua + korosten.kiev.ua)
+
+Обидва домені веде **один** Railway-сервіс `frontend` — окремого деплою чи білду не потрібно.
+
+**Railway:** сервіс `frontend` → Settings → Domains → додати `korosten.kiev.ua`
+(за бажанням `www.korosten.kiev.ua`) і прописати видані CNAME у реєстратора.
+Бекенд, БД, Telegram-бот і `VITE_API_URL` не змінюються.
+
+**Що робить код** (`frontend/scripts/site-hosts.mjs` — мапа доменів, `frontend/src/site/*` — фронт):
+
+| Поведінка | Де реалізовано |
+|---|---|
+| Зміна «Рідне місто» на Коростень → перехід на `korosten.kiev.ua` з тим самим шляхом і query (місто їде в `?city=`, бо куки між доменами не ходять) | `siteConfig.buildCitySwitchUrl` + `MizhgorodskiPage` |
+| Домен пінить рідне місто (на `korosten.kiev.ua` це завжди Коростень); вибір іншого міста повертає на `malin.kiev.ua` | `MizhgorodskiPage`, `useHomeCityHandoff` |
+| `/admin`, `/login`, `/user` → 301 на `malin.kiev.ua` (віджет Telegram Login прив'язаний до одного домену бота) | `serve-dist.mjs` (сервер) + `DomainGuard` (SPA-навігація) |
+| `korosten.kiev.ua` поки не індексується: `X-Robots-Tag: noindex`, `robots.txt` = `Disallow: /`, `sitemap.xml` = 404; canonical усіх сторінок ведуть на `malin.kiev.ua` | `serve-dist.mjs` |
+| Локальний транспорт показує заглушку «скоро» в містах без розкладу | галочка `TripPoint.hasLocalTransport` в адмінці → `LocalTransportGate` |
+
+**Локальна перевірка:** `korosten.localhost:5173` (резолвиться в 127.0.0.1) або `?site=korosten`.
+
+**Коли з'явиться контент під Коростень** — прибрати noindex у `serve-dist.mjs`
+і зробити для нього власні canonical/sitemap.

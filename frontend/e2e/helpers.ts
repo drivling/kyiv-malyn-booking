@@ -158,6 +158,7 @@ export async function mockBackendApi(page: Page) {
           requiredOnTrip: true,
           appearInFromTo: true,
           appearInPoputky: true,
+          hasLocalTransport: true,
           quickDirectPointIds: [1, 3],
           sortOrder: 20,
         },
@@ -168,6 +169,7 @@ export async function mockBackendApi(page: Page) {
           requiredOnTrip: false,
           appearInFromTo: true,
           appearInPoputky: true,
+          hasLocalTransport: false,
           sortOrder: 40,
         },
       ]);

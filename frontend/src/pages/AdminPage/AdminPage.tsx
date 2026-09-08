@@ -80,6 +80,7 @@ export const AdminPage: React.FC = () => {
     requiredOnTrip: false,
     appearInFromTo: true,
     appearInPoputky: false,
+    hasLocalTransport: false,
     quickDirectPointIds: [] as number[],
   });
   const [viberListings, setViberListings] = useState<ViberListing[]>([]);
@@ -934,6 +935,7 @@ export const AdminPage: React.FC = () => {
         requiredOnTrip: point.requiredOnTrip,
         appearInFromTo: point.appearInFromTo,
         appearInPoputky: point.appearInPoputky,
+        hasLocalTransport: Boolean(point.hasLocalTransport),
         quickDirectPointIds: Array.isArray(point.quickDirectPointIds) ? [...point.quickDirectPointIds] : [],
       });
     } else {
@@ -945,6 +947,7 @@ export const AdminPage: React.FC = () => {
         requiredOnTrip: false,
         appearInFromTo: true,
         appearInPoputky: false,
+        hasLocalTransport: false,
         quickDirectPointIds: [],
       });
     }
@@ -1664,6 +1667,7 @@ export const AdminPage: React.FC = () => {
                     <th>Обовʼязкова</th>
                     <th>У «звідки/куди»</th>
                     <th>У попутках</th>
+                    <th>Локальний транспорт</th>
                     <th>Швидкі напрямки</th>
                     <th></th>
                   </tr>
@@ -1677,6 +1681,7 @@ export const AdminPage: React.FC = () => {
                       <td>{p.requiredOnTrip ? 'так' : '—'}</td>
                       <td>{p.appearInFromTo ? 'так' : '—'}</td>
                       <td>{p.appearInPoputky ? 'так' : '—'}</td>
+                      <td>{p.hasLocalTransport ? 'так' : '—'}</td>
                       <td style={{ fontSize: 12, maxWidth: 220 }}>
                         {(p.quickDirectPointIds || [])
                           .map((id) => tripPoints.find((x) => x.id === id)?.nameUk || `#${id}`)
@@ -2991,6 +2996,16 @@ export const AdminPage: React.FC = () => {
                     }
                   />
                   <span>У попутках</span>
+                </label>
+                <label className="admin-checkbox" style={{ display: 'block', marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={tripPointForm.hasLocalTransport}
+                    onChange={(e) =>
+                      setTripPointForm({ ...tripPointForm, hasLocalTransport: e.target.checked })
+                    }
+                  />
+                  <span>Є локальний транспорт (міські маршрутки)</span>
                 </label>
                 <div className="form-group" style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>

@@ -101,7 +101,6 @@ export const BookingPage: React.FC = () => {
         }
       })
       .catch(() => setOdPairs([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Синхронізація from/to з URL (ділитися посиланням на маршрут)

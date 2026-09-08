@@ -14,6 +14,8 @@ export interface TripPoint {
   requiredOnTrip: boolean;
   appearInFromTo: boolean;
   appearInPoputky: boolean;
+  /** Чи є в місті локальний транспорт (розклад міських маршруток) */
+  hasLocalTransport?: boolean;
   /** Curated ids for quick-pick chips «X ↔ this city» */
   quickDirectPointIds?: number[];
   sortOrder: number;
