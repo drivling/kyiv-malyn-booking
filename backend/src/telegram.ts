@@ -2205,6 +2205,7 @@ export async function resolveUsernameByPhoneFromTelegram(phone: string): Promise
 const TELEGRAM_GROUPS: Array<{ chat: string; topicIds: number[] }> = [
   { chat: 'PoDoroguem', topicIds: [2, 6, 108] },
   { chat: 'poputka_zhytomyr_kyiv', topicIds: [0] },
+  { chat: 'poputka_zhitomir', topicIds: [0] },
 ];
 
 export type FetchTelegramGroupMessagesResult = {

@@ -66,11 +66,12 @@ PODOROGUEM = "PoDoroguem"
 GROUPS = {
     PODOROGUEM: {2: "Малин-Київ", 6: "Малин-Житомир", 108: "Малин-Коростень"},
     "poputka_zhytomyr_kyiv": {0: "Житомир-Київ"},
+    "poputka_zhitomir": {0: "Житомир-Київ"},
 }
 
 # Скільки годин історії тягнути при першому запуску групи/топіка (min_id == 0), щоб не
 # завалити бекенд бекфілом. --full і --hours цей ліміт не чіпають.
-COLD_START_HOURS = 24
+COLD_START_HOURS = 300
 
 
 def get_session_path():
