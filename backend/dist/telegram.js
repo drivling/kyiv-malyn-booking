@@ -1727,6 +1727,7 @@ async function resolveUsernameByPhoneFromTelegram(phone) {
 const TELEGRAM_GROUPS = [
     { chat: 'PoDoroguem', topicIds: [2, 6, 108] },
     { chat: 'poputka_zhytomyr_kyiv', topicIds: [0] },
+    { chat: 'poputka_zhitomir', topicIds: [0] },
 ];
 /**
  * Завантажити повідомлення з Telegram групи PoDoroguem через особистий акаунт (Telethon).
