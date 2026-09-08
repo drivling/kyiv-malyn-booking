@@ -1,1 +1,0 @@
-export { PoputkyPage } from './PoputkyPage';

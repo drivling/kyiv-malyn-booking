@@ -7,8 +7,8 @@ import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './sto
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
-import { useTransportDataset } from '../TransportPage/useTransportDataset';
-import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { useTransportDataset } from './dataset/useTransportDataset';
+import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';

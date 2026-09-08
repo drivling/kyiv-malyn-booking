@@ -20,8 +20,14 @@ src/
 │   ├── Input/
 │   └── Select/
 ├── pages/         # Сторінки додатку
-│   ├── BookingPage/   # Сторінка бронювання
-│   └── AdminPage/     # Адмін панель
+│   ├── MizhgorodskiPage/    # Міжміські: попутки, маршрутки, електрички (/, /mizhgorodski)
+│   ├── LocalTransportPage/  # Міський транспорт (/transport)
+│   ├── CompanyLegalPage/    # Про нас, політика, умови (/about)
+│   ├── SupportPage/         # Центр допомоги (/support)
+│   ├── LoginPage/           # Вхід (/login)
+│   ├── UserPage/            # Кабінет (/user)
+│   └── AdminPage/           # Адмін панель (/admin)
+├── site/          # Мапа доменів: редиректи, рідне місто, гейт транспорту
 ├── types/         # TypeScript типи
 ├── utils/         # Утиліти та константи
 ├── App.tsx        # Головний компонент

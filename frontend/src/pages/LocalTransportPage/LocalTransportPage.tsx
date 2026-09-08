@@ -19,8 +19,8 @@ import {
   isVerifiedRoute,
 } from './routeTiming';
 import { tripDepartureMinutes, sortTripsByDeparture, parseClockToMinutes } from './tripDeparture';
-import { useTransportDataset } from '../TransportPage/useTransportDataset';
-import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { useTransportDataset } from './dataset/useTransportDataset';
+import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';

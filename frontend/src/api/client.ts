@@ -120,14 +120,6 @@ class ApiClient {
     return this.request<Schedule[]>(qs ? `/schedules?${qs}` : '/schedules');
   }
 
-  async getSchedulesByRoute(route: string, opts?: { vehicleType?: string; date?: string }): Promise<Schedule[]> {
-    const params = new URLSearchParams();
-    if (opts?.vehicleType) params.set('vehicleType', opts.vehicleType);
-    if (opts?.date) params.set('date', opts.date);
-    const qs = params.toString();
-    return this.request<Schedule[]>(qs ? `/schedules/${route}?${qs}` : `/schedules/${route}`);
-  }
-
   async createSchedule(data: ScheduleFormData): Promise<Schedule> {
     return this.request<Schedule>('/schedules', {
       method: 'POST',
@@ -271,16 +263,6 @@ class ApiClient {
     return this.request<{ supportPhone: string | null }>('/schedules-support-phone');
   }
 
-  async checkAvailability(
-    route: string,
-    departureTime: string,
-    date: string
-  ): Promise<Availability> {
-    return this.request<Availability>(
-      `/schedules/${route}/${departureTime}/availability?date=${date}`
-    );
-  }
-
   /** Preferred availability lookup by schedule id (route string deprecated as SoT). */
   async checkAvailabilityByScheduleId(scheduleId: number, date: string): Promise<Availability> {
     return this.request<Availability>(
@@ -312,10 +294,6 @@ class ApiClient {
       method: 'DELETE',
       body: JSON.stringify({ telegramUserId }),
     });
-  }
-
-  async findLastBookingByPhone(phone: string): Promise<Booking | null> {
-    return this.request<Booking | null>(`/bookings/by-phone/${encodeURIComponent(phone)}`);
   }
 
   // Admin auth
@@ -352,11 +330,6 @@ class ApiClient {
   async getPersons(search?: string): Promise<PersonWithCounts[]> {
     const q = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
     return this.request<PersonWithCounts[]>(`/admin/persons${q}`);
-  }
-
-  /** Одна персона за id. */
-  async getPerson(id: number): Promise<PersonWithCounts> {
-    return this.request<PersonWithCounts>(`/admin/persons/${id}`);
   }
 
   /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. telegramPromoSentAt/telegramReminderSentAt: null або '' — обнулити. */
@@ -507,23 +480,6 @@ class ApiClient {
   async getViberListings(active?: boolean): Promise<ViberListing[]> {
     const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';
     return this.request<ViberListing[]>(endpoint);
-  }
-
-  async searchViberListings(
-    routeOrOpts: string | { route?: string; fromCode?: string; toCode?: string; date: string },
-    dateArg?: string
-  ): Promise<ViberListing[]> {
-    const params = new URLSearchParams();
-    if (typeof routeOrOpts === 'string') {
-      params.set('route', routeOrOpts);
-      if (dateArg) params.set('date', dateArg);
-    } else {
-      if (routeOrOpts.route) params.set('route', routeOrOpts.route);
-      if (routeOrOpts.fromCode) params.set('fromCode', routeOrOpts.fromCode);
-      if (routeOrOpts.toCode) params.set('toCode', routeOrOpts.toCode);
-      params.set('date', routeOrOpts.date);
-    }
-    return this.request<ViberListing[]>(`/viber-listings/search?${params.toString()}`);
   }
 
   async createViberListing(data: ViberListingFormData): Promise<ViberListing> {
