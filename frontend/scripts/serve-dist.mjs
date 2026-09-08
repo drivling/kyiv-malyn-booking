@@ -11,6 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(__dirname, '../dist');
@@ -92,12 +93,13 @@ function safeJoin(root, urlPath) {
   return full;
 }
 
-function sendFile(res, filePath) {
+function sendFile(res, filePath, extraHeaders = {}) {
   const ext = path.extname(filePath).toLowerCase();
   const type = MIME[ext] || 'application/octet-stream';
   res.writeHead(200, {
     'Content-Type': type,
     'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+    ...extraHeaders,
   });
   fs.createReadStream(filePath).pipe(res);
 }
@@ -116,6 +118,10 @@ function tryResolve(urlPath) {
   return null;
 }
 
+/** Вторинний домен (korosten.kiev.ua) поки не індексуємо: канонічний контент — на malin.kiev.ua */
+const NOINDEX_HEADERS = { 'X-Robots-Tag': 'noindex, nofollow' };
+const NOINDEX_ROBOTS_TXT = 'User-agent: *\nDisallow: /\n';
+
 const server = http.createServer((req, res) => {
   const urlPath = req.url || '/';
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -124,11 +130,42 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const site = resolveSite(req.headers.host);
+  const extraHeaders = site.isPrimary ? {} : NOINDEX_HEADERS;
+
+  if (!site.isPrimary) {
+    const { pathname, search } = splitUrl(urlPath);
+
+    // Адмінка, логін і кабінет живуть тільки на головному домені
+    if (isPrimaryOnlyPath(pathname)) {
+      res.writeHead(301, { Location: primaryUrl(pathname, search), 'Cache-Control': 'no-cache' });
+      res.end();
+      return;
+    }
+
+    if (pathname === '/robots.txt') {
+      res.writeHead(200, {
+        'Content-Type': MIME['.txt'],
+        'Cache-Control': 'public, max-age=3600',
+        ...NOINDEX_HEADERS,
+      });
+      res.end(req.method === 'HEAD' ? undefined : NOINDEX_ROBOTS_TXT);
+      return;
+    }
+
+    if (pathname === '/sitemap.xml') {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NOINDEX_HEADERS });
+      res.end(req.method === 'HEAD' ? undefined : 'Not found');
+      return;
+    }
+  }
+
   const redirectTo = permanentRedirectLocation(urlPath);
   if (redirectTo) {
     res.writeHead(301, {
       Location: redirectTo,
       'Cache-Control': 'public, max-age=86400',
+      ...extraHeaders,
     });
     res.end();
     return;
@@ -137,20 +174,23 @@ const server = http.createServer((req, res) => {
   const resolved = tryResolve(urlPath === '/' ? '/index.html' : urlPath);
   if (resolved) {
     if (req.method === 'HEAD') {
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(resolved)] || 'application/octet-stream' });
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(resolved)] || 'application/octet-stream',
+        ...extraHeaders,
+      });
       res.end();
       return;
     }
-    sendFile(res, resolved);
+    sendFile(res, resolved, extraHeaders);
     return;
   }
 
   const spa = path.join(dist, 'index.html');
   if (fs.existsSync(spa)) {
-    sendFile(res, spa);
+    sendFile(res, spa, extraHeaders);
     return;
   }
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.writeHead(404, { 'Content-Type': 'text/plain', ...extraHeaders });
   res.end('Not found');
 });
 

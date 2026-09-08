@@ -45,10 +45,12 @@ if (!process.env.TELEGRAM_USER_SESSION_PATH?.trim() && process.env.TELEGRAM_API_
 function createApp(deps) {
     const prisma = deps.prisma;
     const app = (0, express_1.default)();
-    // CORS: дозволяємо фронт (malin.kiev.ua + Railway preview)
+    // CORS: дозволяємо фронт (malin.kiev.ua, korosten.kiev.ua + Railway preview)
     const allowedOrigins = [
         'https://malin.kiev.ua',
         'https://www.malin.kiev.ua',
+        'https://korosten.kiev.ua',
+        'https://www.korosten.kiev.ua',
         'http://localhost:5173',
         'http://localhost:3000',
     ];

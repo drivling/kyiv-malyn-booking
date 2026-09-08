@@ -29,8 +29,15 @@ npm run test:backend
 npm run test:frontend
 npm run test:coverage # both, with coverage thresholds
 npm run test:e2e      # Playwright (frontend)
+npm run lint          # eslint (frontend, max-warnings 0)
+npm run typecheck     # tsc --noEmit for both packages
+
+npm run setup:local   # Docker Postgres + migrations + backend build + transport seed
+npm run db:up / db:down / db:reset / db:psql
+npm run dev:backend / dev:frontend
 ```
 Husky `pre-commit` runs `npm test` — keep unit tests fast and non-flaky.
+Full local loop (both domains, admin, checks): `Docs/local-dev.md`.
 
 Backend (`cd backend`):
 ```bash
@@ -155,6 +162,25 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   `src/test/msw/`.
 - Playwright specs in `frontend/e2e/` run against `vite --port 4177` with the backend fully mocked via
   `page.route` (no live backend needed) — see `playwright.config.ts`.
+
+## Two public domains (malin.kiev.ua + korosten.kiev.ua)
+
+One Railway frontend service serves both domains; the DB, backend and Telegram bot are shared.
+The domain map lives in `frontend/scripts/site-hosts.mjs` (plain ESM — imported by both the Node
+host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`).
+
+- Switching «Рідне місто» to a city that owns a domain navigates to that domain with the same path
+  and query (`?city=<code>` carries the choice; cookies do not cross domains) — `buildCitySwitchUrl`
+  + `useHomeCityHandoff`. A secondary domain pins its own home city.
+- `/admin`, `/login`, `/user` exist only on the primary domain: 301 in `serve-dist.mjs` for the first
+  hit, `DomainGuard` for SPA navigation (the Telegram Login widget is bound to one bot domain).
+- korosten.kiev.ua is `noindex` for now (`X-Robots-Tag`, synthetic `robots.txt`, 404 sitemap in
+  `serve-dist.mjs`); all canonicals keep pointing at malin.kiev.ua.
+- Local transport is gated per city by `TripPoint.hasLocalTransport` (checkbox in the admin
+  «Маршрути» tab) — `LocalTransportGate` renders a «скоро» stub where it is off. The transport
+  dataset itself is still single-tenant Malyn.
+- Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
+  (or `?site=korosten`).
 
 ## Cross-cutting notes
 

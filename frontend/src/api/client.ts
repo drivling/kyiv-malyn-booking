@@ -239,6 +239,7 @@ class ApiClient {
     requiredOnTrip?: boolean;
     appearInFromTo?: boolean;
     appearInPoputky?: boolean;
+    hasLocalTransport?: boolean;
     sortOrder?: number;
     quickDirectPointIds?: number[];
   }): Promise<import('@/types').TripPoint> {
@@ -253,6 +254,7 @@ class ApiClient {
       requiredOnTrip: boolean;
       appearInFromTo: boolean;
       appearInPoputky: boolean;
+      hasLocalTransport: boolean;
       sortOrder: number;
       quickDirectPointIds: number[];
     }>

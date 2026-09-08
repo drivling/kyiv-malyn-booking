@@ -301,6 +301,8 @@ export const MapEditorTab: React.FC = () => {
     setError('');
     setStatusMsg('');
     try {
+      // редактор тримає дані в «сирому» вигляді і нормалізує їх у editorToDataset
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dataset = editorToDataset(transportData as any, coordsData, baseDataset);
       const result = await apiClient.putTransportDataset(dataset);
       applyDataset(dataset);

@@ -1,7 +1,7 @@
 {
   "name": "kyiv-malyn-backend",
   "scripts": {
-    "dev": "ts-node-dev src/index.ts",
+    "dev": "ts-node-dev -r dotenv/config src/index.ts",
     "build": "rm -rf dist && prisma generate && tsc",
     "start": "prisma migrate deploy && node dist/scripts/seed-local-transport.js --if-empty && node dist/index.js",
     "prisma:init": "prisma init",
@@ -11,7 +11,7 @@
     "fix-telegram-ids": "ts-node src/fix-telegram-ids.ts",
     "migrate-to-person": "ts-node src/migrate-to-person.ts",
     "find-self-referrals": "ts-node src/find-self-referrals.ts",
-    "seed:transport": "node dist/scripts/seed-local-transport.js",
+    "seed:transport": "node -r dotenv/config dist/scripts/seed-local-transport.js",
     "seed:transport:ts": "ts-node src/scripts/seed-local-transport.ts",
     "export:gtfs": "ts-node src/scripts/export-gtfs.ts",
     "calculate:segments": "ts-node src/scripts/calculate-segment-durations.ts",
@@ -23,6 +23,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "node-telegram-bot-api": "^0.67.0"
   },

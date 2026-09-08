@@ -16,6 +16,7 @@ type Point = {
   requiredOnTrip: boolean;
   appearInFromTo: boolean;
   appearInPoputky: boolean;
+  hasLocalTransport: boolean;
   quickDirectPointIds: number[];
   sortOrder: number;
   createdAt: Date;
@@ -57,10 +58,10 @@ type TripRouteRow = {
 function seedPoints(): Point[] {
   const now = new Date();
   return [
-    { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 10, createdAt: now, updatedAt: now },
-    { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 20, createdAt: now, updatedAt: now },
-    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 50, createdAt: now, updatedAt: now },
-    { id: 4, code: 'Korosten', nameUk: 'Коростень', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, quickDirectPointIds: [], sortOrder: 40, createdAt: now, updatedAt: now },
+    { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, hasLocalTransport: false, quickDirectPointIds: [], sortOrder: 10, createdAt: now, updatedAt: now },
+    { id: 2, code: 'Malyn', nameUk: 'Малин', requiredOnTrip: true, appearInFromTo: true, appearInPoputky: true, hasLocalTransport: true, quickDirectPointIds: [], sortOrder: 20, createdAt: now, updatedAt: now },
+    { id: 3, code: 'Irpin', nameUk: 'Ірпінь', requiredOnTrip: false, appearInFromTo: false, appearInPoputky: true, hasLocalTransport: false, quickDirectPointIds: [], sortOrder: 50, createdAt: now, updatedAt: now },
+    { id: 4, code: 'Korosten', nameUk: 'Коростень', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, hasLocalTransport: false, quickDirectPointIds: [], sortOrder: 40, createdAt: now, updatedAt: now },
   ];
 }
 
@@ -95,6 +96,7 @@ function createTripPrismaStub(store: {
           requiredOnTrip: Boolean(data.requiredOnTrip),
           appearInFromTo: data.appearInFromTo !== false,
           appearInPoputky: Boolean(data.appearInPoputky),
+          hasLocalTransport: Boolean(data.hasLocalTransport),
           quickDirectPointIds: Array.isArray(data.quickDirectPointIds) ? data.quickDirectPointIds : [],
           sortOrder: data.sortOrder ?? 0,
           createdAt: new Date(),
@@ -283,6 +285,42 @@ test('GET /trip-points returns catalog', async () => {
   const res = await request(appWith(store)).get('/trip-points');
   assert.equal(res.status, 200);
   assert.equal(res.body.length, 4);
+});
+
+test('GET /trip-points exposes hasLocalTransport (Malyn only)', async () => {
+  const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
+  const res = await request(appWith(store)).get('/trip-points');
+  assert.equal(res.status, 200);
+  const byCode = new Map(res.body.map((p: any) => [p.code, p.hasLocalTransport]));
+  assert.equal(byCode.get('Malyn'), true);
+  assert.equal(byCode.get('Korosten'), false);
+});
+
+test('PUT /trip-points updates hasLocalTransport, POST defaults it to false', async () => {
+  const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
+  const app = appWith(store);
+  const token = await adminToken(app);
+
+  const enabled = await request(app)
+    .put('/trip-points/4')
+    .set('Authorization', token)
+    .send({ hasLocalTransport: true });
+  assert.equal(enabled.status, 200);
+  assert.equal(enabled.body.hasLocalTransport, true);
+
+  const disabled = await request(app)
+    .put('/trip-points/2')
+    .set('Authorization', token)
+    .send({ hasLocalTransport: false });
+  assert.equal(disabled.status, 200);
+  assert.equal(disabled.body.hasLocalTransport, false);
+
+  const created = await request(app)
+    .post('/trip-points')
+    .set('Authorization', token)
+    .send({ code: 'Ovruch', nameUk: 'Овруч' });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.hasLocalTransport, false);
 });
 
 test('POST /schedules creates marshrutka with points', async () => {

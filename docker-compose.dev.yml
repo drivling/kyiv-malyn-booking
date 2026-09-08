@@ -1,0 +1,23 @@
+# Локальна БД для розробки: docker compose -f docker-compose.dev.yml up -d
+# Дані живуть у volume kyiv_malyn_pgdata, порт 5433 (щоб не конфліктувати з системним Postgres).
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kyiv-malyn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: booking
+      POSTGRES_PASSWORD: booking
+      POSTGRES_DB: booking
+    ports:
+      - '5433:5432'
+    volumes:
+      - kyiv_malyn_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U booking -d booking']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  kyiv_malyn_pgdata:

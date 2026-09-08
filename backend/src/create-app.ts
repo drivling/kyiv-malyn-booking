@@ -49,10 +49,12 @@ export function createApp(deps: CreateAppDeps): express.Application {
 const prisma = deps.prisma;
 const app = express();
 
-// CORS: дозволяємо фронт (malin.kiev.ua + Railway preview)
+// CORS: дозволяємо фронт (malin.kiev.ua, korosten.kiev.ua + Railway preview)
 const allowedOrigins = [
   'https://malin.kiev.ua',
   'https://www.malin.kiev.ua',
+  'https://korosten.kiev.ua',
+  'https://www.korosten.kiev.ua',
   'http://localhost:5173',
   'http://localhost:3000',
 ];

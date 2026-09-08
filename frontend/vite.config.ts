@@ -18,6 +18,9 @@ export default defineConfig({
       'frontend-production-34cd.up.railway.app',
       'malin.kiev.ua',
       'www.malin.kiev.ua',
+      'korosten.kiev.ua',
+      'www.korosten.kiev.ua',
+      'korosten.localhost',
     ],
     proxy: {
       '/api': {
@@ -35,6 +38,9 @@ export default defineConfig({
       'frontend-production-34cd.up.railway.app',
       'malin.kiev.ua',
       'www.malin.kiev.ua',
+      'korosten.kiev.ua',
+      'www.korosten.kiev.ua',
+      'korosten.localhost',
     ],
   },
 })

@@ -8,6 +8,8 @@ export type PageSeoOptions = {
   jsonLd?: object;
   /** DOM id for the JSON-LD script (default: page-seo-jsonld) */
   jsonLdId?: string;
+  /** meta[name=robots], напр. 'noindex, follow' для сторінок-заглушок */
+  robots?: string;
 };
 
 function upsertMetaByName(name: string, content: string): () => void {
@@ -75,7 +77,14 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
       ? { title: titleOrOptions, canonicalUrl: canonicalUrl! }
       : titleOrOptions;
 
-  const { title, canonicalUrl: canonical, description, jsonLd, jsonLdId = 'page-seo-jsonld' } = options;
+  const {
+    title,
+    canonicalUrl: canonical,
+    description,
+    jsonLd,
+    jsonLdId = 'page-seo-jsonld',
+    robots,
+  } = options;
   const jsonLdSerialized = jsonLd ? JSON.stringify(jsonLd) : '';
 
   useEffect(() => {
@@ -97,6 +106,7 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
       restores.push(upsertMetaByName('description', description));
       restores.push(upsertMetaByProperty('og:description', description));
     }
+    if (robots) restores.push(upsertMetaByName('robots', robots));
     restores.push(upsertMetaByProperty('og:title', title));
     restores.push(upsertMetaByProperty('og:url', canonical));
     restores.push(upsertMetaByProperty('og:type', 'website'));
@@ -116,5 +126,5 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
       for (const restore of restores) restore();
       restoreJsonLd?.();
     };
-  }, [title, canonical, description, jsonLdSerialized, jsonLdId]);
+  }, [title, canonical, description, jsonLdSerialized, jsonLdId, robots]);
 }
