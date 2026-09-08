@@ -136,9 +136,20 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
 ## Frontend architecture
 
-- `src/pages/*` — route-level pages (BookingPage, AdminPage, LocalTransportPage, MizhgorodskiPage
-  [intercity trains], PoputkyPage [rideshare board], TransportPage, UserPage, LoginPage, SupportPage,
-  CompanyLegalPage), matching top-level app routes in `App.tsx`.
+- `src/pages/*` — route-level pages, matching the routes in `App.tsx`. The public menu has four
+  entries and they are the whole public surface:
+  - `MizhgorodskiPage` → `/` and `/mizhgorodski` — the intercity board (rideshares, marshrutky,
+    elektrichky) plus the home-city picker; `CorridorLandingPage` renders `/mizhgorodski/:corridorSlug`
+    SEO landings from the same directory.
+  - `LocalTransportPage` → `/transport*` — city transit (planner, route detail, stop board via
+    `LocalTransportStopBoardPage`, `LocalTransportSoon` stub); its dataset loader/adapter live in
+    `LocalTransportPage/dataset/`.
+  - `CompanyLegalPage` → `/about` — company details, privacy policy, terms, referral rules.
+  - `SupportPage` → `/support` — help centre (`SupportHub` + `SupportArticle`).
+
+  Plus non-menu routes: `AdminPage` (`/admin/:tab?`), `LoginPage` (`/login`), `UserPage` (`/user`).
+  `/booking` and `/poputky` are 301-style redirects to `/mizhgorodski` — the old BookingPage and
+  PoputkyPage components are gone, don't resurrect them.
 - `src/api/client.ts` — single typed API client wrapping all backend calls; add new endpoints here
   rather than calling `fetch` ad hoc from components. `API_URL` comes from `VITE_API_URL`
   (`src/utils/constants.ts`), proxied to `http://localhost:3000` in dev (`vite.config.ts`).
