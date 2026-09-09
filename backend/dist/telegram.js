@@ -23,6 +23,7 @@ exports.getNextTechnicalPhoneNumber = getNextTechnicalPhoneNumber;
 exports.parseBookOdDateCallback = parseBookOdDateCallback;
 exports.buildElektrichkaPurchaseMessage = buildElektrichkaPurchaseMessage;
 exports.buildElektrichkaPurchaseKeyboard = buildElektrichkaPurchaseKeyboard;
+exports.buildViberListingConfirmationMessage = buildViberListingConfirmationMessage;
 exports.buildAuthorConfirmationSms = buildAuthorConfirmationSms;
 exports.resolveNameByPhoneFromTelegram = resolveNameByPhoneFromTelegram;
 exports.resolveUsernameByPhoneFromTelegram = resolveUsernameByPhoneFromTelegram;
@@ -31,6 +32,7 @@ exports.describeTelegramUserSessionError = describeTelegramUserSessionError;
 exports.fetchAndImportTelegramGroupMessages = fetchAndImportTelegramGroupMessages;
 exports.resolveNameByPhoneFromOpendatabot = resolveNameByPhoneFromOpendatabot;
 exports.sendMessageViaUserAccount = sendMessageViaUserAccount;
+exports.buildTripReminderSms = buildTripReminderSms;
 exports.sendTripReminderSmsOnly = sendTripReminderSmsOnly;
 exports.buildInactivityReminderSms = buildInactivityReminderSms;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
@@ -86,6 +88,7 @@ const poputky_od_1 = require("./poputky-od");
 const revoke_telegram_bot_1 = require("./revoke-telegram-bot");
 const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
 const sms_fallback_1 = require("./sms-fallback");
+const site_domains_1 = require("./site-domains");
 const index_helpers_1 = require("./index-helpers");
 const telegram_contact_1 = require("./telegram-contact");
 const telegram_referral_1 = require("./telegram-referral");
@@ -142,12 +145,16 @@ function isTelegramAdminChat(chatId) {
 }
 const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
 let bot = null;
-function getTelegramScenarioLinks() {
+/**
+ * Посилання для сценаріїв бота. `route` (слаг поїздки) підкидає домен «свого» міста:
+ * для коростенських маршрутів — korosten.kiev.ua, інакше головний сайт.
+ */
+function getTelegramScenarioLinks(route) {
     return {
         driver: `https://t.me/${telegramBotUsername}?start=driver`,
         passenger: `https://t.me/${telegramBotUsername}?start=passenger`,
         view: `https://t.me/${telegramBotUsername}?start=view`,
-        poputkyWeb: 'https://malin.kiev.ua/mizhgorodski',
+        poputkyWeb: (0, site_domains_1.siteUrlForRoute)(route, '/mizhgorodski'),
     };
 }
 exports.BEHAVIOR_PROMO_SCENARIO_LABELS = {
@@ -172,7 +179,7 @@ exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = {
  * Використовується і в боті, і (після спрощення) при відправці від особистого акаунта.
  */
 function buildBehaviorPromoMessage(scenarioKey, context) {
-    const links = getTelegramScenarioLinks();
+    const links = getTelegramScenarioLinks(context?.mainRoute);
     const name = context?.fullName?.trim() || 'Друже';
     const routeHint = context?.mainRoute ? ` (наприклад ${context.mainRoute})` : '';
     const templates = {
@@ -643,7 +650,7 @@ function buildMatchSms(counterpart, kind) {
     const tel = '+' + (0, exports.normalizePhone)(counterpart.phone);
     return (`Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +
         `є ${who} ${name}, тел ${tel}. ` +
-        `https://malin.kiev.ua`);
+        `${(0, site_domains_1.siteUrlForRoute)(counterpart.route)}`);
 }
 async function sleepTelethonBatchDelay() {
     if (isTelegramUserSenderEnabled()) {
@@ -1599,8 +1606,10 @@ function buildViberListingConfirmationMessage(listing, options) {
             : '—';
     const routeName = getRouteName(listing.route);
     const links = getTelegramScenarioLinks();
+    // Сайт за маршрутом: оголошення з коростенських груп ведуть на korosten.kiev.ua
+    const site = (0, site_domains_1.siteForRoute)(listing.route);
     let message = `
-📱 <b>Ваше оголошення опубліковано на платформі Поїздки Київ, Житомир, Коростень ↔️ Малин</b>
+📱 <b>Ваше оголошення опубліковано на платформі ${site.platformLabel}</b>
 
 🛣 <b>Маршрут:</b> ${routeName}
 📅 <b>Дата:</b> ${dateStr}
@@ -1608,7 +1617,7 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 Інші користувачі зможуть бачити це оголошення та зв'язатися з вами за телефоном.
 
 <i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
-Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
+Сайт: <a href="${(0, site_domains_1.siteUrl)(site)}">${site.domain}</a>
   `.trim();
     if (options.addSubscribeInstruction) {
         message += `
@@ -1632,7 +1641,7 @@ function buildAuthorConfirmationSms(listing) {
     const dateStr = d && !Number.isNaN(d.getTime()) ? formatDate(d).replace(/\.\d{4}$/, '') : '';
     const route = getRouteName(listing.route).replace(/\s*→\s*/g, '→');
     const time = listing.departureTime ? ` ${listing.departureTime}` : '';
-    return (`Ваше оголошення ${route} ${dateStr}${time} опубліковано на https://malin.kiev.ua. ` +
+    return (`Ваше оголошення ${route} ${dateStr}${time} опубліковано на ${(0, site_domains_1.siteUrlForRoute)(listing.route)}. ` +
         `Інші люди побачать його і зателефонують вам.`);
 }
 /**
@@ -2270,7 +2279,7 @@ function buildTripReminderSms(booking, when) {
         ? ` Водій ${booking.driver.senderName ?? '—'}, тел +${(0, exports.normalizePhone)(booking.driver.phone)}.`
         : '';
     return (`${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
-        `Перевірте бронювання за телефоном — інакше воно не гарантоване. malin.kiev.ua`);
+        `Перевірте бронювання за телефоном — інакше воно не гарантоване. ${(0, site_domains_1.siteDomainForRoute)(booking.route)}`);
 }
 /** Платний SMS-фолбек нагадування (коли Telegram недосяжний). */
 async function sendTripReminderSmsOnly(booking, when) {

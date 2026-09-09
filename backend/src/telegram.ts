@@ -60,6 +60,7 @@ import {
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
 import { sendPaidFallbackSms } from './sms-fallback';
+import { siteDomainForRoute, siteForRoute, siteUrl, siteUrlForRoute } from './site-domains';
 import { isPastRideDate } from './index-helpers';
 import {
   formatTelegramContactHtmlLink,
@@ -228,12 +229,16 @@ const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_
 
 let bot: TelegramBot | null = null;
 
-export function getTelegramScenarioLinks() {
+/**
+ * Посилання для сценаріїв бота. `route` (слаг поїздки) підкидає домен «свого» міста:
+ * для коростенських маршрутів — korosten.kiev.ua, інакше головний сайт.
+ */
+export function getTelegramScenarioLinks(route?: string | null) {
   return {
     driver: `https://t.me/${telegramBotUsername}?start=driver`,
     passenger: `https://t.me/${telegramBotUsername}?start=passenger`,
     view: `https://t.me/${telegramBotUsername}?start=view`,
-    poputkyWeb: 'https://malin.kiev.ua/mizhgorodski',
+    poputkyWeb: siteUrlForRoute(route, '/mizhgorodski'),
   };
 }
 
@@ -279,7 +284,7 @@ export function buildBehaviorPromoMessage(
   scenarioKey: BehaviorPromoScenarioKey,
   context?: BehaviorPromoContext
 ): string {
-  const links = getTelegramScenarioLinks();
+  const links = getTelegramScenarioLinks(context?.mainRoute);
   const name = context?.fullName?.trim() || 'Друже';
   const routeHint = context?.mainRoute ? ` (наприклад ${context.mainRoute})` : '';
 
@@ -873,7 +878,7 @@ function buildMatchSms(
   return (
     `Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +
     `є ${who} ${name}, тел ${tel}. ` +
-    `https://malin.kiev.ua`
+    `${siteUrlForRoute(counterpart.route)}`
   );
 }
 
@@ -2053,7 +2058,7 @@ function isTelegramUserSenderEnabled(): boolean {
 }
 
 /** Текст сповіщення про публікацію оголошення (спільний для бота та одноразового промо). */
-function buildViberListingConfirmationMessage(
+export function buildViberListingConfirmationMessage(
   listing: {
     route: string;
     date: Date | string;
@@ -2071,8 +2076,10 @@ function buildViberListingConfirmationMessage(
       : '—';
   const routeName = getRouteName(listing.route);
   const links = getTelegramScenarioLinks();
+  // Сайт за маршрутом: оголошення з коростенських груп ведуть на korosten.kiev.ua
+  const site = siteForRoute(listing.route);
   let message = `
-📱 <b>Ваше оголошення опубліковано на платформі Поїздки Київ, Житомир, Коростень ↔️ Малин</b>
+📱 <b>Ваше оголошення опубліковано на платформі ${site.platformLabel}</b>
 
 🛣 <b>Маршрут:</b> ${routeName}
 📅 <b>Дата:</b> ${dateStr}
@@ -2080,7 +2087,7 @@ ${listing.departureTime ? `🕐 <b>Час:</b> ${listing.departureTime}\n` : ''}
 Інші користувачі зможуть бачити це оголошення та зв'язатися з вами за телефоном.
 
 <i>Дякуємо, що користуєтесь нашою платформою! 🚐</i>
-Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
+Сайт: <a href="${siteUrl(site)}">${site.domain}</a>
   `.trim();
   if (options.addSubscribeInstruction) {
     message += `
@@ -2111,7 +2118,7 @@ export function buildAuthorConfirmationSms(listing: {
   const route = getRouteName(listing.route).replace(/\s*→\s*/g, '→');
   const time = listing.departureTime ? ` ${listing.departureTime}` : '';
   return (
-    `Ваше оголошення ${route} ${dateStr}${time} опубліковано на https://malin.kiev.ua. ` +
+    `Ваше оголошення ${route} ${dateStr}${time} опубліковано на ${siteUrlForRoute(listing.route)}. ` +
     `Інші люди побачать його і зателефонують вам.`
   );
 }
@@ -2869,14 +2876,14 @@ export type TripReminderBooking = {
 export type TripReminderDelivery = { delivered: 'bot' | 'sms' | 'none' };
 
 /** Короткий plain-text нагадування для платного SMS (без HTML). */
-function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorrow' | 'today'): string {
+export function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorrow' | 'today'): string {
   const lead = when === 'today' ? 'Сьогодні у вас поїздка' : 'Нагадування: завтра поїздка';
   const drv = booking.driver
     ? ` Водій ${booking.driver.senderName ?? '—'}, тел +${normalizePhone(booking.driver.phone)}.`
     : '';
   return (
     `${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
-    `Перевірте бронювання за телефоном — інакше воно не гарантоване. malin.kiev.ua`
+    `Перевірте бронювання за телефоном — інакше воно не гарантоване. ${siteDomainForRoute(booking.route)}`
   );
 }
 
