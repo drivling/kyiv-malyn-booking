@@ -28,6 +28,8 @@ export interface SupplementRoute {
   interval_max?: number;
   note?: string;
   source_url?: string;
+  /** Ненадійний маршрут — на сайті не показується (фільтрується в datasetToLocalViewModel) */
+  unreliable?: boolean;
   streets?: string[];
   schedule?: {
     from_bazar?: string;

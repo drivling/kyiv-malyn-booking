@@ -744,6 +744,8 @@ export const LocalTransportPage: React.FC = () => {
     return {
       title: 'Транспорт Малина — розклад маршруток і як доїхати | malin.kiev.ua',
       canonicalUrl: 'https://malin.kiev.ua/transport',
+      // /transport/route/<невідомий або прихований id> показує планер — не індексуємо як дубль хаба
+      ...(isDetailPage && !detailRoute && routeCount > 0 ? { robots: 'noindex, follow' } : {}),
       description:
         routeCount > 0
           ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «З → До», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`

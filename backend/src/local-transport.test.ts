@@ -60,6 +60,22 @@ test('validateTransportDataset: rejects bad departureTime', () => {
   assert.ok(errors.some((e) => e.includes('departureTime')));
 });
 
+test('validateTransportDataset: rejects non-boolean unreliable', () => {
+  const { errors } = validateTransportDataset(
+    minimalDataset({
+      routes: [{ id: '2', unreliable: 'yes' as unknown as boolean }],
+    })
+  );
+  assert.ok(errors.some((e) => e.includes('unreliable must be boolean')));
+});
+
+test('validateTransportDataset: accepts boolean / omitted unreliable', () => {
+  const ok = validateTransportDataset(minimalDataset({ routes: [{ id: '2', unreliable: true }] }));
+  assert.equal(ok.errors.length, 0);
+  const omitted = validateTransportDataset(minimalDataset({ routes: [{ id: '2' }] }));
+  assert.equal(omitted.errors.length, 0);
+});
+
 test('convertLegacyRuntime: maps timed trip and coords', () => {
   const { dataset, warnings } = convertLegacyRuntime({
     transport: {
@@ -92,4 +108,24 @@ test('convertLegacyRuntime: maps timed trip and coords', () => {
   assert.equal(dataset.trips[0].serviceId, 'everyday');
   assert.equal(dataset.trips[0].departureTime, '07:00:00');
   assert.equal((dataset.meta.agency as { agency_id: string }).agency_id, 'malyn');
+});
+
+test('convertLegacyRuntime: reads unreliable flag from supplement.routes', () => {
+  const { dataset } = convertLegacyRuntime({
+    transport: {
+      records: [
+        { route_id: '10', trip_id: '10-01', direction_id: '1' },
+        { route_id: '2', trip_id: '2-01', direction_id: '1', departure_time: '07:00:00' },
+      ],
+      supplement: {
+        routes: { '10': { unreliable: true }, '2': { from: 'А', to: 'Б' } },
+        stops: { stops_catalog: {}, stops_by_route: {} },
+      },
+    },
+    coords: { center: [50.77, 29.24], stops: {} },
+    segments: { defaultSec: 120, segments: {} },
+  });
+  const byId = new Map(dataset.routes.map((r) => [r.id, r]));
+  assert.equal(byId.get('10')?.unreliable, true);
+  assert.equal(byId.get('2')?.unreliable, false);
 });
