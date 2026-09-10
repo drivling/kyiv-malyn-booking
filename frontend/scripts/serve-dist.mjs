@@ -160,6 +160,15 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  // www → apex (old Zubustik-era links and Google's memory use www.malin.kiev.ua; needs the
+  // www custom domain in Railway + DNS to reach us at all — see Docs/seo-aeo-plan-2026-09.md 1.11)
+  const host = String(req.headers.host || '').toLowerCase();
+  if (host.startsWith('www.')) {
+    res.writeHead(301, { Location: `https://${host.slice(4)}${urlPath}`, 'Cache-Control': 'public, max-age=86400' });
+    res.end();
+    return;
+  }
+
   const redirectTo = permanentRedirectLocation(urlPath);
   if (redirectTo) {
     res.writeHead(301, {
