@@ -341,5 +341,27 @@ PAA: «Скільки коштує квиток на електричку з М�
 - Внутрішні посилання за GSC: `/booking`, `/localtransport`, `/login` по 4 — у поточному коді
   фронтенду лінків на `/booking` і `/localtransport` немає (лише 301); це старі обходи.
 
+## 14. Cloudflare блокує AI-краулерів (знайдено 2026-09-11) — головний AEO-блокер
+
+Перед malin.kiev.ua стоїть Cloudflare (`server: cloudflare`). Перевірка user-agent-ів на
+`/mizhgorodski/malyn-kyiv`:
+
+| User-agent | Відповідь |
+|-----------|-----------|
+| Googlebot, bingbot, curl | 200, 8.6 КБ |
+| GPTBot, OAI-SearchBot, ChatGPT-User | **403 «Your request was blocked»** |
+| ClaudeBot | **403** |
+| PerplexityBot | **403** |
+
+Плюс Cloudflare «Managed robots.txt» дописує перед нашим файлом блок `# BEGIN Cloudflare Managed
+content` з `Disallow: /` для **GPTBot, ClaudeBot, Google-Extended, Applebot-Extended,
+meta-externalagent, CCBot, Amazonbot, Bytespider** і `Content-Signal: search=yes,ai-train=no`
+(без `ai-input`). У репозиторії (`frontend/public/robots.txt`) цього немає.
+
+Наслідки: Claude і Perplexity фізично не можуть прочитати сайт; ChatGPT цитує старий кеш/Bing;
+`Google-Extended: Disallow` вимикає нас для Gemini (grounding). Це пояснює §11 (1 з 4 асистентів).
+Жодна робота над сторінками (фази 1–3) не дійде до AI-відповідей, поки це ввімкнено.
+Виправлення — лише в панелі Cloudflare власника (план, пункт 0).
+
 Правило D10 (додати до §10): **prerender падає, якщо API не повернув розклад** для коридору;
 fallback-рядки не потрапляють у dist. Альтернатива — брати останній успішний snapshot з репо.

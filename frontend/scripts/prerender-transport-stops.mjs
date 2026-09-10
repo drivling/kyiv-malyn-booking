@@ -64,7 +64,8 @@ function collectFromLegacyJson(data) {
     [...Object.keys(routesMeta), ...Object.keys(byRoute)].filter((id) => !hiddenRouteIds.has(String(id)))
   );
 
-  return { catalog, stopToRoutes, routeIds: [...routeIds].sort(compareRouteId), hiddenRouteIds };
+  const allRouteIds = [...new Set([...Object.keys(routesMeta), ...Object.keys(byRoute)].map(String))].sort(compareRouteId);
+  return { catalog, stopToRoutes, routeIds: [...routeIds].sort(compareRouteId), hiddenRouteIds, allRouteIds };
 }
 
 function collectFromApiDataset(dataset) {
@@ -86,7 +87,8 @@ function collectFromApiDataset(dataset) {
   }
   // Sitemap / route pages: not hidden AND both termini named (rule D1) — same filter as prerender-spa.
   const routeIds = publishableRouteIds(dataset).filter((id) => !hiddenRouteIds.has(id));
-  return { catalog, stopToRoutes, routeIds, hiddenRouteIds };
+  const allRouteIds = [...new Set((dataset.routes || []).map((r) => String(r?.id)).filter(Boolean))].sort(compareRouteId);
+  return { catalog, stopToRoutes, routeIds, hiddenRouteIds, allRouteIds };
 }
 
 function compareRouteId(a, b) {
@@ -322,7 +324,10 @@ async function main() {
     process.exit(1);
   }
   const shell = fs.readFileSync(indexPath, 'utf8');
-  const { catalog, stopToRoutes, routeIds, hiddenRouteIds } = await loadTransportIndex();
+  const { catalog, stopToRoutes, routeIds, hiddenRouteIds, allRouteIds = [] } = await loadTransportIndex();
+  // serve-dist 410s /transport/route/{id} for ids missing here (plan 1.5); empty list = rule off
+  fs.mkdirSync(path.join(distDir, 'transport'), { recursive: true });
+  fs.writeFileSync(path.join(distDir, 'transport', 'routes.json'), JSON.stringify(allRouteIds), 'utf8');
   const articles = loadStopArticles();
   const stopIds = [...stopToRoutes.keys()].sort();
   if (hiddenRouteIds.size) {

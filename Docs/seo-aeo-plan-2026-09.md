@@ -27,6 +27,31 @@
 
 ---
 
+## 0. Cloudflare — зробити першим (власник, ~10 хвилин; review §14)
+
+Без цього AI-асистенти не бачать сайт узагалі, і фази 1–3 для AEO марні.
+
+1. Cloudflare Dashboard → зона `malin.kiev.ua` → **Security → Bots** (у нових панелях
+   **AI Crawl Control** / **Bots → AI bots**): вимкнути **«Block AI bots»** (може називатися
+   «AI Scrapers and Crawlers: Block» або «AI Labyrinth»). Якщо є список по ботах — поставити
+   **Allow** для GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, Claude-User,
+   PerplexityBot, Perplexity-User, Google-Extended, Applebot, meta-externalagent. Bytespider,
+   CCBot, Amazonbot можна лишити заблокованими — вони не дають відповідей з посиланнями.
+2. Там само (**Security → Settings** або **AI Crawl Control → robots.txt**): вимкнути
+   **«Manage AI bot traffic via robots.txt» / «Managed robots.txt»**, щоб віддавався наш
+   `frontend/public/robots.txt` (у ньому вже є явні `Allow` для AI-пошукових ботів і
+   `Content-Signal: search=yes, ai-input=yes, ai-train=no`).
+3. Перевірка після змін (можу зробити я): `curl -A "GPTBot/1.2" https://malin.kiev.ua/mizhgorodski/malyn-kyiv`
+   має дати 200, а `https://malin.kiev.ua/robots.txt` — починатися з нашого коментаря
+   `# malin.kiev.ua — robots`, без блоку `Cloudflare Managed content`.
+4. Через 1–2 тижні — повторити блок H (ChatGPT, Gemini, Claude, Grok) як метрику.
+
+**Правило на майбутнє**: при будь-якій зміні в Cloudflare (WAF, Bots, Cache Rules) — прогнати
+`seo-smoke` проти проду з UA `GPTBot`, `ClaudeBot`, `PerplexityBot`, `Googlebot` (додати в 1.8
+режим `SEO_SMOKE_URL=https://malin.kiev.ua`).
+
+---
+
 ## B. План змін по фазах
 
 Принцип черговості: спочатку те, що робить **існуючий** контент видимим (фаза 1), потім
@@ -42,13 +67,13 @@
 | 1.2 ✅ 2026-09-10 (оболонка: `noindex,follow`, без canonical/og:url; prerender знімає) | **SPA-оболонка без canonical/description**: `index.html` не має містити `canonical=/mizhgorodski` і опис головної; для непререндерених URL — або `noindex`, або взагалі без canonical (усе public має бути пререндерене після 1.1) | `frontend/index.html`, `usePageSeo.ts` | 415 «варіант з canonical» |
 | 1.3 ◐ | Планер `/transport/{from}/{to}` — оболонка = `noindex` (1.2). URL з query (`?d=&h=`, `?from=`) — 415 у GSC — тепер віддають пререндерену сторінку з canonical на чистий URL (review §13); окремо можна додати `rel="nofollow"` на ці `<Link>`, якщо кількість не впаде за 4–6 тижнів | `LocalTransportPage.tsx`, `serve-dist.mjs` | A1 |
 | 1.4 | **Стоп-сторінки → сторінки місць** (рішення §D2): лишити 20–30 з реальною цінністю (18 pilot + топ за кліками A7), переорієнтувати їх з «зупинка X» на **«як доїхати до X у Малині»** (лікарня, вокзал, базар, поліклініка, школи, БАМ, Хлібзавод — GSC показує саме такі запити: «12лікарня», «хлібзавод», «малин вокзал», «будмаркет малин», «грушевського 48»); решту — `noindex` + один хаб «Зупинки Малина» зі списком і картою | `prerender-transport-stops.mjs`, `content/stops/` | «схожі пропущено», розмивання, адресні запити з GSC |
-| 1.5 ◐ (sitemap/prerender лише іменовані та не `unreliable`; 410 для старих URL — ще ні) | Маршрути без даних (D1–D3): 410 для `/transport/route/6`, `10-old` поза sitemap; sitemap генерується **тільки** з датасету | `prerender-transport-stops.mjs` (sitemap), `serve-dist.mjs` | «№6 ? — ?» |
+| 1.5 ✅ 2026-09-11 (`serve-dist-rules.mjs`: 410 для `/transport/route/{id}` поза `dist/transport/routes.json`; іменовані/неіменовані існуючі — відкриваються) | Маршрути без даних (D1–D3): 410 для `/transport/route/6`, `10-old` поза sitemap; sitemap генерується **тільки** з датасету | `prerender-transport-stops.mjs` (sitemap), `serve-dist.mjs` | «№6 ? — ?» |
 | 1.6 | `lastmod` у sitemap з реальних `updatedAt`, `dateModified` у JSON-LD маршрутів/коридорів | prerender + `usePageSeo` | свіжість (§7 п.2) |
 | 1.7 | Перевірити 301 `/` → `/mizhgorodski` очима Google (A2); якщо `/` досі окремо — лишити 301 і дочекатися; **не** повертати контент на `/` | — | §9 п.1 |
 | 1.8 ✅ 2026-09-10 | Smoke-тест на CI: для кожного URL із sitemap `curl` без JS → title ≠ title головної, є H1, canonical = сам URL, немає `?` у H1/title, немає латинських slug у тексті, **немає fallback-фраз «підвантажиться»** | новий `frontend/scripts/seo-smoke.mjs` + тест | D1, D8, D10, регресії |
 | 1.9 ✅ 2026-09-10 | **D10**: `prerender-corridors.mjs` падає, якщо `/schedules` порожній або недоступний (або бере останній успішний snapshot із репо); прибрати текст «Змінюється рідко» | `prerender-corridors.mjs` | ChatGPT: «розклад на сайті не підтягується» (review §11) |
 | 1.11 | **`www.malin.kiev.ua`**: (а) власник — DNS `CNAME www → Railway` + custom domain `www.malin.kiev.ua` у сервісі frontend; (б) ✅ serve-dist вже віддає 301 `www.* → https://malin.kiev.ua/…`. Поки (а) не зроблено — обидва 404 у GSC лишаються, а старі лінки/памʼять Google на `www` нікуди не ведуть | Railway, `serve-dist.mjs` | review §13 |
-| 1.10 | 301-мапа старих URL сайту Зубастика (A8–A9): `/pages/login.php`, `/index.php` → `/mizhgorodski/malyn-kyiv`; решта старих шляхів → 410 | `serve-dist.mjs` | стара «памʼять» домену працює на нас, а не в 404 |
+| 1.10 ✅ 2026-09-11 (`/index.php`, `/pages/*.php` → 301 на `/mizhgorodski/malyn-kyiv`; `/script`, `/css`, `/js`, `/img`, `wp-*`, `*.php` → 410) | 301-мапа старих URL сайту Зубастика (A8–A9): `/pages/login.php`, `/index.php` → `/mizhgorodski/malyn-kyiv`; решта старих шляхів → 410 | `serve-dist.mjs` | стара «памʼять» домену працює на нас, а не в 404 |
 
 Критерій готовності: `curl -A Googlebot` по всіх URL sitemap проходить 1.8; GSC «варіант з
 canonical» падає з 415 до <50 протягом 3–4 тижнів після деплою.
