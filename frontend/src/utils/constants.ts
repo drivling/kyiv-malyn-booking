@@ -177,15 +177,33 @@ export const getRouteSuffix = (route: Route): string => {
   return '';
 };
 
-/** Назва напрямку без суфікса (через Ірпінь/Бучу). Підтримує і повний route, і direction (наприклад Kyiv-Malyn). */
+/** Українські назви точок за кодом (у називному та знахідному відмінку — після «через»). Дзеркало backend/src/schedule-trip.ts. */
+export const POINT_NAMES_UK: Record<string, { nom: string; acc: string }> = {
+  Kyiv: { nom: 'Київ', acc: 'Київ' },
+  Malyn: { nom: 'Малин', acc: 'Малин' },
+  Zhytomyr: { nom: 'Житомир', acc: 'Житомир' },
+  Korosten: { nom: 'Коростень', acc: 'Коростень' },
+  Irpin: { nom: 'Ірпінь', acc: 'Ірпінь' },
+  Bucha: { nom: 'Буча', acc: 'Бучу' },
+  Potiivka: { nom: 'Потіївка', acc: 'Потіївку' },
+  Radomyshl: { nom: 'Радомишль', acc: 'Радомишль' },
+  Berdychiv: { nom: 'Бердичів', acc: 'Бердичів' },
+  Vinnytsia: { nom: 'Вінниця', acc: 'Вінницю' },
+  Khmilnyk: { nom: 'Хмільник', acc: 'Хмільник' },
+  Stanyshivka: { nom: 'Станишівка', acc: 'Станишівку' },
+};
+
+/**
+ * Назва напрямку зі slug маршруту: «Малин → Житомир (через Потіївку)». Працює для будь-якого
+ * `Start-End[-Via…]`, якщо всі коди відомі; інакше повертає slug як є (правило D8 — краще
+ * підставляти `tripRoute.labelUk`, коли він є).
+ */
 export const getDirectionLabel = (route: string): string => {
-  if (route.includes('Kyiv-Malyn')) return 'Київ → Малин';
-  if (route.includes('Malyn-Kyiv')) return 'Малин → Київ';
-  if (route.includes('Malyn-Zhytomyr')) return 'Малин → Житомир';
-  if (route.includes('Zhytomyr-Malyn')) return 'Житомир → Малин';
-  if (route.includes('Korosten-Malyn')) return 'Коростень → Малин';
-  if (route.includes('Malyn-Korosten')) return 'Малин → Коростень';
-  return route;
+  const parts = String(route || '').split('-').filter(Boolean);
+  if (parts.length < 2 || !parts.every((c) => POINT_NAMES_UK[c])) return route;
+  const base = `${POINT_NAMES_UK[parts[0]].nom} → ${POINT_NAMES_UK[parts[1]].nom}`;
+  const via = parts.slice(2).map((c) => POINT_NAMES_UK[c].acc);
+  return via.length ? `${base} (через ${via.join(', ')})` : base;
 };
 
 export const getRouteLabel = (route: Route | string): string => {

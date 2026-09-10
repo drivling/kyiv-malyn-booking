@@ -217,11 +217,19 @@ export function defaultLabelUk(startCode: string, endCode: string, viaCodes: str
     Korosten: 'Коростень',
     Irpin: 'Ірпінь',
     Bucha: 'Буча',
+    Potiivka: 'Потіївка',
+    Radomyshl: 'Радомишль',
+    Berdychiv: 'Бердичів',
+    Vinnytsia: 'Вінниця',
+    Khmilnyk: 'Хмільник',
+    Stanyshivka: 'Станишівка',
   };
+  // знахідний відмінок після «через» (де відрізняється від називного)
+  const acc: Record<string, string> = { Bucha: 'Бучу', Potiivka: 'Потіївку', Vinnytsia: 'Вінницю', Stanyshivka: 'Станишівку' };
   const base = `${map[startCode] || startCode} → ${map[endCode] || endCode}`;
   if (viaCodes.includes('Irpin')) return `${base} (через Ірпінь)`;
   if (viaCodes.includes('Bucha')) return `${base} (через Бучу)`;
-  if (viaCodes.length) return `${base} (через ${viaCodes.map((c) => map[c] || c).join(', ')})`;
+  if (viaCodes.length) return `${base} (через ${viaCodes.map((c) => acc[c] || map[c] || c).join(', ')})`;
   return base;
 }
 

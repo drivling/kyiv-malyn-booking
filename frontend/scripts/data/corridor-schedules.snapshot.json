@@ -991,12 +991,12 @@
     "malyn-zhytomyr": [
       {
         "id": 23,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Khmilnyk-Zhytomyr",
+        "labelUk": "Малин → Хмільник (через Житомир)",
         "departureTime": "05:20",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1011,12 +1011,12 @@
       },
       {
         "id": 24,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Vinnytsia-Zhytomyr",
+        "labelUk": "Малин → Вінниця (через Житомир)",
         "departureTime": "05:40",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1031,12 +1031,12 @@
       },
       {
         "id": 25,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Stanyshivka-Zhytomyr",
+        "labelUk": "Малин → Станишівка (через Житомир)",
         "departureTime": "06:10",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1051,12 +1051,12 @@
       },
       {
         "id": 26,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Radomyshl",
+        "labelUk": "Малин → Житомир (через Радомишль)",
         "departureTime": "06:30",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1071,12 +1071,12 @@
       },
       {
         "id": 27,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "06:50",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1091,12 +1091,12 @@
       },
       {
         "id": 28,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "07:30",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин (транзит з Базару)",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1111,12 +1111,12 @@
       },
       {
         "id": 29,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "08:10",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1131,12 +1131,12 @@
       },
       {
         "id": 30,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Radomyshl",
+        "labelUk": "Малин → Житомир (через Радомишль)",
         "departureTime": "08:30",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин (транзит з Базару)",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1151,12 +1151,12 @@
       },
       {
         "id": 31,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "09:00",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1171,12 +1171,12 @@
       },
       {
         "id": 32,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "09:50",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1191,12 +1191,12 @@
       },
       {
         "id": 33,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "11:50",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1211,12 +1211,12 @@
       },
       {
         "id": 34,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Berdychiv-Radomyshl-Zhytomyr",
+        "labelUk": "Малин → Бердичів (через Радомишль, Житомир)",
         "departureTime": "12:15",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1231,12 +1231,12 @@
       },
       {
         "id": 35,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "13:30",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1251,12 +1251,12 @@
       },
       {
         "id": 36,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "14:00",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1271,32 +1271,12 @@
       },
       {
         "id": 37,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Radomyshl",
+        "labelUk": "Малин → Житомир (через Радомишль)",
         "departureTime": "14:50",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
-        "vehicleType": "marshrutka",
-        "tripNumber": null,
-        "activeWeekdays": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7
-        ]
-      },
-      {
-        "id": 38,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
-        "departureTime": "15:40",
-        "supportPhone": "+380(73)1824049  +380(68)7771590",
-        "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1311,12 +1291,12 @@
       },
       {
         "id": 39,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "17:00",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин (транзит з Базару)",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1331,12 +1311,12 @@
       },
       {
         "id": 40,
-        "route": "Malyn-Zhytomyr",
-        "labelUk": "Малин → Житомир",
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
         "departureTime": "18:00",
         "supportPhone": "+380(73)1824049  +380(68)7771590",
         "priceUah": null,
-        "boardingPlace": null,
+        "boardingPlace": "Автостанція Малин",
         "vehicleType": "marshrutka",
         "tripNumber": null,
         "activeWeekdays": [
@@ -1350,87 +1330,6 @@
         ]
       }
     ],
-    "zhytomyr-malyn": [
-      {
-        "id": 41,
-        "route": "Zhytomyr-Malyn",
-        "labelUk": "Житомир → Малин",
-        "departureTime": "06:10",
-        "supportPhone": "+380(73)1824049  +380(68)7771590",
-        "priceUah": null,
-        "boardingPlace": null,
-        "vehicleType": "marshrutka",
-        "tripNumber": null,
-        "activeWeekdays": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7
-        ]
-      },
-      {
-        "id": 42,
-        "route": "Zhytomyr-Malyn",
-        "labelUk": "Житомир → Малин",
-        "departureTime": "09:10",
-        "supportPhone": "+380(73)1824049  +380(68)7771590",
-        "priceUah": null,
-        "boardingPlace": null,
-        "vehicleType": "marshrutka",
-        "tripNumber": null,
-        "activeWeekdays": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7
-        ]
-      },
-      {
-        "id": 43,
-        "route": "Zhytomyr-Malyn",
-        "labelUk": "Житомир → Малин",
-        "departureTime": "15:00",
-        "supportPhone": "+380(73)1824049  +380(68)7771590",
-        "priceUah": null,
-        "boardingPlace": null,
-        "vehicleType": "marshrutka",
-        "tripNumber": null,
-        "activeWeekdays": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7
-        ]
-      },
-      {
-        "id": 44,
-        "route": "Zhytomyr-Malyn",
-        "labelUk": "Житомир → Малин",
-        "departureTime": "17:10",
-        "supportPhone": "+380(73)1824049  +380(68)7771590",
-        "priceUah": null,
-        "boardingPlace": null,
-        "vehicleType": "marshrutka",
-        "tripNumber": null,
-        "activeWeekdays": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7
-        ]
-      }
-    ]
+    "zhytomyr-malyn": []
   }
 }

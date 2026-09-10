@@ -198,14 +198,22 @@ function defaultLabelUk(startCode, endCode, viaCodes = []) {
         Korosten: 'Коростень',
         Irpin: 'Ірпінь',
         Bucha: 'Буча',
+        Potiivka: 'Потіївка',
+        Radomyshl: 'Радомишль',
+        Berdychiv: 'Бердичів',
+        Vinnytsia: 'Вінниця',
+        Khmilnyk: 'Хмільник',
+        Stanyshivka: 'Станишівка',
     };
+    // знахідний відмінок після «через» (де відрізняється від називного)
+    const acc = { Bucha: 'Бучу', Potiivka: 'Потіївку', Vinnytsia: 'Вінницю', Stanyshivka: 'Станишівку' };
     const base = `${map[startCode] || startCode} → ${map[endCode] || endCode}`;
     if (viaCodes.includes('Irpin'))
         return `${base} (через Ірпінь)`;
     if (viaCodes.includes('Bucha'))
         return `${base} (через Бучу)`;
     if (viaCodes.length)
-        return `${base} (через ${viaCodes.map((c) => map[c] || c).join(', ')})`;
+        return `${base} (через ${viaCodes.map((c) => acc[c] || map[c] || c).join(', ')})`;
     return base;
 }
 /** Resolve corridor TripRoute by legacy slug (Kyiv-Malyn). */
