@@ -5,6 +5,7 @@
  * Джерела: Docs/seo-aeo-review-2026-09.md §9, §12; телефони — Polissya.today (17.11.2025) + власник.
  */
 import type { Schedule } from '@/types';
+import { tripsPerDayText } from '@/utils/weekdays';
 
 export const ZUBASTYK_PATH = '/zubastyk';
 export const ZUBASTYK_CANONICAL = `https://malin.kiev.ua${ZUBASTYK_PATH}`;
@@ -62,13 +63,13 @@ export function buildZubastykFaq(
   if (rk) {
     faq.push({
       q: 'О котрій перша та остання маршрутка з Малина до Києва?',
-      a: `Перший рейс о ${rk.first}, останній о ${rk.last}; усього ${rk.count} відправлень на день. Повна таблиця — на цій сторінці, актуальний розклад на дату — у пошуку на malin.kiev.ua/mizhgorodski.`,
+      a: `Перший рейс о ${rk.first}, останній о ${rk.last}; ${tripsPerDayText(toKyiv)}. Дні курсування кожного рейсу — у таблиці на цій сторінці, розклад на конкретну дату — у пошуку на malin.kiev.ua/mizhgorodski.`,
     });
   }
   if (rm) {
     faq.push({
       q: 'О котрій перша та остання маршрутка з Києва до Малина?',
-      a: `Перший рейс о ${rm.first}, останній о ${rm.last}; усього ${rm.count} відправлень на день від метро «Академмістечко» (через Ірпінь) або «Святошин» (через Бучу).`,
+      a: `Перший рейс о ${rm.first}, останній о ${rm.last}; ${tripsPerDayText(toMalyn)}. Відправлення від метро «Академмістечко» (через Ірпінь) або «Святошин» (через Бучу).`,
     });
   }
   faq.push({

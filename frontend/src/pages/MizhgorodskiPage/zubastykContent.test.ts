@@ -26,7 +26,7 @@ describe('zubastykContent', () => {
     expect(qs[0]).toMatch(/номер телефону/);
     expect(faq[0].a).toContain('093 192 00 08');
     expect(faq[0].a).toContain('093 170 18 35 (резервний)');
-    expect(faq.find((f) => f.q.includes('з Малина до Києва'))?.a).toContain('Перший рейс о 05:00, останній о 17:30; усього 2');
+    expect(faq.find((f) => f.q.includes('з Малина до Києва'))?.a).toContain('Перший рейс о 05:00, останній о 17:30; 2 рейсів щодня');
     expect(faq.find((f) => f.q.includes('з Києва до Малина'))?.a).toContain('08:00');
     expect(faq.find((f) => f.q.includes('Скільки коштує'))?.a).toContain('280 грн за місце');
     expect(qs.at(-1)).toBe('Чи це той самий «Зубастик»?');

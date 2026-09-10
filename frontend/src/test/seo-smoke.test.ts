@@ -76,32 +76,27 @@ describe('seo-smoke-lib', () => {
 });
 
 describe('prerender-corridors resolveCorridorSchedules (D10)', () => {
-  const corridor = { slug: 'malyn-kyiv', routes: ['Malyn-Kyiv-Irpin', 'Malyn-Kyiv-Bucha'] };
   const row = (route: string, departureTime: string) => ({ route, departureTime });
+  const empty = { fetchedAt: null, corridors: {} };
 
-  it('uses live rows when every route answered, sorted by time', () => {
-    const live = { 'Malyn-Kyiv-Irpin': [row('Malyn-Kyiv-Irpin', '09:00')], 'Malyn-Kyiv-Bucha': [row('Malyn-Kyiv-Bucha', '05:00')] };
-    const r = resolveCorridorSchedules(corridor, live, { fetchedAt: '2026-01-01', routes: {} }, { today: '2026-09-10' });
-    expect(r.source).toBe('api');
-    expect(r.asOf).toBe('2026-09-10');
-    expect(r.rows.map((x: { departureTime: string }) => x.departureTime)).toEqual(['05:00', '09:00']);
+  it('uses live rows when the API answered — an empty list is an honest answer', () => {
+    const live = { 'malyn-kyiv': [row('Malyn-Kyiv-Bucha', '05:00')], 'kyiv-korosten': [] };
+    expect(resolveCorridorSchedules('malyn-kyiv', live, empty, { today: '2026-09-10' })).toMatchObject({ source: 'api', asOf: '2026-09-10' });
+    expect(resolveCorridorSchedules('kyiv-korosten', live, empty, { today: '2026-09-10' })).toMatchObject({ source: 'api', rows: [] });
   });
 
-  it('falls back to the committed snapshot (with its date) when a route is missing live', () => {
-    const live = { 'Malyn-Kyiv-Irpin': [row('Malyn-Kyiv-Irpin', '09:00')] };
-    const snapshot = { fetchedAt: '2026-09-01', routes: { 'Malyn-Kyiv-Irpin': [row('Malyn-Kyiv-Irpin', '09:00')], 'Malyn-Kyiv-Bucha': [row('Malyn-Kyiv-Bucha', '05:00')] } };
-    const r = resolveCorridorSchedules(corridor, live, snapshot, { today: '2026-09-10' });
-    expect(r.source).toBe('snapshot');
-    expect(r.asOf).toBe('2026-09-01');
-    expect(r.rows).toHaveLength(2);
+  it('falls back to the committed snapshot (with its date) when the API did not answer', () => {
+    const snapshot = { fetchedAt: '2026-09-01', corridors: { 'malyn-kyiv': [row('Malyn-Kyiv-Irpin', '09:00')] } };
+    const r = resolveCorridorSchedules('malyn-kyiv', {}, snapshot, { today: '2026-09-10' });
+    expect(r).toMatchObject({ source: 'snapshot', asOf: '2026-09-01' });
+    expect(r.rows).toHaveLength(1);
   });
 
-  it('throws instead of shipping an empty timetable', () => {
-    expect(() => resolveCorridorSchedules(corridor, {}, { fetchedAt: null, routes: {} }, { today: '2026-09-10' })).toThrow(/Rule D10/);
+  it('throws instead of shipping a placeholder timetable', () => {
+    expect(() => resolveCorridorSchedules('malyn-kyiv', {}, empty, { today: '2026-09-10' })).toThrow(/Rule D10/);
   });
 
   it('PRERENDER_ALLOW_EMPTY-style override yields an explicit empty result', () => {
-    const r = resolveCorridorSchedules(corridor, {}, { fetchedAt: null, routes: {} }, { allowEmpty: true, today: '2026-09-10' });
-    expect(r).toMatchObject({ rows: [], source: 'empty' });
+    expect(resolveCorridorSchedules('malyn-kyiv', {}, empty, { allowEmpty: true, today: '2026-09-10' })).toMatchObject({ rows: [], source: 'empty' });
   });
 });

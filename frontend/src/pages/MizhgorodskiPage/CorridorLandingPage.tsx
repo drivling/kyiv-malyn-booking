@@ -5,6 +5,8 @@ import { FaqAnswerText } from '@/components/FaqAnswerText';
 import { usePageSeo } from '@/hooks';
 import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '@/pages/SupportPage/supportContent';
 import type { Schedule } from '@/types';
+import { tripsPerDayText, weekdaysLabel } from '@/utils/weekdays';
+import { vehicleLabel } from '@/utils/vehicleLabel';
 import {
   ROUTES,
   formatPhoneDisplay,
@@ -23,7 +25,10 @@ function buildScheduleFaq(
   landing: CorridorLanding,
   schedules: Schedule[]
 ): Array<{ q: string; a: string }> {
-  const times = schedules.map((s) => s.departureTime).sort();
+  // Рахуємо лише маршрутки: електрички йдуть окремим рядком (правило D4)
+  const buses = schedules.filter((s) => (s.vehicleType ?? 'marshrutka') !== 'elektrichka');
+  const trains = schedules.filter((s) => s.vehicleType === 'elektrichka');
+  const times = buses.map((s) => s.departureTime).sort();
   const first = times[0];
   const last = times[times.length - 1];
   const dynamic: Array<{ q: string; a: string }> = [];
@@ -31,7 +36,7 @@ function buildScheduleFaq(
   if (first && last) {
     dynamic.push({
       q: `О котрій перша та остання маршрутка ${landing.fromLabel} — ${landing.toLabel}?`,
-      a: `За актуальним розкладом на malin.kiev.ua: перший рейс о ${first}, останній о ${last}. Усього ${schedules.length} відправлень; точний список — у таблиці на цій сторінці.`,
+      a: `За актуальним розкладом на malin.kiev.ua: перший рейс о ${first}, останній о ${last}; ${tripsPerDayText(buses)}${trains.length ? `, окремо ${trains.length} електричок і потягів` : ''}. Дні курсування кожного рейсу — у таблиці на цій сторінці.`,
     });
   }
 
@@ -123,7 +128,7 @@ export function CorridorLandingPage() {
         itemListElement: schedules.map((s, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          name: `${s.departureTime} · ${ROUTES[s.route] ?? s.route}${
+          name: `${s.departureTime} · ${ROUTES[s.route] ?? s.tripRoute?.labelUk ?? ''} · ${weekdaysLabel(s.activeWeekdays)}${
             s.priceUah != null ? ` · ${s.priceUah} грн` : ''
           }`,
         })),
@@ -214,6 +219,8 @@ export function CorridorLandingPage() {
                   <tr>
                     <th scope="col">Відправлення</th>
                     <th scope="col">Маршрут</th>
+                    <th scope="col">Тип</th>
+                    <th scope="col">Дні</th>
                     <th scope="col">Ціна</th>
                     <th scope="col">Контакт</th>
                     <th scope="col">
@@ -227,7 +234,9 @@ export function CorridorLandingPage() {
                       <td>
                         <strong>{s.departureTime}</strong>
                       </td>
-                      <td>{ROUTES[s.route] ?? s.route}</td>
+                      <td>{ROUTES[s.route] ?? s.tripRoute?.labelUk ?? '—'}</td>
+                      <td>{vehicleLabel(s)}</td>
+                      <td>{weekdaysLabel(s.activeWeekdays)}</td>
                       <td>
                         {s.priceUah != null ? (
                           <strong>{s.priceUah} грн</strong>

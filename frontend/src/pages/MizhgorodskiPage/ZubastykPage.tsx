@@ -6,6 +6,7 @@ import { usePageSeo } from '@/hooks';
 import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '@/pages/SupportPage/supportContent';
 import type { Schedule } from '@/types';
 import { ROUTES } from '@/utils/constants';
+import { weekdaysLabel } from '@/utils/weekdays';
 import { corridorPath } from './corridorLandings';
 import {
   ZUBASTYK_BOARDING,
@@ -36,6 +37,7 @@ function ScheduleTable({ rows, searchHref }: { rows: Schedule[]; searchHref: str
           <tr>
             <th scope="col">Відправлення</th>
             <th scope="col">Маршрут</th>
+            <th scope="col">Дні</th>
             <th scope="col">Посадка</th>
             <th scope="col">Ціна</th>
             <th scope="col">
@@ -50,6 +52,7 @@ function ScheduleTable({ rows, searchHref }: { rows: Schedule[]; searchHref: str
                 <strong>{s.departureTime}</strong>
               </td>
               <td>{ROUTES[s.route] ?? s.tripRoute?.labelUk ?? '—'}</td>
+              <td>{weekdaysLabel(s.activeWeekdays)}</td>
               <td>{s.boardingPlace || <span className="corridor-muted">—</span>}</td>
               <td>{s.priceUah != null ? <strong>{s.priceUah} грн</strong> : <span className="corridor-muted">—</span>}</td>
               <td>
@@ -122,7 +125,7 @@ export function ZubastykPage() {
           itemListElement: rows[d.key].map((s, i) => ({
             '@type': 'ListItem',
             position: i + 1,
-            name: `${s.departureTime} · ${ROUTES[s.route] ?? s.tripRoute?.labelUk ?? d.label}${s.priceUah != null ? ` · ${s.priceUah} грн` : ''}`,
+            name: `${s.departureTime} · ${ROUTES[s.route] ?? s.tripRoute?.labelUk ?? d.label} · ${weekdaysLabel(s.activeWeekdays)}${s.priceUah != null ? ` · ${s.priceUah} грн` : ''}`,
           })),
         })),
       ],
