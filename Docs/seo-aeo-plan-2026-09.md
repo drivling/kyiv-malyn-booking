@@ -29,6 +29,10 @@
 
 ## 0. Cloudflare — зробити першим (власник, ~10 хвилин; review §14)
 
+✅ **Зроблено власником 2026-09-11.** Перевірено: GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot,
+PerplexityBot, Googlebot → HTTP 200 на `/mizhgorodski/malyn-kyiv`; `robots.txt` — наш, без блоку
+«Cloudflare Managed content». Повторити блок H (AI-асистенти) орієнтовно 2026-09-25.
+
 Без цього AI-асистенти не бачать сайт узагалі, і фази 1–3 для AEO марні.
 
 1. Cloudflare Dashboard → зона `malin.kiev.ua` → **Security → Bots** (у нових панелях
