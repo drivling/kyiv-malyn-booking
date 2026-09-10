@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { API_BASE } from './api-base.mjs';
+import { setCanonical, setOg, stripRobots } from './html-head.mjs';
+import { publishableRouteIds } from './prerender-spa.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
@@ -82,9 +84,8 @@ function collectFromApiDataset(dataset) {
     if (!stopToRoutes.has(rs.stopId)) stopToRoutes.set(rs.stopId, new Set());
     stopToRoutes.get(rs.stopId).add(String(rs.routeId));
   }
-  const routeIds = [...new Set((dataset.routes || []).map((r) => String(r.id)))]
-    .filter((id) => !hiddenRouteIds.has(id))
-    .sort(compareRouteId);
+  // Sitemap / route pages: not hidden AND both termini named (rule D1) — same filter as prerender-spa.
+  const routeIds = publishableRouteIds(dataset).filter((id) => !hiddenRouteIds.has(id));
   return { catalog, stopToRoutes, routeIds, hiddenRouteIds };
 }
 
@@ -259,7 +260,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
     /<meta name="description"[^>]*>/i,
     `<meta name="description" content="${escapeHtml(description)}" />`
   );
-  html = html.replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" href="${canonical}" />`);
+  html = setCanonical(stripRobots(html), canonical);
   html = html.replace(
     /<meta property="og:title"[^>]*>/i,
     `<meta property="og:title" content="${escapeHtml(title)}" />`
@@ -268,10 +269,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
     /<meta property="og:description"[^>]*>/i,
     `<meta property="og:description" content="${escapeHtml(description)}" />`
   );
-  html = html.replace(
-    /<meta property="og:url"[^>]*>/i,
-    `<meta property="og:url" content="${canonical}" />`
-  );
+  html = setOg(html, 'og:url', canonical);
   html = html.replace(
     /<script type="application\/ld\+json">[\s\S]*?<\/script>/i,
     `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`

@@ -21,6 +21,7 @@ import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
+import { routeLine, routeTitle } from './routeLabel';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
@@ -652,7 +653,7 @@ export const LocalTransportPage: React.FC = () => {
 
   const transportSeo = useMemo(() => {
     if (isDetailPage && detailRoute) {
-      const path = `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`;
+      const path = routeLine(detailRoute);
       const times = [...detailRoute.trips]
         .map((t) => tripDepartureMinutes(t))
         .filter((m) => m > 0)
@@ -673,13 +674,13 @@ export const LocalTransportPage: React.FC = () => {
         },
         {
           q: `Куди їде маршрутка №${detailRoute.id}?`,
-          a: `Лінія ${path}. Планер «З → До» і карта: malin.kiev.ua/transport.`,
+          a: `${path ? `Лінія ${path}. ` : ''}Планер «З → До» і карта: malin.kiev.ua/transport.`,
         },
       ];
       return {
-        title: `Маршрут №${detailRoute.id} ${path} | Транспорт Малина | malin.kiev.ua`,
+        title: `Маршрут ${routeTitle(detailRoute)} | Транспорт Малина | malin.kiev.ua`,
         canonicalUrl: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
-        description: `Розклад і зупинки маршруту №${detailRoute.id} (${path}) у Малині.${tripHint}`,
+        description: `Розклад і зупинки маршруту №${detailRoute.id}${path ? ` (${path})` : ''} у Малині.${tripHint}`,
         jsonLdId: `transport-route-jsonld-${detailRoute.id}`,
         jsonLd: {
           '@context': 'https://schema.org',
@@ -696,7 +697,7 @@ export const LocalTransportPage: React.FC = () => {
                 {
                   '@type': 'ListItem',
                   position: 2,
-                  name: `№${detailRoute.id} ${path}`,
+                  name: routeTitle(detailRoute),
                   item: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
                 },
               ],
@@ -767,7 +768,7 @@ export const LocalTransportPage: React.FC = () => {
                   itemListElement: routes.map((r, i) => ({
                     '@type': 'ListItem',
                     position: i + 1,
-                    name: `№${r.id} ${(r.from ?? '?')} — ${(r.to ?? '?')}`,
+                    name: routeTitle(r),
                     url: `https://malin.kiev.ua/transport/route/${encodeURIComponent(r.id)}`,
                   })),
                 },
@@ -1326,7 +1327,8 @@ export const LocalTransportPage: React.FC = () => {
                 ←
               </button>
               <div className="lt-header-title-wrap">
-                <h1 className="lt-title">Як доїхати</h1>
+                {/* Декоративний заголовок: єдиний h1 сторінки маршруту — назва лінії нижче */}
+                <p className="lt-title">Як доїхати</p>
                 <p className="lt-subtitle">Маршрут №{detailRoute.id} · Малин</p>
               </div>
             </header>
@@ -1347,8 +1349,8 @@ export const LocalTransportPage: React.FC = () => {
                   </span>
                   <span className="lt-route-title-path">
                     {stopsDirection === 'there'
-                      ? `${detailRoute.from ?? '?'} — ${detailRoute.to ?? '?'}`
-                      : `${detailRoute.to ?? '?'} — ${detailRoute.from ?? '?'}`}
+                      ? routeLine(detailRoute)
+                      : routeLine(detailRoute, true)}
                   </span>
                 </h1>
                 {fareAmount != null && (
@@ -2078,7 +2080,7 @@ export const LocalTransportPage: React.FC = () => {
                           </span>
                           <span className="lt-route-meta">
                             {isVerifiedRoute(r.id) ? 'перевірено · ' : ''}
-                            лінія {r.from ?? '?'} — {r.to ?? '?'}
+                            {routeLine(r) ? `лінія ${routeLine(r)}` : 'лінія без назви'}
                           </span>
                         </div>
                       </button>
@@ -2100,7 +2102,7 @@ export const LocalTransportPage: React.FC = () => {
                   {routes.map((r) => (
                     <li key={r.id}>
                       <Link to={`/transport/route/${encodeURIComponent(r.id)}`}>
-                        №{r.id} {(r.from ?? '?')} — {(r.to ?? '?')}
+                        {routeTitle(r)}
                       </Link>
                     </li>
                   ))}

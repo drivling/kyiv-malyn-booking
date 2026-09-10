@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { API_BASE, assertApiAlive } from './api-base.mjs';
+import { setCanonical, setOg, stripRobots } from './html-head.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../dist');
@@ -370,10 +371,7 @@ function buildPageHtml(shell, corridor, schedules, asOf = todayIso()) {
     /<meta name="description"[^>]*>/i,
     `<meta name="description" content="${escapeHtml(desc)}" />`
   );
-  html = html.replace(
-    /<link rel="canonical"[^>]*>/i,
-    `<link rel="canonical" href="${canonical}" />`
-  );
+  html = setCanonical(stripRobots(html), canonical);
   html = html.replace(
     /<meta property="og:title"[^>]*>/i,
     `<meta property="og:title" content="${escapeHtml(corridor.h1)}" />`
@@ -382,10 +380,7 @@ function buildPageHtml(shell, corridor, schedules, asOf = todayIso()) {
     /<meta property="og:description"[^>]*>/i,
     `<meta property="og:description" content="${escapeHtml(desc)}" />`
   );
-  html = html.replace(
-    /<meta property="og:url"[^>]*>/i,
-    `<meta property="og:url" content="${canonical}" />`
-  );
+  html = setOg(html, 'og:url', canonical);
   // Drop default graph LD; inject corridor LD before </head>
   html = html.replace(
     /<script type="application\/ld\+json">[\s\S]*?<\/script>/i,

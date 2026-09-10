@@ -80,8 +80,12 @@ export function analyzeHtml(html, { url, shellTitle }) {
   const { title, canonical, h1s, jsonLdCount } = extractHead(html);
   const expectedCanonical = `${SITE_ORIGIN}${urlToPath(url)}`;
 
+  const text = visibleText(html);
   if (!title) errors.push('no <title>');
-  else if (shellTitle && title === shellTitle) errors.push(`title equals SPA shell title ("${title}")`);
+  else if (shellTitle && title === shellTitle && text.length < 300) {
+    // The home page legitimately shares the shell title; an empty body is what betrays a bare shell.
+    errors.push(`title equals SPA shell title ("${title}") and the page has no visible content`);
+  }
 
   if (h1s.length === 0) errors.push('no <h1>');
   else if (h1s.length > 1) warnings.push(`${h1s.length} <h1> elements`);
@@ -95,7 +99,6 @@ export function analyzeHtml(html, { url, shellTitle }) {
     if (value && PLACEHOLDER_RE.test(value)) errors.push(`placeholder "?" in ${what}: "${value}"`);
   }
 
-  const text = visibleText(html);
   const rawSlug = text.match(RAW_SLUG_RE);
   if (rawSlug) errors.push(`raw route slug "${rawSlug[0]}" in visible text (D8)`);
   const fallback = text.match(FALLBACK_RE);

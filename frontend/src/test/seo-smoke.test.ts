@@ -34,11 +34,17 @@ describe('seo-smoke-lib', () => {
     expect(errors).toEqual([]);
   });
 
-  it('fails when the page is the SPA shell in disguise (shell title, foreign canonical)', () => {
-    const html = page({ title: SHELL_TITLE, canonical: 'https://malin.kiev.ua/mizhgorodski' });
+  it('fails on a foreign canonical (shell canonical leaking into a page)', () => {
+    const html = page({ canonical: 'https://malin.kiev.ua/mizhgorodski' });
     const { errors } = analyzeHtml(html, { url: 'https://malin.kiev.ua/transport', shellTitle: SHELL_TITLE });
-    expect(errors.join('\n')).toMatch(/title equals SPA shell/);
     expect(errors.join('\n')).toMatch(/canonical .* ≠ "https:\/\/malin\.kiev\.ua\/transport"/);
+  });
+
+  it('fails on a bare shell (shell title + no visible content) but allows the home page to share the title', () => {
+    const bare = '<html><head><title>' + SHELL_TITLE + '</title><link rel="canonical" href="https://malin.kiev.ua/transport" /></head><body><div id="root"></div></body></html>';
+    expect(analyzeHtml(bare, { url: 'https://malin.kiev.ua/transport', shellTitle: SHELL_TITLE }).errors.join('\n')).toMatch(/title equals SPA shell title .* no visible content/);
+    const home = page({ title: SHELL_TITLE, canonical: 'https://malin.kiev.ua/mizhgorodski' });
+    expect(analyzeHtml(home, { url: 'https://malin.kiev.ua/mizhgorodski', shellTitle: SHELL_TITLE }).errors).toEqual([]);
   });
 
   it('flags "? — ?" placeholders in title and text (D1)', () => {

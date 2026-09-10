@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs && node scripts/seo-smoke.mjs",
+    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs && node scripts/prerender-spa.mjs && SEO_SMOKE_STRICT=1 node scripts/seo-smoke.mjs",
+    "prerender:spa": "node scripts/prerender-spa.mjs",
     "seo:smoke": "node scripts/seo-smoke.mjs",
     "preview": "node scripts/serve-dist.mjs",
     "start": "npm run preview",
