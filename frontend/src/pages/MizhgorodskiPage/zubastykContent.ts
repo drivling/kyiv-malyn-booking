@@ -22,6 +22,11 @@ export const ZUBASTYK_BOARDING = {
   kyiv:
     'У Києві рейси через Ірпінь відправляються від станції метро «Академмістечко», рейси через Бучу — від метро «Святошин».',
   travelTime: 'Час у дорозі — приблизно 1,5–2 години залежно від заторів на виїзді з Києва.',
+  /** Місце посадки біля м. «Академмістечко» (координати власника, 2026-09-11) */
+  akademLatLng: '50.4649912,30.3544962',
+  /** Панорама Google Street View того самого місця — лінк, не зображення (умови Google не дозволяють копіювати знімки) */
+  akademStreetView: 'https://www.google.com/maps/@?api=1&map_action=pano&pano=HFyqH-LP22-x0KkbAP6S4Q&heading=295.83&pitch=5',
+  akademMap: 'https://www.google.com/maps/search/?api=1&query=50.4649912,30.3544962',
 };
 
 export type ScheduleRange = { first: string; last: string; count: number };

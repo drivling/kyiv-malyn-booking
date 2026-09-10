@@ -203,6 +203,17 @@ export function ZubastykPage() {
         <section className="corridor-section" aria-labelledby="zubastyk-board">
           <h2 id="zubastyk-board">Посадка й час у дорозі</h2>
           <p>{ZUBASTYK_BOARDING.kyiv}</p>
+          <p>
+            Місце посадки біля «Академмістечка»:{' '}
+            <a href={ZUBASTYK_BOARDING.akademMap} target="_blank" rel="noopener noreferrer">
+              на карті
+            </a>
+            {' · '}
+            <a href={ZUBASTYK_BOARDING.akademStreetView} target="_blank" rel="noopener noreferrer">
+              подивитися на Street View
+            </a>
+            .
+          </p>
           <p>{ZUBASTYK_BOARDING.malyn}</p>
           <p className="corridor-muted">{ZUBASTYK_BOARDING.travelTime}</p>
         </section>
