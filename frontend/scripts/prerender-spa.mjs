@@ -28,6 +28,7 @@ const SITE = 'https://malin.kiev.ua';
 
 const STATIC_ROUTES = [
   '/mizhgorodski',
+  '/zubastyk',
   '/transport',
   '/about',
   '/support',

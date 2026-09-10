@@ -12,6 +12,7 @@ type PhraseLink = { phrase: string; to: string; external?: boolean };
  * Текст AEO / JSON-LD не змінюємо: у UI лише обгортаємо ту саму фразу в Link.
  */
 const PHRASE_LINKS: PhraseLink[] = [
+  { phrase: 'на сторінці «Зубастик»', to: '/zubastyk' },
   { phrase: 'malin.kiev.ua/support/prices', to: '/support/prices' },
   { phrase: 'malin.kiev.ua/mizhgorodski', to: '/mizhgorodski' },
   { phrase: 'malin.kiev.ua/transport', to: '/transport' },
