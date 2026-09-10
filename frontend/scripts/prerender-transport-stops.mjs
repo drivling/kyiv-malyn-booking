@@ -30,10 +30,17 @@ function collectFromLegacyJson(data) {
   const catalog = data?.supplement?.stops?.stops_catalog || {};
   const byRoute = data?.supplement?.stops?.stops_by_route || {};
   const routesMeta = data?.supplement?.routes || {};
+  // Ненадійні (приховані) маршрути: supplement.routes[id].unreliable === true
+  const hiddenRouteIds = new Set(
+    Object.entries(routesMeta)
+      .filter(([, m]) => m && m.unreliable === true)
+      .map(([id]) => String(id))
+  );
   const stopToRoutes = new Map();
 
   for (const [routeId, arr] of Object.entries(byRoute)) {
     if (!Array.isArray(arr)) continue;
+    if (hiddenRouteIds.has(String(routeId))) continue;
     for (const s of arr) {
       let id = null;
       if (s && typeof s === 'object') {
@@ -55,12 +62,11 @@ function collectFromLegacyJson(data) {
     }
   }
 
-  const routeIds = new Set([
-    ...Object.keys(routesMeta),
-    ...Object.keys(byRoute),
-  ]);
+  const routeIds = new Set(
+    [...Object.keys(routesMeta), ...Object.keys(byRoute)].filter((id) => !hiddenRouteIds.has(String(id)))
+  );
 
-  return { catalog, stopToRoutes, routeIds: [...routeIds].sort(compareRouteId) };
+  return { catalog, stopToRoutes, routeIds: [...routeIds].sort(compareRouteId), hiddenRouteIds };
 }
 
 function collectFromApiDataset(dataset) {
@@ -68,15 +74,22 @@ function collectFromApiDataset(dataset) {
   for (const s of dataset.stops || []) {
     if (s?.id) catalog[s.id] = { name: s.name || s.id };
   }
+  // Ненадійні (приховані) маршрути: TransportRoute.unreliable — не в SEO/sitemap
+  const hiddenRouteIds = new Set(
+    (dataset.routes || []).filter((r) => r && r.unreliable === true).map((r) => String(r.id))
+  );
   const stopToRoutes = new Map();
   for (const rs of dataset.routeStops || []) {
     if (!rs?.stopId || !rs?.routeId) continue;
     if (!String(rs.stopId).startsWith('st_')) continue;
+    if (hiddenRouteIds.has(String(rs.routeId))) continue;
     if (!stopToRoutes.has(rs.stopId)) stopToRoutes.set(rs.stopId, new Set());
     stopToRoutes.get(rs.stopId).add(String(rs.routeId));
   }
-  const routeIds = [...new Set((dataset.routes || []).map((r) => String(r.id)))].sort(compareRouteId);
-  return { catalog, stopToRoutes, routeIds };
+  const routeIds = [...new Set((dataset.routes || []).map((r) => String(r.id)))]
+    .filter((id) => !hiddenRouteIds.has(id))
+    .sort(compareRouteId);
+  return { catalog, stopToRoutes, routeIds, hiddenRouteIds };
 }
 
 function compareRouteId(a, b) {
@@ -103,7 +116,7 @@ async function loadTransportIndex() {
   }
   if (!fs.existsSync(localJson)) {
     console.warn(`prerender-transport-stops: no API and missing ${localJson} — skip stop prerender`);
-    return { catalog: {}, stopToRoutes: new Map(), routeIds: [] };
+    return { catalog: {}, stopToRoutes: new Map(), routeIds: [], hiddenRouteIds: new Set() };
   }
   const data = JSON.parse(fs.readFileSync(localJson, 'utf8'));
   console.log('prerender-transport-stops: dataset from local JSON');
@@ -139,25 +152,31 @@ function loadStopArticles() {
     const name = nameM?.[1] || id;
     const place = placeM?.[1]?.replace(/\s+/g, ' ').trim();
     const lead = leadM?.[1]?.replace(/\s+/g, ' ').trim();
-    let description = lead || '';
-    if (place) {
-      const routes = routeIds.length ? ` Маршрути: ${routeIds.map((r) => `№${r}`).join(', ')}.` : '';
-      description = `Зупинка «${name}» у Малині — ${place}.${routes}`;
-    }
-    if (description || place) {
-      map.set(id, { name, place, lead, routeIds, coords, description });
+    if (place || lead) {
+      map.set(id, { name, place, lead, routeIds, coords });
     }
   }
   return map;
 }
 
-function buildStopHtml(shell, stopId, name, routeIds, article) {
+/** Опис статті з урахуванням лише видимих маршрутів (дзеркало stopArticlePlainText у SPA). */
+function articleDescription(article, routeIds) {
+  if (!article) return '';
+  if (article.place) {
+    const routes = routeIds.length ? ` Маршрути: ${routeIds.map((r) => `№${r}`).join(', ')}.` : '';
+    return `Зупинка «${article.name}» у Малині — ${article.place}.${routes}`;
+  }
+  return article.lead || '';
+}
+
+function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = new Set()) {
   const canonical = `https://malin.kiev.ua/transport/stop/${encodeURIComponent(stopId)}`;
   const title = `Зупинка «${name}» — розклад маршруток Малина | malin.kiev.ua`;
-  const effectiveRoutes = (article?.routeIds?.length ? article.routeIds : routeIds) || [];
+  // Статичні статті теж не згадують приховані маршрути
+  const articleRoutes = (article?.routeIds || []).filter((r) => !hiddenRouteIds.has(String(r)));
+  const effectiveRoutes = (articleRoutes.length ? articleRoutes : routeIds) || [];
   const description =
-    article?.description ||
-    article?.lead ||
+    articleDescription(article, articleRoutes) ||
     `Табло зупинки «${name}» у Малині: маршрути ${effectiveRoutes.map((r) => `№${r}`).join(', ') || 'міського транспорту'}. Актуальний розклад на malin.kiev.ua.`;
   const faq = [
     {
@@ -207,8 +226,8 @@ function buildStopHtml(shell, stopId, name, routeIds, article) {
       ? `<p>Координати: <code>${article.coords[0].toFixed(5)}, ${article.coords[1].toFixed(5)}</code>
          · <a href="https://www.openstreetmap.org/?mlat=${article.coords[0]}&amp;mlon=${article.coords[1]}#map=17/${article.coords[0]}/${article.coords[1]}">на карті</a></p>`
       : '';
-    const routesLine = article.routeIds?.length
-      ? `<p>Маршрути: ${article.routeIds.map((r) => `<a href="/transport/route/${encodeURIComponent(r)}"><strong>№${escapeHtml(r)}</strong></a>`).join(', ')}</p>`
+    const routesLine = articleRoutes.length
+      ? `<p>Маршрути: ${articleRoutes.map((r) => `<a href="/transport/route/${encodeURIComponent(r)}"><strong>№${escapeHtml(r)}</strong></a>`).join(', ')}</p>`
       : '';
     articleHtml = `
     <h2>Про зупинку</h2>
@@ -309,14 +328,17 @@ async function main() {
     process.exit(1);
   }
   const shell = fs.readFileSync(indexPath, 'utf8');
-  const { catalog, stopToRoutes, routeIds } = await loadTransportIndex();
+  const { catalog, stopToRoutes, routeIds, hiddenRouteIds } = await loadTransportIndex();
   const articles = loadStopArticles();
   const stopIds = [...stopToRoutes.keys()].sort();
+  if (hiddenRouteIds.size) {
+    console.log(`prerender-transport-stops: hidden (unreliable) routes skipped: ${[...hiddenRouteIds].join(', ')}`);
+  }
 
   for (const id of stopIds) {
     const name = articles.get(id)?.name || catalog[id]?.name || id;
     const routes = [...(stopToRoutes.get(id) || [])].sort(compareRouteId);
-    const html = buildStopHtml(shell, id, name, routes, articles.get(id));
+    const html = buildStopHtml(shell, id, name, routes, articles.get(id), hiddenRouteIds);
     const outDir = path.join(distDir, 'transport', 'stop', id);
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'index.html'), html, 'utf8');

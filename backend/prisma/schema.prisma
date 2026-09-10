@@ -703,6 +703,8 @@ model TransportRoute {
   sourceUrl String   @default("")
   /// Людське розписання з міськради: { schedule_entries, lunch_break, note }
   schedule  Json?
+  /// Ненадійний маршрут: не показувати на сайті (сторінки, табло, SEO/AEO, sitemap, GTFS)
+  unreliable Boolean  @default(false)
   updatedAt DateTime @updatedAt
 
   routeStops TransportRouteStop[]

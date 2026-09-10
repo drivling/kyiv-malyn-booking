@@ -41,6 +41,9 @@ function validateTransportDataset(data) {
             errors.push(`duplicate route id ${r.id}`);
         else
             routeIds.add(r.id);
+        if (r.unreliable !== undefined && r.unreliable !== null && typeof r.unreliable !== 'boolean') {
+            errors.push(`route ${r.id}: unreliable must be boolean`);
+        }
     }
     const rsKeys = new Set();
     for (const rs of dataset.routeStops) {
@@ -103,6 +106,7 @@ async function replaceTransportDataset(prisma, dataset) {
                 note: r.note ?? '',
                 sourceUrl: r.sourceUrl ?? '',
                 schedule: (r.schedule ?? undefined),
+                unreliable: r.unreliable ?? false,
             })),
         }),
         prisma.transportRouteStop.createMany({
@@ -162,6 +166,7 @@ async function loadTransportDataset(prisma) {
             note: r.note,
             sourceUrl: r.sourceUrl,
             schedule: r.schedule ?? null,
+            unreliable: r.unreliable,
         })),
         routeStops: routeStops.map((rs) => ({
             routeId: rs.routeId,
@@ -234,6 +239,7 @@ function convertLegacyRuntime(input) {
             note: m.note || '',
             sourceUrl: m.source_url || '',
             schedule: m.schedule ?? null,
+            unreliable: m.unreliable === true,
         };
     });
     const routeStops = [];

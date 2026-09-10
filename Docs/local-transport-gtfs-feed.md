@@ -41,7 +41,8 @@ Agency metadata lives in `TransportMeta.payload.agency` (seeded from `runtime/ag
 
 | Omitted | Why |
 | ------- | --- |
-| Routes 1, 6, 10 | No clock times (vehicle plates only) |
+| Routes 1, 10 (ex-№6), 10-old | No clock times (vehicle plates only) |
+| Routes flagged `unreliable` in admin («Ненадійний — приховати») | Hidden from the site/SEO, so omitted from the feed too |
 | OSRM shape refinement | Optional backlog |
 | GTFS-Realtime | Not in scope |
 

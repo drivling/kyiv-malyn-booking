@@ -179,6 +179,12 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
 - Local transport is gated per city by `TripPoint.hasLocalTransport` (checkbox in the admin
   «Маршрути» tab) — `LocalTransportGate` renders a «скоро» stub where it is off. The transport
   dataset itself is still single-tenant Malyn.
+- A city route can be flagged `TransportRoute.unreliable` («Ненадійний — приховати» checkbox on
+  `/admin/route-schedule`). The public API still returns it; hiding happens in consumers:
+  `publicTransportDataset()` (SPA view-model, so every public page / JSON-LD), the stop-article
+  chips, `prerender-transport-stops.mjs` (static stop pages + sitemap) and the GTFS export. Static
+  pages and the sitemap are built at deploy time — after flipping the flag, redeploy the frontend.
+  Route numbers are primary keys; renumbering is done in a migration (see the 6 → 10 one).
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

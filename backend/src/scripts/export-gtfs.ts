@@ -176,7 +176,11 @@ function exportGtfs(dataset: TransportDataset) {
   );
 
   const usedStopIds = new Set(stopById.keys());
-  const timedTrips = dataset.trips.filter((t) => toGtfsTime(t.departureTime));
+  // Ненадійні (приховані) маршрути у фід не потрапляють
+  const hiddenRouteIds = new Set(dataset.routes.filter((r) => r.unreliable).map((r) => r.id));
+  const timedTrips = dataset.trips.filter(
+    (t) => toGtfsTime(t.departureTime) && !hiddenRouteIds.has(t.routeId)
+  );
   const routeIds = [...new Set(timedTrips.map((t) => t.routeId))].sort((a, b) => Number(a) - Number(b));
 
   const routeRows = routeIds.map((routeId) => {
@@ -322,6 +326,9 @@ function exportGtfs(dataset: TransportDataset) {
   );
   console.log(`Skipped trips (no passenger stops): ${skippedNoStops}`);
   console.log(`Timed trips in DB: ${timedTrips.length}; plate-only trips omitted from feed.`);
+  if (hiddenRouteIds.size) {
+    console.log(`Hidden (unreliable) routes omitted from feed: ${[...hiddenRouteIds].join(', ')}`);
+  }
   console.log(`Zip: ${zipPath}`);
 }
 

@@ -20,6 +20,8 @@ export interface TransportRouteInput {
   note?: string;
   sourceUrl?: string;
   schedule?: unknown;
+  /** Ненадійний маршрут — приховати на сайті/SEO (default false) */
+  unreliable?: boolean;
 }
 
 export interface TransportRouteStopInput {
@@ -88,6 +90,9 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
     if (!r.id || typeof r.id !== 'string') errors.push(`route without id: ${JSON.stringify(r)}`);
     else if (routeIds.has(r.id)) errors.push(`duplicate route id ${r.id}`);
     else routeIds.add(r.id);
+    if (r.unreliable !== undefined && r.unreliable !== null && typeof r.unreliable !== 'boolean') {
+      errors.push(`route ${r.id}: unreliable must be boolean`);
+    }
   }
 
   const rsKeys = new Set<string>();
@@ -144,6 +149,7 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
         note: r.note ?? '',
         sourceUrl: r.sourceUrl ?? '',
         schedule: (r.schedule ?? undefined) as Prisma.InputJsonValue | undefined,
+        unreliable: r.unreliable ?? false,
       })),
     }),
     prisma.transportRouteStop.createMany({
@@ -204,6 +210,7 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
       note: r.note,
       sourceUrl: r.sourceUrl,
       schedule: r.schedule ?? null,
+      unreliable: r.unreliable,
     })),
     routeStops: routeStops.map((rs) => ({
       routeId: rs.routeId,
@@ -285,6 +292,7 @@ export function convertLegacyRuntime(input: {
         note: m.note || '',
         sourceUrl: m.source_url || '',
         schedule: m.schedule ?? null,
+        unreliable: m.unreliable === true,
       };
     });
 

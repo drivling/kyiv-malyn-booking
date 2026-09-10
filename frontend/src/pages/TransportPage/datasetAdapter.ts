@@ -4,7 +4,7 @@
  */
 
 import type { TransportDataset } from '../../api/transportDataset.ts';
-import { datasetToEditor } from '../../api/transportDataset.ts';
+import { datasetToEditor, publicTransportDataset } from '../../api/transportDataset.ts';
 import type { Supplement, TransportData, TransportRecord } from '../LocalTransportPage/types.ts';
 
 export interface LocalCoords {
@@ -67,7 +67,12 @@ export function getDurationFromStartSec(
   return sec;
 }
 
-export function datasetToLocalViewModel(dataset: TransportDataset): LocalTransportViewModel {
+/**
+ * Публічна view-model: ненадійні (приховані) маршрути відфільтровано тут, тому всі
+ * сторінки сайту (планер, маршрут, табло, карта, SEO/JSON-LD) їх не бачать.
+ */
+export function datasetToLocalViewModel(fullDataset: TransportDataset): LocalTransportViewModel {
+  const dataset = publicTransportDataset(fullDataset);
   const { transport, coords } = datasetToEditor(dataset);
   const records = (transport.records || []) as TransportRecord[];
   const supplement = transport.supplement as Supplement | undefined;

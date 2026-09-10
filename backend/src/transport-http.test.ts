@@ -161,3 +161,25 @@ test('PUT then GET /transport/dataset: round-trip', async () => {
   assert.equal(get.body.segments[0].seconds, 180);
   assert.equal(get.body.meta.defaultSec, 120);
 });
+
+test('PUT then GET /transport/dataset: unreliable flag round-trips, default false', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
+  const dataset = sampleDataset();
+  dataset.routes = [
+    { ...dataset.routes[0], unreliable: true },
+    { id: '10-old', fromName: '', toName: '', scheme: '', note: '', sourceUrl: '' },
+  ];
+
+  await request(app)
+    .put('/transport/dataset')
+    .set('Authorization', String(login.body.token))
+    .send(dataset)
+    .expect(200);
+
+  const get = await request(app).get('/transport/dataset').expect(200);
+  const byId = new Map((get.body.routes as Array<{ id: string; unreliable: boolean }>).map((r) => [r.id, r]));
+  assert.equal(byId.get('2')?.unreliable, true);
+  assert.equal(byId.get('10-old')?.unreliable, false);
+});

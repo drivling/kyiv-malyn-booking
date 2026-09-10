@@ -9,6 +9,7 @@ import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { hiddenTransportRouteIds } from '@/api/transportDataset';
 import { configureSegmentDurations } from './segmentDurations';
 import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
@@ -219,7 +220,14 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     [selectedStop, stopsCatalog]
   );
 
-  const stopArticle = useMemo(() => getStopArticle(selectedStop), [selectedStop]);
+  /** Статична стаття про зупинку без ненадійних (прихованих) маршрутів у чипах/описі */
+  const stopArticle = useMemo(() => {
+    const article = getStopArticle(selectedStop);
+    if (!article?.routeIds?.length || !dataset) return article;
+    const hidden = hiddenTransportRouteIds(dataset);
+    if (hidden.size === 0) return article;
+    return { ...article, routeIds: article.routeIds.filter((r) => !hidden.has(r)) };
+  }, [selectedStop, dataset]);
 
   const stopSeo = useMemo(() => {
     if (selectedStop && selectedStopTitle) {
