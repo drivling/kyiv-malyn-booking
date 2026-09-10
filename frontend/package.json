@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs",
+    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs && node scripts/seo-smoke.mjs",
+    "seo:smoke": "node scripts/seo-smoke.mjs",
     "preview": "node scripts/serve-dist.mjs",
     "start": "npm run preview",
     "lint": "eslint . --ext ts,tsx,mjs --report-unused-disable-directives --max-warnings 0",

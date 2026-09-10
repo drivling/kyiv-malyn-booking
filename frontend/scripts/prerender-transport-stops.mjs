@@ -15,7 +15,7 @@ const localJson = path.join(repoRoot, 'data/malyn-transport/runtime/malyn_transp
 const API_BASE = (
   process.env.PRERENDER_API_URL ||
   process.env.VITE_API_URL ||
-  'https://malin.kiev.ua/api'
+  'https://kyiv-malyn-booking-production.up.railway.app'
 ).replace(/\/$/, '');
 
 function escapeHtml(s) {
@@ -218,7 +218,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
             `<li><a href="/transport/route/${encodeURIComponent(r)}"><strong>№${escapeHtml(r)}</strong></a></li>`
         )
         .join('')}</ul>`
-    : '<p>Маршрути підвантажаться в додатку.</p>';
+    : '<p>Через цю зупинку наразі не проходить жоден активний маршрут.</p>';
 
   let articleHtml = '';
   if (article?.place) {

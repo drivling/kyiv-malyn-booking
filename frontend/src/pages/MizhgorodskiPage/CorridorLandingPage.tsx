@@ -37,7 +37,7 @@ function buildScheduleFaq(
 
   dynamic.push({
     q: `Де взяти розклад маршруток ${landing.fromLabel} — ${landing.toLabel}?`,
-    a: `Офіційний розклад рейсів, якими можна забронювати місце, публікується тут і в пошуку на malin.kiev.ua/mizhgorodski. Графік рідко змінюється; перед поїздкою оберіть дату в пошуку.`,
+    a: `Офіційний розклад рейсів, якими можна забронювати місце, публікується тут і в пошуку на malin.kiev.ua/mizhgorodski. Перед поїздкою оберіть дату в пошуку — там актуальні рейси на день.`,
   });
 
   return [...dynamic, ...landing.faq];
@@ -197,8 +197,7 @@ export function CorridorLandingPage() {
         <section className="corridor-section" aria-labelledby="corridor-schedule">
           <h2 id="corridor-schedule">Розклад маршруток</h2>
           <p className="corridor-muted">
-            Фіксований графік з нашої бази бронювання. Змінюється рідко — перед поїздкою оберіть дату в пошуку й
-            забронюйте місце.
+            Актуальний графік з нашої бази бронювання. Перед поїздкою оберіть дату в пошуку й забронюйте місце.
           </p>
           {schedulesLoading && <p className="corridor-muted">Завантаження розкладу…</p>}
           {schedulesError && <p className="corridor-error">{schedulesError}</p>}

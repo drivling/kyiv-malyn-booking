@@ -3,7 +3,14 @@
  * Writes dist/mizhgorodski/{slug}/index.html with schedule tables so crawlers
  * see timetable HTML without waiting for SPA JS.
  *
- * Env: PRERENDER_API_URL or VITE_API_URL (default https://malin.kiev.ua/api)
+ * Env: PRERENDER_API_URL or VITE_API_URL (default — production backend on Railway;
+ * NB: https://malin.kiev.ua/api is NOT a proxy, it returns the SPA shell).
+ *
+ * Data-quality rule D10 (Docs/seo-aeo-review-2026-09.md §10): a corridor page is never
+ * shipped with an empty or placeholder timetable. Order of truth:
+ *   1. live API (fresh rows) → also refreshes scripts/data/corridor-schedules.snapshot.json
+ *   2. committed snapshot (last successful fetch) → page marked with the snapshot date
+ *   3. neither → build fails (PRERENDER_ALLOW_EMPTY=1 downgrades to a warning for local dev)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,8 +23,101 @@ const indexPath = path.join(distDir, 'index.html');
 const API_BASE = (
   process.env.PRERENDER_API_URL ||
   process.env.VITE_API_URL ||
-  'https://malin.kiev.ua/api'
+  'https://kyiv-malyn-booking-production.up.railway.app'
 ).replace(/\/$/, '');
+
+const SNAPSHOT_PATH = path.resolve(__dirname, 'data/corridor-schedules.snapshot.json');
+const ALLOW_EMPTY = process.env.PRERENDER_ALLOW_EMPTY === '1';
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadSnapshot() {
+  if (!fs.existsSync(SNAPSHOT_PATH)) return { fetchedAt: null, routes: {} };
+  try {
+    const data = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
+    return { fetchedAt: data?.fetchedAt || null, routes: data?.routes || {} };
+  } catch (err) {
+    console.warn('prerender-corridors: snapshot unreadable, ignoring:', err?.message || err);
+    return { fetchedAt: null, routes: {} };
+  }
+}
+
+function saveSnapshot(snapshot) {
+  fs.mkdirSync(path.dirname(SNAPSHOT_PATH), { recursive: true });
+  const routes = {};
+  for (const key of Object.keys(snapshot.routes).sort()) routes[key] = snapshot.routes[key];
+  fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify({ fetchedAt: snapshot.fetchedAt, routes }, null, 2) + '\n', 'utf8');
+}
+
+/** Keep only the fields the page needs (drops nested relations). Trains stay — they are labelled, not hidden (D4). */
+function normalizeRows(rows) {
+  return rows
+    .filter((s) => s && s.departureTime)
+    .map((s) => ({
+      id: s.id ?? null,
+      route: String(s.route),
+      labelUk: s.tripRoute?.labelUk ?? null,
+      departureTime: String(s.departureTime),
+      supportPhone: s.supportPhone ?? null,
+      priceUah: s.priceUah ?? null,
+      boardingPlace: s.boardingPlace ?? null,
+      vehicleType: s.vehicleType ?? 'marshrutka',
+      tripNumber: s.tripNumber ?? null,
+    }));
+}
+
+const isTrain = (s) => s.vehicleType === 'elektrichka';
+
+/** «Маршрутка» / «Електричка №6621» / «Потяг №859» — never a raw slug or bare number. */
+function vehicleLabel(s) {
+  if (!isTrain(s)) return 'Маршрутка';
+  const n = s.tripNumber ? String(s.tripNumber).trim() : '';
+  const kind = /^\d{4}$/.test(n) ? 'Електричка' : 'Потяг';
+  return n ? `${kind} №${n}` : kind;
+}
+
+function routeLabel(s) {
+  return ROUTE_LABELS[s.route] || s.labelUk || s.route;
+}
+
+function scheduleHeading(rows) {
+  const trains = rows.some(isTrain);
+  const buses = rows.some((s) => !isTrain(s));
+  if (trains && buses) return 'Розклад маршруток та електричок';
+  if (trains) return 'Розклад електричок і потягів';
+  return 'Розклад маршруток';
+}
+
+/**
+ * Pick the rows for one corridor: live rows if every route answered, else snapshot.
+ * Returns { rows, source: 'api' | 'snapshot', asOf } or throws when both are empty.
+ */
+export function resolveCorridorSchedules(corridor, liveByRoute, snapshot, { allowEmpty = false, today = todayIso() } = {}) {
+  const liveComplete = corridor.routes.every((r) => Array.isArray(liveByRoute[r]) && liveByRoute[r].length > 0);
+  if (liveComplete) {
+    return { rows: sortRows(corridor.routes.flatMap((r) => liveByRoute[r])), source: 'api', asOf: today };
+  }
+  const snapRows = corridor.routes.flatMap((r) => snapshot.routes[r] || []);
+  if (snapRows.length) {
+    return { rows: sortRows(snapRows), source: 'snapshot', asOf: snapshot.fetchedAt || today };
+  }
+  if (allowEmpty) return { rows: [], source: 'empty', asOf: today };
+  throw new Error(
+    `prerender-corridors: no schedule rows for /mizhgorodski/${corridor.slug} ` +
+      `(routes ${corridor.routes.join(', ')}) — API ${API_BASE} gave nothing and no snapshot at ${SNAPSHOT_PATH}. ` +
+      'Rule D10: refusing to ship a placeholder timetable. Set PRERENDER_ALLOW_EMPTY=1 only for local experiments.'
+  );
+}
+
+function sortRows(rows) {
+  return [...rows].sort(
+    (a, b) =>
+      String(a.departureTime).localeCompare(String(b.departureTime)) ||
+      String(a.route).localeCompare(String(b.route))
+  );
+}
 
 const CORRIDORS = [
   {
@@ -127,8 +227,9 @@ function formatPhone(digits) {
   return '+' + digits;
 }
 
-async function fetchSchedulesForRoutes(routeKeys) {
-  const all = [];
+/** @returns {Promise<Record<string, object[]>>} route key → normalized rows (missing key = fetch failed) */
+async function fetchSchedulesByRoute(routeKeys) {
+  const byRoute = {};
   let warned = false;
   for (const route of routeKeys) {
     const urls = [
@@ -158,48 +259,60 @@ async function fetchSchedulesForRoutes(routeKeys) {
         }
       }
     }
-    if (Array.isArray(rows)) all.push(...rows);
+    if (Array.isArray(rows)) byRoute[route] = normalizeRows(rows);
   }
-  return all.sort((a, b) =>
-    String(a.departureTime).localeCompare(String(b.departureTime)) ||
-    String(a.route).localeCompare(String(b.route))
-  );
+  return byRoute;
 }
 
 function buildTableRows(schedules) {
   if (!schedules.length) {
-    return '<tr><td colspan="3">Розклад підвантажиться в додатку; відкрийте сторінку для бронювання.</td></tr>';
+    // Only reachable with PRERENDER_ALLOW_EMPTY=1; never a "will load later" promise (D10).
+    return '<tr><td colspan="5">Розклад тимчасово недоступний. Актуальні рейси — у пошуку на /mizhgorodski.</td></tr>';
   }
   return schedules
     .map((s) => {
-      const label = ROUTE_LABELS[s.route] || s.route;
       const phones = splitPhones(s.supportPhone);
       const phoneHtml = phones.length
         ? phones
             .map((d) => `<a href="tel:${d}">${escapeHtml(formatPhone(d))}</a>`)
             .join(', ')
         : '—';
-      return `<tr><td><strong>${escapeHtml(s.departureTime)}</strong></td><td>${escapeHtml(label)}</td><td>${phoneHtml}</td></tr>`;
+      const price = s.priceUah != null ? `${escapeHtml(String(s.priceUah))} грн` : '—';
+      return `<tr><td><strong>${escapeHtml(s.departureTime)}</strong></td><td>${escapeHtml(routeLabel(s))}</td><td>${escapeHtml(vehicleLabel(s))}</td><td>${price}</td><td>${phoneHtml}</td></tr>`;
     })
     .join('\n');
 }
 
-function buildPageHtml(shell, corridor, schedules) {
+function buildPageHtml(shell, corridor, schedules, asOf = todayIso()) {
   const canonical = `https://malin.kiev.ua/mizhgorodski/${corridor.slug}`;
   const searchHref = `/mizhgorodski?from=${corridor.from}&to=${corridor.to}&type=bus`;
-  const times = schedules.map((s) => s.departureTime).sort();
-  const first = times[0];
-  const last = times[times.length - 1];
-  const desc =
-    schedules.length && first && last
-      ? `${corridor.description} Розклад: ${schedules.length} рейсів, з ${first} до ${last}.`
-      : corridor.description;
+  // First/last are computed per vehicle kind so trains never inflate "маршрутка" facts (D4).
+  const buses = schedules.filter((s) => !isTrain(s));
+  const trains = schedules.filter(isTrain);
+  const range = (rows) => {
+    const t = rows.map((s) => s.departureTime).sort();
+    return t.length ? { first: t[0], last: t[t.length - 1], count: t.length } : null;
+  };
+  const busRange = range(buses);
+  const trainRange = range(trains);
+  const summary = [
+    busRange ? `маршрутки: ${busRange.count} рейсів, з ${busRange.first} до ${busRange.last}` : null,
+    trainRange ? `електрички та потяги: ${trainRange.count} рейсів, з ${trainRange.first} до ${trainRange.last}` : null,
+  ]
+    .filter(Boolean)
+    .join('; ');
+  const desc = summary ? `${corridor.description} Розклад — ${summary}.` : corridor.description;
 
   const faq = [];
-  if (first && last) {
+  if (busRange) {
     faq.push({
       q: `О котрій перша та остання маршрутка ${corridor.fromLabel} — ${corridor.toLabel}?`,
-      a: `За розкладом malin.kiev.ua: перший рейс о ${first}, останній о ${last}. Усього ${schedules.length} відправлень.`,
+      a: `За розкладом malin.kiev.ua: перша маршрутка о ${busRange.first}, остання о ${busRange.last}. Усього ${busRange.count} відправлень маршруток${trainRange ? `; окремо ${trainRange.count} електричок і потягів` : ''}.`,
+    });
+  } else if (trainRange) {
+    faq.push({
+      q: `Чи є маршрутка ${corridor.fromLabel} — ${corridor.toLabel}?`,
+      a: `Регулярних маршруток на цьому напрямку в нашій базі зараз немає. Є ${trainRange.count} електричок і потягів: перший о ${trainRange.first}, останній о ${trainRange.last}. Попутку можна знайти в пошуку на malin.kiev.ua/mizhgorodski.`,
     });
   }
   faq.push({
@@ -222,12 +335,12 @@ function buildPageHtml(shell, corridor, schedules) {
         ? [
             {
               '@type': 'ItemList',
-              name: `Розклад маршруток ${corridor.fromLabel} — ${corridor.toLabel}`,
+              name: `${scheduleHeading(schedules)} ${corridor.fromLabel} — ${corridor.toLabel}`,
               numberOfItems: schedules.length,
               itemListElement: schedules.map((s, i) => ({
                 '@type': 'ListItem',
                 position: i + 1,
-                name: `${s.departureTime} · ${ROUTE_LABELS[s.route] || s.route}`,
+                name: `${s.departureTime} · ${routeLabel(s)} · ${vehicleLabel(s)}${s.priceUah != null ? ` · ${s.priceUah} грн` : ''}`,
               })),
             },
           ]
@@ -242,10 +355,10 @@ function buildPageHtml(shell, corridor, schedules) {
     <h1>${escapeHtml(corridor.h1)}</h1>
     <p>${escapeHtml(desc)}</p>
     <p><a href="${escapeHtml(searchHref)}">Шукати / забронювати маршрутку</a></p>
-    <h2>Розклад маршруток</h2>
-    <p>Фіксований графік з бази бронювання malin.kiev.ua. Змінюється рідко.</p>
+    <h2>${escapeHtml(scheduleHeading(schedules))}</h2>
+    <p>Розклад актуальний на ${escapeHtml(asOf)} — з бази бронювання malin.kiev.ua. Перед поїздкою оберіть дату в пошуку та забронюйте місце.</p>
     <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%">
-      <thead><tr><th>Відправлення</th><th>Маршрут</th><th>Контакт</th></tr></thead>
+      <thead><tr><th>Відправлення</th><th>Маршрут</th><th>Тип</th><th>Ціна</th><th>Контакт</th></tr></thead>
       <tbody>
         ${buildTableRows(schedules)}
       </tbody>
@@ -295,18 +408,41 @@ async function main() {
   const shell = fs.readFileSync(indexPath, 'utf8');
   console.log(`prerender-corridors: API ${API_BASE}`);
 
+  const snapshot = loadSnapshot();
+  const allRoutes = [...new Set(CORRIDORS.flatMap((c) => c.routes))];
+  const live = await fetchSchedulesByRoute(allRoutes);
+
+  let refreshed = 0;
+  for (const route of allRoutes) {
+    if (Array.isArray(live[route]) && live[route].length) {
+      snapshot.routes[route] = live[route];
+      refreshed += 1;
+    }
+  }
+  if (refreshed === allRoutes.length) {
+    snapshot.fetchedAt = todayIso();
+    saveSnapshot(snapshot);
+    console.log(`prerender-corridors: snapshot refreshed (${SNAPSHOT_PATH})`);
+  } else if (refreshed > 0) {
+    console.warn(`prerender-corridors: API answered for ${refreshed}/${allRoutes.length} routes — snapshot NOT rewritten`);
+  }
+
   for (const corridor of CORRIDORS) {
-    const schedules = await fetchSchedulesForRoutes(corridor.routes);
-    const html = buildPageHtml(shell, corridor, schedules);
+    const { rows, source, asOf } = resolveCorridorSchedules(corridor, live, snapshot, { allowEmpty: ALLOW_EMPTY });
+    const html = buildPageHtml(shell, corridor, rows, asOf);
     const outDir = path.join(distDir, 'mizhgorodski', corridor.slug);
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'index.html'), html, 'utf8');
-    console.log(`  wrote /mizhgorodski/${corridor.slug}/ (${schedules.length} trips)`);
+    const tag = source === 'api' ? '' : ` [${source}${asOf ? ` as of ${asOf}` : ''}]`;
+    console.log(`  wrote /mizhgorodski/${corridor.slug}/ (${rows.length} trips)${tag}`);
   }
   console.log('prerender-corridors: done');
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err?.message || err);
+    process.exit(1);
+  });
+}
