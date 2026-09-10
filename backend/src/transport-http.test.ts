@@ -183,3 +183,42 @@ test('PUT then GET /transport/dataset: unreliable flag round-trips, default fals
   assert.equal(byId.get('2')?.unreliable, true);
   assert.equal(byId.get('10-old')?.unreliable, false);
 });
+
+test('PUT then GET /transport/dataset: trip start/end/arrival round-trip, empty → null', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
+  const dataset = sampleDataset();
+  dataset.trips = [
+    { ...dataset.trips[0], startStopId: null, endStopId: 'st_0002', arrivalTime: '07:05:00' },
+    { ...dataset.trips[0], id: '2-02', departureTime: '08:00:00', startStopId: '', endStopId: '', arrivalTime: '' },
+  ];
+
+  await request(app)
+    .put('/transport/dataset')
+    .set('Authorization', String(login.body.token))
+    .send(dataset)
+    .expect(200);
+
+  const get = await request(app).get('/transport/dataset').expect(200);
+  const byId = new Map((get.body.trips as Array<Record<string, unknown>>).map((t) => [t.id, t]));
+  assert.equal(byId.get('2-01')?.endStopId, 'st_0002');
+  assert.equal(byId.get('2-01')?.arrivalTime, '07:05:00');
+  assert.equal(byId.get('2-01')?.startStopId, null);
+  assert.equal(byId.get('2-02')?.startStopId, null);
+  assert.equal(byId.get('2-02')?.endStopId, null);
+  assert.equal(byId.get('2-02')?.arrivalTime, null);
+});
+
+test('PUT /transport/dataset: 400 names the trip whose arrivalTime is invalid', async () => {
+  const app = appWithStore(emptyStore());
+  const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
+  const dataset = sampleDataset();
+  dataset.trips = [{ ...dataset.trips[0], arrivalTime: '06:00:00' }];
+  const res = await request(app)
+    .put('/transport/dataset')
+    .set('Authorization', String(login.body.token))
+    .send(dataset)
+    .expect(400);
+  assert.ok((res.body.details as string[]).some((d) => d.includes('trip 2-01') && d.includes('arrivalTime')));
+});

@@ -19,9 +19,8 @@ const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
 const client_1 = require("@prisma/client");
 const local_transport_1 = require("../local-transport");
+const gtfs_stop_times_1 = require("../gtfs-stop-times");
 const outDir = path_1.default.join(__dirname, '..', '..', '..', 'data', 'malyn-transport', 'gtfs');
-const DEFAULT_SEC = 120;
-const FALLBACK_MINS = 2;
 const SERVICE_START_DATE = '20240101';
 const SERVICE_END_DATE = '20271231';
 const SERVICE_MAP = {
@@ -42,54 +41,6 @@ function writeTable(filePath, headers, rows) {
     }
     fs_1.default.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
 }
-function toGtfsTime(raw) {
-    const m = String(raw || '')
-        .trim()
-        .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    if (!m)
-        return null;
-    const hh = String(Number(m[1])).padStart(2, '0');
-    return `${hh}:${m[2]}:${m[3] || '00'}`;
-}
-function minutesToGtfs(mins) {
-    const total = Math.max(0, Math.round(mins));
-    const h = Math.floor(total / 60);
-    const m = total % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
-}
-function parseMinutes(gtfsTime) {
-    const m = gtfsTime.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
-    if (!m)
-        return 0;
-    return Number(m[1]) * 60 + Number(m[2]);
-}
-function orderedPassengerStops(stops, direction) {
-    const key = direction === 'there' ? 'orderThere' : 'orderBack';
-    return stops
-        .filter((s) => !s.mapOnly && (s[key] ?? -1) > 0)
-        .sort((a, b) => (a[key] ?? -1) - (b[key] ?? -1));
-}
-function orderedAllStops(stops, direction) {
-    const key = direction === 'there' ? 'orderThere' : 'orderBack';
-    return stops
-        .filter((s) => (s[key] ?? -1) > 0)
-        .sort((a, b) => (a[key] ?? -1) - (b[key] ?? -1));
-}
-function segmentSec(segments, defaultSec, routeId, fromKey, toKey) {
-    const k1 = `${routeId}|${fromKey}|${toKey}`;
-    const k2 = `${routeId}|${toKey}|${fromKey}`;
-    return segments[k1] ?? segments[k2] ?? defaultSec;
-}
-function durationToStopMins(routeId, chainKeys, toIndex, segments, defaultSec) {
-    let sec = 0;
-    for (let i = 0; i < toIndex && i < chainKeys.length - 1; i++) {
-        sec += segmentSec(segments, defaultSec, routeId, chainKeys[i], chainKeys[i + 1]);
-    }
-    if (sec === 0 && toIndex > 0 && Object.keys(segments).every((k) => !k.startsWith(`${routeId}|`))) {
-        return toIndex * FALLBACK_MINS;
-    }
-    return sec / 60;
-}
 function exportGtfs(dataset) {
     const agency = dataset.meta.agency || {
         agency_id: 'malyn',
@@ -99,7 +50,7 @@ function exportGtfs(dataset) {
         agency_lang: 'uk',
         agency_phone: '',
     };
-    const defaultSec = Number(dataset.meta.defaultSec) || DEFAULT_SEC;
+    const defaultSec = Number(dataset.meta.defaultSec) || gtfs_stop_times_1.DEFAULT_SEC;
     const stopById = new Map(dataset.stops.map((s) => [s.id, s]));
     const routeById = new Map(dataset.routes.map((r) => [r.id, r]));
     const routeStopsByRoute = new Map();
@@ -152,7 +103,7 @@ function exportGtfs(dataset) {
     const usedStopIds = new Set(stopById.keys());
     // Ненадійні (приховані) маршрути у фід не потрапляють
     const hiddenRouteIds = new Set(dataset.routes.filter((r) => r.unreliable).map((r) => r.id));
-    const timedTrips = dataset.trips.filter((t) => toGtfsTime(t.departureTime) && !hiddenRouteIds.has(t.routeId));
+    const timedTrips = dataset.trips.filter((t) => (0, gtfs_stop_times_1.toGtfsTime)(t.departureTime) && !hiddenRouteIds.has(t.routeId));
     const routeIds = [...new Set(timedTrips.map((t) => t.routeId))].sort((a, b) => Number(a) - Number(b));
     const routeRows = routeIds.map((routeId) => {
         const meta = routeById.get(routeId);
@@ -168,14 +119,23 @@ function exportGtfs(dataset) {
     writeTable(path_1.default.join(outDir, 'routes.txt'), ['route_id', 'agency_id', 'route_short_name', 'route_long_name', 'route_type'], routeRows);
     const shapeRows = [];
     const shapeIdByRouteDir = new Map();
-    function ensureShape(routeId, direction, directionId) {
-        const cacheKey = `${routeId}|${direction}`;
+    /** Shape на маршрут+напрямок+зріз: скорочені рейси отримують власну (коротшу) лінію. */
+    function ensureShape(routeId, built) {
+        const { direction, chainKeys, startIndex, endIndex } = built;
+        const directionId = direction === 'there' ? 1 : 0;
+        const full = startIndex === 0 && endIndex === chainKeys.length - 1;
+        const cacheKey = `${routeId}|${direction}|${startIndex}|${endIndex}`;
         if (shapeIdByRouteDir.has(cacheKey))
             return shapeIdByRouteDir.get(cacheKey);
-        const points = orderedAllStops(routeStopsByRoute.get(routeId) || [], direction)
-            .map((s) => stopById.get(s.stopId))
+        const points = chainKeys
+            .slice(startIndex, endIndex + 1)
+            .map((stopId) => stopById.get(stopId))
             .filter((s) => !!s);
-        const shapeId = points.length >= 2 ? `shp_${routeId}_${directionId}` : '';
+        const shapeId = points.length >= 2
+            ? full
+                ? `shp_${routeId}_${directionId}`
+                : `shp_${routeId}_${directionId}_${startIndex}_${endIndex}`
+            : '';
         if (shapeId) {
             points.forEach((s, i) => {
                 shapeRows.push({
@@ -192,47 +152,30 @@ function exportGtfs(dataset) {
     const tripRows = [];
     const stopTimeRows = [];
     let skippedNoStops = 0;
+    let compressedTrips = 0;
+    let partialTrips = 0;
     for (const rec of timedTrips) {
-        const dep = toGtfsTime(rec.departureTime);
         const serviceId = SERVICE_MAP[rec.serviceId || ''] || 'everyday';
-        const directionThere = String(rec.directionId) === '1';
-        const direction = directionThere ? 'there' : 'back';
         const routeStops = routeStopsByRoute.get(rec.routeId) || [];
-        const passenger = orderedPassengerStops(routeStops, direction);
-        const chain = orderedAllStops(routeStops, direction);
-        const chainKeys = chain.map((s) => s.stopId);
-        if (passenger.length < 2) {
+        const built = (0, gtfs_stop_times_1.buildTripStopTimes)(rec, routeStops, segments, defaultSec, usedStopIds);
+        if (!built) {
             skippedNoStops++;
             continue;
         }
-        const directionId = directionThere ? 1 : 0;
+        if (built.factor < 1)
+            compressedTrips++;
+        if (built.startIndex > 0 || built.endIndex < built.chainKeys.length - 1)
+            partialTrips++;
         tripRows.push({
             route_id: rec.routeId,
             service_id: serviceId,
             trip_id: rec.id,
             trip_headsign: rec.headsign || '',
-            direction_id: directionId,
+            direction_id: built.direction === 'there' ? 1 : 0,
             block_id: rec.blockId || '',
-            shape_id: ensureShape(rec.routeId, direction, directionId),
+            shape_id: ensureShape(rec.routeId, built),
         });
-        const baseMins = parseMinutes(dep);
-        passenger.forEach((stop, seq) => {
-            if (!usedStopIds.has(stop.stopId))
-                return;
-            const idxInChain = chainKeys.indexOf(stop.stopId);
-            const offset = idxInChain >= 0
-                ? durationToStopMins(rec.routeId, chainKeys, idxInChain, segments, defaultSec)
-                : seq * FALLBACK_MINS;
-            const t = minutesToGtfs(baseMins + offset);
-            stopTimeRows.push({
-                trip_id: rec.id,
-                arrival_time: t,
-                departure_time: t,
-                stop_id: stop.stopId,
-                stop_sequence: seq + 1,
-                timepoint: seq === 0 ? 1 : 0,
-            });
-        });
+        stopTimeRows.push(...built.rows.map((row) => ({ ...row })));
     }
     writeTable(path_1.default.join(outDir, 'trips.txt'), ['route_id', 'service_id', 'trip_id', 'trip_headsign', 'direction_id', 'block_id', 'shape_id'], tripRows);
     writeTable(path_1.default.join(outDir, 'shapes.txt'), ['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'], shapeRows);
@@ -272,6 +215,7 @@ function exportGtfs(dataset) {
     console.log(`GTFS written to ${outDir}`);
     console.log(`Routes: ${routeRows.length}, trips: ${tripRows.length}, stop_times: ${stopTimeRows.length}, stops: ${stopRows.length}, shapes: ${shapeIdByRouteDir.size} (${shapeRows.length} points)`);
     console.log(`Skipped trips (no passenger stops): ${skippedNoStops}`);
+    console.log(`Partial (start/end stop) trips: ${partialTrips}; trips compressed to arrivalTime: ${compressedTrips}`);
     console.log(`Timed trips in DB: ${timedTrips.length}; plate-only trips omitted from feed.`);
     if (hiddenRouteIds.size) {
         console.log(`Hidden (unreliable) routes omitted from feed: ${[...hiddenRouteIds].join(', ')}`);

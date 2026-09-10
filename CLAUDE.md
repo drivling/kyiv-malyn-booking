@@ -185,6 +185,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   chips, `prerender-transport-stops.mjs` (static stop pages + sitemap) and the GTFS export. Static
   pages and the sitemap are built at deploy time — after flipping the flag, redeploy the frontend.
   Route numbers are primary keys; renumbering is done in a migration (see the 6 → 10 one).
+- Per-trip `startStopId` / `endStopId` / `arrivalTime` (short-turn trips, fixed arrival that
+  compresses that trip's segment durations) are computed on the fly by one pure helper kept
+  byte-identical in `frontend/src/pages/TransportPage/tripTiming.ts` and
+  `backend/src/trip-timing.ts` (a frontend test diffs them). Public pages go through
+  `recordTiming()` in `routeTiming.ts`, the admin grid through `computeTripTimes()`, GTFS through
+  `backend/src/gtfs-stop-times.ts`. Headsign is display-only; the served stop range comes from
+  start/end. A trip is never a "departure" at its own end stop on the stop board.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

@@ -13,11 +13,8 @@ import {
   invertNameToId,
   resolveStopIdInList,
 } from './stopCatalog';
-import {
-  getMinsBetweenStops,
-  getDurationFromStartSec,
-  isVerifiedRoute,
-} from './routeTiming';
+import { isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
+import { computeTripTiming, minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
 import { tripDepartureMinutes, sortTripsByDeparture, parseClockToMinutes } from './tripDeparture';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
@@ -231,33 +228,54 @@ function getKyivMinutesNow(): number {
   return h * 60 + m;
 }
 
-/** Найближчий рейс за поточним часом. Якщо пізно — показуємо перший рейс зранку. */
+/** Контекст «на зупинці»: час рейсу рахується на fromStop, рейс має обслуговувати пару З→До */
+type NearestTripAt = {
+  routeId: string;
+  chainKeys: { there: string[]; back: string[] };
+  fromStop: string;
+  toStop?: string;
+};
+
+type NearestTrip = { time: number; timeAtFrom: number; direction: 'there' | 'back' };
+
+/**
+ * Найближчий рейс за часом. Без `at` — за відправленням з кінцевої; з `at` — за часом на зупинці
+ * fromStop (з урахуванням start/end/arrival рейсу). Якщо пізно — показуємо перший рейс зранку.
+ */
 function findNearestTrip(
   trips: TransportRecord[],
   nowMins: number,
-  directionFilter?: 'there' | 'back'
-): { time: number; direction: 'there' | 'back' } | null {
+  directionFilter?: 'there' | 'back',
+  at?: NearestTripAt
+): NearestTrip | null {
   const { dir0, dir1 } = groupTripsByDirection(trips);
-  const withTime0 = dir0.map((t) => tripDepartureMinutes(t)).filter((m) => m > 0);
-  const withTime1 = dir1.map((t) => tripDepartureMinutes(t)).filter((m) => m > 0);
-  // Якщо майбутніх немає — беремо перший зранку (?? withTime[0])
-  if (directionFilter === 'back') {
-    const next = withTime0.find((m) => m >= nowMins) ?? withTime0[0];
-    return next != null ? { time: next, direction: 'back' } : null;
-  }
-  if (directionFilter === 'there') {
-    const next = withTime1.find((m) => m >= nowMins) ?? withTime1[0];
-    return next != null ? { time: next, direction: 'there' } : null;
-  }
-  const next0 = withTime0.find((m) => m >= nowMins) ?? withTime0[0];
-  const next1 = withTime1.find((m) => m >= nowMins) ?? withTime1[0];
+  const candidates = (list: TransportRecord[], dir: 'there' | 'back') =>
+    list
+      .map((t): { time: number; timeAtFrom: number } | null => {
+        const base = tripDepartureMinutes(t);
+        if (base <= 0) return null;
+        if (!at) return { time: base, timeAtFrom: base };
+        const timing = recordTiming(at.routeId, at.chainKeys[dir], t);
+        if (at.toStop ? !tripServesPair(timing, at.fromStop, at.toStop) : minutesAtStop(timing, at.fromStop) == null) {
+          return null;
+        }
+        const m = minutesAtStop(timing, at.fromStop);
+        return m == null ? null : { time: base, timeAtFrom: m };
+      })
+      .filter((c): c is { time: number; timeAtFrom: number } => c != null)
+      .sort((a, b) => a.timeAtFrom - b.timeAtFrom);
+  // Якщо майбутніх немає — беремо перший зранку
+  const pick = (list: Array<{ time: number; timeAtFrom: number }>) =>
+    list.find((c) => c.timeAtFrom >= nowMins) ?? list[0] ?? null;
+  const next0 = directionFilter === 'there' ? null : pick(candidates(dir0, 'back'));
+  const next1 = directionFilter === 'back' ? null : pick(candidates(dir1, 'there'));
   if (next0 == null && next1 == null) return null;
-  if (next0 == null) return { time: next1!, direction: 'there' };
-  if (next1 == null) return { time: next0, direction: 'back' };
+  if (next0 == null) return { ...next1!, direction: 'there' };
+  if (next1 == null) return { ...next0, direction: 'back' };
   // Хто ближчий за часом (якщо обидва в минулому — хто перший зранку)
-  const dist0 = (next0 - nowMins + 24 * 60) % (24 * 60);
-  const dist1 = (next1 - nowMins + 24 * 60) % (24 * 60);
-  return dist1 <= dist0 ? { time: next1, direction: 'there' } : { time: next0, direction: 'back' };
+  const dist0 = (next0.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
+  const dist1 = (next1.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
+  return dist1 <= dist0 ? { ...next1, direction: 'there' } : { ...next0, direction: 'back' };
 }
 
 /** Визначити напрямок (there/back) за парою З→До з порядку зупинок */
@@ -296,33 +314,6 @@ function getImpliedDirection(
 }
 
 
-/** Порядок зупинки fromStop у напрямку dir (1-based). Повертає null якщо не знайдено. */
-function getFromOrder(
-  fromStop: string,
-  dir: 'there' | 'back',
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
-  routeId?: string
-): number | null {
-  if (!routeId || !stopsByRoute?.[routeId]) return null;
-  const routeStops = stopsByRoute[routeId];
-  if (!Array.isArray(routeStops) || routeStops.length === 0) return null;
-  const first = routeStops[0];
-  const withOrder: RouteStopWithOrder[] =
-    first && typeof first === 'object' && 'name' in first
-      ? (routeStops as RouteStopWithOrder[])
-      : (routeStops as string[]).map((name, i) => ({
-          name,
-          order_there: i + 1,
-          order_back: routeStops.length - i,
-          belongs_to: 'both' as const,
-        }));
-  const ordered = dir === 'there'
-    ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0).sort((a, b) => a.order_there - b.order_there)
-    : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0).sort((a, b) => a.order_back - b.order_back);
-  const stop = ordered.find((s) => getStopKey(s) === fromStop);
-  return stop ? (dir === 'there' ? stop.order_there : stop.order_back) : null;
-}
-
 /** Зібрати id зупинок у порядку руху для маршруту та напрямку */
 function getOrderedStopKeys(
   routeId: string,
@@ -349,7 +340,7 @@ function getOrderedStopKeys(
   return ordered.map((s) => getStopKey(s));
 }
 
-/** Знайти baseTime рейсу за часом відправлення з зупинки fromStop */
+/** Знайти baseTime (відправлення з початкової) рейсу, що проходить fromStop найближче до depFromStopMins */
 function findBaseTimeByDepartureFromStop(
   trips: TransportRecord[],
   depFromStopMins: number,
@@ -358,22 +349,19 @@ function findBaseTimeByDepartureFromStop(
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
   routeId?: string
 ): number | null {
-  const fromOrder = getFromOrder(fromStop, dir, stopsByRoute, routeId);
-  if (fromOrder == null) return null;
-  const rid = routeId ?? '';
-  const durationMins =
-    isVerifiedRoute(rid) && stopsByRoute?.[rid]
-      ? getDurationFromStartSec(rid, getOrderedStopKeys(rid, dir, stopsByRoute), fromOrder - 1) / 60
-      : (fromOrder - 1) * getMinsBetweenStops(rid);
-  const baseTime = depFromStopMins - durationMins;
+  if (!routeId) return null;
+  const chain = getOrderedStopKeys(routeId, dir, stopsByRoute);
+  if (chain.length < 2) return null;
   const { dir0, dir1 } = groupTripsByDirection(trips);
   const dirTrips = dir === 'there' ? dir1 : dir0;
-  const baseTimes = dirTrips.map((t) => tripDepartureMinutes(t)).filter((m) => m > 0);
-  if (baseTimes.length === 0) return null;
-  const closest = baseTimes.reduce((best, t) =>
-    Math.abs(t - baseTime) < Math.abs(best - baseTime) ? t : best
-  );
-  return closest;
+  let best: { base: number; diff: number } | null = null;
+  for (const t of dirTrips) {
+    const m = minutesAtStop(recordTiming(routeId, chain, t), fromStop);
+    if (m == null) continue;
+    const diff = Math.abs(m - depFromStopMins);
+    if (!best || diff < best.diff) best = { base: tripDepartureMinutes(t), diff };
+  }
+  return best?.base ?? null;
 }
 
 /**
@@ -1481,50 +1469,39 @@ export const LocalTransportPage: React.FC = () => {
                     .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
                     .sort((a, b) => a.order_back - b.order_back)
                 : [];
-              const minsPerStop = getMinsBetweenStops(detailRoute.id);
               const routeId = detailRoute.id;
-              const verified = isVerifiedRoute(routeId);
               const orderedKeysThere = orderedStopsThere.map((s) => getStopKey(s));
               const orderedKeysBack = orderedStopsBack.map((s) => getStopKey(s));
 
+              /**
+               * Рядок на рейс між обраними З/До (або початком/кінцем самого рейсу).
+               * Рейси, що не обслуговують пару (скорочені, з іншої початкової), пропускаються.
+               */
               const buildTableTrips = (): Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> | null => {
                 if (!stopsWithOrder) return null;
                 const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
                 const rows: Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> = [];
-                const nThere = orderedStopsThere.length;
-                const nBack = orderedStopsBack.length;
-                const fromOrderThere = fromStop ? orderedStopsThere.find((s) => getStopKey(s) === fromStop)?.order_there : 1;
-                const toOrderThere = toStop ? orderedStopsThere.find((s) => getStopKey(s) === toStop)?.order_there : nThere;
-                const fromOrderBack = fromStop ? orderedStopsBack.find((s) => getStopKey(s) === fromStop)?.order_back : 1;
-                const toOrderBack = toStop ? orderedStopsBack.find((s) => getStopKey(s) === toStop)?.order_back : nBack;
-                if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere && nThere > 0) {
-                  dir1.forEach((t) => {
-                    const mins = tripDepartureMinutes(t);
-                    if (mins > 0) {
-                      const depMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedKeysThere, fromOrderThere - 1) / 60
-                        : mins + (fromOrderThere - 1) * minsPerStop;
-                      const arrMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedKeysThere, toOrderThere - 1) / 60
-                        : mins + (toOrderThere - 1) * minsPerStop;
-                      rows.push({ dep: formatTime(depMins), arr: formatTime(arrMins), direction: 'there', baseTime: mins });
-                    }
+                const pushRows = (list: TransportRecord[], direction: 'there' | 'back', chain: string[]) => {
+                  if (chain.length < 2) return;
+                  list.forEach((t) => {
+                    const timing = recordTiming(routeId, chain, t);
+                    if (!timing) return;
+                    const fromKey = fromStop || timing.stops[0].stopId;
+                    const toKey = toStop || timing.stops[timing.stops.length - 1].stopId;
+                    if (!tripServesPair(timing, fromKey, toKey)) return;
+                    const depMins = minutesAtStop(timing, fromKey);
+                    const arrMins = minutesAtStop(timing, toKey);
+                    if (depMins == null || arrMins == null) return;
+                    rows.push({
+                      dep: formatTime(depMins),
+                      arr: formatTime(arrMins),
+                      direction,
+                      baseTime: tripDepartureMinutes(t),
+                    });
                   });
-                }
-                if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack && nBack > 0) {
-                  dir0.forEach((t) => {
-                    const mins = tripDepartureMinutes(t);
-                    if (mins > 0) {
-                      const depMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedKeysBack, fromOrderBack - 1) / 60
-                        : mins + (fromOrderBack - 1) * minsPerStop;
-                      const arrMins = verified
-                        ? mins + getDurationFromStartSec(routeId, orderedKeysBack, toOrderBack - 1) / 60
-                        : mins + (toOrderBack - 1) * minsPerStop;
-                      rows.push({ dep: formatTime(depMins), arr: formatTime(arrMins), direction: 'back', baseTime: mins });
-                    }
-                  });
-                }
+                };
+                pushRows(dir1, 'there', orderedKeysThere);
+                pushRows(dir0, 'back', orderedKeysBack);
                 return rows.length ? rows.sort((a, b) => a.dep.localeCompare(b.dep)) : null;
               };
 
@@ -1729,46 +1706,41 @@ export const LocalTransportPage: React.FC = () => {
                           .filter((s) => (isThere ? s.order_there : s.order_back) > 0)
                           .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
                         const listStops = getRealStops(filtered);
-                        const baseTime =
-                          selectedTripDirection === stopsDirection && selectedTripTime != null
-                            ? selectedTripTime
-                            : getFirstTripTime(detailRoute.trips);
                         const orderKey = isThere ? 'order_there' : 'order_back';
                         const orderedKeysStops = filtered.map((s) => getStopKey(s));
-                        const verifiedStops = isVerifiedRoute(detailRoute.id);
-                        const minsPerStopStops = getMinsBetweenStops(detailRoute.id);
+                        // Обраний рейс (за напрямком + часом відправлення); без нього — перший рейс дня по всій лінії
+                        const selectedInDirection =
+                          selectedTripDirection === stopsDirection && selectedTripTime != null ? selectedTripTime : null;
+                        const { dir0: dirTrips0, dir1: dirTrips1 } = groupTripsByDirection(detailRoute.trips);
+                        const selectedRecord =
+                          selectedInDirection != null
+                            ? (isThere ? dirTrips1 : dirTrips0).find((t) => tripDepartureMinutes(t) === selectedInDirection) ?? null
+                            : null;
+                        const timing = selectedRecord
+                          ? recordTiming(detailRoute.id, orderedKeysStops, selectedRecord)
+                          : computeTripTiming(orderedKeysStops, segSecForRoute(detailRoute.id), {
+                              departureMins: selectedInDirection ?? getFirstTripTime(detailRoute.trips),
+                            });
                         return (
                           <ul className="lt-stops-list">
                             {listStops.map((s, idx) => {
                               const order = s[orderKey];
-                              const arrivalMins = verifiedStops
-                                ? baseTime + getDurationFromStartSec(detailRoute.id, orderedKeysStops, order - 1) / 60
-                                : baseTime + (order - 1) * minsPerStopStops;
+                              const arrivalMins = minutesAtStop(timing, getStopKey(s));
+                              const served = arrivalMins != null;
                               const nextRealStop = listStops[idx + 1];
-                              const nextArrivalMins =
-                                nextRealStop == null
-                                  ? null
-                                  : verifiedStops
-                                    ? baseTime + getDurationFromStartSec(detailRoute.id, orderedKeysStops, nextRealStop[orderKey] - 1) / 60
-                                    : baseTime + (nextRealStop[orderKey] - 1) * minsPerStopStops;
+                              const nextArrivalMins = nextRealStop ? minutesAtStop(timing, getStopKey(nextRealStop)) : null;
                               const minsToNext =
-                                nextRealStop == null
-                                  ? null
-                                  : verifiedStops
-                                    ? (getDurationFromStartSec(detailRoute.id, orderedKeysStops, nextRealStop[orderKey] - 1) -
-                                        getDurationFromStartSec(detailRoute.id, orderedKeysStops, (s[orderKey] ?? 0) - 1)) / 60
-                                    : nextArrivalMins != null
-                                      ? nextArrivalMins - arrivalMins
-                                      : null;
+                                arrivalMins != null && nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
                               const isFrom = fromStop && getStopKey(s) === fromStop;
                               const isTo = toStop && getStopKey(s) === toStop;
                               return (
                                 <li
                                   key={`${isThere ? 'there' : 'back'}-${getStopKey(s)}-${order}`}
                                   ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
-                                  className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''}`}
+                                  className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''} ${served ? '' : 'lt-stop-item--unserved'}`}
+                                  aria-label={served ? undefined : 'Цей рейс тут не зупиняється'}
                                 >
-                                  <span className="lt-stop-time">{formatTime(arrivalMins)}</span>
+                                  <span className="lt-stop-time">{arrivalMins != null ? formatTime(arrivalMins) : '—'}</span>
                                   <span className="lt-stop-content">
                                     <Link
                                       className="lt-stop-content-link"
@@ -2073,15 +2045,17 @@ export const LocalTransportPage: React.FC = () => {
                         const [h, m] = searchTime.split(':').map(Number);
                         return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
                       })();
-                    const orderedKeys = getOrderedStopKeys(r.id, dir, stopsByRoute);
-                    const fromOrder = getFromOrder(fromId, dir, stopsByRoute, r.id) ?? 1;
-                    const offsetMins =
-                      isVerifiedRoute(r.id) && orderedKeys.length
-                        ? getDurationFromStartSec(r.id, orderedKeys, fromOrder - 1) / 60
-                        : (fromOrder - 1) * getMinsBetweenStops(r.id);
-                    const nearest = findNearestTrip(r.trips, Math.max(0, searchMins - offsetMins), dir);
-                    const nextDepAtStop = nearest ? nearest.time + offsetMins : null;
-                    const nextTimeStr = nextDepAtStop != null ? formatTime(nextDepAtStop) : '—';
+                    // Час на зупинці «З» рахується для кожного рейсу окремо (скорочені рейси, стиснення)
+                    const nearest = findNearestTrip(r.trips, searchMins, dir, {
+                      routeId: r.id,
+                      chainKeys: {
+                        there: getOrderedStopKeys(r.id, 'there', stopsByRoute),
+                        back: getOrderedStopKeys(r.id, 'back', stopsByRoute),
+                      },
+                      fromStop: fromId,
+                      toStop: toId,
+                    });
+                    const nextTimeStr = nearest ? formatTime(nearest.timeAtFrom) : '—';
                     return (
                       <button
                         key={`${r.id}-${dir}`}

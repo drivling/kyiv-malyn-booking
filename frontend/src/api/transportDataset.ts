@@ -39,6 +39,12 @@ export interface TransportTripDto {
   blockId?: string | null;
   wheelchairAccessible?: string;
   bikesAllowed?: string;
+  /** Перша обслуговувана зупинка; null — перша в напрямку */
+  startStopId?: string | null;
+  /** Остання обслуговувана зупинка (скорочений рейс); null — остання в напрямку */
+  endStopId?: string | null;
+  /** Фіксований час на останній обслуговуваній зупинці, HH:MM:SS */
+  arrivalTime?: string | null;
 }
 
 export interface TransportSegmentDto {
@@ -174,6 +180,9 @@ export function datasetToEditor(dataset: TransportDataset): {
         block_id: t.blockId,
         wheelchair_accessible: t.wheelchairAccessible,
         bikes_allowed: t.bikesAllowed,
+        start_stop_id: t.startStopId ?? null,
+        end_stop_id: t.endStopId ?? null,
+        arrival_time: t.arrivalTime ?? null,
       })),
       supplement: {
         routes,

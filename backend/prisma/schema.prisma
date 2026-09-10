@@ -746,6 +746,12 @@ model TransportTrip {
   blockId              String?
   wheelchairAccessible String  @default("")
   bikesAllowed         String  @default("")
+  /// Перша обслуговувана зупинка (st_XXXX); null — перша в напрямку
+  startStopId          String?
+  /// Остання обслуговувана зупинка (скорочений рейс, напр. «до центру»); null — остання в напрямку
+  endStopId            String?
+  /// Фіксований час на останній обслуговуваній зупинці, HH:MM:SS; сегменти рейсу стискаються пропорційно
+  arrivalTime          String?
 
   route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
