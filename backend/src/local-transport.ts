@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { parseClockMins } from './trip-timing';
 
 /**
  * Міський транспорт Малина: спільний контракт датасету для API та seed.
@@ -42,6 +43,12 @@ export interface TransportTripInput {
   blockId?: string | null;
   wheelchairAccessible?: string;
   bikesAllowed?: string;
+  /** Перша обслуговувана зупинка; null — перша в напрямку */
+  startStopId?: string | null;
+  /** Остання обслуговувана зупинка (скорочений рейс); null — остання в напрямку */
+  endStopId?: string | null;
+  /** Фіксований час на останній обслуговуваній зупинці, HH:MM[:SS] */
+  arrivalTime?: string | null;
 }
 
 export interface TransportSegmentInput {
@@ -96,13 +103,32 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
   }
 
   const rsKeys = new Set<string>();
+  const routeStopByKey = new Map<string, TransportRouteStopInput>();
   for (const rs of dataset.routeStops) {
     if (!routeIds.has(rs.routeId)) errors.push(`routeStop references unknown route ${rs.routeId}`);
     if (!stopIds.has(rs.stopId)) errors.push(`routeStop references unknown stop ${rs.stopId} (route ${rs.routeId})`);
     const key = `${rs.routeId}|${rs.stopId}`;
     if (rsKeys.has(key)) errors.push(`duplicate routeStop ${key}`);
-    else rsKeys.add(key);
+    else {
+      rsKeys.add(key);
+      routeStopByKey.set(key, rs);
+    }
   }
+
+  /** Ланцюжок зупинок маршруту в напрямку (з технічними точками), як на сайті/у GTFS. */
+  const chainCache = new Map<string, string[]>();
+  const chainFor = (routeId: string, dir: 'there' | 'back'): string[] => {
+    const cacheKey = `${routeId}|${dir}`;
+    const cached = chainCache.get(cacheKey);
+    if (cached) return cached;
+    const orderKey = dir === 'there' ? 'orderThere' : 'orderBack';
+    const chain = dataset.routeStops
+      .filter((rs) => rs.routeId === routeId && (rs[orderKey] ?? -1) > 0)
+      .sort((a, b) => (a[orderKey] ?? -1) - (b[orderKey] ?? -1))
+      .map((rs) => rs.stopId);
+    chainCache.set(cacheKey, chain);
+    return chain;
+  };
 
   const tripIds = new Set<string>();
   for (const t of dataset.trips) {
@@ -112,6 +138,44 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
     if (!routeIds.has(t.routeId)) errors.push(`trip ${t.id} references unknown route ${t.routeId}`);
     if (t.departureTime && !TIME_RE.test(t.departureTime)) {
       errors.push(`trip ${t.id}: bad departureTime "${t.departureTime}"`);
+    }
+
+    const dir: 'there' | 'back' = t.directionId === '0' ? 'back' : 'there';
+    const orderKey = dir === 'there' ? 'orderThere' : 'orderBack';
+    for (const field of ['startStopId', 'endStopId'] as const) {
+      const stopId = t[field];
+      if (stopId == null || stopId === '') continue;
+      if (typeof stopId !== 'string') {
+        errors.push(`trip ${t.id}: ${field} must be a string`);
+        continue;
+      }
+      const rs = routeStopByKey.get(`${t.routeId}|${stopId}`);
+      const order = rs ? (rs[orderKey] ?? -1) : -1;
+      if (!rs || order <= 0 || rs.mapOnly) {
+        errors.push(`trip ${t.id}: ${field} ${stopId} is not a passenger stop of route ${t.routeId} (${dir})`);
+      }
+    }
+    const chain = chainFor(t.routeId, dir);
+    if (chain.length >= 2) {
+      const startIdx = t.startStopId ? chain.indexOf(t.startStopId) : 0;
+      const endIdx = t.endStopId ? chain.indexOf(t.endStopId) : chain.length - 1;
+      if (startIdx >= 0 && endIdx >= 0 && startIdx >= endIdx) {
+        errors.push(`trip ${t.id}: startStopId must precede endStopId`);
+      }
+    }
+
+    if (t.arrivalTime != null && t.arrivalTime !== '') {
+      if (typeof t.arrivalTime !== 'string' || !TIME_RE.test(t.arrivalTime)) {
+        errors.push(`trip ${t.id}: bad arrivalTime "${t.arrivalTime}"`);
+      } else if (!t.departureTime) {
+        errors.push(`trip ${t.id}: arrivalTime requires departureTime`);
+      } else if (TIME_RE.test(t.departureTime)) {
+        const dep = parseClockMins(t.departureTime);
+        const arr = parseClockMins(t.arrivalTime);
+        if (dep != null && arr != null && arr <= dep) {
+          errors.push(`trip ${t.id}: arrivalTime must be after departureTime`);
+        }
+      }
     }
   }
 
@@ -172,6 +236,9 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
         blockId: t.blockId ?? null,
         wheelchairAccessible: t.wheelchairAccessible ?? '',
         bikesAllowed: t.bikesAllowed ?? '',
+        startStopId: t.startStopId || null,
+        endStopId: t.endStopId || null,
+        arrivalTime: t.arrivalTime || null,
       })),
     }),
     prisma.transportSegment.createMany({
@@ -229,6 +296,9 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
       blockId: t.blockId,
       wheelchairAccessible: t.wheelchairAccessible,
       bikesAllowed: t.bikesAllowed,
+      startStopId: t.startStopId,
+      endStopId: t.endStopId,
+      arrivalTime: t.arrivalTime,
     })),
     segments: segments.map((seg) => ({
       routeId: seg.routeId,
@@ -324,6 +394,9 @@ export function convertLegacyRuntime(input: {
     blockId: rec.block_id || null,
     wheelchairAccessible: rec.wheelchair_accessible || '',
     bikesAllowed: rec.bikes_allowed || '',
+    startStopId: rec.start_stop_id || null,
+    endStopId: rec.end_stop_id || null,
+    arrivalTime: rec.arrival_time || null,
   }));
 
   const segmentRows: TransportSegmentInput[] = [];

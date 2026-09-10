@@ -17,6 +17,12 @@ export interface TransportRecord {
   shape_id?: string;
   wheelchair_accessible?: string;
   bikes_allowed?: string;
+  /** Перша обслуговувана зупинка (st_XXXX); відсутнє — перша в напрямку */
+  start_stop_id?: string | null;
+  /** Остання обслуговувана зупинка (скорочений рейс); відсутнє — остання в напрямку */
+  end_stop_id?: string | null;
+  /** Фіксований час на останній обслуговуваній зупинці (HH:MM[:SS]) — сегменти рейсу стискаються */
+  arrival_time?: string | null;
 }
 
 export interface SupplementRoute {

@@ -90,6 +90,12 @@ class ApiClient {
       try {
         const error = text ? JSON.parse(text) : {};
         errorMessage = error.error || error.message || errorMessage;
+        // Деталі валідації (напр. PUT /transport/dataset) — щоб адмін бачив, який запис зламаний
+        if (Array.isArray(error.details) && error.details.length) {
+          const shown = error.details.slice(0, 3).map(String).join('; ');
+          const more = error.details.length > 3 ? ` (+${error.details.length - 3})` : '';
+          errorMessage = `${errorMessage}: ${shown}${more}`;
+        }
       } catch {
         if (text && text.length < 200) errorMessage = text;
       }

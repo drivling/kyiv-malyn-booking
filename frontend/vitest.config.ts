@@ -12,6 +12,8 @@ export default mergeConfig(
         provider: 'v8',
         include: [
           'src/pages/TransportPage/datasetAdapter.ts',
+          'src/pages/TransportPage/tripTiming.ts',
+          'src/pages/LocalTransportPage/stopDepartures.ts',
           'src/pages/LocalTransportPage/stopCatalog.ts',
           'src/pages/LocalTransportPage/tripDeparture.ts',
           'src/components/ProtectedRoute/ProtectedRoute.tsx',

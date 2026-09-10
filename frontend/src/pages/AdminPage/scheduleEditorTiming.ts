@@ -1,9 +1,10 @@
 /**
  * Чисті обчислення для ScheduleEditorTab: час на зупинці = departureTime рейсу +
- * сума TransportSegment.seconds від першої зупинки напрямку до цієї (той самий алгоритм,
- * що й на публічній сторінці — див. frontend/src/pages/LocalTransportPage/segmentDurations.ts).
+ * сума TransportSegment.seconds від першої обслуговуваної зупинки (той самий алгоритм,
+ * що й на публічній сторінці — див. ../TransportPage/tripTiming.ts).
  */
 import type { TransportSegmentDto, TransportTripDto } from '@/api/transportDataset';
+import { computeTripTiming, minutesAtStop, type TripTiming } from '../TransportPage/tripTiming';
 
 export const FALLBACK_DEFAULT_SEGMENT_SEC = 120;
 
@@ -44,34 +45,64 @@ export function getSegmentDurationSec(
   return lookup[key1] ?? lookup[key2] ?? defaultSec;
 }
 
-/** Сума тривалостей сегментів від першої зупинки до зупинки з індексом toIndex (не включно). */
-export function getDurationFromStartSec(
+/**
+ * Час рейсу по зупинках ланцюжка напрямку (з технічними точками): start/end/arrival рейсу
+ * враховано; null — рейс без departureTime або поганий зріз.
+ */
+export function computeTripTimes(
+  trip: TransportTripDto,
   lookup: Record<string, number>,
   routeId: string,
-  orderedStopIds: string[],
-  toIndex: number,
+  chainStopIds: string[],
   defaultSec: number
-): number {
-  let sec = 0;
-  for (let i = 0; i < toIndex && i < orderedStopIds.length - 1; i++) {
-    sec += getSegmentDurationSec(lookup, routeId, orderedStopIds[i], orderedStopIds[i + 1], defaultSec);
-  }
-  return sec;
+): TripTiming | null {
+  const departureMins = parseClockToMinutes(trip.departureTime);
+  if (departureMins == null) return null;
+  return computeTripTiming(
+    chainStopIds,
+    (from, to) => getSegmentDurationSec(lookup, routeId, from, to, defaultSec),
+    {
+      departureMins,
+      arrivalMins: parseClockToMinutes(trip.arrivalTime),
+      startStopId: trip.startStopId || null,
+      endStopId: trip.endStopId || null,
+    }
+  );
 }
 
-/** HH:MM прибуття на зупинку stopIndex, або null якщо у рейса немає departureTime. */
-export function computeStopArrivalClock(
-  departureTime: string | null | undefined,
-  lookup: Record<string, number>,
-  routeId: string,
-  orderedStopIds: string[],
-  stopIndex: number,
-  defaultSec: number
-): string | null {
-  const depMins = parseClockToMinutes(departureTime);
-  if (depMins == null) return null;
-  const sec = getDurationFromStartSec(lookup, routeId, orderedStopIds, stopIndex, defaultSec);
-  return formatMinutesToClock(depMins + sec / 60);
+/** HH:MM на зупинці або null, якщо рейс її не обслуговує / без часу. */
+export function clockAtStop(timing: TripTiming | null | undefined, stopId: string): string | null {
+  const m = minutesAtStop(timing, stopId);
+  return m == null ? null : formatMinutesToClock(m);
+}
+
+/**
+ * Табличка при зміні кінцевої: порожню або таку, що дорівнює попередній кінцевій, замінюємо назвою
+ * нової зупинки; власний текст («Малинівка, Юрівка, БАМ») лишаємо.
+ */
+export function autoHeadsign(current: string | undefined, prevEndName: string | null, nextEndName: string): string {
+  const cur = (current || '').trim();
+  if (!cur || (prevEndName && cur === prevEndName.trim())) return nextEndName;
+  return current || '';
+}
+
+/**
+ * Найближче пізніше відправлення того ж маршруту у зворотному напрямку (HH:MM) —
+ * підказка для «Прибуття» (у друкованих розкладах це час виїзду з кінцевої назад).
+ */
+export function nextOppositeDeparture(trips: TransportTripDto[], trip: TransportTripDto): string | null {
+  const dep = parseClockToMinutes(trip.departureTime);
+  if (dep == null) return null;
+  const thisDir = trip.directionId === '0' ? '0' : '1';
+  let best: number | null = null;
+  for (const t of trips) {
+    if (t.routeId !== trip.routeId || t.id === trip.id) continue;
+    if ((t.directionId === '0' ? '0' : '1') === thisDir) continue;
+    const m = parseClockToMinutes(t.departureTime);
+    if (m == null || m <= dep) continue;
+    if (best == null || m < best) best = m;
+  }
+  return best == null ? null : formatMinutesToClock(best);
 }
 
 /** Рейси без departureTime йдуть в кінець; далі сортування за часом, потім за id. */

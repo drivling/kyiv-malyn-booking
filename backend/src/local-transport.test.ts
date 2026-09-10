@@ -129,3 +129,83 @@ test('convertLegacyRuntime: reads unreliable flag from supplement.routes', () =>
   assert.equal(byId.get('10')?.unreliable, true);
   assert.equal(byId.get('2')?.unreliable, false);
 });
+
+function shortTurnDataset(overrides: Partial<TransportDataset> = {}): TransportDataset {
+  return minimalDataset({
+    stops: [
+      { id: 'st_a', name: 'А', lat: 50.77, lng: 29.24 },
+      { id: 'st_m', name: 'Тех', lat: 50.771, lng: 29.241 },
+      { id: 'st_b', name: 'Б', lat: 50.772, lng: 29.242 },
+      { id: 'st_c', name: 'В', lat: 50.773, lng: 29.243 },
+    ],
+    routeStops: [
+      { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 4, mapOnly: false },
+      { routeId: '2', stopId: 'st_m', orderThere: 2, orderBack: 3, mapOnly: true },
+      { routeId: '2', stopId: 'st_b', orderThere: 3, orderBack: 2, mapOnly: false },
+      { routeId: '2', stopId: 'st_c', orderThere: 4, orderBack: -1, mapOnly: false },
+    ],
+    ...overrides,
+  });
+}
+
+function tripWith(extra: Partial<TransportDataset['trips'][number]>) {
+  return [{ id: '2-01', routeId: '2', directionId: '1', departureTime: '07:00:00', ...extra }];
+}
+
+test('validate: short-turn trip with start/end/arrival is accepted', () => {
+  const { errors } = validateTransportDataset(
+    shortTurnDataset({ trips: tripWith({ startStopId: 'st_a', endStopId: 'st_b', arrivalTime: '07:10:00' }) })
+  );
+  assert.deepEqual(errors, []);
+});
+
+test('validate: start/end must be passenger stops of the route in that direction', () => {
+  const cases: Array<[Partial<TransportDataset['trips'][number]>, string]> = [
+    [{ startStopId: 'st_zzz' }, 'startStopId st_zzz is not a passenger stop'],
+    [{ endStopId: 'st_m' }, 'endStopId st_m is not a passenger stop'], // технічна точка
+    [{ directionId: '0', startStopId: 'st_c' }, 'startStopId st_c is not a passenger stop'], // orderBack -1
+    [{ startStopId: 'st_b', endStopId: 'st_a' }, 'startStopId must precede endStopId'],
+    [{ startStopId: 'st_b', endStopId: 'st_b' }, 'startStopId must precede endStopId'],
+    [{ endStopId: 'st_a' }, 'startStopId must precede endStopId'], // кінцева = перша зупинка
+    [{ startStopId: 5 as unknown as string }, 'startStopId must be a string'],
+  ];
+  for (const [extra, expected] of cases) {
+    const { errors } = validateTransportDataset(shortTurnDataset({ trips: tripWith(extra) }));
+    assert.ok(errors.some((e) => e.includes(expected)), `${JSON.stringify(extra)} → ${errors.join('; ')}`);
+  }
+});
+
+test('validate: arrivalTime format, order and dependency on departureTime', () => {
+  const bad = validateTransportDataset(shortTurnDataset({ trips: tripWith({ arrivalTime: '7am' }) }));
+  assert.ok(bad.errors.some((e) => e.includes('bad arrivalTime')));
+  const early = validateTransportDataset(shortTurnDataset({ trips: tripWith({ arrivalTime: '07:00' }) }));
+  assert.ok(early.errors.some((e) => e.includes('arrivalTime must be after departureTime')));
+  const noDep = validateTransportDataset(
+    shortTurnDataset({ trips: tripWith({ departureTime: null, arrivalTime: '07:30' }) })
+  );
+  assert.ok(noDep.errors.some((e) => e.includes('arrivalTime requires departureTime')));
+  const empty = validateTransportDataset(
+    shortTurnDataset({ trips: tripWith({ startStopId: '', endStopId: '', arrivalTime: '' }) })
+  );
+  assert.deepEqual(empty.errors, []);
+});
+
+test('convertLegacyRuntime: maps snake_case start/end/arrival, empty → null', () => {
+  const { dataset } = convertLegacyRuntime({
+    transport: {
+      records: [
+        { route_id: '2', trip_id: '2-01', direction_id: '1', departure_time: '07:00:00',
+          start_stop_id: 'st_a', end_stop_id: 'st_b', arrival_time: '07:10:00' },
+        { route_id: '2', trip_id: '2-02', direction_id: '1', departure_time: '08:00:00', start_stop_id: '' },
+      ],
+      supplement: { routes: {}, stops: { stops_catalog: {}, stops_by_route: {} } },
+    },
+    coords: { center: [50.77, 29.24], stops: {} },
+    segments: { defaultSec: 120, segments: {} },
+  });
+  assert.equal(dataset.trips[0].startStopId, 'st_a');
+  assert.equal(dataset.trips[0].endStopId, 'st_b');
+  assert.equal(dataset.trips[0].arrivalTime, '07:10:00');
+  assert.equal(dataset.trips[1].startStopId, null);
+  assert.equal(dataset.trips[1].arrivalTime, null);
+});

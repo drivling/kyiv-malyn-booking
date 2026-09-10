@@ -2361,6 +2361,15 @@
   color: var(--lt-text-muted);
 }
 
+/* Зупинка, яку обраний рейс не обслуговує (скорочений рейс / інша початкова) */
+.lt-stop-item--unserved {
+  opacity: 0.45;
+}
+
+.lt-stop-item--unserved::before {
+  border-style: dashed;
+}
+
 .lt-stop-content {
   min-width: 0;
   font-size: var(--lt-fs-md);

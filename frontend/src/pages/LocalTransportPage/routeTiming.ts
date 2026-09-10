@@ -9,6 +9,9 @@ import {
   getDurationFromStartSec as getDurationFromStartSecFromFile,
   DEFAULT_SEGMENT_DURATION_SEC,
 } from './segmentDurations';
+import { computeTripTiming, type SegSecFn, type TripTiming } from '../TransportPage/tripTiming';
+import type { TransportRecord } from './types';
+import { parseClockToMinutes, tripDepartureMinutes } from './tripDeparture';
 
 /** Маршрути з перевіреною трасою (карта, час між зупинками з файлу segmentDurations) */
 export const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11', '12'] as const;
@@ -40,4 +43,30 @@ export function getDurationFromStartSec(
 /** Повертає хвилини між сусідніми зупинками для маршруту (fallback для неперевірених). */
 export function getMinsBetweenStops(routeId: string): number {
   return isVerifiedRoute(routeId) ? DEFAULT_SEGMENT_DURATION_SEC / 60 : MINS_BETWEEN_STOPS_FALLBACK;
+}
+
+/**
+ * Тривалість перегону для рейсу маршруту: перевірені маршрути — сегменти з датасету,
+ * неперевірені — плоскі MINS_BETWEEN_STOPS_FALLBACK хвилин на крок ланцюжка (як і раніше).
+ */
+export function segSecForRoute(routeId: string): SegSecFn {
+  if (isVerifiedRoute(routeId)) return (from, to) => getSegmentDurationSecFromFile(routeId, from, to);
+  const flat = MINS_BETWEEN_STOPS_FALLBACK * 60;
+  return () => flat;
+}
+
+/**
+ * Час рейсу по зупинках ланцюжка напрямку (з технічними точками) з урахуванням
+ * start_stop_id / end_stop_id / arrival_time. null — рейс без часу відправлення або поганий зріз.
+ */
+export function recordTiming(routeId: string, chainKeys: string[], record: TransportRecord): TripTiming | null {
+  const departureMins = tripDepartureMinutes(record);
+  if (departureMins <= 0) return null;
+  const arrival = record.arrival_time ? parseClockToMinutes(record.arrival_time) : 0;
+  return computeTripTiming(chainKeys, segSecForRoute(routeId), {
+    departureMins,
+    arrivalMins: arrival > 0 ? arrival : null,
+    startStopId: record.start_stop_id || null,
+    endStopId: record.end_stop_id || null,
+  });
 }
