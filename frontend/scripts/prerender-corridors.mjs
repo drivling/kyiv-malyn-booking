@@ -3,8 +3,7 @@
  * Writes dist/mizhgorodski/{slug}/index.html with schedule tables so crawlers
  * see timetable HTML without waiting for SPA JS.
  *
- * Env: PRERENDER_API_URL or VITE_API_URL (default — production backend on Railway;
- * NB: https://malin.kiev.ua/api is NOT a proxy, it returns the SPA shell).
+ * Backend address: scripts/api-base.mjs (hard-coded; PRERENDER_API_URL only for experiments).
  *
  * Data-quality rule D10 (Docs/seo-aeo-review-2026-09.md §10): a corridor page is never
  * shipped with an empty or placeholder timetable. Order of truth:
@@ -15,16 +14,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { API_BASE, assertApiAlive } from './api-base.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../dist');
 const indexPath = path.join(distDir, 'index.html');
 
-const API_BASE = (
-  process.env.PRERENDER_API_URL ||
-  process.env.VITE_API_URL ||
-  'https://kyiv-malyn-booking-production.up.railway.app'
-).replace(/\/$/, '');
 
 const SNAPSHOT_PATH = path.resolve(__dirname, 'data/corridor-schedules.snapshot.json');
 const ALLOW_EMPTY = process.env.PRERENDER_ALLOW_EMPTY === '1';
@@ -409,6 +404,12 @@ async function main() {
   console.log(`prerender-corridors: API ${API_BASE}`);
 
   const snapshot = loadSnapshot();
+  try {
+    await assertApiAlive('prerender-corridors');
+  } catch (err) {
+    // Not fatal here: the snapshot may still carry the build (D10 decides per corridor below).
+    console.warn(String(err?.message || err));
+  }
   const allRoutes = [...new Set(CORRIDORS.flatMap((c) => c.routes))];
   const live = await fetchSchedulesByRoute(allRoutes);
 

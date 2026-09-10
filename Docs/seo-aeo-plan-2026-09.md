@@ -96,6 +96,26 @@ CTR `/mizhgorodski/*` ≥ 5 %.
 
 ---
 
+## Правило API для build-скриптів (рішення власника, 2026-09-10)
+
+Адреса бекенду для prerender / smoke **зашита** в `frontend/scripts/api-base.mjs`:
+`https://kyiv-malyn-booking-production.up.railway.app` — без залежності від env на CI
+(`PRERENDER_API_URL` лишається тільки для локальних експериментів).
+
+Як до нього звертатися (перевірено 2026-09-10):
+- тільки https (http → 301);
+- роути в корені: `/health`, `/schedules/:route`, `/schedules?route=`, `/transport/dataset` — **без `/api`**;
+- `https://malin.kiev.ua/api` — не проксі, віддає SPA-оболонку (саме через це раніше в prod
+  потрапляла заглушка «підвантажиться»);
+- `/health` має відповісти JSON `{"status":"ok", …}` — prerender перевіряє це першим.
+
+**Коли зламається** (build падає з «API is not answering / expected JSON»): спочатку перевірити,
+чи не переїхав бекенд (власник планує окремий домен для API), і оновити константу в
+`api-base.mjs`. Поки API мовчить, коридори збираються зі снапшоту
+`frontend/scripts/data/corridor-schedules.snapshot.json` з його датою на сторінці (D10).
+
+---
+
 ## C. Метрики (щомісяця, з GSC + ручні перевірки)
 
 | Метрика | Зараз (2026-09-10) | Ціль через 3 міс |

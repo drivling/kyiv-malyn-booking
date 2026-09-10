@@ -151,6 +151,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   a few cross-page pieces (TelegramLoginButton, ProtectedRoute for admin-only routes, legal/cookie
   footers).
 - `src/content/stops/` — static content data for local-transport stop pages.
+- Build-time scripts (`scripts/prerender-*.mjs`, `scripts/seo-smoke.mjs`) call the backend at the
+  address hard-coded in `scripts/api-base.mjs` (Railway URL, https, no `/api` prefix; `/health`
+  must return JSON). If a build fails with "API is not answering", check whether the backend moved
+  before anything else — see `Docs/seo-aeo-plan-2026-09.md` "Правило API". Corridor pages must
+  never ship a placeholder timetable (rule D10): live API → committed snapshot → build fails.
 - Build (`npm run build`) runs `tsc && vite build` then two prerender scripts
   (`scripts/prerender-corridors.mjs`, `scripts/prerender-transport-stops.mjs`) that statically render
   SEO landing pages after the Vite build — don't skip them when validating a production build.

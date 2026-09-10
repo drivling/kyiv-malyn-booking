@@ -1,10 +1,11 @@
 /**
  * Post-build: prerender /transport/stop/{id} + append stops/routes to sitemap.
- * Data: PRERENDER_TRANSPORT_URL / VITE_API_URL dataset, else local runtime JSON.
+ * Data: backend dataset (scripts/api-base.mjs), else local runtime JSON.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { API_BASE } from './api-base.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
@@ -12,11 +13,6 @@ const distDir = path.resolve(__dirname, '../dist');
 const indexPath = path.join(distDir, 'index.html');
 const localJson = path.join(repoRoot, 'data/malyn-transport/runtime/malyn_transport.json');
 
-const API_BASE = (
-  process.env.PRERENDER_API_URL ||
-  process.env.VITE_API_URL ||
-  'https://kyiv-malyn-booking-production.up.railway.app'
-).replace(/\/$/, '');
 
 function escapeHtml(s) {
   return String(s)
