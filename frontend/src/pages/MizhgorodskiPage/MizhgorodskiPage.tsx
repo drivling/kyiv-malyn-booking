@@ -1016,6 +1016,9 @@ export const MizhgorodskiPage: React.FC = () => {
             <li>
               <Link to="/zubastyk">Маршрутка «Зубастик» Малин — Київ: телефони та розклад</Link>
             </li>
+            <li>
+              <Link to="/avtostantsiya-malyn">Автостанція Малин: розклад автобусів і телефони каси</Link>
+            </li>
           </ul>
         </nav>
 

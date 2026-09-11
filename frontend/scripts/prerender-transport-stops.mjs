@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { API_BASE } from './api-base.mjs';
 import { setCanonical, setOg, stripRobots } from './html-head.mjs';
 import { publishableRouteIds } from './prerender-spa.mjs';
+import { relatedPagesForStop } from './stop-related-pages.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
@@ -219,6 +220,11 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
         .join('')}</ul>`
     : '<p>Через цю зупинку наразі не проходить жоден активний маршрут.</p>';
 
+  // Пов'язані сторінки (зупинка «Автостанція» → сторінка автостанції) — та сама мапа, що в SPA
+  const relatedHtml = relatedPagesForStop(stopId)
+    .map((l) => `<p><a href="${escapeHtml(l.to)}">${escapeHtml(l.label)}</a></p>`)
+    .join('');
+
   let articleHtml = '';
   if (article?.place) {
     const coordsHtml = article.coords
@@ -233,12 +239,15 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
     <p>Зупинка <strong>«${escapeHtml(name)}»</strong> у Малині — ${escapeHtml(article.place)}.</p>
     ${routesLine}
     ${coordsHtml}
+    ${relatedHtml}
     <p style="font-size:0.75em;border:1px dashed #b7c5c9;padding:6px 9px;border-radius:6px;color:#708c91">
       Розклад — у картках на інтерактивному табло. Маршрут до іншої зупинки — у
       <a href="/transport?from=${encodeURIComponent(stopId)}">планері «З → До»</a>.
     </p>`;
   } else if (article?.lead) {
-    articleHtml = `<h2>Про зупинку</h2><p>${escapeHtml(article.lead)}</p>`;
+    articleHtml = `<h2>Про зупинку</h2><p>${escapeHtml(article.lead)}</p>${relatedHtml}`;
+  } else {
+    articleHtml = relatedHtml;
   }
 
   const body = `

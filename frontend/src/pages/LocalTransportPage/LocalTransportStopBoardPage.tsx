@@ -10,6 +10,8 @@ import { isVerifiedRoute } from './routeTiming';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { hiddenTransportRouteIds } from '@/api/transportDataset';
+// Плоский ESM, спільний із prerender-transport-stops.mjs (як site-hosts.mjs)
+import { relatedPagesForStop } from '../../../scripts/stop-related-pages.mjs';
 import { configureSegmentDurations } from './segmentDurations';
 import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
@@ -537,6 +539,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 <ul className="lt-stop-article-tips">
                   {stopArticle.tips.map((tip) => (
                     <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {relatedPagesForStop(selectedStop).length > 0 ? (
+                <ul className="lt-stop-article-tips">
+                  {relatedPagesForStop(selectedStop).map((link) => (
+                    <li key={link.to}>
+                      <Link to={link.to}>{link.label}</Link>
+                    </li>
                   ))}
                 </ul>
               ) : null}

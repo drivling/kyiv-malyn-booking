@@ -43,6 +43,7 @@ const EXACT_REDIRECTS = new Map([
   ['/poputky', '/mizhgorodski'],
   ['/booking', '/mizhgorodski'],
   ['/zubustik', '/zubastyk'],
+  ['/avtostantsiya', '/avtostantsiya-malyn'],
   ['/help', '/support'],
   ['/privacy', '/about#privacy-policy'],
   ['/privacy-policy', '/about#privacy-policy'],

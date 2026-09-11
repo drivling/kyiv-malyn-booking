@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { MizhgorodskiPage, CorridorLandingPage, ZubastykPage } from '@/pages/MizhgorodskiPage';
+import { MizhgorodskiPage, CorridorLandingPage, ZubastykPage, AvtostantsiyaPage } from '@/pages/MizhgorodskiPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
 import { UserPage } from '@/pages/UserPage';
@@ -63,6 +63,8 @@ function AppContent() {
           <Route path="/booking" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/zubastyk" element={<ZubastykPage />} />
           <Route path="/zubustik" element={<Navigate to="/zubastyk" replace />} />
+          <Route path="/avtostantsiya-malyn" element={<AvtostantsiyaPage />} />
+          <Route path="/avtostantsiya" element={<Navigate to="/avtostantsiya-malyn" replace />} />
           <Route
             path="/transport/route/:routeId"
             element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>}

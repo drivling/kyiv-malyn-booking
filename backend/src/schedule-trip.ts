@@ -223,6 +223,7 @@ export function defaultLabelUk(startCode: string, endCode: string, viaCodes: str
     Vinnytsia: 'Вінниця',
     Khmilnyk: 'Хмільник',
     Stanyshivka: 'Станишівка',
+    Bazar: 'Базар',
   };
   // знахідний відмінок після «через» (де відрізняється від називного)
   const acc: Record<string, string> = { Bucha: 'Бучу', Potiivka: 'Потіївку', Vinnytsia: 'Вінницю', Stanyshivka: 'Станишівку' };

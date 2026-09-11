@@ -204,6 +204,7 @@ function defaultLabelUk(startCode, endCode, viaCodes = []) {
         Vinnytsia: 'Вінниця',
         Khmilnyk: 'Хмільник',
         Stanyshivka: 'Станишівка',
+        Bazar: 'Базар',
     };
     // знахідний відмінок після «через» (де відрізняється від називного)
     const acc = { Bucha: 'Бучу', Potiivka: 'Потіївку', Vinnytsia: 'Вінницю', Stanyshivka: 'Станишівку' };

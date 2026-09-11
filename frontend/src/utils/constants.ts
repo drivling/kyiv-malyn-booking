@@ -191,6 +191,7 @@ export const POINT_NAMES_UK: Record<string, { nom: string; acc: string }> = {
   Vinnytsia: { nom: 'Вінниця', acc: 'Вінницю' },
   Khmilnyk: { nom: 'Хмільник', acc: 'Хмільник' },
   Stanyshivka: { nom: 'Станишівка', acc: 'Станишівку' },
+  Bazar: { nom: 'Базар', acc: 'Базар' },
 };
 
 /**
