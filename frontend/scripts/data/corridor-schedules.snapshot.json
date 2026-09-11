@@ -1570,6 +1570,86 @@
           6,
           7
         ]
+      },
+      {
+        "id": 90,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "16:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 299,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93); транзит з Вінниці",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 91,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "16:55",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 92,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "18:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 295,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 93,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "20:05",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
       }
     ]
   }
