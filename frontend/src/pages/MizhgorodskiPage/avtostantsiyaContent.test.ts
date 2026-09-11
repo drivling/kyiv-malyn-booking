@@ -91,6 +91,6 @@ describe('cityRoutesAtAutostation (rule D1: link only to pages that exist)', () 
     const faq = buildAvtostantsiyaFaq([], [], cityRoutesAtAutostation(dataset));
     const a = faq.find((f) => f.q.includes('міська маршрутка'))?.a ?? '';
     expect(a).toContain('№8 — розклад на сторінці маршруту');
-    expect(a).toContain('№10 — маршрут ще готуємо до запуску');
+    expect(a).toContain('№10 — курсує через автостанцію');
   });
 });

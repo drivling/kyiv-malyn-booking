@@ -29,7 +29,11 @@ export type BoardGroup = { key: string; title: string; rows: Schedule[] };
 /** Зупинки «Автостанція» та «Автостанція (навпроти)» у датасеті міського транспорту. */
 const AUTOSTATION_STOP_RE = /^автостанц/i;
 
-/** Міський маршрут, що зупиняється біля автостанції. `published` = має сторінку (правило D1). */
+/**
+ * Міський маршрут, що зупиняється біля автостанції. `published` = у нього є сторінка на сайті
+ * (правило D1: заповнені кінцеві та не `unreliable`). `published: false` не означає, що маршрут
+ * не їздить — лише що ми ще не звели по ньому розклад.
+ */
 export type CityRouteAtStation = { id: string; line: string | null; published: boolean };
 
 /**
@@ -123,7 +127,7 @@ export function buildAvtostantsiyaFaq(
     const parts = [
       published.length ? `${published.map((r) => `№${r.id}`).join(', ')} — розклад на сторінці маршруту` : null,
       pending.length
-        ? `${pending.map((r) => `№${r.id}`).join(', ')} — маршрут ще готуємо до запуску, час по зупинці «Автостанція» уточнюємо`
+        ? `${pending.map((r) => `№${r.id}`).join(', ')} — курсує через автостанцію, але розклад по зупинці «Автостанція» ми ще зводимо`
         : null,
     ].filter(Boolean);
     faq.push({
