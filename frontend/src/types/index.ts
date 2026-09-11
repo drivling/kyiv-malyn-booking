@@ -270,8 +270,60 @@ export interface Person {
   telegramUsername: string | null;
   telegramPromoSentAt: string | null;
   telegramReminderSentAt: string | null;
+  telegramBotBlockedAt: string | null;
+  smsOptOut: boolean;
+  /** Адмін заборонив користуватися номером (скарга). null — дозволено. */
+  phoneBlockedAt: string | null;
+  phoneBlockReason: string | null;
+  /** Остання спроба заблокованого номера зайти (рахуються вікна по 10 хв, не кожен клік). */
+  blockedAttemptAt: string | null;
+  blockedAttemptCount: number;
+  /** Коли дані заархівовано й вичищено з робочих таблиць. */
+  dataArchivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Скільки рядків прибрано з кожної таблиці під час архівації. */
+export interface PersonArchiveCounts {
+  bookings: number;
+  viberListings: number;
+  viberRideEvents: number;
+  rideShareRequests: number;
+  matchNotifications: number;
+  rideCompletionProofs: number;
+  referralInvites: number;
+  referralRewardsDeleted: number;
+  referralRewardsKeptPaid: number;
+  referralRewardsFlagged: number;
+  smsSendLogs: number;
+  telegramUserSendErrors: number;
+  pendingReferralCodes: number;
+}
+
+/** Рядок вкладки «Архів» (без payload — він великий). */
+export interface PersonDataArchiveSummary {
+  id: number;
+  personId: number | null;
+  phoneNormalized: string;
+  fullName: string | null;
+  reason: string;
+  deletedCounts: PersonArchiveCounts;
+  createdAt: string;
+}
+
+/** Архів разом із повним JSON-знімком. */
+export interface PersonDataArchiveDetail extends PersonDataArchiveSummary {
+  payload: unknown;
+}
+
+/** Відповідь POST /admin/persons/:id/archive */
+export interface ArchivePersonResponse {
+  archiveId: number;
+  personId: number;
+  phoneNormalized: string;
+  archivedAt: string;
+  counts: PersonArchiveCounts;
 }
 
 /** Помилка відправки через персональний акаунт (send_message.py) */

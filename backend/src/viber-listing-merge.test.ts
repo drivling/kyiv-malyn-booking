@@ -6,6 +6,7 @@ import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { createOrMergeViberListing, type ViberListingMergeInput } from './viber-listing-merge';
+import { isPhoneBlockedError } from './phone-block';
 
 function baseInput(over: Partial<ViberListingMergeInput> = {}): ViberListingMergeInput {
   return {
@@ -95,4 +96,30 @@ test('мерж у минулу активну поїздку — стає isActi
   assert.equal(r.isPastDate, true);
   assert.equal(r.listing.isActive, false);
   assert.equal(updated[0].isActive, false);
+});
+
+test('заборонений номер: оголошення не створюється, кидається PhoneBlockedError', async () => {
+  const { prisma, created } = makeStub();
+  // Стаб вище не має моделі person — додаємо її із заблокованим номером.
+  (prisma as unknown as { person: unknown }).person = {
+    findUnique: vi.fn(async () => ({ id: 7, phoneBlockedAt: new Date(), blockedAttemptAt: null })),
+    update: vi.fn(async () => ({})),
+  };
+
+  await assert.rejects(
+    () => createOrMergeViberListing(prisma, baseInput({ phone: '0501112233' })),
+    (err: unknown) => isPhoneBlockedError(err),
+  );
+  assert.equal(created.length, 0, 'жодного оголошення створено не було');
+});
+
+test('незаблокований номер проходить як і раніше', async () => {
+  const { prisma, created } = makeStub();
+  (prisma as unknown as { person: unknown }).person = {
+    findUnique: vi.fn(async () => ({ id: 7, phoneBlockedAt: null, blockedAttemptAt: null })),
+    update: vi.fn(async () => ({})),
+  };
+
+  await createOrMergeViberListing(prisma, baseInput({ date: new Date() }));
+  assert.equal(created.length, 1);
 });

@@ -11,6 +11,9 @@ import type {
   RideShareRequestFromSiteResponse,
   AnnounceDraftResponse,
   Person,
+  ArchivePersonResponse,
+  PersonDataArchiveSummary,
+  PersonDataArchiveDetail,
   PersonWithCounts,
   TelegramUserSendError,
   RefreshPersonNamesResponse,
@@ -366,7 +369,7 @@ class ApiClient {
   }
 
   /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. telegramPromoSentAt/telegramReminderSentAt: null або '' — обнулити. */
-  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramUsername?: string | null; telegramPromoSentAt?: string | null; telegramReminderSentAt?: string | null }): Promise<Person> {
+  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramUsername?: string | null; telegramPromoSentAt?: string | null; telegramReminderSentAt?: string | null; phoneBlocked?: boolean; phoneBlockReason?: string | null }): Promise<Person> {
     return this.request<Person>(`/admin/persons/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -384,6 +387,28 @@ class ApiClient {
     }>(`/admin/persons/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  /**
+   * Архівувати всі дані персони: JSON-знімок в архів, робочі рядки видалити.
+   * Person лишається носієм заборони і автоматично її отримує. reason — обовʼязкова.
+   */
+  async archivePersonData(id: number, reason: string): Promise<ArchivePersonResponse> {
+    return this.request<ArchivePersonResponse>(`/admin/persons/${id}/archive`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() }),
+    });
+  }
+
+  /** Список архівів (без payload). search — телефон, імʼя або причина. */
+  async getPersonDataArchives(search?: string): Promise<PersonDataArchiveSummary[]> {
+    const q = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
+    return this.request<PersonDataArchiveSummary[]>(`/admin/person-archives${q}`);
+  }
+
+  /** Один архів разом із повним знімком. */
+  async getPersonDataArchive(id: number): Promise<PersonDataArchiveDetail> {
+    return this.request<PersonDataArchiveDetail>(`/admin/person-archives/${id}`);
   }
 
   /** Перевірити номера: персони без telegramChatId — спробувати знайти @username через ResolvePhone і оновити telegramUsername. */

@@ -15,6 +15,7 @@ export default defineConfig({
         'src/gtfs-stop-times.ts',
         'src/schedule-price.ts',
         'src/telegram-bot-blocked.ts',
+        'src/phone-block.ts',
       ],
       thresholds: {
         lines: 70,

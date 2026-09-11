@@ -140,6 +140,16 @@ model Person {
   telegramBotBlockedAt    DateTime?
   /// Відмова від платних SMS-сповіщень (STOP / ручне вимкнення адміном)
   smsOptOut               Boolean   @default(false)
+  /// Коли адмін заборонив користуватися номером (скарга користувача). null — дозволено.
+  phoneBlockedAt          DateTime?
+  /// Причина заборони (текст звернення, який вводить адмін)
+  phoneBlockReason        String?   @db.Text
+  /// Остання спроба заблокованого номера скористатися сервісом (бот / бронювання / оголошення)
+  blockedAttemptAt        DateTime?
+  /// Скільки разів заблокований номер намагався скористатися сервісом
+  blockedAttemptCount     Int       @default(0)
+  /// Коли персональні дані заархівовано та вичищено з робочих таблиць
+  dataArchivedAt          DateTime?
   createdAt               DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -160,9 +170,34 @@ model Person {
   referralRewardsAsReferrer ReferralReward[] @relation("ReferrerRewards")
   referralRewardsAsReferred ReferralReward[] @relation("ReferredRewards")
   rideCompletionProofs    RideCompletionProof[]
+  dataArchives            PersonDataArchive[]
 
   @@index([telegramUsername])
   @@index([referredByPersonId])
+  @@index([phoneBlockedAt])
+}
+
+/// JSON-знімок усіх персональних даних людини на момент звернення (скарги).
+/// Після архівації робочі таблиці очищені — це єдине, що лишається.
+/// Person навмисно НЕ видаляється: саме він носій заборони на номер.
+model PersonDataArchive {
+  id              Int      @id @default(autoincrement())
+  personId        Int?
+  /// Копії полів на випадок, якщо Person колись усе-таки видалять
+  phoneNormalized String
+  fullName        String?
+  /// Причина архівації — обовʼязкова, вводить адмін у модалці
+  reason          String   @db.Text
+  /// Повний знімок усіх звʼязаних записів (див. buildPersonArchivePayload)
+  payload         Json
+  /// Скільки рядків видалено з кожної таблиці — щоб показати список без парсингу payload
+  deletedCounts   Json
+  createdAt       DateTime @default(now())
+
+  person          Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([phoneNormalized])
+  @@index([createdAt])
 }
 
 /// Запрошення друга (номер, @username або посилання)

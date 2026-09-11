@@ -415,3 +415,43 @@ test('POST /bookings rejects elektrichka', async () => {
   assert.equal(res.status, 400);
   assert.match(String(res.body.error), /Електричк/i);
 });
+
+test('POST /bookings: заблокований номер отримує 403 і бронювання не створюється', async () => {
+  const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
+  const prisma = createTripPrismaStub(store) as any;
+  // Номер заборонено адміном за скаргою
+  prisma.person.findUnique = async () => ({ id: 7, phoneBlockedAt: new Date(), blockedAttemptAt: null });
+
+  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const res = await request(app).post('/bookings').send({
+    route: 'Korosten-Malyn',
+    date: '2026-08-12',
+    departureTime: '07:10',
+    seats: 1,
+    name: 'Іван Петренко',
+    phone: '+380501112233',
+  });
+
+  assert.equal(res.status, 403);
+  assert.match(String(res.body.error), /заблоковано/i);
+  assert.equal(store.bookings.length, 0);
+});
+
+test('POST /bookings: незаблокований номер не блокується перевіркою', async () => {
+  const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
+  const prisma = createTripPrismaStub(store) as any;
+  prisma.person.findUnique = async () => ({ id: 7, phoneBlockedAt: null, blockedAttemptAt: null });
+
+  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const res = await request(app).post('/bookings').send({
+    route: 'Korosten-Malyn',
+    date: '2026-08-12',
+    departureTime: '07:10',
+    seats: 1,
+    name: 'Іван Петренко',
+    phone: '+380501112233',
+  });
+
+  // Рейсу в сторі немає — але відмова вже НЕ про заборону номера
+  assert.notEqual(res.status, 403);
+});

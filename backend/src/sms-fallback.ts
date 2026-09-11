@@ -107,8 +107,10 @@ export async function sendPaidFallbackSms(
   }
 
   const person = await prisma.person
-    .findUnique({ where: { phoneNormalized }, select: { smsOptOut: true } })
+    .findUnique({ where: { phoneNormalized }, select: { smsOptOut: true, phoneBlockedAt: true } })
     .catch(() => null);
+  // Заборонений номер не отримує нічого — навіть якщо smsOptOut не встигли виставити.
+  if (person?.phoneBlockedAt) return { sent: false, via: 'none', reason: 'phone_blocked' };
   if (person?.smsOptOut) return { sent: false, via: 'none', reason: 'opted_out' };
 
   // Дедуп по контексту — крім match (у нього власний дедуп через ViberMatchPairNotification).

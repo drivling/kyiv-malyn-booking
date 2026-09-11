@@ -57,6 +57,7 @@ import {
   orderedPointIdsFromStops,
   type PoputkyRouteMatchKind,
 } from './poputky-od';
+import { PHONE_BLOCKED_ADMIN_MESSAGE, PHONE_BLOCKED_BOT_MESSAGE, isPhoneBlockedError, recordBlockedAttempt } from './phone-block';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
 import { sendPaidFallbackSms } from './sms-fallback';
@@ -1317,9 +1318,12 @@ export const findOrCreatePersonByPhone = async (
     : null;
   const existing = await tgPrisma.person.findUnique({
     where: { phoneNormalized: normalized },
-    select: { id: true },
+    select: { id: true, phoneBlockedAt: true },
   });
   const created = !existing;
+  // Заблокованій людині не перепідв'язуємо Telegram — інакше сповіщення за chatId ожили б.
+  // Увага: phoneBlockedAt НЕ скидається разом із telegramBotBlockedAt нижче — це різні речі.
+  const isBlocked = existing?.phoneBlockedAt != null;
   const person = await tgPrisma.person.upsert({
     where: { phoneNormalized: normalized },
     create: {
@@ -1331,15 +1335,15 @@ export const findOrCreatePersonByPhone = async (
     },
     update: {
       ...(fullName != null && { fullName }),
-      ...(options?.telegramChatId != null && {
+      ...(!isBlocked && options?.telegramChatId != null && {
         telegramChatId: options.telegramChatId,
         // Знову підписався на бота — скидаємо мітку блоку (наступний блок знову «перший»)
         ...(options.telegramChatId.trim() !== '' && options.telegramChatId !== '0'
           ? { telegramBotBlockedAt: null }
           : {}),
       }),
-      ...(options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
-      ...(options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
+      ...(!isBlocked && options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
+      ...(!isBlocked && options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
     },
   });
   return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName, created };
@@ -3134,6 +3138,20 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
 
   try {
     const normalizedPhone = normalizePhone(phoneInput);
+
+    // Заборонений номер: відмовляємо ДО findOrCreatePersonByPhone, щоб людині не
+    // прив'язався telegramChatId — інакше всі сповіщення за chatId ожили б.
+    // Покриває обидва входи: поділився контактом і ввів номер текстом.
+    const blockedByPhone = await tgPrisma.person.findUnique({
+      where: { phoneNormalized: normalizedPhone },
+      select: { phoneBlockedAt: true },
+    });
+    if (blockedByPhone?.phoneBlockedAt) {
+      await recordBlockedAttempt(tgPrisma, normalizedPhone);
+      await bot.sendMessage(chatId, PHONE_BLOCKED_BOT_MESSAGE, { parse_mode: 'HTML' });
+      return;
+    }
+
     const referralCodeFromStart = await takePendingReferralCode(tgPrisma, chatId);
 
     // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
@@ -5313,6 +5331,10 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           await bot?.sendMessage(chatId, `✅ Оголошення #${listing.id} ${verb}. ${statusNote}`, { parse_mode: 'HTML' });
         }
       } catch (err) {
+        if (isPhoneBlockedError(err)) {
+          await bot?.sendMessage(chatId, `🚫 ${PHONE_BLOCKED_ADMIN_MESSAGE}`);
+          return;
+        }
         console.error('AddViber error:', err);
         await bot?.sendMessage(chatId, '❌ Помилка створення оголошення. Спробуйте /addviber знову.');
       }
@@ -7574,6 +7596,9 @@ export function resetTelegramBotForTests(): void {
 export const getChatIdByPhone = async (phone: string): Promise<string | null> => {
   try {
     const person = await getPersonByPhone(phone);
+    // Заборонений номер не адресується взагалі — і через Person, і через fallback на
+    // Booking.telegramChatId (інакше заборона протікала б крізь старі бронювання).
+    if (person?.phoneBlockedAt) return null;
     if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
       return person.telegramChatId;
     }

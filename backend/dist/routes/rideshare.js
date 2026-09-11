@@ -7,6 +7,7 @@ exports.createRideshareRouter = createRideshareRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const viber_listing_merge_1 = require("../viber-listing-merge");
+const phone_block_1 = require("../phone-block");
 function createRideshareRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -87,6 +88,10 @@ function createRideshareRouter(deps) {
             });
         }
         catch (error) {
+            if ((0, phone_block_1.isPhoneBlockedError)(error)) {
+                res.status(403).json({ error: phone_block_1.PHONE_BLOCKED_MESSAGE });
+                return;
+            }
             console.error('❌ Помилка створення ride-share запиту з сайту:', error);
             res.status(500).json({ error: 'Не вдалося створити запит на попутку' });
         }

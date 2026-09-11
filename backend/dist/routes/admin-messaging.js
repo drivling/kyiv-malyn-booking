@@ -259,6 +259,16 @@ function createAdminMessagingRouter(deps) {
                 }
                 else {
                     const person = await (0, telegram_1.getPersonByPhone)(phone);
+                    if (person?.phoneBlockedAt) {
+                        // Заборонений номер: не пишемо ні з особистого акаунта, ні платним SMS.
+                        console.log(`🚫 Пропущено заблокований номер ${phone}`);
+                        failed++;
+                        if (delaysMs.length > 0 && i < phones.length - 1) {
+                            const delayMs = delaysMs[i % delaysMs.length] ?? 30000;
+                            await new Promise((r) => setTimeout(r, delayMs));
+                        }
+                        continue;
+                    }
                     const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                         telegramUsername: person?.telegramUsername ?? undefined,
                     });

@@ -10,6 +10,7 @@ const support_phone_route_1 = require("../support-phone-route");
 const schedule_departure_time_1 = require("../validation/schedule-departure-time");
 const booking_phone_1 = require("../validation/booking-phone");
 const require_admin_1 = require("../middleware/require-admin");
+const phone_block_1 = require("../phone-block");
 const schedule_price_1 = require("../schedule-price");
 const schedule_trip_1 = require("../schedule-trip");
 const schedule_timetable_sync_1 = require("../schedule-timetable-sync");
@@ -566,6 +567,10 @@ function createSchedulesBookingsRouter(deps) {
         const phoneValid = (0, booking_phone_1.validateBookingPhoneInput)(phone);
         if (!phoneValid.ok) {
             return res.status(400).json({ error: phoneValid.error });
+        }
+        if (await (0, phone_block_1.isPhoneBlocked)(prisma, phone)) {
+            await (0, phone_block_1.recordBlockedAttempt)(prisma, String(phone));
+            return res.status(403).json({ error: phone_block_1.PHONE_BLOCKED_MESSAGE });
         }
         if (departureTime && !(0, schedule_departure_time_1.isValidScheduleDepartureTime)(departureTime)) {
             return res.status(400).json({ error: schedule_departure_time_1.SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });

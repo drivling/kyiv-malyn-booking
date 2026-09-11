@@ -10,6 +10,7 @@ import {
 } from '../telegram';
 import { lookupPhoneReport } from '../phone-lookup';
 import { requireAdmin } from '../middleware/require-admin';
+import { archivePersonData } from '../person-archive';
 
 export function createAdminPersonsRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -243,6 +244,8 @@ r.put('/admin/persons/:id', requireAdmin, async (req, res) => {
       telegramUsername?: string | null;
       telegramPromoSentAt?: string | null;
       telegramReminderSentAt?: string | null;
+      phoneBlocked?: boolean;
+      phoneBlockReason?: string | null;
     };
     const person = await prisma.person.findUnique({ where: { id } });
     if (!person) {
@@ -279,6 +282,15 @@ r.put('/admin/persons/:id', requireAdmin, async (req, res) => {
       return;
     }
 
+    const wasBlocked = person.phoneBlockedAt != null;
+    const willBeBlocked = body.phoneBlocked !== undefined ? body.phoneBlocked === true : wasBlocked;
+    const blockTurnedOn = !wasBlocked && willBeBlocked;
+    const blockTurnedOff = wasBlocked && !willBeBlocked;
+    const newBlockReason =
+      body.phoneBlockReason !== undefined
+        ? (typeof body.phoneBlockReason === 'string' ? body.phoneBlockReason.trim() || null : null)
+        : person.phoneBlockReason;
+
     const phoneChanged = newPhoneNormalized !== person.phoneNormalized;
     const nameChanged = newFullName !== person.fullName;
 
@@ -292,8 +304,48 @@ r.put('/admin/persons/:id', requireAdmin, async (req, res) => {
         telegramUsername: newTelegramUsername,
         telegramPromoSentAt: newTelegramPromoSentAt,
         telegramReminderSentAt: newTelegramReminderSentAt,
+        ...(blockTurnedOn && {
+          phoneBlockedAt: new Date(),
+          phoneBlockReason: newBlockReason,
+          // Заблокованому не шлемо нічого і нікуди: адреси Telegram прибираємо.
+          smsOptOut: true,
+          telegramChatId: null,
+          telegramUserId: null,
+        }),
+        ...(blockTurnedOff && {
+          phoneBlockedAt: null,
+          phoneBlockReason: null,
+          blockedAttemptAt: null,
+          blockedAttemptCount: 0,
+        }),
+        ...(!blockTurnedOn && !blockTurnedOff && willBeBlocked && { phoneBlockReason: newBlockReason }),
       },
     });
+
+    // Лише на переході false → true: ховаємо активні оголошення з сайту і закриваємо
+    // висячі запити попутників. Повторне збереження картки нічого не перезапускає.
+    if (blockTurnedOn) {
+      const listings = await prisma.viberListing.findMany({ where: { personId: id }, select: { id: true } });
+      const listingIds = listings.map((l) => l.id);
+      const hidden = await prisma.viberListing.updateMany({
+        where: { personId: id, isActive: true },
+        data: { isActive: false },
+      });
+      if (listingIds.length > 0) {
+        await prisma.rideShareRequest.updateMany({
+          where: {
+            status: 'pending',
+            OR: [{ passengerListingId: { in: listingIds } }, { driverListingId: { in: listingIds } }],
+          },
+          data: { status: 'rejected' },
+        });
+      }
+      await prisma.booking.updateMany({
+        where: { personId: id },
+        data: { telegramChatId: null, telegramUserId: null },
+      });
+      console.log(`🚫 Заборонено номер персони #${id}: сховано оголошень ${hidden.count}`);
+    }
 
     if (phoneChanged || nameChanged) {
       const bookingData: { phone?: string; name?: string } = {};
@@ -320,6 +372,90 @@ r.put('/admin/persons/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     console.error('❌ PUT /admin/persons/:id:', e);
     res.status(500).json({ error: 'Не вдалося оновити персону' });
+  }
+});
+
+/**
+ * Архівувати всі дані персони: JSON-знімок у PersonDataArchive, робочі рядки видалити.
+ * Person лишається — він носій заборони на номер і автоматично отримує її.
+ */
+r.post('/admin/persons/:id/archive', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+    const body = (req.body || {}) as { reason?: string };
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (reason.length < 3) {
+      res.status(400).json({ error: 'Потрібна причина архівації (мінімум 3 символи)' });
+      return;
+    }
+
+    const result = await archivePersonData(prisma, { personId: id, reason });
+    if (!result) {
+      res.status(404).json({ error: 'Персону не знайдено' });
+      return;
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('❌ POST /admin/persons/:id/archive:', e);
+    res.status(500).json({ error: 'Не вдалося заархівувати дані персони' });
+  }
+});
+
+/** Список архівів (без payload — він великий). Query: ?search= по телефону/імені/причині. */
+r.get('/admin/person-archives', requireAdmin, async (req, res) => {
+  try {
+    const search = (req.query.search as string)?.trim() || '';
+    const digits = search.replace(/\D/g, '');
+    const where = search
+      ? {
+          OR: [
+            ...(digits ? [{ phoneNormalized: { contains: digits } }] : []),
+            { fullName: { contains: search, mode: 'insensitive' as const } },
+            { reason: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+    const archives = await prisma.personDataArchive.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        personId: true,
+        phoneNormalized: true,
+        fullName: true,
+        reason: true,
+        deletedCounts: true,
+        createdAt: true,
+      },
+    });
+    res.json(archives);
+  } catch (e) {
+    console.error('❌ GET /admin/person-archives:', e);
+    res.status(500).json({ error: 'Не вдалося завантажити архів' });
+  }
+});
+
+/** Один архів разом із повним знімком. */
+r.get('/admin/person-archives/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+    const archive = await prisma.personDataArchive.findUnique({ where: { id } });
+    if (!archive) {
+      res.status(404).json({ error: 'Архів не знайдено' });
+      return;
+    }
+    res.json(archive);
+  } catch (e) {
+    console.error('❌ GET /admin/person-archives/:id:', e);
+    res.status(500).json({ error: 'Не вдалося завантажити архів' });
   }
 });
 

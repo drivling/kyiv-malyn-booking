@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { isPastRideDate, mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
 import { resolveCorridorTripRouteId } from './schedule-trip';
 import { resolveOdPointIdsFromRoute } from './poputky-od';
+import { assertPhoneNotBlocked } from './phone-block';
 
 export type ViberListingMergeInput = {
   rawMessage: string;
@@ -58,6 +59,10 @@ export async function createOrMergeViberListing(
   prisma: PrismaClient,
   data: ViberListingMergeInput,
 ): Promise<{ listing: Awaited<ReturnType<PrismaClient['viberListing']['create']>>; isNew: boolean; isPastDate: boolean }> {
+  // Єдиний шлюз для всіх оголошень (сайт, бот, імпорт із груп, адмінка) — тут же
+  // й заборона номера. Кидає PhoneBlockedError; масові імпорти ловлять її поелементно.
+  await assertPhoneNotBlocked(prisma, data.phone);
+
   const personId = data.personId ?? null;
   const date = data.date;
   const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());

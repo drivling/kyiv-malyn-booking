@@ -12,9 +12,11 @@ import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
 import { NotificationSettingsTab } from './NotificationSettingsTab';
+import { PersonArchiveTab } from './PersonArchiveTab';
+import { PERSONS_FILTER_OPTIONS, filterPersons, type PersonsFilterMode } from './personsFilter';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch' | 'notifications';
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch' | 'notifications';
 
 const DEFAULT_TAB: Tab = 'bookings';
 
@@ -28,6 +30,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   lunch: 'lunch',
   notifications: 'notifications',
   data: 'data',
+  personArchive: 'archive',
   mapEditor: 'map-editor',
   scheduleEditor: 'route-schedule',
   userSenderErrors: 'user-sender-errors',
@@ -211,7 +214,13 @@ export const AdminPage: React.FC = () => {
     telegramUsername: string;
     telegramPromoSentAt: string; // ISO або '' для обнулення
     telegramReminderSentAt: string; // комунікація через бота (нагадування)
-  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramUsername: '', telegramPromoSentAt: '', telegramReminderSentAt: '' });
+    phoneBlocked: boolean; // «Заборонено використовувати номер»
+    phoneBlockReason: string;
+  }>({ phone: '', fullName: '', telegramChatId: '', telegramUserId: '', telegramUsername: '', telegramPromoSentAt: '', telegramReminderSentAt: '', phoneBlocked: false, phoneBlockReason: '' });
+  const [dataFilterMode, setDataFilterMode] = useState<PersonsFilterMode>('all');
+  const [archivingPerson, setArchivingPerson] = useState<PersonWithCounts | null>(null);
+  const [archiveReason, setArchiveReason] = useState('');
+  const [archiveSubmitting, setArchiveSubmitting] = useState(false);
   const [dataSortField, setDataSortField] = useState<string>('id');
   const [dataSortDir, setDataSortDir] = useState<'asc' | 'desc'>('asc');
   const [refreshNamesLoading, setRefreshNamesLoading] = useState(false);
@@ -556,6 +565,8 @@ export const AdminPage: React.FC = () => {
       telegramUsername: p.telegramUsername ?? '',
       telegramPromoSentAt: toDateTimeLocal(p.telegramPromoSentAt),
       telegramReminderSentAt: toDateTimeLocal(p.telegramReminderSentAt),
+      phoneBlocked: p.phoneBlockedAt != null,
+      phoneBlockReason: p.phoneBlockReason ?? '',
     });
   };
 
@@ -602,12 +613,20 @@ export const AdminPage: React.FC = () => {
     } else if (dataSortField === 'viberListings') {
       va = a._count.viberListings;
       vb = b._count.viberListings;
+    } else if (dataSortField === 'phoneBlockedAt') {
+      va = a.phoneBlockedAt ?? '';
+      vb = b.phoneBlockedAt ?? '';
+    } else if (dataSortField === 'blockedAttemptCount') {
+      va = a.blockedAttemptCount ?? 0;
+      vb = b.blockedAttemptCount ?? 0;
     } else {
       return 0;
     }
     const cmp = va < vb ? -1 : va > vb ? 1 : 0;
     return cmp * dir;
   });
+
+  const visiblePersons = filterPersons(sortedPersons, dataFilterMode);
 
   const handleUpdatePerson = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -623,6 +642,8 @@ export const AdminPage: React.FC = () => {
         telegramUsername: personEditForm.telegramUsername.trim() || null,
         telegramPromoSentAt: personEditForm.telegramPromoSentAt.trim() ? new Date(personEditForm.telegramPromoSentAt.trim()).toISOString() : null,
         telegramReminderSentAt: personEditForm.telegramReminderSentAt.trim() ? new Date(personEditForm.telegramReminderSentAt.trim()).toISOString() : null,
+        phoneBlocked: personEditForm.phoneBlocked,
+        phoneBlockReason: personEditForm.phoneBlockReason.trim() || null,
       });
       setSuccess('Персону оновлено. Пов’язані бронювання та Viber-оголошення оновлено за потреби.');
       setEditingPerson(null);
@@ -651,6 +672,39 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка видалення персони');
     } finally {
       setDeletingPersonId(null);
+    }
+  };
+
+  const openArchivePerson = (p: PersonWithCounts) => {
+    setArchivingPerson(p);
+    setArchiveReason('');
+  };
+
+  const handleArchivePerson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!archivingPerson) return;
+    const reason = archiveReason.trim();
+    if (reason.length < 3) return;
+    setArchiveSubmitting(true);
+    setError('');
+    setSuccess('');
+    try {
+      const result = await apiClient.archivePersonData(archivingPerson.id, reason);
+      const c = result.counts;
+      setSuccess(
+        `Дані персони #${result.personId} заархівовано (архів #${result.archiveId}). ` +
+          `Видалено: бронювань — ${c.bookings}, Viber-оголошень — ${c.viberListings}, ` +
+          `ViberRide подій — ${c.viberRideEvents}. ` +
+          `Виплачені нарахування збережено та знеособлено: ${c.referralRewardsKeptPaid}. ` +
+          `Номер лишився в базі із забороною.`,
+      );
+      setArchivingPerson(null);
+      if (editingPerson?.id === result.personId) setEditingPerson(null);
+      await loadPersons();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Помилка архівації даних персони');
+    } finally {
+      setArchiveSubmitting(false);
     }
   };
 
@@ -1384,6 +1438,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('data')}
           >
             Дані
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'personArchive' ? 'active' : ''}`}
+            onClick={() => setActiveTab('personArchive')}
+          >
+            Архів
           </button>
           <button
             className={`admin-tab ${activeTab === 'mapEditor' ? 'active' : ''}`}
@@ -2584,6 +2644,16 @@ export const AdminPage: React.FC = () => {
               />
               <Button onClick={() => loadPersons()}>Пошук</Button>
               <Button variant="secondary" onClick={() => loadPersons('')}>Оновити список</Button>
+              <select
+                className="control-input"
+                value={dataFilterMode}
+                onChange={(e) => setDataFilterMode(e.target.value as PersonsFilterMode)}
+                title="Фільтр по забороні номера"
+              >
+                {PERSONS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>Показати: {o.label}</option>
+                ))}
+              </select>
               <Button
                 onClick={() => handleRefreshNames()}
                 disabled={refreshNamesLoading}
@@ -2640,7 +2710,7 @@ export const AdminPage: React.FC = () => {
             )}
             {dataLoading ? (
               <div className="admin-loading" aria-live="polite">Завантаження...</div>
-            ) : persons.length === 0 ? (
+            ) : visiblePersons.length === 0 ? (
               <div className="admin-empty">
                 <p className="admin-empty-text">Немає персон за пошуком</p>
                 <Button variant="secondary" onClick={() => setDataSearchQuery('')}>Очистити пошук</Button>
@@ -2682,11 +2752,21 @@ export const AdminPage: React.FC = () => {
                       <th className="sortable" onClick={() => toggleDataSort('viberListings')} title="Сортувати">
                         Viber оголош. {dataSortField === 'viberListings' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
                       </th>
+                      <th className="sortable" onClick={() => toggleDataSort('phoneBlockedAt')} title="Сортувати">
+                        Заборона {dataSortField === 'phoneBlockedAt' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th
+                        className="sortable"
+                        onClick={() => toggleDataSort('blockedAttemptCount')}
+                        title="Скільки разів заблокований номер повертався. Рахуються 10-хвилинні вікна, а не кожне натискання."
+                      >
+                        Повернувся {dataSortField === 'blockedAttemptCount' ? (dataSortDir === 'asc' ? '↑' : '↓') : ''}
+                      </th>
                       <th>Дії</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedPersons.map((p) => {
+                    {visiblePersons.map((p) => {
                       const change = refreshNamesResult?.changes?.find((c) => c.personId === p.id);
                       const changeLabel = change
                         ? `${change.oldName ?? '—'} → ${change.newName ?? '—'}${change.source ? ` (${change.source === 'bot' ? 'бот' : 'ваш акаунт'})` : ''}`
@@ -2706,10 +2786,29 @@ export const AdminPage: React.FC = () => {
                           <td>{p.telegramReminderSentAt ? new Date(p.telegramReminderSentAt).toLocaleString('uk-UA') : '—'}</td>
                           <td>{p._count.bookings}</td>
                           <td>{p._count.viberListings}</td>
+                          <td title={p.phoneBlockReason ?? ''}>
+                            {p.phoneBlockedAt
+                              ? `🚫 ${new Date(p.phoneBlockedAt).toLocaleDateString('uk-UA')}`
+                              : '—'}
+                            {p.dataArchivedAt ? ' · 🗄️' : ''}
+                          </td>
+                          <td>
+                            {(p.blockedAttemptCount ?? 0) > 0
+                              ? `${p.blockedAttemptCount}${p.blockedAttemptAt ? ` · ${new Date(p.blockedAttemptAt).toLocaleDateString('uk-UA')}` : ''}`
+                              : '—'}
+                          </td>
                           <td>
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                               <Button variant="secondary" onClick={() => openEditPerson(p)} disabled={deletingPersonId === p.id}>
                                 Редагувати
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                onClick={() => openArchivePerson(p)}
+                                disabled={deletingPersonId === p.id}
+                                title="Зняти JSON-знімок усіх даних і видалити їх з робочих таблиць"
+                              >
+                                Архівувати
                               </Button>
                               <Button
                                 variant="danger"
@@ -2843,6 +2942,31 @@ export const AdminPage: React.FC = () => {
                         Обнулити
                       </Button>
                     </div>
+                    <label className="admin-checkbox admin-checkbox--wrap person-block-toggle">
+                      <input
+                        type="checkbox"
+                        checked={personEditForm.phoneBlocked}
+                        onChange={(e) => setPersonEditForm({ ...personEditForm, phoneBlocked: e.target.checked })}
+                      />
+                      <span>
+                        Заборонено використовувати номер — нові бронювання й оголошення не
+                        створюються, активні оголошення ховаються з сайту, SMS і Telegram-сповіщення
+                        вимикаються. Наявні бронювання лишаються; зняття галочки не повертає
+                        оголошення на сайт.
+                      </span>
+                    </label>
+                    {personEditForm.phoneBlocked && (
+                      <div className="form-group">
+                        <label>Причина заборони</label>
+                        <textarea
+                          className="control-input"
+                          rows={3}
+                          placeholder="Скарга від… / що саме сталося"
+                          value={personEditForm.phoneBlockReason}
+                          onChange={(e) => setPersonEditForm({ ...personEditForm, phoneBlockReason: e.target.value })}
+                        />
+                      </div>
+                    )}
                     <div className="form-actions">
                       <Button type="button" variant="secondary" onClick={() => setEditingPerson(null)}>Скасувати</Button>
                       <Button type="submit">Зберегти</Button>
@@ -2853,6 +2977,54 @@ export const AdminPage: React.FC = () => {
             )}
           </div>
         )}
+
+        {archivingPerson && (
+          <div className="modal" onClick={(e) => e.target === e.currentTarget && setArchivingPerson(null)}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2>Архівувати всі дані персони #{archivingPerson.id}</h2>
+                <button className="close-btn" onClick={() => setArchivingPerson(null)}>&times;</button>
+              </div>
+              <p className="modal-hint">
+                {formatPhoneDisplay(archivingPerson.phoneNormalized)}
+                {archivingPerson.fullName ? ` · ${archivingPerson.fullName}` : ''}
+                {' · '}
+                бронювань: {archivingPerson._count.bookings}, Viber-оголошень: {archivingPerson._count.viberListings}
+              </p>
+              <Alert variant="warning">
+                Усі записи буде збережено в архів як JSON-знімок і видалено з робочих таблиць —
+                поїздки зникнуть із сайту. Номер лишиться в базі як носій заборони й автоматично
+                отримає галочку «Заборонено». Виплачені реферальні нарахування збережуться
+                знеособленими, щоб звіт про виплати не змінився. Бронювання інших людей, створені
+                з оголошень цієї персони, втратять звʼязок з оголошенням. Дію не можна скасувати.
+              </Alert>
+              <form onSubmit={handleArchivePerson}>
+                <div className="form-group">
+                  <label htmlFor="archive-reason">Причина архівації *</label>
+                  <textarea
+                    id="archive-reason"
+                    className="control-input"
+                    rows={3}
+                    placeholder="Скарга від… / дата й суть звернення"
+                    value={archiveReason}
+                    onChange={(e) => setArchiveReason(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-actions">
+                  <Button type="button" variant="secondary" onClick={() => setArchivingPerson(null)}>
+                    Скасувати
+                  </Button>
+                  <Button type="submit" variant="danger" disabled={archiveSubmitting || archiveReason.trim().length < 3}>
+                    {archiveSubmitting ? 'Архівація…' : 'Архівувати'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'personArchive' && <PersonArchiveTab />}
 
         {activeTab === 'mapEditor' && <MapEditorTab />}
         {activeTab === 'scheduleEditor' && <ScheduleEditorTab />}

@@ -197,6 +197,32 @@
   accent-color: var(--pb-primary);
 }
 
+/* Багаторядкова підказка біля галочки: базовий .admin-checkbox має nowrap. */
+.admin-checkbox--wrap {
+  display: flex;
+  align-items: flex-start;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+.admin-checkbox--wrap input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+/* Заборона номера — помітно, але без крику. */
+.person-block-toggle {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 8px;
+}
+
+.person-block-toggle:has(input:checked) {
+  border-color: #d9534f;
+  background: rgba(217, 83, 79, 0.06);
+}
+
 .control-input {
   padding: 8px 12px;
   border: 1px solid var(--pb-border);

@@ -5,6 +5,7 @@ exports.createOrMergeViberListing = createOrMergeViberListing;
 const index_helpers_1 = require("./index-helpers");
 const schedule_trip_1 = require("./schedule-trip");
 const poputky_od_1 = require("./poputky-od");
+const phone_block_1 = require("./phone-block");
 function normalizePhoneForMerge(phone) {
     const trimmed = phone.trim();
     if (trimmed.startsWith('@')) {
@@ -33,6 +34,9 @@ async function resolveOdFields(prisma, data) {
     return { fromPointId, toPointId, tripRouteId };
 }
 async function createOrMergeViberListing(prisma, data) {
+    // Єдиний шлюз для всіх оголошень (сайт, бот, імпорт із груп, адмінка) — тут же
+    // й заборона номера. Кидає PhoneBlockedError; масові імпорти ловлять її поелементно.
+    await (0, phone_block_1.assertPhoneNotBlocked)(prisma, data.phone);
     const personId = data.personId ?? null;
     const date = data.date;
     const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());

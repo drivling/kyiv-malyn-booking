@@ -13,6 +13,7 @@ import { getSupportPhoneForRoute } from '../support-phone-route';
 import { isValidScheduleDepartureTime, SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE } from '../validation/schedule-departure-time';
 import { validateBookingPhoneInput } from '../validation/booking-phone';
 import { requireAdmin } from '../middleware/require-admin';
+import { PHONE_BLOCKED_MESSAGE, isPhoneBlocked, recordBlockedAttempt } from '../phone-block';
 import { defaultSchedulePriceUah, parseOptionalPriceUah } from '../schedule-price';
 import {
   buildLegacyRouteKey,
@@ -650,6 +651,11 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
     const phoneValid = validateBookingPhoneInput(phone);
     if (!phoneValid.ok) {
       return res.status(400).json({ error: phoneValid.error });
+    }
+
+    if (await isPhoneBlocked(prisma, phone)) {
+      await recordBlockedAttempt(prisma, String(phone));
+      return res.status(403).json({ error: PHONE_BLOCKED_MESSAGE });
     }
 
     if (departureTime && !isValidScheduleDepartureTime(departureTime)) {

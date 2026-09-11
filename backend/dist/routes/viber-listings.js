@@ -44,6 +44,7 @@ const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
 const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
 const viber_listing_merge_1 = require("../viber-listing-merge");
+const phone_block_1 = require("../phone-block");
 const VIBER_LISTING_UPDATE_FIELDS = [
     'rawMessage',
     'senderName',
@@ -239,6 +240,11 @@ function createViberListingsRouter(deps) {
             res.status(201).json({ ...(0, index_helpers_1.serializeViberListing)(listing), matchingRecheckTriggered });
         }
         catch (error) {
+            if ((0, phone_block_1.isPhoneBlockedError)(error)) {
+                // Інакше і адмінка, і Python-парсер побачили б незрозумілу 500.
+                res.status(403).json({ error: phone_block_1.PHONE_BLOCKED_ADMIN_MESSAGE });
+                return;
+            }
             console.error('❌ Помилка створення Viber оголошення:', error);
             res.status(500).json({ error: 'Failed to create Viber listing' });
         }

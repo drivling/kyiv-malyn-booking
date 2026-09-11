@@ -85,6 +85,7 @@ const viber_parser_1 = require("./viber-parser");
 const telegram_parser_1 = require("./telegram-parser");
 const viber_listing_merge_1 = require("./viber-listing-merge");
 const poputky_od_1 = require("./poputky-od");
+const phone_block_1 = require("./phone-block");
 const revoke_telegram_bot_1 = require("./revoke-telegram-bot");
 const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
 const sms_fallback_1 = require("./sms-fallback");
@@ -968,9 +969,12 @@ const findOrCreatePersonByPhone = async (phone, options) => {
         : null;
     const existing = await tgPrisma.person.findUnique({
         where: { phoneNormalized: normalized },
-        select: { id: true },
+        select: { id: true, phoneBlockedAt: true },
     });
     const created = !existing;
+    // Заблокованій людині не перепідв'язуємо Telegram — інакше сповіщення за chatId ожили б.
+    // Увага: phoneBlockedAt НЕ скидається разом із telegramBotBlockedAt нижче — це різні речі.
+    const isBlocked = existing?.phoneBlockedAt != null;
     const person = await tgPrisma.person.upsert({
         where: { phoneNormalized: normalized },
         create: {
@@ -982,15 +986,15 @@ const findOrCreatePersonByPhone = async (phone, options) => {
         },
         update: {
             ...(fullName != null && { fullName }),
-            ...(options?.telegramChatId != null && {
+            ...(!isBlocked && options?.telegramChatId != null && {
                 telegramChatId: options.telegramChatId,
                 // Знову підписався на бота — скидаємо мітку блоку (наступний блок знову «перший»)
                 ...(options.telegramChatId.trim() !== '' && options.telegramChatId !== '0'
                     ? { telegramBotBlockedAt: null }
                     : {}),
             }),
-            ...(options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
-            ...(options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
+            ...(!isBlocked && options?.telegramUserId != null && { telegramUserId: options.telegramUserId }),
+            ...(!isBlocked && options?.telegramUsername != null && { telegramUsername: options.telegramUsername }),
         },
     });
     return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName, created };
@@ -2515,6 +2519,18 @@ async function registerUserPhone(chatId, userId, phoneInput, telegramName) {
         return;
     try {
         const normalizedPhone = (0, exports.normalizePhone)(phoneInput);
+        // Заборонений номер: відмовляємо ДО findOrCreatePersonByPhone, щоб людині не
+        // прив'язався telegramChatId — інакше всі сповіщення за chatId ожили б.
+        // Покриває обидва входи: поділився контактом і ввів номер текстом.
+        const blockedByPhone = await tgPrisma.person.findUnique({
+            where: { phoneNormalized: normalizedPhone },
+            select: { phoneBlockedAt: true },
+        });
+        if (blockedByPhone?.phoneBlockedAt) {
+            await (0, phone_block_1.recordBlockedAttempt)(tgPrisma, normalizedPhone);
+            await bot.sendMessage(chatId, phone_block_1.PHONE_BLOCKED_BOT_MESSAGE, { parse_mode: 'HTML' });
+            return;
+        }
         const referralCodeFromStart = await (0, telegram_referral_1.takePendingReferralCode)(tgPrisma, chatId);
         // Чи цей Telegram ID вже був прив'язаний раніше (Person або Booking)
         const personByTelegram = await (0, exports.getPersonByTelegram)(userId, chatId);
@@ -4492,6 +4508,10 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 }
             }
             catch (err) {
+                if ((0, phone_block_1.isPhoneBlockedError)(err)) {
+                    await bot?.sendMessage(chatId, `🚫 ${phone_block_1.PHONE_BLOCKED_ADMIN_MESSAGE}`);
+                    return;
+                }
                 console.error('AddViber error:', err);
                 await bot?.sendMessage(chatId, '❌ Помилка створення оголошення. Спробуйте /addviber знову.');
             }
@@ -6444,6 +6464,10 @@ function resetTelegramBotForTests() {
 const getChatIdByPhone = async (phone) => {
     try {
         const person = await (0, exports.getPersonByPhone)(phone);
+        // Заборонений номер не адресується взагалі — і через Person, і через fallback на
+        // Booking.telegramChatId (інакше заборона протікала б крізь старі бронювання).
+        if (person?.phoneBlockedAt)
+            return null;
         if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
             return person.telegramChatId;
         }

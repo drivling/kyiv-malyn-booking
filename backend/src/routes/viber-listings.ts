@@ -20,6 +20,7 @@ import {
 import { requireAdmin } from '../middleware/require-admin';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
 import { createOrMergeViberListing } from '../viber-listing-merge';
+import { PHONE_BLOCKED_ADMIN_MESSAGE, isPhoneBlockedError } from '../phone-block';
 
 const VIBER_LISTING_UPDATE_FIELDS = [
   'rawMessage',
@@ -238,6 +239,11 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
 
       res.status(201).json({ ...serializeViberListing(listing), matchingRecheckTriggered });
     } catch (error: unknown) {
+      if (isPhoneBlockedError(error)) {
+        // Інакше і адмінка, і Python-парсер побачили б незрозумілу 500.
+        res.status(403).json({ error: PHONE_BLOCKED_ADMIN_MESSAGE });
+        return;
+      }
       console.error('❌ Помилка створення Viber оголошення:', error);
       res.status(500).json({ error: 'Failed to create Viber listing' });
     }

@@ -273,6 +273,16 @@ r.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res) =
         failed++;
       } else {
         const person = await getPersonByPhone(phone);
+        if (person?.phoneBlockedAt) {
+          // Заборонений номер: не пишемо ні з особистого акаунта, ні платним SMS.
+          console.log(`🚫 Пропущено заблокований номер ${phone}`);
+          failed++;
+          if (delaysMs.length > 0 && i < phones.length - 1) {
+            const delayMs = delaysMs[i % delaysMs.length] ?? 30000;
+            await new Promise((r) => setTimeout(r, delayMs));
+          }
+          continue;
+        }
         const ok = await sendMessageViaUserAccount(phone, message, {
           telegramUsername: person?.telegramUsername ?? undefined,
         });
