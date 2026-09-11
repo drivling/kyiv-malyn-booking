@@ -80,6 +80,32 @@ function createViberListingsRouter(deps) {
             res.status(500).json({ error: 'Не вдалося завантажити Viber оголошення. Перевірте логи сервера.' });
         }
     });
+    /**
+     * Контакт автора оголошення (телефон або @username) — окремим запитом, по кліку.
+     * На сторінках сайту контакт не рендериться: у DOM його немає, пошуковики й
+     * прості скрейпери сторінки нічого не збирають.
+     * Публічний і лише для активних оголошень — заборонені/зняті не віддаємо.
+     */
+    r.get('/viber-listings/:id/contact', async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            if (Number.isNaN(id)) {
+                return res.status(400).json({ error: 'Невірний id' });
+            }
+            const listing = await prisma.viberListing.findUnique({
+                where: { id },
+                select: { phone: true, isActive: true },
+            });
+            if (!listing || !listing.isActive || !listing.phone?.trim()) {
+                return res.status(404).json({ error: 'Контакт недоступний' });
+            }
+            return res.json({ contact: listing.phone.trim() });
+        }
+        catch (error) {
+            console.error('❌ Помилка отримання контакту оголошення:', error);
+            return res.status(500).json({ error: 'Не вдалося отримати контакт' });
+        }
+    });
     r.get('/viber-listings/search', async (req, res) => {
         const { route, date, fromCode, toCode } = req.query;
         if (!date) {

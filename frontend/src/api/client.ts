@@ -535,6 +535,14 @@ class ApiClient {
   }
 
   // Viber Listings endpoints
+  /**
+   * Контакт автора оголошення — окремим запитом, лише по кліку користувача.
+   * На сторінці контакт не рендериться, тож у DOM його немає.
+   */
+  async getViberListingContact(id: number): Promise<{ contact: string }> {
+    return this.request<{ contact: string }>(`/viber-listings/${id}/contact`);
+  }
+
   async getViberListings(active?: boolean): Promise<ViberListing[]> {
     const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';
     return this.request<ViberListing[]>(endpoint);

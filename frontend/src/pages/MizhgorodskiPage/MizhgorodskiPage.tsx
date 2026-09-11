@@ -12,6 +12,7 @@ import {
 } from '@/hooks';
 import type { Availability, Schedule, TripPoint, ViberListing, ViberListingType } from '@/types';
 import type { BookingCity } from '@/utils/constants';
+import { ListingContactReveal } from '@/components/ListingContactReveal';
 import {
   BOOKING_CITY_LABELS,
   BOOKING_FROM_TO,
@@ -814,15 +815,10 @@ export const MizhgorodskiPage: React.FC = () => {
                           </button>
                         ) : item.listing.listingType === 'driver' && !rideshare.isTelegramLoggedIn ? (
                           <>
-                            <a
-                              href={listingContactHref(item.listing.phone)}
+                            <ListingContactReveal
+                              listingId={item.listing.id}
                               className="mizh-card-cta mizh-card-cta--primary"
-                              {...(item.listing.phone.trim().startsWith('@')
-                                ? { target: '_blank', rel: 'noopener noreferrer' }
-                                : {})}
-                            >
-                              Зателефонувати
-                            </a>
+                            />
                             <button
                               type="button"
                               className="mizh-card-cta mizh-card-cta--ghost"
@@ -832,20 +828,12 @@ export const MizhgorodskiPage: React.FC = () => {
                             </button>
                           </>
                         ) : (
-                          <a
-                            href={listingContactHref(item.listing.phone)}
+                          <ListingContactReveal
+                            listingId={item.listing.id}
                             className="mizh-card-cta mizh-card-cta--primary"
-                            {...(item.listing.phone.trim().startsWith('@')
-                              ? { target: '_blank', rel: 'noopener noreferrer' }
-                              : {})}
-                          >
-                            Зателефонувати
-                          </a>
+                          />
                         )}
                       </div>
-                      {item.listing.phone && (
-                        <div className="mizh-card-contact">{formatListingContactDisplay(item.listing.phone)}</div>
-                      )}
                     </div>
                   </div>
                 </li>

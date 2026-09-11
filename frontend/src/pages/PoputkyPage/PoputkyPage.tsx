@@ -16,6 +16,7 @@ import {
   BOOKING_CITY_LABELS,
   BOOKING_FROM_TO,
 } from '@/utils/constants';
+import { ListingContactReveal } from '@/components/ListingContactReveal';
 import type { BookingCity } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import './PoputkyPage.css';
@@ -373,13 +374,10 @@ export const PoputkyPage: React.FC = () => {
                             </button>
                           ) : listing.listingType === 'driver' && !isTelegramLoggedIn ? (
                             <>
-                              <a
-                                href={listingContactHref(listing.phone)}
+                              <ListingContactReveal
+                                listingId={listing.id}
                                 className="poputky-trip-detail"
-                                {...(listing.phone.trim().startsWith('@') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                              >
-                                Зателефонувати
-                              </a>
+                              />
                               <button
                                 type="button"
                                 className="poputky-trip-detail poputky-trip-detail-btn poputky-trip-login-btn"
@@ -389,13 +387,10 @@ export const PoputkyPage: React.FC = () => {
                               </button>
                             </>
                           ) : (
-                            <a
-                              href={listingContactHref(listing.phone)}
+                            <ListingContactReveal
+                              listingId={listing.id}
                               className="poputky-trip-detail"
-                              {...(listing.phone.trim().startsWith('@') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                            >
-                              Зателефонувати
-                            </a>
+                            />
                           )}
                         </div>
                       </div>
