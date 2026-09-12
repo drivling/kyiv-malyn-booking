@@ -15,6 +15,8 @@ exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.buildBehaviorPromoMessage = buildBehaviorPromoMessage;
 exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
 exports.setSendMatchMessageToPersonForTests = setSendMatchMessageToPersonForTests;
+exports.firstNameOnly = firstNameOnly;
+exports.buildMatchSms = buildMatchSms;
 exports.notifyPassengerAboutDriverPair = notifyPassengerAboutDriverPair;
 exports.notifyDriverAboutPassengerPair = notifyDriverAboutPassengerPair;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
@@ -643,10 +645,18 @@ async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
     }
     return { sent: false, via: 'none' };
 }
-/** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер). */
+/**
+ * Лише перше слово імені (без прізвища): «Іван Петренко» → «Іван».
+ * Для платних SMS — там кожен символ на вагу, а прізвище попутника зайве.
+ */
+function firstNameOnly(name) {
+    const first = (name ?? '').trim().split(/\s+/)[0];
+    return first || null;
+}
+/** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер, лише ім'я). */
 function buildMatchSms(counterpart, kind) {
     const who = kind === 'driver' ? 'водій' : 'пасажир';
-    const name = counterpart.senderName?.trim() || (kind === 'driver' ? 'Водій' : 'Пасажир');
+    const name = firstNameOnly(counterpart.senderName) ?? (kind === 'driver' ? 'Водій' : 'Пасажир');
     const time = counterpart.departureTime ? ` ${counterpart.departureTime}` : '';
     const tel = '+' + (0, exports.normalizePhone)(counterpart.phone);
     return (`Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +

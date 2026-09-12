@@ -861,8 +861,17 @@ async function sendMatchMessageToPerson(
   return { sent: false, via: 'none' };
 }
 
-/** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер). */
-function buildMatchSms(
+/**
+ * Лише перше слово імені (без прізвища): «Іван Петренко» → «Іван».
+ * Для платних SMS — там кожен символ на вагу, а прізвище попутника зайве.
+ */
+export function firstNameOnly(name: string | null | undefined): string | null {
+  const first = (name ?? '').trim().split(/\s+/)[0];
+  return first || null;
+}
+
+/** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер, лише ім'я). */
+export function buildMatchSms(
   counterpart: {
     route: string;
     date: Date;
@@ -873,7 +882,7 @@ function buildMatchSms(
   kind: 'driver' | 'passenger'
 ): string {
   const who = kind === 'driver' ? 'водій' : 'пасажир';
-  const name = counterpart.senderName?.trim() || (kind === 'driver' ? 'Водій' : 'Пасажир');
+  const name = firstNameOnly(counterpart.senderName) ?? (kind === 'driver' ? 'Водій' : 'Пасажир');
   const time = counterpart.departureTime ? ` ${counterpart.departureTime}` : '';
   const tel = '+' + normalizePhone(counterpart.phone);
   return (
