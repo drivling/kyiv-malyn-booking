@@ -61,6 +61,7 @@ import { PHONE_BLOCKED_ADMIN_MESSAGE, PHONE_BLOCKED_BOT_MESSAGE, isPhoneBlockedE
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
 import { sendPaidFallbackSms } from './sms-fallback';
+import { displayName, firstNameOnly } from './person-name';
 import { siteDomainForRoute, siteForRoute, siteUrl, siteUrlForRoute } from './site-domains';
 import { isPastRideDate } from './index-helpers';
 import {
@@ -286,7 +287,7 @@ export function buildBehaviorPromoMessage(
   context?: BehaviorPromoContext
 ): string {
   const links = getTelegramScenarioLinks(context?.mainRoute);
-  const name = context?.fullName?.trim() || 'Друже';
+  const name = firstNameOnly(context?.fullName) ?? 'Друже';
   const routeHint = context?.mainRoute ? ` (наприклад ${context.mainRoute})` : '';
 
   const templates: Record<BehaviorPromoScenarioKey, string> = {
@@ -861,15 +862,6 @@ async function sendMatchMessageToPerson(
   return { sent: false, via: 'none' };
 }
 
-/**
- * Лише перше слово імені (без прізвища): «Іван Петренко» → «Іван».
- * Для платних SMS — там кожен символ на вагу, а прізвище попутника зайве.
- */
-export function firstNameOnly(name: string | null | undefined): string | null {
-  const first = (name ?? '').trim().split(/\s+/)[0];
-  return first || null;
-}
-
 /** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер, лише ім'я). */
 export function buildMatchSms(
   counterpart: {
@@ -943,7 +935,7 @@ export async function notifyPassengerAboutDriverPair(
     `📅 ${formatDate(driverListing.date)}\n` +
     (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
     (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
-    `👤 ${driverListing.senderName ?? 'Водій'}\n` +
+    `👤 ${displayName(driverListing.senderName, 'Водій')}\n` +
     `📞 ${formatPhoneTelLink(driverListing.phone)}` +
     (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
     (matchType === 'exact'
@@ -956,7 +948,7 @@ export async function notifyPassengerAboutDriverPair(
           inline_keyboard: [
             [
               {
-                text: `🎫 Забронювати у ${driverListing.senderName ?? 'водія'}`,
+                text: `🎫 Забронювати у ${displayName(driverListing.senderName, 'водія')}`,
                 callback_data: `vibermatch_book_${passengerListing.id}_${driverListing.id}`,
               },
             ],
@@ -1034,7 +1026,7 @@ export async function notifyDriverAboutPassengerPair(
     `🛣 ${getRouteName(passengerListing.route)}\n` +
     `📅 ${formatDate(passengerListing.date)}\n` +
     (passengerListing.departureTime ? `🕐 ${passengerListing.departureTime}\n` : '') +
-    `👤 ${passengerListing.senderName ?? 'Пасажир'}\n` +
+    `👤 ${displayName(passengerListing.senderName, 'Пасажир')}\n` +
     `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
     (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '');
 
@@ -1044,7 +1036,7 @@ export async function notifyDriverAboutPassengerPair(
           inline_keyboard: [
             [
               {
-                text: `🤝 Запропонувати ${passengerListing.senderName ?? 'пасажиру'}`,
+                text: `🤝 Запропонувати ${displayName(passengerListing.senderName, 'пасажиру')}`,
                 callback_data: `vibermatch_book_driver_${driverListing.id}_${passengerListing.id}`,
               },
             ],
@@ -1135,10 +1127,10 @@ export async function notifyMatchingPassengersForNewDriver(
   if (driverChatId && exactList.length > 0) {
     const lines = exactList.map((p) => {
       const time = p.departureTime ?? '—';
-      return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+      return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
     }).join('\n');
     const confirmButtons = exactList.map((p) => ([
-      { text: `🤝 Запропонувати ${p.senderName ?? 'пасажиру'}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
+      { text: `🤝 Запропонувати ${displayName(p.senderName, 'пасажиру')}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
     ]));
     await bot?.sendMessage(
       driverChatId,
@@ -1151,7 +1143,7 @@ export async function notifyMatchingPassengersForNewDriver(
   if (driverChatId && approxList.length > 0) {
     const lines = approxList.map((p) => {
       const time = p.departureTime ?? '—';
-      return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+      return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
     }).join('\n');
     await bot?.sendMessage(
       driverChatId,
@@ -1162,7 +1154,7 @@ export async function notifyMatchingPassengersForNewDriver(
   if (driverChatId && sameDayList.length > 0) {
     const lines = sameDayList.map((p) => {
       const time = p.departureTime ?? '—';
-      return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+      return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
     }).join('\n');
     await bot?.sendMessage(
       driverChatId,
@@ -1212,10 +1204,10 @@ export async function notifyMatchingDriversForNewPassenger(
   if (passengerChatId && exactList.length > 0) {
     const lines = exactList.map((d) => {
       const time = d.departureTime ?? '—';
-      return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+      return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
     }).join('\n');
     const bookButtons = exactList.map((d) => [
-      { text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
+      { text: `🎫 Забронювати у ${displayName(d.senderName, 'водія')}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
     ]);
     await bot?.sendMessage(
       passengerChatId,
@@ -1226,7 +1218,7 @@ export async function notifyMatchingDriversForNewPassenger(
   if (passengerChatId && approxList.length > 0) {
     const lines = approxList.map((d) => {
       const time = d.departureTime ?? '—';
-      return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+      return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
     }).join('\n');
     await bot?.sendMessage(
       passengerChatId,
@@ -1237,7 +1229,7 @@ export async function notifyMatchingDriversForNewPassenger(
   if (passengerChatId && sameDayList.length > 0) {
     const lines = sameDayList.map((d) => {
       const time = d.departureTime ?? '—';
-      return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+      return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
     }).join('\n');
     await bot?.sendMessage(
       passengerChatId,
@@ -2787,7 +2779,7 @@ export const sendRideShareRequestToDriver = async (
     await bot.sendMessage(
       driverChatId,
       `🎫 <b>Запит на попутку</b>\n\n` +
-        `👤 ${passenger.senderName ?? 'Пасажир'} хоче поїхати з вами.\n\n` +
+        `👤 ${displayName(passenger.senderName, 'Пасажир')} хоче поїхати з вами.\n\n` +
         `🛣 ${getRouteName(driver.route)}\n` +
         `📅 ${formatDate(driver.date)}\n` +
         (driver.departureTime ? `🕐 ${driver.departureTime}\n` : '') +
@@ -2842,7 +2834,7 @@ export const sendBookingConfirmationToCustomer = async (
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час:</b> ${booking.departureTime}
-👤 <b>Пасажир:</b> ${booking.name}
+👤 <b>Пасажир:</b> ${displayName(booking.name, 'Пасажир')}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
     `.trim()
@@ -2854,7 +2846,7 @@ export const sendBookingConfirmationToCustomer = async (
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
 🎫 <b>Місць:</b> ${booking.seats}
-👤 <b>Пасажир:</b> ${booking.name}
+👤 <b>Пасажир:</b> ${displayName(booking.name, 'Пасажир')}
 ${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
@@ -2892,7 +2884,7 @@ export type TripReminderDelivery = { delivered: 'bot' | 'sms' | 'none' };
 export function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorrow' | 'today'): string {
   const lead = when === 'today' ? 'Сьогодні у вас поїздка' : 'Нагадування: завтра поїздка';
   const drv = booking.driver
-    ? ` Водій ${booking.driver.senderName ?? '—'}, тел +${normalizePhone(booking.driver.phone)}.`
+    ? ` Водій ${displayName(booking.driver.senderName, '—')}, тел +${normalizePhone(booking.driver.phone)}.`
     : '';
   return (
     `${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
@@ -2934,7 +2926,7 @@ export const sendTripReminder = async (
       ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
       : '';
     const driverLine = booking.driver
-      ? `\n🚗 <b>Водій:</b> ${booking.driver.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
+      ? `\n🚗 <b>Водій:</b> ${displayName(booking.driver.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
       : '';
 
     const message = `
@@ -2942,7 +2934,7 @@ export const sendTripReminder = async (
 
 🔔 <b>Нагадування про поїздку!</b>
 
-👋 ${booking.name}, нагадуємо про вашу поїздку завтра:
+👋 ${displayName(booking.name, 'Друже')}, нагадуємо про вашу поїздку завтра:
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -2987,7 +2979,7 @@ export const sendTripReminderToday = async (
       ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
       : '';
     const driverLine = booking.driver
-      ? `\n🚗 <b>Водій:</b> ${booking.driver.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
+      ? `\n🚗 <b>Водій:</b> ${displayName(booking.driver.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
       : '';
 
     const message = `
@@ -2995,7 +2987,7 @@ export const sendTripReminderToday = async (
 
 🔔 <b>Сьогодні у вас поїздка!</b>
 
-👋 ${booking.name}, нагадуємо:
+👋 ${displayName(booking.name, 'Друже')}, нагадуємо:
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -3931,7 +3923,7 @@ function setupBotCommands() {
   bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from?.id.toString() || '';
-    const firstName = msg.from?.first_name || 'Друже';
+    const firstName = firstNameOnly(msg.from?.first_name) ?? 'Друже';
     const rawStart = msg.text?.trim().match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i)?.[1]?.trim() ?? '';
 
     // Реферальне посилання: ?start=ref_CODE
@@ -4320,7 +4312,7 @@ function setupBotCommands() {
       }) => {
         const time = listing.departureTime ?? '—';
         const seats = listing.seats != null ? `${listing.seats} місць` : '—';
-        const author = (listing.senderName ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const author = displayName(listing.senderName, '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         return `• <b>#${listing.id}</b> ${getRouteName(listing.route)}\n` +
           `   📅 ${formatDate(listing.date)} · 🕐 ${time}\n` +
           `   👤 ${author} · 🎫 ${seats}\n` +
@@ -4396,7 +4388,7 @@ function setupBotCommands() {
             const key = `${myPassenger.id}_${match.listing.id}`;
             if (seenPassengerToDriver.has(key)) continue;
             seenPassengerToDriver.add(key);
-            const driverName = truncateForButton(match.listing.senderName ?? 'Водій');
+            const driverName = truncateForButton(displayName(match.listing.senderName, 'Водій'));
             const shortPhone = formatShortPhoneForButton(match.listing.phone);
             const timePart = match.listing.departureTime ?? '—';
             inlineKeyboard.push([{
@@ -4421,7 +4413,7 @@ function setupBotCommands() {
             const key = `${myDriver.id}_${match.listing.id}`;
             if (seenDriverToPassenger.has(key)) continue;
             seenDriverToPassenger.add(key);
-            const passengerName = truncateForButton(match.listing.senderName ?? 'Пасажир');
+            const passengerName = truncateForButton(displayName(match.listing.senderName, 'Пасажир'));
             const shortPhone = formatShortPhoneForButton(match.listing.phone);
             inlineKeyboard.push([{
               text: `🤝 ${passengerName} · ${shortPhone}`,
@@ -4687,10 +4679,10 @@ ${buildReferralHelpSection()}
       if (exactList.length > 0) {
         const linesExact = exactList.map((p) => {
           const time = p.departureTime ?? '—';
-          return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+          return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         const buttons = exactList.map((p) => ([
-          { text: `🤝 ${truncateForButton(p.senderName ?? 'Пасажир')} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
+          { text: `🤝 ${truncateForButton(displayName(p.senderName, 'Пасажир'))} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
         ]));
         await bot?.sendMessage(
           chatId,
@@ -4702,7 +4694,7 @@ ${buildReferralHelpSection()}
       if (approxList.length > 0) {
         const linesApprox = approxList.map((p) => {
           const time = p.departureTime ?? '—';
-          return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+          return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(
           chatId,
@@ -4713,7 +4705,7 @@ ${buildReferralHelpSection()}
       if (sameDayList.length > 0) {
         const linesSameDay = sameDayList.map((p) => {
           const time = p.departureTime ?? '—';
-          return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+          return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(
           chatId,
@@ -4755,10 +4747,10 @@ ${buildReferralHelpSection()}
       if (exactList.length > 0) {
         const linesExact = exactList.map((d) => {
           const time = d.departureTime ?? '—';
-          return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+          return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         const buttons = exactList.map((d) => ([
-          { text: `🎫 ${truncateForButton(d.senderName ?? 'Водій')} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
+          { text: `🎫 ${truncateForButton(displayName(d.senderName, 'Водій'))} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
         ]));
         await bot?.sendMessage(
           chatId,
@@ -4770,7 +4762,7 @@ ${buildReferralHelpSection()}
       if (approxList.length > 0) {
         const linesApprox = approxList.map((d) => {
           const time = d.departureTime ?? '—';
-          return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+          return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(
           chatId,
@@ -4781,7 +4773,7 @@ ${buildReferralHelpSection()}
       if (sameDayList.length > 0) {
         const linesSameDay = sameDayList.map((d) => {
           const time = d.departureTime ?? '—';
-          return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+          return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(
           chatId,
@@ -4831,14 +4823,14 @@ ${buildReferralHelpSection()}
           let message = `📋 <b>Активних бронювань немає</b>\n\nАле знайдено ${finalAllBookings.length} минулих:\n\n`;
           recentPast.forEach((booking: { id: number; route: string; date: Date; departureTime: string | null; seats: number; name: string; viberListing?: { senderName: string | null; phone: string } | null }, index: number) => {
             const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
-            message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${booking.name}\n`;
-            if (booking.viberListing) message += `   🚗 Водій: ${booking.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
+            message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${displayName(booking.name, 'Пасажир')}\n`;
+            if (booking.viberListing) message += `   🚗 Водій: ${displayName(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
             message += '\n';
           });
           if (driverFutureBookings.length > 0) {
             message += `\n\n🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
             driverFutureBookings.forEach((booking: { id: number; route: string; date: Date; departureTime: string | null; seats: number; name: string; phone: string }, index: number) => {
-              message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+              message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${displayName(booking.name, 'Пасажир')}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
             });
           }
           message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 /allrides - всі активні попутки\n🌐 https://malin.kiev.ua`;
@@ -4847,7 +4839,7 @@ ${buildReferralHelpSection()}
           let noBookingsMessage = `📋 <b>У вас поки немає бронювань</b>\n\n`;
           if (driverFutureBookings.length > 0) {
             driverFutureBookings.forEach((booking: { id: number; route: string; date: Date; departureTime: string | null; seats: number; name: string; phone: string }, index: number) => {
-              noBookingsMessage += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+              noBookingsMessage += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${displayName(booking.name, 'Пасажир')}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
             });
             noBookingsMessage += '\n';
           }
@@ -4859,14 +4851,14 @@ ${buildReferralHelpSection()}
       let message = `📋 <b>Ваші майбутні бронювання:</b>\n\n`;
       futureBookings.forEach((booking: { id: number; route: string; date: Date; departureTime: string | null; seats: number; name: string; viberListing?: { senderName: string | null; phone: string } | null }, index: number) => {
         const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
-        message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${booking.name}\n`;
-        if (booking.viberListing) message += `   🚗 Водій: ${booking.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
+        message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${displayName(booking.name, 'Пасажир')}\n`;
+        if (booking.viberListing) message += `   🚗 Водій: ${displayName(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
         message += '\n';
       });
       if (driverFutureBookings.length > 0) {
         message += `\n🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
         driverFutureBookings.forEach((booking: { id: number; route: string; date: Date; departureTime: string | null; seats: number; name: string; phone: string }, index: number) => {
-          message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+          message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${displayName(booking.name, 'Пасажир')}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
         });
       }
       message += `\n🔒 <i>Показано тільки ваші бронювання</i>`;
@@ -6277,7 +6269,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
         await bot?.sendMessage(
           passengerChatId,
           `🎫 <b>Водій пропонує поїздку</b>\n\n` +
-            `🚗 ${driverListing.senderName ?? 'Водій'} пропонує вам поїздку.\n\n` +
+            `🚗 ${displayName(driverListing.senderName, 'Водій')} пропонує вам поїздку.\n\n` +
             `🛣 ${getRouteName(driverListing.route)}\n` +
             `📅 ${formatDate(driverListing.date)}\n` +
             (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
@@ -6314,7 +6306,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           data: { passengerListingId, driverListingId, status: 'pending', expiresAt }
         });
         const driverChatId = await getChatIdByPhone(driverListing.phone);
-        const passengerName = passengerListing.senderName ?? 'Пасажир';
+        const passengerName = displayName(passengerListing.senderName, 'Пасажир');
         if (driverChatId) {
           const confirmKeyboard = {
             inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${request.id}` }]]
@@ -6419,7 +6411,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
               `🛣 ${getRouteName(driverListing.route)}\n` +
               `📅 ${formatDate(driverListing.date)}\n` +
               (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
-              `👤 Водій: ${driverListing.senderName ?? '—'}\n` +
+              `👤 Водій: ${displayName(driverListing.senderName, '—')}\n` +
               `📞 ${formatPhoneTelLink(driverListing.phone)}\n\n` +
               `Поїздка з\'явиться у /mybookings.`,
             { parse_mode: 'HTML' }
@@ -6504,7 +6496,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
               `🛣 ${getRouteName(driverListing.route)}\n` +
               `📅 ${formatDate(driverListing.date)}\n` +
               (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
-              `👤 Пасажир: ${booking.name}\n` +
+              `👤 Пасажир: ${displayName(booking.name, 'Пасажир')}\n` +
               `📞 ${formatPhoneTelLink(booking.phone)}\n\n` +
               `Поїздка з'явиться у /mybookings.`,
             { parse_mode: 'HTML' }
@@ -6687,7 +6679,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           `📍 ${getRouteName(booking.route)}\n` +
           `📅 ${formatDate(booking.date)} о ${booking.departureTime}\n` +
           `🎫 Місць: ${booking.seats}\n` +
-          `👤 ${booking.name}\n\n` +
+          `👤 ${displayName(booking.name, 'Пасажир')}\n\n` +
           'Ви впевнені що хочете скасувати це бронювання?',
           {
             chat_id: chatId,
@@ -6740,7 +6732,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
                 driverChatId,
                 `🚫 <b>Пасажир скасував бронювання попутки</b>\n\n` +
                   `🎫 №${bookingData.id}\n` +
-                  `👤 Пасажир: ${booking.name}\n` +
+                  `👤 Пасажир: ${displayName(booking.name, 'Пасажир')}\n` +
                   `📞 ${formatPhoneTelLink(booking.phone)}\n` +
                   `🛣 ${getRouteName(bookingData.route)}\n` +
                   `📅 ${formatDate(bookingData.date)}\n\n` +
@@ -7469,7 +7461,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
               `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
               `🕐 <b>Час:</b> ${booking.departureTime}\n` +
               `🎫 <b>Місць:</b> ${booking.seats}\n` +
-              `👤 <b>Пасажир:</b> ${booking.name}` +
+              `👤 <b>Пасажир:</b> ${displayName(booking.name, 'Пасажир')}` +
               supportPhoneLine +
               '💡 Корисні команди:\n' +
               '📋 /mybookings - Переглянути всі бронювання\n' +
@@ -7680,7 +7672,7 @@ export async function executeBookViberRideShare(
     data: { passengerListingId: passengerListing.id, driverListingId: driverListing.id, status: 'pending', expiresAt },
   });
   const driverChatId = await getChatIdForDriverListing(driverListing);
-  const passengerName = passengerListing.senderName ?? 'Пасажир';
+  const passengerName = displayName(passengerListing.senderName, 'Пасажир');
   if (driverChatId) {
     const confirmKeyboard = {
       inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${request.id}` }]],

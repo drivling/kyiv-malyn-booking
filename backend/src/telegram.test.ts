@@ -20,7 +20,6 @@ import {
   buildMatchSms,
   buildViberListingConfirmationMessage,
   buildTripReminderSms,
-  firstNameOnly,
   BEHAVIOR_PROMO_SCENARIO_LABELS,
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
@@ -73,15 +72,19 @@ test('buildTripReminderSms: домен за маршрутом бронюван�
   assert.match(buildTripReminderSms({ ...base, route: 'Kyiv-Malyn' }, 'today'), /malin\.kiev\.ua$/);
 });
 
-test('firstNameOnly: лише перше слово імені', () => {
-  assert.equal(firstNameOnly('Іван Петренко'), 'Іван');
-  assert.equal(firstNameOnly('  Олена   Іванівна Коваль '), 'Олена');
-  assert.equal(firstNameOnly('Сергій'), 'Сергій');
-  assert.equal(firstNameOnly('Анна-Марія Шевченко'), 'Анна-Марія');
-  assert.equal(firstNameOnly(''), null);
-  assert.equal(firstNameOnly('   '), null);
-  assert.equal(firstNameOnly(null), null);
-  assert.equal(firstNameOnly(undefined), null);
+test('buildTripReminderSms: водій лише за іменем', () => {
+  const text = buildTripReminderSms(
+    {
+      route: 'Kyiv-Malyn',
+      date: new Date('2026-09-11T12:00:00.000Z'),
+      departureTime: '05:00',
+      name: 'Тест',
+      driver: { senderName: 'Петро Іваненко', phone: '0679551952' },
+    },
+    'tomorrow',
+  );
+  assert.match(text, /Водій Петро, тел \+380679551952\./);
+  assert.equal(text.includes('Іваненко'), false);
 });
 
 test('buildMatchSms: у SMS про збіг лише ім’я попутника, без прізвища', () => {
@@ -236,6 +239,12 @@ test('buildBehaviorPromoMessage: усі сценарії містять поси
 test('buildBehaviorPromoMessage: привітання з іменем', () => {
   const text = buildBehaviorPromoMessage('driver_passengers', { fullName: '  Олена  ' });
   assert.ok(text.startsWith('Привіт, Олена!'));
+});
+
+test('buildBehaviorPromoMessage: у привітанні лише ім’я, без прізвища', () => {
+  const text = buildBehaviorPromoMessage('driver_passengers', { fullName: 'Олена Петренко' });
+  assert.ok(text.startsWith('Привіт, Олена!'));
+  assert.equal(text.includes('Петренко'), false);
 });
 
 test('buildBehaviorPromoMessage: коростенський маршрут веде на korosten.kiev.ua', () => {

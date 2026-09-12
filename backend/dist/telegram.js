@@ -15,7 +15,6 @@ exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.buildBehaviorPromoMessage = buildBehaviorPromoMessage;
 exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
 exports.setSendMatchMessageToPersonForTests = setSendMatchMessageToPersonForTests;
-exports.firstNameOnly = firstNameOnly;
 exports.buildMatchSms = buildMatchSms;
 exports.notifyPassengerAboutDriverPair = notifyPassengerAboutDriverPair;
 exports.notifyDriverAboutPassengerPair = notifyDriverAboutPassengerPair;
@@ -91,6 +90,7 @@ const phone_block_1 = require("./phone-block");
 const revoke_telegram_bot_1 = require("./revoke-telegram-bot");
 const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
 const sms_fallback_1 = require("./sms-fallback");
+const person_name_1 = require("./person-name");
 const site_domains_1 = require("./site-domains");
 const index_helpers_1 = require("./index-helpers");
 const telegram_contact_1 = require("./telegram-contact");
@@ -183,7 +183,7 @@ exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = {
  */
 function buildBehaviorPromoMessage(scenarioKey, context) {
     const links = getTelegramScenarioLinks(context?.mainRoute);
-    const name = context?.fullName?.trim() || 'Друже';
+    const name = (0, person_name_1.firstNameOnly)(context?.fullName) ?? 'Друже';
     const routeHint = context?.mainRoute ? ` (наприклад ${context.mainRoute})` : '';
     const templates = {
         driver_passengers: `
@@ -645,18 +645,10 @@ async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
     }
     return { sent: false, via: 'none' };
 }
-/**
- * Лише перше слово імені (без прізвища): «Іван Петренко» → «Іван».
- * Для платних SMS — там кожен символ на вагу, а прізвище попутника зайве.
- */
-function firstNameOnly(name) {
-    const first = (name ?? '').trim().split(/\s+/)[0];
-    return first || null;
-}
 /** Короткий plain-text для платного SMS про збіг (без HTML, «голий» номер, лише ім'я). */
 function buildMatchSms(counterpart, kind) {
     const who = kind === 'driver' ? 'водій' : 'пасажир';
-    const name = firstNameOnly(counterpart.senderName) ?? (kind === 'driver' ? 'Водій' : 'Пасажир');
+    const name = (0, person_name_1.firstNameOnly)(counterpart.senderName) ?? (kind === 'driver' ? 'Водій' : 'Пасажир');
     const time = counterpart.departureTime ? ` ${counterpart.departureTime}` : '';
     const tel = '+' + (0, exports.normalizePhone)(counterpart.phone);
     return (`Попутка ${getRouteName(counterpart.route)} ${formatDate(counterpart.date)}${time}: ` +
@@ -692,7 +684,7 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
         `📅 ${formatDate(driverListing.date)}\n` +
         (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
         (driverListing.seats != null ? `🎫 ${driverListing.seats} місць\n` : '') +
-        `👤 ${driverListing.senderName ?? 'Водій'}\n` +
+        `👤 ${(0, person_name_1.displayName)(driverListing.senderName, 'Водій')}\n` +
         `📞 ${formatPhoneTelLink(driverListing.phone)}` +
         (driverListing.notes ? `\n📝 ${driverListing.notes}` : '') +
         (matchType === 'exact'
@@ -703,7 +695,7 @@ async function notifyPassengerAboutDriverPair(driverListing, passengerListing, m
             inline_keyboard: [
                 [
                     {
-                        text: `🎫 Забронювати у ${driverListing.senderName ?? 'водія'}`,
+                        text: `🎫 Забронювати у ${(0, person_name_1.displayName)(driverListing.senderName, 'водія')}`,
                         callback_data: `vibermatch_book_${passengerListing.id}_${driverListing.id}`,
                     },
                 ],
@@ -760,7 +752,7 @@ async function notifyDriverAboutPassengerPair(driverListing, passengerListing, m
         `🛣 ${getRouteName(passengerListing.route)}\n` +
         `📅 ${formatDate(passengerListing.date)}\n` +
         (passengerListing.departureTime ? `🕐 ${passengerListing.departureTime}\n` : '') +
-        `👤 ${passengerListing.senderName ?? 'Пасажир'}\n` +
+        `👤 ${(0, person_name_1.displayName)(passengerListing.senderName, 'Пасажир')}\n` +
         `📞 ${formatPhoneTelLink(passengerListing.phone)}` +
         (passengerListing.notes ? `\n📝 ${passengerListing.notes}` : '');
     const replyMarkup = matchType === 'exact'
@@ -768,7 +760,7 @@ async function notifyDriverAboutPassengerPair(driverListing, passengerListing, m
             inline_keyboard: [
                 [
                     {
-                        text: `🤝 Запропонувати ${passengerListing.senderName ?? 'пасажиру'}`,
+                        text: `🤝 Запропонувати ${(0, person_name_1.displayName)(passengerListing.senderName, 'пасажиру')}`,
                         callback_data: `vibermatch_book_driver_${driverListing.id}_${passengerListing.id}`,
                     },
                 ],
@@ -830,10 +822,10 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
     if (driverChatId && exactList.length > 0) {
         const lines = exactList.map((p) => {
             const time = p.departureTime ?? '—';
-            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+            return `• 👤 ${(0, person_name_1.displayName)(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         const confirmButtons = exactList.map((p) => ([
-            { text: `🤝 Запропонувати ${p.senderName ?? 'пасажиру'}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
+            { text: `🤝 Запропонувати ${(0, person_name_1.displayName)(p.senderName, 'пасажиру')}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
         ]));
         await bot?.sendMessage(driverChatId, '🎯 <b>Пряме співпадіння: знайшли пасажирів на вашу дату та маршрут (перетин з допуском ±45 хв)</b>\n\n' +
             lines +
@@ -842,14 +834,14 @@ async function notifyMatchingPassengersForNewDriver(driverListing, driverChatId)
     if (driverChatId && approxList.length > 0) {
         const lines = approxList.map((p) => {
             const time = p.departureTime ?? '—';
-            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+            return `• 👤 ${(0, person_name_1.displayName)(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(driverChatId, '📌 <b>Приблизне співпадіння (перетин з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
     if (driverChatId && sameDayList.length > 0) {
         const lines = sameDayList.map((p) => {
             const time = p.departureTime ?? '—';
-            return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+            return `• 👤 ${(0, person_name_1.displayName)(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(driverChatId, '🗓️ <b>Поїздки цього дня (маршрут і дата збігаються, але час не перетинається навіть з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
@@ -883,24 +875,24 @@ async function notifyMatchingDriversForNewPassenger(passengerListing, passengerC
     if (passengerChatId && exactList.length > 0) {
         const lines = exactList.map((d) => {
             const time = d.departureTime ?? '—';
-            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+            return `• 🚗 ${(0, person_name_1.displayName)(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         const bookButtons = exactList.map((d) => [
-            { text: `🎫 Забронювати у ${d.senderName ?? 'водія'}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
+            { text: `🎫 Забронювати у ${(0, person_name_1.displayName)(d.senderName, 'водія')}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
         ]);
         await bot?.sendMessage(passengerChatId, '🎯 <b>Пряме співпадіння: знайшли водіїв на вашу дату та маршрут (перетин з допуском ±45 хв)</b>\n\n' + lines + '\n\n_Натисніть кнопку нижче — водій отримає запит і матиме 1 год на підтвердження._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: bookButtons } }).catch(() => { });
     }
     if (passengerChatId && approxList.length > 0) {
         const lines = approxList.map((d) => {
             const time = d.departureTime ?? '—';
-            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+            return `• 🚗 ${(0, person_name_1.displayName)(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(passengerChatId, '📌 <b>Приблизне співпадіння (перетин з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
     if (passengerChatId && sameDayList.length > 0) {
         const lines = sameDayList.map((d) => {
             const time = d.departureTime ?? '—';
-            return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+            return `• 🚗 ${(0, person_name_1.displayName)(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
         }).join('\n');
         await bot?.sendMessage(passengerChatId, '🗓️ <b>Поїздки цього дня (маршрут і дата збігаються, але час не перетинається навіть з допуском ±2 год)</b>\n\n' + lines, { parse_mode: 'HTML' }).catch(() => { });
     }
@@ -2218,7 +2210,7 @@ const sendRideShareRequestToDriver = async (requestId, driver, passenger) => {
     };
     try {
         await bot.sendMessage(driverChatId, `🎫 <b>Запит на попутку</b>\n\n` +
-            `👤 ${passenger.senderName ?? 'Пасажир'} хоче поїхати з вами.\n\n` +
+            `👤 ${(0, person_name_1.displayName)(passenger.senderName, 'Пасажир')} хоче поїхати з вами.\n\n` +
             `🛣 ${getRouteName(driver.route)}\n` +
             `📅 ${formatDate(driver.date)}\n` +
             (driver.departureTime ? `🕐 ${driver.departureTime}\n` : '') +
@@ -2256,7 +2248,7 @@ const sendBookingConfirmationToCustomer = async (chatId, booking) => {
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час:</b> ${booking.departureTime}
-👤 <b>Пасажир:</b> ${booking.name}
+👤 <b>Пасажир:</b> ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
     `.trim()
@@ -2268,7 +2260,7 @@ const sendBookingConfirmationToCustomer = async (chatId, booking) => {
 📅 <b>Дата:</b> ${formatDate(booking.date)}
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
 🎫 <b>Місць:</b> ${booking.seats}
-👤 <b>Пасажир:</b> ${booking.name}
+👤 <b>Пасажир:</b> ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}
 ${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
@@ -2290,7 +2282,7 @@ exports.sendBookingConfirmationToCustomer = sendBookingConfirmationToCustomer;
 function buildTripReminderSms(booking, when) {
     const lead = when === 'today' ? 'Сьогодні у вас поїздка' : 'Нагадування: завтра поїздка';
     const drv = booking.driver
-        ? ` Водій ${booking.driver.senderName ?? '—'}, тел +${(0, exports.normalizePhone)(booking.driver.phone)}.`
+        ? ` Водій ${(0, person_name_1.displayName)(booking.driver.senderName, '—')}, тел +${(0, exports.normalizePhone)(booking.driver.phone)}.`
         : '';
     return (`${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
         `Перевірте бронювання за телефоном — інакше воно не гарантоване. ${(0, site_domains_1.siteDomainForRoute)(booking.route)}`);
@@ -2322,14 +2314,14 @@ const sendTripReminder = async (chatId, booking) => {
             ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
             : '';
         const driverLine = booking.driver
-            ? `\n🚗 <b>Водій:</b> ${booking.driver.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
+            ? `\n🚗 <b>Водій:</b> ${(0, person_name_1.displayName)(booking.driver.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
             : '';
         const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
 
 🔔 <b>Нагадування про поїздку!</b>
 
-👋 ${booking.name}, нагадуємо про вашу поїздку завтра:
+👋 ${(0, person_name_1.displayName)(booking.name, 'Друже')}, нагадуємо про вашу поїздку завтра:
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -2370,14 +2362,14 @@ const sendTripReminderToday = async (chatId, booking) => {
             ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
             : '';
         const driverLine = booking.driver
-            ? `\n🚗 <b>Водій:</b> ${booking.driver.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
+            ? `\n🚗 <b>Водій:</b> ${(0, person_name_1.displayName)(booking.driver.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
             : '';
         const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
 
 🔔 <b>Сьогодні у вас поїздка!</b>
 
-👋 ${booking.name}, нагадуємо:
+👋 ${(0, person_name_1.displayName)(booking.name, 'Друже')}, нагадуємо:
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -3234,7 +3226,7 @@ function setupBotCommands() {
     bot.onText(/\/start/, async (msg) => {
         const chatId = msg.chat.id.toString();
         const userId = msg.from?.id.toString() || '';
-        const firstName = msg.from?.first_name || 'Друже';
+        const firstName = (0, person_name_1.firstNameOnly)(msg.from?.first_name) ?? 'Друже';
         const rawStart = msg.text?.trim().match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i)?.[1]?.trim() ?? '';
         // Реферальне посилання: ?start=ref_CODE
         if (rawStart.toLowerCase().startsWith('ref_')) {
@@ -3572,7 +3564,7 @@ function setupBotCommands() {
             const formatListingRow = (listing) => {
                 const time = listing.departureTime ?? '—';
                 const seats = listing.seats != null ? `${listing.seats} місць` : '—';
-                const author = (listing.senderName ?? '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const author = (0, person_name_1.displayName)(listing.senderName, '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 return `• <b>#${listing.id}</b> ${getRouteName(listing.route)}\n` +
                     `   📅 ${formatDate(listing.date)} · 🕐 ${time}\n` +
                     `   👤 ${author} · 🎫 ${seats}\n` +
@@ -3645,7 +3637,7 @@ function setupBotCommands() {
                         if (seenPassengerToDriver.has(key))
                             continue;
                         seenPassengerToDriver.add(key);
-                        const driverName = truncateForButton(match.listing.senderName ?? 'Водій');
+                        const driverName = truncateForButton((0, person_name_1.displayName)(match.listing.senderName, 'Водій'));
                         const shortPhone = formatShortPhoneForButton(match.listing.phone);
                         const timePart = match.listing.departureTime ?? '—';
                         inlineKeyboard.push([{
@@ -3674,7 +3666,7 @@ function setupBotCommands() {
                         if (seenDriverToPassenger.has(key))
                             continue;
                         seenDriverToPassenger.add(key);
-                        const passengerName = truncateForButton(match.listing.senderName ?? 'Пасажир');
+                        const passengerName = truncateForButton((0, person_name_1.displayName)(match.listing.senderName, 'Пасажир'));
                         const shortPhone = formatShortPhoneForButton(match.listing.phone);
                         inlineKeyboard.push([{
                                 text: `🤝 ${passengerName} · ${shortPhone}`,
@@ -3917,10 +3909,10 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (exactList.length > 0) {
                 const linesExact = exactList.map((p) => {
                     const time = p.departureTime ?? '—';
-                    return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+                    return `• 👤 ${(0, person_name_1.displayName)(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
                 }).join('\n');
                 const buttons = exactList.map((p) => ([
-                    { text: `🤝 ${truncateForButton(p.senderName ?? 'Пасажир')} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
+                    { text: `🤝 ${truncateForButton((0, person_name_1.displayName)(p.senderName, 'Пасажир'))} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
                 ]));
                 await bot?.sendMessage(chatId, `🎯 <b>Пряме співпадіння (±45 хв) для поїздки:</b> ${routeDateLabel}\n\n` + linesExact +
                     '\n\n_Натисніть кнопку — запит буде надісланий пасажиру на підтвердження (1 година)._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch((err) => console.error('mydriverrides: exact matches', err));
@@ -3928,14 +3920,14 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (approxList.length > 0) {
                 const linesApprox = approxList.map((p) => {
                     const time = p.departureTime ?? '—';
-                    return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+                    return `• 👤 ${(0, person_name_1.displayName)(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
                 }).join('\n');
                 await bot?.sendMessage(chatId, `📌 <b>Приблизне співпадіння (±2 год)</b> (поїздка: ${routeDateLabel})\n\n` + linesApprox, { parse_mode: 'HTML' }).catch((err) => console.error('mydriverrides: approx matches', err));
             }
             if (sameDayList.length > 0) {
                 const linesSameDay = sameDayList.map((p) => {
                     const time = p.departureTime ?? '—';
-                    return `• 👤 ${p.senderName ?? 'Пасажир'} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
+                    return `• 👤 ${(0, person_name_1.displayName)(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
                 }).join('\n');
                 await bot?.sendMessage(chatId, `🗓️ <b>Поїздки цього дня</b> (поїздка: ${routeDateLabel})\n\n` + linesSameDay, { parse_mode: 'HTML' }).catch((err) => console.error('mydriverrides: same day matches', err));
             }
@@ -3971,10 +3963,10 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (exactList.length > 0) {
                 const linesExact = exactList.map((d) => {
                     const time = d.departureTime ?? '—';
-                    return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+                    return `• 🚗 ${(0, person_name_1.displayName)(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
                 }).join('\n');
                 const buttons = exactList.map((d) => ([
-                    { text: `🎫 ${truncateForButton(d.senderName ?? 'Водій')} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
+                    { text: `🎫 ${truncateForButton((0, person_name_1.displayName)(d.senderName, 'Водій'))} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
                 ]));
                 await bot?.sendMessage(chatId, `🎯 <b>Пряме співпадіння (±45 хв) для вашого запиту:</b> ${routeDateLabel}\n\n` + linesExact +
                     '\n\n_Натисніть кнопку — запит буде надісланий водію на підтвердження (1 година)._', { parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch((err) => console.error('mypassengerrides: exact matches', err));
@@ -3982,14 +3974,14 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             if (approxList.length > 0) {
                 const linesApprox = approxList.map((d) => {
                     const time = d.departureTime ?? '—';
-                    return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+                    return `• 🚗 ${(0, person_name_1.displayName)(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
                 }).join('\n');
                 await bot?.sendMessage(chatId, `📌 <b>Приблизне співпадіння (±2 год)</b> (ваш запит: ${routeDateLabel})\n\n` + linesApprox, { parse_mode: 'HTML' }).catch((err) => console.error('mypassengerrides: approx matches', err));
             }
             if (sameDayList.length > 0) {
                 const linesSameDay = sameDayList.map((d) => {
                     const time = d.departureTime ?? '—';
-                    return `• 🚗 ${d.senderName ?? 'Водій'} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
+                    return `• 🚗 ${(0, person_name_1.displayName)(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
                 }).join('\n');
                 await bot?.sendMessage(chatId, `🗓️ <b>Поїздки цього дня</b> (ваш запит: ${routeDateLabel})\n\n` + linesSameDay, { parse_mode: 'HTML' }).catch((err) => console.error('mypassengerrides: same day matches', err));
             }
@@ -4034,15 +4026,15 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     let message = `📋 <b>Активних бронювань немає</b>\n\nАле знайдено ${finalAllBookings.length} минулих:\n\n`;
                     recentPast.forEach((booking, index) => {
                         const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
-                        message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${booking.name}\n`;
+                        message += `${index + 1}. 🎫 <b>#${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}\n`;
                         if (booking.viberListing)
-                            message += `   🚗 Водій: ${booking.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
+                            message += `   🚗 Водій: ${(0, person_name_1.displayName)(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
                         message += '\n';
                     });
                     if (driverFutureBookings.length > 0) {
                         message += `\n\n🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
                         driverFutureBookings.forEach((booking, index) => {
-                            message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+                            message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
                         });
                     }
                     message += `\n💡 Створіть нове бронювання:\n🎫 /book - через бота\n🌐 /allrides - всі активні попутки\n🌐 https://malin.kiev.ua`;
@@ -4052,7 +4044,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     let noBookingsMessage = `📋 <b>У вас поки немає бронювань</b>\n\n`;
                     if (driverFutureBookings.length > 0) {
                         driverFutureBookings.forEach((booking, index) => {
-                            noBookingsMessage += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+                            noBookingsMessage += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
                         });
                         noBookingsMessage += '\n';
                     }
@@ -4064,15 +4056,15 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             let message = `📋 <b>Ваші майбутні бронювання:</b>\n\n`;
             futureBookings.forEach((booking, index) => {
                 const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
-                message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${booking.name}\n`;
+                message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}\n`;
                 if (booking.viberListing)
-                    message += `   🚗 Водій: ${booking.viberListing.senderName ?? '—'}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
+                    message += `   🚗 Водій: ${(0, person_name_1.displayName)(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
                 message += '\n';
             });
             if (driverFutureBookings.length > 0) {
                 message += `\n🚗 <b>Забронювали у вас (як у водія):</b>\n\n`;
                 driverFutureBookings.forEach((booking, index) => {
-                    message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${booking.name}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
+                    message += `${index + 1}. 🎫 <b>#${booking.id}</b>\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 Пасажир: ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}, 📞 ${formatPhoneTelLink(booking.phone)}\n\n`;
                 });
             }
             message += `\n🔒 <i>Показано тільки ваші бронювання</i>`;
@@ -5374,7 +5366,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     inline_keyboard: [[{ text: '✅ Підтвердити поїздку (1 год)', callback_data: `vibermatch_confirm_passenger_${request.id}` }]],
                 };
                 await bot?.sendMessage(passengerChatId, `🎫 <b>Водій пропонує поїздку</b>\n\n` +
-                    `🚗 ${driverListing.senderName ?? 'Водій'} пропонує вам поїздку.\n\n` +
+                    `🚗 ${(0, person_name_1.displayName)(driverListing.senderName, 'Водій')} пропонує вам поїздку.\n\n` +
                     `🛣 ${getRouteName(driverListing.route)}\n` +
                     `📅 ${formatDate(driverListing.date)}\n` +
                     (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
@@ -5407,7 +5399,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     data: { passengerListingId, driverListingId, status: 'pending', expiresAt }
                 });
                 const driverChatId = await (0, exports.getChatIdByPhone)(driverListing.phone);
-                const passengerName = passengerListing.senderName ?? 'Пасажир';
+                const passengerName = (0, person_name_1.displayName)(passengerListing.senderName, 'Пасажир');
                 if (driverChatId) {
                     const confirmKeyboard = {
                         inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${request.id}` }]]
@@ -5505,7 +5497,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         `🛣 ${getRouteName(driverListing.route)}\n` +
                         `📅 ${formatDate(driverListing.date)}\n` +
                         (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
-                        `👤 Водій: ${driverListing.senderName ?? '—'}\n` +
+                        `👤 Водій: ${(0, person_name_1.displayName)(driverListing.senderName, '—')}\n` +
                         `📞 ${formatPhoneTelLink(driverListing.phone)}\n\n` +
                         `Поїздка з\'явиться у /mybookings.`, { parse_mode: 'HTML' }).catch(() => { });
                 }
@@ -5577,7 +5569,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         `🛣 ${getRouteName(driverListing.route)}\n` +
                         `📅 ${formatDate(driverListing.date)}\n` +
                         (driverListing.departureTime ? `🕐 ${driverListing.departureTime}\n` : '') +
-                        `👤 Пасажир: ${booking.name}\n` +
+                        `👤 Пасажир: ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}\n` +
                         `📞 ${formatPhoneTelLink(booking.phone)}\n\n` +
                         `Поїздка з'явиться у /mybookings.`, { parse_mode: 'HTML' }).catch(() => { });
                 }
@@ -5730,7 +5722,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     `📍 ${getRouteName(booking.route)}\n` +
                     `📅 ${formatDate(booking.date)} о ${booking.departureTime}\n` +
                     `🎫 Місць: ${booking.seats}\n` +
-                    `👤 ${booking.name}\n\n` +
+                    `👤 ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}\n\n` +
                     'Ви впевнені що хочете скасувати це бронювання?', {
                     chat_id: chatId,
                     message_id: messageId,
@@ -5770,7 +5762,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         if (driverChatId) {
                             await bot?.sendMessage(driverChatId, `🚫 <b>Пасажир скасував бронювання попутки</b>\n\n` +
                                 `🎫 №${bookingData.id}\n` +
-                                `👤 Пасажир: ${booking.name}\n` +
+                                `👤 Пасажир: ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}\n` +
                                 `📞 ${formatPhoneTelLink(booking.phone)}\n` +
                                 `🛣 ${getRouteName(bookingData.route)}\n` +
                                 `📅 ${formatDate(bookingData.date)}\n\n` +
@@ -6360,7 +6352,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
                         `🕐 <b>Час:</b> ${booking.departureTime}\n` +
                         `🎫 <b>Місць:</b> ${booking.seats}\n` +
-                        `👤 <b>Пасажир:</b> ${booking.name}` +
+                        `👤 <b>Пасажир:</b> ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}` +
                         supportPhoneLine +
                         '💡 Корисні команди:\n' +
                         '📋 /mybookings - Переглянути всі бронювання\n' +
@@ -6546,7 +6538,7 @@ async function executeBookViberRideShare(chatId, userId, driverListingId, passen
         data: { passengerListingId: passengerListing.id, driverListingId: driverListing.id, status: 'pending', expiresAt },
     });
     const driverChatId = await getChatIdForDriverListing(driverListing);
-    const passengerName = passengerListing.senderName ?? 'Пасажир';
+    const passengerName = (0, person_name_1.displayName)(passengerListing.senderName, 'Пасажир');
     if (driverChatId) {
         const confirmKeyboard = {
             inline_keyboard: [[{ text: '✅ Підтвердити бронювання (1 год)', callback_data: `vibermatch_confirm_${request.id}` }]],
