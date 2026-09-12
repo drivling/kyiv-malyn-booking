@@ -8,6 +8,7 @@ exports.buildListingShareMessageText = buildListingShareMessageText;
 exports.logInlineQueryHandled = logInlineQueryHandled;
 exports.handleInlineQuery = handleInlineQuery;
 exports.handleChosenInlineResult = handleChosenInlineResult;
+const person_name_1 = require("./person-name");
 const referral_1 = require("./referral");
 const inline_listings_1 = require("./inline-listings");
 exports.INLINE_QUERY_PREFIX = {
@@ -80,13 +81,14 @@ function buildListingShareMessageText(listing, botUsername, formatDate, getRoute
     const dateStr = formatDate(listing.date);
     const typeLabel = listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
     const bookLink = `https://t.me/${botUsername}?start=book_viber_${listing.id}`;
+    const author = (0, person_name_1.firstNameOnly)(listing.senderName);
     const lines = [
         `${typeLabel} · ${routeName}`,
         `📅 ${dateStr}`,
         listing.departureTime ? `🕐 ${listing.departureTime}` : null,
         listing.seats != null ? `🎫 ${listing.seats} місць` : null,
         listing.priceUah != null ? `💰 ${listing.priceUah} грн` : null,
-        listing.senderName ? `👤 ${listing.senderName}` : null,
+        author ? `👤 ${author}` : null,
         '',
         `Забронювати: ${bookLink}`,
         '🌐 https://malin.kiev.ua/mizhgorodski',
@@ -145,8 +147,8 @@ async function answerRidesInline(bot, queryId, kind, payload, ctx) {
         const typeEmoji = l.listingType === 'driver' ? '🚗' : '👤';
         const title = `${typeEmoji} ${routeName} · ${dateStr} ${time}`;
         const desc = l.listingType === 'driver'
-            ? `${l.senderName ?? 'Водій'} · ${l.seats ?? '—'} місць`
-            : `${l.senderName ?? 'Пасажир'}`;
+            ? `${(0, person_name_1.displayName)(l.senderName, 'Водій')} · ${l.seats ?? '—'} місць`
+            : (0, person_name_1.displayName)(l.senderName, 'Пасажир');
         return article(`ride_${l.id}`, title.slice(0, 64), desc, buildListingShareMessageText(l, ctx.botUsername, ctx.formatDate, ctx.getRouteName));
     });
     await bot.answerInlineQuery(queryId, results.slice(0, 20), {

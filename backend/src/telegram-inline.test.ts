@@ -85,4 +85,27 @@ describe('inline message builders', () => {
     assert.ok(text.includes('book_viber_7'));
     assert.ok(text.includes('test_bot'));
   });
+
+  it('listing share shows only the first name of the author', () => {
+    const text = buildListingShareMessageText(
+      {
+        id: 8,
+        listingType: 'passenger',
+        route: 'Kyiv-Malyn',
+        date: new Date('2026-08-10T12:00:00.000Z'),
+        departureTime: null,
+        seats: null,
+        phone: '380671234567',
+        senderName: 'Іван Петренко',
+        notes: null,
+        priceUah: null,
+        personId: 1,
+      },
+      'test_bot',
+      (d) => d.toISOString().slice(0, 10),
+      (r) => r
+    );
+    assert.ok(text.includes('👤 Іван'));
+    assert.equal(text.includes('Петренко'), false);
+  });
 });

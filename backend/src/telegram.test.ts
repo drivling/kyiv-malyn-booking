@@ -17,6 +17,7 @@ import {
   resetTelegramBotForTests,
   resetSpawnForTests,
   buildAuthorConfirmationSms,
+  buildMatchSms,
   buildViberListingConfirmationMessage,
   buildTripReminderSms,
   BEHAVIOR_PROMO_SCENARIO_LABELS,
@@ -69,6 +70,50 @@ test('buildTripReminderSms: домен за маршрутом бронюван�
     /korosten\.kiev\.ua$/,
   );
   assert.match(buildTripReminderSms({ ...base, route: 'Kyiv-Malyn' }, 'today'), /malin\.kiev\.ua$/);
+});
+
+test('buildTripReminderSms: водій лише за іменем', () => {
+  const text = buildTripReminderSms(
+    {
+      route: 'Kyiv-Malyn',
+      date: new Date('2026-09-11T12:00:00.000Z'),
+      departureTime: '05:00',
+      name: 'Тест',
+      driver: { senderName: 'Петро Іваненко', phone: '0679551952' },
+    },
+    'tomorrow',
+  );
+  assert.match(text, /Водій Петро, тел \+380679551952\./);
+  assert.equal(text.includes('Іваненко'), false);
+});
+
+test('buildMatchSms: у SMS про збіг лише ім’я попутника, без прізвища', () => {
+  const base = {
+    route: 'Kyiv-Malyn',
+    date: new Date('2026-09-11T12:00:00.000Z'),
+    departureTime: '07:30',
+    phone: '067 955 19 52',
+  };
+
+  const driver = buildMatchSms({ ...base, senderName: 'Іван Петренко' }, 'driver');
+  assert.match(driver, /^Попутка Київ → Малин 11\.09\.2026 07:30: є водій Іван, тел \+380679551952\. /);
+  assert.equal(driver.includes('Петренко'), false);
+  assert.match(driver, /https:\/\/malin\.kiev\.ua$/);
+
+  const passenger = buildMatchSms({ ...base, senderName: 'Олена Коваль Іванівна' }, 'passenger');
+  assert.match(passenger, /є пасажир Олена, тел \+380679551952\./);
+  assert.equal(passenger.includes('Коваль'), false);
+});
+
+test('buildMatchSms: без імені — узагальнене «Водій»/«Пасажир», без часу — без часу', () => {
+  const base = {
+    route: 'Kyiv-Malyn',
+    date: new Date('2026-09-11T12:00:00.000Z'),
+    departureTime: null,
+    phone: '0679551952',
+  };
+  assert.match(buildMatchSms({ ...base, senderName: null }, 'driver'), /11\.09\.2026: є водій Водій, тел/);
+  assert.match(buildMatchSms({ ...base, senderName: '  ' }, 'passenger'), /: є пасажир Пасажир, тел/);
 });
 
 test('buildAuthorConfirmationSms: компактний текст в одну SMS', () => {
@@ -194,6 +239,12 @@ test('buildBehaviorPromoMessage: усі сценарії містять поси
 test('buildBehaviorPromoMessage: привітання з іменем', () => {
   const text = buildBehaviorPromoMessage('driver_passengers', { fullName: '  Олена  ' });
   assert.ok(text.startsWith('Привіт, Олена!'));
+});
+
+test('buildBehaviorPromoMessage: у привітанні лише ім’я, без прізвища', () => {
+  const text = buildBehaviorPromoMessage('driver_passengers', { fullName: 'Олена Петренко' });
+  assert.ok(text.startsWith('Привіт, Олена!'));
+  assert.equal(text.includes('Петренко'), false);
 });
 
 test('buildBehaviorPromoMessage: коростенський маршрут веде на korosten.kiev.ua', () => {
