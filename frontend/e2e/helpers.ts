@@ -51,10 +51,13 @@ export async function mockBackendApi(page: Page) {
     if (method === 'GET' && path === '/transport/dataset') {
       return json(route, 200, {
         // Маршрут №2: Базар → Вокзал → Лікарня (обидва напрямки), сегменти 4 хв і 5 хв.
+        // Маршрут №3: Ринок (за ~20 м від Базару) → Лікарня → Парк — для підказки сусідніх зупинок.
         stops: [
           { id: 'st_a', name: 'Базар', lat: 50.77, lng: 29.24 },
           { id: 'st_b', name: 'Вокзал', lat: 50.78, lng: 29.25 },
           { id: 'st_c', name: 'Лікарня', lat: 50.79, lng: 29.26 },
+          { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 },
+          { id: 'st_e', name: 'Ринок', lat: 50.77015, lng: 29.24012 },
         ],
         routes: [
           {
@@ -66,11 +69,23 @@ export async function mockBackendApi(page: Page) {
             sourceUrl: '',
             schedule: null,
           },
+          {
+            id: '3',
+            fromName: 'Ринок',
+            toName: 'Парк',
+            scheme: 'city',
+            note: '',
+            sourceUrl: '',
+            schedule: null,
+          },
         ],
         routeStops: [
           { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 3, mapOnly: false },
           { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 2, mapOnly: false },
           { routeId: '2', stopId: 'st_c', orderThere: 3, orderBack: 1, mapOnly: false },
+          { routeId: '3', stopId: 'st_e', orderThere: 1, orderBack: 3, mapOnly: false },
+          { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 2, mapOnly: false },
+          { routeId: '3', stopId: 'st_d', orderThere: 3, orderBack: 1, mapOnly: false },
         ],
         trips: [
           {
@@ -91,10 +106,21 @@ export async function mockBackendApi(page: Page) {
             departureTime: '09:00:00',
             blockId: null,
           },
+          {
+            id: 't3',
+            routeId: '3',
+            serviceId: 'everyday',
+            headsign: 'Парк',
+            directionId: '1',
+            departureTime: '10:00:00',
+            blockId: null,
+          },
         ],
         segments: [
           { routeId: '2', fromStopId: 'st_a', toStopId: 'st_b', seconds: 240 },
           { routeId: '2', fromStopId: 'st_b', toStopId: 'st_c', seconds: 300 },
+          { routeId: '3', fromStopId: 'st_e', toStopId: 'st_c', seconds: 600 },
+          { routeId: '3', fromStopId: 'st_c', toStopId: 'st_d', seconds: 420 },
         ],
         meta: { defaultSec: 120, center: [50.768, 29.242] },
       });

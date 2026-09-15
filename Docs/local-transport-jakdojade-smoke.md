@@ -46,7 +46,8 @@ Goal: Jakdojade-like hierarchy — form → connection cards → map as stop pic
 - [ ] Typing in «З» with «До» set → hint «Оберіть зупинку зі списку», previous cards stay, no «немає прямого маршруту»; backspace to empty keeps «До» and URL; «×» → `/transport?to=…`
 - [ ] Click marker → **one** picker: bottom stop-sheet («Звідси» / «Сюди»); no radial overlay; no Leaflet popup actions
 - [ ] Terms everywhere **З / До** (map strip / sheet / labels; no «ПО»)
-- [ ] Geo button text «Поруч зі мною» (no emoji), error announced via `role="status"`; date is a native picker, chips «Зараз» / «Завтра» set d= (and h= for «Зараз»)
+- [ ] Geo button text «Поруч зі мною» (no emoji), error announced via `role="status"`; date/time collapsed to «Сьогодні, 09:12 · Змінити» — the panel opens a native date picker, time and chips «Зараз» / «Завтра» (d=, and h= for «Зараз»)
+- [ ] No direct route → «Поруч є зупинки з прямим маршрутом» with up to 3 neighbours (≤400 m); click applies the pair and the URL follows
 - [ ] ⇅ in form and map strip stay in sync (swap З/До) and the URL follows the swap
 
 ### Mobile (≤767, DevTools iPhone)

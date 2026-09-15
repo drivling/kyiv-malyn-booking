@@ -27,6 +27,7 @@ import { routeLine, routeTitle } from './routeLabel';
 import { dateUrlToIso, formatDateUrl, isoToDateUrl, nowClock, parseDateUrl, todayDateUrl, tomorrowDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
+import { findNearbyAlternatives, haversineDistance } from './nearbyAlternatives';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
@@ -58,24 +59,6 @@ const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
     a: 'Тут — місцевий транспорт Малина (зупинки в місті). Міжміські попутки й маршрутки Київ / Житомир / Коростень — на /mizhgorodski.',
   },
 ];
-
-function haversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 /** Зі списку зупинок повертає id найближчої до targetKey за координатами (або першу з списку) */
 function findNearestStopInList(
@@ -397,6 +380,8 @@ export const LocalTransportPage: React.FC = () => {
   const searchCardRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [isSwapAnimating, setIsSwapAnimating] = useState(false);
+  /** Рядок дати/часу згорнутий у «Сьогодні, 09:12 · Змінити»; розгортається на вимогу */
+  const [dateTimeOpen, setDateTimeOpen] = useState(false);
   /** Оновлення «через N хв» раз на хвилину (київський час), як на табло */
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
@@ -406,6 +391,8 @@ export const LocalTransportPage: React.FC = () => {
   const kyivNowMins = useMemo(() => getKyivMinutesNow(), [nowTick]);
   /** 0 — дата пошуку сьогодні (за Києвом), 1 — завтра …; відлік показуємо лише для сьогодні */
   const travelDayOffset = useMemo(() => searchDateKyivOffsetDays(searchDate), [searchDate]);
+  const dateSummaryLabel =
+    searchDate === todayDateUrl() ? 'Сьогодні' : searchDate === tomorrowDateUrl() ? 'Завтра' : searchDate || 'дата не вибрана';
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
@@ -622,17 +609,34 @@ export const LocalTransportPage: React.FC = () => {
     [committedPair, stopsCatalog]
   );
 
+  /** Прямі маршрути між двома зупинками (обидві на маршруті і в одному напрямку) */
+  const directRoutesBetween = useCallback(
+    (from: string, to: string) =>
+      routes.filter((r) => {
+        const hasFrom = routeHasStop(r.id, from, r, stopsByRoute, stopsCatalog);
+        const hasTo = routeHasStop(r.id, to, r, stopsByRoute, stopsCatalog);
+        if (!hasFrom || !hasTo) return false;
+        return getImpliedDirection(from, to, stopsByRoute, r.id) != null;
+      }),
+    [routes, stopsByRoute, stopsCatalog]
+  );
+
   const routesConnectingFromTo = useMemo(() => {
     if (!committedPair || !stops.length) return [];
-    const { from: fromMatch, to: toMatch } = committedPair;
-    return routes.filter((r) => {
-      const hasFrom = routeHasStop(r.id, fromMatch, r, stopsByRoute, stopsCatalog);
-      const hasTo = routeHasStop(r.id, toMatch, r, stopsByRoute, stopsCatalog);
-      if (!hasFrom || !hasTo) return false;
-      const dir = getImpliedDirection(fromMatch, toMatch, stopsByRoute, r.id);
-      return dir != null;
+    return directRoutesBetween(committedPair.from, committedPair.to);
+  }, [directRoutesBetween, stops, committedPair]);
+
+  /** «Немає прямого маршруту»: сусідні зупинки (до 400 м), між якими прямий маршрут є */
+  const nearbyAlternatives = useMemo(() => {
+    if (!committedPair || routesConnectingFromTo.length > 0 || !stopsCoords) return [];
+    return findNearbyAlternatives({
+      from: committedPair.from,
+      to: committedPair.to,
+      stopIds: stops,
+      coords: stopsCoords,
+      directRouteIds: (a, b) => directRoutesBetween(a, b).map((r) => r.id),
     });
-  }, [routes, stopsByRoute, stops, stopsCatalog, committedPair]);
+  }, [committedPair, routesConnectingFromTo, stopsCoords, stops, directRoutesBetween]);
 
   // Аналітика: кожна резолвнута пара — один «пошук»; порожня видача — окрема подія.
   // Без PII: лише id зупинок і кількість прямих маршрутів.
@@ -640,8 +644,10 @@ export const LocalTransportPage: React.FC = () => {
     if (!isMainPage || !committedPair) return;
     const params = { from: committedPair.from, to: committedPair.to, direct_routes: routesConnectingFromTo.length };
     gaTrackEvent('transport_search', params);
-    if (routesConnectingFromTo.length === 0) gaTrackEvent('transport_no_route', { from: params.from, to: params.to });
-  }, [isMainPage, committedPair, routesConnectingFromTo]);
+    if (routesConnectingFromTo.length === 0) {
+      gaTrackEvent('transport_no_route', { from: params.from, to: params.to, nearby: nearbyAlternatives.length });
+    }
+  }, [isMainPage, committedPair, routesConnectingFromTo, nearbyAlternatives]);
 
   useEffect(() => {
     if (!isMainPage || !stops.length) return;
@@ -1950,31 +1956,74 @@ export const LocalTransportPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="lt-datetime-row">
-                  <div className="lt-datetime-field">
-                    <label className="lt-datetime-label" htmlFor="lt-search-date">
-                      Дата
-                    </label>
-                    <input
-                      id="lt-search-date"
-                      type="date"
-                      className="lt-datetime-input"
-                      value={dateUrlToIso(searchDate)}
-                      onChange={(e) => setSearchDate(e.target.value ? isoToDateUrl(e.target.value) : '')}
-                    />
+                <div className="lt-datetime-summary">
+                  <span className="lt-datetime-summary-text">
+                    {dateSummaryLabel}, {searchTime || '—'}
+                  </span>
+                  <button
+                    type="button"
+                    className="lt-chip lt-datetime-toggle"
+                    aria-expanded={dateTimeOpen}
+                    aria-controls="lt-datetime-panel"
+                    onClick={() => setDateTimeOpen((o) => !o)}
+                  >
+                    {dateTimeOpen ? 'Згорнути' : 'Змінити'}
+                  </button>
+                </div>
+                {dateTimeOpen && (
+                  <div className="lt-datetime-row" id="lt-datetime-panel">
+                    <div className="lt-datetime-field">
+                      <label className="lt-datetime-label" htmlFor="lt-search-date">
+                        Дата
+                      </label>
+                      <input
+                        id="lt-search-date"
+                        type="date"
+                        className="lt-datetime-input"
+                        value={dateUrlToIso(searchDate)}
+                        onChange={(e) => setSearchDate(e.target.value ? isoToDateUrl(e.target.value) : '')}
+                      />
+                    </div>
+                    <div className="lt-datetime-field">
+                      <label className="lt-datetime-label" htmlFor="lt-search-time">
+                        Час
+                      </label>
+                      <input
+                        id="lt-search-time"
+                        type="time"
+                        className="lt-datetime-input"
+                        value={searchTime}
+                        onChange={(e) => setSearchTime(e.target.value)}
+                      />
+                    </div>
+                    <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
+                      <button
+                        type="button"
+                        className="lt-chip"
+                        aria-pressed={searchDate === todayDateUrl()}
+                        onClick={() => {
+                          gaTrackEvent('transport_date_chip', { chip: 'now' });
+                          setSearchDate(todayDateUrl());
+                          setSearchTime(nowClock());
+                        }}
+                      >
+                        Зараз
+                      </button>
+                      <button
+                        type="button"
+                        className="lt-chip"
+                        aria-pressed={searchDate === tomorrowDateUrl()}
+                        onClick={() => {
+                          gaTrackEvent('transport_date_chip', { chip: 'tomorrow' });
+                          setSearchDate(tomorrowDateUrl());
+                        }}
+                      >
+                        Завтра
+                      </button>
+                    </div>
                   </div>
-                  <div className="lt-datetime-field">
-                    <label className="lt-datetime-label" htmlFor="lt-search-time">
-                      Час
-                    </label>
-                    <input
-                      id="lt-search-time"
-                      type="time"
-                      className="lt-datetime-input"
-                      value={searchTime}
-                      onChange={(e) => setSearchTime(e.target.value)}
-                    />
-                  </div>
+                )}
+                <div className="lt-search-actions">
                   <button
                     type="button"
                     className="lt-search-btn"
@@ -1985,31 +2034,6 @@ export const LocalTransportPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="lt-search-extra">
-                  <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
-                    <button
-                      type="button"
-                      className="lt-chip"
-                      aria-pressed={searchDate === todayDateUrl()}
-                      onClick={() => {
-                        gaTrackEvent('transport_date_chip', { chip: 'now' });
-                        setSearchDate(todayDateUrl());
-                        setSearchTime(nowClock());
-                      }}
-                    >
-                      Зараз
-                    </button>
-                    <button
-                      type="button"
-                      className="lt-chip"
-                      aria-pressed={searchDate === tomorrowDateUrl()}
-                      onClick={() => {
-                        gaTrackEvent('transport_date_chip', { chip: 'tomorrow' });
-                        setSearchDate(tomorrowDateUrl());
-                      }}
-                    >
-                      Завтра
-                    </button>
-                  </div>
                   <button
                     type="button"
                     className="lt-geo-btn lt-geo-btn--small"
@@ -2089,9 +2113,51 @@ export const LocalTransportPage: React.FC = () => {
                 )
               ) : routesConnectingFromTo.length === 0 ? (
                 <div className="lt-no-routes" role="status">
-                  <p>
-                    Між цими зупинками немає прямого маршруту. Спробуйте інші зупинки на карті або
-                    відкрийте{' '}
+                  <p>Між цими зупинками немає прямого маршруту.</p>
+                  {nearbyAlternatives.length > 0 && (
+                    <div className="lt-nearby">
+                      <p className="lt-nearby-title">Поруч є зупинки з прямим маршрутом:</p>
+                      <ul className="lt-nearby-list">
+                        {nearbyAlternatives.map((alt) => {
+                          const walkFrom =
+                            alt.changed === 'from'
+                              ? displayNameForStopKey(committedPair.from, stopsCatalog)
+                              : alt.changed === 'to'
+                                ? displayNameForStopKey(committedPair.to, stopsCatalog)
+                                : null;
+                          const walk = walkFrom ? `${alt.walkMeters} м від «${walkFrom}»` : `${alt.walkMeters} м пішки разом`;
+                          return (
+                            <li key={`${alt.from}-${alt.to}`}>
+                              <button
+                                type="button"
+                                className="lt-nearby-item"
+                                onClick={() => {
+                                  gaTrackEvent('transport_nearby_pick', {
+                                    from: alt.from,
+                                    to: alt.to,
+                                    changed: alt.changed,
+                                    walk_m: alt.walkMeters,
+                                  });
+                                  // Стан → автосинхронізація URL → нова видача
+                                  setSearchFrom(alt.from);
+                                  setSearchTo(alt.to);
+                                }}
+                              >
+                                <span className="lt-nearby-pair">
+                                  {displayNameForStopKey(alt.from, stopsCatalog)} → {displayNameForStopKey(alt.to, stopsCatalog)}
+                                </span>
+                                <span className="lt-nearby-meta">
+                                  {walk} · №{alt.routeIds.join(', №')}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="lt-no-routes-hint">
+                    Спробуйте інші зупинки на карті або відкрийте{' '}
                     <Link to={`/transport/stop?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}>
                       табло зупинки
                     </Link>
