@@ -1284,6 +1284,54 @@
   gap: 8px;
 }
 
+/* Чіпи «Зараз» / «Завтра» — швидкий вибір дати без пікера. */
+.lt-datetime-chips {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.lt-chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-family: inherit;
+  font-size: var(--lt-fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.lt-chip:hover {
+  border-color: var(--lt-accent);
+  color: var(--lt-accent);
+}
+
+.lt-chip[aria-pressed='true'] {
+  border-color: var(--lt-accent);
+  background: rgba(0, 175, 245, 0.12);
+}
+
+.lt-page .lt-chip:focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: 2px;
+}
+
+.lt-layout-dark .lt-panel .lt-chip {
+  background: #fff;
+  color: var(--lt-panel-text);
+  border-color: var(--lt-panel-border);
+}
+
+.lt-layout-dark .lt-panel .lt-chip[aria-pressed='true'] {
+  border-color: var(--lt-accent);
+  box-shadow: inset 0 0 0 1px var(--lt-accent);
+}
+
 .lt-datetime-hint {
   margin: 4px 0 0;
   font-size: var(--lt-fs-xs);

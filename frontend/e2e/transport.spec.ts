@@ -77,4 +77,21 @@ test.describe('transport', () => {
     await page.getByRole('link', { name: 'Зупинка (табло)' }).click();
     await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
   });
+
+  test('date is a native picker; «Завтра» chip updates d= in the URL', async ({ page }) => {
+    // Дата навмисно далеко від сьогодні, щоб чіп не був натиснутий від початку.
+    await page.goto('/transport/st_a/st_b?d=01.03.26&h=09%3A12');
+    const date = page.getByLabel('Дата');
+    await expect(date).toHaveAttribute('type', 'date');
+    await expect(date).toHaveValue('2026-03-01');
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dd = String(tomorrow.getDate()).padStart(2, '0');
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const yy = String(tomorrow.getFullYear()).slice(-2);
+    await page.getByRole('button', { name: 'Завтра' }).click();
+    await expect(page).toHaveURL(new RegExp(`d=${dd}\\.${mm}\\.${yy}&h=`));
+    await expect(page.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
+  });
 });

@@ -10,6 +10,7 @@ import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from '../TransportPage/useTransportDataset';
+import { dateUrlToIso, todayDateUrl, tomorrowDateUrl } from './dateUrl';
 import { LocalTransportPage } from './LocalTransportPage';
 
 vi.mock('./RouteMap', () => ({ RouteMap: () => <div data-testid="route-map" /> }));
@@ -211,5 +212,44 @@ describe('LocalTransportPage planner: URL follows the form', () => {
     expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' }).getAttribute('href')).toMatch(
       /^\/transport\/stop\/st_a\?/
     );
+  });
+});
+
+describe('LocalTransportPage planner: date and time', () => {
+  it('the date field is a native date input bound to d=DD.MM.YY', async () => {
+    await openPair();
+    const date = screen.getByLabelText('Дата') as HTMLInputElement;
+    expect(date.type).toBe('date');
+    expect(date.value).toBe('2026-09-16');
+    expect(screen.queryByText(/Формат: ДД\.ММ\.РР/)).not.toBeInTheDocument();
+  });
+
+  // Дата в URL навмисно далеко від сьогодні, щоб чіпи не були натиснуті від початку.
+  const FAR_URL = '/transport/st_a/st_b?d=01.03.26&h=09%3A12';
+
+  it('«Завтра» sets tomorrow and the URL follows', async () => {
+    const user = userEvent.setup();
+    renderPlanner(FAR_URL);
+    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    const tomorrow = tomorrowDateUrl();
+    const chip = screen.getByRole('button', { name: 'Завтра' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    await user.click(chip);
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(location()).toBe(`/transport/st_a/st_b?d=${tomorrow}&h=09%3A12`), { timeout: 3000 });
+    expect((screen.getByLabelText('Дата') as HTMLInputElement).value).toBe(dateUrlToIso(tomorrow));
+  });
+
+  it('«Зараз» resets to today and the current time', async () => {
+    const user = userEvent.setup();
+    renderPlanner(FAR_URL);
+    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    const chip = screen.getByRole('button', { name: 'Зараз' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    await user.click(chip);
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    const time = screen.getByLabelText('Час') as HTMLInputElement;
+    expect(time.value).toMatch(/^\d{2}:\d{2}$/);
+    await waitFor(() => expect(location()).toContain(`/transport/st_a/st_b?d=${todayDateUrl()}&h=`), { timeout: 3000 });
   });
 });

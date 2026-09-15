@@ -22,6 +22,8 @@ import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { routeLine, routeTitle } from './routeLabel';
+import { dateUrlToIso, formatDateUrl, isoToDateUrl, nowClock, parseDateUrl, todayDateUrl, tomorrowDateUrl } from './dateUrl';
+import { getKyivMinutesNow } from './kyivTime';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
@@ -227,17 +229,6 @@ function formatDurationMinutes(minutes: number): string {
   return s === 0 ? `${m} хв` : `${m} хв ${s} сек`;
 }
 
-/** Поточний час у Києві (хвилини з півночі) */
-function getKyivMinutesNow(): number {
-  const str = new Date().toLocaleTimeString('en-GB', {
-    timeZone: 'Europe/Kyiv',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const [h, m] = str.split(':').map(Number);
-  return h * 60 + m;
-}
-
 /** Контекст «на зупинці»: час рейсу рахується на fromStop, рейс має обслуговувати пару З→До */
 type NearestTripAt = {
   routeId: string;
@@ -395,23 +386,6 @@ export function buildStopRouteQrUrl(
   return `${path}?${params.toString()}`;
 }
 
-/** Формат дати для URL як у Jakdojade: DD.MM.YY */
-function formatDateUrl(date: Date): string {
-  const d = date.getDate();
-  const m = date.getMonth() + 1;
-  const y = String(date.getFullYear()).slice(-2);
-  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}.${y}`;
-}
-
-function parseDateUrl(s: string): Date | null {
-  const m = s?.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (!m) return null;
-  const [, day, month, year] = m;
-  const y = year.length === 2 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
-  const d = new Date(y, parseInt(month, 10) - 1, parseInt(day, 10));
-  return isNaN(d.getTime()) ? null : d;
-}
-
 export const LocalTransportPage: React.FC = () => {
   const { routeId, fromStop: fromPath, toStop: toPath } = useParams<{
     routeId?: string;
@@ -451,11 +425,8 @@ export const LocalTransportPage: React.FC = () => {
   // Остання пара резолвнутих зупинок: від неї рахуються результати, щоб набір тексту в полі
   // не блимав «немає прямого маршруту».
   const [committedPair, setCommittedPair] = useState<{ from: string; to: string } | null>(null);
-  const [searchDate, setSearchDate] = useState<string>(() => formatDateUrl(new Date()));
-  const [searchTime, setSearchTime] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-  });
+  const [searchDate, setSearchDate] = useState<string>(() => todayDateUrl());
+  const [searchTime, setSearchTime] = useState<string>(() => nowClock());
   const [stopsDirection, setStopsDirection] = useState<'there' | 'back'>('there');
   const [selectedTripTime, setSelectedTripTime] = useState<number | null>(null);
   const [selectedTripDirection, setSelectedTripDirection] = useState<'there' | 'back' | null>(null);
@@ -1996,23 +1967,11 @@ export const LocalTransportPage: React.FC = () => {
                     </label>
                     <input
                       id="lt-search-date"
-                      type="text"
-                      className={`lt-datetime-input${searchDate && !parseDateUrl(searchDate) ? ' lt-datetime-input--invalid' : ''}`}
-                      value={searchDate}
-                      onChange={(e) => setSearchDate(e.target.value)}
-                      placeholder="ДД.ММ.РР"
-                      maxLength={8}
-                      inputMode="numeric"
-                      pattern="\d{1,2}\.\d{1,2}\.\d{2}"
-                      autoComplete="off"
-                      aria-invalid={Boolean(searchDate && !parseDateUrl(searchDate))}
-                      aria-describedby={searchDate && !parseDateUrl(searchDate) ? 'lt-search-date-hint' : undefined}
+                      type="date"
+                      className="lt-datetime-input"
+                      value={dateUrlToIso(searchDate)}
+                      onChange={(e) => setSearchDate(e.target.value ? isoToDateUrl(e.target.value) : '')}
                     />
-                    {searchDate && !parseDateUrl(searchDate) ? (
-                      <p id="lt-search-date-hint" className="lt-datetime-hint">
-                        Формат: ДД.ММ.РР
-                      </p>
-                    ) : null}
                   </div>
                   <div className="lt-datetime-field">
                     <label className="lt-datetime-label" htmlFor="lt-search-time">
@@ -2036,6 +1995,27 @@ export const LocalTransportPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="lt-search-extra">
+                  <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
+                    <button
+                      type="button"
+                      className="lt-chip"
+                      aria-pressed={searchDate === todayDateUrl()}
+                      onClick={() => {
+                        setSearchDate(todayDateUrl());
+                        setSearchTime(nowClock());
+                      }}
+                    >
+                      Зараз
+                    </button>
+                    <button
+                      type="button"
+                      className="lt-chip"
+                      aria-pressed={searchDate === tomorrowDateUrl()}
+                      onClick={() => setSearchDate(tomorrowDateUrl())}
+                    >
+                      Завтра
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="lt-geo-btn lt-geo-btn--small"
