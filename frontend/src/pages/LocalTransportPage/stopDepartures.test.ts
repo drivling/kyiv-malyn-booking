@@ -2,7 +2,7 @@
  * Unit tests for the stop board: which trips appear at a stop and at what time.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
+import { buildRoutesFromData, buildStopDepartures, formatMinsClock, tripDestination } from './stopDepartures';
 import { configureSegmentDurations } from './segmentDurations';
 import type { RouteStopWithOrder, TransportData, TransportRecord } from './types';
 
@@ -101,5 +101,26 @@ describe('buildStopDepartures', () => {
     const routes = buildRoutesFromData(data([plate, full, later, r1]));
     const rows = buildStopDepartures('st_b', routes, stopsByRoute, catalog);
     expect(rows.map((r) => `${r.routeId}@${formatMinsClock(r.departureMins)}`)).toEqual(['2@05:33', '1@06:03', '2@06:03']); // рівний час → менший номер маршруту першим
+  });
+});
+
+describe('tripDestination', () => {
+  const route = { from: 'А', to: 'Г' };
+
+  it('headsign має пріоритет', () => {
+    expect(tripDestination({ trip_headsign: 'Лікарня', end_stop_id: 'st_b' }, 'there', route, catalog)).toBe('Лікарня');
+  });
+
+  it('без headsign — назва кінцевої зупинки рейсу (скорочений рейс)', () => {
+    expect(tripDestination({ trip_headsign: '', end_stop_id: 'st_b' }, 'there', route, catalog)).toBe('Б');
+  });
+
+  it('далі — кінець маршруту за напрямком', () => {
+    expect(tripDestination({ trip_headsign: '', end_stop_id: null }, 'there', route, catalog)).toBe('Г');
+    expect(tripDestination({ trip_headsign: '  ', end_stop_id: null }, 'back', route, catalog)).toBe('А');
+  });
+
+  it('нічого не відомо — «—»', () => {
+    expect(tripDestination({ trip_headsign: '', end_stop_id: 'st_unknown' }, 'there', { from: null, to: null }, catalog)).toBe('—');
   });
 });

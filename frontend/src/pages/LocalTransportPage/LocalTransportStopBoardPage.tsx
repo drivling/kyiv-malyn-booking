@@ -7,6 +7,8 @@ import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './sto
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
+import { formatDateUrl, parseDateUrl } from './dateUrl';
+import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { hiddenTransportRouteIds } from '@/api/transportDataset';
@@ -27,22 +29,6 @@ const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
     a: 'Табло показує всі рейси з однієї зупинки. Планер /transport шукає прямі маршрути між двома зупинками.',
   },
 ];
-
-function formatDateUrl(date: Date): string {
-  const d = date.getDate();
-  const m = date.getMonth() + 1;
-  const y = String(date.getFullYear()).slice(-2);
-  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}.${y}`;
-}
-
-function parseDateUrl(s: string): Date | null {
-  const m = s?.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (!m) return null;
-  const [, day, month, year] = m;
-  const y = year.length === 2 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
-  const d = new Date(y, parseInt(month, 10) - 1, parseInt(day, 10));
-  return isNaN(d.getTime()) ? null : d;
-}
 
 /**
  * Браузерний `<input type="time">`: HH:mm:ss; Safari/локалі — крапка замість двокрапки; Unicode.
@@ -81,47 +67,9 @@ function parseClockToMins(s: string): number {
   return 0;
 }
 
-/** Поточний час у Києві (хвилини від півночі) — як у LocalTransportPage */
-function getKyivMinutesNow(): number {
-  const str = new Date().toLocaleTimeString('en-GB', {
-    timeZone: 'Europe/Kyiv',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const [h, m] = str.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function getKyivCalendarDate(): { d: number; m: number; y: number } {
-  const s = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Kyiv',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-  const [y, mo, d] = s.split('-').map((x) => parseInt(x, 10));
-  return { d, m: mo, y };
-}
-
 /** Час відправлення зі зупинки в хвилинах від півночі (цілі хв — дроби лише в сирих даних). */
 function roundedDepartureMins(mins: number): number {
   return Math.round(mins);
-}
-
-/**
- * Скільки календарних днів між обраною датою поїздки (поле «Дата») і сьогодні за Києвом.
- * 0 — сьогодні, 1 — завтра, -1 — вчора; null — некоректний формат.
- */
-function searchDateKyivOffsetDays(searchDateStr: string): number | null {
-  const m = searchDateStr?.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (!m) return null;
-  const day = parseInt(m[1], 10);
-  const month = parseInt(m[2], 10);
-  const year = m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10);
-  const k = getKyivCalendarDate();
-  const msSearch = Date.UTC(year, month - 1, day, 12, 0, 0);
-  const msKyiv = Date.UTC(k.y, k.m - 1, k.d, 12, 0, 0);
-  return Math.round((msSearch - msKyiv) / 86400000);
 }
 
 export const LocalTransportStopBoardPage: React.FC = () => {

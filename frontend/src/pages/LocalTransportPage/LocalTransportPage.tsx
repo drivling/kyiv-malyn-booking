@@ -15,13 +15,17 @@ import {
 } from './stopCatalog';
 import { isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
 import { computeTripTiming, minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
-import { tripDepartureMinutes, sortTripsByDeparture, parseClockToMinutes } from './tripDeparture';
+import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
+import { findNearestTrip } from './nearestTrip';
+import { tripDestination } from './stopDepartures';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { routeLine, routeTitle } from './routeLabel';
+import { dateUrlToIso, formatDateUrl, isoToDateUrl, nowClock, parseDateUrl, todayDateUrl, tomorrowDateUrl } from './dateUrl';
+import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
@@ -196,16 +200,6 @@ function routeHasStop(
   });
 }
 
-function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
-  const dir0 = trips.filter((t) => t.direction_id === '0').sort(sortByTime);
-  const dir1 = trips.filter((t) => t.direction_id === '1').sort(sortByTime);
-  return { dir0, dir1 };
-}
-
-function sortByTime(a: TransportRecord, b: TransportRecord): number {
-  return sortTripsByDeparture(a, b);
-}
-
 function getFirstTripTime(trips: TransportRecord[]): number {
   const times = trips.map((t) => tripDepartureMinutes(t)).filter((t) => t > 0);
   return times.length > 0 ? Math.min(...times) : 7 * 60; // 7:00 за замовчуванням
@@ -227,65 +221,12 @@ function formatDurationMinutes(minutes: number): string {
   return s === 0 ? `${m} хв` : `${m} хв ${s} сек`;
 }
 
-/** Поточний час у Києві (хвилини з півночі) */
-function getKyivMinutesNow(): number {
-  const str = new Date().toLocaleTimeString('en-GB', {
-    timeZone: 'Europe/Kyiv',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const [h, m] = str.split(':').map(Number);
-  return h * 60 + m;
-}
-
-/** Контекст «на зупинці»: час рейсу рахується на fromStop, рейс має обслуговувати пару З→До */
-type NearestTripAt = {
-  routeId: string;
-  chainKeys: { there: string[]; back: string[] };
-  fromStop: string;
-  toStop?: string;
-};
-
-type NearestTrip = { time: number; timeAtFrom: number; direction: 'there' | 'back' };
-
-/**
- * Найближчий рейс за часом. Без `at` — за відправленням з кінцевої; з `at` — за часом на зупинці
- * fromStop (з урахуванням start/end/arrival рейсу). Якщо пізно — показуємо перший рейс зранку.
- */
-function findNearestTrip(
-  trips: TransportRecord[],
-  nowMins: number,
-  directionFilter?: 'there' | 'back',
-  at?: NearestTripAt
-): NearestTrip | null {
-  const { dir0, dir1 } = groupTripsByDirection(trips);
-  const candidates = (list: TransportRecord[], dir: 'there' | 'back') =>
-    list
-      .map((t): { time: number; timeAtFrom: number } | null => {
-        const base = tripDepartureMinutes(t);
-        if (base <= 0) return null;
-        if (!at) return { time: base, timeAtFrom: base };
-        const timing = recordTiming(at.routeId, at.chainKeys[dir], t);
-        if (at.toStop ? !tripServesPair(timing, at.fromStop, at.toStop) : minutesAtStop(timing, at.fromStop) == null) {
-          return null;
-        }
-        const m = minutesAtStop(timing, at.fromStop);
-        return m == null ? null : { time: base, timeAtFrom: m };
-      })
-      .filter((c): c is { time: number; timeAtFrom: number } => c != null)
-      .sort((a, b) => a.timeAtFrom - b.timeAtFrom);
-  // Якщо майбутніх немає — беремо перший зранку
-  const pick = (list: Array<{ time: number; timeAtFrom: number }>) =>
-    list.find((c) => c.timeAtFrom >= nowMins) ?? list[0] ?? null;
-  const next0 = directionFilter === 'there' ? null : pick(candidates(dir0, 'back'));
-  const next1 = directionFilter === 'back' ? null : pick(candidates(dir1, 'there'));
-  if (next0 == null && next1 == null) return null;
-  if (next0 == null) return { ...next1!, direction: 'there' };
-  if (next1 == null) return { ...next0, direction: 'back' };
-  // Хто ближчий за часом (якщо обидва в минулому — хто перший зранку)
-  const dist0 = (next0.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
-  const dist1 = (next1.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
-  return dist1 <= dist0 ? { ...next1, direction: 'there' } : { ...next0, direction: 'back' };
+/** «12 хв», «1 год 5 хв» — підпис відліку до відправлення (як на табло) */
+function formatWait(mins: number): string {
+  if (mins < 60) return `${mins} хв`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h} год ${m} хв` : `${h} год`;
 }
 
 /** Визначити напрямок (there/back) за парою З→До з порядку зупинок */
@@ -395,23 +336,6 @@ export function buildStopRouteQrUrl(
   return `${path}?${params.toString()}`;
 }
 
-/** Формат дати для URL як у Jakdojade: DD.MM.YY */
-function formatDateUrl(date: Date): string {
-  const d = date.getDate();
-  const m = date.getMonth() + 1;
-  const y = String(date.getFullYear()).slice(-2);
-  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}.${y}`;
-}
-
-function parseDateUrl(s: string): Date | null {
-  const m = s?.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if (!m) return null;
-  const [, day, month, year] = m;
-  const y = year.length === 2 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
-  const d = new Date(y, parseInt(month, 10) - 1, parseInt(day, 10));
-  return isNaN(d.getTime()) ? null : d;
-}
-
 export const LocalTransportPage: React.FC = () => {
   const { routeId, fromStop: fromPath, toStop: toPath } = useParams<{
     routeId?: string;
@@ -451,11 +375,8 @@ export const LocalTransportPage: React.FC = () => {
   // Остання пара резолвнутих зупинок: від неї рахуються результати, щоб набір тексту в полі
   // не блимав «немає прямого маршруту».
   const [committedPair, setCommittedPair] = useState<{ from: string; to: string } | null>(null);
-  const [searchDate, setSearchDate] = useState<string>(() => formatDateUrl(new Date()));
-  const [searchTime, setSearchTime] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-  });
+  const [searchDate, setSearchDate] = useState<string>(() => todayDateUrl());
+  const [searchTime, setSearchTime] = useState<string>(() => nowClock());
   const [stopsDirection, setStopsDirection] = useState<'there' | 'back'>('there');
   const [selectedTripTime, setSelectedTripTime] = useState<number | null>(null);
   const [selectedTripDirection, setSelectedTripDirection] = useState<'there' | 'back' | null>(null);
@@ -475,6 +396,15 @@ export const LocalTransportPage: React.FC = () => {
   const searchCardRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [isSwapAnimating, setIsSwapAnimating] = useState(false);
+  /** Оновлення «через N хв» раз на хвилину (київський час), як на табло */
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const kyivNowMins = useMemo(() => getKyivMinutesNow(), [nowTick]);
+  /** 0 — дата пошуку сьогодні (за Києвом), 1 — завтра …; відлік показуємо лише для сьогодні */
+  const travelDayOffset = useMemo(() => searchDateKyivOffsetDays(searchDate), [searchDate]);
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
@@ -1996,23 +1926,11 @@ export const LocalTransportPage: React.FC = () => {
                     </label>
                     <input
                       id="lt-search-date"
-                      type="text"
-                      className={`lt-datetime-input${searchDate && !parseDateUrl(searchDate) ? ' lt-datetime-input--invalid' : ''}`}
-                      value={searchDate}
-                      onChange={(e) => setSearchDate(e.target.value)}
-                      placeholder="ДД.ММ.РР"
-                      maxLength={8}
-                      inputMode="numeric"
-                      pattern="\d{1,2}\.\d{1,2}\.\d{2}"
-                      autoComplete="off"
-                      aria-invalid={Boolean(searchDate && !parseDateUrl(searchDate))}
-                      aria-describedby={searchDate && !parseDateUrl(searchDate) ? 'lt-search-date-hint' : undefined}
+                      type="date"
+                      className="lt-datetime-input"
+                      value={dateUrlToIso(searchDate)}
+                      onChange={(e) => setSearchDate(e.target.value ? isoToDateUrl(e.target.value) : '')}
                     />
-                    {searchDate && !parseDateUrl(searchDate) ? (
-                      <p id="lt-search-date-hint" className="lt-datetime-hint">
-                        Формат: ДД.ММ.РР
-                      </p>
-                    ) : null}
                   </div>
                   <div className="lt-datetime-field">
                     <label className="lt-datetime-label" htmlFor="lt-search-time">
@@ -2036,6 +1954,27 @@ export const LocalTransportPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="lt-search-extra">
+                  <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
+                    <button
+                      type="button"
+                      className="lt-chip"
+                      aria-pressed={searchDate === todayDateUrl()}
+                      onClick={() => {
+                        setSearchDate(todayDateUrl());
+                        setSearchTime(nowClock());
+                      }}
+                    >
+                      Зараз
+                    </button>
+                    <button
+                      type="button"
+                      className="lt-chip"
+                      aria-pressed={searchDate === tomorrowDateUrl()}
+                      onClick={() => setSearchDate(tomorrowDateUrl())}
+                    >
+                      Завтра
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="lt-geo-btn lt-geo-btn--small"
@@ -2117,7 +2056,6 @@ export const LocalTransportPage: React.FC = () => {
                   {routesConnectingFromTo.map((r) => {
                     const fromId = committedPair.from;
                     const toId = committedPair.to;
-                    const fromLabel = displayNameForStopKey(fromId, stopsCatalog);
                     const toLabel = displayNameForStopKey(toId, stopsCatalog);
                     const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
                     const searchMins =
@@ -2136,30 +2074,65 @@ export const LocalTransportPage: React.FC = () => {
                       toStop: toId,
                     });
                     const nextTimeStr = nearest ? formatTime(nearest.timeAtFrom) : '—';
+                    const arrivalStr = nearest?.timeAtTo != null ? formatTime(nearest.timeAtTo) : null;
+                    const durationMins =
+                      nearest?.timeAtTo != null ? Math.max(0, Math.round(nearest.timeAtTo - nearest.timeAtFrom)) : null;
+                    const destination = nearest ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog) : toLabel;
+                    const verified = isVerifiedRoute(r.id);
+                    // Підпис під часом: відлік від поточного часу (не від часу пошуку) і лише для сьогодні;
+                    // після останнього рейсу — чесно кажемо, що показано перший рейс наступного дня.
+                    let timeLabel = 'відправлення';
+                    let timeLabelMod = '';
+                    if (nearest?.wrapped) {
+                      timeLabel = 'рейсів пізніше немає · перший наступного дня';
+                      timeLabelMod = 'lt-route-card-time-label--wrapped';
+                    } else if (nearest && travelDayOffset === 0) {
+                      const delta = Math.round(nearest.timeAtFrom - kyivNowMins);
+                      if (delta >= 0) {
+                        timeLabel = `через ${formatWait(delta)}`;
+                        timeLabelMod = 'lt-route-card-time-label--soon';
+                      } else {
+                        timeLabel = 'вже вирушив';
+                      }
+                    }
+                    const ariaLabel = [
+                      `Маршрут №${r.id} до ${destination}`,
+                      `відправлення ${nextTimeStr}`,
+                      arrivalStr ? `прибуття ${arrivalStr}` : '',
+                      durationMins != null ? `${durationMins} хвилин` : '',
+                      timeLabel !== 'відправлення' ? timeLabel : '',
+                    ]
+                      .filter(Boolean)
+                      .join(', ');
                     return (
                       <button
                         key={`${r.id}-${dir}`}
                         type="button"
                         className="lt-route-card lt-route-card--jd"
                         onClick={() => handleSelectRoute(r.id)}
+                        aria-label={ariaLabel}
                       >
                         <div className="lt-route-card-time">
                           <span className="lt-route-card-time-value">{nextTimeStr}</span>
-                          <span className="lt-route-card-time-label">відправлення</span>
+                          <span className={`lt-route-card-time-label ${timeLabelMod}`}>{timeLabel}</span>
                         </div>
                         <div className="lt-route-card-main">
                           <span
-                            className={`lt-route-num lt-route-num--card ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                            className={`lt-route-num lt-route-num--card ${verified ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                            title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
                           >
                             №{r.id}
                           </span>
-                          <span className="lt-route-path">
-                            {fromLabel} → {toLabel}
+                          <span className="lt-route-destination">
+                            <span aria-hidden>→ </span>
+                            {destination}
                           </span>
-                          <span className="lt-route-meta">
-                            {isVerifiedRoute(r.id) ? 'перевірено · ' : ''}
-                            {routeLine(r) ? `лінія ${routeLine(r)}` : 'лінія без назви'}
-                          </span>
+                          {arrivalStr ? (
+                            <span className="lt-route-card-times">
+                              {nextTimeStr} → {arrivalStr}
+                              {durationMins != null ? ` · ${durationMins} хв` : ''}
+                            </span>
+                          ) : null}
                         </div>
                       </button>
                     );

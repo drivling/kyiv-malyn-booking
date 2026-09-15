@@ -4,7 +4,7 @@
 import type { RouteStopWithOrder, TransportRecord, TransportData, SupplementRoute } from './types';
 import { recordTiming } from './routeTiming';
 import { getStopKey, invertNameToId, type StopsCatalog } from './stopCatalog';
-import { sortTripsByDeparture } from './tripDeparture';
+import { groupTripsByDirection } from './tripDeparture';
 
 export type StopDepartureRow = {
   routeId: string;
@@ -15,14 +15,20 @@ export type StopDepartureRow = {
   tripId: string;
 };
 
-function sortByTime(a: TransportRecord, b: TransportRecord): number {
-  return sortTripsByDeparture(a, b);
-}
-
-function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
-  const dir0 = trips.filter((t) => t.direction_id === '0').sort(sortByTime);
-  const dir1 = trips.filter((t) => t.direction_id === '1').sort(sortByTime);
-  return { dir0, dir1 };
+/**
+ * Кінцева / табличка рейсу для показу людині:
+ * headsign → назва кінцевої зупинки рейсу (скорочений рейс) → кінець маршруту → «—».
+ */
+export function tripDestination(
+  t: Pick<TransportRecord, 'trip_headsign' | 'end_stop_id'>,
+  direction: 'there' | 'back',
+  route: { from: string | null; to: string | null },
+  catalog?: StopsCatalog
+): string {
+  const headsign = (t.trip_headsign ?? '').trim();
+  const endName = t.end_stop_id ? catalog?.[t.end_stop_id]?.name : undefined;
+  const routeEnd = direction === 'there' ? route.to : route.from;
+  return (headsign || endName || routeEnd || '').trim() || '—';
 }
 
 function getStopNames(stops: string[] | RouteStopWithOrder[]): string[] {
@@ -166,9 +172,7 @@ export function buildStopDepartures(
       if (!timing) return;
       const served = timing.stops.find((s) => s.stopId === stopKey);
       if (!served || served.index === timing.endIndex) return;
-      const endName = t.end_stop_id ? catalog?.[t.end_stop_id]?.name : undefined;
-      const routeEnd = direction === 'there' ? route.to : route.from;
-      const dest = (t.trip_headsign || endName || routeEnd || '').trim() || '—';
+      const dest = tripDestination(t, direction, route, catalog);
       rows.push({
         routeId: route.id,
         departureMins: served.mins,

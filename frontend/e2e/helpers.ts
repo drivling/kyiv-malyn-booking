@@ -50,15 +50,17 @@ export async function mockBackendApi(page: Page) {
 
     if (method === 'GET' && path === '/transport/dataset') {
       return json(route, 200, {
+        // Маршрут №2: Базар → Вокзал → Лікарня (обидва напрямки), сегменти 4 хв і 5 хв.
         stops: [
           { id: 'st_a', name: 'Базар', lat: 50.77, lng: 29.24 },
           { id: 'st_b', name: 'Вокзал', lat: 50.78, lng: 29.25 },
+          { id: 'st_c', name: 'Лікарня', lat: 50.79, lng: 29.26 },
         ],
         routes: [
           {
             id: '2',
             fromName: 'Базар',
-            toName: 'Вокзал',
+            toName: 'Лікарня',
             scheme: 'city',
             note: '',
             sourceUrl: '',
@@ -66,21 +68,34 @@ export async function mockBackendApi(page: Page) {
           },
         ],
         routeStops: [
-          { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 2, mapOnly: false },
-          { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 1, mapOnly: false },
+          { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 3, mapOnly: false },
+          { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 2, mapOnly: false },
+          { routeId: '2', stopId: 'st_c', orderThere: 3, orderBack: 1, mapOnly: false },
         ],
         trips: [
           {
             id: 't1',
             routeId: '2',
             serviceId: 'everyday',
-            headsign: 'Вокзал',
+            headsign: 'Лікарня',
             directionId: '1',
             departureTime: '08:30:00',
             blockId: null,
           },
+          {
+            id: 't2',
+            routeId: '2',
+            serviceId: 'everyday',
+            headsign: 'Базар',
+            directionId: '0',
+            departureTime: '09:00:00',
+            blockId: null,
+          },
         ],
-        segments: [{ routeId: '2', fromStopId: 'st_a', toStopId: 'st_b', seconds: 240 }],
+        segments: [
+          { routeId: '2', fromStopId: 'st_a', toStopId: 'st_b', seconds: 240 },
+          { routeId: '2', fromStopId: 'st_b', toStopId: 'st_c', seconds: 300 },
+        ],
         meta: { defaultSec: 120, center: [50.768, 29.242] },
       });
     }

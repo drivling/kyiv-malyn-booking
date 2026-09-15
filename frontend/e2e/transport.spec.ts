@@ -77,4 +77,42 @@ test.describe('transport', () => {
     await page.getByRole('link', { name: 'Зупинка (табло)' }).click();
     await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
   });
+
+  test('date is a native picker; «Завтра» chip updates d= in the URL', async ({ page }) => {
+    // Дата навмисно далеко від сьогодні, щоб чіп не був натиснутий від початку.
+    await page.goto('/transport/st_a/st_b?d=01.03.26&h=09%3A12');
+    const date = page.getByLabel('Дата');
+    await expect(date).toHaveAttribute('type', 'date');
+    await expect(date).toHaveValue('2026-03-01');
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dd = String(tomorrow.getDate()).padStart(2, '0');
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const yy = String(tomorrow.getFullYear()).slice(-2);
+    await page.getByRole('button', { name: 'Завтра' }).click();
+    await expect(page).toHaveURL(new RegExp(`d=${dd}\\.${mm}\\.${yy}&h=`));
+    await expect(page.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('result card: departure → arrival · duration, destination, no jargon; next-day wrap', async ({ page }) => {
+    await page.goto('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
+    const card = page.getByRole('button', { name: /Маршрут №2 до Лікарня/ });
+    await expect(card).toContainText('08:30 → 08:34 · 4 хв');
+    await expect(card).toContainText('→ Лікарня');
+    await expect(card).not.toContainText(/лінія|перевірено/);
+
+    await page.goto('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
+    await expect(page.getByRole('button', { name: /Маршрут №2/ })).toContainText('перший наступного дня');
+  });
+
+  test.describe('today by the Kyiv clock', () => {
+    test.use({ timezoneId: 'Europe/Kyiv' });
+
+    test('result card counts down from now', async ({ page }) => {
+      await page.clock.setFixedTime(new Date('2026-09-16T05:18:00Z')); // 08:18 за Києвом
+      await page.goto('/transport/st_a/st_b?d=16.09.26&h=08%3A00');
+      await expect(page.getByRole('button', { name: /Маршрут №2/ })).toContainText('через 12 хв');
+    });
+  });
 });
