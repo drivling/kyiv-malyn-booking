@@ -253,3 +253,40 @@ describe('LocalTransportPage planner: date and time', () => {
     await waitFor(() => expect(location()).toContain(`/transport/st_a/st_b?d=${todayDateUrl()}&h=`), { timeout: 3000 });
   });
 });
+
+describe('LocalTransportPage planner: result card', () => {
+  it('shows departure → arrival · duration and the trip destination, without jargon', async () => {
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
+    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /Маршрут №2 до Лікарня/ });
+    expect(card).toHaveTextContent('08:30');
+    expect(card).toHaveTextContent('08:30 → 08:34 · 4 хв'); // сегмент Базар → Вокзал = 240 с
+    expect(card).toHaveTextContent('→ Лікарня');
+    expect(card.textContent).not.toMatch(/лінія|перевірено/);
+    expect(card).toHaveTextContent('відправлення'); // дата не сьогодні → без відліку
+    expect(card.getAttribute('aria-label')).toContain('прибуття 08:34');
+    expect(card.getAttribute('aria-label')).toContain('4 хвилин');
+  });
+
+  it('after the last trip of the day the card says the first trip is next day', async () => {
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
+    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /Маршрут №2/ });
+    expect(card).toHaveTextContent('08:30');
+    expect(card).toHaveTextContent('перший наступного дня');
+  });
+
+  it('for today the label is a countdown from the current Kyiv time', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-16T05:18:00Z')); // 08:18 за Києвом
+    try {
+      renderPlanner('/transport/st_a/st_b?d=16.09.26&h=08%3A00');
+      await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+      const card = screen.getByRole('button', { name: /Маршрут №2/ });
+      expect(card).toHaveTextContent('через 12 хв');
+      expect(card.getAttribute('aria-label')).toContain('через 12 хв');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

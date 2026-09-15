@@ -27,3 +27,13 @@ export function sortTripsByDeparture(
 ): number {
   return tripDepartureMinutes(a) - tripDepartureMinutes(b);
 }
+
+/**
+ * Рейси за напрямком, відсортовані за відправленням: dir0 = `direction_id '0'` (назад),
+ * dir1 = `'1'` (туди). Спільне для планувальника, сторінки маршруту і табло.
+ */
+export function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
+  const dir0 = trips.filter((t) => t.direction_id === '0').sort(sortTripsByDeparture);
+  const dir1 = trips.filter((t) => t.direction_id === '1').sort(sortTripsByDeparture);
+  return { dir0, dir1 };
+}

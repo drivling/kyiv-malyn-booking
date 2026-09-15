@@ -15,7 +15,9 @@ import {
 } from './stopCatalog';
 import { isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
 import { computeTripTiming, minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
-import { tripDepartureMinutes, sortTripsByDeparture, parseClockToMinutes } from './tripDeparture';
+import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
+import { findNearestTrip } from './nearestTrip';
+import { tripDestination } from './stopDepartures';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
@@ -23,7 +25,7 @@ import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { routeLine, routeTitle } from './routeLabel';
 import { dateUrlToIso, formatDateUrl, isoToDateUrl, nowClock, parseDateUrl, todayDateUrl, tomorrowDateUrl } from './dateUrl';
-import { getKyivMinutesNow } from './kyivTime';
+import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
@@ -198,16 +200,6 @@ function routeHasStop(
   });
 }
 
-function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
-  const dir0 = trips.filter((t) => t.direction_id === '0').sort(sortByTime);
-  const dir1 = trips.filter((t) => t.direction_id === '1').sort(sortByTime);
-  return { dir0, dir1 };
-}
-
-function sortByTime(a: TransportRecord, b: TransportRecord): number {
-  return sortTripsByDeparture(a, b);
-}
-
 function getFirstTripTime(trips: TransportRecord[]): number {
   const times = trips.map((t) => tripDepartureMinutes(t)).filter((t) => t > 0);
   return times.length > 0 ? Math.min(...times) : 7 * 60; // 7:00 за замовчуванням
@@ -229,54 +221,12 @@ function formatDurationMinutes(minutes: number): string {
   return s === 0 ? `${m} хв` : `${m} хв ${s} сек`;
 }
 
-/** Контекст «на зупинці»: час рейсу рахується на fromStop, рейс має обслуговувати пару З→До */
-type NearestTripAt = {
-  routeId: string;
-  chainKeys: { there: string[]; back: string[] };
-  fromStop: string;
-  toStop?: string;
-};
-
-type NearestTrip = { time: number; timeAtFrom: number; direction: 'there' | 'back' };
-
-/**
- * Найближчий рейс за часом. Без `at` — за відправленням з кінцевої; з `at` — за часом на зупинці
- * fromStop (з урахуванням start/end/arrival рейсу). Якщо пізно — показуємо перший рейс зранку.
- */
-function findNearestTrip(
-  trips: TransportRecord[],
-  nowMins: number,
-  directionFilter?: 'there' | 'back',
-  at?: NearestTripAt
-): NearestTrip | null {
-  const { dir0, dir1 } = groupTripsByDirection(trips);
-  const candidates = (list: TransportRecord[], dir: 'there' | 'back') =>
-    list
-      .map((t): { time: number; timeAtFrom: number } | null => {
-        const base = tripDepartureMinutes(t);
-        if (base <= 0) return null;
-        if (!at) return { time: base, timeAtFrom: base };
-        const timing = recordTiming(at.routeId, at.chainKeys[dir], t);
-        if (at.toStop ? !tripServesPair(timing, at.fromStop, at.toStop) : minutesAtStop(timing, at.fromStop) == null) {
-          return null;
-        }
-        const m = minutesAtStop(timing, at.fromStop);
-        return m == null ? null : { time: base, timeAtFrom: m };
-      })
-      .filter((c): c is { time: number; timeAtFrom: number } => c != null)
-      .sort((a, b) => a.timeAtFrom - b.timeAtFrom);
-  // Якщо майбутніх немає — беремо перший зранку
-  const pick = (list: Array<{ time: number; timeAtFrom: number }>) =>
-    list.find((c) => c.timeAtFrom >= nowMins) ?? list[0] ?? null;
-  const next0 = directionFilter === 'there' ? null : pick(candidates(dir0, 'back'));
-  const next1 = directionFilter === 'back' ? null : pick(candidates(dir1, 'there'));
-  if (next0 == null && next1 == null) return null;
-  if (next0 == null) return { ...next1!, direction: 'there' };
-  if (next1 == null) return { ...next0, direction: 'back' };
-  // Хто ближчий за часом (якщо обидва в минулому — хто перший зранку)
-  const dist0 = (next0.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
-  const dist1 = (next1.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
-  return dist1 <= dist0 ? { ...next1, direction: 'there' } : { ...next0, direction: 'back' };
+/** «12 хв», «1 год 5 хв» — підпис відліку до відправлення (як на табло) */
+function formatWait(mins: number): string {
+  if (mins < 60) return `${mins} хв`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h} год ${m} хв` : `${h} год`;
 }
 
 /** Визначити напрямок (there/back) за парою З→До з порядку зупинок */
@@ -446,6 +396,15 @@ export const LocalTransportPage: React.FC = () => {
   const searchCardRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [isSwapAnimating, setIsSwapAnimating] = useState(false);
+  /** Оновлення «через N хв» раз на хвилину (київський час), як на табло */
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const kyivNowMins = useMemo(() => getKyivMinutesNow(), [nowTick]);
+  /** 0 — дата пошуку сьогодні (за Києвом), 1 — завтра …; відлік показуємо лише для сьогодні */
+  const travelDayOffset = useMemo(() => searchDateKyivOffsetDays(searchDate), [searchDate]);
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
@@ -2097,7 +2056,6 @@ export const LocalTransportPage: React.FC = () => {
                   {routesConnectingFromTo.map((r) => {
                     const fromId = committedPair.from;
                     const toId = committedPair.to;
-                    const fromLabel = displayNameForStopKey(fromId, stopsCatalog);
                     const toLabel = displayNameForStopKey(toId, stopsCatalog);
                     const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
                     const searchMins =
@@ -2116,30 +2074,65 @@ export const LocalTransportPage: React.FC = () => {
                       toStop: toId,
                     });
                     const nextTimeStr = nearest ? formatTime(nearest.timeAtFrom) : '—';
+                    const arrivalStr = nearest?.timeAtTo != null ? formatTime(nearest.timeAtTo) : null;
+                    const durationMins =
+                      nearest?.timeAtTo != null ? Math.max(0, Math.round(nearest.timeAtTo - nearest.timeAtFrom)) : null;
+                    const destination = nearest ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog) : toLabel;
+                    const verified = isVerifiedRoute(r.id);
+                    // Підпис під часом: відлік від поточного часу (не від часу пошуку) і лише для сьогодні;
+                    // після останнього рейсу — чесно кажемо, що показано перший рейс наступного дня.
+                    let timeLabel = 'відправлення';
+                    let timeLabelMod = '';
+                    if (nearest?.wrapped) {
+                      timeLabel = 'рейсів пізніше немає · перший наступного дня';
+                      timeLabelMod = 'lt-route-card-time-label--wrapped';
+                    } else if (nearest && travelDayOffset === 0) {
+                      const delta = Math.round(nearest.timeAtFrom - kyivNowMins);
+                      if (delta >= 0) {
+                        timeLabel = `через ${formatWait(delta)}`;
+                        timeLabelMod = 'lt-route-card-time-label--soon';
+                      } else {
+                        timeLabel = 'вже вирушив';
+                      }
+                    }
+                    const ariaLabel = [
+                      `Маршрут №${r.id} до ${destination}`,
+                      `відправлення ${nextTimeStr}`,
+                      arrivalStr ? `прибуття ${arrivalStr}` : '',
+                      durationMins != null ? `${durationMins} хвилин` : '',
+                      timeLabel !== 'відправлення' ? timeLabel : '',
+                    ]
+                      .filter(Boolean)
+                      .join(', ');
                     return (
                       <button
                         key={`${r.id}-${dir}`}
                         type="button"
                         className="lt-route-card lt-route-card--jd"
                         onClick={() => handleSelectRoute(r.id)}
+                        aria-label={ariaLabel}
                       >
                         <div className="lt-route-card-time">
                           <span className="lt-route-card-time-value">{nextTimeStr}</span>
-                          <span className="lt-route-card-time-label">відправлення</span>
+                          <span className={`lt-route-card-time-label ${timeLabelMod}`}>{timeLabel}</span>
                         </div>
                         <div className="lt-route-card-main">
                           <span
-                            className={`lt-route-num lt-route-num--card ${isVerifiedRoute(r.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                            className={`lt-route-num lt-route-num--card ${verified ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                            title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
                           >
                             №{r.id}
                           </span>
-                          <span className="lt-route-path">
-                            {fromLabel} → {toLabel}
+                          <span className="lt-route-destination">
+                            <span aria-hidden>→ </span>
+                            {destination}
                           </span>
-                          <span className="lt-route-meta">
-                            {isVerifiedRoute(r.id) ? 'перевірено · ' : ''}
-                            {routeLine(r) ? `лінія ${routeLine(r)}` : 'лінія без назви'}
-                          </span>
+                          {arrivalStr ? (
+                            <span className="lt-route-card-times">
+                              {nextTimeStr} → {arrivalStr}
+                              {durationMins != null ? ` · ${durationMins} хв` : ''}
+                            </span>
+                          ) : null}
                         </div>
                       </button>
                     );

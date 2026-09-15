@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseClockToMinutes, sortTripsByDeparture, tripDepartureMinutes } from './tripDeparture';
+import { groupTripsByDirection, parseClockToMinutes, sortTripsByDeparture, tripDepartureMinutes } from './tripDeparture';
+import type { TransportRecord } from './types';
 
 describe('tripDeparture', () => {
   it('parseClockToMinutes', () => {
@@ -19,5 +20,18 @@ describe('tripDeparture', () => {
     const b = { departure_time: '08:00:00', block_id: null };
     expect(sortTripsByDeparture(a, b)).toBeGreaterThan(0);
     expect(sortTripsByDeparture(b, a)).toBeLessThan(0);
+  });
+
+  it('groupTripsByDirection splits by direction_id and sorts each by departure', () => {
+    const t = (id: string, dir: '0' | '1', dep: string): TransportRecord => ({
+      route_id: '2',
+      trip_id: id,
+      trip_headsign: '',
+      direction_id: dir,
+      departure_time: dep,
+    });
+    const { dir0, dir1 } = groupTripsByDirection([t('b2', '0', '10:00'), t('a2', '1', '09:00'), t('a1', '1', '07:30'), t('b1', '0', '06:00')]);
+    expect(dir1.map((x) => x.trip_id)).toEqual(['a1', 'a2']);
+    expect(dir0.map((x) => x.trip_id)).toEqual(['b1', 'b2']);
   });
 });

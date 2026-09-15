@@ -1603,6 +1603,43 @@
   line-height: 1.3;
 }
 
+/* Картка планувальника: кінцева рейсу, рядок «09:24 → 09:41 · 17 хв», підписи під часом. */
+.lt-route-card--jd .lt-route-card-time {
+  min-width: 64px;
+  max-width: 120px;
+}
+
+.lt-route-card-time-label--soon {
+  color: var(--lt-accent);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.lt-route-card-time-label--wrapped {
+  color: var(--lt-text-muted);
+  text-transform: none;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.lt-route-card-main .lt-route-destination {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--lt-fs-md);
+  font-weight: 600;
+  color: var(--lt-text);
+  line-height: 1.3;
+}
+
+.lt-route-card-main .lt-route-card-times {
+  flex: 1 1 100%;
+  font-size: var(--lt-fs-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-muted);
+  line-height: 1.3;
+}
+
 .lt-route-num {
   flex-shrink: 0;
   min-width: 40px;
