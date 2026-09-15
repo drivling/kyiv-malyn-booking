@@ -171,6 +171,74 @@ describe('LocalTransportPage planner: form state', () => {
   });
 });
 
+describe('LocalTransportPage planner: nearby alternatives when there is no direct route', () => {
+  // st_e «Ринок» стоїть за ~20 м від st_a «Базар» і лежить на маршруті №3 разом зі st_d «Парк».
+  const withNearby = {
+    ...dataset,
+    stops: [
+      ...dataset.stops,
+      { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 },
+      { id: 'st_e', name: 'Ринок', lat: 50.77015, lng: 29.24012 },
+    ],
+    routes: [
+      ...dataset.routes,
+      { id: '3', fromName: 'Ринок', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+    ],
+    routeStops: [
+      ...dataset.routeStops,
+      { routeId: '3', stopId: 'st_e', orderThere: 1, orderBack: 3, mapOnly: false },
+      { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 2, mapOnly: false },
+      { routeId: '3', stopId: 'st_d', orderThere: 3, orderBack: 1, mapOnly: false },
+    ],
+    trips: [
+      ...dataset.trips,
+      { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Парк', directionId: '1', departureTime: '10:00:00', blockId: null },
+    ],
+  };
+
+  it('suggests the neighbouring stop with a direct route and applies it on click', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(withNearby)));
+    try {
+      renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
+      await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
+      expect(screen.getByText('Поруч є зупинки з прямим маршрутом:')).toBeInTheDocument();
+      const suggestion = screen.getByRole('button', { name: /Ринок → Парк/ });
+      expect(suggestion).toHaveTextContent(/\d+ м від «Базар» · №3/);
+      await waitFor(() =>
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d', nearby: 1 })
+      );
+
+      await user.click(suggestion);
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_nearby_pick', expect.objectContaining({ from: 'st_e', to: 'st_d', changed: 'from' }));
+      await waitFor(() => expect(location()).toBe('/transport/st_e/st_d?d=16.09.26&h=09%3A12'), { timeout: 3000 });
+      expect(screen.getByRole('combobox', { name: 'З' })).toHaveValue('Ринок');
+      expect(await screen.findByText(/Прямі маршрути: Ринок → Парк/)).toBeInTheDocument();
+      expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+
+  it('without a neighbour that helps, the no-route state has no suggestions block', async () => {
+    // Той самий датасет, але «Ринок» за 3 км від «Базар» — поза радіусом пошуку.
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({
+          ...withNearby,
+          stops: withNearby.stops.map((s) => (s.id === 'st_e' ? { ...s, lat: 50.8, lng: 29.2 } : s)),
+        })
+      )
+    );
+    renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
+    await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
+    expect(screen.queryByText('Поруч є зупинки з прямим маршрутом:')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'табло зупинки' })).toBeInTheDocument();
+  });
+});
+
 describe('LocalTransportPage planner: URL follows the form', () => {
   it('selecting both stops on /transport updates the URL without pressing «Знайти»', async () => {
     const user = userEvent.setup();
@@ -409,7 +477,9 @@ describe('LocalTransportPage planner: analytics events', () => {
     try {
       renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
       await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
-      await waitFor(() => expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d' }));
+      await waitFor(() =>
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d', nearby: 0 })
+      );
       expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_a', to: 'st_d', direct_routes: 0 });
     } finally {
       Reflect.deleteProperty(window, 'gtag');

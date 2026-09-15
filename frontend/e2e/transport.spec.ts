@@ -109,6 +109,17 @@ test.describe('transport', () => {
     await expect(page.getByRole('button', { name: /Маршрут №2/ })).toContainText('перший наступного дня');
   });
 
+  test('no direct route: suggests the neighbouring stop with a direct route', async ({ page }) => {
+    await page.goto('/transport/st_a/st_d?d=01.03.26&h=09%3A12');
+    await expect(page.getByText(/немає прямого маршруту/)).toBeVisible();
+    const suggestion = page.getByRole('button', { name: /Ринок → Парк/ });
+    await expect(suggestion).toContainText(/\d+ м від «Базар» · №3/);
+    await suggestion.click();
+    await expect(page).toHaveURL(/\/transport\/st_e\/st_d\?/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ринок → Парк');
+    await expect(page.getByRole('button', { name: /Маршрут №3 до Парк/ })).toBeVisible();
+  });
+
   test.describe('today by the Kyiv clock', () => {
     test.use({ timezoneId: 'Europe/Kyiv' });
 
