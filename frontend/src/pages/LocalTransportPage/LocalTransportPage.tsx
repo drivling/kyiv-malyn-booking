@@ -26,6 +26,7 @@ import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { routeLine, routeTitle } from './routeLabel';
 import { dateUrlToIso, formatDateUrl, isoToDateUrl, nowClock, parseDateUrl, todayDateUrl, tomorrowDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
+import { gaTrackEvent } from '@/analytics/googleAnalytics';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 
@@ -633,6 +634,15 @@ export const LocalTransportPage: React.FC = () => {
     });
   }, [routes, stopsByRoute, stops, stopsCatalog, committedPair]);
 
+  // Аналітика: кожна резолвнута пара — один «пошук»; порожня видача — окрема подія.
+  // Без PII: лише id зупинок і кількість прямих маршрутів.
+  useEffect(() => {
+    if (!isMainPage || !committedPair) return;
+    const params = { from: committedPair.from, to: committedPair.to, direct_routes: routesConnectingFromTo.length };
+    gaTrackEvent('transport_search', params);
+    if (routesConnectingFromTo.length === 0) gaTrackEvent('transport_no_route', { from: params.from, to: params.to });
+  }, [isMainPage, committedPair, routesConnectingFromTo]);
+
   useEffect(() => {
     if (!isMainPage || !stops.length) return;
     if (fromPathDecoded || toPathDecoded) {
@@ -1210,6 +1220,7 @@ export const LocalTransportPage: React.FC = () => {
     const from = resolvedFrom;
     const to = resolvedTo;
     if (!from || !to || from === to) return;
+    gaTrackEvent('transport_find_click', { from, to });
     // Свідомий пошук — push (запис в історії), на відміну від автосинхронізації (replace).
     navigate(buildPlannerUrl(from, to, searchDate, searchTime));
     scrollToResults();
@@ -1270,6 +1281,7 @@ export const LocalTransportPage: React.FC = () => {
     if (!navigator.geolocation) {
       setGeoError('Геолокація не підтримується браузером');
       setGeoLoading(false);
+      gaTrackEvent('transport_geo', { result: 'unsupported' });
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -1289,6 +1301,7 @@ export const LocalTransportPage: React.FC = () => {
           .slice(0, 5);
         setNearestStops(withDistance);
         setGeoLoading(false);
+        gaTrackEvent('transport_geo', { result: 'ok' });
       },
       (err) => {
         setGeoError(
@@ -1299,6 +1312,7 @@ export const LocalTransportPage: React.FC = () => {
               : 'Помилка геолокації'
         );
         setGeoLoading(false);
+        gaTrackEvent('transport_geo', { result: err.code === 1 ? 'denied' : 'error' });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -1894,6 +1908,7 @@ export const LocalTransportPage: React.FC = () => {
                     className={`lt-from-to-swap ${isSwapAnimating ? 'lt-from-to-swap--animating' : ''}`}
                     onClick={() => {
                       setIsSwapAnimating(true);
+                      gaTrackEvent('transport_swap', { source: 'form' });
                       // URL підтягнеться автосинхронізацією пари → адресний рядок.
                       setSearchFrom(resolvedTo || effectiveSearchTo);
                       setSearchTo(resolvedFrom || effectiveSearchFrom);
@@ -1976,6 +1991,7 @@ export const LocalTransportPage: React.FC = () => {
                       className="lt-chip"
                       aria-pressed={searchDate === todayDateUrl()}
                       onClick={() => {
+                        gaTrackEvent('transport_date_chip', { chip: 'now' });
                         setSearchDate(todayDateUrl());
                         setSearchTime(nowClock());
                       }}
@@ -1986,7 +2002,10 @@ export const LocalTransportPage: React.FC = () => {
                       type="button"
                       className="lt-chip"
                       aria-pressed={searchDate === tomorrowDateUrl()}
-                      onClick={() => setSearchDate(tomorrowDateUrl())}
+                      onClick={() => {
+                        gaTrackEvent('transport_date_chip', { chip: 'tomorrow' });
+                        setSearchDate(tomorrowDateUrl());
+                      }}
                     >
                       Завтра
                     </button>
@@ -2141,7 +2160,10 @@ export const LocalTransportPage: React.FC = () => {
                         key={`${r.id}-${dir}`}
                         type="button"
                         className="lt-route-card lt-route-card--jd"
-                        onClick={() => handleSelectRoute(r.id)}
+                        onClick={() => {
+                          gaTrackEvent('transport_route_card_click', { route_id: r.id });
+                          handleSelectRoute(r.id);
+                        }}
                         aria-label={ariaLabel}
                       >
                         <div className="lt-route-card-time">
@@ -2254,6 +2276,7 @@ export const LocalTransportPage: React.FC = () => {
                 // URL підтягнеться автосинхронізацією пари → адресний рядок.
               }}
               onSwapStops={() => {
+                gaTrackEvent('transport_swap', { source: 'map' });
                 setSearchFrom(resolvedTo || effectiveSearchTo);
                 setSearchTo(resolvedFrom || effectiveSearchFrom);
               }}

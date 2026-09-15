@@ -352,3 +352,67 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     }
   });
 });
+
+describe('LocalTransportPage planner: analytics events', () => {
+  it('search, swap, chip and card click reach gtag with ids only', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      await openPair();
+      await waitFor(() =>
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_a', to: 'st_b', direct_routes: 1 })
+      );
+      expect(gtag).not.toHaveBeenCalledWith('event', 'transport_no_route', expect.anything());
+
+      await user.click(screen.getByRole('button', { name: 'Поміняти З та До' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_swap', { source: 'form' });
+      await waitFor(() =>
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_b', to: 'st_a', direct_routes: 1 })
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Завтра' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'tomorrow' });
+
+      await user.click(screen.getByRole('button', { name: /Маршрут №2/ }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_route_card_click', { route_id: '2' });
+
+      // Жодного параметра з назвами зупинок чи чимось особистим — лише id.
+      for (const call of gtag.mock.calls) {
+        expect(JSON.stringify(call[2] ?? {})).not.toMatch(/Базар|Вокзал/);
+      }
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+
+  it('a pair without a direct route also sends transport_no_route', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({
+          ...dataset,
+          stops: [...dataset.stops, { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 }],
+          routes: [
+            ...dataset.routes,
+            { id: '3', fromName: 'Лікарня', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+          ],
+          routeStops: [
+            ...dataset.routeStops,
+            { routeId: '3', stopId: 'st_c', orderThere: 1, orderBack: 2, mapOnly: false },
+            { routeId: '3', stopId: 'st_d', orderThere: 2, orderBack: 1, mapOnly: false },
+          ],
+        })
+      )
+    );
+    try {
+      renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
+      await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
+      await waitFor(() => expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_a', to: 'st_d', direct_routes: 0 });
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+});
