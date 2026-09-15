@@ -84,6 +84,8 @@ test.describe('transport', () => {
   test('date is a native picker; «Завтра» chip updates d= in the URL', async ({ page }) => {
     // Дата навмисно далеко від сьогодні, щоб чіп не був натиснутий від початку.
     await page.goto('/transport/st_a/st_b?d=01.03.26&h=09%3A12');
+    await expect(page.getByText('01.03.26, 09:12')).toBeVisible();
+    await page.getByRole('button', { name: 'Змінити' }).click();
     const date = page.getByLabel('Дата');
     await expect(date).toHaveAttribute('type', 'date');
     await expect(date).toHaveValue('2026-03-01');
@@ -96,6 +98,7 @@ test.describe('transport', () => {
     await page.getByRole('button', { name: 'Завтра' }).click();
     await expect(page).toHaveURL(new RegExp(`d=${dd}\\.${mm}\\.${yy}&h=`));
     await expect(page.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('Завтра, 09:12')).toBeVisible();
   });
 
   test('result card: departure → arrival · duration, destination, no jargon; next-day wrap', async ({ page }) => {

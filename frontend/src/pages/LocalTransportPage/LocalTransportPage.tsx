@@ -380,6 +380,8 @@ export const LocalTransportPage: React.FC = () => {
   const searchCardRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   const [isSwapAnimating, setIsSwapAnimating] = useState(false);
+  /** Рядок дати/часу згорнутий у «Сьогодні, 09:12 · Змінити»; розгортається на вимогу */
+  const [dateTimeOpen, setDateTimeOpen] = useState(false);
   /** Оновлення «через N хв» раз на хвилину (київський час), як на табло */
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
@@ -389,6 +391,8 @@ export const LocalTransportPage: React.FC = () => {
   const kyivNowMins = useMemo(() => getKyivMinutesNow(), [nowTick]);
   /** 0 — дата пошуку сьогодні (за Києвом), 1 — завтра …; відлік показуємо лише для сьогодні */
   const travelDayOffset = useMemo(() => searchDateKyivOffsetDays(searchDate), [searchDate]);
+  const dateSummaryLabel =
+    searchDate === todayDateUrl() ? 'Сьогодні' : searchDate === tomorrowDateUrl() ? 'Завтра' : searchDate || 'дата не вибрана';
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
@@ -1952,31 +1956,74 @@ export const LocalTransportPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="lt-datetime-row">
-                  <div className="lt-datetime-field">
-                    <label className="lt-datetime-label" htmlFor="lt-search-date">
-                      Дата
-                    </label>
-                    <input
-                      id="lt-search-date"
-                      type="date"
-                      className="lt-datetime-input"
-                      value={dateUrlToIso(searchDate)}
-                      onChange={(e) => setSearchDate(e.target.value ? isoToDateUrl(e.target.value) : '')}
-                    />
+                <div className="lt-datetime-summary">
+                  <span className="lt-datetime-summary-text">
+                    {dateSummaryLabel}, {searchTime || '—'}
+                  </span>
+                  <button
+                    type="button"
+                    className="lt-chip lt-datetime-toggle"
+                    aria-expanded={dateTimeOpen}
+                    aria-controls="lt-datetime-panel"
+                    onClick={() => setDateTimeOpen((o) => !o)}
+                  >
+                    {dateTimeOpen ? 'Згорнути' : 'Змінити'}
+                  </button>
+                </div>
+                {dateTimeOpen && (
+                  <div className="lt-datetime-row" id="lt-datetime-panel">
+                    <div className="lt-datetime-field">
+                      <label className="lt-datetime-label" htmlFor="lt-search-date">
+                        Дата
+                      </label>
+                      <input
+                        id="lt-search-date"
+                        type="date"
+                        className="lt-datetime-input"
+                        value={dateUrlToIso(searchDate)}
+                        onChange={(e) => setSearchDate(e.target.value ? isoToDateUrl(e.target.value) : '')}
+                      />
+                    </div>
+                    <div className="lt-datetime-field">
+                      <label className="lt-datetime-label" htmlFor="lt-search-time">
+                        Час
+                      </label>
+                      <input
+                        id="lt-search-time"
+                        type="time"
+                        className="lt-datetime-input"
+                        value={searchTime}
+                        onChange={(e) => setSearchTime(e.target.value)}
+                      />
+                    </div>
+                    <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
+                      <button
+                        type="button"
+                        className="lt-chip"
+                        aria-pressed={searchDate === todayDateUrl()}
+                        onClick={() => {
+                          gaTrackEvent('transport_date_chip', { chip: 'now' });
+                          setSearchDate(todayDateUrl());
+                          setSearchTime(nowClock());
+                        }}
+                      >
+                        Зараз
+                      </button>
+                      <button
+                        type="button"
+                        className="lt-chip"
+                        aria-pressed={searchDate === tomorrowDateUrl()}
+                        onClick={() => {
+                          gaTrackEvent('transport_date_chip', { chip: 'tomorrow' });
+                          setSearchDate(tomorrowDateUrl());
+                        }}
+                      >
+                        Завтра
+                      </button>
+                    </div>
                   </div>
-                  <div className="lt-datetime-field">
-                    <label className="lt-datetime-label" htmlFor="lt-search-time">
-                      Час
-                    </label>
-                    <input
-                      id="lt-search-time"
-                      type="time"
-                      className="lt-datetime-input"
-                      value={searchTime}
-                      onChange={(e) => setSearchTime(e.target.value)}
-                    />
-                  </div>
+                )}
+                <div className="lt-search-actions">
                   <button
                     type="button"
                     className="lt-search-btn"
@@ -1987,31 +2034,6 @@ export const LocalTransportPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="lt-search-extra">
-                  <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
-                    <button
-                      type="button"
-                      className="lt-chip"
-                      aria-pressed={searchDate === todayDateUrl()}
-                      onClick={() => {
-                        gaTrackEvent('transport_date_chip', { chip: 'now' });
-                        setSearchDate(todayDateUrl());
-                        setSearchTime(nowClock());
-                      }}
-                    >
-                      Зараз
-                    </button>
-                    <button
-                      type="button"
-                      className="lt-chip"
-                      aria-pressed={searchDate === tomorrowDateUrl()}
-                      onClick={() => {
-                        gaTrackEvent('transport_date_chip', { chip: 'tomorrow' });
-                        setSearchDate(tomorrowDateUrl());
-                      }}
-                    >
-                      Завтра
-                    </button>
-                  </div>
                   <button
                     type="button"
                     className="lt-geo-btn lt-geo-btn--small"

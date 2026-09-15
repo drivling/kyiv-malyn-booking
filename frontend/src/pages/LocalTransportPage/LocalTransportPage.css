@@ -1284,10 +1284,34 @@
   gap: 8px;
 }
 
+/* Згорнутий рядок дати/часу: «Сьогодні, 09:12 · Змінити»; панель розгортається на вимогу. */
+.lt-datetime-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.lt-datetime-summary-text {
+  font-size: var(--lt-fs-base);
+  font-weight: 600;
+  color: var(--lt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-search-actions .lt-search-btn {
+  width: 100%;
+}
+
 /* Чіпи «Зараз» / «Завтра» — швидкий вибір дати без пікера. */
 .lt-datetime-chips {
   display: inline-flex;
   gap: 6px;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-chips {
+  grid-column: 1 / -1;
 }
 
 .lt-chip {

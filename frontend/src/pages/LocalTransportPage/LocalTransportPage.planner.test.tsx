@@ -284,8 +284,11 @@ describe('LocalTransportPage planner: URL follows the form', () => {
 });
 
 describe('LocalTransportPage planner: date and time', () => {
-  it('the date field is a native date input bound to d=DD.MM.YY', async () => {
+  it('the date field is a native date input bound to d=DD.MM.YY (behind «Змінити»)', async () => {
+    const user = userEvent.setup();
     await openPair();
+    expect(screen.queryByLabelText('Дата')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Змінити' }));
     const date = screen.getByLabelText('Дата') as HTMLInputElement;
     expect(date.type).toBe('date');
     expect(date.value).toBe('2026-09-16');
@@ -299,6 +302,8 @@ describe('LocalTransportPage planner: date and time', () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
     await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getByText('01.03.26, 09:12')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Змінити' }));
     const tomorrow = tomorrowDateUrl();
     const chip = screen.getByRole('button', { name: 'Завтра' });
     expect(chip).toHaveAttribute('aria-pressed', 'false');
@@ -306,12 +311,14 @@ describe('LocalTransportPage planner: date and time', () => {
     expect(chip).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(location()).toBe(`/transport/st_a/st_b?d=${tomorrow}&h=09%3A12`), { timeout: 3000 });
     expect((screen.getByLabelText('Дата') as HTMLInputElement).value).toBe(dateUrlToIso(tomorrow));
+    expect(screen.getByText('Завтра, 09:12')).toBeInTheDocument();
   });
 
   it('«Зараз» resets to today and the current time', async () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
     await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await user.click(screen.getByRole('button', { name: 'Змінити' }));
     const chip = screen.getByRole('button', { name: 'Зараз' });
     expect(chip).toHaveAttribute('aria-pressed', 'false');
     await user.click(chip);
@@ -319,6 +326,25 @@ describe('LocalTransportPage planner: date and time', () => {
     const time = screen.getByLabelText('Час') as HTMLInputElement;
     expect(time.value).toMatch(/^\d{2}:\d{2}$/);
     await waitFor(() => expect(location()).toContain(`/transport/st_a/st_b?d=${todayDateUrl()}&h=`), { timeout: 3000 });
+    expect(screen.getByText(/^Сьогодні, \d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
+  it('the summary toggles the panel: «Змінити» → inputs and chips, «Згорнути» hides them', async () => {
+    const user = userEvent.setup();
+    renderPlanner(FAR_URL);
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    const toggle = screen.getByRole('button', { name: 'Змінити' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('group', { name: 'Швидкий вибір часу' })).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveTextContent('Згорнути');
+    expect(screen.getByLabelText('Час')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Швидкий вибір часу' })).toBeInTheDocument();
+    await user.click(toggle);
+    expect(screen.queryByLabelText('Час')).not.toBeInTheDocument();
+    // «Знайти» лишається доступною незалежно від панелі
+    expect(screen.getByRole('button', { name: 'Знайти' })).toBeEnabled();
   });
 });
 
@@ -439,6 +465,7 @@ describe('LocalTransportPage planner: analytics events', () => {
         expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_b', to: 'st_a', direct_routes: 1 })
       );
 
+      await user.click(screen.getByRole('button', { name: 'Змінити' }));
       await user.click(screen.getByRole('button', { name: 'Завтра' }));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'tomorrow' });
 
