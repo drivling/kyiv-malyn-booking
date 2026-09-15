@@ -1295,6 +1295,14 @@
   outline-color: rgba(245, 158, 11, 0.35);
 }
 
+/* Підказка над результатами, поки текст у полі не відповідає жодній зупинці. */
+.lt-routes-hint {
+  margin: 0 0 8px;
+  padding: 0 var(--lt-panel-x);
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+}
+
 .lt-routes-heading {
   margin: 0 0 6px;
   padding: 0 var(--lt-panel-x);

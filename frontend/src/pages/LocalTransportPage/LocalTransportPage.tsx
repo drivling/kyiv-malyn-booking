@@ -435,8 +435,12 @@ export const LocalTransportPage: React.FC = () => {
   }, [viewModel]);
 
   const [stopFilter, setStopFilter] = useState('');
-  const [searchFrom, setSearchFrom] = useState<string>('');
-  const [searchTo, setSearchTo] = useState<string>('');
+  // null — користувач ще не торкався поля (значення береться з URL); '' — свідомо порожнє.
+  const [searchFrom, setSearchFrom] = useState<string | null>(null);
+  const [searchTo, setSearchTo] = useState<string | null>(null);
+  // Остання пара резолвнутих зупинок: від неї рахуються результати, щоб набір тексту в полі
+  // не блимав «немає прямого маршруту».
+  const [committedPair, setCommittedPair] = useState<{ from: string; to: string } | null>(null);
   const [searchDate, setSearchDate] = useState<string>(() => formatDateUrl(new Date()));
   const [searchTime, setSearchTime] = useState<string>(() => {
     const now = new Date();
@@ -609,14 +613,41 @@ export const LocalTransportPage: React.FC = () => {
     [routes, stopsByRoute, stopsCatalog]
   );
 
-  const effectiveSearchFrom = searchFrom || fromPathDecoded || queryFrom;
-  const effectiveSearchTo = searchTo || toPathDecoded || queryTo;
-  const hasFromToSearch = Boolean(effectiveSearchFrom && effectiveSearchTo);
+  const effectiveSearchFrom = searchFrom ?? (fromPathDecoded || queryFrom);
+  const effectiveSearchTo = searchTo ?? (toPathDecoded || queryTo);
+  const resolvedFrom = useMemo(
+    () => resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog),
+    [effectiveSearchFrom, stops, stopsCatalog]
+  );
+  const resolvedTo = useMemo(
+    () => resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog),
+    [effectiveSearchTo, stops, stopsCatalog]
+  );
+  const pairIsSame = Boolean(resolvedFrom && resolvedTo && resolvedFrom === resolvedTo);
+  const hasResolvedPair = Boolean(resolvedFrom && resolvedTo) && !pairIsSame;
+
+  useEffect(() => {
+    if (!isMainPage) return;
+    if (hasResolvedPair) {
+      setCommittedPair((prev) =>
+        prev && prev.from === resolvedFrom && prev.to === resolvedTo ? prev : { from: resolvedFrom, to: resolvedTo }
+      );
+    } else if (!effectiveSearchFrom && !effectiveSearchTo) {
+      setCommittedPair(null);
+    }
+  }, [isMainPage, hasResolvedPair, resolvedFrom, resolvedTo, effectiveSearchFrom, effectiveSearchTo]);
+
+  /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує). */
+  const hasUnresolvedInput =
+    (effectiveSearchFrom !== '' && !resolvedFrom) || (effectiveSearchTo !== '' && !resolvedTo);
+  /** Показані результати — для попередньої пари (поле стерли або міняють). */
+  const pairIsStale =
+    committedPair != null && (committedPair.from !== resolvedFrom || committedPair.to !== resolvedTo);
+  const showFormHint = hasUnresolvedInput || pairIsStale || pairIsSame;
 
   const routesConnectingFromTo = useMemo(() => {
-    if (!hasFromToSearch || !stops.length) return [];
-    const fromMatch = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
-    const toMatch = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
+    if (!committedPair || !stops.length) return [];
+    const { from: fromMatch, to: toMatch } = committedPair;
     return routes.filter((r) => {
       const hasFrom = routeHasStop(r.id, fromMatch, r, stopsByRoute, stopsCatalog);
       const hasTo = routeHasStop(r.id, toMatch, r, stopsByRoute, stopsCatalog);
@@ -624,7 +655,7 @@ export const LocalTransportPage: React.FC = () => {
       const dir = getImpliedDirection(fromMatch, toMatch, stopsByRoute, r.id);
       return dir != null;
     });
-  }, [routes, stopsByRoute, stops, stopsCatalog, hasFromToSearch, effectiveSearchFrom, effectiveSearchTo]);
+  }, [routes, stopsByRoute, stops, stopsCatalog, committedPair]);
 
   useEffect(() => {
     if (!isMainPage || !stops.length) return;
@@ -1186,9 +1217,9 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   const handleSearchSubmit = () => {
-    const from = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
-    const to = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
-    if (!from || !to || !stops.includes(from) || !stops.includes(to)) return;
+    const from = resolvedFrom;
+    const to = resolvedTo;
+    if (!from || !to || from === to) return;
     const pathFrom = encodeURIComponent(from);
     const pathTo = encodeURIComponent(to);
     const params = new URLSearchParams();
@@ -1199,12 +1230,12 @@ export const LocalTransportPage: React.FC = () => {
 
   const handleSelectRoute = (id: string) => {
     const routeStopIds = stopsByRoute?.[id] ? getStopKeysFromRouteStops(stopsByRoute[id], stopsCatalog) : [];
-    const fromResolved = hasFromToSearch
-      ? resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog)
+    const fromResolved = committedPair
+      ? committedPair.from
       : latestStopRef.current || effectiveStopFilter
         ? resolveStopIdInList(latestStopRef.current || effectiveStopFilter, stops, stopsCatalog)
         : '';
-    const toResolved = hasFromToSearch ? resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog) : '';
+    const toResolved = committedPair ? committedPair.to : '';
     const fromOnRoute = fromResolved && routeStopIds.includes(fromResolved) ? fromResolved : null;
     const toOnRoute = toResolved && routeStopIds.includes(toResolved) ? toResolved : null;
     const params = new URLSearchParams();
@@ -1241,7 +1272,7 @@ export const LocalTransportPage: React.FC = () => {
       const params = new URLSearchParams();
       if (searchDate) params.set('d', searchDate);
       if (searchTime) params.set('h', searchTime);
-      navigate(`/transport/${encodeURIComponent(effectiveSearchFrom)}/${encodeURIComponent(effectiveSearchTo)}?${params.toString()}`);
+      navigate(`/transport/${encodeURIComponent(resolvedFrom || fromPathDecoded)}/${encodeURIComponent(resolvedTo || toPathDecoded)}?${params.toString()}`);
     } else {
       const stop = selectedStopFromUrl || effectiveStopFilter;
       navigate(stop ? `/transport?stop=${encodeURIComponent(stop)}` : '/transport');
@@ -1399,10 +1430,11 @@ export const LocalTransportPage: React.FC = () => {
                 <h2 id="lt-picker-heading" className="lt-section-title">Оберіть зупинки</h2>
                 <div className="lt-detail-picker-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
-                    <label className="lt-from-to-label lt-from-to-label--with-icon">
+                    <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-picker-from">
                       <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Звідки їдемо?
                     </label>
                     <Combobox
+                      id="lt-picker-from"
                       label=""
                       options={[
                         { value: '', label: '— Зупинка —' },
@@ -1416,10 +1448,11 @@ export const LocalTransportPage: React.FC = () => {
                     />
                   </div>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
-                    <label className="lt-from-to-label lt-from-to-label--with-icon">
+                    <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-picker-to">
                       <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> Куди їдемо?
                     </label>
                     <Combobox
+                      id="lt-picker-to"
                       label=""
                       options={[
                         { value: '', label: '— Зупинка —' },
@@ -1835,13 +1868,11 @@ export const LocalTransportPage: React.FC = () => {
               <div className="lt-from-to-block">
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
-                    <label
-                      className="lt-from-to-label lt-from-to-label--with-icon"
-                      onClick={() => searchFromInputRef.current?.focus()}
-                    >
+                    <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-search-from">
                       <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> З
                     </label>
                     <Combobox
+                      id="lt-search-from"
                       label=""
                       options={[
                         { value: '', label: '— Зупинка —' },
@@ -1852,13 +1883,16 @@ export const LocalTransportPage: React.FC = () => {
                         setSearchFrom(v);
                         latestStopRef.current = v;
                         setStopFilter(v);
-                        if (!v) {
-                          setSearchTo('');
-                          const params = new URLSearchParams();
-                          if (searchDate) params.set('d', searchDate);
-                          if (searchTime) params.set('h', searchTime);
-                          navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`);
-                        }
+                      }}
+                      onClear={() => {
+                        // Лише кнопка «×»: скидаємо пару і URL; «До» переживає очищення через ?to=
+                        setSearchFrom('');
+                        setCommittedPair(null);
+                        const params = new URLSearchParams();
+                        if (resolvedTo) params.set('to', resolvedTo);
+                        if (searchDate) params.set('d', searchDate);
+                        if (searchTime) params.set('h', searchTime);
+                        navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`, { replace: true });
                       }}
                       placeholder="Звідки їдемо?"
                       emptyMessage="Зупинок не знайдено"
@@ -1888,13 +1922,11 @@ export const LocalTransportPage: React.FC = () => {
                     ⇅
                   </button>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
-                    <label
-                      className="lt-from-to-label lt-from-to-label--with-icon"
-                      onClick={() => searchToInputRef.current?.focus()}
-                    >
+                    <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-search-to">
                       <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> До
                     </label>
                     <Combobox
+                      id="lt-search-to"
                       label=""
                       options={[
                         { value: '', label: '— Зупинка —' },
@@ -1903,13 +1935,15 @@ export const LocalTransportPage: React.FC = () => {
                       value={effectiveSearchTo}
                       onChange={(v) => {
                         setSearchTo(v);
-                        if (!v && (fromPathDecoded || toPathDecoded)) {
-                          const params = new URLSearchParams();
-                          if (effectiveSearchFrom) params.set('from', effectiveSearchFrom);
-                          if (searchDate) params.set('d', searchDate);
-                          if (searchTime) params.set('h', searchTime);
-                          navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`);
-                        }
+                      }}
+                      onClear={() => {
+                        setSearchTo('');
+                        setCommittedPair(null);
+                        const params = new URLSearchParams();
+                        if (resolvedFrom) params.set('from', resolvedFrom);
+                        if (searchDate) params.set('d', searchDate);
+                        if (searchTime) params.set('h', searchTime);
+                        navigate(`/transport${params.toString() ? `?${params.toString()}` : ''}`, { replace: true });
                       }}
                       placeholder="Куди їдемо?"
                       emptyMessage="Зупинок не знайдено"
@@ -1959,7 +1993,7 @@ export const LocalTransportPage: React.FC = () => {
                     type="button"
                     className="lt-search-btn"
                     onClick={handleSearchSubmit}
-                    disabled={!effectiveSearchFrom || !effectiveSearchTo}
+                    disabled={!hasResolvedPair}
                   >
                     Знайти
                   </button>
@@ -2014,10 +2048,17 @@ export const LocalTransportPage: React.FC = () => {
             </div>
 
             <div className="lt-routes">
-              {!hasFromToSearch ? (
-                <p className="lt-empty">
-                  Оберіть зупинки «З» та «До» у формі або на карті, потім натисніть «Знайти».
+              {showFormHint && (
+                <p className="lt-routes-hint" role="status">
+                  {pairIsSame ? 'Зупинки «З» і «До» однакові — оберіть іншу.' : 'Оберіть зупинку зі списку.'}
                 </p>
+              )}
+              {!committedPair ? (
+                !showFormHint && (
+                  <p className="lt-empty">
+                    Оберіть зупинки «З» та «До» у формі або на карті, потім натисніть «Знайти».
+                  </p>
+                )
               ) : routesConnectingFromTo.length === 0 ? (
                 <div className="lt-no-routes" role="status">
                   <p>
@@ -2033,12 +2074,12 @@ export const LocalTransportPage: React.FC = () => {
                 <>
                   <p className="lt-routes-heading">
                     З’єднання:{' '}
-                    {displayNameForStopKey(resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog), stopsCatalog)} →{' '}
-                    {displayNameForStopKey(resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog), stopsCatalog)}
+                    {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
+                    {displayNameForStopKey(committedPair.to, stopsCatalog)}
                   </p>
                   {routesConnectingFromTo.map((r) => {
-                    const fromId = resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog);
-                    const toId = resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog);
+                    const fromId = committedPair.from;
+                    const toId = committedPair.to;
                     const fromLabel = displayNameForStopKey(fromId, stopsCatalog);
                     const toLabel = displayNameForStopKey(toId, stopsCatalog);
                     const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
@@ -2157,8 +2198,8 @@ export const LocalTransportPage: React.FC = () => {
             <RouteMap
               stopNames={stops}
               markerStopNames={stops}
-              fromStopName={effectiveSearchFrom || undefined}
-              toStopName={effectiveSearchTo || undefined}
+              fromStopName={resolvedFrom || undefined}
+              toStopName={resolvedTo || undefined}
               resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
               onPickFromStop={(stopName) => {
                 setSearchFrom(stopName);
@@ -2168,7 +2209,7 @@ export const LocalTransportPage: React.FC = () => {
               onPickToStop={(stopName) => {
                 setSearchTo(stopName);
                 rememberFrequentToStop(stopName);
-                const from = effectiveSearchFrom;
+                const from = resolvedFrom;
                 if (from && stopName && from !== stopName) {
                   const pathFrom = encodeURIComponent(from);
                   const pathTo = encodeURIComponent(stopName);

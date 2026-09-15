@@ -443,10 +443,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <div className="lt-from-to-block">
               <div className="lt-from-to-row lt-stop-board-row">
                 <div className="lt-from-to-cell lt-from-to-cell--from">
-                  <label className="lt-from-to-label lt-from-to-label--with-icon">
+                  <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-stop-board-stop">
                     <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Зупинка
                   </label>
                   <Combobox
+                    id="lt-stop-board-stop"
                     label=""
                     options={[
                       { value: '', label: '— Оберіть зупинку —' },
