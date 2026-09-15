@@ -6,10 +6,10 @@ Branch: local commits only (no push)
 ## Checklist
 
 - [ ] `/transport` loads without `/data/*.json` (Network: only `GET /transport/dataset`)
-- [ ] З / До combobox + ⇄ + дата/час + «Знайти» → `/transport/:from/:to?d&h`
+- [ ] З / До combobox + ⇅ + дата/час → `/transport/:from/:to?d&h` оновлюється сам; «Знайти» лише push + скрол до результатів
 - [ ] Список лише connecting; час = наступне відправлення зі зупинки З; verified pill
 - [ ] Карта: маркери з dataset; pick З/До; mobile sheet collapsed/mid/full + invalidateSize
-- [ ] Geo «Найближча» використовує coords з dataset
+- [ ] Geo «Поруч зі мною» використовує coords з dataset; вибір зупинки → «З» + фокус на «До»
 - [ ] Detail: бар, напрямок rematch, tablica Відправлення|Прибуття, таймлайн, друк
 - [ ] `/transport/stop/:id` countdown + «весь день» + link з `stop,dir,time,d,h`
 - [ ] SubNav Маршрути ↔ Зупинка зберігає `d`/`h`
@@ -41,12 +41,13 @@ Goal: Jakdojade-like hierarchy — form → connection cards → map as stop pic
 
 - [ ] `/transport` — sticky form is calm (light chrome); results, not the form, draw the eye
 - [ ] Without З/До — markers are dim/smaller; map stays Malyn center (~zoom 13), not fitBounds on all city stops
-- [ ] Empty after «Знайти» — honest copy (no «перегляньте всі маршрути нижче»); one empty-state; link to stop board OK
-- [ ] With З + До → cards show **selected З → До**, departure time, line №, verified / line ends meta
+- [ ] Empty state — honest copy (no «перегляньте всі маршрути нижче»); one empty-state; link to stop board OK; on mobile «Відкрити карту» opens the sheet
+- [ ] With З + До → h1 and tab title show the pair; cards show departure at «З», `№ → кінцева`, `HH:MM → HH:MM · N хв`, «через N хв» only for today, next-day wrap label; no «лінія …» / «перевірено» text
+- [ ] Typing in «З» with «До» set → hint «Оберіть зупинку зі списку», previous cards stay, no «немає прямого маршруту»; backspace to empty keeps «До» and URL; «×» → `/transport?to=…`
 - [ ] Click marker → **one** picker: bottom stop-sheet («Звідси» / «Сюди»); no radial overlay; no Leaflet popup actions
 - [ ] Terms everywhere **З / До** (map strip / sheet / labels; no «ПО»)
-- [ ] Geo button text «Найближча» (no emoji); date invalid → soft «Формат: ДД.ММ.РР»
-- [ ] ⇄ in form and map strip stay in sync (swap З/До)
+- [ ] Geo button text «Поруч зі мною» (no emoji), error announced via `role="status"`; date is a native picker, chips «Зараз» / «Завтра» set d= (and h= for «Зараз»)
+- [ ] ⇅ in form and map strip stay in sync (swap З/До) and the URL follows the swap
 
 ### Mobile (≤767, DevTools iPhone)
 

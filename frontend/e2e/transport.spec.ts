@@ -13,7 +13,8 @@ test.describe('transport', () => {
     await expect(page.getByRole('heading', { name: 'Маршрути Малина' })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByRole('button', { name: 'Знайти' })).toBeVisible();
+    // exact: поруч є «Знайти найближчі зупинки за геолокацією» (aria-label геокнопки)
+    await expect(page.getByRole('button', { name: 'Знайти', exact: true })).toBeVisible();
   });
 
   test('planner form: «З» above «До», selected stop names fully visible', async ({ page }) => {
@@ -60,7 +61,9 @@ test.describe('transport', () => {
 
     // Без «Знайти»: адресний рядок оновився сам.
     await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?d=16\.09\.26&h=09(%3A|:)12$/);
-    await expect(page.getByText(/З’єднання: Базар → Вокзал/)).toBeVisible();
+    await expect(page.getByText(/Прямі маршрути: Базар → Вокзал/)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Базар → Вокзал');
+    await expect(page).toHaveTitle(/^Базар → Вокзал — як доїхати у Малині/);
 
     // Набір тексту у «З» не дає хибного «немає прямого маршруту», результати лишаються.
     await from.fill('Ба');

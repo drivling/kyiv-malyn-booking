@@ -42,7 +42,7 @@ function buildPlannerUrl(from: string, to: string, date: string, time: string): 
 const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
   {
     q: 'Як доїхати міським транспортом у Малині?',
-    a: 'Відкрийте malin.kiev.ua/transport, оберіть зупинки «З» і «До» (або на карті) і натисніть «Знайти». Сервіс покаже прямі маршрути й найближче відправлення.',
+    a: 'Відкрийте malin.kiev.ua/transport і оберіть зупинки «З» і «До» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.',
   },
   {
     q: 'Де подивитися розклад маршруток Малина?',
@@ -609,6 +609,17 @@ export const LocalTransportPage: React.FC = () => {
   const pairIsStale =
     committedPair != null && (committedPair.from !== resolvedFrom || committedPair.to !== resolvedTo);
   const showFormHint = hasUnresolvedInput || pairIsStale || pairIsSame;
+  /** Назви пари для заголовка сторінки і title вкладки */
+  const pairNames = useMemo(
+    () =>
+      committedPair
+        ? {
+            from: displayNameForStopKey(committedPair.from, stopsCatalog),
+            to: displayNameForStopKey(committedPair.to, stopsCatalog),
+          }
+        : null,
+    [committedPair, stopsCatalog]
+  );
 
   const routesConnectingFromTo = useMemo(() => {
     if (!committedPair || !stops.length) return [];
@@ -726,13 +737,18 @@ export const LocalTransportPage: React.FC = () => {
     }
 
     const routeCount = routes.length;
+    const unknownRoute = isDetailPage && !detailRoute && routeCount > 0;
     return {
-      title: 'Транспорт Малина — розклад маршруток і як доїхати | malin.kiev.ua',
+      title: pairNames
+        ? `${pairNames.from} → ${pairNames.to} — як доїхати у Малині | malin.kiev.ua`
+        : 'Транспорт Малина — розклад маршруток і як доїхати | malin.kiev.ua',
       canonicalUrl: 'https://malin.kiev.ua/transport',
-      // /transport/route/<невідомий або прихований id> показує планер — не індексуємо як дубль хаба
-      ...(isDetailPage && !detailRoute && routeCount > 0 ? { robots: 'noindex, follow' } : {}),
-      description:
-        routeCount > 0
+      // /transport/route/<невідомий або прихований id> показує планер — не індексуємо як дубль хаба.
+      // /transport/:from/:to — SPA-only варіанти з canonical на хаб (SEO-план 1.3), теж noindex.
+      ...(unknownRoute || pairNames ? { robots: 'noindex, follow' } : {}),
+      description: pairNames
+        ? `Прямі маршрути міського транспорту Малина від зупинки ${pairNames.from} до ${pairNames.to}: найближче відправлення, прибуття і тривалість. Планер на malin.kiev.ua/transport.`
+        : routeCount > 0
           ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «З → До», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
           : 'Міський транспорт Малина: планер «З → До», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
       jsonLdId: 'transport-hub-jsonld',
@@ -773,7 +789,7 @@ export const LocalTransportPage: React.FC = () => {
         ],
       },
     };
-  }, [isDetailPage, detailRoute, routes]);
+  }, [isDetailPage, detailRoute, routes, pairNames]);
 
   usePageSeo(transportSeo);
 
@@ -1827,8 +1843,8 @@ export const LocalTransportPage: React.FC = () => {
           <div className="lt-panel">
           <>
             <header className="lt-header lt-header--jakdojade">
-              <h1 className="lt-title">Як доїхати</h1>
-              <p className="lt-subtitle">Малин · місцевий транспорт</p>
+              <h1 className="lt-title">{pairNames ? `${pairNames.from} → ${pairNames.to}` : 'Як доїхати'}</h1>
+              <p className="lt-subtitle">{pairNames ? 'Як доїхати · Малин' : 'Малин · місцевий транспорт'}</p>
             </header>
 
             <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom || undefined} />
@@ -1980,43 +1996,48 @@ export const LocalTransportPage: React.FC = () => {
                     className="lt-geo-btn lt-geo-btn--small"
                     onClick={handleFindNearest}
                     disabled={geoLoading}
-                    title="Найближчі зупинки"
+                    aria-busy={geoLoading}
+                    aria-label="Знайти найближчі зупинки за геолокацією"
+                    title="Найближчі зупинки за вашою геолокацією"
                   >
-                    {geoLoading ? 'Шукаємо…' : 'Найближча'}
+                    {geoLoading ? 'Шукаємо…' : 'Поруч зі мною'}
                   </button>
-                  {(geoError || (nearestStops && nearestStops.length > 0)) && (
-                    <div className="lt-geo-results">
-                      {geoError && <p className="lt-geo-error">{geoError}</p>}
-                      {nearestStops && nearestStops.length > 0 && (
-                        <div className="lt-nearest">
-                          <p className="lt-nearest-title">Найближчі зупинки:</p>
-                          <ul className="lt-nearest-list">
-                            {nearestStops.map(({ name, distance }) => (
-                              <li key={name} className="lt-nearest-item-row">
-                                <button
-                                  type="button"
-                                  className="lt-nearest-item"
-                                  onClick={() => {
-                                    latestStopRef.current = name;
-                                    setSearchFrom(name);
-                                    setStopFilter(name);
-                                    setNearestStops(null);
-                                  }}
-                                >
-                                  {displayNameForStopKey(name, stopsCatalog)} —{' '}
-                                  {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
-                                </button>
-                                <Link
-                                  className="lt-nearest-tablo-link"
-                                  to={`/transport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
-                                >
-                                  Табло
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                  {/* Live-region завжди в DOM: скрінрідер озвучує помилку геолокації */}
+                  <p className="lt-geo-error" role="status" aria-live="polite">
+                    {geoError}
+                  </p>
+                  {nearestStops && nearestStops.length > 0 && (
+                    <div className="lt-geo-results" aria-live="polite">
+                      <div className="lt-nearest">
+                        <p className="lt-nearest-title">Найближчі зупинки:</p>
+                        <ul className="lt-nearest-list">
+                          {nearestStops.map(({ name, distance }) => (
+                            <li key={name} className="lt-nearest-item-row">
+                              <button
+                                type="button"
+                                className="lt-nearest-item"
+                                onClick={() => {
+                                  latestStopRef.current = name;
+                                  setSearchFrom(name);
+                                  setStopFilter(name);
+                                  setNearestStops(null);
+                                  // Зупинка стала «З» — далі логічно обрати «До»
+                                  window.setTimeout(() => searchToInputRef.current?.focus(), 0);
+                                }}
+                              >
+                                {displayNameForStopKey(name, stopsCatalog)} —{' '}
+                                {distance < 1000 ? `${Math.round(distance)} м` : `${(distance / 1000).toFixed(1)} км`}
+                              </button>
+                              <Link
+                                className="lt-nearest-tablo-link"
+                                to={`/transport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
+                              >
+                                Табло
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2031,9 +2052,21 @@ export const LocalTransportPage: React.FC = () => {
               )}
               {!committedPair ? (
                 !showFormHint && (
-                  <p className="lt-empty">
-                    Оберіть зупинки «З» та «До» у формі або на карті, потім натисніть «Знайти».
-                  </p>
+                  <div className="lt-empty">
+                    <p className="lt-empty-text">
+                      Оберіть зупинки «З» та «До» у формі вище або на карті — маршрути з’являться одразу.
+                    </p>
+                    <button
+                      type="button"
+                      className="lt-empty-map-btn"
+                      onClick={() => {
+                        setMobileMapSnap('mid');
+                        hapticLight();
+                      }}
+                    >
+                      Відкрити карту
+                    </button>
+                  </div>
                 )
               ) : routesConnectingFromTo.length === 0 ? (
                 <div className="lt-no-routes" role="status">
@@ -2048,11 +2081,10 @@ export const LocalTransportPage: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <p className="lt-routes-heading">
-                    З’єднання:{' '}
-                    {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
+                  <h2 className="lt-routes-heading" id="lt-results-heading">
+                    Прямі маршрути: {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
                     {displayNameForStopKey(committedPair.to, stopsCatalog)}
-                  </p>
+                  </h2>
                   {routesConnectingFromTo.map((r) => {
                     const fromId = committedPair.from;
                     const toId = committedPair.to;

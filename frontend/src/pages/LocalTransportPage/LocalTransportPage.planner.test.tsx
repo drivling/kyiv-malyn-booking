@@ -82,7 +82,7 @@ beforeEach(() => {
 
 async function openPair() {
   renderPlanner(PAIR_URL);
-  const heading = await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+  const heading = await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
   const from = screen.getByRole('combobox', { name: 'З' });
   const to = screen.getByRole('combobox', { name: 'До' });
   expect(from).toHaveValue('Базар');
@@ -104,7 +104,7 @@ describe('LocalTransportPage planner: form state', () => {
     await user.keyboard('Ба');
     expect(from).toHaveValue('Ба');
     expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Оберіть зупинку зі списку.');
+    expect(screen.getByText('Оберіть зупинку зі списку.')).toHaveAttribute('role', 'status');
     expect(screen.getByText('№2')).toBeInTheDocument();
     expect(location()).toBe(PAIR_URL);
   });
@@ -139,7 +139,7 @@ describe('LocalTransportPage planner: form state', () => {
     await user.keyboard('Вок');
     await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
     expect(from).toHaveValue('Вокзал');
-    expect(screen.getByRole('status')).toHaveTextContent('однакові');
+    expect(screen.getByText(/однакові/)).toHaveAttribute('role', 'status');
     expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
   });
 
@@ -184,7 +184,7 @@ describe('LocalTransportPage planner: URL follows the form', () => {
     await user.keyboard('Вок');
     await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
     await waitFor(() => expect(location()).toBe('/transport/st_a/st_b?d=16.09.26&h=09%3A12'), { timeout: 3000 });
-    expect(await screen.findByText(/З’єднання: Базар → Вокзал/)).toBeInTheDocument();
+    expect(await screen.findByText(/Прямі маршрути: Базар → Вокзал/)).toBeInTheDocument();
   });
 
   it('⇅ swaps the pair and the URL follows', async () => {
@@ -194,7 +194,7 @@ describe('LocalTransportPage planner: URL follows the form', () => {
     await waitFor(() => expect(location()).toBe('/transport/st_b/st_a?d=16.09.26&h=09%3A12'), { timeout: 3000 });
     expect(from).toHaveValue('Вокзал');
     expect(to).toHaveValue('Базар');
-    expect(screen.getByText(/З’єднання: Вокзал → Базар/)).toBeInTheDocument();
+    expect(screen.getByText(/Прямі маршрути: Вокзал → Базар/)).toBeInTheDocument();
   });
 
   it('«Знайти» is enabled only for a resolved pair', async () => {
@@ -230,7 +230,7 @@ describe('LocalTransportPage planner: date and time', () => {
   it('«Завтра» sets tomorrow and the URL follows', async () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
-    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const tomorrow = tomorrowDateUrl();
     const chip = screen.getByRole('button', { name: 'Завтра' });
     expect(chip).toHaveAttribute('aria-pressed', 'false');
@@ -243,7 +243,7 @@ describe('LocalTransportPage planner: date and time', () => {
   it('«Зараз» resets to today and the current time', async () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
-    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const chip = screen.getByRole('button', { name: 'Зараз' });
     expect(chip).toHaveAttribute('aria-pressed', 'false');
     await user.click(chip);
@@ -257,7 +257,7 @@ describe('LocalTransportPage planner: date and time', () => {
 describe('LocalTransportPage planner: result card', () => {
   it('shows departure → arrival · duration and the trip destination, without jargon', async () => {
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
-    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const card = screen.getByRole('button', { name: /Маршрут №2 до Лікарня/ });
     expect(card).toHaveTextContent('08:30');
     expect(card).toHaveTextContent('08:30 → 08:34 · 4 хв'); // сегмент Базар → Вокзал = 240 с
@@ -270,7 +270,7 @@ describe('LocalTransportPage planner: result card', () => {
 
   it('after the last trip of the day the card says the first trip is next day', async () => {
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
-    await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const card = screen.getByRole('button', { name: /Маршрут №2/ });
     expect(card).toHaveTextContent('08:30');
     expect(card).toHaveTextContent('перший наступного дня');
@@ -281,12 +281,74 @@ describe('LocalTransportPage planner: result card', () => {
     vi.setSystemTime(new Date('2026-09-16T05:18:00Z')); // 08:18 за Києвом
     try {
       renderPlanner('/transport/st_a/st_b?d=16.09.26&h=08%3A00');
-      await screen.findByText(/З’єднання: Базар → Вокзал/, {}, { timeout: 5000 });
+      await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
       const card = screen.getByRole('button', { name: /Маршрут №2/ });
       expect(card).toHaveTextContent('через 12 хв');
       expect(card.getAttribute('aria-label')).toContain('через 12 хв');
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('LocalTransportPage planner: heading, geolocation, empty state', () => {
+  it('h1, document.title and robots reflect the pair; results heading is an h2', async () => {
+    await openPair();
+    expect(screen.getByRole('heading', { level: 1, name: 'Базар → Вокзал' })).toBeInTheDocument();
+    expect(document.title).toMatch(/^Базар → Вокзал — як доїхати у Малині/);
+    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, follow');
+    expect(screen.getByRole('heading', { level: 2, name: /Прямі маршрути: Базар → Вокзал/ })).toBeInTheDocument();
+  });
+
+  it('without a pair: h1 «Як доїхати», hub title, empty state with «Відкрити карту» that raises the sheet', async () => {
+    const user = userEvent.setup();
+    renderPlanner('/transport');
+    await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+    expect(screen.getByRole('heading', { level: 1, name: 'Як доїхати' })).toBeInTheDocument();
+    expect(document.title).toMatch(/^Транспорт Малина/);
+    const empty = screen.getByText(/Оберіть зупинки «З» та «До»/).closest('.lt-empty') as HTMLElement;
+    const mapColumn = document.querySelector('.lt-map-column') as HTMLElement;
+    expect(mapColumn.className).toContain('lt-map-column--mobile-collapsed');
+    await user.click(within(empty).getByRole('button', { name: 'Відкрити карту' }));
+    expect(mapColumn.className).toContain('lt-map-column--mobile-mid');
+  });
+
+  it('«Поруч зі мною» fills «З» with the nearest stop and moves focus to «До»', async () => {
+    const user = userEvent.setup();
+    const geolocation = {
+      getCurrentPosition: vi.fn((ok: PositionCallback) =>
+        ok({ coords: { latitude: 50.7701, longitude: 29.2401 } } as unknown as GeolocationPosition)
+      ),
+    };
+    Object.defineProperty(navigator, 'geolocation', { value: geolocation, configurable: true });
+    try {
+      renderPlanner('/transport');
+      const from = await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+      await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
+      await user.click(await screen.findByRole('button', { name: /^Базар — \d+ м$/ }));
+      expect(from).toHaveValue('Базар');
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'До' })).toHaveFocus());
+    } finally {
+      Reflect.deleteProperty(navigator, 'geolocation');
+    }
+  });
+
+  it('a geolocation error is announced in the live region', async () => {
+    const user = userEvent.setup();
+    const geolocation = {
+      getCurrentPosition: vi.fn((_ok: PositionCallback, err?: PositionErrorCallback) =>
+        err?.({ code: 1, message: 'denied' } as GeolocationPositionError)
+      ),
+    };
+    Object.defineProperty(navigator, 'geolocation', { value: geolocation, configurable: true });
+    try {
+      renderPlanner('/transport');
+      await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+      await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
+      const live = screen.getAllByRole('status').find((el) => el.classList.contains('lt-geo-error'));
+      expect(live).toHaveTextContent('Дозвіл на геолокацію відхилено');
+    } finally {
+      Reflect.deleteProperty(navigator, 'geolocation');
     }
   });
 });
