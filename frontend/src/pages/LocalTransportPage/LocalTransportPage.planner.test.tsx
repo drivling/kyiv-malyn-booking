@@ -169,3 +169,47 @@ describe('LocalTransportPage planner: form state', () => {
     expect(await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 })).toBeInTheDocument();
   });
 });
+
+describe('LocalTransportPage planner: URL follows the form', () => {
+  it('selecting both stops on /transport updates the URL without pressing «Знайти»', async () => {
+    const user = userEvent.setup();
+    renderPlanner('/transport?d=16.09.26&h=09%3A12');
+    const from = await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+    await user.click(from);
+    await user.keyboard('Ба');
+    await user.click(await screen.findByRole('option', { name: 'Базар' }));
+    const to = screen.getByRole('combobox', { name: 'До' });
+    await user.click(to);
+    await user.keyboard('Вок');
+    await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
+    await waitFor(() => expect(location()).toBe('/transport/st_a/st_b?d=16.09.26&h=09%3A12'), { timeout: 3000 });
+    expect(await screen.findByText(/З’єднання: Базар → Вокзал/)).toBeInTheDocument();
+  });
+
+  it('⇅ swaps the pair and the URL follows', async () => {
+    const user = userEvent.setup();
+    const { from, to } = await openPair();
+    await user.click(screen.getByRole('button', { name: 'Поміняти З та До' }));
+    await waitFor(() => expect(location()).toBe('/transport/st_b/st_a?d=16.09.26&h=09%3A12'), { timeout: 3000 });
+    expect(from).toHaveValue('Вокзал');
+    expect(to).toHaveValue('Базар');
+    expect(screen.getByText(/З’єднання: Вокзал → Базар/)).toBeInTheDocument();
+  });
+
+  it('«Знайти» is enabled only for a resolved pair', async () => {
+    const user = userEvent.setup();
+    const { from } = await openPair();
+    const find = screen.getByRole('button', { name: 'Знайти' });
+    expect(find).toBeEnabled();
+    await user.clear(from);
+    expect(find).toBeDisabled();
+  });
+
+  it('the stop board tab carries the chosen «З» stop', async () => {
+    await openPair();
+    const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
+    expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' }).getAttribute('href')).toMatch(
+      /^\/transport\/stop\/st_a\?/
+    );
+  });
+});

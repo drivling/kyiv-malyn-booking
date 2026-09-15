@@ -427,7 +427,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             </p>
           </header>
 
-          <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
+          <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={selectedStop || undefined} />
 
           <section className="lt-stop-board-intro lt-stop-board-intro--jd" aria-labelledby="lt-stop-board-h">
             <h2 id="lt-stop-board-h" className="lt-section-title lt-stop-board-title lt-stop-board-title--jd">

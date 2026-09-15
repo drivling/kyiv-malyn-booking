@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
@@ -24,6 +24,15 @@ import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { routeLine, routeTitle } from './routeLabel';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
+
+/** URL планувальника для пари зупинок з датою/часом — єдине місце, де він збирається. */
+function buildPlannerUrl(from: string, to: string, date: string, time: string): string {
+  const params = new URLSearchParams();
+  if (date) params.set('d', date);
+  if (time) params.set('h', time);
+  const qs = params.toString();
+  return `/transport/${encodeURIComponent(from)}/${encodeURIComponent(to)}${qs ? `?${qs}` : ''}`;
+}
 
 /** AEO FAQ for city transit hub (pattern: Korosten/Zvyagel official + local news pages) */
 const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
@@ -410,6 +419,7 @@ export const LocalTransportPage: React.FC = () => {
     toStop?: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedStopFromUrl = searchParams.get('stop') ?? '';
   const toFromUrl = searchParams.get('to') ?? '';
@@ -462,6 +472,8 @@ export const LocalTransportPage: React.FC = () => {
   const latestStopRef = useRef<string>('');
   const searchFromInputRef = useRef<HTMLInputElement | null>(null);
   const searchToInputRef = useRef<HTMLInputElement | null>(null);
+  const searchCardRef = useRef<HTMLDivElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
   const [isSwapAnimating, setIsSwapAnimating] = useState(false);
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
@@ -636,6 +648,29 @@ export const LocalTransportPage: React.FC = () => {
       setCommittedPair(null);
     }
   }, [isMainPage, hasResolvedPair, resolvedFrom, resolvedTo, effectiveSearchFrom, effectiveSearchTo]);
+
+  // Адресний рядок завжди відповідає видачі: щойно обидві зупинки резолвнуті (вибір зі списку,
+  // ⇅, маркер на карті) або змінились дата/час — оновлюємо URL через replace. Порівняння з
+  // поточним location захищає від циклу з ефектом URL→state вище.
+  useEffect(() => {
+    if (!isMainPage || !hasResolvedPair) return;
+    if (!parseDateUrl(searchDate) || !/^\d{2}:\d{2}$/.test(searchTime)) return;
+    let currentPath = location.pathname;
+    try {
+      currentPath = decodeURIComponent(location.pathname);
+    } catch {
+      /* лишаємо як є */
+    }
+    const current = new URLSearchParams(location.search);
+    const same =
+      currentPath === `/transport/${resolvedFrom}/${resolvedTo}` &&
+      current.get('d') === searchDate &&
+      current.get('h') === searchTime;
+    if (same) return;
+    const target = buildPlannerUrl(resolvedFrom, resolvedTo, searchDate, searchTime);
+    const timer = window.setTimeout(() => navigate(target, { replace: true }), 300);
+    return () => window.clearTimeout(timer);
+  }, [isMainPage, hasResolvedPair, resolvedFrom, resolvedTo, searchDate, searchTime, location.pathname, location.search, navigate]);
 
   /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує). */
   const hasUnresolvedInput =
@@ -1216,16 +1251,22 @@ export const LocalTransportPage: React.FC = () => {
     }
   };
 
+  /** Прокрутити до результатів під sticky-формою (на мобільному форма ховає видачу). */
+  const scrollToResults = () => {
+    const el = resultsRef.current;
+    if (!el || typeof el.scrollIntoView !== 'function') return;
+    const stickyHeight = searchCardRef.current?.offsetHeight ?? 0;
+    el.style.scrollMarginTop = `${stickyHeight + 8}px`;
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
   const handleSearchSubmit = () => {
     const from = resolvedFrom;
     const to = resolvedTo;
     if (!from || !to || from === to) return;
-    const pathFrom = encodeURIComponent(from);
-    const pathTo = encodeURIComponent(to);
-    const params = new URLSearchParams();
-    params.set('d', searchDate);
-    params.set('h', searchTime);
-    navigate(`/transport/${pathFrom}/${pathTo}?${params.toString()}`);
+    // Свідомий пошук — push (запис в історії), на відміну від автосинхронізації (replace).
+    navigate(buildPlannerUrl(from, to, searchDate, searchTime));
+    scrollToResults();
   };
 
   const handleSelectRoute = (id: string) => {
@@ -1269,10 +1310,7 @@ export const LocalTransportPage: React.FC = () => {
       params.set('h', timeFromUrl || hourFromUrl || '12:00');
       navigate(`/transport/${encodeURIComponent(selectedStopFromUrl)}/${encodeURIComponent(toFromUrl)}?${params.toString()}`);
     } else if (isMainPage && hasPathSearch) {
-      const params = new URLSearchParams();
-      if (searchDate) params.set('d', searchDate);
-      if (searchTime) params.set('h', searchTime);
-      navigate(`/transport/${encodeURIComponent(resolvedFrom || fromPathDecoded)}/${encodeURIComponent(resolvedTo || toPathDecoded)}?${params.toString()}`);
+      navigate(buildPlannerUrl(resolvedFrom || fromPathDecoded, resolvedTo || toPathDecoded, searchDate, searchTime));
     } else {
       const stop = selectedStopFromUrl || effectiveStopFilter;
       navigate(stop ? `/transport?stop=${encodeURIComponent(stop)}` : '/transport');
@@ -1367,6 +1405,7 @@ export const LocalTransportPage: React.FC = () => {
             <LocalTransportSubNav
               searchDate={dateFromUrl || searchDate || formatDateUrl(new Date())}
               searchTime={hourFromUrl || timeFromUrl || searchTime}
+              fromStopId={selectedStopFromUrl || undefined}
             />
 
             {/* Заголовок маршруту + перемикач напрямку */}
@@ -1862,9 +1901,9 @@ export const LocalTransportPage: React.FC = () => {
               <p className="lt-subtitle">Малин · місцевий транспорт</p>
             </header>
 
-            <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
+            <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom || undefined} />
 
-            <div className="lt-search lt-search--jakdojade">
+            <div className="lt-search lt-search--jakdojade" ref={searchCardRef}>
               <div className="lt-from-to-block">
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
@@ -1909,12 +1948,10 @@ export const LocalTransportPage: React.FC = () => {
                     className={`lt-from-to-swap ${isSwapAnimating ? 'lt-from-to-swap--animating' : ''}`}
                     onClick={() => {
                       setIsSwapAnimating(true);
-                      setSearchFrom(effectiveSearchTo);
-                      setSearchTo(effectiveSearchFrom);
-                      window.setTimeout(() => {
-                        setIsSwapAnimating(false);
-                        searchFromInputRef.current?.focus();
-                      }, 220);
+                      // URL підтягнеться автосинхронізацією пари → адресний рядок.
+                      setSearchFrom(resolvedTo || effectiveSearchTo);
+                      setSearchTo(resolvedFrom || effectiveSearchFrom);
+                      window.setTimeout(() => setIsSwapAnimating(false), 220);
                     }}
                     title="Поміняти місцями"
                     aria-label="Поміняти З та До"
@@ -2047,7 +2084,7 @@ export const LocalTransportPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="lt-routes">
+            <div className="lt-routes" ref={resultsRef}>
               {showFormHint && (
                 <p className="lt-routes-hint" role="status">
                   {pairIsSame ? 'Зупинки «З» і «До» однакові — оберіть іншу.' : 'Оберіть зупинку зі списку.'}
@@ -2209,19 +2246,11 @@ export const LocalTransportPage: React.FC = () => {
               onPickToStop={(stopName) => {
                 setSearchTo(stopName);
                 rememberFrequentToStop(stopName);
-                const from = resolvedFrom;
-                if (from && stopName && from !== stopName) {
-                  const pathFrom = encodeURIComponent(from);
-                  const pathTo = encodeURIComponent(stopName);
-                  const params = new URLSearchParams();
-                  params.set('d', searchDate);
-                  params.set('h', searchTime);
-                  navigate(`/transport/${pathFrom}/${pathTo}?${params.toString()}`);
-                }
+                // URL підтягнеться автосинхронізацією пари → адресний рядок.
               }}
               onSwapStops={() => {
-                setSearchFrom(effectiveSearchTo);
-                setSearchTo(effectiveSearchFrom);
+                setSearchFrom(resolvedTo || effectiveSearchTo);
+                setSearchTo(resolvedFrom || effectiveSearchFrom);
               }}
               frequentToStops={frequentToStops}
               onStopMarkerActivate={expandMobileMapSheetForStop}
