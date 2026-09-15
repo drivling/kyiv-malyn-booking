@@ -427,7 +427,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             </p>
           </header>
 
-          <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
+          <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={selectedStop || undefined} />
 
           <section className="lt-stop-board-intro lt-stop-board-intro--jd" aria-labelledby="lt-stop-board-h">
             <h2 id="lt-stop-board-h" className="lt-section-title lt-stop-board-title lt-stop-board-title--jd">
@@ -443,10 +443,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <div className="lt-from-to-block">
               <div className="lt-from-to-row lt-stop-board-row">
                 <div className="lt-from-to-cell lt-from-to-cell--from">
-                  <label className="lt-from-to-label lt-from-to-label--with-icon">
+                  <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-stop-board-stop">
                     <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Зупинка
                   </label>
                   <Combobox
+                    id="lt-stop-board-stop"
                     label=""
                     options={[
                       { value: '', label: '— Оберіть зупинку —' },

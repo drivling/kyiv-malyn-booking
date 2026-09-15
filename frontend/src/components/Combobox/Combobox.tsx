@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import './Combobox.css';
 
 export interface ComboboxOption {
@@ -20,6 +20,12 @@ interface ComboboxProps {
   inputRef?: React.Ref<HTMLInputElement>;
   /** Викликається лише коли користувач обрав опцію зі списку */
   onSelectOption?: (value: string) => void;
+  /** Викликається лише після кліку по кнопці «×» (на відміну від стирання тексту клавіатурою) */
+  onClear?: () => void;
+  /** id інпута — щоб зовнішній <label htmlFor> був пов'язаний з полем */
+  id?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
 }
 
 const defaultFilter = (opt: ComboboxOption, query: string) =>
@@ -36,7 +42,12 @@ export const Combobox: React.FC<ComboboxProps> = ({
   clearable = false,
   inputRef,
   onSelectOption,
+  onClear,
+  id,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
 }) => {
+  const reactId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [inputValue, setInputValue] = useState(value);
@@ -137,8 +148,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
     close(false);
   };
 
-  const listId = `combobox-list-${Math.random().toString(36).slice(2)}`;
-  const inputId = `combobox-input-${Math.random().toString(36).slice(2)}`;
+  const listId = `combobox-list-${reactId}`;
+  const inputId = id ?? `combobox-input-${reactId}`;
 
   return (
     <div ref={containerRef} className="combobox">
@@ -156,6 +167,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
           aria-autocomplete="list"
           aria-expanded={isOpen}
           aria-controls={listId}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
           aria-activedescendant={
             isOpen && filtered[highlightIndex]
               ? `${listId}-option-${highlightIndex}`
@@ -179,6 +192,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
               onChange('');
               setInputValue('');
               close(false);
+              onClear?.();
             }}
             tabIndex={-1}
             aria-label="Очистити"

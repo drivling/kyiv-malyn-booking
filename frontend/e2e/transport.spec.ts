@@ -46,4 +46,35 @@ test.describe('transport', () => {
     });
     expect(fits.visible).toBeGreaterThan(fits.textWidth);
   });
+
+  test('planner URL follows the form: pick stops, swap, switch to the stop board', async ({ page }) => {
+    await page.goto('/transport?d=16.09.26&h=09%3A12');
+    const from = page.getByRole('combobox', { name: 'З' });
+    const to = page.getByRole('combobox', { name: 'До' });
+    await from.click();
+    await from.pressSequentially('Ба');
+    await page.getByRole('option', { name: 'Базар' }).click();
+    await to.click();
+    await to.pressSequentially('Вок');
+    await page.getByRole('option', { name: 'Вокзал' }).click();
+
+    // Без «Знайти»: адресний рядок оновився сам.
+    await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?d=16\.09\.26&h=09(%3A|:)12$/);
+    await expect(page.getByText(/З’єднання: Базар → Вокзал/)).toBeVisible();
+
+    // Набір тексту у «З» не дає хибного «немає прямого маршруту», результати лишаються.
+    await from.fill('Ба');
+    await expect(page.getByText(/Оберіть зупинку зі списку/)).toBeVisible();
+    await expect(page.getByText(/немає прямого маршруту/)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?/);
+    await page.getByRole('option', { name: 'Базар' }).click();
+
+    await page.getByRole('button', { name: 'Поміняти З та До' }).click();
+    await expect(page).toHaveURL(/\/transport\/st_b\/st_a\?/);
+    await expect(from).toHaveValue('Вокзал');
+
+    // Перемикання на табло переносить обране «З».
+    await page.getByRole('link', { name: 'Зупинка (табло)' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
+  });
 });
