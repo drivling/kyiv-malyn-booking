@@ -1885,7 +1885,7 @@ export const LocalTransportPage: React.FC = () => {
                     title="Поміняти місцями"
                     aria-label="Поміняти З та До"
                   >
-                    ⇄
+                    ⇅
                   </button>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
                     <label

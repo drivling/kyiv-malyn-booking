@@ -1001,33 +1001,42 @@
   flex-wrap: wrap;
 }
 
+/*
+ * Планувальник: «З» над «До» на всіх ширинах (панель 380px не вміщує дві назви зупинок
+ * поруч), лейбл-крапка в одному рядку з полем, ⇅ праворуч на обидва рядки.
+ * Табло зупинки (.lt-stop-board-row) має власну одноколонкову сітку нижче.
+ */
 .lt-theme-jakdojade .lt-from-to-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'from swap'
+    'to swap';
+  align-items: center;
   gap: 8px;
 }
 
 .lt-theme-jakdojade .lt-from-to-cell {
   padding: 0;
-}
-
-.lt-theme-jakdojade .lt-from-to-cell--to {
-  flex: 1 1 0;
   min-width: 0;
 }
 
 .lt-theme-jakdojade .lt-from-to-cell--from {
+  grid-area: from;
   border-right: none;
-  flex: 1 1 0;
-  min-width: 0;
+}
+
+.lt-theme-jakdojade .lt-from-to-cell--to {
+  grid-area: to;
 }
 
 .lt-theme-jakdojade .lt-from-to-swap {
-  align-self: end;
-  width: 44px;
-  min-height: 44px;
-  height: 44px;
+  grid-area: swap;
+  align-self: center;
+  justify-self: center;
+  width: 40px;
+  min-height: 40px;
+  height: 40px;
   border-radius: 999px;
   border: 1px solid var(--lt-border);
   box-shadow: 0 1px 2px rgba(60, 64, 67, 0.25);
@@ -1039,20 +1048,47 @@
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
 }
 
-@media (max-width: 639px) {
-  .lt-theme-jakdojade .lt-from-to-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
+/* Лейбл «З»/«До» в рядку з полем (лише планувальник — на табло лейбл «Зупинка» довший). */
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell--from,
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell--to {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-  .lt-theme-jakdojade .lt-from-to-cell--from {
-    border-bottom: none;
-  }
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
+  margin: 0;
+  flex: 0 0 44px;
+}
 
-  .lt-theme-jakdojade .lt-from-to-swap {
-    width: 44px;
-    justify-self: center;
-    min-height: 44px;
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Компактне поле: без стрілки списку (він і так відкривається по фокусу), «×» біля краю —
+   назва зупинки отримує ще ~40px. */
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-toggle {
+  display: none;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-clear {
+  right: 4px;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input,
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input-wrap--clearable .combobox-input {
+  padding-right: 44px;
+}
+
+/* Дуже вузькі екрани (320px): лейбл — лише кольорова крапка (текст «З»/«До» лишається в DOM
+   для скрінрідера) — довгі назви зупинок читаються повністю. */
+@media (max-width: 359px) {
+  .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
+    flex-basis: 14px;
+    gap: 0;
+    font-size: 0;
+    line-height: 0;
   }
 }
 
@@ -1213,6 +1249,25 @@
 
 .lt-theme-jakdojade .lt-datetime-row {
   gap: 8px;
+}
+
+/* Планувальник: «Дата» і «Час» в один рядок, «Знайти» на всю ширину під ними. */
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-field {
+  min-width: 0;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-input {
+  min-width: 0;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-search-btn {
+  grid-column: 1 / -1;
 }
 
 .lt-theme-jakdojade .lt-search-btn {

@@ -15,4 +15,35 @@ test.describe('transport', () => {
     });
     await expect(page.getByRole('button', { name: 'Знайти' })).toBeVisible();
   });
+
+  test('planner form: «З» above «До», selected stop names fully visible', async ({ page }) => {
+    await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
+    const from = page.locator('.lt-from-to-cell--from input');
+    const to = page.locator('.lt-from-to-cell--to input');
+    await expect(from).toHaveValue('Базар');
+    await expect(to).toHaveValue('Вокзал');
+
+    // «З» стоїть над «До», по одній лінії зліва; ⇅ праворуч.
+    const fromBox = await from.boundingBox();
+    const toBox = await to.boundingBox();
+    expect(fromBox && toBox).toBeTruthy();
+    expect(toBox!.y).toBeGreaterThan(fromBox!.y + fromBox!.height - 1);
+    expect(Math.abs(toBox!.x - fromBox!.x)).toBeLessThan(2);
+    const swap = page.getByRole('button', { name: 'Поміняти З та До' });
+    await expect(swap).toBeVisible();
+    const swapBox = await swap.boundingBox();
+    expect(swapBox!.x).toBeGreaterThan(fromBox!.x + fromBox!.width - 1);
+
+    // Довга назва зупинки читається повністю: текст вужчий за видиму частину поля.
+    const fits = await from.evaluate((el) => {
+      const input = el as HTMLInputElement;
+      const cs = getComputedStyle(input);
+      const ctx = document.createElement('canvas').getContext('2d')!;
+      ctx.font = cs.font;
+      const textWidth = ctx.measureText('з-д "Прожектор"').width;
+      const visible = input.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      return { textWidth, visible };
+    });
+    expect(fits.visible).toBeGreaterThan(fits.textWidth);
+  });
 });
