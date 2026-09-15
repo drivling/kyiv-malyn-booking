@@ -38,3 +38,15 @@ export function ensureAndTrackPage(pathname: string, search: string, hash: strin
   if (!gaShouldTrackPath(pathname)) return;
   gaTrackPageView(pathname, search, hash);
 }
+
+export type GaEventParams = Record<string, string | number | boolean>;
+
+/**
+ * Кастомна подія GA4 (SPA). No-op без gtag (він ініціалізується в index.html) і поза
+ * відстежуваними шляхами. Параметри — лише службові id (зупинки, маршрути) і категорії, без PII.
+ */
+export function gaTrackEvent(name: string, params: GaEventParams = {}): void {
+  if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
+  if (!gaShouldTrackPath(window.location.pathname)) return;
+  window.gtag('event', name, params);
+}

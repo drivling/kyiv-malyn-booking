@@ -1443,6 +1443,11 @@
   color: #dc2626;
 }
 
+/* Live-region завжди в DOM; без тексту місця не займає */
+.lt-geo-error:empty {
+  display: none;
+}
+
 .lt-nearest {
   margin-top: 8px;
 }
@@ -1678,6 +1683,36 @@
   padding: 32px var(--lt-panel-x);
   color: var(--lt-text-muted);
   font-size: var(--lt-fs-md);
+}
+
+.lt-empty-text {
+  margin: 0;
+}
+
+/* «Відкрити карту» має сенс лише на мобільному, де карта — згорнутий лист унизу */
+.lt-empty-map-btn {
+  display: none;
+  margin-top: 12px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--lt-border);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-family: inherit;
+  font-size: var(--lt-fs-base);
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .lt-empty-map-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* ========== Detail view: маршрут (Jakdojade-style) ========== */
