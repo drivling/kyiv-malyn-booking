@@ -34,6 +34,8 @@ interface RouteMapProps {
   resolveStopLabel?: (stopKey: string) => string;
   /** Тап по маркеру зупинки (наприклад розгорнути mobile sheet карти) */
   onStopMarkerActivate?: () => void;
+  /** Якщо задано — тап по маркеру віддає зупинку сторінці замість листа «Звідси / Сюди» (табло) */
+  onStopMarkerClick?: (stopName: string) => void;
   /** Стан mobile bottom-sheet: при зміні викликається invalidateSize для коректних тайлів */
   mapSheetSnap?: 'collapsed' | 'mid' | 'full' | null;
   /** Координати з dataset (GET /transport/dataset); без окремого JSON-файлу */
@@ -176,6 +178,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   frequentToStops = [],
   resolveStopLabel = (k) => k,
   onStopMarkerActivate,
+  onStopMarkerClick,
   mapSheetSnap,
   coordsData = null,
   hideRadialPicker = false,
@@ -360,6 +363,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 zIndexOffset={isFrom || isTo ? 200 : 0}
                 eventHandlers={{
                   click: () => {
+                    if (onStopMarkerClick) {
+                      onStopMarkerClick(n);
+                      return;
+                    }
                     setSelectedStopOnMap(n);
                     onStopMarkerActivate?.();
                   },

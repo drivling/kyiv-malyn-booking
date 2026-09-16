@@ -8,6 +8,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  /* Висота шапки сайту (NavBar); від неї рахують висоту сторінок транспорт/адмінка/логін */
+  --app-nav-height: 60px;
+
   /* Основний акцент (посилання, кнопки, фокус) */
   --pb-primary: #1a73e8;
   --pb-primary-hover: #1967d2;
@@ -78,4 +81,11 @@ body {
   color: var(--pb-text);
   overflow-x: hidden;
   font-size: var(--pb-font-size);
+}
+
+/* Телефон: шапка в один рядок (NavBar.css) */
+@media (max-width: 767px) {
+  :root {
+    --app-nav-height: 48px;
+  }
 }

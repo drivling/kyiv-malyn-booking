@@ -57,6 +57,20 @@ Goal: Jakdojade-like hierarchy — form → connection cards → map as stop pic
 - [ ] Marker tap → mid + stop-sheet only (no third competing UI)
 - [ ] `lt-mobile-map-toggle` — light text on dark pill, readable contrast
 
+### Stop board `/transport/stop`, `/transport/stop/:id` (iteration 3)
+
+- [ ] Direct hit `/transport/stop/st_…` — field shows the stop name on the first frame (no raw id), h1 «Зупинка «…»», SubNav «Маршрути (З → До)» carries `?from=`
+- [ ] Typing garbage in «Зупинка» — URL, h1, title and the departures stay; hint «Оберіть зупинку зі списку»; picking from the list → `/transport/stop/<id>?d&h` (replace); «×» → `/transport/stop?d&h`; keyboard-clearing navigates nowhere
+- [ ] Card → route page → «Назад до пошуку» returns to the same stop's board; planner opened from the board (`?from=`) keeps `from=` current after picking another «З»
+- [ ] «Поруч зі мною» under the field → list of nearest stops → tap opens that stop's board; denied permission announced via `role="status"`
+- [ ] Date/time collapsed to «Сьогодні, 07:00 · Змінити»; «Завтра» / native date / time apply at once (URL `d=`/`h=` follows, no «Застосувати»)
+- [ ] Desktop map shows all city stops (dim), selected one highlighted; marker tap opens that stop's board. Mobile (≤767): no map strip at the bottom, no dead padding under the list
+
+### Site header (iteration 3)
+
+- [ ] 390px: the top menu is one row (<60px): «Міжміські · Транспорт · Про нас · Допомога» scroll horizontally with a fade on the right while there is more; «Логін» / profile / «Вийти» are 40px icons with `aria-label`; «Транспорт» without the city ≤480px
+- [ ] Desktop: unchanged (words, 60px); `/transport`, `/admin`, `/login`, booking page heights follow `--app-nav-height` (no gap or scrollbar under the header at 768–900px)
+
 ### Do not break (this cycle)
 
 - [ ] Detail `/transport/route/...` and tablica `/transport/stop` still work (planner-only + shared map/sheet CSS)

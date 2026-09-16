@@ -1,0 +1,203 @@
+/* Шапка: білий фон; на публічних сторінках — BBC cyan brand. Висота — --app-nav-height (index.css). */
+.app-nav {
+  background: var(--pb-card-bg);
+  border-bottom: 1px solid var(--pb-border);
+  min-height: var(--app-nav-height);
+  padding: 10px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--pb-shadow);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.app-nav--bbc {
+  border-bottom-color: rgba(0, 175, 245, 0.18);
+}
+
+.app-nav--bbc .nav-brand {
+  color: #054752 !important;
+  font-weight: 700;
+}
+
+.app-nav--bbc .nav-brand:hover {
+  color: #00aff5 !important;
+}
+
+.app-nav--bbc .nav-link:hover {
+  background: rgba(0, 175, 245, 0.12);
+  color: #0087c0;
+}
+
+.app-nav--bbc .nav-user-info {
+  background: rgba(0, 175, 245, 0.12);
+  border-color: rgba(0, 175, 245, 0.35);
+  color: #054752;
+}
+
+/* Адмінка: попередня синя палітра без cyan */
+.app-nav--admin {
+  --pb-primary: #1a73e8;
+  --pb-primary-hover: #1967d2;
+  --pb-primary-active: #185abc;
+  --pb-primary-light: #e8f0fe;
+  --pb-primary-border: rgba(26, 115, 232, 0.35);
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.nav-brand {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--pb-primary) !important;
+}
+
+.nav-brand:hover {
+  background: none !important;
+  opacity: 0.85;
+}
+
+.nav-link {
+  color: var(--pb-text);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 8px 16px;
+  border-radius: var(--pb-radius);
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  background: var(--pb-primary-light);
+  color: var(--pb-primary);
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.nav-link--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-icon {
+  flex: 0 0 auto;
+}
+
+.nav-user-info {
+  padding: 6px 12px;
+  background: var(--pb-primary-light);
+  border: 1px solid var(--pb-primary-border);
+  border-radius: var(--pb-radius);
+  color: var(--pb-primary-hover);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Десктоп: іконки не потрібні, дії читаються словами */
+@media (min-width: 768px) {
+  .nav-right .nav-icon {
+    display: none;
+  }
+}
+
+/*
+ * Телефон: один рядок замість двох (≈190px над формою на 390px). Ліві посилання прокручуються
+ * по горизонталі без смуги прокрутки; градієнт праворуч показує, що є ще. Праві дії — іконки
+ * 40px з aria-label, «Адмін панель» лишається словами (лише для адмінів).
+ */
+@media (max-width: 767px) {
+  .app-nav {
+    flex-wrap: nowrap;
+    /* 40px іконки + 7px відступів + 1px межа = 48px = --app-nav-height */
+    padding: 4px 12px 3px;
+    gap: 8px;
+  }
+
+  .nav-left {
+    flex: 1 1 auto;
+    gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .nav-left::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-left--more {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+
+  .nav-left .nav-link {
+    scroll-snap-align: start;
+  }
+
+  .nav-right {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 2px;
+  }
+
+  .nav-brand {
+    font-size: 16px;
+  }
+
+  .nav-link {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+
+  .nav-right .nav-link--icon {
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px;
+  }
+
+  .nav-right .nav-link--icon .nav-link-text {
+    display: none;
+  }
+
+  .nav-user-info {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-link {
+    font-size: 13px;
+    padding: 8px 8px;
+  }
+
+  /* «Транспорт Малина» → «Транспорт»: рядок майже не потребує прокрутки */
+  .nav-link-city {
+    display: none;
+  }
+}

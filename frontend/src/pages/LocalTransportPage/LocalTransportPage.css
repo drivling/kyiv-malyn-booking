@@ -138,8 +138,8 @@
   background: #f1f4f5;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   overflow-x: hidden;
   width: 100%;
 }
@@ -191,9 +191,9 @@
 @media (min-width: 768px) {
   .lt-page.lt-layout-dark .lt-container.lt-split-layout {
     flex-direction: row;
-    height: calc(100vh - 60px);
-    height: calc(100dvh - 60px);
-    min-height: calc(100vh - 60px);
+    height: calc(100vh - var(--app-nav-height));
+    height: calc(100dvh - var(--app-nav-height));
+    min-height: calc(100vh - var(--app-nav-height));
     overflow-x: hidden;
     align-items: stretch;
   }
@@ -907,8 +907,8 @@
 }
 
 .lt-page {
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   background: var(--lt-bg);
   padding: 20px 16px;
   padding-left: max(16px, env(safe-area-inset-left));
@@ -1373,6 +1373,12 @@
   padding: 0 var(--lt-panel-x);
   font-size: var(--lt-fs-sm);
   color: var(--lt-text-muted);
+}
+
+/* Підказка одразу під полем (табло): без бокових відступів панелі */
+.lt-routes-hint--inline {
+  padding: 0;
+  margin: 6px 0 0;
 }
 
 .lt-routes-heading {
@@ -3451,21 +3457,6 @@
 }
 
 /* Табло зупинки */
-.lt-stop-board-intro {
-  padding: 0 var(--lt-panel-x, 16px) var(--lt-panel-block, 14px);
-}
-
-.lt-stop-board-title {
-  margin-bottom: 6px;
-}
-
-.lt-stop-board-lead {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-}
-
 .lt-stop-board-search {
   padding-top: 0;
 }
@@ -3627,20 +3618,20 @@
 }
 
 /* Табло зупинки — картки в дусі Jakdojade (темна тема сайту) */
-.lt-stop-board-intro--jd .lt-stop-board-title--jd {
-  margin-bottom: 8px;
-}
-
-.lt-stop-board-intro--jd .lt-stop-board-lead {
-  max-width: 40rem;
-  line-height: 1.45;
-}
-
 .lt-jd-cards {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  margin: 0;
   padding: 6px var(--lt-panel-x, 16px) 24px;
+  list-style: none;
+}
+
+/* Справжній список: <li> — елемент, <a> усередині лишається лінком для скрінрідера */
+.lt-jd-cards > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .lt-jd-card {
@@ -3915,5 +3906,18 @@
 
   .lt-map-container {
     height: 400px;
+  }
+}
+
+/*
+ * Табло на телефоні: карти немає (лист карти планувальника тут не використовується), тому
+ * без порожньої фіксованої смуги 64px унизу і без відступу панелі під неї.
+ */
+@media (max-width: 767px) {
+  .lt-page--stop-board.lt-layout-dark .lt-map-column {
+    display: none;
+  }
+  .lt-page--stop-board.lt-layout-dark .lt-panel {
+    padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
 }

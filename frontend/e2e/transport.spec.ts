@@ -123,6 +123,84 @@ test.describe('transport', () => {
     await expect(page.getByRole('button', { name: /Маршрут №3 до Парк/ })).toBeVisible();
   });
 
+  test('stop board: typing keeps the URL; pick → planner hand-off; route «Назад» returns to the board', async ({ page }) => {
+    await page.goto('/transport/stop/st_a?d=01.03.26&h=07%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Базар»');
+    const field = page.getByRole('combobox', { name: 'Зупинка' });
+    await field.fill('Вок');
+    await expect(page).toHaveURL(/\/transport\/stop\/st_a\?/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Базар»');
+    await expect(page.getByText('Оберіть зупинку зі списку.')).toBeVisible();
+    await page.getByRole('option', { name: 'Вокзал' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?d=01\.03\.26&h=07(%3A|:)00/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
+
+    // Табло → планувальник: обрана зупинка стає «З»
+    await page.getByRole('link', { name: 'Маршрути (З → До)' }).click();
+    await expect(page).toHaveURL(/\/transport\?.*from=st_b/);
+    await expect(page.getByRole('combobox', { name: 'З' })).toHaveValue('Вокзал');
+
+    // Назад на табло → картка → сторінка маршруту → «Назад» → знову табло цієї зупинки
+    await page.goBack();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
+    await page.getByRole('link', { name: /Маршрут 2, відправлення 08:34/ }).click();
+    await expect(page).toHaveURL(/\/transport\/route\/2\?/);
+    await page.getByRole('button', { name: 'Назад до пошуку' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
+  });
+
+  test.describe('stop board on a phone', () => {
+    test.use({
+      viewport: { width: 390, height: 844 },
+      geolocation: { latitude: 50.7701, longitude: 29.2401 },
+      permissions: ['geolocation'],
+    });
+
+    test('site header is one row: under 60px, left links scroll, auth is an icon with a name', async ({ page }) => {
+      await page.goto('/transport');
+      const nav = page.getByRole('navigation', { name: 'Головне меню' });
+      const box = await nav.boundingBox();
+      expect(box!.height).toBeLessThan(60);
+      // Місто сховане ≤480px, «Логін» — іконка з доступною назвою
+      await expect(nav.locator('.nav-link-city')).toBeHidden();
+      await expect(nav.getByRole('link', { name: /^Транспорт/ })).toHaveText(/^Транспорт$/, { useInnerText: true });
+      await expect(nav.getByRole('link', { name: 'Логін' })).toBeVisible();
+      await expect(nav.getByRole('link', { name: 'Логін' }).locator('.nav-link-text')).toBeHidden();
+      // Останнє посилання досяжне прокруткою рядка, а не другим рядком
+      const help = nav.getByRole('link', { name: 'Допомога' });
+      await help.scrollIntoViewIfNeeded();
+      await expect(help).toBeVisible();
+      const helpBox = await help.boundingBox();
+      expect(helpBox!.y + helpBox!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
+      // Форма планувальника починається вище, ніж раніше з двома рядками меню (було ≈260px)
+      const fromBox = await page.getByRole('combobox', { name: 'З' }).boundingBox();
+      expect(fromBox!.y).toBeLessThan(230);
+    });
+
+    test('no map strip; «Поруч зі мною» opens the nearest stop; «Завтра» applies without a button', async ({ page }) => {
+      await page.goto('/transport/stop?d=01.03.26&h=07%3A00');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Табло зупинок');
+      await expect(page.locator('.lt-map-column')).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Застосувати' })).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }).click();
+      await page.getByRole('button', { name: /^Базар — \d+ м$/ }).click();
+      await expect(page).toHaveURL(/\/transport\/stop\/st_a\?d=01\.03\.26&h=07(%3A|:)00/);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Базар»');
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dd = String(tomorrow.getDate()).padStart(2, '0');
+      const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const yy = String(tomorrow.getFullYear()).slice(-2);
+      await page.getByRole('button', { name: 'Змінити' }).click();
+      await page.getByRole('button', { name: 'Завтра' }).click();
+      await expect(page).toHaveURL(new RegExp(`/transport/stop/st_a\\?d=${dd}\\.${mm}\\.${yy}&h=`));
+      await expect(page.getByText('Завтра, 07:00')).toBeVisible();
+    });
+  });
+
   test.describe('today by the Kyiv clock', () => {
     test.use({ timezoneId: 'Europe/Kyiv' });
 

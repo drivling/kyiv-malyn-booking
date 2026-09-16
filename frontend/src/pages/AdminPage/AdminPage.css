@@ -14,7 +14,7 @@
   --pb-text: #202124;
   --pb-text-muted: #5f6368;
   --pb-text-hint: #5f6368;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
   background: linear-gradient(180deg, #f8f9fa 0%, #eef3fd 120px);
   padding: 0 20px 40px;
 }

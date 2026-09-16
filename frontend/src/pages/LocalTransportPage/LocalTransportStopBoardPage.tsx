@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
@@ -17,6 +17,8 @@ import { relatedPagesForStop } from '../../../scripts/stop-related-pages.mjs';
 import { configureSegmentDurations } from './segmentDurations';
 import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
+import { DateTimeControls } from './DateTimeControls';
+import { formatDistance, useNearestStops } from './useNearestStops';
 import './LocalTransportPage.css';
 
 const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
@@ -100,7 +102,12 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   });
 
-  const [selectedStop, setSelectedStop] = useState('');
+  /**
+   * Текст у полі «Зупинка» — окремо від обраної зупинки. URL, заголовок, title/canonical і
+   * розклад міняються лише після вибору зі списку (як `resolvedFrom` у планувальнику), а не на
+   * кожне натискання клавіші.
+   */
+  const [stopInput, setStopInput] = useState<string | null>(null);
   /** Показати повний день замість «з обраного часу» */
   const [showFullDay, setShowFullDay] = useState(false);
   /** Оновлення «через N хв» раз на хвилину (київський час) */
@@ -129,6 +136,22 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     [routes, stopsByRoute, stopsCatalog]
   );
 
+  /** Координати лише зупинок зі списку табло — щоб «Поруч зі мною» завжди відкривало табло зупинки */
+  const boardStopsCoords = useMemo(() => {
+    const src = viewModel?.coords.stops;
+    if (!src) return null;
+    const out: Record<string, [number, number]> = {};
+    for (const id of stops) if (src[id]) out[id] = src[id];
+    return out;
+  }, [viewModel, stops]);
+  const {
+    geoLoading,
+    geoError,
+    nearestStops,
+    findNearest,
+    clear: clearNearestStops,
+  } = useNearestStops(boardStopsCoords, { page: 'board' });
+
   const decodedSlug = stopSlug ? decodeURIComponent(stopSlug) : '';
   const matchedStopId = useMemo(() => {
     if (!decodedSlug || !stops.length) return '';
@@ -136,12 +159,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return id && stops.includes(id) ? id : '';
   }, [decodedSlug, stops, stopsCatalog]);
 
-  useEffect(() => {
-    if (matchedStopId) setSelectedStop(matchedStopId);
-  }, [matchedStopId]);
+  /** Обрана зупинка — це зупинка з URL (джерело істини); порожній slug → табло без зупинки. */
+  const selectedStop = matchedStopId;
+  const stopInputResolved = stopInput ? resolveStopIdInList(stopInput, stops, stopsCatalog) : '';
+  /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує) */
+  const stopInputUnresolved = stopInput != null && stopInput !== '' && !stopInputResolved;
 
   useEffect(() => {
     setShowFullDay(false);
+    setStopInput(null);
   }, [matchedStopId]);
 
   const referenceMins = useMemo(() => parseClockToMins(searchTime), [searchTime]);
@@ -310,27 +336,48 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   };
 
   const handleStopChange = (v: string) => {
-    setSelectedStop(v);
-    setShowFullDay(false);
-    const t = normalizeTimeInput(searchTime);
-    setSearchTime(t);
-    syncUrl(v, searchDate, t);
+    const id = v ? resolveStopIdInList(v, stops, stopsCatalog) : '';
+    if (id && stops.includes(id)) {
+      // Вибір зі списку → URL (а з нього — заголовок, розклад, SEO)
+      setStopInput(null);
+      if (id !== selectedStop) syncUrl(id, searchDate, searchTime);
+      return;
+    }
+    setStopInput(v);
   };
 
-  const handleDateTimeApply = () => {
+  /** Лише кнопка «×»: табло без зупинки; стирання тексту клавіатурою нічого не навігує */
+  const handleStopClear = () => {
+    setStopInput(null);
+    syncUrl('', searchDate, searchTime);
+  };
+
+  /**
+   * Дата/час застосовуються одразу, без «Застосувати» (як у планувальнику): URL — replace з
+   * невеликим debounce, щоб набір часу не спамив навігацією.
+   */
+  const dateTimeSyncTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (dateTimeSyncTimer.current) window.clearTimeout(dateTimeSyncTimer.current);
+    },
+    []
+  );
+  const handleDateTimeChange = ({ date, time }: { date: string; time: string }) => {
+    const t = normalizeTimeInput(time) || time;
     setShowFullDay(false);
-    const d = searchDate.trim();
-    const t = normalizeTimeInput(searchTime);
-    setSearchDate(d);
-    setSearchTime(t || searchTime);
-    if (selectedStop) syncUrl(selectedStop, d, t);
-    else {
-      const params = new URLSearchParams();
-      if (d) params.set('d', d);
-      if (t) params.set('h', t);
-      const search = params.toString() ? `?${params.toString()}` : '';
-      navigate({ pathname: '/transport/stop', search }, { replace: true });
-    }
+    setSearchDate(date);
+    setSearchTime(t);
+    if (dateTimeSyncTimer.current) window.clearTimeout(dateTimeSyncTimer.current);
+    if (!parseDateUrl(date) || !normalizeTimeInput(t)) return;
+    dateTimeSyncTimer.current = window.setTimeout(() => syncUrl(selectedStop, date, t), 300);
+  };
+
+  /** Зупинка з геолокації або з маркера на карті → табло цієї зупинки */
+  const openStopBoard = (id: string) => {
+    clearNearestStops();
+    setStopInput(null);
+    if (id !== selectedStop) syncUrl(id, searchDate, searchTime);
   };
 
   const mapCoordsData = viewModel
@@ -377,16 +424,6 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={selectedStop || undefined} />
 
-          <section className="lt-stop-board-intro lt-stop-board-intro--jd" aria-labelledby="lt-stop-board-h">
-            <h2 id="lt-stop-board-h" className="lt-section-title lt-stop-board-title lt-stop-board-title--jd">
-              Розклад з зупинки
-            </h2>
-            <p className="lt-stop-board-lead">
-              Наступні відправлення в усіх напрямках. Якщо дата збігається з сьогоднішньою (Київ), зліва — зворотний
-              відлік «через скільки хвилин» до відправлення. Натисніть картку, щоб відкрити маршрут.
-            </p>
-          </section>
-
           <div className="lt-search lt-search--jakdojade lt-stop-board-search">
             <div className="lt-from-to-block">
               <div className="lt-from-to-row lt-stop-board-row">
@@ -401,41 +438,60 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       { value: '', label: '— Оберіть зупинку —' },
                       ...stops.map((s: string) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
                     ]}
-                    value={selectedStop}
+                    value={stopInput ?? selectedStop}
                     onChange={handleStopChange}
+                    onClear={handleStopClear}
                     placeholder="Наприклад Малинівка"
                     emptyMessage="Зупинок не знайдено"
                     clearable
                   />
+                  {stopInputUnresolved && (
+                    <p className="lt-routes-hint lt-routes-hint--inline" role="status">
+                      Оберіть зупинку зі списку.
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="lt-datetime-row">
-                <div className="lt-datetime-field">
-                  <label className="lt-datetime-label">Дата</label>
-                  <input
-                    type="text"
-                    className="lt-datetime-input"
-                    value={searchDate}
-                    onChange={(e) => setSearchDate(e.target.value)}
-                    placeholder="ДД.ММ.РР"
-                    maxLength={8}
-                  />
-                </div>
-                <div className="lt-datetime-field">
-                  <label className="lt-datetime-label">Орієнтовний час</label>
-                  <input
-                    type="time"
-                    step={60}
-                    className="lt-datetime-input"
-                    value={searchTime}
-                    onChange={(e) => setSearchTime(normalizeTimeInput(e.target.value))}
-                    title="Підказка: список відсортований за часом; перший рейс після цього часу підсвічується"
-                  />
-                </div>
-                <button type="button" className="lt-search-btn" onClick={handleDateTimeApply}>
-                  Застосувати
+              <div className="lt-search-extra">
+                <button
+                  type="button"
+                  className="lt-geo-btn lt-geo-btn--small"
+                  onClick={findNearest}
+                  disabled={geoLoading}
+                  aria-busy={geoLoading}
+                  aria-label="Знайти найближчі зупинки за геолокацією"
+                  title="Найближчі зупинки за вашою геолокацією"
+                >
+                  {geoLoading ? 'Шукаємо…' : 'Поруч зі мною'}
                 </button>
+                {/* Live-region завжди в DOM: скрінрідер озвучує помилку геолокації */}
+                <p className="lt-geo-error" role="status" aria-live="polite">
+                  {geoError}
+                </p>
+                {nearestStops && nearestStops.length > 0 && (
+                  <div className="lt-geo-results" aria-live="polite">
+                    <div className="lt-nearest">
+                      <p className="lt-nearest-title">Найближчі зупинки:</p>
+                      <ul className="lt-nearest-list">
+                        {nearestStops.map(({ name, distance }) => (
+                          <li key={name} className="lt-nearest-item-row">
+                            <button type="button" className="lt-nearest-item" onClick={() => openStopBoard(name)}>
+                              {displayNameForStopKey(name, stopsCatalog)} — {formatDistance(distance)}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
+              <DateTimeControls
+                idPrefix="lt-board"
+                page="board"
+                date={searchDate}
+                time={searchTime}
+                onChange={handleDateTimeChange}
+              />
             </div>
           </div>
 
@@ -565,10 +621,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               </div>
               <p className="lt-stop-board-hint">
                 {showFullDay
-                  ? `Повний день. Орієнтовний час ${searchTime} — найближчий рейс після нього виділено.`
-                  : `Лише рейси з ${searchTime} або пізніше. Дата поїздки — з поля «Дата» (порівняння з календарем Києва). Якщо це сьогодні — «через … хв» від пізнішого з: зараз у Києві та орієнтовного часу (узгоджено з фільтром). Якщо майбутній день — відлік до обраної дати та часу відправлення від поточного часу в Києві.`}
+                  ? `Повний день; перший рейс після ${searchTime} виділено. Натисніть картку, щоб відкрити маршрут.`
+                  : `Рейси з ${searchTime} і пізніше. Натисніть картку, щоб відкрити маршрут.`}
               </p>
-              <div className="lt-jd-cards" role="list">
+              <ul className="lt-jd-cards">
                 {visibleDepartures.map((row, i) => {
                   const isNext = highlightIndex >= 0 && i === highlightIndex;
                   const depMins = roundedDepartureMins(row.departureMins);
@@ -593,11 +649,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   const waitHours = deltaMins >= 60 ? Math.floor(deltaMins / 60) : 0;
                   const waitMinsRem = deltaMins >= 60 ? deltaMins % 60 : deltaMins;
                   return (
+                    <li key={`${row.tripId}-${depMins}-${i}`}>
                     <Link
-                      key={`${row.tripId}-${depMins}-${i}`}
                       className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
                       to={toRoute}
-                      role="listitem"
                       aria-label={aria}
                     >
                       <div className="lt-jd-card__countdown" aria-hidden>
@@ -663,9 +718,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                         </div>
                       </div>
                     </Link>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </section>
           )}
 
@@ -723,12 +779,16 @@ export const LocalTransportStopBoardPage: React.FC = () => {
           </footer>
         </div>
         <div className="lt-map-column">
+          {/* Усі зупинки міста, обрана — підсвічена; тап по маркеру відкриває табло цієї зупинки */}
           <RouteMap
             routeId=""
-            stopNames={selectedStop ? [selectedStop] : []}
+            stopNames={stops}
+            markerStopNames={stops}
             fromStopName={selectedStop || undefined}
             dark
             hideRadialPicker
+            dimUnselectedMarkers
+            onStopMarkerClick={openStopBoard}
             coordsData={mapCoordsData}
             resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
           />
