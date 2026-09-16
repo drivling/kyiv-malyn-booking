@@ -590,6 +590,30 @@ export const LocalTransportPage: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [isMainPage, hasResolvedPair, resolvedFrom, resolvedTo, searchDate, searchTime, location.pathname, location.search, navigate]);
 
+  // Лише одна зупинка резолвнута і URL без path-пари (напр. прийшли з табло як /transport?from=…):
+  // тримаємо ?from= / ?to= актуальними, щоб адресний рядок не рекламував стару зупинку.
+  useEffect(() => {
+    if (!isMainPage || hasResolvedPair) return;
+    if (fromPathDecoded || toPathDecoded) return;
+    if (!resolvedFrom && !resolvedTo) return;
+    if (!parseDateUrl(searchDate) || !/^\d{2}:\d{2}$/.test(searchTime)) return;
+    const current = new URLSearchParams(location.search);
+    const same =
+      location.pathname === '/transport' &&
+      current.get('from') === (resolvedFrom || null) &&
+      current.get('to') === (resolvedTo || null) &&
+      current.get('d') === searchDate &&
+      current.get('h') === searchTime;
+    if (same) return;
+    const params = new URLSearchParams();
+    if (resolvedFrom) params.set('from', resolvedFrom);
+    if (resolvedTo) params.set('to', resolvedTo);
+    params.set('d', searchDate);
+    params.set('h', searchTime);
+    const timer = window.setTimeout(() => navigate(`/transport?${params.toString()}`, { replace: true }), 300);
+    return () => window.clearTimeout(timer);
+  }, [isMainPage, hasResolvedPair, fromPathDecoded, toPathDecoded, resolvedFrom, resolvedTo, searchDate, searchTime, location.pathname, location.search, navigate]);
+
   /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує). */
   const hasUnresolvedInput =
     (effectiveSearchFrom !== '' && !resolvedFrom) || (effectiveSearchTo !== '' && !resolvedTo);
@@ -1272,6 +1296,12 @@ export const LocalTransportPage: React.FC = () => {
       params.set('d', dateFromUrl || formatDateUrl(new Date()));
       params.set('h', timeFromUrl || hourFromUrl || '12:00');
       navigate(`/transport/${encodeURIComponent(selectedStopFromUrl)}/${encodeURIComponent(toFromUrl)}?${params.toString()}`);
+    } else if (isDetailPage && selectedStopFromUrl) {
+      // Картка табло дає лише stop (без to) — повертаємось на табло цієї зупинки
+      const params = new URLSearchParams();
+      params.set('d', dateFromUrl || formatDateUrl(new Date()));
+      params.set('h', hourFromUrl || timeFromUrl || searchTime);
+      navigate(`/transport/stop/${encodeURIComponent(selectedStopFromUrl)}?${params.toString()}`);
     } else if (isMainPage && hasPathSearch) {
       navigate(buildPlannerUrl(resolvedFrom || fromPathDecoded, resolvedTo || toPathDecoded, searchDate, searchTime));
     } else {

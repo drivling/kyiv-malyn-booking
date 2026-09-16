@@ -123,6 +123,33 @@ test.describe('transport', () => {
     await expect(page.getByRole('button', { name: /Маршрут №3 до Парк/ })).toBeVisible();
   });
 
+  test('stop board: typing keeps the URL; pick → planner hand-off; route «Назад» returns to the board', async ({ page }) => {
+    await page.goto('/transport/stop/st_a?d=01.03.26&h=07%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Базар»');
+    const field = page.getByRole('combobox', { name: 'Зупинка' });
+    await field.fill('Вок');
+    await expect(page).toHaveURL(/\/transport\/stop\/st_a\?/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Базар»');
+    await expect(page.getByText('Оберіть зупинку зі списку.')).toBeVisible();
+    await page.getByRole('option', { name: 'Вокзал' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?d=01\.03\.26&h=07(%3A|:)00/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
+
+    // Табло → планувальник: обрана зупинка стає «З»
+    await page.getByRole('link', { name: 'Маршрути (З → До)' }).click();
+    await expect(page).toHaveURL(/\/transport\?.*from=st_b/);
+    await expect(page.getByRole('combobox', { name: 'З' })).toHaveValue('Вокзал');
+
+    // Назад на табло → картка → сторінка маршруту → «Назад» → знову табло цієї зупинки
+    await page.goBack();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
+    await page.getByRole('link', { name: /Маршрут 2, відправлення 08:34/ }).click();
+    await expect(page).toHaveURL(/\/transport\/route\/2\?/);
+    await page.getByRole('button', { name: 'Назад до пошуку' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_b\?/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
+  });
+
   test.describe('today by the Kyiv clock', () => {
     test.use({ timezoneId: 'Europe/Kyiv' });
 

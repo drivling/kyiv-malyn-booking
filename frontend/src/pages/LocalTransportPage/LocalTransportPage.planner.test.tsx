@@ -281,6 +281,23 @@ describe('LocalTransportPage planner: URL follows the form', () => {
       /^\/transport\/stop\/st_a\?/
     );
   });
+
+  it('arriving from the board (?from=) fills «З»; picking another «З» keeps ?from= current', async () => {
+    const user = userEvent.setup();
+    renderPlanner('/transport?from=st_a&d=16.09.26&h=09%3A12');
+    const from = await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+    await waitFor(() => expect(from).toHaveValue('Базар'));
+    expect(screen.getByRole('combobox', { name: 'До' })).toHaveValue('');
+    // Лише одна зупинка → URL лишається на ?from= (без path-пари)
+    expect(location()).toBe('/transport?from=st_a&d=16.09.26&h=09%3A12');
+
+    await user.tripleClick(from);
+    await user.keyboard('Вок');
+    await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
+    await waitFor(() => expect(location()).toBe('/transport?from=st_b&d=16.09.26&h=09%3A12'), { timeout: 3000 });
+    const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
+    expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' }).getAttribute('href')).toMatch(/^\/transport\/stop\/st_b\?/);
+  });
 });
 
 describe('LocalTransportPage planner: date and time', () => {

@@ -1375,6 +1375,12 @@
   color: var(--lt-text-muted);
 }
 
+/* Підказка одразу під полем (табло): без бокових відступів панелі */
+.lt-routes-hint--inline {
+  padding: 0;
+  margin: 6px 0 0;
+}
+
 .lt-routes-heading {
   margin: 0 0 6px;
   padding: 0 var(--lt-panel-x);
@@ -3640,7 +3646,16 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  margin: 0;
   padding: 6px var(--lt-panel-x, 16px) 24px;
+  list-style: none;
+}
+
+/* Справжній список: <li> — елемент, <a> усередині лишається лінком для скрінрідера */
+.lt-jd-cards > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .lt-jd-card {

@@ -50,7 +50,11 @@ export const Combobox: React.FC<ComboboxProps> = ({
   const reactId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const [inputValue, setInputValue] = useState(value);
+  // Одразу назва опції, а не сирий value: інакше при прямому заході на URL із зупинкою
+  // перший кадр показує id (напр. «st_0015»), поки не спрацює ефект нижче.
+  const [inputValue, setInputValue] = useState(() =>
+    value === '' ? '' : (options.find((o) => o.value === value)?.label ?? value)
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 

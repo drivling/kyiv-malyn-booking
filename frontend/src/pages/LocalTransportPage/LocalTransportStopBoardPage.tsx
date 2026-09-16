@@ -100,7 +100,12 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   });
 
-  const [selectedStop, setSelectedStop] = useState('');
+  /**
+   * Текст у полі «Зупинка» — окремо від обраної зупинки. URL, заголовок, title/canonical і
+   * розклад міняються лише після вибору зі списку (як `resolvedFrom` у планувальнику), а не на
+   * кожне натискання клавіші.
+   */
+  const [stopInput, setStopInput] = useState<string | null>(null);
   /** Показати повний день замість «з обраного часу» */
   const [showFullDay, setShowFullDay] = useState(false);
   /** Оновлення «через N хв» раз на хвилину (київський час) */
@@ -136,12 +141,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return id && stops.includes(id) ? id : '';
   }, [decodedSlug, stops, stopsCatalog]);
 
-  useEffect(() => {
-    if (matchedStopId) setSelectedStop(matchedStopId);
-  }, [matchedStopId]);
+  /** Обрана зупинка — це зупинка з URL (джерело істини); порожній slug → табло без зупинки. */
+  const selectedStop = matchedStopId;
+  const stopInputResolved = stopInput ? resolveStopIdInList(stopInput, stops, stopsCatalog) : '';
+  /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує) */
+  const stopInputUnresolved = stopInput != null && stopInput !== '' && !stopInputResolved;
 
   useEffect(() => {
     setShowFullDay(false);
+    setStopInput(null);
   }, [matchedStopId]);
 
   const referenceMins = useMemo(() => parseClockToMins(searchTime), [searchTime]);
@@ -310,11 +318,20 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   };
 
   const handleStopChange = (v: string) => {
-    setSelectedStop(v);
-    setShowFullDay(false);
-    const t = normalizeTimeInput(searchTime);
-    setSearchTime(t);
-    syncUrl(v, searchDate, t);
+    const id = v ? resolveStopIdInList(v, stops, stopsCatalog) : '';
+    if (id && stops.includes(id)) {
+      // Вибір зі списку → URL (а з нього — заголовок, розклад, SEO)
+      setStopInput(null);
+      if (id !== selectedStop) syncUrl(id, searchDate, searchTime);
+      return;
+    }
+    setStopInput(v);
+  };
+
+  /** Лише кнопка «×»: табло без зупинки; стирання тексту клавіатурою нічого не навігує */
+  const handleStopClear = () => {
+    setStopInput(null);
+    syncUrl('', searchDate, searchTime);
   };
 
   const handleDateTimeApply = () => {
@@ -401,12 +418,18 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       { value: '', label: '— Оберіть зупинку —' },
                       ...stops.map((s: string) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
                     ]}
-                    value={selectedStop}
+                    value={stopInput ?? selectedStop}
                     onChange={handleStopChange}
+                    onClear={handleStopClear}
                     placeholder="Наприклад Малинівка"
                     emptyMessage="Зупинок не знайдено"
                     clearable
                   />
+                  {stopInputUnresolved && (
+                    <p className="lt-routes-hint lt-routes-hint--inline" role="status">
+                      Оберіть зупинку зі списку.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="lt-datetime-row">
@@ -568,7 +591,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   ? `Повний день. Орієнтовний час ${searchTime} — найближчий рейс після нього виділено.`
                   : `Лише рейси з ${searchTime} або пізніше. Дата поїздки — з поля «Дата» (порівняння з календарем Києва). Якщо це сьогодні — «через … хв» від пізнішого з: зараз у Києві та орієнтовного часу (узгоджено з фільтром). Якщо майбутній день — відлік до обраної дати та часу відправлення від поточного часу в Києві.`}
               </p>
-              <div className="lt-jd-cards" role="list">
+              <ul className="lt-jd-cards">
                 {visibleDepartures.map((row, i) => {
                   const isNext = highlightIndex >= 0 && i === highlightIndex;
                   const depMins = roundedDepartureMins(row.departureMins);
@@ -593,11 +616,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   const waitHours = deltaMins >= 60 ? Math.floor(deltaMins / 60) : 0;
                   const waitMinsRem = deltaMins >= 60 ? deltaMins % 60 : deltaMins;
                   return (
+                    <li key={`${row.tripId}-${depMins}-${i}`}>
                     <Link
-                      key={`${row.tripId}-${depMins}-${i}`}
                       className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
                       to={toRoute}
-                      role="listitem"
                       aria-label={aria}
                     >
                       <div className="lt-jd-card__countdown" aria-hidden>
@@ -663,9 +685,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                         </div>
                       </div>
                     </Link>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </section>
           )}
 
