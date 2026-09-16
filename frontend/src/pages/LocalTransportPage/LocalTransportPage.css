@@ -138,8 +138,8 @@
   background: #f1f4f5;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   overflow-x: hidden;
   width: 100%;
 }
@@ -191,9 +191,9 @@
 @media (min-width: 768px) {
   .lt-page.lt-layout-dark .lt-container.lt-split-layout {
     flex-direction: row;
-    height: calc(100vh - 60px);
-    height: calc(100dvh - 60px);
-    min-height: calc(100vh - 60px);
+    height: calc(100vh - var(--app-nav-height));
+    height: calc(100dvh - var(--app-nav-height));
+    min-height: calc(100vh - var(--app-nav-height));
     overflow-x: hidden;
     align-items: stretch;
   }
@@ -907,8 +907,8 @@
 }
 
 .lt-page {
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   background: var(--lt-bg);
   padding: 20px 16px;
   padding-left: max(16px, env(safe-area-inset-left));

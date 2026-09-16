@@ -11,7 +11,7 @@
   --login-text: #0f172a;
   --login-text-muted: #64748b;
   --login-border: rgba(0, 0, 0, 0.06);
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
   background: var(--login-bg);
   display: flex;
   align-items: center;

@@ -157,6 +157,27 @@ test.describe('transport', () => {
       permissions: ['geolocation'],
     });
 
+    test('site header is one row: under 60px, left links scroll, auth is an icon with a name', async ({ page }) => {
+      await page.goto('/transport');
+      const nav = page.getByRole('navigation', { name: 'Головне меню' });
+      const box = await nav.boundingBox();
+      expect(box!.height).toBeLessThan(60);
+      // Місто сховане ≤480px, «Логін» — іконка з доступною назвою
+      await expect(nav.locator('.nav-link-city')).toBeHidden();
+      await expect(nav.getByRole('link', { name: /^Транспорт/ })).toHaveText(/^Транспорт$/, { useInnerText: true });
+      await expect(nav.getByRole('link', { name: 'Логін' })).toBeVisible();
+      await expect(nav.getByRole('link', { name: 'Логін' }).locator('.nav-link-text')).toBeHidden();
+      // Останнє посилання досяжне прокруткою рядка, а не другим рядком
+      const help = nav.getByRole('link', { name: 'Допомога' });
+      await help.scrollIntoViewIfNeeded();
+      await expect(help).toBeVisible();
+      const helpBox = await help.boundingBox();
+      expect(helpBox!.y + helpBox!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
+      // Форма планувальника починається вище, ніж раніше з двома рядками меню (було ≈260px)
+      const fromBox = await page.getByRole('combobox', { name: 'З' }).boundingBox();
+      expect(fromBox!.y).toBeLessThan(230);
+    });
+
     test('no map strip; «Поруч зі мною» opens the nearest stop; «Завтра» applies without a button', async ({ page }) => {
       await page.goto('/transport/stop?d=01.03.26&h=07%3A00');
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Табло зупинок');
