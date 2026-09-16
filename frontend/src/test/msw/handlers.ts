@@ -32,6 +32,21 @@ export const handlers = [
 
   http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(emptyDataset)),
 
+  /** Збереження з адмінського редактора: відповідь як у apiClient.putTransportDataset */
+  http.put(`${TEST_API_URL}/transport/dataset`, async ({ request }) => {
+    const d = (await request.json()) as Record<'stops' | 'routes' | 'routeStops' | 'trips' | 'segments', unknown[]>;
+    return HttpResponse.json({
+      ok: true,
+      counts: {
+        stops: d.stops.length,
+        routes: d.routes.length,
+        routeStops: d.routeStops.length,
+        trips: d.trips.length,
+        segments: d.segments.length,
+      },
+    });
+  }),
+
   http.get(`${TEST_API_URL}/trip-points`, () =>
     HttpResponse.json([
       { id: 1, code: 'Kyiv', nameUk: 'Київ', requiredOnTrip: false, appearInFromTo: true, appearInPoputky: true, sortOrder: 10 },
