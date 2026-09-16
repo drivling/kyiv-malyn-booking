@@ -277,7 +277,9 @@ export const StopsPanel: React.FC<StopsPanelProps> = ({
     [mode, stopIds, catalog, query]
   );
 
-  // Прокрутка до обраного рядка — лише всередині панелі (не scrollIntoView: сторінка не стрибає)
+  // Прокрутка до обраного рядка — лише всередині панелі (не scrollIntoView: сторінка не стрибає).
+  // Також після завершення редагування: перейменований рядок виростає («було», пропагація) — показати цілком.
+  const selectedPropagation = selectedStopId ? propagationByStopId.get(selectedStopId) : undefined;
   useEffect(() => {
     if (!selectedStopId) return;
     const list = listRef.current;
@@ -287,7 +289,7 @@ export const StopsPanel: React.FC<StopsPanelProps> = ({
     const rr = row.getBoundingClientRect();
     if (rr.top < lr.top) list.scrollTop -= lr.top - rr.top + 8;
     else if (rr.bottom > lr.bottom) list.scrollTop += rr.bottom - lr.bottom + 8;
-  }, [selectedStopId, panNonce]);
+  }, [selectedStopId, panNonce, editingStopId, selectedPropagation]);
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
