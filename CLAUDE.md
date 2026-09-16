@@ -151,6 +151,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   a few cross-page pieces (TelegramLoginButton, ProtectedRoute for admin-only routes, legal/cookie
   footers).
 - `src/content/stops/` — static content data for local-transport stop pages.
+- Stop names are string foreign keys: `TransportRoute.fromName/toName` and `TransportTrip.headsign`
+  hold stop names as text and the public site resolves termini back to ids by name
+  (`invertNameToId`). Rename stops only through the admin map editor (`/admin/map-editor`,
+  `src/pages/AdminPage/stopRename.ts` replaces exact matches on save); the static articles in
+  `src/content/stops/<id>.ts` carry their own `name` that must be updated by hand.
 - Build-time scripts (`scripts/prerender-*.mjs`, `scripts/seo-smoke.mjs`) call the backend at the
   address hard-coded in `scripts/api-base.mjs` (Railway URL, https, no `/api` prefix; `/health`
   must return JSON). If a build fails with "API is not answering", check whether the backend moved
