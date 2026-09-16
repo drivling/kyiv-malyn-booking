@@ -150,6 +150,36 @@ test.describe('transport', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
   });
 
+  test.describe('stop board on a phone', () => {
+    test.use({
+      viewport: { width: 390, height: 844 },
+      geolocation: { latitude: 50.7701, longitude: 29.2401 },
+      permissions: ['geolocation'],
+    });
+
+    test('no map strip; «Поруч зі мною» opens the nearest stop; «Завтра» applies without a button', async ({ page }) => {
+      await page.goto('/transport/stop?d=01.03.26&h=07%3A00');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Табло зупинок');
+      await expect(page.locator('.lt-map-column')).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Застосувати' })).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }).click();
+      await page.getByRole('button', { name: /^Базар — \d+ м$/ }).click();
+      await expect(page).toHaveURL(/\/transport\/stop\/st_a\?d=01\.03\.26&h=07(%3A|:)00/);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Базар»');
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dd = String(tomorrow.getDate()).padStart(2, '0');
+      const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const yy = String(tomorrow.getFullYear()).slice(-2);
+      await page.getByRole('button', { name: 'Змінити' }).click();
+      await page.getByRole('button', { name: 'Завтра' }).click();
+      await expect(page).toHaveURL(new RegExp(`/transport/stop/st_a\\?d=${dd}\\.${mm}\\.${yy}&h=`));
+      await expect(page.getByText('Завтра, 07:00')).toBeVisible();
+    });
+  });
+
   test.describe('today by the Kyiv clock', () => {
     test.use({ timezoneId: 'Europe/Kyiv' });
 

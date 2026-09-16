@@ -484,7 +484,7 @@ describe('LocalTransportPage planner: analytics events', () => {
 
       await user.click(screen.getByRole('button', { name: 'Змінити' }));
       await user.click(screen.getByRole('button', { name: 'Завтра' }));
-      expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'tomorrow' });
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'tomorrow', page: 'planner' });
 
       await user.click(screen.getByRole('button', { name: /Маршрут №2/ }));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_route_card_click', { route_id: '2' });

@@ -3457,21 +3457,6 @@
 }
 
 /* Табло зупинки */
-.lt-stop-board-intro {
-  padding: 0 var(--lt-panel-x, 16px) var(--lt-panel-block, 14px);
-}
-
-.lt-stop-board-title {
-  margin-bottom: 6px;
-}
-
-.lt-stop-board-lead {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-}
-
 .lt-stop-board-search {
   padding-top: 0;
 }
@@ -3633,15 +3618,6 @@
 }
 
 /* Табло зупинки — картки в дусі Jakdojade (темна тема сайту) */
-.lt-stop-board-intro--jd .lt-stop-board-title--jd {
-  margin-bottom: 8px;
-}
-
-.lt-stop-board-intro--jd .lt-stop-board-lead {
-  max-width: 40rem;
-  line-height: 1.45;
-}
-
 .lt-jd-cards {
   display: flex;
   flex-direction: column;
@@ -3930,5 +3906,18 @@
 
   .lt-map-container {
     height: 400px;
+  }
+}
+
+/*
+ * Табло на телефоні: карти немає (лист карти планувальника тут не використовується), тому
+ * без порожньої фіксованої смуги 64px унизу і без відступу панелі під неї.
+ */
+@media (max-width: 767px) {
+  .lt-page--stop-board.lt-layout-dark .lt-map-column {
+    display: none;
+  }
+  .lt-page--stop-board.lt-layout-dark .lt-panel {
+    padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
 }

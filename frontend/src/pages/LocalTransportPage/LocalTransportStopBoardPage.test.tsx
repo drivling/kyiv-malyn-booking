@@ -10,9 +10,19 @@ import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from '../TransportPage/useTransportDataset';
+import { tomorrowDateUrl } from './dateUrl';
 import { LocalTransportStopBoardPage } from './LocalTransportStopBoardPage';
 
-vi.mock('./RouteMap', () => ({ RouteMap: () => <div data-testid="route-map" /> }));
+// Карта: замість Leaflet — кнопка, що імітує тап по маркеру зупинки st_c
+vi.mock('./RouteMap', () => ({
+  RouteMap: (props: { onStopMarkerClick?: (id: string) => void }) => (
+    <div data-testid="route-map">
+      <button type="button" onClick={() => props.onStopMarkerClick?.('st_c')}>
+        map: marker st_c
+      </button>
+    </div>
+  ),
+}));
 
 const dataset = {
   stops: [
@@ -67,6 +77,7 @@ function renderBoard(path: string) {
 
 // Дата в минулому і ранній час: усі рейси мок-датасету видимі, відлік не показується.
 const BOARD_URL = '/transport/stop/st_a?d=01.03.26&h=07%3A00';
+const HUB_URL = '/transport/stop?d=01.03.26&h=07%3A00';
 const location = () => screen.getByTestId('location').textContent ?? '';
 const h1 = () => screen.getByRole('heading', { level: 1 });
 
@@ -97,6 +108,19 @@ async function openBoard() {
   return field;
 }
 
+async function openHub() {
+  renderBoard(HUB_URL);
+  await waitFor(() => expect(h1()).toHaveTextContent('Табло зупинок'), { timeout: 5000 });
+  await screen.findByRole('combobox', { name: 'Зупинка' });
+}
+
+function stubGeolocation(impl: (ok: PositionCallback, err?: PositionErrorCallback) => void) {
+  Object.defineProperty(navigator, 'geolocation', {
+    value: { getCurrentPosition: vi.fn(impl) },
+    configurable: true,
+  });
+}
+
 describe('LocalTransportStopBoardPage: stop from the URL', () => {
   it('direct hit renders the stop, its departures and hands the stop to the planner tab', async () => {
     const field = await openBoard();
@@ -105,6 +129,10 @@ describe('LocalTransportStopBoardPage: stop from the URL', () => {
     const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
     expect(within(nav).getByRole('link', { name: 'Маршрути (З → До)' }).getAttribute('href')).toContain('from=st_a');
     expect(document.title).toMatch(/^Зупинка «Базар»/);
+    // Без вступної секції і без «Застосувати»: форма як у планувальника
+    expect(screen.queryByRole('heading', { name: 'Розклад з зупинки' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Застосувати' })).not.toBeInTheDocument();
+    expect(screen.getByText('01.03.26, 07:00')).toBeInTheDocument();
   });
 
   it('typing in the field does not touch the URL, heading or departures; a hint appears', async () => {
@@ -161,5 +189,59 @@ describe('LocalTransportStopBoardPage: stop from the URL', () => {
     await waitFor(() => expect(h1()).toHaveTextContent('Табло зупинок'));
     expect(screen.queryByRole('link', { name: /Маршрут 2/ })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Зупинка' })).toHaveValue('');
+  });
+});
+
+describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
+  it('«Завтра» applies at once: d= in the URL changes, the departures stay for the same stop', async () => {
+    const user = userEvent.setup();
+    await openBoard();
+    await user.click(screen.getByRole('button', { name: 'Змінити' }));
+    expect(screen.getByLabelText('Дата')).toHaveAttribute('type', 'date');
+    await user.click(screen.getByRole('button', { name: 'Завтра' }));
+    await waitFor(() => expect(location()).toBe(`/transport/stop/st_a?d=${tomorrowDateUrl()}&h=07%3A00`));
+    expect(h1()).toHaveTextContent('Зупинка «Базар»');
+    expect(screen.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('link', { name: /Маршрут 2, відправлення 08:30/ })).toBeInTheDocument();
+  });
+
+  it('«Поруч зі мною» on the hub lists the nearest stops; picking one opens its board', async () => {
+    const user = userEvent.setup();
+    stubGeolocation((ok) => ok({ coords: { latitude: 50.7701, longitude: 29.2401 } } as unknown as GeolocationPosition));
+    try {
+      await openHub();
+      await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
+      const items = await screen.findAllByRole('button', { name: /^(Базар|Вокзал|Лікарня) — [\d.]+ (м|км)$/ });
+      expect(items[0]).toHaveTextContent(/^Базар — \d+ м$/);
+      await user.click(items[0]);
+      await waitFor(() => expect(location()).toBe(BOARD_URL));
+      expect(h1()).toHaveTextContent('Зупинка «Базар»');
+      expect(screen.getByRole('combobox', { name: 'Зупинка' })).toHaveValue('Базар');
+      expect(screen.queryByText('Найближчі зупинки:')).not.toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(navigator, 'geolocation');
+    }
+  });
+
+  it('a geolocation error is announced in the live region', async () => {
+    const user = userEvent.setup();
+    stubGeolocation((_ok, err) => err?.({ code: 1, message: 'denied' } as GeolocationPositionError));
+    try {
+      await openHub();
+      await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
+      const live = screen.getAllByRole('status').find((el) => el.classList.contains('lt-geo-error'));
+      expect(live).toHaveTextContent('Дозвіл на геолокацію відхилено');
+      expect(location()).toBe(HUB_URL);
+    } finally {
+      Reflect.deleteProperty(navigator, 'geolocation');
+    }
+  });
+
+  it('a tap on a map marker opens that stop\'s board', async () => {
+    const user = userEvent.setup();
+    await openBoard();
+    await user.click(screen.getByRole('button', { name: 'map: marker st_c' }));
+    await waitFor(() => expect(location()).toBe('/transport/stop/st_c?d=01.03.26&h=07%3A00'));
+    expect(h1()).toHaveTextContent('Зупинка «Лікарня»');
   });
 });
