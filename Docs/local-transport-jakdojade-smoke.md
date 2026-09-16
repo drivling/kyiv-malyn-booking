@@ -15,7 +15,7 @@ Branch: local commits only (no push)
 - [ ] SubNav Маршрути ↔ Зупинка зберігає `d`/`h`
 - [ ] QR `/transport/route/...?stop&dir` без `time` → nearest trip
 - [ ] `/localtransport/...` редіректить на `/transport/...`
-- [ ] Admin Map Editor save/reload + OSRM recalculate still works
+- [ ] Admin Map Editor save/reload + OSRM recalculate still works (rename flow: see «Admin map editor: stop rename» below)
 - [ ] Theme: site cyan accents (not orphaned red-only tokens)
 
 ## Automated
@@ -74,3 +74,17 @@ Goal: Jakdojade-like hierarchy — form → connection cards → map as stop pic
 ### Do not break (this cycle)
 
 - [ ] Detail `/transport/route/...` and tablica `/transport/stop` still work (planner-only + shared map/sheet CSS)
+
+## Admin map editor: stop rename (2026-09-16)
+
+`/admin/map-editor`, desktop (≥900px, the panel sits to the right of the map).
+
+- [ ] Click a marker → its row is highlighted (`aria-current`), scrolled into view inside the panel only (page does not jump); the marker turns amber and sits above others. Click a row → the map pans to the stop; a marker click does not pan
+- [ ] Search «Пошук зупинки» filters by name or `st_…`, the title shows «N з M»; ↑/↓ move the selection, Enter opens editing, Esc clears the query
+- [ ] ✎ (or Enter on the selected row) turns the name into an input: Enter/✓ applies, Esc/✕ cancels, clicking elsewhere applies a changed valid name. Empty → «Назва не може бути порожньою»; an existing name (any case, extra spaces) → «Така назва вже є: … (st_…)»; >80 chars → «Назва задовга»; the row stays in edit mode
+- [ ] Renamed row: «не збережено», «було: …», «↶» restores the db name, the line «Також оновиться при збереженні: кінцева №…, … рейсів» lists exact matches only (e.g. renaming «Лікарня» does not touch «Лікарня (Лісотехнікум)»); stops with `frontend/src/content/stops/<id>.ts` show the SEO-article note
+- [ ] «Зберегти в базу · N змін» counts renames + moved markers + new technical stops + order/map_only changes, is disabled at 0; the confirm lists them and the propagation; closing the browser tab with changes asks for confirmation
+- [ ] After save: status line, counter back to 0, `/transport` cards show «→ <new name>», `/transport/stop/<id>` shows the new name, route direction buttons show the new terminus; reload the «Розклад маршрутів» tab (it keeps its own copy of the dataset)
+- [ ] Save error (backend down) → red alert above the map, the editor and unsaved changes stay
+- [ ] «Редактор напрямку»: rows are selectable/renamable there too, «Порядок…» opens the order modal, the modal has no name field
+- [ ] Marker drag still moves the stop (and selects it); MapBounds refits only when the mode or route changes

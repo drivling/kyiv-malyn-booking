@@ -75,6 +75,11 @@
     min-height: 44px;
     padding: 10px 14px;
   }
+  .map-editor-stop-icon-btn,
+  .map-editor-stop-text-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .map-editor-map {
@@ -221,12 +226,6 @@
   background: var(--pb-primary-light);
   border-color: var(--pb-primary);
   color: var(--pb-primary);
-}
-
-.map-editor-stops-list--ordered .map-editor-stop-item {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
 }
 
 .map-editor-stop-order {
@@ -420,4 +419,188 @@
   color: white;
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.5);
   line-height: 1;
+}
+
+/* ===== Права панель: пошук, вибір, редагування назви в рядку ===== */
+.map-editor-list-count {
+  font-weight: 400;
+  font-size: 0.8125rem;
+  color: var(--pb-text-muted);
+}
+
+.map-editor-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  background: var(--pb-bg);
+}
+
+.map-editor-search:focus-visible {
+  outline: 2px solid var(--pb-primary);
+  outline-offset: 1px;
+}
+
+.map-editor-stop-item {
+  border-radius: 6px;
+}
+
+.map-editor-stop-item--selected {
+  background: var(--pb-primary-light);
+  box-shadow: inset 3px 0 0 var(--pb-primary);
+}
+
+.map-editor-stop-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.map-editor-stop-name-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--pb-text);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  border-radius: 4px;
+}
+
+.map-editor-stop-item--excluded .map-editor-stop-name-btn {
+  color: #1e3a5f;
+}
+
+.map-editor-stop-name-btn:focus-visible,
+.map-editor-stop-icon-btn:focus-visible,
+.map-editor-stop-text-btn:focus-visible {
+  outline: 2px solid var(--pb-primary);
+  outline-offset: 1px;
+}
+
+.map-editor-stop-icon-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--pb-border);
+  border-radius: 6px;
+  background: var(--pb-bg);
+  color: var(--pb-text);
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.map-editor-stop-icon-btn:hover {
+  background: var(--pb-primary-light);
+  border-color: var(--pb-primary);
+}
+
+.map-editor-stop-icon-btn--ok {
+  color: var(--pb-primary);
+  border-color: var(--pb-primary-border);
+}
+
+.map-editor-stop-text-btn {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--pb-border);
+  border-radius: 6px;
+  background: var(--pb-bg);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.map-editor-stop-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-editor-stop-edit-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  border: 1px solid var(--pb-primary);
+  border-radius: 6px;
+  background: var(--pb-bg);
+}
+
+.map-editor-stop-edit-input[aria-invalid='true'] {
+  border-color: var(--pb-error, #b91c1c);
+}
+
+.map-editor-stop-error {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--pb-error, #b91c1c);
+}
+
+.map-editor-stop-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.map-editor-stop-id {
+  font-size: 0.7rem;
+  color: var(--pb-text-muted);
+  font-family: ui-monospace, monospace;
+}
+
+.map-editor-stop-badge--unsaved {
+  color: #b45309;
+  background: #fef3c7;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.map-editor-stop-was,
+.map-editor-stop-propagation,
+.map-editor-stop-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--pb-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.map-editor-stop-propagation {
+  color: #b45309;
+}
+
+.map-editor-stop-note code {
+  font-size: 0.7rem;
+  background: var(--pb-bg-secondary);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.map-editor-action-error {
+  margin-top: 0;
+}
+
+.map-editor-marker-pin--selected {
+  transform: scale(1.12);
+  transform-origin: bottom center;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.35), 0 1px 3px rgba(0, 0, 0, 0.4);
 }

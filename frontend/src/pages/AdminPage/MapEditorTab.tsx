@@ -4,67 +4,31 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
+import { Alert } from '@/components/Alert/Alert';
 import './MapEditorTab.css';
-import { displayNameForStopKey, getStopKey, type StopsCatalog } from '../LocalTransportPage/stopCatalog';
+import { displayNameForStopKey, getStopKey } from '../LocalTransportPage/stopCatalog';
+import { getRouteStopsWithOrder, type RouteStop, type StopsCoordsData, type TransportData } from './mapEditorModel';
 import { apiClient } from '@/api/client';
 import {
   datasetToEditor,
   editorToDataset,
   type TransportDataset,
 } from '@/api/transportDataset';
+import { broadcastTransportDatasetInvalidate } from '../TransportPage/useTransportDataset';
+import { getStopArticle } from '@/content/stops';
+import { StopsPanel } from './MapEditorStopsPanel';
+import {
+  applyStopRenamesToDataset,
+  buildStopRenameMap,
+  countEditorChanges,
+  formatChangesLabel,
+  formatPropagationSummary,
+  renameStopInEditor,
+  summarizeRenamePropagation,
+  validateStopName,
+} from './stopRename';
 
 const MARKER_EXCLUDED_COLOR = '#1e3a5f';
-
-interface StopsCoordsData {
-  center: [number, number];
-  stops: Record<string, [number, number]>;
-}
-
-interface RouteStop {
-  /** Стабільний ключ (координати, сегменти) — як у public/data */
-  id?: string;
-  name: string;
-  order_there?: number;
-  order_back?: number;
-  /** Точка тільки для карти й розрахунку (не показується в списку зупинок для пасажирів) */
-  map_only?: boolean;
-}
-
-interface SupplementRoute {
-  from?: string;
-  to?: string;
-}
-
-interface TransportData {
-  source?: string;
-  records?: unknown[];
-  supplement?: {
-    stops?: {
-      stops_by_route?: Record<string, RouteStop[] | string[]>;
-      stops_catalog?: StopsCatalog;
-    };
-    routes?: Record<string, SupplementRoute>;
-  };
-  [key: string]: unknown;
-}
-
-function getRouteStopsWithOrder(
-  sbr: Record<string, RouteStop[] | string[]> | undefined,
-  routeId: string
-): RouteStop[] {
-  const routeStops = sbr?.[routeId];
-  if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-  const first = routeStops[0];
-  if (typeof first === 'object' && 'order_there' in first) {
-    return routeStops as RouteStop[];
-  }
-  const names = routeStops as unknown as string[];
-  return names.map((name, i) => ({
-    name,
-    order_there: i + 1,
-    order_back: names.length - i,
-  }));
-}
 
 /** Наступний вільний st_XXXX за каталогом і ключами coords */
 function nextStopCatalogId(transport: TransportData | null, coords: StopsCoordsData | null): string {
@@ -99,45 +63,70 @@ function nextTechnicalStopIndex(routeStops: RouteStop[], routeId: string): numbe
   return max + 1;
 }
 
-function createMarkerIcon(color: string, orderLabel?: string) {
+function createMarkerIcon(color: string, orderLabel?: string, selected = false) {
   const label = orderLabel != null ? `<span class="map-editor-marker-label">${orderLabel}</span>` : '';
+  const pinClass = `map-editor-marker-pin${selected ? ' map-editor-marker-pin--selected' : ''}`;
   return L.divIcon({
     className: 'map-editor-marker',
-    html: `<span class="map-editor-marker-pin" style="background-color:${color}"><span class="map-editor-marker-inner">${label}</span></span>`,
+    html: `<span class="${pinClass}" style="background-color:${color}"><span class="map-editor-marker-inner">${label}</span></span>`,
     iconSize: [32, 42],
     iconAnchor: [16, 42],
   });
 }
 
-const defaultIcon = createMarkerIcon('#3388ff');
-const excludedIcon = createMarkerIcon(MARKER_EXCLUDED_COLOR, '−');
+const MARKER_DEFAULT_COLOR = '#3388ff';
+/** Обрана зупинка — бурштин: контрастний і до синього, і до темно-синього «виключена» */
+const MARKER_SELECTED_COLOR = '#f97316';
+
+const iconCache = new Map<string, L.DivIcon>();
+/** Кешовані іконки: однакові параметри → той самий об'єкт, Leaflet не перестворює маркер даремно */
+function markerIcon(opts: { excluded?: boolean; selected?: boolean; label?: string }): L.DivIcon {
+  const color = opts.selected ? MARKER_SELECTED_COLOR : opts.excluded ? MARKER_EXCLUDED_COLOR : MARKER_DEFAULT_COLOR;
+  const label = opts.excluded ? '−' : opts.label;
+  const key = `${color}|${label ?? ''}|${opts.selected ? 1 : 0}`;
+  let icon = iconCache.get(key);
+  if (!icon) {
+    icon = createMarkerIcon(color, label, Boolean(opts.selected));
+    iconCache.set(key, icon);
+  }
+  return icon;
+}
 
 function DraggableMarker({
   name,
   position,
   onPositionChange,
   excluded,
+  selected,
+  onSelect,
   popupLabel,
 }: {
   name: string;
   position: [number, number];
   onPositionChange: (name: string, lat: number, lng: number) => void;
   excluded?: boolean;
+  selected?: boolean;
+  /** Клік або перетягування — зупинка стає обраною (Leaflet не шле click після drag) */
+  onSelect?: (name: string) => void;
   popupLabel?: string;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
 
   const eventHandlers = useMemo(
     () => ({
+      click() {
+        onSelect?.(name);
+      },
       dragend() {
         const marker = markerRef.current;
         if (marker != null) {
           const latlng = marker.getLatLng();
           onPositionChange(name, latlng.lat, latlng.lng);
         }
+        onSelect?.(name);
       },
     }),
-    [name, onPositionChange]
+    [name, onPositionChange, onSelect]
   );
 
   useEffect(() => {
@@ -156,7 +145,9 @@ function DraggableMarker({
       ref={markerRef}
       position={position}
       draggable
-      icon={excluded ? excludedIcon : defaultIcon}
+      icon={markerIcon({ excluded, selected })}
+      zIndexOffset={selected ? 1000 : 0}
+      title={popupLabel ?? name}
       eventHandlers={eventHandlers}
     >
       <Popup>
@@ -172,6 +163,7 @@ function ClickableMarker({
   position,
   onClick,
   excluded,
+  selected,
   order,
   popupLabel,
 }: {
@@ -179,17 +171,18 @@ function ClickableMarker({
   position: [number, number];
   onClick: (name: string) => void;
   excluded?: boolean;
+  selected?: boolean;
   order?: number;
   popupLabel?: string;
 }) {
-  const icon = excluded
-    ? createMarkerIcon(MARKER_EXCLUDED_COLOR, '−')
-    : createMarkerIcon('#3388ff', order != null ? String(order) : undefined);
+  const icon = markerIcon({ excluded, selected, label: order != null ? String(order) : undefined });
   return (
     <Marker
       position={position}
       draggable={false}
       icon={icon}
+      zIndexOffset={selected ? 1000 : 0}
+      title={popupLabel ?? name}
       eventHandlers={{ click: () => onClick(name) }}
     >
       <Popup>
@@ -202,15 +195,36 @@ function ClickableMarker({
 }
 
 
-function MapBounds({ positions }: { positions: [number, number][] }) {
+/**
+ * Підганяє зум під зупинки лише при зміні режиму/маршруту (fitKey), а не на кожну правку —
+ * інакше карта б'ється з панорамуванням до обраної зупинки.
+ */
+function MapBounds({ positions, fitKey }: { positions: [number, number][]; fitKey: string }) {
   const map = useMap();
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
   useEffect(() => {
-    if (positions.length > 1) {
-      map.fitBounds(positions as [number, number][], { padding: [30, 30], maxZoom: 16 });
-    } else if (positions.length === 1) {
-      map.setView(positions[0], 16);
+    const pts = positionsRef.current;
+    if (pts.length > 1) {
+      map.fitBounds(pts, { padding: [30, 30], maxZoom: 16 });
+    } else if (pts.length === 1) {
+      map.setView(pts[0], 16);
     }
-  }, [map, positions]);
+  }, [map, fitKey]);
+  return null;
+}
+
+/** Панорамує до обраної зупинки лише коли вибір зроблено зі списку/клавіатури (nonce), не з карти */
+function PanToSelected({ position, nonce }: { position: [number, number] | null; nonce: number }) {
+  const map = useMap();
+  const positionRef = useRef(position);
+  positionRef.current = position;
+  useEffect(() => {
+    const pos = positionRef.current;
+    if (nonce === 0 || !pos) return;
+    if (map.getZoom() < 14) map.setView(pos, 15);
+    else map.panTo(pos, { animate: true });
+  }, [map, nonce]);
   return null;
 }
 
@@ -246,7 +260,14 @@ export const MapEditorTab: React.FC = () => {
   const [directionMode, setDirectionMode] = useState<'there' | 'back'>('there');
   const [mounted, setMounted] = useState(false);
   const [modalStop, setModalStop] = useState<string | null>(null);
-  const [editStopName, setEditStopName] = useState<string>('');
+  /** Обрана зупинка — спільна для карти і списку в обох режимах */
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  /** Рядок списку в режимі редагування назви */
+  const [editingStopId, setEditingStopId] = useState<string | null>(null);
+  /** Зростає лише при виборі зі списку/клавіатури — тоді карта панорамує до зупинки */
+  const [panNonce, setPanNonce] = useState(0);
+  /** Помилка збереження/OSRM — inline; редактор лишається (на відміну від error при завантаженні) */
+  const [actionError, setActionError] = useState('');
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
   const handleMapCenterChange = useCallback((lat: number, lng: number) => {
     setMapCenter([lat, lng]);
@@ -258,13 +279,29 @@ export const MapEditorTab: React.FC = () => {
 
   const stopsCatalog = useMemo(() => transportData?.supplement?.stops?.stops_catalog, [transportData]);
 
-  useEffect(() => {
-    if (!modalStop) {
-      setEditStopName('');
-      return;
-    }
-    setEditStopName(displayNameForStopKey(modalStop, stopsCatalog));
-  }, [modalStop, stopsCatalog]);
+  /** Назви з бази — «було: …», revert і мапа перейменувань для пропагації */
+  const dbNameById = useMemo(
+    () => new Map((baseDataset?.stops ?? []).map((st) => [st.id, st.name] as const)),
+    [baseDataset]
+  );
+  const renameMap = useMemo(() => buildStopRenameMap(baseDataset?.stops ?? [], stopsCatalog), [baseDataset, stopsCatalog]);
+  /** Те, що піде в PUT (ще без пропагації) — джерело лічильника змін */
+  const nextDataset = useMemo(() => {
+    if (!transportData || !coordsData || !baseDataset) return null;
+    // редактор тримає дані в «сирому» вигляді і нормалізує їх у editorToDataset
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return editorToDataset(transportData as any, coordsData, baseDataset);
+  }, [transportData, coordsData, baseDataset]);
+  const changes = useMemo(() => countEditorChanges(baseDataset, nextDataset), [baseDataset, nextDataset]);
+  const isDirty = changes.total > 0;
+  const propagationByStopId = useMemo(() => {
+    const m = new Map<string, string | null>();
+    if (!baseDataset) return m;
+    dbNameById.forEach((dbName, id) => {
+      if (renameMap.has(dbName)) m.set(id, formatPropagationSummary(summarizeRenamePropagation(baseDataset, dbName)));
+    });
+    return m;
+  }, [baseDataset, dbNameById, renameMap]);
 
   const applyDataset = useCallback((dataset: TransportDataset) => {
     const { transport, coords } = datasetToEditor(dataset);
@@ -276,7 +313,9 @@ export const MapEditorTab: React.FC = () => {
   const loadFromDb = useCallback(async () => {
     setLoading(true);
     setError('');
+    setActionError('');
     setStatusMsg('');
+    setEditingStopId(null);
     try {
       const dataset = await apiClient.getTransportDataset();
       applyDataset(dataset);
@@ -293,28 +332,45 @@ export const MapEditorTab: React.FC = () => {
   }, [loadFromDb]);
 
   const handleSaveToDb = useCallback(async () => {
-    if (!transportData || !coordsData || !baseDataset) return;
-    if (!window.confirm('Зберегти поточні зміни в базу? Несхоронені правки інших вкладок не торкаються.')) {
+    if (!transportData || !coordsData || !baseDataset || !nextDataset) return;
+    const { dataset, touchedRoutes, touchedTrips } = applyStopRenamesToDataset(nextDataset, renameMap);
+    const summary = [
+      changes.renamedStops.length ? `перейменовано: ${changes.renamedStops.length}` : '',
+      changes.movedStops.length ? `переміщено: ${changes.movedStops.length}` : '',
+      changes.addedStops.length ? `нових технічних: ${changes.addedStops.length}` : '',
+      changes.routeStopChanges ? `порядок/маршрути: ${changes.routeStopChanges}` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const propagationNote =
+      touchedRoutes.length || touchedTrips
+        ? `\nСтара назва також заміниться у кінцевих маршрутів (${touchedRoutes.length}) і headsign рейсів (${touchedTrips}).`
+        : '';
+    if (
+      !window.confirm(
+        `Зберегти в базу: ${formatChangesLabel(changes.total)} (${summary})?${propagationNote}\n` +
+          'Несхоронені правки інших вкладок не торкаються.'
+      )
+    ) {
       return;
     }
     setSaving(true);
-    setError('');
+    setActionError('');
     setStatusMsg('');
     try {
-      // редактор тримає дані в «сирому» вигляді і нормалізує їх у editorToDataset
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dataset = editorToDataset(transportData as any, coordsData, baseDataset);
       const result = await apiClient.putTransportDataset(dataset);
       applyDataset(dataset);
+      broadcastTransportDatasetInvalidate();
+      setEditingStopId(null);
       setStatusMsg(
         `Збережено: ${result.counts.stops} зупинок, ${result.counts.routes} маршрутів, ${result.counts.trips} рейсів`
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не вдалося зберегти в базу');
+      setActionError(err instanceof Error ? err.message : 'Не вдалося зберегти в базу');
     } finally {
       setSaving(false);
     }
-  }, [transportData, coordsData, baseDataset, applyDataset]);
+  }, [transportData, coordsData, baseDataset, nextDataset, renameMap, changes, applyDataset]);
 
   const handleReloadFromDb = useCallback(async () => {
     if (
@@ -341,7 +397,7 @@ export const MapEditorTab: React.FC = () => {
       return;
     }
     setRecalculating(true);
-    setError('');
+    setActionError('');
     setStatusMsg('Перерахунок сегментів через OSRM…');
     try {
       const result = await apiClient.recalculateTransportSegments(selectedRoute || undefined);
@@ -354,7 +410,7 @@ export const MapEditorTab: React.FC = () => {
       const dataset = await apiClient.getTransportDataset();
       applyDataset(dataset);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не вдалося перерахувати сегменти');
+      setActionError(err instanceof Error ? err.message : 'Не вдалося перерахувати сегменти');
       setStatusMsg('');
     } finally {
       setRecalculating(false);
@@ -398,8 +454,10 @@ export const MapEditorTab: React.FC = () => {
   const routeEndpoints = useMemo(() => {
     if (!selectedRoute || !transportData) return { from: '?', to: '?' };
     const r = transportData.supplement?.routes?.[selectedRoute];
-    return { from: r?.from ?? '?', to: r?.to ?? '?' };
-  }, [selectedRoute, transportData]);
+    // кінцеві — назви зупинок; перейменована зупинка видна тут одразу, в базі зміниться при збереженні
+    const withRename = (v?: string) => (v ? (renameMap.get(v) ?? v) : '?');
+    return { from: withRename(r?.from), to: withRename(r?.to) };
+  }, [selectedRoute, transportData, renameMap]);
 
   const orderedStopsForDirection = useMemo(() => {
     const orderKey = directionMode === 'there' ? 'order_there' : 'order_back';
@@ -582,47 +640,64 @@ export const MapEditorTab: React.FC = () => {
     [transportData, selectedRoute]
   );
 
-  /** Оновити підпис зупинки в каталозі та полі name у маршрутах (ключ id не змінюється) */
+  /** Застосувати нову назву (в пам'яті); повертає текст помилки валідації або null */
   const handleRenameStop = useCallback(
-    (stopId: string, newDisplayName: string) => {
-      const trimmed = newDisplayName.trim();
-      if (!trimmed) return;
-      if (!transportData) return;
-      const prevLabel = displayNameForStopKey(stopId, transportData.supplement?.stops?.stops_catalog);
-      if (trimmed === prevLabel) return;
-      const sbr = transportData.supplement?.stops?.stops_by_route;
-      if (!sbr) return;
-      const prevCatalog = transportData.supplement?.stops?.stops_catalog ?? {};
-      const newSbr: Record<string, RouteStop[] | string[]> = {};
-      for (const [routeId, stops] of Object.entries(sbr)) {
-        if (!Array.isArray(stops)) {
-          newSbr[routeId] = stops;
-          continue;
-        }
-        const first = stops[0];
-        if (typeof first === 'object' && first && 'name' in first) {
-          newSbr[routeId] = (stops as RouteStop[]).map((s) =>
-            getStopKey(s) === stopId ? { ...s, name: trimmed } : s
-          );
-        } else {
-          newSbr[routeId] = (stops as string[]).map((n) => (n === stopId ? trimmed : n));
-        }
-      }
-      setTransportData({
-        ...transportData,
-        supplement: {
-          ...transportData.supplement,
-          stops: {
-            ...transportData.supplement?.stops,
-            stops_catalog: { ...prevCatalog, [stopId]: { name: trimmed } },
-            stops_by_route: newSbr,
-          },
-        },
-      });
-      setEditStopName(trimmed);
+    (stopId: string, raw: string): string | null => {
+      const err = validateStopName(raw, stopsCatalog, stopId);
+      if (err) return err;
+      setTransportData((prev) => (prev ? renameStopInEditor(prev, stopId, raw) : prev));
+      setEditingStopId(null);
+      return null;
     },
-    [transportData]
+    [stopsCatalog]
   );
+
+  /** Повернути назву з бази (скасувати незбережене перейменування) */
+  const handleRevertStopName = useCallback(
+    (stopId: string) => {
+      const dbName = dbNameById.get(stopId);
+      if (!dbName) return;
+      setTransportData((prev) => (prev ? renameStopInEditor(prev, stopId, dbName) : prev));
+      setEditingStopId(null);
+    },
+    [dbNameById]
+  );
+
+  const selectStop = useCallback((id: string, source: 'map' | 'list' | 'keyboard') => {
+    setSelectedStopId(id);
+    // перехід на іншу зупинку закриває незавершене редагування
+    setEditingStopId((editing) => (editing && editing !== id ? null : editing));
+    if (source !== 'map') setPanNonce((n) => n + 1);
+  }, []);
+  const handleMarkerSelect = useCallback((id: string) => selectStop(id, 'map'), [selectStop]);
+  const handleDirectionMarkerClick = useCallback(
+    (id: string) => {
+      selectStop(id, 'map');
+      setModalStop(id);
+    },
+    [selectStop]
+  );
+
+  // Вибір живе, поки зупинка є у списку (зміна маршруту може її прибрати)
+  useEffect(() => {
+    if (selectedStopId && !displayedStops.includes(selectedStopId)) {
+      setSelectedStopId(null);
+      setEditingStopId(null);
+    }
+  }, [displayedStops, selectedStopId]);
+  useEffect(() => {
+    setEditingStopId(null);
+  }, [editorMode, selectedRoute]);
+  // Закриття вкладки браузера з незбереженими правками — стандартний confirm
+  useEffect(() => {
+    if (!isDirty) return;
+    const guard = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [isDirty]);
 
   const positions = useMemo(
     () => displayedStops.map((n) => coordsData?.stops[n]).filter(Boolean) as [number, number][],
@@ -642,6 +717,21 @@ export const MapEditorTab: React.FC = () => {
   }
 
   const directionEditorActive = editorMode === 'direction' && selectedRoute;
+  const saveLabel = saving
+    ? 'Збереження…'
+    : isDirty
+      ? `Зберегти в базу · ${formatChangesLabel(changes.total)}`
+      : 'Зберегти в базу';
+  const renderSaveButton = () => (
+    <Button
+      type="button"
+      onClick={handleSaveToDb}
+      disabled={saving || recalculating || !baseDataset || !isDirty}
+      title={isDirty ? undefined : 'Немає незбережених змін'}
+    >
+      {saveLabel}
+    </Button>
+  );
 
   return (
     <div className="tab-content map-editor-tab">
@@ -685,9 +775,7 @@ export const MapEditorTab: React.FC = () => {
             >
               + Техн. зупинка
             </Button>
-            <Button type="button" onClick={handleSaveToDb} disabled={saving || recalculating || !baseDataset}>
-              {saving ? 'Збереження…' : 'Зберегти в базу'}
-            </Button>
+            {renderSaveButton()}
             <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving || recalculating}>
               Завантажити з бази
             </Button>
@@ -712,9 +800,16 @@ export const MapEditorTab: React.FC = () => {
       </div>
 
       {statusMsg && <p className="map-editor-hint">{statusMsg}</p>}
+      {actionError && (
+        <Alert variant="error" className="map-editor-action-error">
+          {actionError}
+        </Alert>
+      )}
 
       {editorMode === 'coords' && (
         <p className="map-editor-hint">
+          Клік по зупинці на карті або в списку — вибрати; ✎ або Enter у списку — перейменувати (нова назва
+          також замінить кінцеві маршрутів і таблички рейсів з такою самою назвою).
           Перетягніть маркер для уточнення позиції. «+ Техн. зупинка» — точка тільки для карти (map_only).
           Темно-синій — виключена (order = -1). Зміни в памʼяті, поки не натиснете «Зберегти в базу».
           «Завантажити з бази» скидає несхоронені правки.
@@ -743,9 +838,7 @@ export const MapEditorTab: React.FC = () => {
               ← {routeEndpoints.from}
             </button>
           </div>
-          <Button type="button" onClick={handleSaveToDb} disabled={saving || recalculating || !baseDataset}>
-            {saving ? 'Збереження…' : 'Зберегти в базу'}
-          </Button>
+          {renderSaveButton()}
           <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving || recalculating}>
             Завантажити з бази
           </Button>
@@ -762,6 +855,7 @@ export const MapEditorTab: React.FC = () => {
       {directionEditorActive && (
         <p className="map-editor-hint">
           Натисніть на маркер, щоб змінити номер зупинки по напрямку або виключити (-1). Темно-синій — виключена.
+          Назву зупинки можна змінити в списку праворуч.
         </p>
       )}
 
@@ -779,7 +873,11 @@ export const MapEditorTab: React.FC = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <MapBounds positions={positions} />
+              <MapBounds positions={positions} fitKey={`${editorMode}|${selectedRoute}`} />
+              <PanToSelected
+                position={selectedStopId ? (coordsData.stops[selectedStopId] ?? null) : null}
+                nonce={panNonce}
+              />
               <MapCenterTracker onCenterChange={handleMapCenterChange} />
               {editorMode === 'coords'
                 ? displayedStops.map((name) => {
@@ -792,6 +890,8 @@ export const MapEditorTab: React.FC = () => {
                         position={pos}
                         onPositionChange={handlePositionChange}
                         excluded={selectedRoute ? isStopExcludedInAnyDirection(name) : false}
+                        selected={name === selectedStopId}
+                        onSelect={handleMarkerSelect}
                         popupLabel={displayNameForStopKey(name, stopsCatalog)}
                       />
                     );
@@ -809,8 +909,9 @@ export const MapEditorTab: React.FC = () => {
                         key={name}
                         name={name}
                         position={pos}
-                        onClick={setModalStop}
+                        onClick={handleDirectionMarkerClick}
                         excluded={excluded}
+                        selected={name === selectedStopId}
                         order={excluded ? undefined : (order as number)}
                         popupLabel={displayNameForStopKey(name, stopsCatalog)}
                       />
@@ -819,62 +920,37 @@ export const MapEditorTab: React.FC = () => {
             </MapContainer>
           )}
         </div>
-        <div className="map-editor-list">
-          {editorMode === 'coords' ? (
-            <>
-              <h3 className="map-editor-list-title">Зупинки ({displayedStops.length})</h3>
-              <ul className="map-editor-stops-list">
-                {displayedStops.map((name) => {
-                  const pos = coordsData.stops[name];
-                  const excluded = selectedRoute ? isStopExcludedInAnyDirection(name) : false;
-                  const technical = isTechnicalStop(name);
-                  return (
-                    <li key={name} className={`map-editor-stop-item ${excluded ? 'map-editor-stop-item--excluded' : ''}`}>
-                      <span className="map-editor-stop-name">{displayNameForStopKey(name, stopsCatalog)}</span>
-                      {pos && (
-                        <span className="map-editor-stop-coords">
-                          {pos[0].toFixed(6)}, {pos[1].toFixed(6)}
-                        </span>
-                      )}
-                      {technical && <span className="map-editor-stop-badge map-editor-stop-badge--tech">техн.</span>}
-                      {excluded && <span className="map-editor-stop-badge">виключена</span>}
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          ) : editorMode === 'direction' ? (
-            directionEditorActive ? (
-              <>
-                <h3 className="map-editor-list-title">
-                  Порядок зупинок ({directionMode === 'there' ? `→ ${routeEndpoints.to}` : `← ${routeEndpoints.from}`})
-                </h3>
-                <ul className="map-editor-stops-list map-editor-stops-list--ordered">
-                  {orderedStopsForDirection.map((s, idx) => (
-                    <li key={getStopKey(s)} className="map-editor-stop-item">
-                      <span className="map-editor-stop-order">{idx + 1}.</span>
-                      <span className="map-editor-stop-name">{displayNameForStopKey(getStopKey(s), stopsCatalog)}</span>
-                      {s.map_only && <span className="map-editor-stop-badge map-editor-stop-badge--tech">техн.</span>}
-                    </li>
-                  ))}
-                  {routeStopsForDirection.filter((s) => (directionMode === 'there' ? s.order_there : s.order_back) === -1).length > 0 && (
-                    <li className="map-editor-stop-item map-editor-stop-item--excluded-header">Виключені (-1):</li>
-                  )}
-                  {routeStopsForDirection
-                    .filter((s) => (directionMode === 'there' ? s.order_there : s.order_back) === -1)
-                    .map((s) => (
-                      <li key={getStopKey(s)} className="map-editor-stop-item map-editor-stop-item--excluded">
-                        <span className="map-editor-stop-order">—</span>
-                        <span className="map-editor-stop-name">{displayNameForStopKey(getStopKey(s), stopsCatalog)}</span>
-                      </li>
-                    ))}
-                </ul>
-              </>
-            ) : (
-              <p className="map-editor-hint">Виберіть маршрут для редагування порядку зупинок.</p>
-            )
-          ) : null}
-        </div>
+        <StopsPanel
+          mode={editorMode}
+          stopIds={displayedStops}
+          catalog={stopsCatalog}
+          coords={coordsData.stops}
+          dbNameById={dbNameById}
+          propagationByStopId={propagationByStopId}
+          selectedStopId={selectedStopId}
+          editingStopId={editingStopId}
+          panNonce={panNonce}
+          isExcluded={(id) => (selectedRoute ? isStopExcludedInAnyDirection(id) : false)}
+          isTechnical={isTechnicalStop}
+          hasArticle={(id) => Boolean(getStopArticle(id))}
+          onSelect={selectStop}
+          onStartEdit={setEditingStopId}
+          onCancelEdit={() => setEditingStopId(null)}
+          onApplyRename={handleRenameStop}
+          onRevert={handleRevertStopName}
+          orderedStops={directionEditorActive ? orderedStopsForDirection : undefined}
+          excludedStops={
+            directionEditorActive
+              ? routeStopsForDirection.filter((st) => (directionMode === 'there' ? st.order_there : st.order_back) === -1)
+              : undefined
+          }
+          directionTitle={
+            directionEditorActive
+              ? `Порядок зупинок (${directionMode === 'there' ? `→ ${routeEndpoints.to}` : `← ${routeEndpoints.from}`})`
+              : undefined
+          }
+          onOpenOrderModal={directionEditorActive ? setModalStop : undefined}
+        />
       </div>
 
       {modalStop && directionEditorActive && (
@@ -884,29 +960,7 @@ export const MapEditorTab: React.FC = () => {
               Зупинка: {displayNameForStopKey(modalStop, stopsCatalog)}
             </h3>
 
-            <div className="map-editor-modal-field">
-              <label className="map-editor-modal-label">Назва зупинки:</label>
-              <div className="map-editor-modal-name-row">
-                <input
-                  type="text"
-                  className="map-editor-modal-input"
-                  value={editStopName}
-                  onChange={(e) => setEditStopName(e.target.value)}
-                  placeholder="Назва"
-                />
-                <button
-                  type="button"
-                  className="map-editor-modal-opt map-editor-modal-save-name"
-                  onClick={() => handleRenameStop(modalStop, editStopName)}
-                  disabled={
-                    !editStopName.trim() ||
-                    editStopName.trim() === displayNameForStopKey(modalStop, stopsCatalog)
-                  }
-                >
-                  Зберегти назву
-                </button>
-              </div>
-            </div>
+            <p className="map-editor-modal-hint">Назву зупинки можна змінити в списку праворуч.</p>
 
             <div className="map-editor-modal-field map-editor-modal-field--checkbox">
               <label className="map-editor-modal-checkbox-label">
