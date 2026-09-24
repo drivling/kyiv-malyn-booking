@@ -349,6 +349,9 @@ model ViberListing {
   /// Коли автору надіслано підтвердження про публікацію (бот / особистий акаунт / платне SMS).
   /// Одне сповіщення на оголошення: повторні пости, мерж і апдейти не спамлять людину.
   authorNotifiedAt DateTime?
+  /// «Дата по»: дата поїздки + кінець часу (діапазон → кінець; без часу → 23:59). Рахується
+  /// при записі (index-helpers getViberListingEndDateTime), щоб cleanup був одним updateMany.
+  endsAt        DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -368,8 +371,29 @@ model ViberListing {
   @@index([fromPointId, toPointId, date, listingType])
   /// Гарячі запити (пошук, матчинг, cleanup, бот) фільтрують по isActive+date(+listingType)
   @@index([isActive, date, listingType])
+  @@index([isActive, endsAt])
   @@index([personId])
   @@index([phone])
+}
+
+/// Черга фонових сповіщень (перетини після нового оголошення тощо). Один воркер у процесі
+/// (notification-queue.ts) забирає job-и пачками; рестарт деплою не губить розсилку, помилка —
+/// повтор з бекофом. HTTP-відповідь на ingest не чекає на Telegram/SMS.
+model NotificationJob {
+  id         Int      @id @default(autoincrement())
+  /// "listing_match" — знайти перетини для оголошення й розіслати
+  kind       String
+  payload    Json
+  /// pending | running | done | failed
+  status     String   @default("pending")
+  attempts   Int      @default(0)
+  runAfter   DateTime @default(now())
+  lockedAt   DateTime?
+  lastError  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, runAfter])
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).
