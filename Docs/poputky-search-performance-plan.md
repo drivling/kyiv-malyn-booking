@@ -1,6 +1,6 @@
 # Аудит: пошук попуток на головній — сховище та швидкодія
 
-**Status:** Фази 0 (код) і 1 зроблено на гілці `perf/poputky-search-phase-0-1`; 0.1 (регіон Railway) чекає на рішення власника; далі Фаза 2  
+**Status:** Фази 0–2 зроблено на гілці `perf/poputky-search-phase-0-1`; регіон Railway перенесено 24.09.2026 (бекенд і фронт → europe-west4-drams3a); далі Фази 3–6  
 **Created:** 2026-09-24  
 
 Аудит зроблено 24.09.2026 (Railway metrics + код). Правило проекту: один пункт чеклісту → один
@@ -13,7 +13,7 @@
 - [x] **0.2** gzip (`compression`) у `create-app.ts`
 - [x] **0.3** `X-Response-Time` + лог `[http] METHOD /path status ms` (`src/middleware/request-timing.ts`)
 - [x] **0.4** Цей план у `Docs/`
-- [ ] **0.1** Railway: `kyiv-malyn-booking` + `frontend` → `europe-west4` (рішення власника; без коду)
+- [x] **0.1** Railway: `kyiv-malyn-booking` + `frontend` → `europe-west4-drams3a` (зроблено 24.09.2026 через GraphQL `serviceInstanceUpdate` + redeploy; `DATABASE_URL` уже йде через `postgres.railway.internal`)
 
 Фаза 1
 - [x] **1.1** Головна: оголошення через `GET /viber-listings/search?fromCode&toCode&date`
@@ -24,12 +24,12 @@
 - [x] **1.6** Видалити мертві `BookingPage`, `PoputkyPage`
 
 Фаза 2
-- [ ] **2.1** Міграція індексів (`ViberListing`, `RideShareRequest`, `Person`)
-- [ ] **2.1b** `getChatIdByPhone`/`getNameByPhone` без unbounded-сканів `Booking`
-- [ ] **2.2** `catalog-cache.ts` + заміна `tripPoint.findMany()` у гарячих шляхах
-- [ ] **2.3** Публічний DTO без `phone`/`rawMessage`
-- [ ] **2.4** `GET /poputky/search` (listings + schedules + availability одним запитом)
-- [ ] **2.5** Фронт на `/poputky/search`
+- [x] **2.1** Міграція індексів (`ViberListing`, `RideShareRequest`, `Person`)
+- [x] **2.1b** `getChatIdByPhone`/`getNameByPhone` без unbounded-сканів `Booking`
+- [x] **2.2** `catalog-cache.ts` + заміна `tripPoint.findMany()` у гарячих шляхах
+- [x] **2.3** Публічний DTO без `phone`/`rawMessage`
+- [x] **2.4** `GET /poputky/search` (listings + schedules + availability одним запитом)
+- [x] **2.5** Фронт на `/poputky/search`
 
 Фаза 3
 - [ ] **3.1** `ViberListing.endsAt` + cleanup одним `updateMany`
@@ -238,6 +238,11 @@ Elasticsearch/Redis/мікросервіси/read-replica — не для 0.12 G
   для форми.
 - Перевірка: `http-response-time` по `/poputky/search` p50 < 100 мс у EU-регіоні; supertest-тест
   на форму відповіді; e2e.
+
+**Примітка до 2.1.** `prisma migrate dev` виявив дрейф історії міграцій: схема не має DB-default
+на `updatedAt` у `LunchDish`, `LunchSettings`, `NotificationSettings`, `TripPoint`, `TripRoute`,
+а в БД він є. Згенеровані `ALTER TABLE … DROP DEFAULT` з міграції індексів вирізано (не її
+справа); окрема міграція-«вирівнювання» — на розсуд, поки шкоди немає.
 
 ### Фаза 3 — Сховище: життєвий цикл оголошення (щоб таблиця не росла безкінечно і не сканувалась)
 - **3.1 Колонка `endsAt DateTime`** (обчислюється у `createOrMergeViberListing`/PUT з

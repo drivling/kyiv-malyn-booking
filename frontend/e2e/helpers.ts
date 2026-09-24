@@ -298,6 +298,34 @@ export async function mockBackendApi(page: Page) {
       ]);
     }
 
+    // Home search: one request for listings + schedules + availability
+    if (method === 'GET' && path === '/poputky/search') {
+      const from = (u.searchParams.get('from') || '').trim();
+      const to = (u.searchParams.get('to') || '').trim();
+      const date = u.searchParams.get('date') || '';
+      const schedules =
+        from === 'Kyiv' && to === 'Malyn'
+          ? [marshrutkaKyivMalyn]
+          : from === 'Korosten' && to === 'Malyn'
+            ? [elektrichkaKorostenMalyn]
+            : [];
+      const availability: Record<number, unknown> = {};
+      for (const s of schedules) {
+        availability[s.id] =
+          s.vehicleType === 'elektrichka'
+            ? { scheduleId: s.id, maxSeats: 0, bookedSeats: 0, availableSeats: 0, isAvailable: false, vehicleType: 'elektrichka', ticketPurchaseUrl: (s as { ticketPurchaseUrl?: string }).ticketPurchaseUrl ?? null }
+            : { scheduleId: s.id, maxSeats: 8, bookedSeats: 3, availableSeats: 5, isAvailable: true };
+      }
+      return json(route, 200, {
+        from: from ? { id: 1, code: from, nameUk: from } : null,
+        to: to ? { id: 2, code: to, nameUk: to } : null,
+        date,
+        listings: [],
+        schedules,
+        availability,
+      });
+    }
+
     // Primary list for Mizhgorodski / BookingPage: GET /schedules?fromCode=&toCode=
     if (method === 'GET' && path === '/schedules') {
       const fromCode = (u.searchParams.get('fromCode') || '').trim();

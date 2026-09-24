@@ -25,39 +25,34 @@ test.describe('home search request budget', () => {
     await mockBackendApi(page);
   });
 
-  test('first search: server-side listing search, dated schedules, single availability pass', async ({ page }) => {
+  test('one search = one GET /poputky/search; catalogs once per tab; modal reuses availability', async ({ page }) => {
     const seen = recordApiRequests(page);
     await page.goto('/mizhgorodski?from=Kyiv&to=Malyn&date=2026-12-01');
     await expect(page.getByRole('button', { name: 'Забронювати' }).first()).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
 
-    // Ніякого bulk-завантаження всіх оголошень
-    expect(count(seen, /^\/viber-listings\?/)).toBe(0);
+    // Ніякого bulk-завантаження всіх оголошень і жодних окремих запитів розкладу/місць
+    expect(count(seen, /^\/viber-listings/)).toBe(0);
+    expect(count(seen, /^\/schedules/)).toBe(0);
+    expect(count(seen, /\/availability\?/)).toBe(0);
     // Dev-сервер під React.StrictMode монтує сторінку двічі → перший пошук може піти двічі;
-    // у продакшн-збірці — один. Головне: пошук і розклад ідуть парою, з датою.
-    const firstSearches = count(seen, /^\/viber-listings\/search\?/);
+    // у продакшн-збірці — один.
+    const firstSearches = count(seen, /^\/poputky\/search\?/);
     expect(firstSearches).toBeGreaterThanOrEqual(1);
     expect(firstSearches).toBeLessThanOrEqual(2);
-    expect(count(seen, /^\/schedules\?/)).toBe(firstSearches);
-    expect(seen.find((p) => p.startsWith('/viber-listings/search?'))).toContain('date=2026-12-01');
-    expect(seen.find((p) => p.startsWith('/schedules?'))).toContain('date=2026-12-01');
-    // Одна маршрутка в моку → один запит вільних місць, навіть при подвійному монтуванні
-    // (старіший пошук відкидається guard-ом; раніше ті самі N запитів ішли ще й з useEffect)
-    expect(count(seen, /\/availability\?/)).toBe(1);
+    expect(seen.find((p) => p.startsWith('/poputky/search?'))).toContain('date=2026-12-01');
     // Каталоги — по одному разу (кеш модуля дедуплікує навіть подвійне монтування)
     expect(count(seen, /^\/trip-routes/)).toBe(1);
     expect(count(seen, /^\/od-pairs/)).toBe(1);
     expect(count(seen, /^\/trip-points\?appearInPoputky/)).toBe(1);
 
-    // Другий пошук (інша дата): каталоги з кешу, знову лише пошук + розклад + місця
+    // Другий пошук (інша дата): каталоги з кешу, рівно один запит до API
     seen.length = 0;
     await page.getByRole('button', { name: 'Завтра' }).click();
     await expect(page.getByRole('button', { name: 'Забронювати' }).first()).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState('networkidle');
-    expect(count(seen, /^\/trip-routes|^\/od-pairs|^\/trip-points/)).toBe(0);
-    expect(count(seen, /^\/viber-listings\/search\?/)).toBe(1);
-    expect(count(seen, /^\/schedules\?/)).toBe(1);
-    expect(count(seen, /\/availability\?/)).toBe(1);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatch(/^\/poputky\/search\?/);
 
     // Модалка бронювання бере вільні місця з головної — без третього запиту
     seen.length = 0;

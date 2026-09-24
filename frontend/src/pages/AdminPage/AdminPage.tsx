@@ -6,7 +6,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, ScheduleFormData, ViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
+import type { Booking, Schedule, ScheduleFormData, AdminViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatPhoneDisplay } from '@/utils/constants';
 import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
@@ -87,7 +87,7 @@ export const AdminPage: React.FC = () => {
     hasLocalTransport: false,
     quickDirectPointIds: [] as number[],
   });
-  const [viberListings, setViberListings] = useState<ViberListing[]>([]);
+  const [viberListings, setViberListings] = useState<AdminViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -138,7 +138,7 @@ export const AdminPage: React.FC = () => {
   const [viberNoDepartureTimeFilter, setViberNoDepartureTimeFilter] = useState(false);
   const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
   const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [editingViberListing, setEditingViberListing] = useState<ViberListing | null>(null);
+  const [editingViberListing, setEditingViberListing] = useState<AdminViberListing | null>(null);
   const [tripRoutesForViber, setTripRoutesForViber] = useState<TripRoute[]>([]);
   // Реклама каналу: база = без Telegram бота; вибір = усі / до кого не комунікували / не знайдено в Telegram
   type PromoFilter = 'no_telegram' | 'no_communication' | 'promo_not_found';
@@ -1299,7 +1299,7 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const openEditViberListing = (listing: ViberListing) => {
+  const openEditViberListing = (listing: AdminViberListing) => {
     const dateStr = listing.date.slice(0, 10);
     setViberEditForm({
       rawMessage: listing.rawMessage,

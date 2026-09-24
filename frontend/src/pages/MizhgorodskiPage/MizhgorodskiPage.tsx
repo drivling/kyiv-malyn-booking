@@ -20,7 +20,6 @@ import {
   formatListingContactDisplay,
   getRouteSuffix,
   listingContactHref,
-  supportPhoneToTelLink,
 } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { buildCitySwitchUrl, getCurrentSite } from '@/site/siteConfig';
@@ -238,14 +237,11 @@ export const MizhgorodskiPage: React.FC = () => {
     const isCurrent = () => seq === loadSeq.current;
     setLoading(true);
     setError('');
-    setAvailabilityById({});
     try {
-      // Оголошення й розклад фільтрує сервер (OD + дата); каталоги — з кешу модуля
-      const [foundListings, odSchedules, allTripRoutes, points] = await Promise.all([
-        apiClient.searchViberListings({ fromCode: from, toCode: to, date: tripDate }),
-        apiClient
-          .getSchedules(undefined, { fromCode: from, toCode: to, date: tripDate })
-          .catch(() => [] as Schedule[]),
+      // Один запит: попутки + розклад на OD-пару + вільні місця (GET /poputky/search);
+      // каталоги — з кешу модуля, лише для клієнтської страховки по along-route
+      const [result, allTripRoutes, points] = await Promise.all([
+        apiClient.searchPoputky({ from, to, date: tripDate }),
         catalogCache.tripRoutes.get().catch(() => [] as TripRoute[]),
         catalogCache.poputkyPoints.get().catch(() => [] as TripPoint[]),
       ]);
@@ -263,42 +259,24 @@ export const MizhgorodskiPage: React.FC = () => {
         stopsByTripRouteId.set(tr.id, ordered);
       }
       const pointIdByCode = new Map(points.map((p) => [p.code, p.id]));
-      const byRouteId = new Map<number, Schedule>();
-      for (const s of odSchedules) byRouteId.set(s.id, s);
-      const mergedSchedules = [...byRouteId.values()];
-      setSchedules(mergedSchedules);
+      setSchedules(result.schedules);
+      setAvailabilityById(result.availability ?? {});
       // Сервер уже відібрав по OD/along-route; клієнтський фільтр лишається як страховка
       // (along-route гілка сервера не перевіряє OD самого оголошення — див. план, Фаза 4.2).
       setListings(
-        foundListings.filter(
+        result.listings.filter(
           (item) =>
             item.isActive &&
             item.date.slice(0, 10) === tripDate.slice(0, 10) &&
             listingMatchesCities(item, from, to, corridorById, pointIdByCode, stopsByTripRouteId)
         )
       );
-      // Вільні місця — один прохід (раніше ті самі N запитів ішли ще й з useEffect)
-      const availEntries = await Promise.all(
-        mergedSchedules.filter(isMarshrutka).map(async (s) => {
-          try {
-            const a = await apiClient.checkAvailabilityByScheduleId(s.id, tripDate);
-            return [s.id, a] as const;
-          } catch {
-            return null;
-          }
-        })
-      );
-      if (!isCurrent()) return;
-      const nextAvail: Record<number, Availability> = {};
-      for (const row of availEntries) {
-        if (row) nextAvail[row[0]] = row[1];
-      }
-      setAvailabilityById(nextAvail);
     } catch (err) {
       if (!isCurrent()) return;
       setError(err instanceof Error ? err.message : 'Помилка завантаження');
       setListings([]);
       setSchedules([]);
+      setAvailabilityById({});
     } finally {
       if (isCurrent()) setLoading(false);
     }
@@ -1241,17 +1219,23 @@ export const MizhgorodskiPage: React.FC = () => {
               >
                 Відкрити Telegram
               </a>
-            ) : (
+            ) : rideshare.requestStatusData.contact ? (
               <a
-                href={listingContactHref(rideshare.requestStatusData.listing.phone)}
+                href={listingContactHref(rideshare.requestStatusData.contact)}
                 className="mizh-offer-submit mizh-offer-submit--link"
-                {...(rideshare.requestStatusData.listing.phone.trim().startsWith('@')
+                {...(rideshare.requestStatusData.contact.trim().startsWith('@')
                   ? { target: '_blank', rel: 'noopener noreferrer' }
                   : {})}
               >
                 Зателефонувати:{' '}
-                {formatListingContactDisplay(rideshare.requestStatusData.listing.phone)}
+                {formatListingContactDisplay(rideshare.requestStatusData.contact)}
               </a>
+            ) : (
+              <ListingContactReveal
+                listingId={rideshare.requestStatusData.listing.id}
+                className="mizh-offer-submit mizh-offer-submit--link"
+                label="Показати номер водія"
+              />
             )}
           </div>
         </div>
@@ -1280,12 +1264,20 @@ export const MizhgorodskiPage: React.FC = () => {
             >
               Перевірити через Telegram
             </a>
-            <a
-              href={supportPhoneToTelLink(rideshare.alreadyRequestedListing.phone)}
-              className="mizh-card-cta mizh-card-cta--ghost"
-            >
-              Зателефонувати
-            </a>
+            {rideshare.alreadyRequestedContact ? (
+              <a
+                href={listingContactHref(rideshare.alreadyRequestedContact)}
+                className="mizh-card-cta mizh-card-cta--ghost"
+              >
+                Зателефонувати
+              </a>
+            ) : (
+              <ListingContactReveal
+                listingId={rideshare.alreadyRequestedListing.id}
+                className="mizh-card-cta mizh-card-cta--ghost"
+                label="Показати номер водія"
+              />
+            )}
           </div>
         </div>
       )}
