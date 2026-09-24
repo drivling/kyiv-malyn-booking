@@ -10,6 +10,7 @@ exports.buildOdMatchWhere = buildOdMatchWhere;
 exports.orderedPointIdsFromStops = orderedPointIdsFromStops;
 exports.isOdAlongItinerary = isOdAlongItinerary;
 exports.classifyPoputkyRouteMatch = classifyPoputkyRouteMatch;
+exports.listingMatchesSearchOd = listingMatchesSearchOd;
 exports.formatOdRouteLabel = formatOdRouteLabel;
 exports.buildOdPairsFromTripRoutes = buildOdPairsFromTripRoutes;
 exports.listOdPairs = listOdPairs;
@@ -124,6 +125,30 @@ function classifyPoputkyRouteMatch(input) {
         return 'along_route';
     }
     return null;
+}
+/**
+ * Чи підходить оголошення під пошук from→to (сайт, /poputky/search):
+ * - точна OD-пара;
+ * - водій, маршрут якого (TripRoute stops) містить from→to у цьому порядку — пасажир по дорозі;
+ * - старий рядок без точок — по route-рядку.
+ * Пасажир з іншою OD-парою на тому ж маршруті НЕ підходить (раніше SQL-гілка `tripRouteId in`
+ * повертала його; Docs/poputky-search-performance-plan.md, Фаза 4.2).
+ */
+function listingMatchesSearchOd(listing, search, itineraryByRouteId) {
+    if (listing.fromPointId === search.fromId && listing.toPointId === search.toId)
+        return true;
+    if (listing.listingType === 'driver' && listing.tripRouteId != null) {
+        const itinerary = itineraryByRouteId.get(listing.tripRouteId);
+        if (itinerary && isOdAlongItinerary(itinerary, search.fromId, search.toId))
+            return true;
+    }
+    if (listing.fromPointId == null && listing.toPointId == null) {
+        const parsed = parseOdCodesFromRoute(listing.route);
+        return (!!parsed &&
+            parsed.fromCode.toLowerCase() === search.fromCode.toLowerCase() &&
+            parsed.toCode.toLowerCase() === search.toCode.toLowerCase());
+    }
+    return false;
 }
 /** Human label from route slug using optional code→nameUk map. */
 function formatOdRouteLabel(route, labelByCode) {

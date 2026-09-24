@@ -1,8 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
-import { isPastRideDate, mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
+import { getViberListingEndDateTime, isPastRideDate, mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
 import { resolveCorridorTripRouteId } from './schedule-trip';
 import { resolveOdPointIdsFromRoute } from './poputky-od';
 import { assertPhoneNotBlocked } from './phone-block';
+import { tripDayWhere } from './trip-day';
 
 export type ViberListingMergeInput = {
   rawMessage: string;
@@ -65,8 +66,6 @@ export async function createOrMergeViberListing(
 
   const personId = data.personId ?? null;
   const date = data.date;
-  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
   const normalizedPhone = data.phone?.trim() ? normalizePhoneForMerge(data.phone) : '';
   // Поїздка вже минула (вчора чи раніше) — архівуємо одразу (для аналітики) і ніколи
   // не активуємо/сповіщуємо про неї, незалежно від джерела (Viber, Telegram-групи).
@@ -78,10 +77,7 @@ export async function createOrMergeViberListing(
     where: {
       listingType: data.listingType,
       isActive: true,
-      date: {
-        gte: startOfDay,
-        lt: endOfDay,
-      },
+      date: tripDayWhere(date),
       departureTime: data.departureTime ?? null,
       OR: [
         ...(odFields.fromPointId != null && odFields.toPointId != null
@@ -111,6 +107,8 @@ export async function createOrMergeViberListing(
         tripRouteId: odFields.tripRouteId,
         fromPointId: odFields.fromPointId,
         toPointId: odFields.toPointId,
+        // «Дата по» рахується при записі — cleanup стає одним updateMany по індексу
+        endsAt: getViberListingEndDateTime(date, data.departureTime),
       },
     });
     if (isPastDate) {
@@ -141,6 +139,7 @@ export async function createOrMergeViberListing(
       priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
       isActive: isPastDate ? false : existing.isActive || data.isActive,
       personId: existing.personId ?? personId,
+      endsAt: existing.endsAt ?? getViberListingEndDateTime(existing.date, existing.departureTime),
       // source не оновлюємо — залишаємо перший
     },
   });

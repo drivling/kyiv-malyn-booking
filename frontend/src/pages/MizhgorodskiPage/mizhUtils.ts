@@ -137,12 +137,14 @@ export function isOdAlongItinerary(
 /**
  * Dual-read listing filter for search from/to:
  * 1) exact OD by point ids
- * 2) along-route: listing.tripRouteId stops contain from→to in order
+ * 2) along-route: a driver's tripRouteId stops contain from→to in order
+ *    (a passenger with another OD on the same route is not a match)
  * 3) corridor slug / route string fallback
  */
 export function listingMatchesCities(
   listing: {
     route: string;
+    listingType?: string;
     tripRouteId?: number | null;
     fromPointId?: number | null;
     toPointId?: number | null;
@@ -160,12 +162,15 @@ export function listingMatchesCities(
       return true;
     }
     if (
+      listing.listingType !== 'passenger' &&
       listing.tripRouteId != null &&
       stopsByTripRouteId?.has(listing.tripRouteId) &&
       isOdAlongItinerary(stopsByTripRouteId.get(listing.tripRouteId)!, fromId, toId)
     ) {
       return true;
     }
+    // Обидві точки відомі, але пара інша — це не наш пошук (route-рядок не перевіряємо)
+    if (listing.fromPointId != null && listing.toPointId != null) return false;
   }
   if (listing.tripRouteId != null && corridorById?.has(listing.tripRouteId)) {
     return routeMatchesCities(corridorById.get(listing.tripRouteId)!.slug, from, to);

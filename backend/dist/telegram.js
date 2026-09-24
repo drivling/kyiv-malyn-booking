@@ -87,6 +87,10 @@ const viber_parser_1 = require("./viber-parser");
 const telegram_parser_1 = require("./telegram-parser");
 const viber_listing_merge_1 = require("./viber-listing-merge");
 const poputky_od_1 = require("./poputky-od");
+const poputky_match_1 = require("./poputky-match");
+const catalog_cache_1 = require("./catalog-cache");
+const trip_day_1 = require("./trip-day");
+const notification_queue_1 = require("./notification-queue");
 const phone_block_1 = require("./phone-block");
 const revoke_telegram_bot_1 = require("./revoke-telegram-bot");
 const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
@@ -345,7 +349,8 @@ async function createDriverListingFromState(chatId, state, notes, senderName) {
             ],
         },
     });
-    await notifyMatchingPassengersForNewDriver(listing, chatId);
+    // Перетини — через чергу (notification-queue.ts): автор отримає список збігів за кілька секунд
+    await (0, notification_queue_1.enqueueListingMatch)(tgPrisma, listing.id, chatId);
     // Реферал водія: 40 грн нарахуються лише коли запрошений ним пасажир підтвердить поїздку фото
     if (person.id) {
         const fullPerson = await tgPrisma.person.findUnique({
@@ -403,7 +408,7 @@ async function createPassengerListingFromState(chatId, state, notes, senderName)
         (state.departureTime ? `🕐 ${state.departureTime}\n` : '') +
         (notes ? `📝 ${notes}\n` : '') +
         '\nЯкщо з\'явиться відповідний водій, ми сповістимо вас.', { parse_mode: 'HTML' });
-    await notifyMatchingDriversForNewPassenger(listing, chatId);
+    await (0, notification_queue_1.enqueueListingMatch)(tgPrisma, listing.id, chatId);
 }
 /** Парсить "HH:MM" у хвилини від початку доби; якщо невалідно — null. */
 function parseClockToMinutes(hoursRaw, minutesRaw) {
@@ -481,12 +486,18 @@ function allridesListingMatchesTimeSlot(departureTime, slot) {
     const { start: s, end: e } = ALLRIDES_TIME_SLOTS[slot];
     return range.start < e && range.end > s;
 }
-/** Одна дата (YYYY-MM-DD) для порівняння. */
+/** Одна дата (YYYY-MM-DD) для порівняння — локальна доба процесу, як і в мержі/пошуку (trip-day.ts). */
 function toDateKey(d) {
-    return d.toISOString().slice(0, 10);
+    return (0, trip_day_1.tripDayKey)(d);
 }
 async function loadItineraryPointIds(tripRouteId) {
     if (tripRouteId == null)
+        return null;
+    // Спершу кеш каталогу (без запиту), потім БД — для стабів без tripRoute у тестах
+    const cached = (await (0, catalog_cache_1.getCatalog)(tgPrisma)).itineraryByRouteId.get(tripRouteId);
+    if (cached && cached.length)
+        return cached;
+    if (!tgPrisma.tripRouteStop)
         return null;
     const stops = await tgPrisma.tripRouteStop.findMany({
         where: { tripRouteId },
@@ -499,19 +510,9 @@ async function loadItineraryPointIds(tripRouteId) {
 }
 /** Знайти активні оголошення пасажирів: exact OD або along driver's itinerary; дата збігається. */
 async function findMatchingPassengersForDriver(driverListing) {
-    const dateKey = toDateKey(driverListing.date);
     const itineraryPointIds = await loadItineraryPointIds(driverListing.tripRouteId);
-    const passengers = await tgPrisma.viberListing.findMany({
-        where: {
-            listingType: 'passenger',
-            isActive: true,
-            date: {
-                gte: new Date(dateKey + 'T00:00:00.000Z'),
-                lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
-            },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
+    // Кандидати звужені в SQL (OD-пари підвідрізків маршруту водія + legacy route), доба — локальна
+    const passengers = await (0, poputky_match_1.findMatchCandidates)(tgPrisma, { ...driverListing, listingType: 'driver' });
     const driverTime = driverListing.departureTime;
     const out = [];
     for (const p of passengers) {
@@ -540,18 +541,8 @@ async function findMatchingPassengersForDriver(driverListing) {
 }
 /** Знайти активні оголошення водіїв: exact OD або passenger OD along driver's itinerary. */
 async function findMatchingDriversForPassenger(passengerListing) {
-    const dateKey = toDateKey(passengerListing.date);
-    const drivers = await tgPrisma.viberListing.findMany({
-        where: {
-            listingType: 'driver',
-            isActive: true,
-            date: {
-                gte: new Date(dateKey + 'T00:00:00.000Z'),
-                lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
-            },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
+    // Кандидати звужені в SQL (точна OD-пара, маршрути з цим відрізком, legacy route), доба — локальна
+    const drivers = await (0, poputky_match_1.findMatchCandidates)(tgPrisma, { ...passengerListing, listingType: 'passenger' });
     const passengerTime = passengerListing.departureTime;
     const itineraryCache = new Map();
     const out = [];
@@ -1969,12 +1960,7 @@ async function afterTelegramListingImported(listing) {
         }).catch((err) => console.error('Telegram user notify:', err));
     }
     const authorChatId = await getAuthorChatIdForListing(listing);
-    if (listing.listingType === 'driver') {
-        notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
-    }
-    else if (listing.listingType === 'passenger') {
-        notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
-    }
+    await (0, notification_queue_1.enqueueListingMatch)(tgPrisma, listing.id, authorChatId);
 }
 /**
  * Розпізнати типові помилки Telethon-сесії, щоб підказка в боті була по суті,
@@ -3640,6 +3626,9 @@ function setupBotCommands() {
                 for (const myPassenger of myPassengerListings.slice(0, 5)) {
                     const matches = await findMatchingDriversForPassenger({
                         route: myPassenger.route,
+                        fromPointId: myPassenger.fromPointId,
+                        toPointId: myPassenger.toPointId,
+                        tripRouteId: myPassenger.tripRouteId,
                         date: myPassenger.date,
                         departureTime: myPassenger.departureTime,
                     });
@@ -3669,6 +3658,9 @@ function setupBotCommands() {
                 for (const myDriver of myDriverListings.slice(0, 5)) {
                     const matches = await findMatchingPassengersForDriver({
                         route: myDriver.route,
+                        fromPointId: myDriver.fromPointId,
+                        toPointId: myDriver.toPointId,
+                        tripRouteId: myDriver.tripRouteId,
                         date: myDriver.date,
                         departureTime: myDriver.departureTime,
                     });
@@ -3913,6 +3905,9 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
         for (const myDriver of myListings.slice(0, 5)) {
             const matches = await findMatchingPassengersForDriver({
                 route: myDriver.route,
+                fromPointId: myDriver.fromPointId,
+                toPointId: myDriver.toPointId,
+                tripRouteId: myDriver.tripRouteId,
                 date: myDriver.date,
                 departureTime: myDriver.departureTime ?? null,
             });
@@ -3967,6 +3962,9 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
         for (const myPassenger of myListings.slice(0, 5)) {
             const matches = await findMatchingDriversForPassenger({
                 route: myPassenger.route,
+                fromPointId: myPassenger.fromPointId,
+                toPointId: myPassenger.toPointId,
+                tripRouteId: myPassenger.tripRouteId,
                 date: myPassenger.date,
                 departureTime: myPassenger.departureTime ?? null,
             });
@@ -4430,13 +4428,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                                         listingType: listing.listingType,
                                     }).catch((err) => console.error('Telegram Viber user notify:', err));
                                 }
-                                const authorChatId = listing.phone?.trim() ? await (0, exports.getChatIdByPhone)(listing.phone) : null;
-                                if (listing.listingType === 'driver') {
-                                    notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
-                                }
-                                else if (listing.listingType === 'passenger') {
-                                    notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
-                                }
+                                void (0, notification_queue_1.enqueueListingMatch)(tgPrisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
                             }
                         }
                         catch (err) {
@@ -4509,13 +4501,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                                 listingType: listing.listingType,
                             }).catch((err) => console.error('Telegram Viber user notify:', err));
                         }
-                        const authorChatId = listing.phone?.trim() ? await (0, exports.getChatIdByPhone)(listing.phone) : null;
-                        if (listing.listingType === 'driver') {
-                            notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
-                        }
-                        else if (listing.listingType === 'passenger') {
-                            notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
-                        }
+                        void (0, notification_queue_1.enqueueListingMatch)(tgPrisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
                     }
                     const verb = isNew ? 'створено' : 'оновлено';
                     const statusNote = isPastDate

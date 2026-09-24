@@ -6,6 +6,7 @@
 import type { PrismaClient, ViberListing } from '@prisma/client';
 import { mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
 import { normalizePhone } from './telegram';
+import { tripDayWhere } from './trip-day';
 
 export function listingsAreMergeDuplicates(
   a: Pick<
@@ -138,16 +139,12 @@ export async function dedupeViberListingsAfterUpdate(
     return { listing: survivor, mergedAwayIds: [] };
   }
 
-  const date = survivor.date;
-  const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-
   const candidates = await prisma.viberListing.findMany({
     where: {
       listingType: survivor.listingType,
       route: survivor.route,
       isActive: true,
-      date: { gte: startOfDay, lt: endOfDay },
+      date: tripDayWhere(survivor.date),
       departureTime: survivor.departureTime ?? null,
       id: { not: survivorId },
     },

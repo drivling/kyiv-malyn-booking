@@ -4,6 +4,7 @@ exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createAp
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
 const lunch_listener_1 = require("./lunch-listener");
+const listing_match_jobs_1 = require("./listing-match-jobs");
 var create_app_2 = require("./create-app");
 Object.defineProperty(exports, "CODE_VERSION", { enumerable: true, get: function () { return create_app_2.CODE_VERSION; } });
 Object.defineProperty(exports, "createApp", { enumerable: true, get: function () { return create_app_2.createApp; } });
@@ -11,6 +12,7 @@ Object.defineProperty(exports, "getRegisteredRoutes", { enumerable: true, get: f
 Object.defineProperty(exports, "getSupportPhoneForRoute", { enumerable: true, get: function () { return create_app_2.getSupportPhoneForRoute; } });
 function main() {
     const prisma = new client_1.PrismaClient();
+    let worker = null;
     const app = (0, create_app_1.createApp)({ prisma });
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
@@ -27,10 +29,15 @@ function main() {
         console.log('========================================');
         console.log(`API on http://localhost:${PORT} [${create_app_1.CODE_VERSION}]`);
         (0, lunch_listener_1.startLunchListener)();
+        // Фонові сповіщення про перетини (NotificationJob) — один воркер на процес
+        if (process.env.NOTIFICATION_WORKER_DISABLED !== '1') {
+            worker = (0, listing_match_jobs_1.startListingMatchWorker)(prisma);
+        }
     });
     const shutdown = (signal) => {
-        console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener`);
+        console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
         (0, lunch_listener_1.stopLunchListener)();
+        worker?.stop();
         process.exit(0);
     };
     process.on('SIGTERM', () => shutdown('SIGTERM'));

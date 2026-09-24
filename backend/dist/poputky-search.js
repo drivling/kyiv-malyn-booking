@@ -8,15 +8,13 @@ const catalog_cache_1 = require("./catalog-cache");
 const schedule_include_1 = require("./schedule-include");
 const schedule_trip_1 = require("./schedule-trip");
 const viber_listing_public_1 = require("./viber-listing-public");
+const trip_day_1 = require("./trip-day");
+const poputky_od_1 = require("./poputky-od");
 exports.DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-/** Межі календарної доби так само, як у GET /viber-listings/search (локальний час сервера). */
+/** Межі доби поїздки — спільна утиліта (trip-day.ts), як у пошуку, мержі й матчингу. */
 function dayBounds(dateStr) {
-    const d = new Date(dateStr);
-    const startOfDay = new Date(d);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(d);
-    endOfDay.setHours(23, 59, 59, 999);
-    return { startOfDay, endOfDay };
+    const { start, end } = (0, trip_day_1.tripDayWindow)(dateStr);
+    return { startOfDay: start, endOfDay: end };
 }
 /** Сума заброньованих місць по кожному розкладу з однієї вибірки бронювань. */
 function bookedSeatsBySchedule(schedules, bookings) {
@@ -45,7 +43,7 @@ async function searchPoputky(prisma, input) {
         prisma.viberListing.findMany({
             where: {
                 isActive: true,
-                date: { gte: startOfDay, lte: endOfDay },
+                date: { gte: startOfDay, lt: endOfDay },
                 OR: [
                     { fromPointId: from.id, toPointId: to.id },
                     ...(alongTripRouteIds.length ? [{ tripRouteId: { in: alongTripRouteIds } }] : []),
@@ -61,13 +59,15 @@ async function searchPoputky(prisma, input) {
             orderBy: [{ route: 'asc' }, { departureTime: 'asc' }],
         }),
     ]);
+    const search = { fromId: from.id, toId: to.id, fromCode: from.code, toCode: to.code };
+    const listings = listingRows.filter((l) => (0, poputky_od_1.listingMatchesSearchOd)(l, search, catalog.itineraryByRouteId));
     const schedules = scheduleRows.filter((s) => (0, schedule_trip_1.isScheduleActiveOnDate)(s.activeWeekdays, input.date) &&
         (0, schedule_trip_1.scheduleMatchesOdAlongStops)(s.tripRoute?.stops, from.id, to.id));
     const marshrutky = schedules.filter((s) => s.vehicleType !== 'elektrichka');
     const bookings = marshrutky.length
         ? await prisma.booking.findMany({
             where: {
-                date: { gte: startOfDay, lte: endOfDay },
+                date: { gte: startOfDay, lt: endOfDay },
                 OR: [
                     { scheduleId: { in: marshrutky.map((s) => s.id) } },
                     { scheduleId: null, route: { in: [...new Set(marshrutky.map((s) => s.route))] } },
@@ -105,7 +105,7 @@ async function searchPoputky(prisma, input) {
         from: { id: from.id, code: from.code, nameUk: from.nameUk },
         to: { id: to.id, code: to.code, nameUk: to.nameUk },
         date: input.date,
-        listings: listingRows.map(viber_listing_public_1.toPublicListing),
+        listings: listings.map(viber_listing_public_1.toPublicListing),
         schedules,
         availability,
     };

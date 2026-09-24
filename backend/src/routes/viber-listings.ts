@@ -2,15 +2,14 @@ import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import {
   findOrCreatePersonByPhone,
-  getChatIdByPhone,
   getNameByPhone,
   isTelegramEnabled,
-  notifyMatchingDriversForNewPassenger,
-  notifyMatchingPassengersForNewDriver,
   resolveNameByPhoneFromTelegram,
   sendViberListingConfirmationToUser,
   sendViberListingNotificationToAdmin,
 } from '../telegram';
+import { enqueueListingMatch } from '../notification-queue';
+import { importListingsToRideEvents } from '../viber-analytics-import';
 import { parseViberMessage, parseViberMessages } from '../viber-parser';
 import {
   serializeViberListing,
@@ -19,7 +18,9 @@ import {
 } from '../index-helpers';
 import { ADMIN_AUTH_TOKEN, requireAdmin } from '../middleware/require-admin';
 import { getCatalog } from '../catalog-cache';
+import { listingMatchesSearchOd } from '../poputky-od';
 import { PUBLIC_LISTING_SELECT, toPublicListing } from '../viber-listing-public';
+import { tripDayWhere } from '../trip-day';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
 import { createOrMergeViberListing } from '../viber-listing-merge';
 import { PHONE_BLOCKED_ADMIN_MESSAGE, isPhoneBlockedError } from '../phone-block';
@@ -120,17 +121,8 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
     }
 
     try {
-      const searchDate = new Date(date as string);
-      const startOfDay = new Date(searchDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(searchDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
       const dateFilter = {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        date: tripDayWhere(String(date)),
         isActive: true,
       };
 
@@ -164,6 +156,9 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
           orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
           select: PUBLIC_LISTING_SELECT,
         });
+        // SQL звузив по маршруту; тут перевіряємо OD самого оголошення (пасажир з іншою парою — ні)
+        const search = { fromId: from.id, toId: to.id, fromCode: from.code, toCode: to.code };
+        listings = listings.filter((l) => listingMatchesSearchOd(l, search, catalog.itineraryByRouteId));
       } else {
         listings = await prisma.viberListing.findMany({
           where: {
@@ -256,16 +251,8 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
             priceUah: listing.priceUah ?? undefined,
           }).catch((err) => console.error('Telegram Viber user notify:', err));
         }
-        const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-        if (listing.listingType === 'driver') {
-          notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
-            console.error('Telegram match notify (driver):', err),
-          );
-        } else if (listing.listingType === 'passenger') {
-          notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
-            console.error('Telegram match notify (passenger):', err),
-          );
-        }
+        // Перетини й розсилка — у фоновій черзі (notification-queue.ts), відповідь не чекає
+        void enqueueListingMatch(prisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
       }
 
       res.status(201).json({ ...serializeViberListing(listing), matchingRecheckTriggered });
@@ -353,16 +340,8 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
                 priceUah: listing.priceUah ?? undefined,
               }).catch((err) => console.error('Telegram Viber user notify:', err));
             }
-            const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-            if (listing.listingType === 'driver') {
-              notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
-                console.error('Telegram match notify (driver):', err),
-              );
-            } else if (listing.listingType === 'passenger') {
-              notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
-                console.error('Telegram match notify (passenger):', err),
-              );
-            }
+            // Перетини й розсилка — у фоновій черзі (notification-queue.ts), відповідь не чекає
+            void enqueueListingMatch(prisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
           }
         } catch (error) {
           errors.push({ index: i, error: error instanceof Error ? error.message : 'Unknown error' });
@@ -439,6 +418,18 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
           updates.toPointId = od.toPointId;
         }
       }
+      if (updates.date !== undefined || updates.departureTime !== undefined) {
+        const current = await prisma.viberListing.findUnique({
+          where: { id: Number(id) },
+          select: { date: true, departureTime: true },
+        });
+        if (current) {
+          updates.endsAt = getViberListingEndDateTime(
+            (updates.date as Date | undefined) ?? current.date,
+            (updates.departureTime as string | null | undefined) ?? current.departureTime,
+          );
+        }
+      }
       let listing = await prisma.viberListing.update({
         where: { id: Number(id) },
         data: updates,
@@ -448,16 +439,8 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       let matchingRecheckTriggered = false;
       if (isTelegramEnabled()) {
         matchingRecheckTriggered = true;
-        const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-        if (listing.listingType === 'driver') {
-          notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
-            console.error('Telegram match notify after admin update (driver):', err),
-          );
-        } else if (listing.listingType === 'passenger') {
-          notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
-            console.error('Telegram match notify after admin update (passenger):', err),
-          );
-        }
+        // Перетини й розсилка — у фоновій черзі (notification-queue.ts), відповідь не чекає
+        void enqueueListingMatch(prisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
       }
       res.json({ ...serializeViberListing(listing), matchingRecheckTriggered, mergedAwayIds });
     } catch (error: unknown) {
@@ -509,36 +492,75 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
 
   r.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
     try {
-      const cutoff = new Date();
+      const now = new Date();
+      const cutoff = new Date(now);
       cutoff.setHours(cutoff.getHours() - CLEANUP_CUTOFF_HOURS);
 
-      const activeListings = await prisma.viberListing.findMany({
-        where: { isActive: true },
-        select: { id: true, date: true, departureTime: true },
+      // Основний шлях: один updateMany по індексу (isActive, endsAt)
+      const byEndsAt = await prisma.viberListing.updateMany({
+        where: { isActive: true, endsAt: { lt: cutoff } },
+        data: { isActive: false },
       });
 
-      const idsToDeactivate = activeListings
+      // Рядки без endsAt (до backfill або з обхідного шляху запису) — як раніше, в JS; їх одиниці
+      const withoutEndsAt = await prisma.viberListing.findMany({
+        where: { isActive: true, endsAt: null },
+        select: { id: true, date: true, departureTime: true },
+      });
+      const legacyIds = withoutEndsAt
         .filter((l) => getViberListingEndDateTime(l.date, l.departureTime) < cutoff)
         .map((l) => l.id);
-
-      const count = idsToDeactivate.length;
-      if (count > 0) {
+      if (legacyIds.length > 0) {
         await prisma.viberListing.updateMany({
-          where: { id: { in: idsToDeactivate } },
+          where: { id: { in: legacyIds } },
           data: { isActive: false },
         });
       }
 
-      console.log(`🧹 Деактивовано ${count} старих Viber оголошень (дата по < ${cutoff.toISOString()})`);
+      // Протерміновані запити «пасажир → водій» (1 год на підтвердження) — раніше їх ніхто не закривав
+      const expiredRequests = await prisma.rideShareRequest.updateMany({
+        where: { status: 'pending', expiresAt: { lt: now } },
+        data: { status: 'expired' },
+      });
+
+      const count = byEndsAt.count + legacyIds.length;
+      console.log(
+        `🧹 Деактивовано ${count} старих Viber оголошень (дата по < ${cutoff.toISOString()}), протерміновано запитів: ${expiredRequests.count}`,
+      );
 
       res.json({
         success: true,
         deactivated: count,
+        expiredRequests: expiredRequests.count,
         message: `Деактивовано ${count} оголошень`,
       });
     } catch (error) {
       console.error('❌ Помилка очищення старих Viber оголошень:', error);
       res.status(500).json({ error: 'Failed to cleanup old listings' });
+    }
+  });
+
+  /**
+   * Архів для cron (раз на місяць): нові рядки → ViberRideEvent (аналітика), потім видаляємо
+   * неактивні оголошення старші за `days` (за замовчуванням 90, мінімум 30). Гаряча таблиця
+   * лишається невеликою; Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
+   */
+  r.post('/viber-listings/archive-old', requireAdmin, async (req, res) => {
+    try {
+      const raw = Number((req.query.days ?? (req.body as { days?: unknown } | undefined)?.days) ?? 90);
+      const days = Number.isFinite(raw) ? Math.max(30, Math.round(raw)) : 90;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+
+      const imported = await importListingsToRideEvents(prisma);
+      const deleted = await prisma.viberListing.deleteMany({
+        where: { isActive: false, date: { lt: cutoff } },
+      });
+      console.log(`🗄️ Архів: імпортовано в аналітику ${imported.importedNow}, видалено неактивних старших за ${days} дн.: ${deleted.count}`);
+      res.json({ success: true, days, cutoff: cutoff.toISOString(), ...imported, deleted: deleted.count });
+    } catch (error) {
+      console.error('❌ Помилка архівування Viber оголошень:', error);
+      res.status(500).json({ error: 'Failed to archive old listings' });
     }
   });
 

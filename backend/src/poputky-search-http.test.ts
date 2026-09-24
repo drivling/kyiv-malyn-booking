@@ -42,6 +42,10 @@ const listingRow = {
   phone: '380501112233',
   rawMessage: 'секрет',
 };
+// Пасажир Ірпінь→Малин на варіанті 11: у пошуку Київ→Малин його бути не має (Фаза 4.2)
+const passengerIrpin = { ...listingRow, id: 8, listingType: 'passenger', route: 'Irpin-Malyn', tripRouteId: 11, fromPointId: 3, toPointId: 2 };
+// Водій Київ→Малин на варіанті 11: у пошуку Ірпінь→Малин він є (по дорозі)
+const driverViaIrpin = { ...listingRow, id: 9, route: 'Kyiv-Malyn-Irpin', tripRouteId: 11, fromPointId: 1, toPointId: 2 };
 const bus = {
   id: 101,
   route: 'Kyiv-Malyn-Irpin',
@@ -57,7 +61,7 @@ const train = { ...bus, id: 201, route: 'Kyiv-Malyn', tripRouteId: 10, vehicleTy
 const weekendOnly = { ...bus, id: 102, activeWeekdays: [6, 7] }; // 2026-12-01 — вівторок
 
 function buildPrisma() {
-  const viberFindMany = vi.fn(async () => [listingRow]);
+  const viberFindMany = vi.fn(async () => [listingRow, passengerIrpin, driverViaIrpin]);
   const scheduleFindMany = vi.fn(async () => [bus, train, weekendOnly]);
   const bookingFindMany = vi.fn(async () => [
     { scheduleId: 101, route: 'Kyiv-Malyn-Irpin', departureTime: '09:00', seats: 2 },
@@ -82,7 +86,7 @@ test('повертає попутки без телефону, розклад н
 
   expect(res.headers['cache-control']).toBe('public, max-age=20');
   expect(res.body.from.code).toBe('Kyiv');
-  expect(res.body.listings).toHaveLength(1);
+  expect(res.body.listings.map((l: { id: number }) => l.id)).toEqual([7, 9]);
   expect(res.body.listings[0]).not.toHaveProperty('phone');
   expect(res.body.listings[0]).not.toHaveProperty('rawMessage');
   expect(res.body.listings[0].date).toBe('2026-12-01T00:00:00.000Z');
@@ -105,6 +109,14 @@ test('повертає попутки без телефону, розклад н
     isAvailable: true,
   });
   expect(res.body.availability['201']).toMatchObject({ isAvailable: false, vehicleType: 'elektrichka', ticketPurchaseUrl: 'https://t' });
+});
+
+test('пошук Ірпінь→Малин: водій через Ірпінь — так, водій прямого коридору — ні', async () => {
+  const { prisma } = buildPrisma();
+  const res = await request(createApp({ prisma, adminPassword: 'x' }))
+    .get('/poputky/search?from=Irpin&to=Malyn&date=2026-12-01')
+    .expect(200);
+  expect(res.body.listings.map((l: { id: number }) => l.id)).toEqual([8, 9]);
 });
 
 test('невідоме місто → порожній результат, погана дата → 400', async () => {

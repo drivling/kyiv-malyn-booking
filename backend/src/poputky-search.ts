@@ -10,6 +10,8 @@ import { getCatalog } from './catalog-cache';
 import { scheduleInclude } from './schedule-include';
 import { isScheduleActiveOnDate, scheduleMatchesOdAlongStops } from './schedule-trip';
 import { PUBLIC_LISTING_SELECT, toPublicListing, type PublicListing } from './viber-listing-public';
+import { tripDayWindow } from './trip-day';
+import { listingMatchesSearchOd } from './poputky-od';
 
 export type PoputkyAvailability = {
   scheduleId: number;
@@ -32,14 +34,10 @@ export type PoputkySearchResult = {
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Межі календарної доби так само, як у GET /viber-listings/search (локальний час сервера). */
+/** Межі доби поїздки — спільна утиліта (trip-day.ts), як у пошуку, мержі й матчингу. */
 export function dayBounds(dateStr: string): { startOfDay: Date; endOfDay: Date } {
-  const d = new Date(dateStr);
-  const startOfDay = new Date(d);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(d);
-  endOfDay.setHours(23, 59, 59, 999);
-  return { startOfDay, endOfDay };
+  const { start, end } = tripDayWindow(dateStr);
+  return { startOfDay: start, endOfDay: end };
 }
 
 type BookingRow = { scheduleId: number | null; route: string; departureTime: string; seats: number };
@@ -77,7 +75,7 @@ export async function searchPoputky(
     prisma.viberListing.findMany({
       where: {
         isActive: true,
-        date: { gte: startOfDay, lte: endOfDay },
+        date: { gte: startOfDay, lt: endOfDay },
         OR: [
           { fromPointId: from.id, toPointId: to.id },
           ...(alongTripRouteIds.length ? [{ tripRouteId: { in: alongTripRouteIds } }] : []),
@@ -94,6 +92,9 @@ export async function searchPoputky(
     }),
   ]);
 
+  const search = { fromId: from.id, toId: to.id, fromCode: from.code, toCode: to.code };
+  const listings = listingRows.filter((l) => listingMatchesSearchOd(l, search, catalog.itineraryByRouteId));
+
   const schedules = scheduleRows.filter(
     (s) =>
       isScheduleActiveOnDate(s.activeWeekdays, input.date) &&
@@ -104,7 +105,7 @@ export async function searchPoputky(
   const bookings: BookingRow[] = marshrutky.length
     ? await prisma.booking.findMany({
         where: {
-          date: { gte: startOfDay, lte: endOfDay },
+          date: { gte: startOfDay, lt: endOfDay },
           OR: [
             { scheduleId: { in: marshrutky.map((s) => s.id) } },
             { scheduleId: null, route: { in: [...new Set(marshrutky.map((s) => s.route))] } },
@@ -144,7 +145,7 @@ export async function searchPoputky(
     from: { id: from.id, code: from.code, nameUk: from.nameUk },
     to: { id: to.id, code: to.code, nameUk: to.nameUk },
     date: input.date,
-    listings: listingRows.map(toPublicListing),
+    listings: listings.map(toPublicListing),
     schedules,
     availability,
   };

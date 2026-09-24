@@ -82,6 +82,15 @@ Authorization: admin-authenticated
    - **Schedule:** кожні **1 годину** або **2 години** (наприклад `0 * * * *` або `0 */2 * * *`).
    - Зберегти.
 
+6. **Архів старих Viber оголошень (раз на місяць):**
+   - **Title:** `Viber: архів старих оголошень`
+   - **URL:** `https://ВАШ-BACKEND-URL.railway.app/viber-listings/archive-old?days=90`
+   - **Method:** `POST`
+   - **Request Headers:**  
+     `Authorization` = `admin-authenticated`
+   - **Schedule:** `0 4 1 * *` (1-го числа о 04:00).
+   - Зберегти.
+
 6. **Завантажити нові повідомлення з групи PoDoroguem (Telegram):**
    - **Title:** `Telegram: fetch group messages (PoDoroguem)`
    - **URL:** `https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messages`
@@ -147,7 +156,8 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messag
 |----------|--------------------------------|------------|
 | `POST /telegram/send-reminders` | Щодня о 20:00 | Шукає бронювання на **завтра**, відправляє в Telegram нагадування «завтра у вас поїздка». |
 | `POST /telegram/send-reminders-today` | Щодня о 08:00 | Шукає бронювання на **сьогодні**, відправляє нагадування «сьогодні у вас поїздка». |
-| `POST /viber-listings/cleanup-old` | Кожні 1–2 год | Деактивує Viber оголошення, у яких **дата по** (дата + кінець часу) вже минула більш ніж на 3 год. Архів оновлюється автоматично. |
+| `POST /viber-listings/cleanup-old` | Кожні 1–2 год | Деактивує Viber оголошення, у яких **дата по** (`endsAt` = дата + кінець часу) минула більш ніж на **1 год** (одним `updateMany` по індексу), і переводить протерміновані запити пасажир→водій у `expired`. |
+| `POST /viber-listings/archive-old?days=90` | Раз на місяць | Копіює нові оголошення в аналітику (`ViberRideEvent`) і видаляє **неактивні** оголошення старші за N днів (мінімум 30), щоб гаряча таблиця не росла безкінечно. |
 | `POST /telegram/fetch-group-messages` | Кожні 2 год | Завантажує **нові** повідомлення з групи PoDoroguem (Малин-Київ, Малин-Житомир, Малин-Коростень), імпортує в Viber listings, прив'язує telegramUserId до Person. |
 
 Нагадування отримують тільки бронювання, у яких заповнений `telegramChatId` (користувач підписаний на бота).
