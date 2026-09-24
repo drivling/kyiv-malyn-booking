@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
@@ -22,6 +23,7 @@ import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
+import { requestTiming } from './middleware/request-timing';
 
 export type CreateAppDeps = {
   prisma: PrismaClient;
@@ -68,6 +70,9 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
 };
+app.use(requestTiming());
+// gzip для JSON (каталоги/оголошення стискаються в 5–10×); маленькі відповіді не чіпаємо
+app.use(compression({ threshold: 1024 }));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use('/poputky', createPoputkyRouter({ prisma }));
