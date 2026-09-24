@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
+import { invalidateCatalogCache } from '@/api/catalogCache';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
@@ -1016,6 +1017,7 @@ export const AdminPage: React.FC = () => {
       } else {
         await apiClient.createTripPoint(tripPointForm);
       }
+      invalidateCatalogCache();
       setIsTripPointModalOpen(false);
       if (activeTab === 'routes') loadRoutesTab();
       else loadSchedules();
@@ -1029,6 +1031,7 @@ export const AdminPage: React.FC = () => {
     if (!window.confirm(`Видалити місто «${point.nameUk}» (${point.code})?`)) return;
     try {
       await apiClient.deleteTripPoint(point.id);
+      invalidateCatalogCache();
       if (activeTab === 'routes') loadRoutesTab();
       else loadSchedules();
       setSuccess('Місто видалено');
@@ -1088,6 +1091,7 @@ export const AdminPage: React.FC = () => {
       } else {
         await apiClient.createTripRoute(payload);
       }
+      invalidateCatalogCache();
       setIsTripRouteModalOpen(false);
       loadRoutesTab();
       setSuccess(editingTripRoute ? 'Маршрут оновлено' : 'Маршрут створено');
@@ -1100,6 +1104,7 @@ export const AdminPage: React.FC = () => {
     if (!window.confirm(`Видалити маршрут «${route.labelUk}» (${route.slug})?`)) return;
     try {
       await apiClient.deleteTripRoute(route.id);
+      invalidateCatalogCache();
       loadRoutesTab();
       setSuccess('Маршрут видалено');
     } catch (err) {
