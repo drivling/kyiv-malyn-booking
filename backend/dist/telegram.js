@@ -21,6 +21,7 @@ exports.notifyDriverAboutPassengerPair = notifyDriverAboutPassengerPair;
 exports.notifyMatchingPassengersForNewDriver = notifyMatchingPassengersForNewDriver;
 exports.notifyMatchingDriversForNewPassenger = notifyMatchingDriversForNewPassenger;
 exports.getNextTechnicalPhoneNumber = getNextTechnicalPhoneNumber;
+exports.phoneTailForLookup = phoneTailForLookup;
 exports.parseBookOdDateCallback = parseBookOdDateCallback;
 exports.buildElektrichkaPurchaseMessage = buildElektrichkaPurchaseMessage;
 exports.buildElektrichkaPurchaseKeyboard = buildElektrichkaPurchaseKeyboard;
@@ -1091,15 +1092,29 @@ async function updatePersonAndBookingsTelegram(personId, chatId, userId) {
     }
 }
 /**
+ * Останні 9 цифр номера (без коду країни) для SQL-фільтра `contains` по Booking.phone,
+ * де номер лежить у довільному форматі («+380 50 111 22 33», «0501112233»…).
+ */
+function phoneTailForLookup(phone) {
+    const digits = (0, exports.normalizePhone)(phone).replace(/\D/g, '');
+    return digits.length >= 9 ? digits.slice(-9) : '';
+}
+/**
  * Отримати ім'я (ім'я + прізвище): спочатку з Person, інакше з Booking.
  */
 const getNameByPhone = async (phone) => {
     const person = await (0, exports.getPersonByPhone)(phone);
     if (person?.fullName?.trim())
         return person.fullName.trim();
+    // Booking.phone зберігається як ввів користувач — звужуємо по «хвосту» номера в SQL,
+    // а точне порівняння робимо після нормалізації (раніше — 500 останніх рядків у пам'ять).
+    const tail = phoneTailForLookup(phone);
+    if (!tail)
+        return null;
     const bookings = await tgPrisma.booking.findMany({
+        where: { phone: { contains: tail } },
         orderBy: { createdAt: 'desc' },
-        take: 500,
+        take: 20,
         select: { phone: true, name: true },
     });
     const match = bookings.find((b) => (0, exports.normalizePhone)(b.phone) === (0, exports.normalizePhone)(phone));
@@ -6473,12 +6488,19 @@ const getChatIdByPhone = async (phone) => {
         if (person?.telegramChatId && person.telegramChatId !== '0' && person.telegramChatId.trim() !== '') {
             return person.telegramChatId;
         }
+        // Fallback на старі бронювання: лише рядки з таким «хвостом» номера, а не вся таблиця
+        const tail = phoneTailForLookup(phone);
+        if (!tail)
+            return null;
         const bookings = await tgPrisma.booking.findMany({
             where: {
                 telegramChatId: { not: null },
                 telegramUserId: { not: null },
+                phone: { contains: tail },
             },
             orderBy: { createdAt: 'desc' },
+            take: 20,
+            select: { phone: true, telegramChatId: true },
         });
         const normalizedPhone = (0, exports.normalizePhone)(phone);
         const matching = bookings.find((b) => (0, exports.normalizePhone)(b.phone) === normalizedPhone);

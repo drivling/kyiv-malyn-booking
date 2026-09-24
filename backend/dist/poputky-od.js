@@ -19,6 +19,7 @@ exports.listOdPairs = listOdPairs;
  * Along-route: passenger OD is an ordered subset of the driver's TripRoute stops.
  */
 const schedule_trip_1 = require("./schedule-trip");
+const catalog_cache_1 = require("./catalog-cache");
 /** Build route snapshot from two point codes (no via). */
 function buildOdRouteSlug(fromCode, toCode) {
     return (0, schedule_trip_1.buildLegacyRouteKey)(fromCode, toCode, []);
@@ -39,7 +40,7 @@ async function resolveOdPointIdsFromRoute(prisma, route) {
     const parsed = parseOdCodesFromRoute(route);
     if (!parsed)
         return null;
-    const points = await prisma.tripPoint.findMany();
+    const points = (await (0, catalog_cache_1.getCatalogPoints)(prisma));
     const from = findPointByCode(points, parsed.fromCode);
     const to = findPointByCode(points, parsed.toCode);
     if (!from || !to || from.id === to.id)
@@ -48,9 +49,8 @@ async function resolveOdPointIdsFromRoute(prisma, route) {
 }
 /** Validate two appearInPoputky points and return route + ids. */
 async function resolvePoputkyOdPair(prisma, fromRaw, toRaw) {
-    const points = await prisma.tripPoint.findMany({
-        where: { appearInPoputky: true },
-    });
+    // Каталог з кешу; appearInPoputky фільтруємо тут (у кеші лежать усі точки)
+    const points = (await (0, catalog_cache_1.getCatalogPoints)(prisma)).filter((p) => p.appearInPoputky);
     const from = findPointByCode(points, fromRaw);
     const to = findPointByCode(points, toRaw);
     if (!from || !to) {

@@ -204,9 +204,14 @@ export type UserState = AdminUser | TelegramUserState | null;
 // Viber Listings
 export type ViberListingType = 'driver' | 'passenger';
 
+/**
+ * Публічна форма оголошення (сайт, пошук): без телефону й сирого тексту — контакт
+ * приходить окремим кліком через /viber-listings/:id/contact. Повний рядок — AdminViberListing.
+ */
 export interface ViberListing {
   id: number;
-  rawMessage: string;
+  /** Лише в адмінських відповідях */
+  rawMessage?: string;
   source?: string; // "Viber1" | "telegram1"
   senderName: string | null;
   listingType: ViberListingType;
@@ -217,7 +222,8 @@ export interface ViberListing {
   date: string;
   departureTime: string | null;
   seats: number | null;
-  phone: string;
+  /** Лише в адмінських відповідях та у власних оголошеннях користувача */
+  phone?: string;
   notes: string | null;
   priceUah?: number | null;
   isActive: boolean;
@@ -225,6 +231,19 @@ export interface ViberListing {
   authorNotifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Повний рядок ViberListing — GET /viber-listings з адмін-токеном, create/update/deactivate. */
+export type AdminViberListing = ViberListing & { rawMessage: string; phone: string };
+
+/** GET /poputky/search — попутки + розклад + вільні місця одним запитом. */
+export interface PoputkySearchResponse {
+  from: { id: number; code: string; nameUk: string } | null;
+  to: { id: number; code: string; nameUk: string } | null;
+  date: string;
+  listings: ViberListing[];
+  schedules: Schedule[];
+  availability: Record<number, Availability>;
 }
 
 export interface ViberListingFormData {

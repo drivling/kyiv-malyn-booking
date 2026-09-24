@@ -37,6 +37,12 @@ export const BusBookingModal: React.FC<Props> = ({
   const [supportPhone, setSupportPhone] = useState<string | null>(schedule.supportPhone);
 
   useEffect(() => {
+    // Головна вже знає вільні місця на цю дату — не ходимо в API втретє
+    if (initialAvailability) {
+      setAvailability(initialAvailability);
+      setLoadingAvailability(false);
+      return;
+    }
     let cancelled = false;
     setLoadingAvailability(true);
     apiClient
@@ -53,7 +59,7 @@ export const BusBookingModal: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [schedule.id, date]);
+  }, [schedule.id, date, initialAvailability]);
 
   useEffect(() => {
     if (schedule.supportPhone) {

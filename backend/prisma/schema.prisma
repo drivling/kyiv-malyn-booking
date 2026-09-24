@@ -175,6 +175,8 @@ model Person {
   @@index([telegramUsername])
   @@index([referredByPersonId])
   @@index([phoneBlockedAt])
+  @@index([telegramUserId])
+  @@index([telegramChatId])
 }
 
 /// JSON-знімок усіх персональних даних людини на момент звернення (скарги).
@@ -322,6 +324,8 @@ model RideShareRequest {
 
   passengerListing ViberListing @relation("RideShareAsPassenger", fields: [passengerListingId], references: [id], onDelete: Cascade)
   driverListing    ViberListing @relation("RideShareAsDriver", fields: [driverListingId], references: [id], onDelete: Cascade)
+  @@index([driverListingId, status])
+  @@index([passengerListingId, status])
 }
 
 model ViberListing {
@@ -362,6 +366,10 @@ model ViberListing {
 
   @@index([tripRouteId])
   @@index([fromPointId, toPointId, date, listingType])
+  /// Гарячі запити (пошук, матчинг, cleanup, бот) фільтрують по isActive+date(+listingType)
+  @@index([isActive, date, listingType])
+  @@index([personId])
+  @@index([phone])
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).

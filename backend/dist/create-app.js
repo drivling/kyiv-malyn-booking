@@ -8,6 +8,7 @@ exports.createApp = createApp;
 exports.getRegisteredRoutes = getRegisteredRoutes;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const compression_1 = __importDefault(require("compression"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const poputky_1 = require("./routes/poputky");
@@ -29,6 +30,7 @@ const admin_referrals_1 = require("./routes/admin-referrals");
 const admin_lunch_1 = require("./routes/admin-lunch");
 const admin_notification_settings_1 = require("./routes/admin-notification-settings");
 const transport_1 = require("./routes/transport");
+const request_timing_1 = require("./middleware/request-timing");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -65,6 +67,9 @@ function createApp(deps) {
         },
         credentials: true,
     };
+    app.use((0, request_timing_1.requestTiming)());
+    // gzip для JSON (каталоги/оголошення стискаються в 5–10×); маленькі відповіді не чіпаємо
+    app.use((0, compression_1.default)({ threshold: 1024 }));
     app.use((0, cors_1.default)(corsOptions));
     app.use(express_1.default.json({ limit: '2mb' }));
     app.use('/poputky', (0, poputky_1.createPoputkyRouter)({ prisma }));

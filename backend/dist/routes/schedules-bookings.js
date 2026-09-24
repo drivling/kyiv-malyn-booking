@@ -10,6 +10,8 @@ const support_phone_route_1 = require("../support-phone-route");
 const schedule_departure_time_1 = require("../validation/schedule-departure-time");
 const booking_phone_1 = require("../validation/booking-phone");
 const require_admin_1 = require("../middleware/require-admin");
+const catalog_cache_1 = require("../catalog-cache");
+const schedule_include_1 = require("../schedule-include");
 const phone_block_1 = require("../phone-block");
 const schedule_price_1 = require("../schedule-price");
 const schedule_trip_1 = require("../schedule-trip");
@@ -63,18 +65,6 @@ async function buildAvailabilityPayload(prisma, schedule, date) {
         isAvailable: availableSeats > 0,
     };
 }
-const scheduleInclude = {
-    startPoint: true,
-    endPoint: true,
-    tripRoute: {
-        include: {
-            startPoint: true,
-            endPoint: true,
-            corridorRoute: true,
-            stops: { include: { point: true }, orderBy: { position: 'asc' } },
-        },
-    },
-};
 async function applyStopOffsets(prisma, tripRouteId, stopOffsets) {
     if (!Array.isArray(stopOffsets))
         return;
@@ -236,14 +226,14 @@ function createSchedulesBookingsRouter(deps) {
             where.vehicleType = vehicleType;
         let schedules = await prisma.schedule.findMany({
             where,
-            include: scheduleInclude,
+            include: schedule_include_1.scheduleInclude,
             orderBy: [{ route: 'asc' }, { departureTime: 'asc' }],
         });
         if (date && typeof date === 'string') {
             schedules = schedules.filter((s) => (0, schedule_trip_1.isScheduleActiveOnDate)(s.activeWeekdays, date));
         }
         if (typeof fromCode === 'string' && typeof toCode === 'string' && fromCode.trim() && toCode.trim()) {
-            const points = await prisma.tripPoint.findMany();
+            const points = await (0, catalog_cache_1.getCatalogPoints)(prisma);
             const from = points.find((p) => p.code.toLowerCase() === fromCode.trim().toLowerCase());
             const to = points.find((p) => p.code.toLowerCase() === toCode.trim().toLowerCase());
             if (from && to) {
@@ -263,7 +253,7 @@ function createSchedulesBookingsRouter(deps) {
             where.vehicleType = vehicleType;
         let schedules = await prisma.schedule.findMany({
             where,
-            include: scheduleInclude,
+            include: schedule_include_1.scheduleInclude,
             orderBy: { departureTime: 'asc' },
         });
         if (date && typeof date === 'string') {
@@ -458,12 +448,12 @@ function createSchedulesBookingsRouter(deps) {
                     priceUah: resolvedPrice,
                     activeWeekdays: trip.data.activeWeekdays ?? (0, schedule_trip_1.normalizeActiveWeekdays)(undefined),
                 },
-                include: scheduleInclude,
+                include: schedule_include_1.scheduleInclude,
             });
             await applyStopOffsets(prisma, Number(trip.data.tripRouteId), body.stopOffsets);
             const refreshed = await prisma.schedule.findUnique({
                 where: { id: schedule.id },
-                include: scheduleInclude,
+                include: schedule_include_1.scheduleInclude,
             });
             res.status(201).json(refreshed ?? schedule);
         }
@@ -516,13 +506,13 @@ function createSchedulesBookingsRouter(deps) {
                         : undefined,
                     ...(parsedPrice !== undefined ? { priceUah: parsedPrice } : {}),
                 },
-                include: scheduleInclude,
+                include: schedule_include_1.scheduleInclude,
             });
             const tripRouteId = Number(trip.data.tripRouteId ?? schedule.tripRouteId);
             await applyStopOffsets(prisma, tripRouteId, body.stopOffsets);
             const refreshed = await prisma.schedule.findUnique({
                 where: { id: schedule.id },
-                include: scheduleInclude,
+                include: schedule_include_1.scheduleInclude,
             });
             res.json(refreshed ?? schedule);
         }

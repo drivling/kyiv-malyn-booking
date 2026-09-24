@@ -42,6 +42,8 @@ const telegram_1 = require("../telegram");
 const viber_parser_1 = require("../viber-parser");
 const index_helpers_1 = require("../index-helpers");
 const require_admin_1 = require("../middleware/require-admin");
+const catalog_cache_1 = require("../catalog-cache");
+const viber_listing_public_1 = require("../viber-listing-public");
 const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
 const viber_listing_merge_1 = require("../viber-listing-merge");
 const phone_block_1 = require("../phone-block");
@@ -65,15 +67,31 @@ const CLEANUP_CUTOFF_HOURS = 1;
 function createViberListingsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
+    /**
+     * Повний рядок (телефон, сирий текст) — лише адмінці; сайту віддаємо публічний DTO.
+     * Публічний список обмежений активними оголошеннями від сьогодні (історія — в адмінці).
+     */
     r.get('/viber-listings', async (req, res) => {
         try {
             const { active } = req.query;
-            const where = active === 'true' ? { isActive: true } : {};
+            const isAdmin = req.headers.authorization === require_admin_1.ADMIN_AUTH_TOKEN;
+            if (isAdmin) {
+                const where = active === 'true' ? { isActive: true } : {};
+                const listings = await prisma.viberListing.findMany({
+                    where,
+                    orderBy: [{ date: 'asc' }, { createdAt: 'desc' }],
+                });
+                res.json(listings.map(index_helpers_1.serializeViberListing));
+                return;
+            }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const listings = await prisma.viberListing.findMany({
-                where,
+                where: { isActive: true, date: { gte: today } },
                 orderBy: [{ date: 'asc' }, { createdAt: 'desc' }],
+                select: viber_listing_public_1.PUBLIC_LISTING_SELECT,
             });
-            res.json(listings.map(index_helpers_1.serializeViberListing));
+            res.json(listings.map(viber_listing_public_1.toPublicListing));
         }
         catch (error) {
             console.error('❌ Помилка отримання Viber оголошень:', error);
@@ -133,25 +151,14 @@ function createViberListingsRouter(deps) {
             };
             let listings;
             if (hasOd) {
-                const points = await prisma.tripPoint.findMany();
-                const from = points.find((p) => p.code.toLowerCase() === String(fromCode).trim().toLowerCase());
-                const to = points.find((p) => p.code.toLowerCase() === String(toCode).trim().toLowerCase());
+                // Точки й маршрути — з кешу процесу, не з БД на кожен пошук
+                const catalog = await (0, catalog_cache_1.getCatalog)(prisma);
+                const from = catalog.pointByCode(String(fromCode));
+                const to = catalog.pointByCode(String(toCode));
                 if (!from || !to) {
                     return res.json([]);
                 }
-                const tripRoutes = await prisma.tripRoute.findMany({
-                    include: {
-                        stops: { orderBy: { position: 'asc' }, select: { pointId: true, position: true } },
-                    },
-                });
-                const alongTripRouteIds = tripRoutes
-                    .filter((tr) => {
-                    const ids = tr.stops.map((s) => s.pointId);
-                    const fi = ids.indexOf(from.id);
-                    const ti = ids.indexOf(to.id);
-                    return fi >= 0 && ti >= 0 && fi < ti;
-                })
-                    .map((tr) => tr.id);
+                const alongTripRouteIds = catalog.routeIdsAlong(from.id, to.id);
                 listings = await prisma.viberListing.findMany({
                     where: {
                         ...dateFilter,
@@ -169,6 +176,7 @@ function createViberListingsRouter(deps) {
                         ],
                     },
                     orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+                    select: viber_listing_public_1.PUBLIC_LISTING_SELECT,
                 });
             }
             else {
@@ -178,9 +186,10 @@ function createViberListingsRouter(deps) {
                         route: route,
                     },
                     orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+                    select: viber_listing_public_1.PUBLIC_LISTING_SELECT,
                 });
             }
-            res.json(listings.map(index_helpers_1.serializeViberListing));
+            res.json(listings.map(viber_listing_public_1.toPublicListing));
         }
         catch (error) {
             console.error('❌ Помилка пошуку Viber оголошень:', error);

@@ -1,3 +1,4 @@
+import { invalidateCatalogCache } from './catalog-cache';
 /** Intercity trip helpers: points, legacy route keys, weekdays, arrival. */
 
 export type VehicleType = 'marshrutka' | 'elektrichka';
@@ -271,7 +272,7 @@ export async function resolveCorridorTripRouteId(
   return row.corridorTripRouteId;
 }
 
-/** Find or create TripRoute from points; creates RouteStops. */
+/** Find or create TripRoute from points; creates RouteStops. Скидає кеш каталогу. */
 export async function findOrCreateTripRoute(
   prisma: PrismaTripRouteClient,
   input: { startPointId: number; endPointId: number; viaPointIds?: number[] }
@@ -344,5 +345,6 @@ export async function findOrCreateTripRoute(
     },
   ];
   await prisma.tripRouteStop.createMany({ data: stopRows });
+  invalidateCatalogCache(prisma); // новий TripRoute/зупинки — кеш каталогу застарів
   return created;
 }

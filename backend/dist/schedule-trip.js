@@ -1,5 +1,4 @@
 "use strict";
-/** Intercity trip helpers: points, legacy route keys, weekdays, arrival. */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WEEKDAY_PRESETS = exports.ALL_WEEKDAYS = exports.VEHICLE_TYPES = void 0;
 exports.parseLegacyRoute = parseLegacyRoute;
@@ -22,6 +21,7 @@ exports.corridorSlugFromRouteSlug = corridorSlugFromRouteSlug;
 exports.defaultLabelUk = defaultLabelUk;
 exports.resolveCorridorTripRouteId = resolveCorridorTripRouteId;
 exports.findOrCreateTripRoute = findOrCreateTripRoute;
+const catalog_cache_1 = require("./catalog-cache");
 exports.VEHICLE_TYPES = ['marshrutka', 'elektrichka'];
 exports.ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]; // 1=Mon … 7=Sun
 /** Parse legacy route string e.g. Kyiv-Malyn-Irpin → terminals + vias. */
@@ -230,7 +230,7 @@ async function resolveCorridorTripRouteId(prisma, routeSlug) {
         return row.id;
     return row.corridorTripRouteId;
 }
-/** Find or create TripRoute from points; creates RouteStops. */
+/** Find or create TripRoute from points; creates RouteStops. Скидає кеш каталогу. */
 async function findOrCreateTripRoute(prisma, input) {
     const points = await prisma.tripPoint.findMany();
     const byId = new Map(points.map((p) => [p.id, p]));
@@ -300,5 +300,6 @@ async function findOrCreateTripRoute(prisma, input) {
         },
     ];
     await prisma.tripRouteStop.createMany({ data: stopRows });
+    (0, catalog_cache_1.invalidateCatalogCache)(prisma); // новий TripRoute/зупинки — кеш каталогу застарів
     return created;
 }

@@ -6,6 +6,8 @@ import type {
   BookingFormData,
   ScheduleFormData,
   ViberListing,
+  AdminViberListing,
+  PoputkySearchResponse,
   ViberListingFormData,
   TelegramScenariosResponse,
   RideShareRequestFromSiteResponse,
@@ -543,9 +545,16 @@ class ApiClient {
     return this.request<{ contact: string }>(`/viber-listings/${id}/contact`);
   }
 
-  async getViberListings(active?: boolean): Promise<ViberListing[]> {
+  /** Адмінка (з токеном отримує повний рядок). Сайт користується searchPoputky(). */
+  async getViberListings(active?: boolean): Promise<AdminViberListing[]> {
     const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';
-    return this.request<ViberListing[]>(endpoint);
+    return this.request<AdminViberListing[]>(endpoint);
+  }
+
+  /** Один запит на пошук головної: попутки + розклад на OD-пару + вільні місця. */
+  async searchPoputky(opts: { from: string; to: string; date: string }): Promise<PoputkySearchResponse> {
+    const params = new URLSearchParams({ from: opts.from, to: opts.to, date: opts.date });
+    return this.request<PoputkySearchResponse>(`/poputky/search?${params.toString()}`);
   }
 
   async searchViberListings(
@@ -565,8 +574,8 @@ class ApiClient {
     return this.request<ViberListing[]>(`/viber-listings/search?${params.toString()}`);
   }
 
-  async createViberListing(data: ViberListingFormData): Promise<ViberListing> {
-    return this.request<ViberListing>('/viber-listings', {
+  async createViberListing(data: ViberListingFormData): Promise<AdminViberListing> {
+    return this.request<AdminViberListing>('/viber-listings', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -584,15 +593,15 @@ class ApiClient {
     });
   }
 
-  async updateViberListing(id: number, data: Partial<ViberListing>): Promise<ViberListing> {
-    return this.request<ViberListing>(`/viber-listings/${id}`, {
+  async updateViberListing(id: number, data: Partial<AdminViberListing>): Promise<AdminViberListing> {
+    return this.request<AdminViberListing>(`/viber-listings/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deactivateViberListing(id: number): Promise<ViberListing> {
-    return this.request<ViberListing>(`/viber-listings/${id}/deactivate`, {
+  async deactivateViberListing(id: number): Promise<AdminViberListing> {
+    return this.request<AdminViberListing>(`/viber-listings/${id}/deactivate`, {
       method: 'PATCH',
     });
   }
