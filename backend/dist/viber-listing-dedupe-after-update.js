@@ -5,6 +5,7 @@ exports.buildMergedUpdateData = buildMergedUpdateData;
 exports.dedupeViberListingsAfterUpdate = dedupeViberListingsAfterUpdate;
 const index_helpers_1 = require("./index-helpers");
 const telegram_1 = require("./telegram");
+const trip_day_1 = require("./trip-day");
 function listingsAreMergeDuplicates(a, b) {
     if (a.listingType !== b.listingType || a.route !== b.route)
         return false;
@@ -117,15 +118,12 @@ async function dedupeViberListingsAfterUpdate(prisma, survivorId) {
         }
         return { listing: survivor, mergedAwayIds: [] };
     }
-    const date = survivor.date;
-    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
     const candidates = await prisma.viberListing.findMany({
         where: {
             listingType: survivor.listingType,
             route: survivor.route,
             isActive: true,
-            date: { gte: startOfDay, lt: endOfDay },
+            date: (0, trip_day_1.tripDayWhere)(survivor.date),
             departureTime: survivor.departureTime ?? null,
             id: { not: survivorId },
         },

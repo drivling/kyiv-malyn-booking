@@ -1,11 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
 import { startLunchListener, stopLunchListener } from './lunch-listener';
+import { startListingMatchWorker } from './listing-match-jobs';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
 
 function main(): void {
   const prisma = new PrismaClient();
+  let worker: ReturnType<typeof startListingMatchWorker> | null = null;
   const app = createApp({ prisma });
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
@@ -21,11 +23,16 @@ function main(): void {
     console.log('========================================');
     console.log(`API on http://localhost:${PORT} [${CODE_VERSION}]`);
     startLunchListener();
+    // Фонові сповіщення про перетини (NotificationJob) — один воркер на процес
+    if (process.env.NOTIFICATION_WORKER_DISABLED !== '1') {
+      worker = startListingMatchWorker(prisma);
+    }
   });
 
   const shutdown = (signal: string) => {
-    console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener`);
+    console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
     stopLunchListener();
+    worker?.stop();
     process.exit(0);
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));

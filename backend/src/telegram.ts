@@ -57,6 +57,10 @@ import {
   orderedPointIdsFromStops,
   type PoputkyRouteMatchKind,
 } from './poputky-od';
+import { findMatchCandidates } from './poputky-match';
+import { getCatalog } from './catalog-cache';
+import { tripDayKey } from './trip-day';
+import { enqueueListingMatch } from './notification-queue';
 import { PHONE_BLOCKED_ADMIN_MESSAGE, PHONE_BLOCKED_BOT_MESSAGE, isPhoneBlockedError, recordBlockedAttempt } from './phone-block';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
@@ -466,7 +470,8 @@ async function createDriverListingFromState(
       },
     }
   );
-  await notifyMatchingPassengersForNewDriver(listing, chatId);
+  // Перетини — через чергу (notification-queue.ts): автор отримає список збігів за кілька секунд
+  await enqueueListingMatch(tgPrisma, listing.id, chatId);
   // Реферал водія: 40 грн нарахуються лише коли запрошений ним пасажир підтвердить поїздку фото
   if (person.id) {
     const fullPerson = await tgPrisma.person.findUnique({
@@ -538,7 +543,7 @@ async function createPassengerListingFromState(
     '\nЯкщо з\'явиться відповідний водій, ми сповістимо вас.',
     { parse_mode: 'HTML' }
   );
-  await notifyMatchingDriversForNewPassenger(listing, chatId);
+  await enqueueListingMatch(tgPrisma, listing.id, chatId);
 }
 
 /** Парсить "HH:MM" у хвилини від початку доби; якщо невалідно — null. */
@@ -624,13 +629,17 @@ function allridesListingMatchesTimeSlot(departureTime: string | null, slot: keyo
   return range.start < e && range.end > s;
 }
 
-/** Одна дата (YYYY-MM-DD) для порівняння. */
+/** Одна дата (YYYY-MM-DD) для порівняння — локальна доба процесу, як і в мержі/пошуку (trip-day.ts). */
 function toDateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return tripDayKey(d);
 }
 
 async function loadItineraryPointIds(tripRouteId: number | null | undefined): Promise<number[] | null> {
   if (tripRouteId == null) return null;
+  // Спершу кеш каталогу (без запиту), потім БД — для стабів без tripRoute у тестах
+  const cached = (await getCatalog(tgPrisma)).itineraryByRouteId.get(tripRouteId);
+  if (cached && cached.length) return cached;
+  if (!(tgPrisma as { tripRouteStop?: unknown }).tripRouteStop) return null;
   const stops = await tgPrisma.tripRouteStop.findMany({
     where: { tripRouteId },
     select: { pointId: true, position: true },
@@ -666,19 +675,19 @@ async function findMatchingPassengersForDriver(driverListing: OdListingFields & 
   matchType: MatchType;
   routeMatchKind: PoputkyRouteMatchKind;
 }>> {
-  const dateKey = toDateKey(driverListing.date);
   const itineraryPointIds = await loadItineraryPointIds(driverListing.tripRouteId);
-  const passengers = await tgPrisma.viberListing.findMany({
-    where: {
-      listingType: 'passenger',
-      isActive: true,
-      date: {
-        gte: new Date(dateKey + 'T00:00:00.000Z'),
-        lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  // Кандидати звужені в SQL (OD-пари підвідрізків маршруту водія + legacy route), доба — локальна
+  const passengers = await findMatchCandidates<{
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+    fromPointId: number | null;
+    toPointId: number | null;
+  }>(tgPrisma, { ...driverListing, listingType: 'driver' });
   const driverTime = driverListing.departureTime;
   const out: Array<{
     listing: (typeof passengers)[0];
@@ -730,18 +739,20 @@ async function findMatchingDriversForPassenger(passengerListing: OdListingFields
   matchType: MatchType;
   routeMatchKind: PoputkyRouteMatchKind;
 }>> {
-  const dateKey = toDateKey(passengerListing.date);
-  const drivers = await tgPrisma.viberListing.findMany({
-    where: {
-      listingType: 'driver',
-      isActive: true,
-      date: {
-        gte: new Date(dateKey + 'T00:00:00.000Z'),
-        lt: new Date(new Date(dateKey).getTime() + 24 * 60 * 60 * 1000),
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  // Кандидати звужені в SQL (точна OD-пара, маршрути з цим відрізком, legacy route), доба — локальна
+  const drivers = await findMatchCandidates<{
+    id: number;
+    route: string;
+    date: Date;
+    departureTime: string | null;
+    seats: number | null;
+    phone: string;
+    senderName: string | null;
+    notes: string | null;
+    fromPointId: number | null;
+    toPointId: number | null;
+    tripRouteId: number | null;
+  }>(tgPrisma, { ...passengerListing, listingType: 'passenger' });
   const passengerTime = passengerListing.departureTime;
   const itineraryCache = new Map<number, number[] | null>();
   const out: Array<{
@@ -2491,15 +2502,7 @@ async function afterTelegramListingImported(listing: {
     }).catch((err) => console.error('Telegram user notify:', err));
   }
   const authorChatId = await getAuthorChatIdForListing(listing);
-  if (listing.listingType === 'driver') {
-    notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) =>
-      console.error('Telegram match notify (driver):', err),
-    );
-  } else if (listing.listingType === 'passenger') {
-    notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) =>
-      console.error('Telegram match notify (passenger):', err),
-    );
-  }
+  await enqueueListingMatch(tgPrisma, listing.id, authorChatId);
 }
 
 /**
@@ -4393,6 +4396,9 @@ function setupBotCommands() {
         for (const myPassenger of myPassengerListings.slice(0, 5)) {
           const matches = await findMatchingDriversForPassenger({
             route: myPassenger.route,
+            fromPointId: myPassenger.fromPointId,
+            toPointId: myPassenger.toPointId,
+            tripRouteId: myPassenger.tripRouteId,
             date: myPassenger.date,
             departureTime: myPassenger.departureTime,
           });
@@ -4418,6 +4424,9 @@ function setupBotCommands() {
         for (const myDriver of myDriverListings.slice(0, 5)) {
           const matches = await findMatchingPassengersForDriver({
             route: myDriver.route,
+            fromPointId: myDriver.fromPointId,
+            toPointId: myDriver.toPointId,
+            tripRouteId: myDriver.tripRouteId,
             date: myDriver.date,
             departureTime: myDriver.departureTime,
           });
@@ -4682,6 +4691,9 @@ ${buildReferralHelpSection()}
     for (const myDriver of myListings.slice(0, 5)) {
       const matches = await findMatchingPassengersForDriver({
         route: myDriver.route,
+        fromPointId: myDriver.fromPointId,
+        toPointId: myDriver.toPointId,
+        tripRouteId: myDriver.tripRouteId,
         date: myDriver.date,
         departureTime: myDriver.departureTime ?? null,
       });
@@ -4750,6 +4762,9 @@ ${buildReferralHelpSection()}
     for (const myPassenger of myListings.slice(0, 5)) {
       const matches = await findMatchingDriversForPassenger({
         route: myPassenger.route,
+        fromPointId: myPassenger.fromPointId,
+        toPointId: myPassenger.toPointId,
+        tripRouteId: myPassenger.tripRouteId,
         date: myPassenger.date,
         departureTime: myPassenger.departureTime ?? null,
       });
@@ -5249,12 +5264,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
                     listingType: listing.listingType,
                   }                ).catch((err) => console.error('Telegram Viber user notify:', err));
                 }
-                const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-                if (listing.listingType === 'driver') {
-                  notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
-                } else if (listing.listingType === 'passenger') {
-                  notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
-                }
+                void enqueueListingMatch(tgPrisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
               }
             } catch (err) {
               console.error(`AddViber bulk item ${i} error:`, err);
@@ -5332,12 +5342,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
                 listingType: listing.listingType,
               }            ).catch((err) => console.error('Telegram Viber user notify:', err));
             }
-            const authorChatId = listing.phone?.trim() ? await getChatIdByPhone(listing.phone) : null;
-            if (listing.listingType === 'driver') {
-              notifyMatchingPassengersForNewDriver(listing, authorChatId).catch((err) => console.error('Telegram match notify (driver):', err));
-            } else if (listing.listingType === 'passenger') {
-              notifyMatchingDriversForNewPassenger(listing, authorChatId).catch((err) => console.error('Telegram match notify (passenger):', err));
-            }
+            void enqueueListingMatch(tgPrisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
           }
           const verb = isNew ? 'створено' : 'оновлено';
           const statusNote = isPastDate

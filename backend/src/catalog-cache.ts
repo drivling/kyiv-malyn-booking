@@ -27,8 +27,9 @@ export type CatalogRoute = {
   stops: Array<{ pointId: number; position: number }>;
 };
 
+/** Стаби в тестах часто мають лише частину моделей — відсутня таблиця = порожній каталог. */
 export type CatalogPrisma = {
-  tripPoint: { findMany: (args?: any) => Promise<any[]> };
+  tripPoint?: { findMany?: (args?: any) => Promise<any[]> };
   tripRoute?: { findMany?: (args?: any) => Promise<any[]> };
 };
 
@@ -87,10 +88,11 @@ function entryFor(prisma: CatalogPrisma): Entry {
   let entry = caches.get(prisma);
   if (!entry) {
     entry = {
-      points: createLoader<CatalogPoint[]>(
-        () => prisma.tripPoint.findMany({ orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }),
-        TTL_MS,
-      ),
+      points: createLoader<CatalogPoint[]>(async () => {
+        const findMany = prisma.tripPoint?.findMany;
+        if (!findMany) return [];
+        return findMany.call(prisma.tripPoint, { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] });
+      }, TTL_MS),
       routes: createLoader<CatalogRoute[]>(async () => {
         const findMany = prisma.tripRoute?.findMany;
         if (!findMany) return [];

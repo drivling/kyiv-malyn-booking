@@ -1,13 +1,8 @@
 import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
-import {
-  getChatIdByPhone,
-  getPersonByTelegram,
-  isTelegramEnabled,
-  notifyMatchingDriversForNewPassenger,
-  notifyMatchingPassengersForNewDriver,
-} from '../telegram';
-import { serializeViberListing } from '../index-helpers';
+import { getPersonByTelegram, isTelegramEnabled } from '../telegram';
+import { getViberListingEndDateTime, serializeViberListing } from '../index-helpers';
+import { enqueueListingMatch } from '../notification-queue';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
 
 async function getViberListingForUser(prisma: PrismaClient, listingId: number, telegramUserId: string) {
@@ -48,6 +43,12 @@ export function createViberListingsUserRouter(deps: { prisma: PrismaClient }): R
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'No allowed fields to update' });
       }
+      if (updates.date !== undefined || updates.departureTime !== undefined) {
+        updates.endsAt = getViberListingEndDateTime(
+          (updates.date as Date | undefined) ?? listing.date,
+          (updates.departureTime as string | null | undefined) ?? listing.departureTime,
+        );
+      }
       let updated = await prisma.viberListing.update({
         where: { id },
         data: updates,
@@ -56,16 +57,7 @@ export function createViberListingsUserRouter(deps: { prisma: PrismaClient }): R
       updated = afterDedupe;
       const matchingRecheckTriggered = isTelegramEnabled();
       if (matchingRecheckTriggered) {
-        const authorChatId = updated.phone?.trim() ? await getChatIdByPhone(updated.phone) : null;
-        if (updated.listingType === 'driver') {
-          notifyMatchingPassengersForNewDriver(updated, authorChatId).catch((err) =>
-            console.error('Telegram match notify after user update (driver):', err),
-          );
-        } else if (updated.listingType === 'passenger') {
-          notifyMatchingDriversForNewPassenger(updated, authorChatId).catch((err) =>
-            console.error('Telegram match notify after user update (passenger):', err),
-          );
-        }
+        void enqueueListingMatch(prisma, updated.id).catch((err) => console.error('enqueue listing match:', err));
       }
       res.json({ ...serializeViberListing(updated), matchingRecheckTriggered, mergedAwayIds });
     } catch (error: unknown) {

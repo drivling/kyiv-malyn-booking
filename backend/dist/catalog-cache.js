@@ -54,7 +54,12 @@ function entryFor(prisma) {
     let entry = caches.get(prisma);
     if (!entry) {
         entry = {
-            points: createLoader(() => prisma.tripPoint.findMany({ orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }), TTL_MS),
+            points: createLoader(async () => {
+                const findMany = prisma.tripPoint?.findMany;
+                if (!findMany)
+                    return [];
+                return findMany.call(prisma.tripPoint, { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] });
+            }, TTL_MS),
             routes: createLoader(async () => {
                 const findMany = prisma.tripRoute?.findMany;
                 if (!findMany)

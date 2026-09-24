@@ -1,6 +1,6 @@
 # Аудит: пошук попуток на головній — сховище та швидкодія
 
-**Status:** Фази 0–2 зроблено на гілці `perf/poputky-search-phase-0-1`; регіон Railway перенесено 24.09.2026 (бекенд і фронт → europe-west4-drams3a); далі Фази 3–6  
+**Status:** Фази 0–2 — PR #38 (`perf/poputky-search-phase-0-1`); Фази 3–4 — гілка `perf/poputky-search-phase-3-4` поверх неї; регіон Railway перенесено 24.09.2026 (бекенд і фронт → europe-west4-drams3a); далі Фаза 6 і NOT NULL з 3.4  
 **Created:** 2026-09-24  
 
 Аудит зроблено 24.09.2026 (Railway metrics + код). Правило проекту: один пункт чеклісту → один
@@ -32,15 +32,15 @@
 - [x] **2.5** Фронт на `/poputky/search`
 
 Фаза 3
-- [ ] **3.1** `ViberListing.endsAt` + cleanup одним `updateMany`
-- [ ] **3.2** Partial index `WHERE "isActive"`
-- [ ] **3.3** Архів `ViberListingArchive` + чистка `RideShareRequest`
-- [ ] **3.4** `fromPointId/toPointId` NOT NULL, без `OR route=` у гарячих запитах
+- [x] **3.1** `ViberListing.endsAt` + cleanup одним `updateMany`
+- [~] **3.2** Partial index `WHERE "isActive"` — пропущено: покривається індексом 2.1 `(isActive, date, listingType)`, а raw-індекс поза схемою Prisma ламає `migrate dev` (дрейф)
+- [x] **3.3** Архів = `ViberRideEvent` (уже існував): `POST /viber-listings/archive-old?days=90` (імпорт в аналітику + видалення неактивних старших за N днів) + протермінування `RideShareRequest` у `cleanup-old`
+- [x] **3.4** Backfill `fromPointId/toPointId` з route-рядка (міграція) + `GET /admin/od-identity-stats`; NOT NULL і прибирання `OR route=` — після того, як stats у проді покажуть `missingOd = 0` (окремий коміт)
 
 Фаза 4
-- [ ] **4.1** `poputky-match.ts`: `findMatchCandidates` у SQL, одна реалізація для бота/адмінки
-- [ ] **4.2** Одна «доба Києва» + фікс along-route у `/search`
-- [ ] **4.3** `NotificationJob` + воркер
+- [x] **4.1** `poputky-match.ts`: `findMatchCandidates` у SQL, одна реалізація для бота/адмінки
+- [x] **4.2** Одна «доба Києва» + фікс along-route у `/search`
+- [x] **4.3** `NotificationJob` + воркер
 
 Фаза 5
 - [ ] **5.1** `sourceHash @unique` (ідемпотентний ingest)
@@ -279,6 +279,19 @@ Elasticsearch/Redis/мікросервіси/read-replica — не для 0.12 G
   губить розсилку; `/checkclients` стає ідемпотентним (пари вже є в `ViberMatchPairNotification`).
 - Перевірка: `telegram-match-names.test.ts`, `sms-fallback-match.test.ts` + нові юніт-тести
   на `findMatchCandidates` (exact / along_route / інша дата / інший напрямок).
+
+**Що змінилося у Фазах 3–4 проти плану.**
+- `endsAt` рахується у мержі/PUT/PATCH; backfill у міграції припускає TZ=UTC на сервері (як на Railway).
+- Матчинг: `poputky-match.ts` будує `where` з OD-пар підвідрізків маршруту водія (для пасажирів)
+  або `tripRouteId in routeIdsAlong` (для водіїв) + legacy `route`; класифікація часу лишилась у JS.
+  `/allrides`, `/mydriverrides`, `/mypassengerrides` тепер передають точки й маршрут (along-route
+  працює і там). `/checkclients` не чіпали (адмінський, рідкий).
+- Єдина доба: `trip-day.ts` (локальна доба процесу) у пошуку, мержі, дедупі, матчингу, `/checkclients`.
+- Черга: `NotificationJob` + воркер (`notification-queue.ts`, `listing-match-jobs.ts`), тік кожні 10 с,
+  5 спроб з бекофом 1→2→4→8 хв, «завислі» running після 15 хв забираються знову. Продюсери:
+  POST/bulk/PUT `/viber-listings`, PATCH by-user, імпорт Telegram-груп, бот (`/adddriverride`,
+  `/addpassengerride`, `/addviber`, `/addtelegram`). Вимкнути воркер: `NOTIFICATION_WORKER_DISABLED=1`.
+- Ідемпотентність ingest (5.1) і Telethon-lookup у job (5.2) — ще не зроблено.
 
 ### Фаза 5 — Ingest: швидкий і ідемпотентний прийом
 - **5.1 Ідемпотентний ключ**: `sourceHash` (sha256 нормалізованого `rawMessage` + source)
