@@ -126,7 +126,7 @@ export async function mockBackendApi(page: Page) {
       });
     }
 
-    if (method === 'GET' && path === '/viber-listings') {
+    if (method === 'GET' && (path === '/viber-listings' || path === '/viber-listings/search')) {
       return json(route, 200, []);
     }
 

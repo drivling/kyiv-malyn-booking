@@ -1,6 +1,6 @@
 # Аудит: пошук попуток на головній — сховище та швидкодія
 
-**Status:** in progress (Фаза 0–1 на гілці `perf/poputky-search-phase-0-1`)  
+**Status:** Фази 0 (код) і 1 зроблено на гілці `perf/poputky-search-phase-0-1`; 0.1 (регіон Railway) чекає на рішення власника; далі Фаза 2  
 **Created:** 2026-09-24  
 
 Аудит зроблено 24.09.2026 (Railway metrics + код). Правило проекту: один пункт чеклісту → один
@@ -16,12 +16,12 @@
 - [ ] **0.1** Railway: `kyiv-malyn-booking` + `frontend` → `europe-west4` (рішення власника; без коду)
 
 Фаза 1
-- [ ] **1.1** Головна: оголошення через `GET /viber-listings/search?fromCode&toCode&date`
-- [ ] **1.2** `date` у `GET /schedules`
-- [ ] **1.3** Кеш каталогів (`src/api/catalogCache.ts`): trip-points / trip-routes / od-pairs
-- [ ] **1.4** Один шлях availability (без дубля), `BusBookingModal` без третього запиту
-- [ ] **1.5** AbortController + request-id у `loadResults`
-- [ ] **1.6** Видалити мертві `BookingPage`, `PoputkyPage`
+- [x] **1.1** Головна: оголошення через `GET /viber-listings/search?fromCode&toCode&date`
+- [x] **1.2** `date` у `GET /schedules`
+- [x] **1.3** Кеш каталогів (`src/api/catalogCache.ts`): trip-points / trip-routes / od-pairs
+- [x] **1.4** Один шлях availability (без дубля), `BusBookingModal` без третього запиту
+- [x] **1.5** AbortController + request-id у `loadResults`
+- [x] **1.6** Видалити мертві `BookingPage`, `PoputkyPage`
 
 Фаза 2
 - [ ] **2.1** Міграція індексів (`ViberListing`, `RideShareRequest`, `Person`)
