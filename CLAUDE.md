@@ -104,10 +104,18 @@ of `dist` in a commit.
   segment durations), compiled to `dist/scripts/*.js` and invoked directly by `npm start`/`npm run seed:*`.
 - `backend/prisma/schema.prisma` — single Postgres schema backing everything: booking/schedule/trip
   models, `Person`/referral models, `ViberListing`/`ViberRideEvent` (rideshare + analytics from the
-  Viber parser), local-transport GTFS-like models (`TransportStop/Route/Trip/Segment`), and the
-  `Lunch*` models for the internal lunch bot. Changing a model requires a Prisma migration
-  (`npm run prisma:migrate`), committing the generated migration under `backend/prisma/migrations/`,
-  and usually updating the corresponding route + frontend type.
+  Viber parser), local-transport GTFS-like models (`TransportStop/Route/Trip/Segment`), the
+  `Lunch*` models for the internal lunch bot and the `Dzhura*` models (chat capture). Changing a
+  model requires a Prisma migration (`npm run prisma:migrate`), committing the generated migration
+  under `backend/prisma/migrations/`, and usually updating the corresponding route + frontend type.
+- «Джура» (personal secretary, phase 0 — `Docs/dzhura-roadmap.md`): the owner's Telethon userbot
+  captures selected chats into `Dzhura*` tables. Python lives in `backend/telegram-user/dzhura/`
+  and is attached **inside** `lunch.listener` (one Telethon session per account, never a second
+  process); Node only reads/flags via `src/dzhura.ts` + `routes/admin-dzhura.ts` (`/admin/dzhura`).
+  Invariants: never call `send_read_acknowledge`/`mark_read`, typing or online status; never write
+  into a captured chat. The only Telegram output is the shared `LunchOutboundMessage` queue, whose
+  `target` column routes rows to the lunch group (`lunch`, markdown) or the owner's Saved Messages
+  (`saved`, HTML).
 
 ### Testability pattern
 
@@ -131,6 +139,7 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   through a single-flight exclusive-session lock in `telegram.ts` that also pauses the lunch listener
   while it runs.
 - OCR-based lunch order parsing (`LUNCH_OCR_MODEL`, `OPENAI_API_KEY`) via the Python lunch listener.
+- The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and
   `backend/internet-phone-search/`, invoked from `phone-lookup.ts`/`phonecheck.ts`.
 
