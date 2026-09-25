@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
+exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
 exports.parseIsoDate = parseIsoDate;
 exports.addDaysIso = addDaysIso;
 exports.daysBetweenInclusive = daysBetweenInclusive;
@@ -11,7 +11,12 @@ exports.exportFileName = exportFileName;
 exports.serializeChat = serializeChat;
 exports.parseKindsFilter = parseKindsFilter;
 exports.listChats = listChats;
+exports.getQueueStats = getQueueStats;
+exports.retryFailedSaved = retryFailedSaved;
 exports.getStatus = getStatus;
+exports.parseMessagesQuery = parseMessagesQuery;
+exports.buildMessagesWhere = buildMessagesWhere;
+exports.listMessages = listMessages;
 exports.parseChatPatch = parseChatPatch;
 exports.updateChatFlags = updateChatFlags;
 exports.serializeJob = serializeJob;
@@ -149,8 +154,29 @@ async function listChats(prisma, kinds) {
     });
     return rows.map(serializeChat);
 }
+exports.DZHURA_QUEUE_RETRY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+async function getQueueStats(prisma, now = new Date()) {
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const [pending, retrying, failed24h] = await Promise.all([
+        prisma.lunchOutboundMessage.count({ where: { target: 'saved', status: 'pending' } }),
+        prisma.lunchOutboundMessage.count({ where: { target: 'saved', status: 'pending', nextAttemptAt: { gt: now } } }),
+        prisma.lunchOutboundMessage.count({ where: { target: 'saved', status: 'failed', createdAt: { gte: dayAgo } } }),
+    ]);
+    return { pending, retrying, failed24h };
+}
+/** Повернути невдалі дублі за останній тиждень у чергу (attempts=0, одразу) */
+async function retryFailedSaved(prisma, now = new Date()) {
+    const res = await prisma.lunchOutboundMessage.updateMany({
+        where: { target: 'saved', status: 'failed', createdAt: { gte: new Date(now.getTime() - exports.DZHURA_QUEUE_RETRY_WINDOW_MS) } },
+        data: { status: 'pending', attempts: 0, nextAttemptAt: null, errorText: null },
+    });
+    return res.count;
+}
 async function getStatus(prisma, listenerWanted, now = new Date()) {
-    const state = await prisma.dzhuraState.findUnique({ where: { id: 1 } });
+    const [state, queue] = await Promise.all([
+        prisma.dzhuraState.findUnique({ where: { id: 1 } }),
+        getQueueStats(prisma, now),
+    ]);
     const heartbeatAt = state?.heartbeatAt ?? null;
     return {
         listenerWanted,
@@ -158,7 +184,102 @@ async function getStatus(prisma, listenerWanted, now = new Date()) {
         heartbeatFresh: Boolean(heartbeatAt && now.getTime() - heartbeatAt.getTime() < exports.DZHURA_HEARTBEAT_FRESH_MS),
         dialogsSyncedAt: state?.dialogsSyncedAt ? state.dialogsSyncedAt.toISOString() : null,
         meTgUserId: state?.meTgUserId != null ? state.meTgUserId.toString() : null,
+        queue,
     };
+}
+// ---------- messages (перегляд в адмінці) ----------
+exports.DZHURA_MESSAGES_PAGE = 50;
+exports.DZHURA_MESSAGES_PAGE_MAX = 200;
+exports.DZHURA_SEARCH_MAX_LEN = 200;
+/** ?from&to (обидві або жодної), ?q (пошук по тексту/автору), ?beforeId (курсор), ?limit */
+function parseMessagesQuery(query) {
+    const hasFrom = typeof query.from === 'string' && query.from.trim() !== '';
+    const hasTo = typeof query.to === 'string' && query.to.trim() !== '';
+    let from = null;
+    let to = null;
+    if (hasFrom || hasTo) {
+        if (!hasFrom || !hasTo)
+            throw new DzhuraHttpError(400, 'Потрібні обидві дати from і to або жодної');
+        const range = validateDateRange(query.from, query.to);
+        from = range.from;
+        to = range.to;
+    }
+    const qRaw = typeof query.q === 'string' ? query.q.trim() : '';
+    if (qRaw.length > exports.DZHURA_SEARCH_MAX_LEN)
+        throw new DzhuraHttpError(400, `Пошуковий запит довший за ${exports.DZHURA_SEARCH_MAX_LEN} символів`);
+    let beforeId = null;
+    if (query.beforeId !== undefined && query.beforeId !== '') {
+        const n = Number(query.beforeId);
+        if (!Number.isInteger(n) || n <= 0)
+            throw new DzhuraHttpError(400, 'Некоректний beforeId');
+        beforeId = n;
+    }
+    const limitRaw = Number(query.limit ?? exports.DZHURA_MESSAGES_PAGE);
+    const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, exports.DZHURA_MESSAGES_PAGE_MAX) : exports.DZHURA_MESSAGES_PAGE;
+    return { from, to, q: qRaw, beforeId, limit };
+}
+function buildMessagesWhere(chatId, mq) {
+    const where = { chatId };
+    if (mq.from && mq.to) {
+        const { start, endExclusive } = kyivDayRangeUtc(mq.from, mq.to);
+        where.sentAt = { gte: start, lt: endExclusive };
+    }
+    if (mq.beforeId)
+        where.id = { lt: mq.beforeId };
+    if (mq.q) {
+        const contains = { contains: mq.q, mode: 'insensitive' };
+        where.OR = [
+            { text: contains },
+            { sender: { is: { OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] } } },
+        ];
+    }
+    return where;
+}
+async function listMessages(prisma, chatId, mq) {
+    const chat = await prisma.dzhuraChat.findUnique({ where: { id: chatId } });
+    if (!chat)
+        throw new DzhuraHttpError(404, 'Чат не знайдено');
+    const rows = await prisma.dzhuraMessage.findMany({
+        where: buildMessagesWhere(chatId, mq),
+        orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
+        take: mq.limit + 1,
+        include: { sender: true, reactions: { where: { removedAt: null }, include: { person: true }, orderBy: { id: 'asc' } } },
+    });
+    const hasMore = rows.length > mq.limit;
+    const page = hasMore ? rows.slice(0, mq.limit) : rows;
+    const messages = page.map((m) => ({
+        id: m.id,
+        tgMessageId: m.tgMessageId.toString(),
+        sentAt: m.sentAt.toISOString(),
+        sender: m.sender
+            ? { tgUserId: m.sender.tgUserId.toString(), name: personDisplayName(m.sender), username: m.sender.username }
+            : null,
+        isOutgoing: m.isOutgoing,
+        text: m.text,
+        mediaKind: m.mediaKind,
+        replyToTgMessageId: m.replyToTgMessageId != null ? m.replyToTgMessageId.toString() : null,
+        editedAt: m.editedAt ? m.editedAt.toISOString() : null,
+        deletedAt: m.deletedAt ? m.deletedAt.toISOString() : null,
+        source: m.source,
+        reactions: m.reactions.map((r) => ({
+            emoji: r.emoji,
+            by: r.person ? personDisplayName(r.person) : null,
+            isMine: r.isMine,
+        })),
+        reactionsCounts: asCounts(m.reactionsJson),
+    }));
+    return { messages, nextBeforeId: hasMore ? page[page.length - 1].id : null };
+}
+function asCounts(v) {
+    const rec = asRecord(v);
+    if (!rec)
+        return null;
+    const out = {};
+    for (const [k, n] of Object.entries(rec)) {
+        if (typeof n === 'number' && n > 0)
+            out[k] = n;
+    }
+    return Object.keys(out).length ? out : null;
 }
 function parseChatPatch(body) {
     const b = (body ?? {});

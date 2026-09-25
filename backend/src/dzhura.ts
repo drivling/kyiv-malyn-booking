@@ -163,12 +163,44 @@ export async function listChats(prisma: PrismaClient, kinds: string[] | null): P
   return rows.map(serializeChat);
 }
 
+/** Черга дублів у «Обране» (рядки LunchOutboundMessage з target='saved') */
+export interface DzhuraQueueStats {
+  /** очікують надсилання (разом із тими, що чекають ретраю) */
+  pending: number;
+  /** з них — чекають повторної спроби після помилки */
+  retrying: number;
+  /** остаточно невдалі за останню добу */
+  failed24h: number;
+}
+
 export interface DzhuraStatusDto {
   listenerWanted: boolean;
   heartbeatAt: string | null;
   heartbeatFresh: boolean;
   dialogsSyncedAt: string | null;
   meTgUserId: string | null;
+  queue: DzhuraQueueStats;
+}
+
+export const DZHURA_QUEUE_RETRY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export async function getQueueStats(prisma: PrismaClient, now: Date = new Date()): Promise<DzhuraQueueStats> {
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const [pending, retrying, failed24h] = await Promise.all([
+    prisma.lunchOutboundMessage.count({ where: { target: 'saved', status: 'pending' } }),
+    prisma.lunchOutboundMessage.count({ where: { target: 'saved', status: 'pending', nextAttemptAt: { gt: now } } }),
+    prisma.lunchOutboundMessage.count({ where: { target: 'saved', status: 'failed', createdAt: { gte: dayAgo } } }),
+  ]);
+  return { pending, retrying, failed24h };
+}
+
+/** Повернути невдалі дублі за останній тиждень у чергу (attempts=0, одразу) */
+export async function retryFailedSaved(prisma: PrismaClient, now: Date = new Date()): Promise<number> {
+  const res = await prisma.lunchOutboundMessage.updateMany({
+    where: { target: 'saved', status: 'failed', createdAt: { gte: new Date(now.getTime() - DZHURA_QUEUE_RETRY_WINDOW_MS) } },
+    data: { status: 'pending', attempts: 0, nextAttemptAt: null, errorText: null },
+  });
+  return res.count;
 }
 
 export async function getStatus(
@@ -176,7 +208,10 @@ export async function getStatus(
   listenerWanted: boolean,
   now: Date = new Date(),
 ): Promise<DzhuraStatusDto> {
-  const state = await prisma.dzhuraState.findUnique({ where: { id: 1 } });
+  const [state, queue] = await Promise.all([
+    prisma.dzhuraState.findUnique({ where: { id: 1 } }),
+    getQueueStats(prisma, now),
+  ]);
   const heartbeatAt = state?.heartbeatAt ?? null;
   return {
     listenerWanted,
@@ -184,7 +219,131 @@ export async function getStatus(
     heartbeatFresh: Boolean(heartbeatAt && now.getTime() - heartbeatAt.getTime() < DZHURA_HEARTBEAT_FRESH_MS),
     dialogsSyncedAt: state?.dialogsSyncedAt ? state.dialogsSyncedAt.toISOString() : null,
     meTgUserId: state?.meTgUserId != null ? state.meTgUserId.toString() : null,
+    queue,
   };
+}
+
+// ---------- messages (перегляд в адмінці) ----------
+
+export const DZHURA_MESSAGES_PAGE = 50;
+export const DZHURA_MESSAGES_PAGE_MAX = 200;
+export const DZHURA_SEARCH_MAX_LEN = 200;
+
+export interface DzhuraMessagesQuery {
+  from: string | null;
+  to: string | null;
+  q: string;
+  beforeId: number | null;
+  limit: number;
+}
+
+/** ?from&to (обидві або жодної), ?q (пошук по тексту/автору), ?beforeId (курсор), ?limit */
+export function parseMessagesQuery(query: Record<string, unknown>): DzhuraMessagesQuery {
+  const hasFrom = typeof query.from === 'string' && query.from.trim() !== '';
+  const hasTo = typeof query.to === 'string' && query.to.trim() !== '';
+  let from: string | null = null;
+  let to: string | null = null;
+  if (hasFrom || hasTo) {
+    if (!hasFrom || !hasTo) throw new DzhuraHttpError(400, 'Потрібні обидві дати from і to або жодної');
+    const range = validateDateRange(query.from, query.to);
+    from = range.from;
+    to = range.to;
+  }
+  const qRaw = typeof query.q === 'string' ? query.q.trim() : '';
+  if (qRaw.length > DZHURA_SEARCH_MAX_LEN) throw new DzhuraHttpError(400, `Пошуковий запит довший за ${DZHURA_SEARCH_MAX_LEN} символів`);
+  let beforeId: number | null = null;
+  if (query.beforeId !== undefined && query.beforeId !== '') {
+    const n = Number(query.beforeId);
+    if (!Number.isInteger(n) || n <= 0) throw new DzhuraHttpError(400, 'Некоректний beforeId');
+    beforeId = n;
+  }
+  const limitRaw = Number(query.limit ?? DZHURA_MESSAGES_PAGE);
+  const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, DZHURA_MESSAGES_PAGE_MAX) : DZHURA_MESSAGES_PAGE;
+  return { from, to, q: qRaw, beforeId, limit };
+}
+
+export interface DzhuraMessageDto {
+  id: number;
+  tgMessageId: string;
+  sentAt: string;
+  sender: { tgUserId: string; name: string; username: string | null } | null;
+  isOutgoing: boolean;
+  text: string;
+  mediaKind: string | null;
+  replyToTgMessageId: string | null;
+  editedAt: string | null;
+  deletedAt: string | null;
+  source: string;
+  reactions: Array<{ emoji: string; by: string | null; isMine: boolean }>;
+  reactionsCounts: Record<string, number> | null;
+}
+
+export interface DzhuraMessagesPage {
+  messages: DzhuraMessageDto[];
+  /** id для наступної сторінки (?beforeId=), null — це остання */
+  nextBeforeId: number | null;
+}
+
+export function buildMessagesWhere(chatId: number, mq: DzhuraMessagesQuery): Prisma.DzhuraMessageWhereInput {
+  const where: Prisma.DzhuraMessageWhereInput = { chatId };
+  if (mq.from && mq.to) {
+    const { start, endExclusive } = kyivDayRangeUtc(mq.from, mq.to);
+    where.sentAt = { gte: start, lt: endExclusive };
+  }
+  if (mq.beforeId) where.id = { lt: mq.beforeId };
+  if (mq.q) {
+    const contains = { contains: mq.q, mode: 'insensitive' as const };
+    where.OR = [
+      { text: contains },
+      { sender: { is: { OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] } } },
+    ];
+  }
+  return where;
+}
+
+export async function listMessages(prisma: PrismaClient, chatId: number, mq: DzhuraMessagesQuery): Promise<DzhuraMessagesPage> {
+  const chat = await prisma.dzhuraChat.findUnique({ where: { id: chatId } });
+  if (!chat) throw new DzhuraHttpError(404, 'Чат не знайдено');
+  const rows = await prisma.dzhuraMessage.findMany({
+    where: buildMessagesWhere(chatId, mq),
+    orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
+    take: mq.limit + 1,
+    include: { sender: true, reactions: { where: { removedAt: null }, include: { person: true }, orderBy: { id: 'asc' } } },
+  });
+  const hasMore = rows.length > mq.limit;
+  const page = hasMore ? rows.slice(0, mq.limit) : rows;
+  const messages: DzhuraMessageDto[] = page.map((m) => ({
+    id: m.id,
+    tgMessageId: m.tgMessageId.toString(),
+    sentAt: m.sentAt.toISOString(),
+    sender: m.sender
+      ? { tgUserId: m.sender.tgUserId.toString(), name: personDisplayName(m.sender), username: m.sender.username }
+      : null,
+    isOutgoing: m.isOutgoing,
+    text: m.text,
+    mediaKind: m.mediaKind,
+    replyToTgMessageId: m.replyToTgMessageId != null ? m.replyToTgMessageId.toString() : null,
+    editedAt: m.editedAt ? m.editedAt.toISOString() : null,
+    deletedAt: m.deletedAt ? m.deletedAt.toISOString() : null,
+    source: m.source,
+    reactions: m.reactions.map((r) => ({
+      emoji: r.emoji,
+      by: r.person ? personDisplayName(r.person) : null,
+      isMine: r.isMine,
+    })),
+    reactionsCounts: asCounts(m.reactionsJson),
+  }));
+  return { messages, nextBeforeId: hasMore ? page[page.length - 1].id : null };
+}
+
+function asCounts(v: unknown): Record<string, number> | null {
+  const rec = asRecord(v);
+  if (!rec) return null;
+  const out: Record<string, number> = {};
+  for (const [k, n] of Object.entries(rec)) {
+    if (typeof n === 'number' && n > 0) out[k] = n;
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 export interface DzhuraChatPatch {

@@ -16,9 +16,12 @@ import {
   getStatus,
   listChats,
   listJobs,
+  listMessages,
   parseChatPatch,
   parseJobRequest,
   parseKindsFilter,
+  parseMessagesQuery,
+  retryFailedSaved,
   updateChatFlags,
   validateDateRange,
 } from '../dzhura';
@@ -68,6 +71,27 @@ export function createAdminDzhuraRouter(deps: { prisma: PrismaClient; listenerWa
       res.json(await updateChatFlags(prisma, id, parseChatPatch(req.body)));
     } catch (e) {
       sendError(res, 'PATCH /admin/dzhura/chats/:id', e);
+    }
+  });
+
+  /** Перегляд збережених повідомлень: новіші першими, ?from&to, ?q, курсор ?beforeId */
+  r.get('/admin/dzhura/chats/:id/messages', requireAdmin, async (req, res) => {
+    try {
+      const id = parseId(req.params.id);
+      const page = await listMessages(prisma, id, parseMessagesQuery(req.query as Record<string, unknown>));
+      res.json(page);
+    } catch (e) {
+      sendError(res, 'GET /admin/dzhura/chats/:id/messages', e);
+    }
+  });
+
+  /** Повернути невдалі дублі в «Обране» (за тиждень) у чергу */
+  r.post('/admin/dzhura/queue/retry-failed', requireAdmin, async (_req, res) => {
+    try {
+      const requeued = await retryFailedSaved(prisma);
+      res.json({ requeued });
+    } catch (e) {
+      sendError(res, 'POST /admin/dzhura/queue/retry-failed', e);
     }
   });
 

@@ -58,8 +58,21 @@ function makeStub() {
   ];
   const jobs: Array<Record<string, unknown>> = [];
   const updates: Array<{ where: { id: number }; data: Record<string, unknown> }> = [];
+  const messageQueries: Array<Record<string, unknown>> = [];
+  const queueUpdates: Array<Record<string, unknown>> = [];
 
   const prisma = {
+    lunchOutboundMessage: {
+      count: async (args: { where: Record<string, unknown> }) => {
+        if (args.where.status === 'failed') return 2;
+        if (args.where.nextAttemptAt) return 1;
+        return 3;
+      },
+      updateMany: async (args: Record<string, unknown>) => {
+        queueUpdates.push(args);
+        return { count: 2 };
+      },
+    },
     dzhuraState: {
       findUnique: async () => ({
         id: 1,
@@ -100,8 +113,9 @@ function makeStub() {
       findMany: async () => [...jobs].reverse(),
     },
     dzhuraMessage: {
-      findMany: async () => [
-        {
+      findMany: async (args: Record<string, unknown>) => [
+        (messageQueries.push(args), {
+          id: 501,
           tgMessageId: 77n,
           sentAt: new Date('2026-09-25T08:00:00Z'),
           sender: { id: 2, tgUserId: 200n, firstName: 'Костя', lastName: null, username: null, phone: null, isMe: false },
@@ -115,16 +129,18 @@ function makeStub() {
           forwardDate: null,
           editedAt: null,
           editHistoryJson: null,
-          reactionsJson: null,
+          reactionsJson: { '❤️': 1 },
           deletedAt: null,
           source: 'live',
-          reactions: [],
-        },
+          reactions: [
+            { emoji: '❤️', isMine: true, person: { id: 1, tgUserId: 1n, firstName: 'Сергій', lastName: null, username: 'me', phone: null, isMe: true }, addedAt: new Date('2026-09-25T08:01:00Z'), removedAt: null },
+          ],
+        }),
       ],
     },
   } as unknown as PrismaClient;
 
-  return { prisma, chats, jobs, updates };
+  return { prisma, chats, jobs, updates, messageQueries, queueUpdates };
 }
 
 function app(prisma: PrismaClient) {
@@ -146,6 +162,41 @@ describe('/admin/dzhura', () => {
     expect(res.body.heartbeatFresh).toBe(true);
     expect(res.body.meTgUserId).toBe('438099');
     expect(typeof res.body.listenerWanted).toBe('boolean');
+    expect(res.body.queue).toEqual({ pending: 3, retrying: 1, failed24h: 2 });
+  });
+
+  test('GET messages: сторінка з пошуком і курсором, BigInt як рядки', async () => {
+    const { prisma, messageQueries } = makeStub();
+    const a = app(prisma);
+    const res = await request(a).get('/admin/dzhura/chats/2/messages?q=hi&limit=20').set(auth).expect(200);
+    expect(res.body.nextBeforeId).toBeNull();
+    expect(res.body.messages).toHaveLength(1);
+    expect(res.body.messages[0]).toMatchObject({
+      id: 501,
+      tgMessageId: '77',
+      replyToTgMessageId: '70',
+      sender: { tgUserId: '200', name: 'Костя' },
+      reactions: [{ emoji: '❤️', by: 'Сергій', isMine: true }],
+      reactionsCounts: { '❤️': 1 },
+    });
+    const args = messageQueries[0] as { where: { OR?: unknown[]; chatId: number }; take: number };
+    expect(args.where.chatId).toBe(2);
+    expect(args.where.OR).toHaveLength(2);
+    expect(args.take).toBe(21);
+
+    await request(a).get('/admin/dzhura/chats/2/messages?beforeId=abc').set(auth).expect(400);
+    await request(a).get('/admin/dzhura/chats/2/messages?from=2026-09-01').set(auth).expect(400);
+    await request(a).get('/admin/dzhura/chats/99/messages').set(auth).expect(404);
+  });
+
+  test('POST queue/retry-failed повертає невдалі дублі в чергу', async () => {
+    const { prisma, queueUpdates } = makeStub();
+    const res = await request(app(prisma)).post('/admin/dzhura/queue/retry-failed').set(auth).expect(200);
+    expect(res.body).toEqual({ requeued: 2 });
+    expect(queueUpdates[0]).toMatchObject({
+      where: { target: 'saved', status: 'failed' },
+      data: { status: 'pending', attempts: 0, nextAttemptAt: null, errorText: null },
+    });
   });
 
   test('GET chats: групи за замовчуванням, з лічильником', async () => {
