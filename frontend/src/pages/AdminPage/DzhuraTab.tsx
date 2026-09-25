@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/Button';
-import type { DzhuraChatRow, DzhuraJob, DzhuraStatus } from '@/types';
+import type { DzhuraChatRow, DzhuraJob, DzhuraMessageRow, DzhuraStatus } from '@/types';
 import './DzhuraTab.css';
 
 /**
@@ -20,6 +20,53 @@ const KIND_LABEL: Record<string, string> = {
 
 const DEFAULT_POLL_MS = 1500;
 const STATUS_REFRESH_MS = 30_000;
+const MESSAGES_PAGE = 50;
+const SHOW_PRIVATE_KEY = 'dzhura.showPrivate';
+
+const MEDIA_LABEL: Record<string, string> = {
+  photo: 'фото',
+  video: 'відео',
+  video_note: 'відеоповідомлення',
+  voice: 'голосове',
+  audio: 'аудіо',
+  sticker: 'стікер',
+  gif: 'gif',
+  document: 'файл',
+  contact: 'контакт',
+  geo: 'геолокація',
+  poll: 'опитування',
+  other: 'медіа',
+};
+
+function reactionsText(m: DzhuraMessageRow): string {
+  if (m.reactionsCounts && Object.keys(m.reactionsCounts).length) {
+    return Object.entries(m.reactionsCounts)
+      .map(([emoji, n]) => `${emoji.startsWith('custom:') ? '◆' : emoji}${n > 1 ? ` ${n}` : ''}`)
+      .join(' ');
+  }
+  if (m.reactions.length) return m.reactions.map((r) => (r.emoji.startsWith('custom:') ? '◆' : r.emoji)).join(' ');
+  return '';
+}
+
+function readShowPrivate(): boolean {
+  try {
+    return localStorage.getItem(SHOW_PRIVATE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+type MessagesPanel = {
+  chatId: number;
+  /** текст у полі пошуку */
+  q: string;
+  /** пошук, за яким завантажено список */
+  appliedQ: string;
+  items: DzhuraMessageRow[];
+  nextBeforeId: number | null;
+  loading: boolean;
+  error: string | null;
+};
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return '—';
@@ -90,7 +137,19 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
   const [range, setRange] = useState<{ from: string; to: string }>({ from: isoMonthStart(), to: isoToday() });
   const [backfillJobs, setBackfillJobs] = useState<Record<number, DzhuraJob>>({});
   const [exportingId, setExportingId] = useState<number | null>(null);
+  const [showPrivate, setShowPrivate] = useState<boolean>(readShowPrivate);
+  const [chatQuery, setChatQuery] = useState('');
+  const [messagesPanel, setMessagesPanel] = useState<MessagesPanel | null>(null);
+  const [retryingQueue, setRetryingQueue] = useState(false);
   const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SHOW_PRIVATE_KEY, showPrivate ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [showPrivate]);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -104,7 +163,7 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
     setLoading(true);
     setError(null);
     try {
-      const [st, rows] = await Promise.all([apiClient.getDzhuraStatus(), apiClient.getDzhuraChats()]);
+      const [st, rows] = await Promise.all([apiClient.getDzhuraStatus(), apiClient.getDzhuraChats('all')]);
       setStatus(st);
       setChats(rows);
     } catch (e) {
@@ -147,6 +206,46 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
     },
     [pollIntervalMs],
   );
+
+  const loadMessages = useCallback(async (chatId: number, q: string, beforeId: number | null) => {
+    setMessagesPanel((p) => {
+      const same = p !== null && p.chatId === chatId;
+      return {
+        chatId,
+        q: same ? p.q : q,
+        appliedQ: q,
+        items: same && beforeId ? p.items : [],
+        nextBeforeId: same && beforeId ? p.nextBeforeId : null,
+        loading: true,
+        error: null,
+      };
+    });
+    try {
+      const page = await apiClient.getDzhuraMessages(chatId, { q: q || undefined, beforeId, limit: MESSAGES_PAGE });
+      setMessagesPanel((p) =>
+        p && p.chatId === chatId
+          ? { ...p, items: beforeId ? [...p.items, ...page.messages] : page.messages, nextBeforeId: page.nextBeforeId, loading: false }
+          : p,
+      );
+    } catch (e) {
+      setMessagesPanel((p) => (p && p.chatId === chatId ? { ...p, loading: false, error: errorMessage(e) } : p));
+    }
+  }, []);
+
+  const handleRetryQueue = async () => {
+    setError(null);
+    setSuccess(null);
+    setRetryingQueue(true);
+    try {
+      const { requeued } = await apiClient.retryDzhuraQueue();
+      setSuccess(requeued ? `Повернуто в чергу: ${requeued}` : 'Невдалих дублів за тиждень немає');
+      setStatus(await apiClient.getDzhuraStatus());
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setRetryingQueue(false);
+    }
+  };
 
   const handleSyncDialogs = async () => {
     setError(null);
@@ -262,7 +361,27 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
     );
   };
 
+  const renderQueue = () => {
+    const q = status?.queue;
+    if (!q || (q.pending === 0 && q.failed24h === 0)) return null;
+    const parts = [`${q.pending} очікує`];
+    if (q.retrying) parts.push(`${q.retrying} на повторі`);
+    if (q.failed24h) parts.push(`${q.failed24h} невдалих за добу`);
+    return (
+      <span className={`dzhura-queue${q.failed24h ? ' dzhura-queue--warn' : ''}`}>
+        Черга в Обране: {parts.join(' · ')}
+      </span>
+    );
+  };
+
   const syncBusy = syncJob !== null && (syncJob.status === 'pending' || syncJob.status === 'running');
+  const privateCount = chats.filter((c) => c.kind === 'private').length;
+  const chatQueryNorm = chatQuery.trim().toLowerCase();
+  const visibleChats = chats.filter((c) => {
+    if (c.kind === 'private' && !showPrivate && !c.captureEnabled) return false;
+    if (!chatQueryNorm) return true;
+    return c.title.toLowerCase().includes(chatQueryNorm) || (c.username ?? '').toLowerCase().includes(chatQueryNorm);
+  });
 
   return (
     <div className="dzhura-tab">
@@ -271,10 +390,15 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
           <h2 className="dzhura-tab__title">Джура · читання чатів</h2>
           <p className="dzhura-tab__sub">
             Фаза 0: слухаємо обрані групи з вашого акаунта, пишемо всю переписку й реакції в базу і за бажанням
-            дублюємо чужі повідомлення у ваше «Обране». {renderStatus()}
+            дублюємо чужі повідомлення у ваше «Обране». {renderStatus()} {renderQueue()}
           </p>
         </div>
         <div className="dzhura-actions dzhura-actions--tight">
+          {status?.queue && status.queue.failed24h > 0 && (
+            <Button variant="secondary" onClick={() => void handleRetryQueue()} disabled={retryingQueue}>
+              {retryingQueue ? 'Повертаємо…' : 'Повторити невдалі'}
+            </Button>
+          )}
           <Button variant="secondary" onClick={handleSyncDialogs} disabled={syncBusy}>
             {syncBusy ? 'Оновлюємо список…' : 'Оновити список чатів'}
           </Button>
@@ -294,19 +418,35 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
       {success && <Alert variant="success">{success}</Alert>}
 
       <section className="dzhura-card">
-        <h3 className="dzhura-card__title">Групи</h3>
+        <h3 className="dzhura-card__title">Чати</h3>
         <p className="dzhura-card__hint">
           «Читати» — зберігати в базу. «В Обране» — дублювати чужі повідомлення й реакції у Saved Messages.
-          Група обідів читається завжди (лунч-бот працює на тих самих повідомленнях). Особисті чати з'являться у
-          фазі 1.
+          Група обідів читається завжди (лунч-бот працює на тих самих повідомленнях). Особисті чати, які вже
+          читаються, показані завжди; решту вмикає перемикач.
         </p>
+        <div className="dzhura-filters">
+          <input
+            type="search"
+            className="dzhura-input"
+            aria-label="Пошук чату"
+            placeholder="Назва або @нік"
+            value={chatQuery}
+            onChange={(e) => setChatQuery(e.target.value)}
+          />
+          <label className="dzhura-check dzhura-check--inline">
+            <input type="checkbox" checked={showPrivate} onChange={(e) => setShowPrivate(e.target.checked)} />
+            <span>Показати особисті чати{privateCount ? ` (${privateCount})` : ''}</span>
+          </label>
+        </div>
 
         {loading && chats.length === 0 ? (
           <p className="dzhura-muted">Завантаження…</p>
         ) : chats.length === 0 ? (
           <p className="dzhura-muted">
-            Список порожній. Натисніть «Оновити список чатів» — слухач підтягне групи вашого акаунта.
+            Список порожній. Натисніть «Оновити список чатів» — слухач підтягне чати вашого акаунта.
           </p>
+        ) : visibleChats.length === 0 ? (
+          <p className="dzhura-muted">Нічого не знайдено за цим фільтром.</p>
         ) : (
           <div className="dzhura-table-wrap">
             <table className="dzhura-table">
@@ -321,11 +461,12 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                 </tr>
               </thead>
               <tbody>
-                {chats.map((chat) => {
+                {visibleChats.map((chat) => {
                   const saving = savingId === chat.id;
                   const job = backfillJobs[chat.id];
                   const jobBusy = job && (job.status === 'pending' || job.status === 'running');
                   const historyOpen = historyChatId === chat.id;
+                  const messagesOpen = messagesPanel !== null && messagesPanel.chatId === chat.id;
                   return (
                     <React.Fragment key={chat.id}>
                       <tr className={chat.captureEnabled ? 'dzhura-row--active' : undefined}>
@@ -371,15 +512,92 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                           )}
                         </td>
                         <td>
-                          <Button
-                            variant="secondary"
-                            aria-expanded={historyOpen}
-                            onClick={() => setHistoryChatId(historyOpen ? null : chat.id)}
-                          >
-                            Історія…
-                          </Button>
+                          <div className="dzhura-row-actions">
+                            <Button
+                              variant="secondary"
+                              aria-expanded={messagesOpen}
+                              aria-label={`Повідомлення: ${chat.title}`}
+                              onClick={() => {
+                                if (messagesOpen) setMessagesPanel(null);
+                                else void loadMessages(chat.id, '', null);
+                              }}
+                            >
+                              Повідомлення
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              aria-expanded={historyOpen}
+                              onClick={() => setHistoryChatId(historyOpen ? null : chat.id)}
+                            >
+                              Історія…
+                            </Button>
+                          </div>
                         </td>
                       </tr>
+                      {messagesOpen && messagesPanel && (
+                        <tr className="dzhura-messages-row">
+                          <td colSpan={6}>
+                            <form
+                              className="dzhura-messages__search"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                void loadMessages(chat.id, messagesPanel.q.trim(), null);
+                              }}
+                            >
+                              <input
+                                type="search"
+                                className="dzhura-input"
+                                aria-label={`Пошук у повідомленнях: ${chat.title}`}
+                                placeholder="Текст або автор"
+                                value={messagesPanel.q}
+                                onChange={(e) => setMessagesPanel((p) => (p ? { ...p, q: e.target.value } : p))}
+                              />
+                              <Button type="submit" variant="secondary" disabled={messagesPanel.loading}>
+                                Знайти
+                              </Button>
+                              <span className="dzhura-muted">Новіші першими · те, що вже збережено в базі</span>
+                            </form>
+                            {messagesPanel.error && <p className="dzhura-job dzhura-job--failed">{messagesPanel.error}</p>}
+                            {messagesPanel.items.length === 0 && !messagesPanel.loading && !messagesPanel.error ? (
+                              <p className="dzhura-muted">
+                                {messagesPanel.appliedQ ? 'Нічого не знайдено' : 'Повідомлень ще немає'}
+                              </p>
+                            ) : (
+                              <ul className="dzhura-messages" aria-label={`Повідомлення чату ${chat.title}`}>
+                                {messagesPanel.items.map((m) => (
+                                  <li
+                                    key={m.id}
+                                    className={`dzhura-msg${m.isOutgoing ? ' dzhura-msg--out' : ''}${m.deletedAt ? ' dzhura-msg--deleted' : ''}`}
+                                  >
+                                    <span className="dzhura-msg__time">{formatDateTime(m.sentAt)}</span>
+                                    <span className="dzhura-msg__sender">{m.isOutgoing ? 'ви' : m.sender?.name ?? '—'}</span>
+                                    <span className="dzhura-msg__text">
+                                      {m.mediaKind && (
+                                        <span className="dzhura-badge">{MEDIA_LABEL[m.mediaKind] ?? m.mediaKind}</span>
+                                      )}{' '}
+                                      {m.text}
+                                    </span>
+                                    <span className="dzhura-msg__meta">
+                                      {reactionsText(m) && <span className="dzhura-msg__reactions">{reactionsText(m)}</span>}
+                                      {m.editedAt && <span className="dzhura-muted">(змінено)</span>}
+                                      {m.deletedAt && <span className="dzhura-muted">(видалено)</span>}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {messagesPanel.loading && <p className="dzhura-muted">Завантаження…</p>}
+                            {messagesPanel.nextBeforeId !== null && !messagesPanel.loading && (
+                              <Button
+                                variant="secondary"
+                                onClick={() => void loadMessages(chat.id, messagesPanel.appliedQ, messagesPanel.nextBeforeId)}
+                              >
+                                Показати ще
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      )}
                       {historyOpen && (
                         <tr className="dzhura-history-row">
                           <td colSpan={6}>

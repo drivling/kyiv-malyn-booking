@@ -780,12 +780,42 @@ export interface DzhuraChatRow {
   messagesCount: number;
 }
 
+/** Черга дублів у «Обране» */
+export interface DzhuraQueueStats {
+  pending: number;
+  retrying: number;
+  failed24h: number;
+}
+
 export interface DzhuraStatus {
   listenerWanted: boolean;
   heartbeatAt: string | null;
   heartbeatFresh: boolean;
   dialogsSyncedAt: string | null;
   meTgUserId: string | null;
+  queue: DzhuraQueueStats;
+}
+
+/** Рядок збереженого повідомлення для перегляду в адмінці */
+export interface DzhuraMessageRow {
+  id: number;
+  tgMessageId: string;
+  sentAt: string;
+  sender: { tgUserId: string; name: string; username: string | null } | null;
+  isOutgoing: boolean;
+  text: string;
+  mediaKind: string | null;
+  replyToTgMessageId: string | null;
+  editedAt: string | null;
+  deletedAt: string | null;
+  source: string;
+  reactions: Array<{ emoji: string; by: string | null; isMine: boolean }>;
+  reactionsCounts: Record<string, number> | null;
+}
+
+export interface DzhuraMessagesPage {
+  messages: DzhuraMessageRow[];
+  nextBeforeId: number | null;
 }
 
 export type DzhuraJobType = 'sync_dialogs' | 'backfill';

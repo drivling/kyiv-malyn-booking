@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { DzhuraChatRow, DzhuraJob, DzhuraStatus } from '@/types';
+import type { DzhuraChatRow, DzhuraJob, DzhuraMessageRow, DzhuraStatus } from '@/types';
 import { DzhuraTab } from './DzhuraTab';
 
 const API = `${TEST_API_URL}/admin/dzhura`;
@@ -55,15 +55,42 @@ const idleChat: DzhuraChatRow = {
   membersCount: null,
 };
 
+const privateChat: DzhuraChatRow = {
+  ...idleChat,
+  id: 4,
+  tgChatId: '438100',
+  kind: 'private',
+  title: 'Костя Іванов',
+  username: 'kostya',
+  membersCount: null,
+  captureEnabled: false,
+  relayToSaved: false,
+};
+
+const privateCaptured: DzhuraChatRow = {
+  ...privateChat,
+  id: 5,
+  tgChatId: '438101',
+  title: 'Оля Петренко',
+  username: null,
+  captureEnabled: true,
+  relayToSaved: true,
+  messagesCount: 12,
+};
+
 const freshStatus: DzhuraStatus = {
   listenerWanted: true,
   heartbeatAt: new Date(Date.now() - 4_000).toISOString(),
   heartbeatFresh: true,
   dialogsSyncedAt: '2026-09-25T08:00:00.000Z',
   meTgUserId: '438099',
+  queue: { pending: 0, retrying: 0, failed24h: 0 },
 };
 
-function useDefaultHandlers(chats: DzhuraChatRow[] = [lunchChat, adminChat, idleChat], status: DzhuraStatus = freshStatus) {
+function useDefaultHandlers(
+  chats: DzhuraChatRow[] = [lunchChat, adminChat, idleChat, privateChat, privateCaptured],
+  status: DzhuraStatus = freshStatus,
+) {
   server.use(
     http.get(`${API}/status`, () => HttpResponse.json(status)),
     http.get(`${API}/chats`, () => HttpResponse.json(chats)),
@@ -96,6 +123,104 @@ describe('DzhuraTab', () => {
     expect(screen.getByRole('checkbox', { name: 'В Обране: Admin' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: 'В Обране: Друга група' })).toBeDisabled();
     expect(screen.getByText('40')).toBeInTheDocument();
+  });
+
+  it('особисті чати: приховані за замовчуванням, окрім тих, що вже читаються; перемикач і пошук', async () => {
+    useDefaultHandlers();
+    const user = userEvent.setup();
+    render(<DzhuraTab pollIntervalMs={10} />);
+    await screen.findByText('Admin');
+
+    expect(screen.queryByText('Костя Іванов')).toBeNull();
+    expect(screen.getByText('Оля Петренко')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: /Показати особисті чати \(2\)/ }));
+    expect(await screen.findByText('Костя Іванов')).toBeInTheDocument();
+    expect(localStorage.getItem('dzhura.showPrivate')).toBe('1');
+
+    await user.type(screen.getByRole('searchbox', { name: 'Пошук чату' }), 'kostya');
+    expect(screen.getByText('Костя Іванов')).toBeInTheDocument();
+    expect(screen.queryByText('Admin')).toBeNull();
+    expect(screen.queryByText('Обіди')).toBeNull();
+  });
+
+  it('перегляд повідомлень: список, пошук і «Показати ще» з курсором', async () => {
+    useDefaultHandlers();
+    const requests: string[] = [];
+    const row = (id: number, text: string, extra: Partial<DzhuraMessageRow> = {}): DzhuraMessageRow => ({
+      id,
+      tgMessageId: String(id),
+      sentAt: '2026-09-25T09:30:00.000Z',
+      sender: { tgUserId: '200', name: 'Костя', username: 'kostya' },
+      isOutgoing: false,
+      text,
+      mediaKind: null,
+      replyToTgMessageId: null,
+      editedAt: null,
+      deletedAt: null,
+      source: 'live',
+      reactions: [],
+      reactionsCounts: null,
+      ...extra,
+    });
+    server.use(
+      http.get(`${API}/chats/2/messages`, ({ request }) => {
+        const url = new URL(request.url);
+        requests.push(url.search);
+        const q = url.searchParams.get('q');
+        const before = url.searchParams.get('beforeId');
+        if (q === 'звіт') return HttpResponse.json({ messages: [row(7, 'Звіт готовий')], nextBeforeId: null });
+        if (before === '8') return HttpResponse.json({ messages: [row(6, 'Старе повідомлення')], nextBeforeId: null });
+        return HttpResponse.json({
+          messages: [
+            row(9, 'Привіт усім', { reactionsCounts: { '❤️': 2 }, editedAt: '2026-09-25T09:31:00.000Z' }),
+            row(8, 'моя відповідь', { isOutgoing: true, sender: null, mediaKind: 'photo' }),
+          ],
+          nextBeforeId: 8,
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<DzhuraTab pollIntervalMs={10} />);
+    await screen.findByText('Admin');
+
+    await user.click(screen.getByRole('button', { name: 'Повідомлення: Admin' }));
+    const list = await screen.findByRole('list', { name: 'Повідомлення чату Admin' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(list).getByText('Привіт усім')).toBeInTheDocument();
+    expect(within(list).getByText('❤️ 2')).toBeInTheDocument();
+    expect(within(list).getByText('(змінено)')).toBeInTheDocument();
+    expect(within(list).getByText('ви')).toBeInTheDocument();
+    expect(within(list).getByText('фото')).toBeInTheDocument();
+    expect(requests[0]).toBe('?limit=50');
+
+    await user.click(screen.getByRole('button', { name: 'Показати ще' }));
+    await waitFor(() => expect(within(list).getAllByRole('listitem')).toHaveLength(3));
+    expect(requests[1]).toBe('?beforeId=8&limit=50');
+    expect(screen.queryByRole('button', { name: 'Показати ще' })).toBeNull();
+
+    await user.type(screen.getByRole('searchbox', { name: 'Пошук у повідомленнях: Admin' }), 'звіт{Enter}');
+    expect(await within(list).findByText('Звіт готовий')).toBeInTheDocument();
+    expect(requests[2]).toBe('?q=%D0%B7%D0%B2%D1%96%D1%82&limit=50');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('черга дублів: статистика і «Повторити невдалі»', async () => {
+    useDefaultHandlers([lunchChat, adminChat], { ...freshStatus, queue: { pending: 3, retrying: 1, failed24h: 2 } });
+    let posted = 0;
+    server.use(
+      http.post(`${API}/queue/retry-failed`, () => {
+        posted += 1;
+        return HttpResponse.json({ requeued: 2 });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<DzhuraTab pollIntervalMs={10} />);
+    expect(await screen.findByText(/Черга в Обране: 3 очікує · 1 на повторі · 2 невдалих за добу/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Повторити невдалі' }));
+    expect(await screen.findByText('Повернуто в чергу: 2')).toBeInTheDocument();
+    expect(posted).toBe(1);
   });
 
   it('прапорці шлють PATCH і застосовують відповідь', async () => {
