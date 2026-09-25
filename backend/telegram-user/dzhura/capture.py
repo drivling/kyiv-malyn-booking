@@ -33,6 +33,7 @@ from telethon.tl.types import (
 
 from dzhura.db import DzhuraDB
 from dzhura.relay import (
+    chat_label,
     clip_raw_json,
     format_message_relay,
     format_reaction_relay,
@@ -301,7 +302,7 @@ class Capture:
                 except Exception:  # noqa: BLE001
                     reply_preview = None
         html = format_message_relay(
-            chat["title"],
+            chat_label(chat["kind"], chat["title"]),
             self._sender_html(sender, msg.sender_id),
             msg.id,
             msg.message,
@@ -425,7 +426,7 @@ class Capture:
                 msg_row.get("first_name"), msg_row.get("last_name"), msg_row.get("username"), msg_row["sender_tg_id"]
             )
         html = format_reaction_relay(
-            chat["title"],
+            chat_label(chat["kind"], chat["title"]),
             reactor_html,
             emoji,
             msg_row.get("text") or None,

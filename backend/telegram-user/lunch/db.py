@@ -793,9 +793,10 @@ class LunchDB:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, text, kind, "telegramMessageId", "replyToMessageId", target
+                SELECT id, text, kind, "telegramMessageId", "replyToMessageId", target, attempts
                 FROM "LunchOutboundMessage"
                 WHERE status = 'pending'
+                  AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= NOW())
                 ORDER BY "createdAt" ASC
                 LIMIT $1
                 """,
@@ -809,9 +810,26 @@ class LunchDB:
                     "telegram_message_id": int(r["telegramMessageId"]) if r["telegramMessageId"] is not None else None,
                     "reply_to_message_id": int(r["replyToMessageId"]) if r["replyToMessageId"] is not None else None,
                     "target": r["target"] or "lunch",
+                    "attempts": int(r["attempts"] or 0),
                 }
                 for r in rows
             ]
+
+    async def mark_outbound_retry(self, msg_id: int, error: str, delay_sec: int) -> None:
+        """Лишити pending, але взяти знову не раніше ніж через delay_sec (ретрай з паузою)."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "LunchOutboundMessage"
+                SET attempts = attempts + 1,
+                    "nextAttemptAt" = NOW() + ($3::int * INTERVAL '1 second'),
+                    "errorText" = $2
+                WHERE id = $1
+                """,
+                msg_id,
+                (error or "")[:2000],
+                max(1, int(delay_sec)),
+            )
 
     async def mark_outbound_sent(self, msg_id: int) -> None:
         async with self.pool.acquire() as conn:
@@ -829,7 +847,7 @@ class LunchDB:
             await conn.execute(
                 """
                 UPDATE "LunchOutboundMessage"
-                SET status = 'failed', "errorText" = $2
+                SET status = 'failed', "errorText" = $2, attempts = attempts + 1
                 WHERE id = $1
                 """,
                 msg_id,

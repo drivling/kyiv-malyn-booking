@@ -12,6 +12,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from dzhura.relay import (  # noqa: E402
+    chat_label,
     clip_raw_json,
     display_name,
     format_message_relay,
@@ -49,6 +50,12 @@ def test_message_link_only_for_supergroups():
     assert message_link("group", -5427750954, 55) is None
     assert message_link("private", 438099, 55) is None
     assert message_link("supergroup", 123, 55) is None
+
+
+def test_chat_label_private_vs_group():
+    assert chat_label("private", "Костя Іванов") == "Особисто"
+    assert chat_label("group", " Адмін-чат ") == "Адмін-чат"
+    assert chat_label("supergroup", "") == "Чат"
 
 
 def test_media_label():

@@ -57,6 +57,18 @@ load_dotenv()
 DEFAULT_GROUP_ID = -5427750954
 # Пауза між надсиланнями в «Обране» (Джура): черга серіалізує, але не спамимо Telegram.
 SAVED_RELAY_PAUSE_SEC = 0.7
+# Ретраї черги: 30 с, 60 с, 2 хв, 4 хв… (макс. 10 хв); після OUTBOUND_MAX_ATTEMPTS → failed.
+# FloodWait — не помилка коду: чекаємо стільки, скільки просить Telegram, і даємо більше спроб.
+OUTBOUND_MAX_ATTEMPTS = 5
+OUTBOUND_FLOOD_MAX_ATTEMPTS = 10
+OUTBOUND_RETRY_BASE_SEC = 30
+OUTBOUND_RETRY_MAX_SEC = 600
+
+
+def _outbound_retry_delay(attempt: int, flood_seconds: Optional[int]) -> int:
+    if flood_seconds is not None:
+        return int(flood_seconds) + 1
+    return min(OUTBOUND_RETRY_MAX_SEC, OUTBOUND_RETRY_BASE_SEC * (2 ** max(0, attempt - 1)))
 
 
 def _dzhura_enabled() -> bool:
@@ -495,8 +507,21 @@ async def run() -> None:
                             await db.set_order_reply_message_id_by_source(int(reply_to), int(sent_id))
                         print(f"[lunch] outbound sent id={row['id']} kind={kind}")
                     except Exception as e:
-                        print(f"[lunch] outbound fail id={row['id']}: {e}", file=sys.stderr)
-                        await db.mark_outbound_failed(row["id"], str(e))
+                        from telethon.errors import FloodWaitError
+
+                        attempt = int(row.get("attempts") or 0) + 1
+                        flood_seconds = int(getattr(e, "seconds", 0) or 0) if isinstance(e, FloodWaitError) else None
+                        max_attempts = OUTBOUND_FLOOD_MAX_ATTEMPTS if flood_seconds is not None else OUTBOUND_MAX_ATTEMPTS
+                        if attempt >= max_attempts:
+                            print(f"[lunch] outbound fail id={row['id']} attempts={attempt}: {e}", file=sys.stderr)
+                            await db.mark_outbound_failed(row["id"], str(e))
+                        else:
+                            delay = _outbound_retry_delay(attempt, flood_seconds)
+                            print(
+                                f"[lunch] outbound retry id={row['id']} attempt={attempt} in {delay}s: {e}",
+                                file=sys.stderr,
+                            )
+                            await db.mark_outbound_retry(row["id"], str(e), delay)
 
                 jobs = await db.fetch_pending_jobs(limit=2)
                 for job in jobs:
