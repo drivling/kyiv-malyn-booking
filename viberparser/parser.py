@@ -220,11 +220,25 @@ def format_viber_raw_message(text, timestamp, author):
     return f"{header} ⁨{safe_author}⁩: {text.strip()}"
 
 
+def clean_state(state):
+    """Залишаємо лише курсори `<існуючий db>::<chat>::post_timestamp`; сміття від старих
+    версій (ключі без суфікса, шляхи іншого користувача) прибираємо."""
+    cleaned = {}
+    for key, value in state.items():
+        if not key.endswith("::post_timestamp"):
+            continue
+        db_part = key.rsplit("::", 2)[0]
+        if not Path(db_part).exists():
+            continue
+        cleaned[key] = value
+    return cleaned
+
+
 def load_state(path):
     state_path = Path(path).expanduser()
     if not state_path.exists():
         return {}
-    return json.loads(state_path.read_text(encoding="utf-8"))
+    return clean_state(json.loads(state_path.read_text(encoding="utf-8")))
 
 
 def save_state(path, state):
@@ -234,6 +248,41 @@ def save_state(path, state):
 
 def state_key(db_path, chat_id):
     return f"{Path(db_path).resolve()}::{chat_id}::post_timestamp"
+
+
+BULK_CHUNK = 50
+
+
+def chunked(items, size=BULK_CHUNK):
+    """Пачки для POST /viber-listings/bulk (один HTTP-запит на тик замість одного на повідомлення)."""
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+
+
+def send_raw_messages_bulk(backend_url, auth_token, raw_messages):
+    """POST /viber-listings/bulk з масивом рядків. Бекенд ідемпотентний (хеш повідомлення),
+    тож повтор пачки після мережевої помилки безпечний. Повертає (created, duplicates, errors)."""
+    url = backend_url.rstrip("/") + "/viber-listings/bulk"
+    payload = json.dumps({"rawMessages": list(raw_messages)}, ensure_ascii=False).encode("utf-8")
+    req = request.Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": auth_token,
+        },
+    )
+    try:
+        with request.urlopen(req, timeout=60) as response:
+            body = json.loads(response.read().decode("utf-8", errors="replace") or "{}")
+            return body.get("created", 0), body.get("duplicates", 0), body.get("errors") or []
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        if exc.code == 400:
+            # жодне повідомлення пачки не розпарсилось — це не помилка доставки
+            return 0, 0, [{"index": None, "error": body}]
+        raise RuntimeError(f"backend вернул HTTP {exc.code}: {body}") from exc
 
 
 def send_raw_message(backend_url, auth_token, raw_message):
@@ -306,7 +355,7 @@ def main():
             state[key] = last_timestamp
             save_state(args.state_file, state)
             print(f"📤 Send mode: отправляю только новые сообщения после даты {format_message_time(last_timestamp)}")
-        print(f"🌐 Backend: {args.backend_url.rstrip('/')}/viber-listings")
+        print(f"🌐 Backend: {args.backend_url.rstrip('/')}/viber-listings/bulk")
     else:
         last_timestamp = int(state.get(key, 0))
         print(f"👀 Watch mode: читаю сообщения после даты {format_message_time(last_timestamp)}")
@@ -316,24 +365,27 @@ def main():
     while True:
         try:
             messages = get_messages(conn, group_id, last_timestamp)
-            
+
             for msg_id, text, timestamp, author, direction in messages:
                 dt = format_message_time(timestamp)
                 direction_label = "out" if direction == 1 else "in"
                 print(f"[{dt}] EventID {msg_id} {author} ({direction_label}): {text}")
 
-                if args.send:
-                    raw_message = format_viber_raw_message(text, timestamp, author)
-                    created, response_text = send_raw_message(args.backend_url, args.auth_token, raw_message)
-                    if created:
-                        print(f"✅ Отправлено на backend: EventID {msg_id}")
-                    else:
-                        print(f"⏭️ Пропущено backend parser: EventID {msg_id} | {response_text}")
-                
-                last_timestamp = timestamp
+            if args.send and messages:
+                # Одна пачка на тик; курсор зсуваємо лише після успішної відповіді пачки —
+                # при помилці мережі та сама пачка піде знову (бекенд дедуплікує по хешу).
+                for batch in chunked(messages):
+                    raw_batch = [format_viber_raw_message(t, ts, a) for _, t, ts, a, _ in batch]
+                    created, duplicates, errors = send_raw_messages_bulk(args.backend_url, args.auth_token, raw_batch)
+                    print(f"✅ Пачка {len(raw_batch)}: створено {created}, дублів {duplicates}, не розібрано {len(errors)}")
+                    last_timestamp = batch[-1][2]
+                    state[key] = last_timestamp
+                    save_state(args.state_file, state)
+            elif messages:
+                last_timestamp = messages[-1][2]
                 state[key] = last_timestamp
                 save_state(args.state_file, state)
-            
+
             time.sleep(args.poll_interval)
         
         except Exception as e:

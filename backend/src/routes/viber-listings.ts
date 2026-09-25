@@ -1,16 +1,10 @@
 import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
-import {
-  findOrCreatePersonByPhone,
-  getNameByPhone,
-  isTelegramEnabled,
-  resolveNameByPhoneFromTelegram,
-  sendViberListingConfirmationToUser,
-  sendViberListingNotificationToAdmin,
-} from '../telegram';
+import { isTelegramEnabled } from '../telegram';
 import { enqueueListingMatch } from '../notification-queue';
 import { importListingsToRideEvents } from '../viber-analytics-import';
-import { parseViberMessage, parseViberMessages } from '../viber-parser';
+import { parseViberMessages } from '../viber-parser';
+import { ingestRawListing } from '../viber-ingest';
 import {
   serializeViberListing,
   getViberListingEndDateTime,
@@ -177,85 +171,40 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
     }
   });
 
+  /**
+   * Прийом одного сирого повідомлення (парсер Viber, адмінка). Ідемпотентно: повтор того самого
+   * тексту → 200 з тим самим оголошенням і `duplicate: true` (viber-ingest.ts, Фаза 5.1).
+   */
   r.post('/viber-listings', requireAdmin, async (req, res) => {
-    const { rawMessage } = req.body;
+    const { rawMessage, source } = req.body as { rawMessage?: string; source?: string };
 
     if (!rawMessage) {
       return res.status(400).json({ error: 'rawMessage is required' });
     }
 
     try {
-      const parsed = parseViberMessage(rawMessage);
-
-      if (!parsed) {
+      const result = await ingestRawListing(prisma, {
+        rawMessage,
+        source: source === 'telegram1' ? 'telegram1' : 'Viber1',
+      });
+      if (!result.ok) {
         return res.status(400).json({
           error: 'Не вдалося розпарсити повідомлення. Перевірте формат.',
         });
       }
-
-      const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-      let senderName = nameFromDb ?? parsed.senderName ?? null;
-      if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
-        const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
-        if (nameFromTg?.trim()) senderName = nameFromTg.trim();
-      }
-      const person = parsed.phone
-        ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
-        : null;
-
-      const { listing, isPastDate } = await createOrMergeViberListing(prisma, {
-        rawMessage,
-        senderName: senderName ?? undefined,
-        listingType: parsed.listingType,
-        route: parsed.route,
-        date: parsed.date,
-        departureTime: parsed.departureTime,
-        seats: parsed.seats,
-        phone: parsed.phone,
-        notes: parsed.notes,
-        isActive: true,
-        personId: person?.id ?? undefined,
-      });
-
-      console.log(`✅ Створено Viber оголошення #${listing.id}:`, {
-        type: listing.listingType,
-        route: listing.route,
-        date: listing.date,
-        phone: listing.phone,
-        archived: isPastDate,
-      });
-
-      const matchingRecheckTriggered = isTelegramEnabled();
-      if (matchingRecheckTriggered && !isPastDate) {
-        sendViberListingNotificationToAdmin({
-          id: listing.id,
-          listingType: listing.listingType,
+      const { listing, isPastDate, duplicate, matchingRecheckTriggered } = result;
+      if (!duplicate) {
+        console.log(`✅ Створено Viber оголошення #${listing.id}:`, {
+          type: listing.listingType,
           route: listing.route,
           date: listing.date,
-          departureTime: listing.departureTime,
-          seats: listing.seats,
           phone: listing.phone,
-          senderName: listing.senderName,
-          notes: listing.notes,
-          priceUah: listing.priceUah ?? undefined,
-          source: listing.source,
-        }).catch((err) => console.error('Telegram Viber notify:', err));
-        if (listing.phone && listing.phone.trim()) {
-          sendViberListingConfirmationToUser(listing.phone, {
-            id: listing.id,
-            route: listing.route,
-            date: listing.date,
-            departureTime: listing.departureTime,
-            seats: listing.seats,
-            listingType: listing.listingType,
-            priceUah: listing.priceUah ?? undefined,
-          }).catch((err) => console.error('Telegram Viber user notify:', err));
-        }
-        // Перетини й розсилка — у фоновій черзі (notification-queue.ts), відповідь не чекає
-        void enqueueListingMatch(prisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
+          archived: isPastDate,
+        });
       }
-
-      res.status(201).json({ ...serializeViberListing(listing), matchingRecheckTriggered });
+      res
+        .status(duplicate ? 200 : 201)
+        .json({ ...serializeViberListing(listing), matchingRecheckTriggered, duplicate });
     } catch (error: unknown) {
       if (isPhoneBlockedError(error)) {
         // Інакше і адмінка, і Python-парсер побачили б незрозумілу 500.
@@ -267,17 +216,24 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
     }
   });
 
+  /**
+   * Пачка сирих повідомлень: `rawMessages` — масив рядків (парсер, один POST на тик) або один
+   * текстовий блок (адмінка, розділяється по заголовках). Кожне повідомлення проходить той самий
+   * ідемпотентний шлях; помилки — поелементно, відповідь завжди 201, щоб парсер зсунув курсор.
+   */
   r.post('/viber-listings/bulk', requireAdmin, async (req, res) => {
-    const { rawMessages } = req.body;
+    const { rawMessages, source } = req.body as { rawMessages?: unknown; source?: string };
 
     if (!rawMessages) {
       return res.status(400).json({ error: 'rawMessages is required' });
     }
 
     try {
-      const parsedMessages = parseViberMessages(rawMessages);
+      const rawList: string[] = Array.isArray(rawMessages)
+        ? rawMessages.map((m) => String(m ?? '').trim()).filter((m) => m.length >= 10)
+        : parseViberMessages(String(rawMessages)).map((m) => m.rawMessage);
 
-      if (parsedMessages.length === 0) {
+      if (rawList.length === 0) {
         return res.status(400).json({
           error: 'Не вдалося розпарсити жодне повідомлення',
         });
@@ -285,75 +241,36 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
 
       const created = [];
       const errors = [];
+      let duplicates = 0;
+      let unparsable = 0;
       const matchingRecheckTriggered = isTelegramEnabled();
 
-      for (let i = 0; i < parsedMessages.length; i++) {
-        const { parsed, rawMessage: rawText } = parsedMessages[i];
+      for (let i = 0; i < rawList.length; i++) {
         try {
-          const nameFromDb = parsed.phone ? await getNameByPhone(parsed.phone) : null;
-          let senderName = nameFromDb ?? parsed.senderName ?? null;
-          if ((!senderName || !String(senderName).trim()) && parsed.phone?.trim()) {
-            const nameFromTg = await resolveNameByPhoneFromTelegram(parsed.phone);
-            if (nameFromTg?.trim()) senderName = nameFromTg.trim();
-          }
-          const person = parsed.phone
-            ? await findOrCreatePersonByPhone(parsed.phone, { fullName: senderName ?? undefined })
-            : null;
-          const { listing, isNew, isPastDate } = await createOrMergeViberListing(prisma, {
-            rawMessage: rawText,
-            senderName: senderName ?? undefined,
-            listingType: parsed.listingType,
-            route: parsed.route,
-            date: parsed.date,
-            departureTime: parsed.departureTime,
-            seats: parsed.seats,
-            phone: parsed.phone,
-            notes: parsed.notes,
-            isActive: true,
-            personId: person?.id ?? undefined,
+          const result = await ingestRawListing(prisma, {
+            rawMessage: rawList[i],
+            source: source === 'telegram1' ? 'telegram1' : 'Viber1',
           });
-          if (isNew) {
-            created.push(listing);
+          if (!result.ok) {
+            unparsable++;
+            errors.push({ index: i, error: 'unparsable' });
+            continue;
           }
-          if (matchingRecheckTriggered && !isPastDate) {
-            sendViberListingNotificationToAdmin({
-              id: listing.id,
-              listingType: listing.listingType,
-              route: listing.route,
-              date: listing.date,
-              departureTime: listing.departureTime,
-              seats: listing.seats,
-              phone: listing.phone,
-              senderName: listing.senderName,
-              notes: listing.notes,
-              priceUah: listing.priceUah ?? undefined,
-              source: listing.source,
-            }).catch((err) => console.error('Telegram Viber notify:', err));
-            if (listing.phone && listing.phone.trim()) {
-              sendViberListingConfirmationToUser(listing.phone, {
-                id: listing.id,
-                route: listing.route,
-                date: listing.date,
-                departureTime: listing.departureTime,
-                seats: listing.seats,
-                listingType: listing.listingType,
-                priceUah: listing.priceUah ?? undefined,
-              }).catch((err) => console.error('Telegram Viber user notify:', err));
-            }
-            // Перетини й розсилка — у фоновій черзі (notification-queue.ts), відповідь не чекає
-            void enqueueListingMatch(prisma, listing.id).catch((err) => console.error('enqueue listing match:', err));
-          }
+          if (result.duplicate) duplicates++;
+          else if (result.isNew) created.push(result.listing);
         } catch (error) {
           errors.push({ index: i, error: error instanceof Error ? error.message : 'Unknown error' });
         }
       }
 
-      console.log(`✅ Створено ${created.length} Viber оголошень з ${parsedMessages.length}`);
+      console.log(`✅ Створено ${created.length} Viber оголошень з ${rawList.length} (дублів: ${duplicates}, нерозібраних: ${unparsable})`);
 
       res.status(201).json({
         success: true,
         created: created.length,
-        total: parsedMessages.length,
+        duplicates,
+        unparsable,
+        total: rawList.length,
         errors: errors.length > 0 ? errors : undefined,
         listings: created,
         matchingRecheckTriggered,

@@ -78,5 +78,5 @@ CI also runs Playwright e2e (mocked API, Vite on port 4177).
 ## Out of CI
 
 - Live Telegram / Viber / OCR / user-account smoke scripts under `backend/telegram-user/`.
-- Python `viberparser/` (no automated suite yet).
+- Python `viberparser/`: only the pure helpers (batching, state cleanup) have unit tests — `python3 -m unittest viberparser/test_parser.py` (not part of `npm test`); the Viber SQLite reading is covered by manual smoke only.
 - Manual checklists in `Docs/*-smoke.md`.

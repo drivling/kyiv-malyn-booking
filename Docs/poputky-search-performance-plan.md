@@ -43,10 +43,10 @@
 - [x] **4.3** `NotificationJob` + воркер
 
 Фаза 5
-- [ ] **5.1** `sourceHash @unique` (ідемпотентний ingest)
-- [ ] **5.2** Telethon name-lookup → job
-- [ ] **5.3** Парсер → `/viber-listings/bulk` за тик
-- [ ] **5.4** Імпорт Telegram-груп → bulk + черга
+- [x] **5.1** Ідемпотентний ingest: `ViberListingSource(hash @unique)` — одне оголошення ← багато повідомлень; `viber-ingest.ts` як єдиний шлях для POST і bulk
+- [x] **5.2** Telethon/Opendatabot name-lookup → job `resolve_sender_name` (перед `listing_match` у черзі)
+- [x] **5.3** Парсер → один `POST /viber-listings/bulk` (масив) на тик, курсор після відповіді пачки; `db_parser_state.json` чистить сміттєві ключі сам; `viberparser/test_parser.py`
+- [x] **5.4** Імпорт Telegram-груп: пошук імені (бот/Telethon/Opendatabot) винесено з циклу імпорту в job `resolve_sender_name`; перетини — через чергу з 4.3. Bulk-шлях HTTP не потрібен: імпорт іде всередині процесу
 
 Фаза 6
 - [ ] Бот (`/allrides`, inline, `/my*rides`) на `searchListings()`

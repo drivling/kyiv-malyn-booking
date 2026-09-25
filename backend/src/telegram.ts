@@ -60,7 +60,7 @@ import {
 import { findMatchCandidates } from './poputky-match';
 import { getCatalog } from './catalog-cache';
 import { tripDayKey } from './trip-day';
-import { enqueueListingMatch } from './notification-queue';
+import { enqueueListingMatch, enqueueResolveSenderName } from './notification-queue';
 import { PHONE_BLOCKED_ADMIN_MESSAGE, PHONE_BLOCKED_BOT_MESSAGE, isPhoneBlockedError, recordBlockedAttempt } from './phone-block';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
@@ -2400,25 +2400,12 @@ async function resolveTelegramImportPerson(params: {
 }): Promise<{ person: { id: number } | null; senderName: string | null; listingPhone: string }> {
   const { parsed, tgUsername } = params;
   const nameFromDb = parsed.phone?.trim() ? await getNameByPhone(parsed.phone) : null;
-  let senderName = nameFromDb ?? parsed.senderName ?? null;
+  // Лише те, що вже є (БД/текст). Пошук через бота, Telethon і Opendatabot — job
+  // resolve_sender_name після імпорту (Фаза 5.2/5.4), а не spawn Python у циклі імпорту.
+  const senderName = nameFromDb ?? parsed.senderName ?? null;
 
   if (parsed.phone?.trim()) {
     const phone = parsed.phone.trim();
-    const personForChat = await getPersonByPhone(phone);
-    const chatIdForPerson = personForChat?.telegramChatId ?? null;
-    const { nameFromBot, nameFromUser, nameFromOpendatabot } = await getResolvedNameForPerson(
-      phone,
-      chatIdForPerson,
-    );
-    const { newName } = pickBestNameFromCandidates(
-      nameFromDb,
-      nameFromBot,
-      nameFromUser,
-      nameFromOpendatabot,
-    );
-    if (newName?.trim()) senderName = newName.trim();
-    else if (!senderName?.trim()) senderName = parsed.senderName ?? senderName;
-
     const person = await findOrCreatePersonByPhone(phone, {
       fullName: senderName ?? undefined,
       telegramUsername: tgUsername ?? undefined,
@@ -2430,10 +2417,9 @@ async function resolveTelegramImportPerson(params: {
     const person = await findOrCreatePersonByTelegramUsername(tgUsername, {
       fullName: parsed.senderName ?? senderName ?? undefined,
     });
-    if (!senderName?.trim()) senderName = person.fullName ?? parsed.senderName ?? null;
     return {
       person,
-      senderName,
+      senderName: senderName?.trim() ? senderName : (person.fullName ?? parsed.senderName ?? null),
       listingPhone: formatTelegramUsernameForDisplay(tgUsername),
     };
   }
@@ -2500,6 +2486,10 @@ async function afterTelegramListingImported(listing: {
       seats: listing.seats,
       listingType: listing.listingType,
     }).catch((err) => console.error('Telegram user notify:', err));
+  }
+  // Спершу ім'я (job виконуються по id), потім перетини — щоб у розсилці був не «Водій»
+  if (!listing.senderName?.trim() && listing.phone?.trim() && !isTelegramUsernameContact(listing.phone)) {
+    await enqueueResolveSenderName(tgPrisma, listing.id, listing.phone);
   }
   const authorChatId = await getAuthorChatIdForListing(listing);
   await enqueueListingMatch(tgPrisma, listing.id, authorChatId);

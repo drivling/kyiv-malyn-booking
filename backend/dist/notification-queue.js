@@ -11,8 +11,9 @@
  * Модуль не знає про Telegram: обробники реєструють ззовні (listing-match-jobs.ts).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LISTING_MATCH_JOB = void 0;
+exports.RESOLVE_SENDER_NAME_JOB = exports.LISTING_MATCH_JOB = void 0;
 exports.enqueueListingMatch = enqueueListingMatch;
+exports.enqueueResolveSenderName = enqueueResolveSenderName;
 exports.retryDelayMs = retryDelayMs;
 exports.createNotificationWorker = createNotificationWorker;
 exports.LISTING_MATCH_JOB = 'listing_match';
@@ -28,6 +29,14 @@ async function enqueueListingMatch(prisma, listingId, authorChatId) {
     }
     const payload = { listingId, authorChatId: authorChatId ?? null };
     return prisma.notificationJob.create({ data: { kind: exports.LISTING_MATCH_JOB, payload } });
+}
+exports.RESOLVE_SENDER_NAME_JOB = 'resolve_sender_name';
+/** Ім'я відправника через Telethon/Opendatabot — поза HTTP-запитом (Фаза 5.2). */
+async function enqueueResolveSenderName(prisma, listingId, phone) {
+    if (!prisma.notificationJob?.create)
+        return null;
+    const payload = { listingId, phone };
+    return prisma.notificationJob.create({ data: { kind: exports.RESOLVE_SENDER_NAME_JOB, payload } });
 }
 /** Бекоф між спробами: 1, 2, 4, 8… хв. */
 function retryDelayMs(attempts) {
