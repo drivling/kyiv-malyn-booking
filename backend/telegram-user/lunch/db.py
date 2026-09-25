@@ -612,18 +612,21 @@ class LunchDB:
         kind: str = "send",
         telegram_message_id: Optional[int] = None,
         reply_to_message_id: Optional[int] = None,
+        target: str = "lunch",
     ) -> None:
+        """target: 'lunch' — група обідів (markdown), 'saved' — «Обране» власника (HTML, Джура)."""
         async with self.pool.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO "LunchOutboundMessage"
-                    (text, kind, "telegramMessageId", "replyToMessageId", status)
-                VALUES ($1, $2, $3, $4, 'pending')
+                    (text, kind, "telegramMessageId", "replyToMessageId", target, status)
+                VALUES ($1, $2, $3, $4, $5, 'pending')
                 """,
                 text,
                 kind,
                 telegram_message_id,
                 reply_to_message_id,
+                target,
             )
 
     async def add_payment(
@@ -790,7 +793,7 @@ class LunchDB:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, text, kind, "telegramMessageId", "replyToMessageId"
+                SELECT id, text, kind, "telegramMessageId", "replyToMessageId", target
                 FROM "LunchOutboundMessage"
                 WHERE status = 'pending'
                 ORDER BY "createdAt" ASC
@@ -805,6 +808,7 @@ class LunchDB:
                     "kind": r["kind"] or "send",
                     "telegram_message_id": int(r["telegramMessageId"]) if r["telegramMessageId"] is not None else None,
                     "reply_to_message_id": int(r["replyToMessageId"]) if r["replyToMessageId"] is not None else None,
+                    "target": r["target"] or "lunch",
                 }
                 for r in rows
             ]

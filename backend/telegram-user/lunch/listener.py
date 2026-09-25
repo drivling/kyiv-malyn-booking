@@ -6,13 +6,15 @@ Telethon-слухач групи «Обіди для НЕ бідних».
   python3 -m lunch.listener
 
 Env: DATABASE_URL, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_USER_SESSION_PATH,
-     OPENAI_API_KEY, LUNCH_GROUP_ID (default -5427750954), LUNCH_OPERATOR_IDS (comma)
+     OPENAI_API_KEY, LUNCH_GROUP_ID (default -5427750954), LUNCH_OPERATOR_IDS (comma),
+     DZHURA_ENABLED (default 1 — «Джура» читає обрані чати в базу в цьому ж процесі, див. dzhura/)
 """
 
 from __future__ import annotations
 
 import asyncio
 import os
+import signal
 import sys
 import tempfile
 from pathlib import Path
@@ -53,6 +55,13 @@ from lunch.util import load_dotenv  # noqa: E402
 load_dotenv()
 
 DEFAULT_GROUP_ID = -5427750954
+# Пауза між надсиланнями в «Обране» (Джура): черга серіалізує, але не спамимо Telegram.
+SAVED_RELAY_PAUSE_SEC = 0.7
+
+
+def _dzhura_enabled() -> bool:
+    raw = (os.environ.get("DZHURA_ENABLED") or "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
 
 
 def _group_id() -> int:
@@ -135,6 +144,21 @@ async def run() -> None:
     me_id = int(me.id) if me else None
     entity = await client.get_entity(group_id)
     print(f"[lunch] listening group={getattr(entity, 'title', group_id)} id={group_id} me={me_id}")
+
+    # Джура (читання обраних чатів у базу) живе в цьому ж процесі: одна Telethon-сесія на акаунт.
+    # Обробники реєструються ДО лунч-обробника — Telethon виконує їх послідовно, і захват
+    # повідомлення групи обідів не має чекати на OCR/відповідь.
+    dzhura_coros = []
+    if _dzhura_enabled() and me is not None:
+        try:
+            import dzhura  # noqa: E402
+
+            dzhura_coros = dzhura.attach(client, db.pool, me, group_id, getattr(entity, "title", None))
+        except Exception as e:  # noqa: BLE001
+            print(f"[lunch] dzhura attach failed: {e}", file=sys.stderr)
+            dzhura_coros = []
+    else:
+        print("[lunch] dzhura disabled (DZHURA_ENABLED=0)")
 
     async def reply(event, text: str) -> Optional[int]:
         try:
@@ -448,6 +472,14 @@ async def run() -> None:
                     try:
                         kind = row.get("kind") or "send"
                         sent = None
+                        if row.get("target") == "saved":
+                            # Джура: дубль у «Обране» власника. HTML з екрануванням (relay.py),
+                            # без прев'ю посилань; пауза — щоб не впертись у flood-ліміт.
+                            await client.send_message("me", row["text"], parse_mode="html", link_preview=False)
+                            await db.mark_outbound_sent(row["id"])
+                            print(f"[lunch] outbound sent id={row['id']} target=saved")
+                            await asyncio.sleep(SAVED_RELAY_PAUSE_SEC)
+                            continue
                         if kind == "edit" and row.get("telegram_message_id"):
                             await client.edit_message(entity, int(row["telegram_message_id"]), row["text"])
                         elif row.get("reply_to_message_id"):
@@ -488,15 +520,27 @@ async def run() -> None:
             await asyncio.sleep(2)
 
     outbound_task = asyncio.create_task(outbound_loop())
+    dzhura_tasks = [asyncio.create_task(coro) for coro in dzhura_coros]
+
+    # Node зупиняє слухача SIGTERM-ом (пауза під ексклюзивну userbot-сесію). Без обробника
+    # процес гине миттєво і finally не виконується: пул і SQLite-сесія не закриваються.
+    loop = asyncio.get_running_loop()
+    try:
+        loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.ensure_future(client.disconnect()))
+    except (NotImplementedError, RuntimeError):
+        pass  # Windows / не головний потік
+
     print("[lunch] started (events + outbound queue). Ctrl+C to stop.")
     try:
         await client.run_until_disconnected()
     finally:
-        outbound_task.cancel()
-        try:
-            await outbound_task
-        except asyncio.CancelledError:
-            pass
+        for task in [outbound_task, *dzhura_tasks]:
+            task.cancel()
+        for task in [outbound_task, *dzhura_tasks]:
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
         await db.close()
         await client.disconnect()
 

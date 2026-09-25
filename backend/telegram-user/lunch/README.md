@@ -37,6 +37,7 @@ npx prisma migrate deploy
 | `LUNCH_OPERATOR_IDS` | опційно: Telegram user id операторів через кому (`!close` / `!open`) |
 | `LUNCH_OCR_MODEL` | опційно, за замовч. `gpt-4o-mini` |
 | `LUNCH_LISTENER_ENABLED` | `1` (default) — автозапуск з Node; `0` — вимкнути |
+| `DZHURA_ENABLED` | `1` (default) — у цьому ж процесі працює «Джура» (читання обраних чатів у базу, `/admin/dzhura`); `0` — вимкнути. Див. [../dzhura/README.md](../dzhura/README.md) |
 
 Можна покласти їх у `backend/.env` або `telegram-user/.env`.
 
@@ -58,6 +59,7 @@ python3 -m lunch.listener
 ```
 
 Пост меню з адмінки йде в чергу `LunchOutboundMessage` — listener надсилає в групу (одна Telethon-сесія).
+Та сама черга з `target='saved'` — дублі «Джури» в «Обране» власника (HTML).
 
 ## Команди в чаті
 
@@ -79,6 +81,7 @@ python3 -m lunch.listener
 ```bash
 cd backend/telegram-user
 python3 -m lunch.test_parsers
+python3 -m dzhura.test_relay
 ```
 
 ## Ручний OCR через ChatGPT (без API-ключів)
