@@ -760,6 +760,54 @@ export interface LunchMenuImportResult {
   postError: string | null;
 }
 
+// --- «Джура» · фаза 0 (читання чатів Telegram у базу, /admin/dzhura) ---
+export type DzhuraChatKind = 'group' | 'supergroup' | 'private' | 'channel';
+
+/** Рядок чату з /admin/dzhura/chats. Telegram-id — рядки (BigInt на бекенді). */
+export interface DzhuraChatRow {
+  id: number;
+  tgChatId: string;
+  kind: DzhuraChatKind;
+  title: string;
+  username: string | null;
+  membersCount: number | null;
+  isLunchGroup: boolean;
+  captureEnabled: boolean;
+  relayToSaved: boolean;
+  lastMessageAt: string | null;
+  lastCapturedAt: string | null;
+  dialogSyncedAt: string | null;
+  messagesCount: number;
+}
+
+export interface DzhuraStatus {
+  listenerWanted: boolean;
+  heartbeatAt: string | null;
+  heartbeatFresh: boolean;
+  dialogsSyncedAt: string | null;
+  meTgUserId: string | null;
+}
+
+export type DzhuraJobType = 'sync_dialogs' | 'backfill';
+export type DzhuraJobStatus = 'pending' | 'running' | 'done' | 'failed';
+
+export interface DzhuraJob {
+  id: number;
+  type: DzhuraJobType;
+  status: DzhuraJobStatus;
+  params: Record<string, unknown> | null;
+  progress: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
+  errorText: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export type DzhuraJobRequest =
+  | { type: 'sync_dialogs' }
+  | { type: 'backfill'; chatId: number; from: string; to: string };
+
 export type SmsMatchTypeThreshold = 'exact' | 'exact_approximate' | 'all';
 
 /** Налаштування логіки сповіщень + платного SMS-фолбеку (токен ніколи не повертається). */

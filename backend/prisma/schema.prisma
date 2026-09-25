@@ -711,6 +711,8 @@ model LunchOutboundMessage {
   kind                String    @default("send")
   telegramMessageId   BigInt?
   replyToMessageId    BigInt?
+  /// lunch — група обідів (markdown) | saved — «Обране» власника (HTML, Джура)
+  target              String    @default("lunch")
   /// pending | sent | failed
   status              String    @default("pending")
   errorText           String?   @db.Text
@@ -860,4 +862,136 @@ model TransportMeta {
   id        Int      @id @default(1)
   payload   Json
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// «Джура» · фаза 0 — читання обраних чатів Telegram у базу (Docs/dzhura-roadmap.md).
+// Пише Python-слухач telegram-user/dzhura/ (asyncpg), читає адмінка через routes/admin-dzhura.ts.
+// ---------------------------------------------------------------------------
+
+/// Чат, який читає userbot. tgChatId — marked id Telethon (-chat, -100channel, +user)
+model DzhuraChat {
+  id                      Int       @id @default(autoincrement())
+  tgChatId                BigInt    @unique
+  /// group | supergroup | private | channel
+  kind                    String
+  title                   String
+  username                String?
+  membersCount            Int?
+  isLunchGroup            Boolean   @default(false)
+  /// «Читати»: зберігати повідомлення в DzhuraMessage
+  captureEnabled          Boolean   @default(false)
+  /// «В Обране»: дублювати чужі повідомлення й реакції у Saved Messages власника
+  relayToSaved            Boolean   @default(false)
+  lastMessageAt           DateTime?
+  lastCapturedAt          DateTime?
+  /// для gap-fill після пауз слухача: iter_messages(min_id=…)
+  lastCapturedTgMessageId BigInt?
+  dialogSyncedAt          DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  messages                DzhuraMessage[]
+
+  @@index([kind, captureEnabled])
+}
+
+/// Автор повідомлення/реакції (Telegram-користувач)
+model DzhuraPerson {
+  id         Int      @id @default(autoincrement())
+  tgUserId   BigInt   @unique
+  firstName  String?
+  lastName   String?
+  username   String?
+  /// є лише коли Telegram віддає (контакт / дозволяють налаштування приватності)
+  phone      String?
+  isBot      Boolean  @default(false)
+  isMe       Boolean  @default(false)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  messages   DzhuraMessage[]
+  reactions  DzhuraReaction[]
+}
+
+/// Універсальний запис повідомлення (лише текст; медіа — тип і підпис)
+model DzhuraMessage {
+  id                 Int       @id @default(autoincrement())
+  chatId             Int
+  tgMessageId        BigInt
+  senderPersonId     Int?
+  isOutgoing         Boolean   @default(false)
+  /// '' для медіа без підпису
+  text               String    @db.Text
+  /// photo | video | video_note | voice | audio | sticker | gif | document | contact | geo | poll | other
+  mediaKind          String?
+  replyToTgMessageId BigInt?
+  /// forum-топік супергрупи
+  topicId            Int?
+  forwardFromName    String?
+  forwardFromTgId    BigInt?
+  forwardDate        DateTime?
+  sentAt             DateTime
+  editedAt           DateTime?
+  /// [{text, editedAt}] попередні версії тексту
+  editHistoryJson    Json?
+  /// точні лічильники реакцій: {"❤️": 2, "custom:123": 1}
+  reactionsJson      Json?
+  deletedAt          DateTime?
+  /// live | backfill
+  source             String    @default("live")
+  /// урізаний message.to_json() Telethon (entities, медіа-мета, via_bot…)
+  rawJson            Json?
+  capturedAt         DateTime  @default(now())
+
+  chat      DzhuraChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    DzhuraPerson?    @relation(fields: [senderPersonId], references: [id], onDelete: SetNull)
+  reactions DzhuraReaction[]
+
+  @@unique([chatId, tgMessageId])
+  @@index([chatId, sentAt])
+  @@index([senderPersonId])
+}
+
+/// Реакція-емодзі на повідомлення. personId = null — Telegram віддав лише лічильник
+model DzhuraReaction {
+  id        Int       @id @default(autoincrement())
+  messageId Int
+  personId  Int?
+  /// unicode-емодзі | custom:<documentId> | paid
+  emoji     String
+  isMine    Boolean   @default(false)
+  addedAt   DateTime  @default(now())
+  removedAt DateTime?
+
+  message DzhuraMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  person  DzhuraPerson? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([messageId, removedAt])
+}
+
+/// Задачі для слухача з адмінки: sync_dialogs | backfill {chatId, from, to}
+model DzhuraJob {
+  id           Int       @id @default(autoincrement())
+  /// sync_dialogs | backfill
+  type         String
+  paramsJson   Json?
+  /// pending | running | done | failed
+  status       String    @default("pending")
+  progressJson Json?
+  resultJson   Json?
+  errorText    String?   @db.Text
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// Синглтон id=1: стан слухача для адмінки
+model DzhuraState {
+  id              Int       @id @default(1)
+  heartbeatAt     DateTime?
+  dialogsSyncedAt DateTime?
+  meTgUserId      BigInt?
+  updatedAt       DateTime  @updatedAt
 }

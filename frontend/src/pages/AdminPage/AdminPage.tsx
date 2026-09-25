@@ -12,12 +12,13 @@ import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
+import { DzhuraTab } from './DzhuraTab';
 import { NotificationSettingsTab } from './NotificationSettingsTab';
 import { PersonArchiveTab } from './PersonArchiveTab';
 import { PERSONS_FILTER_OPTIONS, filterPersons, type PersonsFilterMode } from './personsFilter';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch' | 'notifications';
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'notifications';
 
 const DEFAULT_TAB: Tab = 'bookings';
 
@@ -29,6 +30,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   promo: 'promo',
   referrals: 'referrals',
   lunch: 'lunch',
+  dzhura: 'dzhura',
   notifications: 'notifications',
   data: 'data',
   personArchive: 'archive',
@@ -1431,6 +1433,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('lunch')}
           >
             Столова
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'dzhura' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dzhura')}
+          >
+            Джура
           </button>
           <button
             className={`admin-tab ${activeTab === 'notifications' ? 'active' : ''}`}
@@ -3037,6 +3045,8 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'referrals' && <ReferralTab />}
 
         {activeTab === 'lunch' && <LunchTab />}
+
+        {activeTab === 'dzhura' && <DzhuraTab />}
 
         {activeTab === 'notifications' && <NotificationSettingsTab />}
 
