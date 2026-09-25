@@ -2,7 +2,6 @@
  * Вкладка «Джура»: список чатів і статус слухача, прапорці «Читати»/«В Обране», backfill із
  * прогресом задачі, експорт JSON (Blob + ім'я файлу з Content-Disposition), помилки.
  */
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
