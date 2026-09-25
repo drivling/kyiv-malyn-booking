@@ -222,9 +222,123 @@
   color: #c5221f;
 }
 
+.dzhura-queue {
+  display: inline-block;
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--pb-text-muted, #5f6368);
+}
+
+.dzhura-queue--warn {
+  color: #b45309;
+}
+
+.dzhura-filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.dzhura-filters .dzhura-input {
+  min-width: 240px;
+}
+
+.dzhura-check--inline {
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--pb-text, #202124);
+}
+
+.dzhura-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dzhura-messages-row td {
+  background: #fafbfc;
+}
+
+.dzhura-messages__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.dzhura-messages__search .dzhura-input {
+  min-width: 260px;
+}
+
+.dzhura-messages {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.dzhura-msg {
+  display: grid;
+  grid-template-columns: 120px 140px 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--pb-border, #e8eaed);
+  font-size: 0.875rem;
+}
+
+.dzhura-msg--out {
+  background: #f1f8f4;
+}
+
+.dzhura-msg--deleted .dzhura-msg__text {
+  text-decoration: line-through;
+  color: var(--pb-text-muted, #5f6368);
+}
+
+.dzhura-msg__time {
+  color: var(--pb-text-muted, #5f6368);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.dzhura-msg__sender {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dzhura-msg__text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dzhura-msg__meta {
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 768px) {
   .dzhura-card {
     padding: 14px;
+  }
+
+  .dzhura-msg {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .dzhura-table th,

@@ -58,6 +58,27 @@ function createAdminDzhuraRouter(deps) {
             sendError(res, 'PATCH /admin/dzhura/chats/:id', e);
         }
     });
+    /** Перегляд збережених повідомлень: новіші першими, ?from&to, ?q, курсор ?beforeId */
+    r.get('/admin/dzhura/chats/:id/messages', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const id = parseId(req.params.id);
+            const page = await (0, dzhura_1.listMessages)(prisma, id, (0, dzhura_1.parseMessagesQuery)(req.query));
+            res.json(page);
+        }
+        catch (e) {
+            sendError(res, 'GET /admin/dzhura/chats/:id/messages', e);
+        }
+    });
+    /** Повернути невдалі дублі в «Обране» (за тиждень) у чергу */
+    r.post('/admin/dzhura/queue/retry-failed', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const requeued = await (0, dzhura_1.retryFailedSaved)(prisma);
+            res.json({ requeued });
+        }
+        catch (e) {
+            sendError(res, 'POST /admin/dzhura/queue/retry-failed', e);
+        }
+    });
     /** Експорт повідомлень чату за період (доби Києва) у JSON-файл */
     r.get('/admin/dzhura/chats/:id/export', require_admin_1.requireAdmin, async (req, res) => {
         try {

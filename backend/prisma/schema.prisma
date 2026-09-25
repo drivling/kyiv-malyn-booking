@@ -716,10 +716,14 @@ model LunchOutboundMessage {
   /// pending | sent | failed
   status              String    @default("pending")
   errorText           String?   @db.Text
+  /// спроб надсилання; ретраї з паузою (nextAttemptAt), після ліміту → failed
+  attempts            Int       @default(0)
+  nextAttemptAt       DateTime?
   createdAt           DateTime  @default(now())
   sentAt              DateTime?
 
   @@index([status, createdAt])
+  @@index([status, nextAttemptAt])
 }
 
 /// Журнал платних відправок (SMS/Viber через TurboSMS) — для лімітів, дедупу та обліку витрат

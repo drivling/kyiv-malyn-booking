@@ -1030,6 +1030,28 @@ class ApiClient {
     return this.request(`/admin/dzhura/jobs/${id}`);
   }
 
+  /** Збережені повідомлення чату: новіші першими, пошук по тексту/автору, курсор beforeId */
+  async getDzhuraMessages(
+    chatId: number,
+    params: { q?: string; beforeId?: number | null; limit?: number; from?: string; to?: string } = {},
+  ): Promise<import('@/types').DzhuraMessagesPage> {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set('q', params.q);
+    if (params.beforeId) qs.set('beforeId', String(params.beforeId));
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.from && params.to) {
+      qs.set('from', params.from);
+      qs.set('to', params.to);
+    }
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return this.request(`/admin/dzhura/chats/${chatId}/messages${suffix}`);
+  }
+
+  /** Повернути невдалі дублі в «Обране» у чергу */
+  async retryDzhuraQueue(): Promise<{ requeued: number }> {
+    return this.request('/admin/dzhura/queue/retry-failed', { method: 'POST' });
+  }
+
   /** JSON-експорт чату за період (доби Києва) — файл з авторизацією */
   async downloadDzhuraExport(chatId: number, from: string, to: string): Promise<{ blob: Blob; fileName: string }> {
     const url = `${this.baseUrl}/admin/dzhura/chats/${chatId}/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;

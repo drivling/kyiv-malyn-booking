@@ -108,6 +108,13 @@ def message_link(chat_kind: str, tg_chat_id: int, msg_id: int) -> Optional[str]:
     return f"https://t.me/c/{channel_id}/{int(msg_id)}"
 
 
+def chat_label(kind: Optional[str], title: Optional[str]) -> str:
+    """Заголовок дубля: для особистого чату — «Особисто» (ім'я вже є у відправнику), інакше назва групи."""
+    if kind == "private":
+        return "Особисто"
+    return (title or "").strip() or "Чат"
+
+
 def media_label(kind: Optional[str], file_name: Optional[str] = None) -> str:
     if not kind:
         return ""
