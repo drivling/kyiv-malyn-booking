@@ -999,6 +999,60 @@ class ApiClient {
     });
   }
 
+  // --- «Джура» · читання чатів ---
+  async getDzhuraStatus(): Promise<import('@/types').DzhuraStatus> {
+    return this.request('/admin/dzhura/status');
+  }
+
+  async getDzhuraChats(kind?: string): Promise<import('@/types').DzhuraChatRow[]> {
+    const q = kind ? `?kind=${encodeURIComponent(kind)}` : '';
+    return this.request(`/admin/dzhura/chats${q}`);
+  }
+
+  async updateDzhuraChat(
+    id: number,
+    patch: { captureEnabled?: boolean; relayToSaved?: boolean },
+  ): Promise<import('@/types').DzhuraChatRow> {
+    return this.request(`/admin/dzhura/chats/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  async createDzhuraJob(body: import('@/types').DzhuraJobRequest): Promise<{ job: import('@/types').DzhuraJob }> {
+    return this.request('/admin/dzhura/jobs', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async getDzhuraJob(id: number): Promise<import('@/types').DzhuraJob> {
+    return this.request(`/admin/dzhura/jobs/${id}`);
+  }
+
+  /** JSON-експорт чату за період (доби Києва) — файл з авторизацією */
+  async downloadDzhuraExport(chatId: number, from: string, to: string): Promise<{ blob: Blob; fileName: string }> {
+    const url = `${this.baseUrl}/admin/dzhura/chats/${chatId}/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const headers = new Headers();
+    if (this.authToken) headers.set('Authorization', this.authToken);
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const text = await response.text();
+      let msg = `Помилка ${response.status}`;
+      try {
+        const err = text ? JSON.parse(text) : {};
+        if (err?.error) msg = err.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const m = /filename="([^"]+)"/.exec(disposition);
+    const fileName = m ? m[1] : `dzhura-chat-${chatId}-${from}_${to}.json`;
+    return { blob: await response.blob(), fileName };
+  }
+
   async getNotificationSettings(): Promise<NotificationSettings> {
     return this.request('/admin/notification-settings');
   }
