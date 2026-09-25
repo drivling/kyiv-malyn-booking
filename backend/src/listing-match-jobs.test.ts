@@ -50,3 +50,24 @@ test('зняте, минуле або видалене оголошення — 
   expect(inactive.notifyForDriver).not.toHaveBeenCalled();
   await expect(runListingMatchJob(job({}), missing)).rejects.toThrow('listingId');
 });
+
+test('resolve_sender_name: оновлює ім\'я листинга і Person лише коли імені ще немає', async () => {
+  const { runResolveSenderNameJob } = await import('./listing-match-jobs');
+  const setListingName = vi.fn(async () => {});
+  const setPersonName = vi.fn(async () => {});
+  const mk = (senderName: string | null, found: string | null) => ({
+    lookupName: vi.fn(async () => found),
+    getListing: async () => ({ id: 7, senderName, phone: '380501112233' }),
+    setListingName,
+    setPersonName,
+  });
+  const j = job({ listingId: 7, phone: '380501112233' });
+  expect(await runResolveSenderNameJob(j, mk(null, ' Іван '))).toBe('updated');
+  expect(setListingName).toHaveBeenCalledWith(7, 'Іван');
+  expect(setPersonName).toHaveBeenCalledWith('380501112233', 'Іван');
+  expect(await runResolveSenderNameJob(j, mk('Оля', 'Іван'))).toBe('already_named');
+  expect(await runResolveSenderNameJob(j, mk(null, null))).toBe('no_name');
+  const missing = { ...mk(null, 'x'), getListing: async () => null };
+  expect(await runResolveSenderNameJob(j, missing)).toBe('not_found');
+  await expect(runResolveSenderNameJob(job({ listingId: 7 }), mk(null, 'x'))).rejects.toThrow('phone');
+});

@@ -53,6 +53,21 @@ export async function enqueueListingMatch(
   return prisma.notificationJob.create({ data: { kind: LISTING_MATCH_JOB, payload } });
 }
 
+export const RESOLVE_SENDER_NAME_JOB = 'resolve_sender_name';
+
+export type ResolveSenderNamePayload = { listingId: number; phone: string };
+
+/** Ім'я відправника через Telethon/Opendatabot — поза HTTP-запитом (Фаза 5.2). */
+export async function enqueueResolveSenderName(
+  prisma: QueuePrisma,
+  listingId: number,
+  phone: string,
+): Promise<{ id: number } | null> {
+  if (!prisma.notificationJob?.create) return null;
+  const payload: ResolveSenderNamePayload = { listingId, phone };
+  return prisma.notificationJob.create({ data: { kind: RESOLVE_SENDER_NAME_JOB, payload } });
+}
+
 export type WorkerOptions = {
   /** Пауза між тиками, мс (за замовчуванням 10 с) */
   intervalMs?: number;

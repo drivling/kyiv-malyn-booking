@@ -366,6 +366,7 @@ model ViberListing {
   matchNotifyAsDriver         ViberMatchPairNotification[] @relation("MatchNotifyDriverListing")
   referralRewards             ReferralReward[]
   rideCompletionProofs        RideCompletionProof[]
+  sources                     ViberListingSource[]
 
   @@index([tripRouteId])
   @@index([fromPointId, toPointId, date, listingType])
@@ -394,6 +395,22 @@ model NotificationJob {
   updatedAt  DateTime @updatedAt
 
   @@index([status, runAfter])
+}
+
+/// Ідемпотентний прийом (Docs/poputky-search-performance-plan.md, Фаза 5.1): кожне оброблене
+/// сире повідомлення з парсера (Viber, Telegram-групи) фіксується хешем; повторний POST після
+/// retry знаходить готове оголошення без мерж-евристики. Один листинг ← багато повідомлень.
+model ViberListingSource {
+  id        Int      @id @default(autoincrement())
+  /// sha256(source + нормалізований rawMessage)
+  hash      String   @unique
+  source    String
+  listingId Int
+  createdAt DateTime @default(now())
+
+  listing ViberListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).
