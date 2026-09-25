@@ -21,6 +21,7 @@ import { createAdminMessagingRouter } from './routes/admin-messaging';
 import { createAdminViberAnalyticsRouter } from './routes/admin-viber-analytics';
 import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
+import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
 import { requestTiming } from './middleware/request-timing';
@@ -96,6 +97,7 @@ app.use(createAdminMessagingRouter({ prisma }));
 app.use(createAdminViberAnalyticsRouter({ prisma }));
 app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
+app.use(createAdminDzhuraRouter({ prisma }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(createTransportRouter({ prisma }));
 
