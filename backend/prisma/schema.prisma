@@ -711,6 +711,8 @@ model LunchOutboundMessage {
   kind                String    @default("send")
   telegramMessageId   BigInt?
   replyToMessageId    BigInt?
+  /// lunch — група обідів (markdown) | saved — «Обране» власника (HTML, Джура)
+  target              String    @default("lunch")
   /// pending | sent | failed
   status              String    @default("pending")
   errorText           String?   @db.Text
