@@ -1,6 +1,6 @@
 # Аудит: пошук попуток на головній — сховище та швидкодія
 
-**Status:** Фази 0–2 — PR #38 (`perf/poputky-search-phase-0-1`); Фази 3–4 — гілка `perf/poputky-search-phase-3-4` поверх неї; регіон Railway перенесено 24.09.2026 (бекенд і фронт → europe-west4-drams3a); далі Фаза 6 і NOT NULL з 3.4  
+**Status:** Фази 0–5 змерджено (PR #38, #39, #40); Фаза 6 — гілка `perf/poputky-bot-phase-6`; регіон Railway перенесено 24.09.2026; лишається NOT NULL з 3.4, коли `/admin/od-identity-stats` покаже 0  
 **Created:** 2026-09-24  
 
 Аудит зроблено 24.09.2026 (Railway metrics + код). Правило проекту: один пункт чеклісту → один
@@ -49,7 +49,12 @@
 - [x] **5.4** Імпорт Telegram-груп: пошук імені (бот/Telethon/Opendatabot) винесено з циклу імпорту в job `resolve_sender_name`; перетини — через чергу з 4.3. Bulk-шлях HTTP не потрібен: імпорт іде всередині процесу
 
 Фаза 6
-- [ ] Бот (`/allrides`, inline, `/my*rides`) на `searchListings()`
+- [x] `/mydriverrides`, `/mypassengerrides`: `personId`/`phone` у SQL замість завантаження
+  всього типу й фільтру по телефону в JS
+- [x] Спільний форматер збігів (`match-notify-format.ts`) — прибрано 12 дублів рядка
+  контрагента з `notifyMatching*` і `/my*rides`
+- [~] `/allrides`, inline (`inline-listings.ts`) — без змін: уже фільтрують у SQL з `take`
+  (не сканують увесь тип); `searchListings()` тут не застосовний
 
 ---
 
@@ -304,11 +309,22 @@ Elasticsearch/Redis/мікросервіси/read-replica — не для 0.12 G
   (`::1: 439`, старий шлях `/Users/merenkoff`).
 - **5.4 Імпорт Telegram-груп** (`fetchTelegramGroupMessages`) — той самий bulk-шлях + черга.
 
-### Фаза 6 — Бот на тому самому сервісі пошуку
-- `/allrides`, inline (`inline-listings.ts`), `/mydriverrides`, `/mypassengerrides` →
-  `searchListings()` з Фази 2 з фільтром `personId` у SQL (замість завантаження всього
-  типу і фільтру по телефону в JS).
-- Один DTO/формат для сайту й бота (зменшує дублікати в `telegram.ts`).
+### Фаза 6 — Бот: SQL-фільтр і спільний формат (зроблено)
+- `/mydriverrides` і `/mypassengerrides` вантажили **всі** активні оголошення свого типу і
+  фільтрували по нормалізованому телефону в JS — тепер `personId` (якщо є `Person`, як у
+  `getPersonByTelegram`) або точний `phone` йдуть у `WHERE`, той самий підхід, що вже був у
+  `/cancel`.
+- `src/match-notify-format.ts`: `formatCounterpartLine` + `groupListingsByMatchType` —
+  рядок «👤 Ім'я — час \n 📞 тел \n 📝 нотатки» / «🚗 …, N місць …» був продубльований
+  буквально 12 разів (`notifyMatchingPassengersForNewDriver`,
+  `notifyMatchingDriversForNewPassenger`, `/mydriverrides`, `/mypassengerrides`); тепер одна
+  функція, з юніт-тестами. Модуль без імпортів з `telegram.ts` (ім'я й телефон форматуються
+  на виклику), щоб не зробити циклічний імпорт.
+- `/allrides` і inline (`inline-listings.ts`) **не займали весь тип**: обидва вже фільтрують
+  у SQL (`isActive`, дата, опційно `route`) з `take` (80 і ≤50 відповідно) — `searchListings()`
+  тут не додає нічого; персональні підказки в `/allrides` («ваші оголошення серед показаних»)
+  фільтрують лише вже завантажені ≤80 рядків, а не окремий запит по всій таблиці, тож зайвого
+  сканування там не було.
 
 ### Фаза 7 (умовно, коли з'явиться потреба)
 Тригери: >~5 000 активних оголошень або >~10 міст-хабів.

@@ -61,6 +61,7 @@ import { findMatchCandidates } from './poputky-match';
 import { getCatalog } from './catalog-cache';
 import { tripDayKey } from './trip-day';
 import { enqueueListingMatch, enqueueResolveSenderName } from './notification-queue';
+import { formatCounterpartLine, groupListingsByMatchType } from './match-notify-format';
 import { PHONE_BLOCKED_ADMIN_MESSAGE, PHONE_BLOCKED_BOT_MESSAGE, isPhoneBlockedError, recordBlockedAttempt } from './phone-block';
 import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot';
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
@@ -1131,15 +1132,17 @@ export async function notifyMatchingPassengersForNewDriver(
 ): Promise<void> {
   const matches = await findMatchingPassengersForDriver(driverListing);
   if (matches.length === 0) return;
-  const exactList = matches.filter((m) => m.matchType === 'exact').map((m) => m.listing);
-  const approxList = matches.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
-  const sameDayList = matches.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
+  const { exact: exactList, approximate: approxList, same_day: sameDayList } = groupListingsByMatchType(matches);
+  const passengerLine = (p: (typeof exactList)[number]) =>
+    formatCounterpartLine('passenger', {
+      name: displayName(p.senderName, 'Пасажир'),
+      phoneHtml: formatPhoneTelLink(p.phone),
+      departureTime: p.departureTime,
+      notes: p.notes,
+    });
 
   if (driverChatId && exactList.length > 0) {
-    const lines = exactList.map((p) => {
-      const time = p.departureTime ?? '—';
-      return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
-    }).join('\n');
+    const lines = exactList.map(passengerLine).join('\n');
     const confirmButtons = exactList.map((p) => ([
       { text: `🤝 Запропонувати ${displayName(p.senderName, 'пасажиру')}`, callback_data: `vibermatch_book_driver_${driverListing.id}_${p.id}` }
     ]));
@@ -1152,10 +1155,7 @@ export async function notifyMatchingPassengersForNewDriver(
     ).catch(() => {});
   }
   if (driverChatId && approxList.length > 0) {
-    const lines = approxList.map((p) => {
-      const time = p.departureTime ?? '—';
-      return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
-    }).join('\n');
+    const lines = approxList.map(passengerLine).join('\n');
     await bot?.sendMessage(
       driverChatId,
       '📌 <b>Приблизне співпадіння (перетин з допуском ±2 год)</b>\n\n' + lines,
@@ -1163,10 +1163,7 @@ export async function notifyMatchingPassengersForNewDriver(
     ).catch(() => {});
   }
   if (driverChatId && sameDayList.length > 0) {
-    const lines = sameDayList.map((p) => {
-      const time = p.departureTime ?? '—';
-      return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
-    }).join('\n');
+    const lines = sameDayList.map(passengerLine).join('\n');
     await bot?.sendMessage(
       driverChatId,
       '🗓️ <b>Поїздки цього дня (маршрут і дата збігаються, але час не перетинається навіть з допуском ±2 год)</b>\n\n' + lines,
@@ -1208,15 +1205,18 @@ export async function notifyMatchingDriversForNewPassenger(
 ): Promise<void> {
   const matches = await findMatchingDriversForPassenger(passengerListing);
   if (matches.length === 0) return;
-  const exactList = matches.filter((m) => m.matchType === 'exact').map((m) => m.listing);
-  const approxList = matches.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
-  const sameDayList = matches.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
+  const { exact: exactList, approximate: approxList, same_day: sameDayList } = groupListingsByMatchType(matches);
+  const driverLine = (d: (typeof exactList)[number]) =>
+    formatCounterpartLine('driver', {
+      name: displayName(d.senderName, 'Водій'),
+      phoneHtml: formatPhoneTelLink(d.phone),
+      departureTime: d.departureTime,
+      notes: d.notes,
+      seatsLabel: d.seats != null ? `${d.seats} місць` : '—',
+    });
 
   if (passengerChatId && exactList.length > 0) {
-    const lines = exactList.map((d) => {
-      const time = d.departureTime ?? '—';
-      return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
-    }).join('\n');
+    const lines = exactList.map(driverLine).join('\n');
     const bookButtons = exactList.map((d) => [
       { text: `🎫 Забронювати у ${displayName(d.senderName, 'водія')}`, callback_data: `vibermatch_book_${passengerListing.id}_${d.id}` }
     ]);
@@ -1227,10 +1227,7 @@ export async function notifyMatchingDriversForNewPassenger(
     ).catch(() => {});
   }
   if (passengerChatId && approxList.length > 0) {
-    const lines = approxList.map((d) => {
-      const time = d.departureTime ?? '—';
-      return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
-    }).join('\n');
+    const lines = approxList.map(driverLine).join('\n');
     await bot?.sendMessage(
       passengerChatId,
       '📌 <b>Приблизне співпадіння (перетин з допуском ±2 год)</b>\n\n' + lines,
@@ -1238,10 +1235,7 @@ export async function notifyMatchingDriversForNewPassenger(
     ).catch(() => {});
   }
   if (passengerChatId && sameDayList.length > 0) {
-    const lines = sameDayList.map((d) => {
-      const time = d.departureTime ?? '—';
-      return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
-    }).join('\n');
+    const lines = sameDayList.map(driverLine).join('\n');
     await bot?.sendMessage(
       passengerChatId,
       '🗓️ <b>Поїздки цього дня (маршрут і дата збігаються, але час не перетинається навіть з допуском ±2 год)</b>\n\n' + lines,
@@ -4654,8 +4648,16 @@ ${buildReferralHelpSection()}
       return;
     }
     const normalized = normalizePhone(userPhone);
-    const listings = await tgPrisma.viberListing.findMany({ where: { listingType: 'driver', isActive: true }, orderBy: [{ date: 'asc' }, { departureTime: 'asc' }] });
-    const myListings = listings.filter((l: { phone: string | null }) => normalizePhone(l.phone ?? '') === normalized);
+    // personId, якщо є Person (стабільно й після зміни номера); інакше — точний телефон
+    const person = await getPersonByTelegram(userId, chatId);
+    const myListings = await tgPrisma.viberListing.findMany({
+      where: {
+        listingType: 'driver',
+        isActive: true,
+        ...(person ? { personId: person.id } : { phone: normalized }),
+      },
+      orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+    });
     if (myListings.length === 0) {
       await bot?.sendMessage(chatId, '🚗 <b>Мої поїздки (водій)</b>\n\nУ вас поки немає активних оголошень про поїздки.\n\nДодати поїздку: /adddriverride', { parse_mode: 'HTML' });
       return;
@@ -4688,15 +4690,17 @@ ${buildReferralHelpSection()}
         departureTime: myDriver.departureTime ?? null,
       });
       const matchesFiltered = matches.filter((m) => normalizePhone(m.listing.phone) !== normalized);
-      const exactList = matchesFiltered.filter((m) => m.matchType === 'exact').map((m) => m.listing);
-      const approxList = matchesFiltered.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
-      const sameDayList = matchesFiltered.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
+      const { exact: exactList, approximate: approxList, same_day: sameDayList } = groupListingsByMatchType(matchesFiltered);
+      const passengerLine = (p: (typeof exactList)[number]) =>
+        formatCounterpartLine('passenger', {
+          name: displayName(p.senderName, 'Пасажир'),
+          phoneHtml: formatPhoneTelLink(p.phone),
+          departureTime: p.departureTime,
+          notes: p.notes,
+        });
       const routeDateLabel = `${getRouteName(myDriver.route)}, ${formatDate(myDriver.date)} о ${myDriver.departureTime ?? '—'}`;
       if (exactList.length > 0) {
-        const linesExact = exactList.map((p) => {
-          const time = p.departureTime ?? '—';
-          return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
-        }).join('\n');
+        const linesExact = exactList.map(passengerLine).join('\n');
         const buttons = exactList.map((p) => ([
           { text: `🤝 ${truncateForButton(displayName(p.senderName, 'Пасажир'))} · ${formatShortPhoneForButton(p.phone)}`, callback_data: `vibermatch_book_driver_${myDriver.id}_${p.id}` }
         ]));
@@ -4708,10 +4712,7 @@ ${buildReferralHelpSection()}
         ).catch((err) => console.error('mydriverrides: exact matches', err));
       }
       if (approxList.length > 0) {
-        const linesApprox = approxList.map((p) => {
-          const time = p.departureTime ?? '—';
-          return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
-        }).join('\n');
+        const linesApprox = approxList.map(passengerLine).join('\n');
         await bot?.sendMessage(
           chatId,
           `📌 <b>Приблизне співпадіння (±2 год)</b> (поїздка: ${routeDateLabel})\n\n` + linesApprox,
@@ -4719,10 +4720,7 @@ ${buildReferralHelpSection()}
         ).catch((err) => console.error('mydriverrides: approx matches', err));
       }
       if (sameDayList.length > 0) {
-        const linesSameDay = sameDayList.map((p) => {
-          const time = p.departureTime ?? '—';
-          return `• 👤 ${displayName(p.senderName, 'Пасажир')} — ${time}\n  📞 ${formatPhoneTelLink(p.phone)}${p.notes ? `\n  📝 ${p.notes}` : ''}`;
-        }).join('\n');
+        const linesSameDay = sameDayList.map(passengerLine).join('\n');
         await bot?.sendMessage(
           chatId,
           `🗓️ <b>Поїздки цього дня</b> (поїздка: ${routeDateLabel})\n\n` + linesSameDay,
@@ -4739,8 +4737,15 @@ ${buildReferralHelpSection()}
       return;
     }
     const normalized = normalizePhone(userPhone);
-    const listings = await tgPrisma.viberListing.findMany({ where: { listingType: 'passenger', isActive: true }, orderBy: [{ date: 'asc' }, { departureTime: 'asc' }] });
-    const myListings = listings.filter((l: { phone: string | null }) => normalizePhone(l.phone ?? '') === normalized);
+    const person = await getPersonByTelegram(userId, chatId);
+    const myListings = await tgPrisma.viberListing.findMany({
+      where: {
+        listingType: 'passenger',
+        isActive: true,
+        ...(person ? { personId: person.id } : { phone: normalized }),
+      },
+      orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
+    });
     if (myListings.length === 0) {
       await bot?.sendMessage(chatId, '👤 <b>Мої запити (пасажир)</b>\n\nУ вас поки немає активних запитів на поїздку.\n\nДодати запит: /addpassengerride', { parse_mode: 'HTML' });
       return;
@@ -4759,15 +4764,18 @@ ${buildReferralHelpSection()}
         departureTime: myPassenger.departureTime ?? null,
       });
       const matchesFiltered = matches.filter((m) => normalizePhone(m.listing.phone) !== normalized);
-      const exactList = matchesFiltered.filter((m) => m.matchType === 'exact').map((m) => m.listing);
-      const approxList = matchesFiltered.filter((m) => m.matchType === 'approximate').map((m) => m.listing);
-      const sameDayList = matchesFiltered.filter((m) => m.matchType === 'same_day').map((m) => m.listing);
+      const { exact: exactList, approximate: approxList, same_day: sameDayList } = groupListingsByMatchType(matchesFiltered);
+      const driverLine = (d: (typeof exactList)[number]) =>
+        formatCounterpartLine('driver', {
+          name: displayName(d.senderName, 'Водій'),
+          phoneHtml: formatPhoneTelLink(d.phone),
+          departureTime: d.departureTime,
+          notes: d.notes,
+          seatsLabel: d.seats != null ? `${d.seats} місць` : '—',
+        });
       const routeDateLabel = `${getRouteName(myPassenger.route)}, ${formatDate(myPassenger.date)} о ${myPassenger.departureTime ?? '—'}`;
       if (exactList.length > 0) {
-        const linesExact = exactList.map((d) => {
-          const time = d.departureTime ?? '—';
-          return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
-        }).join('\n');
+        const linesExact = exactList.map(driverLine).join('\n');
         const buttons = exactList.map((d) => ([
           { text: `🎫 ${truncateForButton(displayName(d.senderName, 'Водій'))} · ${formatShortPhoneForButton(d.phone)} (${d.departureTime ?? '—'})`, callback_data: `vibermatch_book_${myPassenger.id}_${d.id}` }
         ]));
@@ -4779,10 +4787,7 @@ ${buildReferralHelpSection()}
         ).catch((err) => console.error('mypassengerrides: exact matches', err));
       }
       if (approxList.length > 0) {
-        const linesApprox = approxList.map((d) => {
-          const time = d.departureTime ?? '—';
-          return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
-        }).join('\n');
+        const linesApprox = approxList.map(driverLine).join('\n');
         await bot?.sendMessage(
           chatId,
           `📌 <b>Приблизне співпадіння (±2 год)</b> (ваш запит: ${routeDateLabel})\n\n` + linesApprox,
@@ -4790,10 +4795,7 @@ ${buildReferralHelpSection()}
         ).catch((err) => console.error('mypassengerrides: approx matches', err));
       }
       if (sameDayList.length > 0) {
-        const linesSameDay = sameDayList.map((d) => {
-          const time = d.departureTime ?? '—';
-          return `• 🚗 ${displayName(d.senderName, 'Водій')} — ${time}, ${d.seats != null ? d.seats + ' місць' : '—'}\n  📞 ${formatPhoneTelLink(d.phone)}${d.notes ? `\n  📝 ${d.notes}` : ''}`;
-        }).join('\n');
+        const linesSameDay = sameDayList.map(driverLine).join('\n');
         await bot?.sendMessage(
           chatId,
           `🗓️ <b>Поїздки цього дня</b> (ваш запит: ${routeDateLabel})\n\n` + linesSameDay,
