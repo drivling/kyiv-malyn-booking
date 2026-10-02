@@ -551,6 +551,39 @@ def test_exact_word_beats_other_word_form():
     assert parse_order("курка відварена", menu).lines[0].raw_name == "Курка відварена"
 
 
+def test_synonym_owner_prefers_dish_whose_name_matches_over_newer_poison():
+    """Прод 2026-10-02: хибні автосиноніми (#371, #342) були НОВІШІ за правильні (#64, #75)."""
+    from lunch.db import resolve_synonym_owners
+
+    names = {
+        41: normalize_dish_name("Салат «Грецький»"),
+        42: normalize_dish_name("Салат «Капуста з огірком»"),
+        45: normalize_dish_name("Салат «Овочевий мікс»"),
+    }
+    rows = [
+        (64, 41, normalize_dish_name("салат грецький")),
+        (75, 42, normalize_dish_name("салат з капусти")),
+        (342, 45, normalize_dish_name("салат з капусти")),
+        (371, 45, normalize_dish_name("салат грецький")),
+    ]
+    owners = resolve_synonym_owners(rows, names)
+    assert owners[normalize_dish_name("салат грецький")] == 41
+    assert owners[normalize_dish_name("салат з капусти")] == 42
+    # без назв поведінка стара: виграє найновіший запис
+    assert resolve_synonym_owners(rows)[normalize_dish_name("салат грецький")] == 45
+
+
+def test_synonym_owner_equally_similar_names_fall_back_to_newest():
+    from lunch.db import resolve_synonym_owners
+
+    names = {
+        42: normalize_dish_name("Салат «Капуста з огірком»"),
+        43: normalize_dish_name("Салат «Капуста молода з огірком»"),
+    }
+    text = normalize_dish_name("капуста з огірком")
+    assert resolve_synonym_owners([(26, 42, text), (183, 43, text)], names)[text] == 43
+
+
 def test_confirm_text_explains_ambiguity():
     from lunch.formatters import format_order_confirm
 
@@ -597,6 +630,8 @@ def main():
         test_exact_dish_name_beats_synonym_of_other_dish,
         test_synonym_owner_is_newest_row,
         test_exact_word_beats_other_word_form,
+        test_synonym_owner_prefers_dish_whose_name_matches_over_newer_poison,
+        test_synonym_owner_equally_similar_names_fall_back_to_newest,
         test_confirm_text_explains_ambiguity,
     ]
     failed = 0

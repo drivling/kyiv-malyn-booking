@@ -10,6 +10,7 @@ const lunch_1 = require("../lunch");
 const lunch_telegram_1 = require("../lunch-telegram");
 const lunch_reparse_1 = require("../lunch-reparse");
 const lunch_people_1 = require("../lunch-people");
+const dzhura_1 = require("../dzhura");
 function createAdminLunchRouter(deps) {
     const { prisma } = deps;
     const runReparsePerson = deps.reparsePerson ?? lunch_reparse_1.reparseLunchPerson;
@@ -155,6 +156,35 @@ function createAdminLunchRouter(deps) {
         catch (e) {
             console.error('[admin/lunch/reparse]', e);
             res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
+        }
+    });
+    /**
+     * Історія за період (меню дня + замовлення з підсумковими рядками) — для оцінки розпізнавання на
+     * реальних даних. ?from=YYYY-MM-DD&to=YYYY-MM-DD, за замовчуванням останні 14 днів, максимум 62.
+     * Імен і Telegram-id немає.
+     */
+    r.get('/admin/lunch/history', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const today = (0, lunch_1.todayKyivDate)().toISOString().slice(0, 10);
+            const to = req.query.to === undefined ? today : (0, dzhura_1.parseIsoDate)(req.query.to);
+            const from = req.query.from === undefined && to ? (0, dzhura_1.addDaysIso)(to, -13) : (0, dzhura_1.parseIsoDate)(req.query.from);
+            if (!from || !to) {
+                res.status(400).json({ error: 'from і to — дати у форматі YYYY-MM-DD' });
+                return;
+            }
+            if (to < from) {
+                res.status(400).json({ error: 'Дата «до» раніша за дату «від»' });
+                return;
+            }
+            if ((0, dzhura_1.daysBetweenInclusive)(from, to) > lunch_1.LUNCH_HISTORY_MAX_DAYS) {
+                res.status(400).json({ error: `Період не більше ${lunch_1.LUNCH_HISTORY_MAX_DAYS} днів` });
+                return;
+            }
+            res.json(await (0, lunch_1.getLunchHistory)(prisma, new Date(`${from}T00:00:00.000Z`), new Date(`${to}T00:00:00.000Z`)));
+        }
+        catch (e) {
+            console.error('[admin/lunch/history]', e);
+            res.status(500).json({ error: 'Не вдалося завантажити історію обідів' });
         }
     });
     /**

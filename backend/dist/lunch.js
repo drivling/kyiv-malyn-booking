@@ -1,6 +1,7 @@
 "use strict";
 /** Логіка обідів (столова) для адмін-API — дзеркало Python lunch/. */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.LUNCH_HISTORY_TOUCHED_MS = exports.LUNCH_HISTORY_MAX_DAYS = void 0;
 exports.todayKyivDate = todayKyivDate;
 exports.normalizeDishName = normalizeDishName;
 exports.guessTrayRole = guessTrayRole;
@@ -14,6 +15,7 @@ exports.deleteLunchDishSynonym = deleteLunchDishSynonym;
 exports.moveLunchDishSynonym = moveLunchDishSynonym;
 exports.upsertLunchMenuForToday = upsertLunchMenuForToday;
 exports.syncOrdersAfterMenuChange = syncOrdersAfterMenuChange;
+exports.getLunchHistory = getLunchHistory;
 exports.getLunchDaySummary = getLunchDaySummary;
 exports.formatLunchTotalsComment = formatLunchTotalsComment;
 exports.formatOrderConfirmText = formatOrderConfirmText;
@@ -393,6 +395,63 @@ async function syncOrdersAfterMenuChange(prisma, dayId) {
         }
     }
     return notices;
+}
+/** Скільки днів історії віддаємо за один запит. */
+exports.LUNCH_HISTORY_MAX_DAYS = 62;
+/** Замовлення, змінене пізніше ніж через стільки мс після створення, вважаємо «чіпаним людиною» (правка адміна). */
+exports.LUNCH_HISTORY_TOUCHED_MS = 120000;
+/**
+ * Історія днів для оцінки розпізнавання («золоті дані»): меню дня, текст замовлення, підсумкові рядки.
+ * Без імен і Telegram-id — лише id замовлення. `touchedAfterCreate` — замовлення міняли вже після
+ * створення (ручна правка адміна, повторне замовлення людини), тому його рядки надійніші за автоматичні.
+ */
+async function getLunchHistory(prisma, from, to) {
+    const days = await prisma.lunchDay.findMany({
+        where: { date: { gte: from, lte: to } },
+        orderBy: { date: 'asc' },
+        include: {
+            menuItems: {
+                orderBy: { id: 'asc' },
+                include: { dish: { include: { synonyms: { orderBy: { id: 'asc' } } } } },
+            },
+            orders: {
+                where: { status: 'active' },
+                orderBy: { id: 'asc' },
+                include: { lines: { orderBy: { id: 'asc' }, include: { dish: { select: { id: true, name: true } } } } },
+            },
+        },
+    });
+    return {
+        from: from.toISOString().slice(0, 10),
+        to: to.toISOString().slice(0, 10),
+        days: days.map((d) => ({
+            date: d.date.toISOString().slice(0, 10),
+            status: d.status,
+            menu: d.menuItems.map((m) => ({
+                dishId: m.dishId,
+                name: m.dish?.name ?? m.name,
+                priceUah: m.priceUah,
+                trayRole: m.dish?.trayRole ?? 'second',
+                synonyms: (m.dish?.synonyms ?? []).map((sy) => sy.rawText),
+            })),
+            orders: d.orders.map((o) => ({
+                id: o.id,
+                rawText: o.rawText,
+                unmatchedText: o.unmatchedText,
+                totalUah: o.totalUah,
+                trayCountManual: o.trayCountManual,
+                touchedAfterCreate: o.updatedAt.getTime() - o.createdAt.getTime() >= exports.LUNCH_HISTORY_TOUCHED_MS,
+                createdAt: o.createdAt.toISOString(),
+                updatedAt: o.updatedAt.toISOString(),
+                lines: o.lines.map((l) => ({
+                    dishId: l.dishId,
+                    name: l.dish?.name ?? l.rawName,
+                    qty: l.qty,
+                    unavailable: l.unavailable,
+                })),
+            })),
+        })),
+    };
 }
 async function getLunchDaySummary(prisma, date) {
     const d = date ?? todayKyivDate();

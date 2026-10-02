@@ -8,6 +8,8 @@ import {
   formatLunchMenuText,
   formatLunchTotalsComment,
   getLunchDaySummary,
+  getLunchHistory,
+  LUNCH_HISTORY_MAX_DAYS,
   getLunchSettings,
   moveLunchDishSynonym,
   parseLunchMenuPayload,
@@ -21,6 +23,7 @@ import {
 import { postTextToLunchGroup } from '../lunch-telegram';
 import { reparseLunchPerson, reparseLunchToday } from '../lunch-reparse';
 import { listLunchDayPeople } from '../lunch-people';
+import { addDaysIso, daysBetweenInclusive, parseIsoDate } from '../dzhura';
 
 export function createAdminLunchRouter(deps: {
   prisma: PrismaClient;
@@ -180,6 +183,35 @@ export function createAdminLunchRouter(deps: {
     } catch (e) {
       console.error('[admin/lunch/reparse]', e);
       res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
+    }
+  });
+
+  /**
+   * Історія за період (меню дня + замовлення з підсумковими рядками) — для оцінки розпізнавання на
+   * реальних даних. ?from=YYYY-MM-DD&to=YYYY-MM-DD, за замовчуванням останні 14 днів, максимум 62.
+   * Імен і Telegram-id немає.
+   */
+  r.get('/admin/lunch/history', requireAdmin, async (req, res) => {
+    try {
+      const today = todayKyivDate().toISOString().slice(0, 10);
+      const to = req.query.to === undefined ? today : parseIsoDate(req.query.to);
+      const from = req.query.from === undefined && to ? addDaysIso(to, -13) : parseIsoDate(req.query.from);
+      if (!from || !to) {
+        res.status(400).json({ error: 'from і to — дати у форматі YYYY-MM-DD' });
+        return;
+      }
+      if (to < from) {
+        res.status(400).json({ error: 'Дата «до» раніша за дату «від»' });
+        return;
+      }
+      if (daysBetweenInclusive(from, to) > LUNCH_HISTORY_MAX_DAYS) {
+        res.status(400).json({ error: `Період не більше ${LUNCH_HISTORY_MAX_DAYS} днів` });
+        return;
+      }
+      res.json(await getLunchHistory(prisma, new Date(`${from}T00:00:00.000Z`), new Date(`${to}T00:00:00.000Z`)));
+    } catch (e) {
+      console.error('[admin/lunch/history]', e);
+      res.status(500).json({ error: 'Не вдалося завантажити історію обідів' });
     }
   });
 
