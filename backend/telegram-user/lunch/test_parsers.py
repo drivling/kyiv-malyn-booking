@@ -439,6 +439,127 @@ def test_collect_confirmation_reply_map():
     assert got == {10: 13}
 
 
+def _row(i, name, price=40, syn=(), role="second"):
+    return MenuItemRow(
+        i, 1, name, normalize_dish_name(name), price, dish_id=i, tray_role=role,
+        synonym_norms=tuple(normalize_dish_name(x) for x in syn),
+    )
+
+
+def _salad_menu():
+    return [
+        _row(1, "Салат капуста з огірком", 35, role="salad"),
+        _row(2, "Салат грецький", 60, role="salad"),
+        _row(3, "Салат Цезар", 70, role="salad"),
+        _row(4, "Пюре", 40),
+    ]
+
+
+def test_generic_word_salat_is_not_a_match():
+    """Регрес 2026-10-02: «салат оливʼє» тихо ставав «Салат грецький» (спільне лише слово «салат»)."""
+    menu = _salad_menu()
+    for text in ("салат оливьє", "салат з крабовими паличками", "салат огірок помідор"):
+        r = parse_order(text, menu)
+        assert r.lines == [], (text, [ln.raw_name for ln in r.lines])
+        assert r.unmatched == [text]
+
+
+def test_bare_salat_is_ambiguous_when_several_salads():
+    r = parse_order("салат", _salad_menu())
+    assert r.lines == []
+    assert r.unmatched == ["салат"]
+    assert "салат" in r.ambiguous
+    assert len(r.ambiguous["салат"]) >= 2
+
+
+def test_bare_salat_matches_when_only_one_salad_on_menu():
+    menu = [_row(2, "Салат грецький", 60, role="salad"), _row(4, "Пюре", 40)]
+    r = parse_order("салат", menu)
+    assert [ln.raw_name for ln in r.lines] == ["Салат грецький"]
+
+
+def test_distinctive_word_still_matches_salad():
+    menu = _salad_menu()
+    assert parse_order("грецький", menu).lines[0].raw_name == "Салат грецький"
+    assert parse_order("цезар", menu).lines[0].raw_name == "Салат Цезар"
+    assert parse_order("грецкий салат", menu).lines[0].raw_name == "Салат грецький"
+    assert parse_order("капуста огірок", menu).lines[0].raw_name == "Салат капуста з огірком"
+
+
+def test_explicit_synonym_beats_fuzzy_neighbours():
+    menu = [_row(1, "Салат капуста з огірком", 35), _row(2, "Салат грецький", 60, syn=("салат",))]
+    r = parse_order("салат", menu)
+    assert [ln.raw_name for ln in r.lines] == ["Салат грецький"]
+    assert r.ambiguous == {}
+
+
+def test_same_synonym_on_two_dishes_is_ambiguous_not_first_in_menu():
+    menu = [
+        _row(1, "Салат капуста з огірком", 35, syn=("салат грецький",)),
+        _row(2, "Салат грецький шеф", 60, syn=("салат грецький",)),
+    ]
+    r = parse_order("салат грецький", menu)
+    assert r.lines == []
+    assert set(r.ambiguous["салат грецький"]) == {"Салат капуста з огірком", "Салат грецький шеф"}
+
+
+def test_near_duplicate_dishes_flag_ambiguity():
+    menu = [_row(1, "Філе курки з ананасом", 95), _row(2, "Філе курки запечене", 90)]
+    r = parse_order("філе курки", menu)
+    assert r.lines == []
+    assert "філе курки" in r.ambiguous
+    # а повна назва — однозначна
+    assert parse_order("філе курки з ананасом", menu).lines[0].raw_name == "Філе курки з ананасом"
+
+
+def test_ambiguous_part_is_not_reported_as_unavailable_today():
+    today = _salad_menu()
+    yesterday = [_row(9, "Салат Олів'є", 50, role="salad")]
+    r = parse_order_contextual("салат, пюре", today, yesterday)
+    assert [ln.raw_name for ln in r.lines] == ["Пюре"]
+    assert r.unavailable == []
+    assert r.unmatched == ["салат"]
+    assert "салат" in r.ambiguous
+
+
+def test_word_endings_and_ru_spelling_still_match():
+    menu = [_row(1, "Котлети курячі", 75), _row(2, "Вареники з картоплею", 60), _row(3, "Салат капуста з огірком", 35)]
+    assert parse_order("котлеты", menu).lines[0].raw_name == "Котлети курячі"
+    assert parse_order("вареники с картошкой", menu).lines[0].raw_name == "Вареники з картоплею"
+    assert parse_order("салат капуста с огурцом", menu).lines[0].raw_name == "Салат капуста з огірком"
+
+
+def test_exact_dish_name_beats_synonym_of_other_dish():
+    menu = [_row(1, "Салат", 30, role="salad"), _row(2, "Салат грецький", 60, syn=("салат",), role="salad")]
+    r = parse_order("салат", menu)
+    assert [ln.raw_name for ln in r.lines] == ["Салат"]
+
+
+def test_synonym_owner_is_newest_row():
+    from lunch.db import resolve_synonym_owners
+
+    rows = [(1, 10, "салат оливе"), (2, 20, "салат оливе"), (3, 10, "пюре")]
+    assert resolve_synonym_owners(rows) == {"салат оливе": 20, "пюре": 10}
+    assert resolve_synonym_owners([]) == {}
+
+
+def test_exact_word_beats_other_word_form():
+    """«курка» — це «Курка відварена», а не «Філе курки з ананасом» (інша форма того ж слова слабша)."""
+    menu = [_row(1, "Курка відварена", 70), _row(2, "Філе курки з ананасом", 95), _row(3, "Пюре", 40)]
+    assert parse_order("курка", menu).lines[0].raw_name == "Курка відварена"
+    assert parse_order("філе курки", menu).lines[0].raw_name == "Філе курки з ананасом"
+    assert parse_order("курка відварена", menu).lines[0].raw_name == "Курка відварена"
+
+
+def test_confirm_text_explains_ambiguity():
+    from lunch.formatters import format_order_confirm
+
+    r = parse_order("пюре, салат", _salad_menu())
+    text = format_order_confirm("Аліна", r.lines, r.total_uah, r.unmatched, ambiguous=r.ambiguous)
+    assert "Не розпізнав: салат" in text
+    assert "«салат» — це " in text and " чи " in text
+
+
 def main():
     tests = [
         test_normalize,
@@ -464,6 +585,19 @@ def main():
         test_fallback_silent_before_today_menu,
         test_unavailable_when_today_menu_exists,
         test_collect_confirmation_reply_map,
+        test_generic_word_salat_is_not_a_match,
+        test_bare_salat_is_ambiguous_when_several_salads,
+        test_bare_salat_matches_when_only_one_salad_on_menu,
+        test_distinctive_word_still_matches_salad,
+        test_explicit_synonym_beats_fuzzy_neighbours,
+        test_same_synonym_on_two_dishes_is_ambiguous_not_first_in_menu,
+        test_near_duplicate_dishes_flag_ambiguity,
+        test_ambiguous_part_is_not_reported_as_unavailable_today,
+        test_word_endings_and_ru_spelling_still_match,
+        test_exact_dish_name_beats_synonym_of_other_dish,
+        test_synonym_owner_is_newest_row,
+        test_exact_word_beats_other_word_form,
+        test_confirm_text_explains_ambiguity,
     ]
     failed = 0
     for t in tests:

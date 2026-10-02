@@ -71,6 +71,35 @@ def _outbound_retry_delay(attempt: int, flood_seconds: Optional[int]) -> int:
     return min(OUTBOUND_RETRY_MAX_SEC, OUTBOUND_RETRY_BASE_SEC * (2 ** max(0, attempt - 1)))
 
 
+def _edit_target_gone(exc: Exception) -> bool:
+    """Telegram не дає правити повідомлення: його видалили або воно не наше."""
+    return type(exc).__name__ in ("MessageIdInvalidError", "MessageAuthorRequiredError") or (
+        "message ID is invalid" in str(exc)
+    )
+
+
+async def edit_or_reply(client, entity, db: LunchDB, row: dict):
+    """Підправити нашу відповідь у групі. Якщо її вже немає (видалили) — написати нову відповідь на
+    повідомлення людини й запам'ятати її id, замість нескінченних ретраїв edit.
+    Повертає надіслане повідомлення або None, якщо відредагували."""
+    mid = int(row["telegram_message_id"])
+    try:
+        await client.edit_message(entity, mid, row["text"])
+        return None
+    except Exception as e:  # noqa: BLE001
+        if not _edit_target_gone(e):
+            raise
+        source = await db.find_order_source_by_reply_id(mid)
+        if not source:
+            raise
+        sent = await client.send_message(entity, row["text"], reply_to=source)
+        sent_id = getattr(sent, "id", None)
+        if sent_id:
+            await db.set_order_reply_message_id_by_source(source, int(sent_id))
+        print(f"[lunch] edit of reply {mid} impossible, posted a new reply to msg {source}")
+        return sent
+
+
 def _dzhura_enabled() -> bool:
     raw = (os.environ.get("DZHURA_ENABLED") or "1").strip().lower()
     return raw not in ("0", "false", "no", "off")
@@ -413,6 +442,7 @@ async def run() -> None:
         today_menu = await db.list_menu_items(day.id)
         fallback = await db.get_fallback_menu(day.id)
         if not today_menu and not fallback:
+            print(f"[lunch] msg {msg.id} from {name}: схоже на замовлення, але меню ще немає (дозбереться після імпорту меню)")
             return
 
         # Підсумок інколи приходить без «>» у тексті Telethon — перевірка ще раз
@@ -422,6 +452,12 @@ async def run() -> None:
         result = parse_order_contextual(text, today_menu, fallback)
         dish_count = sum(l.qty for l in result.lines)
         if not result.lines and not result.unavailable:
+            why = (
+                "неоднозначно: " + "; ".join(f"«{k}» — {' / '.join(v)}" for k, v in result.ambiguous.items())
+                if result.ambiguous
+                else "жодна страва не збіглась з меню"
+            )
+            print(f"[lunch] msg {msg.id} from {name} ({uid}): пропущено — {why}; текст={text[:120]!r}")
             return
         action = decide_personal_order_action(
             day_status=day.status,
@@ -429,6 +465,7 @@ async def run() -> None:
             dish_qty_total=dish_count or (1 if result.unavailable else 0),
         )
         if action == PersonalOrderAction.DAY_CLOSED:
+            print(f"[lunch] msg {msg.id} from {name} ({uid}): день закрито, замовлення не записано")
             await reply(event, "Прийом замовлень закрито.")
             return
         if action == PersonalOrderAction.MEGA:
@@ -441,6 +478,7 @@ async def run() -> None:
             return
 
         if not uid:
+            print(f"[lunch] msg {msg.id} from {name}: немає id відправника, замовлення не записано")
             return
 
         if result.unavailable and not result.lines:
@@ -457,9 +495,9 @@ async def run() -> None:
             source_message_id=msg.id,
             unmatched_text=result.unmatched_text or None,
         )
-        for line in result.lines:
-            if line.dish_id and line.as_written:
-                await db.save_synonym(line.dish_id, line.as_written)
+        # Синоніми НЕ навчаємо автоматично: кожен нечіткий збіг ставав «правилом», і хибний
+        # збіг («салат оливʼє» → «Салат грецький») закріплювався назавжди. Синонім додає лише
+        # людина в адмінці (ручна правка замовлення / картка страви).
         tray_price = await db.get_tray_price()
         trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
         confirm = format_order_confirm(
@@ -471,13 +509,40 @@ async def run() -> None:
             tray_price_uah=tray_price,
             tray_total_uah=tray_sum,
             unavailable=result.unavailable,
+            ambiguous=result.ambiguous,
         )
         reply_id = await reply(event, confirm)
         if reply_id:
             await db.set_order_reply_message_id(order_id, reply_id)
+        print(f"[lunch] order msg={msg.id} from {name} ({uid}): {len(result.lines)} позицій, не розпізнано={len(result.unmatched)}")
+
+    async def run_catch_up(reason: str) -> None:
+        try:
+            from lunch.catch_up import catch_up_today
+
+            stats = await catch_up_today(client, entity, db)
+            if stats.get("orders") or stats.get("payments") or stats.get("cards") or stats.get("resolved") or stats.get("partial"):
+                print(f"[lunch] catch-up ({reason}): {stats}")
+        except Exception as e:  # noqa: BLE001 — дозбір не повинен валити слухача
+            print(f"[lunch] catch-up ({reason}) failed: {e}", file=sys.stderr)
+
+    async def catch_up_on_start() -> None:
+        await asyncio.sleep(3)  # дати обробникам і Джурі підняти свої gap-fill
+        await run_catch_up("start")
 
     async def outbound_loop() -> None:
+        menu_sig: Optional[str] = None
+        tick = 0
         while True:
+            tick += 1
+            if tick % 5 == 0:  # раз на ~10 с: чи не змінилось сьогоднішнє меню
+                try:
+                    sig = await db.today_menu_signature()
+                    if menu_sig is not None and sig != menu_sig and sig:
+                        await run_catch_up("menu-changed")
+                    menu_sig = sig
+                except Exception as e:  # noqa: BLE001
+                    print(f"[lunch] menu signature: {e}", file=sys.stderr)
             try:
                 pending = await db.fetch_pending_outbound(limit=5)
                 for row in pending:
@@ -493,7 +558,7 @@ async def run() -> None:
                             await asyncio.sleep(SAVED_RELAY_PAUSE_SEC)
                             continue
                         if kind == "edit" and row.get("telegram_message_id"):
-                            await client.edit_message(entity, int(row["telegram_message_id"]), row["text"])
+                            sent = await edit_or_reply(client, entity, db, row)
                         elif row.get("reply_to_message_id"):
                             sent = await client.send_message(
                                 entity, row["text"], reply_to=int(row["reply_to_message_id"])
@@ -538,6 +603,28 @@ async def run() -> None:
                         except Exception as e:
                             print(f"[lunch] job fail id={job['id']}: {e}", file=sys.stderr)
                             await db.fail_job(job["id"], str(e))
+                    elif job["type"] == "reparse_person":
+                        try:
+                            from lunch.reparse_person import reparse_person
+
+                            params = job.get("params") or {}
+                            print(f"[lunch] job reparse_person id={job['id']} params={params}")
+                            stats = await reparse_person(
+                                client,
+                                entity,
+                                db,
+                                group_id=group_id,
+                                tg_user_id=int(params["tgUserId"]),
+                                notify=bool(params.get("notify", True)),
+                            )
+                            await db.complete_job(job["id"], stats)
+                            print(
+                                f"[lunch] job done id={job['id']} orders={stats.get('orders')} "
+                                f"payments={stats.get('payments')} messages={stats.get('messages')}"
+                            )
+                        except Exception as e:
+                            print(f"[lunch] job fail id={job['id']}: {e}", file=sys.stderr)
+                            await db.fail_job(job["id"], str(e))
                     else:
                         await db.fail_job(job["id"], f"unknown job type: {job['type']}")
             except Exception as e:
@@ -545,6 +632,7 @@ async def run() -> None:
             await asyncio.sleep(2)
 
     outbound_task = asyncio.create_task(outbound_loop())
+    catch_up_task = asyncio.create_task(catch_up_on_start())
     dzhura_tasks = [asyncio.create_task(coro) for coro in dzhura_coros]
 
     # Node зупиняє слухача SIGTERM-ом (пауза під ексклюзивну userbot-сесію). Без обробника
@@ -559,9 +647,9 @@ async def run() -> None:
     try:
         await client.run_until_disconnected()
     finally:
-        for task in [outbound_task, *dzhura_tasks]:
+        for task in [outbound_task, catch_up_task, *dzhura_tasks]:
             task.cancel()
-        for task in [outbound_task, *dzhura_tasks]:
+        for task in [outbound_task, catch_up_task, *dzhura_tasks]:
             try:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
