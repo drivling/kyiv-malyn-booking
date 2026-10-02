@@ -16,6 +16,7 @@ from .parse_summary import (
     looks_like_day_summary,
     looks_like_mega_personal_order,
     parse_day_summary,
+    parse_numbered_summary,
     synthetic_telegram_id,
 )
 
@@ -427,8 +428,6 @@ async def reparse_day_with_client(
     Завантажити повідомлення групи за день (Europe/Kyiv) і перепарсити.
     Меню не чіпаємо. clear_orders=True — скинути замовлення/оплати за день.
     """
-    from telethon.tl.custom.message import Message
-
     stats = ReparseStats()
     d = day or today_kyiv()
     day_row = await db.get_or_create_day(d)
@@ -458,6 +457,8 @@ async def reparse_day_with_client(
     # до появи підсумку дозволяємо замовлення навіть якщо день був closed до clear
     closed_by_summary = False
     ctx = DayContext()
+    numbered_summaries: list[dict[str, Any]] = []
+    person_texts: list[str] = []
 
     for msg in messages:
         stats.scanned += 1
@@ -475,6 +476,16 @@ async def reparse_day_with_client(
             name = _display_name(sender)
             uid = str(getattr(sender, "id", "")) if sender else ""
             username = getattr(sender, "username", None) if sender else None
+
+            # Нумерований підсумок оператора («1. … 2. …») — звіримо з повідомленнями людей ПІСЛЯ проходу
+            # (його правлять протягом дня, у ньому є замовлення, що прийшли пізніше за час повідомлення).
+            numbered = parse_numbered_summary(text)
+            if numbered and not parse_day_summary(text).ok:
+                numbered_summaries.append(
+                    {"entries": numbered, "uid": uid, "name": name, "username": username, "msg_id": int(msg.id)}
+                )
+            elif not (getattr(msg, "out", False) and is_system_echo(text)):
+                person_texts.append(text)
 
             allow = not closed_by_summary
             before_summaries = stats.summaries
@@ -495,6 +506,35 @@ async def reparse_day_with_client(
                 closed_by_summary = True
         except Exception as e:
             stats.errors.append(f"msg {getattr(msg, 'id', '?')}: {e}")
+
+    if numbered_summaries:
+        try:
+            from .summary_owner import attribute_summary_leftover
+
+            last = numbered_summaries[-1]
+            menu_now, _fallback = await ctx.load(db, day_row.id)
+            info = await attribute_summary_leftover(
+                db,
+                day_row.id,
+                menu_now,
+                entries=last["entries"],
+                known_texts=person_texts,
+                sender_uid=last["uid"],
+                sender_name=last["name"],
+                sender_username=last["username"],
+                source_message_id=last["msg_id"],
+                notify=False,  # розбір дня мовчки, як і решта
+            )
+            if info["status"] == "created":
+                stats.orders += 1
+                stats.note(
+                    last["msg_id"], last["name"], info.get("text", ""), "order",
+                    "замовлення автора підсумку (пункт списку без повідомлення людини)",
+                )
+            else:
+                stats.note(last["msg_id"], last["name"], "[підсумок списком]", "skipped", info.get("reason", ""))
+        except Exception as e:  # noqa: BLE001
+            stats.errors.append(f"numbered summary: {e}")
 
     if reply_by_source:
         try:

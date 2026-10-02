@@ -26,7 +26,9 @@ from typing import Any, Optional
 from .db import LunchDB, today_kyiv
 from .formatters import format_order_confirm
 from .parse_order import parse_order
-from .reparse_day import DayContext, kyiv_day_bounds, plan_text_message
+from .parse_summary import parse_day_summary, parse_numbered_summary
+from .reparse_day import DayContext, is_system_echo, kyiv_day_bounds, plan_text_message
+from .summary_owner import attribute_summary_leftover
 
 CATCH_UP_WINDOW = timedelta(hours=3)
 CATCH_UP_LIMIT = 300
@@ -145,6 +147,8 @@ async def catch_up_today(
     since = max(start.astimezone(timezone.utc), current - CATCH_UP_WINDOW)
     end_utc = end.astimezone(timezone.utc)
 
+    # Дивимось на всю добу: старі повідомлення потрібні лише для звірки підсумку оператора,
+    # замовлення й оплати створюємо тільки з «свіжих» (останні CATCH_UP_WINDOW).
     messages: list = []
     async for msg in client.iter_messages(entity, limit=CATCH_UP_LIMIT):
         if not msg.date:
@@ -152,19 +156,41 @@ async def catch_up_today(
         md = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
         if md > end_utc:
             continue
-        if md < since:
+        if md < start.astimezone(timezone.utc):
             break
-        messages.append(msg)
+        messages.append((msg, md >= since))
     messages.reverse()
 
     card_known = bool(day.payee_card)
-    for msg in messages:
+    numbered_summaries: list[dict[str, Any]] = []
+    person_texts: list[str] = []
+    for msg, fresh in messages:
         text = (getattr(msg, "message", None) or getattr(msg, "text", None) or "").strip()
         if not text:
             continue
-        stats["scanned"] += 1
         sender_id = getattr(msg, "sender_id", None)
         uid = str(sender_id) if sender_id else ""
+        is_own = bool(getattr(msg, "out", False))
+
+        numbered = parse_numbered_summary(text)
+        if numbered and not parse_day_summary(text).ok:
+            sender = await msg.get_sender()
+            numbered_summaries.append(
+                {
+                    "entries": numbered,
+                    "uid": uid,
+                    "name": _display_name(sender),
+                    "username": getattr(sender, "username", None) if sender else None,
+                    "msg_id": int(msg.id),
+                }
+            )
+            continue
+        if not (is_own and is_system_echo(text)):
+            person_texts.append(text)
+
+        if not fresh:
+            continue
+        stats["scanned"] += 1
         plan = plan_text_message(
             text,
             uid=uid,
@@ -232,4 +258,23 @@ async def catch_up_today(
 
     fixed = await resolve_incomplete_orders(db, day.id, menu, notify=notify)
     stats["resolved"], stats["partial"] = fixed["resolved"], fixed["partial"]
+
+    # Нумерований підсумок оператора: єдиний пункт без повідомлення людини — страви автора підсумку
+    if numbered_summaries:
+        last = numbered_summaries[-1]
+        info = await attribute_summary_leftover(
+            db,
+            day.id,
+            menu,
+            entries=last["entries"],
+            known_texts=person_texts,
+            sender_uid=last["uid"],
+            sender_name=last["name"],
+            sender_username=last["username"],
+            source_message_id=last["msg_id"],
+            notify=notify,
+        )
+        stats["summary_owner"] = info["status"]
+        if info["status"] == "created":
+            stats["orders"] += 1
     return stats

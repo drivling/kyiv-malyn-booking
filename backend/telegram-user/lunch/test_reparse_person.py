@@ -19,6 +19,7 @@ if str(_ROOT) not in sys.path:
 
 from lunch.db import DayRow, MenuItemRow, OrderLineInput, today_kyiv
 from lunch.reparse_day import (
+    reparse_day_with_client,
     DayContext,
     ReparseStats,
     kyiv_day_bounds,
@@ -27,7 +28,9 @@ from lunch.reparse_day import (
 )
 from lunch.catch_up import catch_up_today, resolve_incomplete_orders
 from lunch.listener import edit_or_reply
+from lunch.parse_summary import parse_numbered_summary
 from lunch.reparse_person import reparse_person
+from lunch.summary_owner import attribute_summary_leftover, find_unexplained_entries
 from lunch.util import normalize_dish_name
 
 GROUP = -100
@@ -67,6 +70,16 @@ class FakeDB:
 
     async def get_or_create_day(self, d=None):
         return DayRow(id=1, date=d or today_kyiv(), status=self.status, menu_message_id=None, payee_card=None)
+
+    async def clear_day_orders_and_payments(self, day_id):
+        self.orders.clear()
+        self.payments.clear()
+
+    async def set_day_status(self, day_id, status):
+        self.status = status
+
+    async def set_reply_ids_by_source(self, day_id, mapping):
+        return 0
 
     async def get_day(self, d=None):
         return None if self.no_day else DayRow(
@@ -178,10 +191,12 @@ class FakeSender:
     first_name: str = "Аліна"
     last_name: Optional[str] = None
     username: Optional[str] = "alina"
+    id: int = 0
 
 
 class FakeMsg:
-    def __init__(self, mid, text, when, sender_id=UID, photo=False):
+    def __init__(self, mid, text, when, sender_id=UID, photo=False, sender_name=None):
+        self.sender_name = sender_name
         self.out = False
         self.id = mid
         self.message = text
@@ -191,7 +206,7 @@ class FakeMsg:
         self.photo = photo
 
     async def get_sender(self):
-        return FakeSender()
+        return FakeSender(first_name=self.sender_name or "Аліна", id=self.sender_id)
 
 
 class FakeClient:
@@ -646,6 +661,177 @@ def test_edit_or_reply_reraises_other_errors_and_unknown_orders():
     assert gone.sent == []
 
 
+# ---------- нумерований підсумок оператора: пункт без повідомлення людини = страви автора ----------
+
+# Підсумок оператора 2026-10-02 (як був; імена людей у ньому відсутні — лише номери)
+OPERATOR_SUMMARY = (
+    "1. Пюре \nФиле куриное запечене с помидором \nСирники \n\n2.Оселедець під шубою\n\n"
+    "3.Гречка \nЯйце з кабачковою ікрою \nСалат з капусти\n\n4.філе риби в яйці, гречка, салат грецький\n\n"
+    "5.пюре\nкапуста тушенная с мясом\n\n6.1 порції сметани\n\n7.Печінкові оладки \nСалат крабово-сирний\n\n"
+    "8.макарони\nкотлети\nсалат капуста з огірком\n\n9.Буряк з сиром фета\nКаша пшоняна\nКотлети курячі\n\n"
+    "10.Биток, буряк фета"
+)
+
+# Повідомлення людей того дня (без підсумку)
+PEOPLE_TEXTS = [
+    "Оселедець під шубою",
+    "Гречка \nЯйце з кабачковою ікрою \nСалат з капусти",
+    "філе риби в яйці, гречка, салат грецький",
+    "пюре\nкапуста тушенная с мясом",
+    "1 порції сметани",  # не з меню, але це чиєсь повідомлення — пункт 6 пояснений
+    "Печінкові оладки \nСалат крабово-сирний",
+    "макарони\nкотлети\nсалат капуста з огірком",
+    "Буряк з сиром фета\nКаша пшоняна\nКотлети курячі",
+    "Биток, буряк фета",
+    "привіт всім",
+]
+
+
+def _summary_menu():
+    def r(i, name, price, role="second"):
+        return MenuItemRow(i, 1, name, normalize_dish_name(name), price, dish_id=i, tray_role=role)
+
+    return [
+        r(36, "Пюре", 45), r(60, "Філе курки запечене з ананасом або помідором", 90), r(51, "Сирники", 45),
+        r(48, "Салат «Оселедець під шубою»", 50, "salad"), r(12, "Гречка", 35), r(81, "Яйце з кабачковою ікрою", 40),
+        r(43, "Салат «Капуста молода з огірком»", 40, "salad"), r(84, "Філе риби смажене в яйці", 80),
+        r(41, "Салат «Грецький»", 25, "salad"), r(86, "Капуста тушкована з м'ясом", 90), r(33, "Печінкові оладки", 70),
+        r(44, "Салат «Крабово-сирний»", 50, "salad"), r(26, "Макарони", 40), r(22, "Котлети курячі", 70),
+        r(6, "Буряк з сиром фета", 50), r(18, "Каша пшоняна з грибами", 45), r(1, "Биток Київський", 90),
+    ]
+
+
+def test_parse_numbered_summary_reads_the_real_summary():
+    entries = parse_numbered_summary(OPERATOR_SUMMARY)
+    assert len(entries) == 10
+    assert entries[0] == "Пюре\nФиле куриное запечене с помидором\nСирники"
+    assert entries[5] == "1 порції сметани"
+    assert entries[9] == "Биток, буряк фета"
+
+
+def test_parse_numbered_summary_ignores_ordinary_texts():
+    assert parse_numbered_summary("Пюре\nкотлети") == []
+    assert parse_numbered_summary("1. борщ\n2. котлета") == []  # лише два пункти
+    assert parse_numbered_summary("1. борщ\n3. котлета\n4. компот") == []  # нумерація не підряд
+    assert parse_numbered_summary("> Диана:\nрис\n\n> Марта:\nпюре") == []  # формат із цитатами — не наш
+
+
+def test_only_the_entry_nobody_wrote_is_unexplained():
+    entries = parse_numbered_summary(OPERATOR_SUMMARY)
+    assert find_unexplained_entries(entries, PEOPLE_TEXTS, _summary_menu()) == [0]
+    # якщо повідомлення людини немає серед відомих — її пункт теж стає «нічийним»
+    assert find_unexplained_entries(entries, PEOPLE_TEXTS[:1] + PEOPLE_TEXTS[2:], _summary_menu()) == [0, 2]
+
+
+def _attribute(db, known=None, entries=None, uid="5"):
+    return run(attribute_summary_leftover(
+        db, 1, _summary_menu(), entries=entries or parse_numbered_summary(OPERATOR_SUMMARY),
+        known_texts=PEOPLE_TEXTS if known is None else known,
+        sender_uid=uid, sender_name="Святослав", sender_username=None, source_message_id=105150,
+    ))
+
+
+def test_leftover_entry_becomes_the_operators_order():
+    db = FakeDB(menu=_summary_menu())
+    out = _attribute(db)
+    assert out["status"] == "created" and out["total"] == 45 + 90 + 45 + 5
+    pid = db.participants["5"]["id"]
+    assert sorted(db.orders[pid]["lines"]) == sorted(
+        ["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"]
+    )
+    assert db.orders[pid]["source"] == 105150
+    assert db.outbound[-1]["reply_to"] == 105150 and "Святослав, заказ:" in db.outbound[-1]["text"]
+
+
+def test_leftover_not_attributed_when_it_is_ambiguous_which_entries_are_nobodys():
+    db = FakeDB(menu=_summary_menu())
+    out = _attribute(db, known=PEOPLE_TEXTS[:1] + PEOPLE_TEXTS[2:])  # два пункти без автора
+    assert out["status"] == "skipped" and "2 пунктів" in out["reason"]
+    assert db.orders == {}
+
+
+def test_leftover_not_attributed_when_operator_already_has_an_order():
+    db = FakeDB(menu=_summary_menu())
+    pid = run(db.upsert_participant("5", "Святослав"))
+    run(db.upsert_order(1, pid, "своє", 40, [OrderLineInput(36, "Пюре", 1, 45, 45, dish_id=36)]))
+    out = _attribute(db)
+    assert out["status"] == "skipped" and db.orders[pid]["lines"] == ["Пюре"]
+    # скасоване ("Прибрати") теж не воскрешаємо
+    db2 = FakeDB(menu=_summary_menu())
+    pid2 = run(db2.upsert_participant("5", "Святослав"))
+    db2.cancelled.add(pid2)
+    assert _attribute(db2)["status"] == "skipped" and pid2 not in db2.orders
+
+
+def test_leftover_not_attributed_when_entry_is_not_on_todays_menu():
+    entries = parse_numbered_summary(OPERATOR_SUMMARY)
+    entries[0] = "Пюре\nквасоля стручкова"
+    db = FakeDB(menu=_summary_menu())
+    out = _attribute(db, entries=entries)
+    assert out["status"] == "skipped" and "не розпізнано" in out["reason"] and db.orders == {}
+
+
+def test_catch_up_attributes_operator_order_once_and_only_from_whole_day():
+    """Усі повідомлення старші за вікно дозбору (3 год) — замовлення людей не чіпаємо, але для звірки читаємо."""
+    db = FakeDB(menu=_summary_menu())
+    msgs = [FakeMsg(100 + i, t, _today_at(7, 31 + i), sender_id=200 + i) for i, t in enumerate(PEOPLE_TEXTS)]
+    msgs.append(FakeMsg(150, OPERATOR_SUMMARY, _today_at(7, 54), sender_id=5, sender_name="Святослав"))
+    client = FakeClient(msgs)
+    out1 = run(catch_up_today(client, object(), db, now=_now_at(13, 0)))
+    pid = db.participants["5"]["id"]
+    assert out1["summary_owner"] == "created"
+    assert sorted(db.orders[pid]["lines"]) == sorted(
+        ["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"]
+    )
+    # людей із старих повідомлень не чіпали
+    assert len(db.orders) == 1
+    out2 = run(catch_up_today(client, object(), db, now=_now_at(13, 5)))
+    assert out2["summary_owner"] == "skipped" and len(db.orders) == 1
+
+
+def test_day_reparse_adds_operators_own_order_from_numbered_summary():
+    """Повний «Розібрати день»: замовлення людей + єдиний пункт підсумку без автора → автору підсумку."""
+    db = FakeDB(menu=_summary_menu())
+    msgs = [
+        FakeMsg(110 + i, t, _today_at(7, 31 + i), sender_id=200 + i, sender_name=f"Людина{i}")
+        for i, t in enumerate(PEOPLE_TEXTS[:9])  # без «привіт всім»
+    ]
+    msgs.append(FakeMsg(150, OPERATOR_SUMMARY, _today_at(7, 54), sender_id=5, sender_name="Святослав"))
+    stats = run(reparse_day_with_client(FakeClient(msgs), object(), db))
+    names = {p["name"] for p in db.participants.values()}
+    assert "Святослав" in names
+    sv = db.participants["5"]["id"]
+    assert sorted(db.orders[sv]["lines"]) == sorted(
+        ["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"]
+    )
+    # 8 замовлень людей (повідомлення «1 порції сметани» замовленням не стало) + 1 оператора
+    assert stats.orders == 9 and len(db.orders) == 9
+    assert any(d["reason"].startswith("замовлення автора підсумку") for d in stats.details)
+    assert db.outbound == []  # розбір дня мовчить
+
+
+def test_day_reparse_leaves_summary_alone_when_it_cannot_be_reconciled():
+    db = FakeDB(menu=_summary_menu())
+    msgs = [FakeMsg(110, "Биток, буряк фета", _today_at(7, 40), sender_id=200, sender_name="Людина")]
+    msgs.append(FakeMsg(150, OPERATOR_SUMMARY, _today_at(7, 54), sender_id=5, sender_name="Святослав"))
+    stats = run(reparse_day_with_client(FakeClient(msgs), object(), db))
+    assert "5" not in db.participants  # забагато «нічиїх» пунктів — нікому нічого не приписано
+    assert any("[підсумок списком]" in d["text"] for d in stats.details)
+
+
+def test_leftover_not_attributed_when_it_looks_like_a_persons_edited_order():
+    """Оператор змінив чуже замовлення в підсумку: пункт «нічий», а повідомлення людини лишилось невикористаним."""
+    db = FakeDB(menu=_summary_menu())
+    entries = parse_numbered_summary(OPERATOR_SUMMARY)
+    entries[8] = "Буряк з сиром фета\nМакарони"  # було: Буряк, Каша пшоняна, Котлети курячі
+    # тепер «нічиїх» два пункти (1 і 9) — і так не приписуємо; прибираємо перший, щоб лишився один
+    entries[0] = PEOPLE_TEXTS[1]  # пункт 1 пояснюється повідомленням 2-ї людини (дубль)
+    known = PEOPLE_TEXTS + [PEOPLE_TEXTS[1]]
+    out = _attribute(db, known=known, entries=entries)
+    assert out["status"] == "skipped" and "змінене" in out["reason"]
+    assert db.orders == {}
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -679,6 +865,17 @@ def main():
         test_edit_or_reply_edits_normally,
         test_edit_or_reply_posts_new_reply_when_old_one_was_deleted,
         test_edit_or_reply_reraises_other_errors_and_unknown_orders,
+        test_parse_numbered_summary_reads_the_real_summary,
+        test_parse_numbered_summary_ignores_ordinary_texts,
+        test_only_the_entry_nobody_wrote_is_unexplained,
+        test_leftover_entry_becomes_the_operators_order,
+        test_leftover_not_attributed_when_it_is_ambiguous_which_entries_are_nobodys,
+        test_leftover_not_attributed_when_operator_already_has_an_order,
+        test_leftover_not_attributed_when_entry_is_not_on_todays_menu,
+        test_leftover_not_attributed_when_it_looks_like_a_persons_edited_order,
+        test_catch_up_attributes_operator_order_once_and_only_from_whole_day,
+        test_day_reparse_adds_operators_own_order_from_numbered_summary,
+        test_day_reparse_leaves_summary_alone_when_it_cannot_be_reconciled,
     ]
     failed = 0
     for t in tests:

@@ -96,6 +96,34 @@ def order_signature(text: str) -> tuple[str, ...]:
     return tuple(sorted(n for n in norms if n))
 
 
+_NUMBERED_ENTRY_RE = re.compile(r"^\s*(\d{1,2})\s*[.)]\s*(.*)$", re.UNICODE)
+
+
+def parse_numbered_summary(text: str) -> list[str]:
+    """Підсумок оператора списком «1. страви / 2. страви …»: кожен пункт — замовлення однієї людини.
+
+    Повертає тексти пунктів по порядку. Порожній список — якщо це не схоже на такий підсумок:
+    потрібні щонайменше три пункти й нумерація строго 1, 2, 3… (інакше це може бути просто
+    нумерований перелік страв у чиємусь особистому замовленні)."""
+    entries: list[tuple[int, list[str]]] = []
+    cur: tuple[int, list[str]] | None = None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        m = _NUMBERED_ENTRY_RE.match(line)
+        if m:
+            body = m.group(2).strip()
+            cur = (int(m.group(1)), [body] if body else [])
+            entries.append(cur)
+        elif not line:
+            cur = None
+        elif cur is not None:
+            cur[1].append(line)
+    numbers = [n for n, _ in entries]
+    if len(entries) < 3 or numbers != list(range(1, len(entries) + 1)):
+        return []
+    return ["\n".join(lines).strip() for _, lines in entries]
+
+
 def _split_blocks(body: str) -> list[str]:
     chunks = re.split(r"\n\s*\n+", (body or "").strip())
     return [c.strip() for c in chunks if c.strip()]
