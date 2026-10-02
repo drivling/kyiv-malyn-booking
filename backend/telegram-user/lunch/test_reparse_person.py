@@ -26,6 +26,7 @@ from lunch.reparse_day import (
     process_text_message,
 )
 from lunch.catch_up import catch_up_today, resolve_incomplete_orders
+from lunch.listener import edit_or_reply
 from lunch.reparse_person import reparse_person
 from lunch.util import normalize_dish_name
 
@@ -144,6 +145,17 @@ class FakeDB:
 
     async def enqueue_outbound(self, text, *, kind="send", telegram_message_id=None, reply_to_message_id=None, target="lunch"):
         self.outbound.append({"text": text, "reply_to": reply_to_message_id, "kind": kind, "edit_id": telegram_message_id})
+
+    async def find_order_source_by_reply_id(self, reply_id):
+        for o in self.orders.values():
+            if o.get("reply") == reply_id:
+                return o["source"]
+        return None
+
+    async def set_order_reply_message_id_by_source(self, source_id, reply_id):
+        for o in self.orders.values():
+            if o["source"] == source_id:
+                o["reply"] = reply_id
 
     async def payment_source_exists(self, day_id, source_message_id):
         return any(p["source"] == source_message_id for p in self.payments)
@@ -576,6 +588,64 @@ def test_catch_up_also_resolves_incomplete_orders():
     assert out["resolved"] == 1
 
 
+# ---------- edit_or_reply (наша відповідь у групі вже видалена) ----------
+
+
+class MessageIdInvalidError(Exception):
+    """Те саме ім'я, що в telethon.errors — listener розпізнає за ним."""
+
+
+class FakeEditClient:
+    def __init__(self, edit_error=None):
+        self.edit_error = edit_error
+        self.edited = []
+        self.sent = []
+
+    async def edit_message(self, entity, mid, text):
+        if self.edit_error:
+            raise self.edit_error
+        self.edited.append((mid, text))
+
+    async def send_message(self, entity, text, reply_to=None):
+        self.sent.append((text, reply_to))
+        return type("Sent", (), {"id": 9001})()
+
+
+def test_edit_or_reply_edits_normally():
+    db = FakeDB()
+    client = FakeEditClient()
+    out = run(edit_or_reply(client, object(), db, {"telegram_message_id": 555, "text": "нова"}))
+    assert out is None and client.edited == [(555, "нова")] and client.sent == []
+
+
+def test_edit_or_reply_posts_new_reply_when_old_one_was_deleted():
+    db = FakeDB()
+    pid = run(db.upsert_participant("1", "Марта"))
+    run(db.upsert_order(1, pid, "x", 0, [], source_message_id=777))
+    db.orders[pid]["reply"] = 555
+    client = FakeEditClient(MessageIdInvalidError("The specified message ID is invalid or you can't do that operation"))
+    out = run(edit_or_reply(client, object(), db, {"telegram_message_id": 555, "text": "нова"}))
+    assert out is not None and client.sent == [("нова", 777)]
+    assert db.orders[pid]["reply"] == 9001  # наступні правки вже б'ють у живе повідомлення
+
+
+def test_edit_or_reply_reraises_other_errors_and_unknown_orders():
+    db = FakeDB()
+    client = FakeEditClient(RuntimeError("flood"))
+    try:
+        run(edit_or_reply(client, object(), db, {"telegram_message_id": 555, "text": "x"}))
+        raise AssertionError("мало кинути")
+    except RuntimeError:
+        pass
+    gone = FakeEditClient(MessageIdInvalidError("x"))
+    try:
+        run(edit_or_reply(gone, object(), db, {"telegram_message_id": 404, "text": "x"}))  # замовлення з таким reply немає
+        raise AssertionError("мало кинути")
+    except MessageIdInvalidError:
+        pass
+    assert gone.sent == []
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -606,6 +676,9 @@ def main():
         test_resolve_keeps_manual_tray_count_and_skips_complete_orders,
         test_resolve_does_not_resurrect_cancelled_and_needs_menu,
         test_catch_up_also_resolves_incomplete_orders,
+        test_edit_or_reply_edits_normally,
+        test_edit_or_reply_posts_new_reply_when_old_one_was_deleted,
+        test_edit_or_reply_reraises_other_errors_and_unknown_orders,
     ]
     failed = 0
     for t in tests:

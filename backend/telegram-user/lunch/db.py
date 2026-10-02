@@ -456,6 +456,19 @@ class LunchDB:
                     )
                 return order_id
 
+    async def find_order_source_by_reply_id(self, reply_message_id: int) -> Optional[int]:
+        """Повідомлення людини, до якого належить наша відповідь (для fallback, коли edit неможливий)."""
+        async with self.pool.acquire() as conn:
+            val = await conn.fetchval(
+                """
+                SELECT "sourceMessageId" FROM "LunchOrder"
+                WHERE "replyMessageId" = $1 AND "sourceMessageId" IS NOT NULL
+                ORDER BY id DESC LIMIT 1
+                """,
+                int(reply_message_id),
+            )
+            return int(val) if val is not None else None
+
     async def set_order_reply_message_id(self, order_id: int, reply_message_id: int) -> None:
         async with self.pool.acquire() as conn:
             await conn.execute(

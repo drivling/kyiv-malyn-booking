@@ -71,6 +71,35 @@ def _outbound_retry_delay(attempt: int, flood_seconds: Optional[int]) -> int:
     return min(OUTBOUND_RETRY_MAX_SEC, OUTBOUND_RETRY_BASE_SEC * (2 ** max(0, attempt - 1)))
 
 
+def _edit_target_gone(exc: Exception) -> bool:
+    """Telegram не дає правити повідомлення: його видалили або воно не наше."""
+    return type(exc).__name__ in ("MessageIdInvalidError", "MessageAuthorRequiredError") or (
+        "message ID is invalid" in str(exc)
+    )
+
+
+async def edit_or_reply(client, entity, db: LunchDB, row: dict):
+    """Підправити нашу відповідь у групі. Якщо її вже немає (видалили) — написати нову відповідь на
+    повідомлення людини й запам'ятати її id, замість нескінченних ретраїв edit.
+    Повертає надіслане повідомлення або None, якщо відредагували."""
+    mid = int(row["telegram_message_id"])
+    try:
+        await client.edit_message(entity, mid, row["text"])
+        return None
+    except Exception as e:  # noqa: BLE001
+        if not _edit_target_gone(e):
+            raise
+        source = await db.find_order_source_by_reply_id(mid)
+        if not source:
+            raise
+        sent = await client.send_message(entity, row["text"], reply_to=source)
+        sent_id = getattr(sent, "id", None)
+        if sent_id:
+            await db.set_order_reply_message_id_by_source(source, int(sent_id))
+        print(f"[lunch] edit of reply {mid} impossible, posted a new reply to msg {source}")
+        return sent
+
+
 def _dzhura_enabled() -> bool:
     raw = (os.environ.get("DZHURA_ENABLED") or "1").strip().lower()
     return raw not in ("0", "false", "no", "off")
@@ -529,7 +558,7 @@ async def run() -> None:
                             await asyncio.sleep(SAVED_RELAY_PAUSE_SEC)
                             continue
                         if kind == "edit" and row.get("telegram_message_id"):
-                            await client.edit_message(entity, int(row["telegram_message_id"]), row["text"])
+                            sent = await edit_or_reply(client, entity, db, row)
                         elif row.get("reply_to_message_id"):
                             sent = await client.send_message(
                                 entity, row["text"], reply_to=int(row["reply_to_message_id"])
