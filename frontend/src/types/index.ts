@@ -681,6 +681,8 @@ export interface LunchMenuItemRow {
 export interface LunchDishSynonymRow {
   id: number;
   rawText: string;
+  /** Нормалізований текст (за ним матчер порівнює); однаковий у двох страв = конфлікт */
+  rawNorm?: string;
 }
 
 export interface LunchDishRow {
@@ -747,6 +749,64 @@ export interface LunchDaySummary {
     paidUah: number;
     debtUah: number;
   };
+}
+
+/** Що сталося з одним повідомленням під час розбору дня/людини. */
+export interface LunchReparseDetail {
+  messageId: number | null;
+  name: string;
+  text: string;
+  /** order | payment | card | summary | skipped */
+  outcome: string;
+  reason: string;
+}
+
+export interface LunchReparseReport {
+  scanned?: number;
+  orders?: number;
+  payments?: number;
+  cards?: number;
+  summaries?: number;
+  skipped?: number;
+  errors?: string[];
+  details?: LunchReparseDetail[];
+  /** лише розбір людини */
+  person?: { tgUserId: string; name: string };
+  source?: 'telegram' | 'dzhura' | 'none';
+  messages?: number;
+  warnings?: string[];
+  replaced?: boolean;
+  placeholder?: boolean;
+  notified?: boolean;
+}
+
+export interface LunchPersonMessage {
+  tgMessageId: string;
+  sentAt: string;
+  editedAt: string | null;
+  text: string;
+  mediaKind: string | null;
+}
+
+/** Людина, що писала в групі обідів сьогодні (з бази «Джури»). */
+export interface LunchPerson {
+  tgUserId: string;
+  name: string;
+  username: string | null;
+  isMe: boolean;
+  participantId: number | null;
+  orderId: number | null;
+  hasOrder: boolean;
+  orderTotalUah: number | null;
+  messageCount: number;
+  messages: LunchPersonMessage[];
+}
+
+export interface LunchDayPeople {
+  date: string;
+  /** false — чат обідів ще не потрапив у «Джуру» */
+  available: boolean;
+  people: LunchPerson[];
 }
 
 export interface LunchMenuImportResult {

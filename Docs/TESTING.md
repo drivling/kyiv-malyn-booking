@@ -71,6 +71,7 @@ CI also runs Playwright e2e (mocked API, Vite on port 4177).
 - Admin HTTP: login/check (existing), transport dataset (existing), viber listings POST (existing), `GET /admin/referrals/report`.
 - Transport smoke: `stopCatalog`, `tripDeparture`, `LocalTransportSubNav`, `useTransportDataset`.
 - Admin map editor: `stopRename` (pure rename, propagation to route termini/headsigns, change count) + `MapEditorTab.test.tsx` (react-leaflet mocked, MSW `PUT /transport/dataset` captured).
+- Lunch admin (per-person reparse, «who wrote today» from Dzhura, order cancel, synonym single-owner): `backend/src/admin-lunch-people-http.test.ts`, `backend/src/lunch-synonyms.test.ts`, `frontend/.../LunchTab.test.tsx`.
 - Dzhura (chat capture, phases 0–1): `backend/src/dzhura.test.ts` (Kyiv day range → UTC incl. DST, date validation, export payload with BigInt → string, messages query/cursor, queue stats/retry), `backend/src/admin-dzhura-http.test.ts` (auth, lunch-group lock, jobs validation/409, export headers, messages endpoint, queue retry), `frontend/.../DzhuraTab.test.tsx` (flags PATCH, backfill polling, JSON download via Blob, listener status, private-chat toggle + chat search, messages panel with search/cursor, queue retry).
 - Intercity trips: `schedule-trip` util, schedules/trip-points/trip-routes HTTP, `mizhUtils` train filter + listing dual-read, Telegram elektrichka helpers, gold `TripRoute` identity (see `Docs/gold-route-model-smoke.md`).
 - Poputky OD scale: `TripPoint.appearInPoputky`, listing/booking `fromPointId`/`toPointId`, exact OD match + dual-read (`poputky-od.test.ts`, `mizhUtils`); smoke: `Docs/poputky-od-city-scale-smoke.md`.
@@ -80,5 +81,5 @@ CI also runs Playwright e2e (mocked API, Vite on port 4177).
 
 - Live Telegram / Viber / OCR / user-account smoke scripts under `backend/telegram-user/`.
 - Python `viberparser/`: only the pure helpers (batching, state cleanup) have unit tests — `python3 -m unittest viberparser/test_parser.py` (not part of `npm test`); the Viber SQLite reading is covered by manual smoke only.
-- Python parsers/formatters without a runner in CI: `python3 -m lunch.test_parsers`, `python3 -m dzhura.test_relay` (run manually from `backend/telegram-user/`; Dzhura manual checklist in `Docs/dzhura-phase-0-smoke.md`).
+- Python parsers/formatters without a runner in CI: `python3 -m lunch.test_parsers` (matcher incl. generic-word/ambiguity regressions), `python3 -m lunch.test_reparse_person` (per-person reparse, day-reparse skip reasons, catch-up — fake DB/Telegram, needs `pip install asyncpg`), `python3 -m dzhura.test_relay` (run manually from `backend/telegram-user/`; Dzhura manual checklist in `Docs/dzhura-phase-0-smoke.md`).
 - Manual checklists in `Docs/*-smoke.md`.

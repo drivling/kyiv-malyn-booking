@@ -33,8 +33,10 @@ import type {
   ReferralPersonSearchHit,
   ReferralRewardRow,
   RideCompletionProofRow,
+  LunchDayPeople,
   LunchDaySummary,
   LunchMenuImportResult,
+  LunchReparseReport,
   NotificationSettings,
   NotificationSettingsPatch,
   NotificationSettingsUsage,
@@ -901,18 +903,31 @@ class ApiClient {
 
   async reparseLunchToday(): Promise<{
     ok: boolean;
-    reparse: {
-      scanned?: number;
-      orders?: number;
-      payments?: number;
-      cards?: number;
-      summaries?: number;
-      skipped?: number;
-      errors?: string[];
-    };
+    reparse: LunchReparseReport;
     summary: LunchDaySummary;
   }> {
     return this.request('/admin/lunch/reparse', { method: 'POST' });
+  }
+
+  /** Хто писав у групі обідів сьогодні (з «Джури») і чи є в нього замовлення. */
+  async getLunchDayPeople(): Promise<LunchDayPeople> {
+    return this.request<LunchDayPeople>('/admin/lunch/day-people');
+  }
+
+  /** Розібрати повідомлення однієї людини за сьогодні; чужі замовлення не чіпає. */
+  async reparseLunchPerson(
+    who: { tgUserId: string } | { participantId: number },
+    opts?: { notify?: boolean }
+  ): Promise<{ ok: boolean; reparse: LunchReparseReport; summary: LunchDaySummary }> {
+    return this.request('/admin/lunch/reparse-person', {
+      method: 'POST',
+      body: JSON.stringify({ ...who, notify: opts?.notify !== false }),
+    });
+  }
+
+  /** Прибрати замовлення з дня (м'яко: status=cancelled). */
+  async deleteLunchOrder(orderId: number): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/orders/${orderId}`, { method: 'DELETE' });
   }
 
   async payLunchDebt(participantId: number, amountUah?: number): Promise<{

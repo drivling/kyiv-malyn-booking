@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""CLI / spawn: python3 -m lunch.reparse — розібрати повідомлення за сьогодні."""
+"""CLI / spawn: python3 -m lunch.reparse — розібрати повідомлення за сьогодні.
+
+  python3 -m lunch.reparse                  # весь день (скидає замовлення й оплати)
+  python3 -m lunch.reparse --user-id 123    # лише одна людина (Telegram user id), чужого не чіпає
+  python3 -m lunch.reparse --user-id 123 --no-notify
+"""
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -25,6 +31,11 @@ DEFAULT_GROUP_ID = -5427750954
 async def main() -> None:
     from telethon import TelegramClient
 
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--user-id", type=int, default=None)
+    ap.add_argument("--no-notify", action="store_true")
+    args = ap.parse_args()
+
     session = (os.environ.get("TELEGRAM_USER_SESSION_PATH") or "").strip() or str(
         _ROOT / "session_telegram_user"
     )
@@ -40,8 +51,16 @@ async def main() -> None:
             print(json.dumps({"ok": False, "error": "not authorized"}))
             sys.exit(2)
         entity = await client.get_entity(group_id)
-        stats = await reparse_day_with_client(client, entity, db, clear_orders=True)
-        print(json.dumps({"ok": True, **stats.as_dict()}, ensure_ascii=False))
+        if args.user_id is not None:
+            from lunch.reparse_person import reparse_person
+
+            out = await reparse_person(
+                client, entity, db, group_id=group_id, tg_user_id=args.user_id, notify=not args.no_notify
+            )
+            print(json.dumps({"ok": True, **out}, ensure_ascii=False, default=str))
+        else:
+            stats = await reparse_day_with_client(client, entity, db, clear_orders=True)
+            print(json.dumps({"ok": True, **stats.as_dict()}, ensure_ascii=False))
     finally:
         await db.close()
         await client.disconnect()

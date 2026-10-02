@@ -154,6 +154,26 @@ export function formatLunchMenuText(
   return lines.join('\n');
 }
 
+/**
+ * Синонім належить рівно одній страві: «салат оливʼє» не може одночасно вести на кілька страв.
+ * Запис на страву X забирає цей текст у всіх інших — інакше стара (часто хибна) прив'язка
+ * лишалась би поруч із виправленням, і матчер знову обирав би «першу в меню».
+ */
+async function claimSynonym(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  dishId: number,
+  raw: string,
+  rawNorm: string
+): Promise<void> {
+  await prisma.lunchDishSynonym.upsert({
+    where: { dishId_rawNorm: { dishId, rawNorm } },
+    create: { dishId, rawText: raw, rawNorm },
+    update: {},
+  });
+  await prisma.lunchDishSynonym.deleteMany({ where: { rawNorm, dishId: { not: dishId } } });
+}
+
+/** Ручне підтвердження («як писала людина» у правці замовлення) — єдиний шлях навчання синонімів. */
 export async function saveDishSynonym(
   prisma: PrismaClient | Prisma.TransactionClient,
   dishId: number,
@@ -164,11 +184,7 @@ export async function saveDishSynonym(
   if (!raw || !rawNorm) return;
   const dish = await prisma.lunchDish.findUnique({ where: { id: dishId } });
   if (!dish || dish.nameNorm === rawNorm) return;
-  await prisma.lunchDishSynonym.upsert({
-    where: { dishId_rawNorm: { dishId, rawNorm } },
-    create: { dishId, rawText: raw, rawNorm },
-    update: {},
-  });
+  await claimSynonym(prisma, dishId, raw, rawNorm);
 }
 
 export async function addLunchDishSynonym(
@@ -182,11 +198,7 @@ export async function addLunchDishSynonym(
   const dish = await prisma.lunchDish.findUnique({ where: { id: dishId } });
   if (!dish) throw new Error(`Страву #${dishId} не знайдено`);
   if (dish.nameNorm === rawNorm) throw new Error('Це канонічна назва страви, не синонім');
-  await prisma.lunchDishSynonym.upsert({
-    where: { dishId_rawNorm: { dishId, rawNorm } },
-    create: { dishId, rawText: raw, rawNorm },
-    update: {},
-  });
+  await claimSynonym(prisma, dishId, raw, rawNorm);
 }
 
 export async function deleteLunchDishSynonym(prisma: PrismaClient, synonymId: number): Promise<void> {
@@ -216,11 +228,17 @@ export async function moveLunchDishSynonym(
   });
   if (existing) {
     await prisma.lunchDishSynonym.delete({ where: { id: synonymId } });
+    await prisma.lunchDishSynonym.deleteMany({
+      where: { rawNorm: syn.rawNorm, dishId: { not: targetDishId } },
+    });
     return;
   }
   await prisma.lunchDishSynonym.update({
     where: { id: synonymId },
     data: { dishId: targetDishId },
+  });
+  await prisma.lunchDishSynonym.deleteMany({
+    where: { rawNorm: syn.rawNorm, dishId: { not: targetDishId } },
   });
 }
 
@@ -265,9 +283,11 @@ export async function upsertLunchMenuForToday(
       for (const d of existingDishes) byNormDish.set(d.nameNorm, d);
       const missingNorms = allNorms.filter((n) => !byNormDish.has(n));
       if (missingNorms.length > 0) {
+        // newest first: якщо історично один текст лежить на кількох стравах — діє остання правка
         const synonyms = await tx.lunchDishSynonym.findMany({
           where: { rawNorm: { in: missingNorms } },
           include: { dish: true },
+          orderBy: { id: 'desc' },
         });
         for (const syn of synonyms) {
           if (!byNormDish.has(syn.rawNorm)) byNormDish.set(syn.rawNorm, syn.dish);
@@ -439,7 +459,7 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
     name: c.name,
     priceUah: c.priceUah,
     trayRole: c.trayRole,
-    synonyms: c.synonyms.map((s) => ({ id: s.id, rawText: s.rawText })),
+    synonyms: c.synonyms.map((s) => ({ id: s.id, rawText: s.rawText, rawNorm: s.rawNorm })),
   }));
 
   const day = await prisma.lunchDay.findUnique({
@@ -657,6 +677,21 @@ export function formatOrderConfirmText(opts: {
  * Ручне редагування замовлення оператором.
  * rawText ніколи не змінюємо — оригінал повідомлення для аналізу.
  */
+/**
+ * Прибрати замовлення з дня (status=cancelled, рядок не видаляємо). Потрібно, коли «розбір людини»
+ * створив порожній рядок із чату, який насправді не замовлення. Оплати людини лишаються.
+ */
+export async function cancelLunchOrder(prisma: PrismaClient, orderId: number): Promise<void> {
+  const order = await prisma.lunchOrder.findUnique({ where: { id: orderId } });
+  if (!order || order.status !== 'active') {
+    throw new Error('Замовлення не знайдено');
+  }
+  await prisma.lunchOrder.update({
+    where: { id: orderId },
+    data: { status: 'cancelled', updatedAt: new Date() },
+  });
+}
+
 export async function updateLunchOrder(
   prisma: PrismaClient,
   orderId: number,

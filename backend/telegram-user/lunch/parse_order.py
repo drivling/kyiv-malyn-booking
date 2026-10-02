@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from typing import Optional, Sequence
 
 from .db import MenuItemRow, OrderLineInput
@@ -14,6 +16,8 @@ class MatchedPart:
     raw: str
     item: Optional[MenuItemRow]
     score: float
+    # Кілька страв підходять майже однаково — не вгадуємо, а просимо уточнити.
+    alternatives: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -23,6 +27,8 @@ class OrderParseResult:
     matched: list[MatchedPart]
     unmatched: list[str]
     unavailable: list[str] = field(default_factory=list)
+    # фрагмент замовлення → назви страв-кандидатів (підмножина unmatched)
+    ambiguous: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -33,24 +39,94 @@ class OrderParseResult:
         return "; ".join(self.unmatched)
 
 
+# Назви категорій, а не страв: саме слово «салат» не робить два різні салати схожими.
+GENERIC_TOKENS = frozenset({"салат", "суп"})
+# Якщо два кандидати відрізняються менш ніж на стільки — це неоднозначність, а не «перший у меню».
+AMBIGUITY_MARGIN = 0.06
+_NO_MATCH_SCORE = 0.30
+_FUZZY_TOKEN_RATIO = 0.84
+_SYNONYM_EXACT_SCORE = 0.995
+
+
 def _token_set(s: str) -> set[str]:
     return {t for t in s.split() if len(t) > 1}
 
 
+def _fold(t: str) -> str:
+    """Лише для порівняння слів: укр/рос «и/і/ы» та «е/э» не мають розрізнятись."""
+    return t.replace("і", "и").replace("ы", "и").replace("э", "е").replace("ї", "и")
+
+
+# Збіг «за основою слова» (закінчення, описка) слабший за точний збіг слова: «курка» ≈ «курки»,
+# але «Курка відварена» має виграти у «Філе курки з ананасом».
+_STEM_MATCH_WEIGHT = 0.75
+
+
+def _token_match_weight(a: str, b: str) -> float:
+    """1.0 — те саме слово (з точністю до и/і/ы/э), 0.75 — те саме слово з іншим закінченням
+    або опискою, 0 — різні слова."""
+    fa, fb = _fold(a), _fold(b)
+    if fa == fb:
+        return 1.0
+    shorter, longer = (fa, fb) if len(fa) <= len(fb) else (fb, fa)
+    if len(shorter) >= 3 and longer.startswith(shorter):
+        return _STEM_MATCH_WEIGHT
+    if len(shorter) >= 5:
+        common = 0
+        for ca, cb in zip(fa, fb):
+            if ca != cb:
+                break
+            common += 1
+        if common >= max(4, len(shorter) - 2):
+            return _STEM_MATCH_WEIGHT
+        if SequenceMatcher(None, fa, fb).ratio() >= _FUZZY_TOKEN_RATIO:
+            return _STEM_MATCH_WEIGHT
+    return 0.0
+
+
+def _overlap(ta: set[str], tb: set[str]) -> tuple[int, float]:
+    """(скільки слів з ta мають пару в tb, їх сумарна вага). Кожне слово tb — не більше одного разу."""
+    free = list(tb)
+    hits = 0
+    weight = 0.0
+    for x in sorted(ta):
+        best_i, best_w = -1, 0.0
+        for i, y in enumerate(free):
+            w = _token_match_weight(x, y)
+            if w > best_w:
+                best_i, best_w = i, w
+        if best_i >= 0:
+            hits += 1
+            weight += best_w
+            del free[best_i]
+    return hits, weight
+
+
 def _similarity(a: str, b: str) -> float:
-    """Простий score 0..1: containment + overlap токенів."""
+    """Score 0..1: containment + overlap токенів, але лише за значущими словами.
+
+    Слово-категорія («салат», «суп») саме по собі збігом не є: «салат оливʼє» не дорівнює
+    «салат грецький» тільки тому, що обидва — салати. Якщо в обох назвах є значущі слова,
+    а спільного серед них немає (або менше 60% меншого набору) — це різні страви.
+    """
     if not a or not b:
         return 0.0
     if a == b:
         return 1.0
+    ta, tb = _token_set(a), _token_set(b)
+    da, db = ta - GENERIC_TOKENS, tb - GENERIC_TOKENS
+    shared_distinct = _overlap(da, db)[0] if (da and db) else None
+    if shared_distinct == 0:
+        return _NO_MATCH_SCORE
     if a in b or b in a:
         shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
         return 0.72 + 0.28 * (len(shorter) / max(len(longer), 1))
-    ta, tb = _token_set(a), _token_set(b)
     if not ta or not tb:
         return 0.0
-    inter = len(ta & tb)
-    union = len(ta | tb)
+    if shared_distinct is not None and shared_distinct < math.ceil(0.6 * min(len(da), len(db))):
+        return _NO_MATCH_SCORE
+    _hits, inter = _overlap(ta, tb)
+    union = len(ta) + len(tb) - inter
     jacc = inter / union if union else 0.0
     cover_a = inter / len(ta) if ta else 0.0
     cover_b = inter / len(tb) if tb else 0.0
@@ -58,22 +134,49 @@ def _similarity(a: str, b: str) -> float:
     return max(jacc, cover_a * 0.92, min(cover_a, cover_b) * 0.95)
 
 
+def _item_key(item: MenuItemRow) -> int:
+    return getattr(item, "dish_id", None) or item.id
+
+
 def match_part_to_menu(part: str, menu: Sequence[MenuItemRow], min_score: float = 0.42) -> MatchedPart:
     norm = normalize_dish_name(part)
-    best: Optional[MenuItemRow] = None
-    best_score = 0.0
+    ranked: list[tuple[float, MenuItemRow]] = []
     for item in menu:
-        candidates = [item.name_norm, *getattr(item, "synonym_norms", ())]
-        for cand in candidates:
+        best_for_item = 0.0
+        for cand in [item.name_norm, *getattr(item, "synonym_norms", ())]:
             if not cand:
                 continue
             sc = _similarity(norm, cand)
-            if sc > best_score:
-                best_score = sc
-                best = item
-    if best is None or best_score < min_score:
-        return MatchedPart(raw=part, item=None, score=best_score)
-    return MatchedPart(raw=part, item=best, score=best_score)
+            if sc >= 1.0 and cand != item.name_norm:
+                # точний синонім трохи слабший за точну канонічну назву іншої страви
+                sc = _SYNONYM_EXACT_SCORE
+            best_for_item = max(best_for_item, sc)
+        if best_for_item > 0:
+            ranked.append((best_for_item, item))
+    if not ranked:
+        return MatchedPart(raw=part, item=None, score=0.0)
+    # sort стабільний: при рівних score порядок меню, але рівність нижче вважається неоднозначністю
+    ranked.sort(key=lambda x: -x[0])
+    top_score, top_item = ranked[0]
+    if top_score < min_score:
+        return MatchedPart(raw=part, item=None, score=top_score)
+    if top_score >= _SYNONYM_EXACT_SCORE:
+        # точний збіг (назва/синонім): конкурент лише ще один точний збіг того самого рангу
+        rivals = [
+            it for sc, it in ranked[1:]
+            if sc >= top_score - 1e-9 and _item_key(it) != _item_key(top_item)
+        ]
+    else:
+        floor = max(min_score, top_score - AMBIGUITY_MARGIN)
+        rivals = [it for sc, it in ranked[1:] if sc >= floor and _item_key(it) != _item_key(top_item)]
+    if rivals:
+        return MatchedPart(
+            raw=part,
+            item=None,
+            score=top_score,
+            alternatives=[top_item.name, *[r.name for r in rivals]],
+        )
+    return MatchedPart(raw=part, item=top_item, score=top_score)
 
 
 def _try_split_hard_unmatched(part: str) -> list[str]:
@@ -123,6 +226,7 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
     parts = split_order_parts(text)
     matched: list[MatchedPart] = []
     unmatched: list[str] = []
+    ambiguous: dict[str, list[str]] = {}
     lines: list[OrderLineInput] = []
     by_id: dict[int, OrderLineInput] = {}
 
@@ -130,6 +234,8 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
         matched.append(m)
         if m.item is None:
             unmatched.append(m.raw)
+            if m.alternatives:
+                ambiguous[m.raw] = m.alternatives
             return
         key = getattr(m.item, "dish_id", None) or m.item.id
         existing = by_id.get(key)
@@ -166,7 +272,7 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
                 add_match(MatchedPart(raw=sub, item=m2.item, score=m2.score))
                 refined = True
             else:
-                add_match(MatchedPart(raw=sub, item=None, score=m2.score))
+                add_match(MatchedPart(raw=sub, item=None, score=m2.score, alternatives=m2.alternatives))
                 refined = True
         if not refined:
             add_match(m)
@@ -174,7 +280,9 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
     total = sum(l.line_total_uah for l in lines)
     # прибрати з unmatched порожні / дублікати після успішного match того ж raw
     unmatched = [u for u in unmatched if u and u.strip()]
-    return OrderParseResult(lines=lines, total_uah=total, matched=matched, unmatched=unmatched)
+    return OrderParseResult(
+        lines=lines, total_uah=total, matched=matched, unmatched=unmatched, ambiguous=ambiguous
+    )
 
 
 def parse_order_contextual(
@@ -203,6 +311,10 @@ def parse_order_contextual(
         still_unmatched: list[str] = []
         extra_matched: list[MatchedPart] = []
         for part in leftover:
+            if part in result.ambiguous:
+                # на сьогоднішнє меню підходить кілька страв — це не «сьогодні немає»
+                still_unmatched.append(part)
+                continue
             extra = parse_order(part, fallback_menu, min_score=min_score)
             extra_matched.extend(extra.matched)
             if extra.lines:
@@ -214,6 +326,7 @@ def parse_order_contextual(
             matched=result.matched + extra_matched,
             unmatched=still_unmatched,
             unavailable=unavailable,
+            ambiguous=dict(result.ambiguous),
         )
 
     if fallback_menu:

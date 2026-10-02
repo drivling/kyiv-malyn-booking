@@ -54,6 +54,18 @@ def today_kyiv() -> date:
     return datetime.now(KYIV).date()
 
 
+def resolve_synonym_owners(rows: list[tuple[int, int, str]]) -> dict[str, int]:
+    """(synonym_id, dish_id, raw_norm) → {raw_norm: dish_id}. Той самий текст може лежати
+    на кількох стравах (історичні автосиноніми) — виграє найновіший запис (більший id):
+    це і є остання правка людини в адмінці."""
+    owner: dict[str, tuple[int, int]] = {}
+    for syn_id, dish_id, raw_norm in rows:
+        cur = owner.get(raw_norm)
+        if cur is None or syn_id > cur[0]:
+            owner[raw_norm] = (syn_id, dish_id)
+    return {raw: dish for raw, (_sid, dish) in owner.items()}
+
+
 class LunchDB:
     def __init__(self, pool: asyncpg.Pool):
         self.pool = pool
@@ -177,6 +189,7 @@ class LunchDB:
                 FROM "LunchDishSynonym" s
                 JOIN "LunchDish" d ON d.id = s."dishId"
                 WHERE s."rawNorm" = $1
+                ORDER BY s.id DESC
                 LIMIT 1
                 """,
                 nn,
@@ -205,26 +218,6 @@ class LunchDB:
             guess_tray_role(name),
         )
         return dict(created)
-
-    async def save_synonym(self, dish_id: int, raw_text: str) -> None:
-        raw = (raw_text or "").strip()
-        raw_norm = normalize_dish_name(raw)
-        if not raw or not raw_norm:
-            return
-        async with self.pool.acquire() as conn:
-            dish = await conn.fetchrow("""SELECT "nameNorm" FROM "LunchDish" WHERE id = $1""", dish_id)
-            if not dish or dish["nameNorm"] == raw_norm:
-                return
-            await conn.execute(
-                """
-                INSERT INTO "LunchDishSynonym" ("dishId", "rawText", "rawNorm")
-                VALUES ($1, $2, $3)
-                ON CONFLICT ("dishId", "rawNorm") DO NOTHING
-                """,
-                dish_id,
-                raw,
-                raw_norm,
-            )
 
     async def replace_menu(
         self,
@@ -308,12 +301,25 @@ class LunchDB:
         dish_ids = [int(r["dishId"]) for r in rows if r["dishId"] is not None]
         syn_map: dict[int, list[str]] = {}
         if dish_ids:
+            # Усі власники тих самих rawNorm (навіть страви, яких сьогодні немає в меню):
+            # синонім належить тому, кого додали останнім, а не «першому в меню».
             syn_rows = await conn.fetch(
-                """SELECT "dishId", "rawNorm" FROM "LunchDishSynonym" WHERE "dishId" = ANY($1::int[])""",
+                """
+                SELECT id, "dishId", "rawNorm" FROM "LunchDishSynonym"
+                WHERE "rawNorm" IN (
+                    SELECT "rawNorm" FROM "LunchDishSynonym" WHERE "dishId" = ANY($1::int[])
+                )
+                ORDER BY id
+                """,
                 dish_ids,
             )
-            for s in syn_rows:
-                syn_map.setdefault(int(s["dishId"]), []).append(s["rawNorm"])
+            owners = resolve_synonym_owners(
+                [(int(s["id"]), int(s["dishId"]), s["rawNorm"]) for s in syn_rows]
+            )
+            on_menu = set(dish_ids)
+            for raw_norm, owner in owners.items():
+                if owner in on_menu:
+                    syn_map.setdefault(owner, []).append(raw_norm)
         out: list[MenuItemRow] = []
         for r in rows:
             dish_id = int(r["dishId"]) if r["dishId"] is not None else None
@@ -738,6 +744,142 @@ class LunchDB:
         rows = await self.summary_rows(day_id)
         return [r for r in rows if r["debt_uah"] > 0]
 
+    async def get_day_status(self, day_id: int) -> Optional[str]:
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval("""SELECT status FROM "LunchDay" WHERE id = $1""", day_id)
+
+    async def set_payee_card(self, day_id: int, card: str) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """UPDATE "LunchDay" SET "payeeCard" = $2, "updatedAt" = NOW() WHERE id = $1""",
+                day_id,
+                card,
+            )
+
+    async def find_participant_id_by_telegram_id(self, telegram_user_id: str) -> Optional[int]:
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """SELECT id FROM "LunchParticipant" WHERE "telegramUserId" = $1""",
+                str(telegram_user_id),
+            )
+            return int(row["id"]) if row else None
+
+    async def has_active_order(self, day_id: int, participant_id: int) -> bool:
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """
+                    SELECT 1 FROM "LunchOrder"
+                    WHERE "dayId" = $1 AND "participantId" = $2 AND status = 'active'
+                    """,
+                    day_id,
+                    participant_id,
+                )
+            )
+
+    async def has_order(self, day_id: int, participant_id: int) -> bool:
+        """Є запис замовлення в будь-якому статусі (скасоване адміном теж — його не воскрешаємо)."""
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """SELECT 1 FROM "LunchOrder" WHERE "dayId" = $1 AND "participantId" = $2""",
+                    day_id,
+                    participant_id,
+                )
+            )
+
+    async def today_menu_signature(self) -> str:
+        """Склад меню на сьогодні рядком ('' — меню немає): змінився → є що дозібрати."""
+        async with self.pool.acquire() as conn:
+            return str(
+                await conn.fetchval(
+                    """
+                    SELECT COALESCE(string_agg(m."dishId"::text, ',' ORDER BY m."dishId"), '')
+                    FROM "LunchMenuItem" m JOIN "LunchDay" d ON d.id = m."dayId"
+                    WHERE d.date = $1
+                    """,
+                    today_kyiv(),
+                )
+                or ""
+            )
+
+    async def payment_source_exists(self, day_id: int, source_message_id: int) -> bool:
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """SELECT 1 FROM "LunchPayment" WHERE "dayId" = $1 AND "sourceMessageId" = $2""",
+                    day_id,
+                    source_message_id,
+                )
+            )
+
+    async def known_source_message_ids(self, day_id: int) -> set[int]:
+        """id повідомлень, з яких за день уже є замовлення/оплата (для catch-up без дублів)."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT "sourceMessageId" AS mid FROM "LunchOrder"
+                WHERE "dayId" = $1 AND "sourceMessageId" IS NOT NULL
+                UNION
+                SELECT "sourceMessageId" AS mid FROM "LunchPayment"
+                WHERE "dayId" = $1 AND "sourceMessageId" IS NOT NULL
+                """,
+                day_id,
+            )
+        return {int(r["mid"]) for r in rows}
+
+    async def get_participant_name(self, participant_id: Optional[int]) -> Optional[str]:
+        if participant_id is None:
+            return None
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval(
+                """SELECT "displayName" FROM "LunchParticipant" WHERE id = $1""", participant_id
+            )
+
+    async def dzhura_sender_messages(
+        self,
+        tg_chat_id: int,
+        tg_user_id: int,
+        start_utc: datetime,
+        end_utc: datetime,
+    ) -> list[dict[str, Any]]:
+        """Повідомлення людини з групи за проміжок — з бази «Джури» (без звернення до Telegram).
+        Містить і правки (останній текст), і видалені (deletedAt) — їх пропускаємо на боці виклику."""
+        lo = start_utc.astimezone(timezone.utc).replace(tzinfo=None)
+        hi = end_utc.astimezone(timezone.utc).replace(tzinfo=None)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT m."tgMessageId" AS mid, m.text, m."sentAt", m."editedAt", m."deletedAt",
+                       m."mediaKind", m."isOutgoing", p."firstName", p."lastName", p.username
+                FROM "DzhuraMessage" m
+                JOIN "DzhuraChat" c ON c.id = m."chatId"
+                JOIN "DzhuraPerson" p ON p.id = m."senderPersonId"
+                WHERE c."tgChatId" = $1 AND p."tgUserId" = $2
+                  AND m."sentAt" >= $3 AND m."sentAt" <= $4
+                ORDER BY m."sentAt" ASC, m."tgMessageId" ASC
+                """,
+                int(tg_chat_id),
+                int(tg_user_id),
+                lo,
+                hi,
+            )
+        return [
+            {
+                "id": int(r["mid"]),
+                "text": r["text"] or "",
+                "date": r["sentAt"].replace(tzinfo=timezone.utc),
+                "edited": r["editedAt"] is not None,
+                "deleted": r["deletedAt"] is not None,
+                "media": r["mediaKind"],
+                "outgoing": bool(r["isOutgoing"]),
+                "first_name": r["firstName"],
+                "last_name": r["lastName"],
+                "username": r["username"],
+            }
+            for r in rows
+        ]
+
     async def clear_day_orders_and_payments(self, day_id: int) -> None:
         """Видалити замовлення (з lines) та оплати за день. Меню лишається."""
         async with self.pool.acquire() as conn:
@@ -756,14 +898,25 @@ class LunchDB:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, type FROM "LunchAdminJob"
+                SELECT id, type, "paramsJson" FROM "LunchAdminJob"
                 WHERE status = 'pending'
                 ORDER BY "createdAt" ASC
                 LIMIT $1
                 """,
                 limit,
             )
-            return [{"id": int(r["id"]), "type": r["type"]} for r in rows]
+            out: list[dict[str, Any]] = []
+            for r in rows:
+                params: dict[str, Any] = {}
+                if r["paramsJson"]:
+                    try:
+                        loaded = json.loads(r["paramsJson"])
+                        if isinstance(loaded, dict):
+                            params = loaded
+                    except ValueError:
+                        params = {}
+                out.append({"id": int(r["id"]), "type": r["type"], "params": params})
+            return out
 
     async def complete_job(self, job_id: int, result: Any) -> None:
         async with self.pool.acquire() as conn:

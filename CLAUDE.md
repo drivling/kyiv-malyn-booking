@@ -112,7 +112,8 @@ of `dist` in a commit.
   captures selected chats into `Dzhura*` tables. Python lives in `backend/telegram-user/dzhura/`
   and is attached **inside** `lunch.listener` (one Telethon session per account, never a second
   process); Node only reads/flags via `src/dzhura.ts` + `routes/admin-dzhura.ts` (`/admin/dzhura`).
-  Invariants: never call `send_read_acknowledge`/`mark_read`, typing or online status; never write
+  The lunch admin tab reads the captured lunch-group messages too (`src/lunch-people.ts`: «who wrote today»
+  → per-person reparse job). Invariants: never call `send_read_acknowledge`/`mark_read`, typing or online status; never write
   into a captured chat. The only Telegram output is the shared `LunchOutboundMessage` queue, whose
   `target` column routes rows to the lunch group (`lunch`, markdown) or the owner's Saved Messages
   (`saved`, HTML).
