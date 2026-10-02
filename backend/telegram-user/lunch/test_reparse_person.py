@@ -25,7 +25,7 @@ from lunch.reparse_day import (
     plan_text_message,
     process_text_message,
 )
-from lunch.catch_up import catch_up_today
+from lunch.catch_up import catch_up_today, resolve_incomplete_orders
 from lunch.reparse_person import reparse_person
 from lunch.util import normalize_dish_name
 
@@ -105,22 +105,45 @@ class FakeDB:
     async def get_tray_price(self):
         return 5
 
-    async def apply_trays_to_lines(self, lines):
-        food = sum(l.line_total_uah for l in lines)
-        trays = 1 if lines else 0
+    async def apply_trays_to_lines(self, lines, tray_count_override=None):
+        food = sum(l.line_total_uah for l in lines if not l.unavailable)
+        trays = tray_count_override if tray_count_override is not None else (1 if lines else 0)
         return trays, trays * 5, food + trays * 5
 
+    async def list_incomplete_orders(self, day_id):
+        out = []
+        for pid, o in self.orders.items():
+            if pid in self.cancelled:
+                continue
+            lines = o.get("lines_in", [])
+            if (o["unmatched"] or "") != "" or any(l.unavailable for l in lines):
+                out.append({
+                    "order_id": pid, "participant_id": pid, "display_name": o.get("name", "?"),
+                    "source_message_id": o["source"], "reply_message_id": o.get("reply"),
+                    "raw_text": o["raw"], "unmatched_text": o["unmatched"],
+                    "tray_count": o.get("trays", 0), "tray_count_manual": o.get("manual", False),
+                    "lines": list(lines),
+                })
+        return out
+
     async def upsert_order(self, day_id, pid, raw_text, total, lines, source_message_id=None, unmatched_text=None, **kw):
+        prev = self.orders.get(pid, {})
         self.orders[pid] = {
             "raw": raw_text,
             "lines": [l.raw_name for l in lines],
+            "lines_in": list(lines),
             "unmatched": unmatched_text,
             "source": source_message_id,
+            "total": total,
+            "trays": kw.get("tray_count", 1 if lines else 0),
+            "manual": kw.get("tray_count_manual", False),
+            "reply": prev.get("reply"),
+            "name": prev.get("name", "Людина"),
         }
         return pid
 
     async def enqueue_outbound(self, text, *, kind="send", telegram_message_id=None, reply_to_message_id=None, target="lunch"):
-        self.outbound.append({"text": text, "reply_to": reply_to_message_id})
+        self.outbound.append({"text": text, "reply_to": reply_to_message_id, "kind": kind, "edit_id": telegram_message_id})
 
     async def payment_source_exists(self, day_id, source_message_id):
         return any(p["source"] == source_message_id for p in self.payments)
@@ -446,6 +469,113 @@ def test_catch_up_ambiguous_text_is_not_guessed():
     assert out["orders"] == 0 and db.orders == {}
 
 
+# ---------- resolve_incomplete_orders (меню завантажили ПІСЛЯ замовлень) ----------
+
+
+def _today_menu():
+    def r(i, name, price, role="second"):
+        return MenuItemRow(i, 1, name, normalize_dish_name(name), price, dish_id=i, tray_role=role)
+
+    return [
+        r(33, "Печінкові оладки", 70), r(44, "Салат «Крабово-сирний»", 50, "salad"),
+        r(86, "Капуста тушкована з м'ясом", 90), r(36, "Пюре", 45), r(26, "Макарони", 40),
+        r(22, "Котлети курячі", 70), r(43, "Салат «Капуста молода з огірком»", 40, "salad"),
+        r(18, "Каша пшоняна з грибами", 45), r(6, "Буряк з сиром фета", 50),
+    ]
+
+
+def _line(dish_id, name, price, unavailable=False, role="second"):
+    return OrderLineInput(None if unavailable else dish_id, name, 1, price, price, dish_id=dish_id,
+                          tray_role=role, unavailable=unavailable)
+
+
+def _seed(db, uid, raw, lines, unmatched=None, reply=555, manual=False, trays=1):
+    pid = run(db.upsert_participant(str(uid), f"Людина {uid}"))
+    run(db.upsert_order(1, pid, raw, 0, lines, source_message_id=100 + uid, unmatched_text=unmatched))
+    db.orders[pid].update(reply=reply, manual=manual, trays=trays, name=f"Людина {uid}")
+    return pid
+
+
+def test_resolve_replaces_stale_line_when_text_fully_explained_by_today_menu():
+    """Marta-like: «Печінкові оладки» стало «Печінка смажена» (хибний збіг), крабовий салат не розпізнано."""
+    db = FakeDB(menu=_today_menu())
+    pid = _seed(db, 1, "Печінкові оладки \nСалат крабово-сирний",
+                [_line(32, "Печінка смажена з цибулею", 70, unavailable=True)], unmatched="Салат крабово-сирний")
+    out = run(resolve_incomplete_orders(db, 1, db.menu))
+    assert out == {"resolved": 1, "partial": 0}
+    assert db.orders[pid]["lines"] == ["Печінкові оладки", "Салат «Крабово-сирний»"]
+    assert db.orders[pid]["unmatched"] is None
+    assert db.orders[pid]["total"] == 70 + 50 + 5
+    # правимо нашу відповідь у групі, а не пишемо нову
+    assert db.outbound[-1]["kind"] == "edit" and db.outbound[-1]["edit_id"] == 555
+
+
+def test_resolve_adds_only_missing_dishes_and_keeps_rest_unmatched():
+    db = FakeDB(menu=_today_menu())
+    pid = _seed(db, 2, "Макарони\nкотлети\nквасоля стручкова",
+                [_line(22, "Котлети курячі", 70)], unmatched="Макарони; квасоля стручкова")
+    out = run(resolve_incomplete_orders(db, 1, db.menu))
+    assert out == {"resolved": 0, "partial": 1}
+    assert db.orders[pid]["lines"] == ["Котлети курячі", "Макарони"]
+    assert db.orders[pid]["unmatched"] == "квасоля стручкова"
+    assert "Не розпізнав: квасоля стручкова" in db.outbound[-1]["text"]
+
+
+def test_resolve_handles_todays_real_cases():
+    db = FakeDB(menu=_today_menu())
+    a = _seed(db, 3, "пюре\nкапуста тушенная с мясом", [_line(36, "Пюре", 45)], unmatched="капуста тушенная с мясом")
+    b = _seed(db, 4, "макарони\nкотлети\nсалат капуста з огірком",
+              [_line(22, "Котлети курячі", 70), _line(43, "Салат «Капуста молода з огірком»", 40, role="salad")],
+              unmatched="макарони")
+    c = _seed(db, 5, "Буряк з сиром фета\nКаша пшоняна\nКотлети курячі",
+              [_line(6, "Буряк з сиром фета", 50), _line(22, "Котлети курячі", 70)], unmatched="Каша пшоняна")
+    out = run(resolve_incomplete_orders(db, 1, db.menu))
+    assert out["resolved"] == 3
+    assert db.orders[a]["lines"] == ["Пюре", "Капуста тушкована з м'ясом"]
+    assert sorted(db.orders[b]["lines"]) == sorted(["Макарони", "Котлети курячі", "Салат «Капуста молода з огірком»"])
+    assert sorted(db.orders[c]["lines"]) == sorted(["Буряк з сиром фета", "Каша пшоняна з грибами", "Котлети курячі"])
+    assert all(db.orders[x]["unmatched"] is None for x in (a, b, c))
+
+
+def test_resolve_is_idempotent_and_silent_when_nothing_new():
+    db = FakeDB(menu=_today_menu())
+    _seed(db, 6, "Макарони\nквасоля стручкова", [], unmatched="Макарони; квасоля стручкова")
+    run(resolve_incomplete_orders(db, 1, db.menu))
+    sent = len(db.outbound)
+    again = run(resolve_incomplete_orders(db, 1, db.menu))
+    assert again == {"resolved": 0, "partial": 0} and len(db.outbound) == sent
+
+    db2 = FakeDB(menu=_today_menu())
+    pid = _seed(db2, 7, "квасоля стручкова", [], unmatched="квасоля стручкова")
+    assert run(resolve_incomplete_orders(db2, 1, db2.menu)) == {"resolved": 0, "partial": 0}
+    assert db2.outbound == [] and db2.orders[pid]["unmatched"] == "квасоля стручкова"
+
+
+def test_resolve_keeps_manual_tray_count_and_skips_complete_orders():
+    db = FakeDB(menu=_today_menu())
+    pid = _seed(db, 8, "Пюре\nМакарони", [_line(36, "Пюре", 45)], unmatched="Макарони", manual=True, trays=3)
+    done = _seed(db, 9, "Пюре", [_line(36, "Пюре", 45)])  # повне замовлення — не чіпаємо
+    run(resolve_incomplete_orders(db, 1, db.menu))
+    assert db.orders[pid]["trays"] == 3 and db.orders[pid]["manual"] is True
+    assert db.orders[pid]["total"] == 45 + 40 + 3 * 5
+    assert db.orders[done]["lines"] == ["Пюре"]
+
+
+def test_resolve_does_not_resurrect_cancelled_and_needs_menu():
+    db = FakeDB(menu=_today_menu())
+    pid = _seed(db, 10, "Макарони", [], unmatched="Макарони")
+    db.cancelled.add(pid)
+    assert run(resolve_incomplete_orders(db, 1, db.menu)) == {"resolved": 0, "partial": 0}
+    assert run(resolve_incomplete_orders(FakeDB(menu=[]), 1, [])) == {"resolved": 0, "partial": 0}
+
+
+def test_catch_up_also_resolves_incomplete_orders():
+    db = FakeDB(menu=_today_menu())
+    _seed(db, 11, "Макарони", [], unmatched="Макарони")
+    out = run(catch_up_today(FakeClient([]), object(), db, now=_now_at(10, 40)))
+    assert out["resolved"] == 1
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -469,6 +599,13 @@ def main():
         test_catch_up_window_ignores_old_messages,
         test_catch_up_payment_not_duplicated_and_bot_echo_ignored,
         test_catch_up_ambiguous_text_is_not_guessed,
+        test_resolve_replaces_stale_line_when_text_fully_explained_by_today_menu,
+        test_resolve_adds_only_missing_dishes_and_keeps_rest_unmatched,
+        test_resolve_handles_todays_real_cases,
+        test_resolve_is_idempotent_and_silent_when_nothing_new,
+        test_resolve_keeps_manual_tray_count_and_skips_complete_orders,
+        test_resolve_does_not_resurrect_cancelled_and_needs_menu,
+        test_catch_up_also_resolves_incomplete_orders,
     ]
     failed = 0
     for t in tests:

@@ -803,6 +803,68 @@ class LunchDB:
                 or ""
             )
 
+    async def list_incomplete_orders(self, day_id: int) -> list[dict[str, Any]]:
+        """Активні замовлення, де є нерозпізнаний текст або страва, якої немає в меню (unavailable):
+        після появи/зміни меню їх варто розібрати ще раз. Рядки — вже як OrderLineInput."""
+        async with self.pool.acquire() as conn:
+            orders = await conn.fetch(
+                """
+                SELECT o.id, o."participantId", o."sourceMessageId", o."replyMessageId", o."rawText",
+                       o."unmatchedText", o."trayCount", o."trayCountManual", p."displayName"
+                FROM "LunchOrder" o
+                JOIN "LunchParticipant" p ON p.id = o."participantId"
+                WHERE o."dayId" = $1 AND o.status = 'active'
+                  AND (
+                    COALESCE(o."unmatchedText", '') <> ''
+                    OR EXISTS (
+                        SELECT 1 FROM "LunchOrderLine" l WHERE l."orderId" = o.id AND l.unavailable
+                    )
+                  )
+                ORDER BY o.id
+                """,
+                day_id,
+            )
+            out: list[dict[str, Any]] = []
+            for o in orders:
+                rows = await conn.fetch(
+                    """
+                    SELECT l."menuItemId", l."dishId", l."rawName", l.qty, l."unitPriceUah",
+                           l."lineTotalUah", l.unavailable, COALESCE(d."trayRole", 'second') AS "trayRole"
+                    FROM "LunchOrderLine" l
+                    LEFT JOIN "LunchDish" d ON d.id = l."dishId"
+                    WHERE l."orderId" = $1
+                    ORDER BY l.id
+                    """,
+                    int(o["id"]),
+                )
+                out.append(
+                    {
+                        "order_id": int(o["id"]),
+                        "participant_id": int(o["participantId"]),
+                        "display_name": o["displayName"],
+                        "source_message_id": int(o["sourceMessageId"]) if o["sourceMessageId"] is not None else None,
+                        "reply_message_id": int(o["replyMessageId"]) if o["replyMessageId"] is not None else None,
+                        "raw_text": o["rawText"],
+                        "unmatched_text": o["unmatchedText"],
+                        "tray_count": int(o["trayCount"] or 0),
+                        "tray_count_manual": bool(o["trayCountManual"]),
+                        "lines": [
+                            OrderLineInput(
+                                menu_item_id=int(r["menuItemId"]) if r["menuItemId"] is not None else None,
+                                dish_id=int(r["dishId"]) if r["dishId"] is not None else None,
+                                raw_name=r["rawName"],
+                                qty=int(r["qty"] or 1),
+                                unit_price_uah=int(r["unitPriceUah"]),
+                                line_total_uah=int(r["lineTotalUah"]),
+                                tray_role=str(r["trayRole"] or "second"),
+                                unavailable=bool(r["unavailable"]),
+                            )
+                            for r in rows
+                        ],
+                    }
+                )
+            return out
+
     async def payment_source_exists(self, day_id: int, source_message_id: int) -> bool:
         async with self.pool.acquire() as conn:
             return bool(

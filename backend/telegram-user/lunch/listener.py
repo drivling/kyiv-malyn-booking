@@ -492,7 +492,7 @@ async def run() -> None:
             from lunch.catch_up import catch_up_today
 
             stats = await catch_up_today(client, entity, db)
-            if stats.get("orders") or stats.get("payments") or stats.get("cards"):
+            if stats.get("orders") or stats.get("payments") or stats.get("cards") or stats.get("resolved") or stats.get("partial"):
                 print(f"[lunch] catch-up ({reason}): {stats}")
         except Exception as e:  # noqa: BLE001 — дозбір не повинен валити слухача
             print(f"[lunch] catch-up ({reason}) failed: {e}", file=sys.stderr)

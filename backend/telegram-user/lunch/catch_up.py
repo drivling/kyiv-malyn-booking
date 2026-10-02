@@ -6,6 +6,10 @@
     повідомлення, що прийшли за ці секунди, обробник NewMessage не бачить;
   * меню дня додали вже після перших замовлень (OCR вимкнений — меню вставляє адмін).
 
+Окремо — «догін» нерозпізнаного: замовлення, зроблені ДО того, як адмін завантажив меню, лишаються
+з «не розпізнано» (або зі стравою, якої сьогодні немає). Коли меню з'явилось, такі замовлення
+розбираються ще раз за сьогоднішнім меню (див. `resolve_incomplete_orders`).
+
 Правила, щоб нічого не зіпсувати:
   * лише люди, у яких за сьогодні ще НЕМАЄ замовлення (навіть скасованого — «Прибрати»
     не воскрешаємо) — ручні правки й чужі замовлення не перезаписуємо;
@@ -21,10 +25,83 @@ from typing import Any, Optional
 
 from .db import LunchDB, today_kyiv
 from .formatters import format_order_confirm
+from .parse_order import parse_order
 from .reparse_day import DayContext, kyiv_day_bounds, plan_text_message
 
 CATCH_UP_WINDOW = timedelta(hours=3)
 CATCH_UP_LIMIT = 300
+
+
+def _line_signature(lines) -> frozenset:
+    return frozenset((l.dish_id, l.qty, bool(l.unavailable)) for l in lines)
+
+
+async def resolve_incomplete_orders(db: LunchDB, day_id: int, menu, *, notify: bool = True) -> dict[str, int]:
+    """Повторно розібрати «неповні» замовлення (є нерозпізнане або страва, якої немає в меню) за
+    сьогоднішнім меню. Нічого не відбираємо в людини:
+      * текст повністю пояснюється меню → рядки замінюються розібраними (старі були від вчорашнього
+        меню або хибного збігу);
+      * пояснюється частково → лише ДОДАЄМО знайдені страви, решта лишається нерозпізнаною;
+      * нічого нового не знайшли → замовлення не чіпаємо (і нічого не пишемо в групу).
+    Ручну кількість лотків зберігаємо. Нашу відповідь у групі правимо (edit), а не пишемо нову."""
+    stats = {"resolved": 0, "partial": 0}
+    if not menu:
+        return stats
+    for o in await db.list_incomplete_orders(day_id):
+        result = parse_order(o["raw_text"], menu)
+        if not result.lines:
+            continue
+        old_lines = o["lines"]
+        fully = not result.unmatched and not result.ambiguous
+        if fully:
+            new_lines = list(result.lines)
+            unmatched = None
+        else:
+            have = {l.dish_id for l in old_lines if not l.unavailable and l.dish_id is not None}
+            extra = [l for l in result.lines if l.dish_id not in have]
+            if not extra:
+                continue
+            new_lines = list(old_lines) + extra
+            unmatched = result.unmatched_text or None
+        if _line_signature(new_lines) == _line_signature(old_lines) and (unmatched or "") == (
+            o["unmatched_text"] or ""
+        ):
+            continue  # нічого не змінилось — не смикаємо базу й групу кожні 5 хв
+        manual = o["tray_count_manual"]
+        trays, tray_sum, grand = await db.apply_trays_to_lines(
+            new_lines, tray_count_override=o["tray_count"] if manual else None
+        )
+        await db.upsert_order(
+            day_id,
+            o["participant_id"],
+            o["raw_text"],
+            grand,
+            new_lines,
+            source_message_id=o["source_message_id"],
+            unmatched_text=unmatched,
+            tray_count=trays,
+            tray_total_uah=tray_sum,
+            tray_count_manual=manual,
+        )
+        stats["resolved" if fully else "partial"] += 1
+        if notify and (o["reply_message_id"] or o["source_message_id"]):
+            tray_price = await db.get_tray_price()
+            text = format_order_confirm(
+                o["display_name"],
+                [l for l in new_lines if not l.unavailable],
+                grand,
+                result.unmatched if not fully else [],
+                tray_count=trays,
+                tray_price_uah=tray_price,
+                tray_total_uah=tray_sum,
+                unavailable=[l.raw_name for l in new_lines if l.unavailable],
+                ambiguous=result.ambiguous if not fully else None,
+            )
+            if o["reply_message_id"]:
+                await db.enqueue_outbound(text, kind="edit", telegram_message_id=o["reply_message_id"])
+            else:
+                await db.enqueue_outbound(text, reply_to_message_id=o["source_message_id"])
+    return stats
 
 
 def _display_name(sender) -> str:
@@ -46,7 +123,9 @@ async def catch_up_today(
     now: Optional[datetime] = None,
     notify: bool = True,
 ) -> dict[str, Any]:
-    stats: dict[str, Any] = {"scanned": 0, "orders": 0, "payments": 0, "cards": 0, "skipped_reason": None}
+    stats: dict[str, Any] = {
+        "scanned": 0, "orders": 0, "payments": 0, "cards": 0, "resolved": 0, "partial": 0, "skipped_reason": None,
+    }
     d = today_kyiv()
     day = await db.get_day(d)
     if day is None:
@@ -150,4 +229,7 @@ async def catch_up_today(
                 ),
                 reply_to_message_id=int(msg.id),
             )
+
+    fixed = await resolve_incomplete_orders(db, day.id, menu, notify=notify)
+    stats["resolved"], stats["partial"] = fixed["resolved"], fixed["partial"]
     return stats
