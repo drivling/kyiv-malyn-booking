@@ -13,6 +13,11 @@
   7. Файл сесії з’явиться у поточній директорії (або в TELEGRAM_USER_SESSION_PATH).
   8. Завантажте цей файл + session_telegram_user.session-journal (якщо є) на сервер.
 
+Вхід по QR (коли Telegram більше не шле код: «all available options ... already used»):
+  python3 auth_session.py --qr
+  У телефоні: Telegram → Налаштування → Пристрої → Підключити пристрій → навести камеру на QR.
+  Ліміт на відправку кодів тут не діє. QR малюється в терміналі, якщо встановлено `pip install qrcode`.
+
 Жорсткий вихід (якщо сесію скомпрометовано):
   python3 auth_session.py --logout
   Відкликає сесію на серверах Telegram і видаляє локальні файли сесії.
@@ -21,12 +26,18 @@ API_ID та API_HASH беруться з TELEGRAM_API_ID/TELEGRAM_API_HASH у с
 або з файлу .env у backend/ або в поточній директорії.
 """
 
+import asyncio
 import os
 import sys
 from telethon import TelegramClient
 from telethon.tl.functions.auth import ResendCodeRequest
 from telethon.errors import SessionPasswordNeededError
-from telethon.errors.rpcerrorlist import SendCodeUnavailableError
+from telethon.errors.rpcerrorlist import (
+    FloodWaitError,
+    PhoneCodeExpiredError,
+    PhoneCodeInvalidError,
+    SendCodeUnavailableError,
+)
 
 # Завантажити .env з backend/ або telegram-user/ (щоб не експортувати API_ID/API_HASH вручну)
 def _load_dotenv():
@@ -67,6 +78,11 @@ if not API_ID or not API_HASH:
 LOGOUT = "--logout" in sys.argv or "-logout" in sys.argv
 if LOGOUT:
     sys.argv = [a for a in sys.argv if a not in ("--logout", "-logout")]
+
+# --qr: вхід через QR замість коду (обходить ліміт на відправку кодів)
+QR = "--qr" in sys.argv
+if QR:
+    sys.argv = [a for a in sys.argv if a != "--qr"]
 
 # Якщо передано один аргумент (не --logout) — це шлях до сесії
 if len(sys.argv) > 1:
@@ -128,6 +144,72 @@ async def logout_main():
         print("Рекомендується вручну видалити файли сесії та переавторизуватися.")
 
 
+_CODE_DELIVERY = {
+    "SentCodeTypeApp": "повідомлення в додатку Telegram (чат «Telegram» на пристрої, де акаунт уже увійшов)",
+    "SentCodeTypeSms": "SMS",
+    "SentCodeTypeCall": "голосовий дзвінок",
+    "SentCodeTypeFlashCall": "flash-дзвінок (код — останні цифри номера, що дзвонить)",
+    "SentCodeTypeMissedCall": "пропущений дзвінок (код — останні цифри номера, що дзвонить)",
+}
+
+
+def _describe_sent_code(sent) -> str:
+    """Куди Telegram надіслав код і чи можна ще перезапитати — щоб не гадати, де його шукати."""
+    kind = type(getattr(sent, "type", None)).__name__
+    where = _CODE_DELIVERY.get(kind, kind)
+    nxt = getattr(sent, "next_type", None)
+    if nxt is None:
+        again = "повторна відправка недоступна"
+    else:
+        again = "далі можна 'retry': " + _CODE_DELIVERY.get(type(nxt).__name__.replace("CodeType", "SentCodeType"), type(nxt).__name__)
+    return f"Код надіслано: {where}. ({again})"
+
+
+def _print_qr(url: str):
+    """Малює QR у терміналі, якщо встановлено qrcode; інакше друкує tg://-посилання."""
+    try:
+        import qrcode  # type: ignore
+    except ImportError:
+        print("Для QR у терміналі: pip install qrcode  (або згенеруйте QR із цього посилання будь-яким сервісом):")
+        print(url)
+        return
+    qr = qrcode.QRCode(border=1)
+    qr.add_data(url)
+    qr.print_ascii(invert=True)
+
+
+async def _finish(client):
+    me = await client.get_me()
+    print(f"Успішно авторизовано: {me.first_name} (@{me.username or '—'})")
+    print(f"Сесія збережена у: {os.path.abspath(SESSION_NAME)}.session")
+    print("На сервері вкажіть TELEGRAM_USER_SESSION_PATH на повний шлях до цього файлу (без .session).")
+    await client.disconnect()
+
+
+async def qr_main():
+    """Вхід через QR: Telegram → Налаштування → Пристрої → Підключити пристрій."""
+    client = TelegramClient(SESSION_NAME, int(API_ID), API_HASH)
+    await client.connect()
+    if not await client.is_user_authorized():
+        print("Відкрийте Telegram на телефоні: Налаштування → Пристрої → Підключити пристрій")
+        print("і наведіть камеру на QR нижче. QR діє ~30 с, потім оновиться сам. Ctrl+C — скасувати.")
+        print()
+        qr = await client.qr_login()
+        while True:
+            _print_qr(qr.url)
+            try:
+                await qr.wait()
+                break
+            except asyncio.TimeoutError:
+                print("\nQR застарів, генерую новий...\n")
+                await qr.recreate()
+            except SessionPasswordNeededError:
+                pw = input("Пароль 2FA: ").strip()
+                await client.sign_in(password=pw)
+                break
+    await _finish(client)
+
+
 async def main():
     # Якщо змінили API_ID/API_HASH — видаліть старі файли сесії
     for p in _session_files(SESSION_NAME):
@@ -146,44 +228,42 @@ async def main():
     client = TelegramClient(SESSION_NAME, int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
-        result = await client.send_code_request(phone)
+        try:
+            result = await client.send_code_request(phone)
+        except FloodWaitError as e:
+            print(f"Telegram просить зачекати {e.seconds} с перед новим запитом коду.", file=sys.stderr)
+            print("Не чекаючи: python3 auth_session.py --qr", file=sys.stderr)
+            await client.disconnect()
+            return
         phone_code_hash = result.phone_code_hash
 
         print()
-        print("Код надіслано в додаток Telegram (або SMS).")
-        print("Якщо не приходить: 'call' — дзвінок, 'retry' — надіслати код заново.")
+        print(_describe_sent_code(result))
+        print("Не приходить: 'retry' — запитати наступний канал (SMS → дзвінок), якщо Telegram його дозволяє.")
+        print("Варіанти вичерпано: Ctrl+C і `python3 auth_session.py --qr` (вхід по QR без коду).")
         print()
 
         while True:
-            code = input("Код з Telegram (або call/retry): ").strip()
-            if code.lower() in ("retry", "new", "resend", "повторити"):
+            code = input("Код з Telegram (або retry): ").strip()
+            # 'call' лишається синонімом: канал обирає Telegram, примусово дзвінок замовити не можна.
+            if code.lower() in ("retry", "new", "resend", "повторити", "call", "дзвінок"):
                 try:
-                    result = await client.send_code_request(phone)
-                    phone_code_hash = result.phone_code_hash
-                    print("Новий код надіслано. Перевірте додаток Telegram або SMS.")
-                except Exception as e:
-                    print(f"Помилка: {e}", file=sys.stderr)
-                continue
-            if code.lower() in ("call", "дзвінок"):
-                try:
+                    # Те саме робить і send_code_request для вже запитаного номера.
                     result = await client(ResendCodeRequest(phone_number=phone, phone_code_hash=phone_code_hash))
                     phone_code_hash = result.phone_code_hash
-                    print("Запит дзвінка відправлено. Очікуйте дзвінок — робот проговорить код.")
+                    print(_describe_sent_code(result))
                 except SendCodeUnavailableError:
-                    print("Дзвінок недоступний (всі варіанти вже використано). Пробуємо надіслати код заново...")
-                    try:
-                        result = await client.send_code_request(phone)
-                        phone_code_hash = result.phone_code_hash
-                        print("Новий код надіслано. Перевірте додаток Telegram або SMS.")
-                    except Exception as e2:
-                        print(f"Помилка: {e2}", file=sys.stderr)
-                        print("Зачекайте 10–15 хв і запустіть auth_session.py знову.")
+                    print("Telegram: усі канали для цього номера вже використано, нового коду зараз не буде.")
+                    print("Код з першого повідомлення ще може діяти — введіть його тут.")
+                    print("Інакше Ctrl+C і `python3 auth_session.py --qr`, або спробуйте за кілька годин.")
+                except FloodWaitError as e:
+                    print(f"Telegram просить зачекати {e.seconds} с.", file=sys.stderr)
                 except Exception as e:
                     print(f"Помилка: {e}", file=sys.stderr)
                 continue
 
             if not code:
-                print("Введіть код або call/retry.")
+                print("Введіть код або retry.")
                 continue
 
             try:
@@ -193,24 +273,20 @@ async def main():
                 pw = input("Пароль 2FA: ").strip()
                 await client.sign_in(password=pw)
                 break
-            except Exception as e:
-                err = str(e).lower()
-                if "phone_code" in err or "invalid" in err:
-                    print("Невірний код. Спробуйте ще раз або введіть 'call' для дзвінка.")
-                else:
-                    print(f"Помилка: {e}", file=sys.stderr)
-                    raise
+            except PhoneCodeInvalidError:
+                print("Невірний код. Спробуйте ще раз або введіть 'retry'.")
+            except PhoneCodeExpiredError:
+                print("Код застарів. Запустіть скрипт знову або використайте `python3 auth_session.py --qr`.", file=sys.stderr)
+                await client.disconnect()
+                return
 
-    me = await client.get_me()
-    print(f"Успішно авторизовано: {me.first_name} (@{me.username or '—'})")
-    print(f"Сесія збережена у: {os.path.abspath(SESSION_NAME)}.session")
-    print("На сервері вкажіть TELEGRAM_USER_SESSION_PATH на повний шлях до цього файлу (без .session).")
-    await client.disconnect()
+    await _finish(client)
 
 
 if __name__ == "__main__":
-    import asyncio
     if LOGOUT:
         asyncio.run(logout_main())
+    elif QR:
+        asyncio.run(qr_main())
     else:
         asyncio.run(main())
