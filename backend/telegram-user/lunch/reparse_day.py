@@ -297,7 +297,7 @@ def plan_text_message(
     result = parse_order_contextual(text, menu, fallback)
     if not result.lines:
         return MessagePlan("no_match", result=result)
-    if looks_like_mega_personal_order(sum(l.qty for l in result.lines)):
+    if looks_like_mega_personal_order(len(result.lines), sum(l.qty for l in result.lines)):
         return MessagePlan("mega", result=result)
     if not uid:
         return MessagePlan("no_sender", result=result)

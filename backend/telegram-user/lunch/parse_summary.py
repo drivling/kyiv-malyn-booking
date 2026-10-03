@@ -23,6 +23,8 @@ _BARE_INLINE_RE = re.compile(
 
 # Особисте замовлення рідко > 5 позицій; більше — підозра на дамп/підсумок
 MAX_PERSONAL_DISHES = 5
+# Порцій разом: «хліб 4 шт» + 3 страви — ще особисте; кілька людей з однаковими стравами — вже дамп
+MAX_PERSONAL_PORTIONS = 2 * MAX_PERSONAL_DISHES
 
 
 @dataclass
@@ -81,8 +83,10 @@ def looks_like_day_summary(text: str) -> bool:
     return False
 
 
-def looks_like_mega_personal_order(dish_count: int) -> bool:
-    return dish_count > MAX_PERSONAL_DISHES
+def looks_like_mega_personal_order(dish_count: int, portions: int = 0) -> bool:
+    """dish_count — скільки РІЗНИХ страв (рядків), portions — скільки порцій разом.
+    «Хліб 4 шт» чи «голубці 2 порції» — одна позиція з кількістю, а не дамп."""
+    return dish_count > MAX_PERSONAL_DISHES or portions > MAX_PERSONAL_PORTIONS
 
 
 def _name_key(name: str) -> str:
