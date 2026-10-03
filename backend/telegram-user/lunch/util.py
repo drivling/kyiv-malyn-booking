@@ -35,6 +35,22 @@ _TOKEN_SYNONYMS = {
     "вареники": "вареники",
     "картошкой": "картоплею",
     "картошка": "картопля",
+    # рос. назви страв і способів приготування з реальних замовлень (золоті дані 08–10.2026)
+    "овощной": "овочевий",
+    "печенка": "печінка",
+    "жаренная": "смажена",
+    "жареная": "смажена",
+    "тушенная": "тушкована",
+    "тушеная": "тушкована",
+    "варенная": "відварна",
+    "вареная": "відварна",
+    "отварная": "відварна",
+    "голубцы": "голубці",
+    "ленивые": "ліниві",
+    "огурцы": "огірки",
+    "помидоры": "помідори",
+    "помидором": "помідором",
+    "куриные": "курячі",
 }
 
 
@@ -121,8 +137,12 @@ def compute_tray_count(lines: list) -> int:
     return trays
 
 
-def split_order_parts(text: str) -> list[str]:
-    """Розбити текст замовлення на частини (|, ;, переноси, коми, 2+ пробіли)."""
+def split_order_parts(text: str, *, double_space: bool = True) -> list[str]:
+    """Розбити текст замовлення на частини (|, ;, переноси, коми, 2+ пробіли).
+
+    double_space=False — 2+ пробіли не ріжуть частину: «філе  риби смажене» — випадковий подвійний пробіл
+    усередині однієї назви; parse_order сам вирішує, чи різати там, де обидва шматки — різні страви.
+    """
     if not text or not text.strip():
         return []
     raw = text.strip()
@@ -132,17 +152,13 @@ def split_order_parts(text: str) -> list[str]:
         chunk = chunk.strip()
         if not chunk:
             continue
-        if "," in chunk:
-            for sub in chunk.split(","):
-                sub = sub.strip()
-                if sub:
-                    # «бифштекс с яйцом  печень оладьи»
-                    for piece in re.split(r"\s{2,}", sub):
-                        piece = piece.strip()
-                        if piece:
-                            parts.append(piece)
-        else:
-            for piece in re.split(r"\s{2,}", chunk):
+        subs = [sub.strip() for sub in chunk.split(",")] if "," in chunk else [chunk]
+        for sub in subs:
+            if not sub:
+                continue
+            # «бифштекс с яйцом  печень оладьи»
+            pieces = re.split(r"\s{2,}", sub) if double_space else [sub]
+            for piece in pieces:
                 piece = piece.strip()
                 if piece:
                     parts.append(piece)

@@ -101,7 +101,7 @@ async def attribute_summary_leftover(
     result = parse_order(text, menu)
     if not result.lines or result.unmatched or result.ambiguous:
         return {"status": "skipped", "reason": "пункт не розпізнано за сьогоднішнім меню", "text": text}
-    if looks_like_mega_personal_order(sum(l.qty for l in result.lines)):
+    if looks_like_mega_personal_order(len(result.lines), sum(l.qty for l in result.lines)):
         return {"status": "skipped", "reason": "забагато страв для особистого замовлення", "text": text}
     pid = await db.find_participant_id_by_telegram_id(sender_uid)
     if pid is not None and await db.has_order(day_id, pid):

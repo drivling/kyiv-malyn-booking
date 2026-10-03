@@ -593,6 +593,128 @@ def test_confirm_text_explains_ambiguity():
     assert "«салат» — це " in text and " чи " in text
 
 
+def _canteen_menu():
+    """Шматок реального меню (вересень 2026) — для правил, знайдених на золотих даних."""
+    return [
+        _row(1, "Гречка", 35),
+        _row(2, "Пюре", 45),
+        _row(3, "Хліб", 3),
+        _row(4, "Голубці ліниві", 90),
+        _row(5, "Біфштекс з яйцем", 90, syn=("бифштекс",)),
+        _row(6, "Філе риби смажене в яйці", 80, syn=("філе",)),  # шкідливий синонім з проду
+        _row(7, "Філе курки «Пікантне»", 90),
+        _row(8, "Салат «Капуста молода з огірком»", 40, role="salad", syn=("салат капуста огірок",)),
+        _row(9, "Печінка смажена з цибулею", 65, syn=("печінка смажена",)),
+        _row(10, "Деруни", 50),
+        _row(11, "Перець фарширований", 90),
+        _row(12, "Салат «Крабово-овочевий»", 50, role="salad"),
+        _row(13, "Сирники", 45),
+        _row(14, "Вареники з картоплею", 70),
+        _row(15, "Котлети курячі", 70),
+    ]
+
+
+def _dishes(r):
+    return sorted((ln.raw_name, ln.qty) for ln in r.lines)
+
+
+def test_quantity_in_text():
+    """Золоті дані: «2 хліба», «хліб 2», «Хліб 4 шт», «Голубці ліниві 2 порції», «бифштекс 4 штуки» — раніше ×1."""
+    menu = _canteen_menu()
+    assert _dishes(parse_order("Солянка, 2 хліба, гречка", menu)) == [("Гречка", 1), ("Хліб", 2)]
+    assert _dishes(parse_order("хліб 2", menu)) == [("Хліб", 2)]
+    assert _dishes(parse_order("Хліб 4 шт", menu)) == [("Хліб", 4)]
+    assert _dishes(parse_order("Голубці ліниві 2 порції", menu)) == [("Голубці ліниві", 2)]
+    assert _dishes(parse_order("Голубці  2 порції", menu)) == [("Голубці ліниві", 2)]
+    assert _dishes(parse_order("бифштекс  с яйцом 4 штуки", menu)) == [("Біфштекс з яйцем", 4)]
+    assert _dishes(parse_order("котлети х2, x2 пюре, сирники ×2", menu)) == [
+        ("Котлети курячі", 2), ("Пюре", 2), ("Сирники", 2)]
+    r = parse_order("Хліб 4 шт", menu)
+    assert r.total_uah == 12 and r.lines[0].line_total_uah == 12
+    # номер пункту списку — не кількість
+    assert _dishes(parse_order("3.гречка", menu)) == [("Гречка", 1)]
+
+
+def test_conjunction_splits_only_into_distinct_dishes():
+    """«гречка і філе…» губило гречку; але «і»/«та» бувають і всередині назви."""
+    menu = _canteen_menu()
+    assert _dishes(parse_order("Пюре і перець фарширований", menu)) == [("Перець фарширований", 1), ("Пюре", 1)]
+    assert _dishes(parse_order("гречка + котлети", menu)) == [("Гречка", 1), ("Котлети курячі", 1)]
+    # «цибулею» — хвіст «Печінка смажена з цибулею», а не друга страва
+    assert _dishes(parse_order("Вареники з картоплею і цибулею", menu)) == [("Вареники з картоплею", 1)]
+    # випадковий подвійний пробіл усередині однієї назви — одна страва, не дві
+    assert _dishes(parse_order("філе  риби смажене в яйці", menu)) == [("Філе риби смажене в яйці", 1)]
+
+
+def test_text_without_separators_is_segmented_by_menu():
+    menu = _canteen_menu()
+    r = parse_order("Печінка смажена салат капуста огірок деруни", menu)
+    assert _dishes(r) == [("Деруни", 1), ("Печінка смажена з цибулею", 1), ("Салат «Капуста молода з огірком»", 1)]
+    assert r.unmatched == []
+    # «сирний» ≈ «Сирники» — не привід різати назву салату, якого сьогодні немає
+    r = parse_order("салат крабово сирний", menu)
+    assert r.lines == [] and r.unmatched == ["салат крабово сирний"]
+
+
+def test_negated_parts_are_not_orders():
+    """Оголошення оператора й заміни: «Дерунов нету» бот записав як замовлення дерунів."""
+    menu = _canteen_menu()
+    for text in ("Дерунов нету", "Небуде 1 голубців, замініть будь ласка", "Крабовий закінчився замініть будь ласка",
+                 "Одного бифштекса не будет, меняйте заказ"):
+        assert parse_order(text, menu).lines == [], text
+    r = parse_order("Замість пюре , перець фарширований", menu)
+    assert _dishes(r) == [("Перець фарширований", 1)]
+    r = parse_order("Не розумію\nНемає зеленого борща і вареників з картоплею\nА я замовила пюре і деруни", menu)
+    assert _dishes(r) == [("Деруни", 1), ("Пюре", 1)]
+
+
+def test_payment_link_and_mention_are_not_reported_as_unrecognized():
+    menu = _canteen_menu()
+    r = parse_order("Голубці ліниві 2 порції\n\nhttps://check.monobank.ua/p/XXXX", menu)
+    assert _dishes(r) == [("Голубці ліниві", 2)] and r.unmatched == []
+    r = parse_order("@operator\nПюре, деруни", menu)
+    assert _dishes(r) == [("Деруни", 1), ("Пюре", 1)] and r.unmatched == []
+
+
+def test_short_synonym_does_not_swallow_longer_dish():
+    """«філе» (синонім риби) ⊂ «філе курки з помідором»; курки з помідором того дня немає — питати, не вгадувати."""
+    menu = _canteen_menu()
+    r = parse_order("гречка, філе курки з помідором", menu)
+    assert _dishes(r) == [("Гречка", 1)]
+    assert r.unmatched == ["філе курки з помідором"]
+    # інший варіант страви («Пікантне») теж не підставляємо
+    assert all(ln.raw_name != "Філе курки «Пікантне»" for ln in r.lines)
+    # а «салат крабовий» при єдиному крабовому салаті — збіг
+    assert _dishes(parse_order("Салат крабовий", menu)) == [("Салат «Крабово-овочевий»", 1)]
+
+
+def test_ru_cooking_words():
+    menu = [_row(1, "Печінка смажена з цибулею", 65), _row(2, "Картопля тушкована з грибами", 45),
+            _row(3, "Салат «Крабово-овочевий»", 50, role="salad"), _row(4, "Курка відварна", 75),
+            _row(5, "Голубці ліниві", 90), _row(6, "Салат «Крабово-сирний»", 50, role="salad")]
+    assert _dishes(parse_order("печенка жаренная", menu)) == [("Печінка смажена з цибулею", 1)]
+    assert _dishes(parse_order("картопля тушенная", menu)) == [("Картопля тушкована з грибами", 1)]
+    assert _dishes(parse_order("Салат крабово овощной", menu)) == [("Салат «Крабово-овочевий»", 1)]
+    assert _dishes(parse_order("курица варенная", menu)) == [("Курка відварна", 1)]
+    assert _dishes(parse_order("голубцы ленивые", menu)) == [("Голубці ліниві", 1)]
+
+
+def test_mega_counts_distinct_dishes_not_portions():
+    assert (
+        decide_personal_order_action(day_status="ordering", matched_line_count=3, dish_qty_total=7)
+        == PersonalOrderAction.ACCEPT
+    )
+    assert (
+        decide_personal_order_action(day_status="ordering", matched_line_count=6, dish_qty_total=6)
+        == PersonalOrderAction.MEGA
+    )
+    # кілька людей з однаковими стравами — дамп, хоч різних страв мало
+    assert (
+        decide_personal_order_action(day_status="ordering", matched_line_count=3, dish_qty_total=11)
+        == PersonalOrderAction.MEGA
+    )
+
+
 def main():
     tests = [
         test_normalize,
@@ -633,6 +755,14 @@ def main():
         test_synonym_owner_prefers_dish_whose_name_matches_over_newer_poison,
         test_synonym_owner_equally_similar_names_fall_back_to_newest,
         test_confirm_text_explains_ambiguity,
+        test_quantity_in_text,
+        test_conjunction_splits_only_into_distinct_dishes,
+        test_text_without_separators_is_segmented_by_menu,
+        test_negated_parts_are_not_orders,
+        test_payment_link_and_mention_are_not_reported_as_unrecognized,
+        test_short_synonym_does_not_swallow_longer_dish,
+        test_ru_cooking_words,
+        test_mega_counts_distinct_dishes_not_portions,
     ]
     failed = 0
     for t in tests:

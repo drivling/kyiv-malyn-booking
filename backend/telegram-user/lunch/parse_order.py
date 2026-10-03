@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Optional, Sequence
@@ -71,6 +72,9 @@ def _token_match_weight(a: str, b: str) -> float:
     shorter, longer = (fa, fb) if len(fa) <= len(fb) else (fb, fa)
     if len(shorter) >= 3 and longer.startswith(shorter):
         return _STEM_MATCH_WEIGHT
+    if len(shorter) == 4 and fa[:3] == fb[:3]:
+        # короткі слова з іншим закінченням: «шуба» / «шубою», «фета» / «фетою», «яйці» / «яйцем»
+        return _STEM_MATCH_WEIGHT
     if len(shorter) >= 5:
         common = 0
         for ca, cb in zip(fa, fb):
@@ -120,11 +124,20 @@ def _similarity(a: str, b: str) -> float:
         return _NO_MATCH_SCORE
     if a in b or b in a:
         shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
-        return 0.72 + 0.28 * (len(shorter) / max(len(longer), 1))
+        # Запит (a) містить назву/синонім (b) і ще 2+ своїх значущих слова — це вже інша страва або кілька:
+        # «філе» ⊂ «філе курки з помідором», «борщ» ⊂ «немає зеленого борща і вареників з картоплею».
+        query_has_more = longer is a and shared_distinct is not None and len(da) - shared_distinct >= 2
+        if not query_has_more:
+            return 0.72 + 0.28 * (len(shorter) / max(len(longer), 1))
     if not ta or not tb:
         return 0.0
-    if shared_distinct is not None and shared_distinct < math.ceil(0.6 * min(len(da), len(db))):
-        return _NO_MATCH_SCORE
+    if shared_distinct is not None:
+        if shared_distinct < math.ceil(0.6 * min(len(da), len(db))):
+            return _NO_MATCH_SCORE
+        # У кожної назви є своє значуще слово, якого немає в іншій, і спільного менше 3/4 запиту —
+        # це інший варіант страви: «філе курки з помідором» ≠ «Філе курки «Пікантне»».
+        if shared_distinct < len(da) and shared_distinct < len(db) and shared_distinct < 0.75 * len(da):
+            return _NO_MATCH_SCORE
     _hits, inter = _overlap(ta, tb)
     union = len(ta) + len(tb) - inter
     jacc = inter / union if union else 0.0
@@ -222,15 +235,173 @@ def _try_split_hard_unmatched(part: str) -> list[str]:
     return pieces if len(pieces) >= 2 else [part]
 
 
+# Посилання (чек monobank) і згадки (@оператор) — не страви: не шукаємо в меню й не звітуємо «не розпізнав».
+_URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+_MENTION_RE = re.compile(r"(?<![\w@])@\w+")
+# Номер пункту списку («3.гречка», «2) пюре») — не кількість.
+_LIST_INDEX_RE = re.compile(r"^\s*\d{1,2}\s*[.)]\s*(?=\D)")
+# Частина називає те, чого НЕ треба: «Дерунов нету», «Небуде 1 голубців», «Крабовий закінчився замініть»,
+# «Замість пюре, …», «Немає зеленого борща». Таку частину не записуємо й не перепитуємо.
+_NEGATION_RE = re.compile(
+    r"(?<!\w)(?:не\s*буде\w*|не\s*будет|не\s*треба|не\s*надо|нема\w*|нету|нет"
+    r"|закінчи\w*|закончи\w*|замість|вместо)(?!\w)",
+    re.IGNORECASE,
+)
+# Кількість: «2 хліба», «хліб 2», «Хліб 4 шт», «Голубці ліниві 2 порції», «х2 пюре», «котлети ×2».
+_QTY_UNIT = r"(?:шт|штук[аи]?|порці[яїйю]?|порци[яийю]?|порц)\.?"
+_QTY_LEAD_RE = re.compile(
+    rf"^\s*(?:[x×х]\s*)?(\d{{1,2}})(?:\s*[x×х](?![^\W\d_])|\s*{_QTY_UNIT}(?![^\W\d_]))?\s+(?=\S)",
+    re.IGNORECASE,
+)
+_QTY_TAIL_RE = re.compile(
+    rf"(?<=\S)\s+(?:[x×х]\s*)?(\d{{1,2}})(?:\s*(?:[x×х]|{_QTY_UNIT}))?\s*$",
+    re.IGNORECASE,
+)
+_MAX_QTY = 10
+# Сполучники/пробіли всередині частини: «гречка і філе курки з помідором», «пюре + котлети»,
+# «бифштекс с яйцом  печень оладьи». Ріжемо лише коли кожен шматок — окрема страва з меню.
+_JOIN_SPLIT_RE = re.compile(r"\s+(?:і|и|та|\+|&)\s+|\s{2,}", re.IGNORECASE)
+# Текст без роздільників довше за стільки слів не сегментуємо (це вже не одне замовлення)
+_MAX_SEGMENT_TOKENS = 12
+# Шматок сегментації має збігатися впевнено: «сирний» ≈ «Сирники» (0.69) — не привід різати «салат крабово сирний»
+_SEGMENT_MIN_SCORE = 0.8
+
+
+def _clean_part(part: str) -> str:
+    t = _URL_RE.sub(" ", part)
+    t = _MENTION_RE.sub(" ", t)
+    t = _LIST_INDEX_RE.sub("", t)
+    return t.strip(" \t:-–—")
+
+
+def _split_qty(part: str) -> tuple[str, int]:
+    """«2 хліба» → («хліба», 2); «Голубці ліниві 2 порції» → («Голубці ліниві», 2); без числа — (part, 1)."""
+    for rx in (_QTY_LEAD_RE, _QTY_TAIL_RE):
+        m = rx.search(part)
+        if not m:
+            continue
+        qty = int(m.group(1))
+        rest = (part[: m.start()] + " " + part[m.end():]).strip()
+        if 1 <= qty <= _MAX_QTY and rest:
+            return rest, qty
+    return part, 1
+
+
+def _match_counted(part: str, menu: Sequence[MenuItemRow], min_score: float) -> tuple[MatchedPart, int]:
+    body, qty = _split_qty(part)
+    m = match_part_to_menu(body, menu, min_score=min_score)
+    if m.item is None and body != part:
+        # число може бути частиною назви страви — тоді без кількості
+        whole = match_part_to_menu(part, menu, min_score=min_score)
+        if whole.item is not None:
+            return MatchedPart(raw=part, item=whole.item, score=whole.score), 1
+    return MatchedPart(raw=part, item=m.item, score=m.score, alternatives=m.alternatives), qty
+
+
+def _covers_all_words(span: str, item: MenuItemRow) -> bool:
+    """Кожне значуще слово шматка є в назві або одному синонімі страви (шматок не «зʼїдає» сусідню страву)."""
+    words = _token_set(span)
+    for cand in [item.name_norm, *getattr(item, "synonym_norms", ())]:
+        if cand and _overlap(words, _token_set(cand))[0] == len(words):
+            return True
+    return False
+
+
+def _names_dish_by_head(span: str, item: MenuItemRow) -> bool:
+    """Шматок з одного слова — це назва страви, лише якщо слово головне (перше значуще в назві чи синонімі):
+    «гречка», «котлети», «оливье» — так; «цибулею» з «Печінка смажена з цибулею» — ні (це опис іншої страви)."""
+    words = _token_set(span) - GENERIC_TOKENS
+    if len(words) != 1:
+        return True
+    (word,) = words
+    for cand in [item.name_norm, *getattr(item, "synonym_norms", ())]:
+        head = next((t for t in cand.split() if len(t) > 1 and t not in GENERIC_TOKENS), None)
+        if head and _token_match_weight(word, head) > 0:
+            return True
+    return False
+
+
+def _confident_piece(span: str, m: MatchedPart, *, guessed_bounds: bool) -> bool:
+    """Шматок розрізаного тексту, якому можна вірити: страва знайдена і шматок — не «хвіст» іншої назви.
+    guessed_bounds — межі шматків вгадуємо ми (текст без роздільників): тоді ще й впевнений збіг і кожне
+    слово шматка з цієї страви. Інакше різати не варто: краще одна страва чи перепитати, ніж вигадати другу."""
+    if m.item is None:
+        return False
+    norm = normalize_dish_name(span)
+    if guessed_bounds and (m.score < _SEGMENT_MIN_SCORE or not _covers_all_words(norm, m.item)):
+        return False
+    return _names_dish_by_head(norm, m.item)
+
+
+def _segment_by_menu(part: str, menu: Sequence[MenuItemRow], min_score: float) -> Optional[list[MatchedPart]]:
+    """Текст без роздільників («Печінка смажена салат капуста огірок деруни») → найменше шматків, кожен з яких —
+    окрема страва меню, що містить усі слова шматка. None — якщо так покрити весь текст не вдається."""
+    toks = normalize_dish_name(part).split()
+    if len(_token_set(" ".join(toks))) < 3 or len(toks) > _MAX_SEGMENT_TOKENS:
+        return None
+    n = len(toks)
+    # best[i] = (кількість шматків, −сума score, шматки) для toks[:i]
+    best: dict[int, tuple[int, float, list[MatchedPart]]] = {0: (0, 0.0, [])}
+    for i in range(1, n + 1):
+        for j in range(i):
+            if j not in best:
+                continue
+            span = " ".join(toks[j:i])
+            if not _token_set(span):
+                continue
+            m = match_part_to_menu(span, menu, min_score=min_score)
+            if not _confident_piece(span, m, guessed_bounds=True):
+                continue
+            prev = best[j]
+            cand = (prev[0] + 1, prev[1] - m.score, [*prev[2], m])
+            if i not in best or cand[:2] < best[i][:2]:
+                best[i] = cand
+    if n not in best or best[n][0] < 2:
+        return None
+    pieces = best[n][2]
+    keys = [_item_key(m.item) for m in pieces if m.item is not None]
+    return pieces if len(set(keys)) == len(keys) else None
+
+
+def _resolve_part(part: str, menu: Sequence[MenuItemRow], min_score: float) -> list[tuple[MatchedPart, int]]:
+    """Одна частина замовлення → страви (з кількістю); нерозпізнане — MatchedPart без item."""
+    whole, qty = _match_counted(part, menu, min_score)
+    if whole.item is not None and whole.score >= _SYNONYM_EXACT_SCORE:
+        return [(whole, qty)]
+    pieces = [p.strip() for p in _JOIN_SPLIT_RE.split(part) if p and p.strip()]
+    if len(pieces) >= 2:
+        sub = [_match_counted(p, menu, min_score) for p in pieces]
+        keys = [_item_key(m.item) for m, _q in sub if m.item is not None]
+        confident = all(
+            _confident_piece(_split_qty(p)[0], m, guessed_bounds=False) for p, (m, _q) in zip(pieces, sub)
+        )
+        if confident and len(keys) == len(sub) and len(set(keys)) == len(keys):
+            return sub
+    body, _qty = _split_qty(part)
+    if whole.item is not None and _covers_all_words(normalize_dish_name(body), whole.item):
+        return [(whole, qty)]
+    # слова, яких у знайденій страві немає (або нічого не знайдено): може, це кілька страв без роздільників
+    seg = _segment_by_menu(body, menu, min_score)
+    if seg:
+        return [(m, 1) for m in seg]
+    if whole.item is not None:
+        return [(whole, qty)]
+    # остання спроба: розпил за ключовими словами «бифштекс с яйцом печень оладьи»
+    subs = [sub for sub in _try_split_hard_unmatched(part) if sub.strip() != part.strip()]
+    if subs:
+        return [_match_counted(sub, menu, min_score) for sub in subs]
+    return [(whole, qty)]
+
+
 def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42) -> OrderParseResult:
-    parts = split_order_parts(text)
+    parts = split_order_parts(text, double_space=False)
     matched: list[MatchedPart] = []
     unmatched: list[str] = []
     ambiguous: dict[str, list[str]] = {}
     lines: list[OrderLineInput] = []
     by_id: dict[int, OrderLineInput] = {}
 
-    def add_match(m: MatchedPart) -> None:
+    def add_match(m: MatchedPart, qty: int = 1) -> None:
         matched.append(m)
         if m.item is None:
             unmatched.append(m.raw)
@@ -240,7 +411,7 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
         key = getattr(m.item, "dish_id", None) or m.item.id
         existing = by_id.get(key)
         if existing:
-            existing.qty += 1
+            existing.qty += qty
             existing.line_total_uah = existing.qty * existing.unit_price_uah
         else:
             line = OrderLineInput(
@@ -249,33 +420,20 @@ def parse_order(text: str, menu: Sequence[MenuItemRow], min_score: float = 0.42)
                 # Канонічна назва з меню (як у ручному редагуванні в адмінці)
                 raw_name=m.item.name,
                 as_written=m.raw,
-                qty=1,
+                qty=qty,
                 unit_price_uah=m.item.price_uah,
-                line_total_uah=m.item.price_uah,
+                line_total_uah=qty * m.item.price_uah,
                 tray_role=getattr(m.item, "tray_role", None) or "second",
             )
             by_id[key] = line
             lines.append(line)
 
-    for part in parts:
-        m = match_part_to_menu(part, menu, min_score=min_score)
-        if m.item is not None:
-            add_match(m)
+    for raw_part in parts:
+        part = _clean_part(raw_part)
+        if not part or _NEGATION_RE.search(part):
             continue
-        # друга спроба: розпил «яйцом  печень» / «яйцом печень оладьи»
-        refined = False
-        for sub in _try_split_hard_unmatched(part):
-            if sub.strip() == part.strip():
-                continue
-            m2 = match_part_to_menu(sub, menu, min_score=min_score)
-            if m2.item is not None:
-                add_match(MatchedPart(raw=sub, item=m2.item, score=m2.score))
-                refined = True
-            else:
-                add_match(MatchedPart(raw=sub, item=None, score=m2.score, alternatives=m2.alternatives))
-                refined = True
-        if not refined:
-            add_match(m)
+        for m, qty in _resolve_part(part, menu, min_score):
+            add_match(m, qty)
 
     total = sum(l.line_total_uah for l in lines)
     # прибрати з unmatched порожні / дублікати після успішного match того ж raw
