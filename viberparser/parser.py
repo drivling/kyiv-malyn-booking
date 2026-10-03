@@ -7,7 +7,7 @@ from datetime import datetime, time as datetime_time
 from pathlib import Path
 from urllib import error, request
 
-DEFAULT_DB_PATH = "/Users/merenkov/Library/Application Support/ViberPC/380739551952/viber.db"
+DEFAULT_DB_PATH = "/Users/merenkoff/Library/Application Support/ViberPC/380739551952/viber.db"
 DEFAULT_STATE_PATH = Path(__file__).with_name("db_parser_state.json")
 DEFAULT_BACKEND_URL = os.getenv("VIBER_BACKEND_URL", "https://kyiv-malyn-booking-production.up.railway.app")
 DEFAULT_AUTH_TOKEN = os.getenv("VIBER_ADMIN_TOKEN", "admin-authenticated")
