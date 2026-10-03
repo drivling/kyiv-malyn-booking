@@ -447,6 +447,65 @@ export async function syncOrdersAfterMenuChange(
   return notices;
 }
 
+/** Скільки днів історії віддаємо за один запит. */
+export const LUNCH_HISTORY_MAX_DAYS = 62;
+/** Замовлення, змінене пізніше ніж через стільки мс після створення, вважаємо «чіпаним людиною» (правка адміна). */
+export const LUNCH_HISTORY_TOUCHED_MS = 120_000;
+
+/**
+ * Історія днів для оцінки розпізнавання («золоті дані»): меню дня, текст замовлення, підсумкові рядки.
+ * Без імен і Telegram-id — лише id замовлення. `touchedAfterCreate` — замовлення міняли вже після
+ * створення (ручна правка адміна, повторне замовлення людини), тому його рядки надійніші за автоматичні.
+ */
+export async function getLunchHistory(prisma: PrismaClient, from: Date, to: Date) {
+  const days = await prisma.lunchDay.findMany({
+    where: { date: { gte: from, lte: to } },
+    orderBy: { date: 'asc' },
+    include: {
+      menuItems: {
+        orderBy: { id: 'asc' },
+        include: { dish: { include: { synonyms: { orderBy: { id: 'asc' } } } } },
+      },
+      orders: {
+        where: { status: 'active' },
+        orderBy: { id: 'asc' },
+        include: { lines: { orderBy: { id: 'asc' }, include: { dish: { select: { id: true, name: true } } } } },
+      },
+    },
+  });
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+    days: days.map((d) => ({
+      date: d.date.toISOString().slice(0, 10),
+      status: d.status,
+      menu: d.menuItems.map((m) => ({
+        dishId: m.dishId,
+        name: m.dish?.name ?? m.name,
+        priceUah: m.priceUah,
+        trayRole: m.dish?.trayRole ?? 'second',
+        synonyms: (m.dish?.synonyms ?? []).map((sy) => sy.rawText),
+      })),
+      orders: d.orders.map((o) => ({
+        id: o.id,
+        rawText: o.rawText,
+        unmatchedText: o.unmatchedText,
+        totalUah: o.totalUah,
+        trayCountManual: o.trayCountManual,
+        touchedAfterCreate: o.updatedAt.getTime() - o.createdAt.getTime() >= LUNCH_HISTORY_TOUCHED_MS,
+        createdAt: o.createdAt.toISOString(),
+        updatedAt: o.updatedAt.toISOString(),
+        lines: o.lines.map((l) => ({
+          dishId: l.dishId,
+          name: l.dish?.name ?? l.rawName,
+          qty: l.qty,
+          unavailable: l.unavailable,
+        })),
+      })),
+    })),
+  };
+}
+
 export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
   const d = date ?? todayKyivDate();
   const settings = await getLunchSettings(prisma);

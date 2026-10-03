@@ -54,16 +54,31 @@ def today_kyiv() -> date:
     return datetime.now(KYIV).date()
 
 
-def resolve_synonym_owners(rows: list[tuple[int, int, str]]) -> dict[str, int]:
-    """(synonym_id, dish_id, raw_norm) → {raw_norm: dish_id}. Той самий текст може лежати
-    на кількох стравах (історичні автосиноніми) — виграє найновіший запис (більший id):
-    це і є остання правка людини в адмінці."""
-    owner: dict[str, tuple[int, int]] = {}
+def resolve_synonym_owners(
+    rows: list[tuple[int, int, str]], dish_names: Optional[dict[int, str]] = None
+) -> dict[str, int]:
+    """(synonym_id, dish_id, raw_norm) → {raw_norm: dish_id}.
+
+    Той самий текст може лежати на кількох стравах (історичні автосиноніми). Кого вважати власником:
+      * якщо відомі назви страв (dish_names: dish_id → нормалізована назва) — той, чия назва найбільше
+        схожа на текст синоніма: «салат грецький» належить «Салат Грецький», а не «Овочевий мікс», на який
+        його колись хибно навчив бот (хибний автосиномім зазвичай НОВІШИЙ за правильний);
+      * серед однаково схожих (різниця до 0.1) — найновіший запис (більший id): остання правка людини.
+    Без назв — просто найновіший."""
+    by_text: dict[str, list[tuple[int, int]]] = {}
     for syn_id, dish_id, raw_norm in rows:
-        cur = owner.get(raw_norm)
-        if cur is None or syn_id > cur[0]:
-            owner[raw_norm] = (syn_id, dish_id)
-    return {raw: dish for raw, (_sid, dish) in owner.items()}
+        by_text.setdefault(raw_norm, []).append((syn_id, dish_id))
+    out: dict[str, int] = {}
+    for raw_norm, cands in by_text.items():
+        if len(cands) == 1 or not dish_names:
+            out[raw_norm] = max(cands)[1]
+            continue
+        from .parse_order import _similarity  # lazy: parse_order імпортує цей модуль
+
+        scored = [(_similarity(raw_norm, dish_names.get(d, "")), sid, d) for sid, d in cands]
+        best = max(sc for sc, _sid, _d in scored)
+        out[raw_norm] = max((sid, d) for sc, sid, d in scored if sc >= best - 0.1)[1]
+    return out
 
 
 class LunchDB:
@@ -305,16 +320,19 @@ class LunchDB:
             # синонім належить тому, кого додали останнім, а не «першому в меню».
             syn_rows = await conn.fetch(
                 """
-                SELECT id, "dishId", "rawNorm" FROM "LunchDishSynonym"
-                WHERE "rawNorm" IN (
+                SELECT s.id, s."dishId", s."rawNorm", d."nameNorm" AS "dishNameNorm"
+                FROM "LunchDishSynonym" s
+                JOIN "LunchDish" d ON d.id = s."dishId"
+                WHERE s."rawNorm" IN (
                     SELECT "rawNorm" FROM "LunchDishSynonym" WHERE "dishId" = ANY($1::int[])
                 )
-                ORDER BY id
+                ORDER BY s.id
                 """,
                 dish_ids,
             )
             owners = resolve_synonym_owners(
-                [(int(s["id"]), int(s["dishId"]), s["rawNorm"]) for s in syn_rows]
+                [(int(s["id"]), int(s["dishId"]), s["rawNorm"]) for s in syn_rows],
+                {int(s["dishId"]): s["dishNameNorm"] for s in syn_rows},
             )
             on_menu = set(dish_ids)
             for raw_norm, owner in owners.items():
