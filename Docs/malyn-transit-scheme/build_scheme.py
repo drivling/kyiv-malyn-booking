@@ -17,7 +17,9 @@ HUB_R = 26  # радіус пересадкового вузла
 TERM_R = 9  # радіус кінцевої
 
 # ---------------------------------------------------------------- маршрути
-ROUTE_ORDER = ['2', '3', '5', '7', '8', '9', '11', '12']
+ROUTE_ORDER = ['2', '3', '5', '7', '8', '9', '10', '11', '12']
+# Маршрути, намальовані за старою схемою на вокзалі, але без заповненого розкладу в базі
+UNCONFIRMED = {'10'}
 COLORS = {  # світла тема / темна тема
     '2':  ('#D7263D', '#FF5F73'),
     '3':  ('#1B9E4B', '#3FCB70'),
@@ -25,6 +27,7 @@ COLORS = {  # світла тема / темна тема
     '7':  ('#F08A1C', '#FFAD4D'),
     '8':  ('#7E3FC2', '#B388F0'),
     '9':  ('#E3368C', '#FF74B8'),
+    '10': ('#C99700', '#F2C94C'),
     '11': ('#0E9AA7', '#3BC9D6'),
     '12': ('#8A5A2B', '#C9915A'),
 }
@@ -34,7 +37,8 @@ LEGEND = {  # кінцеві та «через» — коротко, для ле
     '5':  ('Шевченка, 119', 'Залізничний вокзал', 'Лікарня · Центр · з-д «Прожектор» · Малинівський круг · Огієнка'),
     '7':  ('Лікарня', 'Залізничний вокзал', 'Центр · С. Бандери · ПТЛ · Городище (14 ОМБ) · тимчасова схема'),
     '8':  ('Чорновола, 53', 'Залізничний вокзал', 'Барміна · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема'),
-    '9':  ('Центр (ТЦ «Промінь»)', 'вул. Олекси Тихого', 'С. Бандери · Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня'),
+    '9':  ('Центр (ТЦ «Промінь»)', 'вул. Олекси Тихого', 'Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня'),
+    '10': ('Лікарня', 'Залізничний вокзал', 'Автостанція · Укр. Повстанців · Центр · Грушевського · Малинівський круг · Огієнка'),
     '11': ('Паперова фабрика', 'Залізничний вокзал', 'Приходька · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка'),
     '12': ('Лікарня', 'Залізничний вокзал', 'Центр · Грушевського · Малинівський круг · Огієнка (БАМ)'),
 }
@@ -47,6 +51,7 @@ N = {
     'GB': (680, 520), 'B2': (760, 600), 'PTL': (980, 600), 'GOR': (1100, 600), 'C7': (1180, 520),
     'VOK': (1180, 400), 'OT': (1180, 340), 'YUR': (1060, 220), 'MAL': (980, 220), 'MK': (900, 300),
     'F1': (620, 340), 'F2': (660, 300), 'L1': (820, 340), 'L2': (860, 300), 'N1': (1080, 300),
+    'A0': (280, 360), 'A1': (320, 320), 'A2': (480, 320),
 }
 # коридор: точки (у канонічному напрямку) + зсув кожного маршруту в смугах
 # (+ = візуально ліворуч від напрямку руху, у координатах екрана)
@@ -54,11 +59,12 @@ C = {
     'LIS':   (['LIS', 'LIK'],                 {'3': 0}),
     'SH':    (['SH119', 'LIK'],               {'5': 0.5, '2': -0.5}),
     'TRUNK': (['LIK', 'CEN'],                 {'3': 2, '12': 1, '5': 0, '7': -1, '2': -2}),
-    'NE1':   (['CEN', 'F1'],                  {'3': 1.5, '12': 0.5, '5': -0.5, '11': -1.5}),
-    'NE2':   (['F1', 'F2', 'L2'],             {'3': 1.5, '12': 0.5}),
-    'LOW':   (['F1', 'L1', 'L2'],             {'5': -0.5, '11': -1.5}),
-    'NE3':   (['L2', 'MK'],                   {'3': 1.5, '12': 0.5, '5': -0.5, '11': -1.5}),
-    'EAST':  (['MK', 'N1', 'VOK'],            {'3': 1.5, '12': 0.5, '5': -0.5, '11': -1.5}),
+    'NE1':   (['CEN', 'F1'],                  {'3': 2, '12': 1, '10': 0, '5': -1, '11': -2}),
+    'NE2':   (['F1', 'F2', 'L2'],             {'3': 2, '12': 1, '10': 0}),
+    'LOW':   (['F1', 'L1', 'L2'],             {'5': -1, '11': -2}),
+    'NE3':   (['L2', 'MK'],                   {'3': 2, '12': 1, '10': 0, '5': -1, '11': -2}),
+    'EAST':  (['MK', 'N1', 'VOK'],            {'3': 2, '12': 1, '10': 0, '5': -1, '11': -2}),
+    'R10A':  (['LIK', 'A0', 'A1', 'A2', 'CEN'], {'10': 0}),   # петля через Автостанцію / Укр. Повстанців
     'SOUTH': (['CEN', 'MAZ'],                 {'8': 1, '11': 0, '2': -1}),
     'PF':    (['MAZ', 'P1', 'PF'],            {'11': 0.5, '2': -0.5}),
     'CH':    (['MAZ', 'BAR', 'CH53'],         {'8': 1}),
@@ -77,6 +83,7 @@ ROUTES = {
     '7':  ['TRUNK', 'SE', 'B78', 'R7'],
     '8':  ['CH', 'SOUTH', 'SE', 'B78', 'R8'],
     '9':  ['SE', 'R9A', 'R9B'],
+    '10': ['R10A', 'NE1', 'NE2', 'NE3', 'EAST'],
     '11': ['PF', 'SOUTH', 'NE1', 'LOW', 'NE3', 'EAST'],
     '12': ['TRUNK', 'NE1', 'NE2', 'NE3', 'EAST'],
 }
@@ -85,10 +92,10 @@ DASHED = {'9': ['R9C']}
 # вузли: (тип, назва, підпис...)  type: hub | term
 HUBS = [
     # key, name, sub, label anchor/pos, terminating routes + badge pos
-    dict(key='LIK', name='Лікарня · Поліклініка', sub='', lx=280, ly=346, anchor='middle', term=['7', '12'], bx=280, by=354, balign='middle'),
-    dict(key='CEN', name='Центр · Базарна площа', sub='пл. Соборна · ТЦ «Промінь» · Кооперативний ринок', lx=536, ly=450, anchor='end', term=['9'], bx=536, by=474, balign='end'),
+    dict(key='LIK', name='Лікарня · Поліклініка', sub='', lx=266, ly=346, anchor='end', term=['7', '12', '10'], bx=266, by=354, balign='end'),
+    dict(key='CEN', name='Центр · Базарна площа', sub='пл. Соборна · ТЦ «Промінь» · Коопринок', lx=536, ly=446, anchor='end', term=['9'], bx=536, by=450, balign='end', sub_dx=-30),
     dict(key='MK',  name='Малинівський круг', sub='', lx=918, ly=342, anchor='start', term=[], bx=0, by=0, balign='start'),
-    dict(key='VOK', name='Залізничний вокзал', sub='', lx=1218, ly=398, anchor='start', term=['3', '5', '7', '8', '11', '12'], bx=1218, by=408, balign='start'),
+    dict(key='VOK', name='Залізничний вокзал', sub='', lx=1218, ly=398, anchor='start', term=['3', '5', '7', '8', '10', '11', '12'], bx=1218, by=408, balign='start'),
 ]
 TERMS = [
     dict(key='LIS',   name='Лісотехнікум', sub='Фаховий коледж', lx=110, ly=432, anchor='middle', routes=['3'], bx=110, by=456, balign='middle', end_of='3'),
@@ -99,6 +106,7 @@ TERMS = [
 ]
 # проміжні орієнтири (маленькі): коридор, точка на осі, підпис
 WAYPOINTS = [
+    dict(cor='R10A', seg=2, t=0.5, name='Автостанція · Укр. Повстанців', lx=400, ly=302, anchor='middle'),
     dict(cor='NE2',  seg=1, t=(760-660)/(860-660), name='Грушевського', lx=760, ly=270, anchor='middle'),
     dict(cor='LOW',  seg=0, t=(720-620)/(820-620), name='з-д «Прожектор»', lx=720, ly=378, anchor='middle'),
     dict(cor='R9A',  seg=0, t=0.5, name='Царське село', lx=806, ly=424, anchor='start'),
@@ -111,6 +119,15 @@ WAYPOINTS = [
     dict(cor='PF',   seg=1, t=(520-440)/(520-340), name='Приходька', lx=440, ly=522, anchor='middle'),
     dict(cor='CH',   seg=0, t=1.0, name='Барміна', lx=584, ly=544, anchor='start'),
 ]
+
+# Вода (схематично, за контурами OpenStreetMap): Малинське водосховище на заході, Ірша витікає
+# біля Паперової фабрики, перетинає Мазепи між Коопринком і Мазепи, 3 (міст), далі йде південніше
+# Бандери – Миру і за ГМП повертає на південний схід.
+RESERVOIR = [(28, 556), (110, 540), (200, 548), (262, 560), (312, 574), (262, 604), (170, 612), (80, 606), (28, 588)]
+RIVER = [(306, 574), (340, 540), (400, 480), (560, 480), (660, 580), (700, 580), (780, 660), (1060, 660), (1120, 720), (1372, 720)]
+WATER_LABELS = [dict(text='Малинське водосховище', x=165, y=580, anchor='middle'),
+                dict(text='р. Ірша', x=424, y=497, anchor='middle'),
+                dict(text='р. Ірша', x=920, y=651, anchor='middle')]
 
 # ---------------------------------------------------------------- геометрія: зсув полілінії
 def unit(a, b):
@@ -233,7 +250,10 @@ def badge(x, y, rid, col, align='start', h=16):
     return (f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="4" fill="{col(rid)}"/>'
             f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">{rid}</text>')
 
-def badges_row(x, y, rids, col, align='start', gap=4):
+def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
+    if len(rids) > per_row:
+        return ''.join(badges_row(x, y + i * 20, rids[i * per_row:(i + 1) * per_row], col, align, gap, per_row)
+                       for i in range((len(rids) + per_row - 1) // per_row))
     ws = [22 if len(r) == 1 else 28 for r in rids]
     total = sum(ws) + gap * (len(rids) - 1)
     if align == 'middle':
@@ -246,9 +266,9 @@ def badges_row(x, y, rids, col, align='start', gap=4):
         x += w + gap
     return ''.join(parts)
 
-def build_svg(stats, col, bg, fg, muted, line_bg, standalone, font):
+def build_svg(stats, col, bg, fg, muted, line_bg, standalone, font, water, water_fill, water_text):
     """col(rid)->color string; bg/fg/muted — колірні рядки (var(...) або літерали)."""
-    W_, H_ = 1400, 872
+    W_, H_ = 1400, 1012
     o = []
     o.append(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W_} {H_}" role="img" '
              f'aria-label="Схема міських автобусних маршрутів Малина: 8 ліній, кінцеві та пересадкові зупинки" '
@@ -258,11 +278,16 @@ def build_svg(stats, col, bg, fg, muted, line_bg, standalone, font):
     # ---- заголовок
     o.append(f'<text x="60" y="92" font-size="44" font-weight="800" letter-spacing="2" fill="{fg}">МАЛИН</text>')
     o.append(f'<text x="60" y="120" font-size="17" font-weight="600" fill="{fg}">Схема міських автобусних маршрутів</text>')
-    o.append(f'<text x="60" y="142" font-size="12" fill="{muted}">8 маршрутів · проїзд 20 ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>')
+    o.append(f'<text x="60" y="142" font-size="12" fill="{muted}">9 маршрутів · проїзд 20 ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>')
     # компас
     o.append(f'<g transform="translate(1340,78)" fill="{muted}" stroke="{muted}">'
              f'<line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/>'
              f'<text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>')
+    # ---- вода (під лініями)
+    o.append(f'<path d="{path_d(RESERVOIR)} Z" fill="{water_fill}" stroke="{water}" stroke-width="2" stroke-linejoin="round"/>')
+    o.append(f'<path d="{path_d(RIVER)}" fill="none" stroke="{water}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>')
+    for wl in WATER_LABELS:
+        o.append(f'<text x="{wl["x"]}" y="{wl["y"]}" text-anchor="{wl["anchor"]}" font-size="11" font-style="italic" fill="{water_text}">{esc(wl["text"])}</text>')
     # ---- лінії (підкладка-обводка, потім кольори)
     paths = {rid: route_path(rid, cors) for rid, cors in ROUTES.items()}
     dashed = {rid: route_path(rid, cors) for rid, cors in DASHED.items()}
@@ -305,11 +330,11 @@ def build_svg(stats, col, bg, fg, muted, line_bg, standalone, font):
         o.append(f'<circle cx="{cx}" cy="{cy}" r="{HUB_R - 8}" fill="none" stroke="{fg}" stroke-width="1.5" opacity="0.35"/>')
         o.append(f'<text x="{h["lx"]}" y="{h["ly"]}" text-anchor="{h["anchor"]}" font-size="16" font-weight="800" fill="{fg}">{esc(h["name"])}</text>')
         if h['sub']:
-            o.append(f'<text x="{h["lx"]}" y="{h["ly"] + 16}" text-anchor="{h["anchor"]}" font-size="11" fill="{muted}">{esc(h["sub"])}</text>')
+            o.append(f'<text x="{h["lx"] + h.get("sub_dx", 0)}" y="{h["ly"] + 16}" text-anchor="{h["anchor"]}" font-size="11" fill="{muted}">{esc(h["sub"])}</text>')
         if h['term']:
             o.append(badges_row(h['bx'], h['by'], h['term'], col, h['balign']))
     # ---- легенда
-    x0, y0 = 60, 690
+    x0, y0 = 60, 790
     o.append(f'<line x1="60" y1="{y0 - 22}" x2="1340" y2="{y0 - 22}" stroke="{muted}" stroke-width="1" opacity="0.5"/>')
     o.append(f'<text x="60" y="{y0 - 30}" font-size="11" font-weight="700" letter-spacing="1.5" fill="{muted}">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>')
     o.append(f'<g transform="translate(1000,{y0 - 34})" font-size="11" fill="{muted}">'
@@ -318,16 +343,18 @@ def build_svg(stats, col, bg, fg, muted, line_bg, standalone, font):
              f'<line x1="228" y1="0" x2="262" y2="0" stroke="{fg}" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>')
     row_h = 38
     for i, rid in enumerate(ROUTE_ORDER):
-        colx = x0 if i < 4 else x0 + 660
-        y = y0 + (i % 4) * row_h
+        colx = x0 if i < 5 else x0 + 660
+        y = y0 + (i % 5) * row_h
         a, b, via = LEGEND[rid]
         st = stats.get(rid)
         o.append(badge(colx, y - 1, rid, col, 'start', h=20).replace('font-size="11.5"', 'font-size="13"').replace(f'y="{y - 1 + 20 - 4.2:.1f}"', f'y="{y + 14:.1f}"'))
         o.append(f'<text x="{colx + 38}" y="{y + 14}" font-size="13.5" font-weight="700" fill="{fg}">{esc(a)} — {esc(b)}</text>')
-        if st:
+        if rid in UNCONFIRMED:
+            o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" font-style="italic" fill="{muted}">розклад уточнюється</text>')
+        elif st:
             o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" fill="{muted}" font-variant-numeric="tabular-nums">{esc(st["trips"])} рейс. · {esc(st["first"])}–{esc(st["last"])}</text>')
         o.append(f'<text x="{colx + 38}" y="{y + 29}" font-size="10.5" fill="{muted}">{esc(via)}</text>')
-    o.append(f'<text x="60" y="{H_ - 16}" font-size="10" fill="{muted}">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026</text>')
+    o.append(f'<text x="60" y="{H_ - 16}" font-size="10" fill="{muted}">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026 · контури води за © OpenStreetMap</text>')
     o.append('</svg>')
     return '\n'.join(o)
 
@@ -338,16 +365,19 @@ HTML_TMPL = '''<title>Схема маршрутів Малина</title>
 /* Layout: one wide schematic (scrolls sideways on phones) over a short notes column. */
 :root {
   --bg: #f7f6f2; --panel: #ffffff; --fg: #1b1f2a; --muted: #5f6673; --rule: #d9dbe0; --line-bg: #ffffff;
-  --r2: #D7263D; --r3: #1B9E4B; --r5: #1F6FD6; --r7: #F08A1C; --r8: #7E3FC2; --r9: #E3368C; --r11: #0E9AA7; --r12: #8A5A2B;
+  --r2: #D7263D; --r3: #1B9E4B; --r5: #1F6FD6; --r7: #F08A1C; --r8: #7E3FC2; --r9: #E3368C; --r10: #C99700; --r11: #0E9AA7; --r12: #8A5A2B;
+  --water: #9ccfe8; --water-fill: #cfe8f5; --water-text: #3d7fa3;
   --font: 'Golos Text', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
-  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r11: #3BC9D6; --r12: #C9915A;
+  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r10: #F2C94C; --r11: #3BC9D6; --r12: #C9915A;
+  --water: #2f6a8a; --water-fill: #1f4559; --water-text: #7fb6d6;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
-  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r11: #3BC9D6; --r12: #C9915A;
+  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r10: #F2C94C; --r11: #3BC9D6; --r12: #C9915A;
+  --water: #2f6a8a; --water-fill: #1f4559; --water-text: #7fb6d6;
   color-scheme: dark; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font); margin: 0; padding-block: 24px 48px; padding-inline: 16px; }
 .wrap { max-width: 1440px; margin: 0 auto; display: grid; gap: 24px; }
@@ -378,7 +408,8 @@ __SVG__
     <section>
       <h2>Що взято з даних сайту</h2>
       <ul>
-        <li>8 маршрутів, які показує malin.kiev.ua; маршрути 1 та 10 позначені в базі як ненадійні й на схему не потрапили.</li>
+        <li>8 маршрутів, які показує malin.kiev.ua, плюс <span class="pill" style="background:var(--r10)">10</span>, намальований за старою схемою на вокзалі: його розклад у базі ще не заповнений, тому в легенді стоїть «розклад уточнюється». Маршрут 1 на схему не потрапив.</li>
+        <li>Річка Ірша та Малинське водосховище показані схематично за контурами OpenStreetMap: міст на Мазепи між Кооперативним ринком і Мазепи, 3; Барміна, Чорновола й Приходька — на південному березі.</li>
         <li><span class="pill" style="background:var(--r9)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
         <li><span class="pill" style="background:var(--r8)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
         <li><span class="pill" style="background:var(--r7)">7</span> та <span class="pill" style="background:var(--r8)">8</span> ходять за тимчасовою схемою (жовтень 2023, ремонт вул. Городищанської).</li>
@@ -398,13 +429,15 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     # сторінка з токенами теми
     svg_html = build_svg(stats, col=lambda r: f'var(--r{r})', bg='var(--panel)', fg='var(--fg)', muted='var(--muted)',
-                         line_bg='var(--line-bg)', standalone=False, font='var(--font)')
+                         line_bg='var(--line-bg)', standalone=False, font='var(--font)',
+                         water='var(--water)', water_fill='var(--water-fill)', water_text='var(--water-text)')
     with open(os.path.join(args.out_dir, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(HTML_TMPL.replace('__SVG__', svg_html))
     # самодостатній SVG (світла тема, для друку/месенджерів)
     svg_file = build_svg(stats, col=lambda r: COLORS[r][0], bg='#ffffff', fg='#1b1f2a', muted='#5f6673',
                          line_bg='#ffffff', standalone=True,
-                         font="'Golos Text', 'Segoe UI', Roboto, Arial, sans-serif")
+                         font="'Golos Text', 'Segoe UI', Roboto, Arial, sans-serif",
+                         water='#9ccfe8', water_fill='#cfe8f5', water_text='#3d7fa3')
     with open(os.path.join(args.out_dir, 'malyn-transit-scheme.svg'), 'w', encoding='utf-8') as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n' + svg_file)
     print('ok', stats)
