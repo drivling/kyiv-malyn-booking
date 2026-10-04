@@ -1,0 +1,182 @@
+<title>Схема маршрутів Малина</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one wide schematic (scrolls sideways on phones) over a short notes column. */
+:root {
+  --bg: #f7f6f2; --panel: #ffffff; --fg: #1b1f2a; --muted: #5f6673; --rule: #d9dbe0; --line-bg: #ffffff;
+  --r2: #D7263D; --r3: #1B9E4B; --r5: #1F6FD6; --r7: #F08A1C; --r8: #7E3FC2; --r9: #E3368C; --r11: #0E9AA7; --r12: #8A5A2B;
+  --font: 'Golos Text', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
+  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r11: #3BC9D6; --r12: #C9915A;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
+  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r11: #3BC9D6; --r12: #C9915A;
+  color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); margin: 0; padding-block: 24px 48px; padding-inline: 16px; }
+.wrap { max-width: 1440px; margin: 0 auto; display: grid; gap: 24px; }
+.map { background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; overflow-x: auto; padding: 8px; }
+.map svg { min-width: 1100px; width: 100%; }
+.notes { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.notes section { min-width: 0; }
+h2 { font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; font-weight: 700; }
+p, li { font-size: 15px; line-height: 1.5; max-width: 62ch; margin: 0; }
+ul { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
+.pill { display: inline-block; min-width: 20px; padding: 0 5px; border-radius: 4px; color: #fff; font-weight: 700; font-size: 12px; line-height: 18px; text-align: center; vertical-align: 1px; }
+@media (prefers-reduced-motion: no-preference) { .map { scroll-behavior: smooth; } }
+</style>
+<div class="wrap">
+  <div class="map">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 872" role="img" aria-label="Схема міських автобусних маршрутів Малина: 8 ліній, кінцеві та пересадкові зупинки" font-family="var(--font)" color="var(--fg)" style="max-width:100%;height:auto;display:block">
+<text x="60" y="92" font-size="44" font-weight="800" letter-spacing="2" fill="var(--fg)">МАЛИН</text>
+<text x="60" y="120" font-size="17" font-weight="600" fill="var(--fg)">Схема міських автобусних маршрутів</text>
+<text x="60" y="142" font-size="12" fill="var(--muted)">8 маршрутів · проїзд 20 ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>
+<g transform="translate(1340,78)" fill="var(--muted)" stroke="var(--muted)"><line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/><text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,420.0 L267.1,420.0 L203.5,483.5" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M110.0,400.0 L280.0,400.0 L320.0,380.0 L558.8,380.0 L609.4,329.4 L653.8,285.0 L860.0,285.0 L900.0,285.0 L1086.2,285.0 L1190.6,389.4" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M196.5,476.5 L272.9,400.0 L567.1,400.0 L622.1,345.0 L822.1,345.0 L862.1,305.0 L900.0,305.0 L1077.9,305.0 L1176.5,403.5" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M280.0,410.0 L555.9,410.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M627.1,592.9 L570.0,535.9 L570.0,500.0 L570.0,410.0 L680.0,520.0 L760.0,600.0 L980.0,600.0 L1180.0,400.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M567.1,392.9 L680.0,505.9 L892.9,292.9 L914.1,285.9 L980.0,220.0 L1060.0,220.0 L1180.0,340.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L1073.8,315.0 L1169.4,410.6" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M280.0,390.0 L562.9,390.0 L616.5,336.5 L657.9,295.0 L860.0,295.0 L900.0,295.0 L1082.1,295.0 L1183.5,396.5" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,420.0 L267.1,420.0 L203.5,483.5" stroke="var(--r2)" stroke-width="7"/>
+<path d="M110.0,400.0 L280.0,400.0 L320.0,380.0 L558.8,380.0 L609.4,329.4 L653.8,285.0 L860.0,285.0 L900.0,285.0 L1086.2,285.0 L1190.6,389.4" stroke="var(--r3)" stroke-width="7"/>
+<path d="M196.5,476.5 L272.9,400.0 L567.1,400.0 L622.1,345.0 L822.1,345.0 L862.1,305.0 L900.0,305.0 L1077.9,305.0 L1176.5,403.5" stroke="var(--r5)" stroke-width="7"/>
+<path d="M280.0,410.0 L555.9,410.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="var(--r7)" stroke-width="7"/>
+<path d="M627.1,592.9 L570.0,535.9 L570.0,500.0 L570.0,410.0 L680.0,520.0 L760.0,600.0 L980.0,600.0 L1180.0,400.0" stroke="var(--r8)" stroke-width="7"/>
+<path d="M567.1,392.9 L680.0,505.9 L892.9,292.9 L914.1,285.9 L980.0,220.0 L1060.0,220.0 L1180.0,340.0" stroke="var(--r9)" stroke-width="7"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L1073.8,315.0 L1169.4,410.6" stroke="var(--r11)" stroke-width="7"/>
+<path d="M280.0,390.0 L562.9,390.0 L616.5,336.5 L657.9,295.0 L860.0,295.0 L900.0,295.0 L1082.1,295.0 L1183.5,396.5" stroke="var(--r12)" stroke-width="7"/>
+<path d="M1180.0,340.0 L1180.0,400.0" stroke="var(--r9)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+<line x1="760.0" y1="295.0" x2="760.0" y2="285.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="760.0" y1="295.0" x2="760.0" y2="285.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="760" y="270" text-anchor="middle" font-size="11.5" fill="var(--muted)">Грушевського</text>
+<line x1="720.0" y1="355.0" x2="720.0" y2="345.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="720.0" y1="355.0" x2="720.0" y2="345.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="720" y="378" text-anchor="middle" font-size="11.5" fill="var(--muted)">з-д «Прожектор»</text>
+<line x1="782.9" y1="402.9" x2="782.9" y2="402.9" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="782.9" y1="402.9" x2="782.9" y2="402.9" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="806" y="424" text-anchor="start" font-size="11.5" fill="var(--muted)">Царське село</text>
+<line x1="980.0" y1="220.0" x2="980.0" y2="220.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="980.0" y1="220.0" x2="980.0" y2="220.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="980" y="200" text-anchor="middle" font-size="11.5" fill="var(--muted)">Малинівка</text>
+<line x1="1060.0" y1="220.0" x2="1060.0" y2="220.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1060.0" y1="220.0" x2="1060.0" y2="220.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1060" y="200" text-anchor="middle" font-size="11.5" fill="var(--muted)">Юрівка</text>
+<line x1="980.0" y1="610.0" x2="980.0" y2="600.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="980.0" y1="610.0" x2="980.0" y2="600.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="980" y="636" text-anchor="middle" font-size="11.5" fill="var(--muted)">ПТЛ</text>
+<line x1="1080.0" y1="610.0" x2="1080.0" y2="610.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1080.0" y1="610.0" x2="1080.0" y2="610.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1086" y="636" text-anchor="middle" font-size="11.5" fill="var(--muted)">Городище · 14 ОМБ</text>
+<line x1="1080.0" y1="500.0" x2="1080.0" y2="500.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1080.0" y1="500.0" x2="1080.0" y2="500.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1096" y="512" text-anchor="start" font-size="11.5" fill="var(--muted)">вул. Миру</text>
+<line x1="550.0" y1="500.0" x2="570.0" y2="500.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="550.0" y1="500.0" x2="570.0" y2="500.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="536" y="504" text-anchor="end" font-size="11.5" fill="var(--muted)">Івана Мазепи</text>
+<line x1="440.0" y1="535.0" x2="440.0" y2="545.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="440.0" y1="535.0" x2="440.0" y2="545.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="440" y="522" text-anchor="middle" font-size="11.5" fill="var(--muted)">Приходька</text>
+<line x1="570.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="570.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="584" y="544" text-anchor="start" font-size="11.5" fill="var(--muted)">Барміна</text>
+<circle cx="110.0" cy="400.0" r="9" fill="var(--panel)" stroke="var(--r3)" stroke-width="3.5"/>
+<text x="110" y="432" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Лісотехнікум</text>
+<text x="110" y="447" text-anchor="middle" font-size="11" fill="var(--muted)">Фаховий коледж</text>
+<rect x="99.0" y="456.0" width="22" height="16" rx="4" fill="var(--r3)"/><text x="110.0" y="467.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">3</text>
+<circle cx="200.0" cy="480.0" r="9" fill="var(--panel)" stroke="var(--fg)" stroke-width="3.5"/>
+<text x="200" y="510" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Шевченка, 119</text>
+<rect x="176.0" y="518.0" width="22" height="16" rx="4" fill="var(--r2)"/><text x="187.0" y="529.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">2</text><rect x="202.0" y="518.0" width="22" height="16" rx="4" fill="var(--r5)"/><text x="213.0" y="529.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">5</text>
+<circle cx="340.0" cy="540.0" r="9" fill="var(--panel)" stroke="var(--fg)" stroke-width="3.5"/>
+<text x="340" y="570" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Паперова фабрика</text>
+<text x="340" y="585" text-anchor="middle" font-size="11" fill="var(--muted)">Вайдманн</text>
+<rect x="313.0" y="594.0" width="22" height="16" rx="4" fill="var(--r2)"/><text x="324.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">2</text><rect x="339.0" y="594.0" width="28" height="16" rx="4" fill="var(--r11)"/><text x="353.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11</text>
+<circle cx="627.1" cy="592.9" r="9" fill="var(--panel)" stroke="var(--r8)" stroke-width="3.5"/>
+<text x="604" y="624" text-anchor="end" font-size="14" font-weight="700" fill="var(--fg)">Чорновола, 53</text>
+<rect x="582.0" y="632.0" width="22" height="16" rx="4" fill="var(--r8)"/><text x="593.0" y="643.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">8</text>
+<circle cx="1180.0" cy="340.0" r="9" fill="var(--panel)" stroke="var(--r9)" stroke-width="3.5"/>
+<text x="1202" y="336" text-anchor="start" font-size="14" font-weight="700" fill="var(--fg)">вул. Олекси Тихого</text>
+<rect x="1202.0" y="344.0" width="22" height="16" rx="4" fill="var(--r9)"/><text x="1213.0" y="355.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">9</text>
+<circle cx="280" cy="400" r="26" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="280" cy="400" r="18" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="280" y="346" text-anchor="middle" font-size="16" font-weight="800" fill="var(--fg)">Лікарня · Поліклініка</text>
+<rect x="253.0" y="354.0" width="22" height="16" rx="4" fill="var(--r7)"/><text x="264.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text><rect x="279.0" y="354.0" width="28" height="16" rx="4" fill="var(--r12)"/><text x="293.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text>
+<circle cx="560" cy="400" r="26" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="560" cy="400" r="18" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="536" y="450" text-anchor="end" font-size="16" font-weight="800" fill="var(--fg)">Центр · Базарна площа</text>
+<text x="536" y="466" text-anchor="end" font-size="11" fill="var(--muted)">пл. Соборна · ТЦ «Промінь» · Кооперативний ринок</text>
+<rect x="514.0" y="474.0" width="22" height="16" rx="4" fill="var(--r9)"/><text x="525.0" y="485.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">9</text>
+<circle cx="900" cy="300" r="26" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="900" cy="300" r="18" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="918" y="342" text-anchor="start" font-size="16" font-weight="800" fill="var(--fg)">Малинівський круг</text>
+<circle cx="1180" cy="400" r="26" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="1180" cy="400" r="18" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="1218" y="398" text-anchor="start" font-size="16" font-weight="800" fill="var(--fg)">Залізничний вокзал</text>
+<rect x="1218.0" y="408.0" width="22" height="16" rx="4" fill="var(--r3)"/><text x="1229.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">3</text><rect x="1244.0" y="408.0" width="22" height="16" rx="4" fill="var(--r5)"/><text x="1255.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">5</text><rect x="1270.0" y="408.0" width="22" height="16" rx="4" fill="var(--r7)"/><text x="1281.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text><rect x="1296.0" y="408.0" width="22" height="16" rx="4" fill="var(--r8)"/><text x="1307.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">8</text><rect x="1322.0" y="408.0" width="28" height="16" rx="4" fill="var(--r11)"/><text x="1336.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11</text><rect x="1354.0" y="408.0" width="28" height="16" rx="4" fill="var(--r12)"/><text x="1368.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text>
+<line x1="60" y1="668" x2="1340" y2="668" stroke="var(--muted)" stroke-width="1" opacity="0.5"/>
+<text x="60" y="660" font-size="11" font-weight="700" letter-spacing="1.5" fill="var(--muted)">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>
+<g transform="translate(1000,656)" font-size="11" fill="var(--muted)"><circle cx="6" cy="0" r="7" fill="var(--panel)" stroke="var(--fg)" stroke-width="2.5"/><text x="20" y="4">пересадковий вузол</text><circle cx="150" cy="0" r="5.5" fill="var(--panel)" stroke="var(--fg)" stroke-width="2.5"/><text x="162" y="4">кінцева</text><line x1="228" y1="0" x2="262" y2="0" stroke="var(--fg)" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>
+<rect x="60.0" y="689.0" width="22" height="20" rx="4" fill="var(--r2)"/><text x="71.0" y="704.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">2</text>
+<text x="98" y="704" font-size="13.5" font-weight="700" fill="var(--fg)">Паперова фабрика — Шевченка, 119</text>
+<text x="682" y="704" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">17–19 рейс. · 6:30–19:20</text>
+<text x="98" y="719" font-size="10.5" fill="var(--muted)">Приходька · Мазепи · Центр · Шевченка · Лікарня</text>
+<rect x="60.0" y="727.0" width="22" height="20" rx="4" fill="var(--r3)"/><text x="71.0" y="742.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">3</text>
+<text x="98" y="742" font-size="13.5" font-weight="700" fill="var(--fg)">Лісотехнікум — Залізничний вокзал</text>
+<text x="682" y="742" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">10–11 рейс. · 6:40–18:30</text>
+<text x="98" y="757" font-size="10.5" fill="var(--muted)">Лікарня · Центр · Грушевського · Малинівський круг · Огієнка (БАМ)</text>
+<rect x="60.0" y="765.0" width="22" height="20" rx="4" fill="var(--r5)"/><text x="71.0" y="780.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">5</text>
+<text x="98" y="780" font-size="13.5" font-weight="700" fill="var(--fg)">Шевченка, 119 — Залізничний вокзал</text>
+<text x="682" y="780" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">15–16 рейс. · 5:45–18:15</text>
+<text x="98" y="795" font-size="10.5" fill="var(--muted)">Лікарня · Центр · з-д «Прожектор» · Малинівський круг · Огієнка</text>
+<rect x="60.0" y="803.0" width="22" height="20" rx="4" fill="var(--r7)"/><text x="71.0" y="818.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">7</text>
+<text x="98" y="818" font-size="13.5" font-weight="700" fill="var(--fg)">Лікарня — Залізничний вокзал</text>
+<text x="682" y="818" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">14 рейс. · 7:15–19:45</text>
+<text x="98" y="833" font-size="10.5" fill="var(--muted)">Центр · С. Бандери · ПТЛ · Городище (14 ОМБ) · тимчасова схема</text>
+<rect x="720.0" y="689.0" width="22" height="20" rx="4" fill="var(--r8)"/><text x="731.0" y="704.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">8</text>
+<text x="758" y="704" font-size="13.5" font-weight="700" fill="var(--fg)">Чорновола, 53 — Залізничний вокзал</text>
+<text x="1342" y="704" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">13–14 рейс. · 6:30–18:15</text>
+<text x="758" y="719" font-size="10.5" fill="var(--muted)">Барміна · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема</text>
+<rect x="720.0" y="727.0" width="22" height="20" rx="4" fill="var(--r9)"/><text x="731.0" y="742.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">9</text>
+<text x="758" y="742" font-size="13.5" font-weight="700" fill="var(--fg)">Центр (ТЦ «Промінь») — вул. Олекси Тихого</text>
+<text x="1342" y="742" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">10 рейс. · 6:45–17:40</text>
+<text x="758" y="757" font-size="10.5" fill="var(--muted)">С. Бандери · Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня</text>
+<rect x="720.0" y="765.0" width="28" height="20" rx="4" fill="var(--r11)"/><text x="734.0" y="780.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text>
+<text x="758" y="780" font-size="13.5" font-weight="700" fill="var(--fg)">Паперова фабрика — Залізничний вокзал</text>
+<text x="1342" y="780" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">8–9 рейс. · 6:45–18:50</text>
+<text x="758" y="795" font-size="10.5" fill="var(--muted)">Приходька · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка</text>
+<rect x="720.0" y="803.0" width="28" height="20" rx="4" fill="var(--r12)"/><text x="734.0" y="818.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">12</text>
+<text x="758" y="818" font-size="13.5" font-weight="700" fill="var(--fg)">Лікарня — Залізничний вокзал</text>
+<text x="1342" y="818" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">12–13 рейс. · 6:25–18:25</text>
+<text x="758" y="833" font-size="10.5" fill="var(--muted)">Центр · Грушевського · Малинівський круг · Огієнка (БАМ)</text>
+<text x="60" y="856" font-size="10" fill="var(--muted)">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026</text>
+</svg>
+  </div>
+  <div class="notes">
+    <section>
+      <h2>Як читати</h2>
+      <ul>
+        <li>Великі кільця — вузли, де сходяться кілька маршрутів і де зручно пересідати: Лікарня, Центр, Малинівський круг, Вокзал.</li>
+        <li>Номери в кольорових плашках біля зупинки — маршрути, для яких ця зупинка кінцева.</li>
+        <li>Дрібні сірі підписи — орієнтири на розгалуженнях (де лінії розходяться), не повний перелік зупинок.</li>
+        <li>Схема не в масштабі: відстані між зупинками умовні, кути спрямлені до 45°.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Що взято з даних сайту</h2>
+      <ul>
+        <li>8 маршрутів, які показує malin.kiev.ua; маршрути 1 та 10 позначені в базі як ненадійні й на схему не потрапили.</li>
+        <li><span class="pill" style="background:var(--r9)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
+        <li><span class="pill" style="background:var(--r8)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
+        <li><span class="pill" style="background:var(--r7)">7</span> та <span class="pill" style="background:var(--r8)">8</span> ходять за тимчасовою схемою (жовтень 2023, ремонт вул. Городищанської).</li>
+        <li>Кількість рейсів і час першого/останнього — з розкладів у базі (/transport/dataset).</li>
+      </ul>
+    </section>
+  </div>
+</div>
