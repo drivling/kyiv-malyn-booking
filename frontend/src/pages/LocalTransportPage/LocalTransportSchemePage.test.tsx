@@ -13,7 +13,11 @@ const dataset = {
     { id: '3', fromName: 'Лісотехнікум', toName: 'Залізничний вокзал' },
     { id: '10', fromName: '', toName: '', unreliable: true },
   ],
-  routeStops: [],
+  routeStops: [
+    { routeId: '3', stopId: 'st_0019', orderThere: 9, orderBack: 1 },
+    { routeId: '10', stopId: 'st_0019', orderThere: 9, orderBack: 1 },
+    { routeId: '5', stopId: 'st_0019', orderThere: 9, orderBack: 1 },
+  ],
   trips: [
     { id: '3-01', routeId: '3', directionId: '1', departureTime: '06:40:00' },
     { id: '3-02', routeId: '3', directionId: '1', departureTime: '09:20:00' },
@@ -101,6 +105,33 @@ describe('LocalTransportSchemePage', () => {
     const hub = container.querySelector('.lts-stop[data-stop="st_0019"] circle') as Element;
     fireEvent.click(hub);
     expect(await screen.findByText('Табло зупинки')).toBeInTheDocument();
+  });
+
+  it('?stop= marks «ви тут», lights the lines through the stop and links to its board', async () => {
+    const { container } = renderPage('/transport/scheme?stop=st_0019&d=16.09.26');
+    expect(container.querySelector('.lts-stop[data-stop="st_0019"]')).toHaveClass('lts-stop--here');
+    expect(container.querySelector('.lts-stop[data-stop="st_0070"]')).not.toHaveClass('lts-stop--here');
+
+    // Датасет прийшов: лінії 3 і 5 через Вокзал яскраві (10 — ненадійний, прихований), решта тьмяніє
+    expect(await screen.findByRole('heading', { level: 2, name: 'Ви тут: Залізничний вокзал' })).toBeInTheDocument();
+    expect(screen.getByText('Лінії через зупинку: №3, №5')).toBeInTheDocument();
+    expect(container.querySelector('.lts-route[data-route="3"]')).not.toHaveClass('lts-route--dim');
+    expect(container.querySelector('.lts-route[data-route="5"]')).not.toHaveClass('lts-route--dim');
+    expect(container.querySelector('.lts-route[data-route="10"]')).toHaveClass('lts-route--dim');
+    expect(container.querySelector('.lts-route[data-route="2"]')).toHaveClass('lts-route--dim');
+    expect(screen.getByRole('link', { name: 'Табло зупинки' })).toHaveAttribute('href', '/transport/stop/st_0019?d=16.09.26');
+
+    // Чіп маршруту має пріоритет над лініями зупинки; маркер лишається
+    fireEvent.click(chip('2'));
+    expect(container.querySelector('.lts-route[data-route="2"]')).not.toHaveClass('lts-route--dim');
+    expect(container.querySelector('.lts-route[data-route="3"]')).toHaveClass('lts-route--dim');
+    expect(container.querySelector('.lts-stop[data-stop="st_0019"]')).toHaveClass('lts-stop--here');
+
+    // «Показати всі» на картці зупинки прибирає ?stop=
+    fireEvent.click(chip('2'));
+    fireEvent.click(screen.getByRole('button', { name: 'Показати всі' }));
+    expect(container.querySelector('.lts-stop--here')).toBeNull();
+    expect(container.querySelector('.lts-route--dim')).toBeNull();
   });
 
   it('Enter on a focused stop works like a click', async () => {

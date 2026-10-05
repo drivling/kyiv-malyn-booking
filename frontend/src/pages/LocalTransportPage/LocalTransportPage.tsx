@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
-import { routeColorStyle } from './routeColors';
+import { routeColor, routeColorStyle } from './routeColors';
+import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
+import { buildSchemeUrl } from './schemeMini';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
 import type { StopsCatalog } from './stopCatalog';
@@ -1688,6 +1690,17 @@ export const LocalTransportPage: React.FC = () => {
                 </>
               );
             })()}
+            {routeColor(detailRoute.id) && (
+              <LocalTransportSchemeMini
+                routeIds={[detailRoute.id]}
+                href={buildSchemeUrl({
+                  route: detailRoute.id,
+                  date: dateFromUrl || searchDate || formatDateUrl(new Date()),
+                  time: hourFromUrl || timeFromUrl || searchTime,
+                })}
+                label={`Відкрити схему маршрутів: маршрут №${detailRoute.id}`}
+              />
+            )}
             {(() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
