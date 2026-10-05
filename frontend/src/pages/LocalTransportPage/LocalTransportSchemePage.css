@@ -163,6 +163,23 @@
   line-height: 24px;
 }
 
+/* Рядок зупинок вузла на картці «Ви тут»: кожна назва — посилання на її табло */
+.lts-card-stops {
+  margin-top: 4px;
+}
+
+.lts-card-stop {
+  color: var(--lt-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--lt-border);
+  text-underline-offset: 2px;
+}
+
+.lts-card-stop--here {
+  color: var(--lt-accent);
+}
+
 .lts-card-via,
 .lts-card-meta {
   margin: 0;

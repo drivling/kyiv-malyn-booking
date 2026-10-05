@@ -129,6 +129,38 @@ WAYPOINTS = [
     dict(cor='CH',   seg=0, t=1.0, stop='st_0007', name='Барміна', lx=584, ly=544, anchor='start'),
 ]
 
+# Вузол схеми = кілька фізичних зупинок датасету навколо головної (data-stop). Ключ — головна
+# зупинка (посилання на табло), значення — решта зупинок вузла: через дорогу, за рогом, а для
+# «Лікарні» — ще й Поліклініка за 209 м (кінцева 7 і 12). Лінії вузла = обʼєднання ліній усіх його
+# зупинок. Ревізія після змін датасету: python3 build_scheme.py --suggest-node-stops [--dataset …].
+NODE_STOPS = {
+    'st_0035': ['st_0036', 'st_0072'],  # Лікарня · Поліклініка: Лікарня 2, Поліклініка
+    'st_0070': ['st_0082', 'st_0008', 'st_0056', 'st_0049', 'st_0044'],  # Центр: сквер, Вербицького, «Соборний», «Промінь», «Доктор ЗОО»
+    'st_0015': ['st_0046'],  # з-д «Прожектор» + м-н «Меркурій»
+    'st_0079': ['st_0059'],  # ПТЛ + Миру-Городищанська
+    'st_0002': ['st_0003'],  # Городище · 14 ОМБ + «14 ОМБ (навпр)»
+    'st_0094': ['st_0093'],  # Чорновола, 53 + Чорновола 36
+    'st_0004': ['st_0005'],  # Автостанція + «навпроти»
+    'st_0097': ['st_0067'],  # Шевченка, 119 + перехр. Бондарик-Шевченка
+    'st_0007': ['st_0092'],  # Барміна + Чорновола 15
+    'st_0024': ['st_0043'],  # Івана Мазепи + м-н «Вікторія»
+}
+SUGGEST_RADIUS_M = 150  # радіус для --suggest-node-stops
+
+
+def node_stops(primary):
+    """Усі зупинки вузла, головна перша."""
+    return [primary] + NODE_STOPS.get(primary, [])
+
+
+def scheme_nodes():
+    """Вузли схеми для сайту (malyn-scheme-nodes.ts): спершу пересадкові, потім кінцеві, потім орієнтири."""
+    rows = []
+    for kind, items in (('hub', HUBS), ('terminal', TERMS), ('waypoint', WAYPOINTS)):
+        for it in items:
+            rows.append(dict(id=it['stop'], kind=kind, name=it['name'], stopIds=node_stops(it['stop'])))
+    return rows
+
 # Вода (схематично, за контурами OpenStreetMap): Малинське водосховище на заході, Ірша витікає
 # біля Паперової фабрики, перетинає Мазепи між Коопринком і Мазепи, 3 (міст), далі йде південніше
 # Бандери – Миру і за ГМП повертає на південний схід.
@@ -245,6 +277,46 @@ def route_stats(ds):
         trips = f'{a}' if a == b else f'{a}–{b}'
         out[rid] = dict(first=times[0].lstrip('0'), last=times[-1].lstrip('0'), trips=trips)
     return out
+
+def _haversine_m(a, b):
+    r = 6371000.0
+    p1, p2 = math.radians(a['lat']), math.radians(b['lat'])
+    dp, dl = p2 - p1, math.radians(b['lng'] - a['lng'])
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(h))
+
+
+def suggest_node_stops(ds):
+    """Звіт для ревізії NODE_STOPS: зупинки датасету в радіусі SUGGEST_RADIUS_M від кожного вузла
+    з їхніми лініями (без mapOnly і ненадійних маршрутів); ✓ — уже у вузлі."""
+    if not ds:
+        raise SystemExit('--suggest-node-stops: датасет недоступний (дайте --dataset dataset.json)')
+    stops = {st['id']: st for st in ds['stops']}
+    hidden = {r['id'] for r in ds['routes'] if r.get('unreliable')}
+    routes_at = defaultdict(set)
+    for rs in ds['routeStops']:
+        if rs.get('mapOnly') or rs['routeId'] in hidden:
+            continue
+        routes_at[rs['stopId']].add(rs['routeId'])
+
+    def fmt(ids):
+        return ', '.join(sorted(ids, key=lambda r: ROUTE_ORDER.index(r) if r in ROUTE_ORDER else 99)) or '—'
+
+    for row in scheme_nodes():
+        members = row['stopIds']
+        union = set().union(*(routes_at[m] for m in members))
+        print(f"{row['id']} {row['name']} [{row['kind']}]: лінії вузла {fmt(union)}")
+        base = stops.get(row['id'])
+        if not base:
+            print('    ! головної зупинки немає в датасеті')
+            continue
+        near = sorted(((_haversine_m(base, o), o) for o in ds['stops'] if o['id'] != row['id']), key=lambda t: t[0])
+        for d, o in near:
+            if d > SUGGEST_RADIUS_M and o['id'] not in members:
+                continue
+            mark = '✓' if o['id'] in members else ' '
+            print(f"  {mark} {int(d):4d} м {o['id']} {o['name']}: {fmt(routes_at[o['id']])}")
+
 
 # ---------------------------------------------------------------- QR-код (segno) та шрифти
 def qr_svg_path(url, x0, y0, size):
@@ -372,7 +444,8 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
 
     def stop_open(stop_id, name, kind):
         extra = f' role="link" tabindex="0" aria-label="Зупинка {esc(name)}: табло"' if site else ''
-        return f'<g class="lts-stop lts-stop--{kind}" data-stop="{stop_id}"{extra}>'
+        return (f'<g class="lts-stop lts-stop--{kind}" data-stop="{stop_id}" '
+                f'data-stops="{" ".join(node_stops(stop_id))}"{extra}>')
 
     # ---- проміжні орієнтири
     for wp in WAYPOINTS:
@@ -519,6 +592,26 @@ export type SchemeRoute = {
 
 '''
 
+SITE_NODES_TS_HEAD = '''/**
+ * Вузли схеми маршрутів (/transport/scheme). ЗГЕНЕРОВАНО — не редагувати руками:
+ *   python3 Docs/malyn-transit-scheme/build_scheme.py --site-dir frontend/src/pages/LocalTransportPage/scheme
+ * Вузол = кілька фізичних зупинок датасету (NODE_STOPS у генераторі, ревізія — --suggest-node-stops):
+ * id — головна зупинка (data-stop у SVG, посилання на табло), stopIds — усі зупинки вузла.
+ */
+export type SchemeNodeKind = 'hub' | 'terminal' | 'waypoint';
+export type SchemeNode = {
+  /** Головна зупинка вузла — data-stop у SVG */
+  id: string;
+  kind: SchemeNodeKind;
+  /** Підпис на схемі */
+  name: string;
+  /** Усі зупинки датасету, що належать вузлу (головна перша) */
+  stopIds: string[];
+};
+
+'''
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dataset', default='')
@@ -527,10 +620,15 @@ def main():
     ap.add_argument('--poster-dir', default='')
     ap.add_argument('--qr-url', default=QR_URL_DEFAULT)
     ap.add_argument('--fonts-dir', default='')
+    ap.add_argument('--suggest-node-stops', action='store_true', help='звіт по зупинках навколо вузлів (ревізія NODE_STOPS)')
     args = ap.parse_args()
+    ds = load_dataset(args.dataset)
+    if args.suggest_node_stops:
+        suggest_node_stops(ds)
+        return
     if not (args.out_dir or args.site_dir or args.poster_dir):
         args.out_dir = '.'
-    stats = route_stats(load_dataset(args.dataset))
+    stats = route_stats(ds)
     light = dict(col=lambda r: COLORS[r][0], bg='#ffffff', fg='#1b1f2a', muted='#5f6673', line_bg='#ffffff',
                  water='#9ccfe8', water_fill='#cfe8f5', water_text='#3d7fa3',
                  font="'Golos Text', 'Segoe UI', Roboto, Arial, sans-serif")
@@ -557,6 +655,9 @@ def main():
         with open(os.path.join(args.site_dir, 'malyn-scheme-routes.ts'), 'w', encoding='utf-8') as f:
             f.write(SITE_ROUTES_TS_HEAD + 'export const SCHEME_ROUTES: SchemeRoute[] = '
                     + json.dumps(rows, ensure_ascii=False, indent=2) + ';\n')
+        with open(os.path.join(args.site_dir, 'malyn-scheme-nodes.ts'), 'w', encoding='utf-8') as f:
+            f.write(SITE_NODES_TS_HEAD + 'export const SCHEME_NODES: SchemeNode[] = '
+                    + json.dumps(scheme_nodes(), ensure_ascii=False, indent=2) + ';\n')
     if args.poster_dir:
         os.makedirs(args.poster_dir, exist_ok=True)
         with open(os.path.join(args.poster_dir, 'malyn-transit-scheme-poster.svg'), 'w', encoding='utf-8') as f:

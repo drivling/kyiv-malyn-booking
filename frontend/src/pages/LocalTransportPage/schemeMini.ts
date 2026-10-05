@@ -3,6 +3,7 @@
  * перелік зупинок схеми. Окремий модуль, щоб компонентний файл експортував лише компонент.
  */
 import schemeSvg from './scheme/malyn-scheme.svg?raw';
+import { schemeNodeForStop } from './schemeStops';
 
 /** viewBox згенерованої схеми (build_scheme.py, variant='site') — межі кадрування */
 const BASE = { x: 0, y: 176, w: 1400, h: 566 };
@@ -17,13 +18,9 @@ const CROP_MIN_W = 640;
  */
 export const MINI_SVG = schemeSvg.replace(/ (?:role="(?:button|link)"|tabindex="0")/g, '');
 
-/** Зупинки, які є на схемі (вузли, кінцеві, орієнтири) — з data-stop у згенерованому SVG */
-const SCHEME_STOP_IDS: ReadonlySet<string> = new Set(
-  Array.from(schemeSvg.matchAll(/data-stop="([^"]+)"/g), (m) => m[1])
-);
-
+/** Чи є зупинка на схемі — головною або однією зі зупинок вузла (malyn-scheme-nodes.ts) */
 export function isSchemeStop(stopId: string): boolean {
-  return SCHEME_STOP_IDS.has(stopId);
+  return schemeNodeForStop(stopId) !== null;
 }
 
 /** Посилання на сторінку схеми з контекстом (маршрут/зупинка) і датою-часом пошуку */

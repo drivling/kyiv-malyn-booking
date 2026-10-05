@@ -26,6 +26,8 @@ interface ComboboxProps {
   id?: string;
   'aria-label'?: string;
   'aria-labelledby'?: string;
+  /** Елемент праворуч у полі (напр. кнопка геолокації), перед «×» */
+  trailing?: React.ReactNode;
 }
 
 const defaultFilter = (opt: ComboboxOption, query: string) =>
@@ -40,6 +42,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
   emptyMessage = 'Нічого не знайдено',
   filterFn = defaultFilter,
   clearable = false,
+  trailing,
   inputRef,
   onSelectOption,
   onClear,
@@ -187,6 +190,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
           autoComplete="off"
           inputMode="search"
         />
+        {trailing}
         {clearable && value && (
           <button
             type="button"

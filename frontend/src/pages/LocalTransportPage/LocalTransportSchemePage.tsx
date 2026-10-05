@@ -4,7 +4,7 @@ import { usePageSeo } from '@/hooks';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { routeScheduleStats } from './schemeStats';
-import { routesAtStop } from './schemeStops';
+import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { SCHEME_COLOR_VARS } from './routeColors';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 import schemeSvg from './scheme/malyn-scheme.svg?raw';
@@ -33,6 +33,16 @@ const SCHEME_SEO = {
     about: { '@type': 'Thing', name: 'Міський транспорт Малина' },
   },
 };
+
+/** Група зупинки/вузла на схемі, якій належить зупинка: за data-stops (усі зупинки вузла), інакше за data-stop. */
+function stopGroupFor(root: ParentNode, stopId: string): SVGGraphicsElement | null {
+  const groups = Array.from(root.querySelectorAll<SVGGraphicsElement>('.lts-stop'));
+  return (
+    groups.find((g) => (g.getAttribute('data-stops') || '').split(' ').includes(stopId)) ||
+    groups.find((g) => g.getAttribute('data-stop') === stopId) ||
+    null
+  );
+}
 
 /** Найближчий предок із data-route / data-stop (лінії, плашки, зупинки всередині SVG). */
 function closestData(target: EventTarget | null, attr: 'route' | 'stop'): string | null {
@@ -91,12 +101,19 @@ export function LocalTransportSchemePage() {
   }, [searchParams, setSearchParams]);
 
   const hereStopName = (hereStop && dataset?.stops.find((s) => s.id === hereStop)?.name) || '';
-  /** Лінії через зупинку з ?stop= — підсвічуються, поки не обрано конкретний маршрут */
-  const hereRoutes = useMemo(
-    () => (hereStop && dataset ? routesAtStop(dataset, hereStop) : []),
-    [hereStop, dataset]
-  );
+  /** Вузол схеми, якому належить зупинка з ?stop= (вузол = кілька фізичних зупинок) */
+  const hereNode = useMemo(() => schemeNodeForStop(hereStop), [hereStop]);
+  /** Лінії через зупинку (через весь вузол, якщо вона його частина) — підсвічуються, поки не обрано маршрут */
+  const hereRoutes = useMemo(() => {
+    if (!hereStop || !dataset) return [];
+    return hereNode ? routesAtNode(dataset, hereNode) : routesAtStop(dataset, hereStop);
+  }, [hereStop, hereNode, dataset]);
   const hereRoutesKey = hereRoutes.join(',');
+  /** Зупинки вузла з лініями кожної — для рядка «Зупинки вузла» на картці */
+  const hereNodeStops = useMemo(
+    () => (hereNode && dataset ? stopsOfNode(dataset, hereNode) : []),
+    [hereNode, dataset]
+  );
 
   // Підсвічування: обрана лінія (або лінії зупинки) лишається, решта тьмяніє. Класи ставляться
   // прямо в SVG, бо він вставлений як рядок (dangerouslySetInnerHTML), а не як React-дерево.
@@ -113,8 +130,9 @@ export function LocalTransportSchemePage() {
     root.querySelectorAll('.lts-badge').forEach((g) => {
       g.classList.toggle('lts-badge--dim', !isLit(g.getAttribute('data-route')));
     });
+    const hereGroup = hereStop ? stopGroupFor(root, hereStop) : null;
     root.querySelectorAll('.lts-stop').forEach((g) => {
-      g.classList.toggle('lts-stop--here', !!hereStop && g.getAttribute('data-stop') === hereStop);
+      g.classList.toggle('lts-stop--here', g === hereGroup);
     });
   }, [activeRoute, hereRoutesKey, hereStop]);
 
@@ -124,7 +142,7 @@ export function LocalTransportSchemePage() {
     const el = canvasRef.current;
     if (!el || el.scrollWidth <= el.clientWidth) return;
     let fraction = 0.4;
-    const here = hereStop ? (el.querySelector(`.lts-stop[data-stop="${hereStop}"]`) as SVGGraphicsElement | null) : null;
+    const here = hereStop ? stopGroupFor(el, hereStop) : null;
     if (here && typeof here.getBBox === 'function') {
       const b = here.getBBox();
       if (b.width > 0) fraction = (b.x + b.width / 2) / 1400; // ширина viewBox схеми
@@ -242,19 +260,37 @@ export function LocalTransportSchemePage() {
             </div>
           </div>
 
-          {!active && hereStop && hereStopName && (
+          {!active && hereStop && (hereNode || hereStopName) && (
             <section className="lts-card" aria-labelledby="lts-card-title">
               <h2 id="lts-card-title" className="lts-card-title">
                 <span className="lts-card-here" aria-hidden>
                   ●
                 </span>
-                <span>Ви тут: {hereStopName}</span>
+                <span>Ви тут: {hereNode ? hereNode.name : hereStopName}</span>
               </h2>
               <p className="lts-card-meta">
+                {/* «вузол» лише коли він обʼєднує кілька зупинок; вузол з однієї зупинки — просто зупинка */}
                 {hereRoutes.length
-                  ? `Лінії через зупинку: ${hereRoutes.map((id) => `№${id}`).join(', ')}`
-                  : 'Через зупинку не проходить жодна лінія схеми'}
+                  ? `Лінії через ${hereNode && hereNode.stopIds.length > 1 ? 'вузол' : 'зупинку'}: ${hereRoutes.map((id) => `№${id}`).join(', ')}`
+                  : `Через ${hereNode && hereNode.stopIds.length > 1 ? 'вузол' : 'зупинку'} не проходить жодна лінія схеми`}
               </p>
+              {hereNodeStops.length > 1 && (
+                <p className="lts-card-via lts-card-stops">
+                  Зупинки вузла:{' '}
+                  {hereNodeStops.map((s, i) => (
+                    <React.Fragment key={s.stopId}>
+                      {i > 0 && ' · '}
+                      <Link
+                        className={`lts-card-stop ${s.stopId === hereStop ? 'lts-card-stop--here' : ''}`}
+                        to={`/transport/stop/${encodeURIComponent(s.stopId)}${suffix}`}
+                      >
+                        {s.name}
+                      </Link>
+                      {s.routeIds.length > 0 && ` (${s.routeIds.join(', ')})`}
+                    </React.Fragment>
+                  ))}
+                </p>
+              )}
               <div className="lts-card-actions">
                 <Link className="lts-btn lts-btn--primary" to={`/transport/stop/${encodeURIComponent(hereStop)}${suffix}`}>
                   Табло зупинки

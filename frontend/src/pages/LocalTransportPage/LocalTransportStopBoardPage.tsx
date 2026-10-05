@@ -6,11 +6,13 @@ import type { TransportData } from './types';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
-import { isVerifiedRoute } from './routeTiming';
+import { VERIFIED_ROUTE_IDS, isVerifiedRoute } from './routeTiming';
+import { buildRouteLines } from './routeGeometry';
+import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 import { routeColorStyle } from './routeColors';
-import { routesAtStop } from './schemeStops';
+import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
-import { buildSchemeUrl, isSchemeStop } from './schemeMini';
+import { buildSchemeUrl } from './schemeMini';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
@@ -25,12 +27,22 @@ import { DateTimeControls } from './DateTimeControls';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import './LocalTransportPage.css';
 
-/** Підпис під міні-схемою: чи є зупинка вузлом схеми і які лінії через неї підсвічено */
-function schemeMiniNote(onScheme: boolean, routeIds: string[]): string {
+/**
+ * Підпис під міні-схемою: зупинка поза схемою, зупинка-вузол або зупинка з вузла, що обʼєднує кілька
+ * фізичних зупинок (тоді підсвічено лінії всього вузла).
+ */
+function schemeMiniNote(node: { name: string; size: number; stops: string[] } | null, routeIds: string[]): string {
   const lines = routeIds.map((id) => `№${id}`).join(', ');
-  if (onScheme) return lines ? `Ваша зупинка позначена на схемі, підсвічено її лінії: ${lines}.` : 'Ваша зупинка позначена на схемі.';
-  return `Зупинка між вузлами схеми — підсвічено лінії, що проходять через неї: ${lines}.`;
+  if (!node) return `Зупинка між вузлами схеми — підсвічено лінії, що проходять через неї: ${lines}.`;
+  if (node.size > 1) {
+    const list = node.stops.length > 1 ? ` обʼєднує зупинки ${node.stops.join(', ')}` : '';
+    return `Вузол «${node.name}»${list} — підсвічено лінії всього вузла${lines ? `: ${lines}` : ''}.`;
+  }
+  return lines ? `Ваша зупинка позначена на схемі, підсвічено її лінії: ${lines}.` : 'Ваша зупинка позначена на схемі.';
 }
+
+/** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
+const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
 
 const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
   {
@@ -172,10 +184,20 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   /** Обрана зупинка — це зупинка з URL (джерело істини); порожній slug → табло без зупинки. */
   const selectedStop = matchedStopId;
-  /** Лінії схеми через обрану зупинку — для міні-схеми під табло */
-  const schemeRouteIds = useMemo(
-    () => (dataset && selectedStop ? routesAtStop(dataset, selectedStop) : []),
-    [dataset, selectedStop]
+  /** Вузол схеми, якому належить обрана зупинка (вузол = кілька фізичних зупинок), або null */
+  const schemeNode = useMemo(() => schemeNodeForStop(selectedStop), [selectedStop]);
+  /** Лінії схеми через обрану зупинку (через весь вузол, якщо вона його частина) — для міні-схеми під табло */
+  const schemeRouteIds = useMemo(() => {
+    if (!dataset || !selectedStop) return [];
+    return schemeNode ? routesAtNode(dataset, schemeNode) : routesAtStop(dataset, selectedStop);
+  }, [dataset, selectedStop, schemeNode]);
+  /** Назва вузла і назви його зупинок (лише ті, що є в датасеті) — для підпису під міні-схемою */
+  const schemeNodeInfo = useMemo(
+    () =>
+      schemeNode && dataset
+        ? { name: schemeNode.name, size: schemeNode.stopIds.length, stops: stopsOfNode(dataset, schemeNode).map((s) => s.name) }
+        : null,
+    [schemeNode, dataset]
   );
   const stopInputResolved = stopInput ? resolveStopIdInList(stopInput, stops, stopsCatalog) : '';
   /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує) */
@@ -396,9 +418,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     if (id !== selectedStop) syncUrl(id, searchDate, searchTime);
   };
 
-  const mapCoordsData = viewModel
-    ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
-    : null;
+  const mapCoordsData = useMemo(
+    () => (viewModel ? { center: viewModel.coords.center, stops: viewModel.coords.stops } : null),
+    [viewModel]
+  );
+  /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті табло */
+  const overviewLines = useMemo(
+    () => (viewModel ? buildRouteLines(viewModel.coords.stops, viewModel.data.supplement?.stops?.stops_by_route, VERIFIED_ROUTE_IDS) : []),
+    [viewModel]
+  );
 
   const fareAmount =
     typeof data?.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
@@ -746,13 +774,13 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             </section>
           )}
 
-          {selectedStop && (schemeRouteIds.length > 0 || isSchemeStop(selectedStop)) && (
+          {selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
             <LocalTransportSchemeMini
               routeIds={schemeRouteIds}
-              stopIds={isSchemeStop(selectedStop) ? [selectedStop] : []}
+              stopIds={schemeNode ? [schemeNode.id] : []}
               href={buildSchemeUrl({ stop: selectedStop, date: searchDate, time: searchTime })}
               label={`Відкрити схему маршрутів: зупинка «${selectedStopTitle}»`}
-              note={schemeMiniNote(isSchemeStop(selectedStop), schemeRouteIds)}
+              note={schemeMiniNote(schemeNodeInfo, schemeRouteIds)}
             />
           )}
 
@@ -812,13 +840,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         <div className="lt-map-column">
           {/* Усі зупинки міста, обрана — підсвічена; тап по маркеру відкриває табло цієї зупинки */}
           <RouteMap
-            routeId=""
             stopNames={stops}
             markerStopNames={stops}
             fromStopName={selectedStop || undefined}
-            dark
-            hideRadialPicker
-            dimUnselectedMarkers
+            routeLines={overviewLines}
+            nodeStopIds={NODE_STOP_IDS}
             onStopMarkerClick={openStopBoard}
             coordsData={mapCoordsData}
             resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}

@@ -13,8 +13,13 @@ test.describe('transport', () => {
     await expect(page.getByRole('heading', { name: 'Маршрути Малина' })).toBeVisible({
       timeout: 15_000,
     });
-    // exact: поруч є «Знайти найближчі зупинки за геолокацією» (aria-label геокнопки)
-    await expect(page.getByRole('button', { name: 'Знайти', exact: true })).toBeVisible();
+    // Без пари — швидкий старт: чіп вузла схеми ставить «Куди» (Поліклініка належить вузлу «Лікарня · Поліклініка»)
+    await expect(page.getByText('Куди їдете?')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Знайти', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Лікарня · Поліклініка' }).click();
+    await expect(page.getByRole('combobox', { name: 'Куди' })).toHaveValue('Поліклініка');
+    await expect(page.getByText('Тепер оберіть «Звідки»')).toBeVisible();
+    await expect(page).toHaveURL(/\/transport\?to=st_0072&d=/);
   });
 
   test('«Схема»: tab opens the metro-style scheme, a chip highlights the line and links to its schedule', async ({ page }) => {
@@ -65,6 +70,18 @@ test.describe('transport', () => {
     // Вузол схеми: маркер «ви тут» ставиться навіть до приходу датасету
     await page.goto('/transport/scheme?stop=st_0019');
     await expect(page.locator('.lts-canvas .lts-stop[data-stop="st_0019"]')).toHaveClass(/lts-stop--here/);
+
+    // Вузол бачить усі маршрути: Поліклініка (st_0072) — частина вузла «Лікарня · Поліклініка» (st_0035)
+    await page.goto('/transport/stop/st_0072?d=16.09.26&h=07%3A00');
+    await expect(page.locator('.lts-mini-note')).toHaveText(/^Вузол «Лікарня · Поліклініка» — підсвічено лінії всього вузла: №2\.$/);
+    await expect(mini.locator('.lts-stop[data-stop="st_0035"]')).toHaveClass(/lts-stop--here/);
+    await page.getByRole('link', { name: 'Відкрити схему маршрутів: зупинка «Поліклініка»' }).click();
+    await expect(page).toHaveURL(/\/transport\/scheme\?stop=st_0072/);
+    await expect(page.getByRole('heading', { level: 2, name: 'Ви тут: Лікарня · Поліклініка' })).toBeVisible();
+    await expect(page.locator('.lts-canvas .lts-stop[data-stop="st_0035"]')).toHaveClass(/lts-stop--here/);
+    await expect(page.locator('.lts-canvas .lts-route[data-route="2"]')).not.toHaveClass(/lts-route--dim/);
+    await expect(page.locator('.lts-canvas .lts-route[data-route="3"]')).toHaveClass(/lts-route--dim/);
+    await expect(page.getByRole('link', { name: 'Табло зупинки' })).toHaveAttribute('href', /\/transport\/stop\/st_0072/);
   });
 
   test('route badges carry the scheme colour in the planner, the catalogue and on the stop board', async ({ page }) => {
@@ -98,7 +115,7 @@ test.describe('transport', () => {
     expect(fromBox && toBox).toBeTruthy();
     expect(toBox!.y).toBeGreaterThan(fromBox!.y + fromBox!.height - 1);
     expect(Math.abs(toBox!.x - fromBox!.x)).toBeLessThan(2);
-    const swap = page.getByRole('button', { name: 'Поміняти З та До' });
+    const swap = page.getByRole('button', { name: 'Поміняти місцями', exact: true });
     await expect(swap).toBeVisible();
     const swapBox = await swap.boundingBox();
     expect(swapBox!.x).toBeGreaterThan(fromBox!.x + fromBox!.width - 1);
@@ -118,8 +135,8 @@ test.describe('transport', () => {
 
   test('planner URL follows the form: pick stops, swap, switch to the stop board', async ({ page }) => {
     await page.goto('/transport?d=16.09.26&h=09%3A12');
-    const from = page.getByRole('combobox', { name: 'З' });
-    const to = page.getByRole('combobox', { name: 'До' });
+    const from = page.getByRole('combobox', { name: 'Звідки' });
+    const to = page.getByRole('combobox', { name: 'Куди' });
     await from.click();
     await from.pressSequentially('Ба');
     await page.getByRole('option', { name: 'Базар' }).click();
@@ -140,7 +157,7 @@ test.describe('transport', () => {
     await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?/);
     await page.getByRole('option', { name: 'Базар' }).click();
 
-    await page.getByRole('button', { name: 'Поміняти З та До' }).click();
+    await page.getByRole('button', { name: 'Поміняти місцями', exact: true }).click();
     await expect(page).toHaveURL(/\/transport\/st_b\/st_a\?/);
     await expect(from).toHaveValue('Вокзал');
 
@@ -152,9 +169,8 @@ test.describe('transport', () => {
   test('date is a native picker; «Завтра» chip updates d= in the URL', async ({ page }) => {
     // Дата навмисно далеко від сьогодні, щоб чіп не був натиснутий від початку.
     await page.goto('/transport/st_a/st_b?d=01.03.26&h=09%3A12');
-    await expect(page.getByText('01.03.26, 09:12')).toBeVisible();
-    await page.getByRole('button', { name: 'Змінити' }).click();
-    const date = page.getByLabel('Дата');
+    await page.getByRole('button', { name: '01.03.26 о 09:12', exact: true }).click();
+    const date = page.getByLabel('Дата', { exact: true });
     await expect(date).toHaveAttribute('type', 'date');
     await expect(date).toHaveValue('2026-03-01');
 
@@ -163,10 +179,10 @@ test.describe('transport', () => {
     const dd = String(tomorrow.getDate()).padStart(2, '0');
     const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
     const yy = String(tomorrow.getFullYear()).slice(-2);
-    await page.getByRole('button', { name: 'Завтра' }).click();
+    await page.getByRole('button', { name: 'Завтра', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`d=${dd}\\.${mm}\\.${yy}&h=`));
-    await expect(page.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByText('Завтра, 09:12')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Завтра', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Завтра о 09:12', exact: true })).toBeVisible();
   });
 
   test('result card: departure → arrival · duration, destination, no jargon; next-day wrap', async ({ page }) => {
@@ -206,7 +222,7 @@ test.describe('transport', () => {
     // Табло → планувальник: обрана зупинка стає «З»
     await page.getByRole('link', { name: 'Маршрути (З → До)' }).click();
     await expect(page).toHaveURL(/\/transport\?.*from=st_b/);
-    await expect(page.getByRole('combobox', { name: 'З' })).toHaveValue('Вокзал');
+    await expect(page.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Вокзал');
 
     // Назад на табло → картка → сторінка маршруту → «Назад» → знову табло цієї зупинки
     await page.goBack();
@@ -242,7 +258,7 @@ test.describe('transport', () => {
       const helpBox = await help.boundingBox();
       expect(helpBox!.y + helpBox!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
       // Форма планувальника починається вище, ніж раніше з двома рядками меню (було ≈260px)
-      const fromBox = await page.getByRole('combobox', { name: 'З' }).boundingBox();
+      const fromBox = await page.getByRole('combobox', { name: 'Звідки' }).boundingBox();
       expect(fromBox!.y).toBeLessThan(230);
     });
 
@@ -262,10 +278,42 @@ test.describe('transport', () => {
       const dd = String(tomorrow.getDate()).padStart(2, '0');
       const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
       const yy = String(tomorrow.getFullYear()).slice(-2);
-      await page.getByRole('button', { name: 'Змінити' }).click();
-      await page.getByRole('button', { name: 'Завтра' }).click();
+      await page.getByRole('button', { name: 'Завтра', exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/transport/stop/st_a\\?d=${dd}\\.${mm}\\.${yy}&h=`));
-      await expect(page.getByText('Завтра, 07:00')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Завтра о 07:00', exact: true })).toBeVisible();
+    });
+  });
+
+  test.describe('map on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+    test('«Карта» opens a full-screen map with the stops, «Готово» returns to the list', async ({ page }) => {
+      await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
+      await expect(page.locator('.lt-route-num--card').first()).toBeVisible();
+      // На телефоні немає колонки карти й нижнього аркуша — лише кнопка «Карта»
+      await expect(page.locator('.lt-map-column')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Карта' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Карта' });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText('З: Базар · До: Вокзал')).toBeVisible();
+      await expect(dialog.locator('.leaflet-container')).toBeVisible();
+      await expect(dialog.locator('.lt-map-marker')).toHaveCount(6);
+      // Тап по маркеру (першому, що в кадрі) → картка зупинки з «Звідси / Сюди / Табло», без попапів і радіального пікера
+      const markers = dialog.locator('.lt-map-marker');
+      const boxes = await markers.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+      const vp = page.viewportSize()!;
+      const visibleIdx = boxes.findIndex((b) => b.left > 0 && b.top > 60 && b.right < vp.width && b.bottom < vp.height);
+      expect(visibleIdx).toBeGreaterThanOrEqual(0);
+      await markers.nth(visibleIdx).click();
+      const card = dialog.getByRole('dialog', { name: /^Зупинка / });
+      await expect(card).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Звідси' })).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Сюди' })).toBeVisible();
+      await expect(card.getByRole('link', { name: 'Табло' })).toHaveAttribute('href', /^\/transport\/stop\/st_/);
+      await expect(page.locator('.leaflet-popup, .lt-radial-picker')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Готово' }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator('.lt-route-num--card').first()).toBeVisible();
     });
   });
 

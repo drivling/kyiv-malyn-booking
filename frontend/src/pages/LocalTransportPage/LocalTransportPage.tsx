@@ -3,6 +3,12 @@ import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'reac
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
 import { routeColor, routeColorStyle } from './routeColors';
+import { buildRouteLines, routeStopChain } from './routeGeometry';
+import { LocalTransportMapOverlay } from './LocalTransportMapOverlay';
+import { PHONE_QUERY, useMediaQuery } from './useMediaQuery';
+import { routesAtStop } from './schemeStops';
+import { SCHEME_NODES, type SchemeNode } from './scheme/malyn-scheme-nodes';
+import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
@@ -16,10 +22,10 @@ import {
   invertNameToId,
   resolveStopIdInList,
 } from './stopCatalog';
-import { isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
+import { VERIFIED_ROUTE_IDS, isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
 import { computeTripTiming, minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
 import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
-import { findNearestTrip } from './nearestTrip';
+import { findNearestTrip, findUpcomingTrips } from './nearestTrip';
 import { tripDestination } from './stopDepartures';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
@@ -35,6 +41,33 @@ import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
+/** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
+const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
+/** Чіпи швидкого старту: вузли й кінцеві схеми (без орієнтирів), у порядку схеми */
+const QUICK_NODES = SCHEME_NODES.filter((n) => n.kind !== 'waypoint');
+/** «через …» з легенди схеми — для каталогу ліній */
+const SCHEME_VIA: Record<string, string> = Object.fromEntries(SCHEME_ROUTES.map((s) => [s.id, s.via]));
+
+/** Іконка-приціл для гео-кнопки у полі «Звідки» */
+function GeoIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+    </svg>
+  );
+}
 
 /** URL планувальника для пари зупинок з датою/часом — єдине місце, де він збирається. */
 function buildPlannerUrl(from: string, to: string, date: string, time: string): string {
@@ -254,30 +287,13 @@ function getImpliedDirection(
 }
 
 
-/** Зібрати id зупинок у порядку руху для маршруту та напрямку */
+/** Зібрати id зупинок у порядку руху для маршруту та напрямку (з технічними точками map_only) */
 function getOrderedStopKeys(
   routeId: string,
   dir: 'there' | 'back',
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
 ): string[] {
-  if (!routeId || !stopsByRoute?.[routeId]) return [];
-  const routeStops = stopsByRoute[routeId];
-  if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-  const first = routeStops[0];
-  const withOrder: RouteStopWithOrder[] =
-    first && typeof first === 'object' && 'name' in first
-      ? (routeStops as RouteStopWithOrder[])
-      : (routeStops as string[]).map((name, i) => ({
-          name,
-          order_there: i + 1,
-          order_back: routeStops.length - i,
-          belongs_to: 'both' as const,
-        }));
-  const ordered =
-    dir === 'there'
-      ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0).sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0))
-      : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0).sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
-  return ordered.map((s) => getStopKey(s));
+  return routeStopChain(stopsByRoute, routeId, dir);
 }
 
 /** Знайти baseTime (відправлення з початкової) рейсу, що проходить fromStop найближче до depFromStopMins */
@@ -348,9 +364,10 @@ export const LocalTransportPage: React.FC = () => {
   );
   const data = viewModel?.data ?? null;
   const stopsCoords = viewModel?.coords.stops ?? null;
-  const mapCoordsData = viewModel
-    ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
-    : null;
+  const mapCoordsData = useMemo(
+    () => (viewModel ? { center: viewModel.coords.center, stops: viewModel.coords.stops } : null),
+    [viewModel]
+  );
 
   useEffect(() => {
     if (!viewModel) return;
@@ -401,103 +418,15 @@ export const LocalTransportPage: React.FC = () => {
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
-  const [mobileMapSnap, setMobileMapSnap] = useState<'collapsed' | 'mid' | 'full'>('collapsed');
-  const touchStartYRef = useRef<number | null>(null);
-  const touchStartTimeRef = useRef<number | null>(null);
-  const isMobileMapExpanded = mobileMapSnap !== 'collapsed';
-
-  const hapticLight = useCallback(() => {
-    try {
-      if (typeof navigator !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
-        navigator.vibrate?.(12);
-      }
-    } catch {
-      /* ignore */
-    }
+  // Карта на телефоні — повноекранний overlay за кнопкою «Карта»; на десктопі — колонка праворуч
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapResizeToken, setMapResizeToken] = useState(0);
+  const openMap = useCallback(() => {
+    setMapOpen(true);
+    setMapResizeToken((t) => t + 1);
   }, []);
-
-  const cycleMobileMapSnap = () => {
-    setMobileMapSnap((prev) => (prev === 'collapsed' ? 'mid' : prev === 'mid' ? 'full' : 'collapsed'));
-    hapticLight();
-  };
-
-  /** Розгорнути карту на мобілці після тапу по маркеру (як у Google Maps / Transit) */
-  const expandMobileMapSheetForStop = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (!window.matchMedia('(max-width: 767px)').matches) return;
-    setMobileMapSnap((prev) => {
-      if (prev === 'collapsed') {
-        queueMicrotask(() => hapticLight());
-        return 'mid';
-      }
-      return prev;
-    });
-  }, [hapticLight]);
-
-  const handleMobileMapTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
-    touchStartYRef.current = e.touches[0]?.clientY ?? null;
-    touchStartTimeRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  };
-
-  const handleMobileMapTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
-    const startY = touchStartYRef.current;
-    const startT = touchStartTimeRef.current;
-    touchStartYRef.current = null;
-    touchStartTimeRef.current = null;
-    if (startY == null || startT == null) return;
-    const endY = e.changedTouches[0]?.clientY ?? startY;
-    const endT = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const deltaY = endY - startY;
-    const dt = Math.max(16, endT - startT);
-    const velocityPxPerMs = deltaY / dt;
-
-    const FLING = 0.45;
-    const DRAG = 36;
-
-    const moveUp = () => {
-      setMobileMapSnap((prev) => {
-        if (prev === 'collapsed') return 'mid';
-        if (prev === 'mid') return 'full';
-        return prev;
-      });
-      hapticLight();
-    };
-    const moveDown = () => {
-      setMobileMapSnap((prev) => {
-        if (prev === 'full') return 'mid';
-        if (prev === 'mid') return 'collapsed';
-        return prev;
-      });
-      hapticLight();
-    };
-
-    if (velocityPxPerMs < -FLING) {
-      moveUp();
-      return;
-    }
-    if (velocityPxPerMs > FLING) {
-      moveDown();
-      return;
-    }
-    if (deltaY < -DRAG) {
-      moveUp();
-      return;
-    }
-    if (deltaY > DRAG) {
-      moveDown();
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.innerWidth >= 768) return;
-    if (!isMobileMapExpanded) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [isMobileMapExpanded]);
+  const closeMap = useCallback(() => setMapOpen(false), []);
 
   useEffect(() => {
     try {
@@ -542,6 +471,17 @@ export const LocalTransportPage: React.FC = () => {
 
   const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
   const stopsByRoute = data?.supplement?.stops?.stops_by_route;
+  /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті планера */
+  const overviewLines = useMemo(
+    () => (stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, VERIFIED_ROUTE_IDS) : []),
+    [stopsCoords, stopsByRoute]
+  );
+  const linesAtStop = useCallback((stopId: string) => (dataset ? routesAtStop(dataset, stopId) : []), [dataset]);
+  const boardHrefFor = useCallback(
+    (stopId: string) =>
+      `/transport/stop/${encodeURIComponent(stopId)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`,
+    [searchDate, searchTime]
+  );
   const stopsCatalog = useMemo(() => getStopsCatalog(data), [data]);
   const stops = useMemo(
     () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog),
@@ -838,75 +778,31 @@ export const LocalTransportPage: React.FC = () => {
 
   usePageSeo(transportSeo);
 
-  const detailMapStopNames = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-    const first = routeStops[0];
-    const withOrder: RouteStopWithOrder[] =
-      first && typeof first === 'object' && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-    const isThere = stopsDirection === 'there';
-    const orderKey = isThere ? 'order_there' : 'order_back';
-    const included = withOrder
-      .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-      .filter((s) => (s[orderKey] ?? 0) > 0)
-      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return included.map((s) => getStopKey(s));
-  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+  /** Точки лінії маршруту на карті в поточному напрямку (з технічними map_only для поворотів) */
+  const detailMapStopNames = useMemo(
+    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection) : []),
+    [detailRoute, stopsByRoute, stopsDirection]
+  );
 
   /** Fallback для карти: усі зупинки маршруту в поточному напрямку (щоб карта завжди мала що малювати) */
-  const detailMapStopNamesFallback = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-    const first = routeStops[0];
-    const withOrder: RouteStopWithOrder[] =
-      first && typeof first === 'object' && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-    const isThere = stopsDirection === 'there';
-    const orderKey = isThere ? 'order_there' : 'order_back';
-    const sorted = [...withOrder].sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return sorted.map((s) => getStopKey(s));
-  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+  const detailMapStopNamesFallback = useMemo(
+    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection, { all: true }) : []),
+    [detailRoute, stopsByRoute, stopsDirection]
+  );
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
 
+  /** Лінія обраного маршруту в її кольорі (поточний напрямок) */
+  const detailLine = useMemo(
+    () => (detailRoute && stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, [detailRoute.id], stopsDirection) : []),
+    [detailRoute, stopsCoords, stopsByRoute, stopsDirection]
+  );
+
   /** Тільки «реальні» зупинки для маркерів на карті (без map_only — технічні точки лише для поворотів лінії) */
-  const detailMapStopNamesForMarkers = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-    const first = routeStops[0];
-    const withOrder: RouteStopWithOrder[] =
-      first && typeof first === 'object' && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-    const isThere = stopsDirection === 'there';
-    const orderKey = isThere ? 'order_there' : 'order_back';
-    const included = withOrder
-      .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-      .filter((s) => (s[orderKey] ?? 0) > 0)
-      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return getRealStops(included).map((s) => getStopKey(s));
-  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+  const detailMapStopNamesForMarkers = useMemo(
+    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection, { markersOnly: true }) : []),
+    [detailRoute, stopsByRoute, stopsDirection]
+  );
 
   const detailRouteStopIds = useMemo(() => {
     if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
@@ -1243,22 +1139,58 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   /** Прокрутити до результатів під sticky-формою (на мобільному форма ховає видачу). */
-  const scrollToResults = () => {
+  const scrollToResults = useCallback(() => {
     const el = resultsRef.current;
     if (!el || typeof el.scrollIntoView !== 'function') return;
     const stickyHeight = searchCardRef.current?.offsetHeight ?? 0;
     el.style.scrollMarginTop = `${stickyHeight + 8}px`;
     el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  };
+  }, []);
 
-  const handleSearchSubmit = () => {
-    const from = resolvedFrom;
-    const to = resolvedTo;
-    if (!from || !to || from === to) return;
-    gaTrackEvent('transport_find_click', { from, to });
-    // Свідомий пошук — push (запис в історії), на відміну від автосинхронізації (replace).
-    navigate(buildPlannerUrl(from, to, searchDate, searchTime));
+  // Кнопки «Знайти» немає — видача жива, тож нова пара мʼяко прокручує до результатів.
+  // Пара з адресного рядка при відкритті сторінки не прокручує: людина ще нічого не обирала.
+  const skipResultsScrollRef = useRef(Boolean(fromPathDecoded && toPathDecoded));
+  useEffect(() => {
+    if (!isMainPage || !committedPair) return;
+    if (skipResultsScrollRef.current) {
+      skipResultsScrollRef.current = false;
+      return;
+    }
     scrollToResults();
+  }, [isMainPage, committedPair, scrollToResults]);
+
+  /** Гео-кнопка у полі «Звідки» (слот trailing Combobox) — видима, поки поле порожнє */
+  const geoInlineButton = (
+    <button
+      type="button"
+      className="lt-geo-inline"
+      onClick={handleFindNearest}
+      disabled={geoLoading}
+      aria-busy={geoLoading}
+      aria-label="Знайти найближчі зупинки за геолокацією"
+      title="Найближчі зупинки за вашою геолокацією"
+    >
+      <GeoIcon />
+    </button>
+  );
+
+  /** Чіпи швидкого старту: вузол схеми → перша його зупинка, що є в датасеті */
+  const quickNodes = useMemo(
+    () =>
+      QUICK_NODES.map((node) => ({ node, stopId: node.stopIds.find((id) => stops.includes(id)) })).filter(
+        (q): q is { node: SchemeNode; stopId: string } => Boolean(q.stopId)
+      ),
+    [stops]
+  );
+  /** Чіп вузла ставить «Куди», а якщо «Куди» вже є — «Звідки» (ті самі сетери, що й поля) */
+  const pickQuickNode = (stopId: string) => {
+    if (!resolvedTo) {
+      setSearchTo(stopId);
+      return;
+    }
+    setSearchFrom(stopId);
+    latestStopRef.current = stopId;
+    setStopFilter(stopId);
   };
 
   const handleSelectRoute = (id: string) => {
@@ -1465,7 +1397,7 @@ export const LocalTransportPage: React.FC = () => {
                 </div>
                 <button
                   type="button"
-                  className="lt-search-btn lt-detail-picker-btn"
+                  className="lt-btn lt-btn--primary lt-detail-picker-btn"
                   onClick={handleShowTimetableFromPicker}
                   disabled={!pickerFrom || !pickerTo}
                 >
@@ -1817,49 +1749,46 @@ export const LocalTransportPage: React.FC = () => {
               <a href="tel:+380687771590">(068) 77-71-590</a>
             </footer>
           </div>
-            {isMobileMapExpanded && (
-              <button
-                type="button"
-                className="lt-mobile-map-backdrop"
-                aria-label="Закрити карту"
-                onClick={() => setMobileMapSnap('collapsed')}
-              />
-            )}
-            <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
-            <button
-              type="button"
-              className="lt-mobile-map-toggle"
-                onClick={cycleMobileMapSnap}
-                onTouchStart={handleMobileMapTouchStart}
-                onTouchEnd={handleMobileMapTouchEnd}
-                aria-label={mobileMapSnap === 'collapsed' ? 'Відкрити карту' : mobileMapSnap === 'mid' ? 'Розгорнути карту на весь екран' : 'Згорнути карту'}
-            >
-              {mobileMapSnap === 'collapsed' ? 'Карта' : mobileMapSnap === 'mid' ? 'Ще більше' : 'Список'}
-            </button>
-            <RouteMap
-              routeId={detailRoute.id}
-              stopNames={mapStopNamesToShow}
-              markerStopNames={detailMapStopNamesForMarkers}
-              fromStopName={fromStop || undefined}
-              toStopName={toStop || undefined}
-              resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
-              onPickFromStop={(stopName) => {
-                setFromStop(stopName);
-                updateDetailUrl({ stop: stopName });
-              }}
-              onPickToStop={(stopName) => {
-                setToStop(stopName);
-                rememberFrequentToStop(stopName);
-                updateDetailUrl({ to: stopName });
-              }}
-              onSwapStops={() => reverseDirectionAndFromTo()}
-              frequentToStops={frequentToStops}
-              onStopMarkerActivate={expandMobileMapSheetForStop}
-              mapSheetSnap={mobileMapSnap}
-              coordsData={mapCoordsData}
-              dark
-            />
-          </div>
+            {(() => {
+              const mapProps = {
+                stopNames: mapStopNamesToShow,
+                markerStopNames: detailMapStopNamesForMarkers,
+                fromStopName: fromStop || undefined,
+                toStopName: toStop || undefined,
+                resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
+                routeLines: detailLine,
+                highlightRouteIds: [detailRoute.id],
+                nodeStopIds: NODE_STOP_IDS,
+                routesAtStop: linesAtStop,
+                boardHref: boardHrefFor,
+                onPickFromStop: (stopName: string) => {
+                  setFromStop(stopName);
+                  updateDetailUrl({ stop: stopName });
+                },
+                onPickToStop: (stopName: string) => {
+                  setToStop(stopName);
+                  rememberFrequentToStop(stopName);
+                  updateDetailUrl({ to: stopName });
+                },
+                onSwapStops: () => reverseDirectionAndFromTo(),
+                frequentToStops,
+                coordsData: mapCoordsData,
+              };
+              return isPhone ? (
+                <>
+                  <button type="button" className="lt-map-fab" onClick={openMap}>
+                    Карта
+                  </button>
+                  <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={`Маршрут №${detailRoute.id}`}>
+                    <RouteMap {...mapProps} resizeToken={mapResizeToken} />
+                  </LocalTransportMapOverlay>
+                </>
+              ) : (
+                <div className="lt-map-column">
+                  <RouteMap {...mapProps} showStrip />
+                </div>
+              );
+            })()}
           </>
         ) : (
           <>
@@ -1877,7 +1806,8 @@ export const LocalTransportPage: React.FC = () => {
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
                     <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-search-from">
-                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> З
+                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden />
+                      <span className="lt-visually-hidden">Звідки</span>
                     </label>
                     <Combobox
                       id="lt-search-from"
@@ -1906,6 +1836,7 @@ export const LocalTransportPage: React.FC = () => {
                       emptyMessage="Зупинок не знайдено"
                       clearable
                       inputRef={searchFromInputRef}
+                      trailing={geoInlineButton}
                       onSelectOption={(selected) => {
                         if (!selected) return;
                         window.setTimeout(() => searchToInputRef.current?.focus(), 0);
@@ -1924,13 +1855,14 @@ export const LocalTransportPage: React.FC = () => {
                       window.setTimeout(() => setIsSwapAnimating(false), 220);
                     }}
                     title="Поміняти місцями"
-                    aria-label="Поміняти З та До"
+                    aria-label="Поміняти місцями"
                   >
                     ⇅
                   </button>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
                     <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-search-to">
-                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> До
+                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden />
+                      <span className="lt-visually-hidden">Куди</span>
                     </label>
                     <Combobox
                       id="lt-search-to"
@@ -1959,100 +1891,117 @@ export const LocalTransportPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                <DateTimeControls
-                  date={searchDate}
-                  time={searchTime}
-                  page="planner"
-                  onChange={({ date, time }) => {
-                    setSearchDate(date);
-                    setSearchTime(time);
-                  }}
-                />
-                <div className="lt-search-actions">
-                  <button
-                    type="button"
-                    className="lt-search-btn"
-                    onClick={handleSearchSubmit}
-                    disabled={!hasResolvedPair}
-                  >
-                    Знайти
-                  </button>
-                </div>
-                <div className="lt-search-extra">
-                  <button
-                    type="button"
-                    className="lt-geo-btn lt-geo-btn--small"
-                    onClick={handleFindNearest}
-                    disabled={geoLoading}
-                    aria-busy={geoLoading}
-                    aria-label="Знайти найближчі зупинки за геолокацією"
-                    title="Найближчі зупинки за вашою геолокацією"
-                  >
-                    {geoLoading ? 'Шукаємо…' : 'Поруч зі мною'}
-                  </button>
-                  {/* Live-region завжди в DOM: скрінрідер озвучує помилку геолокації */}
-                  <p className="lt-geo-error" role="status" aria-live="polite">
-                    {geoError}
-                  </p>
-                  {nearestStops && nearestStops.length > 0 && (
-                    <div className="lt-geo-results" aria-live="polite">
-                      <div className="lt-nearest">
-                        <p className="lt-nearest-title">Найближчі зупинки:</p>
-                        <ul className="lt-nearest-list">
-                          {nearestStops.map(({ name, distance }) => (
-                            <li key={name} className="lt-nearest-item-row">
-                              <button
-                                type="button"
-                                className="lt-nearest-item"
-                                onClick={() => {
-                                  latestStopRef.current = name;
-                                  setSearchFrom(name);
-                                  setStopFilter(name);
-                                  clearNearestStops();
-                                  // Зупинка стала «З» — далі логічно обрати «До»
-                                  window.setTimeout(() => searchToInputRef.current?.focus(), 0);
-                                }}
-                              >
-                                {displayNameForStopKey(name, stopsCatalog)} — {formatDistance(distance)}
-                              </button>
-                              <Link
-                                className="lt-nearest-tablo-link"
-                                to={`/transport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
-                              >
-                                Табло
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
+                <div className="lt-search-chips">
+                  <DateTimeControls
+                    date={searchDate}
+                    time={searchTime}
+                    page="planner"
+                    onChange={({ date, time }) => {
+                      setSearchDate(date);
+                      setSearchTime(time);
+                    }}
+                  />
+                  {isPhone && (
+                    <button type="button" className="lt-chip lt-chip--map" onClick={openMap}>
+                      Карта
+                    </button>
                   )}
                 </div>
+                {/* Live-region завжди в DOM: скрінрідер озвучує помилку геолокації */}
+                <p className="lt-geo-error" role="status" aria-live="polite">
+                  {geoError}
+                </p>
+                {nearestStops && nearestStops.length > 0 && (
+                  <div className="lt-geo-results" aria-live="polite">
+                    <div className="lt-nearest">
+                      <p className="lt-nearest-title">Найближчі зупинки:</p>
+                      <ul className="lt-nearest-list">
+                        {nearestStops.map(({ name, distance }) => (
+                          <li key={name} className="lt-nearest-item-row">
+                            <button
+                              type="button"
+                              className="lt-nearest-item"
+                              onClick={() => {
+                                latestStopRef.current = name;
+                                setSearchFrom(name);
+                                setStopFilter(name);
+                                clearNearestStops();
+                                // Зупинка стала «Звідки» — далі логічно обрати «Куди»
+                                window.setTimeout(() => searchToInputRef.current?.focus(), 0);
+                              }}
+                            >
+                              {displayNameForStopKey(name, stopsCatalog)} — {formatDistance(distance)}
+                            </button>
+                            <Link
+                              className="lt-nearest-tablo-link"
+                              to={`/transport/stop/${encodeURIComponent(name)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}
+                            >
+                              Табло
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="lt-routes" ref={resultsRef}>
               {showFormHint && (
                 <p className="lt-routes-hint" role="status">
-                  {pairIsSame ? 'Зупинки «З» і «До» однакові — оберіть іншу.' : 'Оберіть зупинку зі списку.'}
+                  {pairIsSame ? 'Зупинки «Звідки» і «Куди» однакові — оберіть іншу.' : 'Оберіть зупинку зі списку.'}
                 </p>
               )}
               {!committedPair ? (
                 !showFormHint && (
                   <div className="lt-empty">
-                    <p className="lt-empty-text">
-                      Оберіть зупинки «З» та «До» у формі вище або на карті — маршрути з’являться одразу.
+                    {!resolvedFrom && !resolvedTo && (
+                      <p className="lt-empty-text">
+                        Оберіть зупинки «Звідки» та «Куди» у формі вище або на карті — маршрути з’являться одразу.
+                      </p>
+                    )}
+                    <p className="lt-quick-title">
+                      {resolvedTo && !resolvedFrom
+                        ? 'Тепер оберіть «Звідки»'
+                        : resolvedFrom && !resolvedTo
+                          ? 'Тепер оберіть «Куди»'
+                          : 'Куди їдете?'}
                     </p>
-                    <button
-                      type="button"
-                      className="lt-empty-map-btn"
-                      onClick={() => {
-                        setMobileMapSnap('mid');
-                        hapticLight();
-                      }}
-                    >
+                    <div className="lt-quick-chips">
+                      {!resolvedFrom && (
+                        <button
+                          type="button"
+                          className="lt-chip"
+                          onClick={handleFindNearest}
+                          disabled={geoLoading}
+                          aria-busy={geoLoading}
+                        >
+                          {geoLoading ? 'Шукаємо…' : 'Поруч зі мною'}
+                        </button>
+                      )}
+                      {quickNodes
+                        .filter(
+                          ({ node }) =>
+                            !(resolvedFrom && node.stopIds.includes(resolvedFrom)) &&
+                            !(resolvedTo && node.stopIds.includes(resolvedTo))
+                        )
+                        .map(({ node, stopId }) => (
+                          <button key={node.id} type="button" className="lt-chip" onClick={() => pickQuickNode(stopId)}>
+                            {node.name}
+                          </button>
+                        ))}
+                    </div>
+                    <button type="button" className="lt-empty-map-btn" onClick={openMap}>
                       Відкрити карту
                     </button>
+                    <LocalTransportSchemeMini
+                      showAll
+                      routeIds={[]}
+                      href={buildSchemeUrl({ date: searchDate, time: searchTime })}
+                      label="Відкрити схему маршрутів"
+                      title="Уся схема"
+                    />
                   </div>
                 )
               ) : routesConnectingFromTo.length === 0 ? (
@@ -2114,94 +2063,120 @@ export const LocalTransportPage: React.FC = () => {
                     Прямі маршрути: {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
                     {displayNameForStopKey(committedPair.to, stopsCatalog)}
                   </h2>
-                  {routesConnectingFromTo.map((r) => {
+                  {(() => {
                     const fromId = committedPair.from;
                     const toId = committedPair.to;
                     const toLabel = displayNameForStopKey(toId, stopsCatalog);
-                    const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
-                    const searchMins =
-                      (() => {
-                        const [h, m] = searchTime.split(':').map(Number);
-                        return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
-                      })();
-                    // Час на зупинці «З» рахується для кожного рейсу окремо (скорочені рейси, стиснення)
-                    const nearest = findNearestTrip(r.trips, searchMins, dir, {
-                      routeId: r.id,
-                      chainKeys: {
-                        there: getOrderedStopKeys(r.id, 'there', stopsByRoute),
-                        back: getOrderedStopKeys(r.id, 'back', stopsByRoute),
-                      },
-                      fromStop: fromId,
-                      toStop: toId,
+                    const searchMins = (() => {
+                      const [h, m] = searchTime.split(':').map(Number);
+                      return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
+                    })();
+                    const DAY = 24 * 60;
+                    // Табло найближчих відправлень: картки за часом очікування, а не за номером маршруту.
+                    // Час на зупинці «Звідки» рахується для кожного рейсу окремо (скорочені рейси, стиснення).
+                    const cards = routesConnectingFromTo.map((r) => {
+                      const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
+                      const upcoming = findUpcomingTrips(
+                        r.trips,
+                        searchMins,
+                        dir,
+                        {
+                          routeId: r.id,
+                          chainKeys: {
+                            there: getOrderedStopKeys(r.id, 'there', stopsByRoute),
+                            back: getOrderedStopKeys(r.id, 'back', stopsByRoute),
+                          },
+                          fromStop: fromId,
+                          toStop: toId,
+                        },
+                        3
+                      );
+                      const nearest = upcoming[0] ?? null;
+                      const dist = nearest ? (nearest.timeAtFrom - searchMins + DAY) % DAY : Infinity;
+                      return { r, dir, upcoming, nearest, dist };
                     });
-                    const nextTimeStr = nearest ? formatTime(nearest.timeAtFrom) : '—';
-                    const arrivalStr = nearest?.timeAtTo != null ? formatTime(nearest.timeAtTo) : null;
-                    const durationMins =
-                      nearest?.timeAtTo != null ? Math.max(0, Math.round(nearest.timeAtTo - nearest.timeAtFrom)) : null;
-                    const destination = nearest ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog) : toLabel;
-                    const verified = isVerifiedRoute(r.id);
-                    // Підпис під часом: відлік від поточного часу (не від часу пошуку) і лише для сьогодні;
-                    // після останнього рейсу — чесно кажемо, що показано перший рейс наступного дня.
-                    let timeLabel = 'відправлення';
-                    let timeLabelMod = '';
-                    if (nearest?.wrapped) {
-                      timeLabel = 'рейсів пізніше немає · перший наступного дня';
-                      timeLabelMod = 'lt-route-card-time-label--wrapped';
-                    } else if (nearest && travelDayOffset === 0) {
-                      const delta = Math.round(nearest.timeAtFrom - kyivNowMins);
-                      if (delta >= 0) {
-                        timeLabel = `через ${formatWait(delta)}`;
-                        timeLabelMod = 'lt-route-card-time-label--soon';
-                      } else {
-                        timeLabel = 'вже вирушив';
+                    cards.sort((a, b) => a.dist - b.dist);
+                    return cards.map(({ r, dir, upcoming, nearest }) => {
+                      const nextTimeStr = nearest ? formatTime(nearest.timeAtFrom) : '—';
+                      const arrivalStr = nearest?.timeAtTo != null ? formatTime(nearest.timeAtTo) : null;
+                      const durationMins =
+                        nearest?.timeAtTo != null ? Math.max(0, Math.round(nearest.timeAtTo - nearest.timeAtFrom)) : null;
+                      const destination = nearest ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog) : toLabel;
+                      const verified = isVerifiedRoute(r.id);
+                      // Підпис під часом: відлік від поточного часу (не від часу пошуку) і лише для сьогодні;
+                      // після останнього рейсу — чесно кажемо, що показано перший рейс наступного дня.
+                      let timeLabel = 'відправлення';
+                      let timeLabelMod = '';
+                      if (nearest?.wrapped) {
+                        timeLabel = 'рейсів пізніше немає · перший наступного дня';
+                        timeLabelMod = 'lt-route-card-time-label--wrapped';
+                      } else if (nearest && travelDayOffset === 0) {
+                        const delta = Math.round(nearest.timeAtFrom - kyivNowMins);
+                        if (delta >= 0) {
+                          timeLabel = `через ${formatWait(delta)}`;
+                          timeLabelMod = 'lt-route-card-time-label--soon';
+                        } else {
+                          timeLabel = 'вже вирушив';
+                        }
                       }
-                    }
-                    const ariaLabel = [
-                      `Маршрут №${r.id} до ${destination}`,
-                      `відправлення ${nextTimeStr}`,
-                      arrivalStr ? `прибуття ${arrivalStr}` : '',
-                      durationMins != null ? `${durationMins} хвилин` : '',
-                      timeLabel !== 'відправлення' ? timeLabel : '',
-                    ]
-                      .filter(Boolean)
-                      .join(', ');
-                    return (
-                      <button
-                        key={`${r.id}-${dir}`}
-                        type="button"
-                        className="lt-route-card lt-route-card--jd"
-                        onClick={() => {
-                          gaTrackEvent('transport_route_card_click', { route_id: r.id });
-                          handleSelectRoute(r.id);
-                        }}
-                        aria-label={ariaLabel}
-                      >
-                        <div className="lt-route-card-time">
-                          <span className="lt-route-card-time-value">{nextTimeStr}</span>
-                          <span className={`lt-route-card-time-label ${timeLabelMod}`}>{timeLabel}</span>
-                        </div>
-                        <div className="lt-route-card-main">
-                          <span
-                            className={`lt-route-num lt-route-num--card ${verified ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
-                            style={routeColorStyle(r.id)}
-                            title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
-                          >
-                            №{r.id}
-                          </span>
-                          <span className="lt-route-destination">
-                            <span aria-hidden>→ </span>
-                            {destination}
-                          </span>
-                          {arrivalStr ? (
-                            <span className="lt-route-card-times">
-                              {nextTimeStr} → {arrivalStr}
-                              {durationMins != null ? ` · ${durationMins} хв` : ''}
+                      // «далі 09:40 · 10:55» — наступні рейси лінії; перший рейс із початку дня підписано «завтра»
+                      // (коли й найближчий уже «наступного дня», усі далі теж — без повторного «завтра»).
+                      const later = upcoming.slice(1);
+                      const laterLabel = later
+                        .map((t, i) => {
+                          const firstWrapped = t.wrapped && !nearest?.wrapped && (i === 0 || !later[i - 1].wrapped);
+                          return `${firstWrapped ? 'завтра ' : ''}${formatTime(t.timeAtFrom)}`;
+                        })
+                        .join(' · ');
+                      const ariaLabel = [
+                        `Маршрут №${r.id} до ${destination}`,
+                        `відправлення ${nextTimeStr}`,
+                        arrivalStr ? `прибуття ${arrivalStr}` : '',
+                        durationMins != null ? `${durationMins} хвилин` : '',
+                        timeLabel !== 'відправлення' ? timeLabel : '',
+                        laterLabel ? `далі ${laterLabel}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(', ');
+                      return (
+                        <button
+                          key={`${r.id}-${dir}`}
+                          type="button"
+                          className="lt-route-card lt-route-card--jd"
+                          onClick={() => {
+                            gaTrackEvent('transport_route_card_click', { route_id: r.id });
+                            handleSelectRoute(r.id);
+                          }}
+                          aria-label={ariaLabel}
+                        >
+                          <div className="lt-route-card-time">
+                            <span className="lt-route-card-time-value">{nextTimeStr}</span>
+                            <span className={`lt-route-card-time-label ${timeLabelMod}`}>{timeLabel}</span>
+                          </div>
+                          <div className="lt-route-card-main">
+                            <span
+                              className={`lt-route-num lt-route-num--card ${verified ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                              style={routeColorStyle(r.id)}
+                              title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
+                            >
+                              №{r.id}
                             </span>
-                          ) : null}
-                        </div>
-                      </button>
-                    );
-                  })}
+                            <span className="lt-route-destination">
+                              <span aria-hidden>→ </span>
+                              {destination}
+                            </span>
+                            {arrivalStr ? (
+                              <span className="lt-route-card-times">
+                                {nextTimeStr} → {arrivalStr}
+                                {durationMins != null ? ` · ${durationMins} хв` : ''}
+                              </span>
+                            ) : null}
+                            {laterLabel ? <span className="lt-route-card-next">далі {laterLabel}</span> : null}
+                          </div>
+                        </button>
+                      );
+                    });
+                  })()}
                 </>
               )}
             </div>
@@ -2211,7 +2186,7 @@ export const LocalTransportPage: React.FC = () => {
               </h2>
               <p className="lt-aeo-lead">
                 Актуальний список міських ліній: розклад, зупинки й карта. Оберіть номер або скористайтеся
-                планером «З → До» вище.
+                планером «Звідки → Куди» вище.
               </p>
               {routes.length > 0 ? (
                 <ul className="lt-aeo-route-list">
@@ -2225,7 +2200,10 @@ export const LocalTransportPage: React.FC = () => {
                         <span className="lt-aeo-route-num" style={routeColorStyle(r.id)} aria-hidden>
                           {r.id}
                         </span>
-                        {routeLine(r) ? <span className="lt-aeo-route-line">{routeLine(r)}</span> : null}
+                        <span className="lt-aeo-route-text">
+                          {routeLine(r) ? <span className="lt-aeo-route-line">{routeLine(r)}</span> : null}
+                          {SCHEME_VIA[r.id] ? <span className="lt-aeo-route-via">{SCHEME_VIA[r.id]}</span> : null}
+                        </span>
                       </Link>
                     </li>
                   ))}
@@ -2258,55 +2236,47 @@ export const LocalTransportPage: React.FC = () => {
             </footer>
           </>
           </div>
-          {isMobileMapExpanded && (
-            <button
-              type="button"
-              className="lt-mobile-map-backdrop"
-              aria-label="Закрити карту"
-              onClick={() => setMobileMapSnap('collapsed')}
-            />
-          )}
-          <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
-            <button
-              type="button"
-              className="lt-mobile-map-toggle"
-              onClick={cycleMobileMapSnap}
-              onTouchStart={handleMobileMapTouchStart}
-              onTouchEnd={handleMobileMapTouchEnd}
-              aria-label={mobileMapSnap === 'collapsed' ? 'Відкрити карту' : mobileMapSnap === 'mid' ? 'Розгорнути карту на весь екран' : 'Згорнути карту'}
-            >
-              {mobileMapSnap === 'collapsed' ? 'Карта' : mobileMapSnap === 'mid' ? 'Ще більше' : 'Список'}
-            </button>
-            <RouteMap
-              stopNames={stops}
-              markerStopNames={stops}
-              fromStopName={resolvedFrom || undefined}
-              toStopName={resolvedTo || undefined}
-              resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
-              onPickFromStop={(stopName) => {
+          {(() => {
+            const mapProps = {
+              stopNames: stops,
+              markerStopNames: stops,
+              fromStopName: resolvedFrom || undefined,
+              toStopName: resolvedTo || undefined,
+              resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
+              routeLines: overviewLines,
+              highlightRouteIds: committedPair ? routesConnectingFromTo.map((r) => r.id) : [],
+              nodeStopIds: NODE_STOP_IDS,
+              routesAtStop: linesAtStop,
+              boardHref: boardHrefFor,
+              onPickFromStop: (stopName: string) => {
                 setSearchFrom(stopName);
                 latestStopRef.current = stopName;
                 setStopFilter(stopName);
-              }}
-              onPickToStop={(stopName) => {
+              },
+              onPickToStop: (stopName: string) => {
                 setSearchTo(stopName);
                 rememberFrequentToStop(stopName);
                 // URL підтягнеться автосинхронізацією пари → адресний рядок.
-              }}
-              onSwapStops={() => {
+              },
+              onSwapStops: () => {
                 gaTrackEvent('transport_swap', { source: 'map' });
                 setSearchFrom(resolvedTo || effectiveSearchTo);
                 setSearchTo(resolvedFrom || effectiveSearchFrom);
-              }}
-              frequentToStops={frequentToStops}
-              onStopMarkerActivate={expandMobileMapSheetForStop}
-              mapSheetSnap={mobileMapSnap}
-              coordsData={mapCoordsData}
-              hideRadialPicker
-              dimUnselectedMarkers
-              dark
-            />
-          </div>
+              },
+              frequentToStops,
+              coordsData: mapCoordsData,
+            };
+            const subtitle = `З: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · До: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
+            return isPhone ? (
+              <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={subtitle}>
+                <RouteMap {...mapProps} resizeToken={mapResizeToken} />
+              </LocalTransportMapOverlay>
+            ) : (
+              <div className="lt-map-column">
+                <RouteMap {...mapProps} showStrip />
+              </div>
+            );
+          })()}
           </>
         )}
 

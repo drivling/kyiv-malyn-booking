@@ -51,6 +51,10 @@ export type LocalTransportSchemeMiniProps = {
   label: string;
   /** Підпис під схемою (зупинка між вузлами, перелік ліній) */
   note?: React.ReactNode;
+  /** Уся схема без притьмарення й кадрування (швидкий старт планувальника) */
+  showAll?: boolean;
+  /** Заголовок секції (за замовчуванням «На схемі міста») */
+  title?: string;
 };
 
 /**
@@ -58,7 +62,7 @@ export type LocalTransportSchemeMiniProps = {
  * ліній/зупинок, цілком — посилання на /transport/scheme. Підсвічування і кадрування ставляться
  * після монтування прямо в DOM, бо SVG вставлено рядком, а не React-деревом.
  */
-export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, note }: LocalTransportSchemeMiniProps) {
+export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, note, showAll = false, title = 'На схемі міста' }: LocalTransportSchemeMiniProps) {
   const headingId = useId();
   const canvasRef = useRef<HTMLDivElement>(null);
   const routeKey = routeIds.join(',');
@@ -71,16 +75,16 @@ export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, 
     const stops = new Set(stopKey ? stopKey.split(',') : []);
     const lines: Box[] = [];
     root.querySelectorAll('.lts-route').forEach((g) => {
-      const own = routes.has(g.getAttribute('data-route') || '');
+      const own = showAll || routes.has(g.getAttribute('data-route') || '');
       g.classList.toggle('lts-route--dim', !own);
       if (own) {
         const b = bboxOf(g);
         if (b) lines.push(b);
       }
     });
-    const boxes: Box[] = [...lines, ...stopsAlong(root, lines)];
+    const boxes: Box[] = showAll ? [] : [...lines, ...stopsAlong(root, lines)];
     root.querySelectorAll('.lts-badge').forEach((g) => {
-      g.classList.toggle('lts-badge--dim', !routes.has(g.getAttribute('data-route') || ''));
+      g.classList.toggle('lts-badge--dim', !showAll && !routes.has(g.getAttribute('data-route') || ''));
     });
     root.querySelectorAll('.lts-stop').forEach((g) => {
       const here = stops.has(g.getAttribute('data-stop') || '');
@@ -95,12 +99,12 @@ export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, 
       const v = cropViewBox(boxes);
       svg.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
     }
-  }, [routeKey, stopKey]);
+  }, [routeKey, stopKey, showAll]);
 
   return (
     <section className="lts-mini" aria-labelledby={headingId} style={SCHEME_COLOR_VARS}>
       <h2 id={headingId} className="lt-section-title lts-mini-title">
-        На схемі міста
+        {title}
       </h2>
       <Link className="lts-mini-canvas" to={href} aria-label={label}>
         <div ref={canvasRef} className="lts-mini-svg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: MINI_SVG }} />

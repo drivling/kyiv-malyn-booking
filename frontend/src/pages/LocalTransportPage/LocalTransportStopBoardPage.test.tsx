@@ -29,6 +29,8 @@ const dataset = {
     { id: 'st_a', name: 'Базар', lat: 50.77, lng: 29.24 },
     { id: 'st_b', name: 'Вокзал', lat: 50.78, lng: 29.25 },
     { id: 'st_c', name: 'Лікарня', lat: 50.79, lng: 29.26 },
+    // Зупинка вузла схеми «Лікарня · Поліклініка» (головна st_0035) — для нотатки під міні-схемою
+    { id: 'st_0072', name: 'Поліклініка', lat: 50.795, lng: 29.262 },
   ],
   routes: [
     { id: '2', fromName: 'Базар', toName: 'Лікарня', scheme: 'city', note: '', sourceUrl: '', schedule: null },
@@ -37,6 +39,7 @@ const dataset = {
     { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 3, mapOnly: false },
     { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 2, mapOnly: false },
     { routeId: '2', stopId: 'st_c', orderThere: 3, orderBack: 1, mapOnly: false },
+    { routeId: '2', stopId: 'st_0072', orderThere: 4, orderBack: 0, mapOnly: false },
   ],
   trips: [
     { id: 't1', routeId: '2', serviceId: 'everyday', headsign: 'Лікарня', directionId: '1', departureTime: '08:30:00', blockId: null },
@@ -132,7 +135,7 @@ describe('LocalTransportStopBoardPage: stop from the URL', () => {
     // Без вступної секції і без «Застосувати»: форма як у планувальника
     expect(screen.queryByRole('heading', { name: 'Розклад з зупинки' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Застосувати' })).not.toBeInTheDocument();
-    expect(screen.getByText('01.03.26, 07:00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '01.03.26 о 07:00' })).toBeInTheDocument();
   });
 
   it('typing in the field does not touch the URL, heading or departures; a hint appears', async () => {
@@ -196,7 +199,7 @@ describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
   it('«Завтра» applies at once: d= in the URL changes, the departures stay for the same stop', async () => {
     const user = userEvent.setup();
     await openBoard();
-    await user.click(screen.getByRole('button', { name: 'Змінити' }));
+    await user.click(screen.getByRole('button', { name: '01.03.26 о 07:00' }));
     expect(screen.getByLabelText('Дата')).toHaveAttribute('type', 'date');
     await user.click(screen.getByRole('button', { name: 'Завтра' }));
     await waitFor(() => expect(location()).toBe(`/transport/stop/st_a?d=${tomorrowDateUrl()}&h=07%3A00`));
@@ -243,5 +246,16 @@ describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
     await user.click(screen.getByRole('button', { name: 'map: marker st_c' }));
     await waitFor(() => expect(location()).toBe('/transport/stop/st_c?d=01.03.26&h=07%3A00'));
     expect(h1()).toHaveTextContent('Зупинка «Лікарня»');
+  });
+  it('a stop that belongs to a scheme node gets the mini-scheme of the whole node', async () => {
+    renderBoard('/transport/stop/st_0072?d=01.03.26&h=07%3A00');
+    expect(await screen.findByRole('heading', { level: 2, name: 'На схемі міста' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Відкрити схему маршрутів: зупинка «Поліклініка»' })).toHaveAttribute(
+      'href',
+      '/transport/scheme?stop=st_0072&d=01.03.26&h=07%3A00'
+    );
+    // Маркер «ви тут» стоїть на головній зупинці вузла; нотатка називає вузол і його зупинки з датасету
+    expect(document.querySelector('.lts-stop[data-stop="st_0035"]')).toHaveClass('lts-stop--here');
+    expect(screen.getByText('Вузол «Лікарня · Поліклініка» — підсвічено лінії всього вузла: №2.')).toBeInTheDocument();
   });
 });
