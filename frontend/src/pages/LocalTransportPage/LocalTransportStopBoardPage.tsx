@@ -7,6 +7,7 @@ import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './sto
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
+import { routeColorStyle } from './routeColors';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
@@ -512,7 +513,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       <ul className="lt-stop-article-route-list">
                         {stopArticle.routeIds.map((r) => (
                           <li key={r}>
-                            <Link className="lt-stop-article-route" to={`/transport/route/${encodeURIComponent(r)}`}>
+                            <Link
+                              className="lt-stop-article-route"
+                              style={routeColorStyle(r)}
+                              to={`/transport/route/${encodeURIComponent(r)}`}
+                            >
                               №{r}
                             </Link>
                           </li>
@@ -704,6 +709,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                         <div className="lt-jd-card__route-row">
                           <span
                             className={`lt-jd-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-jd-card__route-num--verified' : ''}`}
+                            style={routeColorStyle(row.routeId)}
                           >
                             №{row.routeId}
                           </span>

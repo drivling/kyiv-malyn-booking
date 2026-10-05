@@ -1,6 +1,7 @@
 /*
  * Сторінка «Схема» (/transport/scheme): інтерактивна схема маршрутів у стилі метро.
- * Кольори ліній дублюють генератор Docs/malyn-transit-scheme/build_scheme.py (COLORS, світла тема).
+ * Кольори ліній (--lts-r<id>) сторінка ставить інлайном зі згенерованого
+ * scheme/malyn-scheme-routes.ts — те саме джерело, що й плашки в планувальнику та на табло.
  */
 .lt-scheme-page {
   --lts-fg: #054752;
@@ -9,15 +10,6 @@
   --lts-water: #9ccfe8;
   --lts-water-fill: #d9ecf7;
   --lts-water-text: #3d7fa3;
-  --lts-r2: #d7263d;
-  --lts-r3: #1b9e4b;
-  --lts-r5: #1f6fd6;
-  --lts-r7: #f08a1c;
-  --lts-r8: #7e3fc2;
-  --lts-r9: #e3368c;
-  --lts-r10: #c99700;
-  --lts-r11: #0e9aa7;
-  --lts-r12: #8a5a2b;
 }
 
 /* Одна широка панель замість split-layout (панель 380px + карта) */

@@ -250,10 +250,12 @@
 .lt-layout-dark .lt-panel .lt-search--jakdojade,
 .lt-layout-dark .lt-panel .lt-header--jakdojade { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); }
 
+/* Плашка номера: колір лінії зі схеми (--lt-route-color з routeColors.ts); без нього — зелений
+   «перевірений». Перевірений маршрут — суцільна плашка, неперевірений — контурна (нижче). */
 .lt-layout-dark .lt-panel .lt-route-num--verified {
-  background: #0fa573 !important;
-  border-color: #0fa573 !important;
-  color: #fff !important;
+  background: var(--lt-route-color, #0fa573) !important;
+  border-color: var(--lt-route-color, #0fa573) !important;
+  color: var(--lt-route-fg, #fff) !important;
 }
 
 .lt-layout-dark .lt-panel .lt-direction-btn--active {
@@ -397,7 +399,11 @@
 .lt-layout-dark .lt-panel .lt-detail-summary-change { color: var(--lt-route-green); border-color: var(--lt-panel-border); }
 .lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(0, 175, 245, 0.12); }
 .lt-layout-dark .lt-panel .lt-detail-summary-arrow { color: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .lt-route-num--unverified { color: var(--lt-panel-text-muted); }
+.lt-layout-dark .lt-panel .lt-route-num--unverified {
+  background: #fff;
+  color: var(--lt-route-color, var(--lt-panel-text-muted));
+  box-shadow: inset 0 0 0 2px var(--lt-route-color, var(--lt-panel-text-muted));
+}
 
 /* Темна тема — секція «Зупинки на маршруті»: фон і весь текст видимий */
 .lt-layout-dark .lt-panel .lt-map-stops,
@@ -1679,8 +1685,8 @@
   flex-shrink: 0;
   min-width: 40px;
   padding: 6px 10px;
-  background: var(--lt-accent);
-  color: white;
+  background: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-route-fg, white);
   font-size: var(--lt-fs-lg);
   font-weight: 700;
   border-radius: var(--pb-radius-sm);
@@ -1688,11 +1694,14 @@
 }
 
 .lt-route-num--verified {
-  background: var(--lt-accent);
+  background: var(--lt-route-color, var(--lt-accent));
 }
 
+/* Неперевірений (час орієнтовний): контурна плашка в кольорі лінії; без кольору — жовто-гарячий */
 .lt-route-num--unverified {
-  background: #f97316; /* жовто-гарячий для неперевірених маршрутів */
+  background: #fff;
+  color: var(--lt-route-color, #f97316);
+  box-shadow: inset 0 0 0 2px var(--lt-route-color, #f97316);
 }
 
 .lt-route-path {
@@ -2970,14 +2979,30 @@
 }
 
 .lt-aeo-route-list a {
-  color: var(--lt-accent, #00aff5);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lt-panel-text, #054752);
   font-weight: 600;
   text-decoration: none;
   font-size: 0.95rem;
 }
 
-.lt-aeo-route-list a:hover {
+.lt-aeo-route-list a:hover .lt-aeo-route-line {
   text-decoration: underline;
+}
+
+/* Каталог ліній: плашка номера в кольорі лінії зі схеми */
+.lt-aeo-route-num {
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--lt-route-color, var(--lt-accent, #00aff5));
+  color: var(--lt-route-fg, #fff);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .lt-aeo-faq {
@@ -3081,9 +3106,9 @@
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 175, 245, 0.35);
-  background: rgba(0, 175, 245, 0.1);
-  color: #0087c0;
+  border: 1px solid var(--lt-route-color, rgba(0, 175, 245, 0.35));
+  background: var(--lt-route-color, rgba(0, 175, 245, 0.1));
+  color: var(--lt-route-fg, #0087c0);
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.35;
@@ -3091,8 +3116,9 @@
 }
 
 .lt-stop-article-route:hover {
-  background: rgba(0, 175, 245, 0.18);
-  border-color: var(--lt-accent, #00aff5);
+  background: var(--lt-route-color, rgba(0, 175, 245, 0.18));
+  border-color: var(--lt-route-color, var(--lt-accent, #00aff5));
+  filter: brightness(1.08);
 }
 
 .lt-stop-article-coords {
@@ -3766,22 +3792,23 @@
   gap: 6px 8px;
 }
 
+/* Номер на табло: контурна плашка в кольорі лінії зі схеми; перевірений маршрут — суцільна */
 .lt-jd-card__route-num {
   flex-shrink: 0;
   font-weight: 700;
   font-size: 0.9375rem;
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(0, 175, 245, 0.12);
-  color: #0087c0;
-  border: 1px solid rgba(0, 175, 245, 0.28);
+  background: #fff;
+  color: var(--lt-route-color, #0087c0);
+  border: 2px solid var(--lt-route-color, rgba(0, 175, 245, 0.45));
   box-shadow: none;
 }
 
 .lt-jd-card__route-num--verified {
-  background: rgba(15, 165, 115, 0.12);
-  color: #0fa573;
-  border-color: rgba(15, 165, 115, 0.35);
+  background: var(--lt-route-color, #0fa573);
+  color: var(--lt-route-fg, #fff);
+  border-color: var(--lt-route-color, #0fa573);
 }
 
 .lt-jd-card__route-arrow {

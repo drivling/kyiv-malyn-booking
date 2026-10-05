@@ -1,7 +1,7 @@
 /**
  * Легенда схеми маршрутів (/transport/scheme). ЗГЕНЕРОВАНО — не редагувати руками:
  *   python3 Docs/malyn-transit-scheme/build_scheme.py --site-dir frontend/src/pages/LocalTransportPage/scheme
- * Кольори дублюють CSS-змінні --lts-r<id> у LocalTransportSchemePage.css.
+ * Кольори звідси підставляються в CSS-змінні (--lts-r<id>, --lt-route-color) на сторінках транспорту.
  */
 export type SchemeRoute = {
   id: string;
@@ -10,6 +10,8 @@ export type SchemeRoute = {
   via: string;
   /** Намальований за старою схемою; розклад у базі ще не заповнений */
   unconfirmed: boolean;
+  /** Колір лінії (світла тема) — єдине джерело для схеми, планувальника й табло */
+  color: string;
 };
 
 export const SCHEME_ROUTES: SchemeRoute[] = [
@@ -18,62 +20,71 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "from": "Паперова фабрика",
     "to": "Шевченка, 119",
     "via": "Приходька · Мазепи · Центр · Шевченка · Лікарня",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#D7263D"
   },
   {
     "id": "3",
     "from": "Лісотехнікум",
     "to": "Залізничний вокзал",
     "via": "Лікарня · Центр · Грушевського · Малинівський круг · Огієнка (БАМ)",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#1B9E4B"
   },
   {
     "id": "5",
     "from": "Шевченка, 119",
     "to": "Залізничний вокзал",
     "via": "Лікарня · Центр · з-д «Прожектор» · Малинівський круг · Огієнка",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#1F6FD6"
   },
   {
     "id": "7",
     "from": "Лікарня",
     "to": "Залізничний вокзал",
     "via": "Центр · С. Бандери · ПТЛ · Городище (14 ОМБ) · тимчасова схема",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#F08A1C"
   },
   {
     "id": "8",
     "from": "Чорновола, 53",
     "to": "Залізничний вокзал",
     "via": "Барміна · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#7E3FC2"
   },
   {
     "id": "9",
     "from": "Центр (ТЦ «Промінь»)",
     "to": "вул. Олекси Тихого",
     "via": "Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#E3368C"
   },
   {
     "id": "10",
     "from": "Лікарня",
     "to": "Залізничний вокзал",
     "via": "Автостанція · Укр. Повстанців · Центр · Грушевського · Малинівський круг · Огієнка",
-    "unconfirmed": true
+    "unconfirmed": true,
+    "color": "#C99700"
   },
   {
     "id": "11",
     "from": "Паперова фабрика",
     "to": "Залізничний вокзал",
     "via": "Приходька · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#0E9AA7"
   },
   {
     "id": "12",
     "from": "Лікарня",
     "to": "Залізничний вокзал",
     "via": "Центр · Грушевського · Малинівський круг · Огієнка (БАМ)",
-    "unconfirmed": false
+    "unconfirmed": false,
+    "color": "#8A5A2B"
   }
 ];

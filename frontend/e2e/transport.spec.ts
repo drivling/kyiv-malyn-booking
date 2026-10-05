@@ -37,6 +37,24 @@ test.describe('transport', () => {
     await expect(page).toHaveURL(/\/transport\/stop\/st_0019/);
   });
 
+  test('route badges carry the scheme colour in the planner, the catalogue and on the stop board', async ({ page }) => {
+    // Планувальник: картка результату №2 → колір лінії зі схеми (червоний), каталог ліній теж
+    await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
+    const card = page.locator('.lt-route-num--card').first();
+    await expect(card).toHaveText('№2');
+    await expect(card).toHaveCSS('background-color', 'rgb(215, 38, 61)');
+    await page.goto('/transport');
+    const catalogue = page.locator('.lt-aeo-route-num', { hasText: /^3$/ });
+    await expect(catalogue).toHaveCSS('background-color', 'rgb(27, 158, 75)');
+    await expect(page.getByRole('link', { name: /^№3 / })).toBeVisible();
+
+    // Табло: плашка номера теж у кольорі лінії (перевірений маршрут — суцільна)
+    await page.goto('/transport/stop/st_a?d=16.09.26&h=07%3A00');
+    const board = page.locator('.lt-jd-card__route-num').first();
+    await expect(board).toHaveText(/№[23]/);
+    await expect(board).toHaveCSS('border-color', /rgb\((215, 38, 61|27, 158, 75)\)/);
+  });
+
   test('planner form: «З» above «До», selected stop names fully visible', async ({ page }) => {
     await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
     const from = page.locator('.lt-from-to-cell--from input');

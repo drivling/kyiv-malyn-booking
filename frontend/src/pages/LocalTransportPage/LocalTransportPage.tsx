@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
+import { routeColorStyle } from './routeColors';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
 import type { StopsCatalog } from './stopCatalog';
@@ -1368,6 +1369,7 @@ export const LocalTransportPage: React.FC = () => {
                 <h1 className="lt-route-title lt-route-title--jd">
                   <span
                     className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                    style={routeColorStyle(detailRoute.id)}
                   >
                     №{detailRoute.id}
                   </span>
@@ -2168,6 +2170,7 @@ export const LocalTransportPage: React.FC = () => {
                         <div className="lt-route-card-main">
                           <span
                             className={`lt-route-num lt-route-num--card ${verified ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
+                            style={routeColorStyle(r.id)}
                             title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
                           >
                             №{r.id}
@@ -2201,8 +2204,15 @@ export const LocalTransportPage: React.FC = () => {
                 <ul className="lt-aeo-route-list">
                   {routes.map((r) => (
                     <li key={r.id}>
-                      <Link to={`/transport/route/${encodeURIComponent(r.id)}`}>
-                        {routeTitle(r)}
+                      <Link
+                        className="lt-aeo-route-link"
+                        to={`/transport/route/${encodeURIComponent(r.id)}`}
+                        aria-label={routeTitle(r)}
+                      >
+                        <span className="lt-aeo-route-num" style={routeColorStyle(r.id)} aria-hidden>
+                          {r.id}
+                        </span>
+                        {routeLine(r) ? <span className="lt-aeo-route-line">{routeLine(r)}</span> : null}
                       </Link>
                     </li>
                   ))}
