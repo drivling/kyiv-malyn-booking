@@ -70,6 +70,7 @@ CI also runs Playwright e2e (mocked API, Vite on port 4177).
 - Admin auth: `ProtectedRoute`, `LoginPage` admin mode, `apiClient` token helpers (Vitest + MSW).
 - Admin HTTP: login/check (existing), transport dataset (existing), viber listings POST (existing), `GET /admin/referrals/report`.
 - Transport smoke: `stopCatalog`, `tripDeparture`, `LocalTransportSubNav`, `useTransportDataset`.
+- Transport UX (planner, route page, stop board, scheme): `LocalTransportPage.planner.test.tsx`, `LocalTransportPage.detail.test.tsx`, `LocalTransportStopBoardPage.test.tsx`, `LocalTransportSchemePage.test.tsx`, `LocalTransportSchemeMini.test.tsx`, `LocalTransportMapOverlay.test.tsx`, `DateTimeControls.test.tsx`; pure helpers `routeGeometry`, `nearestTrip`, `schemeStops`, `schemeMini`, `stopDepartures` (RouteMap/Leaflet mocked, dataset via MSW).
 - Admin map editor: `stopRename` (pure rename, propagation to route termini/headsigns, change count) + `MapEditorTab.test.tsx` (react-leaflet mocked, MSW `PUT /transport/dataset` captured).
 - Lunch history endpoint: `backend/src/admin-lunch-history-http.test.ts`.
 - Lunch admin (per-person reparse, «who wrote today» from Dzhura, order cancel, synonym single-owner): `backend/src/admin-lunch-people-http.test.ts`, `backend/src/lunch-synonyms.test.ts`, `frontend/.../LunchTab.test.tsx`.

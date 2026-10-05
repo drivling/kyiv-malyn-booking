@@ -88,8 +88,6 @@
 .lt-page .lt-from-to-swap:focus-visible,
 .lt-page .lt-back:focus-visible,
 .lt-page .lt-back--header:focus-visible,
-.lt-page .lt-geo-btn:focus-visible,
-.lt-page .lt-geo-btn--small:focus-visible,
 .lt-page .lt-subnav-link:focus-visible {
   outline: 2px solid var(--lt-accent);
   outline-offset: 2px;
@@ -578,7 +576,6 @@
 .lt-from-to-dot--from { background: var(--lt-origin); }
 .lt-from-to-dot--to { background: var(--lt-destination); }
 
-
 .lt-from-to-swap {
   flex-shrink: 0;
   width: 44px;
@@ -850,39 +847,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.lt-geo-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px var(--lt-panel-x);
-  min-height: 44px;
-  background: var(--lt-accent);
-  color: white;
-  border: none;
-  border-radius: var(--lt-radius-icon);
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.lt-geo-btn:hover:not(:disabled) {
-  background: var(--lt-accent-hover);
-}
-
-/* Компактна контурна версія («Поруч зі мною» у картці пошуку й на табло) */
-.lt-geo-btn--small {
-  background: var(--lt-card);
-  color: var(--lt-text);
-  border: 1px solid var(--lt-border);
-}
-
-.lt-geo-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .lt-geo-results {
@@ -2035,7 +1999,6 @@
   height: 100%;
 }
 
-
 .lt-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -2396,7 +2359,6 @@
 
 /* ========== Дотик (iPhone, Android): без підсвічування тапу й затримки зуму ========== */
 .lt-route-card,
-.lt-geo-btn,
 .lt-nearest-item,
 .lt-back,
 .lt-print-btn,
@@ -2415,9 +2377,8 @@
   }
 
   .lt-header,
-  .lt-detail-header,
-  .lt-search,
-  .lt-timetable-header {
+.lt-detail-header,
+.lt-search {
     padding-left: var(--lt-panel-x);
     padding-right: var(--lt-panel-x);
   }
@@ -2452,9 +2413,8 @@
   }
 
   .lt-header,
-  .lt-detail-header,
-  .lt-search,
-  .lt-timetable-header {
+.lt-detail-header,
+.lt-search {
     padding-left: var(--lt-panel-x);
     padding-right: var(--lt-panel-x);
   }
@@ -2511,7 +2471,7 @@
 }
 
 .lt-layout-dark .lt-panel .lt-subnav-link--active {
-  color: #fff;
+  color: var(--lt-card);
   background: var(--lt-text);
   border-color: transparent;
 }
@@ -2749,20 +2709,19 @@
     border: none;
   }
 
-  .lt-geo-btn,
   .lt-print-btn,
-  .lt-back,
-  .lt-subnav,
-  .lt-route-chips,
-  .lt-departures,
-  .lt-timetable-toggle,
-  .lt-detail-header-actions .lt-chip,
-  .lt-stops-head .lt-chip,
-  .lt-stops-hint,
-  .lt-stop-board-link,
-  .lts-mini,
-  .lt-map-column,
-  .app-nav {
+.lt-back,
+.lt-subnav,
+.lt-route-chips,
+.lt-departures,
+.lt-timetable-toggle,
+.lt-detail-header-actions .lt-chip,
+.lt-stops-head .lt-chip,
+.lt-stops-hint,
+.lt-stop-board-link,
+.lts-mini,
+.lt-map-column,
+.app-nav {
     display: none !important;
   }
 
