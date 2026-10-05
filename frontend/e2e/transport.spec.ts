@@ -84,6 +84,24 @@ test.describe('transport', () => {
     await expect(page.getByRole('link', { name: 'Табло зупинки' })).toHaveAttribute('href', /\/transport\/stop\/st_0072/);
   });
 
+  test('route page: two taps on the timeline pick «Звідки» and «Куди», the URL and the table follow', async ({ page }) => {
+    await page.goto('/transport/route/2?d=16.09.26&h=08%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/№2/);
+    await expect(page.getByRole('button', { name: 'Показати розклад' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Базар' }).click();
+    await expect(page).toHaveURL(/stop=st_a&dir=there/);
+    await expect(page.locator('.lt-stop-item--from')).toContainText('Базар');
+    await page.getByRole('button', { name: 'Лікарня' }).click();
+    await expect(page).toHaveURL(/stop=st_a&dir=there&to=st_c/);
+    await expect(page.locator('.lt-stop-item--to')).toContainText('Лікарня');
+    await expect(page.locator('thead th').nth(1)).toHaveText('Прибуття (Лікарня)');
+    // «Табло» веде на табло зупинки з тією самою датою
+    await expect(page.getByRole('link', { name: 'Табло зупинки «Вокзал»' })).toHaveAttribute('href', /\/transport\/stop\/st_b\?d=16\.09\.26&h=08(%3A|:)00/);
+    await page.getByRole('button', { name: 'Скинути' }).click();
+    await expect(page).toHaveURL(/\/transport\/route\/2\?d=16\.09\.26&h=08(%3A|:)00&dir=there$/);
+    await expect(page.locator('.lt-stop-item--from')).toHaveCount(0);
+  });
+
   test('route badges carry the scheme colour in the planner, the catalogue and on the stop board', async ({ page }) => {
     // Планувальник: картка результату №2 → колір лінії зі схеми (червоний), каталог ліній теж
     await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');

@@ -80,10 +80,11 @@
 .lt-page a:focus-visible,
 .lt-page .lt-route-card:focus-visible,
 .lt-page .lt-nearest-item:focus-visible,
+.lt-page .lt-stop-pick:focus-visible,
+.lt-page .lt-stop-board-link:focus-visible,
 .lt-page .lt-direction-btn:focus-visible,
 .lt-page .lt-print-btn:focus-visible,
 .lt-page .lt-print-btn--compact:focus-visible,
-.lt-page .lt-detail-summary-change:focus-visible,
 .lt-page .lt-from-to-swap:focus-visible,
 .lt-page .lt-back:focus-visible,
 .lt-page .lt-back--header:focus-visible,
@@ -148,8 +149,7 @@
   }
   /* 16px щоб iOS не зумувало при фокусі на даті/часі та селекті зупинок */
   .lt-datetime-input,
-  .lt-time-picker-select,
-  .lt-detail-picker .combobox-input {
+  .lt-time-picker-select {
     font-size: 16px;
   }
 }
@@ -342,108 +342,6 @@
   background: var(--lt-card);
   color: var(--lt-accent);
   box-shadow: inset 0 0 0 1px var(--lt-accent);
-}
-
-/* Блок вибору зупинок на сторінці маршруту (коли ще не обрано З/До) */
-.lt-detail-picker {
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  border-bottom: 1px solid var(--lt-border);
-}
-
-.lt-detail-picker .lt-section-title {
-  padding-top: 0;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.lt-detail-picker-row {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.lt-detail-picker-btn {
-  margin-top: 14px;
-  width: 100%;
-  min-height: 44px;
-  font-size: var(--lt-fs-md);
-}
-
-/* Компактний рядок після вибору маршруту (Jakdojade-стиль) */
-.lt-detail-summary.lt-detail-summary--compact {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 6px 0 8px;
-  border-bottom: 1px solid var(--lt-border);
-}
-
-.lt-detail-summary-route {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.lt-detail-summary-from,
-.lt-detail-summary-to {
-  font-size: var(--lt-fs-base);
-  font-weight: 600;
-  color: var(--lt-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lt-detail-summary-arrow {
-  flex-shrink: 0;
-  color: var(--lt-accent);
-  font-weight: 700;
-  font-size: var(--lt-fs-base);
-}
-
-.lt-detail-summary-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.lt-detail-summary-meta .lt-detail-date,
-.lt-detail-summary-meta .lt-detail-time {
-  font-variant-numeric: tabular-nums;
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-text-muted);
-}
-
-.lt-detail-summary-meta .lt-detail-time {
-  font-weight: 600;
-  color: var(--lt-text);
-}
-
-.lt-detail-summary-change {
-  padding: 2px 8px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-accent);
-  background: transparent;
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-badge);
-  cursor: pointer;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.lt-detail-summary-change:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--lt-accent);
 }
 
 .lt-page {
@@ -1622,12 +1520,35 @@
 }
 
 .lt-stops--jd .lt-stops-heading {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: var(--lt-fs-sm);
   font-weight: 700;
   color: var(--lt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+/* Шапка таймлайну: заголовок + «Скинути» / підказка про тапи */
+.lt-stops-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin: 0 0 8px;
+}
+
+.lt-stops-hint {
+  margin: 0;
+  font-size: var(--lt-fs-xs);
+  color: var(--lt-text-muted);
+  text-align: right;
+}
+
+.lt-chip--small {
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: var(--lt-fs-xs);
 }
 
 /* From/To селектори — як у HSL RouteScheduleHeader */
@@ -1754,32 +1675,32 @@
 /* Вертикальна лінія та кружки — спільна система координат (менший відступ зліва) */
 .lt-stops-timeline {
   --lt-line-center: 14px;
-  --lt-timeline-pad: 20px;
+  --lt-timeline-pad: 26px;
   position: relative;
   padding-left: var(--lt-timeline-pad);
 }
 
-/* Суцільна сіра лінія маршруту (як у Google Maps) */
+/* Лінія маршруту в його кольорі зі схеми (--lt-route-color ставить routeColorStyle) */
 .lt-stops-timeline::before {
   content: '';
   position: absolute;
-  left: calc(var(--lt-line-center) - 1px);
+  left: calc(var(--lt-line-center) - 1.5px);
   top: 8px;
   bottom: 8px;
-  width: 2px;
-  background: var(--lt-border);
-  opacity: 1;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--lt-route-color, var(--lt-border));
+  opacity: 0.45;
 }
 
-/* Акцентний сегмент між зупинками */
+/* Відрізок «Звідки» → «Куди» — яскравий і товщий */
 .lt-stops-timeline-segment {
   position: absolute;
-  left: calc(var(--lt-line-center) - 2px);
-  width: 4px;
-  background: var(--lt-accent);
-  opacity: 0.9;
+  left: calc(var(--lt-line-center) - 3px);
+  width: 6px;
+  background: var(--lt-route-color, var(--lt-accent));
   pointer-events: none;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .lt-direction-btn {
@@ -1840,14 +1761,14 @@
 .lt-stop-item {
   position: relative;
   display: grid;
-  grid-template-columns: 3.5em 1fr 2.5em;
+  grid-template-columns: 3.5em minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: baseline;
   padding: 10px 0;
   min-height: 44px;
 }
 
-/* Маркери зупинок: проміжні — нейтральні, як у Google Maps */
+/* Вузли: білі кола з кільцем у кольорі лінії; «Звідки»/«Куди» — кільця origin/destination, як на карті */
 .lt-stop-item::before {
   content: '';
   position: absolute;
@@ -1856,29 +1777,23 @@
   transform: translateY(-50%);
   width: 10px;
   height: 10px;
+  box-sizing: border-box;
   background: var(--lt-card);
   border-radius: 50%;
-  border: 2px solid var(--lt-card);
-  box-shadow: 0 0 0 1px var(--lt-border);
+  border: 2px solid var(--lt-route-color, var(--lt-border));
 }
 
-.lt-stop-item--from::before {
-  width: 14px;
-  height: 14px;
-  left: calc(var(--lt-line-center) - var(--lt-timeline-pad) - 7px);
-  transform: translateY(-50%);
-  background: var(--lt-origin);
-  border: 2px solid var(--lt-card);
-  box-shadow: 0 0 0 1px var(--lt-border);
+.lt-stop-item--from::before,
+.lt-stop-item--to::before {
+  width: 16px;
+  height: 16px;
+  left: calc(var(--lt-line-center) - var(--lt-timeline-pad) - 8px);
+  border-width: 3px;
+  border-color: var(--lt-origin);
 }
 
 .lt-stop-item--to::before {
-  width: 14px;
-  height: 14px;
-  left: calc(var(--lt-line-center) - var(--lt-timeline-pad) - 7px);
-  transform: translateY(-50%);
-  background: var(--lt-destination);
-  box-shadow: 0 0 0 1px var(--lt-border);
+  border-color: var(--lt-destination);
 }
 
 .lt-stop-time {
@@ -1897,10 +1812,57 @@
 }
 
 .lt-stop-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
   min-width: 0;
   font-size: var(--lt-fs-md);
   font-weight: 500;
   color: var(--lt-text);
+}
+
+/* Назва зупинки — кнопка вибору «Звідки»/«Куди»; довга назва переноситься всередині кнопки */
+.lt-stop-pick {
+  flex: 0 0 auto;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.lt-stop-content .lt-stop-badge {
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+.lt-stop-pick:hover {
+  color: var(--lt-accent);
+}
+
+/* Посилання на табло зупинки — маленька пігулка праворуч */
+.lt-stop-board-link {
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--lt-radius-pill);
+  font-size: var(--lt-fs-xs);
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lt-stop-board-link:hover {
+  border-color: var(--lt-accent);
+  color: var(--lt-accent);
 }
 
 .lt-stop-item--from .lt-stop-content {
@@ -1936,6 +1898,7 @@
   font-size: var(--lt-fs-sm);
   color: var(--lt-text-muted);
   text-align: right;
+  white-space: nowrap;
 }
 
 /* ========== Карта: колонка праворуч (десктоп), повноекранний overlay (телефон) ========== */
@@ -2559,7 +2522,6 @@
 .lt-print-btn,
 .lt-direction-btn,
 .lt-timetable-row-clickable,
-.lt-detail-summary-change,
 .lt-from-to-swap {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -3033,16 +2995,6 @@
   .lt-jd-card__countdown-label {
     margin-bottom: 0;
   }
-}
-
-.lt-stop-content-link {
-  color: inherit;
-  text-decoration: none;
-}
-
-.lt-stop-content-link:hover {
-  color: var(--lt-accent);
-  text-decoration: underline;
 }
 
 .lt-nearest-item-row {

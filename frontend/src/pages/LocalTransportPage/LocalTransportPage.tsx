@@ -234,15 +234,6 @@ function formatTime(minutes: number): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-/** Формат тривалості між зупинками: "X хв Y сек" або "Y сек", без дробів */
-function formatDurationMinutes(minutes: number): string {
-  const totalSec = Math.round(minutes * 60);
-  if (totalSec < 60) return `${totalSec} сек`;
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return s === 0 ? `${m} хв` : `${m} хв ${s} сек`;
-}
-
 /** «12 хв», «1 год 5 хв» — підпис відліку до відправлення (як на табло) */
 function formatWait(mins: number): string {
   if (mins < 60) return `${mins} хв`;
@@ -407,8 +398,6 @@ export const LocalTransportPage: React.FC = () => {
   const kyivNowMins = useMemo(() => getKyivMinutesNow(), [nowTick]);
   /** 0 — дата пошуку сьогодні (за Києвом), 1 — завтра …; відлік показуємо лише для сьогодні */
   const travelDayOffset = useMemo(() => searchDateKyivOffsetDays(searchDate), [searchDate]);
-  const [pickerFrom, setPickerFrom] = useState<string>('');
-  const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
   // Карта на телефоні — повноекранний overlay за кнопкою «Карта»; на десктопі — колонка праворуч
   const isPhone = useMediaQuery(PHONE_QUERY);
@@ -788,7 +777,6 @@ export const LocalTransportPage: React.FC = () => {
   }, [detailRoute, detailRouteStopIds, selectedStopFromUrl, toFromUrl, stopsCatalog]);
   const fromStop = detailPair.from;
   const toStop = detailPair.to;
-  const hasChosenStopsOnDetail = Boolean(fromStop && toStop);
   /** Напрямок: `dir` з URL → випливає з пари → belongs_to «Звідки» → «туди» */
   const stopsDirection: 'there' | 'back' = useMemo(() => {
     if (dirFromUrl === 'there' || dirFromUrl === 'back') return dirFromUrl;
@@ -912,12 +900,6 @@ export const LocalTransportPage: React.FC = () => {
     return () => ro.disconnect();
   }, [fromStop, toStop, stopsDirection]);
 
-  // Пікер «Оберіть зупинки» показує поточну пару з URL (до переходу на таймлайн)
-  useEffect(() => {
-    setPickerFrom(fromStop);
-    setPickerTo(toStop);
-  }, [fromStop, toStop]);
-
   const updateDetailUrl = (updates: { stop?: string; to?: string; time?: string; dir?: string; d?: string; h?: string }) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -941,6 +923,30 @@ export const LocalTransportPage: React.FC = () => {
     const to = next.to ?? toStop;
     const dir = from && to ? (getImpliedDirection(from, to, stopsByRoute, detailRoute.id) ?? stopsDirection) : stopsDirection;
     updateDetailUrl({ stop: from || undefined, to: to || undefined, dir, time: undefined });
+  };
+
+  /**
+   * Тап по зупинці таймлайну: перший ставить «Звідки», другий — «Куди», наступний починає нову пару;
+   * повторний тап по «Звідки» скидає пару, по «Куди» — лише «Куди».
+   */
+  const pickTimelineStop = (stopKey: string) => {
+    if (stopKey === fromStop) {
+      updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection });
+      return;
+    }
+    if (stopKey === toStop) {
+      setDetailPair({ to: '' });
+      return;
+    }
+    if (!fromStop) {
+      setDetailPair({ from: stopKey });
+      return;
+    }
+    if (!toStop) {
+      setDetailPair({ to: stopKey });
+      return;
+    }
+    setDetailPair({ from: stopKey, to: '' });
   };
 
   /**
@@ -1064,11 +1070,6 @@ export const LocalTransportPage: React.FC = () => {
       if (dir) params.set('dir', dir);
     }
     navigate(`/transport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
-  };
-
-  const handleShowTimetableFromPicker = () => {
-    if (!detailRoute || !pickerFrom || !pickerTo) return;
-    setDetailPair({ from: pickerFrom, to: pickerTo });
   };
 
   const handleBack = () => {
@@ -1198,58 +1199,6 @@ export const LocalTransportPage: React.FC = () => {
               </div>
             </header>
 
-            {!hasChosenStopsOnDetail && detailRouteStopIds.length > 0 && (
-              <section className="lt-detail-picker lt-detail-picker--stops" aria-labelledby="lt-picker-heading">
-                <h2 id="lt-picker-heading" className="lt-section-title">Оберіть зупинки</h2>
-                <div className="lt-detail-picker-row">
-                  <div className="lt-from-to-cell lt-from-to-cell--from">
-                    <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-picker-from">
-                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Звідки їдемо?
-                    </label>
-                    <Combobox
-                      id="lt-picker-from"
-                      label=""
-                      options={[
-                        { value: '', label: '— Зупинка —' },
-                        ...detailRouteStopIds.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
-                      ]}
-                      value={pickerFrom}
-                      onChange={setPickerFrom}
-                      placeholder="Наприклад Малинівка"
-                      emptyMessage="Зупинок не знайдено"
-                      clearable
-                    />
-                  </div>
-                  <div className="lt-from-to-cell lt-from-to-cell--to">
-                    <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-picker-to">
-                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> Куди їдемо?
-                    </label>
-                    <Combobox
-                      id="lt-picker-to"
-                      label=""
-                      options={[
-                        { value: '', label: '— Зупинка —' },
-                        ...detailRouteStopIds.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
-                      ]}
-                      value={pickerTo}
-                      onChange={setPickerTo}
-                      placeholder="Наприклад Царське село"
-                      emptyMessage="Зупинок не знайдено"
-                      clearable
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="lt-btn lt-btn--primary lt-detail-picker-btn"
-                  onClick={handleShowTimetableFromPicker}
-                  disabled={!pickerFrom || !pickerTo}
-                >
-                  Показати розклад
-                </button>
-              </section>
-            )}
-
             {detailRoute.trips.length > 0 && (() => {
               const routeStops = stopsByRoute?.[detailRoute.id];
               let stopsWithOrder: RouteStopWithOrder[] | null = null;
@@ -1318,44 +1267,9 @@ export const LocalTransportPage: React.FC = () => {
                 tableTrips && stopsDirection
                   ? tableTrips.filter((r) => r.direction === stopsDirection)
                   : tableTrips;
-              const hasFromTo = !!(fromStop && toStop && stopsWithOrder?.length);
 
               return (
                 <>
-                  {/* Компактний рядок після вибору маршруту (як на Jakdojade): Звідки → Куди, дата/час, Змінити */}
-                  {hasFromTo && (
-                    <div className="lt-detail-summary lt-detail-summary--compact">
-                      <div className="lt-detail-summary-route">
-                        <span className="lt-detail-summary-from">
-                          {displayNameForStopKey(
-                            fromStop || resolveStopIdInList(selectedStopFromUrl, stops, stopsCatalog),
-                            stopsCatalog
-                          ) ||
-                            detailRoute.from ||
-                            '—'}
-                        </span>
-                        <span className="lt-detail-summary-arrow" aria-hidden>→</span>
-                        <span className="lt-detail-summary-to">
-                          {displayNameForStopKey(
-                            toStop || resolveStopIdInList(toFromUrl, stops, stopsCatalog),
-                            stopsCatalog
-                          ) || detailRoute.to || '—'}
-                        </span>
-                      </div>
-                      <div className="lt-detail-summary-meta">
-                        <span className="lt-detail-date">{dateFromUrl || formatDateUrl(new Date())}</span>
-                        <span className="lt-detail-time">{timeFromUrl || hourFromUrl || '—'}</span>
-                        <button
-                          type="button"
-                          className="lt-detail-summary-change"
-                          onClick={handleBack}
-                        >
-                          Змінити
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Секція Розклад руху: завжди показуємо дату, час, вибір рейсу по поточному напрямку, Друк */}
                   <section className="lt-timetable-section lt-timetable-section--compact" aria-labelledby="lt-rozklad-heading">
                     <h2 id="lt-rozklad-heading" className="lt-section-title">Розклад руху</h2>
@@ -1497,79 +1411,106 @@ export const LocalTransportPage: React.FC = () => {
                 <section className="lt-map-stops lt-map-stops--jd" aria-labelledby="lt-stops-heading">
                   <div className="lt-map-stops-inner">
                     <div className="lt-stops lt-stops--jd">
-                      <h2 id="lt-stops-heading" className="lt-stops-heading">Список зупинок</h2>
-                    <div ref={timelineRef} className="lt-stops-timeline">
-                      {segmentStyle && (
-                        <div
-                          className="lt-stops-timeline-segment"
-                          style={{ top: segmentStyle.top, height: segmentStyle.height }}
-                        />
-                      )}
-                      {(() => {
-                        const isThere = stopsDirection === 'there';
-                        const filtered = [...stopsWithOrder]
-                          .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-                          .filter((s) => (isThere ? s.order_there : s.order_back) > 0)
-                          .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
-                        const listStops = getRealStops(filtered);
-                        const orderKey = isThere ? 'order_there' : 'order_back';
-                        const orderedKeysStops = filtered.map((s) => getStopKey(s));
-                        // Обраний рейс (за напрямком + часом відправлення); без нього — перший рейс дня по всій лінії
-                        const selectedInDirection =
-                          selectedTripDirection === stopsDirection && selectedTripTime != null ? selectedTripTime : null;
-                        const { dir0: dirTrips0, dir1: dirTrips1 } = groupTripsByDirection(detailRoute.trips);
-                        const selectedRecord =
-                          selectedInDirection != null
-                            ? (isThere ? dirTrips1 : dirTrips0).find((t) => tripDepartureMinutes(t) === selectedInDirection) ?? null
-                            : null;
-                        const timing = selectedRecord
-                          ? recordTiming(detailRoute.id, orderedKeysStops, selectedRecord)
-                          : computeTripTiming(orderedKeysStops, segSecForRoute(detailRoute.id), {
-                              departureMins: selectedInDirection ?? getFirstTripTime(detailRoute.trips),
-                            });
-                        return (
-                          <ul className="lt-stops-list">
-                            {listStops.map((s, idx) => {
-                              const order = s[orderKey];
-                              const arrivalMins = minutesAtStop(timing, getStopKey(s));
-                              const served = arrivalMins != null;
-                              const nextRealStop = listStops[idx + 1];
-                              const nextArrivalMins = nextRealStop ? minutesAtStop(timing, getStopKey(nextRealStop)) : null;
-                              const minsToNext =
-                                arrivalMins != null && nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
-                              const isFrom = fromStop && getStopKey(s) === fromStop;
-                              const isTo = toStop && getStopKey(s) === toStop;
-                              return (
-                                <li
-                                  key={`${isThere ? 'there' : 'back'}-${getStopKey(s)}-${order}`}
-                                  ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
-                                  className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''} ${served ? '' : 'lt-stop-item--unserved'}`}
-                                  aria-label={served ? undefined : 'Цей рейс тут не зупиняється'}
-                                >
-                                  <span className="lt-stop-time">{arrivalMins != null ? formatTime(arrivalMins) : '—'}</span>
-                                  <span className="lt-stop-content">
+                      <div className="lt-stops-head">
+                        <h2 id="lt-stops-heading" className="lt-stops-heading">Зупинки</h2>
+                        {fromStop ? (
+                          <button
+                            type="button"
+                            className="lt-chip lt-chip--small"
+                            onClick={() => updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection })}
+                          >
+                            Скинути
+                          </button>
+                        ) : (
+                          <p className="lt-stops-hint">Торкніться зупинки: спершу «Звідки», потім «Куди»</p>
+                        )}
+                      </div>
+                      <div ref={timelineRef} className="lt-stops-timeline" style={routeColorStyle(detailRoute.id)}>
+                        {segmentStyle && (
+                          <div
+                            className="lt-stops-timeline-segment"
+                            style={{ top: segmentStyle.top, height: segmentStyle.height }}
+                          />
+                        )}
+                        {(() => {
+                          const isThere = stopsDirection === 'there';
+                          const filtered = [...stopsWithOrder]
+                            .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
+                            .filter((s) => (isThere ? s.order_there : s.order_back) > 0)
+                            .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
+                          const listStops = getRealStops(filtered);
+                          const orderKey = isThere ? 'order_there' : 'order_back';
+                          const orderedKeysStops = filtered.map((s) => getStopKey(s));
+                          // Часи на зупинках — для обраного рейсу; без нього — перший рейс дня по всій лінії
+                          const timing = selectedTrip
+                            ? recordTiming(detailRoute.id, orderedKeysStops, selectedTrip.record)
+                            : computeTripTiming(orderedKeysStops, segSecForRoute(detailRoute.id), {
+                                departureMins: getFirstTripTime(detailRoute.trips),
+                              });
+                          const boardQuery = `?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`;
+                          return (
+                            <ul className="lt-stops-list">
+                              {listStops.map((s, idx) => {
+                                const key = getStopKey(s);
+                                const name = displayNameForStopKey(key, stopsCatalog);
+                                const order = s[orderKey];
+                                const arrivalMins = minutesAtStop(timing, key);
+                                const served = arrivalMins != null;
+                                const nextRealStop = listStops[idx + 1];
+                                const nextArrivalMins = nextRealStop ? minutesAtStop(timing, getStopKey(nextRealStop)) : null;
+                                const minsToNext =
+                                  arrivalMins != null && nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
+                                const isFrom = fromStop === key;
+                                const isTo = toStop === key;
+                                const pickTitle = isFrom
+                                  ? 'Скинути пару'
+                                  : isTo
+                                    ? 'Зняти «Куди»'
+                                    : !fromStop
+                                      ? 'Звідси'
+                                      : !toStop
+                                        ? 'Сюди'
+                                        : 'Звідси (нова пара)';
+                                return (
+                                  <li
+                                    key={`${isThere ? 'there' : 'back'}-${key}-${order}`}
+                                    ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
+                                    className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''} ${served ? '' : 'lt-stop-item--unserved'}`}
+                                    aria-label={served ? undefined : 'Цей рейс тут не зупиняється'}
+                                  >
+                                    <span className="lt-stop-time">{arrivalMins != null ? formatTime(arrivalMins) : '—'}</span>
+                                    <span className="lt-stop-content">
+                                      <button
+                                        type="button"
+                                        className="lt-stop-pick"
+                                        onClick={() => pickTimelineStop(key)}
+                                        aria-pressed={isFrom || isTo}
+                                        title={pickTitle}
+                                      >
+                                        {name}
+                                      </button>
+                                      {isFrom && <span className="lt-stop-badge lt-stop-badge--from">Звідки</span>}
+                                      {isTo && <span className="lt-stop-badge lt-stop-badge--to">Куди</span>}
+                                    </span>
                                     <Link
-                                      className="lt-stop-content-link"
-                                      to={`/transport/stop/${encodeURIComponent(getStopKey(s))}?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`}
-                                      title="Розклад з цієї зупинки (усі маршрути)"
+                                      className="lt-stop-board-link"
+                                      to={`/transport/stop/${encodeURIComponent(key)}${boardQuery}`}
+                                      aria-label={`Табло зупинки «${name}»`}
                                     >
-                                      {displayNameForStopKey(getStopKey(s), stopsCatalog)}
+                                      Табло
                                     </Link>
-                                    {isFrom && <span className="lt-stop-badge lt-stop-badge--from">З</span>}
-                                    {isTo && <span className="lt-stop-badge lt-stop-badge--to">ПО</span>}
-                                  </span>
-                                  <span className="lt-stop-to-next">
-                                    {minsToNext != null ? formatDurationMinutes(minsToNext) : '—'}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        );
-                      })()}
+                                    <span className="lt-stop-to-next">
+                                      {minsToNext != null ? formatWait(Math.max(1, Math.round(minsToNext))) : '—'}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
-                </div>
                 </section>
               ) : null;
             })()}

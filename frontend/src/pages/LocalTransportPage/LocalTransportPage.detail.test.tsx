@@ -95,11 +95,17 @@ beforeEach(() => {
 });
 
 describe('LocalTransportPage route page: the pair comes from the URL', () => {
-  it('a pair in the URL marks «Звідки»/«Куди», narrows the table and hides the picker', async () => {
+  it('a pair in the URL marks «Звідки»/«Куди» on the timeline and narrows the table', async () => {
     await openRoute('/transport/route/2?stop=st_a&to=st_b&d=01.03.26&h=08%3A00');
     expect(fromItem()).toHaveTextContent('Базар');
+    expect(within(fromItem()!).getByText('Звідки')).toBeInTheDocument();
     expect(toItem()).toHaveTextContent('Вокзал');
-    expect(screen.queryByRole('button', { name: 'Показати розклад' })).toBeNull();
+    expect(within(toItem()!).getByText('Куди')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Скинути' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Табло зупинки «Вокзал»' })).toHaveAttribute(
+      'href',
+      '/transport/stop/st_b?d=01.03.26&h=08%3A00'
+    );
     expect(tableHeaders()).toEqual(['Відправлення (Базар)', 'Прибуття (Вокзал)']);
     // Без `time` обраний найближчий до `h` рейс: 08:30 (а не перший рейс дня чи рейс за поточним часом)
     expect(selectedRow()).toHaveTextContent('08:30');
@@ -107,24 +113,47 @@ describe('LocalTransportPage route page: the pair comes from the URL', () => {
     expect(fromItem()).toHaveTextContent('08:30');
   });
 
-  it('«Показати розклад» applies the picker pair in place — stops, badges and table follow', async () => {
+  it('timeline taps: the first stop is «Звідки», the second «Куди», the next one starts over; «Скинути» clears', async () => {
     const user = userEvent.setup();
     await openRoute('/transport/route/2?d=01.03.26&h=08%3A00');
     expect(fromItem()).toBeNull();
-    const from = screen.getByRole('combobox', { name: 'Звідки їдемо?' });
-    await user.click(from);
-    await user.keyboard('Ба');
-    await user.click(await screen.findByRole('option', { name: 'Базар' }));
-    const to = screen.getByRole('combobox', { name: 'Куди їдемо?' });
-    await user.click(to);
-    await user.keyboard('Лік');
-    await user.click(await screen.findByRole('option', { name: 'Лікарня' }));
-    await user.click(screen.getByRole('button', { name: 'Показати розклад' }));
-    await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=08%3A00&stop=st_a&to=st_c&dir=there'));
+    expect(screen.getByText('Торкніться зупинки: спершу «Звідки», потім «Куди»')).toBeInTheDocument();
+    expect(tableHeaders()).toEqual(['Відправлення', 'Прибуття']);
+
+    await user.click(screen.getByRole('button', { name: 'Базар' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=08%3A00&stop=st_a&dir=there'));
     expect(fromItem()).toHaveTextContent('Базар');
+    expect(toItem()).toBeNull();
+    expect(screen.getByRole('button', { name: 'Базар' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Лікарня' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=08%3A00&stop=st_a&dir=there&to=st_c'));
     expect(toItem()).toHaveTextContent('Лікарня');
-    expect(screen.queryByRole('button', { name: 'Показати розклад' })).toBeNull();
     expect(tableHeaders()).toEqual(['Відправлення (Базар)', 'Прибуття (Лікарня)']);
+    expect(selectedRow()).toHaveTextContent('08:39');
+
+    // Третій тап — нова пара від цієї зупинки
+    await user.click(screen.getByRole('button', { name: 'Вокзал' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=08%3A00&stop=st_b&dir=there'));
+    expect(fromItem()).toHaveTextContent('Вокзал');
+    expect(toItem()).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Скинути' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=08%3A00&dir=there'));
+    expect(fromItem()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Скинути' })).toBeNull();
+  });
+
+  it('tapping «Куди» again removes only «Куди»; tapping «Звідки» again clears the pair', async () => {
+    const user = userEvent.setup();
+    await openRoute('/transport/route/2?stop=st_a&to=st_c&dir=there&d=01.03.26&h=08%3A00');
+    await user.click(screen.getByRole('button', { name: 'Лікарня' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?stop=st_a&dir=there&d=01.03.26&h=08%3A00'));
+    expect(toItem()).toBeNull();
+    expect(fromItem()).toHaveTextContent('Базар');
+    await user.click(screen.getByRole('button', { name: 'Базар' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?dir=there&d=01.03.26&h=08%3A00'));
+    expect(fromItem()).toBeNull();
   });
 
   it('`time` is the departure at «Звідки»; a first-stop time from an old link still finds the trip', async () => {
@@ -178,7 +207,7 @@ describe('LocalTransportPage route page: the pair comes from the URL', () => {
     await openRoute('/transport/route/2?stop=st_b&dir=there&d=01.03.26&h=08%3A00');
     expect(fromItem()).toHaveTextContent('Вокзал');
     expect(toItem()).toBeNull();
-    expect(within(fromItem()!).getByText('З')).toBeInTheDocument();
+    expect(within(fromItem()!).getByText('Звідки')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Назад до пошуку' }));
     await waitFor(() => expect(location()).toBe('/transport/stop/st_b?d=01.03.26&h=08%3A00'));
   });
