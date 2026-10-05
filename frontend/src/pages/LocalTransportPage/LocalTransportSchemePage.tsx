@@ -4,9 +4,12 @@ import { usePageSeo } from '@/hooks';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { routeScheduleStats } from './schemeStats';
+import { routesAtStop } from './schemeStops';
+import { SCHEME_COLOR_VARS } from './routeColors';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 import schemeSvg from './scheme/malyn-scheme.svg?raw';
 import './LocalTransportPage.css';
+import './scheme/scheme-svg.css';
 import './LocalTransportSchemePage.css';
 
 const SITE = 'https://malin.kiev.ua';
@@ -14,10 +17,6 @@ const SITE = 'https://malin.kiev.ua';
 const POSTER_PDF = '/transport/scheme/malyn-transit-scheme-poster.pdf';
 const POSTER_SVG = '/transport/scheme/malyn-transit-scheme-poster.svg';
 const ZOOM_STEPS = [1, 1.5, 2, 3];
-/** --lts-r<id> для SVG, чіпів і картки — з того самого згенерованого файла, що й плашки на інших сторінках */
-const SCHEME_COLOR_VARS = Object.fromEntries(
-  SCHEME_ROUTES.map((r) => [`--lts-r${r.id}`, r.color])
-) as React.CSSProperties;
 
 const SCHEME_SEO = {
   title: 'Схема маршрутів Малина — міські автобуси №2–12 | malin.kiev.ua',
@@ -46,7 +45,8 @@ function closestData(target: EventTarget | null, attr: 'route' | 'stop'): string
  * «Схема» — третій режим розділу транспорту: інтерактивна схема в стилі метро.
  * SVG згенеровано скриптом Docs/malyn-transit-scheme/build_scheme.py (--site-dir):
  * лінії несуть data-route, зупинки — data-stop; сторінка лише делегує кліки та підсвічує.
- * Обраний маршрут живе в URL (?route=3), щоб на нього можна було дати посилання.
+ * Обраний маршрут живе в URL (?route=3), щоб на нього можна було дати посилання; ?stop=<id>
+ * (з табло) ставить маркер «ви тут» і, поки маршрут не обрано, підсвічує лінії через цю зупинку.
  */
 export function LocalTransportSchemePage() {
   const navigate = useNavigate();
@@ -54,6 +54,7 @@ export function LocalTransportSchemePage() {
   const searchDate = searchParams.get('d') || '';
   const searchTime = searchParams.get('h') || '';
   const activeRoute = searchParams.get('route') || '';
+  const hereStop = searchParams.get('stop') || '';
   const { dataset } = useTransportDataset();
   const [zoomIdx, setZoomIdx] = useState(0);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -83,28 +84,53 @@ export function LocalTransportSchemePage() {
     [activeRoute, setActiveRoute]
   );
 
-  // Підсвічування: обрана лінія лишається, решта тьмяніє. Класи ставляться прямо в SVG,
-  // бо він вставлений як рядок (dangerouslySetInnerHTML), а не як React-дерево.
+  const clearHereStop = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('stop');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const hereStopName = (hereStop && dataset?.stops.find((s) => s.id === hereStop)?.name) || '';
+  /** Лінії через зупинку з ?stop= — підсвічуються, поки не обрано конкретний маршрут */
+  const hereRoutes = useMemo(
+    () => (hereStop && dataset ? routesAtStop(dataset, hereStop) : []),
+    [hereStop, dataset]
+  );
+  const hereRoutesKey = hereRoutes.join(',');
+
+  // Підсвічування: обрана лінія (або лінії зупинки) лишається, решта тьмяніє. Класи ставляться
+  // прямо в SVG, бо він вставлений як рядок (dangerouslySetInnerHTML), а не як React-дерево.
   useEffect(() => {
     const root = canvasRef.current;
     if (!root) return;
+    const lit = activeRoute ? [activeRoute] : hereRoutesKey ? hereRoutesKey.split(',') : null;
+    const isLit = (id: string | null) => !lit || lit.includes(id || '');
     root.querySelectorAll('.lts-route').forEach((g) => {
       const id = g.getAttribute('data-route');
-      g.classList.toggle('lts-route--dim', !!activeRoute && id !== activeRoute);
+      g.classList.toggle('lts-route--dim', !isLit(id));
       g.classList.toggle('lts-route--active', !!activeRoute && id === activeRoute);
     });
     root.querySelectorAll('.lts-badge').forEach((g) => {
-      g.classList.toggle('lts-badge--dim', !!activeRoute && g.getAttribute('data-route') !== activeRoute);
+      g.classList.toggle('lts-badge--dim', !isLit(g.getAttribute('data-route')));
     });
-  }, [activeRoute]);
+    root.querySelectorAll('.lts-stop').forEach((g) => {
+      g.classList.toggle('lts-stop--here', !!hereStop && g.getAttribute('data-stop') === hereStop);
+    });
+  }, [activeRoute, hereRoutesKey, hereStop]);
 
-  // Перший кадр на телефоні: прокрутити полотно так, щоб вузол «Центр» (≈40 % ширини схеми)
-  // був посередині, а не лівий край із Лісотехнікумом.
+  // Перший кадр на телефоні: прокрутити полотно до зупинки з ?stop=, інакше — так, щоб вузол
+  // «Центр» (≈40 % ширини схеми) був посередині, а не лівий край із Лісотехнікумом.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el || el.scrollWidth <= el.clientWidth) return;
-    el.scrollLeft = Math.max(0, el.scrollWidth * 0.4 - el.clientWidth / 2);
-  }, []);
+    let fraction = 0.4;
+    const here = hereStop ? (el.querySelector(`.lts-stop[data-stop="${hereStop}"]`) as SVGGraphicsElement | null) : null;
+    if (here && typeof here.getBBox === 'function') {
+      const b = here.getBBox();
+      if (b.width > 0) fraction = (b.x + b.width / 2) / 1400; // ширина viewBox схеми
+    }
+    el.scrollLeft = Math.max(0, el.scrollWidth * fraction - el.clientWidth / 2);
+  }, [hereStop]);
 
   const activate = useCallback(
     (target: EventTarget | null): boolean => {
@@ -215,6 +241,30 @@ export function LocalTransportSchemePage() {
               </button>
             </div>
           </div>
+
+          {!active && hereStop && hereStopName && (
+            <section className="lts-card" aria-labelledby="lts-card-title">
+              <h2 id="lts-card-title" className="lts-card-title">
+                <span className="lts-card-here" aria-hidden>
+                  ●
+                </span>
+                <span>Ви тут: {hereStopName}</span>
+              </h2>
+              <p className="lts-card-meta">
+                {hereRoutes.length
+                  ? `Лінії через зупинку: ${hereRoutes.map((id) => `№${id}`).join(', ')}`
+                  : 'Через зупинку не проходить жодна лінія схеми'}
+              </p>
+              <div className="lts-card-actions">
+                <Link className="lts-btn lts-btn--primary" to={`/transport/stop/${encodeURIComponent(hereStop)}${suffix}`}>
+                  Табло зупинки
+                </Link>
+                <button type="button" className="lts-btn" onClick={clearHereStop}>
+                  Показати всі
+                </button>
+              </div>
+            </section>
+          )}
 
           {active && (
             <section className="lts-card" aria-labelledby="lts-card-title">

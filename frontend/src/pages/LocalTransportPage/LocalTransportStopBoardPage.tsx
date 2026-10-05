@@ -8,6 +8,9 @@ import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStop
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute } from './routeTiming';
 import { routeColorStyle } from './routeColors';
+import { routesAtStop } from './schemeStops';
+import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
+import { buildSchemeUrl, isSchemeStop } from './schemeMini';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
@@ -21,6 +24,13 @@ import { RouteMap } from './RouteMap';
 import { DateTimeControls } from './DateTimeControls';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import './LocalTransportPage.css';
+
+/** Підпис під міні-схемою: чи є зупинка вузлом схеми і які лінії через неї підсвічено */
+function schemeMiniNote(onScheme: boolean, routeIds: string[]): string {
+  const lines = routeIds.map((id) => `№${id}`).join(', ');
+  if (onScheme) return lines ? `Ваша зупинка позначена на схемі, підсвічено її лінії: ${lines}.` : 'Ваша зупинка позначена на схемі.';
+  return `Зупинка між вузлами схеми — підсвічено лінії, що проходять через неї: ${lines}.`;
+}
 
 const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
   {
@@ -162,6 +172,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   /** Обрана зупинка — це зупинка з URL (джерело істини); порожній slug → табло без зупинки. */
   const selectedStop = matchedStopId;
+  /** Лінії схеми через обрану зупинку — для міні-схеми під табло */
+  const schemeRouteIds = useMemo(
+    () => (dataset && selectedStop ? routesAtStop(dataset, selectedStop) : []),
+    [dataset, selectedStop]
+  );
   const stopInputResolved = stopInput ? resolveStopIdInList(stopInput, stops, stopsCatalog) : '';
   /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує) */
   const stopInputUnresolved = stopInput != null && stopInput !== '' && !stopInputResolved;
@@ -729,6 +744,16 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 })}
               </ul>
             </section>
+          )}
+
+          {selectedStop && (schemeRouteIds.length > 0 || isSchemeStop(selectedStop)) && (
+            <LocalTransportSchemeMini
+              routeIds={schemeRouteIds}
+              stopIds={isSchemeStop(selectedStop) ? [selectedStop] : []}
+              href={buildSchemeUrl({ stop: selectedStop, date: searchDate, time: searchTime })}
+              label={`Відкрити схему маршрутів: зупинка «${selectedStopTitle}»`}
+              note={schemeMiniNote(isSchemeStop(selectedStop), schemeRouteIds)}
+            />
           )}
 
           <section className="lt-aeo" aria-labelledby="lt-stop-aeo-faq">

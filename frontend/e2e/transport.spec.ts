@@ -37,6 +37,36 @@ test.describe('transport', () => {
     await expect(page).toHaveURL(/\/transport\/stop\/st_0019/);
   });
 
+  test('mini-scheme: the route page crops to its line, the stop board lights the lines through the stop', async ({ page }) => {
+    await page.goto('/transport/route/2?d=16.09.26&h=09%3A12');
+    const mini = page.locator('.lts-mini');
+    await expect(mini.getByRole('heading', { name: 'На схемі міста' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Відкрити схему маршрутів: маршрут №2' })).toHaveAttribute(
+      'href',
+      /^\/transport\/scheme\?route=2&d=16\.09\.26&h=09(%3A|:)12$/
+    );
+    await expect(mini.locator('.lts-route[data-route="3"]')).toHaveClass(/lts-route--dim/);
+    await expect(mini.locator('.lts-route[data-route="2"]')).not.toHaveClass(/lts-route--dim/);
+    // Кадр обрізано до лінії (getBBox працює лише в браузері, у jsdom кадр лишається повним)
+    await expect(mini.locator('svg.lts-svg')).not.toHaveAttribute('viewBox', '0 176 1400 566');
+
+    // Табло: «Базар» (st_a) не є вузлом схеми — нотатка, яскрава лише її лінія №2
+    await page.goto('/transport/stop/st_a?d=16.09.26&h=07%3A00');
+    await expect(page.locator('.lts-mini-note')).toHaveText(/^Зупинка між вузлами схеми.*№2\.$/);
+    await expect(mini.locator('.lts-route[data-route="2"]')).not.toHaveClass(/lts-route--dim/);
+    await expect(mini.locator('.lts-route[data-route="3"]')).toHaveClass(/lts-route--dim/);
+    await expect(mini.locator('.lts-stop--here')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Відкрити схему маршрутів: зупинка «Базар»' }).click();
+    await expect(page).toHaveURL(/\/transport\/scheme\?stop=st_a&d=16\.09\.26&h=07(%3A|:)00$/);
+    await expect(page.getByRole('heading', { level: 2, name: 'Ви тут: Базар' })).toBeVisible();
+    await expect(page.locator('.lts-canvas .lts-route[data-route="2"]')).not.toHaveClass(/lts-route--dim/);
+    await expect(page.locator('.lts-canvas .lts-route[data-route="3"]')).toHaveClass(/lts-route--dim/);
+
+    // Вузол схеми: маркер «ви тут» ставиться навіть до приходу датасету
+    await page.goto('/transport/scheme?stop=st_0019');
+    await expect(page.locator('.lts-canvas .lts-stop[data-stop="st_0019"]')).toHaveClass(/lts-stop--here/);
+  });
+
   test('route badges carry the scheme colour in the planner, the catalogue and on the stop board', async ({ page }) => {
     // Планувальник: картка результату №2 → колір лінії зі схеми (червоний), каталог ліній теж
     await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');

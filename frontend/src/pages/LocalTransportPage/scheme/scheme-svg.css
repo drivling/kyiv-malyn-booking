@@ -1,0 +1,44 @@
+/*
+ * Стан згенерованої SVG-схеми (scheme/malyn-scheme.svg), спільний для сторінки «Схема»
+ * та міні-схеми на сторінках маршруту й зупинки: притьмарені лінії/плашки й маркер «ви тут».
+ * Класи ставляться скриптом (SVG вставлено рядком), кольори ліній — через --lts-r<id>.
+ */
+.lts-route,
+.lts-badge {
+  transition: opacity 0.2s ease;
+}
+
+.lts-route--dim {
+  opacity: 0.14;
+}
+
+.lts-badge--dim {
+  opacity: 0.3;
+}
+
+/* «Ви тут»: зовнішнє кільце вузла / риска орієнтира і підпис — акцентом, без анімації */
+.lts-stop--here {
+  filter: drop-shadow(0 0 4px rgba(0, 175, 245, 0.55));
+}
+
+.lts-stop--here > circle:first-of-type {
+  stroke: var(--lt-accent, #00aff5);
+  stroke-width: 6;
+}
+
+.lts-stop--here > line:first-of-type {
+  stroke: var(--lt-accent, #00aff5);
+  stroke-width: 15;
+}
+
+.lts-stop--here > text:first-of-type {
+  fill: var(--lt-accent, #00aff5);
+  font-weight: 800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lts-route,
+  .lts-badge {
+    transition: none;
+  }
+}

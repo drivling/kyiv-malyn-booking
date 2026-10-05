@@ -23,3 +23,11 @@ export function routeColorStyle(routeId: string): CSSProperties | undefined {
   if (!color) return undefined;
   return { '--lt-route-color': color, '--lt-route-fg': '#ffffff' } as CSSProperties;
 }
+
+/**
+ * `--lts-r<id>` для вставленої SVG-схеми (сторінка «Схема», міні-схема): ті самі кольори, що й у
+ * плашках, одним інлайн-стилем на кореневому елементі.
+ */
+export const SCHEME_COLOR_VARS = Object.fromEntries(
+  SCHEME_ROUTES.map((r) => [`--lts-r${r.id}`, r.color])
+) as CSSProperties;
