@@ -27,7 +27,7 @@ cd Docs/malyn-transit-scheme
 python3 build_scheme.py --out-dir . \
   --site-dir ../../frontend/src/pages/LocalTransportPage/scheme \
   --poster-dir ../../frontend/public/transport/scheme \
-  --qr-url https://malin.kiev.ua/transport \
+  --qr-url https://malin.kiev.ua/transport/scheme \
   --fonts-dir fonts                                # woff2 Golos Text (кирилиця + латиниця) для плаката; без нього — системний шрифт
 # --dataset dataset.json — замість Railway API взяти локальний JSON (GET /transport/dataset)
 ```
