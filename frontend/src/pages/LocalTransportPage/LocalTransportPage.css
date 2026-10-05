@@ -143,8 +143,6 @@
   padding-bottom: env(safe-area-inset-bottom);
   padding-top: env(safe-area-inset-top);
 }
-
-/* iPhone / Samsung / Xiaomi: панель зверху, карта знизу (стопка), safe-area для вирізу та home indicator */
 @media (max-width: 767px) {
   .lt-page.lt-layout-dark .lt-container.lt-split-layout {
     flex-direction: column;
@@ -215,7 +213,6 @@
 }
 
 .lt-layout-dark .lt-panel .lt-back,
-.lt-layout-dark .lt-panel .lt-detail-from-to-text,
 .lt-layout-dark .lt-panel .lt-detail-date,
 .lt-layout-dark .lt-panel .lt-detail-time,
 .lt-layout-dark .lt-panel .lt-route-title-path,
@@ -230,10 +227,8 @@
 .lt-layout-dark .lt-panel .lt-subtitle { color: var(--lt-text) !important; }
 
 .lt-layout-dark .lt-panel .lt-detail-date,
-.lt-layout-dark .lt-panel .lt-timetable-heading,
 .lt-layout-dark .lt-panel .lt-stop-to-next { color: var(--lt-text-muted) !important; }
 
-.lt-layout-dark .lt-panel .lt-detail-topbar,
 .lt-layout-dark .lt-panel .lt-detail-header,
 .lt-layout-dark .lt-panel .lt-timetable-section,
 .lt-layout-dark .lt-panel .lt-timetable-header,
@@ -278,19 +273,13 @@
 .lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #f1f4f5 !important; }
 .lt-layout-dark .lt-panel .lt-timetable-table--tablica td { border-color: var(--lt-border); background: var(--lt-card); }
 .lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: rgba(0, 175, 245, 0.1) !important; }
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap,
 .lt-layout-dark .lt-panel .lt-datetime-input {
   background: #fff;
   border-color: var(--lt-border);
   color: var(--lt-text);
   border-radius: var(--lt-radius-sm);
 }
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap::placeholder,
 .lt-layout-dark .lt-panel .lt-datetime-input::placeholder { color: var(--lt-text-muted); }
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap:focus-within {
-  border-color: var(--lt-accent);
-  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.18);
-}
 .lt-layout-dark .lt-panel .combobox-list { background: #fff; border-color: var(--lt-border); box-shadow: var(--lt-elev-1); }
 .lt-layout-dark .lt-panel .combobox-option { color: var(--lt-text); }
 .lt-layout-dark .lt-panel .combobox-option:hover,
@@ -314,8 +303,6 @@
 .lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #f7fafb; }
 .lt-layout-dark .lt-panel .lt-route-card-time { border-color: var(--lt-border); }
 .lt-layout-dark .lt-panel .lt-route-card-time-value { color: var(--lt-text); }
-.lt-layout-dark .lt-panel .lt-route-card-main .lt-route-path { color: var(--lt-text) !important; }
-.lt-layout-dark .lt-panel .lt-route-card-main .lt-route-meta { color: var(--lt-text-muted); }
 .lt-layout-dark .lt-panel .lt-stops-timeline::before {
   background: var(--lt-border) !important;
   background-image: none !important;
@@ -371,12 +358,6 @@
   outline-offset: 0;
 }
 
-.lt-layout-dark .lt-panel .lt-fare:not(.lt-fare--header) {
-  background: rgba(0, 175, 245, 0.12) !important;
-  color: var(--lt-accent) !important;
-  border: 1px solid rgba(0, 175, 245, 0.35);
-}
-
 .lt-layout-dark .lt-panel .lt-fare--header {
   background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%) !important;
   color: #fff !important;
@@ -402,12 +383,10 @@
 .lt-layout-dark .lt-panel .lt-map-stops--jd,
 .lt-layout-dark .lt-panel .lt-map-stops-inner,
 .lt-layout-dark .lt-panel .lt-stops,
-.lt-layout-dark .lt-panel .lt-stops--jd,
-.lt-layout-dark .lt-panel .lt-map-area {
+.lt-layout-dark .lt-panel .lt-stops--jd {
   background: var(--lt-card) !important;
   border-color: var(--lt-border) !important;
 }
-.lt-layout-dark .lt-panel .lt-map-stops .lt-section-title--stops,
 .lt-layout-dark .lt-panel .lt-stops-heading {
   color: var(--lt-text) !important;
 }
@@ -593,12 +572,6 @@
   box-shadow: inset 0 0 0 1px var(--lt-accent);
 }
 
-.lt-detail-search {
-  padding-top: 8px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--lt-border);
-}
-
 /* Блок вибору зупинок на сторінці маршруту (коли ще не обрано З/До) */
 .lt-detail-picker {
   padding: var(--lt-panel-block) var(--lt-panel-x);
@@ -697,85 +670,6 @@
 .lt-detail-summary-change:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--lt-accent);
-}
-
-.lt-detail-from-to-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.lt-detail-from-to-row:last-of-type {
-  margin-bottom: 12px;
-}
-
-.lt-detail-from-value {
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  color: var(--lt-text);
-}
-
-/* Комбобокси в блоці деталей — виглядають як значення на темному фоні */
-.lt-detail-combobox-wrap {
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-detail-combobox-wrap .combobox-input-wrap {
-  border-color: var(--lt-border);
-  background: var(--lt-card);
-}
-
-.lt-detail-combobox-wrap .combobox-input {
-  color: var(--lt-text);
-  font-weight: 600;
-  font-size: var(--lt-fs-md);
-}
-
-.lt-detail-combobox-wrap .combobox-input::placeholder {
-  color: var(--lt-text-muted);
-}
-
-.lt-detail-from-to-row--swap {
-  justify-content: flex-start;
-  margin-bottom: 4px;
-}
-
-.lt-from-to-arrow--detail {
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid var(--lt-border);
-  border-radius: 8px;
-  color: var(--lt-text);
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.lt-from-to-arrow--detail:hover {
-  background: var(--lt-border);
-  color: var(--lt-text);
-}
-
-.lt-datetime-row--detail {
-  margin-top: 4px;
-  margin-bottom: 0;
-  gap: 12px;
-}
-
-.lt-datetime-row--detail .lt-detail-date,
-.lt-datetime-row--detail .lt-detail-time {
-  font-variant-numeric: tabular-nums;
-}
-
-.lt-datetime-row--detail .lt-detail-time {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.lt-datetime-row--in-rozklad {
-  margin-top: 10px;
-  margin-bottom: 4px;
 }
 
 .lt-map-column {
@@ -1078,9 +972,6 @@
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input-wrap--clearable .combobox-input {
   padding-right: 44px;
 }
-
-/* Дуже вузькі екрани (320px): лейбл — лише кольорова крапка (текст «З»/«До» лишається в DOM
-   для скрінрідера) — довгі назви зупинок читаються повністю. */
 @media (max-width: 359px) {
   .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
     flex-basis: 14px;
@@ -1354,17 +1245,6 @@
   box-shadow: inset 0 0 0 1px var(--lt-accent);
 }
 
-.lt-datetime-hint {
-  margin: 4px 0 0;
-  font-size: var(--lt-fs-xs);
-  color: #b45309;
-}
-
-.lt-datetime-input--invalid {
-  border-color: #f59e0b;
-  outline-color: rgba(245, 158, 11, 0.35);
-}
-
 /* Підказка над результатами, поки текст у полі не відповідає жодній зупинці. */
 .lt-routes-hint {
   margin: 0 0 8px;
@@ -1420,18 +1300,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.lt-search-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-
-.lt-search-row .lt-search-field {
-  flex: 1;
-  min-width: 0;
 }
 
 .lt-geo-btn {
@@ -1515,14 +1383,6 @@
   background: #f1f3f4;
 }
 
-.lt-search .select-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 /* Список маршрутів — плоскі картки як у HSL */
 .lt-routes {
   display: flex;
@@ -1586,18 +1446,6 @@
   text-transform: lowercase;
 }
 
-.lt-route-verified-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: var(--lt-fs-xs);
-  font-weight: 600;
-  color: var(--lt-origin);
-  background: rgba(15, 165, 115, 0.12);
-  border: 1px solid rgba(15, 165, 115, 0.35);
-}
-
 .lt-route-card-main {
   display: flex;
   flex-wrap: wrap;
@@ -1617,23 +1465,6 @@
   font-weight: 700;
   border-radius: 6px;
   text-align: center;
-}
-
-.lt-route-card-main .lt-route-path {
-  flex: 1 1 100%;
-  min-width: 0;
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  color: var(--lt-text);
-  line-height: 1.3;
-}
-
-.lt-route-card-main .lt-route-meta {
-  flex: 1 1 100%;
-  font-size: var(--lt-fs-xs);
-  font-weight: 500;
-  color: var(--lt-text-muted);
-  line-height: 1.3;
 }
 
 /* Картка планувальника: кінцева рейсу, рядок «09:24 → 09:41 · 17 хв», підписи під часом. */
@@ -1694,19 +1525,6 @@
   background: #fff;
   color: var(--lt-route-color, #f97316);
   box-shadow: inset 0 0 0 2px var(--lt-route-color, #f97316);
-}
-
-.lt-route-path {
-  flex: 1;
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  color: var(--lt-text);
-}
-
-.lt-route-meta {
-  flex-shrink: 0;
-  font-size: var(--lt-fs-base);
-  color: var(--lt-text-muted);
 }
 
 /* «Немає прямого маршруту» → сусідні зупинки, між якими маршрут є */
@@ -1822,22 +1640,6 @@
   padding-bottom: 0;
 }
 
-/* Верхній бар як у Jakdojade: назад + маршрут З→До + дата/час */
-.lt-detail--jakdojade .lt-detail-topbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--lt-panel-y) var(--lt-panel-x);
-  background: var(--lt-bg);
-  border-bottom: 1px solid var(--lt-border-light);
-  flex-wrap: wrap;
-}
-
-.lt-theme-jakdojade .lt-detail-topbar {
-  padding: 10px var(--lt-panel-x);
-  min-height: 48px;
-}
-
 .lt-detail--jakdojade .lt-back {
   margin-bottom: 0;
   padding: 8px 10px;
@@ -1845,39 +1647,6 @@
   min-height: 40px;
   font-size: var(--lt-fs-lg);
   line-height: 1;
-}
-
-.lt-detail-route-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-route-num--pill {
-  flex-shrink: 0;
-  min-width: 32px;
-  padding: 4px 8px;
-  font-size: var(--lt-fs-base);
-  font-weight: 700;
-  text-align: center;
-}
-
-.lt-detail-from-to-text {
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  color: var(--lt-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lt-detail-datetime {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-variant-numeric: tabular-nums;
 }
 
 .lt-detail-date {
@@ -1995,11 +1764,6 @@
   letter-spacing: 0.06em;
 }
 
-.lt-section-title--stops {
-  padding-top: var(--lt-panel-block);
-  border-top: 1px solid var(--lt-border-light);
-}
-
 /* Секція зупинок без окремого заголовка — верхня межа */
 .lt-map-stops--jd {
   border-top: 1px solid var(--lt-border-light);
@@ -2066,31 +1830,6 @@
 .lt-timetable-section--compact .lt-section-title {
   padding: 6px var(--lt-panel-x) 4px;
   font-size: var(--lt-fs-xs);
-}
-
-.lt-from-to--jd {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.lt-from-to--jd .lt-from-to-field {
-  min-width: 140px;
-}
-
-.lt-from-to-arrow--jd {
-  padding: 0 6px;
-  font-size: 1.125rem;
-}
-
-/* Окремий вибір часу відправлення (як на Jakdojade — окреме поле з dropdown) */
-.lt-time-picker-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
 }
 
 .lt-time-picker-label {
@@ -2200,30 +1939,6 @@
   background: var(--lt-accent-light);
 }
 
-.lt-timetable-grid--jd {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid var(--lt-border-light);
-  border-radius: var(--lt-radius-icon);
-  overflow: hidden;
-}
-
-.lt-timetable-grid--jd .lt-timetable-col {
-  background: var(--lt-card);
-}
-
-.lt-times--jd {
-  gap: 10px 12px;
-}
-
-.lt-time--jd {
-  min-width: 56px;
-  padding: 8px 12px;
-  font-size: var(--lt-fs-md);
-  font-weight: 700;
-}
-
 /* Зупинки + карта — один заголовок «Список зупинок», список лівіше */
 .lt-map-stops-inner {
   display: flex;
@@ -2236,10 +1951,6 @@
     flex-direction: row;
     align-items: flex-start;
   }
-  .lt-map-stops--jd .lt-map-area {
-    flex: 1;
-    min-width: 0;
-  }
   /* Список зупинок у першій колонці (ліворуч) */
   .lt-map-stops--jd .lt-stops--jd {
     width: 320px;
@@ -2249,9 +1960,6 @@
     padding-right: var(--lt-panel-x);
     padding-top: var(--lt-panel-y);
     padding-bottom: var(--lt-panel-block);
-  }
-  .lt-map-stops--jd .lt-map-area {
-    order: 2;
   }
 }
 
@@ -2282,65 +1990,12 @@
   gap: 10px 12px;
 }
 
-.lt-from-to {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .lt-from-to-label {
   font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.lt-from-to-field {
-  min-width: 160px;
-}
-
-.lt-from-to-field .combobox-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-from-to-field .combobox-input-wrap {
-  border-radius: var(--lt-radius-icon);
-}
-
-.lt-from-to-arrow {
-  border: none;
-  background: transparent;
-  color: var(--lt-text-muted);
-  font-size: 1.25rem;
-  font-weight: 300;
-  padding: 0 4px;
-  cursor: pointer;
-}
-
-.lt-date-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.lt-date-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-}
-
-.lt-date-value {
-  font-size: var(--lt-fs-md);
-  font-weight: 500;
-  color: var(--lt-text);
 }
 
 .lt-print-btn {
@@ -2423,63 +2078,6 @@
   font-size: var(--lt-fs-md);
 }
 
-/* Дві колонки напрямків (якщо без From/To) */
-.lt-timetable-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-
-.lt-timetable-col {
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  border-right: 1px solid var(--lt-border-light);
-}
-
-.lt-timetable-col:last-child {
-  border-right: none;
-}
-
-.lt-timetable-heading {
-  margin: 0 0 8px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-times {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-.lt-time {
-  display: inline-block;
-  min-width: 52px;
-  padding: 8px 10px;
-  background: var(--lt-bg);
-  border: 1px solid transparent;
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  border-radius: var(--lt-radius-icon);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.lt-time:hover {
-  border-color: var(--lt-accent);
-  background: var(--lt-accent-light);
-}
-
-.lt-time--selected {
-  background: var(--lt-accent);
-  border-color: var(--lt-accent);
-  color: white;
-}
-
 /* ========== Зупинки — вертикальна timeline з dotted line (HSL-style) ========== */
 .lt-map-stops {
   margin-top: 0;
@@ -2494,22 +2092,12 @@
     align-items: flex-start;
   }
 
-  .lt-map-area {
-    flex: 1;
-    min-width: 0;
-  }
-
   .lt-stops {
     flex-shrink: 0;
     width: 320px;
     position: sticky;
     top: 20px;
   }
-}
-
-.lt-map-area {
-  padding: 20px;
-  border-top: 1px solid var(--lt-border-light);
 }
 
 .lt-stops {
@@ -2547,12 +2135,6 @@
   opacity: 0.9;
   pointer-events: none;
   border-radius: 2px;
-}
-
-.lt-stops-direction-switch {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
 }
 
 .lt-direction-btn {
@@ -3233,7 +2815,6 @@
 .lt-back,
 .lt-print-btn,
 .lt-direction-btn,
-.lt-time,
 .lt-timetable-row-clickable,
 .lt-search-btn,
 .lt-detail-summary-change,
@@ -3272,12 +2853,6 @@
   padding: 8px 12px;
 }
 
-.lt-time {
-  min-height: 44px;
-  min-width: 52px;
-  padding: 10px 12px;
-}
-
 .lt-timetable-table tbody tr {
   min-height: 48px;
 }
@@ -3298,17 +2873,6 @@
   overflow-x: auto;
 }
 
-/* iPhone / Samsung / Xiaomi: 16px інпути щоб iOS Safari не зумував при фокусі */
-.lt-from-to-field .combobox-input {
-  font-size: 16px;
-}
-@media (min-width: 768px) {
-  .lt-from-to-field .combobox-input {
-    font-size: 0.9375rem;
-  }
-}
-
-/* Responsive */
 @media (max-width: 480px) {
   .lt-page {
     padding: 16px 12px;
@@ -3332,52 +2896,6 @@
     font-size: 1.125rem;
   }
 
-  .lt-search-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .lt-search-row .lt-geo-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .lt-timetable-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .lt-timetable-col {
-    border-right: none;
-    border-bottom: 1px solid var(--lt-border-light);
-    padding: 14px 16px;
-  }
-
-  .lt-timetable-col:last-child {
-    border-bottom: none;
-  }
-
-  .lt-from-to {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .lt-from-to-arrow {
-    transform: rotate(90deg);
-    align-self: center;
-  }
-
-  .lt-from-to-field {
-    min-width: 100%;
-  }
-
-  .lt-date-row {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .lt-map-area,
   .lt-stops {
     padding: 16px;
   }
@@ -3542,37 +3060,6 @@
   color: var(--lt-text-muted);
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.lt-stop-board-table-wrap {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--lt-border);
-}
-
-.lt-stop-board-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.lt-stop-board-table thead th {
-  text-align: left;
-  padding: 10px 12px;
-  background: #c62828;
-  color: #fff;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.lt-stop-board-table tbody td {
-  padding: 10px 12px;
-  border-top: 1px solid var(--lt-border);
-  vertical-align: top;
-}
-
-.lt-stop-board-table tbody tr.lt-stop-board-row--next {
-  background: rgba(138, 180, 248, 0.12);
 }
 
 .lt-stop-board-time-link {
@@ -3902,8 +3389,6 @@
 .lt-nearest-tablo-link:hover {
   background: rgba(138, 180, 248, 0.1);
 }
-
-/* Print */
 @media print {
   .lt-page {
     background: white;
@@ -3915,11 +3400,10 @@
     border: none;
   }
 
-  .lt-stops-toggle,
   .lt-geo-btn,
-  .lt-print-btn,
-  .lt-back,
-  .app-nav {
+.lt-print-btn,
+.lt-back,
+.app-nav {
     display: none !important;
   }
 
@@ -3927,11 +3411,6 @@
     height: 400px;
   }
 }
-
-/*
- * Табло на телефоні: карти немає (лист карти планувальника тут не використовується), тому
- * без порожньої фіксованої смуги 64px унизу і без відступу панелі під неї.
- */
 @media (max-width: 767px) {
   .lt-page--stop-board.lt-layout-dark .lt-map-column {
     display: none;
