@@ -595,11 +595,40 @@
   gap: 8px;
 }
 
+/* Лейбл — лише маркер (кільце в кольорі З/До, як на карті); текст «Звідки»/«Куди» — для скрінрідера.
+   Так поле отримує всю ширину панелі: довгі назви зупинок читаються повністю в будь-якому шрифті. */
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
   margin: 0;
-  /* «ЗВІДКИ» з крапкою — ≈72px; обидва поля починаються з однієї x-координати (e2e перевіряє) */
-  flex: 0 0 74px;
-  white-space: nowrap;
+  flex: 0 0 14px;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-dot {
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 3px solid var(--lt-origin);
+  background: var(--lt-card);
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-dot--to {
+  border-color: var(--lt-destination);
+}
+
+/* Пунктир між маркерами «Звідки» і «Куди» — один маршрут, як на карті */
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-row {
+  position: relative;
+}
+
+.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-row::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 22px;
+  bottom: 22px;
+  border-left: 2px dotted var(--lt-border);
 }
 
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox {
@@ -620,14 +649,6 @@
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input,
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input-wrap--clearable .combobox-input {
   padding-right: 44px;
-}
-@media (max-width: 359px) {
-  .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
-    flex-basis: 14px;
-    gap: 0;
-    font-size: 0;
-    line-height: 0;
-  }
 }
 
 .lt-from-to-cell {
@@ -674,8 +695,6 @@
 .lt-from-to-dot--from { background: var(--lt-origin); }
 .lt-from-to-dot--to { background: var(--lt-destination); }
 
-.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: var(--lt-origin); }
-.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: var(--lt-destination); }
 
 .lt-from-to-swap {
   flex-shrink: 0;

@@ -1806,7 +1806,8 @@ export const LocalTransportPage: React.FC = () => {
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
                     <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-search-from">
-                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden /> Звідки
+                      <span className="lt-from-to-dot lt-from-to-dot--from" aria-hidden />
+                      <span className="lt-visually-hidden">Звідки</span>
                     </label>
                     <Combobox
                       id="lt-search-from"
@@ -1860,7 +1861,8 @@ export const LocalTransportPage: React.FC = () => {
                   </button>
                   <div className="lt-from-to-cell lt-from-to-cell--to">
                     <label className="lt-from-to-label lt-from-to-label--with-icon" htmlFor="lt-search-to">
-                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden /> Куди
+                      <span className="lt-from-to-dot lt-from-to-dot--to" aria-hidden />
+                      <span className="lt-visually-hidden">Куди</span>
                     </label>
                     <Combobox
                       id="lt-search-to"
