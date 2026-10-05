@@ -58,6 +58,8 @@ export async function mockBackendApi(page: Page) {
           { id: 'st_c', name: 'Лікарня', lat: 50.79, lng: 29.26 },
           { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 },
           { id: 'st_e', name: 'Ринок', lat: 50.77015, lng: 29.24012 },
+          // Зупинка вузла схеми «Лікарня · Поліклініка» (головна st_0035): перевірка «вузол бачить усі маршрути»
+          { id: 'st_0072', name: 'Поліклініка', lat: 50.795, lng: 29.262 },
         ],
         routes: [
           {
@@ -83,6 +85,7 @@ export async function mockBackendApi(page: Page) {
           { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 3, mapOnly: false },
           { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 2, mapOnly: false },
           { routeId: '2', stopId: 'st_c', orderThere: 3, orderBack: 1, mapOnly: false },
+          { routeId: '2', stopId: 'st_0072', orderThere: 4, orderBack: 0, mapOnly: false },
           { routeId: '3', stopId: 'st_e', orderThere: 1, orderBack: 3, mapOnly: false },
           { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 2, mapOnly: false },
           { routeId: '3', stopId: 'st_d', orderThere: 3, orderBack: 1, mapOnly: false },

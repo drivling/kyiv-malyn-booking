@@ -65,6 +65,18 @@ test.describe('transport', () => {
     // Вузол схеми: маркер «ви тут» ставиться навіть до приходу датасету
     await page.goto('/transport/scheme?stop=st_0019');
     await expect(page.locator('.lts-canvas .lts-stop[data-stop="st_0019"]')).toHaveClass(/lts-stop--here/);
+
+    // Вузол бачить усі маршрути: Поліклініка (st_0072) — частина вузла «Лікарня · Поліклініка» (st_0035)
+    await page.goto('/transport/stop/st_0072?d=16.09.26&h=07%3A00');
+    await expect(page.locator('.lts-mini-note')).toHaveText(/^Вузол «Лікарня · Поліклініка» — підсвічено лінії всього вузла: №2\.$/);
+    await expect(mini.locator('.lts-stop[data-stop="st_0035"]')).toHaveClass(/lts-stop--here/);
+    await page.getByRole('link', { name: 'Відкрити схему маршрутів: зупинка «Поліклініка»' }).click();
+    await expect(page).toHaveURL(/\/transport\/scheme\?stop=st_0072/);
+    await expect(page.getByRole('heading', { level: 2, name: 'Ви тут: Лікарня · Поліклініка' })).toBeVisible();
+    await expect(page.locator('.lts-canvas .lts-stop[data-stop="st_0035"]')).toHaveClass(/lts-stop--here/);
+    await expect(page.locator('.lts-canvas .lts-route[data-route="2"]')).not.toHaveClass(/lts-route--dim/);
+    await expect(page.locator('.lts-canvas .lts-route[data-route="3"]')).toHaveClass(/lts-route--dim/);
+    await expect(page.getByRole('link', { name: 'Табло зупинки' })).toHaveAttribute('href', /\/transport\/stop\/st_0072/);
   });
 
   test('route badges carry the scheme colour in the planner, the catalogue and on the stop board', async ({ page }) => {

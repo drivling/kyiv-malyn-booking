@@ -8,15 +8,23 @@ import { LocalTransportSchemePage } from './LocalTransportSchemePage';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 
 const dataset = {
-  stops: [{ id: 'st_0019', name: 'Залізничний вокзал', lat: 50.774, lng: 29.295 }],
+  stops: [
+    { id: 'st_0019', name: 'Залізничний вокзал', lat: 50.774, lng: 29.295 },
+    { id: 'st_0035', name: 'Лікарня', lat: 50.77, lng: 29.21 },
+    { id: 'st_0072', name: 'Поліклініка', lat: 50.772, lng: 29.212 },
+  ],
   routes: [
     { id: '3', fromName: 'Лісотехнікум', toName: 'Залізничний вокзал' },
+    { id: '7', fromName: 'Лікарня', toName: 'Залізничний вокзал' },
     { id: '10', fromName: '', toName: '', unreliable: true },
   ],
   routeStops: [
     { routeId: '3', stopId: 'st_0019', orderThere: 9, orderBack: 1 },
     { routeId: '10', stopId: 'st_0019', orderThere: 9, orderBack: 1 },
     { routeId: '5', stopId: 'st_0019', orderThere: 9, orderBack: 1 },
+    { routeId: '5', stopId: 'st_0035', orderThere: 2, orderBack: 8 },
+    { routeId: '3', stopId: 'st_0072', orderThere: 2, orderBack: 8 },
+    { routeId: '7', stopId: 'st_0072', orderThere: 1, orderBack: 9 },
   ],
   trips: [
     { id: '3-01', routeId: '3', directionId: '1', departureTime: '06:40:00' },
@@ -132,6 +140,28 @@ describe('LocalTransportSchemePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Показати всі' }));
     expect(container.querySelector('.lts-stop--here')).toBeNull();
     expect(container.querySelector('.lts-route--dim')).toBeNull();
+  });
+
+  it('?stop= of a node member marks the whole node and lights the lines of every stop in it', async () => {
+    // Поліклініка (st_0072) — частина вузла «Лікарня · Поліклініка» (головна st_0035)
+    const { container } = renderPage('/transport/scheme?stop=st_0072&d=16.09.26');
+    expect(container.querySelector('.lts-stop[data-stop="st_0035"]')).toHaveClass('lts-stop--here');
+    expect(container.querySelectorAll('.lts-stop--here')).toHaveLength(1);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Ви тут: Лікарня · Поліклініка' })).toBeInTheDocument();
+    // Лінії вузла = обʼєднання: 5 (Лікарня) + 3, 7 (Поліклініка), у порядку легенди
+    expect(screen.getByText('Лінії через вузол: №3, №5, №7')).toBeInTheDocument();
+    for (const id of ['3', '5', '7']) {
+      expect(container.querySelector(`.lts-route[data-route="${id}"]`), id).not.toHaveClass('lts-route--dim');
+    }
+    expect(container.querySelector('.lts-route[data-route="2"]')).toHaveClass('lts-route--dim');
+
+    // Рядок зупинок вузла: кожна — посилання на її табло, лінії в дужках; зупинка з URL — акцентом
+    const stops = screen.getByText(/^Зупинки вузла:/).closest('p') as HTMLElement;
+    expect(stops).toHaveTextContent('Зупинки вузла: Лікарня (5) · Поліклініка (3, 7)');
+    expect(within(stops).getByRole('link', { name: 'Лікарня' })).toHaveAttribute('href', '/transport/stop/st_0035?d=16.09.26');
+    expect(within(stops).getByRole('link', { name: 'Поліклініка' })).toHaveClass('lts-card-stop--here');
+    expect(screen.getByRole('link', { name: 'Табло зупинки' })).toHaveAttribute('href', '/transport/stop/st_0072?d=16.09.26');
   });
 
   it('Enter on a focused stop works like a click', async () => {
