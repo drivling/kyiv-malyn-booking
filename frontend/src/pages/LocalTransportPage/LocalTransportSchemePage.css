@@ -1,0 +1,327 @@
+/*
+ * Сторінка «Схема» (/transport/scheme): інтерактивна схема маршрутів у стилі метро.
+ * Кольори ліній дублюють генератор Docs/malyn-transit-scheme/build_scheme.py (COLORS, світла тема).
+ */
+.lt-scheme-page {
+  --lts-fg: #054752;
+  --lts-muted: #708c91;
+  --lts-bg: #ffffff;
+  --lts-water: #9ccfe8;
+  --lts-water-fill: #d9ecf7;
+  --lts-water-text: #3d7fa3;
+  --lts-r2: #d7263d;
+  --lts-r3: #1b9e4b;
+  --lts-r5: #1f6fd6;
+  --lts-r7: #f08a1c;
+  --lts-r8: #7e3fc2;
+  --lts-r9: #e3368c;
+  --lts-r10: #c99700;
+  --lts-r11: #0e9aa7;
+  --lts-r12: #8a5a2b;
+}
+
+/* Одна широка панель замість split-layout (панель 380px + карта) */
+.lt-page.lt-layout-dark .lts-panel.lt-panel {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.lts-header.lt-header--jakdojade {
+  padding: var(--lt-panel-y) var(--lt-panel-x) 10px;
+}
+
+.lts-header .lt-title {
+  margin: 0;
+  font-size: var(--lt-fs-xl);
+  font-weight: 700;
+}
+
+.lts-header .lt-subtitle {
+  margin: 2px 0 0;
+  font-size: var(--lt-fs-sm);
+}
+
+/* ---- панель керування: номери маршрутів + масштаб */
+.lts-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 0 var(--lt-panel-x) 12px;
+}
+
+.lts-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lts-chip {
+  --lts-chip: var(--lt-text-muted);
+  min-width: 36px;
+  height: 32px;
+  padding: 0 10px;
+  border: 2px solid var(--lts-chip);
+  border-radius: 999px;
+  background: var(--lts-chip);
+  color: #fff;
+  font: inherit;
+  font-size: var(--lt-fs-base);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.lts-chip--all {
+  --lts-chip: var(--lt-text);
+}
+
+.lts-chips[data-active] .lts-chip:not(.lts-chip--active) {
+  opacity: 0.35;
+}
+
+.lts-chip:hover,
+.lts-chip--active {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.lts-chip:focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: 2px;
+}
+
+.lts-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lts-zoom-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--lt-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--lt-text);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lts-zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lts-zoom-btn:focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: 1px;
+}
+
+.lts-zoom-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- картка обраного маршруту */
+.lts-card {
+  margin: 0 var(--lt-panel-x) 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-bg);
+}
+
+.lts-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  color: var(--lt-text);
+  text-wrap: balance;
+}
+
+.lts-card-num {
+  flex: 0 0 auto;
+  min-width: 28px;
+  padding: 0 7px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: var(--lt-fs-base);
+  line-height: 24px;
+  text-align: center;
+}
+
+.lts-card-via,
+.lts-card-meta {
+  margin: 0;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  line-height: 1.5;
+}
+
+.lts-card-meta {
+  color: var(--lt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lts-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.lts-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--lt-text);
+  font: inherit;
+  font-size: var(--lt-fs-base);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lts-btn--primary {
+  border-color: var(--lt-accent);
+  background: var(--lt-accent);
+  color: #fff;
+}
+
+.lts-btn:focus-visible {
+  outline: 2px solid var(--lt-accent);
+  outline-offset: 2px;
+}
+
+/* ---- полотно схеми: горизонтальний скрол на телефоні, пінч-зум браузера */
+.lts-canvas {
+  margin: 0 var(--lt-panel-x);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lts-bg);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.lts-canvas:fullscreen {
+  padding: 16px;
+  border: 0;
+  border-radius: 0;
+}
+
+.lts-canvas-inner {
+  min-width: 900px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.lts-canvas-inner .lts-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  font-family: var(--lt-font);
+}
+
+.lts-route,
+.lts-badge {
+  transition: opacity 0.2s ease;
+}
+
+.lts-route,
+.lts-stop,
+.lts-badge {
+  cursor: pointer;
+}
+
+.lts-route--dim {
+  opacity: 0.14;
+}
+
+.lts-badge--dim {
+  opacity: 0.3;
+}
+
+.lts-route:focus-visible,
+.lts-stop:focus-visible {
+  outline: none;
+}
+
+.lts-route:focus-visible path:last-child,
+.lts-route:hover path:last-child {
+  filter: drop-shadow(0 0 3px rgba(5, 71, 82, 0.45));
+}
+
+.lts-stop:hover > text:first-of-type,
+.lts-stop:focus-visible > text:first-of-type {
+  text-decoration: underline;
+  fill: var(--lt-accent);
+}
+
+.lts-hint,
+.lts-poster {
+  margin: 10px var(--lt-panel-x) 0;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  line-height: 1.5;
+  max-width: 72ch;
+}
+
+.lts-poster a {
+  color: var(--lt-accent);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .lts-toolbar {
+    gap: 8px 12px;
+  }
+  .lts-canvas-inner {
+    min-width: 820px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lts-chip,
+  .lts-route,
+  .lts-badge {
+    transition: none;
+  }
+}
+
+@media print {
+  .lt-scheme-page .lt-subnav,
+  .lts-toolbar,
+  .lts-card-actions,
+  .lts-hint,
+  .lts-poster {
+    display: none !important;
+  }
+  .lts-canvas {
+    margin: 0;
+    border: 0;
+    overflow: visible;
+  }
+  .lts-canvas-inner {
+    width: 100% !important;
+    min-width: 0;
+    padding: 0;
+  }
+}
