@@ -81,6 +81,25 @@ function renderBoard(path: string) {
 // Дата в минулому і ранній час: усі рейси мок-датасету видимі, відлік не показується.
 const BOARD_URL = '/transport/stop/st_a?d=01.03.26&h=07%3A00';
 const HUB_URL = '/transport/stop?d=01.03.26&h=07%3A00';
+
+/** Друга лінія через Базар (№3 о 08:45) — для чіпів-фільтрів під заголовком */
+const twoLinesDataset = {
+  ...dataset,
+  routes: [
+    ...dataset.routes,
+    { id: '3', fromName: 'Базар', toName: 'Лікарня', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+  ],
+  routeStops: [
+    ...dataset.routeStops,
+    { routeId: '3', stopId: 'st_a', orderThere: 1, orderBack: 2, mapOnly: false },
+    { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 1, mapOnly: false },
+  ],
+  trips: [
+    ...dataset.trips,
+    { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Лікарня', directionId: '1', departureTime: '08:45:00', blockId: null },
+  ],
+  segments: [...dataset.segments, { routeId: '3', fromStopId: 'st_a', toStopId: 'st_c', seconds: 600 }],
+};
 const location = () => screen.getByTestId('location').textContent ?? '';
 const h1 = () => screen.getByRole('heading', { level: 1 });
 
@@ -238,6 +257,52 @@ describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
     } finally {
       Reflect.deleteProperty(navigator, 'geolocation');
     }
+  });
+
+  it('line chips under the title filter the cards and live in ?line=', async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(twoLinesDataset)));
+    await openBoard();
+    expect(screen.getByRole('link', { name: /Маршрут 3, відправлення 08:45/ })).toBeInTheDocument();
+    const chips = screen.getByRole('group', { name: 'Маршрути через зупинку' });
+    expect(within(chips).getAllByRole('button').map((c) => c.textContent)).toEqual(['№2', '№3']);
+    await user.click(within(chips).getByRole('button', { name: '№3' }));
+    await waitFor(() => expect(location()).toBe('/transport/stop/st_a?d=01.03.26&h=07%3A00&line=3'));
+    expect(within(chips).getByRole('button', { name: '№3' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('link', { name: /Маршрут 2, відправлення 08:30/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /Маршрут 3, відправлення 08:45/ })).toBeInTheDocument();
+    // «Завтра» зберігає фільтр; повторний тап по чіпу знімає його
+    await user.click(screen.getByRole('button', { name: 'Завтра' }));
+    await waitFor(() => expect(location()).toBe(`/transport/stop/st_a?d=${tomorrowDateUrl()}&h=07%3A00&line=3`));
+    await user.click(within(chips).getByRole('button', { name: '№3' }));
+    await waitFor(() => expect(location()).toBe(`/transport/stop/st_a?d=${tomorrowDateUrl()}&h=07%3A00`));
+    expect(screen.getByRole('link', { name: /Маршрут 2, відправлення 08:30/ })).toBeInTheDocument();
+  });
+
+  it('«Весь день» is a chip; after the last trip the empty state offers the whole day', async () => {
+    const user = userEvent.setup();
+    renderBoard('/transport/stop/st_a?d=01.03.26&h=09%3A00');
+    await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
+    expect(screen.getByText(/Після 09:00 на цій зупинці/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Маршрут 2/ })).toBeNull();
+    const chip = screen.getByRole('button', { name: 'Весь день' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByRole('button', { name: 'Показати весь день' }));
+    expect(screen.getByRole('link', { name: /Маршрут 2, відправлення 08:30/ })).toBeInTheDocument();
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Відправлення · 01.03.26 · весь день/)).toBeInTheDocument();
+    await user.click(chip);
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('link', { name: /Маршрут 2/ })).toBeNull();
+  });
+
+  it('the departures come before the mini-scheme, the article and the FAQ', async () => {
+    renderBoard('/transport/stop/st_0072?d=01.03.26&h=07%3A00');
+    const mini = await screen.findByRole('heading', { level: 2, name: 'На схемі міста' });
+    const board = screen.getByText('Для цієї зупинки немає розкладу в даних.');
+    const faq = screen.getByRole('heading', { level: 2, name: 'Часті питання' });
+    expect(board.compareDocumentPosition(mini) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mini.compareDocumentPosition(faq) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('a tap on a map marker opens that stop\'s board', async () => {

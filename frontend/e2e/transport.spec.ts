@@ -302,6 +302,23 @@ test.describe('transport', () => {
     });
   });
 
+  test('stop board: a line chip under the title filters the cards and lives in ?line=', async ({ page }) => {
+    await page.goto('/transport/stop/st_c?d=16.09.26&h=07%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Лікарня»');
+    const chips = page.getByRole('group', { name: 'Маршрути через зупинку' });
+    await expect(chips.getByRole('button')).toHaveCount(2);
+    await chips.getByRole('button', { name: '№3' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_c\?d=16\.09\.26&h=07(%3A|:)00&line=3$/);
+    await expect(chips.getByRole('button', { name: '№3' })).toHaveAttribute('aria-pressed', 'true');
+    const nums = page.locator('.lt-jd-card__route-num');
+    await expect(nums.first()).toHaveText('№3');
+    await expect(page.locator('.lt-jd-card__route-num', { hasText: '№2' })).toHaveCount(0);
+    // Картки йдуть перед статтею й FAQ
+    const cardsBox = await page.locator('.lt-jd-cards').boundingBox();
+    const faqBox = await page.getByRole('heading', { name: 'Часті питання' }).boundingBox();
+    expect(cardsBox!.y).toBeLessThan(faqBox!.y);
+  });
+
   test.describe('route page on a phone', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 

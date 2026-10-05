@@ -780,17 +780,12 @@
 .lt-chip[aria-pressed='true'] {
   border-color: var(--lt-accent);
   background: rgba(0, 175, 245, 0.12);
-}
-
-.lt-layout-dark .lt-panel .lt-chip {
-  background: var(--lt-card);
-  color: var(--lt-text);
-  border-color: var(--lt-border);
-}
-
-.lt-layout-dark .lt-panel .lt-chip[aria-pressed='true'] {
-  border-color: var(--lt-accent);
   box-shadow: inset 0 0 0 1px var(--lt-accent);
+}
+
+.lt-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Підказка над результатами, поки текст у полі не відповідає жодній зупинці. */
@@ -2526,6 +2521,37 @@
   padding-top: 0;
 }
 
+/* Чіпи ліній під заголовком табло: кільце в кольорі лінії, натиснутий — залитий */
+.lt-line-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.lt-line-chip {
+  min-width: 44px;
+  border-color: var(--lt-route-color, var(--lt-border));
+  color: var(--lt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-line-chip:hover {
+  border-color: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-text);
+}
+
+.lt-line-chip[aria-pressed='true'] {
+  border-color: var(--lt-route-color, var(--lt-accent));
+  background: var(--lt-route-color, var(--lt-accent-light));
+  color: var(--lt-route-fg, #fff);
+  box-shadow: none;
+}
+
+.lt-stop-board-search .lt-search-chips {
+  margin-top: 2px;
+}
+
 /* Одна колонка: не наслідувати сітку З/До (1fr | swap | 1fr), інакше combobox ~половина ширини */
 .lt-theme-jakdojade .lt-from-to-row.lt-stop-board-row {
   display: grid;
@@ -2556,99 +2582,15 @@
 }
 
 .lt-stop-board-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 16px;
   margin: 0;
-  padding: 0 var(--lt-panel-x) 6px;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.lt-stop-board-table-title {
-  margin: 0;
-  font-size: var(--lt-fs-md);
-  color: var(--lt-text);
+  padding: 0 var(--lt-panel-x) 8px;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
   overflow-wrap: anywhere;
 }
 
-.lt-stop-board-date {
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-text-muted);
-}
-
-.lt-stop-board-hint {
-  margin: 0;
-  padding: 0 var(--lt-panel-x) 12px;
-  max-width: 100%;
-  box-sizing: border-box;
-  font-size: var(--lt-fs-sm);
-  line-height: 1.45;
-  color: var(--lt-text-muted);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.lt-stop-board-time-link {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--lt-accent);
-  text-decoration: none;
-}
-
-.lt-stop-board-time-link:hover,
-.lt-stop-board-route-link:hover,
-.lt-stop-board-dest-link:hover {
-  text-decoration: underline;
-}
-
-.lt-stop-board-route-link,
-.lt-stop-board-dest-link {
-  color: var(--lt-text);
-  text-decoration: none;
-}
-
-.lt-stop-board-map-placeholder {
-  min-height: 120px;
-  background: var(--lt-card);
-}
-
-.lt-stop-board-toolbar {
-  padding: 0 var(--lt-panel-x) 10px;
-}
-
-.lt-stop-board-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-text);
-  cursor: pointer;
-  user-select: none;
-}
-
-.lt-stop-board-checkbox input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--lt-accent);
-}
-
-.lt-stop-board-show-all-btn {
-  margin: 8px var(--lt-panel-x) 16px;
-  padding: 10px 16px;
-  font-size: var(--lt-fs-base);
-  font-weight: 600;
-  color: var(--lt-accent);
-  background: rgba(138, 180, 248, 0.12);
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-icon);
-  cursor: pointer;
-}
-
-.lt-stop-board-show-all-btn:hover {
-  background: rgba(138, 180, 248, 0.2);
+.lt-stop-board-show-all {
+  margin: 4px var(--lt-panel-x) 16px;
 }
 
 /* Табло зупинки — картки в дусі Jakdojade (темна тема сайту) */
