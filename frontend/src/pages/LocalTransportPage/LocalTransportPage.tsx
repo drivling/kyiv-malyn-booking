@@ -408,6 +408,8 @@ export const LocalTransportPage: React.FC = () => {
     setMapResizeToken((t) => t + 1);
   }, []);
   const closeMap = useCallback(() => setMapOpen(false), []);
+  /** Повна таблиця розкладу на сторінці маршруту: розгорнута на десктопі, згорнута на телефоні */
+  const [timetableOpen, setTimetableOpen] = useState(() => !isPhone);
 
   useEffect(() => {
     try {
@@ -1004,6 +1006,19 @@ export const LocalTransportPage: React.FC = () => {
     el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, []);
 
+  // Стрічка відправлень: натиснутий чіп — у видимій частині (лише горизонтальна прокрутка стрічки)
+  useEffect(() => {
+    if (!isDetailPage) return;
+    const chip = document.querySelector<HTMLElement>('.lt-departure-chip[aria-pressed="true"]');
+    const strip = chip?.parentElement;
+    if (!chip || !strip || typeof strip.scrollTo !== 'function') return;
+    try {
+      strip.scrollTo({ left: chip.offsetLeft - strip.clientWidth / 2 + chip.clientWidth / 2, behavior: 'smooth' });
+    } catch {
+      /* старі браузери без options */
+    }
+  }, [isDetailPage, selectedTripTime, stopsDirection, fromStop, toStop]);
+
   // Кнопки «Знайти» немає — видача жива, тож нова пара мʼяко прокручує до результатів.
   // Пара з адресного рядка при відкритті сторінки не прокручує: людина ще нічого не обирала.
   const skipResultsScrollRef = useRef(Boolean(fromPathDecoded && toPathDecoded));
@@ -1159,43 +1174,38 @@ export const LocalTransportPage: React.FC = () => {
                   </span>
                 </h1>
                 {fareAmount != null && (
-                  <span
-                    className="lt-fare lt-fare--header"
-                    aria-label={`Проїзд ${fareAmount} гривень`}
-                  >
-                    <span className="lt-fare-label">Проїзд</span>
-                    <span className="lt-fare-amount">
-                      {fareAmount}
-                      <span className="lt-fare-currency" aria-hidden>
-                        ₴
-                      </span>
-                    </span>
+                  <span className="lt-chip lt-chip--static lt-fare-chip" aria-label={`Проїзд ${fareAmount} гривень`}>
+                    <span className="lt-fare-chip__label">проїзд</span>
+                    {fareAmount} ₴
                   </span>
                 )}
               </div>
-              <div
-                className="lt-detail-header-actions lt-direction-toggle"
-                role="group"
-                aria-label="Напрямок руху"
-              >
-                <button
-                  type="button"
-                  className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
-                  aria-pressed={stopsDirection === 'there'}
-                  title={detailRoute.to ? `Туди: ${detailRoute.to}` : 'Туди'}
-                  onClick={() => reverseDirectionAndFromTo('there')}
-                >
-                  Туди
-                </button>
-                <button
-                  type="button"
-                  className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
-                  aria-pressed={stopsDirection === 'back'}
-                  title={detailRoute.from ? `Назад: ${detailRoute.from}` : 'Назад'}
-                  onClick={() => reverseDirectionAndFromTo('back')}
-                >
-                  Назад
-                </button>
+              <div className="lt-detail-header-actions">
+                <div className="lt-direction-toggle" role="group" aria-label="Напрямок руху">
+                  <button
+                    type="button"
+                    className={`lt-direction-btn ${stopsDirection === 'there' ? 'lt-direction-btn--active' : ''}`}
+                    aria-pressed={stopsDirection === 'there'}
+                    title={detailRoute.to ? `Туди: ${detailRoute.to}` : 'Туди'}
+                    onClick={() => reverseDirectionAndFromTo('there')}
+                  >
+                    Туди
+                  </button>
+                  <button
+                    type="button"
+                    className={`lt-direction-btn ${stopsDirection === 'back' ? 'lt-direction-btn--active' : ''}`}
+                    aria-pressed={stopsDirection === 'back'}
+                    title={detailRoute.from ? `Назад: ${detailRoute.from}` : 'Назад'}
+                    onClick={() => reverseDirectionAndFromTo('back')}
+                  >
+                    Назад
+                  </button>
+                </div>
+                {isPhone && (
+                  <button type="button" className="lt-chip lt-chip--map" onClick={openMap}>
+                    Карта
+                  </button>
+                )}
               </div>
             </header>
 
@@ -1270,49 +1280,55 @@ export const LocalTransportPage: React.FC = () => {
 
               return (
                 <>
-                  {/* Секція Розклад руху: завжди показуємо дату, час, вибір рейсу по поточному напрямку, Друк */}
+                  {/* Розклад руху: чіпи дати/часу, стрічка відправлень (час на «Звідки»), повна таблиця */}
                   <section className="lt-timetable-section lt-timetable-section--compact" aria-labelledby="lt-rozklad-heading">
-                    <h2 id="lt-rozklad-heading" className="lt-section-title">Розклад руху</h2>
-                    <div className="lt-timetable-header lt-timetable-header--jd lt-timetable-header--compact">
-                      <span className="lt-detail-date">{dateFromUrl || formatDateUrl(new Date())}</span>
-                      <span className="lt-detail-time">{timeFromUrl || hourFromUrl || '—'}</span>
-                      {tableTripsInDirection && tableTripsInDirection.length > 0 && (
-                        <>
-                          <label className="lt-time-picker-label">Відправлення о</label>
-                          <select
-                            className="lt-time-picker-select lt-time-picker-select--compact"
-                            value={
-                              selectedTripDirection === stopsDirection &&
-                              selectedTripTime != null &&
-                              tableTripsInDirection.some(
-                                (r) => r.baseTime === selectedTripTime && r.direction === selectedTripDirection
-                              )
-                                ? tableTripsInDirection.find(
-                                    (r) => r.baseTime === selectedTripTime && r.direction === selectedTripDirection
-                                  )?.dep ?? tableTripsInDirection[0]?.dep
-                                : tableTripsInDirection[0]?.dep ?? ''
-                            }
-                            onChange={(e) => {
-                              const dep = e.target.value;
-                              const row = tableTripsInDirection.find((r) => r.dep === dep);
-                              if (row) updateDetailUrl({ time: row.dep, dir: row.direction });
-                            }}
-                            aria-label="Час відправлення"
-                          >
-                            {tableTripsInDirection.map((row, i) => (
-                              <option key={i} value={row.dep}>
-                                {row.dep} — прибуття {row.arr}
-                              </option>
-                            ))}
-                          </select>
-                        </>
-                      )}
+                    <div className="lt-section-head">
+                      <h2 id="lt-rozklad-heading" className="lt-section-title">Розклад руху</h2>
                       <button type="button" className="lt-print-btn lt-print-btn--compact" onClick={() => window.print()} title="Друк">
                         Друк
                       </button>
                     </div>
+                    <div className="lt-search-chips lt-route-chips">
+                      <DateTimeControls
+                        idPrefix="lt-route"
+                        page="route"
+                        date={dateFromUrl || todayDateUrl()}
+                        time={hourFromUrl || nowClock()}
+                        onChange={({ date, time }) => updateDetailUrl({ d: date, h: time, time: undefined })}
+                      />
+                    </div>
+                    {tableTripsInDirection && tableTripsInDirection.length > 0 ? (
+                      <div className="lt-departures" role="group" aria-label="Відправлення за день">
+                        {tableTripsInDirection.map((row, i) => {
+                          const pressed = selectedTripTime === row.baseTime && selectedTripDirection === row.direction;
+                          return (
+                            <button
+                              key={`${row.dep}-${row.arr}-${i}`}
+                              type="button"
+                              className="lt-chip lt-departure-chip"
+                              aria-pressed={pressed}
+                              onClick={() => updateDetailUrl({ time: row.dep, dir: row.direction })}
+                            >
+                              <span className="lt-departure-chip__dep">{row.dep}</span>
+                              {fromStop && toStop ? <span className="lt-departure-chip__arr">→ {row.arr}</span> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="lt-empty lt-empty--inline">У цьому напрямку між обраними зупинками рейсів немає.</p>
+                    )}
+                    <button
+                      type="button"
+                      className="lt-chip lt-chip--small lt-timetable-toggle"
+                      aria-expanded={timetableOpen}
+                      aria-controls="lt-timetable-full"
+                      onClick={() => setTimetableOpen((o) => !o)}
+                    >
+                      Повний розклад
+                    </button>
                     {tableTripsInDirection && tableTripsInDirection.length > 0 && (
-                      <div className="lt-timetable lt-timetable--jd">
+                      <div id="lt-timetable-full" className={`lt-timetable lt-timetable--jd ${timetableOpen ? '' : 'lt-timetable--collapsed'}`}>
                         <table className="lt-timetable-table lt-timetable-table--tablica">
                           <thead>
                             <tr>
@@ -1543,14 +1559,9 @@ export const LocalTransportPage: React.FC = () => {
                 coordsData: mapCoordsData,
               };
               return isPhone ? (
-                <>
-                  <button type="button" className="lt-map-fab" onClick={openMap}>
-                    Карта
-                  </button>
-                  <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={`Маршрут №${detailRoute.id}`}>
-                    <RouteMap {...mapProps} resizeToken={mapResizeToken} />
-                  </LocalTransportMapOverlay>
-                </>
+                <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={`Маршрут №${detailRoute.id}`}>
+                  <RouteMap {...mapProps} resizeToken={mapResizeToken} />
+                </LocalTransportMapOverlay>
               ) : (
                 <div className="lt-map-column">
                   <RouteMap {...mapProps} showStrip />

@@ -302,6 +302,31 @@ test.describe('transport', () => {
     });
   });
 
+  test.describe('route page on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('departures strip, collapsed full timetable that still prints, «Карта» chip opens the map', async ({ page }) => {
+      await page.goto('/transport/route/2?stop=st_a&to=st_c&d=16.09.26&h=08%3A00');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/№2/);
+      const strip = page.getByRole('group', { name: 'Відправлення за день' });
+      await expect(strip.getByRole('button', { pressed: true })).toHaveText(/08:30/);
+      const toggle = page.getByRole('button', { name: 'Повний розклад' });
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(page.locator('#lt-timetable-full')).toBeHidden();
+      await page.emulateMedia({ media: 'print' });
+      await expect(page.locator('#lt-timetable-full')).toBeVisible();
+      await page.emulateMedia({ media: 'screen' });
+      await toggle.click();
+      await expect(page.locator('#lt-timetable-full')).toBeVisible();
+      await expect(page.locator('.lt-map-column')).toBeHidden();
+      await page.getByRole('button', { name: 'Карта', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Карта' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Готово' }).click();
+      await expect(dialog).toBeHidden();
+    });
+  });
+
   test.describe('map on a phone', () => {
     test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 

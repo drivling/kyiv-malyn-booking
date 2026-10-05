@@ -15,7 +15,7 @@ interface DateTimeControlsProps extends DateTimeValue {
   /** Префікс для id полів (`{prefix}-date`, `{prefix}-time`, `{prefix}-datetime-panel`) */
   idPrefix?: string;
   /** Для події `transport_date_chip` */
-  page: 'planner' | 'board';
+  page: 'planner' | 'board' | 'route';
 }
 
 /**

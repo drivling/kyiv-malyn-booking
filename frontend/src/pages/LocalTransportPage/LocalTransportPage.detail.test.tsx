@@ -10,6 +10,7 @@ import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from '../TransportPage/useTransportDataset';
+import { tomorrowDateUrl } from './dateUrl';
 import { LocalTransportPage } from './LocalTransportPage';
 
 vi.mock('./RouteMap', () => ({ RouteMap: () => <div data-testid="route-map" /> }));
@@ -193,6 +194,72 @@ describe('LocalTransportPage route page: the pair comes from the URL', () => {
     await user.click(screen.getByRole('button', { name: 'Туди' }));
     await waitFor(() => expect(location()).toBe('/transport/route/2?stop=st_a&to=st_c&d=01.03.26&h=09%3A30&dir=there'));
     expect(selectedRow()).toHaveTextContent('09:40');
+  });
+
+  it('the departures strip lists the trips at «Звідки», the nearest is pressed, a tap pins one', async () => {
+    const user = userEvent.setup();
+    await openRoute('/transport/route/2?stop=st_a&to=st_b&d=01.03.26&h=09%3A00');
+    const strip = screen.getByRole('group', { name: 'Відправлення за день' });
+    const chips = within(strip).getAllByRole('button');
+    expect(chips.map((c) => c.textContent)).toEqual(['08:30→ 08:34', '09:40→ 09:44', '10:55→ 10:59']);
+    expect(chips[1]).toHaveAttribute('aria-pressed', 'true');
+    expect(selectedRow()).toHaveTextContent('09:40');
+    await user.click(chips[2]);
+    await waitFor(() => expect(location()).toContain('time=10%3A55'));
+    expect(within(strip).getAllByRole('button')[2]).toHaveAttribute('aria-pressed', 'true');
+    expect(fromItem()).toHaveTextContent('10:55');
+  });
+
+  it('the full timetable is open on a desktop and the toggle collapses it', async () => {
+    const user = userEvent.setup();
+    await openRoute('/transport/route/2?stop=st_a&to=st_b&d=01.03.26&h=08%3A00');
+    const toggle = screen.getByRole('button', { name: 'Повний розклад' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById('lt-timetable-full')).not.toHaveClass('lt-timetable--collapsed');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('lt-timetable-full')).toHaveClass('lt-timetable--collapsed');
+  });
+
+  it('on a phone the full timetable starts collapsed and «Карта» opens the full-screen map', async () => {
+    const user = userEvent.setup();
+    const desktopMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    try {
+      await openRoute('/transport/route/2?stop=st_a&to=st_b&d=01.03.26&h=08%3A00');
+      expect(screen.getByRole('button', { name: 'Повний розклад' })).toHaveAttribute('aria-expanded', 'false');
+      expect(document.getElementById('lt-timetable-full')).toHaveClass('lt-timetable--collapsed');
+      expect(document.querySelector('.lt-map-column')).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Карта' }));
+      const dialog = screen.getByRole('dialog', { name: 'Карта' });
+      expect(within(dialog).getByText('Маршрут №2')).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Готово' }));
+      expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
+    } finally {
+      window.matchMedia = desktopMatchMedia;
+    }
+  });
+
+  it('the date chips write d/h to the URL and unpin the trip', async () => {
+    const user = userEvent.setup();
+    await openRoute('/transport/route/2?stop=st_a&to=st_b&d=01.03.26&h=08%3A00&time=10%3A55');
+    expect(selectedRow()).toHaveTextContent('10:55');
+    const chips = screen.getByRole('group', { name: 'Дата і час' });
+    expect(within(chips).getByRole('button', { name: '01.03.26 о 08:00' })).toBeInTheDocument();
+    await user.click(within(chips).getByRole('button', { name: 'Завтра' }));
+    await waitFor(() =>
+      expect(location()).toBe(`/transport/route/2?stop=st_a&to=st_b&d=${tomorrowDateUrl()}&h=08%3A00`)
+    );
+    expect(selectedRow()).toHaveTextContent('08:30');
   });
 
   it('«Назад до пошуку» returns to the planner with the pair, or to the stop board with one stop', async () => {
