@@ -2593,42 +2593,38 @@
   margin: 4px var(--lt-panel-x) 16px;
 }
 
-/* Табло зупинки — картки в дусі Jakdojade (темна тема сайту) */
+/* Табло зупинки — картки відправлень у мові карток планувальника */
 .lt-jd-cards {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   margin: 0;
-  padding: 6px var(--lt-panel-x) 24px;
+  padding: 0 var(--lt-panel-x) var(--lt-panel-block);
   list-style: none;
 }
 
 /* Справжній список: <li> — елемент, <a> усередині лишається лінком для скрінрідера */
 .lt-jd-cards > li {
-  list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .lt-jd-card {
-  display: grid;
-  grid-template-columns: minmax(6.5rem, 8.5rem) 1fr;
-  gap: 16px 20px;
+  display: flex;
   align-items: stretch;
-  padding: 16px 18px;
-  border-radius: var(--lt-radius);
+  min-height: 72px;
+  padding: var(--lt-panel-y) 14px;
   background: var(--lt-card);
   border: 1px solid var(--lt-border);
-  box-shadow: var(--lt-elev-1);
+  border-radius: var(--lt-radius-sm);
+  color: var(--lt-text);
   text-decoration: none;
-  color: inherit;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .lt-jd-card:hover {
-  border-color: rgba(0, 175, 245, 0.45);
-  box-shadow: 0 8px 28px rgba(5, 71, 82, 0.12);
-  transform: translateY(-1px);
+  border-color: var(--lt-accent);
+  box-shadow: var(--lt-elev-1);
 }
 
 .lt-jd-card:focus-visible {
@@ -2636,110 +2632,55 @@
   outline-offset: 2px;
 }
 
+/* Найближчий рейс — смуга origin ліворуч */
 .lt-jd-card--next {
-  border-color: rgba(15, 165, 115, 0.4);
-  box-shadow:
-    0 2px 12px rgba(5, 71, 82, 0.08),
-    inset 3px 0 0 0 var(--lt-origin);
-  background: linear-gradient(180deg, var(--lt-card) 0%, var(--lt-bg) 100%);
+  border-color: var(--lt-origin);
+  box-shadow: inset 3px 0 0 var(--lt-origin);
 }
 
-.lt-jd-card__countdown {
+.lt-jd-card__time {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  min-height: 4.25rem;
+  min-width: 64px;
+  max-width: 120px;
+  padding-right: 14px;
+  border-right: 1px solid var(--lt-border);
 }
 
-.lt-jd-card__countdown-label {
+.lt-jd-card__clock {
+  font-size: var(--lt-fs-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text);
+}
+
+.lt-jd-card__wait {
   font-size: var(--lt-fs-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--lt-text-muted);
-  margin-bottom: 6px;
-}
-
-.lt-jd-card__countdown-big {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-}
-
-.lt-jd-card__countdown-num {
-  font-size: var(--lt-fs-2xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: var(--lt-text);
-}
-
-.lt-jd-card__countdown-big--hm {
-  align-items: center;
-}
-
-.lt-jd-card__countdown-hm {
-  font-size: var(--lt-fs-lg);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
   line-height: 1.25;
-  color: var(--lt-text);
-  letter-spacing: -0.02em;
 }
 
-.lt-jd-card__countdown-hm-suffix {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  letter-spacing: 0;
-}
-
-.lt-jd-card__countdown-at {
-  display: block;
-  margin-top: 8px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--lt-text-muted);
-  letter-spacing: 0.04em;
-}
-
-.lt-jd-card__countdown-unit {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-}
-
-.lt-jd-card__countdown-now {
-  font-size: var(--lt-fs-xl);
-  font-weight: 700;
-  color: var(--lt-origin);
-}
-
-.lt-jd-card__countdown-past {
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-text-muted);
-}
-
-.lt-jd-card__countdown-big--static .lt-jd-card__countdown-time {
-  font-size: var(--lt-fs-xl);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.lt-jd-card__wait--soon {
   color: var(--lt-accent);
+  font-weight: 600;
+}
+
+.lt-jd-card__wait--now {
+  color: var(--lt-origin-ink);
+  font-weight: 700;
 }
 
 .lt-jd-card__body {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.lt-jd-card__route-row {
-  display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 8px;
+  align-items: center;
+  align-content: center;
+  gap: 4px 10px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 14px;
 }
 
 /* Номер на табло: контурна плашка в кольорі лінії зі схеми; перевірений маршрут — суцільна */
@@ -2747,7 +2688,7 @@
   flex-shrink: 0;
   font-weight: 700;
   font-size: var(--lt-fs-base);
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: var(--lt-radius-pill);
   background: var(--lt-card);
   color: var(--lt-route-color, var(--lt-text-muted));
@@ -2761,66 +2702,13 @@
   border-color: var(--lt-route-color, var(--lt-accent));
 }
 
-.lt-jd-card__route-arrow {
-  color: var(--lt-text-muted);
-  font-size: var(--lt-fs-base);
-}
-
 .lt-jd-card__destination {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--lt-fs-md);
   font-weight: 600;
   color: var(--lt-text);
-  line-height: 1.35;
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-jd-card__time-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-}
-
-.lt-jd-card__pill {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: var(--lt-radius-icon);
-  font-size: var(--lt-fs-base);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.lt-jd-card__pill--dep {
-  background: rgba(15, 165, 115, 0.12);
-  color: var(--lt-origin);
-  border: 1px solid rgba(15, 165, 115, 0.35);
-}
-
-.lt-jd-card__pill-hint {
-  font-size: var(--lt-fs-xs);
-  color: var(--lt-text-muted);
-}
-
-@media (max-width: 520px) {
-  .lt-jd-card {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .lt-jd-card__countdown {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 0;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--lt-border);
-    width: 100%;
-  }
-
-  .lt-jd-card__countdown-label {
-    margin-bottom: 0;
-  }
+  line-height: 1.3;
 }
 
 .lt-nearest-item-row {

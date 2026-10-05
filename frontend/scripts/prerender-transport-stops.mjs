@@ -187,7 +187,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
     },
     {
       q: 'Як побудувати маршрут від цієї зупинки?',
-      a: 'У планері /transport оберіть «З» = ця зупинка і потрібну «До» — прямі маршрути з найближчим відправленням з’являться одразу.',
+      a: 'У планері /transport оберіть «Звідки» = ця зупинка і потрібну «Куди» — прямі маршрути з найближчим відправленням з’являться одразу.',
     },
   ];
   const jsonLd = {
@@ -242,7 +242,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
     ${relatedHtml}
     <p style="font-size:0.75em;border:1px dashed #b7c5c9;padding:6px 9px;border-radius:6px;color:#708c91">
       Розклад — у картках на інтерактивному табло. Маршрут до іншої зупинки — у
-      <a href="/transport?from=${encodeURIComponent(stopId)}">планері «З → До»</a>.
+      <a href="/transport?from=${encodeURIComponent(stopId)}">планері «Звідки → Куди»</a>.
     </p>`;
   } else if (article?.lead) {
     articleHtml = `<h2>Про зупинку</h2><p>${escapeHtml(article.lead)}</p>${relatedHtml}`;
@@ -257,7 +257,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
     <h1>Зупинка «${escapeHtml(name)}» — розклад</h1>
     <p>${escapeHtml(description)}</p>
     ${articleHtml}
-    <p><a href="/transport/stop/${encodeURIComponent(stopId)}">Відкрити інтерактивне табло</a> · <a href="/transport">Планер З → До</a></p>
+    <p><a href="/transport/stop/${encodeURIComponent(stopId)}">Відкрити інтерактивне табло</a> · <a href="/transport">Планер Звідки → Куди</a></p>
     <h2>Маршрути через зупинку</h2>
     ${routesHtml}
     <h2>Часті питання</h2>

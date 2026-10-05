@@ -104,6 +104,14 @@ function roundedDepartureMins(mins: number): number {
   return Math.round(mins);
 }
 
+/** «12 хв», «1 год 5 хв» — підпис відліку до відправлення (як у планувальнику) */
+function formatWaitMins(mins: number): string {
+  if (mins < 60) return `${mins} хв`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h} год ${m} хв` : `${h} год`;
+}
+
 export const LocalTransportStopBoardPage: React.FC = () => {
   const { stopSlug } = useParams<{ stopSlug?: string }>();
   const navigate = useNavigate();
@@ -229,7 +237,6 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return Math.max(kyivNowMins, referenceMins);
   }, [travelDayOffsetDays, showFullDay, kyivNowMins, referenceMins]);
 
-  const showDepartureCountdown = travelDayOffsetDays !== null && travelDayOffsetDays >= 0;
 
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
@@ -627,89 +634,49 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   if (searchDate) qs.set('d', searchDate);
                   qs.set('h', depClock);
                   const toRoute = `/transport/route/${row.routeId}?${qs.toString()}`;
-                  let deltaMins = 0;
+                  // Відлік лише для сьогоднішньої дати (за Києвом), як на картках планувальника
+                  let waitLabel = 'відправлення';
+                  let waitMod = '';
                   if (travelDayOffsetDays === 0) {
-                    deltaMins = depMins - countdownBaselineMins;
+                    let deltaMins = depMins - countdownBaselineMins;
                     if (deltaMins < 0 && countdownBaselineMins >= 22 * 60 && depMins < 4 * 60) {
                       deltaMins += 24 * 60;
                     }
-                  } else if (travelDayOffsetDays !== null && travelDayOffsetDays > 0) {
-                    deltaMins = travelDayOffsetDays * 24 * 60 + depMins - kyivNowMins;
+                    if (deltaMins > 0) {
+                      waitLabel = `через ${formatWaitMins(deltaMins)}`;
+                      waitMod = 'lt-jd-card__wait--soon';
+                    } else if (deltaMins === 0) {
+                      waitLabel = 'зараз';
+                      waitMod = 'lt-jd-card__wait--now';
+                    } else {
+                      waitLabel = 'вже вирушив';
+                    }
                   }
                   const aria = `Маршрут ${row.routeId}, відправлення ${depClock}, ${row.destination}`;
-                  const waitHours = deltaMins >= 60 ? Math.floor(deltaMins / 60) : 0;
-                  const waitMinsRem = deltaMins >= 60 ? deltaMins % 60 : deltaMins;
                   return (
                     <li key={`${row.tripId}-${depMins}-${i}`}>
-                    <Link
-                      className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
-                      to={toRoute}
-                      aria-label={aria}
-                    >
-                      <div className="lt-jd-card__countdown" aria-hidden>
-                        {showDepartureCountdown ? (
-                          deltaMins > 0 ? (
-                            <>
-                              <span className="lt-jd-card__countdown-label">Відправлення через</span>
-                              <div
-                                className={`lt-jd-card__countdown-big ${deltaMins >= 60 ? 'lt-jd-card__countdown-big--hm' : ''}`}
-                              >
-                                {deltaMins < 60 ? (
-                                  <>
-                                    <span className="lt-jd-card__countdown-num">{deltaMins}</span>
-                                    <span className="lt-jd-card__countdown-unit">хв</span>
-                                  </>
-                                ) : (
-                                  <span className="lt-jd-card__countdown-hm">
-                                    {waitHours}
-                                    <span className="lt-jd-card__countdown-hm-suffix"> год</span>
-                                    {waitMinsRem > 0 ? (
-                                      <>
-                                        {' '}
-                                        {waitMinsRem}
-                                        <span className="lt-jd-card__countdown-hm-suffix"> хв</span>
-                                      </>
-                                    ) : null}
-                                  </span>
-                                )}
-                              </div>
-                              {deltaMins >= 60 ? (
-                                <span className="lt-jd-card__countdown-at">о {depClock}</span>
-                              ) : null}
-                            </>
-                          ) : deltaMins === 0 ? (
-                            <span className="lt-jd-card__countdown-now">Зараз</span>
-                          ) : (
-                            <span className="lt-jd-card__countdown-past">Вже минуло</span>
-                          )
-                        ) : (
-                          <>
-                            <span className="lt-jd-card__countdown-label">Відправлення о</span>
-                            <div className="lt-jd-card__countdown-big lt-jd-card__countdown-big--static">
-                              <span className="lt-jd-card__countdown-time">{depClock}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="lt-jd-card__body">
-                        <div className="lt-jd-card__route-row">
+                      <Link
+                        className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
+                        to={toRoute}
+                        aria-label={aria}
+                      >
+                        <div className="lt-jd-card__time" aria-hidden>
+                          <span className="lt-jd-card__clock">{depClock}</span>
+                          <span className={`lt-jd-card__wait ${waitMod}`}>{waitLabel}</span>
+                        </div>
+                        <div className="lt-jd-card__body">
                           <span
                             className={`lt-jd-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-jd-card__route-num--verified' : ''}`}
                             style={routeColorStyle(row.routeId)}
                           >
                             №{row.routeId}
                           </span>
-                          <span className="lt-jd-card__route-arrow" aria-hidden>
-                            →
+                          <span className="lt-jd-card__destination">
+                            <span aria-hidden>→ </span>
+                            {row.destination}
                           </span>
-                          <span className="lt-jd-card__destination">{row.destination}</span>
                         </div>
-                        <div className="lt-jd-card__time-line">
-                          <span className="lt-jd-card__pill lt-jd-card__pill--dep">{depClock}</span>
-                          <span className="lt-jd-card__pill-hint">відправлення з зупинки</span>
-                        </div>
-                      </div>
-                    </Link>
+                      </Link>
                     </li>
                   );
                 })}
@@ -796,7 +763,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 <p>
                   Розклад — у картках вище. Маршрут до іншої зупинки — у{' '}
                   <Link to={selectedStop ? `/transport?from=${encodeURIComponent(selectedStop)}` : '/transport'}>
-                    планері «З → До»
+                    планері «Звідки → Куди»
                   </Link>
                   .
                 </p>
@@ -831,7 +798,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               ))}
             </dl>
             <p className="lt-aeo-more">
-              Планер <Link to="/transport">З → До</Link>
+              Планер <Link to="/transport">Звідки → Куди</Link>
               {selectedStop ? (
                 <>
                   {' · '}
