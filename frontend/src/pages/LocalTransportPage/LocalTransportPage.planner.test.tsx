@@ -406,8 +406,11 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
   it('h1, document.title and robots reflect the pair; results heading is an h2', async () => {
     await openPair();
     expect(screen.getByRole('heading', { level: 1, name: 'Базар → Вокзал' })).toBeInTheDocument();
-    expect(document.title).toMatch(/^Базар → Вокзал — як доїхати у Малині/);
-    expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, follow');
+    // title/robots ставить пасивний ефект usePageSeo — він може відстати від DOM-заголовка на один тік
+    await waitFor(() => {
+      expect(document.title).toMatch(/^Базар → Вокзал — як доїхати у Малині/);
+      expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, follow');
+    });
     expect(screen.getByRole('heading', { level: 2, name: /Прямі маршрути: Базар → Вокзал/ })).toBeInTheDocument();
   });
 
