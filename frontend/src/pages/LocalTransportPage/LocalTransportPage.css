@@ -89,7 +89,6 @@
 .lt-page .lt-back--header:focus-visible,
 .lt-page .lt-geo-btn:focus-visible,
 .lt-page .lt-geo-btn--small:focus-visible,
-.lt-page .lt-search-btn:focus-visible,
 .lt-page .lt-subnav-link:focus-visible {
   outline: 2px solid var(--lt-accent);
   outline-offset: 2px;
@@ -367,6 +366,8 @@
 .lt-detail-picker-btn {
   margin-top: 14px;
   width: 100%;
+  min-height: 44px;
+  font-size: var(--lt-fs-md);
 }
 
 /* Компактний рядок після вибору маршруту (Jakdojade-стиль) */
@@ -546,7 +547,7 @@
  */
 .lt-theme-jakdojade .lt-from-to-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 40px;
   grid-template-areas:
     'from swap'
     'to swap';
@@ -596,7 +597,9 @@
 
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
   margin: 0;
-  flex: 0 0 44px;
+  /* «ЗВІДКИ» з крапкою — ≈72px; обидва поля починаються з однієї x-координати (e2e перевіряє) */
+  flex: 0 0 74px;
+  white-space: nowrap;
 }
 
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox {
@@ -749,37 +752,11 @@
   min-width: 100px;
 }
 
-.lt-search-btn {
-  flex: 1;
-  min-width: 120px;
-  padding: 12px 22px;
-  background: var(--lt-accent);
-  color: #fff;
-  border: none;
-  border-radius: var(--lt-radius-sm);
-  font-family: inherit;
-  font-size: var(--lt-fs-md);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-}
-
-.lt-search-btn:hover:not(:disabled) {
-  background: var(--lt-accent-hover);
-}
-
-.lt-search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .lt-theme-jakdojade .lt-datetime-row {
   gap: 8px;
 }
 
-/* Планувальник: «Дата» і «Час» в один рядок, «Знайти» на всю ширину під ними. */
+/* Планувальник: «Дата» і «Час» в один рядок. */
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -792,26 +769,6 @@
 
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-input {
   min-width: 0;
-}
-
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-search-btn {
-  grid-column: 1 / -1;
-}
-
-.lt-theme-jakdojade .lt-search-btn {
-  min-width: 100px;
-  padding: 12px 18px;
-}
-
-.lt-search-extra {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.lt-search-actions .lt-search-btn {
-  width: 100%;
 }
 
 /* Рядок чіпів «Зараз» / «Завтра» / «Сьогодні о 09:12» (останній розгортає нативні поля). */
@@ -831,6 +788,70 @@
 
 .lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-chips {
   grid-column: 1 / -1;
+}
+
+.lt-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lt-search-chips .lt-datetime-chips {
+  display: contents;
+}
+
+/* Розгорнуті поля дати/часу — завжди окремим рядком під чіпами (і під чіпом «Карта») */
+.lt-search-chips .lt-datetime-row {
+  order: 10;
+  flex: 1 1 100%;
+}
+
+/* Гео-кнопка всередині поля «Звідки» (слот trailing Combobox), поки поле порожнє */
+.lt-geo-inline {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--lt-radius-icon);
+  background: transparent;
+  color: var(--lt-accent);
+  font-size: var(--lt-fs-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lt-geo-inline:hover {
+  background: var(--lt-accent-light);
+}
+
+.lt-geo-inline[aria-busy='true'] {
+  color: var(--lt-text-muted);
+  cursor: progress;
+}
+
+.lt-geo-inline[aria-busy='true'] svg {
+  animation: lt-geo-pulse 1s ease-in-out infinite;
+}
+
+@keyframes lt-geo-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lt-geo-inline[aria-busy='true'] svg {
+    animation: none;
+  }
+}
+
+.combobox-input-wrap--clearable .lt-geo-inline {
+  display: none;
 }
 
 .lt-chip {
@@ -871,6 +892,13 @@
 }
 
 /* Підказка над результатами, поки текст у полі не відповідає жодній зупинці. */
+.lt-routes .lt-no-routes {
+  padding: 12px 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
+}
+
 .lt-routes-hint {
   margin: 0 0 8px;
   padding: 0 var(--lt-panel-x);
@@ -886,7 +914,7 @@
 
 .lt-routes-heading {
   margin: 0 0 6px;
-  padding: 0 var(--lt-panel-x);
+  padding: 0;
   font-size: var(--lt-fs-sm);
   font-weight: 500;
   color: var(--lt-text);
@@ -1019,40 +1047,36 @@
 .lt-routes {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
+  padding: 0 var(--lt-panel-x);
 }
 
 .lt-route-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  text-align: left;
-  background: var(--lt-card);
-  border: none;
-  border-bottom: 1px solid var(--lt-border-light);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.lt-route-card--jd {
   align-items: stretch;
   gap: 0;
-  padding: var(--lt-panel-y) var(--lt-panel-x);
+  width: 100%;
   min-height: 72px;
-}
-
-.lt-route-card--jd:hover {
-  background: var(--lt-bg);
-}
-
-.lt-route-card:last-child {
-  border-bottom: none;
+  padding: var(--lt-panel-y) 14px;
+  text-align: left;
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .lt-route-card:hover {
-  background: var(--lt-bg);
+  border-color: var(--lt-accent);
+  box-shadow: var(--lt-elev-1);
+}
+
+.lt-route-card-next {
+  flex: 1 1 100%;
+  font-size: var(--lt-fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-muted);
+  line-height: 1.3;
 }
 
 .lt-route-card-time {
@@ -1222,15 +1246,36 @@
   color: var(--lt-text-muted);
 }
 
+/* Швидкий старт без пари: підказка, вузли міста чіпами, карта (телефон), уся схема */
 .lt-empty {
-  text-align: center;
-  padding: 32px var(--lt-panel-x);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 8px;
   color: var(--lt-text-muted);
-  font-size: var(--lt-fs-md);
+  font-size: var(--lt-fs-base);
 }
 
 .lt-empty-text {
   margin: 0;
+  line-height: 1.45;
+}
+
+.lt-quick-title {
+  margin: 4px 0 0;
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  color: var(--lt-text);
+}
+
+.lt-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lt-empty .lts-mini {
+  margin: 4px calc(-1 * var(--lt-panel-x)) 0;
 }
 
 /* «Відкрити карту» має сенс лише на мобільному, де карта — згорнутий лист унизу */
@@ -2112,6 +2157,11 @@
   color: #fff;
 }
 
+.lt-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .lt-btn--origin {
   border-color: var(--lt-origin);
   background: var(--lt-origin);
@@ -2201,25 +2251,44 @@
 
 .lt-aeo-route-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 6px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
   margin: 0 0 4px;
   padding: 0;
   list-style: none;
 }
 
 .lt-aeo-route-list a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
   color: var(--lt-text);
   font-weight: 600;
   text-decoration: none;
   font-size: var(--lt-fs-base);
 }
 
-.lt-aeo-route-list a:hover .lt-aeo-route-line {
-  text-decoration: underline;
+.lt-aeo-route-list a:hover {
+  border-color: var(--lt-accent);
+}
+
+.lt-aeo-route-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lt-aeo-route-via {
+  font-size: var(--lt-fs-xs);
+  font-weight: 500;
+  color: var(--lt-text-muted);
+  line-height: 1.35;
 }
 
 /* Каталог ліній: плашка номера в кольорі лінії зі схеми */
@@ -2471,7 +2540,6 @@
 .lt-print-btn,
 .lt-direction-btn,
 .lt-timetable-row-clickable,
-.lt-search-btn,
 .lt-detail-summary-change,
 .lt-from-to-swap {
   -webkit-tap-highlight-color: transparent;

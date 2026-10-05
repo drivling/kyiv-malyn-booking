@@ -13,8 +13,13 @@ test.describe('transport', () => {
     await expect(page.getByRole('heading', { name: 'Маршрути Малина' })).toBeVisible({
       timeout: 15_000,
     });
-    // exact: поруч є «Знайти найближчі зупинки за геолокацією» (aria-label геокнопки)
-    await expect(page.getByRole('button', { name: 'Знайти', exact: true })).toBeVisible();
+    // Без пари — швидкий старт: чіп вузла схеми ставить «Куди» (Поліклініка належить вузлу «Лікарня · Поліклініка»)
+    await expect(page.getByText('Куди їдете?')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Знайти', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Лікарня · Поліклініка' }).click();
+    await expect(page.getByRole('combobox', { name: 'Куди' })).toHaveValue('Поліклініка');
+    await expect(page.getByText('Тепер оберіть «Звідки»')).toBeVisible();
+    await expect(page).toHaveURL(/\/transport\?to=st_0072&d=/);
   });
 
   test('«Схема»: tab opens the metro-style scheme, a chip highlights the line and links to its schedule', async ({ page }) => {
@@ -110,7 +115,7 @@ test.describe('transport', () => {
     expect(fromBox && toBox).toBeTruthy();
     expect(toBox!.y).toBeGreaterThan(fromBox!.y + fromBox!.height - 1);
     expect(Math.abs(toBox!.x - fromBox!.x)).toBeLessThan(2);
-    const swap = page.getByRole('button', { name: 'Поміняти З та До' });
+    const swap = page.getByRole('button', { name: 'Поміняти місцями', exact: true });
     await expect(swap).toBeVisible();
     const swapBox = await swap.boundingBox();
     expect(swapBox!.x).toBeGreaterThan(fromBox!.x + fromBox!.width - 1);
@@ -130,8 +135,8 @@ test.describe('transport', () => {
 
   test('planner URL follows the form: pick stops, swap, switch to the stop board', async ({ page }) => {
     await page.goto('/transport?d=16.09.26&h=09%3A12');
-    const from = page.getByRole('combobox', { name: 'З' });
-    const to = page.getByRole('combobox', { name: 'До' });
+    const from = page.getByRole('combobox', { name: 'Звідки' });
+    const to = page.getByRole('combobox', { name: 'Куди' });
     await from.click();
     await from.pressSequentially('Ба');
     await page.getByRole('option', { name: 'Базар' }).click();
@@ -152,7 +157,7 @@ test.describe('transport', () => {
     await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?/);
     await page.getByRole('option', { name: 'Базар' }).click();
 
-    await page.getByRole('button', { name: 'Поміняти З та До' }).click();
+    await page.getByRole('button', { name: 'Поміняти місцями', exact: true }).click();
     await expect(page).toHaveURL(/\/transport\/st_b\/st_a\?/);
     await expect(from).toHaveValue('Вокзал');
 
@@ -217,7 +222,7 @@ test.describe('transport', () => {
     // Табло → планувальник: обрана зупинка стає «З»
     await page.getByRole('link', { name: 'Маршрути (З → До)' }).click();
     await expect(page).toHaveURL(/\/transport\?.*from=st_b/);
-    await expect(page.getByRole('combobox', { name: 'З' })).toHaveValue('Вокзал');
+    await expect(page.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Вокзал');
 
     // Назад на табло → картка → сторінка маршруту → «Назад» → знову табло цієї зупинки
     await page.goBack();
@@ -253,7 +258,7 @@ test.describe('transport', () => {
       const helpBox = await help.boundingBox();
       expect(helpBox!.y + helpBox!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
       // Форма планувальника починається вище, ніж раніше з двома рядками меню (було ≈260px)
-      const fromBox = await page.getByRole('combobox', { name: 'З' }).boundingBox();
+      const fromBox = await page.getByRole('combobox', { name: 'Звідки' }).boundingBox();
       expect(fromBox!.y).toBeLessThan(230);
     });
 

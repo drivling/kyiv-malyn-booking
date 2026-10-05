@@ -58,6 +58,34 @@ function renderPlanner(path: string) {
   );
 }
 
+/** Вузол схеми «Залізничний вокзал» (st_0019) у датасеті → чіп швидкого старту */
+const quickDataset = {
+  ...dataset,
+  stops: [...dataset.stops, { id: 'st_0019', name: 'Залізничний вокзал', lat: 50.8, lng: 29.27 }],
+  routeStops: [...dataset.routeStops, { routeId: '2', stopId: 'st_0019', orderThere: 4, orderBack: 0, mapOnly: false }],
+};
+
+/** Два маршрути Базар → Вокзал: №3 відправляється раніше за №2; у №2 ще два рейси «далі» */
+const sortedDataset = {
+  ...dataset,
+  routes: [
+    ...dataset.routes,
+    { id: '3', fromName: 'Базар', toName: 'Вокзал', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+  ],
+  routeStops: [
+    ...dataset.routeStops,
+    { routeId: '3', stopId: 'st_a', orderThere: 1, orderBack: 2, mapOnly: false },
+    { routeId: '3', stopId: 'st_b', orderThere: 2, orderBack: 1, mapOnly: false },
+  ],
+  trips: [
+    ...dataset.trips,
+    { id: 't3', routeId: '2', serviceId: 'everyday', headsign: 'Лікарня', directionId: '1', departureTime: '09:40:00', blockId: null },
+    { id: 't4', routeId: '2', serviceId: 'everyday', headsign: 'Лікарня', directionId: '1', departureTime: '10:55:00', blockId: null },
+    { id: 't5', routeId: '3', serviceId: 'everyday', headsign: 'Вокзал', directionId: '1', departureTime: '08:10:00', blockId: null },
+  ],
+  segments: [...dataset.segments, { routeId: '3', fromStopId: 'st_a', toStopId: 'st_b', seconds: 300 }],
+};
+
 const PAIR_URL = '/transport/st_a/st_b?d=16.09.26&h=09%3A12';
 const location = () => screen.getByTestId('location').textContent ?? '';
 
@@ -83,8 +111,8 @@ beforeEach(() => {
 async function openPair() {
   renderPlanner(PAIR_URL);
   const heading = await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
-  const from = screen.getByRole('combobox', { name: 'З' });
-  const to = screen.getByRole('combobox', { name: 'До' });
+  const from = screen.getByRole('combobox', { name: 'Звідки' });
+  const to = screen.getByRole('combobox', { name: 'Куди' });
   expect(from).toHaveValue('Базар');
   expect(to).toHaveValue('Вокзал');
   return { heading, from, to };
@@ -109,7 +137,7 @@ describe('LocalTransportPage planner: form state', () => {
     expect(location()).toBe(PAIR_URL);
   });
 
-  it('backspacing «З» to empty does not navigate and keeps «До»', async () => {
+  it('backspacing «Звідки» to empty does not navigate and keeps «Куди»', async () => {
     const user = userEvent.setup();
     const { from, to } = await openPair();
     await user.clear(from);
@@ -117,10 +145,10 @@ describe('LocalTransportPage planner: form state', () => {
     expect(to).toHaveValue('Вокзал');
     expect(location()).toBe(PAIR_URL);
     expect(screen.getByText('№2')).toBeInTheDocument();
-    expect(screen.queryByText(/Оберіть зупинки «З» та «До»/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Оберіть зупинки «Звідки» та «Куди»/)).not.toBeInTheDocument();
   });
 
-  it('the «×» button resets the pair but carries «До» in the URL', async () => {
+  it('the «×» button resets the pair but carries «Куди» in the URL', async () => {
     const user = userEvent.setup();
     const { from, to } = await openPair();
     const fromCell = from.closest('.lt-from-to-cell--from') as HTMLElement;
@@ -128,7 +156,8 @@ describe('LocalTransportPage planner: form state', () => {
     await waitFor(() => expect(location()).toBe('/transport?to=st_b&d=16.09.26&h=09%3A12'));
     expect(from).toHaveValue('');
     expect(to).toHaveValue('Вокзал');
-    expect(screen.getByText(/Оберіть зупинки «З» та «До»/)).toBeInTheDocument();
+    // «Куди» лишилось — швидкий старт просить обрати «Звідки»
+    expect(screen.getByText('Тепер оберіть «Звідки»')).toBeInTheDocument();
     expect(screen.queryByText('№2')).not.toBeInTheDocument();
   });
 
@@ -214,7 +243,7 @@ describe('LocalTransportPage planner: nearby alternatives when there is no direc
       await user.click(suggestion);
       expect(gtag).toHaveBeenCalledWith('event', 'transport_nearby_pick', expect.objectContaining({ from: 'st_e', to: 'st_d', changed: 'from' }));
       await waitFor(() => expect(location()).toBe('/transport/st_e/st_d?d=16.09.26&h=09%3A12'), { timeout: 3000 });
-      expect(screen.getByRole('combobox', { name: 'З' })).toHaveValue('Ринок');
+      expect(screen.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Ринок');
       expect(await screen.findByText(/Прямі маршрути: Ринок → Парк/)).toBeInTheDocument();
       expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
     } finally {
@@ -240,14 +269,14 @@ describe('LocalTransportPage planner: nearby alternatives when there is no direc
 });
 
 describe('LocalTransportPage planner: URL follows the form', () => {
-  it('selecting both stops on /transport updates the URL without pressing «Знайти»', async () => {
+  it('selecting both stops on /transport updates the URL as soon as the pair resolves (no «Знайти»)', async () => {
     const user = userEvent.setup();
     renderPlanner('/transport?d=16.09.26&h=09%3A12');
-    const from = await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+    const from = await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
     await user.click(from);
     await user.keyboard('Ба');
     await user.click(await screen.findByRole('option', { name: 'Базар' }));
-    const to = screen.getByRole('combobox', { name: 'До' });
+    const to = screen.getByRole('combobox', { name: 'Куди' });
     await user.click(to);
     await user.keyboard('Вок');
     await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
@@ -258,20 +287,11 @@ describe('LocalTransportPage planner: URL follows the form', () => {
   it('⇅ swaps the pair and the URL follows', async () => {
     const user = userEvent.setup();
     const { from, to } = await openPair();
-    await user.click(screen.getByRole('button', { name: 'Поміняти З та До' }));
+    await user.click(screen.getByRole('button', { name: 'Поміняти місцями' }));
     await waitFor(() => expect(location()).toBe('/transport/st_b/st_a?d=16.09.26&h=09%3A12'), { timeout: 3000 });
     expect(from).toHaveValue('Вокзал');
     expect(to).toHaveValue('Базар');
     expect(screen.getByText(/Прямі маршрути: Вокзал → Базар/)).toBeInTheDocument();
-  });
-
-  it('«Знайти» is enabled only for a resolved pair', async () => {
-    const user = userEvent.setup();
-    const { from } = await openPair();
-    const find = screen.getByRole('button', { name: 'Знайти' });
-    expect(find).toBeEnabled();
-    await user.clear(from);
-    expect(find).toBeDisabled();
   });
 
   it('the stop board tab carries the chosen «З» stop', async () => {
@@ -282,12 +302,12 @@ describe('LocalTransportPage planner: URL follows the form', () => {
     );
   });
 
-  it('arriving from the board (?from=) fills «З»; picking another «З» keeps ?from= current', async () => {
+  it('arriving from the board (?from=) fills «Звідки»; picking another «Звідки» keeps ?from= current', async () => {
     const user = userEvent.setup();
     renderPlanner('/transport?from=st_a&d=16.09.26&h=09%3A12');
-    const from = await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+    const from = await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
     await waitFor(() => expect(from).toHaveValue('Базар'));
-    expect(screen.getByRole('combobox', { name: 'До' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Куди' })).toHaveValue('');
     // Лише одна зупинка → URL лишається на ?from= (без path-пари)
     expect(location()).toBe('/transport?from=st_a&d=16.09.26&h=09%3A12');
 
@@ -359,8 +379,8 @@ describe('LocalTransportPage planner: date and time', () => {
     expect(screen.getByLabelText('Час')).toBeInTheDocument();
     await user.click(toggle);
     expect(screen.queryByLabelText('Час')).not.toBeInTheDocument();
-    // «Знайти» лишається доступною незалежно від панелі
-    expect(screen.getByRole('button', { name: 'Знайти' })).toBeEnabled();
+    // Кнопки «Знайти» немає — видача жива
+    expect(screen.queryByRole('button', { name: 'Знайти' })).toBeNull();
   });
 });
 
@@ -376,6 +396,37 @@ describe('LocalTransportPage planner: result card', () => {
     expect(card).toHaveTextContent('відправлення'); // дата не сьогодні → без відліку
     expect(card.getAttribute('aria-label')).toContain('прибуття 08:34');
     expect(card.getAttribute('aria-label')).toContain('4 хвилин');
+  });
+
+  it('cards are sorted by waiting time and list the next departures («далі …»)', async () => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    const cards = screen.getAllByRole('button', { name: /^Маршрут №/ });
+    // №3 о 08:10 — раніше за №2 о 08:30, хоч номер більший
+    expect(cards.map((c) => c.getAttribute('aria-label')?.slice(0, 10))).toEqual(['Маршрут №3', 'Маршрут №2']);
+    expect(cards[1]).toHaveTextContent('далі 09:40 · 10:55');
+    expect(cards[1].getAttribute('aria-label')).toContain('далі 09:40 · 10:55');
+    expect(cards[0]).not.toHaveTextContent('далі');
+  });
+
+  it('after the last trip of the day the next departures are not prefixed with «завтра» twice', async () => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /^Маршрут №2/ });
+    expect(card).toHaveTextContent('перший наступного дня');
+    expect(card).toHaveTextContent('далі 09:40 · 10:55');
+    expect(card).not.toHaveTextContent('завтра');
+  });
+
+  it('a next-day trip in the «далі» row is labelled «завтра» once', async () => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=10%3A00');
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /^Маршрут №2/ });
+    expect(card).toHaveTextContent('10:55');
+    expect(card).toHaveTextContent('далі завтра 08:30 · 09:40');
   });
 
   it('after the last trip of the day the card says the first trip is next day', async () => {
@@ -429,10 +480,10 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     }));
     try {
       renderPlanner('/transport');
-      await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+      await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
       expect(screen.getByRole('heading', { level: 1, name: 'Як доїхати' })).toBeInTheDocument();
       await waitFor(() => expect(document.title).toMatch(/^Транспорт Малина/));
-      const empty = screen.getByText(/Оберіть зупинки «З» та «До»/).closest('.lt-empty') as HTMLElement;
+      const empty = screen.getByText(/Оберіть зупинки «Звідки» та «Куди»/).closest('.lt-empty') as HTMLElement;
       expect(document.querySelector('.lt-map-column')).toBeNull();
       expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
 
@@ -454,15 +505,44 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     }
   });
 
+  it('quick start: a node chip sets «Куди», the next one sets «Звідки», then the results appear', async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(quickDataset)));
+    renderPlanner('/transport?d=16.09.26&h=09%3A12');
+    await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
+    expect(screen.getByText('Куди їдете?')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Відкрити схему маршрутів' })).toHaveAttribute(
+      'href',
+      '/transport/scheme?d=16.09.26&h=09%3A12'
+    );
+    expect(screen.getByRole('button', { name: 'Поруч зі мною' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Залізничний вокзал' }));
+    expect(screen.getByRole('combobox', { name: 'Куди' })).toHaveValue('Залізничний вокзал');
+    expect(screen.getByText('Тепер оберіть «Звідки»')).toBeInTheDocument();
+    // Обраний вузол зникає з чіпів; гео лишається, бо «Звідки» ще порожнє
+    expect(screen.queryByRole('button', { name: 'Залізничний вокзал' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Поруч зі мною' })).toBeInTheDocument();
+    await waitFor(() => expect(location()).toBe('/transport?to=st_0019&d=16.09.26&h=09%3A12'), { timeout: 3000 });
+
+    const from = screen.getByRole('combobox', { name: 'Звідки' });
+    await user.click(from);
+    await user.keyboard('Ба');
+    await user.click(await screen.findByRole('option', { name: 'Базар' }));
+    await waitFor(() => expect(location()).toBe('/transport/st_a/st_0019?d=16.09.26&h=09%3A12'), { timeout: 3000 });
+    expect(screen.getByText(/Прямі маршрути: Базар → Залізничний вокзал/)).toBeInTheDocument();
+    expect(screen.queryByText('Куди їдете?')).toBeNull();
+  });
+
   it('on a desktop the map is a column next to the results, not a dialog', async () => {
     renderPlanner('/transport');
-    await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+    await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
     expect(document.querySelector('.lt-map-column')).not.toBeNull();
     expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Карта' })).toBeNull();
   });
 
-  it('«Поруч зі мною» fills «З» with the nearest stop and moves focus to «До»', async () => {
+  it('the geo button in «Звідки» fills it with the nearest stop and moves focus to «Куди»', async () => {
     const user = userEvent.setup();
     const geolocation = {
       getCurrentPosition: vi.fn((ok: PositionCallback) =>
@@ -472,11 +552,11 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     Object.defineProperty(navigator, 'geolocation', { value: geolocation, configurable: true });
     try {
       renderPlanner('/transport');
-      const from = await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+      const from = await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
       await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
       await user.click(await screen.findByRole('button', { name: /^Базар — \d+ м$/ }));
       expect(from).toHaveValue('Базар');
-      await waitFor(() => expect(screen.getByRole('combobox', { name: 'До' })).toHaveFocus());
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Куди' })).toHaveFocus());
     } finally {
       Reflect.deleteProperty(navigator, 'geolocation');
     }
@@ -492,7 +572,7 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     Object.defineProperty(navigator, 'geolocation', { value: geolocation, configurable: true });
     try {
       renderPlanner('/transport');
-      await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+      await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
       await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
       const live = screen.getAllByRole('status').find((el) => el.classList.contains('lt-geo-error'));
       expect(live).toHaveTextContent('Дозвіл на геолокацію відхилено');
@@ -514,7 +594,7 @@ describe('LocalTransportPage planner: analytics events', () => {
       );
       expect(gtag).not.toHaveBeenCalledWith('event', 'transport_no_route', expect.anything());
 
-      await user.click(screen.getByRole('button', { name: 'Поміняти З та До' }));
+      await user.click(screen.getByRole('button', { name: 'Поміняти місцями' }));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_swap', { source: 'form' });
       await waitFor(() =>
         expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_b', to: 'st_a', direct_routes: 1 })
