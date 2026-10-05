@@ -14,7 +14,7 @@
 
   python3 build_scheme.py --dataset dataset.json --out-dir . \
       --site-dir ../../frontend/src/pages/LocalTransportPage/scheme \
-      --poster-dir ../../frontend/public/transport/scheme --qr-url https://malin.kiev.ua/transport
+      --poster-dir ../../frontend/public/transport/scheme --qr-url https://malin.kiev.ua/transport/scheme
 """
 import argparse, base64, json, math, os, sys, urllib.request
 from collections import defaultdict
@@ -24,7 +24,7 @@ S = 10      # відстань між смугами (центр-центр), px
 W = 7       # товщина лінії, px
 HUB_R = 26  # радіус пересадкового вузла
 TERM_R = 9  # радіус кінцевої
-QR_URL_DEFAULT = 'https://malin.kiev.ua/transport'
+QR_URL_DEFAULT = 'https://malin.kiev.ua/transport/scheme'
 
 # ---------------------------------------------------------------- маршрути
 ROUTE_ORDER = ['2', '3', '5', '7', '8', '9', '10', '11', '12']
@@ -347,7 +347,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
         d, n = qr_svg_path(qr_url, box_x + quiet, box_y + quiet, box - 2 * quiet)
         o.append(f'<rect x="{box_x}" y="{box_y}" width="{box}" height="{box}" rx="10" fill="#ffffff" stroke="{muted}" stroke-width="1.5"/>')
         o.append(f'<path d="{d}" fill="#1b1f2a" shape-rendering="crispEdges"/>')
-        o.append(f'<text x="{box_x + box / 2:.0f}" y="{box_y + box + 20}" text-anchor="middle" font-size="12" font-weight="700" fill="{fg}">Скануй: розклад і планувальник</text>')
+        o.append(f'<text x="{box_x + box / 2:.0f}" y="{box_y + box + 20}" text-anchor="middle" font-size="12" font-weight="700" fill="{fg}">Скануй: інтерактивна схема й розклад</text>')
         o.append(f'<text x="{box_x + box / 2:.0f}" y="{box_y + box + 36}" text-anchor="middle" font-size="11.5" fill="{muted}">{esc(qr_url.replace("https://", ""))}</text>')
     # ---- вода (під лініями)
     o.append(f'<g class="lts-water"><path d="{path_d(RESERVOIR)} Z" fill="{water_fill}" stroke="{water}" stroke-width="2" stroke-linejoin="round"/>')
