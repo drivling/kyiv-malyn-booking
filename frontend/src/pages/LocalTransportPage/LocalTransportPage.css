@@ -1836,6 +1836,11 @@
   background: var(--lt-bg);
 }
 
+/* Приглушена підкладка OSM: лінії у кольорах схеми та вузли — головне; фільтр лише на шарі тайлів */
+.lt-map-container .leaflet-tile-pane {
+  filter: saturate(0.55) contrast(0.95) brightness(1.03);
+}
+
 .lt-map-container .leaflet-control-attribution {
   background: rgba(255, 255, 255, 0.75);
   color: var(--lt-text-muted);
