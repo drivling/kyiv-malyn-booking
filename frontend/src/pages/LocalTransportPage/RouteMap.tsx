@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { VERIFIED_ROUTE_IDS } from './routeTiming';
+import { pickBoundsStops } from './routeGeometry';
 
 export interface RouteMapCoordsData {
   center: [number, number];
@@ -48,6 +49,11 @@ interface RouteMapProps {
 
 type CoordsData = RouteMapCoordsData;
 
+/**
+ * Підганяє видиму область під зупинки. Залежить від рядкового ключа, а не від масивів-пропів:
+ * інакше кожен рендер батька (зокрема щохвилинний тік відліку) знову викликав би fitBounds і карта
+ * «відстрибувала» з місця, куди її посунула людина.
+ */
 function MapBounds({
   stopNames,
   stops,
@@ -58,13 +64,17 @@ function MapBounds({
   padding?: [number, number];
 }) {
   const map = useMap();
+  const boundsKey = `${stopNames.join('\u001f')}|${padding.join(',')}`;
   useEffect(() => {
-    const withCoords = stopNames.filter((n) => stops[n]);
+    const names = boundsKey.split('|')[0];
+    const withCoords = (names ? names.split('\u001f') : []).filter((n) => stops[n]);
     if (withCoords.length >= 1) {
       const bounds = withCoords.map((n) => stops[n] as [number, number]);
       map.fitBounds(bounds as [number, number][], { padding, maxZoom: 16 });
     }
-  }, [map, stopNames, stops, padding]);
+    // padding бере участь у boundsKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, boundsKey, stops]);
   return null;
 }
 
@@ -259,16 +269,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const fromToPositions = hasFromToSegment ? positions.slice(segmentStart, segmentEnd) : [];
 
   // Зум: без З/До не підганяємо під усі маркери міста — лишаємо центр Малина
-  const boundsStopNames = hasFromToSegment
-    ? stopsWithCoords.slice(segmentStart, segmentEnd)
-    : fromStopName && toStopName && stopsRecord[fromStopName] && stopsRecord[toStopName]
-      ? [fromStopName, toStopName]
-      : fromStopName && stopsRecord[fromStopName]
-        ? [fromStopName]
-        : toStopName && stopsRecord[toStopName]
-          ? [toStopName]
-          : [];
-  const boundsPadding: [number, number] = hasFromToSegment || (fromStopName && toStopName) ? [50, 50] : [40, 40];
+  const bounds = pickBoundsStops({ chain: stopsWithCoords, stops: stopsRecord, fromStopName, toStopName, hasLine: Boolean(showRouteLine) });
+  const boundsStopNames = bounds.names;
+  const boundsPadding = bounds.padding;
   const showBounds = boundsStopNames.length >= 1;
 
   return (

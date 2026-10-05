@@ -3,6 +3,7 @@ import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'reac
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
 import { routeColor, routeColorStyle } from './routeColors';
+import { routeStopChain } from './routeGeometry';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
@@ -254,30 +255,13 @@ function getImpliedDirection(
 }
 
 
-/** Зібрати id зупинок у порядку руху для маршруту та напрямку */
+/** Зібрати id зупинок у порядку руху для маршруту та напрямку (з технічними точками map_only) */
 function getOrderedStopKeys(
   routeId: string,
   dir: 'there' | 'back',
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
 ): string[] {
-  if (!routeId || !stopsByRoute?.[routeId]) return [];
-  const routeStops = stopsByRoute[routeId];
-  if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-  const first = routeStops[0];
-  const withOrder: RouteStopWithOrder[] =
-    first && typeof first === 'object' && 'name' in first
-      ? (routeStops as RouteStopWithOrder[])
-      : (routeStops as string[]).map((name, i) => ({
-          name,
-          order_there: i + 1,
-          order_back: routeStops.length - i,
-          belongs_to: 'both' as const,
-        }));
-  const ordered =
-    dir === 'there'
-      ? [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0).sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0))
-      : [...withOrder].filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0).sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
-  return ordered.map((s) => getStopKey(s));
+  return routeStopChain(stopsByRoute, routeId, dir);
 }
 
 /** Знайти baseTime (відправлення з початкової) рейсу, що проходить fromStop найближче до depFromStopMins */
@@ -348,9 +332,10 @@ export const LocalTransportPage: React.FC = () => {
   );
   const data = viewModel?.data ?? null;
   const stopsCoords = viewModel?.coords.stops ?? null;
-  const mapCoordsData = viewModel
-    ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
-    : null;
+  const mapCoordsData = useMemo(
+    () => (viewModel ? { center: viewModel.coords.center, stops: viewModel.coords.stops } : null),
+    [viewModel]
+  );
 
   useEffect(() => {
     if (!viewModel) return;
@@ -838,75 +823,25 @@ export const LocalTransportPage: React.FC = () => {
 
   usePageSeo(transportSeo);
 
-  const detailMapStopNames = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-    const first = routeStops[0];
-    const withOrder: RouteStopWithOrder[] =
-      first && typeof first === 'object' && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-    const isThere = stopsDirection === 'there';
-    const orderKey = isThere ? 'order_there' : 'order_back';
-    const included = withOrder
-      .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-      .filter((s) => (s[orderKey] ?? 0) > 0)
-      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return included.map((s) => getStopKey(s));
-  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+  /** Точки лінії маршруту на карті в поточному напрямку (з технічними map_only для поворотів) */
+  const detailMapStopNames = useMemo(
+    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection) : []),
+    [detailRoute, stopsByRoute, stopsDirection]
+  );
 
   /** Fallback для карти: усі зупинки маршруту в поточному напрямку (щоб карта завжди мала що малювати) */
-  const detailMapStopNamesFallback = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-    const first = routeStops[0];
-    const withOrder: RouteStopWithOrder[] =
-      first && typeof first === 'object' && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-    const isThere = stopsDirection === 'there';
-    const orderKey = isThere ? 'order_there' : 'order_back';
-    const sorted = [...withOrder].sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return sorted.map((s) => getStopKey(s));
-  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+  const detailMapStopNamesFallback = useMemo(
+    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection, { all: true }) : []),
+    [detailRoute, stopsByRoute, stopsDirection]
+  );
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
 
   /** Тільки «реальні» зупинки для маркерів на карті (без map_only — технічні точки лише для поворотів лінії) */
-  const detailMapStopNamesForMarkers = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return [];
-    const first = routeStops[0];
-    const withOrder: RouteStopWithOrder[] =
-      first && typeof first === 'object' && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-    const isThere = stopsDirection === 'there';
-    const orderKey = isThere ? 'order_there' : 'order_back';
-    const included = withOrder
-      .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-      .filter((s) => (s[orderKey] ?? 0) > 0)
-      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-    return getRealStops(included).map((s) => getStopKey(s));
-  }, [detailRoute?.id, stopsByRoute, stopsDirection]);
+  const detailMapStopNamesForMarkers = useMemo(
+    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection, { markersOnly: true }) : []),
+    [detailRoute, stopsByRoute, stopsDirection]
+  );
 
   const detailRouteStopIds = useMemo(() => {
     if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];

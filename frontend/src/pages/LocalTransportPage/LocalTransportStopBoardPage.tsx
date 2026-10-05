@@ -413,9 +413,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     if (id !== selectedStop) syncUrl(id, searchDate, searchTime);
   };
 
-  const mapCoordsData = viewModel
-    ? { center: viewModel.coords.center, stops: viewModel.coords.stops }
-    : null;
+  const mapCoordsData = useMemo(
+    () => (viewModel ? { center: viewModel.coords.center, stops: viewModel.coords.stops } : null),
+    [viewModel]
+  );
 
   const fareAmount =
     typeof data?.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
