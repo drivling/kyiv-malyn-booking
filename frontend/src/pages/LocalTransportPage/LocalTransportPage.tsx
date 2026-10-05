@@ -286,7 +286,6 @@ function getImpliedDirection(
   return null;
 }
 
-
 /** Зібрати id зупинок у порядку руху для маршруту та напрямку (з технічними точками map_only) */
 function getOrderedStopKeys(
   routeId: string,
@@ -358,21 +357,20 @@ export const LocalTransportPage: React.FC = () => {
   const dateFromUrl = searchParams.get('d') ?? '';
   const hourFromUrl = searchParams.get('h') ?? '';
   const { dataset, loading, error } = useTransportDataset();
-  const viewModel = useMemo(
-    () => (dataset ? datasetToLocalViewModel(dataset) : null),
-    [dataset]
-  );
+  const viewModel = useMemo(() => {
+    if (!dataset) return null;
+    const vm = datasetToLocalViewModel(dataset);
+    // Синхронно, у тому ж рендері: ефект спрацював би вже після першого розкладу, і той рахувався б
+    // зі старими тривалостями сегментів (а перерендера після цього може й не бути).
+    configureSegmentDurations(vm.segmentDurations, vm.defaultSec);
+    return vm;
+  }, [dataset]);
   const data = viewModel?.data ?? null;
   const stopsCoords = viewModel?.coords.stops ?? null;
   const mapCoordsData = useMemo(
     () => (viewModel ? { center: viewModel.coords.center, stops: viewModel.coords.stops } : null),
     [viewModel]
   );
-
-  useEffect(() => {
-    if (!viewModel) return;
-    configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
-  }, [viewModel]);
 
   const [stopFilter, setStopFilter] = useState('');
   // null — користувач ще не торкався поля (значення береться з URL); '' — свідомо порожнє.
@@ -383,11 +381,6 @@ export const LocalTransportPage: React.FC = () => {
   const [committedPair, setCommittedPair] = useState<{ from: string; to: string } | null>(null);
   const [searchDate, setSearchDate] = useState<string>(() => todayDateUrl());
   const [searchTime, setSearchTime] = useState<string>(() => nowClock());
-  const [stopsDirection, setStopsDirection] = useState<'there' | 'back'>('there');
-  const [selectedTripTime, setSelectedTripTime] = useState<number | null>(null);
-  const [selectedTripDirection, setSelectedTripDirection] = useState<'there' | 'back' | null>(null);
-  const [fromStop, setFromStop] = useState<string>('');
-  const [toStop, setToStop] = useState<string>('');
   const youHereRef = useRef<HTMLLIElement | null>(null);
   const toStopRef = useRef<HTMLLIElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -399,7 +392,6 @@ export const LocalTransportPage: React.FC = () => {
     findNearest: handleFindNearest,
     clear: clearNearestStops,
   } = useNearestStops(stopsCoords, { page: 'planner' });
-  const prevStopsDirectionRef = useRef<'there' | 'back'>('there');
   const latestStopRef = useRef<string>('');
   const searchFromInputRef = useRef<HTMLInputElement | null>(null);
   const searchToInputRef = useRef<HTMLInputElement | null>(null);
@@ -778,6 +770,93 @@ export const LocalTransportPage: React.FC = () => {
 
   usePageSeo(transportSeo);
 
+  // ---- Сторінка маршруту: URL — єдине джерело пари («Звідки»/«Куди»), напрямку й обраного рейсу ----
+  const detailRouteStopIds = useMemo(() => {
+    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
+    return getStopKeysFromRouteStops(stopsByRoute[detailRoute.id], stopsCatalog);
+  }, [detailRoute, stopsByRoute, stopsCatalog]);
+  /** Пара з URL (`stop`/`to`), резолвнута в зупинки маршруту; «Куди» рахується лише разом зі «Звідки» */
+  const detailPair = useMemo(() => {
+    if (!detailRoute || !detailRouteStopIds.length) return { from: '', to: '' };
+    const pick = (raw: string) => {
+      if (!raw) return '';
+      const id = resolveStopIdInList(raw, detailRouteStopIds, stopsCatalog);
+      return id && detailRouteStopIds.includes(id) ? id : '';
+    };
+    const from = pick(selectedStopFromUrl);
+    return { from, to: from ? pick(toFromUrl) : '' };
+  }, [detailRoute, detailRouteStopIds, selectedStopFromUrl, toFromUrl, stopsCatalog]);
+  const fromStop = detailPair.from;
+  const toStop = detailPair.to;
+  const hasChosenStopsOnDetail = Boolean(fromStop && toStop);
+  /** Напрямок: `dir` з URL → випливає з пари → belongs_to «Звідки» → «туди» */
+  const stopsDirection: 'there' | 'back' = useMemo(() => {
+    if (dirFromUrl === 'there' || dirFromUrl === 'back') return dirFromUrl;
+    if (!detailRoute) return 'there';
+    if (fromStop && toStop) return getImpliedDirection(fromStop, toStop, stopsByRoute, detailRoute.id) ?? 'there';
+    if (fromStop) {
+      const rs = stopsByRoute?.[detailRoute.id];
+      const first = Array.isArray(rs) ? rs[0] : null;
+      if (first && typeof first === 'object' && 'name' in first) {
+        const own = (rs as RouteStopWithOrder[]).find((s) => getStopKey(s) === fromStop);
+        if (own?.belongs_to === 'back') return 'back';
+      }
+    }
+    return 'there';
+  }, [dirFromUrl, detailRoute, fromStop, toStop, stopsByRoute]);
+  /** Опорний час сторінки маршруту: `h` з URL (сьогодні — не раніше за зараз), інакше зараз за Києвом */
+  const detailRefMins = useMemo(() => {
+    const h = parseClockToMinutes(hourFromUrl);
+    if (h <= 0) return kyivNowMins;
+    const offset = dateFromUrl ? searchDateKyivOffsetDays(dateFromUrl) : 0;
+    return offset === 0 || offset == null ? Math.max(h, kyivNowMins) : h;
+  }, [hourFromUrl, dateFromUrl, kyivNowMins]);
+  /**
+   * Обраний рейс у поточному напрямку. `time` в URL — час на «Звідки» (або на першій зупинці, коли
+   * «Звідки» немає): беремо рейс, що проходить її найближче до цього часу; без `time` — найближчий
+   * до опорного часу рейс, що обслуговує пару.
+   */
+  const selectedTrip = useMemo(() => {
+    if (!detailRoute || !detailRoute.trips.length) return null;
+    const chain = getOrderedStopKeys(detailRoute.id, stopsDirection, stopsByRoute);
+    const anchor = fromStop || chain[0] || '';
+    const dirTrips = groupTripsByDirection(detailRoute.trips)[stopsDirection === 'there' ? 'dir1' : 'dir0'];
+    const pinned = parseClockToMinutes(timeFromUrl);
+    let record: TransportRecord | null = null;
+    if (pinned > 0 && anchor) {
+      const base = findBaseTimeByDepartureFromStop(
+        detailRoute.trips,
+        pinned,
+        anchor,
+        stopsDirection,
+        stopsByRoute,
+        detailRoute.id
+      );
+      record = base != null ? (dirTrips.find((t) => tripDepartureMinutes(t) === base) ?? null) : null;
+    }
+    if (!record) {
+      const at =
+        anchor && chain.length >= 2
+          ? {
+              routeId: detailRoute.id,
+              chainKeys: {
+                there: getOrderedStopKeys(detailRoute.id, 'there', stopsByRoute),
+                back: getOrderedStopKeys(detailRoute.id, 'back', stopsByRoute),
+              },
+              fromStop: anchor,
+              toStop: toStop || undefined,
+            }
+          : undefined;
+      const nearest =
+        findNearestTrip(detailRoute.trips, detailRefMins, stopsDirection, at) ??
+        findNearestTrip(detailRoute.trips, detailRefMins, stopsDirection);
+      record = nearest?.record ?? null;
+    }
+    return record ? { record, baseTime: tripDepartureMinutes(record), direction: stopsDirection } : null;
+  }, [detailRoute, stopsDirection, stopsByRoute, fromStop, toStop, timeFromUrl, detailRefMins]);
+  const selectedTripTime = selectedTrip?.baseTime ?? null;
+  const selectedTripDirection = selectedTrip?.direction ?? null;
+
   /** Точки лінії маршруту на карті в поточному напрямку (з технічними map_only для поворотів) */
   const detailMapStopNames = useMemo(
     () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection) : []),
@@ -804,17 +883,6 @@ export const LocalTransportPage: React.FC = () => {
     [detailRoute, stopsByRoute, stopsDirection]
   );
 
-  const detailRouteStopIds = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    return getStopKeysFromRouteStops(stopsByRoute[detailRoute.id], stopsCatalog);
-  }, [detailRoute?.id, stopsByRoute, stopsCatalog]);
-  const hasChosenStopsOnDetail = useMemo(() => {
-    if (!detailRoute || !selectedStopFromUrl || !toFromUrl || !detailRouteStopIds.length) return false;
-    const rf = resolveStopIdInList(selectedStopFromUrl, detailRouteStopIds, stopsCatalog);
-    const rt = resolveStopIdInList(toFromUrl, detailRouteStopIds, stopsCatalog);
-    return Boolean(rf && rt && detailRouteStopIds.includes(rf) && detailRouteStopIds.includes(rt));
-  }, [detailRoute, selectedStopFromUrl, toFromUrl, detailRouteStopIds, stopsCatalog]);
-
   // Не робимо auto-scroll до "Ви тут" — це викликало зміщення вліво при виборі маршруту та зміні напрямку
 
   // Вимірювання сегменту лінії між З і До
@@ -838,248 +906,54 @@ export const LocalTransportPage: React.FC = () => {
       setSegmentStyle({ top, height });
     };
     measure();
+    if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(measure);
     ro.observe(timelineRef.current);
     return () => ro.disconnect();
   }, [fromStop, toStop, stopsDirection]);
 
-  // Ініціалізація From, To, time, dir з URL при завантаженні маршруту
-  const prevRouteIdRef = useRef<string | null>(null);
+  // Пікер «Оберіть зупинки» показує поточну пару з URL (до переходу на таймлайн)
   useEffect(() => {
-    if (!detailRoute) return;
-    const routeStops = stopsByRoute?.[detailRoute.id];
-    const ids = routeStops?.length ? getStopKeysFromRouteStops(routeStops, stopsCatalog) : [];
-    const routeChanged = prevRouteIdRef.current !== detailRoute.id;
-    prevRouteIdRef.current = detailRoute.id;
-    if (routeChanged) {
-      const matchedFrom = selectedStopFromUrl ? resolveStopIdInList(selectedStopFromUrl, ids, stopsCatalog) : null;
-      const matchedTo = toFromUrl ? resolveStopIdInList(toFromUrl, ids, stopsCatalog) : null;
-      const fromOk = matchedFrom && ids.includes(matchedFrom) ? matchedFrom : null;
-      const toOk = matchedTo && ids.includes(matchedTo) ? matchedTo : null;
-      setPickerFrom(fromOk ?? '');
-      setPickerTo(toOk ?? '');
-      if (fromOk) {
-        setFromStop(fromOk);
-        setToStop(toOk ?? '');
-      } else {
-        setFromStop('');
-        setToStop('');
-      }
-      if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
-        const depMins = parseClockToMinutes(timeFromUrl);
-        if (depMins > 0) {
-          const fromForTime = fromOk;
-          const baseTime =
-            fromForTime && detailRoute
-              ? findBaseTimeByDepartureFromStop(
-                  detailRoute.trips,
-                  depMins,
-                  fromForTime,
-                  dirFromUrl as 'there' | 'back',
-                  stopsByRoute,
-                  detailRoute.id
-                )
-              : depMins;
-          setSelectedTripTime(baseTime ?? depMins);
-          setSelectedTripDirection(dirFromUrl as 'there' | 'back');
-          setStopsDirection(dirFromUrl as 'there' | 'back');
-        }
-      } else if (!timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
-        // Посилання з QR: є dir, але немає time — напрямок задамо в autoselect, тут лише перемикач зупинок
-        setStopsDirection(dirFromUrl as 'there' | 'back');
-      }
-    }
-  }, [detailRoute?.id, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl, stopsByRoute, stopsCatalog]);
+    setPickerFrom(fromStop);
+    setPickerTo(toStop);
+  }, [fromStop, toStop]);
 
-  // Синхронізація selectedTripTime з URL коли є fromStop, toStop — щоб рядок у таблиці підсвічувався
-  useEffect(() => {
-    if (!detailRoute || !fromStop || !toStop || !timeFromUrl || (dirFromUrl !== 'there' && dirFromUrl !== 'back'))
-      return;
-    const depMins = parseClockToMinutes(timeFromUrl);
-    if (depMins <= 0) return;
-    const baseTime = findBaseTimeByDepartureFromStop(
-      detailRoute.trips,
-      depMins,
-      fromStop,
-      dirFromUrl,
-      stopsByRoute,
-      detailRoute.id
-    );
-    if (baseTime != null) setSelectedTripTime(baseTime);
-  }, [fromStop, toStop, timeFromUrl, dirFromUrl, detailRoute?.id, detailRoute?.trips, stopsByRoute]);
-
-  // Автовибір найближчого рейсу за поточним часом (Київ) — пропускаємо, якщо в URL вже є time і dir
-  // При посиланні з QR (stop + dir без time) — dir з URL задає напрямок для вибору найближчого рейсу
-  useEffect(() => {
-    if (!detailRoute || detailRoute.trips.length === 0) return;
-    if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) return;
-    let directionFilter: 'there' | 'back' | undefined;
-    // Якщо dir явно в URL (посилання з QR-коду) — використовуємо його
-    if (dirFromUrl === 'there' || dirFromUrl === 'back') {
-      directionFilter = dirFromUrl;
-    } else if (selectedStopFromUrl && stopsByRoute) {
-      const routeStops = stopsByRoute[detailRoute.id];
-      if (Array.isArray(routeStops) && routeStops.length > 0) {
-        const first = routeStops[0];
-        if (typeof first === 'object' && 'name' in first) {
-          const selId = resolveStopIdInList(selectedStopFromUrl, getStopKeysFromRouteStops(routeStops, stopsCatalog), stopsCatalog);
-          const stop = (routeStops as RouteStopWithOrder[]).find((s) => getStopKey(s) === selId);
-          if (stop?.belongs_to === 'there') directionFilter = 'there';
-          else if (stop?.belongs_to === 'back') directionFilter = 'back';
-        }
-      }
-    }
-    const nearest = findNearestTrip(detailRoute.trips, getKyivMinutesNow(), directionFilter);
-    if (nearest) {
-      setSelectedTripTime(nearest.time);
-      setSelectedTripDirection(nearest.direction);
-      setStopsDirection(nearest.direction);
-    }
-  }, [detailRoute?.id, detailRoute?.trips, selectedStopFromUrl, stopsByRoute, stopsCatalog, timeFromUrl, dirFromUrl]);
-
-  // При зміні напрямку (туди/назад) — оновити опції З/До: якщо поточний вибір не в списку, обрати найближчу зупинку за координатами
-  useEffect(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return;
-    if (prevStopsDirectionRef.current === stopsDirection) return;
-    prevStopsDirectionRef.current = stopsDirection;
-
-    // Якщо З і До не вибрані — тільки оновити dir у URL, не підставляти зупинки
-    if (!fromStop && !toStop) {
-      updateDetailUrl({ dir: stopsDirection });
-      return;
-    }
-
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) return;
-    const first = routeStops[0];
-    const stopsWithOrder: RouteStopWithOrder[] =
-      typeof first === 'object' && first && 'name' in first
-        ? (routeStops as RouteStopWithOrder[])
-        : (routeStops as unknown as string[]).map((name, i) => ({
-            name,
-            order_there: i + 1,
-            order_back: routeStops.length - i,
-            belongs_to: 'both' as const,
-          }));
-
-    const orderedStopsThere = [...stopsWithOrder]
-      .filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0)
-      .sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0));
-    const orderedStopsBack = [...stopsWithOrder]
-      .filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0)
-      .sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
-
-    const orderedForDirection = stopsDirection === 'there' ? orderedStopsThere : orderedStopsBack;
-    const orderKey = stopsDirection === 'there' ? 'order_there' : 'order_back';
-    if (orderedForDirection.length === 0) return;
-
-    const fromInList = orderedForDirection.find((s) => getStopKey(s) === fromStop);
-    let newFrom = fromStop;
-    if (!fromInList) {
-      newFrom = findNearestStopInList(fromStop, orderedForDirection, stopsCoords) ?? getStopKey(orderedForDirection[0]);
-      setFromStop(newFrom);
-    }
-
-    const fromOrder = orderedForDirection.find((s) => getStopKey(s) === newFrom)?.[orderKey] ?? 0;
-    const validTo = orderedForDirection.filter((s) => (s[orderKey] ?? 0) > fromOrder);
-    const toInList = validTo.some((s) => getStopKey(s) === toStop);
-    let newTo = toStop;
-    if (!toInList) {
-      if (validTo.length > 0) {
-        newTo = findNearestStopInList(toStop, validTo, stopsCoords) ?? getStopKey(validTo[0]);
-        setToStop(newTo);
-      } else {
-        setToStop('');
-        newTo = '';
-      }
-    }
-
-    updateDetailUrl({ stop: newFrom, to: newTo || undefined, dir: stopsDirection });
-  }, [stopsDirection, detailRoute?.id, stopsByRoute, fromStop, toStop, stopsCoords]);
-
-  // При зміні З/До — визначити напрямок і оновити stopsDirection, selectedTrip, URL
-  const prevFromToRef = useRef<string>('');
-  const initializedFromUrlRef = useRef(false);
-  useEffect(() => {
-    if (!detailRoute) return;
-    if (!fromStop || !toStop) {
-      prevFromToRef.current = '';
-      initializedFromUrlRef.current = false;
-      return;
-    }
-    const key = `${fromStop}|${toStop}`;
-    if (timeFromUrl && (dirFromUrl === 'there' || dirFromUrl === 'back')) {
-      if (!initializedFromUrlRef.current && fromStop === selectedStopFromUrl && toStop === toFromUrl) {
-        initializedFromUrlRef.current = true;
-        prevFromToRef.current = key;
-      }
-      return;
-    }
-    initializedFromUrlRef.current = false;
-    if (prevFromToRef.current === key) return;
-    prevFromToRef.current = key;
-    const dir = getImpliedDirection(fromStop, toStop, stopsByRoute, detailRoute.id);
-    if (!dir) return;
-    setStopsDirection(dir);
-    setSelectedTripDirection(dir);
-    const nearest = findNearestTrip(detailRoute.trips, getKyivMinutesNow(), dir);
-    if (nearest) {
-      setSelectedTripTime(nearest.time);
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('time', formatTime(nearest.time));
-        next.set('dir', dir);
-        return next;
-      });
-    } else {
-      const first = groupTripsByDirection(detailRoute.trips)[dir === 'there' ? 'dir1' : 'dir0'][0];
-      const mins = first ? tripDepartureMinutes(first) : null;
-      if (mins != null && mins > 0) {
-        setSelectedTripTime(mins);
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('time', formatTime(mins));
-          next.set('dir', dir);
-          return next;
-        });
-      } else {
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('dir', dir);
-          return next;
-        });
-      }
-    }
-  }, [fromStop, toStop, detailRoute?.id, detailRoute?.trips, stopsByRoute, selectedStopFromUrl, toFromUrl, timeFromUrl, dirFromUrl]);
-
-  const updateDetailUrl = (updates: { stop?: string; to?: string; time?: string; dir?: string }) => {
+  const updateDetailUrl = (updates: { stop?: string; to?: string; time?: string; dir?: string; d?: string; h?: string }) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if ('stop' in updates) (updates.stop ? next.set('stop', updates.stop) : next.delete('stop'));
-      if ('to' in updates) (updates.to ? next.set('to', updates.to) : next.delete('to'));
-      if ('time' in updates) (updates.time ? next.set('time', updates.time) : next.delete('time'));
-      if ('dir' in updates) (updates.dir ? next.set('dir', updates.dir) : next.delete('dir'));
+      for (const key of ['stop', 'to', 'time', 'dir', 'd', 'h'] as const) {
+        if (!(key in updates)) continue;
+        const value = updates[key];
+        if (value) next.set(key, value);
+        else next.delete(key);
+      }
       return next;
     });
   };
 
+  /**
+   * Вибір «Звідки»/«Куди» (карта, пікер, далі — таймлайн): пара в URL, напрямок випливає з пари
+   * (інакше лишається поточний), закріплений `time` скидається — обраним стає найближчий рейс.
+   */
+  const setDetailPair = (next: { from?: string; to?: string }) => {
+    if (!detailRoute) return;
+    const from = next.from ?? fromStop;
+    const to = next.to ?? toStop;
+    const dir = from && to ? (getImpliedDirection(from, to, stopsByRoute, detailRoute.id) ?? stopsDirection) : stopsDirection;
+    updateDetailUrl({ stop: from || undefined, to: to || undefined, dir, time: undefined });
+  };
+
+  /**
+   * Перемикач «Туди/Назад»: пара переїздить у новий напрямок (міняється місцями; зупинки, якої там
+   * немає, — найближча за координатами), `time` скидається — обраним стає найближчий рейс до опорного часу.
+   */
   const reverseDirectionAndFromTo = (targetDir?: 'there' | 'back') => {
-    const newDir: 'there' | 'back' =
-      targetDir ?? (stopsDirection === 'there' ? 'back' : 'there');
-
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) {
-      setStopsDirection(newDir);
-      updateDetailUrl({ dir: newDir });
+    const newDir: 'there' | 'back' = targetDir ?? (stopsDirection === 'there' ? 'back' : 'there');
+    const routeStops = detailRoute ? stopsByRoute?.[detailRoute.id] : undefined;
+    if (!detailRoute || !Array.isArray(routeStops) || routeStops.length === 0 || !fromStop) {
+      updateDetailUrl({ dir: newDir, time: undefined });
       return;
     }
-
-    const routeStops = stopsByRoute[detailRoute.id];
-    if (!Array.isArray(routeStops) || routeStops.length === 0) {
-      setStopsDirection(newDir);
-      updateDetailUrl({ dir: newDir });
-      return;
-    }
-
     const first = routeStops[0];
     const stopsWithOrder: RouteStopWithOrder[] =
       first && typeof first === 'object' && 'name' in first
@@ -1090,52 +964,29 @@ export const LocalTransportPage: React.FC = () => {
             order_back: arr.length - i,
             belongs_to: 'both' as const,
           }));
-
-    const orderedStopsThere = [...stopsWithOrder]
-      .filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0)
-      .sort((a, b) => a.order_there - b.order_there);
-    const orderedStopsBack = [...stopsWithOrder]
-      .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
-      .sort((a, b) => a.order_back - b.order_back);
-
-    const targetOrdered = newDir === 'there' ? orderedStopsThere : orderedStopsBack;
-    const targetKeys = targetOrdered.map((s) => getStopKey(s));
-
-    const fromCandidate = toStop || fromStop || '';
-    const toCandidate = fromStop || toStop || '';
-    const pickInTarget = (raw: string) => {
-      const id = resolveStopIdInList(raw, targetKeys, stopsCatalog);
-      return id && targetKeys.includes(id) ? id : null;
-    };
-    const newFromMatched = fromCandidate ? pickInTarget(fromCandidate) : null;
-    const newToMatched = toCandidate ? pickInTarget(toCandidate) : null;
-
-    const newFrom = newFromMatched ?? '';
-    const newTo = newToMatched ?? '';
-
-    setStopsDirection(newDir);
-    setFromStop(newFrom);
-    setToStop(newTo);
-
-    const dirTrips = groupTripsByDirection(detailRoute.trips)[newDir === 'there' ? 'dir1' : 'dir0'];
-    const firstInDir = dirTrips.find((t) => tripDepartureMinutes(t) > 0);
-    const firstMins = firstInDir ? tripDepartureMinutes(firstInDir) : null;
-    if (firstMins != null && firstMins > 0) {
-      setSelectedTripTime(firstMins);
-      setSelectedTripDirection(newDir);
-      updateDetailUrl({
-        stop: newFrom || undefined,
-        to: newTo || undefined,
-        dir: newDir,
-        time: formatTime(firstMins),
-      });
-    } else {
-      updateDetailUrl({
-        stop: newFrom || undefined,
-        to: newTo || undefined,
-        dir: newDir,
-      });
+    const orderKey = newDir === 'there' ? 'order_there' : 'order_back';
+    const ordered = [...stopsWithOrder]
+      .filter((s) => (s.belongs_to ?? 'both') !== (newDir === 'there' ? 'back' : 'there') && (s[orderKey] ?? 0) > 0)
+      .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
+    if (!ordered.length) {
+      updateDetailUrl({ dir: newDir, time: undefined });
+      return;
     }
+    const inList = (raw: string, list: RouteStopWithOrder[]) => {
+      const id = resolveStopIdInList(raw, list.map((s) => getStopKey(s)), stopsCatalog);
+      return id && list.some((s) => getStopKey(s) === id) ? id : null;
+    };
+    // Зворотний напрямок: «Куди» стає «Звідки» і навпаки; сама лише «Звідки» лишається «Звідки»
+    const fromRaw = toStop || fromStop;
+    const toRaw = toStop ? fromStop : '';
+    const newFrom = inList(fromRaw, ordered) ?? findNearestStopInList(fromRaw, ordered, stopsCoords) ?? getStopKey(ordered[0]);
+    const fromOrder = ordered.find((s) => getStopKey(s) === newFrom)?.[orderKey] ?? 0;
+    const after = ordered.filter((s) => (s[orderKey] ?? 0) > fromOrder);
+    const newTo =
+      toRaw && after.length
+        ? (inList(toRaw, after) ?? findNearestStopInList(toRaw, after, stopsCoords) ?? getStopKey(after[0]))
+        : '';
+    updateDetailUrl({ stop: newFrom, to: newTo || undefined, dir: newDir, time: undefined });
   };
 
   /** Прокрутити до результатів під sticky-формою (на мобільному форма ховає видачу). */
@@ -1217,14 +1068,7 @@ export const LocalTransportPage: React.FC = () => {
 
   const handleShowTimetableFromPicker = () => {
     if (!detailRoute || !pickerFrom || !pickerTo) return;
-    const params = new URLSearchParams();
-    params.set('stop', pickerFrom);
-    params.set('to', pickerTo);
-    if (searchDate) params.set('d', searchDate);
-    if (searchTime) params.set('h', searchTime);
-    const dir = getImpliedDirection(pickerFrom, pickerTo, stopsByRoute, detailRoute.id);
-    if (dir) params.set('dir', dir);
-    navigate(`/transport/route/${detailRoute.id}?${params.toString()}`);
+    setDetailPair({ from: pickerFrom, to: pickerTo });
   };
 
   const handleBack = () => {
@@ -1537,12 +1381,7 @@ export const LocalTransportPage: React.FC = () => {
                             onChange={(e) => {
                               const dep = e.target.value;
                               const row = tableTripsInDirection.find((r) => r.dep === dep);
-                              if (row) {
-                                setSelectedTripTime(row.baseTime);
-                                setSelectedTripDirection(row.direction);
-                                setStopsDirection(row.direction);
-                                updateDetailUrl({ time: row.dep, dir: row.direction });
-                              }
+                              if (row) updateDetailUrl({ time: row.dep, dir: row.direction });
                             }}
                             aria-label="Час відправлення"
                           >
@@ -1591,20 +1430,12 @@ export const LocalTransportPage: React.FC = () => {
                                 <tr
                                   key={`${row.dep}-${row.arr}-${i}`}
                                   className={`lt-timetable-row-clickable ${isSelected ? 'lt-timetable-row--selected' : ''}`}
-                                  onClick={() => {
-                                    setSelectedTripTime(row.baseTime);
-                                    setSelectedTripDirection(row.direction);
-                                    setStopsDirection(row.direction);
-                                    updateDetailUrl({ time: row.dep, dir: row.direction });
-                                  }}
+                                  onClick={() => updateDetailUrl({ time: row.dep, dir: row.direction })}
                                   role="button"
                                   tabIndex={0}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                       e.preventDefault();
-                                      setSelectedTripTime(row.baseTime);
-                                      setSelectedTripDirection(row.direction);
-                                      setStopsDirection(row.direction);
                                       updateDetailUrl({ time: row.dep, dir: row.direction });
                                     }
                                   }}
@@ -1761,14 +1592,10 @@ export const LocalTransportPage: React.FC = () => {
                 nodeStopIds: NODE_STOP_IDS,
                 routesAtStop: linesAtStop,
                 boardHref: boardHrefFor,
-                onPickFromStop: (stopName: string) => {
-                  setFromStop(stopName);
-                  updateDetailUrl({ stop: stopName });
-                },
+                onPickFromStop: (stopName: string) => setDetailPair({ from: stopName }),
                 onPickToStop: (stopName: string) => {
-                  setToStop(stopName);
                   rememberFrequentToStop(stopName);
-                  updateDetailUrl({ to: stopName });
+                  setDetailPair({ to: stopName });
                 },
                 onSwapStops: () => reverseDirectionAndFromTo(),
                 frequentToStops,

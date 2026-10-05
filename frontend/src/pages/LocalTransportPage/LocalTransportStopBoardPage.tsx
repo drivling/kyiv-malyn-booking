@@ -103,16 +103,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   const { dataset, loading, error } = useTransportDataset();
-  const viewModel = useMemo(
-    () => (dataset ? datasetToLocalViewModel(dataset) : null),
-    [dataset]
-  );
+  const viewModel = useMemo(() => {
+    if (!dataset) return null;
+    const vm = datasetToLocalViewModel(dataset);
+    // Синхронно, у тому ж рендері: ефект спрацював би вже після першого розкладу, і той рахувався б
+    // зі старими тривалостями сегментів (а перерендера після цього може й не бути).
+    configureSegmentDurations(vm.segmentDurations, vm.defaultSec);
+    return vm;
+  }, [dataset]);
   const data: TransportData | null = viewModel?.data ?? null;
-
-  useEffect(() => {
-    if (!viewModel) return;
-    configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
-  }, [viewModel]);
 
   const dParam = searchParams.get('d') ?? '';
   const hParam = searchParams.get('h') ?? '';
