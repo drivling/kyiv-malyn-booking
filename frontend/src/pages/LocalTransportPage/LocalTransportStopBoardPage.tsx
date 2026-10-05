@@ -6,7 +6,9 @@ import type { TransportData } from './types';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
-import { isVerifiedRoute } from './routeTiming';
+import { VERIFIED_ROUTE_IDS, isVerifiedRoute } from './routeTiming';
+import { buildRouteLines } from './routeGeometry';
+import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 import { routeColorStyle } from './routeColors';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
@@ -38,6 +40,9 @@ function schemeMiniNote(node: { name: string; size: number; stops: string[] } | 
   }
   return lines ? `Ваша зупинка позначена на схемі, підсвічено її лінії: ${lines}.` : 'Ваша зупинка позначена на схемі.';
 }
+
+/** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
+const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
 
 const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
   {
@@ -415,6 +420,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   const mapCoordsData = useMemo(
     () => (viewModel ? { center: viewModel.coords.center, stops: viewModel.coords.stops } : null),
+    [viewModel]
+  );
+  /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті табло */
+  const overviewLines = useMemo(
+    () => (viewModel ? buildRouteLines(viewModel.coords.stops, viewModel.data.supplement?.stops?.stops_by_route, VERIFIED_ROUTE_IDS) : []),
     [viewModel]
   );
 
@@ -830,13 +840,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         <div className="lt-map-column">
           {/* Усі зупинки міста, обрана — підсвічена; тап по маркеру відкриває табло цієї зупинки */}
           <RouteMap
-            routeId=""
             stopNames={stops}
             markerStopNames={stops}
             fromStopName={selectedStop || undefined}
-            dark
-            hideRadialPicker
-            dimUnselectedMarkers
+            routeLines={overviewLines}
+            nodeStopIds={NODE_STOP_IDS}
             onStopMarkerClick={openStopBoard}
             coordsData={mapCoordsData}
             resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}

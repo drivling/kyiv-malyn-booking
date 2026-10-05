@@ -281,6 +281,39 @@ test.describe('transport', () => {
     });
   });
 
+  test.describe('map on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+    test('«Карта» opens a full-screen map with the stops, «Готово» returns to the list', async ({ page }) => {
+      await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
+      await expect(page.locator('.lt-route-num--card').first()).toBeVisible();
+      // На телефоні немає колонки карти й нижнього аркуша — лише кнопка «Карта»
+      await expect(page.locator('.lt-map-column')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Карта' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Карта' });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText('З: Базар · До: Вокзал')).toBeVisible();
+      await expect(dialog.locator('.leaflet-container')).toBeVisible();
+      await expect(dialog.locator('.lt-map-marker')).toHaveCount(6);
+      // Тап по маркеру (першому, що в кадрі) → картка зупинки з «Звідси / Сюди / Табло», без попапів і радіального пікера
+      const markers = dialog.locator('.lt-map-marker');
+      const boxes = await markers.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+      const vp = page.viewportSize()!;
+      const visibleIdx = boxes.findIndex((b) => b.left > 0 && b.top > 60 && b.right < vp.width && b.bottom < vp.height);
+      expect(visibleIdx).toBeGreaterThanOrEqual(0);
+      await markers.nth(visibleIdx).click();
+      const card = dialog.getByRole('dialog', { name: /^Зупинка / });
+      await expect(card).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Звідси' })).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Сюди' })).toBeVisible();
+      await expect(card.getByRole('link', { name: 'Табло' })).toHaveAttribute('href', /^\/transport\/stop\/st_/);
+      await expect(page.locator('.leaflet-popup, .lt-radial-picker')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Готово' }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator('.lt-route-num--card').first()).toBeVisible();
+    });
+  });
+
   test.describe('today by the Kyiv clock', () => {
     test.use({ timezoneId: 'Europe/Kyiv' });
 

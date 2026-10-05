@@ -3,7 +3,11 @@ import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'reac
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
 import { routeColor, routeColorStyle } from './routeColors';
-import { routeStopChain } from './routeGeometry';
+import { buildRouteLines, routeStopChain } from './routeGeometry';
+import { LocalTransportMapOverlay } from './LocalTransportMapOverlay';
+import { PHONE_QUERY, useMediaQuery } from './useMediaQuery';
+import { routesAtStop } from './schemeStops';
+import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
@@ -17,7 +21,7 @@ import {
   invertNameToId,
   resolveStopIdInList,
 } from './stopCatalog';
-import { isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
+import { VERIFIED_ROUTE_IDS, isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
 import { computeTripTiming, minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
 import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
 import { findNearestTrip } from './nearestTrip';
@@ -36,6 +40,8 @@ import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
+/** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
+const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
 
 /** URL планувальника для пари зупинок з датою/часом — єдине місце, де він збирається. */
 function buildPlannerUrl(from: string, to: string, date: string, time: string): string {
@@ -386,103 +392,15 @@ export const LocalTransportPage: React.FC = () => {
   const [pickerFrom, setPickerFrom] = useState<string>('');
   const [pickerTo, setPickerTo] = useState<string>('');
   const [frequentToStops, setFrequentToStops] = useState<string[]>([]);
-  const [mobileMapSnap, setMobileMapSnap] = useState<'collapsed' | 'mid' | 'full'>('collapsed');
-  const touchStartYRef = useRef<number | null>(null);
-  const touchStartTimeRef = useRef<number | null>(null);
-  const isMobileMapExpanded = mobileMapSnap !== 'collapsed';
-
-  const hapticLight = useCallback(() => {
-    try {
-      if (typeof navigator !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
-        navigator.vibrate?.(12);
-      }
-    } catch {
-      /* ignore */
-    }
+  // Карта на телефоні — повноекранний overlay за кнопкою «Карта»; на десктопі — колонка праворуч
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapResizeToken, setMapResizeToken] = useState(0);
+  const openMap = useCallback(() => {
+    setMapOpen(true);
+    setMapResizeToken((t) => t + 1);
   }, []);
-
-  const cycleMobileMapSnap = () => {
-    setMobileMapSnap((prev) => (prev === 'collapsed' ? 'mid' : prev === 'mid' ? 'full' : 'collapsed'));
-    hapticLight();
-  };
-
-  /** Розгорнути карту на мобілці після тапу по маркеру (як у Google Maps / Transit) */
-  const expandMobileMapSheetForStop = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (!window.matchMedia('(max-width: 767px)').matches) return;
-    setMobileMapSnap((prev) => {
-      if (prev === 'collapsed') {
-        queueMicrotask(() => hapticLight());
-        return 'mid';
-      }
-      return prev;
-    });
-  }, [hapticLight]);
-
-  const handleMobileMapTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
-    touchStartYRef.current = e.touches[0]?.clientY ?? null;
-    touchStartTimeRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  };
-
-  const handleMobileMapTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
-    const startY = touchStartYRef.current;
-    const startT = touchStartTimeRef.current;
-    touchStartYRef.current = null;
-    touchStartTimeRef.current = null;
-    if (startY == null || startT == null) return;
-    const endY = e.changedTouches[0]?.clientY ?? startY;
-    const endT = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const deltaY = endY - startY;
-    const dt = Math.max(16, endT - startT);
-    const velocityPxPerMs = deltaY / dt;
-
-    const FLING = 0.45;
-    const DRAG = 36;
-
-    const moveUp = () => {
-      setMobileMapSnap((prev) => {
-        if (prev === 'collapsed') return 'mid';
-        if (prev === 'mid') return 'full';
-        return prev;
-      });
-      hapticLight();
-    };
-    const moveDown = () => {
-      setMobileMapSnap((prev) => {
-        if (prev === 'full') return 'mid';
-        if (prev === 'mid') return 'collapsed';
-        return prev;
-      });
-      hapticLight();
-    };
-
-    if (velocityPxPerMs < -FLING) {
-      moveUp();
-      return;
-    }
-    if (velocityPxPerMs > FLING) {
-      moveDown();
-      return;
-    }
-    if (deltaY < -DRAG) {
-      moveUp();
-      return;
-    }
-    if (deltaY > DRAG) {
-      moveDown();
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.innerWidth >= 768) return;
-    if (!isMobileMapExpanded) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [isMobileMapExpanded]);
+  const closeMap = useCallback(() => setMapOpen(false), []);
 
   useEffect(() => {
     try {
@@ -527,6 +445,17 @@ export const LocalTransportPage: React.FC = () => {
 
   const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
   const stopsByRoute = data?.supplement?.stops?.stops_by_route;
+  /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті планера */
+  const overviewLines = useMemo(
+    () => (stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, VERIFIED_ROUTE_IDS) : []),
+    [stopsCoords, stopsByRoute]
+  );
+  const linesAtStop = useCallback((stopId: string) => (dataset ? routesAtStop(dataset, stopId) : []), [dataset]);
+  const boardHrefFor = useCallback(
+    (stopId: string) =>
+      `/transport/stop/${encodeURIComponent(stopId)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`,
+    [searchDate, searchTime]
+  );
   const stopsCatalog = useMemo(() => getStopsCatalog(data), [data]);
   const stops = useMemo(
     () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog),
@@ -836,6 +765,12 @@ export const LocalTransportPage: React.FC = () => {
   );
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
+
+  /** Лінія обраного маршруту в її кольорі (поточний напрямок) */
+  const detailLine = useMemo(
+    () => (detailRoute && stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, [detailRoute.id], stopsDirection) : []),
+    [detailRoute, stopsCoords, stopsByRoute, stopsDirection]
+  );
 
   /** Тільки «реальні» зупинки для маркерів на карті (без map_only — технічні точки лише для поворотів лінії) */
   const detailMapStopNamesForMarkers = useMemo(
@@ -1752,49 +1687,46 @@ export const LocalTransportPage: React.FC = () => {
               <a href="tel:+380687771590">(068) 77-71-590</a>
             </footer>
           </div>
-            {isMobileMapExpanded && (
-              <button
-                type="button"
-                className="lt-mobile-map-backdrop"
-                aria-label="Закрити карту"
-                onClick={() => setMobileMapSnap('collapsed')}
-              />
-            )}
-            <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
-            <button
-              type="button"
-              className="lt-mobile-map-toggle"
-                onClick={cycleMobileMapSnap}
-                onTouchStart={handleMobileMapTouchStart}
-                onTouchEnd={handleMobileMapTouchEnd}
-                aria-label={mobileMapSnap === 'collapsed' ? 'Відкрити карту' : mobileMapSnap === 'mid' ? 'Розгорнути карту на весь екран' : 'Згорнути карту'}
-            >
-              {mobileMapSnap === 'collapsed' ? 'Карта' : mobileMapSnap === 'mid' ? 'Ще більше' : 'Список'}
-            </button>
-            <RouteMap
-              routeId={detailRoute.id}
-              stopNames={mapStopNamesToShow}
-              markerStopNames={detailMapStopNamesForMarkers}
-              fromStopName={fromStop || undefined}
-              toStopName={toStop || undefined}
-              resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
-              onPickFromStop={(stopName) => {
-                setFromStop(stopName);
-                updateDetailUrl({ stop: stopName });
-              }}
-              onPickToStop={(stopName) => {
-                setToStop(stopName);
-                rememberFrequentToStop(stopName);
-                updateDetailUrl({ to: stopName });
-              }}
-              onSwapStops={() => reverseDirectionAndFromTo()}
-              frequentToStops={frequentToStops}
-              onStopMarkerActivate={expandMobileMapSheetForStop}
-              mapSheetSnap={mobileMapSnap}
-              coordsData={mapCoordsData}
-              dark
-            />
-          </div>
+            {(() => {
+              const mapProps = {
+                stopNames: mapStopNamesToShow,
+                markerStopNames: detailMapStopNamesForMarkers,
+                fromStopName: fromStop || undefined,
+                toStopName: toStop || undefined,
+                resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
+                routeLines: detailLine,
+                highlightRouteIds: [detailRoute.id],
+                nodeStopIds: NODE_STOP_IDS,
+                routesAtStop: linesAtStop,
+                boardHref: boardHrefFor,
+                onPickFromStop: (stopName: string) => {
+                  setFromStop(stopName);
+                  updateDetailUrl({ stop: stopName });
+                },
+                onPickToStop: (stopName: string) => {
+                  setToStop(stopName);
+                  rememberFrequentToStop(stopName);
+                  updateDetailUrl({ to: stopName });
+                },
+                onSwapStops: () => reverseDirectionAndFromTo(),
+                frequentToStops,
+                coordsData: mapCoordsData,
+              };
+              return isPhone ? (
+                <>
+                  <button type="button" className="lt-map-fab" onClick={openMap}>
+                    Карта
+                  </button>
+                  <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={`Маршрут №${detailRoute.id}`}>
+                    <RouteMap {...mapProps} resizeToken={mapResizeToken} />
+                  </LocalTransportMapOverlay>
+                </>
+              ) : (
+                <div className="lt-map-column">
+                  <RouteMap {...mapProps} showStrip />
+                </div>
+              );
+            })()}
           </>
         ) : (
           <>
@@ -1978,14 +1910,7 @@ export const LocalTransportPage: React.FC = () => {
                     <p className="lt-empty-text">
                       Оберіть зупинки «З» та «До» у формі вище або на карті — маршрути з’являться одразу.
                     </p>
-                    <button
-                      type="button"
-                      className="lt-empty-map-btn"
-                      onClick={() => {
-                        setMobileMapSnap('mid');
-                        hapticLight();
-                      }}
-                    >
+                    <button type="button" className="lt-empty-map-btn" onClick={openMap}>
                       Відкрити карту
                     </button>
                   </div>
@@ -2193,55 +2118,52 @@ export const LocalTransportPage: React.FC = () => {
             </footer>
           </>
           </div>
-          {isMobileMapExpanded && (
-            <button
-              type="button"
-              className="lt-mobile-map-backdrop"
-              aria-label="Закрити карту"
-              onClick={() => setMobileMapSnap('collapsed')}
-            />
-          )}
-          <div className={`lt-map-column ${mobileMapSnap === 'full' ? 'lt-map-column--mobile-full' : mobileMapSnap === 'mid' ? 'lt-map-column--mobile-mid' : 'lt-map-column--mobile-collapsed'}`}>
-            <button
-              type="button"
-              className="lt-mobile-map-toggle"
-              onClick={cycleMobileMapSnap}
-              onTouchStart={handleMobileMapTouchStart}
-              onTouchEnd={handleMobileMapTouchEnd}
-              aria-label={mobileMapSnap === 'collapsed' ? 'Відкрити карту' : mobileMapSnap === 'mid' ? 'Розгорнути карту на весь екран' : 'Згорнути карту'}
-            >
-              {mobileMapSnap === 'collapsed' ? 'Карта' : mobileMapSnap === 'mid' ? 'Ще більше' : 'Список'}
-            </button>
-            <RouteMap
-              stopNames={stops}
-              markerStopNames={stops}
-              fromStopName={resolvedFrom || undefined}
-              toStopName={resolvedTo || undefined}
-              resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}
-              onPickFromStop={(stopName) => {
+          {(() => {
+            const mapProps = {
+              stopNames: stops,
+              markerStopNames: stops,
+              fromStopName: resolvedFrom || undefined,
+              toStopName: resolvedTo || undefined,
+              resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
+              routeLines: overviewLines,
+              highlightRouteIds: committedPair ? routesConnectingFromTo.map((r) => r.id) : [],
+              nodeStopIds: NODE_STOP_IDS,
+              routesAtStop: linesAtStop,
+              boardHref: boardHrefFor,
+              onPickFromStop: (stopName: string) => {
                 setSearchFrom(stopName);
                 latestStopRef.current = stopName;
                 setStopFilter(stopName);
-              }}
-              onPickToStop={(stopName) => {
+              },
+              onPickToStop: (stopName: string) => {
                 setSearchTo(stopName);
                 rememberFrequentToStop(stopName);
                 // URL підтягнеться автосинхронізацією пари → адресний рядок.
-              }}
-              onSwapStops={() => {
+              },
+              onSwapStops: () => {
                 gaTrackEvent('transport_swap', { source: 'map' });
                 setSearchFrom(resolvedTo || effectiveSearchTo);
                 setSearchTo(resolvedFrom || effectiveSearchFrom);
-              }}
-              frequentToStops={frequentToStops}
-              onStopMarkerActivate={expandMobileMapSheetForStop}
-              mapSheetSnap={mobileMapSnap}
-              coordsData={mapCoordsData}
-              hideRadialPicker
-              dimUnselectedMarkers
-              dark
-            />
-          </div>
+              },
+              frequentToStops,
+              coordsData: mapCoordsData,
+            };
+            const subtitle = `З: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · До: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
+            return isPhone ? (
+              <>
+                <button type="button" className="lt-map-fab" onClick={openMap}>
+                  Карта
+                </button>
+                <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={subtitle}>
+                  <RouteMap {...mapProps} resizeToken={mapResizeToken} />
+                </LocalTransportMapOverlay>
+              </>
+            ) : (
+              <div className="lt-map-column">
+                <RouteMap {...mapProps} showStrip />
+              </div>
+            );
+          })()}
           </>
         )}
 

@@ -414,17 +414,53 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     expect(screen.getByRole('heading', { level: 2, name: /Прямі маршрути: Базар → Вокзал/ })).toBeInTheDocument();
   });
 
-  it('without a pair: h1 «Як доїхати», hub title, empty state with «Відкрити карту» that raises the sheet', async () => {
+  it('without a pair: h1 «Як доїхати», hub title, empty state; on a phone «Відкрити карту» opens the full-screen map', async () => {
     const user = userEvent.setup();
+    // Телефон: matchMedia для (max-width: 767px) → overlay замість колонки карти
+    const desktopMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    try {
+      renderPlanner('/transport');
+      await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
+      expect(screen.getByRole('heading', { level: 1, name: 'Як доїхати' })).toBeInTheDocument();
+      await waitFor(() => expect(document.title).toMatch(/^Транспорт Малина/));
+      const empty = screen.getByText(/Оберіть зупинки «З» та «До»/).closest('.lt-empty') as HTMLElement;
+      expect(document.querySelector('.lt-map-column')).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
+
+      await user.click(within(empty).getByRole('button', { name: 'Відкрити карту' }));
+      const dialog = screen.getByRole('dialog', { name: 'Карта' });
+      expect(within(dialog).getByTestId('route-map')).toBeInTheDocument();
+      expect(within(dialog).getByText('З: — · До: —')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Готово' })).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
+      // Кнопка «Карта» внизу екрана відкриває ту саму карту
+      await user.click(screen.getByRole('button', { name: 'Карта' }));
+      expect(screen.getByRole('dialog', { name: 'Карта' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Готово' }));
+      expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
+    } finally {
+      window.matchMedia = desktopMatchMedia;
+    }
+  });
+
+  it('on a desktop the map is a column next to the results, not a dialog', async () => {
     renderPlanner('/transport');
     await screen.findByRole('combobox', { name: 'З' }, { timeout: 5000 });
-    expect(screen.getByRole('heading', { level: 1, name: 'Як доїхати' })).toBeInTheDocument();
-    expect(document.title).toMatch(/^Транспорт Малина/);
-    const empty = screen.getByText(/Оберіть зупинки «З» та «До»/).closest('.lt-empty') as HTMLElement;
-    const mapColumn = document.querySelector('.lt-map-column') as HTMLElement;
-    expect(mapColumn.className).toContain('lt-map-column--mobile-collapsed');
-    await user.click(within(empty).getByRole('button', { name: 'Відкрити карту' }));
-    expect(mapColumn.className).toContain('lt-map-column--mobile-mid');
+    expect(document.querySelector('.lt-map-column')).not.toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Карта' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Карта' })).toBeNull();
   });
 
   it('«Поруч зі мною» fills «З» with the nearest stop and moves focus to «До»', async () => {

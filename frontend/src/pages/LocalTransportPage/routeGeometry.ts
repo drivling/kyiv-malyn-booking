@@ -54,21 +54,22 @@ export function routeStopChain(
 }
 
 /**
- * Полілінії перевірених маршрутів (напрямок «туди», запасний варіант — усі точки) у кольорах схеми.
+ * Полілінії перевірених маршрутів (за напрямком, запасний варіант — усі точки) у кольорах схеми.
  * Маршрути без кольору й без двох точок із координатами пропускаються.
  */
 export function buildRouteLines(
   stops: Record<string, LatLng>,
   stopsByRoute: StopsByRoute | undefined,
-  routeIds: readonly string[]
+  routeIds: readonly string[],
+  direction: RouteDirection = 'there'
 ): RouteLine[] {
   const out: RouteLine[] = [];
   for (const routeId of routeIds) {
     if (!isVerifiedRoute(routeId)) continue;
     const color = routeColor(routeId);
     if (!color) continue;
-    let chain = routeStopChain(stopsByRoute, routeId, 'there');
-    if (!chain.length) chain = routeStopChain(stopsByRoute, routeId, 'there', { all: true });
+    let chain = routeStopChain(stopsByRoute, routeId, direction);
+    if (!chain.length) chain = routeStopChain(stopsByRoute, routeId, direction, { all: true });
     const positions = chain.map((k) => stops[k]).filter((p): p is LatLng => Array.isArray(p));
     if (positions.length >= 2) out.push({ routeId, color, positions });
   }

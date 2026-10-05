@@ -147,20 +147,6 @@
     -webkit-overflow-scrolling: touch;
     padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
-  .lt-page.lt-layout-dark .lt-map-column {
-    flex: 0 0 auto;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 45;
-    border-top: 1px solid var(--lt-border);
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35);
-    background: #1a1a1a;
-    overflow: hidden;
-  }
   /* 16px щоб iOS не зумувало при фокусі на даті/часі та селекті зупинок */
   .lt-datetime-input,
   .lt-time-picker-select,
@@ -457,132 +443,6 @@
 .lt-detail-summary-change:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--lt-accent);
-}
-
-.lt-map-column {
-  height: 320px;
-  min-height: 280px;
-  background: #1a1a1a;
-}
-
-.lt-mobile-map-toggle {
-  display: none;
-}
-
-.lt-mobile-map-backdrop {
-  display: none;
-}
-
-@media (max-width: 767px) {
-  .lt-page.lt-layout-dark .lt-map-column {
-    min-height: 64px;
-    height: 64px;
-    transition: height 0.22s ease, min-height 0.22s ease;
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid {
-    min-height: 72dvh;
-    height: 72dvh;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full {
-    min-height: 96dvh;
-    height: 96dvh;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-collapsed .lt-map-wrapper {
-    display: none;
-  }
-
-  .lt-page.lt-layout-dark .lt-mobile-map-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: calc(100% - 24px);
-    margin: 10px 12px;
-    min-height: 44px;
-    border-radius: var(--lt-radius-pill);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: #2b2c2f;
-    color: #f1f3f4;
-    font-size: var(--lt-fs-base);
-    font-weight: 600;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    position: relative;
-  }
-
-  .lt-page.lt-layout-dark .lt-mobile-map-toggle::before {
-    content: '';
-    width: 30px;
-    height: 4px;
-    border-radius: var(--lt-radius-pill);
-    background: #9aa0a6;
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .lt-page.lt-layout-dark .lt-panel {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column .lt-map-wrapper {
-    height: calc(100% - 64px);
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid .lt-map-wrapper,
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full .lt-map-wrapper {
-    display: flex;
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid .lt-map-container,
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full .lt-map-container {
-    height: 100%;
-    min-height: 0;
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid .lt-direction-strip,
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full .lt-direction-strip {
-    margin-left: 10px;
-    margin-right: 10px;
-  }
-
-  .lt-page.lt-layout-dark .lt-mobile-map-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    border: none;
-    background: rgba(0, 0, 0, 0.35);
-  }
-}
-
-@media (min-width: 768px) {
-  .lt-map-column {
-    height: 100%;
-    min-height: 400px;
-  }
-}
-
-.lt-map-column .lt-map-wrapper {
-  padding: 0;
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.lt-map-column .lt-map-heading { display: none; }
-.lt-map-column .lt-map-container {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  border-radius: 0;
-  border: none;
 }
 
 .lt-page {
@@ -2021,241 +1881,302 @@
   text-align: right;
 }
 
-/* Карта */
-.lt-map-wrapper {
-  position: relative;
-  padding: 0;
-  background: transparent;
-  border: none;
-}
-
-.lt-direction-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.lt-direction-strip__from,
-.lt-direction-strip__to {
-  flex: 1;
+/* ========== Карта: колонка праворуч (десктоп), повноекранний overlay (телефон) ========== */
+.lt-map-column {
+  flex: 1 1 auto;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: var(--lt-fs-sm);
-}
-
-.lt-direction-strip__from { color: #81c995; }
-.lt-direction-strip__to { color: #8ab4f8; text-align: right; }
-
-.lt-direction-strip__swap {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--lt-radius-pill);
-  border: 1px solid var(--lt-border);
-  background: #2b2c2f;
-  color: var(--lt-text);
-  cursor: pointer;
-}
-
-.lt-direction-strip__swap:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.lt-direction-strip__hint {
-  margin: 0 0 8px;
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-text-muted);
-}
-
-.lt-stop-popup__title {
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-
-.lt-stop-popup__actions {
-  display: flex;
-  gap: 6px;
-}
-
-.lt-stop-popup__actions button {
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-icon);
-  padding: 4px 8px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.lt-stop-sheet {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  z-index: 1000;
-  background: var(--lt-card);
-  color: var(--lt-text);
-  border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-sm);
-  padding: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-
-.lt-stop-sheet__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.lt-stop-sheet__header button {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.lt-stop-sheet__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.lt-stop-sheet__btn {
-  min-height: 42px;
-  border-radius: var(--lt-radius-sm);
-  border: none;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.lt-stop-sheet__btn--from { background: #34a853; }
-.lt-stop-sheet__btn--to { background: #1a73e8; }
-
-.lt-stop-sheet__history {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: var(--lt-fs-sm);
-}
-
-.lt-stop-sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.lt-stop-sheet__chip {
-  border: 1px solid var(--lt-border);
-  background: transparent;
-  color: inherit;
-  border-radius: var(--lt-radius-pill);
-  padding: 4px 10px;
-  cursor: pointer;
-}
-
-.lt-map-heading {
-  margin: 0 0 6px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-map-container {
-  height: 280px;
-  width: 100%;
-  border-radius: var(--lt-radius-icon);
-  overflow: hidden;
-  background: var(--lt-bg);
-  border: 1px solid var(--lt-border-light);
-  /* Стабільний рендер карти на iOS/Android: окремий шар, без "стрибків" при скролі */
-  position: relative;
-  isolation: isolate;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-.lt-radial-picker {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 132px;
-  height: 132px;
-  pointer-events: none;
-  z-index: 900;
-}
-
-.lt-radial-picker__btn {
-  position: absolute;
-  min-width: 50px;
-  min-height: 50px;
-  border: 2px solid #fff;
-  border-radius: var(--lt-radius-pill);
-  color: #fff;
-  font-weight: 700;
-  font-size: var(--lt-fs-base);
-  cursor: pointer;
-  pointer-events: auto;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.lt-radial-picker__btn--from {
-  left: 6px;
-  top: 40px;
-  background: #34a853;
-}
-
-.lt-radial-picker__btn--to {
-  right: 6px;
-  top: 40px;
-  background: #1a73e8;
+  min-height: 400px;
 }
 
 @media (max-width: 767px) {
-  .lt-radial-picker {
-    width: 150px;
-    height: 150px;
-  }
-  .lt-radial-picker__btn {
-    min-width: 56px;
-    min-height: 56px;
-    font-size: var(--lt-fs-base);
-  }
-  .lt-radial-picker__btn--from {
-    left: 2px;
-    top: 46px;
-  }
-  .lt-radial-picker__btn--to {
-    right: 2px;
-    top: 46px;
+  .lt-map-column {
+    display: none;
   }
 }
 
-@media (min-width: 768px) {
-  .lt-map-container {
-    height: 360px;
-  }
+.lt-map-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: inherit;
 }
 
-.lt-map-arrow {
-  pointer-events: none;
-  background: transparent !important;
-  border: none !important;
+.lt-map-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 320px;
+  background: var(--lt-bg);
 }
 
 .lt-map-container .leaflet-container {
   font: inherit;
-  min-height: 280px;
+  background: var(--lt-bg);
+}
+
+.lt-map-container .leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--lt-text-muted);
+  font-size: var(--lt-fs-xs);
+}
+
+.lt-map-container .leaflet-control-attribution a {
+  color: var(--lt-text-muted);
+}
+
+/* Підписи зупинок: прозорий текст без рамки, вузли — жирніші */
+.lt-map-label.leaflet-tooltip {
+  padding: 1px 5px;
+  border: 0;
+  border-radius: var(--lt-radius-badge);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: none;
+  color: var(--lt-text);
+  font-size: var(--lt-fs-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.lt-map-label.leaflet-tooltip::before {
+  display: none;
+}
+
+.lt-map-label--node.leaflet-tooltip {
+  font-size: var(--lt-fs-sm);
+  font-weight: 700;
+}
+
+.lt-map-marker {
+  background: none;
+  border: 0;
+}
+
+/* Світла смужка «З … ⇅ До …» над картою (десктоп) */
+.lt-map-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px var(--lt-panel-x);
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
+}
+
+.lt-map-strip__hint {
+  flex-basis: 100%;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+}
+
+.lt-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Картка зупинки над картою — єдиний спосіб вибрати З/До тапом по маркеру */
+.lt-map-card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  padding: 12px 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
+  box-shadow: var(--lt-elev-1);
+}
+
+.lt-map-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lt-map-card__title {
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  color: var(--lt-text);
+}
+
+.lt-map-card__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.lt-map-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.lt-map-card__frequent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+}
+
+/* Повноекранна карта на телефоні */
+.lt-map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--lt-card);
+}
+
+.lt-map-overlay__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top)) var(--lt-panel-x) 10px;
+  border-bottom: 1px solid var(--lt-border);
+}
+
+.lt-map-overlay__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--lt-text);
+  font-size: var(--lt-fs-md);
+}
+
+.lt-map-overlay__subtitle {
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lt-map-overlay__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lt-map-overlay__body .lt-map-wrapper,
+.lt-map-overlay__body .lt-map-container {
+  height: 100%;
+}
+
+/* Кнопка «Карта» внизу екрана (телефон) */
+.lt-map-fab {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 40;
+  transform: translateX(-50%);
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--lt-radius-pill);
+  background: var(--lt-text);
+  color: #fff;
+  font-size: var(--lt-fs-base);
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(5, 71, 82, 0.3);
+  cursor: pointer;
+}
+
+/* ---- спільні примітиви: пігулки, іконні кнопки, бейджі (чіпи — .lt-chip вище) */
+.lt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-pill);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-size: var(--lt-fs-base);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lt-btn--primary {
+  border-color: var(--lt-accent);
+  background: var(--lt-accent);
+  color: #fff;
+}
+
+.lt-btn--origin {
+  border-color: var(--lt-origin);
+  background: var(--lt-origin);
+  color: #fff;
+}
+
+.lt-btn--destination {
+  border-color: var(--lt-destination);
+  background: var(--lt-destination);
+  color: #fff;
+}
+
+.lt-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-icon);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-size: var(--lt-fs-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lt-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lt-chip--static {
+  cursor: default;
+}
+
+.lt-chip--origin {
+  border-color: var(--lt-origin);
+  color: var(--lt-origin-ink);
+}
+
+.lt-chip--destination {
+  border-color: var(--lt-destination);
+  color: var(--lt-destination-ink);
+}
+
+.lt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 2px 7px;
+  border-radius: var(--lt-radius-badge);
+  background: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-route-fg, #fff);
+  font-size: var(--lt-fs-sm);
+  font-weight: 700;
 }
 
 /* AEO / SEO crawlable hub (route directory + FAQ) */
@@ -2564,7 +2485,6 @@
   touch-action: manipulation;
 }
 
-
 @media (max-width: 480px) {
   .lt-page {
     padding: 16px 12px;
@@ -2590,15 +2510,6 @@
 
   .lt-stops {
     padding: 16px;
-  }
-
-  /* Висота карти в панелі (деталі) — фіксована; в колонці справа — на всю 40dvh */
-  .lt-map-container {
-    height: 240px;
-  }
-  .lt-map-column .lt-map-container {
-    height: 100%;
-    min-height: 200px;
   }
 
   /* iOS: 16px щоб не зумувало при фокусі на даті/часі та селекті */
@@ -3104,9 +3015,6 @@
   }
 }
 @media (max-width: 767px) {
-  .lt-page--stop-board.lt-layout-dark .lt-map-column {
-    display: none;
-  }
   .lt-page--stop-board.lt-layout-dark .lt-panel {
     padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
