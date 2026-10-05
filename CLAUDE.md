@@ -57,7 +57,7 @@ npm run prisma:migrate:deploy              # apply migrations (prod)
 Frontend (`cd frontend`):
 ```bash
 npm run dev            # vite dev server
-npm run build           # tsc && vite build && prerender-corridors + prerender-transport-stops scripts
+npm run build           # tsc && vite build && prerender-corridors + prerender-transport-stops + prerender-spa + seo-smoke (SEO_SMOKE_STRICT=1)
 npm run lint             # eslint, max-warnings 0
 npm test                 # vitest run
 npm run test:watch
@@ -171,9 +171,12 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   must return JSON). If a build fails with "API is not answering", check whether the backend moved
   before anything else — see `Docs/seo-aeo-plan-2026-09.md` "Правило API". Corridor pages must
   never ship a placeholder timetable (rule D10): live API → committed snapshot → build fails.
-- Build (`npm run build`) runs `tsc && vite build` then two prerender scripts
-  (`scripts/prerender-corridors.mjs`, `scripts/prerender-transport-stops.mjs`) that statically render
-  SEO landing pages after the Vite build — don't skip them when validating a production build.
+- Build (`npm run build`) runs `tsc && vite build` then four post-steps: `scripts/prerender-corridors.mjs`
+  and `scripts/prerender-transport-stops.mjs` (static SEO landing pages from their own templates),
+  `scripts/prerender-spa.mjs` (renders `/transport`, `/transport/scheme` and every `/transport/route/:id`
+  from the sitemap through the real SPA in jsdom — route-page code must run without a browser) and
+  `SEO_SMOKE_STRICT=1 scripts/seo-smoke.mjs` (title/h1/canonical/placeholder checks on `dist/`) — don't
+  skip them when validating a production build.
 - `npm run preview`/`npm start` serve via `scripts/serve-dist.mjs`, not Vite's built-in preview.
 
 ### Frontend testing

@@ -84,6 +84,24 @@ test.describe('transport', () => {
     await expect(page.getByRole('link', { name: 'Табло зупинки' })).toHaveAttribute('href', /\/transport\/stop\/st_0072/);
   });
 
+  test('route page: two taps on the timeline pick «Звідки» and «Куди», the URL and the table follow', async ({ page }) => {
+    await page.goto('/transport/route/2?d=16.09.26&h=08%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/№2/);
+    await expect(page.getByRole('button', { name: 'Показати розклад' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Базар' }).click();
+    await expect(page).toHaveURL(/stop=st_a&dir=there/);
+    await expect(page.locator('.lt-stop-item--from')).toContainText('Базар');
+    await page.getByRole('button', { name: 'Лікарня' }).click();
+    await expect(page).toHaveURL(/stop=st_a&dir=there&to=st_c/);
+    await expect(page.locator('.lt-stop-item--to')).toContainText('Лікарня');
+    await expect(page.locator('thead th').nth(1)).toHaveText('Прибуття (Лікарня)');
+    // «Табло» веде на табло зупинки з тією самою датою
+    await expect(page.getByRole('link', { name: 'Табло зупинки «Вокзал»' })).toHaveAttribute('href', /\/transport\/stop\/st_b\?d=16\.09\.26&h=08(%3A|:)00/);
+    await page.getByRole('button', { name: 'Скинути' }).click();
+    await expect(page).toHaveURL(/\/transport\/route\/2\?d=16\.09\.26&h=08(%3A|:)00&dir=there$/);
+    await expect(page.locator('.lt-stop-item--from')).toHaveCount(0);
+  });
+
   test('route badges carry the scheme colour in the planner, the catalogue and on the stop board', async ({ page }) => {
     // Планувальник: картка результату №2 → колір лінії зі схеми (червоний), каталог ліній теж
     await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
@@ -281,6 +299,48 @@ test.describe('transport', () => {
       await page.getByRole('button', { name: 'Завтра', exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/transport/stop/st_a\\?d=${dd}\\.${mm}\\.${yy}&h=`));
       await expect(page.getByRole('button', { name: 'Завтра о 07:00', exact: true })).toBeVisible();
+    });
+  });
+
+  test('stop board: a line chip under the title filters the cards and lives in ?line=', async ({ page }) => {
+    await page.goto('/transport/stop/st_c?d=16.09.26&h=07%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Лікарня»');
+    const chips = page.getByRole('group', { name: 'Маршрути через зупинку' });
+    await expect(chips.getByRole('button')).toHaveCount(2);
+    await chips.getByRole('button', { name: '№3' }).click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_c\?d=16\.09\.26&h=07(%3A|:)00&line=3$/);
+    await expect(chips.getByRole('button', { name: '№3' })).toHaveAttribute('aria-pressed', 'true');
+    const nums = page.locator('.lt-jd-card__route-num');
+    await expect(nums.first()).toHaveText('№3');
+    await expect(page.locator('.lt-jd-card__route-num', { hasText: '№2' })).toHaveCount(0);
+    // Картки йдуть перед статтею й FAQ
+    const cardsBox = await page.locator('.lt-jd-cards').boundingBox();
+    const faqBox = await page.getByRole('heading', { name: 'Часті питання' }).boundingBox();
+    expect(cardsBox!.y).toBeLessThan(faqBox!.y);
+  });
+
+  test.describe('route page on a phone', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('departures strip, collapsed full timetable that still prints, «Карта» chip opens the map', async ({ page }) => {
+      await page.goto('/transport/route/2?stop=st_a&to=st_c&d=16.09.26&h=08%3A00');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/№2/);
+      const strip = page.getByRole('group', { name: 'Відправлення за день' });
+      await expect(strip.getByRole('button', { pressed: true })).toHaveText(/08:30/);
+      const toggle = page.getByRole('button', { name: 'Повний розклад' });
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(page.locator('#lt-timetable-full')).toBeHidden();
+      await page.emulateMedia({ media: 'print' });
+      await expect(page.locator('#lt-timetable-full')).toBeVisible();
+      await page.emulateMedia({ media: 'screen' });
+      await toggle.click();
+      await expect(page.locator('#lt-timetable-full')).toBeVisible();
+      await expect(page.locator('.lt-map-column')).toBeHidden();
+      await page.getByRole('button', { name: 'Карта', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Карта' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Готово' }).click();
+      await expect(dialog).toBeHidden();
     });
   });
 

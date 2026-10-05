@@ -9,6 +9,7 @@ import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { VERIFIED_ROUTE_IDS, isVerifiedRoute } from './routeTiming';
 import { buildRouteLines } from './routeGeometry';
 import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
+import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 import { routeColorStyle } from './routeColors';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
@@ -39,6 +40,12 @@ function schemeMiniNote(node: { name: string; size: number; stops: string[] } | 
     return `Вузол «${node.name}»${list} — підсвічено лінії всього вузла${lines ? `: ${lines}` : ''}.`;
   }
   return lines ? `Ваша зупинка позначена на схемі, підсвічено її лінії: ${lines}.` : 'Ваша зупинка позначена на схемі.';
+}
+
+/** Порядок ліній як у легенді схеми; маршрути поза схемою — за номером у кінці */
+const SCHEME_ORDER = new Map(SCHEME_ROUTES.map((r, i) => [r.id, i]));
+function compareLineIds(a: string, b: string): number {
+  return (SCHEME_ORDER.get(a) ?? 999) - (SCHEME_ORDER.get(b) ?? 999) || Number(a) - Number(b);
 }
 
 /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
@@ -97,25 +104,33 @@ function roundedDepartureMins(mins: number): number {
   return Math.round(mins);
 }
 
+/** «12 хв», «1 год 5 хв» — підпис відліку до відправлення (як у планувальнику) */
+function formatWaitMins(mins: number): string {
+  if (mins < 60) return `${mins} хв`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h} год ${m} хв` : `${h} год`;
+}
+
 export const LocalTransportStopBoardPage: React.FC = () => {
   const { stopSlug } = useParams<{ stopSlug?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const { dataset, loading, error } = useTransportDataset();
-  const viewModel = useMemo(
-    () => (dataset ? datasetToLocalViewModel(dataset) : null),
-    [dataset]
-  );
+  const viewModel = useMemo(() => {
+    if (!dataset) return null;
+    const vm = datasetToLocalViewModel(dataset);
+    // Синхронно, у тому ж рендері: ефект спрацював би вже після першого розкладу, і той рахувався б
+    // зі старими тривалостями сегментів (а перерендера після цього може й не бути).
+    configureSegmentDurations(vm.segmentDurations, vm.defaultSec);
+    return vm;
+  }, [dataset]);
   const data: TransportData | null = viewModel?.data ?? null;
-
-  useEffect(() => {
-    if (!viewModel) return;
-    configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
-  }, [viewModel]);
 
   const dParam = searchParams.get('d') ?? '';
   const hParam = searchParams.get('h') ?? '';
+  const lineParam = searchParams.get('line') ?? '';
 
   const [searchDate, setSearchDate] = useState(() => dParam || formatDateUrl(new Date()));
   const [searchTime, setSearchTime] = useState(() => {
@@ -222,12 +237,19 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return Math.max(kyivNowMins, referenceMins);
   }, [travelDayOffsetDays, showFullDay, kyivNowMins, referenceMins]);
 
-  const showDepartureCountdown = travelDayOffsetDays !== null && travelDayOffsetDays >= 0;
 
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
     return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog);
   }, [selectedStop, routes, stopsByRoute, stopsCatalog]);
+
+  /** Усі маршрути з відправленнями на зупинці за день — чіпи-фільтри під заголовком */
+  const lineIdsAtStop = useMemo(
+    () => [...new Set(departures.map((r) => r.routeId))].sort(compareLineIds),
+    [departures]
+  );
+  /** Фільтр за лінією з `?line=` (лише коли така лінія справді проходить через зупинку) */
+  const lineFilter = lineIdsAtStop.includes(lineParam) ? lineParam : '';
 
   const selectedStopTitle = useMemo(
     () => (selectedStop ? displayNameForStopKey(selectedStop, stopsCatalog) : ''),
@@ -351,9 +373,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   /** За замовчуванням — лише рейси з обраного часу або пізніше (як «наступні відправлення»). */
   const visibleDepartures = useMemo(() => {
-    if (!departures.length || showFullDay) return departures;
-    return departures.filter((r) => roundedDepartureMins(r.departureMins) >= referenceMins);
-  }, [departures, showFullDay, referenceMins]);
+    const byLine = lineFilter ? departures.filter((r) => r.routeId === lineFilter) : departures;
+    if (!byLine.length || showFullDay) return byLine;
+    return byLine.filter((r) => roundedDepartureMins(r.departureMins) >= referenceMins);
+  }, [departures, lineFilter, showFullDay, referenceMins]);
 
   /** Підсвітка: у режимі «з часу» — перший рядок; у «весь день» — перший ≥ часу. */
   const highlightIndex = useMemo(() => {
@@ -363,11 +386,12 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     return idx >= 0 ? idx : -1;
   }, [visibleDepartures, showFullDay, referenceMins]);
 
-  const syncUrl = (stop: string, date: string, time: string) => {
+  const syncUrl = (stop: string, date: string, time: string, line = '') => {
     const params = new URLSearchParams();
     if (date) params.set('d', date.trim());
     const hNorm = normalizeTimeInput(time);
     if (hNorm) params.set('h', hNorm);
+    if (line) params.set('line', line);
     const search = params.toString() ? `?${params.toString()}` : '';
     const pathname = stop ? `/transport/stop/${encodeURIComponent(stop)}` : '/transport/stop';
     navigate({ pathname, search }, { replace: true });
@@ -408,7 +432,12 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     setSearchTime(t);
     if (dateTimeSyncTimer.current) window.clearTimeout(dateTimeSyncTimer.current);
     if (!parseDateUrl(date) || !normalizeTimeInput(t)) return;
-    dateTimeSyncTimer.current = window.setTimeout(() => syncUrl(selectedStop, date, t), 300);
+    dateTimeSyncTimer.current = window.setTimeout(() => syncUrl(selectedStop, date, t, lineFilter), 300);
+  };
+
+  /** Чіп лінії під заголовком: фільтр карток, стан у `?line=` (повторний тап знімає) */
+  const toggleLine = (id: string) => {
+    syncUrl(selectedStop, searchDate, searchTime, lineFilter === id ? '' : id);
   };
 
   /** Зупинка з геолокації або з маркера на карті → табло цієї зупинки */
@@ -430,6 +459,16 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   const fareAmount =
     typeof data?.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
+
+  /** Підзаголовок секції відправлень: дата, проїзд, режим («з HH:MM» або «весь день») */
+  const boardMeta = [
+    'Відправлення',
+    parseDateUrl(searchDate) ? searchDate : '',
+    fareAmount != null ? `проїзд ${fareAmount} ₴` : '',
+    showFullDay ? 'весь день' : `з ${searchTime}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   if (loading) {
     return (
@@ -464,6 +503,23 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <p className="lt-subtitle">
               {selectedStopTitle ? 'Малин · розклад відправлень' : 'Малин · місцевий транспорт'}
             </p>
+            {selectedStop && lineIdsAtStop.length > 0 && (
+              <div className="lt-line-chips" role="group" aria-label="Маршрути через зупинку">
+                {lineIdsAtStop.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className="lt-chip lt-line-chip"
+                    style={routeColorStyle(id)}
+                    aria-pressed={lineFilter === id}
+                    onClick={() => toggleLine(id)}
+                    title={lineFilter === id ? 'Показати всі маршрути' : `Лише маршрут №${id}`}
+                  >
+                    №{id}
+                  </button>
+                ))}
+              </div>
+            )}
           </header>
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={selectedStop || undefined} />
@@ -496,10 +552,27 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="lt-search-extra">
+              <div className="lt-search-chips">
+                <DateTimeControls
+                  idPrefix="lt-board"
+                  page="board"
+                  date={searchDate}
+                  time={searchTime}
+                  onChange={handleDateTimeChange}
+                />
                 <button
                   type="button"
-                  className="lt-geo-btn lt-geo-btn--small"
+                  className="lt-chip"
+                  aria-pressed={showFullDay}
+                  disabled={!selectedStop}
+                  onClick={() => setShowFullDay((v) => !v)}
+                  title="Усі відправлення з 00:00, а не лише з обраного часу"
+                >
+                  Весь день
+                </button>
+                <button
+                  type="button"
+                  className="lt-chip"
                   onClick={findNearest}
                   disabled={geoLoading}
                   aria-busy={geoLoading}
@@ -508,6 +581,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 >
                   {geoLoading ? 'Шукаємо…' : 'Поруч зі мною'}
                 </button>
+              </div>
                 {/* Live-region завжди в DOM: скрінрідер озвучує помилку геолокації */}
                 <p className="lt-geo-error" role="status" aria-live="polite">
                   {geoError}
@@ -528,16 +602,97 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
-              <DateTimeControls
-                idPrefix="lt-board"
-                page="board"
-                date={searchDate}
-                time={searchTime}
-                onChange={handleDateTimeChange}
-              />
             </div>
           </div>
+
+          {!selectedStop ? (
+            <p className="lt-empty lt-stop-board-empty">Оберіть зупинку, щоб побачити розклад відправлень.</p>
+          ) : departures.length === 0 ? (
+            <p className="lt-empty">Для цієї зупинки немає розкладу в даних.</p>
+          ) : visibleDepartures.length === 0 && !showFullDay ? (
+            <section className="lt-stop-board" aria-label="Відправлення">
+              <p className="lt-stop-board-meta">{boardMeta}</p>
+              <p className="lt-empty">
+                Після {searchTime} на цій зупинці{lineFilter ? ` маршрут №${lineFilter}` : ''} в розкладі не має відправлень.
+              </p>
+              <button type="button" className="lt-btn lt-stop-board-show-all" onClick={() => setShowFullDay(true)}>
+                Показати весь день
+              </button>
+            </section>
+          ) : (
+            <section className="lt-stop-board" aria-label="Відправлення">
+              <p className="lt-stop-board-meta">{boardMeta}</p>
+              <ul className="lt-jd-cards">
+                {visibleDepartures.map((row, i) => {
+                  const isNext = highlightIndex >= 0 && i === highlightIndex;
+                  const depMins = roundedDepartureMins(row.departureMins);
+                  const depClock = formatMinsClock(depMins);
+                  const qs = new URLSearchParams();
+                  qs.set('stop', selectedStop);
+                  qs.set('dir', row.direction);
+                  qs.set('time', depClock);
+                  if (searchDate) qs.set('d', searchDate);
+                  qs.set('h', depClock);
+                  const toRoute = `/transport/route/${row.routeId}?${qs.toString()}`;
+                  // Відлік лише для сьогоднішньої дати (за Києвом), як на картках планувальника
+                  let waitLabel = 'відправлення';
+                  let waitMod = '';
+                  if (travelDayOffsetDays === 0) {
+                    let deltaMins = depMins - countdownBaselineMins;
+                    if (deltaMins < 0 && countdownBaselineMins >= 22 * 60 && depMins < 4 * 60) {
+                      deltaMins += 24 * 60;
+                    }
+                    if (deltaMins > 0) {
+                      waitLabel = `через ${formatWaitMins(deltaMins)}`;
+                      waitMod = 'lt-jd-card__wait--soon';
+                    } else if (deltaMins === 0) {
+                      waitLabel = 'зараз';
+                      waitMod = 'lt-jd-card__wait--now';
+                    } else {
+                      waitLabel = 'вже вирушив';
+                    }
+                  }
+                  const aria = `Маршрут ${row.routeId}, відправлення ${depClock}, ${row.destination}`;
+                  return (
+                    <li key={`${row.tripId}-${depMins}-${i}`}>
+                      <Link
+                        className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
+                        to={toRoute}
+                        aria-label={aria}
+                      >
+                        <div className="lt-jd-card__time" aria-hidden>
+                          <span className="lt-jd-card__clock">{depClock}</span>
+                          <span className={`lt-jd-card__wait ${waitMod}`}>{waitLabel}</span>
+                        </div>
+                        <div className="lt-jd-card__body">
+                          <span
+                            className={`lt-jd-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-jd-card__route-num--verified' : ''}`}
+                            style={routeColorStyle(row.routeId)}
+                          >
+                            №{row.routeId}
+                          </span>
+                          <span className="lt-jd-card__destination">
+                            <span aria-hidden>→ </span>
+                            {row.destination}
+                          </span>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
+            <LocalTransportSchemeMini
+              routeIds={schemeRouteIds}
+              stopIds={schemeNode ? [schemeNode.id] : []}
+              href={buildSchemeUrl({ stop: selectedStop, date: searchDate, time: searchTime })}
+              label={`Відкрити схему маршрутів: зупинка «${selectedStopTitle}»`}
+              note={schemeMiniNote(schemeNodeInfo, schemeRouteIds)}
+            />
+          )}
 
           {stopArticle ? (
             <section className="lt-stop-article" aria-labelledby="lt-stop-article-h">
@@ -606,183 +761,15 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               ) : null}
               <aside className="lt-stop-article-howto" aria-label="Як користуватися">
                 <p>
-                  Розклад — у картках нижче. Маршрут до іншої зупинки — у{' '}
+                  Розклад — у картках вище. Маршрут до іншої зупинки — у{' '}
                   <Link to={selectedStop ? `/transport?from=${encodeURIComponent(selectedStop)}` : '/transport'}>
-                    планері «З → До»
+                    планері «Звідки → Куди»
                   </Link>
                   .
                 </p>
               </aside>
             </section>
           ) : null}
-
-          {!selectedStop ? (
-            <p className="lt-empty lt-stop-board-empty">Оберіть зупинку, щоб побачити розклад відправлень.</p>
-          ) : departures.length === 0 ? (
-            <p className="lt-empty">Для цієї зупинки немає розкладу в даних.</p>
-          ) : visibleDepartures.length === 0 && !showFullDay ? (
-            <section className="lt-stop-board" aria-labelledby="lt-stop-board-table-h">
-              <div className="lt-stop-board-meta">
-                <h3 id="lt-stop-board-table-h" className="lt-stop-board-table-title">
-                  {selectedStopTitle}
-                </h3>
-                {parseDateUrl(searchDate) && (
-                  <span className="lt-stop-board-date">
-                    {searchDate}
-                    {fareAmount != null && (
-                      <span className="lt-stop-board-fare"> · Проїзд {fareAmount}₴</span>
-                    )}
-                  </span>
-                )}
-              </div>
-              <p className="lt-empty">
-                Після {searchTime} на цій зупинці в розкладі немає відправлень.
-              </p>
-              <button type="button" className="lt-stop-board-show-all-btn" onClick={() => setShowFullDay(true)}>
-                Показати весь день
-              </button>
-            </section>
-          ) : (
-            <section className="lt-stop-board" aria-labelledby="lt-stop-board-table-h">
-              <div className="lt-stop-board-meta">
-                <h3 id="lt-stop-board-table-h" className="lt-stop-board-table-title">
-                  {selectedStopTitle}
-                </h3>
-                {parseDateUrl(searchDate) && (
-                  <span className="lt-stop-board-date">
-                    {searchDate}
-                    {fareAmount != null && (
-                      <span className="lt-stop-board-fare"> · Проїзд {fareAmount}₴</span>
-                    )}
-                  </span>
-                )}
-              </div>
-              <div className="lt-stop-board-toolbar">
-                <label className="lt-stop-board-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={showFullDay}
-                    onChange={(e) => setShowFullDay(e.target.checked)}
-                  />
-                  <span>Показати весь день (усі відправлення з 00:00)</span>
-                </label>
-              </div>
-              <p className="lt-stop-board-hint">
-                {showFullDay
-                  ? `Повний день; перший рейс після ${searchTime} виділено. Натисніть картку, щоб відкрити маршрут.`
-                  : `Рейси з ${searchTime} і пізніше. Натисніть картку, щоб відкрити маршрут.`}
-              </p>
-              <ul className="lt-jd-cards">
-                {visibleDepartures.map((row, i) => {
-                  const isNext = highlightIndex >= 0 && i === highlightIndex;
-                  const depMins = roundedDepartureMins(row.departureMins);
-                  const depClock = formatMinsClock(depMins);
-                  const qs = new URLSearchParams();
-                  qs.set('stop', selectedStop);
-                  qs.set('dir', row.direction);
-                  qs.set('time', depClock);
-                  if (searchDate) qs.set('d', searchDate);
-                  qs.set('h', depClock);
-                  const toRoute = `/transport/route/${row.routeId}?${qs.toString()}`;
-                  let deltaMins = 0;
-                  if (travelDayOffsetDays === 0) {
-                    deltaMins = depMins - countdownBaselineMins;
-                    if (deltaMins < 0 && countdownBaselineMins >= 22 * 60 && depMins < 4 * 60) {
-                      deltaMins += 24 * 60;
-                    }
-                  } else if (travelDayOffsetDays !== null && travelDayOffsetDays > 0) {
-                    deltaMins = travelDayOffsetDays * 24 * 60 + depMins - kyivNowMins;
-                  }
-                  const aria = `Маршрут ${row.routeId}, відправлення ${depClock}, ${row.destination}`;
-                  const waitHours = deltaMins >= 60 ? Math.floor(deltaMins / 60) : 0;
-                  const waitMinsRem = deltaMins >= 60 ? deltaMins % 60 : deltaMins;
-                  return (
-                    <li key={`${row.tripId}-${depMins}-${i}`}>
-                    <Link
-                      className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
-                      to={toRoute}
-                      aria-label={aria}
-                    >
-                      <div className="lt-jd-card__countdown" aria-hidden>
-                        {showDepartureCountdown ? (
-                          deltaMins > 0 ? (
-                            <>
-                              <span className="lt-jd-card__countdown-label">Відправлення через</span>
-                              <div
-                                className={`lt-jd-card__countdown-big ${deltaMins >= 60 ? 'lt-jd-card__countdown-big--hm' : ''}`}
-                              >
-                                {deltaMins < 60 ? (
-                                  <>
-                                    <span className="lt-jd-card__countdown-num">{deltaMins}</span>
-                                    <span className="lt-jd-card__countdown-unit">хв</span>
-                                  </>
-                                ) : (
-                                  <span className="lt-jd-card__countdown-hm">
-                                    {waitHours}
-                                    <span className="lt-jd-card__countdown-hm-suffix"> год</span>
-                                    {waitMinsRem > 0 ? (
-                                      <>
-                                        {' '}
-                                        {waitMinsRem}
-                                        <span className="lt-jd-card__countdown-hm-suffix"> хв</span>
-                                      </>
-                                    ) : null}
-                                  </span>
-                                )}
-                              </div>
-                              {deltaMins >= 60 ? (
-                                <span className="lt-jd-card__countdown-at">о {depClock}</span>
-                              ) : null}
-                            </>
-                          ) : deltaMins === 0 ? (
-                            <span className="lt-jd-card__countdown-now">Зараз</span>
-                          ) : (
-                            <span className="lt-jd-card__countdown-past">Вже минуло</span>
-                          )
-                        ) : (
-                          <>
-                            <span className="lt-jd-card__countdown-label">Відправлення о</span>
-                            <div className="lt-jd-card__countdown-big lt-jd-card__countdown-big--static">
-                              <span className="lt-jd-card__countdown-time">{depClock}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="lt-jd-card__body">
-                        <div className="lt-jd-card__route-row">
-                          <span
-                            className={`lt-jd-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-jd-card__route-num--verified' : ''}`}
-                            style={routeColorStyle(row.routeId)}
-                          >
-                            №{row.routeId}
-                          </span>
-                          <span className="lt-jd-card__route-arrow" aria-hidden>
-                            →
-                          </span>
-                          <span className="lt-jd-card__destination">{row.destination}</span>
-                        </div>
-                        <div className="lt-jd-card__time-line">
-                          <span className="lt-jd-card__pill lt-jd-card__pill--dep">{depClock}</span>
-                          <span className="lt-jd-card__pill-hint">відправлення з зупинки</span>
-                        </div>
-                      </div>
-                    </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
-          {selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
-            <LocalTransportSchemeMini
-              routeIds={schemeRouteIds}
-              stopIds={schemeNode ? [schemeNode.id] : []}
-              href={buildSchemeUrl({ stop: selectedStop, date: searchDate, time: searchTime })}
-              label={`Відкрити схему маршрутів: зупинка «${selectedStopTitle}»`}
-              note={schemeMiniNote(schemeNodeInfo, schemeRouteIds)}
-            />
-          )}
 
           <section className="lt-aeo" aria-labelledby="lt-stop-aeo-faq">
             <h2 id="lt-stop-aeo-faq" className="lt-aeo-title">
@@ -811,7 +798,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               ))}
             </dl>
             <p className="lt-aeo-more">
-              Планер <Link to="/transport">З → До</Link>
+              Планер <Link to="/transport">Звідки → Куди</Link>
               {selectedStop ? (
                 <>
                   {' · '}
