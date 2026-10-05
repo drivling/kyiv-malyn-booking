@@ -44,17 +44,6 @@
   font-family: inherit;
 }
 
-/* Кінцева «До» — destination token (cyan сайту) */
-.lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: var(--lt-destination); }
-.lt-theme-jakdojade .lt-stop-badge--to {
-  background: rgba(0, 175, 245, 0.12);
-  color: #0087c0;
-}
-.lt-theme-jakdojade .lt-stop-item--to::before {
-  background: var(--lt-destination);
-  box-shadow: 0 0 0 2px rgba(0, 175, 245, 0.25);
-}
-
 /* Поля всередині сторінки транспорту — фокус і hover у стилі Material */
 .lt-page .combobox-input-wrap {
   border-color: var(--lt-border);
@@ -212,211 +201,6 @@
   color: var(--lt-text);
 }
 
-.lt-layout-dark .lt-panel .lt-back,
-.lt-layout-dark .lt-panel .lt-detail-date,
-.lt-layout-dark .lt-panel .lt-detail-time,
-.lt-layout-dark .lt-panel .lt-route-title-path,
-.lt-layout-dark .lt-panel .lt-section-title,
-.lt-layout-dark .lt-panel .lt-from-to-label,
-.lt-layout-dark .lt-panel .lt-stops-heading,
-.lt-layout-dark .lt-panel .lt-stop-time,
-.lt-layout-dark .lt-panel .lt-stop-content,
-.lt-layout-dark .lt-panel .lt-th-stop,
-.lt-layout-dark .lt-panel .lt-routes-heading,
-.lt-layout-dark .lt-panel .lt-title,
-.lt-layout-dark .lt-panel .lt-subtitle { color: var(--lt-text) !important; }
-
-.lt-layout-dark .lt-panel .lt-detail-date,
-.lt-layout-dark .lt-panel .lt-stop-to-next { color: var(--lt-text-muted) !important; }
-
-.lt-layout-dark .lt-panel .lt-detail-header,
-.lt-layout-dark .lt-panel .lt-timetable-section,
-.lt-layout-dark .lt-panel .lt-timetable-header,
-.lt-layout-dark .lt-panel .lt-map-stops--jd { border-color: var(--lt-border) !important; }
-
-.lt-layout-dark .lt-panel .lt-search--jakdojade,
-.lt-layout-dark .lt-panel .lt-header--jakdojade { background: var(--lt-card); border-color: var(--lt-border); }
-
-/* Плашка номера: колір лінії зі схеми (--lt-route-color з routeColors.ts); без нього — зелений
-   «перевірений». Перевірений маршрут — суцільна плашка, неперевірений — контурна (нижче). */
-.lt-layout-dark .lt-panel .lt-route-num--verified {
-  background: var(--lt-route-color, #0fa573) !important;
-  border-color: var(--lt-route-color, #0fa573) !important;
-  color: var(--lt-route-fg, #fff) !important;
-}
-
-.lt-layout-dark .lt-panel .lt-direction-btn--active {
-  background: rgba(0, 175, 245, 0.12) !important;
-  border: 1px solid var(--lt-accent) !important;
-  color: var(--lt-accent) !important;
-}
-
-.lt-layout-dark .lt-panel .lt-direction-btn:not(.lt-direction-btn--active) {
-  background: #f1f4f5;
-  border-color: transparent;
-  color: var(--lt-text-muted);
-}
-
-.lt-layout-dark .lt-panel .lt-direction-toggle .lt-direction-btn:not(.lt-direction-btn--active) {
-  background: transparent;
-  border: none;
-  color: var(--lt-text-muted);
-}
-
-.lt-layout-dark .lt-panel .lt-direction-toggle .lt-direction-btn--active {
-  background: #fff !important;
-  border: none !important;
-  color: var(--lt-accent) !important;
-  box-shadow: inset 0 0 0 1px var(--lt-accent);
-}
-
-.lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #f1f4f5 !important; }
-.lt-layout-dark .lt-panel .lt-timetable-table--tablica td { border-color: var(--lt-border); background: var(--lt-card); }
-.lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: rgba(0, 175, 245, 0.1) !important; }
-.lt-layout-dark .lt-panel .lt-datetime-input {
-  background: #fff;
-  border-color: var(--lt-border);
-  color: var(--lt-text);
-  border-radius: var(--lt-radius-sm);
-}
-.lt-layout-dark .lt-panel .lt-datetime-input::placeholder { color: var(--lt-text-muted); }
-.lt-layout-dark .lt-panel .combobox-list { background: #fff; border-color: var(--lt-border); box-shadow: var(--lt-elev-1); }
-.lt-layout-dark .lt-panel .combobox-option { color: var(--lt-text); }
-.lt-layout-dark .lt-panel .combobox-option:hover,
-.lt-layout-dark .lt-panel .combobox-option--highlight { background: rgba(0, 175, 245, 0.1); }
-.lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-accent) !important; color: #fff !important; }
-.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: var(--lt-accent-hover) !important; color: #fff !important; }
-.lt-layout-dark .lt-panel .lt-geo-btn--small { background: #fff; color: var(--lt-text); border: 1px solid var(--lt-border); }
-.lt-layout-dark .lt-panel .lt-from-to-swap {
-  background: #fff;
-  border-color: var(--lt-border);
-  color: var(--lt-text-muted);
-}
-.lt-layout-dark .lt-panel .lt-from-to-swap:hover {
-  border-color: var(--lt-accent);
-  color: var(--lt-accent);
-  background: rgba(0, 175, 245, 0.08);
-}
-.lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-border); color: var(--lt-text); }
-.lt-layout-dark .lt-panel .lt-route-card:hover { background: #f7fafb; }
-.lt-layout-dark .lt-panel .lt-route-card--jd { background: var(--lt-card); }
-.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #f7fafb; }
-.lt-layout-dark .lt-panel .lt-route-card-time { border-color: var(--lt-border); }
-.lt-layout-dark .lt-panel .lt-route-card-time-value { color: var(--lt-text); }
-.lt-layout-dark .lt-panel .lt-stops-timeline::before {
-  background: var(--lt-border) !important;
-  background-image: none !important;
-}
-.lt-layout-dark .lt-panel .lt-stops-timeline-segment { background: var(--lt-accent); }
-.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: #0fa573 !important; }
-.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #00aff5 !important; }
-.lt-layout-dark .lt-panel .lt-footer { background: var(--lt-card); border-color: var(--lt-border); color: var(--lt-text-muted); }
-.lt-layout-dark .lt-panel .lt-footer a { color: var(--lt-accent); }
-
-/* Темна тема — додатково: фон і межі щоб ніде не пробивався світлий стиль */
-.lt-layout-dark .lt-panel .lt-detail-header,
-.lt-layout-dark .lt-panel .lt-detail-header--jd { background: var(--lt-card) !important; border-color: var(--lt-border) !important; }
-.lt-layout-dark .lt-panel .lt-timetable-header,
-.lt-layout-dark .lt-panel .lt-timetable-header--jd,
-.lt-layout-dark .lt-panel .lt-timetable-header--compact { background: var(--lt-card) !important; border-color: var(--lt-border) !important; }
-.lt-layout-dark .lt-panel .lt-timetable-section { background: var(--lt-card); }
-.lt-layout-dark .lt-panel .lt-print-btn,
-.lt-layout-dark .lt-panel .lt-print-btn--compact {
-  background: #fff !important;
-  border-color: var(--lt-border) !important;
-  color: var(--lt-text) !important;
-}
-.lt-layout-dark .lt-panel .lt-print-btn:hover,
-.lt-layout-dark .lt-panel .lt-print-btn--compact:hover {
-  background: rgba(0, 175, 245, 0.08) !important;
-  border-color: var(--lt-accent) !important;
-  color: var(--lt-accent) !important;
-}
-
-/* Темна тема: видимий фокус — зелений контур */
-.lt-layout-dark .lt-panel button:focus-visible,
-.lt-layout-dark .lt-panel [role="button"]:focus-visible,
-.lt-layout-dark .lt-panel .lt-route-card:focus-visible,
-.lt-layout-dark .lt-panel .lt-nearest-item:focus-visible,
-.lt-layout-dark .lt-panel .lt-direction-btn:focus-visible,
-.lt-layout-dark .lt-panel .lt-print-btn:focus-visible,
-.lt-layout-dark .lt-panel .lt-print-btn--compact:focus-visible,
-.lt-layout-dark .lt-panel .lt-detail-summary-change:focus-visible,
-.lt-layout-dark .lt-panel .lt-from-to-swap:focus-visible,
-.lt-layout-dark .lt-panel .lt-back:focus-visible,
-.lt-layout-dark .lt-panel .lt-back--header:focus-visible,
-.lt-layout-dark .lt-panel .lt-geo-btn:focus-visible,
-.lt-layout-dark .lt-panel .lt-geo-btn--small:focus-visible,
-.lt-layout-dark .lt-panel .lt-search-btn:focus-visible {
-  outline: 2px solid var(--lt-accent) !important;
-  outline-offset: 2px;
-}
-
-.lt-layout-dark .lt-panel input:focus-visible,
-.lt-layout-dark .lt-panel select:focus-visible {
-  outline: 2px solid var(--lt-accent) !important;
-  outline-offset: 0;
-}
-
-.lt-layout-dark .lt-panel .lt-fare--header {
-  background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%) !important;
-  color: #fff !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.lt-layout-dark .lt-panel .lt-back,
-.lt-layout-dark .lt-panel .lt-back--header { color: var(--lt-text-muted) !important; }
-.lt-layout-dark .lt-panel .lt-back:hover,
-.lt-layout-dark .lt-panel .lt-back--header:hover { color: var(--lt-text) !important; }
-.lt-layout-dark .lt-panel .lt-detail-summary-route,
-.lt-layout-dark .lt-panel .lt-detail-summary-meta { color: inherit; }
-.lt-layout-dark .lt-panel .lt-detail-summary-change { color: var(--lt-accent); border-color: var(--lt-border); }
-.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-accent); background: rgba(0, 175, 245, 0.12); }
-.lt-layout-dark .lt-panel .lt-detail-summary-arrow { color: var(--lt-accent); }
-.lt-layout-dark .lt-panel .lt-route-num--unverified {
-  background: #fff;
-  color: var(--lt-route-color, var(--lt-text-muted));
-  box-shadow: inset 0 0 0 2px var(--lt-route-color, var(--lt-text-muted));
-}
-
-/* Темна тема — секція «Зупинки на маршруті»: фон і весь текст видимий */
-.lt-layout-dark .lt-panel .lt-map-stops,
-.lt-layout-dark .lt-panel .lt-map-stops--jd,
-.lt-layout-dark .lt-panel .lt-map-stops-inner,
-.lt-layout-dark .lt-panel .lt-stops,
-.lt-layout-dark .lt-panel .lt-stops--jd {
-  background: var(--lt-card) !important;
-  border-color: var(--lt-border) !important;
-}
-.lt-layout-dark .lt-panel .lt-stops-heading {
-  color: var(--lt-text) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-time {
-  color: var(--lt-text-muted) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-content {
-  color: var(--lt-text) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-item--from .lt-stop-content {
-  color: #0fa573 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-item--to .lt-stop-content {
-  color: #0087c0 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-to-next {
-  color: var(--lt-text-muted) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-badge--from {
-  background: rgba(129, 201, 149, 0.2) !important;
-  color: #81c995 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-badge--to {
-  background: rgba(242, 139, 130, 0.2) !important;
-  color: #f28b82 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-item::before {
-  border-color: var(--lt-card) !important;
-  box-shadow: 0 0 0 1px var(--lt-border) !important;
-}
 /* Деталі маршруту — компактний стиль як Jakdojade; текст правіше кнопки ← */
 .lt-detail .lt-header--jakdojade {
   position: relative;
@@ -845,7 +629,7 @@
   font-size: clamp(1.35rem, 3vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #054752;
+  color: var(--lt-text);
 }
 
 .lt-theme-jakdojade .lt-subtitle {
@@ -875,7 +659,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  border: 1px solid var(--lt-border-light);
+  border: 1px solid var(--lt-border);
   border-radius: var(--lt-radius-sm);
   box-shadow: 0 1px 3px rgba(5, 71, 82, 0.04);
 }
@@ -1049,10 +833,9 @@
 }
 
 .lt-from-to-swap:hover {
-  border-color: var(--lt-border);
+  border-color: var(--lt-accent);
   color: var(--lt-accent);
-  background: var(--lt-bg);
-  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
+  background: var(--lt-accent-light);
 }
 
 .lt-from-to-swap--animating {
@@ -1264,7 +1047,7 @@
   padding: 0 var(--lt-panel-x);
   font-size: var(--lt-fs-sm);
   font-weight: 500;
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1295,8 +1078,8 @@
 /* Пошук — компактний, як у HSL */
 .lt-search {
   padding: var(--lt-panel-block) var(--lt-panel-x);
-  background: var(--lt-bg);
-  border-bottom: 1px solid var(--lt-border-light);
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1321,6 +1104,13 @@
 
 .lt-geo-btn:hover:not(:disabled) {
   background: var(--lt-accent-hover);
+}
+
+/* Компактна контурна версія («Поруч зі мною» у картці пошуку й на табло) */
+.lt-geo-btn--small {
+  background: var(--lt-card);
+  color: var(--lt-text);
+  border: 1px solid var(--lt-border);
 }
 
 .lt-geo-btn:disabled {
@@ -1412,7 +1202,7 @@
 }
 
 .lt-route-card--jd:hover {
-  background: #f1f3f4;
+  background: var(--lt-bg);
 }
 
 .lt-route-card:last-child {
@@ -1420,7 +1210,7 @@
 }
 
 .lt-route-card:hover {
-  background: #f1f3f4;
+  background: var(--lt-bg);
 }
 
 .lt-route-card-time {
@@ -1430,7 +1220,7 @@
   align-items: flex-start;
   padding-right: 14px;
   min-width: 56px;
-  border-right: 1px solid var(--lt-border-light);
+  border-right: 1px solid var(--lt-border);
 }
 
 .lt-route-card-time-value {
@@ -1523,8 +1313,8 @@
 /* Неперевірений (час орієнтовний): контурна плашка в кольорі лінії; без кольору — жовто-гарячий */
 .lt-route-num--unverified {
   background: #fff;
-  color: var(--lt-route-color, #f97316);
-  box-shadow: inset 0 0 0 2px var(--lt-route-color, #f97316);
+  color: var(--lt-route-color, var(--lt-text-muted));
+  box-shadow: inset 0 0 0 2px var(--lt-route-color, var(--lt-text-muted));
 }
 
 /* «Немає прямого маршруту» → сусідні зупинки, між якими маршрут є */
@@ -1668,7 +1458,7 @@
 .lt-detail-header {
   padding: var(--lt-panel-block) var(--lt-panel-x);
   background: var(--lt-card);
-  border-bottom: 1px solid var(--lt-border-light);
+  border-bottom: 1px solid var(--lt-border);
 }
 
 .lt-detail-header-top {
@@ -1766,7 +1556,7 @@
 
 /* Секція зупинок без окремого заголовка — верхня межа */
 .lt-map-stops--jd {
-  border-top: 1px solid var(--lt-border-light);
+  border-top: 1px solid var(--lt-border);
 }
 .lt-layout-dark .lt-panel .lt-map-stops--jd {
   border-top-color: var(--lt-border);
@@ -1774,6 +1564,7 @@
 
 .lt-timetable-section {
   padding-bottom: 0;
+  background: var(--lt-card);
 }
 
 /* Розклад — tablica odjazdów (таблиця відправлень) */
@@ -1921,7 +1712,8 @@
 
 .lt-timetable-table--tablica td {
   padding: 10px var(--lt-panel-x);
-  border-bottom: 1px solid var(--lt-border-light);
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1982,8 +1774,8 @@
 /* From/To селектори — як у HSL RouteScheduleHeader */
 .lt-timetable-header {
   padding: var(--lt-panel-block) var(--lt-panel-x);
-  background: var(--lt-bg);
-  border-bottom: 1px solid var(--lt-border-light);
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2007,12 +1799,13 @@
   border: 1px solid var(--lt-border);
   border-radius: var(--lt-radius-icon);
   font-size: var(--lt-fs-base);
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .lt-print-btn:hover {
+  background: var(--lt-accent-light);
   border-color: var(--lt-accent);
   color: var(--lt-accent);
 }
@@ -2103,7 +1896,7 @@
 .lt-stops {
   padding: 20px;
   background: var(--lt-card);
-  border-top: 1px solid var(--lt-border-light);
+  border-top: 1px solid var(--lt-border);
 }
 
 /* Вертикальна лінія та кружки — спільна система координат (менший відступ зліва) */
@@ -2140,9 +1933,9 @@
 .lt-direction-btn {
   flex: 1;
   padding: 8px 12px;
-  background: #f1f3f4;
+  background: var(--lt-bg);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--lt-radius-icon);
   font-size: var(--lt-fs-base);
   font-weight: 500;
   color: var(--lt-text-muted);
@@ -2151,7 +1944,7 @@
 }
 
 .lt-direction-btn:hover {
-  background: #e8eaed;
+  background: var(--lt-border-light);
   color: var(--lt-text);
 }
 
@@ -2163,11 +1956,25 @@
   box-shadow: none;
 }
 
+/* У треку перемикача напрямку: неактивна кнопка прозора, активна — біла з тонким акцентним кільцем */
+.lt-direction-toggle .lt-direction-btn:not(.lt-direction-btn--active) {
+  background: transparent;
+  border: none;
+  color: var(--lt-text-muted);
+}
+
+.lt-direction-toggle .lt-direction-btn--active {
+  background: var(--lt-card);
+  border: none;
+  color: var(--lt-accent);
+  box-shadow: inset 0 0 0 1px var(--lt-accent);
+}
+
 .lt-stops-heading {
   margin: 0 0 8px;
   font-size: var(--lt-fs-sm);
   font-weight: 600;
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -2197,10 +2004,10 @@
   transform: translateY(-50%);
   width: 10px;
   height: 10px;
-  background: #fff;
+  background: var(--lt-card);
   border-radius: 50%;
-  border: 2px solid var(--lt-border);
-  box-shadow: none;
+  border: 2px solid var(--lt-card);
+  box-shadow: 0 0 0 1px var(--lt-border);
 }
 
 .lt-stop-item--from::before {
@@ -2210,7 +2017,7 @@
   transform: translateY(-50%);
   background: var(--lt-origin);
   border: 2px solid var(--lt-card);
-  box-shadow: 0 0 0 2px rgba(52, 168, 83, 0.35);
+  box-shadow: 0 0 0 1px var(--lt-border);
 }
 
 .lt-stop-item--to::before {
@@ -2219,7 +2026,7 @@
   left: calc(var(--lt-line-center) - var(--lt-timeline-pad) - 7px);
   transform: translateY(-50%);
   background: var(--lt-destination);
-  box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.25);
+  box-shadow: 0 0 0 1px var(--lt-border);
 }
 
 .lt-stop-time {
@@ -2251,7 +2058,7 @@
 
 .lt-stop-item--to .lt-stop-content {
   font-weight: 600;
-  color: var(--lt-destination);
+  color: var(--lt-destination-ink);
 }
 
 .lt-stop-badge {
@@ -2264,13 +2071,13 @@
 }
 
 .lt-stop-badge--from {
-  background: #e6f4ea;
-  color: #137333;
+  background: rgba(15, 165, 115, 0.14);
+  color: var(--lt-origin-ink);
 }
 
 .lt-stop-badge--to {
-  background: #fce8e6;
-  color: #c5221f;
+  background: var(--lt-accent-light);
+  color: var(--lt-destination-ink);
 }
 
 .lt-stop-to-next {
@@ -2783,7 +2590,7 @@
   border-top: 1px solid var(--lt-border-light);
   font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
-  background: var(--lt-bg);
+  background: var(--lt-card);
 }
 
 .lt-footer a {
