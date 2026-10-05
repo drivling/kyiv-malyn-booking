@@ -31,12 +31,20 @@ export type NearestTrip = {
 
 type Candidate = { time: number; timeAtFrom: number; timeAtTo: number | null; record: TransportRecord };
 
-export function findNearestTrip(
+type Upcoming = Candidate & { wrapped: boolean; direction: 'there' | 'back' };
+
+/**
+ * Найближчі рейси за часом (для картки «далі 09:40 · 10:55»): майбутні рейси обох напрямків у порядку
+ * відстані від `nowMins`, далі — рейси з початку дня як «наступного дня» (wrapped), без повторів.
+ * Перший елемент — те саме, що повертає findNearestTrip.
+ */
+export function findUpcomingTrips(
   trips: TransportRecord[],
   nowMins: number,
   directionFilter?: 'there' | 'back',
-  at?: NearestTripAt
-): NearestTrip | null {
+  at?: NearestTripAt,
+  limit = 3
+): NearestTrip[] {
   const { dir0, dir1 } = groupTripsByDirection(trips);
   const candidates = (list: TransportRecord[], dir: 'there' | 'back'): Candidate[] =>
     list
@@ -55,19 +63,27 @@ export function findNearestTrip(
       })
       .filter((c): c is Candidate => c != null)
       .sort((a, b) => a.timeAtFrom - b.timeAtFrom);
-  // Якщо майбутніх немає — беремо перший зранку і позначаємо це (wrapped)
-  const pick = (list: Candidate[]): (Candidate & { wrapped: boolean }) | null => {
-    const future = list.find((c) => c.timeAtFrom >= nowMins);
-    if (future) return { ...future, wrapped: false };
-    return list[0] ? { ...list[0], wrapped: true } : null;
-  };
-  const next0 = directionFilter === 'there' ? null : pick(candidates(dir0, 'back'));
-  const next1 = directionFilter === 'back' ? null : pick(candidates(dir1, 'there'));
-  if (next0 == null && next1 == null) return null;
-  if (next0 == null) return { ...next1!, direction: 'there' };
-  if (next1 == null) return { ...next0, direction: 'back' };
-  // Хто ближчий за часом (якщо обидва в минулому — хто перший зранку)
-  const dist0 = (next0.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
-  const dist1 = (next1.timeAtFrom - nowMins + 24 * 60) % (24 * 60);
-  return dist1 <= dist0 ? { ...next1, direction: 'there' } : { ...next0, direction: 'back' };
+  const DAY = 24 * 60;
+  const withDist = (list: Candidate[], direction: 'there' | 'back'): Array<Upcoming & { dist: number; rank: number }> =>
+    list.map((c) => ({
+      ...c,
+      direction,
+      wrapped: c.timeAtFrom < nowMins,
+      dist: (c.timeAtFrom - nowMins + DAY) % DAY,
+      rank: direction === 'there' ? 0 : 1,
+    }));
+  const all = [
+    ...(directionFilter === 'there' ? [] : withDist(candidates(dir0, 'back'), 'back')),
+    ...(directionFilter === 'back' ? [] : withDist(candidates(dir1, 'there'), 'there')),
+  ].sort((a, b) => a.dist - b.dist || a.rank - b.rank);
+  return all.slice(0, limit).map((c) => ({ time: c.time, timeAtFrom: c.timeAtFrom, timeAtTo: c.timeAtTo, direction: c.direction, wrapped: c.wrapped, record: c.record }));
+}
+
+export function findNearestTrip(
+  trips: TransportRecord[],
+  nowMins: number,
+  directionFilter?: 'there' | 'back',
+  at?: NearestTripAt
+): NearestTrip | null {
+  return findUpcomingTrips(trips, nowMins, directionFilter, at, 1)[0] ?? null;
 }

@@ -1,5 +1,6 @@
 /**
- * Спільний рядок дати/часу планувальника і табло: згорнутий підсумок, нативна дата, чіпи.
+ * Спільний рядок дати/часу планувальника і табло: чіпи «Зараз» / «Завтра» / «Сьогодні о HH:MM»,
+ * останній розгортає нативні поля дати й часу.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -12,30 +13,33 @@ afterEach(() => {
 });
 
 describe('DateTimeControls', () => {
-  it('collapsed summary «Сьогодні, HH:MM»; «Змінити» opens native date/time with prefixed ids', async () => {
+  it('chips row «Зараз / Завтра / Сьогодні о HH:MM»; the last one opens native date/time with prefixed ids', async () => {
     const user = userEvent.setup();
     render(<DateTimeControls date={todayDateUrl()} time="09:12" page="board" idPrefix="lt-board" onChange={vi.fn()} />);
-    expect(screen.getByText('Сьогодні, 09:12')).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: 'Дата і час' });
+    expect(group).toBeInTheDocument();
     expect(screen.queryByLabelText('Дата')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Зараз' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'false');
 
-    const toggle = screen.getByRole('button', { name: 'Змінити' });
+    const toggle = screen.getByRole('button', { name: 'Сьогодні о 09:12' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveAttribute('aria-controls', 'lt-board-datetime-panel');
     await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const date = screen.getByLabelText('Дата');
     expect(date).toHaveAttribute('type', 'date');
     expect(date).toHaveAttribute('id', 'lt-board-date');
     expect(screen.getByLabelText('Час')).toHaveAttribute('id', 'lt-board-time');
-    expect(screen.getByRole('button', { name: 'Згорнути' })).toHaveAttribute('aria-controls', 'lt-board-datetime-panel');
-    expect(screen.getByRole('button', { name: 'Зараз' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+    expect(screen.queryByLabelText('Дата')).not.toBeInTheDocument();
   });
 
   it('a far date shows as DD.MM.YY and maps to the ISO value of the picker', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<DateTimeControls date="01.03.26" time="07:00" page="planner" onChange={onChange} />);
-    expect(screen.getByText('01.03.26, 07:00')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Змінити' }));
+    await user.click(screen.getByRole('button', { name: '01.03.26 о 07:00' }));
     const date = screen.getByLabelText('Дата');
     expect(date).toHaveValue('2026-03-01');
     expect(date).toHaveAttribute('id', 'lt-search-date');
@@ -51,7 +55,6 @@ describe('DateTimeControls', () => {
     window.gtag = gtag;
     const onChange = vi.fn();
     render(<DateTimeControls date="01.03.26" time="07:00" page="board" onChange={onChange} />);
-    await user.click(screen.getByRole('button', { name: 'Змінити' }));
 
     await user.click(screen.getByRole('button', { name: 'Завтра' }));
     expect(onChange).toHaveBeenLastCalledWith({ date: tomorrowDateUrl(), time: '07:00' });

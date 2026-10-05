@@ -135,7 +135,7 @@ describe('LocalTransportStopBoardPage: stop from the URL', () => {
     // Без вступної секції і без «Застосувати»: форма як у планувальника
     expect(screen.queryByRole('heading', { name: 'Розклад з зупинки' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Застосувати' })).not.toBeInTheDocument();
-    expect(screen.getByText('01.03.26, 07:00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '01.03.26 о 07:00' })).toBeInTheDocument();
   });
 
   it('typing in the field does not touch the URL, heading or departures; a hint appears', async () => {
@@ -199,7 +199,7 @@ describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
   it('«Завтра» applies at once: d= in the URL changes, the departures stay for the same stop', async () => {
     const user = userEvent.setup();
     await openBoard();
-    await user.click(screen.getByRole('button', { name: 'Змінити' }));
+    await user.click(screen.getByRole('button', { name: '01.03.26 о 07:00' }));
     expect(screen.getByLabelText('Дата')).toHaveAttribute('type', 'date');
     await user.click(screen.getByRole('button', { name: 'Завтра' }));
     await waitFor(() => expect(location()).toBe(`/transport/stop/st_a?d=${tomorrowDateUrl()}&h=07%3A00`));

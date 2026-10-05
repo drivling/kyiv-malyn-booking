@@ -164,9 +164,8 @@ test.describe('transport', () => {
   test('date is a native picker; «Завтра» chip updates d= in the URL', async ({ page }) => {
     // Дата навмисно далеко від сьогодні, щоб чіп не був натиснутий від початку.
     await page.goto('/transport/st_a/st_b?d=01.03.26&h=09%3A12');
-    await expect(page.getByText('01.03.26, 09:12')).toBeVisible();
-    await page.getByRole('button', { name: 'Змінити' }).click();
-    const date = page.getByLabel('Дата');
+    await page.getByRole('button', { name: '01.03.26 о 09:12', exact: true }).click();
+    const date = page.getByLabel('Дата', { exact: true });
     await expect(date).toHaveAttribute('type', 'date');
     await expect(date).toHaveValue('2026-03-01');
 
@@ -175,10 +174,10 @@ test.describe('transport', () => {
     const dd = String(tomorrow.getDate()).padStart(2, '0');
     const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
     const yy = String(tomorrow.getFullYear()).slice(-2);
-    await page.getByRole('button', { name: 'Завтра' }).click();
+    await page.getByRole('button', { name: 'Завтра', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`d=${dd}\\.${mm}\\.${yy}&h=`));
-    await expect(page.getByRole('button', { name: 'Завтра' })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByText('Завтра, 09:12')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Завтра', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Завтра о 09:12', exact: true })).toBeVisible();
   });
 
   test('result card: departure → arrival · duration, destination, no jargon; next-day wrap', async ({ page }) => {
@@ -274,10 +273,9 @@ test.describe('transport', () => {
       const dd = String(tomorrow.getDate()).padStart(2, '0');
       const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
       const yy = String(tomorrow.getFullYear()).slice(-2);
-      await page.getByRole('button', { name: 'Змінити' }).click();
-      await page.getByRole('button', { name: 'Завтра' }).click();
+      await page.getByRole('button', { name: 'Завтра', exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/transport/stop/st_a\\?d=${dd}\\.${mm}\\.${yy}&h=`));
-      await expect(page.getByText('Завтра, 07:00')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Завтра о 07:00', exact: true })).toBeVisible();
     });
   });
 

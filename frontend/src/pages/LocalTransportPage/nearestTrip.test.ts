@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { findNearestTrip } from './nearestTrip';
+import { findNearestTrip, findUpcomingTrips } from './nearestTrip';
 import { configureSegmentDurations } from './segmentDurations';
 import type { TransportRecord } from './types';
 
@@ -71,5 +71,27 @@ describe('findNearestTrip', () => {
     const plate = trip('t-plate', '', '1', { departure_time: undefined, block_id: 'АМ0033АА' });
     expect(findNearestTrip([plate], 8 * 60, 'there', at)).toBeNull();
     expect(findNearestTrip([], 8 * 60)).toBeNull();
+  });
+});
+
+describe('findUpcomingTrips', () => {
+  it('повертає майбутні рейси за часом, потім ранкові як «наступного дня», без повторів', () => {
+    const trips = [trip('t1', '08:30:00'), trip('t2', '09:20:00'), trip('t3', '10:05:00')];
+    const list = findUpcomingTrips(trips, 9 * 60, 'there', at);
+    expect(list.map((x) => [x.record.trip_id, x.wrapped])).toEqual([
+      ['t2', false],
+      ['t3', false],
+      ['t1', true],
+    ]);
+    // ліміт і єдиний рейс у моку — без дублювання
+    expect(findUpcomingTrips([trip('t1', '08:30:00')], 9 * 60, 'there', at, 3).map((x) => x.record.trip_id)).toEqual(['t1']);
+  });
+
+  it('перший елемент збігається з findNearestTrip, обидва напрямки злиті за відстанню в часі', () => {
+    const trips = [trip('t1', '08:30:00'), trip('b1', '08:40:00', '0'), trip('t2', '09:20:00')];
+    const atFrom = { ...at, fromStop: 'st_b', toStop: undefined };
+    const list = findUpcomingTrips(trips, 8 * 60, undefined, atFrom);
+    expect(list[0]).toEqual(findNearestTrip(trips, 8 * 60, undefined, atFrom));
+    expect(list.map((x) => `${x.record.trip_id}/${x.direction}`)).toEqual(['t1/there', 'b1/back', 't2/there']);
   });
 });

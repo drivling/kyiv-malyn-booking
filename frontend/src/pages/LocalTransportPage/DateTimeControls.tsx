@@ -19,8 +19,8 @@ interface DateTimeControlsProps extends DateTimeValue {
 }
 
 /**
- * Згорнутий рядок «Сьогодні, 09:12 · Змінити»; панель — нативна дата, час і чіпи
- * «Зараз» / «Завтра». Спільний для планувальника і табло (там зміни застосовуються одразу).
+ * Рядок чіпів «Зараз» / «Завтра» / «Сьогодні о 09:12» (останній розгортає нативні поля дати й часу).
+ * Спільний для планувальника і табло (там зміни застосовуються одразу).
  */
 export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
   date,
@@ -30,16 +30,35 @@ export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
   page,
 }) => {
   const [open, setOpen] = useState(false);
-  const summaryLabel =
+  const dayLabel =
     date === todayDateUrl() ? 'Сьогодні' : date === tomorrowDateUrl() ? 'Завтра' : date || 'дата не вибрана';
   const panelId = `${idPrefix}-datetime-panel`;
 
   return (
     <>
-      <div className="lt-datetime-summary">
-        <span className="lt-datetime-summary-text">
-          {summaryLabel}, {time || '—'}
-        </span>
+      <div className="lt-datetime-chips" role="group" aria-label="Дата і час">
+        <button
+          type="button"
+          className="lt-chip"
+          aria-pressed={date === todayDateUrl()}
+          onClick={() => {
+            gaTrackEvent('transport_date_chip', { chip: 'now', page });
+            onChange({ date: todayDateUrl(), time: nowClock() });
+          }}
+        >
+          Зараз
+        </button>
+        <button
+          type="button"
+          className="lt-chip"
+          aria-pressed={date === tomorrowDateUrl()}
+          onClick={() => {
+            gaTrackEvent('transport_date_chip', { chip: 'tomorrow', page });
+            onChange({ date: tomorrowDateUrl(), time });
+          }}
+        >
+          Завтра
+        </button>
         <button
           type="button"
           className="lt-chip lt-datetime-toggle"
@@ -47,7 +66,7 @@ export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
           aria-controls={panelId}
           onClick={() => setOpen((o) => !o)}
         >
-          {open ? 'Згорнути' : 'Змінити'}
+          {dayLabel} о {time || '—'}
         </button>
       </div>
       {open && (
@@ -75,30 +94,6 @@ export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
               value={time}
               onChange={(e) => onChange({ date, time: e.target.value })}
             />
-          </div>
-          <div className="lt-datetime-chips" role="group" aria-label="Швидкий вибір часу">
-            <button
-              type="button"
-              className="lt-chip"
-              aria-pressed={date === todayDateUrl()}
-              onClick={() => {
-                gaTrackEvent('transport_date_chip', { chip: 'now', page });
-                onChange({ date: todayDateUrl(), time: nowClock() });
-              }}
-            >
-              Зараз
-            </button>
-            <button
-              type="button"
-              className="lt-chip"
-              aria-pressed={date === tomorrowDateUrl()}
-              onClick={() => {
-                gaTrackEvent('transport_date_chip', { chip: 'tomorrow', page });
-                onChange({ date: tomorrowDateUrl(), time });
-              }}
-            >
-              Завтра
-            </button>
           </div>
         </div>
       )}
