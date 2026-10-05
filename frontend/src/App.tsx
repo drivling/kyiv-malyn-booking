@@ -4,6 +4,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { MizhgorodskiPage, CorridorLandingPage, ZubastykPage, AvtostantsiyaPage } from '@/pages/MizhgorodskiPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
+import { LocalTransportSchemePage } from '@/pages/LocalTransportPage/LocalTransportSchemePage';
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
 import { SupportLayout, SupportHub, SupportArticle, SUPPORT_PATH } from '@/pages/SupportPage';
@@ -79,6 +80,10 @@ function AppContent() {
           <Route
             path="/transport/:fromStop/:toStop"
             element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>}
+          />
+          <Route
+            path="/transport/scheme"
+            element={<LocalTransportGate><LocalTransportSchemePage /></LocalTransportGate>}
           />
           <Route path="/transport" element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>} />
           <Route path="/localtransport/*" element={<LocalTransportLegacyRedirect />} />

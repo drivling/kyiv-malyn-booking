@@ -48,6 +48,18 @@ describe('LocalTransportSubNav', () => {
     expect(routes.getAttribute('href')).toContain('d=16.09.26');
   });
 
+  it('marks the scheme tab active on /transport/scheme and keeps d/h in its link', () => {
+    renderWithProviders(<LocalTransportSubNav searchDate="16.09.26" searchTime="09:12" />, {
+      initialEntries: ['/transport/scheme?route=3'],
+    });
+    const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
+    const scheme = within(nav).getByRole('link', { name: 'Схема' });
+    expect(scheme).toHaveAttribute('aria-current', 'page');
+    expect(scheme.getAttribute('href')).toMatch(/^\/transport\/scheme\?d=16\.09\.26&h=09(%3A|:)12$/);
+    expect(within(nav).getByRole('link', { name: 'Маршрути (З → До)' })).not.toHaveAttribute('aria-current');
+    expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' })).not.toHaveAttribute('aria-current');
+  });
+
   it('without a stop the links stay plain', () => {
     renderWithProviders(<LocalTransportSubNav searchDate="" searchTime="" />, {
       initialEntries: ['/transport'],
@@ -55,5 +67,6 @@ describe('LocalTransportSubNav', () => {
     const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
     expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' })).toHaveAttribute('href', '/transport/stop');
     expect(within(nav).getByRole('link', { name: 'Маршрути (З → До)' })).toHaveAttribute('href', '/transport');
+    expect(within(nav).getByRole('link', { name: 'Схема' })).toHaveAttribute('href', '/transport/scheme');
   });
 });

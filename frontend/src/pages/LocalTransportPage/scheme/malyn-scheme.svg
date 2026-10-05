@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 176 1400 566" style="max-width:100%;height:auto;display:block" class="lts-svg" role="img" aria-label="Схема міських автобусних маршрутів Малина: 9 ліній, кінцеві та пересадкові зупинки" font-family="inherit" color="var(--lts-fg)">
+<g transform="translate(1340,212)" fill="var(--lts-muted)" stroke="var(--lts-muted)"><line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/><text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>
+<g class="lts-water"><path d="M28.0,556.0 L110.0,540.0 L200.0,548.0 L262.0,560.0 L312.0,574.0 L262.0,604.0 L170.0,612.0 L80.0,606.0 L28.0,588.0 Z" fill="var(--lts-water-fill)" stroke="var(--lts-water)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M306.0,574.0 L340.0,540.0 L400.0,480.0 L560.0,480.0 L660.0,580.0 L700.0,580.0 L780.0,660.0 L1060.0,660.0 L1120.0,720.0 L1372.0,720.0" fill="none" stroke="var(--lts-water)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="165" y="580" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">Малинське водосховище</text>
+<text x="424" y="497" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">р. Ірша</text>
+<text x="920" y="651" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">р. Ірша</text>
+</g>
+<g class="lts-routes" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g class="lts-route" data-route="2" role="button" tabindex="0" aria-label="Маршрут №2: Паперова фабрика — Шевченка, 119">
+<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,420.0 L267.1,420.0 L203.5,483.5" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,420.0 L267.1,420.0 L203.5,483.5" stroke="var(--lts-r2)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="3" role="button" tabindex="0" aria-label="Маршрут №3: Лісотехнікум — Залізничний вокзал">
+<path d="M110.0,400.0 L280.0,400.0 L320.0,380.0 L551.7,380.0 L605.9,325.9 L651.7,280.0 L860.0,280.0 L900.0,280.0 L1088.3,280.0 L1194.1,385.9" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M110.0,400.0 L280.0,400.0 L320.0,380.0 L551.7,380.0 L605.9,325.9 L651.7,280.0 L860.0,280.0 L900.0,280.0 L1088.3,280.0 L1194.1,385.9" stroke="var(--lts-r3)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="5" role="button" tabindex="0" aria-label="Маршрут №5: Шевченка, 119 — Залізничний вокзал">
+<path d="M196.5,476.5 L272.9,400.0 L574.1,400.0 L624.1,350.0 L824.1,350.0 L864.1,310.0 L900.0,310.0 L1075.9,310.0 L1172.9,407.1" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M196.5,476.5 L272.9,400.0 L574.1,400.0 L624.1,350.0 L824.1,350.0 L864.1,310.0 L900.0,310.0 L1075.9,310.0 L1172.9,407.1" stroke="var(--lts-r5)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="7" role="button" tabindex="0" aria-label="Маршрут №7: Лікарня — Залізничний вокзал">
+<path d="M280.0,410.0 L555.9,410.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M280.0,410.0 L555.9,410.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="var(--lts-r7)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="8" role="button" tabindex="0" aria-label="Маршрут №8: Чорновола, 53 — Залізничний вокзал">
+<path d="M627.1,592.9 L570.0,535.9 L570.0,500.0 L570.0,410.0 L680.0,520.0 L760.0,600.0 L980.0,600.0 L1180.0,400.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M627.1,592.9 L570.0,535.9 L570.0,500.0 L570.0,410.0 L680.0,520.0 L760.0,600.0 L980.0,600.0 L1180.0,400.0" stroke="var(--lts-r8)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="9" role="button" tabindex="0" aria-label="Маршрут №9: Центр (ТЦ «Промінь») — вул. Олекси Тихого">
+<path d="M567.1,392.9 L680.0,505.9 L892.9,292.9 L914.1,285.9 L980.0,220.0 L1060.0,220.0 L1180.0,340.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M567.1,392.9 L680.0,505.9 L892.9,292.9 L914.1,285.9 L980.0,220.0 L1060.0,220.0 L1180.0,340.0" stroke="var(--lts-r9)" stroke-width="7"/>
+<path d="M1180.0,340.0 L1180.0,400.0" stroke="var(--lts-r9)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+<g class="lts-route" data-route="10" role="button" tabindex="0" aria-label="Маршрут №10: Лікарня — Залізничний вокзал">
+<path d="M280.0,400.0 L280.0,360.0 L320.0,320.0 L480.0,320.0 L560.0,400.0 L620.0,340.0 L660.0,300.0 L860.0,300.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M280.0,400.0 L280.0,360.0 L320.0,320.0 L480.0,320.0 L560.0,400.0 L620.0,340.0 L660.0,300.0 L860.0,300.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="var(--lts-r10)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="11" role="button" tabindex="0" aria-label="Маршрут №11: Паперова фабрика — Залізничний вокзал">
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,428.3 L628.3,360.0 L828.3,360.0 L868.3,320.0 L900.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,428.3 L628.3,360.0 L828.3,360.0 L868.3,320.0 L900.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="var(--lts-r11)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="12" role="button" tabindex="0" aria-label="Маршрут №12: Лікарня — Залізничний вокзал">
+<path d="M280.0,390.0 L555.9,390.0 L612.9,332.9 L655.9,290.0 L860.0,290.0 L900.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M280.0,390.0 L555.9,390.0 L612.9,332.9 L655.9,290.0 L860.0,290.0 L900.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="var(--lts-r12)" stroke-width="7"/>
+</g>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0004" role="link" tabindex="0" aria-label="Зупинка Автостанція · Укр. Повстанців: табло">
+<line x1="400.0" y1="320.0" x2="400.0" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="400.0" y1="320.0" x2="400.0" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="400" y="302" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Автостанція · Укр. Повстанців</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0013" role="link" tabindex="0" aria-label="Зупинка Грушевського: табло">
+<line x1="760.0" y1="300.0" x2="760.0" y2="280.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="760.0" y1="300.0" x2="760.0" y2="280.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="760" y="270" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Грушевського</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0015" role="link" tabindex="0" aria-label="Зупинка з-д «Прожектор»: табло">
+<line x1="720.0" y1="360.0" x2="720.0" y2="350.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="720.0" y1="360.0" x2="720.0" y2="350.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="720" y="378" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">з-д «Прожектор»</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0090" role="link" tabindex="0" aria-label="Зупинка Царське село: табло">
+<line x1="782.9" y1="402.9" x2="782.9" y2="402.9" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="782.9" y1="402.9" x2="782.9" y2="402.9" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="806" y="424" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Царське село</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0053" role="link" tabindex="0" aria-label="Зупинка Малинівка: табло">
+<line x1="980.0" y1="220.0" x2="980.0" y2="220.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="980.0" y1="220.0" x2="980.0" y2="220.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="980" y="200" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Малинівка</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0099" role="link" tabindex="0" aria-label="Зупинка Юрівка: табло">
+<line x1="1060.0" y1="220.0" x2="1060.0" y2="220.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1060.0" y1="220.0" x2="1060.0" y2="220.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1060" y="200" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Юрівка</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0079" role="link" tabindex="0" aria-label="Зупинка ПТЛ: табло">
+<line x1="980.0" y1="610.0" x2="980.0" y2="600.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="980.0" y1="610.0" x2="980.0" y2="600.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="980" y="636" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">ПТЛ</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0002" role="link" tabindex="0" aria-label="Зупинка Городище · 14 ОМБ: табло">
+<line x1="1080.0" y1="610.0" x2="1080.0" y2="610.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1080.0" y1="610.0" x2="1080.0" y2="610.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1086" y="636" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Городище · 14 ОМБ</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0057" role="link" tabindex="0" aria-label="Зупинка вул. Миру: табло">
+<line x1="1080.0" y1="500.0" x2="1080.0" y2="500.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1080.0" y1="500.0" x2="1080.0" y2="500.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1096" y="512" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">вул. Миру</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0024" role="link" tabindex="0" aria-label="Зупинка Івана Мазепи: табло">
+<line x1="550.0" y1="500.0" x2="570.0" y2="500.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="550.0" y1="500.0" x2="570.0" y2="500.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="536" y="504" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Івана Мазепи</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0075" role="link" tabindex="0" aria-label="Зупинка Приходька: табло">
+<line x1="440.0" y1="535.0" x2="440.0" y2="545.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="440.0" y1="535.0" x2="440.0" y2="545.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="440" y="522" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Приходька</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0007" role="link" tabindex="0" aria-label="Зупинка Барміна: табло">
+<line x1="570.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="570.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="584" y="544" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Барміна</text>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_0038" role="link" tabindex="0" aria-label="Зупинка Лісотехнікум: табло">
+<circle cx="110.0" cy="400.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r3)" stroke-width="3.5"/>
+<text x="110" y="432" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Лісотехнікум</text>
+<text x="110" y="447" text-anchor="middle" font-size="11" fill="var(--lts-muted)">Фаховий коледж</text>
+<g class="lts-badge" data-route="3"><rect x="99.0" y="456.0" width="22" height="16" rx="4" fill="var(--lts-r3)"/><text x="110.0" y="467.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">3</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_0097" role="link" tabindex="0" aria-label="Зупинка Шевченка, 119: табло">
+<circle cx="200.0" cy="480.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="3.5"/>
+<text x="200" y="510" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Шевченка, 119</text>
+<g class="lts-badge" data-route="2"><rect x="176.0" y="518.0" width="22" height="16" rx="4" fill="var(--lts-r2)"/><text x="187.0" y="529.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">2</text></g><g class="lts-badge" data-route="5"><rect x="202.0" y="518.0" width="22" height="16" rx="4" fill="var(--lts-r5)"/><text x="213.0" y="529.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">5</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_0064" role="link" tabindex="0" aria-label="Зупинка Паперова фабрика: табло">
+<circle cx="340.0" cy="540.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="3.5"/>
+<text x="340" y="570" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Паперова фабрика</text>
+<text x="340" y="585" text-anchor="middle" font-size="11" fill="var(--lts-muted)">Вайдманн</text>
+<g class="lts-badge" data-route="2"><rect x="313.0" y="594.0" width="22" height="16" rx="4" fill="var(--lts-r2)"/><text x="324.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">2</text></g><g class="lts-badge" data-route="11"><rect x="339.0" y="594.0" width="28" height="16" rx="4" fill="var(--lts-r11)"/><text x="353.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_0094" role="link" tabindex="0" aria-label="Зупинка Чорновола, 53: табло">
+<circle cx="627.1" cy="592.9" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
+<text x="604" y="624" text-anchor="end" font-size="14" font-weight="700" fill="var(--lts-fg)">Чорновола, 53</text>
+<g class="lts-badge" data-route="8"><rect x="582.0" y="632.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="593.0" y="643.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">8</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_0009" role="link" tabindex="0" aria-label="Зупинка вул. Олекси Тихого: табло">
+<circle cx="1180.0" cy="340.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r9)" stroke-width="3.5"/>
+<text x="1202" y="336" text-anchor="start" font-size="14" font-weight="700" fill="var(--lts-fg)">вул. Олекси Тихого</text>
+<g class="lts-badge" data-route="9"><rect x="1202.0" y="344.0" width="22" height="16" rx="4" fill="var(--lts-r9)"/><text x="1213.0" y="355.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">9</text></g>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_0035" role="link" tabindex="0" aria-label="Зупинка Лікарня · Поліклініка: табло">
+<circle cx="280" cy="400" r="26" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="280" cy="400" r="18" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="266" y="346" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Лікарня · Поліклініка</text>
+<g class="lts-badge" data-route="7"><rect x="180.0" y="354.0" width="22" height="16" rx="4" fill="var(--lts-r7)"/><text x="191.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text></g><g class="lts-badge" data-route="12"><rect x="206.0" y="354.0" width="28" height="16" rx="4" fill="var(--lts-r12)"/><text x="220.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text></g><g class="lts-badge" data-route="10"><rect x="238.0" y="354.0" width="28" height="16" rx="4" fill="var(--lts-r10)"/><text x="252.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">10</text></g>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_0070" role="link" tabindex="0" aria-label="Зупинка Центр · Базарна площа: табло">
+<circle cx="560" cy="400" r="26" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="560" cy="400" r="18" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="536" y="446" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Центр · Базарна площа</text>
+<text x="506" y="462" text-anchor="end" font-size="11" fill="var(--lts-muted)">пл. Соборна · ТЦ «Промінь» · Коопринок</text>
+<g class="lts-badge" data-route="9"><rect x="514.0" y="450.0" width="22" height="16" rx="4" fill="var(--lts-r9)"/><text x="525.0" y="461.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">9</text></g>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_0054" role="link" tabindex="0" aria-label="Зупинка Малинівський круг: табло">
+<circle cx="900" cy="300" r="26" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="900" cy="300" r="18" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="918" y="342" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Малинівський круг</text>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_0019" role="link" tabindex="0" aria-label="Зупинка Залізничний вокзал: табло">
+<circle cx="1180" cy="400" r="26" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="1180" cy="400" r="18" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="1218" y="398" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Залізничний вокзал</text>
+<g class="lts-badge" data-route="3"><rect x="1218.0" y="408.0" width="22" height="16" rx="4" fill="var(--lts-r3)"/><text x="1229.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">3</text></g><g class="lts-badge" data-route="5"><rect x="1244.0" y="408.0" width="22" height="16" rx="4" fill="var(--lts-r5)"/><text x="1255.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">5</text></g><g class="lts-badge" data-route="7"><rect x="1270.0" y="408.0" width="22" height="16" rx="4" fill="var(--lts-r7)"/><text x="1281.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text></g><g class="lts-badge" data-route="8"><rect x="1296.0" y="408.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="1307.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">8</text></g><g class="lts-badge" data-route="10"><rect x="1218.0" y="428.0" width="28" height="16" rx="4" fill="var(--lts-r10)"/><text x="1232.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">10</text></g><g class="lts-badge" data-route="11"><rect x="1250.0" y="428.0" width="28" height="16" rx="4" fill="var(--lts-r11)"/><text x="1264.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11</text></g><g class="lts-badge" data-route="12"><rect x="1282.0" y="428.0" width="28" height="16" rx="4" fill="var(--lts-r12)"/><text x="1296.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text></g>
+</g>
+</svg>

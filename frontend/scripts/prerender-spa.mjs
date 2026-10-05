@@ -31,6 +31,7 @@ const STATIC_ROUTES = [
   '/zubastyk',
   '/avtostantsiya-malyn',
   '/transport',
+  '/transport/scheme',
   '/about',
   '/support',
   '/support/start',

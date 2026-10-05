@@ -2,12 +2,21 @@
 """
 Схема міських маршрутів Малина у стилі метро (октолінійна, не в масштабі).
 
-Геометрія (вузли, коридори, смуги) задана вручну нижче; статистика для легенди
+Геометрія (вузли, коридори, смуги, вода) задана вручну нижче; статистика для легенди
 (кількість рейсів, перший/останній) береться з /transport/dataset.
 
-  python3 build_scheme.py --dataset dataset.json --out-dir .
+Виходи:
+  --out-dir DIR      index.html (сторінка зі світлою/темною темою) + malyn-transit-scheme.svg
+  --site-dir DIR     malyn-scheme.svg (лише карта, CSS-змінні, data-атрибути для інтерактиву)
+                     + malyn-scheme-routes.ts (легенда для React-сторінки /transport/scheme)
+  --poster-dir DIR   malyn-transit-scheme-poster.svg (та сама схема + QR-код у правому
+                     верхньому куті; шрифт вбудовується, якщо задано --fonts-dir)
+
+  python3 build_scheme.py --dataset dataset.json --out-dir . \
+      --site-dir ../../frontend/src/pages/LocalTransportPage/scheme \
+      --poster-dir ../../frontend/public/transport/scheme --qr-url https://malin.kiev.ua/transport
 """
-import argparse, json, math, os, sys, urllib.request
+import argparse, base64, json, math, os, sys, urllib.request
 from collections import defaultdict
 
 API = 'https://kyiv-malyn-booking-production.up.railway.app/transport/dataset'
@@ -15,6 +24,7 @@ S = 10      # відстань між смугами (центр-центр), px
 W = 7       # товщина лінії, px
 HUB_R = 26  # радіус пересадкового вузла
 TERM_R = 9  # радіус кінцевої
+QR_URL_DEFAULT = 'https://malin.kiev.ua/transport'
 
 # ---------------------------------------------------------------- маршрути
 ROUTE_ORDER = ['2', '3', '5', '7', '8', '9', '10', '11', '12']
@@ -89,35 +99,34 @@ ROUTES = {
 }
 DASHED = {'9': ['R9C']}
 
-# вузли: (тип, назва, підпис...)  type: hub | term
+# вузли: stop — id зупинки на сайті (табло /transport/stop/<id>)
 HUBS = [
-    # key, name, sub, label anchor/pos, terminating routes + badge pos
-    dict(key='LIK', name='Лікарня · Поліклініка', sub='', lx=266, ly=346, anchor='end', term=['7', '12', '10'], bx=266, by=354, balign='end'),
-    dict(key='CEN', name='Центр · Базарна площа', sub='пл. Соборна · ТЦ «Промінь» · Коопринок', lx=536, ly=446, anchor='end', term=['9'], bx=536, by=450, balign='end', sub_dx=-30),
-    dict(key='MK',  name='Малинівський круг', sub='', lx=918, ly=342, anchor='start', term=[], bx=0, by=0, balign='start'),
-    dict(key='VOK', name='Залізничний вокзал', sub='', lx=1218, ly=398, anchor='start', term=['3', '5', '7', '8', '10', '11', '12'], bx=1218, by=408, balign='start'),
+    dict(key='LIK', stop='st_0035', name='Лікарня · Поліклініка', sub='', lx=266, ly=346, anchor='end', term=['7', '12', '10'], bx=266, by=354, balign='end'),
+    dict(key='CEN', stop='st_0070', name='Центр · Базарна площа', sub='пл. Соборна · ТЦ «Промінь» · Коопринок', lx=536, ly=446, anchor='end', term=['9'], bx=536, by=450, balign='end', sub_dx=-30),
+    dict(key='MK',  stop='st_0054', name='Малинівський круг', sub='', lx=918, ly=342, anchor='start', term=[], bx=0, by=0, balign='start'),
+    dict(key='VOK', stop='st_0019', name='Залізничний вокзал', sub='', lx=1218, ly=398, anchor='start', term=['3', '5', '7', '8', '10', '11', '12'], bx=1218, by=408, balign='start'),
 ]
 TERMS = [
-    dict(key='LIS',   name='Лісотехнікум', sub='Фаховий коледж', lx=110, ly=432, anchor='middle', routes=['3'], bx=110, by=456, balign='middle', end_of='3'),
-    dict(key='SH119', name='Шевченка, 119', sub='', lx=200, ly=510, anchor='middle', routes=['2', '5'], bx=200, by=518, balign='middle'),
-    dict(key='PF',    name='Паперова фабрика', sub='Вайдманн', lx=340, ly=570, anchor='middle', routes=['2', '11'], bx=340, by=594, balign='middle'),
-    dict(key='CH53',  name='Чорновола, 53', sub='', lx=604, ly=624, anchor='end', routes=['8'], bx=604, by=632, balign='end', end_of='8'),
-    dict(key='OT',    name='вул. Олекси Тихого', sub='', lx=1202, ly=336, anchor='start', routes=['9'], bx=1202, by=344, balign='start', end_of='9'),
+    dict(key='LIS',   stop='st_0038', name='Лісотехнікум', sub='Фаховий коледж', lx=110, ly=432, anchor='middle', routes=['3'], bx=110, by=456, balign='middle', end_of='3'),
+    dict(key='SH119', stop='st_0097', name='Шевченка, 119', sub='', lx=200, ly=510, anchor='middle', routes=['2', '5'], bx=200, by=518, balign='middle'),
+    dict(key='PF',    stop='st_0064', name='Паперова фабрика', sub='Вайдманн', lx=340, ly=570, anchor='middle', routes=['2', '11'], bx=340, by=594, balign='middle'),
+    dict(key='CH53',  stop='st_0094', name='Чорновола, 53', sub='', lx=604, ly=624, anchor='end', routes=['8'], bx=604, by=632, balign='end', end_of='8'),
+    dict(key='OT',    stop='st_0009', name='вул. Олекси Тихого', sub='', lx=1202, ly=336, anchor='start', routes=['9'], bx=1202, by=344, balign='start', end_of='9'),
 ]
 # проміжні орієнтири (маленькі): коридор, точка на осі, підпис
 WAYPOINTS = [
-    dict(cor='R10A', seg=2, t=0.5, name='Автостанція · Укр. Повстанців', lx=400, ly=302, anchor='middle'),
-    dict(cor='NE2',  seg=1, t=(760-660)/(860-660), name='Грушевського', lx=760, ly=270, anchor='middle'),
-    dict(cor='LOW',  seg=0, t=(720-620)/(820-620), name='з-д «Прожектор»', lx=720, ly=378, anchor='middle'),
-    dict(cor='R9A',  seg=0, t=0.5, name='Царське село', lx=806, ly=424, anchor='start'),
-    dict(cor='R9B',  seg=1, t=0.0, name='Малинівка', lx=980, ly=200, anchor='middle'),
-    dict(cor='R9B',  seg=1, t=1.0, name='Юрівка', lx=1060, ly=200, anchor='middle'),
-    dict(cor='B78',  seg=1, t=1.0, name='ПТЛ', lx=980, ly=636, anchor='middle'),
-    dict(cor='R7',   seg=0, t=(1080-980)/(1100-980), name='Городище · 14 ОМБ', lx=1086, ly=636, anchor='middle'),
-    dict(cor='R8',   seg=0, t=0.5, name='вул. Миру', lx=1096, ly=512, anchor='start'),
-    dict(cor='SOUTH', seg=0, t=1.0, name='Івана Мазепи', lx=536, ly=504, anchor='end'),
-    dict(cor='PF',   seg=1, t=(520-440)/(520-340), name='Приходька', lx=440, ly=522, anchor='middle'),
-    dict(cor='CH',   seg=0, t=1.0, name='Барміна', lx=584, ly=544, anchor='start'),
+    dict(cor='R10A', seg=2, t=0.5, stop='st_0004', name='Автостанція · Укр. Повстанців', lx=400, ly=302, anchor='middle'),
+    dict(cor='NE2',  seg=1, t=(760-660)/(860-660), stop='st_0013', name='Грушевського', lx=760, ly=270, anchor='middle'),
+    dict(cor='LOW',  seg=0, t=(720-620)/(820-620), stop='st_0015', name='з-д «Прожектор»', lx=720, ly=378, anchor='middle'),
+    dict(cor='R9A',  seg=0, t=0.5, stop='st_0090', name='Царське село', lx=806, ly=424, anchor='start'),
+    dict(cor='R9B',  seg=1, t=0.0, stop='st_0053', name='Малинівка', lx=980, ly=200, anchor='middle'),
+    dict(cor='R9B',  seg=1, t=1.0, stop='st_0099', name='Юрівка', lx=1060, ly=200, anchor='middle'),
+    dict(cor='B78',  seg=1, t=1.0, stop='st_0079', name='ПТЛ', lx=980, ly=636, anchor='middle'),
+    dict(cor='R7',   seg=0, t=(1080-980)/(1100-980), stop='st_0002', name='Городище · 14 ОМБ', lx=1086, ly=636, anchor='middle'),
+    dict(cor='R8',   seg=0, t=0.5, stop='st_0057', name='вул. Миру', lx=1096, ly=512, anchor='start'),
+    dict(cor='SOUTH', seg=0, t=1.0, stop='st_0024', name='Івана Мазепи', lx=536, ly=504, anchor='end'),
+    dict(cor='PF',   seg=1, t=(520-440)/(520-340), stop='st_0075', name='Приходька', lx=440, ly=522, anchor='middle'),
+    dict(cor='CH',   seg=0, t=1.0, stop='st_0007', name='Барміна', lx=584, ly=544, anchor='start'),
 ]
 
 # Вода (схематично, за контурами OpenStreetMap): Малинське водосховище на заході, Ірша витікає
@@ -237,18 +246,55 @@ def route_stats(ds):
         out[rid] = dict(first=times[0].lstrip('0'), last=times[-1].lstrip('0'), trips=trips)
     return out
 
+# ---------------------------------------------------------------- QR-код (segno) та шрифти
+def qr_svg_path(url, x0, y0, size):
+    """Шлях модулів QR-коду (без тихої зони) у квадраті size×size з верхнім лівим кутом (x0, y0)."""
+    try:
+        import segno
+    except ImportError:
+        raise SystemExit('pip install segno — потрібен для QR-коду плаката')
+    qr = segno.make(url, error='m')
+    rows = [list(r) for r in qr.matrix_iter(scale=1, border=0)]
+    n = len(rows)
+    m = size / n
+    cells = []
+    for r, row in enumerate(rows):
+        for c, v in enumerate(row):
+            if v:
+                cells.append(f'M{x0 + c * m:.2f},{y0 + r * m:.2f}h{m:.2f}v{m:.2f}h-{m:.2f}z')
+    return ''.join(cells), n
+
+def font_face_style(fonts_dir):
+    """@font-face з вбудованими woff2 (кирилиця + латиниця), щоб плакат відкривався з тим самим шрифтом."""
+    if not fonts_dir:
+        return ''
+    faces = []
+    for fname, urange in (('golos-cyrillic.woff2', 'U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116'),
+                          ('golos-latin.woff2', 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD')):
+        p = os.path.join(fonts_dir, fname)
+        if not os.path.exists(p):
+            print(f'warn: {p} not found — poster without embedded font', file=sys.stderr)
+            return ''
+        b64 = base64.b64encode(open(p, 'rb').read()).decode('ascii')
+        faces.append(f"@font-face{{font-family:'Golos Text';font-style:normal;font-weight:400 800;font-display:swap;"
+                     f"src:url(data:font/woff2;base64,{b64}) format('woff2');unicode-range:{urange};}}")
+    # Друк напряму з браузера/Chromium: сторінка A2 landscape без полів, малюнок на всю сторінку
+    faces.append('@media print{@page{size:594mm 420mm;margin:0}svg:root{width:594mm;height:420mm}}')
+    return '<style>' + ''.join(faces) + '</style>'
+
 # ---------------------------------------------------------------- SVG
 def esc(s):
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
-def badge(x, y, rid, col, align='start', h=16):
+def badge(x, y, rid, col, align='start', h=16, extra=''):
     w = 22 if len(rid) == 1 else 28
     if align == 'middle':
         x = x - w / 2
     elif align == 'end':
         x = x - w
-    return (f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="4" fill="{col(rid)}"/>'
-            f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">{rid}</text>')
+    return (f'<g class="lts-badge" data-route="{rid}"{extra}>'
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="4" fill="{col(rid)}"/>'
+            f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">{rid}</text></g>')
 
 def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
     if len(rids) > per_row:
@@ -266,95 +312,130 @@ def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
         x += w + gap
     return ''.join(parts)
 
-def build_svg(stats, col, bg, fg, muted, line_bg, standalone, font, water, water_fill, water_text):
-    """col(rid)->color string; bg/fg/muted — колірні рядки (var(...) або літерали)."""
+def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text, font,
+              variant='page', standalone=False, qr_url=QR_URL_DEFAULT, fonts_dir=''):
+    """variant: page (заголовок + легенда) | poster (page + QR) | site (лише карта, data-атрибути)."""
+    site = variant == 'site'
     W_, H_ = 1400, 1012
+    view = '0 176 1400 566' if site else f'0 0 {W_} {H_}'
     o = []
-    o.append(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W_} {H_}" role="img" '
-             f'aria-label="Схема міських автобусних маршрутів Малина: 8 ліній, кінцеві та пересадкові зупинки" '
-             f'font-family="{font}" color="{fg}" style="max-width:100%;height:auto;display:block">')
+    cls = ' class="lts-svg"' if site else ''
+    # Окремий файл: явні width/height (root-svg із height:auto у Chromium має нульову висоту);
+    # вбудований у сторінку: масштабується CSS-ом.
+    size = f'width="{W_}" height="{H_}"' if standalone else 'style="max-width:100%;height:auto;display:block"'
+    o.append(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" {size}{cls} role="img" '
+             f'aria-label="Схема міських автобусних маршрутів Малина: 9 ліній, кінцеві та пересадкові зупинки" '
+             f'font-family="{font}" color="{fg}">')
+    if variant == 'poster':
+        o.append(font_face_style(fonts_dir))
     if standalone:
         o.append(f'<rect width="{W_}" height="{H_}" fill="{bg}"/>')
     # ---- заголовок
-    o.append(f'<text x="60" y="92" font-size="44" font-weight="800" letter-spacing="2" fill="{fg}">МАЛИН</text>')
-    o.append(f'<text x="60" y="120" font-size="17" font-weight="600" fill="{fg}">Схема міських автобусних маршрутів</text>')
-    o.append(f'<text x="60" y="142" font-size="12" fill="{muted}">9 маршрутів · проїзд 20 ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>')
+    if not site:
+        o.append(f'<text x="60" y="92" font-size="44" font-weight="800" letter-spacing="2" fill="{fg}">МАЛИН</text>')
+        o.append(f'<text x="60" y="120" font-size="17" font-weight="600" fill="{fg}">Схема міських автобусних маршрутів</text>')
+        o.append(f'<text x="60" y="142" font-size="12" fill="{muted}">9 маршрутів · проїзд 20 ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>')
     # компас
-    o.append(f'<g transform="translate(1340,78)" fill="{muted}" stroke="{muted}">'
+    cx, cy = (1340, 212) if site else ((1120, 84) if variant == 'poster' else (1340, 78))
+    o.append(f'<g transform="translate({cx},{cy})" fill="{muted}" stroke="{muted}">'
              f'<line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/>'
              f'<text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>')
+    # ---- QR-код плаката
+    if variant == 'poster':
+        box_x, box_y, box = 1170, 36, 170
+        quiet = 12
+        d, n = qr_svg_path(qr_url, box_x + quiet, box_y + quiet, box - 2 * quiet)
+        o.append(f'<rect x="{box_x}" y="{box_y}" width="{box}" height="{box}" rx="10" fill="#ffffff" stroke="{muted}" stroke-width="1.5"/>')
+        o.append(f'<path d="{d}" fill="#1b1f2a" shape-rendering="crispEdges"/>')
+        o.append(f'<text x="{box_x + box / 2:.0f}" y="{box_y + box + 20}" text-anchor="middle" font-size="12" font-weight="700" fill="{fg}">Скануй: розклад і планувальник</text>')
+        o.append(f'<text x="{box_x + box / 2:.0f}" y="{box_y + box + 36}" text-anchor="middle" font-size="11.5" fill="{muted}">{esc(qr_url.replace("https://", ""))}</text>')
     # ---- вода (під лініями)
-    o.append(f'<path d="{path_d(RESERVOIR)} Z" fill="{water_fill}" stroke="{water}" stroke-width="2" stroke-linejoin="round"/>')
+    o.append(f'<g class="lts-water"><path d="{path_d(RESERVOIR)} Z" fill="{water_fill}" stroke="{water}" stroke-width="2" stroke-linejoin="round"/>')
     o.append(f'<path d="{path_d(RIVER)}" fill="none" stroke="{water}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>')
     for wl in WATER_LABELS:
         o.append(f'<text x="{wl["x"]}" y="{wl["y"]}" text-anchor="{wl["anchor"]}" font-size="11" font-style="italic" fill="{water_text}">{esc(wl["text"])}</text>')
-    # ---- лінії (підкладка-обводка, потім кольори)
+    o.append('</g>')
+    # ---- лінії: кожен маршрут — група (підкладка-обводка + колір + пунктир)
     paths = {rid: route_path(rid, cors) for rid, cors in ROUTES.items()}
     dashed = {rid: route_path(rid, cors) for rid, cors in DASHED.items()}
-    o.append(f'<g fill="none" stroke-linecap="round" stroke-linejoin="round">')
+    o.append('<g class="lts-routes" fill="none" stroke-linecap="round" stroke-linejoin="round">')
     for rid in ROUTE_ORDER:
+        a, b, via = LEGEND[rid]
+        extra = f' role="button" tabindex="0" aria-label="Маршрут №{rid}: {esc(a)} — {esc(b)}"' if site else ''
+        o.append(f'<g class="lts-route" data-route="{rid}"{extra}>')
         o.append(f'<path d="{path_d(paths[rid])}" stroke="{line_bg}" stroke-width="{W + 2.5}"/>')
-    for rid in ROUTE_ORDER:
         o.append(f'<path d="{path_d(paths[rid])}" stroke="{col(rid)}" stroke-width="{W}"/>')
-    for rid, pts in dashed.items():
-        o.append(f'<path d="{path_d(pts)}" stroke="{col(rid)}" stroke-width="{W - 1.5}" stroke-dasharray="8 9"/>')
+        if rid in dashed:
+            o.append(f'<path d="{path_d(dashed[rid])}" stroke="{col(rid)}" stroke-width="{W - 1.5}" stroke-dasharray="8 9"/>')
+        o.append('</g>')
     o.append('</g>')
+
+    def stop_open(stop_id, name, kind):
+        extra = f' role="link" tabindex="0" aria-label="Зупинка {esc(name)}: табло"' if site else ''
+        return f'<g class="lts-stop lts-stop--{kind}" data-stop="{stop_id}"{extra}>'
+
     # ---- проміжні орієнтири
     for wp in WAYPOINTS:
         base, u, n, lo, hi = point_on_corridor(wp['cor'], wp['seg'], wp['t'])
         a = (base[0] + n[0] * lo, base[1] + n[1] * lo)
         b = (base[0] + n[0] * hi, base[1] + n[1] * hi)
+        o.append(stop_open(wp['stop'], wp['name'], 'waypoint'))
         o.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{fg}" stroke-width="11" stroke-linecap="round"/>')
         o.append(f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" stroke="{bg}" stroke-width="7" stroke-linecap="round"/>')
         o.append(f'<text x="{wp["lx"]}" y="{wp["ly"]}" text-anchor="{wp["anchor"]}" font-size="11.5" fill="{muted}">{esc(wp["name"])}</text>')
+        o.append('</g>')
     # ---- кінцеві
-    ends = {}
-    for rid in ROUTE_ORDER:
-        p = paths[rid]
-        ends[rid] = (p[0], p[-1])
+    ends = {rid: (paths[rid][0], paths[rid][-1]) for rid in ROUTE_ORDER}
     for t in TERMS:
-        cx, cy = N[t['key']]
+        cx_, cy_ = N[t['key']]
         if 'end_of' in t:
             e = ends[t['end_of']]
-            cx, cy = min(e, key=lambda q: math.dist(q, N[t['key']]))
+            cx_, cy_ = min(e, key=lambda q: math.dist(q, N[t['key']]))
         stroke = col(t['routes'][0]) if len(t['routes']) == 1 else fg
-        o.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{TERM_R}" fill="{bg}" stroke="{stroke}" stroke-width="3.5"/>')
+        o.append(stop_open(t['stop'], t['name'], 'terminal'))
+        o.append(f'<circle cx="{cx_:.1f}" cy="{cy_:.1f}" r="{TERM_R}" fill="{bg}" stroke="{stroke}" stroke-width="3.5"/>')
         o.append(f'<text x="{t["lx"]}" y="{t["ly"]}" text-anchor="{t["anchor"]}" font-size="14" font-weight="700" fill="{fg}">{esc(t["name"])}</text>')
         if t.get('sub'):
             o.append(f'<text x="{t["lx"]}" y="{t["ly"] + 15}" text-anchor="{t["anchor"]}" font-size="11" fill="{muted}">{esc(t["sub"])}</text>')
         o.append(badges_row(t['bx'], t['by'], t['routes'], col, t['balign']))
+        o.append('</g>')
     # ---- вузли
     for h in HUBS:
-        cx, cy = N[h['key']]
-        o.append(f'<circle cx="{cx}" cy="{cy}" r="{HUB_R}" fill="{bg}" stroke="{fg}" stroke-width="4"/>')
-        o.append(f'<circle cx="{cx}" cy="{cy}" r="{HUB_R - 8}" fill="none" stroke="{fg}" stroke-width="1.5" opacity="0.35"/>')
+        cx_, cy_ = N[h['key']]
+        o.append(stop_open(h['stop'], h['name'], 'hub'))
+        o.append(f'<circle cx="{cx_}" cy="{cy_}" r="{HUB_R}" fill="{bg}" stroke="{fg}" stroke-width="4"/>')
+        o.append(f'<circle cx="{cx_}" cy="{cy_}" r="{HUB_R - 8}" fill="none" stroke="{fg}" stroke-width="1.5" opacity="0.35"/>')
         o.append(f'<text x="{h["lx"]}" y="{h["ly"]}" text-anchor="{h["anchor"]}" font-size="16" font-weight="800" fill="{fg}">{esc(h["name"])}</text>')
         if h['sub']:
             o.append(f'<text x="{h["lx"] + h.get("sub_dx", 0)}" y="{h["ly"] + 16}" text-anchor="{h["anchor"]}" font-size="11" fill="{muted}">{esc(h["sub"])}</text>')
         if h['term']:
             o.append(badges_row(h['bx'], h['by'], h['term'], col, h['balign']))
+        o.append('</g>')
     # ---- легенда
-    x0, y0 = 60, 790
-    o.append(f'<line x1="60" y1="{y0 - 22}" x2="1340" y2="{y0 - 22}" stroke="{muted}" stroke-width="1" opacity="0.5"/>')
-    o.append(f'<text x="60" y="{y0 - 30}" font-size="11" font-weight="700" letter-spacing="1.5" fill="{muted}">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>')
-    o.append(f'<g transform="translate(1000,{y0 - 34})" font-size="11" fill="{muted}">'
-             f'<circle cx="6" cy="0" r="7" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="20" y="4">пересадковий вузол</text>'
-             f'<circle cx="150" cy="0" r="5.5" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="162" y="4">кінцева</text>'
-             f'<line x1="228" y1="0" x2="262" y2="0" stroke="{fg}" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>')
-    row_h = 38
-    for i, rid in enumerate(ROUTE_ORDER):
-        colx = x0 if i < 5 else x0 + 660
-        y = y0 + (i % 5) * row_h
-        a, b, via = LEGEND[rid]
-        st = stats.get(rid)
-        o.append(badge(colx, y - 1, rid, col, 'start', h=20).replace('font-size="11.5"', 'font-size="13"').replace(f'y="{y - 1 + 20 - 4.2:.1f}"', f'y="{y + 14:.1f}"'))
-        o.append(f'<text x="{colx + 38}" y="{y + 14}" font-size="13.5" font-weight="700" fill="{fg}">{esc(a)} — {esc(b)}</text>')
-        if rid in UNCONFIRMED:
-            o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" font-style="italic" fill="{muted}">розклад уточнюється</text>')
-        elif st:
-            o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" fill="{muted}" font-variant-numeric="tabular-nums">{esc(st["trips"])} рейс. · {esc(st["first"])}–{esc(st["last"])}</text>')
-        o.append(f'<text x="{colx + 38}" y="{y + 29}" font-size="10.5" fill="{muted}">{esc(via)}</text>')
-    o.append(f'<text x="60" y="{H_ - 16}" font-size="10" fill="{muted}">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026 · контури води за © OpenStreetMap</text>')
+    if not site:
+        x0, y0 = 60, 790
+        o.append(f'<line x1="60" y1="{y0 - 22}" x2="1340" y2="{y0 - 22}" stroke="{muted}" stroke-width="1" opacity="0.5"/>')
+        o.append(f'<text x="60" y="{y0 - 30}" font-size="11" font-weight="700" letter-spacing="1.5" fill="{muted}">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>')
+        o.append(f'<g transform="translate(1000,{y0 - 34})" font-size="11" fill="{muted}">'
+                 f'<circle cx="6" cy="0" r="7" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="20" y="4">пересадковий вузол</text>'
+                 f'<circle cx="150" cy="0" r="5.5" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="162" y="4">кінцева</text>'
+                 f'<line x1="228" y1="0" x2="262" y2="0" stroke="{fg}" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>')
+        row_h = 38
+        for i, rid in enumerate(ROUTE_ORDER):
+            colx = x0 if i < 5 else x0 + 660
+            y = y0 + (i % 5) * row_h
+            a, b, via = LEGEND[rid]
+            st = stats.get(rid)
+            o.append(f'<g class="lts-legend-row" data-route="{rid}">')
+            o.append(badge(colx, y - 1, rid, col, 'start', h=20).replace('font-size="11.5"', 'font-size="13"').replace(f'y="{y - 1 + 20 - 4.2:.1f}"', f'y="{y + 14:.1f}"'))
+            o.append(f'<text x="{colx + 38}" y="{y + 14}" font-size="13.5" font-weight="700" fill="{fg}">{esc(a)} — {esc(b)}</text>')
+            if rid in UNCONFIRMED:
+                o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" font-style="italic" fill="{muted}">розклад уточнюється</text>')
+            elif st:
+                o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" fill="{muted}" font-variant-numeric="tabular-nums">{esc(st["trips"])} рейс. · {esc(st["first"])}–{esc(st["last"])}</text>')
+            o.append(f'<text x="{colx + 38}" y="{y + 29}" font-size="10.5" fill="{muted}">{esc(via)}</text>')
+            o.append('</g>')
+        o.append(f'<text x="60" y="{H_ - 16}" font-size="10" fill="{muted}">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026 · контури води за © OpenStreetMap</text>')
     o.append('</svg>')
     return '\n'.join(o)
 
@@ -420,27 +501,65 @@ __SVG__
 </div>
 '''
 
+SITE_ROUTES_TS_HEAD = '''/**
+ * Легенда схеми маршрутів (/transport/scheme). ЗГЕНЕРОВАНО — не редагувати руками:
+ *   python3 Docs/malyn-transit-scheme/build_scheme.py --site-dir frontend/src/pages/LocalTransportPage/scheme
+ * Кольори дублюють CSS-змінні --lts-r<id> у LocalTransportSchemePage.css.
+ */
+export type SchemeRoute = {
+  id: string;
+  from: string;
+  to: string;
+  via: string;
+  /** Намальований за старою схемою; розклад у базі ще не заповнений */
+  unconfirmed: boolean;
+};
+
+'''
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--dataset', default='')
-    ap.add_argument('--out-dir', default='.')
+    ap.add_argument('--out-dir', default='')
+    ap.add_argument('--site-dir', default='')
+    ap.add_argument('--poster-dir', default='')
+    ap.add_argument('--qr-url', default=QR_URL_DEFAULT)
+    ap.add_argument('--fonts-dir', default='')
     args = ap.parse_args()
+    if not (args.out_dir or args.site_dir or args.poster_dir):
+        args.out_dir = '.'
     stats = route_stats(load_dataset(args.dataset))
-    os.makedirs(args.out_dir, exist_ok=True)
-    # сторінка з токенами теми
-    svg_html = build_svg(stats, col=lambda r: f'var(--r{r})', bg='var(--panel)', fg='var(--fg)', muted='var(--muted)',
-                         line_bg='var(--line-bg)', standalone=False, font='var(--font)',
-                         water='var(--water)', water_fill='var(--water-fill)', water_text='var(--water-text)')
-    with open(os.path.join(args.out_dir, 'index.html'), 'w', encoding='utf-8') as f:
-        f.write(HTML_TMPL.replace('__SVG__', svg_html))
-    # самодостатній SVG (світла тема, для друку/месенджерів)
-    svg_file = build_svg(stats, col=lambda r: COLORS[r][0], bg='#ffffff', fg='#1b1f2a', muted='#5f6673',
-                         line_bg='#ffffff', standalone=True,
-                         font="'Golos Text', 'Segoe UI', Roboto, Arial, sans-serif",
-                         water='#9ccfe8', water_fill='#cfe8f5', water_text='#3d7fa3')
-    with open(os.path.join(args.out_dir, 'malyn-transit-scheme.svg'), 'w', encoding='utf-8') as f:
-        f.write('<?xml version="1.0" encoding="UTF-8"?>\n' + svg_file)
-    print('ok', stats)
+    light = dict(col=lambda r: COLORS[r][0], bg='#ffffff', fg='#1b1f2a', muted='#5f6673', line_bg='#ffffff',
+                 water='#9ccfe8', water_fill='#cfe8f5', water_text='#3d7fa3',
+                 font="'Golos Text', 'Segoe UI', Roboto, Arial, sans-serif")
+    if args.out_dir:
+        os.makedirs(args.out_dir, exist_ok=True)
+        svg_html = build_svg(stats, col=lambda r: f'var(--r{r})', bg='var(--panel)', fg='var(--fg)', muted='var(--muted)',
+                             line_bg='var(--line-bg)', water='var(--water)', water_fill='var(--water-fill)',
+                             water_text='var(--water-text)', font='var(--font)')
+        with open(os.path.join(args.out_dir, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(HTML_TMPL.replace('__SVG__', svg_html))
+        with open(os.path.join(args.out_dir, 'malyn-transit-scheme.svg'), 'w', encoding='utf-8') as f:
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n' + build_svg(stats, standalone=True, **light))
+    if args.site_dir:
+        os.makedirs(args.site_dir, exist_ok=True)
+        svg_site = build_svg(stats, col=lambda r: f'var(--lts-r{r})', bg='var(--lts-bg)', fg='var(--lts-fg)',
+                             muted='var(--lts-muted)', line_bg='var(--lts-bg)', water='var(--lts-water)',
+                             water_fill='var(--lts-water-fill)', water_text='var(--lts-water-text)',
+                             font='inherit', variant='site')
+        with open(os.path.join(args.site_dir, 'malyn-scheme.svg'), 'w', encoding='utf-8') as f:
+            f.write(svg_site + '\n')
+        rows = [dict(id=rid, **{'from': LEGEND[rid][0], 'to': LEGEND[rid][1]}, via=LEGEND[rid][2], unconfirmed=rid in UNCONFIRMED)
+                for rid in ROUTE_ORDER]
+        with open(os.path.join(args.site_dir, 'malyn-scheme-routes.ts'), 'w', encoding='utf-8') as f:
+            f.write(SITE_ROUTES_TS_HEAD + 'export const SCHEME_ROUTES: SchemeRoute[] = '
+                    + json.dumps(rows, ensure_ascii=False, indent=2) + ';\n')
+    if args.poster_dir:
+        os.makedirs(args.poster_dir, exist_ok=True)
+        with open(os.path.join(args.poster_dir, 'malyn-transit-scheme-poster.svg'), 'w', encoding='utf-8') as f:
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n'
+                    + build_svg(stats, standalone=True, variant='poster', qr_url=args.qr_url, fonts_dir=args.fonts_dir, **light))
+    print('ok', {k: v['trips'] for k, v in stats.items()})
 
 if __name__ == '__main__':
     main()

@@ -64,6 +64,13 @@
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
+    <!-- Схема маршрутів у стилі метро (інтерактивна; плакат із QR — /transport/scheme/*.pdf) -->
+    <url>
+        <loc>https://malin.kiev.ua/transport/scheme</loc>
+        <lastmod>2026-10-05</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.85</priority>
+    </url>
 
     <!-- Help-center: хаб -->
     <url>

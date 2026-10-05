@@ -17,6 +17,26 @@ test.describe('transport', () => {
     await expect(page.getByRole('button', { name: 'Знайти', exact: true })).toBeVisible();
   });
 
+  test('«Схема»: tab opens the metro-style scheme, a chip highlights the line and links to its schedule', async ({ page }) => {
+    await page.goto('/transport?d=16.09.26&h=09%3A12');
+    await page.getByRole('link', { name: 'Схема' }).click();
+    await expect(page).toHaveURL(/\/transport\/scheme\?d=16\.09\.26&h=09(%3A|:)12$/);
+    await expect(page.getByRole('heading', { name: 'Схема маршрутів' })).toBeVisible();
+    await expect(page.locator('svg.lts-svg')).toBeVisible();
+    await expect(page.locator('.lts-route')).toHaveCount(9);
+
+    await page.locator('.lts-chip[aria-label^="Маршрут №3:"]').click();
+    await expect(page).toHaveURL(/route=3/);
+    await expect(page.getByRole('heading', { level: 2, name: /Лісотехнікум — Залізничний вокзал/ })).toBeVisible();
+    await expect(page.locator('.lts-route[data-route="2"]')).toHaveClass(/lts-route--dim/);
+    await expect(page.locator('.lts-route[data-route="3"]')).not.toHaveClass(/lts-route--dim/);
+    await expect(page.getByRole('link', { name: 'Розклад №3' })).toHaveAttribute('href', /^\/transport\/route\/3\?d=16\.09\.26/);
+
+    // Зупинка на схемі веде на табло
+    await page.locator('.lts-stop[data-stop="st_0019"] circle').first().click();
+    await expect(page).toHaveURL(/\/transport\/stop\/st_0019/);
+  });
+
   test('planner form: «З» above «До», selected stop names fully visible', async ({ page }) => {
     await page.goto('/transport/st_a/st_b?d=16.09.26&h=09%3A12');
     const from = page.locator('.lt-from-to-cell--from input');
