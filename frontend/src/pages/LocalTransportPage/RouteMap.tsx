@@ -49,9 +49,16 @@ const MALYN_CENTER: LatLng = [50.768, 29.242];
 const DEFAULT_ZOOM = 13;
 /** Підписи вузлів видно з цього зуму (ближче — не накладаються) */
 const LABELS_FROM_ZOOM = 13;
-const TILES = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-const TILES_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+/**
+ * Підкладка карти — стандартні тайли OpenStreetMap (без ключа, як в адмінському редакторі карти).
+ * CARTO Positron віддає базові карти лише з API-ключем: без нього кожен тайл — напис «API KEY REQUIRED».
+ * Інший провайдер (напр. CARTO з ключем) вмикається змінними VITE_MAP_TILES_URL / VITE_MAP_TILES_ATTRIBUTION
+ * (Railway Variables фронтенду, див. .env.example).
+ */
+const DEFAULT_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const DEFAULT_TILES_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const TILES = import.meta.env.VITE_MAP_TILES_URL || DEFAULT_TILES;
+const TILES_ATTRIBUTION = import.meta.env.VITE_MAP_TILES_ATTRIBUTION || DEFAULT_TILES_ATTRIBUTION;
 
 /**
  * Підганяє видиму область під зупинки. Залежить від рядкового ключа, а не від масивів-пропів:
@@ -218,7 +225,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       <h3 className="lt-map-heading lt-visually-hidden">Карта маршруту</h3>
       <div className="lt-map-container">
         <MapContainer center={center} zoom={DEFAULT_ZOOM} className="lt-map" scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-          <TileLayer attribution={TILES_ATTRIBUTION} url={TILES} subdomains="abcd" maxZoom={19} updateWhenIdle={false} keepBuffer={2} />
+          <TileLayer attribution={TILES_ATTRIBUTION} url={TILES} maxZoom={19} updateWhenIdle={false} keepBuffer={2} />
           <ZoomWatcher onZoom={setZoom} />
           <MapResize token={resizeToken} />
           {bounds.names.length > 0 && <MapBounds stopNames={bounds.names} stops={stops} padding={bounds.padding} resizeToken={resizeToken} />}
