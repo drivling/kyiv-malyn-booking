@@ -504,7 +504,7 @@ __SVG__
 SITE_ROUTES_TS_HEAD = '''/**
  * Легенда схеми маршрутів (/transport/scheme). ЗГЕНЕРОВАНО — не редагувати руками:
  *   python3 Docs/malyn-transit-scheme/build_scheme.py --site-dir frontend/src/pages/LocalTransportPage/scheme
- * Кольори дублюють CSS-змінні --lts-r<id> у LocalTransportSchemePage.css.
+ * Кольори звідси підставляються в CSS-змінні (--lts-r<id>, --lt-route-color) на сторінках транспорту.
  */
 export type SchemeRoute = {
   id: string;
@@ -513,6 +513,8 @@ export type SchemeRoute = {
   via: string;
   /** Намальований за старою схемою; розклад у базі ще не заповнений */
   unconfirmed: boolean;
+  /** Колір лінії (світла тема) — єдине джерело для схеми, планувальника й табло */
+  color: string;
 };
 
 '''
@@ -549,7 +551,8 @@ def main():
                              font='inherit', variant='site')
         with open(os.path.join(args.site_dir, 'malyn-scheme.svg'), 'w', encoding='utf-8') as f:
             f.write(svg_site + '\n')
-        rows = [dict(id=rid, **{'from': LEGEND[rid][0], 'to': LEGEND[rid][1]}, via=LEGEND[rid][2], unconfirmed=rid in UNCONFIRMED)
+        rows = [dict(id=rid, **{'from': LEGEND[rid][0], 'to': LEGEND[rid][1]}, via=LEGEND[rid][2], unconfirmed=rid in UNCONFIRMED,
+                     color=COLORS[rid][0])
                 for rid in ROUTE_ORDER]
         with open(os.path.join(args.site_dir, 'malyn-scheme-routes.ts'), 'w', encoding='utf-8') as f:
             f.write(SITE_ROUTES_TS_HEAD + 'export const SCHEME_ROUTES: SchemeRoute[] = '

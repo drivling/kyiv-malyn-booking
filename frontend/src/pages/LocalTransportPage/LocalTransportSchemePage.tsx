@@ -14,6 +14,10 @@ const SITE = 'https://malin.kiev.ua';
 const POSTER_PDF = '/transport/scheme/malyn-transit-scheme-poster.pdf';
 const POSTER_SVG = '/transport/scheme/malyn-transit-scheme-poster.svg';
 const ZOOM_STEPS = [1, 1.5, 2, 3];
+/** --lts-r<id> для SVG, чіпів і картки — з того самого згенерованого файла, що й плашки на інших сторінках */
+const SCHEME_COLOR_VARS = Object.fromEntries(
+  SCHEME_ROUTES.map((r) => [`--lts-r${r.id}`, r.color])
+) as React.CSSProperties;
 
 const SCHEME_SEO = {
   title: 'Схема маршрутів Малина — міські автобуси №2–12 | malin.kiev.ua',
@@ -152,7 +156,7 @@ export function LocalTransportSchemePage() {
   else if (stats) metaLine = `${stats.tripsPerDirection} рейсів у кожен бік · ${stats.first}–${stats.last}`;
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark lt-scheme-page">
+    <div className="lt-page lt-theme-jakdojade lt-layout-dark lt-scheme-page" style={SCHEME_COLOR_VARS}>
       <div className="lt-container">
         <div className="lt-panel lts-panel">
           <header className="lt-header lt-header--jakdojade lts-header">
