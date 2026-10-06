@@ -155,7 +155,9 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   `frontend/legacy/admin.html` is an old static admin page kept for reference, not part of the SPA build.
 - Public map tiles (`src/pages/LocalTransportPage/RouteMap.tsx`) default to OpenStreetMap;
   `VITE_MAP_TILES_URL` / `VITE_MAP_TILES_ATTRIBUTION` switch the provider. CARTO basemaps need an API
-  key — without one every tile reads "API KEY REQUIRED". The admin map editor uses OSM tiles directly.
+  key — without one every tile reads "API KEY REQUIRED". `mapTiles.ts` accepts a percent-encoded
+  template (`%7Bz%7D`, as copied from an address bar); the muted tile filter (`.lt-map-container--osm`)
+  applies only to the default OSM tiles. The admin map editor uses OSM tiles directly.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram
