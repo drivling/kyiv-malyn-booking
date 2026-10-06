@@ -26,6 +26,9 @@ describe('zubastykContent', () => {
     expect(qs[0]).toMatch(/номер телефону/);
     expect(faq[0].a).toContain('093 192 00 08');
     expect(faq[0].a).toContain('093 170 18 35 (резервний)');
+    // онлайн-бронювання «Зубастика» поки не працює — FAQ не обіцяє бронь без дзвінка
+    expect(faq[0].a).toMatch(/Онлайн-бронювання поки не працює — місце бронюється лише за телефоном/);
+    for (const f of faq) expect(f.a).not.toMatch(/без дзвінка/);
     expect(faq.find((f) => f.q.includes('з Малина до Києва'))?.a).toContain('Перший рейс о 05:00, останній о 17:30; 2 рейсів щодня');
     expect(faq.find((f) => f.q.includes('з Києва до Малина'))?.a).toContain('08:00');
     expect(faq.find((f) => f.q.includes('Скільки коштує'))?.a).toContain('280 грн за місце');

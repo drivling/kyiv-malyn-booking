@@ -16,6 +16,7 @@ const phone_block_1 = require("../phone-block");
 const schedule_price_1 = require("../schedule-price");
 const schedule_trip_1 = require("../schedule-trip");
 const schedule_timetable_sync_1 = require("../schedule-timetable-sync");
+const phone_booking_1 = require("../phone-booking");
 async function buildAvailabilityPayload(prisma, schedule, date) {
     if (schedule.vehicleType === 'elektrichka') {
         return {
@@ -744,7 +745,9 @@ function createSchedulesBookingsRouter(deps) {
                 console.error('Помилка відправки Telegram повідомлення:', error);
             }
         }
-        res.status(201).json(booking);
+        // «Зубастик» поки лише за телефоном: заявку зберігаємо, але клієнт API має показати попередження
+        const phoneOnly = (0, phone_booking_1.isPhoneOnlyBooking)(resolvedSchedule);
+        res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: phone_booking_1.PHONE_ONLY_NOTICE_TEXT } : {}) });
     });
     r.get('/bookings', require_admin_1.requireAdmin, async (_req, res) => {
         res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } }));

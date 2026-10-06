@@ -42,6 +42,7 @@ function createTelegramRoutesRouter(deps) {
                     : undefined;
                 const rb = {
                     route: booking.route,
+                    source: booking.source,
                     date: booking.date,
                     departureTime: booking.departureTime,
                     name: booking.name,
@@ -140,6 +141,7 @@ function createTelegramRoutesRouter(deps) {
                     : undefined;
                 const rb = {
                     route: booking.route,
+                    source: booking.source,
                     date: booking.date,
                     departureTime: booking.departureTime,
                     name: booking.name,

@@ -101,6 +101,14 @@ import {
 } from './referral';
 import { INLINE_QUERY_PREFIX, handleChosenInlineResult, handleInlineQuery } from './telegram-inline';
 import { boardingTimeAtStop, isScheduleActiveOnDate, scheduleMatchesOdAlongStops } from './schedule-trip';
+import {
+  PHONE_ONLY_BOT_LINE_HTML,
+  PHONE_ONLY_NOTICE_HTML,
+  PHONE_ONLY_SMS,
+  PHONE_ONLY_TOAST,
+  ZUBASTYK_PHONES,
+  isPhoneOnlyBooking,
+} from './phone-booking';
 
 const defaultTgPrisma = new PrismaClient();
 let tgPrisma: PrismaClient = defaultTgPrisma;
@@ -1803,6 +1811,7 @@ export const sendBookingNotificationToAdmin = async (booking: {
     return;
   }
   const isViberRide = booking.source === 'viber_match';
+  const phoneOnly = isPhoneOnlyBooking(booking);
 
   try {
     const message = `
@@ -1816,7 +1825,11 @@ export const sendBookingNotificationToAdmin = async (booking: {
 👤 <b>Клієнт:</b> ${booking.name}
 📞 <b>Телефон:</b> ${formatPhoneTelLink(booking.phone)}
 
-${isViberRide ? '✅ <i>Попутка підтверджена</i>' : '✅ <i>Заявку прийнято</i> (технічний режим)'}
+${isViberRide ? '✅ <i>Попутка підтверджена</i>' : '✅ <i>Заявку прийнято</i> (технічний режим)'}${
+      phoneOnly
+        ? '\n⛔️ <b>Онлайн-бронь Київ ↔ Малин поки не працює</b> — пасажира попереджено, що місце лише за телефоном. Передзвоніть йому.'
+        : ''
+    }
     `.trim();
 
     await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
@@ -2848,7 +2861,7 @@ export const sendBookingConfirmationToCustomer = async (
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
 🎫 <b>Місць:</b> ${booking.seats}
 👤 <b>Пасажир:</b> ${displayName(booking.name, 'Пасажир')}
-${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
+${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
     `.trim();
@@ -2870,6 +2883,8 @@ ${booking.supportPhone ? `\n⚠️ Краще уточнити бронюван�
  */
 export type TripReminderBooking = {
   route: string;
+  /** 'schedule' | 'viber_match' — щоб нагадування про «Зубастик» не чіпало попутки */
+  source?: string | null;
   date: Date;
   departureTime: string;
   name: string;
@@ -2889,6 +2904,7 @@ export function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorr
     : '';
   return (
     `${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
+    `${isPhoneOnlyBooking(booking) ? `${PHONE_ONLY_SMS} ` : ''}` +
     `Перевірте бронювання за телефоном — інакше воно не гарантоване. ${siteDomainForRoute(booking.route)}`
   );
 }
@@ -2932,7 +2948,7 @@ export const sendTripReminder = async (
 
     const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
-
+${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}
 🔔 <b>Нагадування про поїздку!</b>
 
 👋 ${displayName(booking.name, 'Друже')}, нагадуємо про вашу поїздку завтра:
@@ -2985,7 +3001,7 @@ export const sendTripReminderToday = async (
 
     const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
-
+${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}
 🔔 <b>Сьогодні у вас поїздка!</b>
 
 👋 ${displayName(booking.name, 'Друже')}, нагадуємо:
@@ -3206,7 +3222,8 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
           `📋 <b>Повна інструкція</b>\n\n` +
           `1️⃣ <b>Забронювати квиток</b> можна двома способами:\n` +
           `   • На сайті: 🌐 https://malin.kiev.ua (вкажіть цей номер телефону)\n` +
-          `   • У боті: кнопка «🎫 Бронювання» або команда /book\n\n` +
+          `   • У боті: кнопка «🎫 Бронювання» або команда /book\n` +
+          `   ${PHONE_ONLY_BOT_LINE_HTML}\n\n` +
           `2️⃣ <b>Що ви будете отримувати автоматично:</b>\n` +
           `   • ✅ Підтвердження бронювання (на сайті чи в боті)\n` +
           `   • 🔔 Нагадування за день до поїздки\n\n` +
@@ -3739,7 +3756,8 @@ async function sendSharePhoneOnly(chatId: string): Promise<void> {
     'Щоб користуватися ботом (бронювання, попутки, сповіщення), надішліть номер:\n' +
     '• натисніть кнопку нижче або\n' +
     '• напишіть номер, наприклад 0501234567\n\n' +
-    '🌐 Забронювати квиток на сайті: https://malin.kiev.ua';
+    '🌐 Забронювати квиток на сайті: https://malin.kiev.ua\n\n' +
+    PHONE_ONLY_BOT_LINE_HTML;
   await bot?.sendMessage(chatId, text, {
     parse_mode: 'HTML',
     reply_markup: getSharePhoneKeyboard(),
@@ -4051,6 +4069,8 @@ function setupBotCommands() {
 
 Або команди: /book /allrides /invite /confirmride /help
 
+${PHONE_ONLY_BOT_LINE_HTML}
+
 🌐 Сайт: https://malin.kiev.ua
     `.trim();
 
@@ -4134,6 +4154,8 @@ function setupBotCommands() {
 Після цього зʼявиться меню бронювань, попуток та сповіщень.
 
 🌐 Забронювати квиток на сайті: https://malin.kiev.ua
+
+${PHONE_ONLY_BOT_LINE_HTML}
       `.trim();
 
       await bot?.sendMessage(chatId, welcomeMessage, {
@@ -4507,6 +4529,7 @@ function setupBotCommands() {
 /mybookings - переглянути мої бронювання
 /allrides - всі активні попутки та швидкі дії
 /cancel - скасувати бронювання або оголошення попуток
+${PHONE_ONLY_BOT_LINE_HTML}
 
 🚗 <b>Водій:</b>
 /mydriverrides - мої поїздки (які я пропоную)
@@ -4873,6 +4896,9 @@ ${buildReferralHelpSection()}
       futureBookings.forEach((booking: { id: number; route: string; date: Date; departureTime: string | null; seats: number; name: string; viberListing?: { senderName: string | null; phone: string } | null }, index: number) => {
         const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
         message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${displayName(booking.name, 'Пасажир')}\n`;
+        if (isPhoneOnlyBooking(booking as { route: string; source?: string })) {
+          message += `   ⛔️ Онлайн-бронь поки не діє — підтвердіть місце за тел. <a href="tel:+${ZUBASTYK_PHONES[0].digits}">${ZUBASTYK_PHONES[0].label}</a>\n`;
+        }
         if (booking.viberListing) message += `   🚗 Водій: ${displayName(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
         message += '\n';
       });
@@ -7036,6 +7062,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
             `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
             `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
+            (schedules.some((sch) => isPhoneOnlyBooking(sch)) ? `${PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
             '4️⃣ Оберіть час посадки:',
           {
             chat_id: chatId,
@@ -7320,6 +7347,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             `✅ Напрямок: ${routeLabel}\n` +
             `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
             `✅ Час: ${schedule.departureTime}\n\n` +
+            (isPhoneOnlyBooking(schedule) ? `${PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
             '4️⃣ Скільки місць забронювати?',
           {
             chat_id: chatId,
@@ -7365,6 +7393,10 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             `📅 <b>Дата:</b> ${formatDate(new Date(selectedDate))}\n` +
             `🕐 <b>Час:</b> ${schedule?.departureTime ?? '—'}\n` +
             `🎫 <b>Місць:</b> ${seats}\n\n` +
+            (schedule && isPhoneOnlyBooking(schedule)
+              ? `${PHONE_ONLY_NOTICE_HTML}\n` +
+                'Заявку ми збережемо, але місце вона не гарантує — забронюйте його дзвінком.\n\n'
+              : '') +
             '⚠️ Підтверджуєте бронювання?',
           {
             chat_id: chatId,
@@ -7462,11 +7494,13 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           console.log(`✅ Створено бронювання #${booking.id} користувачем ${userId} через бот`);
 
           const routeLabel = schedule.tripRoute?.labelUk?.trim() || getRouteName(booking.route);
+          const phoneOnly = isPhoneOnlyBooking(schedule);
           const supportPhoneLine = schedule.supportPhone
             ? `\n⚠️ Краще уточнити бронювання за телефоном: ${schedule.supportPhone}\n\n`
             : '\n\n';
           await bot?.editMessageText(
             '📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
+              (phoneOnly ? `${PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
               `🎫 <b>Номер:</b> #${booking.id}\n` +
               `📍 <b>Маршрут:</b> ${routeLabel}\n` +
               `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
@@ -7487,9 +7521,11 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           );
 
           await bot?.answerCallbackQuery(query.id, {
-            text: schedule.supportPhone
-              ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
-              : '✅ Заявку прийнято!',
+            text: phoneOnly
+              ? PHONE_ONLY_TOAST
+              : schedule.supportPhone
+                ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
+                : '✅ Заявку прийнято!',
           });
 
           await sendBookingNotificationToAdmin(booking).catch((err) =>

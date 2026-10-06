@@ -83,6 +83,9 @@ export interface Booking {
   source?: 'schedule' | 'viber_match'; // schedule = маршрутка, viber_match = попутка (водій підтвердив)
   viberListingId?: number | null;
   createdAt: string;
+  /** Лише у відповіді POST /bookings: «Зубастик» поки бронюється тільки за телефоном */
+  phoneOnly?: boolean;
+  notice?: string;
 }
 
 export interface Availability {

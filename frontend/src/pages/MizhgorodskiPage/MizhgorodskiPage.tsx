@@ -24,6 +24,8 @@ import {
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { buildCitySwitchUrl, getCurrentSite } from '@/site/siteConfig';
 import { BusBookingModal } from './BusBookingModal';
+import { PhoneOnlyNotice } from './PhoneOnlyNotice';
+import { ZUBASTYK_MAIN_PHONE, isPhoneOnlySchedule, zubastykTelHref } from './phoneOnlyBooking';
 import { TrainTicketModal } from './TrainTicketModal';
 import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
 import {
@@ -61,15 +63,15 @@ const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Як доїхати до Малина з Києва, Житомира чи Коростеня?',
-    a: 'Оберіть міста в пошуку на malin.kiev.ua/mizhgorodski або відкрийте сторінку напрямку (наприклад Київ — Малин). Доступні попутки від водіїв і регулярні маршрутки з бронюванням.',
+    a: 'Оберіть міста в пошуку на malin.kiev.ua/mizhgorodski або відкрийте сторінку напрямку (наприклад Київ — Малин). Доступні попутки від водіїв і регулярні маршрутки за розкладом. Маршрутки Київ ↔ Малин («Зубастик») поки бронюються лише за телефоном — онлайн-бронювання на цьому напрямку не працює.',
   },
   {
     q: 'Чим відрізняється попутка від маршрутки?',
-    a: 'Попутка — оголошення приватного водія або пасажира на конкретну дату. Маршрутка — регулярний рейс з розкладом і онлайн-бронюванням місця.',
+    a: 'Попутка — оголошення приватного водія або пасажира на конкретну дату. Маршрутка — регулярний рейс з розкладом. Київ ↔ Малин («Зубастик») поки бронюється лише за телефоном (093 192 00 08); на інших напрямках місце можна забронювати онлайн.',
   },
   {
     q: 'Чи потрібен Telegram?',
-    a: 'Шукати поїздки можна на сайті. Підтвердження бронювання маршрутки, нагадування й оголошення зручніше вести в боті @malin_kiev_ua_bot.',
+    a: 'Шукати поїздки можна на сайті. Підтвердження бронювання маршрутки, нагадування й оголошення зручніше вести в боті @malin_kiev_ua_bot. Маршрутки Київ ↔ Малин поки бронюються лише за телефоном — і на сайті, і в боті.',
   },
   {
     q: 'Які міста підтримуються?',
@@ -95,7 +97,7 @@ export const MizhgorodskiPage: React.FC = () => {
     title: 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень | malin.kiev.ua',
     canonicalUrl: 'https://malin.kiev.ua/mizhgorodski',
     description:
-      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Ціни, живий пошук і онлайн бронювання.',
+      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Ціни, живий пошук і бронювання (Київ ↔ Малин — поки лише за телефоном).',
     jsonLdId: 'mizh-home-faq-jsonld',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -716,6 +718,8 @@ export const MizhgorodskiPage: React.FC = () => {
             </button>
           </div>
         ) : (
+          <>
+          {results.some((item) => item.kind === 'bus' && isPhoneOnlySchedule(item.schedule)) && <PhoneOnlyNotice />}
           <ul className="mizh-results" aria-label="Результати пошуку">
             {results.map((item) =>
               item.kind === 'carpool' ? (
@@ -885,6 +889,11 @@ export const MizhgorodskiPage: React.FC = () => {
                         {item.schedule.boardingPlace ? ` · ${item.schedule.boardingPlace}` : ''}
                       </div>
                       <div className="mizh-card-route-hint">{formatRouteLabel(item.schedule.route)}</div>
+                      {isPhoneOnlySchedule(item.schedule) && (
+                        <div className="mizh-card-phone-only">
+                          ⛔️ Онлайн-бронювання поки не працює — лише за телефоном
+                        </div>
+                      )}
                     </div>
                     <div className="mizh-card-aside">
                       <div className="mizh-card-price">
@@ -900,9 +909,20 @@ export const MizhgorodskiPage: React.FC = () => {
                         )}
                       </div>
                       <div className="mizh-card-actions">
+                        {isPhoneOnlySchedule(item.schedule) && (
+                          <a
+                            className="mizh-card-cta mizh-card-cta--bus mizh-card-cta--call"
+                            href={zubastykTelHref()}
+                            aria-label={`Подзвонити ${ZUBASTYK_MAIN_PHONE.label}`}
+                          >
+                            📞 {ZUBASTYK_MAIN_PHONE.label}
+                          </a>
+                        )}
                         <button
                           type="button"
-                          className="mizh-card-cta mizh-card-cta--bus"
+                          className={`mizh-card-cta ${
+                            isPhoneOnlySchedule(item.schedule) ? 'mizh-card-cta--ghost' : 'mizh-card-cta--bus'
+                          }`}
                           onClick={() => setBookingSchedule(item.schedule)}
                           disabled={
                             availabilityById[item.schedule.id] != null &&
@@ -918,6 +938,7 @@ export const MizhgorodskiPage: React.FC = () => {
               )
             )}
           </ul>
+          </>
         )}
 
         <section className="mizh-aeo" aria-labelledby="mizh-aeo-title">
@@ -925,7 +946,7 @@ export const MizhgorodskiPage: React.FC = () => {
             Як доїхати до Малина
           </h2>
           <p className="mizh-aeo__lead">
-            Три способи: попутка від водія, регулярна маршрутка з бронюванням, або Telegram-бот @
+            Три способи: попутка від водія, регулярна маршрутка за розкладом, або Telegram-бот @
             {TELEGRAM_BOT_USERNAME}. Усі міжміські маршрути проходять через Малин.
           </p>
           <ol className="mizh-aeo__ways">
@@ -933,7 +954,8 @@ export const MizhgorodskiPage: React.FC = () => {
               <strong>Попутка</strong> — оберіть оголошення водія або опублікуйте «шукаю поїздку».
             </li>
             <li>
-              <strong>Маршрутка</strong> — фільтр «Маршрутки» у пошуку вище, потім «Забронювати».
+              <strong>Маршрутка</strong> — фільтр «Маршрутки» у пошуку вище, потім «Забронювати». Київ ↔ Малин
+              («Зубастик») поки — лише за телефоном: онлайн-бронювання на цьому напрямку не працює.
             </li>
             <li>
               <strong>Бот</strong> — підтвердження й нагадування в чаті з ботом.

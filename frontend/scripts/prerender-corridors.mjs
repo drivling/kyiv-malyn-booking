@@ -155,7 +155,7 @@ function buildTableRows(rows, { ROUTES, weekdaysLabel }) {
 }
 
 export function buildPageHtml(shell, landing, rows, asOf, helpers) {
-  const { ROUTES, weekdaysLabel, tripsPerDayText } = helpers;
+  const { ROUTES, weekdaysLabel, tripsPerDayText, zubastykPhones = [] } = helpers;
   const canonical = `${SITE}/mizhgorodski/${landing.slug}`;
   const searchHref = `/mizhgorodski?from=${landing.from}&to=${landing.to}`;
   const busHref = `${searchHref}&type=bus`;
@@ -230,7 +230,14 @@ export function buildPageHtml(shell, landing, rows, asOf, helpers) {
     <p>${escapeHtml(landing.lead)}</p>
     <p><a href="${escapeHtml(searchHref)}">Шукати зараз ${escapeHtml(landing.fromLabel)} → ${escapeHtml(landing.toLabel)}</a> · <a href="${escapeHtml(busHref)}">Лише маршрутки</a></p>
     <h2>${escapeHtml(scheduleHeading(rows))}</h2>
-    <p>Розклад актуальний на ${escapeHtml(asOf)} — з бази бронювання malin.kiev.ua. Перед поїздкою оберіть дату в пошуку та забронюйте місце.</p>
+    ${
+      landing.phoneOnlyBooking
+        ? `<p>Розклад актуальний на ${escapeHtml(asOf)} — з бази malin.kiev.ua.</p>
+    <p><strong>⛔️ Онлайн-бронювання маршруток поки не працює</strong> — місце бронюється лише за телефоном: ${zubastykPhones
+      .map((p) => `<a href="tel:+${escapeHtml(p.digits)}">${escapeHtml(p.label)}</a>${p.note ? ` (${escapeHtml(p.note)})` : ''}`)
+      .join(', ')}.</p>`
+        : `<p>Розклад актуальний на ${escapeHtml(asOf)} — з бази бронювання malin.kiev.ua. Перед поїздкою оберіть дату в пошуку та забронюйте місце.</p>`
+    }
     <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%">
       <thead><tr><th>Відправлення</th><th>Маршрут</th><th>Тип</th><th>Дні</th><th>Ціна</th><th>Контакт</th></tr></thead>
       <tbody>
@@ -282,9 +289,15 @@ async function loadSources() {
     const weekdays = await vite.ssrLoadModule('/src/utils/weekdays.ts');
     vehicleLabel = (await vite.ssrLoadModule('/src/utils/vehicleLabel.ts')).vehicleLabel;
     const constants = await vite.ssrLoadModule('/src/utils/constants.ts');
+    const zubastyk = await vite.ssrLoadModule('/src/pages/MizhgorodskiPage/zubastykContent.ts');
     return {
       CORRIDOR_LANDINGS: landings.CORRIDOR_LANDINGS,
-      helpers: { ROUTES: constants.ROUTES, weekdaysLabel: weekdays.weekdaysLabel, tripsPerDayText: weekdays.tripsPerDayText },
+      helpers: {
+        ROUTES: constants.ROUTES,
+        weekdaysLabel: weekdays.weekdaysLabel,
+        tripsPerDayText: weekdays.tripsPerDayText,
+        zubastykPhones: zubastyk.ZUBASTYK_PHONES,
+      },
     };
   } finally {
     await vite.close();

@@ -8,6 +8,8 @@ import type { Schedule } from '@/types';
 import { ROUTES } from '@/utils/constants';
 import { weekdaysLabel } from '@/utils/weekdays';
 import { corridorPath } from './corridorLandings';
+import { PhoneOnlyNotice } from './PhoneOnlyNotice';
+import { ZUBASTYK_MAIN_PHONE, zubastykTelHref } from './phoneOnlyBooking';
 import {
   ZUBASTYK_BOARDING,
   ZUBASTYK_CANONICAL,
@@ -29,7 +31,8 @@ const sortRows = (rows: Schedule[]) =>
     .filter((s) => (s.vehicleType ?? 'marshrutka') !== 'elektrichka')
     .sort((a, b) => a.departureTime.localeCompare(b.departureTime) || a.route.localeCompare(b.route));
 
-function ScheduleTable({ rows, searchHref }: { rows: Schedule[]; searchHref: string }) {
+/** Онлайн-бронювання «Зубастика» поки не працює — дія в рядку розкладу = дзвінок. */
+function ScheduleTable({ rows }: { rows: Schedule[] }) {
   return (
     <div className="corridor-table-wrap">
       <table className="corridor-table">
@@ -56,9 +59,9 @@ function ScheduleTable({ rows, searchHref }: { rows: Schedule[]; searchHref: str
               <td>{s.boardingPlace || <span className="corridor-muted">—</span>}</td>
               <td>{s.priceUah != null ? <strong>{s.priceUah} грн</strong> : <span className="corridor-muted">—</span>}</td>
               <td>
-                <Link className="corridor-table-book" to={searchHref}>
-                  Забронювати
-                </Link>
+                <a className="corridor-table-book" href={zubastykTelHref()}>
+                  Подзвонити
+                </a>
               </td>
             </tr>
           ))}
@@ -138,7 +141,7 @@ export function ZubastykPage() {
     canonicalUrl: ZUBASTYK_CANONICAL,
     description: `Маршрутка «Зубастик» Малин — Київ: телефони бронювання ${ZUBASTYK_PHONES.slice(0, 3)
       .map((p) => p.label)
-      .join(', ')}${rangeToKyiv ? `, рейси з ${rangeToKyiv.first} до ${rangeToKyiv.last}` : ''}, посадка на Академмістечку та Святошині. Онлайн-бронювання на malin.kiev.ua.`,
+      .join(', ')}${rangeToKyiv ? `, рейси з ${rangeToKyiv.first} до ${rangeToKyiv.last}` : ''}, посадка на Академмістечку та Святошині. Онлайн-бронювання поки не працює — лише за телефоном.`,
     jsonLdId: 'zubastyk-jsonld',
     jsonLd,
   });
@@ -153,14 +156,18 @@ export function ZubastykPage() {
         </nav>
 
         <header className="corridor-hero">
-          <h1>Маршрутка «Зубастик» Малин — Київ: розклад, телефони, бронювання</h1>
+          <h1>Маршрутка «Зубастик» Малин — Київ: розклад і телефони для бронювання</h1>
           <p className="corridor-lead">
             «Зубастик» — так у Малині досі називають маршрутки Малин — Київ до метро «Академмістечко» та «Святошин».
-            Тут актуальний розклад цих рейсів в обох напрямках, телефони для бронювання й онлайн-бронювання без дзвінка.
+            Тут актуальний розклад цих рейсів в обох напрямках і телефони для бронювання.
           </p>
+          <PhoneOnlyNotice />
           <div className="corridor-cta-row">
-            <Link className="corridor-cta corridor-cta--primary" to={DIRECTIONS[0].searchHref}>
-              Забронювати Малин → Київ
+            <a className="corridor-cta corridor-cta--primary" href={zubastykTelHref()}>
+              Подзвонити {ZUBASTYK_MAIN_PHONE.label}
+            </a>
+            <Link className="corridor-cta corridor-cta--ghost" to={DIRECTIONS[0].searchHref}>
+              Рейси Малин → Київ
             </Link>
             <Link className="corridor-cta corridor-cta--ghost" to={DIRECTIONS[1].searchHref}>
               Київ → Малин
@@ -184,8 +191,9 @@ export function ZubastykPage() {
             ))}
           </ul>
           <p className="corridor-muted">
-            Телефонуйте, щоб зарезервувати місце на конкретний рейс. Без дзвінка — оберіть рейс у{' '}
-            <Link to="/mizhgorodski">пошуку на malin.kiev.ua</Link>: бронь підтвердить оператор.
+            Онлайн-бронювання поки не працює — місце на конкретний рейс бронюється <strong>лише за телефоном</strong>.
+            Назвіть дату, час відправлення й кількість місць. Розклад рейсів — нижче і в{' '}
+            <Link to="/mizhgorodski">пошуку на malin.kiev.ua</Link>.
           </p>
         </section>
 
@@ -199,7 +207,7 @@ export function ZubastykPage() {
                 Рейсів у базі поки немає — перевірте <Link to={d.searchHref}>пошук маршруток</Link>.
               </p>
             )}
-            {rows[d.key].length > 0 && <ScheduleTable rows={rows[d.key]} searchHref={d.searchHref} />}
+            {rows[d.key].length > 0 && <ScheduleTable rows={rows[d.key]} />}
           </section>
         ))}
 

@@ -7,6 +7,8 @@ import type { BookingCity } from '@/utils/constants';
 import { formatPhoneDisplay, supportPhoneToTelLink } from '@/utils/constants';
 import { userState } from '@/utils/userState';
 import { cityLabel, formatRouteLabel, formatTripDate } from './mizhUtils';
+import { PhoneOnlyNotice } from './PhoneOnlyNotice';
+import { isPhoneOnlySchedule } from './phoneOnlyBooking';
 
 type Props = {
   schedule: Schedule;
@@ -85,6 +87,8 @@ export const BusBookingModal: React.FC<Props> = ({
     };
   }, [onClose]);
 
+  // «Зубастик»: заявку приймаємо й пишемо в базу, але місце бронюється лише дзвінком
+  const phoneOnly = isPhoneOnlySchedule(schedule);
   const availableSeats = availability?.availableSeats;
   const isSoldOut = availability != null && !availability.isAvailable;
   const maxSeats = availability?.availableSeats ?? schedule.maxSeats;
@@ -174,7 +178,18 @@ export const BusBookingModal: React.FC<Props> = ({
         {success ? (
           <>
             <Alert variant="success">Заявку прийнято</Alert>
-            {supportPhone && (
+            {phoneOnly && (
+              <PhoneOnlyNotice
+                title="Місце ще не заброньоване"
+                lead={
+                  <>
+                    Заявку збережено, але онлайн-бронювання маршруток Київ ↔ Малин поки не працює.{' '}
+                    <strong>Зателефонуйте, щоб забронювати місце:</strong>
+                  </>
+                }
+              />
+            )}
+            {!phoneOnly && supportPhone && (
               <p className="mizh-modal-subtitle">
                 Для підтвердження зручно зателефонувати:{' '}
                 <a href={supportPhoneToTelLink(supportPhone)}>{formatPhoneDisplay(supportPhone)}</a>
@@ -186,6 +201,16 @@ export const BusBookingModal: React.FC<Props> = ({
           </>
         ) : (
           <form className="mizh-offer-form" onSubmit={handleSubmit}>
+            {phoneOnly && (
+              <PhoneOnlyNotice
+                lead={
+                  <>
+                    Маршрутки Київ ↔ Малин («Зубастик») бронюються <strong>лише за телефоном</strong>. Заявку з сайту
+                    ми збережемо, але місця вона не гарантує — зателефонуйте:
+                  </>
+                }
+              />
+            )}
             {isSoldOut && <Alert variant="warning">Місця на цей рейс закінчились</Alert>}
             {availability && availability.isAvailable && availability.availableSeats <= 5 && (
               <Alert variant="info">Залишилось мало місць: {availability.availableSeats}</Alert>

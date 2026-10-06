@@ -31,6 +31,7 @@ import {
   type VehicleType,
 } from '../schedule-trip';
 import { applyTimetablePreview, buildTimetablePreview, parseTimetablePages } from '../schedule-timetable-sync';
+import { PHONE_ONLY_NOTICE_TEXT, isPhoneOnlyBooking } from '../phone-booking';
 
 async function buildAvailabilityPayload(
   prisma: PrismaClient,
@@ -850,7 +851,9 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       }
     }
 
-    res.status(201).json(booking);
+    // «Зубастик» поки лише за телефоном: заявку зберігаємо, але клієнт API має показати попередження
+    const phoneOnly = isPhoneOnlyBooking(resolvedSchedule);
+    res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: PHONE_ONLY_NOTICE_TEXT } : {}) });
   });
 
   r.get('/bookings', requireAdmin, async (_req, res) => {
