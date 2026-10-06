@@ -7,7 +7,14 @@ import {
   validateTransportDataset,
 } from '../local-transport';
 import { recalculateSegmentDurations } from '../transport-segments';
-import { clientKey, createScanDeduper, parseStickerScan, stickerScanStats } from '../sticker-scans';
+import {
+  clientKey,
+  createScanDeduper,
+  parseStatsDays,
+  parseStickerPrint,
+  parseStickerScan,
+  stickerScanStats,
+} from '../sticker-scans';
 
 export function createTransportRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -99,13 +106,34 @@ export function createTransportRouter(deps: { prisma: PrismaClient }): Router {
     }
   });
 
-  /** Адмін: популярність наклейок — відкриття по зупинці й боку (усього, 7 і 30 днів). */
-  r.get('/admin/transport/sticker-scans', requireAdmin, async (_req, res) => {
+  /**
+   * Адмін: статистика наклейок — відкриття по зупинці й боку (усього, 7 і 30 днів), по київських
+   * добах і годинах за ?days=7|30|90 (за замовчуванням 30) і облік друку.
+   */
+  r.get('/admin/transport/sticker-scans', requireAdmin, async (req, res) => {
     try {
-      res.json(await stickerScanStats(prisma));
+      res.json(await stickerScanStats(prisma, { days: parseStatsDays(req.query.days) }));
     } catch (e) {
       console.error('[GET /admin/transport/sticker-scans]', e);
       res.status(500).json({ error: 'Failed to load sticker scans' });
+    }
+  });
+
+  /** Адмін: друк або SVG наклейок зупинки. Body: { stopId, sides: (a|b|s)[], size: A5|A4 } */
+  r.post('/admin/transport/sticker-prints', requireAdmin, async (req, res) => {
+    const print = parseStickerPrint(req.body);
+    if (!print) {
+      res.status(400).json({ error: 'Invalid sticker print' });
+      return;
+    }
+    try {
+      await prisma.stickerPrint.createMany({
+        data: print.sides.map((side) => ({ stopId: print.stopId, side, size: print.size })),
+      });
+      res.status(201).json({ ok: true, count: print.sides.length });
+    } catch (e) {
+      console.error('[POST /admin/transport/sticker-prints]', e);
+      res.status(500).json({ error: 'Failed to save sticker print' });
     }
   });
 

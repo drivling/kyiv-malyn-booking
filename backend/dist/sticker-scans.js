@@ -1,9 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STICKER_SIDES = void 0;
+exports.STATS_DAYS = exports.STICKER_SIDES = void 0;
 exports.parseStickerScan = parseStickerScan;
 exports.createScanDeduper = createScanDeduper;
+exports.parseStatsDays = parseStatsDays;
+exports.kyivDayHour = kyivDayHour;
 exports.stickerScanStats = stickerScanStats;
+exports.parseStickerPrint = parseStickerPrint;
 exports.clientKey = clientKey;
 /**
  * Відкриття табло з QR-наклейок на зупинках (frontend: /admin/stickers, Docs/stop-stickers.md).
@@ -45,14 +48,45 @@ function createScanDeduper(windowMs = DEDUPE_MS, max = DEDUPE_MAX) {
         return false;
     };
 }
+exports.STATS_DAYS = [7, 30, 90];
+/** ?days= графіків: 7 | 30 | 90, інше — 30 */
+function parseStatsDays(v) {
+    const n = Number(Array.isArray(v) ? v[0] : v);
+    return exports.STATS_DAYS.includes(n) ? n : 30;
+}
+const KYIV_PARTS = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Kyiv',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+});
+/** Київська доба (YYYY-MM-DD) і година доби (0–23) моменту часу — бакети графіків */
+function kyivDayHour(d) {
+    const p = Object.fromEntries(KYIV_PARTS.formatToParts(d).map((x) => [x.type, x.value]));
+    return { day: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour) % 24 };
+}
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Агрегати по наклейках (зупинка + бік): усього, за 7 і 30 днів, останнє відкриття; популярні — першими */
-async function stickerScanStats(prisma, now = new Date()) {
-    const since = (days) => new Date(now.getTime() - days * DAY_MS);
-    const [all, week, month] = await Promise.all([
+/**
+ * Статистика наклейок: агрегати по наклейках (зупинка + бік: усього, за 7 і 30 днів, останнє
+ * відкриття; популярні — першими), відкриття по київських добах і годинах за вікно `days` для
+ * графіків адмінки та облік друку. Сканів небагато, тож вікно читається сирими рядками й
+ * розкладається по бакетах тут — київський час без SQL-часових поясів.
+ */
+async function stickerScanStats(prisma, opts = {}) {
+    const now = opts.now ?? new Date();
+    const days = opts.days ?? 30;
+    const since = (n) => new Date(now.getTime() - n * DAY_MS);
+    const [all, week, month, windowRows, prints] = await Promise.all([
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(7) } }, _count: { _all: true } }),
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(30) } }, _count: { _all: true } }),
+        prisma.stickerScan.findMany({
+            where: { createdAt: { gte: since(days) } },
+            select: { stopId: true, side: true, createdAt: true },
+        }),
+        prisma.stickerPrint.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
     ]);
     const key = (r) => `${r.stopId}|${r.side}`;
     const weekBy = new Map(week.map((r) => [key(r), r._count._all]));
@@ -68,7 +102,47 @@ async function stickerScanStats(prisma, now = new Date()) {
     }))
         .sort((a, b) => b.total - a.total || b.last7d - a.last7d || a.stopId.localeCompare(b.stopId) || a.side.localeCompare(b.side));
     const sum = (k) => rows.reduce((n, r) => n + r[k], 0);
-    return { rows, total: sum('total'), last7d: sum('last7d'), last30d: sum('last30d') };
+    const dayBy = new Map();
+    const hourBy = new Map();
+    for (const r of windowRows) {
+        const { day, hour } = kyivDayHour(r.createdAt);
+        const side = r.side;
+        const dk = `${day}|${key(r)}`;
+        const d = dayBy.get(dk) ?? { day, stopId: r.stopId, side, count: 0 };
+        d.count += 1;
+        dayBy.set(dk, d);
+        const hk = `${hour}|${key(r)}`;
+        const h = hourBy.get(hk) ?? { hour, stopId: r.stopId, side, count: 0 };
+        h.count += 1;
+        hourBy.set(hk, h);
+    }
+    const daily = [...dayBy.values()].sort((a, b) => a.day.localeCompare(b.day) || key(a).localeCompare(key(b)));
+    const hourly = [...hourBy.values()].sort((a, b) => a.hour - b.hour || key(a).localeCompare(key(b)));
+    const printed = prints
+        .map((p) => ({
+        stopId: p.stopId,
+        side: p.side,
+        count: p._count._all,
+        lastAt: p._max.createdAt ? p._max.createdAt.toISOString() : null,
+    }))
+        .sort((a, b) => key(a).localeCompare(key(b)));
+    return { rows, total: sum('total'), last7d: sum('last7d'), last30d: sum('last30d'), days, daily, hourly, printed };
+}
+const PRINT_SIZES = ['A5', 'A4'];
+/** Body POST /admin/transport/sticker-prints: { stopId, sides: (a|b|s)[], size: A5|A4 } */
+function parseStickerPrint(body) {
+    const b = (body ?? {});
+    const stopId = typeof b.stopId === 'string' ? b.stopId.trim() : '';
+    if (!STOP_ID_RE.test(stopId))
+        return null;
+    if (!Array.isArray(b.sides) || b.sides.length === 0 || b.sides.length > exports.STICKER_SIDES.length)
+        return null;
+    const sides = [...new Set(b.sides)];
+    if (!sides.every((x) => typeof x === 'string' && exports.STICKER_SIDES.includes(x)))
+        return null;
+    if (typeof b.size !== 'string' || !PRINT_SIZES.includes(b.size))
+        return null;
+    return { stopId, sides, size: b.size };
 }
 /** Адреса клієнта за проксі Railway (trust proxy не ввімкнено): перший X-Forwarded-For */
 function clientKey(headers, fallbackIp) {

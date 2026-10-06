@@ -884,6 +884,21 @@ model StickerScan {
   @@index([createdAt])
 }
 
+/// Друк або завантаження SVG наклейки в адмінці (/admin/stickers): статистика відрізняє «наклейки
+/// немає» від «наклейка є, але її не сканують». Пише адмінка, по рядку на кожну наклейку аркуша.
+model StickerPrint {
+  id        Int      @id @default(autoincrement())
+  /// TransportStop.id (без FK, як у StickerScan)
+  stopId    String
+  /// a | b — бік дороги, s — одна наклейка з обома боками
+  side      String
+  /// A5 | A4
+  size      String
+  createdAt DateTime @default(now())
+
+  @@index([stopId, side])
+}
+
 // ---------------------------------------------------------------------------
 // «Джура» · фаза 0 — читання обраних чатів Telegram у базу (Docs/dzhura-roadmap.md).
 // Пише Python-слухач telegram-user/dzhura/ (asyncpg), читає адмінка через routes/admin-dzhura.ts.

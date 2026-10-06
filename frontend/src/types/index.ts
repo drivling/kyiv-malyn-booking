@@ -966,9 +966,19 @@ export interface StickerScanStat {
   lastAt: string | null;
 }
 
+/** Вікно графіків статистики наклейок, днів */
+export type StickerStatsDays = 7 | 30 | 90;
+
 export interface StickerScanStats {
   rows: StickerScanStat[];
   total: number;
   last7d: number;
   last30d: number;
+  days: StickerStatsDays;
+  /** Відкриття по київських добах (YYYY-MM-DD) за вікно days */
+  daily: { day: string; stopId: string; side: StickerSide; count: number }[];
+  /** Відкриття по годинах доби (0–23, Київ) за вікно days */
+  hourly: { hour: number; stopId: string; side: StickerSide; count: number }[];
+  /** Друк / завантаження SVG наклейок в адмінці */
+  printed: { stopId: string; side: StickerSide; count: number; lastAt: string | null }[];
 }
