@@ -255,12 +255,15 @@ notifications — is derived from them. Keep the two maps in sync.
 
 - Git commit messages must be written in English (project convention, from `.cursor/rules`).
 - «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now**: the online flow (site modal, bot
-  `/book`) still writes the booking and keeps the old «технічний режим» warnings, but every message
-  about such a ride says online booking doesn't work and lists the phones. One rule, kept identical in
-  `backend/src/phone-booking.ts` (bot, confirmations, reminders, SMS, `POST /bookings` → `phoneOnly`
-  + `notice`) and `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts` (`PhoneOnlyNotice`, search
-  cards, modal, `/zubastyk`, corridor pages flagged `phoneOnlyBooking`); the phones mirror
-  `ZUBASTYK_PHONES` in `zubastykContent.ts`. Restoring online booking = reverting that change.
+  `/book`) still writes the booking and keeps the old «технічний режим» warnings. Warn **only where people
+  book**: search results (banner, card note, call button; the notes are left out of the static prerender
+  via `isPrerendering()`, `src/utils/prerender.ts`), the booking modal, bot booking steps and
+  «Мої бронювання», confirmations, reminders, SMS, the admin message and `POST /bookings` (`phoneOnly` +
+  `notice`). Ads, SEO and AEO copy (landings, FAQ / JSON-LD, meta, `llms.txt`, promos, bot welcome/help)
+  keep promising online booking — at most the soft `ZUBASTYK_TEMP_NOTE` («тимчасово… за телефоном»),
+  never «не працює». One rule, kept identical in `backend/src/phone-booking.ts` and
+  `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts`; the phones mirror `ZUBASTYK_PHONES` in
+  `zubastykContent.ts`. Restoring online booking = reverting that change.
 - The Python `viberparser/` service has no automated test suite (out of CI) — see `Docs/TESTING.md`
   "Out of CI" section for what's covered by manual smoke checklists instead
   (`Docs/*-smoke.md`), e.g. `Docs/gold-route-model-smoke.md`, `Docs/poputky-od-city-scale-smoke.md`.

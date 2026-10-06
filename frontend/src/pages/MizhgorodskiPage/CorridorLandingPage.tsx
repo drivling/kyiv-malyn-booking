@@ -19,8 +19,6 @@ import {
   getCorridorLanding,
   type CorridorLanding,
 } from './corridorLandings';
-import { PhoneOnlyNotice } from './PhoneOnlyNotice';
-import { PHONE_ONLY_SENTENCE, isPhoneOnlySchedule, zubastykTelHref } from './phoneOnlyBooking';
 import './CorridorLandingPage.css';
 
 function buildScheduleFaq(
@@ -44,9 +42,7 @@ function buildScheduleFaq(
 
   dynamic.push({
     q: `Де взяти розклад маршруток ${landing.fromLabel} — ${landing.toLabel}?`,
-    a: landing.phoneOnlyBooking
-      ? `Офіційний розклад рейсів публікується тут і в пошуку на malin.kiev.ua/mizhgorodski. ${PHONE_ONLY_SENTENCE}`
-      : `Офіційний розклад рейсів, якими можна забронювати місце, публікується тут і в пошуку на malin.kiev.ua/mizhgorodski. Перед поїздкою оберіть дату в пошуку — там актуальні рейси на день.`,
+    a: `Офіційний розклад рейсів, якими можна забронювати місце, публікується тут і в пошуку на malin.kiev.ua/mizhgorodski. Перед поїздкою оберіть дату в пошуку — там актуальні рейси на день.`,
   });
 
   return [...dynamic, ...landing.faq];
@@ -205,19 +201,9 @@ export function CorridorLandingPage() {
 
         <section className="corridor-section" aria-labelledby="corridor-schedule">
           <h2 id="corridor-schedule">Розклад маршруток</h2>
-          {landing.phoneOnlyBooking ? (
-            <>
-              <p className="corridor-muted">
-                Актуальний графік з нашої бази. Онлайн-бронювання маршруток поки не працює — місце бронюється лише
-                за телефоном.
-              </p>
-              <PhoneOnlyNotice />
-            </>
-          ) : (
-            <p className="corridor-muted">
-              Актуальний графік з нашої бази бронювання. Перед поїздкою оберіть дату в пошуку й забронюйте місце.
-            </p>
-          )}
+          <p className="corridor-muted">
+            Актуальний графік з нашої бази бронювання. Перед поїздкою оберіть дату в пошуку й забронюйте місце.
+          </p>
           {schedulesLoading && <p className="corridor-muted">Завантаження розкладу…</p>}
           {schedulesError && <p className="corridor-error">{schedulesError}</p>}
           {!schedulesLoading && !schedulesError && schedules.length === 0 && (
@@ -273,11 +259,8 @@ export function CorridorLandingPage() {
                         )}
                       </td>
                       <td>
-                        {isPhoneOnlySchedule(s) ? (
-                          <a className="corridor-table-book" href={zubastykTelHref()}>
-                            Подзвонити
-                          </a>
-                        ) : s.vehicleType === 'elektrichka' ? (
+                        {/* електрички сайт не бронює — квиток у перевізника */}
+                        {s.vehicleType === 'elektrichka' ? (
                           s.ticketPurchaseUrl ? (
                             <a className="corridor-table-book" href={s.ticketPurchaseUrl} target="_blank" rel="noopener noreferrer">
                               Квиток

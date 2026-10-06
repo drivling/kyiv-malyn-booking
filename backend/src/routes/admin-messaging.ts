@@ -22,11 +22,9 @@ function buildChannelPromoMessage(): string {
   return `
 📢 <b>Поїздки Київ ↔ Малин ↔ Житомир ↔ Коростень</b>
 
-Підпишіться на наш бот — попутки й розклад маршруток у один клік:
+Підпишіться на наш бот — бронювання маршруток та попуток у один клік:
 • як водій: ${links.driver}
 • як пасажир: ${links.passenger}
-
-☎️ Маршрутки Київ ↔ Малин поки бронюються лише за телефоном: 093 192 00 08.
 
 Сайт: <a href="https://malin.kiev.ua">malin.kiev.ua</a>
   `.trim();
@@ -34,7 +32,7 @@ function buildChannelPromoMessage(): string {
 
 /** Короткий plain-text для платного SMS (реклама каналу). Одна SMS. */
 function buildChannelPromoSms(): string {
-  return 'Попутки Київ↔Малин і розклад маршруток: https://malin.kiev.ua';
+  return 'Маршрутки та попутки Київ↔Малин: бронювання на https://malin.kiev.ua';
 }
 
 export function createAdminMessagingRouter(deps: { prisma: PrismaClient }): Router {

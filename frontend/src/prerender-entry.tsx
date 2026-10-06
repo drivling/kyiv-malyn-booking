@@ -66,6 +66,8 @@ export async function renderRoute(
   const timeoutMs = opts.timeoutMs ?? 20000;
 
   window.history.replaceState({}, '', path);
+  // isPrerendering(): сторінки можуть не віддавати пошуковикам те, що потрібне лише живому користувачу
+  (window as Window & { __MALIN_PRERENDER__?: boolean }).__MALIN_PRERENDER__ = true;
   const container = document.getElementById('root');
   if (!container) throw new Error('prerender-entry: #root missing in jsdom document');
 

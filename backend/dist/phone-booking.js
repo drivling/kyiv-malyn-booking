@@ -3,13 +3,15 @@
  * «Зубастик» — маршрутки Київ ↔ Малин — поки бронюються лише за телефоном.
  *
  * Онлайн-флоу (сайт, бот) і запис у базу лишаються, наявні попередження теж; тут — правило «це рейс
- * Зубастика» і тексти, які кожне повідомлення пасажиру про такий рейс додає явно.
+ * Зубастика» і тексти, які додаються там, де людина бронює (кроки бота, підтвердження, нагадування,
+ * SMS, відповідь API). Реклама й загальні тексти бота (привітання, /help, промо) обіцяють
+ * онлайн-бронювання як і раніше — тимчасове обмеження там не згадуємо.
  *
  * Дзеркало фронтового `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts` (те саме правило) і
  * `ZUBASTYK_PHONES` з `zubastykContent.ts` — при зміні правити обидва місця.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PHONE_ONLY_BOT_LINE_HTML = exports.PHONE_ONLY_TOAST = exports.PHONE_ONLY_SMS = exports.PHONE_ONLY_NOTICE_TEXT = exports.PHONE_ONLY_NOTICE_HTML = exports.ZUBASTYK_PHONES = void 0;
+exports.PHONE_ONLY_TOAST = exports.PHONE_ONLY_SMS = exports.PHONE_ONLY_NOTICE_TEXT = exports.PHONE_ONLY_NOTICE_HTML = exports.ZUBASTYK_PHONES = void 0;
 exports.isPhoneOnlyBooking = isPhoneOnlyBooking;
 /** Телефони бронювання «Зубастика» (сторінка /zubastyk). Останній — резервний. */
 exports.ZUBASTYK_PHONES = [
@@ -46,6 +48,3 @@ exports.PHONE_ONLY_NOTICE_TEXT = 'Онлайн-бронювання маршру
 exports.PHONE_ONLY_SMS = 'Онлайн-бронь поки не працює — лише за тел. 0931920008, 0961420008.';
 /** Спливаюче повідомлення бота (`answerCallbackQuery`, ≤ 200 символів). */
 exports.PHONE_ONLY_TOAST = 'Заявку збережено, але онлайн-бронювання поки не працює — зателефонуйте 093 192 00 08, щоб забронювати місце.';
-/** Один рядок для загальних текстів бота (привітання, /help), де напрямок ще не обрано. */
-exports.PHONE_ONLY_BOT_LINE_HTML = '☎️ Маршрутки Київ ↔ Малин («Зубастик») поки бронюються <b>лише за телефоном</b>: ' +
-    `<a href="tel:+${exports.ZUBASTYK_PHONES[0].digits}">${exports.ZUBASTYK_PHONES[0].label}</a>`;

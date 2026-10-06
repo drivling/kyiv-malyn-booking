@@ -102,7 +102,6 @@ import {
 import { INLINE_QUERY_PREFIX, handleChosenInlineResult, handleInlineQuery } from './telegram-inline';
 import { boardingTimeAtStop, isScheduleActiveOnDate, scheduleMatchesOdAlongStops } from './schedule-trip';
 import {
-  PHONE_ONLY_BOT_LINE_HTML,
   PHONE_ONLY_NOTICE_HTML,
   PHONE_ONLY_SMS,
   PHONE_ONLY_TOAST,
@@ -3222,8 +3221,7 @@ async function registerUserPhone(chatId: string, userId: string, phoneInput: str
           `📋 <b>Повна інструкція</b>\n\n` +
           `1️⃣ <b>Забронювати квиток</b> можна двома способами:\n` +
           `   • На сайті: 🌐 https://malin.kiev.ua (вкажіть цей номер телефону)\n` +
-          `   • У боті: кнопка «🎫 Бронювання» або команда /book\n` +
-          `   ${PHONE_ONLY_BOT_LINE_HTML}\n\n` +
+          `   • У боті: кнопка «🎫 Бронювання» або команда /book\n\n` +
           `2️⃣ <b>Що ви будете отримувати автоматично:</b>\n` +
           `   • ✅ Підтвердження бронювання (на сайті чи в боті)\n` +
           `   • 🔔 Нагадування за день до поїздки\n\n` +
@@ -3756,8 +3754,7 @@ async function sendSharePhoneOnly(chatId: string): Promise<void> {
     'Щоб користуватися ботом (бронювання, попутки, сповіщення), надішліть номер:\n' +
     '• натисніть кнопку нижче або\n' +
     '• напишіть номер, наприклад 0501234567\n\n' +
-    '🌐 Забронювати квиток на сайті: https://malin.kiev.ua\n\n' +
-    PHONE_ONLY_BOT_LINE_HTML;
+    '🌐 Забронювати квиток на сайті: https://malin.kiev.ua';
   await bot?.sendMessage(chatId, text, {
     parse_mode: 'HTML',
     reply_markup: getSharePhoneKeyboard(),
@@ -4069,8 +4066,6 @@ function setupBotCommands() {
 
 Або команди: /book /allrides /invite /confirmride /help
 
-${PHONE_ONLY_BOT_LINE_HTML}
-
 🌐 Сайт: https://malin.kiev.ua
     `.trim();
 
@@ -4154,8 +4149,6 @@ ${PHONE_ONLY_BOT_LINE_HTML}
 Після цього зʼявиться меню бронювань, попуток та сповіщень.
 
 🌐 Забронювати квиток на сайті: https://malin.kiev.ua
-
-${PHONE_ONLY_BOT_LINE_HTML}
       `.trim();
 
       await bot?.sendMessage(chatId, welcomeMessage, {
@@ -4529,7 +4522,6 @@ ${PHONE_ONLY_BOT_LINE_HTML}
 /mybookings - переглянути мої бронювання
 /allrides - всі активні попутки та швидкі дії
 /cancel - скасувати бронювання або оголошення попуток
-${PHONE_ONLY_BOT_LINE_HTML}
 
 🚗 <b>Водій:</b>
 /mydriverrides - мої поїздки (які я пропоную)

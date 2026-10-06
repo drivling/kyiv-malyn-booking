@@ -1,7 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
-  PHONE_ONLY_BOT_LINE_HTML,
   PHONE_ONLY_NOTICE_HTML,
   PHONE_ONLY_NOTICE_TEXT,
   PHONE_ONLY_SMS,
@@ -35,7 +34,6 @@ test('тексти «лише за телефоном» несуть номер�
   assert.match(PHONE_ONLY_NOTICE_TEXT, /лише за телефоном/);
   assert.match(PHONE_ONLY_NOTICE_HTML, /093 170 18 35<\/a> \(резервний\)/);
   assert.match(PHONE_ONLY_SMS, /0931920008/);
-  assert.match(PHONE_ONLY_BOT_LINE_HTML, /лише за телефоном/);
   // answerCallbackQuery приймає до 200 символів
   assert.ok(PHONE_ONLY_TOAST.length <= 200);
 });

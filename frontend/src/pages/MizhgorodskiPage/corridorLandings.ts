@@ -1,5 +1,5 @@
 import type { BookingCity } from '@/utils/constants';
-import { ZUBASTYK_PHONES_TEXT } from './phoneOnlyBooking';
+import { ZUBASTYK_TEMP_NOTE } from './phoneOnlyBooking';
 
 export type CorridorLandingSlug =
   | 'kyiv-malyn'
@@ -30,8 +30,6 @@ export type CorridorLanding = {
   travelTimeHint: string;
   faq: CorridorFaq[];
   reverseSlug: CorridorLandingSlug;
-  /** Маршрутки напрямку («Зубастик») поки бронюються лише за телефоном — phoneOnlyBooking.ts */
-  phoneOnlyBooking?: boolean;
 };
 
 export const CORRIDOR_LANDINGS: CorridorLanding[] = [
@@ -46,7 +44,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       'Як доїхати з Києва до Малина: попутки від водіїв і регулярні маршрутки. Ціни, Академмістечко, живий пошук на malin.kiev.ua.',
     h1: 'Попутка та маршрутка Київ — Малин',
     lead:
-      'З Києва до Малина можна доїхати попуткою або маршруткою. На malin.kiev.ua зібрані актуальні оголошення водіїв і розклад маршруток — без застарілих «розкладів із новини 2022 року». Маршрутки поки бронюються лише за телефоном.',
+      'З Києва до Малина можна доїхати попуткою або маршруткою. На malin.kiev.ua зібрані актуальні оголошення водіїв і рейси для бронювання — без застарілих «розкладів із новини 2022 року».',
     ways: [
       {
         title: 'Попутка',
@@ -54,11 +52,11 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         title: 'Маршрутка',
-        text: `Регулярні рейси Київ — Малин: подивіться час відправлення в пошуку. Онлайн-бронювання поки не працює — місце бронюйте за телефоном: ${ZUBASTYK_PHONES_TEXT}.`,
+        text: 'Регулярні рейси Київ — Малин: подивіться час відправлення в пошуку й забронюйте місце онлайн.',
       },
       {
         title: 'Telegram-бот',
-        text: '@malin_kiev_ua_bot — нагадування й швидкий пошук попуток у чаті. Маршрутки Київ ↔ Малин і там поки — лише за телефоном.',
+        text: '@malin_kiev_ua_bot — підтвердження бронювання, нагадування й швидкий пошук попуток у чаті.',
       },
     ],
     boarding:
@@ -79,7 +77,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         q: 'Чи можна забронювати маршрутку онлайн?',
-        a: `Поки ні: онлайн-бронювання маршруток Київ ↔ Малин («Зубастик») тимчасово не працює — місце бронюється лише за телефоном: ${ZUBASTYK_PHONES_TEXT}.`,
+        a: `Так: у результатах оберіть картку «Маршрутка», вкажіть контакти й підтвердіть у Telegram-боті @malin_kiev_ua_bot. ${ZUBASTYK_TEMP_NOTE}`,
       },
       {
         q: 'Чим відрізняєтесь від BlaBlaCar?',
@@ -87,7 +85,6 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
     ],
     reverseSlug: 'malyn-kyiv',
-    phoneOnlyBooking: true,
   },
   {
     slug: 'malyn-kyiv',
@@ -100,7 +97,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       'Маршрутка й попутка Малин — Київ: скільки коштує, розклад, Академмістечко. Актуальні поїздки на malin.kiev.ua.',
     h1: 'Попутка та маршрутка Малин — Київ',
     lead:
-      'З Малина до Києва щодня їдуть попутки й маршрутки. Тут — живий пошук: оголошення водіїв і розклад маршруток, а не копія старого графіка з новинного сайту. Маршрутки поки бронюються лише за телефоном.',
+      'З Малина до Києва щодня їдуть попутки й маршрутки. Тут — живий пошук: оголошення водіїв і рейси з можливістю бронювання, а не копія старого графіка з новинного сайту.',
     ways: [
       {
         title: 'Попутка',
@@ -108,7 +105,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         title: 'Маршрутка',
-        text: `Оберіть рейс у пошуку й зателефонуйте: онлайн-бронювання поки не працює, місце бронюється лише за телефоном — ${ZUBASTYK_PHONES_TEXT}.`,
+        text: `Оберіть рейс у пошуку й забронюйте місце. Підтвердження зручно отримувати в боті. ${ZUBASTYK_TEMP_NOTE}`,
       },
       {
         title: 'Звідки сідати в Малині',
@@ -129,7 +126,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         q: 'Де шукати маршрутку Малин — Київ на сьогодні?',
-        a: 'На сторінці пошуку malin.kiev.ua/mizhgorodski оберіть Малин → Київ і дату «сьогодні». У вкладці «Маршрутки» — розклад рейсів; місце поки бронюється лише за телефоном (093 192 00 08).',
+        a: 'На сторінці пошуку malin.kiev.ua/mizhgorodski оберіть Малин → Київ і дату «сьогодні». У вкладці «Маршрутки» — рейси з бронюванням.',
       },
       {
         q: 'Як доїхати до Малина з Києва у зворотний бік?',
@@ -141,7 +138,6 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
     ],
     reverseSlug: 'kyiv-malyn',
-    phoneOnlyBooking: true,
   },
   {
     slug: 'zhytomyr-malyn',
