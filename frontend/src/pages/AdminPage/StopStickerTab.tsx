@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import type { TransportDataset } from '@/api/transportDataset';
+import type { StickerScanStats, StickerSide } from '@/types';
 import { Button } from '@/components/Button';
 import { Combobox, type ComboboxOption } from '@/components/Combobox/Combobox';
 import {
@@ -39,6 +40,80 @@ function fareOf(dataset: TransportDataset | null): number | null {
 }
 
 const SIDE_LABEL: Record<StickerAssign, string> = { a: 'Бік 1', b: 'Бік 2', off: 'Не друкувати' };
+const STICKER_LABEL: Record<StickerSide, string> = { a: 'Бік 1', b: 'Бік 2', s: 'Одна наклейка' };
+
+function formatScanTime(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Популярність наклейок: відкриття табло з QR по зупинці й боку (GET /admin/transport/sticker-scans) */
+function StickerScansPanel({
+  stats,
+  error,
+  stopName,
+  onOpenStop,
+  onReload,
+}: {
+  stats: StickerScanStats | null;
+  error: string;
+  stopName: (id: string) => string;
+  onOpenStop: (id: string) => void;
+  onReload: () => void;
+}) {
+  return (
+    <section className="sticker-tab-scans" aria-labelledby="sticker-scans-title">
+      <div className="sticker-tab-scans-head">
+        <h3 id="sticker-scans-title">Відкриття з QR</h3>
+        {stats && (
+          <span className="sticker-tab-muted">
+            усього {stats.total} · за 7 днів {stats.last7d} · за 30 днів {stats.last30d}
+          </span>
+        )}
+        <Button type="button" variant="secondary" onClick={onReload}>
+          Оновити
+        </Button>
+      </div>
+      {error && <p className="sticker-tab-status--error">{error}</p>}
+      {stats && !stats.rows.length && (
+        <p className="sticker-tab-muted">Ще жодного відкриття — лічильник почне рости після першого скану наклейки.</p>
+      )}
+      {stats && stats.rows.length > 0 && (
+        <table className="sticker-tab-lines">
+          <thead>
+            <tr>
+              <th scope="col">Зупинка</th>
+              <th scope="col">Наклейка</th>
+              <th scope="col">Усього</th>
+              <th scope="col">7 днів</th>
+              <th scope="col">30 днів</th>
+              <th scope="col">Останнє</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.rows.map((r) => (
+              <tr key={`${r.stopId}-${r.side}`}>
+                <td>
+                  <button type="button" className="sticker-tab-link" onClick={() => onOpenStop(r.stopId)}>
+                    {stopName(r.stopId)}
+                  </button>
+                </td>
+                <td>{STICKER_LABEL[r.side] ?? r.side}</td>
+                <td>
+                  <strong>{r.total}</strong>
+                </td>
+                <td>{r.last7d}</td>
+                <td>{r.last30d}</td>
+                <td>{formatScanTime(r.lastAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
 
 /**
  * «Наклейки зупинок» (/admin/stickers?stop=<id>): наклейка на фізичну зупинку у стилі схеми —
@@ -51,6 +126,8 @@ export const StopStickerTab: React.FC = () => {
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [scans, setScans] = useState<StickerScanStats | null>(null);
+  const [scansError, setScansError] = useState('');
 
   const [title, setTitle] = useState('');
   const [assign, setAssign] = useState<Record<string, StickerAssign>>({});
@@ -78,6 +155,15 @@ export const StopStickerTab: React.FC = () => {
       alive = false;
     };
   }, []);
+
+  const loadScans = useCallback(() => {
+    setScansError('');
+    apiClient
+      .getStickerScanStats()
+      .then(setScans)
+      .catch((err) => setScansError(err instanceof Error ? err.message : 'Не вдалося завантажити відкриття наклейок'));
+  }, []);
+  useEffect(() => loadScans(), [loadScans]);
 
   const stopOptions = useMemo<ComboboxOption[]>(() => {
     if (!dataset) return [];
@@ -152,6 +238,10 @@ export const StopStickerTab: React.FC = () => {
   );
   const previews = useMemo(() => sheets.map((s) => ({ ...s, svg: renderStickerSvg(s.spec) })), [sheets]);
   const hasB = lines.some((l) => assign[l.key] === 'b');
+  const scanText = (side: StickerSide) => {
+    const row = stop ? scans?.rows.find((r) => r.stopId === stop.id && r.side === side) : undefined;
+    return row ? `${row.total} (за 7 днів ${row.last7d})` : '0';
+  };
 
   if (loading) return <div className="sticker-tab-status">Завантаження зупинок…</div>;
   if (error) return <div className="sticker-tab-status sticker-tab-status--error">{error}</div>;
@@ -163,6 +253,17 @@ export const StopStickerTab: React.FC = () => {
         відправлення). Якщо обидва боки дороги в даних — одна зупинка, лінії розкладено на два боки за напрямком руху;
         перевірте розподіл на місці.
       </p>
+
+      <StickerScansPanel
+        stats={scans}
+        error={scansError}
+        stopName={(id) => {
+          const s = dataset?.stops.find((x) => x.id === id);
+          return s ? prettyStopName(s.name) : id;
+        }}
+        onOpenStop={selectStop}
+        onReload={loadScans}
+      />
 
       <div className="sticker-tab-controls">
         <div className="sticker-tab-stop">
@@ -303,7 +404,10 @@ export const StopStickerTab: React.FC = () => {
           <div className="sticker-tab-previews">
             {previews.map((p) => (
               <figure key={p.key} className="sticker-tab-preview">
-                <figcaption>{p.label}</figcaption>
+                <figcaption>
+                  {p.label}
+                  <span className="sticker-tab-muted"> · відкриттів з QR: {scanText(p.key)}</span>
+                </figcaption>
                 <div className="sticker-tab-sheet" dangerouslySetInnerHTML={{ __html: p.svg }} />
                 <Button type="button" variant="secondary" onClick={() => downloadStickerSvg(p, stop.id)}>
                   Завантажити SVG

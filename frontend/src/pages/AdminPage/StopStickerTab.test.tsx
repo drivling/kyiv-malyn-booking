@@ -47,17 +47,29 @@ beforeEach(() => {
   printMock.mockClear();
   // jsdom не має scrollIntoView, а Combobox прокручує підсвічену опцію.
   Element.prototype.scrollIntoView = vi.fn();
-  server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(STICKER_DATASET)));
+  server.use(
+    http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(STICKER_DATASET)),
+    http.get(`${TEST_API_URL}/admin/transport/sticker-scans`, () =>
+      HttpResponse.json({
+        rows: [
+          { stopId: 'st_0015', side: 'a', total: 12, last7d: 4, last30d: 9, lastAt: '2026-10-05T07:30:00.000Z' },
+          { stopId: 'st_0019', side: 's', total: 3, last7d: 0, last30d: 3, lastAt: '2026-09-20T12:00:00.000Z' },
+        ],
+        total: 15,
+        last7d: 4,
+        last30d: 12,
+      })
+    )
+  );
 });
 
 describe('StopStickerTab', () => {
   it('зупинка з ?stop= — дві наклейки, по одній на кожен бік дороги', async () => {
     renderTab('/admin/stickers?stop=st_0015');
     expect(await screen.findByLabelText('Назва на наклейці')).toHaveValue('з-д «Прожектор»');
-    expect(previews().map((f) => within(f).getByText(/^Бік/).textContent)).toEqual([
-      'Бік 1 · напрямок: Малинівський круг',
-      'Бік 2 · напрямок: Центр · Базарна площа',
-    ]);
+    expect(previews()).toHaveLength(2);
+    expect(previews()[0].querySelector('figcaption')).toHaveTextContent(/^Бік 1 · напрямок: Малинівський круг · /);
+    expect(previews()[1].querySelector('figcaption')).toHaveTextContent(/^Бік 2 · напрямок: Центр · Базарна площа · /);
     expect(screen.getByRole('button', { name: 'Друкувати (2 аркуші A5)' })).toBeEnabled();
     const first = previews()[0].querySelector('svg')!;
     expect(first.querySelectorAll('.sticker-line')).toHaveLength(2);
@@ -109,6 +121,23 @@ describe('StopStickerTab', () => {
     expect(previews()).toHaveLength(1);
     await user.selectOptions(screen.getByLabelText('Формат'), 'A4');
     expect(previews()[0].querySelector('svg')!.getAttribute('width')).toBe('210mm');
+  });
+
+  it('відкриття з QR: таблиця популярності, лічильник під прев\'ю, перехід до зупинки', async () => {
+    const user = userEvent.setup();
+    renderTab('/admin/stickers?stop=st_0015');
+    const panel = await screen.findByRole('region', { name: 'Відкриття з QR' });
+    expect(within(panel).getByText('усього 15 · за 7 днів 4 · за 30 днів 12')).toBeInTheDocument();
+    const rows = within(panel).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getAllByRole('cell').slice(0, 5).map((c) => c.textContent))).toEqual([
+      ['з-д «Прожектор»', 'Бік 1', '12', '4', '9'],
+      ['Залізничний вокзал', 'Одна наклейка', '3', '0', '3'],
+    ]);
+    expect(within(rows[0]).getByText('05.10.26, 10:30')).toBeInTheDocument();
+    expect(previews()[0]).toHaveTextContent('відкриттів з QR: 12 (за 7 днів 4)');
+    expect(previews()[1]).toHaveTextContent('відкриттів з QR: 0');
+    await user.click(within(panel).getByRole('button', { name: 'Залізничний вокзал' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?stop=st_0019');
   });
 
   it('вибір зупинки пише ?stop= в адресу; у списку лише зупинки з відправленнями', async () => {

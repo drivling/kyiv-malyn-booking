@@ -1,4 +1,5 @@
 import { PRIMARY_SITE } from '@/site/siteConfig';
+import type { StickerSide } from '@/types';
 import type { StickerLine } from './stickerModel';
 import { renderStickerSvg, stickerPageMm, type StickerSize, type StickerSpec } from './stickerSvg';
 
@@ -10,21 +11,22 @@ export type StickerAssign = StickerSideKey | 'off';
 export type StickerLayout = 'split' | 'single';
 
 export type StickerSheet = {
-  key: string;
+  /** Код наклейки в QR (utm_campaign=<зупинка>-<key>): a / b — бік дороги, s — одна наклейка */
+  key: StickerSide;
   /** Підпис прев'ю в адмінці */
   label: string;
   spec: StickerSpec;
 };
 
-/** Мітка в QR: GA4 бачить переходи з наклейок як utm_source=sticker / utm_medium=qr */
-export const STICKER_QR_UTM = 'utm_source=sticker&utm_medium=qr';
-
 /**
  * QR — завжди на головний домен (не localhost, навіть якщо наклейку друкують з dev-сервера):
- * табло зупинки, яке показує найближчі відправлення.
+ * табло зупинки, яке показує найближчі відправлення. Мітки: GA4 бачить переходи як
+ * `sticker / qr`, кампанія — конкретна наклейка (`st_0015-a`); табло з тією самою міткою пише
+ * відкриття в базу (stickerScan.ts → POST /transport/sticker-scans), адмінка рахує популярність.
  */
-export function stickerQrUrl(stopId: string): string {
-  return `https://${PRIMARY_SITE.domain}/transport/stop/${encodeURIComponent(stopId)}?${STICKER_QR_UTM}`;
+export function stickerQrUrl(stopId: string, side: StickerSide): string {
+  const campaign = encodeURIComponent(`${stopId}-${side}`);
+  return `https://${PRIMARY_SITE.domain}/transport/stop/${encodeURIComponent(stopId)}?utm_source=sticker&utm_medium=qr&utm_campaign=${campaign}`;
 }
 
 export function stickerQrCaption(stopId: string): string {
@@ -66,7 +68,6 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
   const b = side('b');
   const common = {
     title: input.title.trim() || input.stopId,
-    qrUrl: stickerQrUrl(input.stopId),
     qrCaption: stickerQrCaption(input.stopId),
     footer: stickerFooter(input.fare),
     size: input.size,
@@ -86,7 +87,13 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
         lines,
       }));
     if (!sections.length) return [];
-    return [{ key: 'single', label: 'Одна наклейка — обидва боки', spec: { ...common, sections, opposite: [] } }];
+    return [
+      {
+        key: 's',
+        label: 'Одна наклейка — обидва боки',
+        spec: { ...common, qrUrl: stickerQrUrl(input.stopId, 's'), sections, opposite: [] },
+      },
+    ];
   }
   const out: StickerSheet[] = [];
   for (const [k, own, other] of [
@@ -100,6 +107,7 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
       label: `Бік ${k === 'a' ? 1 : 2}${heading ? ` · напрямок: ${heading}` : ''}`,
       spec: {
         ...common,
+        qrUrl: stickerQrUrl(input.stopId, k),
         sections: [{ heading, lines: own }],
         opposite: input.showOpposite ? other : [],
       },

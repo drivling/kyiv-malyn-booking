@@ -183,3 +183,35 @@
   width: 100%;
   height: auto;
 }
+
+.sticker-tab-scans {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+}
+
+.sticker-tab-scans-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.sticker-tab-scans-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sticker-tab-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--pb-primary, #1a73e8);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}

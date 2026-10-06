@@ -21,8 +21,10 @@ const input = (over: Partial<StickerSheetsInput> = {}): StickerSheetsInput => ({
 });
 
 describe('stickerQrUrl', () => {
-  it('завжди головний домен, табло зупинки, utm для GA4', () => {
-    expect(stickerQrUrl('st_0015')).toBe('https://malin.kiev.ua/transport/stop/st_0015?utm_source=sticker&utm_medium=qr');
+  it('завжди головний домен, табло зупинки, utm для GA4 з кодом наклейки', () => {
+    expect(stickerQrUrl('st_0015', 'a')).toBe(
+      'https://malin.kiev.ua/transport/stop/st_0015?utm_source=sticker&utm_medium=qr&utm_campaign=st_0015-a'
+    );
     expect(stickerFooter(20)).toBe('Проїзд 20 ₴ · Схема маршрутів і розклад: malin.kiev.ua/transport');
     expect(stickerFooter(null)).toBe('Схема маршрутів і розклад: malin.kiev.ua/transport');
   });
@@ -35,7 +37,8 @@ describe('buildStickerSheets', () => {
     expect(sheets[0].spec.sections[0].lines.map((l) => l.key)).toEqual(['5:there', '11:there']);
     expect(sheets[0].spec.opposite.map((l) => l.key)).toEqual(['5:back', '11:back']);
     expect(sheets[1].spec.opposite.map((l) => l.key)).toEqual(['5:there', '11:there']);
-    expect(sheets[0].spec.qrUrl).toBe(stickerQrUrl('st_0015'));
+    expect(sheets.map((s) => s.key)).toEqual(['a', 'b']);
+    expect(sheets.map((s) => s.spec.qrUrl)).toEqual([stickerQrUrl('st_0015', 'a'), stickerQrUrl('st_0015', 'b')]);
   });
 
   it('без протилежного боку, «не друкувати» і порожній бік', () => {
@@ -50,6 +53,8 @@ describe('buildStickerSheets', () => {
   it('«одна» — обидва боки секціями; без підпису боку — кінцеві ліній', () => {
     const [sheet, ...rest] = buildStickerSheets(input({ layout: 'single', headings: { a: '', b: 'Центр' } }));
     expect(rest).toEqual([]);
+    expect(sheet.key).toBe('s');
+    expect(sheet.spec.qrUrl).toBe(stickerQrUrl('st_0015', 's'));
     expect(sheet.spec.sections.map((s) => s.heading)).toEqual(['Залізничний вокзал', 'Центр']);
     expect(sheet.spec.opposite).toEqual([]);
   });

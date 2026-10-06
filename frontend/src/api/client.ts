@@ -40,6 +40,8 @@ import type {
   NotificationSettings,
   NotificationSettingsPatch,
   NotificationSettingsUsage,
+  StickerScanStats,
+  StickerSide,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
@@ -1107,6 +1109,19 @@ class ApiClient {
 
   async getTransportDataset(): Promise<TransportDataset> {
     return this.request('/transport/dataset');
+  }
+
+  /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
+  async trackStickerScan(scan: { stopId: string; side: StickerSide }): Promise<{ ok: boolean; counted: boolean }> {
+    return this.request('/transport/sticker-scans', {
+      method: 'POST',
+      body: JSON.stringify(scan),
+    });
+  }
+
+  /** Адмін: популярність наклейок — відкриття по зупинці й боку */
+  async getStickerScanStats(): Promise<StickerScanStats> {
+    return this.request('/admin/transport/sticker-scans');
   }
 
   async putTransportDataset(dataset: TransportDataset): Promise<{

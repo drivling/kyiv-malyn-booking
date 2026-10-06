@@ -870,6 +870,20 @@ model TransportMeta {
   updatedAt DateTime @updatedAt
 }
 
+/// Відкриття табло з QR-наклейки на зупинці (/admin/stickers, Docs/stop-stickers.md). Пише
+/// фронтенд при першому за сесію відкритті табло з utm_source=sticker. Без IP і персональних даних.
+model StickerScan {
+  id        Int      @id @default(autoincrement())
+  /// TransportStop.id; без FK — історія сканів лишається, навіть якщо зупинку видалять із датасету
+  stopId    String
+  /// Наклейка зупинки: a | b — бік дороги, s — одна наклейка з обома боками
+  side      String
+  createdAt DateTime @default(now())
+
+  @@index([stopId, side])
+  @@index([createdAt])
+}
+
 // ---------------------------------------------------------------------------
 // «Джура» · фаза 0 — читання обраних чатів Telegram у базу (Docs/dzhura-roadmap.md).
 // Пише Python-слухач telegram-user/dzhura/ (asyncpg), читає адмінка через routes/admin-dzhura.ts.
