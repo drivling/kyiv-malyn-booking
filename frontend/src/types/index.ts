@@ -952,3 +952,23 @@ export interface NotificationSettingsUsage {
   capThisMonth: number;
   recent: SmsSendLogEntry[];
 }
+
+/** Наклейка зупинки: a | b — бік дороги, s — одна наклейка з обома боками (backend/src/sticker-scans.ts) */
+export type StickerSide = 'a' | 'b' | 's';
+
+/** GET /admin/transport/sticker-scans — відкриття табло з QR-наклейок */
+export interface StickerScanStat {
+  stopId: string;
+  side: StickerSide;
+  total: number;
+  last7d: number;
+  last30d: number;
+  lastAt: string | null;
+}
+
+export interface StickerScanStats {
+  rows: StickerScanStat[];
+  total: number;
+  last7d: number;
+  last30d: number;
+}

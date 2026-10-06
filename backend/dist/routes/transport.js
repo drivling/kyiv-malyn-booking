@@ -8,9 +8,11 @@ const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const local_transport_1 = require("../local-transport");
 const transport_segments_1 = require("../transport-segments");
+const sticker_scans_1 = require("../sticker-scans");
 function createTransportRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
+    const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
     /** Публічний повний датасет міського транспорту (~150 КБ). */
     r.get('/transport/dataset', async (_req, res) => {
         try {
@@ -65,6 +67,44 @@ function createTransportRouter(deps) {
             console.error('[POST /admin/transport/recalculate-segments]', e);
             const message = e instanceof Error ? e.message : 'Failed to recalculate segments';
             res.status(400).json({ error: message });
+        }
+    });
+    /**
+     * Публічний: відкриття табло з QR-наклейки (src/sticker-scans.ts). Body: { stopId, side: a|b|s }.
+     * Невідома зупинка — 404; повтор із того самого клієнта за 2 хв — 200 { counted: false }.
+     */
+    r.post('/transport/sticker-scans', async (req, res) => {
+        const scan = (0, sticker_scans_1.parseStickerScan)(req.body);
+        if (!scan) {
+            res.status(400).json({ error: 'Invalid sticker scan' });
+            return;
+        }
+        try {
+            const stop = await prisma.transportStop.findUnique({ where: { id: scan.stopId }, select: { id: true } });
+            if (!stop) {
+                res.status(404).json({ error: 'Unknown stop' });
+                return;
+            }
+            if (isRepeatScan(`${(0, sticker_scans_1.clientKey)(req.headers, req.ip)}|${scan.stopId}|${scan.side}`)) {
+                res.json({ ok: true, counted: false });
+                return;
+            }
+            await prisma.stickerScan.create({ data: scan });
+            res.status(201).json({ ok: true, counted: true });
+        }
+        catch (e) {
+            console.error('[POST /transport/sticker-scans]', e);
+            res.status(500).json({ error: 'Failed to save sticker scan' });
+        }
+    });
+    /** Адмін: популярність наклейок — відкриття по зупинці й боку (усього, 7 і 30 днів). */
+    r.get('/admin/transport/sticker-scans', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            res.json(await (0, sticker_scans_1.stickerScanStats)(prisma));
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/sticker-scans]', e);
+            res.status(500).json({ error: 'Failed to load sticker scans' });
         }
     });
     return r;

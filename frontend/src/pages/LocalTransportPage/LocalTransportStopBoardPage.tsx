@@ -28,6 +28,7 @@ import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
 import { DateTimeControls } from './DateTimeControls';
 import { formatDistance, useNearestStops } from './useNearestStops';
+import { useStickerScan } from './stickerScan';
 import './LocalTransportPage.css';
 
 /**
@@ -107,6 +108,8 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   const { stopSlug } = useParams<{ stopSlug?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // QR наклейки на зупинці → подія GA4 + лічильник в адмінці
+  useStickerScan(searchParams.toString());
 
   const { dataset, loading, error } = useTransportDataset();
   const viewModel = useMemo(() => {

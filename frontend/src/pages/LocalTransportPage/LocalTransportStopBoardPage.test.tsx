@@ -326,6 +326,33 @@ describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
 });
 
 describe('LocalTransportStopBoardPage: analytics events', () => {
+  it('QR наклейки (utm_campaign=<зупинка>-<бік>) — подія GA4 і запис у базу один раз за сесію', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    sessionStorage.clear();
+    const posted: unknown[] = [];
+    server.use(
+      http.post(`${TEST_API_URL}/transport/sticker-scans`, async ({ request }) => {
+        posted.push(await request.json());
+        return HttpResponse.json({ ok: true, counted: true }, { status: 201 });
+      })
+    );
+    const url = '/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-b';
+    try {
+      const first = renderBoard(url);
+      await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
+      await waitFor(() => expect(posted).toEqual([{ stopId: 'st_a', side: 'b' }]));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_sticker_open', { stop: 'st_a', side: 'b' });
+      first.unmount();
+      renderBoard(url);
+      await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
+      expect(posted).toHaveLength(1);
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+      sessionStorage.clear();
+    }
+  });
+
   it('a line chip, «Весь день» and a departure card reach gtag with ids only', async () => {
     const user = userEvent.setup();
     const gtag = vi.fn();

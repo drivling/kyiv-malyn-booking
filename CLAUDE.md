@@ -161,6 +161,14 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 - GA4 events on `/transport*` go through `gaTrackEvent` (`src/analytics/googleAnalytics.ts`): parameters
   are ids and categories only, never stop names. Every event is listed in `Docs/transport-analytics.md`;
   add new ones there and cover them with the `window.gtag = vi.fn()` test pattern.
+- Stop stickers (`/admin/stickers?stop=<id>`, `src/pages/AdminPage/StopStickerTab.tsx` +
+  `stopSticker/`): printable A5/A4 SVG in the scheme's style with a QR to the stop board. The dataset
+  often models both sides of a road as one stop, so lines are split into sides by travel bearing
+  (`splitSides`) and the admin can move them; the QR always targets the primary domain with
+  `utm_source=sticker&utm_medium=qr&utm_campaign=<stopId>-<a|b|s>`. The board counts each opening
+  once per session (`stickerScan.ts` → GA4 `transport_sticker_open` + `POST /transport/sticker-scans`
+  → `StickerScan` table, `backend/src/sticker-scans.ts`); the tab shows the counts. Workflow in
+  `Docs/stop-stickers.md`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram

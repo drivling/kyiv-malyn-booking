@@ -30,5 +30,12 @@
 | `transport_board_card_click` | картка відправлення на табло | `route_id`, `dir` |
 | `transport_scheme_route` | чіп або лінія маршруту на сторінці схеми | `route_id`, `on` |
 | `transport_scheme_stop` | зупинка на схемі → табло | `stop` |
+| `transport_sticker_open` | табло відкрито з QR наклейки на зупинці (раз за сесію на наклейку) | `stop`, `side: a \| b \| s` |
 
 Перегляди сторінок — `page_view` з `GoogleAnalyticsTracker` (SPA-навігація), окремо від цієї таблиці.
+
+Переходи з наклейок на зупинках (`/admin/stickers`, `Docs/stop-stickers.md`): QR веде на табло
+`/transport/stop/<id>?utm_source=sticker&utm_medium=qr&utm_campaign=<id>-<a|b|s>`, тож у звітах GA4
+«Джерело / канал» вони видні як `sticker / qr`, а кампанія — конкретна наклейка (`st_0015-a`:
+зупинка й бік). Те саме відкриття табло пише в базу (`StickerScan`, `POST /transport/sticker-scans`)
+— лічильники «Відкриття з QR» в адмінці «Наклейки зупинок» не залежать від блокувальників GA.
