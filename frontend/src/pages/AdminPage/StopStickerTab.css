@@ -55,6 +55,19 @@
   background: var(--pb-bg, #fff);
 }
 
+.sticker-tab-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sticker-tab-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex: none;
+}
+
 .sticker-tab-field--wide {
   flex: 1 1 320px;
   max-width: 520px;

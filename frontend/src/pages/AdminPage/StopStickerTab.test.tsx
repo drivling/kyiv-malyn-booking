@@ -64,6 +64,20 @@ describe('StopStickerTab', () => {
     expect(first.getAttribute('aria-label')).toBe('Наклейка зупинки «з-д «Прожектор»»');
   });
 
+  it('назва — у кольорі найяскравішої лінії (№5), можна обрати іншу лінію або темний', async () => {
+    const user = userEvent.setup();
+    renderTab('/admin/stickers?stop=st_0015');
+    const select = await screen.findByLabelText('Колір назви');
+    const titleFill = () => previews().map((f) => f.querySelector('.sticker-title')!.getAttribute('fill'));
+    expect(select).toHaveValue('auto');
+    expect(screen.getByRole('option', { name: 'Найяскравіша лінія (№5)' })).toBeInTheDocument();
+    expect(titleFill()).toEqual(['#1F6FD6', '#1F6FD6']);
+    await user.selectOptions(select, 'Як лінія №11');
+    expect(titleFill()).toEqual(['#0E9AA7', '#0E9AA7']);
+    await user.selectOptions(select, 'Темний');
+    expect(titleFill()).toEqual(['#1b1f2a', '#1b1f2a']);
+  });
+
   it('лінію можна перекинути на інший бік або не друкувати', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');

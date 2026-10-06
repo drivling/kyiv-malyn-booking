@@ -55,6 +55,11 @@ describe('renderStickerSvg', () => {
     expect(svg).toContain('через Центр · Лікарня');
   });
 
+  it('назва зупинки в кольорі лінії; без кольору — темна', () => {
+    expect(renderStickerSvg(spec({ titleColor: '#1F6FD6' }))).toMatch(/<text class="sticker-title"[^>]* fill="#1F6FD6">з-д «Прожектор»</);
+    expect(renderStickerSvg(spec())).toMatch(/<text class="sticker-title"[^>]* fill="#1b1f2a">/);
+  });
+
   it('A4 — той самий макет у більшому аркуші', () => {
     expect(renderStickerSvg(spec({ size: 'A4' }))).toMatch(/viewBox="0 0 148 210" width="210mm" height="297mm"/);
   });

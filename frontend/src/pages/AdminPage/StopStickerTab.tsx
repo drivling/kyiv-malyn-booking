@@ -4,7 +4,14 @@ import { apiClient } from '@/api/client';
 import type { TransportDataset } from '@/api/transportDataset';
 import { Button } from '@/components/Button';
 import { Combobox, type ComboboxOption } from '@/components/Combobox/Combobox';
-import { prettyStopName, sideHeading, splitSides, stickerLines, type StickerLine } from './stopSticker/stickerModel';
+import {
+  brightestLineColor,
+  prettyStopName,
+  sideHeading,
+  splitSides,
+  stickerLines,
+  type StickerLine,
+} from './stopSticker/stickerModel';
 import {
   buildStickerSheets,
   downloadStickerSvg,
@@ -51,6 +58,8 @@ export const StopStickerTab: React.FC = () => {
   const [layout, setLayout] = useState<StickerLayout>('split');
   const [showOpposite, setShowOpposite] = useState(true);
   const [size, setSize] = useState<StickerSize>('A5');
+  /** Колір назви: 'auto' — найяскравіша з ліній на наклейці, 'dark' — темний, інакше id лінії */
+  const [titleColorChoice, setTitleColorChoice] = useState('auto');
 
   useEffect(() => {
     let alive = true;
@@ -94,6 +103,7 @@ export const StopStickerTab: React.FC = () => {
     const pick = (keys: string[]) => lines.filter((l) => keys.includes(l.key));
     setHeadings({ a: sideHeading(pick(sides.a)), b: sideHeading(pick(sides.b)) });
     setTitle(stop ? prettyStopName(stop.name) : '');
+    setTitleColorChoice('auto');
     setLayout(sides.b.length ? 'split' : 'single');
   }, [lines, stop]);
 
@@ -107,12 +117,38 @@ export const StopStickerTab: React.FC = () => {
     [searchParams, setSearchParams]
   );
 
+  // колір назви — з ліній, що йдуть на друк (однаковий на наклейках обох боків)
+  const printable = useMemo(() => lines.filter((l) => (assign[l.key] ?? 'off') !== 'off'), [lines, assign]);
+  const brightest = brightestLineColor(printable);
+  const colorOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const l of printable) if (l.color && !seen.has(l.routeId)) seen.set(l.routeId, l.color);
+    return [...seen];
+  }, [printable]);
+  const titleColor =
+    titleColorChoice === 'auto'
+      ? brightest ?? ''
+      : titleColorChoice === 'dark'
+        ? ''
+        : (colorOptions.find(([id]) => id === titleColorChoice)?.[1] ?? brightest ?? '');
+
   const sheets = useMemo(
     () =>
       stop
-        ? buildStickerSheets({ stopId: stop.id, title, lines, assign, headings, layout, showOpposite, size, fare: fareOf(dataset) })
+        ? buildStickerSheets({
+            stopId: stop.id,
+            title,
+            lines,
+            assign,
+            headings,
+            layout,
+            showOpposite,
+            size,
+            fare: fareOf(dataset),
+            titleColor,
+          })
         : [],
-    [stop, title, lines, assign, headings, layout, showOpposite, size, dataset]
+    [stop, title, lines, assign, headings, layout, showOpposite, size, dataset, titleColor]
   );
   const previews = useMemo(() => sheets.map((s) => ({ ...s, svg: renderStickerSvg(s.spec) })), [sheets]);
   const hasB = lines.some((l) => assign[l.key] === 'b');
@@ -158,6 +194,23 @@ export const StopStickerTab: React.FC = () => {
             <label className="sticker-tab-field sticker-tab-field--wide">
               <span>Назва на наклейці</span>
               <input value={title} onChange={(e) => setTitle(e.target.value)} />
+            </label>
+            <label className="sticker-tab-field">
+              <span>Колір назви</span>
+              <span className="sticker-tab-color">
+                <span className="sticker-tab-swatch" style={{ background: titleColor || '#1b1f2a' }} aria-hidden="true" />
+                <select value={titleColorChoice} onChange={(e) => setTitleColorChoice(e.target.value)}>
+                  <option value="auto">
+                    Найяскравіша лінія{brightest ? ` (№${printable.find((l) => l.color === brightest)?.routeId})` : ''}
+                  </option>
+                  {colorOptions.map(([id]) => (
+                    <option key={id} value={id}>
+                      Як лінія №{id}
+                    </option>
+                  ))}
+                  <option value="dark">Темний</option>
+                </select>
+              </span>
             </label>
           </div>
 

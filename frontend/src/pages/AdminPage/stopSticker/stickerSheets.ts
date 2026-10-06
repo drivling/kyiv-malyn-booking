@@ -51,6 +51,8 @@ export type StickerSheetsInput = {
   showOpposite: boolean;
   size: StickerSize;
   fare: number | null;
+  /** Колір назви зупинки; порожній — темний */
+  titleColor?: string;
 };
 
 /**
@@ -68,6 +70,7 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
     qrCaption: stickerQrCaption(input.stopId),
     footer: stickerFooter(input.fare),
     size: input.size,
+    titleColor: input.titleColor || undefined,
   };
   if (input.layout === 'single') {
     const both = a.length > 0 && b.length > 0;

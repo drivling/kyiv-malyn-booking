@@ -54,6 +54,11 @@ describe('buildStickerSheets', () => {
     expect(sheet.spec.opposite).toEqual([]);
   });
 
+  it('колір назви переходить на всі аркуші; порожній — без кольору', () => {
+    expect(buildStickerSheets(input({ titleColor: '#1F6FD6' })).map((s) => s.spec.titleColor)).toEqual(['#1F6FD6', '#1F6FD6']);
+    expect(buildStickerSheets(input({ titleColor: '' }))[0].spec.titleColor).toBeUndefined();
+  });
+
   it('порожня назва — id зупинки', () => {
     expect(buildStickerSheets(input({ title: '  ' }))[0].spec.title).toBe('st_0015');
   });

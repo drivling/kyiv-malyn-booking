@@ -176,3 +176,28 @@ export function sideHeading(lines: StickerLine[]): string {
   const firsts = new Set(lines.map((l) => l.via.find((v) => v.kind === 'hub')?.name ?? l.via[0]?.name ?? l.destination));
   return lines.length > 0 && firsts.size === 1 ? [...firsts][0] : '';
 }
+
+/** Насиченість кольору (max − min каналів RGB, 0…255): «яскравість» лінії для назви зупинки */
+function chroma(hex: string): number {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  if (!m) return -1;
+  const ch = m.slice(1).map((x) => parseInt(x, 16));
+  return Math.max(...ch) - Math.min(...ch);
+}
+
+/**
+ * Найяскравіший колір серед ліній наклейки — ним фарбується назва зупинки (для «Прожектора» —
+ * синя №5, а не бірюзова №11). Рівні — перша в порядку легенди; ліній із кольором немає — null.
+ */
+export function brightestLineColor(lines: Pick<StickerLine, 'color'>[]): string | null {
+  let best: string | null = null;
+  let bestChroma = -1;
+  for (const l of lines) {
+    const c = l.color ? chroma(l.color) : -1;
+    if (c > bestChroma) {
+      best = l.color;
+      bestChroma = c;
+    }
+  }
+  return best;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { angleDiff, prettyStopName, sideHeading, splitSides, stickerLines } from './stickerModel';
+import { angleDiff, brightestLineColor, prettyStopName, sideHeading, splitSides, stickerLines } from './stickerModel';
 import { STICKER_DATASET } from './stickerTestDataset';
 
 describe('stickerLines', () => {
@@ -57,6 +57,19 @@ describe('splitSides / sideHeading', () => {
     expect(sideHeading(pick(sides.b))).toBe('Центр · Базарна площа');
     expect(sideHeading(pick(['5:there', '5:back']))).toBe('');
     expect(sideHeading([])).toBe('');
+  });
+});
+
+describe('brightestLineColor', () => {
+  it('найнасиченіший колір серед ліній: синя №5 яскравіша за бірюзову №11', () => {
+    expect(brightestLineColor(stickerLines(STICKER_DATASET, 'st_0015'))).toBe('#1F6FD6');
+    expect(brightestLineColor([{ color: '#0E9AA7' }, { color: '#F08A1C' }, { color: null }])).toBe('#F08A1C');
+  });
+
+  it('без кольорових ліній — null; рівні — перша', () => {
+    expect(brightestLineColor([{ color: null }])).toBeNull();
+    expect(brightestLineColor([])).toBeNull();
+    expect(brightestLineColor([{ color: '#ff0000' }, { color: '#00ff00' }])).toBe('#ff0000');
   });
 });
 

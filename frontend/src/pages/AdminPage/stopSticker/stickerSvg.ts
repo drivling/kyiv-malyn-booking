@@ -30,6 +30,8 @@ export type StickerSpec = {
   /** Рядок футера: проїзд, адреса розділу */
   footer: string;
   size: StickerSize;
+  /** Колір назви зупинки (колір однієї з ліній); без нього — темний, як решта тексту */
+  titleColor?: string;
 };
 
 const W = 148;
@@ -93,11 +95,18 @@ export function fitText(text: string, maxSize: number, minSize: number, weight: 
   return { size: minSize, lines: wrapWords(text, minSize, weight, maxWidth) };
 }
 
-function txt(x: number, y: number, s: string, size: number, opts: { weight?: number; fill?: string; anchor?: string; ls?: number } = {}) {
+function txt(
+  x: number,
+  y: number,
+  s: string,
+  size: number,
+  opts: { weight?: number; fill?: string; anchor?: string; ls?: number; cls?: string } = {}
+) {
+  const c = opts.cls ? ` class="${opts.cls}"` : '';
   const a = opts.anchor && opts.anchor !== 'start' ? ` text-anchor="${opts.anchor}"` : '';
   const w = opts.weight && opts.weight !== 400 ? ` font-weight="${opts.weight}"` : '';
   const ls = opts.ls ? ` letter-spacing="${opts.ls}"` : '';
-  return `<text x="${r(x)}" y="${r(y)}" font-size="${size}"${w}${a}${ls} fill="${opts.fill ?? FG}">${esc(s)}</text>`;
+  return `<text${c} x="${r(x)}" y="${r(y)}" font-size="${size}"${w}${a}${ls} fill="${opts.fill ?? FG}">${esc(s)}</text>`;
 }
 
 function r(n: number): string {
@@ -259,7 +268,7 @@ export function renderStickerSvg(spec: StickerSpec): string {
   const title = fitText(spec.title, 12, 7, 800, W - 2 * M, 2);
   let y = 28 + title.size * 1.02;
   title.lines.forEach((line, i) => {
-    o.push(txt(M, y + i * title.size * 1.1, line, title.size, { weight: 800 }));
+    o.push(txt(M, y + i * title.size * 1.1, line, title.size, { weight: 800, fill: spec.titleColor || FG, cls: 'sticker-title' }));
   });
   y += (title.lines.length - 1) * title.size * 1.1;
 
