@@ -67,3 +67,17 @@ describe('DateTimeControls', () => {
     expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'now', page: 'board' });
   });
 });
+
+describe('DateTimeControls: custom date chip', () => {
+  it('reports transport_date_chip custom once, when the native fields open', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    render(<DateTimeControls date="01.03.26" time="07:00" page="route" onChange={vi.fn()} />);
+    const toggle = screen.getByRole('button', { name: '01.03.26 о 07:00' });
+    await user.click(toggle);
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'custom', page: 'route' });
+    await user.click(toggle);
+    expect(gtag).toHaveBeenCalledTimes(1);
+  });
+});

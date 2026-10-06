@@ -158,6 +158,9 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   key — without one every tile reads "API KEY REQUIRED". `mapTiles.ts` accepts a percent-encoded
   template (`%7Bz%7D`, as copied from an address bar); the muted tile filter (`.lt-map-container--osm`)
   applies only to the default OSM tiles. The admin map editor uses OSM tiles directly.
+- GA4 events on `/transport*` go through `gaTrackEvent` (`src/analytics/googleAnalytics.ts`): parameters
+  are ids and categories only, never stop names. Every event is listed in `Docs/transport-analytics.md`;
+  add new ones there and cover them with the `window.gtag = vi.fn()` test pattern.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram

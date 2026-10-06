@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
+import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import type { TransportData } from './types';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
@@ -437,7 +438,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   /** Чіп лінії під заголовком: фільтр карток, стан у `?line=` (повторний тап знімає) */
   const toggleLine = (id: string) => {
-    syncUrl(selectedStop, searchDate, searchTime, lineFilter === id ? '' : id);
+    const on = lineFilter !== id;
+    gaTrackEvent('transport_line_filter', { stop: selectedStop, line: id, on });
+    syncUrl(selectedStop, searchDate, searchTime, on ? id : '');
   };
 
   /** Зупинка з геолокації або з маркера на карті → табло цієї зупинки */
@@ -565,7 +568,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   className="lt-chip"
                   aria-pressed={showFullDay}
                   disabled={!selectedStop}
-                  onClick={() => setShowFullDay((v) => !v)}
+                  onClick={() => {
+                    gaTrackEvent('transport_full_day', { stop: selectedStop, on: !showFullDay });
+                    setShowFullDay(!showFullDay);
+                  }}
                   title="Усі відправлення з 00:00, а не лише з обраного часу"
                 >
                   Весь день
@@ -593,7 +599,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       <ul className="lt-nearest-list">
                         {nearestStops.map(({ name, distance }) => (
                           <li key={name} className="lt-nearest-item-row">
-                            <button type="button" className="lt-nearest-item" onClick={() => openStopBoard(name)}>
+                            <button type="button" className="lt-nearest-item" onClick={() => {
+                                gaTrackEvent('transport_nearest_pick', { page: 'board', stop: name, distance_m: Math.round(distance) });
+                                openStopBoard(name);
+                              }}>
                               {displayNameForStopKey(name, stopsCatalog)} — {formatDistance(distance)}
                             </button>
                           </li>
@@ -615,7 +624,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               <p className="lt-empty">
                 Після {searchTime} на цій зупинці{lineFilter ? ` маршрут №${lineFilter}` : ''} в розкладі не має відправлень.
               </p>
-              <button type="button" className="lt-btn lt-stop-board-show-all" onClick={() => setShowFullDay(true)}>
+              <button type="button" className="lt-btn lt-stop-board-show-all" onClick={() => {
+                  gaTrackEvent('transport_full_day', { stop: selectedStop, on: true });
+                  setShowFullDay(true);
+                }}>
                 Показати весь день
               </button>
             </section>
@@ -659,6 +671,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                         className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
                         to={toRoute}
                         aria-label={aria}
+                        onClick={() => gaTrackEvent('transport_board_card_click', { route_id: row.routeId, dir: row.direction })}
                       >
                         <div className="lt-jd-card__time" aria-hidden>
                           <span className="lt-jd-card__clock">{depClock}</span>
@@ -686,6 +699,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
           {selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
             <LocalTransportSchemeMini
+              source="board"
               routeIds={schemeRouteIds}
               stopIds={schemeNode ? [schemeNode.id] : []}
               href={buildSchemeUrl({ stop: selectedStop, date: searchDate, time: searchTime })}

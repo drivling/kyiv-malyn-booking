@@ -279,3 +279,40 @@ describe('LocalTransportPage route page: the pair comes from the URL', () => {
     await waitFor(() => expect(location()).toBe('/transport/stop/st_b?d=01.03.26&h=08%3A00'));
   });
 });
+
+describe('LocalTransportPage route page: analytics events', () => {
+  it('timeline, departures strip, timetable toggle, direction and «Скинути» reach gtag with ids only', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      await openRoute('/transport/route/2?d=01.03.26&h=08%3A00');
+      await user.click(screen.getByRole('button', { name: 'Базар' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_timeline_pick', { route_id: '2', action: 'from' });
+      await user.click(screen.getByRole('button', { name: 'Лікарня' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_timeline_pick', { route_id: '2', action: 'to' });
+      await waitFor(() => expect(location()).toContain('to=st_c'));
+
+      const strip = screen.getByRole('group', { name: 'Відправлення за день' });
+      await user.click(within(strip).getAllByRole('button')[2]);
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_departure_pick', { route_id: '2', dir: 'there', source: 'strip' });
+
+      await user.click(screen.getByRole('button', { name: 'Повний розклад' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_timetable_toggle', { route_id: '2', open: false });
+
+      const direction = screen.getByRole('group', { name: 'Напрямок руху' });
+      await user.click(within(direction).getByRole('button', { name: 'Назад' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_direction', { route_id: '2', dir: 'back', source: 'toggle' });
+
+      await user.click(await screen.findByRole('button', { name: 'Скинути' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_timeline_pick', { route_id: '2', action: 'reset' });
+
+      // Лише id зупинок і маршрутів — жодної назви зупинки в параметрах
+      for (const call of gtag.mock.calls) {
+        expect(JSON.stringify(call[2] ?? {})).not.toMatch(/Базар|Вокзал|Лікарня/);
+      }
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+});

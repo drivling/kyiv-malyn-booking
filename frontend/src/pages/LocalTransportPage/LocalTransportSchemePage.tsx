@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePageSeo } from '@/hooks';
+import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { routeScheduleStats } from './schemeStats';
@@ -90,7 +91,11 @@ export function LocalTransportSchemePage() {
   );
 
   const toggleRoute = useCallback(
-    (id: string) => setActiveRoute(activeRoute === id ? null : id),
+    (id: string) => {
+      const on = activeRoute !== id;
+      gaTrackEvent('transport_scheme_route', { route_id: id, on });
+      setActiveRoute(on ? id : null);
+    },
     [activeRoute, setActiveRoute]
   );
 
@@ -159,6 +164,7 @@ export function LocalTransportSchemePage() {
       }
       const stop = closestData(target, 'stop');
       if (stop) {
+        gaTrackEvent('transport_scheme_stop', { stop });
         navigate(`/transport/stop/${encodeURIComponent(stop)}${suffix}`);
         return true;
       }

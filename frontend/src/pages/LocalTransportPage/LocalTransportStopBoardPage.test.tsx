@@ -324,3 +324,32 @@ describe('LocalTransportStopBoardPage: date/time, geolocation, map', () => {
     expect(screen.getByText('Вузол «Лікарня · Поліклініка» — підсвічено лінії всього вузла: №2.')).toBeInTheDocument();
   });
 });
+
+describe('LocalTransportStopBoardPage: analytics events', () => {
+  it('a line chip, «Весь день» and a departure card reach gtag with ids only', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(twoLinesDataset)));
+    try {
+      await openBoard();
+      const chips = screen.getByRole('group', { name: 'Маршрути через зупинку' });
+      await user.click(within(chips).getByRole('button', { name: '№3' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_line_filter', { stop: 'st_a', line: '3', on: true });
+      await user.click(within(chips).getByRole('button', { name: '№3' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_line_filter', { stop: 'st_a', line: '3', on: false });
+
+      await user.click(screen.getByRole('button', { name: 'Весь день' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_full_day', { stop: 'st_a', on: true });
+
+      await user.click(await screen.findByRole('link', { name: /Маршрут 2, відправлення 08:30/ }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_board_card_click', expect.objectContaining({ route_id: '2' }));
+
+      for (const call of gtag.mock.calls) {
+        expect(JSON.stringify(call[2] ?? {})).not.toMatch(/Базар|Вокзал|Лікарня/);
+      }
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+});

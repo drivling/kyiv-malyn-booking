@@ -65,9 +65,9 @@
   найближча — зі смугою origin.
 
 ### Незмінні контракти
-URL-схема всіх сторінок, gtag-події (`transport_search`, `_swap`, `_date_chip`, `_route_card_click`,
-`_no_route`, `_nearby_pick`, `_geo`), `routeColorStyle`, пререндер і sitemap, 16 px інпути на
-мобільному (iOS-зум), 44 px цілі дотику.
+URL-схема всіх сторінок, gtag-події (повний перелік і параметри — `Docs/transport-analytics.md`;
+нову взаємодію — туди ж), `routeColorStyle`, пререндер і sitemap, 16 px інпути на мобільному
+(iOS-зум), 44 px цілі дотику.
 
 ---
 
