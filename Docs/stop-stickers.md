@@ -73,3 +73,5 @@
 - QR: `https://malin.kiev.ua/transport/stop/<id>?utm_source=sticker&utm_medium=qr&utm_campaign=<id>-<бік>`
   — головний домен навіть при друку з dev-сервера (див. «Популярність наклейок»).
 - Змінили маршрути або перейменували зупинку — передрукуйте наклейку: вона генерується з поточних даних.
+
+Анонс для соцмереж (текст і картинки для Facebook): [`stickers-facebook-post.md`](./stickers-facebook-post.md).
