@@ -32,3 +32,7 @@
 | `transport_scheme_stop` | зупинка на схемі → табло | `stop` |
 
 Перегляди сторінок — `page_view` з `GoogleAnalyticsTracker` (SPA-навігація), окремо від цієї таблиці.
+
+Переходи з наклейок на зупинках (`/admin/stickers`, `Docs/stop-stickers.md`): QR веде на табло
+`/transport/stop/<id>?utm_source=sticker&utm_medium=qr`, тож у звітах GA4 «Джерело / канал» вони
+видні як `sticker / qr`, а сама зупинка — у шляху сторінки.

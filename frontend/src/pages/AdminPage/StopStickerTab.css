@@ -1,0 +1,172 @@
+.sticker-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sticker-tab-status {
+  padding: 24px;
+  text-align: center;
+  color: var(--pb-text-muted);
+}
+
+.sticker-tab-status--error {
+  color: var(--pb-error, #b91c1c);
+}
+
+.sticker-tab-intro {
+  margin: 0;
+  max-width: 760px;
+  color: var(--pb-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.sticker-tab-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.sticker-tab-stop {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+
+.sticker-tab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+
+.sticker-tab-field > span {
+  font-weight: 600;
+}
+
+.sticker-tab-field input,
+.sticker-tab-field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--pb-bg, #fff);
+}
+
+.sticker-tab-field--wide {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+
+.sticker-tab-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+}
+
+.sticker-tab-fieldset legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.sticker-tab-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sticker-tab-lines th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--pb-border);
+}
+
+.sticker-tab-lines td {
+  padding: 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--pb-border);
+}
+
+.sticker-tab-badge {
+  display: inline-block;
+  min-width: 28px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 800;
+  text-align: center;
+}
+
+.sticker-tab-bearing {
+  display: inline-block;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sticker-tab-muted {
+  color: var(--pb-text-muted);
+  font-size: 0.8125rem;
+}
+
+.sticker-tab-assign,
+.sticker-tab-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.sticker-tab-assign label,
+.sticker-tab-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sticker-tab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.sticker-tab-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.sticker-tab-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  width: min(100%, 380px);
+}
+
+.sticker-tab-preview figcaption {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* прев'ю — той самий SVG, що йде на друк, вписаний у ширину картки */
+.sticker-tab-sheet {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  background: #fff;
+}
+
+.sticker-tab-sheet svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
