@@ -149,7 +149,7 @@ describe('LocalTransportStopBoardPage: stop from the URL', () => {
     expect(field).toHaveValue('Базар');
     expect(screen.getByRole('link', { name: /Маршрут 2, відправлення 08:30, Лікарня/ })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
-    expect(within(nav).getByRole('link', { name: 'Маршрути (З → До)' }).getAttribute('href')).toContain('from=st_a');
+    expect(within(nav).getByRole('link', { name: 'Маршрути (Звідки → Куди)' }).getAttribute('href')).toContain('from=st_a');
     expect(document.title).toMatch(/^Зупинка «Базар»/);
     // Без вступної секції і без «Застосувати»: форма як у планувальника
     expect(screen.queryByRole('heading', { name: 'Розклад з зупинки' })).not.toBeInTheDocument();

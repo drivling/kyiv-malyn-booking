@@ -48,7 +48,7 @@ export function LocalTransportSubNav({ searchDate, searchTime, fromStopId }: Pro
         className={`lt-subnav-link ${isSearch ? 'lt-subnav-link--active' : ''}`}
         to={routesHref}
         aria-current={isSearch ? 'page' : undefined}
-        aria-label="Маршрути (З → До)"
+        aria-label="Маршрути (Звідки → Куди)"
       >
         Маршрути
       </Link>

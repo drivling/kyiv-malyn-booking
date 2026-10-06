@@ -491,7 +491,7 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
       await user.click(within(empty).getByRole('button', { name: 'Відкрити карту' }));
       const dialog = screen.getByRole('dialog', { name: 'Карта' });
       expect(within(dialog).getByTestId('route-map')).toBeInTheDocument();
-      expect(within(dialog).getByText('З: — · До: —')).toBeInTheDocument();
+      expect(within(dialog).getByText('Звідки: — · Куди: —')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Готово' })).toHaveFocus();
 
       await user.keyboard('{Escape}');

@@ -26,7 +26,7 @@ export const LocalTransportSoon: React.FC = () => {
           <h1 className="lt-soon-title">Локальний транспорт {site.cityNameUkGenitive}</h1>
           <p className="lt-soon-text">
             Ми ще збираємо маршрути та розклад міських маршруток {site.cityNameUkGenitive}. Щойно дані будуть
-            готові — пошук «З → До» і табло зупинок з’являться тут.
+            готові — пошук «Звідки → Куди» і табло зупинок з’являться тут.
           </p>
           <p className="lt-soon-text">
             А міжміські поїздки працюють уже зараз: маршрутки, попутки та потяги.

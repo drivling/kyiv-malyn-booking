@@ -9,7 +9,7 @@ test.describe('transport', () => {
 
   test('/transport loads planner and routes list', async ({ page }) => {
     await page.goto('/transport');
-    await expect(page.getByRole('link', { name: 'Маршрути (З → До)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Маршрути (Звідки → Куди)' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Маршрути Малина' })).toBeVisible({
       timeout: 15_000,
     });
@@ -238,7 +238,7 @@ test.describe('transport', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
 
     // Табло → планувальник: обрана зупинка стає «З»
-    await page.getByRole('link', { name: 'Маршрути (З → До)' }).click();
+    await page.getByRole('link', { name: 'Маршрути (Звідки → Куди)' }).click();
     await expect(page).toHaveURL(/\/transport\?.*from=st_b/);
     await expect(page.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Вокзал');
 
@@ -355,7 +355,7 @@ test.describe('transport', () => {
       await page.getByRole('button', { name: 'Карта' }).click();
       const dialog = page.getByRole('dialog', { name: 'Карта' });
       await expect(dialog).toBeVisible();
-      await expect(dialog.getByText('З: Базар · До: Вокзал')).toBeVisible();
+      await expect(dialog.getByText('Звідки: Базар · Куди: Вокзал')).toBeVisible();
       await expect(dialog.locator('.leaflet-container')).toBeVisible();
       await expect(dialog.locator('.lt-map-marker')).toHaveCount(6);
       // Тап по маркеру (першому, що в кадрі) → картка зупинки з «Звідси / Сюди / Табло», без попапів і радіального пікера

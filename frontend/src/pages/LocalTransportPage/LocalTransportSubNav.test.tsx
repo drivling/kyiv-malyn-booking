@@ -8,7 +8,7 @@ describe('LocalTransportSubNav', () => {
       initialEntries: ['/transport'],
     });
     const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
-    const routesLink = within(nav).getByRole('link', { name: 'Маршрути (З → До)' });
+    const routesLink = within(nav).getByRole('link', { name: 'Маршрути (Звідки → Куди)' });
     expect(routesLink).toHaveAttribute('aria-current', 'page');
     expect(routesLink.getAttribute('href')).toContain('d=2026-08-12');
     expect(routesLink.getAttribute('href')).toMatch(/h=08(%3A|:)00/);
@@ -34,7 +34,7 @@ describe('LocalTransportSubNav', () => {
     const board = within(nav).getByRole('link', { name: 'Зупинка (табло)' });
     expect(board.getAttribute('href')).toMatch(/^\/transport\/stop\/st_a\?d=16\.09\.26&h=09(%3A|:)12$/);
     // Активний таб «Маршрути» не додає from= — інакше клік по ньому скинув би «До».
-    const routes = within(nav).getByRole('link', { name: 'Маршрути (З → До)' });
+    const routes = within(nav).getByRole('link', { name: 'Маршрути (Звідки → Куди)' });
     expect(routes.getAttribute('href')).not.toContain('from=');
   });
 
@@ -43,7 +43,7 @@ describe('LocalTransportSubNav', () => {
       initialEntries: ['/transport/stop/st_a'],
     });
     const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
-    const routes = within(nav).getByRole('link', { name: 'Маршрути (З → До)' });
+    const routes = within(nav).getByRole('link', { name: 'Маршрути (Звідки → Куди)' });
     expect(routes.getAttribute('href')).toContain('from=st_a');
     expect(routes.getAttribute('href')).toContain('d=16.09.26');
   });
@@ -56,7 +56,7 @@ describe('LocalTransportSubNav', () => {
     const scheme = within(nav).getByRole('link', { name: 'Схема' });
     expect(scheme).toHaveAttribute('aria-current', 'page');
     expect(scheme.getAttribute('href')).toMatch(/^\/transport\/scheme\?d=16\.09\.26&h=09(%3A|:)12$/);
-    expect(within(nav).getByRole('link', { name: 'Маршрути (З → До)' })).not.toHaveAttribute('aria-current');
+    expect(within(nav).getByRole('link', { name: 'Маршрути (Звідки → Куди)' })).not.toHaveAttribute('aria-current');
     expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' })).not.toHaveAttribute('aria-current');
   });
 
@@ -66,7 +66,7 @@ describe('LocalTransportSubNav', () => {
     });
     const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
     expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' })).toHaveAttribute('href', '/transport/stop');
-    expect(within(nav).getByRole('link', { name: 'Маршрути (З → До)' })).toHaveAttribute('href', '/transport');
+    expect(within(nav).getByRole('link', { name: 'Маршрути (Звідки → Куди)' })).toHaveAttribute('href', '/transport');
     expect(within(nav).getByRole('link', { name: 'Схема' })).toHaveAttribute('href', '/transport/scheme');
   });
 });

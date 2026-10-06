@@ -249,12 +249,12 @@ export function AvtostantsiyaPage() {
               {cityRoutes.some((r) => r.published) ? (
                 <>
                   Табло зупинки: <Link to="/transport/stop/st_0004">«Автостанція»</Link> ·{' '}
-                  <Link to="/transport/stop/st_0005">«Автостанція (навпроти)»</Link>. Планер «З → До» —{' '}
+                  <Link to="/transport/stop/st_0005">«Автостанція (навпроти)»</Link>. Планер «Звідки → Куди» —{' '}
                   <Link to="/transport">/transport</Link>.
                 </>
               ) : (
                 <>
-                  Табло зупинки зʼявиться, щойно зведемо розклад маршруту. Усі міські маршрути й планер «З → До» —{' '}
+                  Табло зупинки зʼявиться, щойно зведемо розклад маршруту. Усі міські маршрути й планер «Звідки → Куди» —{' '}
                   <Link to="/transport">/transport</Link>.
                 </>
               )}

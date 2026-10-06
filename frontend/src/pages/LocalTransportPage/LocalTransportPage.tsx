@@ -82,7 +82,7 @@ function buildPlannerUrl(from: string, to: string, date: string, time: string): 
 const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
   {
     q: 'Як доїхати міським транспортом у Малині?',
-    a: 'Відкрийте malin.kiev.ua/transport і оберіть зупинки «З» і «До» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.',
+    a: 'Відкрийте malin.kiev.ua/transport і оберіть зупинки «Звідки» і «Куди» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.',
   },
   {
     q: 'Де подивитися розклад маршруток Малина?',
@@ -651,7 +651,7 @@ export const LocalTransportPage: React.FC = () => {
         },
         {
           q: `Куди їде маршрутка №${detailRoute.id}?`,
-          a: `${path ? `Лінія ${path}. ` : ''}Планер «З → До» і карта: malin.kiev.ua/transport.`,
+          a: `${path ? `Лінія ${path}. ` : ''}Планер «Звідки → Куди» і карта: malin.kiev.ua/transport.`,
         },
       ];
       return {
@@ -719,8 +719,8 @@ export const LocalTransportPage: React.FC = () => {
       description: pairNames
         ? `Прямі маршрути міського транспорту Малина від зупинки ${pairNames.from} до ${pairNames.to}: найближче відправлення, прибуття і тривалість. Планер на malin.kiev.ua/transport.`
         : routeCount > 0
-          ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «З → До», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
-          : 'Міський транспорт Малина: планер «З → До», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
+          ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «Звідки → Куди», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
+          : 'Міський транспорт Малина: планер «Звідки → Куди», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
       jsonLdId: 'transport-hub-jsonld',
       jsonLd: {
         '@context': 'https://schema.org',
@@ -2076,7 +2076,7 @@ export const LocalTransportPage: React.FC = () => {
               frequentToStops,
               coordsData: mapCoordsData,
             };
-            const subtitle = `З: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · До: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
+            const subtitle = `Звідки: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · Куди: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
             return isPhone ? (
               <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={subtitle}>
                 <RouteMap {...mapProps} resizeToken={mapResizeToken} />
