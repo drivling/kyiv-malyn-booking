@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePageSeo } from '@/hooks';
+import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { useTransportDataset } from '../TransportPage/useTransportDataset';
 import { routeScheduleStats } from './schemeStats';
@@ -90,7 +91,11 @@ export function LocalTransportSchemePage() {
   );
 
   const toggleRoute = useCallback(
-    (id: string) => setActiveRoute(activeRoute === id ? null : id),
+    (id: string) => {
+      const on = activeRoute !== id;
+      gaTrackEvent('transport_scheme_route', { route_id: id, on });
+      setActiveRoute(on ? id : null);
+    },
     [activeRoute, setActiveRoute]
   );
 
@@ -159,6 +164,7 @@ export function LocalTransportSchemePage() {
       }
       const stop = closestData(target, 'stop');
       if (stop) {
+        gaTrackEvent('transport_scheme_stop', { stop });
         navigate(`/transport/stop/${encodeURIComponent(stop)}${suffix}`);
         return true;
       }
@@ -200,10 +206,10 @@ export function LocalTransportSchemePage() {
   else if (stats) metaLine = `${stats.tripsPerDirection} рейсів у кожен бік · ${stats.first}–${stats.last}`;
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark lt-scheme-page" style={SCHEME_COLOR_VARS}>
+    <div className="lt-page lt-layout lt-scheme-page" style={SCHEME_COLOR_VARS}>
       <div className="lt-container">
         <div className="lt-panel lts-panel">
-          <header className="lt-header lt-header--jakdojade lts-header">
+          <header className="lt-header lts-header">
             <h1 className="lt-title">Схема маршрутів</h1>
             <p className="lt-subtitle">Малин · 9 міських маршрутів · не в масштабі</p>
           </header>

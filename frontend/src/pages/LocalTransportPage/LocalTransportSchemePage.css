@@ -13,7 +13,7 @@
 }
 
 /* Одна широка панель замість split-layout (панель 380px + карта) */
-.lt-page.lt-layout-dark .lts-panel.lt-panel {
+.lt-page.lt-layout .lts-panel.lt-panel {
   width: auto;
   max-width: none;
   min-width: 0;
@@ -21,7 +21,7 @@
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 
-.lts-header.lt-header--jakdojade {
+.lts-header.lt-header {
   padding: var(--lt-panel-y) var(--lt-panel-x) 10px;
 }
 

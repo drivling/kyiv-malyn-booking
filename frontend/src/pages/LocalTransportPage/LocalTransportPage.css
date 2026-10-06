@@ -74,7 +74,7 @@
   z-index: 1200;
 }
 
-/* Доступність: видимий фокус для клавіатури (як на Jakdojade) */
+/* Доступність: видимий фокус для клавіатури */
 .lt-page button:focus-visible,
 .lt-page [role="button"]:focus-visible,
 .lt-page a:focus-visible,
@@ -100,7 +100,7 @@
 }
 
 /* ========== Split layout: світла BBC-панель + карта ========== */
-.lt-page.lt-layout-dark {
+.lt-page.lt-layout {
   min-height: 100vh;
   min-height: 100dvh;
   padding: 0;
@@ -110,7 +110,7 @@
   width: 100%;
 }
 
-.lt-page.lt-layout-dark .lt-container {
+.lt-page.lt-layout .lt-container {
   max-width: none;
   margin: 0;
   border-radius: 0;
@@ -126,19 +126,19 @@
 }
 
 /* iPhone / Android: safe area (виріз, home indicator) */
-.lt-page.lt-layout-dark .lt-container {
+.lt-page.lt-layout .lt-container {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
   padding-top: env(safe-area-inset-top);
 }
 @media (max-width: 767px) {
-  .lt-page.lt-layout-dark .lt-container.lt-split-layout {
+  .lt-page.lt-layout .lt-container.lt-split-layout {
     flex-direction: column;
     min-height: 100vh;
     min-height: 100dvh;
   }
-  .lt-page.lt-layout-dark .lt-panel {
+  .lt-page.lt-layout .lt-panel {
     flex: 0 0 auto;
     overflow-y: auto;
     overflow-x: hidden;
@@ -152,7 +152,7 @@
 }
 
 @media (min-width: 768px) {
-  .lt-page.lt-layout-dark .lt-container.lt-split-layout {
+  .lt-page.lt-layout .lt-container.lt-split-layout {
     flex-direction: row;
     height: calc(100vh - var(--app-nav-height));
     height: calc(100dvh - var(--app-nav-height));
@@ -160,7 +160,7 @@
     overflow-x: hidden;
     align-items: stretch;
   }
-  .lt-page.lt-layout-dark .lt-panel {
+  .lt-page.lt-layout .lt-panel {
     width: 380px;
     max-width: 380px;
     min-width: 320px;
@@ -168,7 +168,7 @@
     overflow-y: auto;
     overflow-x: hidden;
   }
-  .lt-page.lt-layout-dark .lt-map-column {
+  .lt-page.lt-layout .lt-map-column {
     flex: 1;
     min-width: 0;
     min-height: 0;
@@ -185,25 +185,25 @@
   color: var(--lt-text);
 }
 
-/* Деталі маршруту — компактний стиль як Jakdojade; текст правіше кнопки ← */
-.lt-detail .lt-header--jakdojade {
+/* Деталі маршруту — компактна шапка; текст правіше кнопки ← */
+.lt-detail .lt-header {
   position: relative;
   padding: 10px var(--lt-panel-x);
   min-height: auto;
 }
 
-.lt-detail .lt-header--jakdojade .lt-header-title-wrap {
+.lt-detail .lt-header .lt-header-title-wrap {
   margin-left: 46px;
   min-width: 0;
 }
 
-.lt-detail .lt-header--jakdojade .lt-title {
+.lt-detail .lt-header .lt-title {
   font-size: var(--lt-fs-base);
   margin: 0;
   font-weight: 600;
 }
 
-.lt-detail .lt-header--jakdojade .lt-subtitle {
+.lt-detail .lt-header .lt-subtitle {
   font-size: var(--lt-fs-sm);
   margin: 2px 0 0;
 }
@@ -233,18 +233,18 @@
   touch-action: manipulation;
 }
 
-.lt-detail--jakdojade .lt-detail-header--jd {
+.lt-detail .lt-detail-header {
   padding: var(--lt-panel-y) var(--lt-panel-x);
   border-bottom: 1px solid var(--lt-border);
 }
 
 /* Відступи панелі деталей */
-.lt-layout-dark .lt-panel .lt-detail--jakdojade {
+.lt-layout .lt-panel .lt-detail {
   padding-left: var(--lt-panel-x);
   padding-right: var(--lt-panel-x);
 }
 
-.lt-detail--jakdojade .lt-detail-header-top {
+.lt-detail .lt-detail-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -252,17 +252,17 @@
   margin-bottom: 10px;
 }
 
-.lt-detail--jakdojade .lt-route-title--jd {
+.lt-detail .lt-route-title {
   margin: 0;
   flex: 1;
   min-width: 0;
 }
 
-.lt-detail--jakdojade .lt-route-title--jd .lt-route-num {
+.lt-detail .lt-route-title .lt-route-num {
   font-size: var(--lt-fs-lg);
 }
 
-.lt-detail--jakdojade .lt-route-title-path {
+.lt-detail .lt-route-title-path {
   font-size: var(--lt-fs-md);
 }
 
@@ -283,7 +283,7 @@
   color: var(--lt-text-muted);
 }
 
-.lt-detail--jakdojade .lt-detail-header-actions {
+.lt-detail .lt-detail-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -291,7 +291,7 @@
 }
 
 /* Перемикач напрямку — сегментований трек: активний сегмент білий із тінню */
-.lt-detail--jakdojade .lt-direction-toggle {
+.lt-detail .lt-direction-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px;
@@ -303,7 +303,7 @@
   background: var(--lt-bg);
 }
 
-.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn {
+.lt-detail .lt-direction-toggle .lt-direction-btn {
   min-width: 0;
   min-height: 34px;
   margin: 0;
@@ -317,13 +317,13 @@
   box-shadow: none;
 }
 
-.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn--active {
+.lt-detail .lt-direction-toggle .lt-direction-btn--active {
   background: var(--lt-card);
   color: var(--lt-text);
   box-shadow: var(--lt-elev-1);
 }
 
-.lt-detail--jakdojade .lt-chip--map {
+.lt-detail .lt-chip--map {
   flex-shrink: 0;
 }
 
@@ -361,25 +361,20 @@
   border-bottom: 1px solid var(--lt-border-light);
 }
 
-.lt-header--jakdojade {
+.lt-header {
   padding: var(--lt-panel-block) var(--lt-panel-x) var(--lt-panel-y);
 }
 
-.lt-theme-jakdojade .lt-header--jakdojade {
+.lt-page .lt-header {
   padding: var(--lt-panel-block) var(--lt-panel-x) 10px;
   border-bottom: 1px solid var(--lt-border-light);
 }
 
-.lt-theme-jakdojade .lt-title {
+.lt-page .lt-title {
   font-size: clamp(1.35rem, 3vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--lt-text);
-}
-
-.lt-theme-jakdojade .lt-subtitle {
-  font-size: var(--lt-fs-base);
-  color: var(--lt-text-muted);
 }
 
 .lt-title {
@@ -397,7 +392,7 @@
 }
 
 /* ========== Блок З / До — картка як на головній (mizh-search) ========== */
-.lt-search--jakdojade {
+.lt-search {
   margin: 0 var(--lt-panel-x) var(--lt-panel-block);
   background: var(--lt-card);
   position: sticky;
@@ -426,7 +421,7 @@
  * поруч), лейбл-крапка в одному рядку з полем, ⇅ праворуч на обидва рядки.
  * Табло зупинки (.lt-stop-board-row) має власну одноколонкову сітку нижче.
  */
-.lt-theme-jakdojade .lt-from-to-row {
+.lt-page .lt-from-to-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 40px;
   grid-template-areas:
@@ -436,21 +431,21 @@
   gap: 8px;
 }
 
-.lt-theme-jakdojade .lt-from-to-cell {
+.lt-page .lt-from-to-cell {
   padding: 0;
   min-width: 0;
 }
 
-.lt-theme-jakdojade .lt-from-to-cell--from {
+.lt-page .lt-from-to-cell--from {
   grid-area: from;
   border-right: none;
 }
 
-.lt-theme-jakdojade .lt-from-to-cell--to {
+.lt-page .lt-from-to-cell--to {
   grid-area: to;
 }
 
-.lt-theme-jakdojade .lt-from-to-swap {
+.lt-page .lt-from-to-swap {
   grid-area: swap;
   align-self: center;
   justify-self: center;
@@ -463,14 +458,14 @@
   background: var(--lt-card);
 }
 
-.lt-theme-jakdojade .lt-from-to-swap:hover {
+.lt-page .lt-from-to-swap:hover {
   background: var(--lt-bg);
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
 }
 
 /* Лейбл «З»/«До» в рядку з полем (лише планувальник — на табло лейбл «Зупинка» довший). */
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell--from,
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell--to {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell--from,
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell--to {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -478,7 +473,7 @@
 
 /* Лейбл — лише маркер (кільце в кольорі З/До, як на карті); текст «Звідки»/«Куди» — для скрінрідера.
    Так поле отримує всю ширину панелі: довгі назви зупинок читаються повністю в будь-якому шрифті. */
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
   margin: 0;
   flex: 0 0 14px;
   gap: 0;
@@ -486,7 +481,7 @@
   z-index: 1;
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-dot {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-dot {
   width: 14px;
   height: 14px;
   box-sizing: border-box;
@@ -494,16 +489,16 @@
   background: var(--lt-card);
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-dot--to {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-dot--to {
   border-color: var(--lt-destination);
 }
 
 /* Пунктир між маркерами «Звідки» і «Куди» — один маршрут, як на карті */
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-row {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-row {
   position: relative;
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-row::before {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-row::before {
   content: '';
   position: absolute;
   left: 6px;
@@ -512,23 +507,23 @@
   border-left: 2px dotted var(--lt-border);
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox {
   flex: 1 1 0;
   min-width: 0;
 }
 
 /* Компактне поле: без стрілки списку (він і так відкривається по фокусу), «×» біля краю —
    назва зупинки отримує ще ~40px. */
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-toggle {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-toggle {
   display: none;
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-clear {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-clear {
   right: 4px;
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input,
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input-wrap--clearable .combobox-input {
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input,
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input-wrap--clearable .combobox-input {
   padding-right: 44px;
 }
 
@@ -651,22 +646,22 @@
   min-width: 100px;
 }
 
-.lt-theme-jakdojade .lt-datetime-row {
+.lt-page .lt-datetime-row {
   gap: 8px;
 }
 
 /* Планувальник: «Дата» і «Час» в один рядок. */
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-row {
+.lt-search:not(.lt-stop-board-search) .lt-datetime-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: end;
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-field {
+.lt-search:not(.lt-stop-board-search) .lt-datetime-field {
   min-width: 0;
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-input {
+.lt-search:not(.lt-stop-board-search) .lt-datetime-input {
   min-width: 0;
 }
 
@@ -685,7 +680,7 @@
   border-color: var(--lt-text);
 }
 
-.lt-search--jakdojade:not(.lt-stop-board-search) .lt-datetime-chips {
+.lt-search:not(.lt-stop-board-search) .lt-datetime-chips {
   grid-column: 1 / -1;
 }
 
@@ -985,7 +980,7 @@
 }
 
 /* Картка планувальника: кінцева рейсу, рядок «09:24 → 09:41 · 17 хв», підписи під часом. */
-.lt-route-card--jd .lt-route-card-time {
+.lt-route-card .lt-route-card-time {
   min-width: 64px;
   max-width: 120px;
 }
@@ -1165,12 +1160,12 @@
   }
 }
 
-/* ========== Detail view: маршрут (Jakdojade-style) ========== */
+/* ========== Detail view: сторінка маршруту ========== */
 .lt-detail {
   padding-bottom: 0;
 }
 
-.lt-detail-header--jd {
+.lt-detail-header {
   padding: var(--lt-panel-block) var(--lt-panel-x);
   border-bottom: 1px solid var(--lt-border-light);
 }
@@ -1230,12 +1225,8 @@
   flex-wrap: wrap;
 }
 
-.lt-route-title--jd {
+.lt-route-title {
   margin-bottom: 0;
-}
-
-.lt-route-title--jd .lt-route-num {
-  flex-shrink: 0;
 }
 
 .lt-route-title-path {
@@ -1247,7 +1238,7 @@
   flex-shrink: 0;
 }
 
-/* Секції з заголовками як у Jakdojade */
+/* Заголовки секцій панелі */
 .lt-section-title {
   margin: 0;
   padding: var(--lt-panel-block) var(--lt-panel-x) 6px;
@@ -1259,10 +1250,10 @@
 }
 
 /* Секція зупинок без окремого заголовка — верхня межа */
-.lt-map-stops--jd {
+.lt-map-stops {
   border-top: 1px solid var(--lt-border);
 }
-.lt-layout-dark .lt-panel .lt-map-stops--jd {
+.lt-layout .lt-panel .lt-map-stops {
   border-top-color: var(--lt-border);
 }
 
@@ -1355,7 +1346,7 @@
   display: none;
 }
 
-.lt-timetable--jd {
+.lt-timetable {
   padding: 0 var(--lt-panel-x) var(--lt-panel-block);
 }
 
@@ -1413,7 +1404,7 @@
     align-items: flex-start;
   }
   /* Список зупинок у першій колонці (ліворуч) */
-  .lt-map-stops--jd .lt-stops--jd {
+  .lt-map-stops .lt-stops {
     width: 320px;
     flex-shrink: 0;
     order: 1;
@@ -1424,14 +1415,14 @@
   }
 }
 
-.lt-map-stops--jd .lt-stops--jd {
+.lt-map-stops .lt-stops {
   padding-left: 0;
   padding-right: var(--lt-panel-x);
   padding-top: var(--lt-panel-y);
   padding-bottom: var(--lt-panel-block);
 }
 
-.lt-stops--jd .lt-stops-heading {
+.lt-stops .lt-stops-heading {
   margin: 0;
   font-size: var(--lt-fs-sm);
   font-weight: 700;
@@ -2185,7 +2176,7 @@
   background: var(--lt-bg);
 }
 
-.lt-layout-dark .lt-stop-article .lt-aeo-title {
+.lt-layout .lt-stop-article .lt-aeo-title {
   margin: 0 0 8px;
   font-size: var(--lt-fs-base);
 }
@@ -2325,7 +2316,7 @@
 }
 
 @media (min-width: 768px) {
-  .lt-page--stop-board.lt-layout-dark .lt-panel {
+  .lt-page--stop-board.lt-layout .lt-panel {
     width: min(460px, 44vw);
     max-width: 520px;
     min-width: 360px;
@@ -2389,7 +2380,7 @@
     padding-right: var(--lt-panel-x);
   }
 
-  .lt-detail .lt-header--jakdojade .lt-header-title-wrap {
+  .lt-detail .lt-header .lt-header-title-wrap {
     margin-left: 46px;
   }
 
@@ -2425,7 +2416,7 @@
     padding-right: var(--lt-panel-x);
   }
 
-  .lt-layout-dark .lt-panel .lt-detail--jakdojade {
+  .lt-layout .lt-panel .lt-detail {
     padding-left: 10px;
     padding-right: 10px;
   }
@@ -2476,7 +2467,7 @@
   background: rgba(0, 175, 245, 0.08);
 }
 
-.lt-layout-dark .lt-panel .lt-subnav-link--active {
+.lt-layout .lt-panel .lt-subnav-link--active {
   color: var(--lt-card);
   background: var(--lt-text);
   border-color: transparent;
@@ -2519,7 +2510,7 @@
 }
 
 /* Одна колонка: не наслідувати сітку З/До (1fr | swap | 1fr), інакше combobox ~половина ширини */
-.lt-theme-jakdojade .lt-from-to-row.lt-stop-board-row {
+.lt-page .lt-from-to-row.lt-stop-board-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   width: 100%;
@@ -2560,7 +2551,7 @@
 }
 
 /* Табло зупинки — картки відправлень у мові карток планувальника */
-.lt-jd-cards {
+.lt-board-cards {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2570,12 +2561,12 @@
 }
 
 /* Справжній список: <li> — елемент, <a> усередині лишається лінком для скрінрідера */
-.lt-jd-cards > li {
+.lt-board-cards > li {
   margin: 0;
   padding: 0;
 }
 
-.lt-jd-card {
+.lt-board-card {
   display: flex;
   align-items: stretch;
   min-height: 72px;
@@ -2588,23 +2579,23 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.lt-jd-card:hover {
+.lt-board-card:hover {
   border-color: var(--lt-accent);
   box-shadow: var(--lt-elev-1);
 }
 
-.lt-jd-card:focus-visible {
+.lt-board-card:focus-visible {
   outline: 2px solid var(--lt-accent);
   outline-offset: 2px;
 }
 
 /* Найближчий рейс — смуга origin ліворуч */
-.lt-jd-card--next {
+.lt-board-card--next {
   border-color: var(--lt-origin);
   box-shadow: inset 3px 0 0 var(--lt-origin);
 }
 
-.lt-jd-card__time {
+.lt-board-card__time {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2615,30 +2606,30 @@
   border-right: 1px solid var(--lt-border);
 }
 
-.lt-jd-card__clock {
+.lt-board-card__clock {
   font-size: var(--lt-fs-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--lt-text);
 }
 
-.lt-jd-card__wait {
+.lt-board-card__wait {
   font-size: var(--lt-fs-xs);
   color: var(--lt-text-muted);
   line-height: 1.25;
 }
 
-.lt-jd-card__wait--soon {
+.lt-board-card__wait--soon {
   color: var(--lt-accent);
   font-weight: 600;
 }
 
-.lt-jd-card__wait--now {
+.lt-board-card__wait--now {
   color: var(--lt-origin-ink);
   font-weight: 700;
 }
 
-.lt-jd-card__body {
+.lt-board-card__body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2650,7 +2641,7 @@
 }
 
 /* Номер на табло: контурна плашка в кольорі лінії зі схеми; перевірений маршрут — суцільна */
-.lt-jd-card__route-num {
+.lt-board-card__route-num {
   flex-shrink: 0;
   font-weight: 700;
   font-size: var(--lt-fs-base);
@@ -2662,13 +2653,13 @@
   box-shadow: none;
 }
 
-.lt-jd-card__route-num--verified {
+.lt-board-card__route-num--verified {
   background: var(--lt-route-color, var(--lt-accent));
   color: var(--lt-route-fg, #fff);
   border-color: var(--lt-route-color, var(--lt-accent));
 }
 
-.lt-jd-card__destination {
+.lt-board-card__destination {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--lt-fs-md);
@@ -2741,7 +2732,7 @@
   }
 }
 @media (max-width: 767px) {
-  .lt-page--stop-board.lt-layout-dark .lt-panel {
+  .lt-page--stop-board.lt-layout .lt-panel {
     padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
 }

@@ -12,6 +12,7 @@ import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from '../TransportPage/useTransportDataset';
 import { dateUrlToIso, todayDateUrl, tomorrowDateUrl } from './dateUrl';
 import { LocalTransportPage } from './LocalTransportPage';
+import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 
 vi.mock('./RouteMap', () => ({ RouteMap: () => <div data-testid="route-map" /> }));
 
@@ -490,7 +491,7 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
       await user.click(within(empty).getByRole('button', { name: 'Відкрити карту' }));
       const dialog = screen.getByRole('dialog', { name: 'Карта' });
       expect(within(dialog).getByTestId('route-map')).toBeInTheDocument();
-      expect(within(dialog).getByText('З: — · До: —')).toBeInTheDocument();
+      expect(within(dialog).getByText('Звідки: — · Куди: —')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Готово' })).toHaveFocus();
 
       await user.keyboard('{Escape}');
@@ -646,4 +647,31 @@ describe('LocalTransportPage planner: analytics events', () => {
       Reflect.deleteProperty(window, 'gtag');
     }
   });
+});
+
+describe('LocalTransportPage planner: quick-start analytics', () => {
+  it('a quick-start node chip reports the node id and the slot it fills', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    const node = SCHEME_NODES.find((n) => n.stopIds.includes('st_0019'));
+    if (!node) throw new Error('a scheme node for st_0019 is expected');
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({
+          ...dataset,
+          stops: [...dataset.stops, { id: 'st_0019', name: 'Залізничний вокзал', lat: 50.774, lng: 29.295 }],
+          // Чіп зʼявляється лише для зупинки, що є в датасеті маршрутів
+          routeStops: [...dataset.routeStops, { routeId: '2', stopId: 'st_0019', orderThere: 4, orderBack: 0, mapOnly: false }],
+        })
+      )
+    );
+    try {
+      renderPlanner('/transport?d=16.09.26&h=09%3A12');
+      await user.click(await screen.findByRole('button', { name: node.name }, { timeout: 8000 }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_quick_node', { node_id: node.id, kind: node.kind, slot: 'to' });
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  }, 15_000);
 });

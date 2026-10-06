@@ -124,7 +124,7 @@ const META: Record<SupportTopicId, { title: string; description: string }> = {
   transport: {
     title: `Транспорт Малина | Розклад міських маршруток | ${SITE_PUBLIC_DOMAIN}`,
     description:
-      'Як їздити міськими маршрутками в Малині: планер З → До, табло зупинок, розклад ліній. Живий гід замість постів у Facebook.',
+      'Як їздити міськими маршрутками в Малині: планер «Звідки → Куди», табло зупинок, розклад ліній. Живий гід замість постів у Facebook.',
   },
   bot: {
     title: `Telegram-бот | Допомога | ${SITE_PUBLIC_DOMAIN}`,
@@ -749,7 +749,7 @@ function TransportArticle() {
 
           <div className="support-how-grid">
             <article className="support-how-card">
-              <h3>1. Планер «З → До»</h3>
+              <h3>1. Планер «Звідки → Куди»</h3>
               <p>
                 На <Link to="/transport">/transport</Link> оберіть дві зупинки (або тицьніть на
                 карті) — прямі маршрути з’являться одразу.

@@ -9,7 +9,7 @@ test.describe('transport', () => {
 
   test('/transport loads planner and routes list', async ({ page }) => {
     await page.goto('/transport');
-    await expect(page.getByRole('link', { name: 'Маршрути (З → До)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Маршрути (Звідки → Куди)' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Маршрути Малина' })).toBeVisible({
       timeout: 15_000,
     });
@@ -115,7 +115,7 @@ test.describe('transport', () => {
 
     // Табло: плашка номера теж у кольорі лінії (перевірений маршрут — суцільна)
     await page.goto('/transport/stop/st_a?d=16.09.26&h=07%3A00');
-    const board = page.locator('.lt-jd-card__route-num').first();
+    const board = page.locator('.lt-board-card__route-num').first();
     await expect(board).toHaveText(/№[23]/);
     await expect(board).toHaveCSS('border-color', /rgb\((215, 38, 61|27, 158, 75)\)/);
   });
@@ -238,7 +238,7 @@ test.describe('transport', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Зупинка «Вокзал»');
 
     // Табло → планувальник: обрана зупинка стає «З»
-    await page.getByRole('link', { name: 'Маршрути (З → До)' }).click();
+    await page.getByRole('link', { name: 'Маршрути (Звідки → Куди)' }).click();
     await expect(page).toHaveURL(/\/transport\?.*from=st_b/);
     await expect(page.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Вокзал');
 
@@ -310,11 +310,11 @@ test.describe('transport', () => {
     await chips.getByRole('button', { name: '№3' }).click();
     await expect(page).toHaveURL(/\/transport\/stop\/st_c\?d=16\.09\.26&h=07(%3A|:)00&line=3$/);
     await expect(chips.getByRole('button', { name: '№3' })).toHaveAttribute('aria-pressed', 'true');
-    const nums = page.locator('.lt-jd-card__route-num');
+    const nums = page.locator('.lt-board-card__route-num');
     await expect(nums.first()).toHaveText('№3');
-    await expect(page.locator('.lt-jd-card__route-num', { hasText: '№2' })).toHaveCount(0);
+    await expect(page.locator('.lt-board-card__route-num', { hasText: '№2' })).toHaveCount(0);
     // Картки йдуть перед статтею й FAQ
-    const cardsBox = await page.locator('.lt-jd-cards').boundingBox();
+    const cardsBox = await page.locator('.lt-board-cards').boundingBox();
     const faqBox = await page.getByRole('heading', { name: 'Часті питання' }).boundingBox();
     expect(cardsBox!.y).toBeLessThan(faqBox!.y);
   });
@@ -355,7 +355,7 @@ test.describe('transport', () => {
       await page.getByRole('button', { name: 'Карта' }).click();
       const dialog = page.getByRole('dialog', { name: 'Карта' });
       await expect(dialog).toBeVisible();
-      await expect(dialog.getByText('З: Базар · До: Вокзал')).toBeVisible();
+      await expect(dialog.getByText('Звідки: Базар · Куди: Вокзал')).toBeVisible();
       await expect(dialog.locator('.leaflet-container')).toBeVisible();
       await expect(dialog.locator('.lt-map-marker')).toHaveCount(6);
       // Тап по маркеру (першому, що в кадрі) → картка зупинки з «Звідси / Сюди / Табло», без попапів і радіального пікера

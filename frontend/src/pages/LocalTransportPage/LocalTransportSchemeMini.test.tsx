@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { renderWithProviders, screen } from '@/test/utils';
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, renderWithProviders, screen } from '@/test/utils';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 
@@ -61,5 +61,21 @@ describe('LocalTransportSchemeMini', () => {
     rerender(<LocalTransportSchemeMini routeIds={['9']} href="/transport/scheme?route=9" label="Схема №9" />);
     expect(container.querySelector('.lts-route[data-route="2"]')).toHaveClass('lts-route--dim');
     expect(container.querySelector('.lts-route[data-route="9"]')).not.toHaveClass('lts-route--dim');
+  });
+});
+
+describe('LocalTransportSchemeMini: analytics', () => {
+  it('reports transport_scheme_open with the source page when the canvas link is used', () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      renderWithProviders(
+        <LocalTransportSchemeMini routeIds={['3']} href="/transport/scheme?route=3" label="Відкрити схему" source="route" />
+      );
+      fireEvent.click(screen.getByRole('link', { name: 'Відкрити схему' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_scheme_open', { source: 'route' });
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
   });
 });

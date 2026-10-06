@@ -191,7 +191,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   const bounds = pickBoundsStops({ chain, stops, fromStopName, toStopName, hasLine: Boolean(singleLine) });
 
   const hasBoth = Boolean(fromStopName && toStopName);
-  const hint = fromStopName && !toStopName ? 'Обрано «З». Тепер виберіть «До».' : toStopName && !fromStopName ? 'Обрано «До». Тепер виберіть «З».' : '';
+  const hint = fromStopName && !toStopName ? 'Обрано «Звідки». Тепер виберіть «Куди».' : toStopName && !fromStopName ? 'Обрано «Куди». Тепер виберіть «Звідки».' : '';
   const frequent = frequentToStops.filter((n) => n && n !== fromStopName && n !== toStopName && n !== selectedStop).slice(0, 3);
   const selectedLines = selectedStop && routesAtStop ? routesAtStop(selectedStop) : [];
 
@@ -207,13 +207,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
       {showStrip && (
         <div className="lt-map-strip" aria-label="Обрані зупинки">
           <span className={`lt-chip lt-chip--static ${fromStopName ? 'lt-chip--origin' : ''}`}>
-            З: {fromStopName ? resolveStopLabel(fromStopName) : '—'}
+            Звідки: {fromStopName ? resolveStopLabel(fromStopName) : '—'}
           </span>
-          <button type="button" className="lt-icon-btn" onClick={onSwapStops} disabled={!hasBoth} title="Поміняти місцями" aria-label="Поміняти місцями З та До">
+          <button type="button" className="lt-icon-btn" onClick={onSwapStops} disabled={!hasBoth} title="Поміняти місцями" aria-label="Поміняти місцями Звідки та Куди">
             ⇅
           </button>
           <span className={`lt-chip lt-chip--static ${toStopName ? 'lt-chip--destination' : ''}`}>
-            До: {toStopName ? resolveStopLabel(toStopName) : '—'}
+            Куди: {toStopName ? resolveStopLabel(toStopName) : '—'}
           </span>
           {hint && <span className="lt-map-strip__hint">{hint}</span>}
         </div>

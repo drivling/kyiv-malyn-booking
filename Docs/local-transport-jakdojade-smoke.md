@@ -32,7 +32,7 @@ cd ../backend && npm test
 
 ---
 
-## Planner UX v2 (З → До)
+## Planner UX v2 (Звідки → Куди)
 
 Date: 2026-08-07  
 Goal: Jakdojade-like hierarchy — form → connection cards → map as stop picker only.
@@ -42,10 +42,10 @@ Goal: Jakdojade-like hierarchy — form → connection cards → map as stop pic
 - [ ] `/transport` — sticky form is calm (light chrome); results, not the form, draw the eye
 - [ ] Without З/До — markers are dim/smaller; map stays Malyn center (~zoom 13), not fitBounds on all city stops
 - [ ] Empty state = quick start: «Куди їдете?» with scheme-node chips (first tap sets «Куди», next «Звідки»), «Поруч зі мною», the whole scheme; on mobile «Відкрити карту» opens the overlay
-- [ ] With З + До → h1 and tab title show the pair; cards show departure at «З», `№ → кінцева`, `HH:MM → HH:MM · N хв`, «через N хв» only for today, next-day wrap label; no «лінія …» / «перевірено» text
-- [ ] Typing in «З» with «До» set → hint «Оберіть зупинку зі списку», previous cards stay, no «немає прямого маршруту»; backspace to empty keeps «До» and URL; «×» → `/transport?to=…`
+- [ ] With Звідки + Куди → h1 and tab title show the pair; cards show departure at «Звідки», `№ → кінцева`, `HH:MM → HH:MM · N хв`, «через N хв» only for today, next-day wrap label; no «лінія …» / «перевірено» text
+- [ ] Typing in «Звідки» with «Куди» set → hint «Оберіть зупинку зі списку», previous cards stay, no «немає прямого маршруту»; backspace to empty keeps «Куди» and URL; «×» → `/transport?to=…`
 - [ ] Click marker → **one** picker: the stop card over the map («Звідси» / «Сюди» / «Табло»); no radial overlay; no Leaflet popup actions
-- [ ] Terms everywhere **Звідки / Куди** (field labels are markers with hidden text; badges on the timeline; map strip keeps the short «З: … / До: …»; no «ПО»)
+- [ ] Terms everywhere **Звідки / Куди** (field labels are markers with hidden text; badges on the timeline; map strip and the phone overlay subtitle say «Звідки: … / Куди: …»; no «ПО»)
 - [ ] Geo icon in the empty «Звідки» field (aria-label «Знайти найближчі зупинки за геолокацією»), error announced via `role="status"`; date/time as chips «Зараз» / «Завтра» / «Сьогодні о 09:12» (the last one opens native date and time inputs; d=, and h= for «Зараз»)
 - [ ] No direct route → «Поруч є зупинки з прямим маршрутом» with up to 3 neighbours (≤400 m); click applies the pair and the URL follows
 - [ ] ⇅ in form and map strip stay in sync (swap З/До) and the URL follows the swap
@@ -57,9 +57,9 @@ Goal: Jakdojade-like hierarchy — form → connection cards → map as stop pic
 
 ### Stop board `/transport/stop`, `/transport/stop/:id` (iteration 3)
 
-- [ ] Direct hit `/transport/stop/st_…` — field shows the stop name on the first frame (no raw id), h1 «Зупинка «…»», SubNav «Маршрути (З → До)» carries `?from=`
+- [ ] Direct hit `/transport/stop/st_…` — field shows the stop name on the first frame (no raw id), h1 «Зупинка «…»», SubNav «Маршрути (Звідки → Куди)» carries `?from=`
 - [ ] Typing garbage in «Зупинка» — URL, h1, title and the departures stay; hint «Оберіть зупинку зі списку»; picking from the list → `/transport/stop/<id>?d&h` (replace); «×» → `/transport/stop?d&h`; keyboard-clearing navigates nowhere
-- [ ] Card → route page → «Назад до пошуку» returns to the same stop's board; planner opened from the board (`?from=`) keeps `from=` current after picking another «З»
+- [ ] Card → route page → «Назад до пошуку» returns to the same stop's board; planner opened from the board (`?from=`) keeps `from=` current after picking another «Звідки»
 - [ ] «Поруч зі мною» chip in the chips row → list of nearest stops → tap opens that stop's board; denied permission announced via `role="status"`
 - [ ] Date/time chips «Зараз» / «Завтра» / «Сьогодні о 07:00»; «Завтра» / native date / time apply at once (URL `d=`/`h=` follows, no «Застосувати»); «Весь день» chip shows departures from 00:00; a line chip under the title filters the cards and writes `?line=`; sections: departures → mini scheme → «Про зупинку» → FAQ
 - [ ] Desktop map shows all city stops (dim), selected one highlighted; marker tap opens that stop's board. Mobile (≤767): no map strip at the bottom, no dead padding under the list

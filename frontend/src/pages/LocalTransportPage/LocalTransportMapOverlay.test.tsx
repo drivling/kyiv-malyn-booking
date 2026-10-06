@@ -18,14 +18,14 @@ describe('LocalTransportMapOverlay', () => {
     document.body.appendChild(opener);
     opener.focus();
     const { rerender } = renderWithProviders(
-      <LocalTransportMapOverlay open onClose={onClose} subtitle="З: Центр · До: Вокзал">
+      <LocalTransportMapOverlay open onClose={onClose} subtitle="Звідки: Центр · Куди: Вокзал">
         <div data-testid="map">map</div>
       </LocalTransportMapOverlay>
     );
     const dialog = screen.getByRole('dialog', { name: 'Карта' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByTestId('map')).toBeInTheDocument();
-    expect(screen.getByText('З: Центр · До: Вокзал')).toBeInTheDocument();
+    expect(screen.getByText('Звідки: Центр · Куди: Вокзал')).toBeInTheDocument();
     expect(document.body.style.overflow).toBe('hidden');
     expect(screen.getByRole('button', { name: 'Готово' })).toHaveFocus();
 

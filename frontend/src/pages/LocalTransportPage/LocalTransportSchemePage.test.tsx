@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders, screen, within, fireEvent } from '@/test/utils';
@@ -169,5 +169,24 @@ describe('LocalTransportSchemePage', () => {
     const hub = container.querySelector('.lts-stop[data-stop="st_0054"]') as Element;
     fireEvent.keyDown(hub, { key: 'Enter' });
     expect(await screen.findByText('Табло зупинки')).toBeInTheDocument();
+  });
+});
+
+describe('LocalTransportSchemePage: analytics events', () => {
+  it('a route chip reports transport_scheme_route on and off', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      renderPage();
+      // Той самий aria-label мають і групи в SVG — беремо чіп із тулбара
+      const chips = await screen.findByRole('group', { name: 'Маршрути' });
+      const chip = within(chips).getByRole('button', { name: /^Маршрут №3:/ });
+      fireEvent.click(chip);
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_scheme_route', { route_id: '3', on: true });
+      fireEvent.click(chip);
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_scheme_route', { route_id: '3', on: false });
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
   });
 });

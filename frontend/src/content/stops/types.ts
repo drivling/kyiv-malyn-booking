@@ -1,3 +1,5 @@
+import { stopArticleDescription } from '../../../scripts/stop-page-copy.mjs';
+
 export type StopArticle = {
   /** Stable stop id, e.g. st_0019 */
   id: string;
@@ -18,14 +20,7 @@ export type StopArticle = {
   tips?: string[];
 };
 
-/** Text for meta description / prerender fallback */
+/** Text for meta description — the same helper the static prerender uses (scripts/stop-page-copy.mjs) */
 export function stopArticlePlainText(article: StopArticle): string {
-  if (article.place) {
-    const routes =
-      article.routeIds && article.routeIds.length
-        ? ` Маршрути: ${article.routeIds.map((r) => `№${r}`).join(', ')}.`
-        : '';
-    return `Зупинка «${article.name}» у Малині — ${article.place}.${routes}`;
-  }
-  return article.lead?.trim() || `Зупинка «${article.name}» у Малині.`;
+  return stopArticleDescription(article);
 }

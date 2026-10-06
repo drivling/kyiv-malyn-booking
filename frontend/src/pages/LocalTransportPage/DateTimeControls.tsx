@@ -64,7 +64,10 @@ export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
           className="lt-chip lt-datetime-toggle"
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            if (!open) gaTrackEvent('transport_date_chip', { chip: 'custom', page });
+            setOpen(!open);
+          }}
         >
           {dayLabel} о {time || '—'}
         </button>

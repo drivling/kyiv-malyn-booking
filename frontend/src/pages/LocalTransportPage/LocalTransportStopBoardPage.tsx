@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
+import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import type { TransportData } from './types';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
@@ -21,6 +22,7 @@ import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
 import { hiddenTransportRouteIds } from '@/api/transportDataset';
 // Плоский ESM, спільний із prerender-transport-stops.mjs (як site-hosts.mjs)
 import { relatedPagesForStop } from '../../../scripts/stop-related-pages.mjs';
+import { STOP_HUB_FAQ, stopFallbackDescription, stopPageTitle, stopRoutesFaq } from '../../../scripts/stop-page-copy.mjs';
 import { configureSegmentDurations } from './segmentDurations';
 import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
@@ -50,17 +52,6 @@ function compareLineIds(a: string, b: string): number {
 
 /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
 const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
-
-const STOP_BOARD_HUB_FAQ: Array<{ q: string; a: string }> = [
-  {
-    q: 'Як подивитися розклад з зупинки в Малині?',
-    a: 'Відкрийте malin.kiev.ua/transport/stop, оберіть зупинку — побачите наступні відправлення всіх маршрутів. Або перейдіть за прямим посиланням /transport/stop/st_…',
-  },
-  {
-    q: 'Чим табло відрізняється від планера З → До?',
-    a: 'Табло показує всі рейси з однієї зупинки. Планер /transport шукає прямі маршрути між двома зупинками.',
-  },
-];
 
 /**
  * Браузерний `<input type="time">`: HH:mm:ss; Safari/локалі — крапка замість двокрапки; Unicode.
@@ -276,27 +267,18 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         .slice(0, 8)
         .map((d) => `${formatMinsClock(Math.round(d.departureMins))} №${d.routeId}`);
       const faq = [
-        {
-          q: `Які маршрутки зупиняються на «${selectedStopTitle}»?`,
-          a: routeIds.length
-            ? `На зупинці «${selectedStopTitle}» у Малині: ${routeIds.map((r) => `№${r}`).join(', ')}. Табло: malin.kiev.ua/transport/stop/${selectedStop}.`
-            : `Відкрийте табло зупинки «${selectedStopTitle}» на malin.kiev.ua/transport/stop/${selectedStop}.`,
-        },
+        stopRoutesFaq(selectedStopTitle, routeIds, selectedStop),
         {
           q: `О котрій найближчі рейси з «${selectedStopTitle}»?`,
           a: sample.length
             ? `Приклади з розкладу: ${sample.join('; ')}. Повний список — на сторінці табло.`
             : 'Оберіть дату й час на сторінці табло, щоб побачити відправлення.',
         },
-        ...STOP_BOARD_HUB_FAQ.slice(1),
+        ...STOP_HUB_FAQ.slice(1),
       ];
-      const description = stopArticle
-        ? stopArticlePlainText(stopArticle)
-        : `Табло зупинки «${selectedStopTitle}» у Малині${
-            routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : ''
-          }. Наступні відправлення міського транспорту.`;
+      const description = stopArticle ? stopArticlePlainText(stopArticle) : stopFallbackDescription(selectedStopTitle, routeIds);
       return {
-        title: `Зупинка «${selectedStopTitle}» — розклад маршруток Малина | malin.kiev.ua`,
+        title: stopPageTitle(selectedStopTitle),
         canonicalUrl: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
         description,
         jsonLdId: `transport-stop-jsonld-${selectedStop}`,
@@ -360,7 +342,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
       jsonLd: {
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
-        mainEntity: STOP_BOARD_HUB_FAQ.map((item) => ({
+        mainEntity: STOP_HUB_FAQ.map((item) => ({
           '@type': 'Question',
           name: item.q,
           acceptedAnswer: { '@type': 'Answer', text: item.a },
@@ -437,7 +419,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   /** Чіп лінії під заголовком: фільтр карток, стан у `?line=` (повторний тап знімає) */
   const toggleLine = (id: string) => {
-    syncUrl(selectedStop, searchDate, searchTime, lineFilter === id ? '' : id);
+    const on = lineFilter !== id;
+    gaTrackEvent('transport_line_filter', { stop: selectedStop, line: id, on });
+    syncUrl(selectedStop, searchDate, searchTime, on ? id : '');
   };
 
   /** Зупинка з геолокації або з маркера на карті → табло цієї зупинки */
@@ -472,7 +456,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+      <div className="lt-page lt-layout">
         <div className="lt-container">
           <p className="lt-loading">Завантаження...</p>
         </div>
@@ -482,7 +466,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+      <div className="lt-page lt-layout">
         <div className="lt-container">
           <div className="lt-error">
             <p>{error || 'Дані не завантажені'}</p>
@@ -493,10 +477,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   }
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark lt-page--stop-board">
+    <div className="lt-page lt-layout lt-page--stop-board">
       <div className="lt-container lt-split-layout">
         <div className="lt-panel">
-          <header className="lt-header lt-header--jakdojade">
+          <header className="lt-header">
             <h1 className="lt-title">
               {selectedStopTitle ? `Зупинка «${selectedStopTitle}»` : 'Табло зупинок'}
             </h1>
@@ -524,7 +508,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={selectedStop || undefined} />
 
-          <div className="lt-search lt-search--jakdojade lt-stop-board-search">
+          <div className="lt-search lt-stop-board-search">
             <div className="lt-from-to-block">
               <div className="lt-from-to-row lt-stop-board-row">
                 <div className="lt-from-to-cell lt-from-to-cell--from">
@@ -565,7 +549,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   className="lt-chip"
                   aria-pressed={showFullDay}
                   disabled={!selectedStop}
-                  onClick={() => setShowFullDay((v) => !v)}
+                  onClick={() => {
+                    gaTrackEvent('transport_full_day', { stop: selectedStop, on: !showFullDay });
+                    setShowFullDay(!showFullDay);
+                  }}
                   title="Усі відправлення з 00:00, а не лише з обраного часу"
                 >
                   Весь день
@@ -593,7 +580,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       <ul className="lt-nearest-list">
                         {nearestStops.map(({ name, distance }) => (
                           <li key={name} className="lt-nearest-item-row">
-                            <button type="button" className="lt-nearest-item" onClick={() => openStopBoard(name)}>
+                            <button type="button" className="lt-nearest-item" onClick={() => {
+                                gaTrackEvent('transport_nearest_pick', { page: 'board', stop: name, distance_m: Math.round(distance) });
+                                openStopBoard(name);
+                              }}>
                               {displayNameForStopKey(name, stopsCatalog)} — {formatDistance(distance)}
                             </button>
                           </li>
@@ -615,14 +605,17 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               <p className="lt-empty">
                 Після {searchTime} на цій зупинці{lineFilter ? ` маршрут №${lineFilter}` : ''} в розкладі не має відправлень.
               </p>
-              <button type="button" className="lt-btn lt-stop-board-show-all" onClick={() => setShowFullDay(true)}>
+              <button type="button" className="lt-btn lt-stop-board-show-all" onClick={() => {
+                  gaTrackEvent('transport_full_day', { stop: selectedStop, on: true });
+                  setShowFullDay(true);
+                }}>
                 Показати весь день
               </button>
             </section>
           ) : (
             <section className="lt-stop-board" aria-label="Відправлення">
               <p className="lt-stop-board-meta">{boardMeta}</p>
-              <ul className="lt-jd-cards">
+              <ul className="lt-board-cards">
                 {visibleDepartures.map((row, i) => {
                   const isNext = highlightIndex >= 0 && i === highlightIndex;
                   const depMins = roundedDepartureMins(row.departureMins);
@@ -644,10 +637,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                     }
                     if (deltaMins > 0) {
                       waitLabel = `через ${formatWaitMins(deltaMins)}`;
-                      waitMod = 'lt-jd-card__wait--soon';
+                      waitMod = 'lt-board-card__wait--soon';
                     } else if (deltaMins === 0) {
                       waitLabel = 'зараз';
-                      waitMod = 'lt-jd-card__wait--now';
+                      waitMod = 'lt-board-card__wait--now';
                     } else {
                       waitLabel = 'вже вирушив';
                     }
@@ -656,22 +649,23 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   return (
                     <li key={`${row.tripId}-${depMins}-${i}`}>
                       <Link
-                        className={`lt-jd-card ${isNext ? 'lt-jd-card--next' : ''}`}
+                        className={`lt-board-card ${isNext ? 'lt-board-card--next' : ''}`}
                         to={toRoute}
                         aria-label={aria}
+                        onClick={() => gaTrackEvent('transport_board_card_click', { route_id: row.routeId, dir: row.direction })}
                       >
-                        <div className="lt-jd-card__time" aria-hidden>
-                          <span className="lt-jd-card__clock">{depClock}</span>
-                          <span className={`lt-jd-card__wait ${waitMod}`}>{waitLabel}</span>
+                        <div className="lt-board-card__time" aria-hidden>
+                          <span className="lt-board-card__clock">{depClock}</span>
+                          <span className={`lt-board-card__wait ${waitMod}`}>{waitLabel}</span>
                         </div>
-                        <div className="lt-jd-card__body">
+                        <div className="lt-board-card__body">
                           <span
-                            className={`lt-jd-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-jd-card__route-num--verified' : ''}`}
+                            className={`lt-board-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-board-card__route-num--verified' : ''}`}
                             style={routeColorStyle(row.routeId)}
                           >
                             №{row.routeId}
                           </span>
-                          <span className="lt-jd-card__destination">
+                          <span className="lt-board-card__destination">
                             <span aria-hidden>→ </span>
                             {row.destination}
                           </span>
@@ -686,6 +680,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
           {selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
             <LocalTransportSchemeMini
+              source="board"
               routeIds={schemeRouteIds}
               stopIds={schemeNode ? [schemeNode.id] : []}
               href={buildSchemeUrl({ stop: selectedStop, date: searchDate, time: searchTime })}
@@ -778,18 +773,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <dl className="lt-aeo-faq">
               {(selectedStopTitle
                 ? [
-                    {
-                      q: `Які маршрутки зупиняються на «${selectedStopTitle}»?`,
-                      a: (() => {
-                        const ids = [...new Set(departures.map((d) => d.routeId))];
-                        return ids.length
-                          ? `Маршрути: ${ids.map((r) => `№${r}`).join(', ')}. Картки вище — час відправлення зі зупинки.`
-                          : 'Оберіть зупинку з розкладом у даних.';
-                      })(),
-                    },
-                    STOP_BOARD_HUB_FAQ[1],
+                    stopRoutesFaq(selectedStopTitle, [...new Set(departures.map((d) => d.routeId))], selectedStop),
+                    STOP_HUB_FAQ[1],
                   ]
-                : STOP_BOARD_HUB_FAQ
+                : STOP_HUB_FAQ
               ).map((item) => (
                 <div key={item.q} className="lt-aeo-faq__item">
                   <dt>{item.q}</dt>

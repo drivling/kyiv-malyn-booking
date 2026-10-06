@@ -82,7 +82,7 @@ function buildPlannerUrl(from: string, to: string, date: string, time: string): 
 const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
   {
     q: 'Як доїхати міським транспортом у Малині?',
-    a: 'Відкрийте malin.kiev.ua/transport і оберіть зупинки «З» і «До» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.',
+    a: 'Відкрийте malin.kiev.ua/transport і оберіть зупинки «Звідки» і «Куди» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.',
   },
   {
     q: 'Де подивитися розклад маршруток Малина?',
@@ -403,7 +403,9 @@ export const LocalTransportPage: React.FC = () => {
   const isPhone = useMediaQuery(PHONE_QUERY);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapResizeToken, setMapResizeToken] = useState(0);
-  const openMap = useCallback(() => {
+  /** Overlay карти на телефоні; подія фіксує сторінку і чи вже обрано пару */
+  const openMap = useCallback((page: 'planner' | 'route', hasPair: boolean) => {
+    gaTrackEvent('transport_map_open', { page, has_pair: hasPair });
     setMapOpen(true);
     setMapResizeToken((t) => t + 1);
   }, []);
@@ -649,7 +651,7 @@ export const LocalTransportPage: React.FC = () => {
         },
         {
           q: `Куди їде маршрутка №${detailRoute.id}?`,
-          a: `${path ? `Лінія ${path}. ` : ''}Планер «З → До» і карта: malin.kiev.ua/transport.`,
+          a: `${path ? `Лінія ${path}. ` : ''}Планер «Звідки → Куди» і карта: malin.kiev.ua/transport.`,
         },
       ];
       return {
@@ -717,8 +719,8 @@ export const LocalTransportPage: React.FC = () => {
       description: pairNames
         ? `Прямі маршрути міського транспорту Малина від зупинки ${pairNames.from} до ${pairNames.to}: найближче відправлення, прибуття і тривалість. Планер на malin.kiev.ua/transport.`
         : routeCount > 0
-          ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «З → До», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
-          : 'Міський транспорт Малина: планер «З → До», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
+          ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «Звідки → Куди», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
+          : 'Міський транспорт Малина: планер «Звідки → Куди», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
       jsonLdId: 'transport-hub-jsonld',
       jsonLd: {
         '@context': 'https://schema.org',
@@ -932,31 +934,44 @@ export const LocalTransportPage: React.FC = () => {
    * повторний тап по «Звідки» скидає пару, по «Куди» — лише «Куди».
    */
   const pickTimelineStop = (stopKey: string) => {
+    const route_id = detailRoute?.id ?? '';
     if (stopKey === fromStop) {
+      gaTrackEvent('transport_timeline_pick', { route_id, action: 'clear_from' });
       updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection });
       return;
     }
     if (stopKey === toStop) {
+      gaTrackEvent('transport_timeline_pick', { route_id, action: 'clear_to' });
       setDetailPair({ to: '' });
       return;
     }
     if (!fromStop) {
+      gaTrackEvent('transport_timeline_pick', { route_id, action: 'from' });
       setDetailPair({ from: stopKey });
       return;
     }
     if (!toStop) {
+      gaTrackEvent('transport_timeline_pick', { route_id, action: 'to' });
       setDetailPair({ to: stopKey });
       return;
     }
+    gaTrackEvent('transport_timeline_pick', { route_id, action: 'restart' });
     setDetailPair({ from: stopKey, to: '' });
+  };
+
+  /** Чіп стрічки відправлень або рядок таблиці закріплює рейс (`time` = час на «Звідки») */
+  const pickDeparture = (row: { dep: string; direction: 'there' | 'back' }, source: 'strip' | 'table') => {
+    gaTrackEvent('transport_departure_pick', { route_id: detailRoute?.id ?? '', dir: row.direction, source });
+    updateDetailUrl({ time: row.dep, dir: row.direction });
   };
 
   /**
    * Перемикач «Туди/Назад»: пара переїздить у новий напрямок (міняється місцями; зупинки, якої там
    * немає, — найближча за координатами), `time` скидається — обраним стає найближчий рейс до опорного часу.
    */
-  const reverseDirectionAndFromTo = (targetDir?: 'there' | 'back') => {
+  const reverseDirectionAndFromTo = (targetDir?: 'there' | 'back', source: 'toggle' | 'map' = 'toggle') => {
     const newDir: 'there' | 'back' = targetDir ?? (stopsDirection === 'there' ? 'back' : 'there');
+    gaTrackEvent('transport_direction', { route_id: detailRoute?.id ?? '', dir: newDir, source });
     const routeStops = detailRoute ? stopsByRoute?.[detailRoute.id] : undefined;
     if (!detailRoute || !Array.isArray(routeStops) || routeStops.length === 0 || !fromStop) {
       updateDetailUrl({ dir: newDir, time: undefined });
@@ -1055,7 +1070,8 @@ export const LocalTransportPage: React.FC = () => {
     [stops]
   );
   /** Чіп вузла ставить «Куди», а якщо «Куди» вже є — «Звідки» (ті самі сетери, що й поля) */
-  const pickQuickNode = (stopId: string) => {
+  const pickQuickNode = (node: SchemeNode, stopId: string) => {
+    gaTrackEvent('transport_quick_node', { node_id: node.id, kind: node.kind, slot: resolvedTo ? 'from' : 'to' });
     if (!resolvedTo) {
       setSearchTo(stopId);
       return;
@@ -1133,14 +1149,14 @@ export const LocalTransportPage: React.FC = () => {
     typeof data.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+    <div className="lt-page lt-layout">
       <div className="lt-container lt-split-layout">
         {routeId && detailRoute ? (
           <>
           <div className="lt-panel">
-          <div className="lt-detail lt-detail--jakdojade">
+          <div className="lt-detail">
             {/* Такий самий хедер як на головній */}
-            <header className="lt-header lt-header--jakdojade">
+            <header className="lt-header">
               <button type="button" className="lt-back lt-back--header" onClick={handleBack} aria-label="Назад до пошуку">
                 ←
               </button>
@@ -1158,9 +1174,9 @@ export const LocalTransportPage: React.FC = () => {
             />
 
             {/* Заголовок маршруту + перемикач напрямку */}
-            <header className="lt-detail-header lt-detail-header--jd">
+            <header className="lt-detail-header">
               <div className="lt-detail-header-top">
-                <h1 className="lt-route-title lt-route-title--jd">
+                <h1 className="lt-route-title">
                   <span
                     className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
                     style={routeColorStyle(detailRoute.id)}
@@ -1202,7 +1218,7 @@ export const LocalTransportPage: React.FC = () => {
                   </button>
                 </div>
                 {isPhone && (
-                  <button type="button" className="lt-chip lt-chip--map" onClick={openMap}>
+                  <button type="button" className="lt-chip lt-chip--map" onClick={() => openMap('route', Boolean(fromStop && toStop))}>
                     Карта
                   </button>
                 )}
@@ -1284,7 +1300,7 @@ export const LocalTransportPage: React.FC = () => {
                   <section className="lt-timetable-section lt-timetable-section--compact" aria-labelledby="lt-rozklad-heading">
                     <div className="lt-section-head">
                       <h2 id="lt-rozklad-heading" className="lt-section-title">Розклад руху</h2>
-                      <button type="button" className="lt-print-btn lt-print-btn--compact" onClick={() => window.print()} title="Друк">
+                      <button type="button" className="lt-print-btn lt-print-btn--compact" onClick={() => { gaTrackEvent('transport_print', { route_id: detailRoute.id }); window.print(); }} title="Друк">
                         Друк
                       </button>
                     </div>
@@ -1307,7 +1323,7 @@ export const LocalTransportPage: React.FC = () => {
                               type="button"
                               className="lt-chip lt-departure-chip"
                               aria-pressed={pressed}
-                              onClick={() => updateDetailUrl({ time: row.dep, dir: row.direction })}
+                              onClick={() => pickDeparture(row, 'strip')}
                             >
                               <span className="lt-departure-chip__dep">{row.dep}</span>
                               {fromStop && toStop ? <span className="lt-departure-chip__arr">→ {row.arr}</span> : null}
@@ -1323,12 +1339,15 @@ export const LocalTransportPage: React.FC = () => {
                       className="lt-chip lt-chip--small lt-timetable-toggle"
                       aria-expanded={timetableOpen}
                       aria-controls="lt-timetable-full"
-                      onClick={() => setTimetableOpen((o) => !o)}
+                      onClick={() => {
+                        gaTrackEvent('transport_timetable_toggle', { route_id: detailRoute.id, open: !timetableOpen });
+                        setTimetableOpen(!timetableOpen);
+                      }}
                     >
                       Повний розклад
                     </button>
                     {tableTripsInDirection && tableTripsInDirection.length > 0 && (
-                      <div id="lt-timetable-full" className={`lt-timetable lt-timetable--jd ${timetableOpen ? '' : 'lt-timetable--collapsed'}`}>
+                      <div id="lt-timetable-full" className={`lt-timetable ${timetableOpen ? '' : 'lt-timetable--collapsed'}`}>
                         <table className="lt-timetable-table lt-timetable-table--tablica">
                           <thead>
                             <tr>
@@ -1360,13 +1379,13 @@ export const LocalTransportPage: React.FC = () => {
                                 <tr
                                   key={`${row.dep}-${row.arr}-${i}`}
                                   className={`lt-timetable-row-clickable ${isSelected ? 'lt-timetable-row--selected' : ''}`}
-                                  onClick={() => updateDetailUrl({ time: row.dep, dir: row.direction })}
+                                  onClick={() => pickDeparture(row, 'table')}
                                   role="button"
                                   tabIndex={0}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                       e.preventDefault();
-                                      updateDetailUrl({ time: row.dep, dir: row.direction });
+                                      pickDeparture(row, 'table');
                                     }
                                   }}
                                 >
@@ -1385,6 +1404,7 @@ export const LocalTransportPage: React.FC = () => {
             })()}
             {routeColor(detailRoute.id) && (
               <LocalTransportSchemeMini
+                source="route"
                 routeIds={[detailRoute.id]}
                 href={buildSchemeUrl({
                   route: detailRoute.id,
@@ -1424,16 +1444,19 @@ export const LocalTransportPage: React.FC = () => {
                 mapStopNames = included.map((s) => getStopKey(s));
               }
               return stopsWithOrder && mapStopNames.length > 0 ? (
-                <section className="lt-map-stops lt-map-stops--jd" aria-labelledby="lt-stops-heading">
+                <section className="lt-map-stops" aria-labelledby="lt-stops-heading">
                   <div className="lt-map-stops-inner">
-                    <div className="lt-stops lt-stops--jd">
+                    <div className="lt-stops">
                       <div className="lt-stops-head">
                         <h2 id="lt-stops-heading" className="lt-stops-heading">Зупинки</h2>
                         {fromStop ? (
                           <button
                             type="button"
                             className="lt-chip lt-chip--small"
-                            onClick={() => updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection })}
+                            onClick={() => {
+                              gaTrackEvent('transport_timeline_pick', { route_id: detailRoute.id, action: 'reset' });
+                              updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection });
+                            }}
                           >
                             Скинути
                           </button>
@@ -1549,12 +1572,16 @@ export const LocalTransportPage: React.FC = () => {
                 nodeStopIds: NODE_STOP_IDS,
                 routesAtStop: linesAtStop,
                 boardHref: boardHrefFor,
-                onPickFromStop: (stopName: string) => setDetailPair({ from: stopName }),
+                onPickFromStop: (stopName: string) => {
+                  gaTrackEvent('transport_map_pick', { page: 'route', slot: 'from' });
+                  setDetailPair({ from: stopName });
+                },
                 onPickToStop: (stopName: string) => {
+                  gaTrackEvent('transport_map_pick', { page: 'route', slot: 'to' });
                   rememberFrequentToStop(stopName);
                   setDetailPair({ to: stopName });
                 },
-                onSwapStops: () => reverseDirectionAndFromTo(),
+                onSwapStops: () => reverseDirectionAndFromTo(undefined, 'map'),
                 frequentToStops,
                 coordsData: mapCoordsData,
               };
@@ -1573,14 +1600,14 @@ export const LocalTransportPage: React.FC = () => {
           <>
           <div className="lt-panel">
           <>
-            <header className="lt-header lt-header--jakdojade">
+            <header className="lt-header">
               <h1 className="lt-title">{pairNames ? `${pairNames.from} → ${pairNames.to}` : 'Як доїхати'}</h1>
               <p className="lt-subtitle">{pairNames ? 'Як доїхати · Малин' : 'Малин · місцевий транспорт'}</p>
             </header>
 
             <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom || undefined} />
 
-            <div className="lt-search lt-search--jakdojade" ref={searchCardRef}>
+            <div className="lt-search" ref={searchCardRef}>
               <div className="lt-from-to-block">
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
@@ -1681,7 +1708,7 @@ export const LocalTransportPage: React.FC = () => {
                     }}
                   />
                   {isPhone && (
-                    <button type="button" className="lt-chip lt-chip--map" onClick={openMap}>
+                    <button type="button" className="lt-chip lt-chip--map" onClick={() => openMap('planner', Boolean(committedPair))}>
                       Карта
                     </button>
                   )}
@@ -1701,6 +1728,7 @@ export const LocalTransportPage: React.FC = () => {
                               type="button"
                               className="lt-nearest-item"
                               onClick={() => {
+                                gaTrackEvent('transport_nearest_pick', { page: 'planner', stop: name, distance_m: Math.round(distance) });
                                 latestStopRef.current = name;
                                 setSearchFrom(name);
                                 setStopFilter(name);
@@ -1766,12 +1794,12 @@ export const LocalTransportPage: React.FC = () => {
                             !(resolvedTo && node.stopIds.includes(resolvedTo))
                         )
                         .map(({ node, stopId }) => (
-                          <button key={node.id} type="button" className="lt-chip" onClick={() => pickQuickNode(stopId)}>
+                          <button key={node.id} type="button" className="lt-chip" onClick={() => pickQuickNode(node, stopId)}>
                             {node.name}
                           </button>
                         ))}
                     </div>
-                    <button type="button" className="lt-empty-map-btn" onClick={openMap}>
+                    <button type="button" className="lt-empty-map-btn" onClick={() => openMap('planner', false)}>
                       Відкрити карту
                     </button>
                     <LocalTransportSchemeMini
@@ -1780,6 +1808,7 @@ export const LocalTransportPage: React.FC = () => {
                       href={buildSchemeUrl({ date: searchDate, time: searchTime })}
                       label="Відкрити схему маршрутів"
                       title="Уся схема"
+                      source="planner"
                     />
                   </div>
                 )
@@ -1921,7 +1950,7 @@ export const LocalTransportPage: React.FC = () => {
                         <button
                           key={`${r.id}-${dir}`}
                           type="button"
-                          className="lt-route-card lt-route-card--jd"
+                          className="lt-route-card"
                           onClick={() => {
                             gaTrackEvent('transport_route_card_click', { route_id: r.id });
                             handleSelectRoute(r.id);
@@ -2028,11 +2057,13 @@ export const LocalTransportPage: React.FC = () => {
               routesAtStop: linesAtStop,
               boardHref: boardHrefFor,
               onPickFromStop: (stopName: string) => {
+                gaTrackEvent('transport_map_pick', { page: 'planner', slot: 'from' });
                 setSearchFrom(stopName);
                 latestStopRef.current = stopName;
                 setStopFilter(stopName);
               },
               onPickToStop: (stopName: string) => {
+                gaTrackEvent('transport_map_pick', { page: 'planner', slot: 'to' });
                 setSearchTo(stopName);
                 rememberFrequentToStop(stopName);
                 // URL підтягнеться автосинхронізацією пари → адресний рядок.
@@ -2045,7 +2076,7 @@ export const LocalTransportPage: React.FC = () => {
               frequentToStops,
               coordsData: mapCoordsData,
             };
-            const subtitle = `З: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · До: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
+            const subtitle = `Звідки: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · Куди: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
             return isPhone ? (
               <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={subtitle}>
                 <RouteMap {...mapProps} resizeToken={mapResizeToken} />

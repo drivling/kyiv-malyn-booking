@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { SCHEME_COLOR_VARS } from './routeColors';
 import { MINI_SVG, cropViewBox, unionOf, type Box } from './schemeMini';
 import './scheme/scheme-svg.css';
@@ -55,6 +56,8 @@ export type LocalTransportSchemeMiniProps = {
   showAll?: boolean;
   /** Заголовок секції (за замовчуванням «На схемі міста») */
   title?: string;
+  /** Сторінка-джерело для події `transport_scheme_open` (без неї подія не шлеться) */
+  source?: 'planner' | 'route' | 'board';
 };
 
 /**
@@ -62,7 +65,7 @@ export type LocalTransportSchemeMiniProps = {
  * ліній/зупинок, цілком — посилання на /transport/scheme. Підсвічування і кадрування ставляться
  * після монтування прямо в DOM, бо SVG вставлено рядком, а не React-деревом.
  */
-export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, note, showAll = false, title = 'На схемі міста' }: LocalTransportSchemeMiniProps) {
+export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, note, showAll = false, title = 'На схемі міста', source }: LocalTransportSchemeMiniProps) {
   const headingId = useId();
   const canvasRef = useRef<HTMLDivElement>(null);
   const routeKey = routeIds.join(',');
@@ -106,7 +109,14 @@ export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, 
       <h2 id={headingId} className="lt-section-title lts-mini-title">
         {title}
       </h2>
-      <Link className="lts-mini-canvas" to={href} aria-label={label}>
+      <Link
+        className="lts-mini-canvas"
+        to={href}
+        aria-label={label}
+        onClick={() => {
+          if (source) gaTrackEvent('transport_scheme_open', { source });
+        }}
+      >
         <div ref={canvasRef} className="lts-mini-svg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: MINI_SVG }} />
         <span className="lts-mini-cta" aria-hidden="true">
           Відкрити схему →
