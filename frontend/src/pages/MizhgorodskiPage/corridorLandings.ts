@@ -1,4 +1,5 @@
 import type { BookingCity } from '@/utils/constants';
+import { ZUBASTYK_TEMP_NOTE } from './phoneOnlyBooking';
 
 export type CorridorLandingSlug =
   | 'kyiv-malyn'
@@ -76,7 +77,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         q: 'Чи можна забронювати маршрутку онлайн?',
-        a: 'Так: у результатах оберіть картку «Маршрутка», вкажіть контакти й підтвердіть у Telegram-боті @malin_kiev_ua_bot.',
+        a: `Так: у результатах оберіть картку «Маршрутка», вкажіть контакти й підтвердіть у Telegram-боті @malin_kiev_ua_bot. ${ZUBASTYK_TEMP_NOTE}`,
       },
       {
         q: 'Чим відрізняєтесь від BlaBlaCar?',
@@ -104,7 +105,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         title: 'Маршрутка',
-        text: 'Оберіть рейс у пошуку й забронюйте місце. Підтвердження зручно отримувати в боті.',
+        text: `Оберіть рейс у пошуку й забронюйте місце. Підтвердження зручно отримувати в боті. ${ZUBASTYK_TEMP_NOTE}`,
       },
       {
         title: 'Звідки сідати в Малині',

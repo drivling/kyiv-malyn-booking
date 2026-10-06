@@ -792,6 +792,18 @@
   color: var(--mizh-navy-soft);
 }
 
+/* «Зубастик» поки лише за телефоном (phoneOnlyBooking.ts) */
+.mizh-card-phone-only {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e65100;
+}
+
+.mizh-card-cta--call {
+  white-space: nowrap;
+}
+
 .mizh-card-actions {
   display: flex;
   flex-direction: column;

@@ -259,9 +259,20 @@ export function CorridorLandingPage() {
                         )}
                       </td>
                       <td>
-                        <Link className="corridor-table-book" to={busHref}>
-                          Забронювати
-                        </Link>
+                        {/* електрички сайт не бронює — квиток у перевізника */}
+                        {s.vehicleType === 'elektrichka' ? (
+                          s.ticketPurchaseUrl ? (
+                            <a className="corridor-table-book" href={s.ticketPurchaseUrl} target="_blank" rel="noopener noreferrer">
+                              Квиток
+                            </a>
+                          ) : (
+                            <span className="corridor-muted">—</span>
+                          )
+                        ) : (
+                          <Link className="corridor-table-book" to={busHref}>
+                            Забронювати
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}

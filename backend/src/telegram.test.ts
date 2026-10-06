@@ -72,6 +72,21 @@ test('buildTripReminderSms: домен за маршрутом бронюван�
   assert.match(buildTripReminderSms({ ...base, route: 'Kyiv-Malyn' }, 'today'), /malin\.kiev\.ua$/);
 });
 
+test('buildTripReminderSms: «Зубастик» — онлайн-бронь не працює, попередження й домен лишаються', () => {
+  const base = {
+    date: new Date('2026-09-11T12:00:00.000Z'),
+    departureTime: '05:00',
+    name: 'Тест',
+  };
+  const zub = buildTripReminderSms({ ...base, route: 'Kyiv-Malyn-Irpin', source: 'schedule' }, 'tomorrow');
+  assert.match(zub, /Онлайн-бронь поки не працює — лише за тел\. 0931920008/);
+  assert.match(zub, /інакше воно не гарантоване\. malin\.kiev\.ua$/);
+  const ride = buildTripReminderSms({ ...base, route: 'Kyiv-Malyn', source: 'viber_match' }, 'tomorrow');
+  assert.equal(ride.includes('Онлайн-бронь'), false);
+  const korosten = buildTripReminderSms({ ...base, route: 'Korosten-Malyn' }, 'today');
+  assert.equal(korosten.includes('Онлайн-бронь'), false);
+});
+
 test('buildTripReminderSms: водій лише за іменем', () => {
   const text = buildTripReminderSms(
     {

@@ -10,7 +10,7 @@ import { tripsPerDayText } from '@/utils/weekdays';
 export const ZUBASTYK_PATH = '/zubastyk';
 export const ZUBASTYK_CANONICAL = `https://malin.kiev.ua${ZUBASTYK_PATH}`;
 
-/** Телефони бронювання маршруток Малин — Київ. Перший у списку — резервний з нашої бази. */
+/** Телефони бронювання маршруток Малин — Київ. Останній у списку — резервний. */
 export const ZUBASTYK_PHONES: Array<{ digits: string; label: string; note?: string }> = [
   { digits: '380931920008', label: '093 192 00 08' },
   { digits: '380961420008', label: '096 142 00 08' },
