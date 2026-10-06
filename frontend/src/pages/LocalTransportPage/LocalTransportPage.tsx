@@ -1149,14 +1149,14 @@ export const LocalTransportPage: React.FC = () => {
     typeof data.supplement?.fare?.amount === 'number' ? data.supplement.fare.amount : null;
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+    <div className="lt-page lt-layout">
       <div className="lt-container lt-split-layout">
         {routeId && detailRoute ? (
           <>
           <div className="lt-panel">
-          <div className="lt-detail lt-detail--jakdojade">
+          <div className="lt-detail">
             {/* Такий самий хедер як на головній */}
-            <header className="lt-header lt-header--jakdojade">
+            <header className="lt-header">
               <button type="button" className="lt-back lt-back--header" onClick={handleBack} aria-label="Назад до пошуку">
                 ←
               </button>
@@ -1174,9 +1174,9 @@ export const LocalTransportPage: React.FC = () => {
             />
 
             {/* Заголовок маршруту + перемикач напрямку */}
-            <header className="lt-detail-header lt-detail-header--jd">
+            <header className="lt-detail-header">
               <div className="lt-detail-header-top">
-                <h1 className="lt-route-title lt-route-title--jd">
+                <h1 className="lt-route-title">
                   <span
                     className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
                     style={routeColorStyle(detailRoute.id)}
@@ -1347,7 +1347,7 @@ export const LocalTransportPage: React.FC = () => {
                       Повний розклад
                     </button>
                     {tableTripsInDirection && tableTripsInDirection.length > 0 && (
-                      <div id="lt-timetable-full" className={`lt-timetable lt-timetable--jd ${timetableOpen ? '' : 'lt-timetable--collapsed'}`}>
+                      <div id="lt-timetable-full" className={`lt-timetable ${timetableOpen ? '' : 'lt-timetable--collapsed'}`}>
                         <table className="lt-timetable-table lt-timetable-table--tablica">
                           <thead>
                             <tr>
@@ -1444,9 +1444,9 @@ export const LocalTransportPage: React.FC = () => {
                 mapStopNames = included.map((s) => getStopKey(s));
               }
               return stopsWithOrder && mapStopNames.length > 0 ? (
-                <section className="lt-map-stops lt-map-stops--jd" aria-labelledby="lt-stops-heading">
+                <section className="lt-map-stops" aria-labelledby="lt-stops-heading">
                   <div className="lt-map-stops-inner">
-                    <div className="lt-stops lt-stops--jd">
+                    <div className="lt-stops">
                       <div className="lt-stops-head">
                         <h2 id="lt-stops-heading" className="lt-stops-heading">Зупинки</h2>
                         {fromStop ? (
@@ -1600,14 +1600,14 @@ export const LocalTransportPage: React.FC = () => {
           <>
           <div className="lt-panel">
           <>
-            <header className="lt-header lt-header--jakdojade">
+            <header className="lt-header">
               <h1 className="lt-title">{pairNames ? `${pairNames.from} → ${pairNames.to}` : 'Як доїхати'}</h1>
               <p className="lt-subtitle">{pairNames ? 'Як доїхати · Малин' : 'Малин · місцевий транспорт'}</p>
             </header>
 
             <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom || undefined} />
 
-            <div className="lt-search lt-search--jakdojade" ref={searchCardRef}>
+            <div className="lt-search" ref={searchCardRef}>
               <div className="lt-from-to-block">
                 <div className="lt-from-to-row">
                   <div className="lt-from-to-cell lt-from-to-cell--from">
@@ -1950,7 +1950,7 @@ export const LocalTransportPage: React.FC = () => {
                         <button
                           key={`${r.id}-${dir}`}
                           type="button"
-                          className="lt-route-card lt-route-card--jd"
+                          className="lt-route-card"
                           onClick={() => {
                             gaTrackEvent('transport_route_card_click', { route_id: r.id });
                             handleSelectRoute(r.id);

@@ -19,7 +19,7 @@ export const LocalTransportSoon: React.FC = () => {
   });
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark">
+    <div className="lt-page lt-layout">
       <div className="lt-container">
         <div className="lt-soon">
           <p className="lt-soon-badge">Скоро</p>

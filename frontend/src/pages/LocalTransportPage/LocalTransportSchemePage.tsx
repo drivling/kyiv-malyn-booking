@@ -206,10 +206,10 @@ export function LocalTransportSchemePage() {
   else if (stats) metaLine = `${stats.tripsPerDirection} рейсів у кожен бік · ${stats.first}–${stats.last}`;
 
   return (
-    <div className="lt-page lt-theme-jakdojade lt-layout-dark lt-scheme-page" style={SCHEME_COLOR_VARS}>
+    <div className="lt-page lt-layout lt-scheme-page" style={SCHEME_COLOR_VARS}>
       <div className="lt-container">
         <div className="lt-panel lts-panel">
-          <header className="lt-header lt-header--jakdojade lts-header">
+          <header className="lt-header lts-header">
             <h1 className="lt-title">Схема маршрутів</h1>
             <p className="lt-subtitle">Малин · 9 міських маршрутів · не в масштабі</p>
           </header>

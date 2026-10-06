@@ -7,7 +7,7 @@ function pad2(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
-/** Формат дати для URL як у Jakdojade: DD.MM.YY */
+/** Формат дати для URL: DD.MM.YY */
 export function formatDateUrl(date: Date): string {
   const d = date.getDate();
   const m = date.getMonth() + 1;
