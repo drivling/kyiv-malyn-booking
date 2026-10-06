@@ -42,6 +42,7 @@ import type {
   NotificationSettingsUsage,
   StickerScanStats,
   StickerSide,
+  StickerStatsDays,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
@@ -1119,9 +1120,17 @@ class ApiClient {
     });
   }
 
-  /** Адмін: популярність наклейок — відкриття по зупинці й боку */
-  async getStickerScanStats(): Promise<StickerScanStats> {
-    return this.request('/admin/transport/sticker-scans');
+  /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */
+  async getStickerScanStats(days: StickerStatsDays = 30): Promise<StickerScanStats> {
+    return this.request(`/admin/transport/sticker-scans?days=${days}`);
+  }
+
+  /** Адмін: друк або SVG наклейок зупинки — для статистики («наклейка є») */
+  async recordStickerPrint(print: { stopId: string; sides: StickerSide[]; size: 'A5' | 'A4' }): Promise<{ ok: boolean; count: number }> {
+    return this.request('/admin/transport/sticker-prints', {
+      method: 'POST',
+      body: JSON.stringify(print),
+    });
   }
 
   async putTransportDataset(dataset: TransportDataset): Promise<{

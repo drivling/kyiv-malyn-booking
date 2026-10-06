@@ -167,8 +167,10 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   (`splitSides`) and the admin can move them; the QR always targets the primary domain with
   `utm_source=sticker&utm_medium=qr&utm_campaign=<stopId>-<a|b|s>`. The board counts each opening
   once per session (`stickerScan.ts` → GA4 `transport_sticker_open` + `POST /transport/sticker-scans`
-  → `StickerScan` table, `backend/src/sticker-scans.ts`); the tab shows the counts. Workflow in
-  `Docs/stop-stickers.md`.
+  → `StickerScan` table, `backend/src/sticker-scans.ts`). The tab lists every stop with its counts,
+  daily / hourly charts (Kyiv time) and prints recorded in `StickerPrint` on print/SVG download
+  (`GET /admin/transport/sticker-scans?days=7|30|90`, `POST /admin/transport/sticker-prints`).
+  Workflow in `Docs/stop-stickers.md`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram

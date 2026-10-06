@@ -1,15 +1,17 @@
 /**
  * Вкладка «Наклейки зупинок»: зупинка з ?stop=, автоматичний розподіл ліній по боках дороги,
- * ручне перекидання лінії, «одна наклейка», друк (друк через iframe замокано).
+ * ручне перекидання лінії, «одна наклейка», друк (друк через iframe замокано) і його облік,
+ * статистика відкриттів (плитки, по днях, по годинах) і список усіх зупинок з лічильниками.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import { STICKER_DATASET } from './stopSticker/stickerTestDataset';
+import { dayLabels, kyivToday } from './stopSticker/scanStats';
 import { StopStickerTab } from './StopStickerTab';
 
 const printMock = vi.hoisted(() => vi.fn());
@@ -41,16 +43,25 @@ function renderTab(url: string) {
   );
 }
 
-const previews = () => screen.queryAllByRole('figure');
+const previews = () => screen.queryAllByRole('figure').filter((f) => f.classList.contains('sticker-tab-preview'));
+const stopList = () => screen.getByRole('region', { name: 'Зупинки' });
+const listNames = () => within(stopList()).getAllByRole('button').map((b) => b.querySelector('.sticker-stops-name')?.textContent);
+const tile = (group: string, label: string) => within(screen.getByLabelText(group)).getByText(label).nextElementSibling?.textContent;
+
+const today = kyivToday();
+const yesterday = new Date(Date.parse(`${today}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+let statsRequests: string[] = [];
+let printPosts: unknown[] = [];
 
 beforeEach(() => {
   printMock.mockClear();
-  // jsdom не має scrollIntoView, а Combobox прокручує підсвічену опцію.
-  Element.prototype.scrollIntoView = vi.fn();
+  statsRequests = [];
+  printPosts = [];
   server.use(
     http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(STICKER_DATASET)),
-    http.get(`${TEST_API_URL}/admin/transport/sticker-scans`, () =>
-      HttpResponse.json({
+    http.get(`${TEST_API_URL}/admin/transport/sticker-scans`, ({ request }) => {
+      statsRequests.push(new URL(request.url).search);
+      return HttpResponse.json({
         rows: [
           { stopId: 'st_0015', side: 'a', total: 12, last7d: 4, last30d: 9, lastAt: '2026-10-05T07:30:00.000Z' },
           { stopId: 'st_0019', side: 's', total: 3, last7d: 0, last30d: 3, lastAt: '2026-09-20T12:00:00.000Z' },
@@ -58,8 +69,24 @@ beforeEach(() => {
         total: 15,
         last7d: 4,
         last30d: 12,
-      })
-    )
+        days: 30,
+        daily: [
+          { day: yesterday, stopId: 'st_0019', side: 's', count: 1 },
+          { day: today, stopId: 'st_0015', side: 'a', count: 5 },
+          { day: today, stopId: 'st_0015', side: 'b', count: 2 },
+        ],
+        hourly: [
+          { hour: 8, stopId: 'st_0015', side: 'a', count: 5 },
+          { hour: 18, stopId: 'st_0015', side: 'b', count: 2 },
+          { hour: 23, stopId: 'st_0019', side: 's', count: 1 },
+        ],
+        printed: [{ stopId: 'st_0015', side: 'a', count: 1, lastAt: '2026-10-06T09:00:00.000Z' }],
+      });
+    }),
+    http.post(`${TEST_API_URL}/admin/transport/sticker-prints`, async ({ request }) => {
+      printPosts.push(await request.json());
+      return HttpResponse.json({ ok: true, count: 2 }, { status: 201 });
+    })
   );
 });
 
@@ -123,34 +150,84 @@ describe('StopStickerTab', () => {
     expect(previews()[0].querySelector('svg')!.getAttribute('width')).toBe('210mm');
   });
 
-  it('відкриття з QR: таблиця популярності, лічильник під прев\'ю, перехід до зупинки', async () => {
+  it('лічильник під прев\'ю кожної наклейки; друк записується в базу й оновлює статистику', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');
-    const panel = await screen.findByRole('region', { name: 'Відкриття з QR' });
-    expect(within(panel).getByText('усього 15 · за 7 днів 4 · за 30 днів 12')).toBeInTheDocument();
-    const rows = within(panel).getAllByRole('row').slice(1);
-    expect(rows.map((r) => within(r).getAllByRole('cell').slice(0, 5).map((c) => c.textContent))).toEqual([
-      ['з-д «Прожектор»', 'Бік 1', '12', '4', '9'],
-      ['Залізничний вокзал', 'Одна наклейка', '3', '0', '3'],
-    ]);
-    expect(within(rows[0]).getByText('05.10.26, 10:30')).toBeInTheDocument();
+    await screen.findByLabelText('Назва на наклейці');
     expect(previews()[0]).toHaveTextContent('відкриттів з QR: 12 (за 7 днів 4)');
     expect(previews()[1]).toHaveTextContent('відкриттів з QR: 0');
-    await user.click(within(panel).getByRole('button', { name: 'Залізничний вокзал' }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?stop=st_0019');
+    const before = statsRequests.length;
+    await user.click(screen.getByRole('button', { name: 'Друкувати (2 аркуші A5)' }));
+    expect(printMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(printPosts).toEqual([{ stopId: 'st_0015', sides: ['a', 'b'], size: 'A5' }]));
+    await waitFor(() => expect(statsRequests.length).toBe(before + 1));
+    await user.click(within(previews()[1]).getByRole('button', { name: 'Завантажити SVG' }));
+    await waitFor(() => expect(printPosts).toHaveLength(2));
+    expect(printPosts[1]).toEqual({ stopId: 'st_0015', sides: ['b'], size: 'A5' });
   });
 
-  it('вибір зупинки пише ?stop= в адресу; у списку лише зупинки з відправленнями', async () => {
+  it('статистика: плитки, графік по днях, період, «По годинах доби» з частинами доби', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers');
-    const input = await screen.findByRole('combobox', { name: 'Зупинка' });
-    expect(previews()).toHaveLength(0);
-    await user.click(input);
-    const options = screen.getAllByRole('option').map((o) => o.textContent);
-    expect(options).toContain('з-д «Прожектор» — №5, №11');
-    expect(options.some((o) => o?.startsWith('м-н «Меркурій»'))).toBe(false);
-    await user.click(screen.getByRole('option', { name: 'з-д «Прожектор» — №5, №11' }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?stop=st_0015');
-    expect(await screen.findByLabelText('Назва на наклейці')).toHaveValue('з-д «Прожектор»');
+    await screen.findByRole('region', { name: 'Відкриття з QR' });
+    const all = 'Підсумки: усі наклейки';
+    expect(tile(all, 'Усього')).toBe('15');
+    expect(tile(all, 'За 7 днів')).toBe('4');
+    expect(tile(all, 'За 30 днів')).toBe('12');
+    expect(tile(all, 'Наклейок надруковано')).toBe('1 · зі сканами 2');
+    expect(screen.getByRole('button', { name: `${dayLabels(today).long}: 7 відкриттів` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `${dayLabels(yesterday).long}: 1 відкриття` })).toBeInTheDocument();
+    expect(statsRequests[statsRequests.length - 1]).toBe('?days=30');
+    await user.click(screen.getByRole('button', { name: '7 днів' }));
+    await waitFor(() => expect(statsRequests[statsRequests.length - 1]).toBe('?days=7'));
+
+    expect(screen.queryByLabelText('Частини доби')).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('По годинах доби'));
+    expect(tile('Частини доби', 'Ранок')).toBe('5 · 63 %');
+    expect(tile('Частини доби', 'День')).toBe('0 · 0 %');
+    expect(tile('Частини доби', 'Вечір')).toBe('2 · 25 %');
+    expect(tile('Частини доби', 'Ніч')).toBe('1 · 13 %');
+    expect(screen.getByRole('button', { name: '08:00–09:00: 5 відкриттів' })).toBeInTheDocument();
+  });
+
+  it('статистика однієї зупинки — галочкою «Лише …»', async () => {
+    const user = userEvent.setup();
+    renderTab('/admin/stickers?stop=st_0015');
+    await user.click(await screen.findByLabelText('Лише «з-д «Прожектор»»'));
+    const one = 'Підсумки: зупинка «з-д «Прожектор»»';
+    expect(tile(one, 'Усього')).toBe('12');
+    expect(tile(one, 'Наклейок надруковано')).toBe('1 · зі сканами 1');
+    expect(screen.getByRole('button', { name: `${dayLabels(yesterday).long}: 0 відкриттів` })).toBeInTheDocument();
+    await user.click(screen.getByLabelText('По годинах доби'));
+    expect(tile('Частини доби', 'Ніч')).toBe('0 · 0 %');
+  });
+
+  it('список усіх зупинок з відправленнями: популярні першими, лічильники, пошук, фільтр, вибір', async () => {
+    const user = userEvent.setup();
+    renderTab('/admin/stickers');
+    await screen.findByRole('region', { name: 'Зупинки' });
+    const names = listNames();
+    expect(names).toHaveLength(7); // «Меркурій» без відправлень — не кандидат
+    expect(names.slice(0, 2)).toEqual(['з-д «Прожектор»', 'Залізничний вокзал']);
+    const first = within(stopList()).getAllByRole('button')[0];
+    expect(first).toHaveTextContent('12');
+    expect(first).toHaveTextContent('+4 за 7 дн');
+    expect(first).toHaveTextContent('Б1 12');
+    expect(first).toHaveTextContent('друк 06.10');
+    expect(within(stopList()).getAllByRole('button')[1]).toHaveTextContent('Одна 3');
+
+    await user.selectOptions(screen.getByLabelText('Сортування зупинок'), 'За назвою');
+    expect(listNames()).toEqual([...names].sort((a, b) => (a ?? '').localeCompare(b ?? '', 'uk')));
+
+    await user.click(screen.getByLabelText('Лише з наклейками'));
+    expect(listNames()).toEqual(['Залізничний вокзал', 'з-д «Прожектор»'].sort((a, b) => a.localeCompare(b, 'uk')));
+    await user.click(screen.getByLabelText('Лише з наклейками'));
+
+    await user.type(screen.getByLabelText('Пошук зупинки'), 'вокз');
+    expect(listNames()).toEqual(['Залізничний вокзал']);
+    await user.click(within(stopList()).getByRole('button'));
+    expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?stop=st_0019');
+    expect(await screen.findByLabelText('Назва на наклейці')).toHaveValue('Залізничний вокзал');
+    expect(within(stopList()).getByRole('button')).toHaveAttribute('aria-pressed', 'true');
   });
 });
