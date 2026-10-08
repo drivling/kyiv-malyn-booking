@@ -48,8 +48,9 @@ function createScanDeduper(windowMs = DEDUPE_MS, max = DEDUPE_MAX) {
         return false;
     };
 }
-exports.STATS_DAYS = [7, 30, 90];
-/** ?days= графіків: 7 | 30 | 90, інше — 30 */
+/** 1 — «сьогодні»: київська доба від півночі, а не останні 24 години */
+exports.STATS_DAYS = [1, 7, 30, 90];
+/** ?days= графіків: 1 (сьогодні) | 7 | 30 | 90, інше — 30 */
 function parseStatsDays(v) {
     const n = Number(Array.isArray(v) ? v[0] : v);
     return exports.STATS_DAYS.includes(n) ? n : 30;
@@ -69,7 +70,7 @@ function kyivDayHour(d) {
 }
 const DAY_MS = 24 * 60 * 60 * 1000;
 /**
- * Статистика наклейок: агрегати по наклейках (зупинка + бік: усього, за 7 і 30 днів, останнє
+ * Статистика наклейок: агрегати по наклейках (зупинка + бік: усього, сьогодні, за 7 і 30 днів, останнє
  * відкриття; популярні — першими), відкриття по київських добах і годинах за вікно `days` для
  * графіків адмінки та облік друку. Сканів небагато, тож вікно читається сирими рядками й
  * розкладається по бакетах тут — київський час без SQL-часових поясів.
@@ -82,8 +83,10 @@ async function stickerScanStats(prisma, opts = {}) {
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(7) } }, _count: { _all: true } }),
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(30) } }, _count: { _all: true } }),
+        // «Сьогодні»: київська доба триває до 25 год (перехід на зимовий час) — беремо 2 доби й
+        // відсікаємо за київською датою нижче
         prisma.stickerScan.findMany({
-            where: { createdAt: { gte: since(days) } },
+            where: { createdAt: { gte: since(Math.max(days, 2)) } },
             select: { stopId: true, side: true, createdAt: true },
         }),
         prisma.stickerPrint.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
@@ -91,11 +94,19 @@ async function stickerScanStats(prisma, opts = {}) {
     const key = (r) => `${r.stopId}|${r.side}`;
     const weekBy = new Map(week.map((r) => [key(r), r._count._all]));
     const monthBy = new Map(month.map((r) => [key(r), r._count._all]));
+    const todayKyiv = kyivDayHour(now).day;
+    const stamped = windowRows.map((r) => ({ ...r, ...kyivDayHour(r.createdAt) }));
+    const todayBy = new Map();
+    for (const r of stamped)
+        if (r.day === todayKyiv)
+            todayBy.set(key(r), (todayBy.get(key(r)) ?? 0) + 1);
+    const inWindow = days === 1 ? stamped.filter((r) => r.day === todayKyiv) : stamped.filter((r) => r.createdAt >= since(days));
     const rows = all
         .map((r) => ({
         stopId: r.stopId,
         side: r.side,
         total: r._count._all,
+        today: todayBy.get(key(r)) ?? 0,
         last7d: weekBy.get(key(r)) ?? 0,
         last30d: monthBy.get(key(r)) ?? 0,
         lastAt: r._max.createdAt ? r._max.createdAt.toISOString() : null,
@@ -104,8 +115,8 @@ async function stickerScanStats(prisma, opts = {}) {
     const sum = (k) => rows.reduce((n, r) => n + r[k], 0);
     const dayBy = new Map();
     const hourBy = new Map();
-    for (const r of windowRows) {
-        const { day, hour } = kyivDayHour(r.createdAt);
+    for (const r of inWindow) {
+        const { day, hour } = r;
         const side = r.side;
         const dk = `${day}|${key(r)}`;
         const d = dayBy.get(dk) ?? { day, stopId: r.stopId, side, count: 0 };
@@ -126,7 +137,17 @@ async function stickerScanStats(prisma, opts = {}) {
         lastAt: p._max.createdAt ? p._max.createdAt.toISOString() : null,
     }))
         .sort((a, b) => key(a).localeCompare(key(b)));
-    return { rows, total: sum('total'), last7d: sum('last7d'), last30d: sum('last30d'), days, daily, hourly, printed };
+    return {
+        rows,
+        total: sum('total'),
+        today: sum('today'),
+        last7d: sum('last7d'),
+        last30d: sum('last30d'),
+        days,
+        daily,
+        hourly,
+        printed,
+    };
 }
 const PRINT_SIZES = ['A5', 'A4'];
 /** Body POST /admin/transport/sticker-prints: { stopId, sides: (a|b|s)[], size: A5|A4 } */

@@ -166,10 +166,39 @@ test('stickerScanStats: відкриття по київських добах і
     { hour: 9, stopId: 'st_0015', side: 'b', count: 1 },
   ]);
   assert.equal(stats.total, 4);
+  // сьогодні (06.10 за Києвом) — два скани після київської півночі; скан 05.10 о 09:10 — учора
+  assert.equal(stats.today, 2);
+  assert.deepEqual(stats.rows.map((r) => [r.stopId, r.side, r.today]), [
+    ['st_0015', 'a', 2],
+    ['st_0015', 'b', 0],
+    ['st_0019', 's', 0],
+  ]);
   assert.deepEqual(stats.printed, [{ stopId: 'st_0015', side: 'a', count: 2, lastAt: '2026-10-02T09:00:00.000Z' }]);
 });
 
-test('GET /admin/transport/sticker-scans: ?days= задає вікно графіків (7 | 30 | 90, інше — 30)', async () => {
+test('stickerScanStats: «сьогодні» (days=1) — київська доба від півночі, а не останні 24 години', async () => {
+  const { prisma } = makeApp([
+    { stopId: 'st_0015', side: 'a', createdAt: new Date('2026-10-05T20:30:00Z') }, // 23:30 05.10 за Києвом — учора
+    { stopId: 'st_0015', side: 'a', createdAt: new Date('2026-10-05T21:10:00Z') }, // 00:10 06.10
+    { stopId: 'st_0019', side: 's', createdAt: new Date('2026-10-06T06:45:00Z') }, // 09:45 06.10
+  ]);
+  const stats = await stickerScanStats(prisma, { days: 1, now: new Date('2026-10-06T10:00:00Z') });
+  assert.equal(stats.days, 1);
+  assert.equal(stats.today, 2);
+  assert.deepEqual(stats.daily, [
+    { day: '2026-10-06', stopId: 'st_0015', side: 'a', count: 1 },
+    { day: '2026-10-06', stopId: 'st_0019', side: 's', count: 1 },
+  ]);
+  assert.deepEqual(
+    stats.hourly.map((h) => [h.hour, h.stopId]),
+    [
+      [0, 'st_0015'],
+      [9, 'st_0019'],
+    ]
+  );
+});
+
+test('GET /admin/transport/sticker-scans: ?days= задає вікно графіків (1 | 7 | 30 | 90, інше — 30)', async () => {
   const now = Date.now();
   const { app } = makeApp([
     { stopId: 'st_0015', side: 'a', createdAt: new Date(now - 2 * DAY) },
@@ -184,6 +213,7 @@ test('GET /admin/transport/sticker-scans: ?days= задає вікно граф�
   const r7 = await q('7');
   assert.deepEqual(stops(r7.body), ['st_0015']);
   assert.equal((await q('13')).body.days, 30);
+  assert.equal((await q('1')).body.days, 1);
 });
 
 test('POST /admin/transport/sticker-prints: auth, валідація, по рядку на наклейку', async () => {
@@ -216,6 +246,8 @@ test('kyivDayHour / parseStatsDays / parseStickerPrint', () => {
   assert.equal(parseStatsDays('7'), 7);
   assert.equal(parseStatsDays(undefined), 30);
   assert.equal(parseStatsDays(['90']), 90);
+  assert.equal(parseStatsDays('1'), 1);
+  assert.equal(parseStatsDays('0'), 30);
   assert.deepEqual(parseStickerPrint({ stopId: 'st_0019', sides: ['s'], size: 'A5' }), { stopId: 'st_0019', sides: ['s'], size: 'A5' });
   assert.equal(parseStickerPrint({ stopId: 'st_0019', sides: 's', size: 'A5' }), null);
 });

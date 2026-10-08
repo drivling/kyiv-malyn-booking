@@ -169,7 +169,7 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   once per session (`stickerScan.ts` → GA4 `transport_sticker_open` + `POST /transport/sticker-scans`
   → `StickerScan` table, `backend/src/sticker-scans.ts`). The tab lists every stop with its counts,
   daily / hourly charts (Kyiv time) and prints recorded in `StickerPrint` on print/SVG download
-  (`GET /admin/transport/sticker-scans?days=7|30|90`, `POST /admin/transport/sticker-prints`).
+  (`GET /admin/transport/sticker-scans?days=1|7|30|90`, 1 = today since Kyiv midnight; `POST /admin/transport/sticker-prints`).
   Workflow in `Docs/stop-stickers.md`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.

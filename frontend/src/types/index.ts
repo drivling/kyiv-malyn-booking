@@ -964,17 +964,20 @@ export interface StickerScanStat {
   stopId: string;
   side: StickerSide;
   total: number;
+  /** За сьогоднішню київську добу (немає у відповіді старішого бекенда) */
+  today?: number;
   last7d: number;
   last30d: number;
   lastAt: string | null;
 }
 
-/** Вікно графіків статистики наклейок, днів */
-export type StickerStatsDays = 7 | 30 | 90;
+/** Вікно графіків статистики наклейок, днів; 1 — сьогодні (київська доба від півночі) */
+export type StickerStatsDays = 1 | 7 | 30 | 90;
 
 export interface StickerScanStats {
   rows: StickerScanStat[];
   total: number;
+  today?: number;
   last7d: number;
   last30d: number;
   days: StickerStatsDays;

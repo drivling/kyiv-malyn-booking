@@ -18,8 +18,8 @@ import { STICKER_DATASET } from './stickerTestDataset';
 
 const stats: StickerScanStats = {
   rows: [
-    { stopId: 'st_0015', side: 'a', total: 12, last7d: 4, last30d: 9, lastAt: '2026-10-05T07:30:00.000Z' },
-    { stopId: 'st_0015', side: 'b', total: 2, last7d: 2, last30d: 2, lastAt: '2026-10-06T07:30:00.000Z' },
+    { stopId: 'st_0015', side: 'a', total: 12, today: 1, last7d: 4, last30d: 9, lastAt: '2026-10-05T07:30:00.000Z' },
+    { stopId: 'st_0015', side: 'b', total: 2, today: 2, last7d: 2, last30d: 2, lastAt: '2026-10-06T07:30:00.000Z' },
     { stopId: 'st_0019', side: 's', total: 3, last7d: 0, last30d: 3, lastAt: '2026-09-20T12:00:00.000Z' },
     { stopId: 'st_gone', side: 'a', total: 1, last7d: 0, last30d: 0, lastAt: '2026-08-01T12:00:00.000Z' },
   ],
@@ -73,8 +73,9 @@ describe('ряди графіків', () => {
   });
 
   it('підсумки обсягу, шкала й підписи', () => {
-    expect(scopeTotals(stats)).toEqual({ total: 18, last7d: 6, last30d: 14, printed: 2, scanned: 4 });
-    expect(scopeTotals(stats, { stopId: 'st_0015' })).toEqual({ total: 14, last7d: 6, last30d: 11, printed: 2, scanned: 2 });
+    // рядки без today (старіший бекенд) рахуються як 0
+    expect(scopeTotals(stats)).toEqual({ total: 18, today: 3, last7d: 6, last30d: 14, printed: 2, scanned: 4 });
+    expect(scopeTotals(stats, { stopId: 'st_0015' })).toEqual({ total: 14, today: 3, last7d: 6, last30d: 11, printed: 2, scanned: 2 });
     expect([niceMax(0), niceMax(3), niceMax(7), niceMax(13), niceMax(48), niceMax(120)]).toEqual([1, 3, 10, 20, 50, 200]);
     expect([1, 3, 5, 11, 21, 112].map(opensLabel)).toEqual([
       '1 відкриття',

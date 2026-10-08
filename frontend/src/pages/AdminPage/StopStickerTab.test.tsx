@@ -63,10 +63,11 @@ beforeEach(() => {
       statsRequests.push(new URL(request.url).search);
       return HttpResponse.json({
         rows: [
-          { stopId: 'st_0015', side: 'a', total: 12, last7d: 4, last30d: 9, lastAt: '2026-10-05T07:30:00.000Z' },
-          { stopId: 'st_0019', side: 's', total: 3, last7d: 0, last30d: 3, lastAt: '2026-09-20T12:00:00.000Z' },
+          { stopId: 'st_0015', side: 'a', total: 12, today: 2, last7d: 4, last30d: 9, lastAt: '2026-10-05T07:30:00.000Z' },
+          { stopId: 'st_0019', side: 's', total: 3, today: 0, last7d: 0, last30d: 3, lastAt: '2026-09-20T12:00:00.000Z' },
         ],
         total: 15,
+        today: 2,
         last7d: 4,
         last30d: 12,
         days: 30,
@@ -172,6 +173,7 @@ describe('StopStickerTab', () => {
     await screen.findByRole('region', { name: 'Відкриття з QR' });
     const all = 'Підсумки: усі наклейки';
     expect(tile(all, 'Усього')).toBe('15');
+    expect(tile(all, 'Сьогодні')).toBe('2');
     expect(tile(all, 'За 7 днів')).toBe('4');
     expect(tile(all, 'За 30 днів')).toBe('12');
     expect(tile(all, 'Наклейок надруковано')).toBe('1 · зі сканами 2');
@@ -187,6 +189,20 @@ describe('StopStickerTab', () => {
     expect(tile('Частини доби', 'День')).toBe('0 · 0 %');
     expect(tile('Частини доби', 'Вечір')).toBe('2 · 25 %');
     expect(tile('Частини доби', 'Ніч')).toBe('1 · 13 %');
+    expect(screen.getByRole('button', { name: '08:00–09:00: 5 відкриттів' })).toBeInTheDocument();
+  });
+
+  it('статистика «Сьогодні»: ?days=1, одразу по годинах доби з частинами доби, без графіка по днях', async () => {
+    const user = userEvent.setup();
+    renderTab('/admin/stickers');
+    await screen.findByRole('region', { name: 'Відкриття з QR' });
+    await user.click(screen.getByRole('button', { name: 'Сьогодні' }));
+    await waitFor(() => expect(statsRequests[statsRequests.length - 1]).toBe('?days=1'));
+    expect(screen.getByRole('button', { name: 'Сьогодні' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByLabelText('По годинах доби')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^По днях/)).not.toBeInTheDocument();
+    expect(screen.getAllByText('По годинах доби сьогодні · усі наклейки').length).toBeGreaterThan(0);
+    expect(tile('Частини доби', 'Ранок')).toBe('5 · 63 %');
     expect(screen.getByRole('button', { name: '08:00–09:00: 5 відкриттів' })).toBeInTheDocument();
   });
 

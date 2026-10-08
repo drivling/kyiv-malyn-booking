@@ -4,12 +4,15 @@ import type { StickerScanStats, StickerStatsDays } from '@/types';
 import { ScanBars, type ScanBar } from './ScanBars';
 import { dailySeries, dayLabels, dayParts, hourBuckets, kyivToday, scopeTotals } from './scanStats';
 
-const PERIODS: StickerStatsDays[] = [7, 30, 90];
+const PERIODS: StickerStatsDays[] = [1, 7, 30, 90];
 const pad = (n: number) => String(n).padStart(2, '0');
+const periodChip = (d: StickerStatsDays) => (d === 1 ? 'Сьогодні' : `${d} днів`);
+const periodText = (d: StickerStatsDays) => (d === 1 ? 'сьогодні' : `за ${d} днів`);
 
 /**
  * «Статистика відкриттів з QR» угорі вкладки наклейок: плитки підсумків, графік по днях за
- * 7 / 30 / 90 днів, галочкою — по годинах доби з частинами доби. Обсяг — уся мережа або обрана
+ * 7 / 30 / 90 днів, галочкою — по годинах доби з частинами доби. «Сьогодні» (київська доба від
+ * півночі) — одразу по годинах: стовпчик по днях там був би один. Обсяг — уся мережа або обрана
  * зупинка (коли вона є).
  */
 export function StickerStatsPanel({
@@ -30,6 +33,8 @@ export function StickerStatsPanel({
 }) {
   const [onlyStop, setOnlyStop] = useState(false);
   const [byHours, setByHours] = useState(false);
+  const today = days === 1;
+  const showHours = byHours || today;
   const scopeId = onlyStop && stop ? stop.id : '';
   const scope = scopeId ? { stopId: scopeId } : undefined;
 
@@ -54,7 +59,7 @@ export function StickerStatsPanel({
         <div className="sticker-stats-chips" role="group" aria-label="Період графіків">
           {PERIODS.map((p) => (
             <button key={p} type="button" className="sticker-chip" aria-pressed={days === p} onClick={() => onDays(p)}>
-              {p} днів
+              {periodChip(p)}
             </button>
           ))}
         </div>
@@ -76,6 +81,10 @@ export function StickerStatsPanel({
             <dd>{totals.total}</dd>
           </div>
           <div>
+            <dt>Сьогодні</dt>
+            <dd>{totals.today}</dd>
+          </div>
+          <div>
             <dt>За 7 днів</dt>
             <dd>{totals.last7d}</dd>
           </div>
@@ -92,20 +101,20 @@ export function StickerStatsPanel({
           </div>
         </dl>
       )}
-      {stats && (
+      {stats && !today && (
         <ScanBars
-          title={`По днях за ${days} днів · ${scopeName}`}
+          title={`По днях ${periodText(days)} · ${scopeName}`}
           bars={dayBars}
           labelEvery={days === 7 ? 1 : days === 30 ? 5 : 15}
         />
       )}
-      {stats && (
+      {stats && !today && (
         <label className="sticker-stats-check">
           <input type="checkbox" checked={byHours} onChange={(e) => setByHours(e.target.checked)} />
           По годинах доби
         </label>
       )}
-      {stats && byHours && (
+      {stats && showHours && (
         <>
           <dl className="sticker-stats-tiles sticker-stats-tiles--parts" aria-label="Частини доби">
             {parts.map((p) => (
@@ -120,7 +129,7 @@ export function StickerStatsPanel({
               </div>
             ))}
           </dl>
-          <ScanBars title={`По годинах доби за ${days} днів · ${scopeName}`} bars={hourBars} labelEvery={3} />
+          <ScanBars title={`По годинах доби ${periodText(days)} · ${scopeName}`} bars={hourBars} labelEvery={3} />
         </>
       )}
     </section>
