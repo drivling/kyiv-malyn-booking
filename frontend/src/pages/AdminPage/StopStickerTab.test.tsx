@@ -192,6 +192,20 @@ describe('StopStickerTab', () => {
     expect(screen.getByRole('button', { name: '08:00–09:00: 5 відкриттів' })).toBeInTheDocument();
   });
 
+  it('«Віджет на стіну»: посилання з ключем лише на читання — QR, «Відкрити тут», Escape закриває', async () => {
+    server.use(http.get(`${TEST_API_URL}/admin/transport/sticker-wall-key`, () => HttpResponse.json({ key: 'wkey42' })));
+    const user = userEvent.setup();
+    renderTab('/admin/stickers');
+    await screen.findByRole('region', { name: 'Відкриття з QR' });
+    await user.click(screen.getByRole('button', { name: '📺 Віджет на стіну' }));
+    const dialog = screen.getByRole('dialog', { name: 'Віджет на стіну' });
+    const open = await within(dialog).findByRole('link', { name: 'Відкрити тут' });
+    expect(open).toHaveAttribute('href', `${window.location.origin}/admin/wall?key=wkey42`);
+    expect(within(dialog).getByRole('img', { name: 'QR-код посилання на віджет' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Віджет на стіну' })).not.toBeInTheDocument();
+  });
+
   it('статистика «Сьогодні»: ?days=1, одразу по годинах доби з частинами доби, без графіка по днях', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers');

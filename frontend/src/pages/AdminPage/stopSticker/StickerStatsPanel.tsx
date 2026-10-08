@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import type { StickerScanStats, StickerStatsDays } from '@/types';
 import { ScanBars, type ScanBar } from './ScanBars';
+import { WallLinkDialog } from './WallLinkDialog';
 import { dailySeries, dayLabels, dayParts, hourBuckets, kyivToday, scopeTotals } from './scanStats';
 
 const PERIODS: StickerStatsDays[] = [1, 7, 30, 90];
@@ -33,6 +34,7 @@ export function StickerStatsPanel({
 }) {
   const [onlyStop, setOnlyStop] = useState(false);
   const [byHours, setByHours] = useState(false);
+  const [wallOpen, setWallOpen] = useState(false);
   const today = days === 1;
   const showHours = byHours || today;
   const scopeId = onlyStop && stop ? stop.id : '';
@@ -72,7 +74,11 @@ export function StickerStatsPanel({
         <Button type="button" variant="secondary" onClick={onReload}>
           Оновити
         </Button>
+        <Button type="button" variant="secondary" onClick={() => setWallOpen(true)}>
+          📺 Віджет на стіну
+        </Button>
       </div>
+      {wallOpen && <WallLinkDialog onClose={() => setWallOpen(false)} />}
       {error && <p className="sticker-tab-status--error">{error}</p>}
       {totals && (
         <dl className="sticker-stats-tiles" aria-label={`Підсумки: ${scopeName}`}>

@@ -170,6 +170,10 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   → `StickerScan` table, `backend/src/sticker-scans.ts`). The tab lists every stop with its counts,
   daily / hourly charts (Kyiv time) and prints recorded in `StickerPrint` on print/SVG download
   (`GET /admin/transport/sticker-scans?days=1|7|30|90`, 1 = today since Kyiv midnight; `POST /admin/transport/sticker-prints`).
+  Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in
+  landscape polls `GET /transport/sticker-wall?key=&after=<id>` every 30 s and celebrates each new scan
+  (colour of the stop's line, Web Audio chime); the key is read-only, `HMAC(ADMIN_PASSWORD)` from
+  `backend/src/sticker-wall.ts`, issued by `GET /admin/transport/sticker-wall-key`.
   Workflow in `Docs/stop-stickers.md`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.

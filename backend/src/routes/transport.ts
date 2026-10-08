@@ -15,9 +15,11 @@ import {
   parseStickerScan,
   stickerScanStats,
 } from '../sticker-scans';
+import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticker-wall';
 
-export function createTransportRouter(deps: { prisma: PrismaClient }): Router {
+export function createTransportRouter(deps: { prisma: PrismaClient; adminPassword?: string }): Router {
   const { prisma } = deps;
+  const adminPassword = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
   const r = express.Router();
   const isRepeatScan = createScanDeduper();
 
@@ -116,6 +118,30 @@ export function createTransportRouter(deps: { prisma: PrismaClient }): Router {
     } catch (e) {
       console.error('[GET /admin/transport/sticker-scans]', e);
       res.status(500).json({ error: 'Failed to load sticker scans' });
+    }
+  });
+
+  /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні (лише читання знімка) */
+  r.get('/admin/transport/sticker-wall-key', requireAdmin, (_req, res) => {
+    res.set({ 'Cache-Control': 'no-store' });
+    res.json({ key: stickerWallKey(adminPassword) });
+  });
+
+  /**
+   * Віджет на стіну: сьогоднішні відкриття з QR (київська доба) + нові скани з id > ?after.
+   * Доступ — ключем із посилання, без адмін-сесії.
+   */
+  r.get('/transport/sticker-wall', async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store' });
+    if (!isStickerWallKey(req.query.key, adminPassword)) {
+      res.status(403).json({ error: 'Invalid wall key' });
+      return;
+    }
+    try {
+      res.json(await stickerWallSnapshot(prisma, { after: Number(req.query.after) || 0 }));
+    } catch (e) {
+      console.error('[GET /transport/sticker-wall]', e);
+      res.status(500).json({ error: 'Failed to load sticker wall' });
     }
   });
 

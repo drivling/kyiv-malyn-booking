@@ -99,7 +99,7 @@ app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
-app.use(createTransportRouter({ prisma }));
+app.use(createTransportRouter({ prisma, adminPassword: ADMIN_PASSWORD }));
 
 // Глобальний обробник помилок — завжди повертаємо JSON
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

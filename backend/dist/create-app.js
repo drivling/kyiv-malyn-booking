@@ -93,7 +93,7 @@ function createApp(deps) {
     app.use((0, admin_lunch_1.createAdminLunchRouter)({ prisma }));
     app.use((0, admin_dzhura_1.createAdminDzhuraRouter)({ prisma }));
     app.use((0, admin_notification_settings_1.createAdminNotificationSettingsRouter)({ prisma }));
-    app.use((0, transport_1.createTransportRouter)({ prisma }));
+    app.use((0, transport_1.createTransportRouter)({ prisma, adminPassword: ADMIN_PASSWORD }));
     // Глобальний обробник помилок — завжди повертаємо JSON
     app.use((err, _req, res, _next) => {
         console.error('❌ Unhandled error:', err);
