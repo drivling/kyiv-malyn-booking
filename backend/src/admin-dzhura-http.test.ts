@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
-import { ADMIN_AUTH_TOKEN } from './middleware/require-admin';
+import { adminAuthToken } from './middleware/require-admin';
 
 type ChatRow = {
   id: number;
@@ -147,7 +147,7 @@ function app(prisma: PrismaClient) {
   return createApp({ prisma, adminPassword: 'x' });
 }
 
-const auth = { Authorization: ADMIN_AUTH_TOKEN };
+const auth = { Authorization: adminAuthToken('x') };
 
 describe('/admin/dzhura', () => {
   test('401 без токена', async () => {

@@ -6,9 +6,10 @@ import express from 'express';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createAdminLunchRouter } from './routes/admin-lunch';
-import { ADMIN_AUTH_TOKEN } from './middleware/require-admin';
+import { adminAuthToken, setAdminPassword } from './middleware/require-admin';
 
-const auth = { Authorization: ADMIN_AUTH_TOKEN };
+const ADMIN_PASSWORD = 'lunch-test-admin';
+const auth = { Authorization: adminAuthToken(ADMIN_PASSWORD) };
 
 function makePrisma() {
   const queries: Array<Record<string, unknown>> = [];
@@ -63,6 +64,7 @@ function makePrisma() {
 
 function appWith(prisma: PrismaClient) {
   const app = express();
+  setAdminPassword(app, ADMIN_PASSWORD);
   app.use(express.json());
   app.use(createAdminLunchRouter({ prisma }));
   return app;

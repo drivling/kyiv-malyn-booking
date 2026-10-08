@@ -25,6 +25,7 @@ import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
 import { requestTiming } from './middleware/request-timing';
+import { resolveAdminPassword, setAdminPassword } from './middleware/require-admin';
 
 export type CreateAppDeps = {
   prisma: PrismaClient;
@@ -78,7 +79,11 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use('/poputky', createPoputkyRouter({ prisma }));
 
-const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
+const ADMIN_PASSWORD = resolveAdminPassword(deps.adminPassword);
+if (!deps.adminPassword && !process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'production') {
+  console.warn('[KYIV-MALYN-BACKEND] ADMIN_PASSWORD не задано — адмінка відкрита dev-паролем');
+}
+setAdminPassword(app, ADMIN_PASSWORD);
 
 app.use(createPublicRoutesRouter({ codeVersion: CODE_VERSION }));
 app.use(createAdminSessionRouter({ adminPassword: ADMIN_PASSWORD }));

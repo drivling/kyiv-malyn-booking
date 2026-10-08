@@ -179,10 +179,10 @@
 ```bash
 curl -X POST "https://YOUR_BACKEND_URL/admin/viber-analytics/import" \
   -H "Content-Type: application/json" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
-- Токен `admin-authenticated` — це поточне значення `ADMIN_TOKEN` у backend-коді (простий токен для адміна).
+- `ADMIN_TOKEN` — токен з `POST /admin/login` (HMAC від `ADMIN_PASSWORD`, див. [RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md), крок 2).
 - Endpoint імпортує тільки **нові** записи, тому його можна викликати часто, це безпечно.
 
 > За потреби авторизацію можна посилити: замінити простий токен на окремий admin API key або JWT.
@@ -229,14 +229,14 @@ npm run dev
 ```bash
 curl -X POST "http://localhost:3000/admin/viber-analytics/import" \
   -H "Content-Type: application/json" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 2. **Отримати короткі профілі 10–20 клієнтів**
 
 ```bash
 curl "http://localhost:3000/admin/viber-analytics/summary?limit=20&minRides=3" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 3. **Перевірити UI в адмінці**

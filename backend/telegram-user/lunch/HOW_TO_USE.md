@@ -119,7 +119,7 @@
 «салат грецький» → «Овочевий мікс») і ніхто не виправляв. Тому беремо підсумкові рядки замовлень з БД:
 
 ```bash
-curl -H "Authorization: admin-authenticated" "$API/admin/lunch/history?from=2026-09-01&to=2026-10-02" > history.json
+curl -H "Authorization: $ADMIN_TOKEN" "$API/admin/lunch/history?from=2026-09-01&to=2026-10-02" > history.json
 cd backend/telegram-user
 python3 -m lunch.golden_from_history history.json lunch/golden/history.jsonl   # gold = замовлення міняли після створення
 python3 -m lunch.golden_eval lunch/golden/history.jsonl --baseline e73f2c5     # новий матчер проти старого
@@ -133,7 +133,7 @@ python3 -m lunch.golden_eval lunch/golden/history.jsonl --baseline e73f2c5     #
 замовленням. Чернетка для ручної перевірки:
 
 ```bash
-curl -H "Authorization: admin-authenticated" "$API/admin/dzhura/chats/<id групи>/export?from=2026-08-01&to=2026-10-02" > dzhura.json
+curl -H "Authorization: $ADMIN_TOKEN" "$API/admin/dzhura/chats/<id групи>/export?from=2026-08-01&to=2026-10-02" > dzhura.json
 python3 -m lunch.golden_from_dzhura history.json dzhura.json draft.jsonl   # у полі review — що не сходиться
 ```
 

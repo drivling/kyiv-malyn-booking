@@ -32,6 +32,7 @@ const admin_dzhura_1 = require("./routes/admin-dzhura");
 const admin_notification_settings_1 = require("./routes/admin-notification-settings");
 const transport_1 = require("./routes/transport");
 const request_timing_1 = require("./middleware/request-timing");
+const require_admin_1 = require("./middleware/require-admin");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -74,7 +75,11 @@ function createApp(deps) {
     app.use((0, cors_1.default)(corsOptions));
     app.use(express_1.default.json({ limit: '2mb' }));
     app.use('/poputky', (0, poputky_1.createPoputkyRouter)({ prisma }));
-    const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
+    const ADMIN_PASSWORD = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
+    if (!deps.adminPassword && !process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'production') {
+        console.warn('[KYIV-MALYN-BACKEND] ADMIN_PASSWORD не задано — адмінка відкрита dev-паролем');
+    }
+    (0, require_admin_1.setAdminPassword)(app, ADMIN_PASSWORD);
     app.use((0, public_routes_1.createPublicRoutesRouter)({ codeVersion: exports.CODE_VERSION }));
     app.use((0, admin_session_1.createAdminSessionRouter)({ adminPassword: ADMIN_PASSWORD }));
     app.use((0, admin_maintenance_1.createAdminMaintenanceRouter)({ prisma }));

@@ -1,7 +1,7 @@
 """Чернетка золотих кейсів з повідомлень групи («Джура») + історії обідів — для ручної перевірки.
 
-  curl -H "Authorization: admin-authenticated" "$API/admin/lunch/history?from=2026-09-01&to=2026-10-02" > history.json
-  curl -H "Authorization: admin-authenticated" "$API/admin/dzhura/chats/<id групи>/export?from=2026-09-01&to=2026-10-02" > dzhura.json
+  curl -H "Authorization: $ADMIN_TOKEN" "$API/admin/lunch/history?from=2026-09-01&to=2026-10-02" > history.json
+  curl -H "Authorization: $ADMIN_TOKEN" "$API/admin/dzhura/chats/<id групи>/export?from=2026-09-01&to=2026-10-02" > dzhura.json
   python3 -m lunch.golden_from_dzhura history.json dzhura.json draft.jsonl
 
 Чим це більше за `golden_from_history` (там лише підсумкові рядки замовлень із БД):

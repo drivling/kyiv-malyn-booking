@@ -7,9 +7,10 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
+import { adminAuthToken } from './middleware/require-admin';
 
 const TEST_ADMIN_PASSWORD = 'http-test-admin-password-x7';
-const AUTH = 'admin-authenticated';
+const AUTH = adminAuthToken(TEST_ADMIN_PASSWORD);
 
 const BASE_PERSON = {
   id: 42,
