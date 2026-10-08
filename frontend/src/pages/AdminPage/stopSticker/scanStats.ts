@@ -69,9 +69,10 @@ export function dayParts(hours: number[]): { key: string; label: string; range: 
 /** Підсумки обсягу: усього / 7 / 30 днів, наклейок надруковано й зі сканами */
 export function scopeTotals(stats: StickerScanStats, scope?: ScanScope) {
   const rows = stats.rows.filter(inScope(scope));
-  const sum = (k: 'total' | 'last7d' | 'last30d') => rows.reduce((n, r) => n + r[k], 0);
+  const sum = (k: 'total' | 'today' | 'last7d' | 'last30d') => rows.reduce((n, r) => n + (r[k] ?? 0), 0);
   return {
     total: sum('total'),
+    today: sum('today'),
     last7d: sum('last7d'),
     last30d: sum('last30d'),
     printed: stats.printed.filter(inScope(scope)).length,

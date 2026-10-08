@@ -964,17 +964,45 @@ export interface StickerScanStat {
   stopId: string;
   side: StickerSide;
   total: number;
+  /** За сьогоднішню київську добу (немає у відповіді старішого бекенда) */
+  today?: number;
   last7d: number;
   last30d: number;
   lastAt: string | null;
 }
 
-/** Вікно графіків статистики наклейок, днів */
-export type StickerStatsDays = 7 | 30 | 90;
+/** GET /transport/sticker-wall?key= — віджет «Відкриття з QR» на стіну (сьогодні за Києвом) */
+export interface StickerWallSnapshot {
+  now: string;
+  /** Київська доба знімка (YYYY-MM-DD) */
+  day: string;
+  total: number;
+  /** Учора до тієї самої години й хвилини */
+  yesterdaySameTime: number;
+  /** Сьогодні по годинах доби (0–23) */
+  hourly: number[];
+  stops: {
+    stopId: string;
+    today: number;
+    lastHour: number;
+    last3h: number;
+    lastAt: string | null;
+    hourly: number[];
+  }[];
+  /** Нові скани з id > after */
+  events: { id: number; stopId: string; side: string; createdAt: string }[];
+  lastId: number;
+  /** Найкраща доба за 90 днів до сьогодні */
+  bestDay: { day: string; count: number } | null;
+}
+
+/** Вікно графіків статистики наклейок, днів; 1 — сьогодні (київська доба від півночі) */
+export type StickerStatsDays = 1 | 7 | 30 | 90;
 
 export interface StickerScanStats {
   rows: StickerScanStat[];
   total: number;
+  today?: number;
   last7d: number;
   last30d: number;
   days: StickerStatsDays;

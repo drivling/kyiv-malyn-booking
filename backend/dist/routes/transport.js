@@ -9,8 +9,10 @@ const require_admin_1 = require("../middleware/require-admin");
 const local_transport_1 = require("../local-transport");
 const transport_segments_1 = require("../transport-segments");
 const sticker_scans_1 = require("../sticker-scans");
+const sticker_wall_1 = require("../sticker-wall");
 function createTransportRouter(deps) {
     const { prisma } = deps;
+    const adminPassword = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
     const r = express_1.default.Router();
     const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
     /** Публічний повний датасет міського транспорту (~150 КБ). */
@@ -108,6 +110,29 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /admin/transport/sticker-scans]', e);
             res.status(500).json({ error: 'Failed to load sticker scans' });
+        }
+    });
+    /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні (лише читання знімка) */
+    r.get('/admin/transport/sticker-wall-key', require_admin_1.requireAdmin, (_req, res) => {
+        res.set({ 'Cache-Control': 'no-store' });
+        res.json({ key: (0, sticker_wall_1.stickerWallKey)(adminPassword) });
+    });
+    /**
+     * Віджет на стіну: сьогоднішні відкриття з QR (київська доба) + нові скани з id > ?after.
+     * Доступ — ключем із посилання, без адмін-сесії.
+     */
+    r.get('/transport/sticker-wall', async (req, res) => {
+        res.set({ 'Cache-Control': 'no-store' });
+        if (!(0, sticker_wall_1.isStickerWallKey)(req.query.key, adminPassword)) {
+            res.status(403).json({ error: 'Invalid wall key' });
+            return;
+        }
+        try {
+            res.json(await (0, sticker_wall_1.stickerWallSnapshot)(prisma, { after: Number(req.query.after) || 0 }));
+        }
+        catch (e) {
+            console.error('[GET /transport/sticker-wall]', e);
+            res.status(500).json({ error: 'Failed to load sticker wall' });
         }
     });
     /** Адмін: друк або SVG наклейок зупинки. Body: { stopId, sides: (a|b|s)[], size: A5|A4 } */

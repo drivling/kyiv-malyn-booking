@@ -8,6 +8,7 @@ import { LocalTransportSchemePage } from '@/pages/LocalTransportPage/LocalTransp
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
 import { SupportLayout, SupportHub, SupportArticle, SUPPORT_PATH } from '@/pages/SupportPage';
+import { StickerWallPage } from '@/pages/StickerWallPage';
 import { GoogleAnalyticsTracker } from '@/analytics/GoogleAnalyticsTracker';
 import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
 import { NavBar } from '@/components/NavBar';
@@ -48,12 +49,14 @@ function AppContent() {
   useHomeCityHandoff();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
+  // Віджет на стіну — як окремий застосунок: без меню сайту й адмінки
+  const isWidget = pathname === '/admin/wall';
 
   return (
     <div className={`app ${isAdminPath ? 'app--admin' : 'app--bbc'}`}>
       <GoogleAnalyticsTracker />
       <DomainGuard />
-      <NavBar />
+      {!isWidget && <NavBar />}
       <main className="app-main">
         <Routes>
           <Route path="/" element={<MizhgorodskiPage />} />
@@ -98,6 +101,7 @@ function AppContent() {
           <Route path="/privacy-policy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin/wall" element={<StickerWallPage />} />
           <Route
             path="/admin/:tab?"
             element={

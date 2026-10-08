@@ -41,6 +41,7 @@ import type {
   NotificationSettingsPatch,
   NotificationSettingsUsage,
   StickerScanStats,
+  StickerWallSnapshot,
   StickerSide,
   StickerStatsDays,
 } from '@/types';
@@ -1123,6 +1124,16 @@ class ApiClient {
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */
   async getStickerScanStats(days: StickerStatsDays = 30): Promise<StickerScanStats> {
     return this.request(`/admin/transport/sticker-scans?days=${days}`);
+  }
+
+  /** Віджет на стіну: сьогоднішні відкриття з QR + нові скани з id > after (доступ за ключем посилання) */
+  async getStickerWall(key: string, after = 0): Promise<StickerWallSnapshot> {
+    return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}`);
+  }
+
+  /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні */
+  async getStickerWallKey(): Promise<{ key: string }> {
+    return this.request('/admin/transport/sticker-wall-key');
   }
 
   /** Адмін: друк або SVG наклейок зупинки — для статистики («наклейка є») */

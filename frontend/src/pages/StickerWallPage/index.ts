@@ -1,0 +1,1 @@
+export { StickerWallPage } from './StickerWallPage';
