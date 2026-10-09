@@ -1,0 +1,382 @@
+[
+ {
+  "route_id": "1",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "1-01",
+  "trip_headsign": "Барміна",
+  "direction_id": "0",
+  "block_id": "АІ6309ІС",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "1",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "1-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ6309ІС",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "1",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "1-03",
+  "trip_headsign": "Барміна",
+  "direction_id": "0",
+  "block_id": "АІ6315ІС",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "1",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "1-04",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ6315ІС",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "1",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "1-05",
+  "trip_headsign": "Барміна",
+  "direction_id": "0",
+  "block_id": "АІ8051ІА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "1",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "1-06",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ8051ІА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "2",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "2-01",
+  "trip_headsign": "ФБП",
+  "direction_id": "0",
+  "block_id": "АІ0262АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "2",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "2-02",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "1",
+  "block_id": "АІ0262АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "2",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "2-03",
+  "trip_headsign": "ФБП",
+  "direction_id": "0",
+  "block_id": "АІ8251ЕК",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "2",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "2-04",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "1",
+  "block_id": "АІ8251ЕК",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "3",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "3-01",
+  "trip_headsign": "Лісотехнікум",
+  "direction_id": "0",
+  "block_id": "АІ2954АХ",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "3",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "3-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ2954АХ",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "3",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "3-03",
+  "trip_headsign": "Лісотехнікум",
+  "direction_id": "0",
+  "block_id": "АІ0261АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "3",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "3-04",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ0261АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "3",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "3-05",
+  "trip_headsign": "Лісотехнікум",
+  "direction_id": "0",
+  "block_id": "АМ0958АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "3",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "3-06",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АМ0958АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "5",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "5-01",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "0",
+  "block_id": "АІ1724ІН",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "5",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "5-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ1724ІН",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "6",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "6-01",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "0",
+  "block_id": "АМ0033АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "6",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "6-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АМ0033АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "7",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "7-01",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "0",
+  "block_id": "АІ8250ЕК",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "7",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "7-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ8250ЕК",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "8",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "8-01",
+  "trip_headsign": "Базарна площа",
+  "direction_id": "0",
+  "block_id": "АІ0263АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "8",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "8-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ0263АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "8",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "8-03",
+  "trip_headsign": "Базарна площа",
+  "direction_id": "0",
+  "block_id": "АІ8758АВ",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "8",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "8-04",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ8758АВ",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "10",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "10-01",
+  "trip_headsign": "Барміна",
+  "direction_id": "0",
+  "block_id": "АІ5696АН",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "10",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "10-02",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "1",
+  "block_id": "АІ5696АН",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "10",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "10-03",
+  "trip_headsign": "Барміна",
+  "direction_id": "0",
+  "block_id": "АІ8252ЕК",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "10",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "10-04",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "1",
+  "block_id": "АІ8252ЕК",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "11",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "11-01",
+  "trip_headsign": "Паперова фабрика",
+  "direction_id": "0",
+  "block_id": "АМ0959АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "11",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "11-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АМ0959АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "11",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "11-03",
+  "trip_headsign": "Паперова фабрика",
+  "direction_id": "0",
+  "block_id": "АІ9091ВЕ",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "11",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "11-04",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АІ9091ВЕ",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "12",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "12-01",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "0",
+  "block_id": "АМ0030АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "12",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "12-02",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АМ0030АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "12",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "12-03",
+  "trip_headsign": "Поліклініка",
+  "direction_id": "0",
+  "block_id": "АМ0960АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ },
+ {
+  "route_id": "12",
+  "service_id": "пн-вт-ср-чт-пт-сб-нд",
+  "trip_id": "12-04",
+  "trip_headsign": "Залізничний вокзал",
+  "direction_id": "1",
+  "block_id": "АМ0960АА",
+  "wheelchair_accessible": "0",
+  "bikes_allowed": "2"
+ }
+]
