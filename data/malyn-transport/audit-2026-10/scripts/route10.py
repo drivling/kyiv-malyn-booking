@@ -121,13 +121,24 @@ def build_next(cur, prop):
     return nxt
 
 
+def canon(d, skip_route=None, skip_segments_of=None, drop_default_sec=False):
+    """Канонічний JSON датасету: масиви відсортовані за ключами (порядок рівних -1 у відповіді API не гарантований)."""
+    meta = {k: v for k, v in d['meta'].items() if not (drop_default_sec and k == 'defaultSec')}
+    return json.dumps({
+        'stops': sorted(d['stops'], key=lambda x: x['id']),
+        'routes': sorted([r for r in d['routes'] if r['id'] != skip_route], key=lambda x: x['id']),
+        'routeStops': sorted([x for x in d['routeStops'] if x['routeId'] != skip_route],
+                             key=lambda x: (x['routeId'], x['stopId'])),
+        'trips': sorted(d['trips'], key=lambda x: x['id']),
+        'segments': sorted([x for x in d['segments'] if x['routeId'] != skip_segments_of],
+                           key=lambda x: (x['routeId'], x['fromStopId'], x['toStopId'])),
+        'meta': meta,
+    }, ensure_ascii=False, sort_keys=True)
+
+
 def strip(d, rid='10'):
     """Усе, крім рядків маршруту rid (для перевірки «нічого іншого не змінено»)."""
-    return json.dumps({'stops': d['stops'], 'meta': d['meta'], 'trips': d['trips'], 'segments': d['segments'],
-                       'routes': [r for r in d['routes'] if r['id'] != rid],
-                       'routeStops': sorted([x for x in d['routeStops'] if x['routeId'] != rid],
-                                            key=lambda x: (x['routeId'], x['stopId']))},
-                      ensure_ascii=False, sort_keys=True)
+    return canon(d, skip_route=rid)
 
 
 def validate(dataset_file):
@@ -159,7 +170,7 @@ def apply():
     tok = token()
     # мінімальне вікно гонки: перевіряємо, що база не змінилась після бекапу
     again = http_json('GET', f'{API}/transport/dataset')
-    assert json.dumps(again, sort_keys=True) == json.dumps(cur, sort_keys=True), 'база змінилась після бекапу — зупинка'
+    assert canon(again) == canon(cur), 'база змінилась після бекапу — зупинка'
     res = http_json('PUT', f'{API}/transport/dataset', nxt, tok)
     print('PUT:', res)
     after = http_json('GET', f'{API}/transport/dataset')
@@ -179,11 +190,7 @@ def segments():
     after = http_json('GET', f'{API}/transport/dataset')
     other = lambda d: sorted([s for s in d['segments'] if s['routeId'] != '10'], key=lambda s: (s['routeId'], s['fromStopId'], s['toStopId']))
     assert other(before) == other(after), 'змінились сегменти інших маршрутів'
-    b = dict(before); a = dict(after)
-    b.pop('segments'); a.pop('segments')
-    b['meta'] = {k: v for k, v in b['meta'].items() if k != 'defaultSec'}
-    a['meta'] = {k: v for k, v in a['meta'].items() if k != 'defaultSec'}
-    assert json.dumps(b, sort_keys=True) == json.dumps(a, sort_keys=True), 'змінилось щось, крім сегментів'
+    assert canon(before, skip_segments_of='10', drop_default_sec=True) == canon(after, skip_segments_of='10', drop_default_sec=True), 'змінилось щось, крім сегментів №10'
     ts = datetime.datetime.now().strftime('%Y-%m-%dT%H%M%S')
     save(path(f'db-{ts}-after-route10-segments.json'), after, indent=None)
     print('сегментів №10:', sum(1 for s in after['segments'] if s['routeId'] == '10'), '| інші маршрути без змін')
