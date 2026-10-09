@@ -186,7 +186,7 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   dataset is replaced wholesale; route/stop/scheduled time are stored as text). Actual time is the server's
   Kyiv clock, windows are ±90 min (arrived) / −5…+180 min (missed), today only. Statistics only for now:
   admin tab `/admin/arrivals` (`ArrivalReportsTab`). Logic in `backend/src/arrival-reports.ts`,
-  `useLongPress.ts`, `arrivalReport.ts`.
+  `useLongPress.ts`, `arrivalReport.ts`. Facebook post for users: `Docs/arrivals-facebook-post.md`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram
