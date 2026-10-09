@@ -115,6 +115,7 @@ describe('StopStickerTab', () => {
   it('назва — у кольорі найяскравішої лінії (№5), можна обрати іншу лінію або темний', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');
+    await stickerReady('з-д «Прожектор»');
     const select = await screen.findByLabelText('Колір назви');
     const titleFill = () => previews().map((f) => f.querySelector('.sticker-title')!.getAttribute('fill'));
     expect(select).toHaveValue('auto');
@@ -129,6 +130,7 @@ describe('StopStickerTab', () => {
   it('лінію можна перекинути на інший бік або не друкувати', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');
+    await stickerReady('з-д «Прожектор»');
     const group = await screen.findByRole('radiogroup', { name: '№5 → Шевченка, 119: бік' });
     await user.click(within(group).getByLabelText('Бік 1'));
     expect(previews()[0].querySelectorAll('svg .sticker-line')).toHaveLength(3);
@@ -140,6 +142,7 @@ describe('StopStickerTab', () => {
   it('«одна наклейка з обома боками» і друк одним аркушем', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');
+    await stickerReady('з-д «Прожектор»');
     await user.click(await screen.findByLabelText('Одна наклейка з обома боками'));
     expect(previews()).toHaveLength(1);
     expect(previews()[0].querySelectorAll('svg .sticker-line')).toHaveLength(4);
@@ -231,6 +234,7 @@ describe('StopStickerTab', () => {
   it('статистика однієї зупинки — галочкою «Лише …»', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');
+    await stickerReady('з-д «Прожектор»');
     await user.click(await screen.findByLabelText('Лише «з-д «Прожектор»»'));
     const one = 'Підсумки: зупинка «з-д «Прожектор»»';
     expect(tile(one, 'Усього')).toBe('12');
