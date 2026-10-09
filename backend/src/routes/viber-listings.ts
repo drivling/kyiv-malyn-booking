@@ -10,7 +10,7 @@ import {
   getViberListingEndDateTime,
   isPastRideDate,
 } from '../index-helpers';
-import { ADMIN_AUTH_TOKEN, requireAdmin } from '../middleware/require-admin';
+import { isAdminRequest, requireAdmin } from '../middleware/require-admin';
 import { getCatalog } from '../catalog-cache';
 import { listingMatchesSearchOd } from '../poputky-od';
 import { PUBLIC_LISTING_SELECT, toPublicListing } from '../viber-listing-public';
@@ -49,7 +49,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
   r.get('/viber-listings', async (req, res) => {
     try {
       const { active } = req.query;
-      const isAdmin = req.headers.authorization === ADMIN_AUTH_TOKEN;
+      const isAdmin = isAdminRequest(req);
       if (isAdmin) {
         const where = active === 'true' ? { isActive: true } : {};
         const listings = await prisma.viberListing.findMany({

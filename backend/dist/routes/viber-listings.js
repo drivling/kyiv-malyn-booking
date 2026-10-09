@@ -78,7 +78,7 @@ function createViberListingsRouter(deps) {
     r.get('/viber-listings', async (req, res) => {
         try {
             const { active } = req.query;
-            const isAdmin = req.headers.authorization === require_admin_1.ADMIN_AUTH_TOKEN;
+            const isAdmin = (0, require_admin_1.isAdminRequest)(req);
             if (isAdmin) {
                 const where = active === 'true' ? { isActive: true } : {};
                 const listings = await prisma.viberListing.findMany({

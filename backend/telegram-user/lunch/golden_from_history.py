@@ -1,6 +1,6 @@
 """Перетворює відповідь GET /admin/lunch/history на золоті кейси для `lunch.golden_eval`.
 
-  curl -H "Authorization: admin-authenticated" "$API/admin/lunch/history?from=2026-09-01&to=2026-10-02" > history.json
+  curl -H "Authorization: $ADMIN_TOKEN" "$API/admin/lunch/history?from=2026-09-01&to=2026-10-02" > history.json
   python3 -m lunch.golden_from_history history.json lunch/golden/history.jsonl
   python3 -m lunch.golden_eval lunch/golden/history.jsonl --baseline e73f2c5
 

@@ -115,7 +115,7 @@ VITE_API_URL=https://ваш-backend-url.railway.app
 
 Щоб клієнти автоматично отримували нагадування **за день до поїздки** та **в день поїздки**, потрібно налаштувати зовнішній cron (Railway не має вбудованого cron).
 
-**Покрокова інструкція:** дивіться **[RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md)** — там описано, як додати два cronjob’и (наприклад на cron-job.org) з правильним URL backend та заголовком `Authorization: admin-authenticated`.
+**Покрокова інструкція:** дивіться **[RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md)** — там описано, як додати два cronjob’и (наприклад на cron-job.org) з правильним URL backend та заголовком `Authorization: <ADMIN_TOKEN>` (токен з `POST /admin/login`).
 
 ---
 

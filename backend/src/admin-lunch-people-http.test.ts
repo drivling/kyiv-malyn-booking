@@ -7,12 +7,13 @@ import express from 'express';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createAdminLunchRouter } from './routes/admin-lunch';
-import { ADMIN_AUTH_TOKEN } from './middleware/require-admin';
+import { adminAuthToken, setAdminPassword } from './middleware/require-admin';
 import { isLunchSystemEcho, listLunchDayPeople } from './lunch-people';
 import { todayKyivDate } from './lunch';
 import type { LunchReparseResult } from './lunch-reparse';
 
-const auth = { Authorization: ADMIN_AUTH_TOKEN };
+const ADMIN_PASSWORD = 'lunch-test-admin';
+const auth = { Authorization: adminAuthToken(ADMIN_PASSWORD) };
 
 type Person = {
   id: number;
@@ -161,6 +162,7 @@ function emptySummaryPrisma(extra: Record<string, unknown> = {}): PrismaClient {
 
 function appWith(prisma: PrismaClient, reparsePerson = vi.fn<NonNullable<Parameters<typeof createAdminLunchRouter>[0]['reparsePerson']>>()) {
   const app = express();
+  setAdminPassword(app, ADMIN_PASSWORD);
   app.use(express.json());
   app.use(createAdminLunchRouter({ prisma, reparsePerson }));
   return { app, reparsePerson };

@@ -10,7 +10,8 @@ from urllib import error, request
 DEFAULT_DB_PATH = "/Users/merenkoff/Library/Application Support/ViberPC/380739551952/viber.db"
 DEFAULT_STATE_PATH = Path(__file__).with_name("db_parser_state.json")
 DEFAULT_BACKEND_URL = os.getenv("VIBER_BACKEND_URL", "https://kyiv-malyn-booking-production.up.railway.app")
-DEFAULT_AUTH_TOKEN = os.getenv("VIBER_ADMIN_TOKEN", "admin-authenticated")
+# Админ-токен = ответ POST /admin/login (HMAC от ADMIN_PASSWORD); старая константа больше не принимается
+DEFAULT_AUTH_TOKEN = os.getenv("VIBER_ADMIN_TOKEN", "")
 
 SQLITE_HEADER = b"SQLite format 3\x00"
 MONTHS_UA = [
@@ -68,7 +69,7 @@ def parse_args():
     parser.add_argument(
         "--auth-token",
         default=DEFAULT_AUTH_TOKEN,
-        help="Authorization header value for admin endpoints.",
+        help="Authorization header value for admin endpoints (token from POST /admin/login, env VIBER_ADMIN_TOKEN).",
     )
     parser.add_argument(
         "--state-file",
@@ -311,6 +312,9 @@ def send_raw_message(backend_url, auth_token, raw_message):
 
 def main():
     args = parse_args()
+    if args.send and not args.auth_token:
+        print("Ошибка: задай VIBER_ADMIN_TOKEN (или --auth-token) — токен из POST /admin/login")
+        return
     db_path = Path(args.db_path).expanduser()
 
     try:

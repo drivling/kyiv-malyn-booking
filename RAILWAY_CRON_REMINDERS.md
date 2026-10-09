@@ -31,13 +31,30 @@ Railway **не має вбудованого cron**, тому використо
 
 ## Крок 2: Авторизація (обов’язково)
 
-Endpoint нагадувань захищений адмін-токеном. У заголовок кожного запиту потрібно додати:
+Ендпоінти захищені адмін-токеном. У заголовок кожного запиту потрібно додати:
 
 ```
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 ```
 
-(Це фіксований токен, який бекенд повертає після успішного логіну в адмінку.)
+`<ADMIN_TOKEN>` — токен, який бекенд повертає після логіну в адмінку: HMAC-SHA256 від `ADMIN_PASSWORD`
+(64 hex-символи). Отримати його можна запитом:
+
+```bash
+curl -s -X POST "https://ВАШ-BACKEND-URL.railway.app/admin/login" \
+  -H "Content-Type: application/json" -d '{"password":"ВАШ_ADMIN_PASSWORD"}'
+# → {"token":"…","success":true}
+```
+
+або без запиту до сервера:
+
+```bash
+printf '%s' admin-session-v1 | openssl dgst -sha256 -hmac 'ВАШ_ADMIN_PASSWORD'
+```
+
+Токен не змінюється, доки не зміниться `ADMIN_PASSWORD`. Після зміни пароля оновіть заголовок у всіх
+cronjob'ах і `VIBER_ADMIN_TOKEN` Viber-парсера. Це секрет — не публікуйте його.
+Старий фіксований `admin-authenticated` більше не приймається.
 
 Без цього заголовка відповідь буде `401 Unauthorized`.
 
@@ -60,7 +77,7 @@ Authorization: admin-authenticated
    - **URL:** `https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders`
    - **Method:** `POST`
    - **Request Headers:**  
-     `Authorization` = `admin-authenticated`
+     `Authorization` = `<ADMIN_TOKEN>` (крок 2)
    - **Schedule:** щодня о **20:00** (або інший час у вашому часовому поясі).
    - Зберегти.
 
@@ -69,7 +86,7 @@ Authorization: admin-authenticated
    - **URL:** `https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders-today`
    - **Method:** `POST`
    - **Request Headers:**  
-     `Authorization` = `admin-authenticated`
+     `Authorization` = `<ADMIN_TOKEN>` (крок 2)
    - **Schedule:** щодня о **08:00** (або інший ранковий час).
    - Зберегти.
 
@@ -78,7 +95,7 @@ Authorization: admin-authenticated
    - **URL:** `https://ВАШ-BACKEND-URL.railway.app/viber-listings/cleanup-old`
    - **Method:** `POST`
    - **Request Headers:**  
-     `Authorization` = `admin-authenticated`
+     `Authorization` = `<ADMIN_TOKEN>` (крок 2)
    - **Schedule:** кожні **1 годину** або **2 години** (наприклад `0 * * * *` або `0 */2 * * *`).
    - Зберегти.
 
@@ -87,7 +104,7 @@ Authorization: admin-authenticated
    - **URL:** `https://ВАШ-BACKEND-URL.railway.app/viber-listings/archive-old?days=90`
    - **Method:** `POST`
    - **Request Headers:**  
-     `Authorization` = `admin-authenticated`
+     `Authorization` = `<ADMIN_TOKEN>` (крок 2)
    - **Schedule:** `0 4 1 * *` (1-го числа о 04:00).
    - Зберегти.
 
@@ -96,7 +113,7 @@ Authorization: admin-authenticated
    - **URL:** `https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messages`
    - **Method:** `POST`
    - **Request Headers:**  
-     `Authorization` = `admin-authenticated`
+     `Authorization` = `<ADMIN_TOKEN>` (крок 2)
    - **Schedule:** кожні **2 години** (наприклад `0 */2 * * *`).
    - Зберегти.
    - *Потрібно: особистий акаунт в групі PoDoroguem, TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH.*
@@ -107,31 +124,31 @@ Authorization: admin-authenticated
 
 ## Перевірка вручну (curl)
 
-Перед налаштуванням cron перевірте, що backend доступний і приймає запити:
+Перед налаштуванням cron перевірте, що backend доступний і приймає запити (`ADMIN_TOKEN` — з кроку 2):
 
 **Нагадування за день до поїздки:**
 ```bash
 curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 **Нагадування в день поїздки:**
 ```bash
 curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/send-reminders-today" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 **Очистити старі Viber оголошення:**
 ```bash
 curl -X POST "https://ВАШ-BACKEND-URL.railway.app/viber-listings/cleanup-old" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 У відповіді буде JSON, наприклад: `{"success":true,"deactivated":2,"message":"Деактивовано 2 оголошень"}`.
 
 **Завантажити нові повідомлення з групи PoDoroguem:**
 ```bash
 curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messages" \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 У відповіді буде JSON, наприклад: `{"success":true,"message":"Імпортовано 3 нових з 5 повідомлень","created":3,"total":5}` або `{"success":true,"message":"Немає нових повідомлень","created":0,"total":0}`.
 
@@ -174,7 +191,7 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messag
 
 - [ ] Backend задеплоєний на Railway, згенерований публічний URL.
 - [ ] У backend змінні оточення: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID` (див. `RAILWAY_SETUP.md`).
-- [ ] Перевірено вручну: `curl` на обидва endpoint’и з заголовком `Authorization: admin-authenticated`.
+- [ ] Перевірено вручну: `curl` на обидва endpoint’и з заголовком `Authorization: <ADMIN_TOKEN>` (крок 2).
 - [ ] На cron-job.org (або аналозі) створено cronjob'и: нагадування за день, нагадування сьогодні, очищення старих Viber оголошень (опціонально, кожні 1–2 год), завантаження з групи PoDoroguem (опціонально, кожні 2 год).
 - [ ] Час виклику в налаштуваннях cron відповідає вашому часовому поясу.
 

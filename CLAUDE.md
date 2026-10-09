@@ -93,6 +93,11 @@ of `dist` in a commit.
   which is what makes `createApp({ prisma })` swappable in tests.
 - `src/middleware/require-admin.ts` — shared admin-auth guard used by admin routers. Admin auth is a
   simple shared token/password (`ADMIN_PASSWORD` env var, dev fallback `admin123`), not per-user JWTs.
+  The token `POST /admin/login` returns is `HMAC-SHA256(ADMIN_PASSWORD, 'admin-session-v1')`
+  (`adminAuthToken`; `createApp` binds it via `setAdminPassword(app, …)` → `app.locals`). External
+  automation (cron-job.org jobs, the Viber parser's `VIBER_ADMIN_TOKEN`) sends the same static value,
+  so changing the password means updating them too (`RAILWAY_CRON_REMINDERS.md`, step 2). Backend tests take
+  the header from `adminAuthToken(<test password>)` — never hardcode a token.
 - Large standalone domain modules at `src/` top level, each usually paired with its own `*.test.ts`:
   `telegram.ts` (very large — bot commands, notifications, DI hooks), `referral.ts`, `viber-parser.ts`,
   `lunch.ts` / `lunch-listener.ts` / `lunch-reparse.ts` / `lunch-telegram.ts`, `local-transport.ts`,

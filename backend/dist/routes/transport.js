@@ -12,7 +12,7 @@ const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
 function createTransportRouter(deps) {
     const { prisma } = deps;
-    const adminPassword = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
+    const adminPassword = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
     const r = express_1.default.Router();
     const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
     /** Публічний повний датасет міського транспорту (~150 КБ). */

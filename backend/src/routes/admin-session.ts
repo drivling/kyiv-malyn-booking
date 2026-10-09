@@ -1,14 +1,15 @@
 import express, { type Router } from 'express';
-import { ADMIN_AUTH_TOKEN, requireAdmin } from '../middleware/require-admin';
+import { adminAuthToken, requireAdmin, safeEqual } from '../middleware/require-admin';
 
 export function createAdminSessionRouter(options: { adminPassword: string }): Router {
   const r = express.Router();
   const { adminPassword } = options;
+  const token = adminAuthToken(adminPassword);
 
   r.post('/admin/login', async (req, res) => {
-    const { password } = req.body;
-    if (password === adminPassword) {
-      res.json({ token: ADMIN_AUTH_TOKEN, success: true });
+    const { password } = req.body ?? {};
+    if (safeEqual(password, adminPassword)) {
+      res.json({ token, success: true });
     } else {
       res.status(401).json({ error: 'Невірний пароль' });
     }

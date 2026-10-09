@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
-import { requireAdmin } from '../middleware/require-admin';
+import { requireAdmin, resolveAdminPassword } from '../middleware/require-admin';
 import {
   loadTransportDataset,
   replaceTransportDataset,
@@ -19,7 +19,7 @@ import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticke
 
 export function createTransportRouter(deps: { prisma: PrismaClient; adminPassword?: string }): Router {
   const { prisma } = deps;
-  const adminPassword = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
+  const adminPassword = resolveAdminPassword(deps.adminPassword);
   const r = express.Router();
   const isRepeatScan = createScanDeduper();
 

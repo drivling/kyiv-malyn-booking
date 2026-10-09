@@ -9,10 +9,11 @@ const require_admin_1 = require("../middleware/require-admin");
 function createAdminSessionRouter(options) {
     const r = express_1.default.Router();
     const { adminPassword } = options;
+    const token = (0, require_admin_1.adminAuthToken)(adminPassword);
     r.post('/admin/login', async (req, res) => {
-        const { password } = req.body;
-        if (password === adminPassword) {
-            res.json({ token: require_admin_1.ADMIN_AUTH_TOKEN, success: true });
+        const { password } = req.body ?? {};
+        if ((0, require_admin_1.safeEqual)(password, adminPassword)) {
+            res.json({ token, success: true });
         }
         else {
             res.status(401).json({ error: 'Невірний пароль' });
