@@ -118,7 +118,7 @@ test('mirror: frontend tripTiming.ts is byte-identical to backend trip-timing.ts
   const fs = await import('node:fs');
   const path = await import('node:path');
   const here = path.resolve(__dirname, 'tripTiming.ts');
-  const mirror = path.resolve(__dirname, '../../../../backend/src/trip-timing.ts');
+  const mirror = path.resolve(__dirname, '../../../../../backend/src/trip-timing.ts');
   if (!fs.existsSync(mirror)) return; // поза монорепо (Docker/CI фронтенду) — пропускаємо
   assert.equal(fs.readFileSync(here, 'utf8'), fs.readFileSync(mirror, 'utf8'));
 });

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { FaqAnswerText } from '@/components/FaqAnswerText';
 import { usePageSeo } from '@/hooks';
-import { useTransportDataset } from '@/pages/TransportPage/useTransportDataset';
+import { useTransportDataset } from '@/pages/LocalTransportPage/dataset/useTransportDataset';
 import type { Schedule } from '@/types';
 import { getRouteLabel } from '@/utils/constants';
 import { vehicleLabel } from '@/utils/vehicleLabel';

@@ -17,8 +17,8 @@ import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
-import { useTransportDataset } from '../TransportPage/useTransportDataset';
-import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { useTransportDataset } from './dataset/useTransportDataset';
+import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { hiddenTransportRouteIds } from '@/api/transportDataset';
 // Плоский ESM, спільний із prerender-transport-stops.mjs (як site-hosts.mjs)
 import { relatedPagesForStop } from '../../../scripts/stop-related-pages.mjs';

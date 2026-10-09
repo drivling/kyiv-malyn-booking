@@ -9,7 +9,7 @@ import { http, HttpResponse } from 'msw';
 import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import { invalidateTransportDatasetCache } from '../TransportPage/useTransportDataset';
+import { invalidateTransportDatasetCache } from './dataset/useTransportDataset';
 import { tomorrowDateUrl } from './dateUrl';
 import { LocalTransportPage } from './LocalTransportPage';
 

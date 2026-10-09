@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePageSeo } from '@/hooks';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
-import { useTransportDataset } from '../TransportPage/useTransportDataset';
+import { useTransportDataset } from './dataset/useTransportDataset';
 import { routeScheduleStats } from './schemeStats';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { SCHEME_COLOR_VARS } from './routeColors';

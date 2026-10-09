@@ -151,9 +151,23 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
 ## Frontend architecture
 
-- `src/pages/*` — route-level pages (BookingPage, AdminPage, LocalTransportPage, MizhgorodskiPage
-  [intercity trains], PoputkyPage [rideshare board], TransportPage, UserPage, LoginPage, SupportPage,
-  CompanyLegalPage), matching top-level app routes in `App.tsx`.
+- `src/pages/*` — route-level pages, matching the routes in `App.tsx`. The public menu has four
+  entries and they are the whole public surface:
+  - `MizhgorodskiPage` → `/` and `/mizhgorodski` — the intercity board (rideshares, marshrutky,
+    elektrichky) plus the home-city picker. The same directory renders `CorridorLandingPage`
+    (`/mizhgorodski/:corridorSlug` SEO landings), `ZubastykPage` (`/zubastyk`) and
+    `AvtostantsiyaPage` (`/avtostantsiya-malyn`).
+  - `LocalTransportPage` → `/transport*` — city transit (planner, route detail, stop board via
+    `LocalTransportStopBoardPage`, scheme via `LocalTransportSchemePage`, `LocalTransportSoon` stub).
+    The transport dataset loader/adapter and `tripTiming.ts` live in `LocalTransportPage/dataset/`;
+    the admin tabs and `AvtostantsiyaPage` import them from there too.
+  - `CompanyLegalPage` → `/about` — company details, privacy policy, terms, referral rules.
+  - `SupportPage` → `/support` — help centre (`SupportHub` + `SupportArticle`).
+
+  Plus non-menu routes: `AdminPage` (`/admin/:tab?`), `StickerWallPage` (`/admin/wall`),
+  `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` and `/poputky` redirect to `/mizhgorodski`;
+  the old BookingPage and PoputkyPage components were removed in #38 (recover them from git history
+  if a booking page is ever needed again).
 - `src/api/client.ts` — single typed API client wrapping all backend calls; add new endpoints here
   rather than calling `fetch` ad hoc from components. `API_URL` comes from `VITE_API_URL`
   (`src/utils/constants.ts`), proxied to `http://localhost:3000` in dev (`vite.config.ts`).
@@ -244,7 +258,7 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   Route numbers are primary keys; renumbering is done in a migration (see the 6 → 10 one).
 - Per-trip `startStopId` / `endStopId` / `arrivalTime` (short-turn trips, fixed arrival that
   compresses that trip's segment durations) are computed on the fly by one pure helper kept
-  byte-identical in `frontend/src/pages/TransportPage/tripTiming.ts` and
+  byte-identical in `frontend/src/pages/LocalTransportPage/dataset/tripTiming.ts` and
   `backend/src/trip-timing.ts` (a frontend test diffs them). Public pages go through
   `recordTiming()` in `routeTiming.ts`, the admin grid through `computeTripTimes()`, GTFS through
   `backend/src/gtfs-stop-times.ts`. Headsign is display-only; the served stop range comes from

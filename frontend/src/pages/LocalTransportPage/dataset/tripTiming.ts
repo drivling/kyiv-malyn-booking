@@ -3,7 +3,7 @@
  * пропорційне стиснення під фіксований час прибуття на останню обслуговувану зупинку.
  *
  * MIRROR: keep byte-identical with backend/src/trip-timing.ts
- * (frontend copy: frontend/src/pages/TransportPage/tripTiming.ts). Чистий модуль без імпортів.
+ * (frontend copy: frontend/src/pages/LocalTransportPage/dataset/tripTiming.ts). Чистий модуль без імпортів.
  */
 
 /** Тривалість перегону між двома сусідніми ключами ланцюжка (секунди). */

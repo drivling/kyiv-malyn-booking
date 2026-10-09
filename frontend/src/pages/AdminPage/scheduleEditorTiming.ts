@@ -1,10 +1,10 @@
 /**
  * Чисті обчислення для ScheduleEditorTab: час на зупинці = departureTime рейсу +
  * сума TransportSegment.seconds від першої обслуговуваної зупинки (той самий алгоритм,
- * що й на публічній сторінці — див. ../TransportPage/tripTiming.ts).
+ * що й на публічній сторінці — див. ../LocalTransportPage/dataset/tripTiming.ts).
  */
 import type { TransportSegmentDto, TransportTripDto } from '@/api/transportDataset';
-import { computeTripTiming, minutesAtStop, type TripTiming } from '../TransportPage/tripTiming';
+import { computeTripTiming, minutesAtStop, type TripTiming } from '../LocalTransportPage/dataset/tripTiming';
 
 export const FALLBACK_DEFAULT_SEGMENT_SEC = 120;
 

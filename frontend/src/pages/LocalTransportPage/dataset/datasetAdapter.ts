@@ -3,9 +3,9 @@
  * (TransportData + coords + segments lookup for Local helpers).
  */
 
-import type { TransportDataset } from '../../api/transportDataset.ts';
-import { datasetToEditor, publicTransportDataset } from '../../api/transportDataset.ts';
-import type { Supplement, TransportData, TransportRecord } from '../LocalTransportPage/types.ts';
+import type { TransportDataset } from '@/api/transportDataset';
+import { datasetToEditor, publicTransportDataset } from '@/api/transportDataset';
+import type { Supplement, TransportData, TransportRecord } from '../types';
 
 export interface LocalCoords {
   center: [number, number];

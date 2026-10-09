@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
-import type { TransportDataset } from '../../api/transportDataset';
+import type { TransportDataset } from '@/api/transportDataset';
 import {
   datasetToLocalViewModel,
   getDurationFromStartSec,

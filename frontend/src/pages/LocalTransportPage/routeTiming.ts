@@ -9,7 +9,7 @@ import {
   getDurationFromStartSec as getDurationFromStartSecFromFile,
   DEFAULT_SEGMENT_DURATION_SEC,
 } from './segmentDurations';
-import { computeTripTiming, type SegSecFn, type TripTiming } from '../TransportPage/tripTiming';
+import { computeTripTiming, type SegSecFn, type TripTiming } from './dataset/tripTiming';
 import type { TransportRecord } from './types';
 import { parseClockToMinutes, tripDepartureMinutes } from './tripDeparture';
 

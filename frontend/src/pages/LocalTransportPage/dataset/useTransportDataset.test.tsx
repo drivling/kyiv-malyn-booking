@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw';
 import {
   invalidateTransportDatasetCache,
   useTransportDataset,
-} from '@/pages/TransportPage/useTransportDataset';
+} from './useTransportDataset';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 

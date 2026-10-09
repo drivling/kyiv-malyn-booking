@@ -4,7 +4,7 @@ import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
 import { apiClient } from '@/api/client';
 import type { TransportDataset, TransportRouteDto, TransportTripDto } from '@/api/transportDataset';
-import { broadcastTransportDatasetInvalidate } from '../TransportPage/useTransportDataset';
+import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import {
   autoHeadsign,
   buildSegmentLookup,
@@ -16,7 +16,7 @@ import {
   parseClockToMinutes,
   FALLBACK_DEFAULT_SEGMENT_SEC,
 } from './scheduleEditorTiming';
-import type { TripTiming } from '../TransportPage/tripTiming';
+import type { TripTiming } from '../LocalTransportPage/dataset/tripTiming';
 import './ScheduleEditorTab.css';
 
 type DirectionMode = 'there' | 'back';

@@ -11,8 +11,8 @@ export default mergeConfig(
       coverage: {
         provider: 'v8',
         include: [
-          'src/pages/TransportPage/datasetAdapter.ts',
-          'src/pages/TransportPage/tripTiming.ts',
+          'src/pages/LocalTransportPage/dataset/datasetAdapter.ts',
+          'src/pages/LocalTransportPage/dataset/tripTiming.ts',
           'src/pages/LocalTransportPage/stopDepartures.ts',
           'src/pages/LocalTransportPage/stopCatalog.ts',
           'src/pages/LocalTransportPage/tripDeparture.ts',

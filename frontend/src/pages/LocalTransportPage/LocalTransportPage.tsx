@@ -23,12 +23,12 @@ import {
   resolveStopIdInList,
 } from './stopCatalog';
 import { VERIFIED_ROUTE_IDS, isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
-import { computeTripTiming, minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
+import { computeTripTiming, minutesAtStop, tripServesPair } from './dataset/tripTiming';
 import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
 import { findNearestTrip, findUpcomingTrips } from './nearestTrip';
 import { tripDestination } from './stopDepartures';
-import { useTransportDataset } from '../TransportPage/useTransportDataset';
-import { datasetToLocalViewModel } from '../TransportPage/datasetAdapter';
+import { useTransportDataset } from './dataset/useTransportDataset';
+import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
 import { LocalTransportSubNav } from './LocalTransportSubNav';

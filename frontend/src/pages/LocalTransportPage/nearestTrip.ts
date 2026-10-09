@@ -5,7 +5,7 @@
  */
 import type { TransportRecord } from './types';
 import { recordTiming } from './routeTiming';
-import { minutesAtStop, tripServesPair } from '../TransportPage/tripTiming';
+import { minutesAtStop, tripServesPair } from './dataset/tripTiming';
 import { groupTripsByDirection, tripDepartureMinutes } from './tripDeparture';
 
 /** Контекст «на зупинці»: час рейсу рахується на fromStop, рейс має обслуговувати пару З→До */

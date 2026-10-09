@@ -14,7 +14,7 @@ import {
   editorToDataset,
   type TransportDataset,
 } from '@/api/transportDataset';
-import { broadcastTransportDatasetInvalidate } from '../TransportPage/useTransportDataset';
+import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import { getStopArticle } from '@/content/stops';
 import { StopsPanel } from './MapEditorStopsPanel';
 import {
