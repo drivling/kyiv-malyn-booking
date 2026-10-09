@@ -1,5 +1,6 @@
 """Записує згенеровані розділи звіту у Docs/transport-stops-audit-2026-10.md між маркерами
 <!-- <name>:begin --> … <!-- <name>:end -->. Аргумент: імена розділів (phase1 phase2 …)."""
+import glob
 import os
 import re
 import sys
@@ -123,6 +124,44 @@ def phase3(_R):
     return L
 
 
+def phase4(_R):
+    P = load(path('route10-proposal.json'))
+    names = {}
+    for k in ('there', 'back', 'off'):
+        for x in P[k]:
+            names[x['id']] = x['name']
+    tech = set(P['tech'])
+    applied = sorted(glob.glob(path('db-*-after-route10.json')))
+    seg = sorted(glob.glob(path('db-*-after-route10-segments.json')))
+    backup = sorted(glob.glob(path('db-*-before-route10.json')))
+    fmt = lambda chain: ' → '.join(names.get(i, i) for i in chain if i not in tech)
+    L = ['### Фаза 4 — маршрут №10 (колишній №6)', '',
+         f"Шлях — OSM rel {P['relation']} («Залізничний вокзал-Лікарня #10»), {P['path_length_m'] / 1000:.1f} км: "
+         'Вокзальна пл. → Огієнка → Малинівський круг → Мирутенка → Українських Повстанців → Винниченка (автостанція) → '
+         'Залужного → Грушевського (центр) → Шевченка → 10-ї ОГШБ → Поліклініка. Це збігається з офіційним описом №6 (2024). '
+         'У релейшені OSM два відрізки Шевченка повторено ~10 разів (артефакт редагування) — кожен узято один раз.', '',
+         'Кожну з 34 зупинок №10 спроєктовано на шлях. Пари розведено за боком дороги (правосторонній рух) — '
+         'результат збігся з тим, як ці пари стоять у перевірених №3/11/12. Одиночні («Молокозавод», «Хлібзавод», '
+         '«Малинівський круг», «Укр. Повстанців 38») — в обидва боки; «Сонечко» — лише в бік Поліклініки, як у №3/7/12. '
+         'Біля вокзалу додано ті самі технічні точки, що в №3/11/12.', '',
+         f"**Туди** (Поліклініка → Вокзал, рейс 10-02): {fmt(P['there_chain'])}", '',
+         f"**Назад** (Вокзал → Поліклініка, рейс 10-01): {fmt(P['back_chain'])}", '',
+         'Лишаються в маршруті з `-1` (на сайті й у розкладі не показуються):', '']
+    L += [f"- {o['name']} — {o['reason']}" for o in P['off']]
+    L += ['', 'Інше: шлях проходить повз «м-н Корона» (Шевченка 58), але у файлі №6 її немає — не додавали. '
+          'Координати зупинок, які є лише в №10 (обидві «Автостанції», «Укр. Повстанців 38», «Енергоінвест», '
+          '«Райагрошляхбуд»), у фазі 2 підтверджені — не змінювали. Копій зупинок не знадобилось.', '']
+    if applied:
+        L += [f"**Записано в базу** — бекап `{os.path.basename(backup[-1])}`, стан після `{os.path.basename(applied[-1])}`"
+              + (f", після перерахунку сегментів `{os.path.basename(seg[-1])}`" if seg else '') + '. '
+              'Змінено лише рядки маршруту 10 (`routeStops`, `fromName/toName/scheme/note`)'
+              + (' і його сегменти' if seg else '') + '; інші маршрути, зупинки, рейси й сегменти побайтово ті самі. '
+              'Маршрут лишився прихованим (`unreliable`), рейси не чіпали.']
+    else:
+        L += ['_Ще не записано в базу._']
+    return L
+
+
 def write(name, lines):
     doc = open(DOC, encoding='utf-8').read()
     block = f"<!-- {name}:begin -->\n" + '\n'.join(lines).rstrip() + f"\n<!-- {name}:end -->"
@@ -138,4 +177,4 @@ def write(name, lines):
 if __name__ == '__main__':
     R = load(path('stops-review.json'))
     for n in sys.argv[1:]:
-        write(n, {'phase1': phase1, 'phase2': phase2, 'phase3': phase3}[n](R))
+        write(n, {'phase1': phase1, 'phase2': phase2, 'phase3': phase3, 'phase4': phase4}[n](R))
