@@ -40,9 +40,16 @@ export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }
   const [phase, setPhase] = useState<Phase>({ step: 'choose' });
   const [nowMins, setNowMins] = useState(() => getKyivMinutesNow());
   const dialogRef = useRef<HTMLDivElement>(null);
+  /**
+   * Палець уже торкнувся відкритої панелі. Після довгого натискання Chrome на Android шле ще й
+   * «клік» у те саме місце, коли палець піднімають, — а там уже фон або кнопка панелі. Такий клік
+   * (без власного pointerdown) не закриває панель і не надсилає звіт. Клавіатура (detail = 0) — як є.
+   */
+  const armed = useRef(false);
 
   useEffect(() => {
     if (!target) return;
+    armed.current = false;
     setPhase({ step: 'choose' });
     setNowMins(getKyivMinutesNow());
     dialogRef.current?.focus();
@@ -91,7 +98,18 @@ export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }
   const nowClock = minsToHhmm(nowMins);
 
   return createPortal(
-    <div className="lt-arrival-backdrop" onClick={onClose}>
+    <div
+      className="lt-arrival-backdrop"
+      onPointerDownCapture={() => {
+        armed.current = true;
+      }}
+      onClickCapture={(e) => {
+        if (armed.current || e.detail === 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onClick={onClose}
+    >
       <div
         ref={dialogRef}
         className="lt-arrival-sheet"

@@ -285,6 +285,24 @@ describe('stop board: long press on a departure card', () => {
     await waitFor(() => expect(location()).toBe(before));
   });
 
+  it('the click Android sends when the finger is lifted neither closes the sheet nor sends a report', async () => {
+    const user = userEvent.setup();
+    renderAt(`/transport/stop/st_a?d=${TODAY}&h=08%3A00`);
+    const card = await screen.findByRole('link', { name: /Маршрут 2, відправлення 08:30/ }, { timeout: 5000 });
+    fireEvent.contextMenu(card);
+    const dialog = await screen.findByRole('dialog');
+    const arrived = within(dialog).getByRole('button', { name: 'Автобус тут — зараз 08:33' });
+    // «клік» без власного pointerdown — те, що Chrome шле після утримання
+    fireEvent.click(arrived, { detail: 1 });
+    fireEvent.click(document.querySelector('.lt-arrival-backdrop') as HTMLElement, { detail: 1 });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(posted).toEqual([]);
+    // справжнє торкання панелі працює
+    await user.click(arrived);
+    await within(dialog).findByText(/Записали: автобус приїхав о 08:33/);
+    expect(posted).toHaveLength(1);
+  });
+
   it('a server error is shown and the sheet stays open', async () => {
     const user = userEvent.setup();
     server.use(http.post(`${TEST_API_URL}/transport/arrival-reports`, () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
