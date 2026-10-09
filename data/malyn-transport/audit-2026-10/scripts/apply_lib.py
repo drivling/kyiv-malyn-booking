@@ -135,3 +135,34 @@ def recalc(phase, routes):
               f'хв туди/назад {out[rid]["before_min"]} → {out[rid]["after_min"]}')
     save(path(f'db-{now()}-after-{phase}-segments.json'), fetch(), indent=None)
     return out
+
+
+def set_chains(d, rid, there, back, map_only=()):
+    """Замінює порядок маршруту rid: there/back — списки stopId. Зупинки маршруту поза обома списками лишаються
+    з -1/-1 (членство не губимо); нові зупинки додаються. map_only — технічні точки (mapOnly=True)."""
+    old = {x['stopId']: x for x in d['routeStops'] if x['routeId'] == rid}
+    ot = {s: i + 1 for i, s in enumerate(there)}
+    ob = {s: i + 1 for i, s in enumerate(back)}
+    assert len(ot) == len(there) and len(ob) == len(back), 'дубль у ланцюжку'
+    rows = []
+    for sid in list(old) + [s for s in list(there) + list(back) if s not in old]:
+        if any(r['stopId'] == sid for r in rows):
+            continue
+        prev = old.get(sid, {})
+        rows.append({'routeId': rid, 'stopId': sid, 'orderThere': ot.get(sid, -1), 'orderBack': ob.get(sid, -1),
+                     'mapOnly': bool(prev.get('mapOnly', sid in map_only))})
+    d['routeStops'] = [x for x in d['routeStops'] if x['routeId'] != rid] + rows
+    return d
+
+
+def insert_after(seq, new, after):
+    i = seq.index(after)
+    return seq[:i + 1] + [new] + seq[i + 1:]
+
+
+def move_stop(d, sid, lat, lon):
+    for s in d['stops']:
+        if s['id'] == sid:
+            s['lat'], s['lng'] = lat, lon
+            return d
+    raise KeyError(sid)
