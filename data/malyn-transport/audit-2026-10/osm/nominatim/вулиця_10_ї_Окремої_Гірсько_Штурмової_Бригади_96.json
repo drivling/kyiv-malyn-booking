@@ -1,0 +1,36 @@
+[
+ {
+  "place_id": 191673918,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 551612655,
+  "lat": "50.7763805",
+  "lon": "29.2183479",
+  "category": "building",
+  "type": "yes",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "96, вулиця 10-ї Окремої Гірсько-Штурмової Бригади, Михайлівка, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11601, Україна",
+  "address": {
+   "house_number": "96",
+   "road": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "suburb": "Михайлівка",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11601",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7763252",
+   "50.7764357",
+   "29.2182778",
+   "29.2184180"
+  ]
+ }
+]

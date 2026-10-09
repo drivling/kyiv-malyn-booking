@@ -1,0 +1,37 @@
+[
+ {
+  "place_id": 191323942,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 549017199,
+  "lat": "50.7599409",
+  "lon": "29.2847722",
+  "category": "shop",
+  "type": "general",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "shop",
+  "name": "Продукти на кожен день",
+  "display_name": "Продукти на кожен день, 51, Городищанська вулиця, Городище, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11604, Україна",
+  "address": {
+   "shop": "Продукти на кожен день",
+   "house_number": "51",
+   "road": "Городищанська вулиця",
+   "neighbourhood": "Городище",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11604",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7599083",
+   "50.7600161",
+   "29.2846930",
+   "29.2848513"
+  ]
+ }
+]

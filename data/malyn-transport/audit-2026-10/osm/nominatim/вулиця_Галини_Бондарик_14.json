@@ -1,0 +1,35 @@
+[
+ {
+  "place_id": 191442099,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 169662486,
+  "lat": "50.7740486",
+  "lon": "29.2206778",
+  "category": "highway",
+  "type": "residential",
+  "place_rank": 26,
+  "importance": 0.053387401388570954,
+  "addresstype": "road",
+  "name": "вулиця Галини Бондарик",
+  "display_name": "вулиця Галини Бондарик, Михайлівка, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11601, Україна",
+  "address": {
+   "road": "вулиця Галини Бондарик",
+   "suburb": "Михайлівка",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11601",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7720458",
+   "50.7760284",
+   "29.2205577",
+   "29.2208835"
+  ]
+ }
+]
