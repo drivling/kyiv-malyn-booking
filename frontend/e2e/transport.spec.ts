@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, devices, type Locator, type Page } from '@playwright/test';
 import { dismissCookieNotice, mockBackendApi } from './helpers';
 
 test.describe('transport', () => {
@@ -374,6 +374,48 @@ test.describe('transport', () => {
       await page.getByRole('button', { name: 'Готово' }).click();
       await expect(dialog).toHaveCount(0);
       await expect(page.locator('.lt-route-num--card').first()).toBeVisible();
+    });
+  });
+
+  test.describe('long press with a finger on an Android phone', () => {
+    const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['Pixel 7'];
+    test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, timezoneId: 'Europe/Kyiv' });
+
+    /** Утримання пальцем (CDP touch): після touchend Chrome на Android ще й «клацає» в те саме місце */
+    async function hold(page: Page, target: Locator, ms = 900) {
+      await target.scrollIntoViewIfNeeded();
+      const box = await target.boundingBox();
+      if (!box) throw new Error('target is not visible');
+      const cdp = await page.context().newCDPSession(page);
+      const pt = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pt] });
+      await page.waitForTimeout(ms);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(400);
+    }
+
+    test('the sheet stays open after the finger is lifted and nothing is sent by itself', async ({ page }) => {
+      await page.clock.setFixedTime(new Date('2026-09-16T05:33:00Z')); // 08:33 за Києвом
+      const reports: unknown[] = [];
+      page.on('request', (r) => {
+        if (r.url().endsWith('/transport/arrival-reports') && r.method() === 'POST') reports.push(r.postDataJSON());
+      });
+      await page.goto('/transport/route/2?stop=st_a&dir=there&d=16.09.26&h=08%3A00');
+      const chip = page.getByRole('group', { name: 'Відправлення за день' }).getByRole('button').first();
+      await expect(chip).toContainText('08:30');
+      await hold(page, chip, 150);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await hold(page, chip);
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toContainText('№2 · 08:30 за розкладом');
+
+      await page.goto('/transport/stop/st_a?d=16.09.26&h=08%3A00');
+      await hold(page, page.locator('.lt-board-card').first());
+      await expect(dialog).toContainText('08:30 за розкладом');
+      expect(reports).toEqual([]);
+      await dialog.getByRole('button', { name: 'Автобус тут — зараз 08:33' }).tap();
+      await expect(dialog).toContainText('Дякуємо!');
+      expect(reports).toHaveLength(1);
     });
   });
 
