@@ -1,0 +1,73 @@
+# Схема міських маршрутів Малина (стиль метро)
+
+Октолінійна схема 9 міських маршрутів (2, 3, 5, 7, 8, 9, 10, 11, 12): кінцеві, центральні та вузлові
+зупинки, річка Ірша з водосховищем (схематично, контури за OpenStreetMap), легенда з «через»,
+кількістю рейсів і часом першого/останнього. Не в масштабі.
+
+Маршрут 10 намальований за старою схемою на вокзалі (петля Лікарня → Автостанція / Укр. Повстанців
+→ Центр → Грушевського → Вокзал); поки його розклад у базі не заповнений, у легенді стоїть
+«розклад уточнюється» (`UNCONFIRMED` у генераторі). Після заповнення — прибрати `'10'` з `UNCONFIRMED`.
+
+- `malyn-transit-scheme.svg` — самодостатній файл (світла тема) для друку, месенджерів, соцмереж.
+- `index.html` — та сама схема як сторінка зі світлою/темною темою й примітками.
+- `build_scheme.py` — генератор. Геометрія (вузли, коридори, смуги) задана вручну в коді;
+  легенда рахується з `/transport/dataset` (кількість рейсів у кожен бік, перший–останній).
+
+На сайті схема живе на `/transport/scheme` (вкладка «Схема» розділу транспорту,
+`frontend/src/pages/LocalTransportPage/LocalTransportSchemePage.tsx`). Сторінка вставляє
+згенерований `scheme/malyn-scheme.svg` (лінії з `data-route`, зупинки з `data-stop`) і бере
+легенду зі згенерованого `scheme/malyn-scheme-routes.ts`; статистика рейсів рахується з датасету
+на льоту. Плакат із QR-кодом лежить у `frontend/public/transport/scheme/` і віддається як статика.
+
+Той самий SVG повторно використовують:
+- `LocalTransportSchemeMini.tsx` — міні-схема на сторінках маршруту (`/transport/route/:id`,
+  яскрава лише ця лінія) і зупинки (`/transport/stop/:id`, лінії через зупинку + маркер «ви тут»,
+  якщо зупинка є вузлом/орієнтиром схеми). Кадр обрізається до підсвічених ліній і їхніх зупинок
+  (`getBBox`, лише в браузері), уся мініатюра — посилання на `/transport/scheme?route=` /
+  `?stop=`. Стани SVG (притьмарення, «ви тут») — у `scheme/scheme-svg.css`.
+- `routeColors.ts` — кольори ліній (`--lt-route-color`, `--lts-r<id>`) для плашок номерів.
+- `schemeStops.ts` (`routesAtStop`, `schemeNodeForStop`, `routesAtNode`, `stopsOfNode`) — лінії
+  схеми через зупинку або через весь вузол з `routeStops` датасету (без `mapOnly` і ненадійних).
+
+**Вузол = кілька зупинок.** Вузол схеми («Лікарня · Поліклініка», «Центр · Базарна площа», орієнтир
+із парою через дорогу) обʼєднує кілька фізичних зупинок датасету: `NODE_STOPS` у генераторі — ключ
+головна зупинка (`data-stop` у SVG, посилання на табло), значення — решта зупинок вузла. SVG несе
+`data-stops="st_0035 st_0036 st_0072"`, а `--site-dir` пише `malyn-scheme-nodes.ts` (`SCHEME_NODES`:
+`{ id, kind, name, stopIds }`). Лінії вузла = обʼєднання ліній усіх його зупинок, тож «Лікарня ·
+Поліклініка» бачить і 3/7/12 з Поліклініки (209 м від Лікарні). Ревізія після змін датасету:
+
+```bash
+python3 build_scheme.py --suggest-node-stops [--dataset dataset.json]   # зупинки в радіусі 150 м від вузлів, ✓ — уже у вузлі
+```
+
+Сторінка схеми розуміє `?route=<id>` (обрана лінія) і `?stop=<id>` (маркер «ви тут» на вузлі
+зупинки, лінії через вузол, прокрутка полотна до нього, картка зі зупинками вузла та посиланнями на
+їхні табло).
+
+Перегенерувати після зміни розкладів або геометрії (з кореня репозиторію):
+
+```bash
+pip install segno                                  # QR-код для плаката (один раз)
+cd Docs/malyn-transit-scheme
+python3 build_scheme.py --out-dir . \
+  --site-dir ../../frontend/src/pages/LocalTransportPage/scheme \
+  --poster-dir ../../frontend/public/transport/scheme \
+  --qr-url https://malin.kiev.ua/transport/scheme \
+  --fonts-dir fonts                                # woff2 Golos Text (кирилиця + латиниця) для плаката; без нього — системний шрифт
+# --dataset dataset.json — замість Railway API взяти локальний JSON (GET /transport/dataset)
+```
+
+PDF плаката (A2 landscape 594×420 мм, той самий SVG; правило `@page` вже вшите у стиль SVG)
+робиться Chromium-ом прямо з файла:
+
+```bash
+cd frontend/public/transport/scheme
+chromium --headless --no-sandbox --disable-gpu --no-pdf-header-footer \
+  --print-to-pdf=malyn-transit-scheme-poster.pdf "file://$PWD/malyn-transit-scheme-poster.svg"
+```
+
+Шрифт у PDF береться з вбудованого в SVG woff2 (або з системного Golos Text, якщо встановлений).
+QR-код можна перевірити, наприклад, `cv2.QRCodeDetector().detectAndDecode()` на PNG-рендері.
+
+Перелік маршрутів на схемі — `ROUTE_ORDER` у генераторі (оновлюється вручну); маршрут 1 і
+`10-old` на схему не потрапляють.

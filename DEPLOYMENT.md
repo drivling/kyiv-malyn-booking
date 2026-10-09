@@ -187,6 +187,8 @@
    - `DATABASE_URL` - для Prisma
    - `ADMIN_PASSWORD` - пароль адміна
    - `VITE_API_URL` - URL бекенду (для frontend)
+   - `VITE_MAP_TILES_URL` / `VITE_MAP_TILES_ATTRIBUTION` - тайли карти `/transport` (необовʼязково;
+     за замовчуванням OpenStreetMap, CARTO потребує API-ключа)
 3. **Build скрипти** (вже є в package.json)
 4. **Prisma міграції** (потрібно запустити при деплої)
 

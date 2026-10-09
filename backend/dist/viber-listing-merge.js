@@ -5,6 +5,8 @@ exports.createOrMergeViberListing = createOrMergeViberListing;
 const index_helpers_1 = require("./index-helpers");
 const schedule_trip_1 = require("./schedule-trip");
 const poputky_od_1 = require("./poputky-od");
+const phone_block_1 = require("./phone-block");
+const trip_day_1 = require("./trip-day");
 function normalizePhoneForMerge(phone) {
     const trimmed = phone.trim();
     if (trimmed.startsWith('@')) {
@@ -33,10 +35,11 @@ async function resolveOdFields(prisma, data) {
     return { fromPointId, toPointId, tripRouteId };
 }
 async function createOrMergeViberListing(prisma, data) {
+    // Єдиний шлюз для всіх оголошень (сайт, бот, імпорт із груп, адмінка) — тут же
+    // й заборона номера. Кидає PhoneBlockedError; масові імпорти ловлять її поелементно.
+    await (0, phone_block_1.assertPhoneNotBlocked)(prisma, data.phone);
     const personId = data.personId ?? null;
     const date = data.date;
-    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
     const normalizedPhone = data.phone?.trim() ? normalizePhoneForMerge(data.phone) : '';
     // Поїздка вже минула (вчора чи раніше) — архівуємо одразу (для аналітики) і ніколи
     // не активуємо/сповіщуємо про неї, незалежно від джерела (Viber, Telegram-групи).
@@ -46,10 +49,7 @@ async function createOrMergeViberListing(prisma, data) {
         where: {
             listingType: data.listingType,
             isActive: true,
-            date: {
-                gte: startOfDay,
-                lt: endOfDay,
-            },
+            date: (0, trip_day_1.tripDayWhere)(date),
             departureTime: data.departureTime ?? null,
             OR: [
                 ...(odFields.fromPointId != null && odFields.toPointId != null
@@ -77,6 +77,8 @@ async function createOrMergeViberListing(prisma, data) {
                 tripRouteId: odFields.tripRouteId,
                 fromPointId: odFields.fromPointId,
                 toPointId: odFields.toPointId,
+                // «Дата по» рахується при записі — cleanup стає одним updateMany по індексу
+                endsAt: (0, index_helpers_1.getViberListingEndDateTime)(date, data.departureTime),
             },
         });
         if (isPastDate) {
@@ -103,6 +105,7 @@ async function createOrMergeViberListing(prisma, data) {
             priceUah: data.priceUah != null ? data.priceUah : existing.priceUah,
             isActive: isPastDate ? false : existing.isActive || data.isActive,
             personId: existing.personId ?? personId,
+            endsAt: existing.endsAt ?? (0, index_helpers_1.getViberListingEndDateTime)(existing.date, existing.departureTime),
             // source не оновлюємо — залишаємо перший
         },
     });

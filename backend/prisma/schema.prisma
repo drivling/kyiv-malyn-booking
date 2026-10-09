@@ -140,6 +140,16 @@ model Person {
   telegramBotBlockedAt    DateTime?
   /// Відмова від платних SMS-сповіщень (STOP / ручне вимкнення адміном)
   smsOptOut               Boolean   @default(false)
+  /// Коли адмін заборонив користуватися номером (скарга користувача). null — дозволено.
+  phoneBlockedAt          DateTime?
+  /// Причина заборони (текст звернення, який вводить адмін)
+  phoneBlockReason        String?   @db.Text
+  /// Остання спроба заблокованого номера скористатися сервісом (бот / бронювання / оголошення)
+  blockedAttemptAt        DateTime?
+  /// Скільки разів заблокований номер намагався скористатися сервісом
+  blockedAttemptCount     Int       @default(0)
+  /// Коли персональні дані заархівовано та вичищено з робочих таблиць
+  dataArchivedAt          DateTime?
   createdAt               DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -160,9 +170,36 @@ model Person {
   referralRewardsAsReferrer ReferralReward[] @relation("ReferrerRewards")
   referralRewardsAsReferred ReferralReward[] @relation("ReferredRewards")
   rideCompletionProofs    RideCompletionProof[]
+  dataArchives            PersonDataArchive[]
 
   @@index([telegramUsername])
   @@index([referredByPersonId])
+  @@index([phoneBlockedAt])
+  @@index([telegramUserId])
+  @@index([telegramChatId])
+}
+
+/// JSON-знімок усіх персональних даних людини на момент звернення (скарги).
+/// Після архівації робочі таблиці очищені — це єдине, що лишається.
+/// Person навмисно НЕ видаляється: саме він носій заборони на номер.
+model PersonDataArchive {
+  id              Int      @id @default(autoincrement())
+  personId        Int?
+  /// Копії полів на випадок, якщо Person колись усе-таки видалять
+  phoneNormalized String
+  fullName        String?
+  /// Причина архівації — обовʼязкова, вводить адмін у модалці
+  reason          String   @db.Text
+  /// Повний знімок усіх звʼязаних записів (див. buildPersonArchivePayload)
+  payload         Json
+  /// Скільки рядків видалено з кожної таблиці — щоб показати список без парсингу payload
+  deletedCounts   Json
+  createdAt       DateTime @default(now())
+
+  person          Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([phoneNormalized])
+  @@index([createdAt])
 }
 
 /// Запрошення друга (номер, @username або посилання)
@@ -287,6 +324,8 @@ model RideShareRequest {
 
   passengerListing ViberListing @relation("RideShareAsPassenger", fields: [passengerListingId], references: [id], onDelete: Cascade)
   driverListing    ViberListing @relation("RideShareAsDriver", fields: [driverListingId], references: [id], onDelete: Cascade)
+  @@index([driverListingId, status])
+  @@index([passengerListingId, status])
 }
 
 model ViberListing {
@@ -310,6 +349,9 @@ model ViberListing {
   /// Коли автору надіслано підтвердження про публікацію (бот / особистий акаунт / платне SMS).
   /// Одне сповіщення на оголошення: повторні пости, мерж і апдейти не спамлять людину.
   authorNotifiedAt DateTime?
+  /// «Дата по»: дата поїздки + кінець часу (діапазон → кінець; без часу → 23:59). Рахується
+  /// при записі (index-helpers getViberListingEndDateTime), щоб cleanup був одним updateMany.
+  endsAt        DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -324,9 +366,51 @@ model ViberListing {
   matchNotifyAsDriver         ViberMatchPairNotification[] @relation("MatchNotifyDriverListing")
   referralRewards             ReferralReward[]
   rideCompletionProofs        RideCompletionProof[]
+  sources                     ViberListingSource[]
 
   @@index([tripRouteId])
   @@index([fromPointId, toPointId, date, listingType])
+  /// Гарячі запити (пошук, матчинг, cleanup, бот) фільтрують по isActive+date(+listingType)
+  @@index([isActive, date, listingType])
+  @@index([isActive, endsAt])
+  @@index([personId])
+  @@index([phone])
+}
+
+/// Черга фонових сповіщень (перетини після нового оголошення тощо). Один воркер у процесі
+/// (notification-queue.ts) забирає job-и пачками; рестарт деплою не губить розсилку, помилка —
+/// повтор з бекофом. HTTP-відповідь на ingest не чекає на Telegram/SMS.
+model NotificationJob {
+  id         Int      @id @default(autoincrement())
+  /// "listing_match" — знайти перетини для оголошення й розіслати
+  kind       String
+  payload    Json
+  /// pending | running | done | failed
+  status     String   @default("pending")
+  attempts   Int      @default(0)
+  runAfter   DateTime @default(now())
+  lockedAt   DateTime?
+  lastError  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, runAfter])
+}
+
+/// Ідемпотентний прийом (Docs/poputky-search-performance-plan.md, Фаза 5.1): кожне оброблене
+/// сире повідомлення з парсера (Viber, Telegram-групи) фіксується хешем; повторний POST після
+/// retry знаходить готове оголошення без мерж-евристики. Один листинг ← багато повідомлень.
+model ViberListingSource {
+  id        Int      @id @default(autoincrement())
+  /// sha256(source + нормалізований rawMessage)
+  hash      String   @unique
+  source    String
+  listingId Int
+  createdAt DateTime @default(now())
+
+  listing ViberListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
 }
 
 /// Щоб не дублювати сповіщення про ту саму пару пасажир↔водій (бот + /checkclients + імпорти).
@@ -627,13 +711,19 @@ model LunchOutboundMessage {
   kind                String    @default("send")
   telegramMessageId   BigInt?
   replyToMessageId    BigInt?
+  /// lunch — група обідів (markdown) | saved — «Обране» власника (HTML, Джура)
+  target              String    @default("lunch")
   /// pending | sent | failed
   status              String    @default("pending")
   errorText           String?   @db.Text
+  /// спроб надсилання; ретраї з паузою (nextAttemptAt), після ліміту → failed
+  attempts            Int       @default(0)
+  nextAttemptAt       DateTime?
   createdAt           DateTime  @default(now())
   sentAt              DateTime?
 
   @@index([status, createdAt])
+  @@index([status, nextAttemptAt])
 }
 
 /// Журнал платних відправок (SMS/Viber через TurboSMS) — для лімітів, дедупу та обліку витрат
@@ -665,8 +755,10 @@ model SmsSendLog {
 /// Адмін-задачі для listener (reparse_today тощо)
 model LunchAdminJob {
   id          Int       @id @default(autoincrement())
-  /// reparse_today
+  /// reparse_today | reparse_person
   type        String
+  /// JSON-параметри задачі (reparse_person: {"tgUserId": "…", "notify": true})
+  paramsJson  String?   @db.Text
   /// pending | done | failed
   status      String    @default("pending")
   resultJson  String?   @db.Text
@@ -703,6 +795,8 @@ model TransportRoute {
   sourceUrl String   @default("")
   /// Людське розписання з міськради: { schedule_entries, lunch_break, note }
   schedule  Json?
+  /// Ненадійний маршрут: не показувати на сайті (сторінки, табло, SEO/AEO, sitemap, GTFS)
+  unreliable Boolean  @default(false)
   updatedAt DateTime @updatedAt
 
   routeStops TransportRouteStop[]
@@ -744,6 +838,12 @@ model TransportTrip {
   blockId              String?
   wheelchairAccessible String  @default("")
   bikesAllowed         String  @default("")
+  /// Перша обслуговувана зупинка (st_XXXX); null — перша в напрямку
+  startStopId          String?
+  /// Остання обслуговувана зупинка (скорочений рейс, напр. «до центру»); null — остання в напрямку
+  endStopId            String?
+  /// Фіксований час на останній обслуговуваній зупинці, HH:MM:SS; сегменти рейсу стискаються пропорційно
+  arrivalTime          String?
 
   route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
@@ -768,4 +868,201 @@ model TransportMeta {
   id        Int      @id @default(1)
   payload   Json
   updatedAt DateTime @updatedAt
+}
+
+/// Відкриття табло з QR-наклейки на зупинці (/admin/stickers, Docs/stop-stickers.md). Пише
+/// фронтенд при першому за сесію відкритті табло з utm_source=sticker. Без IP і персональних даних.
+model StickerScan {
+  id        Int      @id @default(autoincrement())
+  /// TransportStop.id; без FK — історія сканів лишається, навіть якщо зупинку видалять із датасету
+  stopId    String
+  /// Наклейка зупинки: a | b — бік дороги, s — одна наклейка з обома боками
+  side      String
+  createdAt DateTime @default(now())
+
+  @@index([stopId, side])
+  @@index([createdAt])
+}
+
+/// Друк або завантаження SVG наклейки в адмінці (/admin/stickers): статистика відрізняє «наклейки
+/// немає» від «наклейка є, але її не сканують». Пише адмінка, по рядку на кожну наклейку аркуша.
+model StickerPrint {
+  id        Int      @id @default(autoincrement())
+  /// TransportStop.id (без FK, як у StickerScan)
+  stopId    String
+  /// a | b — бік дороги, s — одна наклейка з обома боками
+  side      String
+  /// A5 | A4
+  size      String
+  createdAt DateTime @default(now())
+
+  @@index([stopId, side])
+}
+
+/// Факт прибуття міського автобуса від пасажира: довге натискання на час рейсу на сторінці маршруту
+/// або на картку табло зупинки (backend/src/arrival-reports.ts). Поки лише статистика для точних
+/// графіків. Пов'язаний із TransportTrip/TransportStop за id, але без FK: датасет замінюється цілком,
+/// а історія звітів має лишитися (маршрут, напрямок, зупинка й час за розкладом збережені текстом).
+model TransportArrivalReport {
+  id            Int      @id @default(autoincrement())
+  /// arrived — «автобус тут»; missed — «чекав, автобуса не було ні до, ні після»
+  kind          String
+  routeId       String
+  /// TransportTrip.id на момент звіту
+  tripId        String
+  /// there | back
+  direction     String
+  /// TransportStop.id
+  stopId        String
+  /// Київська доба рейсу за розкладом, YYYY-MM-DD
+  serviceDate   String
+  /// Час рейсу на цій зупинці за розкладом, HH:MM
+  scheduledTime String
+  /// Фактичний київський час прибуття HH:MM (годинник сервера); для missed — null
+  actualTime    String?
+  /// Факт − розклад, хв (від'ємне — раніше); для missed — null
+  delayMin      Int?
+  /// missed: скільки хвилин людина чекала (зі слів), необов'язково
+  waitedMin     Int?
+  /// route — сторінка маршруту, board — табло зупинки
+  source        String
+  /// Анонімний id браузера (localStorage) — відсіяти дублі/спам в аналізі; не персональні дані
+  clientId      String?
+  createdAt     DateTime @default(now())
+
+  @@index([routeId, stopId, scheduledTime])
+  @@index([serviceDate])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// «Джура» · фаза 0 — читання обраних чатів Telegram у базу (Docs/dzhura-roadmap.md).
+// Пише Python-слухач telegram-user/dzhura/ (asyncpg), читає адмінка через routes/admin-dzhura.ts.
+// ---------------------------------------------------------------------------
+
+/// Чат, який читає userbot. tgChatId — marked id Telethon (-chat, -100channel, +user)
+model DzhuraChat {
+  id                      Int       @id @default(autoincrement())
+  tgChatId                BigInt    @unique
+  /// group | supergroup | private | channel
+  kind                    String
+  title                   String
+  username                String?
+  membersCount            Int?
+  isLunchGroup            Boolean   @default(false)
+  /// «Читати»: зберігати повідомлення в DzhuraMessage
+  captureEnabled          Boolean   @default(false)
+  /// «В Обране»: дублювати чужі повідомлення й реакції у Saved Messages власника
+  relayToSaved            Boolean   @default(false)
+  lastMessageAt           DateTime?
+  lastCapturedAt          DateTime?
+  /// для gap-fill після пауз слухача: iter_messages(min_id=…)
+  lastCapturedTgMessageId BigInt?
+  dialogSyncedAt          DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  messages                DzhuraMessage[]
+
+  @@index([kind, captureEnabled])
+}
+
+/// Автор повідомлення/реакції (Telegram-користувач)
+model DzhuraPerson {
+  id         Int      @id @default(autoincrement())
+  tgUserId   BigInt   @unique
+  firstName  String?
+  lastName   String?
+  username   String?
+  /// є лише коли Telegram віддає (контакт / дозволяють налаштування приватності)
+  phone      String?
+  isBot      Boolean  @default(false)
+  isMe       Boolean  @default(false)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  messages   DzhuraMessage[]
+  reactions  DzhuraReaction[]
+}
+
+/// Універсальний запис повідомлення (лише текст; медіа — тип і підпис)
+model DzhuraMessage {
+  id                 Int       @id @default(autoincrement())
+  chatId             Int
+  tgMessageId        BigInt
+  senderPersonId     Int?
+  isOutgoing         Boolean   @default(false)
+  /// '' для медіа без підпису
+  text               String    @db.Text
+  /// photo | video | video_note | voice | audio | sticker | gif | document | contact | geo | poll | other
+  mediaKind          String?
+  replyToTgMessageId BigInt?
+  /// forum-топік супергрупи
+  topicId            Int?
+  forwardFromName    String?
+  forwardFromTgId    BigInt?
+  forwardDate        DateTime?
+  sentAt             DateTime
+  editedAt           DateTime?
+  /// [{text, editedAt}] попередні версії тексту
+  editHistoryJson    Json?
+  /// точні лічильники реакцій: {"❤️": 2, "custom:123": 1}
+  reactionsJson      Json?
+  deletedAt          DateTime?
+  /// live | backfill
+  source             String    @default("live")
+  /// урізаний message.to_json() Telethon (entities, медіа-мета, via_bot…)
+  rawJson            Json?
+  capturedAt         DateTime  @default(now())
+
+  chat      DzhuraChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    DzhuraPerson?    @relation(fields: [senderPersonId], references: [id], onDelete: SetNull)
+  reactions DzhuraReaction[]
+
+  @@unique([chatId, tgMessageId])
+  @@index([chatId, sentAt])
+  @@index([senderPersonId])
+}
+
+/// Реакція-емодзі на повідомлення. personId = null — Telegram віддав лише лічильник
+model DzhuraReaction {
+  id        Int       @id @default(autoincrement())
+  messageId Int
+  personId  Int?
+  /// unicode-емодзі | custom:<documentId> | paid
+  emoji     String
+  isMine    Boolean   @default(false)
+  addedAt   DateTime  @default(now())
+  removedAt DateTime?
+
+  message DzhuraMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  person  DzhuraPerson? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([messageId, removedAt])
+}
+
+/// Задачі для слухача з адмінки: sync_dialogs | backfill {chatId, from, to}
+model DzhuraJob {
+  id           Int       @id @default(autoincrement())
+  /// sync_dialogs | backfill
+  type         String
+  paramsJson   Json?
+  /// pending | running | done | failed
+  status       String    @default("pending")
+  progressJson Json?
+  resultJson   Json?
+  errorText    String?   @db.Text
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// Синглтон id=1: стан слухача для адмінки
+model DzhuraState {
+  id              Int       @id @default(1)
+  heartbeatAt     DateTime?
+  dialogsSyncedAt DateTime?
+  meTgUserId      BigInt?
+  updatedAt       DateTime  @updatedAt
 }

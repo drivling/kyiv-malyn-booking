@@ -1,6 +1,7 @@
 import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../middleware/require-admin';
+import { invalidateCatalogCache } from '../catalog-cache';
 
 function normalizeQuickDirectPointIds(raw: unknown): number[] | undefined {
   if (raw === undefined) return undefined;
@@ -16,6 +17,16 @@ function normalizeQuickDirectPointIds(raw: unknown): number[] | undefined {
 export function createTripPointsRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
   const r = express.Router();
+
+  // Після будь-якого запису каталогу — скинути кеш точок/маршрутів (catalog-cache.ts)
+  r.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      res.on('finish', () => {
+        if (res.statusCode < 300) invalidateCatalogCache(prisma);
+      });
+    }
+    next();
+  });
 
   r.get('/trip-points', async (req, res) => {
     const appearFromTo =

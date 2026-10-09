@@ -69,5 +69,41 @@ function createAdminMaintenanceRouter(deps) {
             });
         }
     });
+    /**
+     * Стан переходу на OD-identity (Docs/poputky-search-performance-plan.md, Фаза 3.4):
+     * скільки оголошень без fromPointId/toPointId, tripRouteId, endsAt. Коли нулі — можна
+     * робити колонки NOT NULL і прибирати `OR route = …` з гарячих запитів.
+     */
+    r.get('/admin/od-identity-stats', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const [total, active, missingOd, missingTripRoute, missingEndsAt, routesWithoutOd] = await Promise.all([
+                prisma.viberListing.count(),
+                prisma.viberListing.count({ where: { isActive: true } }),
+                prisma.viberListing.count({ where: { OR: [{ fromPointId: null }, { toPointId: null }] } }),
+                prisma.viberListing.count({ where: { tripRouteId: null } }),
+                prisma.viberListing.count({ where: { endsAt: null } }),
+                prisma.viberListing.groupBy({
+                    by: ['route'],
+                    where: { OR: [{ fromPointId: null }, { toPointId: null }] },
+                    _count: { _all: true },
+                    orderBy: { _count: { route: 'desc' } },
+                    take: 20,
+                }),
+            ]);
+            res.json({
+                total,
+                active,
+                missingOd,
+                missingTripRoute,
+                missingEndsAt,
+                routesWithoutOd: routesWithoutOd.map((r) => ({ route: r.route, count: r._count._all })),
+                readyForNotNull: missingOd === 0,
+            });
+        }
+        catch (error) {
+            console.error('❌ od-identity-stats:', error);
+            res.status(500).json({ error: 'Failed to compute stats' });
+        }
+    });
     return r;
 }

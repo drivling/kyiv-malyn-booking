@@ -4,8 +4,10 @@ import {
   formatMinutesToClock,
   buildSegmentLookup,
   getSegmentDurationSec,
-  getDurationFromStartSec,
-  computeStopArrivalClock,
+  computeTripTimes,
+  clockAtStop,
+  autoHeadsign,
+  nextOppositeDeparture,
   compareTripsByDeparture,
   nextTripId,
 } from './scheduleEditorTiming';
@@ -55,30 +57,72 @@ describe('segment duration lookup', () => {
     expect(getSegmentDurationSec(lookup, '3', 'x', 'y', 120)).toBe(120);
   });
 
-  it('sums duration from start via getDurationFromStartSec', () => {
-    const ordered = ['a', 'b', 'c'];
-    expect(getDurationFromStartSec(lookup, '3', ordered, 0, 120)).toBe(0);
-    expect(getDurationFromStartSec(lookup, '3', ordered, 1, 120)).toBe(60);
-    expect(getDurationFromStartSec(lookup, '3', ordered, 2, 120)).toBe(150);
-  });
 });
 
-describe('computeStopArrivalClock', () => {
+describe('computeTripTimes / clockAtStop', () => {
   const segments = [
     { routeId: '3', fromStopId: 'a', toStopId: 'b', seconds: 300 },
     { routeId: '3', fromStopId: 'b', toStopId: 'c', seconds: 600 },
   ];
   const lookup = buildSegmentLookup(segments);
-  const ordered = ['a', 'b', 'c'];
+  const chain = ['a', 'b', 'c'];
+  const trip = { id: '3-01', routeId: '3', directionId: '1', departureTime: '06:40' };
 
   it('adds cumulative segment seconds to the departure time', () => {
-    expect(computeStopArrivalClock('06:40', lookup, '3', ordered, 0, 120)).toBe('06:40');
-    expect(computeStopArrivalClock('06:40', lookup, '3', ordered, 1, 120)).toBe('06:45');
-    expect(computeStopArrivalClock('06:40', lookup, '3', ordered, 2, 120)).toBe('06:55');
+    const t = computeTripTimes(trip, lookup, '3', chain, 120);
+    expect(clockAtStop(t, 'a')).toBe('06:40');
+    expect(clockAtStop(t, 'b')).toBe('06:45');
+    expect(clockAtStop(t, 'c')).toBe('06:55');
   });
 
   it('returns null when the trip has no departureTime', () => {
-    expect(computeStopArrivalClock(null, lookup, '3', ordered, 1, 120)).toBeNull();
+    expect(computeTripTimes({ ...trip, departureTime: null }, lookup, '3', chain, 120)).toBeNull();
+    expect(clockAtStop(null, 'a')).toBeNull();
+  });
+
+  it('honours start/end stops: unserved stops have no clock', () => {
+    const t = computeTripTimes({ ...trip, startStopId: 'b' }, lookup, '3', chain, 120);
+    expect(clockAtStop(t, 'a')).toBeNull();
+    expect(clockAtStop(t, 'b')).toBe('06:40');
+    expect(clockAtStop(t, 'c')).toBe('06:50');
+    const e = computeTripTimes({ ...trip, endStopId: 'b' }, lookup, '3', chain, 120);
+    expect(clockAtStop(e, 'c')).toBeNull();
+  });
+
+  it('compresses to arrivalTime when segments overshoot, never stretches', () => {
+    const t = computeTripTimes({ ...trip, arrivalTime: '06:50' }, lookup, '3', chain, 120)!;
+    expect(t.factor).toBeCloseTo(10 / 15, 6);
+    expect(clockAtStop(t, 'c')).toBe('06:50');
+    expect(clockAtStop(t, 'b')).toBe('06:43'); // 5 хв × 0.667 = 3.33 → 06:43
+    const slack = computeTripTimes({ ...trip, arrivalTime: '07:30' }, lookup, '3', chain, 120)!;
+    expect(slack.factor).toBe(1);
+    expect(clockAtStop(slack, 'c')).toBe('06:55');
+  });
+});
+
+describe('autoHeadsign', () => {
+  it('fills empty or previous-end-name headsigns, keeps custom text', () => {
+    expect(autoHeadsign('', null, 'Вокзал')).toBe('Вокзал');
+    expect(autoHeadsign('Вокзал', 'Вокзал', 'Центр')).toBe('Центр');
+    expect(autoHeadsign('Малинівка, Юрівка, БАМ', 'Вокзал', 'Центр')).toBe('Малинівка, Юрівка, БАМ');
+  });
+});
+
+describe('nextOppositeDeparture', () => {
+  const trips = [
+    { id: '5-01', routeId: '5', directionId: '1', departureTime: '05:45' },
+    { id: '5-02', routeId: '5', directionId: '0', departureTime: '06:10' },
+    { id: '5-03', routeId: '5', directionId: '0', departureTime: '05:40' },
+    { id: '5-04', routeId: '5', directionId: '1', departureTime: '06:40' },
+    { id: '7-01', routeId: '7', directionId: '0', departureTime: '06:00' },
+  ];
+  it('finds the earliest later trip in the other direction of the same route', () => {
+    expect(nextOppositeDeparture(trips, trips[0])).toBe('06:10');
+    expect(nextOppositeDeparture(trips, trips[1])).toBe('06:40');
+  });
+  it('returns null without a departure or without a later opposite trip', () => {
+    expect(nextOppositeDeparture(trips, { ...trips[0], departureTime: null })).toBeNull();
+    expect(nextOppositeDeparture(trips, trips[3])).toBeNull();
   });
 });
 

@@ -1,0 +1,280 @@
+"""Дозбір замовлень, які слухач не обробив наживо.
+
+Коли це буває:
+  * backend зупиняє слухача під «ексклюзивну» Telethon-сесію (пошук телефону, розсилки,
+    імпорт з Telegram) — у логах це «pause for exclusive session» приблизно щоп'ять хвилин;
+    повідомлення, що прийшли за ці секунди, обробник NewMessage не бачить;
+  * меню дня додали вже після перших замовлень (OCR вимкнений — меню вставляє адмін).
+
+Окремо — «догін» нерозпізнаного: замовлення, зроблені ДО того, як адмін завантажив меню, лишаються
+з «не розпізнано» (або зі стравою, якої сьогодні немає). Коли меню з'явилось, такі замовлення
+розбираються ще раз за сьогоднішнім меню (див. `resolve_incomplete_orders`).
+
+Правила, щоб нічого не зіпсувати:
+  * лише люди, у яких за сьогодні ще НЕМАЄ замовлення (навіть скасованого — «Прибрати»
+    не воскрешаємо) — ручні правки й чужі замовлення не перезаписуємо;
+  * оплата — лише якщо такого повідомлення ще немає серед оплат; картка — якщо ще не збережена;
+  * підсумок дня й «забагато страв» не чіпаємо — це робить живий обробник / «Розібрати день»;
+  * підтвердження людині йде звичайною чергою (reply до її повідомлення), як і наживо.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
+
+from .db import LunchDB, today_kyiv
+from .formatters import format_order_confirm
+from .parse_order import parse_order
+from .parse_summary import parse_day_summary, parse_numbered_summary
+from .reparse_day import DayContext, is_system_echo, kyiv_day_bounds, plan_text_message
+from .summary_owner import attribute_summary_leftover
+
+CATCH_UP_WINDOW = timedelta(hours=3)
+CATCH_UP_LIMIT = 300
+
+
+def _line_signature(lines) -> frozenset:
+    return frozenset((l.dish_id, l.qty, bool(l.unavailable)) for l in lines)
+
+
+async def resolve_incomplete_orders(db: LunchDB, day_id: int, menu, *, notify: bool = True) -> dict[str, int]:
+    """Повторно розібрати «неповні» замовлення (є нерозпізнане або страва, якої немає в меню) за
+    сьогоднішнім меню. Нічого не відбираємо в людини:
+      * текст повністю пояснюється меню → рядки замінюються розібраними (старі були від вчорашнього
+        меню або хибного збігу);
+      * пояснюється частково → лише ДОДАЄМО знайдені страви, решта лишається нерозпізнаною;
+      * нічого нового не знайшли → замовлення не чіпаємо (і нічого не пишемо в групу).
+    Ручну кількість лотків зберігаємо. Нашу відповідь у групі правимо (edit), а не пишемо нову."""
+    stats = {"resolved": 0, "partial": 0}
+    if not menu:
+        return stats
+    for o in await db.list_incomplete_orders(day_id):
+        result = parse_order(o["raw_text"], menu)
+        if not result.lines:
+            continue
+        old_lines = o["lines"]
+        fully = not result.unmatched and not result.ambiguous
+        if fully:
+            new_lines = list(result.lines)
+            unmatched = None
+        else:
+            have = {l.dish_id for l in old_lines if not l.unavailable and l.dish_id is not None}
+            extra = [l for l in result.lines if l.dish_id not in have]
+            if not extra:
+                continue
+            new_lines = list(old_lines) + extra
+            unmatched = result.unmatched_text or None
+        if _line_signature(new_lines) == _line_signature(old_lines) and (unmatched or "") == (
+            o["unmatched_text"] or ""
+        ):
+            continue  # нічого не змінилось — не смикаємо базу й групу кожні 5 хв
+        manual = o["tray_count_manual"]
+        trays, tray_sum, grand = await db.apply_trays_to_lines(
+            new_lines, tray_count_override=o["tray_count"] if manual else None
+        )
+        await db.upsert_order(
+            day_id,
+            o["participant_id"],
+            o["raw_text"],
+            grand,
+            new_lines,
+            source_message_id=o["source_message_id"],
+            unmatched_text=unmatched,
+            tray_count=trays,
+            tray_total_uah=tray_sum,
+            tray_count_manual=manual,
+        )
+        stats["resolved" if fully else "partial"] += 1
+        if notify and (o["reply_message_id"] or o["source_message_id"]):
+            tray_price = await db.get_tray_price()
+            text = format_order_confirm(
+                o["display_name"],
+                [l for l in new_lines if not l.unavailable],
+                grand,
+                result.unmatched if not fully else [],
+                tray_count=trays,
+                tray_price_uah=tray_price,
+                tray_total_uah=tray_sum,
+                unavailable=[l.raw_name for l in new_lines if l.unavailable],
+                ambiguous=result.ambiguous if not fully else None,
+            )
+            if o["reply_message_id"]:
+                await db.enqueue_outbound(text, kind="edit", telegram_message_id=o["reply_message_id"])
+            else:
+                await db.enqueue_outbound(text, reply_to_message_id=o["source_message_id"])
+    return stats
+
+
+def _display_name(sender) -> str:
+    if sender is None:
+        return "Невідомий"
+    parts = [x for x in (getattr(sender, "first_name", None), getattr(sender, "last_name", None)) if x]
+    if parts:
+        return " ".join(parts)
+    if getattr(sender, "username", None):
+        return f"@{sender.username}"
+    return str(getattr(sender, "id", "Невідомий"))
+
+
+async def catch_up_today(
+    client,
+    entity,
+    db: LunchDB,
+    *,
+    now: Optional[datetime] = None,
+    notify: bool = True,
+) -> dict[str, Any]:
+    stats: dict[str, Any] = {
+        "scanned": 0, "orders": 0, "payments": 0, "cards": 0, "resolved": 0, "partial": 0, "skipped_reason": None,
+    }
+    d = today_kyiv()
+    day = await db.get_day(d)
+    if day is None:
+        stats["skipped_reason"] = "немає дня"
+        return stats
+    if day.status == "closed":
+        stats["skipped_reason"] = "день закрито"
+        return stats
+    ctx = DayContext()
+    menu, fallback = await ctx.load(db, day.id)
+    if not menu and not fallback:
+        stats["skipped_reason"] = "немає меню"
+        return stats
+
+    start, end = kyiv_day_bounds(d)
+    current = now or datetime.now(timezone.utc)
+    since = max(start.astimezone(timezone.utc), current - CATCH_UP_WINDOW)
+    end_utc = end.astimezone(timezone.utc)
+
+    # Дивимось на всю добу: старі повідомлення потрібні лише для звірки підсумку оператора,
+    # замовлення й оплати створюємо тільки з «свіжих» (останні CATCH_UP_WINDOW).
+    messages: list = []
+    async for msg in client.iter_messages(entity, limit=CATCH_UP_LIMIT):
+        if not msg.date:
+            continue
+        md = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
+        if md > end_utc:
+            continue
+        if md < start.astimezone(timezone.utc):
+            break
+        messages.append((msg, md >= since))
+    messages.reverse()
+
+    card_known = bool(day.payee_card)
+    numbered_summaries: list[dict[str, Any]] = []
+    person_texts: list[str] = []
+    for msg, fresh in messages:
+        text = (getattr(msg, "message", None) or getattr(msg, "text", None) or "").strip()
+        if not text:
+            continue
+        sender_id = getattr(msg, "sender_id", None)
+        uid = str(sender_id) if sender_id else ""
+        is_own = bool(getattr(msg, "out", False))
+
+        numbered = parse_numbered_summary(text)
+        if numbered and not parse_day_summary(text).ok:
+            sender = await msg.get_sender()
+            numbered_summaries.append(
+                {
+                    "entries": numbered,
+                    "uid": uid,
+                    "name": _display_name(sender),
+                    "username": getattr(sender, "username", None) if sender else None,
+                    "msg_id": int(msg.id),
+                }
+            )
+            continue
+        if not (is_own and is_system_echo(text)):
+            person_texts.append(text)
+
+        if not fresh:
+            continue
+        stats["scanned"] += 1
+        plan = plan_text_message(
+            text,
+            uid=uid,
+            menu=menu,
+            fallback=fallback,
+            day_closed=False,
+            allow_orders_when_closed=False,
+            is_own=bool(getattr(msg, "out", False)),
+        )
+
+        if plan.kind == "card" and plan.card:
+            if not card_known:
+                await db.set_payee_card(day.id, plan.card)
+                card_known = True
+                stats["cards"] += 1
+            continue
+
+        if plan.kind == "payment" and plan.payment:
+            if await db.payment_source_exists(day.id, int(msg.id)):
+                continue
+            sender = await msg.get_sender()
+            username = getattr(sender, "username", None) if sender else None
+            pid = await db.upsert_participant(uid, _display_name(sender), f"@{username}" if username else None)
+            await db.add_payment(day.id, pid, plan.payment.amount_uah, text, source_message_id=int(msg.id))
+            stats["payments"] += 1
+            continue
+
+        if plan.kind != "order" or plan.result is None:
+            continue
+        existing = await db.find_participant_id_by_telegram_id(uid)
+        if existing is not None and await db.has_order(day.id, existing):
+            continue
+        sender = await msg.get_sender()
+        name = _display_name(sender)
+        username = getattr(sender, "username", None) if sender else None
+        pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
+        result = plan.result
+        await db.upsert_order(
+            day.id,
+            pid,
+            text,
+            result.total_uah,
+            result.lines,
+            source_message_id=int(msg.id),
+            unmatched_text=result.unmatched_text or None,
+        )
+        stats["orders"] += 1
+        if notify:
+            tray_price = await db.get_tray_price()
+            trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
+            await db.enqueue_outbound(
+                format_order_confirm(
+                    name,
+                    result.lines,
+                    grand,
+                    result.unmatched,
+                    tray_count=trays,
+                    tray_price_uah=tray_price,
+                    tray_total_uah=tray_sum,
+                    unavailable=result.unavailable,
+                    ambiguous=result.ambiguous,
+                ),
+                reply_to_message_id=int(msg.id),
+            )
+
+    fixed = await resolve_incomplete_orders(db, day.id, menu, notify=notify)
+    stats["resolved"], stats["partial"] = fixed["resolved"], fixed["partial"]
+
+    # Нумерований підсумок оператора: єдиний пункт без повідомлення людини — страви автора підсумку
+    if numbered_summaries:
+        last = numbered_summaries[-1]
+        info = await attribute_summary_leftover(
+            db,
+            day.id,
+            menu,
+            entries=last["entries"],
+            known_texts=person_texts,
+            sender_uid=last["uid"],
+            sender_name=last["name"],
+            sender_username=last["username"],
+            source_message_id=last["msg_id"],
+            notify=notify,
+        )
+        stats["summary_owner"] = info["status"]
+        if info["status"] == "created":
+            stats["orders"] += 1
+    return stats

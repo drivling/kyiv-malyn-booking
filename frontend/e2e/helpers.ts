@@ -48,17 +48,44 @@ export async function mockBackendApi(page: Page) {
       return json(route, 200, []);
     }
 
+    if (method === 'POST' && path === '/transport/arrival-reports') {
+      const body = req.postDataJSON() as { kind?: string };
+      return json(
+        route,
+        201,
+        body?.kind === 'arrived'
+          ? { ok: true, counted: true, actualTime: '08:33', delayMin: 3 }
+          : { ok: true, counted: true, actualTime: null, delayMin: null }
+      );
+    }
+
     if (method === 'GET' && path === '/transport/dataset') {
       return json(route, 200, {
+        // Маршрут №2: Базар → Вокзал → Лікарня (обидва напрямки), сегменти 4 хв і 5 хв.
+        // Маршрут №3: Ринок (за ~20 м від Базару) → Лікарня → Парк — для підказки сусідніх зупинок.
         stops: [
           { id: 'st_a', name: 'Базар', lat: 50.77, lng: 29.24 },
           { id: 'st_b', name: 'Вокзал', lat: 50.78, lng: 29.25 },
+          { id: 'st_c', name: 'Лікарня', lat: 50.79, lng: 29.26 },
+          { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 },
+          { id: 'st_e', name: 'Ринок', lat: 50.77015, lng: 29.24012 },
+          // Зупинка вузла схеми «Лікарня · Поліклініка» (головна st_0035): перевірка «вузол бачить усі маршрути»
+          { id: 'st_0072', name: 'Поліклініка', lat: 50.795, lng: 29.262 },
         ],
         routes: [
           {
             id: '2',
             fromName: 'Базар',
-            toName: 'Вокзал',
+            toName: 'Лікарня',
+            scheme: 'city',
+            note: '',
+            sourceUrl: '',
+            schedule: null,
+          },
+          {
+            id: '3',
+            fromName: 'Ринок',
+            toName: 'Парк',
             scheme: 'city',
             note: '',
             sourceUrl: '',
@@ -66,26 +93,54 @@ export async function mockBackendApi(page: Page) {
           },
         ],
         routeStops: [
-          { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 2, mapOnly: false },
-          { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 1, mapOnly: false },
+          { routeId: '2', stopId: 'st_a', orderThere: 1, orderBack: 3, mapOnly: false },
+          { routeId: '2', stopId: 'st_b', orderThere: 2, orderBack: 2, mapOnly: false },
+          { routeId: '2', stopId: 'st_c', orderThere: 3, orderBack: 1, mapOnly: false },
+          { routeId: '2', stopId: 'st_0072', orderThere: 4, orderBack: 0, mapOnly: false },
+          { routeId: '3', stopId: 'st_e', orderThere: 1, orderBack: 3, mapOnly: false },
+          { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 2, mapOnly: false },
+          { routeId: '3', stopId: 'st_d', orderThere: 3, orderBack: 1, mapOnly: false },
         ],
         trips: [
           {
             id: 't1',
             routeId: '2',
             serviceId: 'everyday',
-            headsign: 'Вокзал',
+            headsign: 'Лікарня',
             directionId: '1',
             departureTime: '08:30:00',
             blockId: null,
           },
+          {
+            id: 't2',
+            routeId: '2',
+            serviceId: 'everyday',
+            headsign: 'Базар',
+            directionId: '0',
+            departureTime: '09:00:00',
+            blockId: null,
+          },
+          {
+            id: 't3',
+            routeId: '3',
+            serviceId: 'everyday',
+            headsign: 'Парк',
+            directionId: '1',
+            departureTime: '10:00:00',
+            blockId: null,
+          },
         ],
-        segments: [{ routeId: '2', fromStopId: 'st_a', toStopId: 'st_b', seconds: 240 }],
+        segments: [
+          { routeId: '2', fromStopId: 'st_a', toStopId: 'st_b', seconds: 240 },
+          { routeId: '2', fromStopId: 'st_b', toStopId: 'st_c', seconds: 300 },
+          { routeId: '3', fromStopId: 'st_e', toStopId: 'st_c', seconds: 600 },
+          { routeId: '3', fromStopId: 'st_c', toStopId: 'st_d', seconds: 420 },
+        ],
         meta: { defaultSec: 120, center: [50.768, 29.242] },
       });
     }
 
-    if (method === 'GET' && path === '/viber-listings') {
+    if (method === 'GET' && (path === '/viber-listings' || path === '/viber-listings/search')) {
       return json(route, 200, []);
     }
 
@@ -255,6 +310,34 @@ export async function mockBackendApi(page: Page) {
           sourceTripRouteId: 3,
         },
       ]);
+    }
+
+    // Home search: one request for listings + schedules + availability
+    if (method === 'GET' && path === '/poputky/search') {
+      const from = (u.searchParams.get('from') || '').trim();
+      const to = (u.searchParams.get('to') || '').trim();
+      const date = u.searchParams.get('date') || '';
+      const schedules =
+        from === 'Kyiv' && to === 'Malyn'
+          ? [marshrutkaKyivMalyn]
+          : from === 'Korosten' && to === 'Malyn'
+            ? [elektrichkaKorostenMalyn]
+            : [];
+      const availability: Record<number, unknown> = {};
+      for (const s of schedules) {
+        availability[s.id] =
+          s.vehicleType === 'elektrichka'
+            ? { scheduleId: s.id, maxSeats: 0, bookedSeats: 0, availableSeats: 0, isAvailable: false, vehicleType: 'elektrichka', ticketPurchaseUrl: (s as { ticketPurchaseUrl?: string }).ticketPurchaseUrl ?? null }
+            : { scheduleId: s.id, maxSeats: 8, bookedSeats: 3, availableSeats: 5, isAvailable: true };
+      }
+      return json(route, 200, {
+        from: from ? { id: 1, code: from, nameUk: from } : null,
+        to: to ? { id: 2, code: to, nameUk: to } : null,
+        date,
+        listings: [],
+        schedules,
+        availability,
+      });
     }
 
     // Primary list for Mizhgorodski / BookingPage: GET /schedules?fromCode=&toCode=

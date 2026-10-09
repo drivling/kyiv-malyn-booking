@@ -35,7 +35,6 @@ module.exports = {
         'src/components/Combobox/Combobox.tsx',
         'src/components/TelegramLoginButton/TelegramLoginButton.tsx',
         'src/pages/AdminPage/AdminPage.tsx',
-        'src/pages/BookingPage/BookingPage.tsx',
         'src/pages/LocalTransportPage/LocalTransportPage.tsx',
         'src/pages/LocalTransportPage/LocalTransportStopBoardPage.tsx',
         'src/test/utils.tsx',

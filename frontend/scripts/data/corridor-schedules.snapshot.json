@@ -1,0 +1,1656 @@
+{
+  "fetchedAt": "2026-09-11",
+  "corridors": {
+    "korosten-kyiv": [],
+    "korosten-malyn": [
+      {
+        "id": 71,
+        "route": "Korosten-Malyn",
+        "labelUk": "Коростень → Малин",
+        "departureTime": "04:10",
+        "supportPhone": null,
+        "priceUah": 40,
+        "boardingPlace": "Коростень",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6606",
+        "activeWeekdays": [
+          7
+        ]
+      },
+      {
+        "id": 53,
+        "route": "Korosten-Malyn",
+        "labelUk": "Коростень → Малин",
+        "departureTime": "04:54",
+        "supportPhone": "+Потяг 855К (крім нд.)",
+        "priceUah": 120,
+        "boardingPlace": "Коростень",
+        "vehicleType": "elektrichka",
+        "tripNumber": "856",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": 50,
+        "route": "Korosten-Malyn",
+        "labelUk": "Коростень → Малин",
+        "departureTime": "05:50",
+        "supportPhone": "Електричка 6610",
+        "priceUah": 35,
+        "boardingPlace": "Коростень",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6610",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": 51,
+        "route": "Korosten-Malyn",
+        "labelUk": "Коростень → Малин",
+        "departureTime": "08:40",
+        "supportPhone": "Електричка 6614",
+        "priceUah": 35,
+        "boardingPlace": "Коростень",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6614",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 54,
+        "route": "Korosten-Malyn",
+        "labelUk": "Коростень → Малин",
+        "departureTime": "13:29",
+        "supportPhone": "Потяг 860 (крім сб., нд.)",
+        "priceUah": 120,
+        "boardingPlace": "Коростень",
+        "vehicleType": "elektrichka",
+        "tripNumber": "860",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 52,
+        "route": "Korosten-Malyn",
+        "labelUk": "Коростень → Малин",
+        "departureTime": "18:25",
+        "supportPhone": "Електричка 6626",
+        "priceUah": 35,
+        "boardingPlace": "Коростень",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6626",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "kyiv-korosten": [],
+    "kyiv-malyn": [
+      {
+        "id": 64,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "05:35",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Київ-Пас. (Приміський)",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6601",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 12,
+        "route": "Kyiv-Malyn-Bucha",
+        "labelUk": "Київ → Малин (через Бучу)",
+        "departureTime": "08:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Святошино",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 65,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "08:50",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Київ-Пас. (Приміський)",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6605",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 13,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "09:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 66,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "09:20",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Київ-Пас. (Приміський)",
+        "vehicleType": "elektrichka",
+        "tripNumber": "855",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 14,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "10:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 15,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "11:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 16,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "12:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 17,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "13:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 76,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "14:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          5
+        ]
+      },
+      {
+        "id": 67,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "14:51",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Київ-Пас. (Приміський)",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6613",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 18,
+        "route": "Kyiv-Malyn-Bucha",
+        "labelUk": "Київ → Малин (через Бучу)",
+        "departureTime": "15:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Святошино",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 19,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "16:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 20,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "17:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 68,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "17:30",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Київ-Пас. (Приміський)",
+        "vehicleType": "elektrichka",
+        "tripNumber": "859",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7
+        ]
+      },
+      {
+        "id": 75,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "18:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 69,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "18:51",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "з.п. Борщагівка",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6621",
+        "activeWeekdays": [
+          6,
+          7
+        ]
+      },
+      {
+        "id": 70,
+        "route": "Kyiv-Malyn",
+        "labelUk": "Київ → Малин",
+        "departureTime": "18:59",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Святошин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6621",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 21,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "19:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 22,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "20:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 77,
+        "route": "Kyiv-Malyn-Irpin",
+        "labelUk": "Київ → Малин (через Ірпінь)",
+        "departureTime": "21:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "м. Академмістечко",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          5
+        ]
+      }
+    ],
+    "malyn-korosten": [
+      {
+        "id": 45,
+        "route": "Malyn-Korosten",
+        "labelUk": "Малин → Коростень",
+        "departureTime": "08:03",
+        "supportPhone": "Електричка 6601",
+        "priceUah": 35,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6601",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 48,
+        "route": "Malyn-Korosten",
+        "labelUk": "Малин → Коростень",
+        "departureTime": "11:32",
+        "supportPhone": "Потяг 855К (крім сб., нд.)",
+        "priceUah": 120,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "855",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 46,
+        "route": "Malyn-Korosten",
+        "labelUk": "Малин → Коростень",
+        "departureTime": "17:13",
+        "supportPhone": "Електричка 6613",
+        "priceUah": 35,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6613",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 49,
+        "route": "Malyn-Korosten",
+        "labelUk": "Малин → Коростень",
+        "departureTime": "19:30",
+        "supportPhone": "Потяг 859К (крім сб.)",
+        "priceUah": 120,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "859",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7
+        ]
+      },
+      {
+        "id": 47,
+        "route": "Malyn-Korosten",
+        "labelUk": "Малин → Коростень",
+        "departureTime": "20:48",
+        "supportPhone": "Електричка 6621",
+        "priceUah": 35,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6621",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "malyn-kyiv": [
+      {
+        "id": 2,
+        "route": "Malyn-Kyiv-Bucha",
+        "labelUk": "Малин → Київ (через Бучу)",
+        "departureTime": "05:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 57,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "05:18",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6606",
+        "activeWeekdays": [
+          7
+        ]
+      },
+      {
+        "id": 3,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "05:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 58,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "05:45",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "856",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": 4,
+        "route": "Malyn-Kyiv-Bucha",
+        "labelUk": "Малин → Київ (через Бучу)",
+        "departureTime": "06:00",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": 59,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "06:58",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6610",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": 5,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "07:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": 6,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "08:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 60,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "09:48",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6614",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 7,
+        "route": "Malyn-Kyiv-Bucha",
+        "labelUk": "Малин → Київ (через Бучу)",
+        "departureTime": "10:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 61,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "11:47",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6616",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 8,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "12:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 73,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "13:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 62,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "14:20",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "860",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": 9,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "14:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 72,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "15:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 10,
+        "route": "Malyn-Kyiv-Bucha",
+        "labelUk": "Малин → Київ (через Бучу)",
+        "departureTime": "16:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 11,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "17:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 74,
+        "route": "Malyn-Kyiv-Irpin",
+        "labelUk": "Малин → Київ (через Ірпінь)",
+        "departureTime": "18:30",
+        "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+        "priceUah": 280,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          5
+        ]
+      },
+      {
+        "id": 63,
+        "route": "Malyn-Kyiv",
+        "labelUk": "Малин → Київ",
+        "departureTime": "19:32",
+        "supportPhone": null,
+        "priceUah": 60,
+        "boardingPlace": "Малин",
+        "vehicleType": "elektrichka",
+        "tripNumber": "6626",
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "malyn-zhytomyr": [
+      {
+        "id": 23,
+        "route": "Malyn-Khmilnyk-Zhytomyr",
+        "labelUk": "Малин → Хмільник (через Житомир)",
+        "departureTime": "05:20",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 24,
+        "route": "Malyn-Vinnytsia-Zhytomyr",
+        "labelUk": "Малин → Вінниця (через Житомир)",
+        "departureTime": "05:40",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 25,
+        "route": "Malyn-Stanyshivka-Zhytomyr",
+        "labelUk": "Малин → Станишівка (через Житомир)",
+        "departureTime": "06:10",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 26,
+        "route": "Malyn-Zhytomyr-Radomyshl",
+        "labelUk": "Малин → Житомир (через Радомишль)",
+        "departureTime": "06:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 27,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "06:50",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 28,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "07:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин (транзит з Базару)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 29,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "08:10",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 30,
+        "route": "Malyn-Zhytomyr-Radomyshl",
+        "labelUk": "Малин → Житомир (через Радомишль)",
+        "departureTime": "08:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин (транзит з Базару)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 31,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "09:00",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 32,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "09:50",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 33,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "11:50",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 34,
+        "route": "Malyn-Berdychiv-Radomyshl-Zhytomyr",
+        "labelUk": "Малин → Бердичів (через Радомишль, Житомир)",
+        "departureTime": "12:15",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 35,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "13:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 36,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "14:15",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 37,
+        "route": "Malyn-Zhytomyr-Radomyshl",
+        "labelUk": "Малин → Житомир (через Радомишль)",
+        "departureTime": "14:50",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 39,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "17:10",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин (транзит з Базару)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 40,
+        "route": "Malyn-Zhytomyr-Potiivka",
+        "labelUk": "Малин → Житомир (через Потіївку)",
+        "departureTime": "18:00",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автостанція Малин",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ],
+    "zhytomyr-malyn": [
+      {
+        "id": 78,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "06:20",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 287,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 79,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "08:25",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 299,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 80,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "09:50",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 287,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 81,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "10:25",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 295,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 82,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "10:35",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 83,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "11:15",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 84,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "12:00",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 287,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 88,
+        "route": "Zhytomyr-Bazar-Potiivka-Malyn",
+        "labelUk": "Житомир → Базар (через Потіївку, Малин)",
+        "departureTime": "13:15",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93); через Малин ≈ 15:00",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 89,
+        "route": "Zhytomyr-Bazar-Radomyshl-Malyn",
+        "labelUk": "Житомир → Базар (через Радомишль, Малин)",
+        "departureTime": "13:45",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": null,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93); через Малин ≈ 17:10",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 86,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "14:05",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93); транзит зі Станишівки",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 87,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "14:40",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 287,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93); транзит з Хмільника",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 85,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "15:50",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 287,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 90,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "16:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 299,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93); транзит з Вінниці",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 91,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "16:55",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 92,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "18:30",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 295,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      {
+        "id": 93,
+        "route": "Zhytomyr-Malyn",
+        "labelUk": "Житомир → Малин",
+        "departureTime": "20:05",
+        "supportPhone": "+380(73)1824049  +380(68)7771590",
+        "priceUah": 283,
+        "boardingPlace": "Автовокзал Житомир-1 (вул. Київська, 93)",
+        "vehicleType": "marshrutka",
+        "tripNumber": null,
+        "activeWeekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    ]
+  }
+}

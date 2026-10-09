@@ -17,6 +17,8 @@ export interface TransportRouteDto {
   note?: string;
   sourceUrl?: string;
   schedule?: unknown;
+  /** Ненадійний маршрут — приховано на сайті (сторінки, табло, SEO/AEO, sitemap) */
+  unreliable?: boolean;
 }
 
 export interface TransportRouteStopDto {
@@ -37,6 +39,12 @@ export interface TransportTripDto {
   blockId?: string | null;
   wheelchairAccessible?: string;
   bikesAllowed?: string;
+  /** Перша обслуговувана зупинка; null — перша в напрямку */
+  startStopId?: string | null;
+  /** Остання обслуговувана зупинка (скорочений рейс); null — остання в напрямку */
+  endStopId?: string | null;
+  /** Фіксований час на останній обслуговуваній зупинці, HH:MM:SS */
+  arrivalTime?: string | null;
 }
 
 export interface TransportSegmentDto {
@@ -59,7 +67,18 @@ export interface TransportDataset {
 export interface EditorTransportData {
   records?: unknown[];
   supplement?: {
-    routes?: Record<string, { from?: string; to?: string; scheme?: string; note?: string; source_url?: string; schedule?: unknown }>;
+    routes?: Record<
+      string,
+      {
+        from?: string;
+        to?: string;
+        scheme?: string;
+        note?: string;
+        source_url?: string;
+        schedule?: unknown;
+        unreliable?: boolean;
+      }
+    >;
     stops?: {
       stops_by_route?: Record<string, Array<{
         id?: string;
@@ -84,6 +103,27 @@ export interface EditorCoordsData {
   stops: Record<string, [number, number]>;
 }
 
+/** Id маршрутів, позначених «ненадійний» (приховані на сайті). */
+export function hiddenTransportRouteIds(dataset: Pick<TransportDataset, 'routes'>): Set<string> {
+  return new Set(dataset.routes.filter((r) => r.unreliable === true).map((r) => r.id));
+}
+
+/**
+ * Публічна версія датасету: без ненадійних маршрутів і всього, що на них посилається
+ * (зупинки маршруту, рейси, сегменти). Зупинки лишаються — вони спільні між маршрутами.
+ */
+export function publicTransportDataset(dataset: TransportDataset): TransportDataset {
+  const hidden = hiddenTransportRouteIds(dataset);
+  if (hidden.size === 0) return dataset;
+  return {
+    ...dataset,
+    routes: dataset.routes.filter((r) => !hidden.has(r.id)),
+    routeStops: dataset.routeStops.filter((rs) => !hidden.has(rs.routeId)),
+    trips: dataset.trips.filter((t) => !hidden.has(t.routeId)),
+    segments: dataset.segments.filter((s) => !hidden.has(s.routeId)),
+  };
+}
+
 export function datasetToEditor(dataset: TransportDataset): {
   transport: EditorTransportData;
   coords: EditorCoordsData;
@@ -95,10 +135,7 @@ export function datasetToEditor(dataset: TransportDataset): {
     coordsStops[s.id] = [s.lat, s.lng];
   }
 
-  const routes: Record<
-    string,
-    { from?: string; to?: string; scheme?: string; note?: string; source_url?: string; schedule?: unknown }
-  > = {};
+  const routes: NonNullable<NonNullable<EditorTransportData['supplement']>['routes']> = {};
   for (const r of dataset.routes) {
     routes[r.id] = {
       from: r.fromName,
@@ -107,6 +144,7 @@ export function datasetToEditor(dataset: TransportDataset): {
       note: r.note,
       source_url: r.sourceUrl,
       schedule: r.schedule,
+      unreliable: r.unreliable === true,
     };
   }
 
@@ -142,6 +180,9 @@ export function datasetToEditor(dataset: TransportDataset): {
         block_id: t.blockId,
         wheelchair_accessible: t.wheelchairAccessible,
         bikes_allowed: t.bikesAllowed,
+        start_stop_id: t.startStopId ?? null,
+        end_stop_id: t.endStopId ?? null,
+        arrival_time: t.arrivalTime ?? null,
       })),
       supplement: {
         routes,
@@ -192,6 +233,7 @@ export function editorToDataset(
       note: m.note ?? prev?.note ?? '',
       sourceUrl: m.source_url ?? prev?.sourceUrl ?? '',
       schedule: m.schedule ?? prev?.schedule ?? null,
+      unreliable: m.unreliable ?? prev?.unreliable ?? false,
     };
   });
 

@@ -50,6 +50,7 @@ export function createTelegramRoutesRouter(deps: { prisma: PrismaClient }): Rout
           : undefined;
         const rb = {
           route: booking.route,
+          source: booking.source,
           date: booking.date,
           departureTime: booking.departureTime,
           name: booking.name,
@@ -147,6 +148,7 @@ export function createTelegramRoutesRouter(deps: { prisma: PrismaClient }): Rout
           : undefined;
         const rb = {
           route: booking.route,
+          source: booking.source,
           date: booking.date,
           departureTime: booking.departureTime,
           name: booking.name,

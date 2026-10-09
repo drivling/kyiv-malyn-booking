@@ -8,9 +8,16 @@ const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const local_transport_1 = require("../local-transport");
 const transport_segments_1 = require("../transport-segments");
+const sticker_scans_1 = require("../sticker-scans");
+const sticker_wall_1 = require("../sticker-wall");
+const arrival_reports_1 = require("../arrival-reports");
 function createTransportRouter(deps) {
     const { prisma } = deps;
+    const adminPassword = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
     const r = express_1.default.Router();
+    const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
+    // Той самий звіт про рейс із того самого клієнта за 10 хв — подвійне натискання, не новий факт
+    const isRepeatArrival = (0, sticker_scans_1.createScanDeduper)(10 * 60 * 1000);
     /** Публічний повний датасет міського транспорту (~150 КБ). */
     r.get('/transport/dataset', async (_req, res) => {
         try {
@@ -65,6 +72,157 @@ function createTransportRouter(deps) {
             console.error('[POST /admin/transport/recalculate-segments]', e);
             const message = e instanceof Error ? e.message : 'Failed to recalculate segments';
             res.status(400).json({ error: message });
+        }
+    });
+    /**
+     * Публічний: відкриття табло з QR-наклейки (src/sticker-scans.ts). Body: { stopId, side: a|b|s }.
+     * Невідома зупинка — 404; повтор із того самого клієнта за 2 хв — 200 { counted: false }.
+     */
+    r.post('/transport/sticker-scans', async (req, res) => {
+        const scan = (0, sticker_scans_1.parseStickerScan)(req.body);
+        if (!scan) {
+            res.status(400).json({ error: 'Invalid sticker scan' });
+            return;
+        }
+        try {
+            const stop = await prisma.transportStop.findUnique({ where: { id: scan.stopId }, select: { id: true } });
+            if (!stop) {
+                res.status(404).json({ error: 'Unknown stop' });
+                return;
+            }
+            if (isRepeatScan(`${(0, sticker_scans_1.clientKey)(req.headers, req.ip)}|${scan.stopId}|${scan.side}`)) {
+                res.json({ ok: true, counted: false });
+                return;
+            }
+            await prisma.stickerScan.create({ data: scan });
+            res.status(201).json({ ok: true, counted: true });
+        }
+        catch (e) {
+            console.error('[POST /transport/sticker-scans]', e);
+            res.status(500).json({ error: 'Failed to save sticker scan' });
+        }
+    });
+    /**
+     * Адмін: статистика наклейок — відкриття по зупинці й боку (усього, 7 і 30 днів), по київських
+     * добах і годинах за ?days=7|30|90 (за замовчуванням 30) і облік друку.
+     */
+    r.get('/admin/transport/sticker-scans', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            res.json(await (0, sticker_scans_1.stickerScanStats)(prisma, { days: (0, sticker_scans_1.parseStatsDays)(req.query.days) }));
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/sticker-scans]', e);
+            res.status(500).json({ error: 'Failed to load sticker scans' });
+        }
+    });
+    /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні (лише читання знімка) */
+    r.get('/admin/transport/sticker-wall-key', require_admin_1.requireAdmin, (_req, res) => {
+        res.set({ 'Cache-Control': 'no-store' });
+        res.json({ key: (0, sticker_wall_1.stickerWallKey)(adminPassword) });
+    });
+    /**
+     * Віджет на стіну: сьогоднішні відкриття з QR (київська доба) + нові скани з id > ?after.
+     * Доступ — ключем із посилання, без адмін-сесії.
+     */
+    r.get('/transport/sticker-wall', async (req, res) => {
+        res.set({ 'Cache-Control': 'no-store' });
+        if (!(0, sticker_wall_1.isStickerWallKey)(req.query.key, adminPassword)) {
+            res.status(403).json({ error: 'Invalid wall key' });
+            return;
+        }
+        try {
+            res.json(await (0, sticker_wall_1.stickerWallSnapshot)(prisma, { after: Number(req.query.after) || 0 }));
+        }
+        catch (e) {
+            console.error('[GET /transport/sticker-wall]', e);
+            res.status(500).json({ error: 'Failed to load sticker wall' });
+        }
+    });
+    /** Адмін: друк або SVG наклейок зупинки. Body: { stopId, sides: (a|b|s)[], size: A5|A4 } */
+    r.post('/admin/transport/sticker-prints', require_admin_1.requireAdmin, async (req, res) => {
+        const print = (0, sticker_scans_1.parseStickerPrint)(req.body);
+        if (!print) {
+            res.status(400).json({ error: 'Invalid sticker print' });
+            return;
+        }
+        try {
+            await prisma.stickerPrint.createMany({
+                data: print.sides.map((side) => ({ stopId: print.stopId, side, size: print.size })),
+            });
+            res.status(201).json({ ok: true, count: print.sides.length });
+        }
+        catch (e) {
+            console.error('[POST /admin/transport/sticker-prints]', e);
+            res.status(500).json({ error: 'Failed to save sticker print' });
+        }
+    });
+    /**
+     * Публічний: пасажир повідомляє факт прибуття рейсу на зупинку (src/arrival-reports.ts).
+     * Body: { kind: arrived|missed, routeId, tripId, direction, stopId, scheduledTime, source, minutesAgo?, waitedMin?, clientId? }.
+     * Невідомий рейс/зупинка — 404; час далеко від розкладу — 422; повтор за 10 хв — 200 { counted: false }.
+     */
+    r.post('/transport/arrival-reports', async (req, res) => {
+        const input = (0, arrival_reports_1.parseArrivalReport)(req.body);
+        if (!input) {
+            res.status(400).json({ error: 'Invalid arrival report' });
+            return;
+        }
+        try {
+            const [trip, stop] = await Promise.all([
+                prisma.transportTrip.findUnique({ where: { id: input.tripId }, select: { routeId: true } }),
+                prisma.transportStop.findUnique({ where: { id: input.stopId }, select: { id: true } }),
+            ]);
+            if (!trip || trip.routeId !== input.routeId || !stop) {
+                res.status(404).json({ error: 'Unknown trip or stop' });
+                return;
+            }
+            const built = (0, arrival_reports_1.buildArrivalRow)(input, new Date());
+            if ('error' in built) {
+                res.status(422).json({ error: 'Report time is too far from the schedule' });
+                return;
+            }
+            const { row } = built;
+            const dedupeKey = `${(0, sticker_scans_1.clientKey)(req.headers, req.ip)}|${row.tripId}|${row.stopId}|${row.serviceDate}|${row.kind}`;
+            if (isRepeatArrival(dedupeKey)) {
+                res.json({ ok: true, counted: false, actualTime: row.actualTime, delayMin: row.delayMin });
+                return;
+            }
+            await prisma.transportArrivalReport.create({ data: row });
+            res.status(201).json({ ok: true, counted: true, actualTime: row.actualTime, delayMin: row.delayMin });
+        }
+        catch (e) {
+            console.error('[POST /transport/arrival-reports]', e);
+            res.status(500).json({ error: 'Failed to save arrival report' });
+        }
+    });
+    /** Адмін: звіти пасажирів про факт прибуття — зведення по рейсах на зупинках і останні звіти за ?days=1|7|30|90 */
+    r.get('/admin/transport/arrival-reports', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            res.json(await (0, arrival_reports_1.arrivalReportStats)(prisma, { days: (0, arrival_reports_1.parseReportDays)(req.query.days) }));
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/arrival-reports]', e);
+            res.status(500).json({ error: 'Failed to load arrival reports' });
+        }
+    });
+    /** Адмін: видалити хибний / спам-звіт */
+    r.delete('/admin/transport/arrival-reports/:id', require_admin_1.requireAdmin, async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+            res.status(400).json({ error: 'Invalid id' });
+            return;
+        }
+        try {
+            const { count } = await prisma.transportArrivalReport.deleteMany({ where: { id } });
+            if (!count) {
+                res.status(404).json({ error: 'Report not found' });
+                return;
+            }
+            res.json({ ok: true });
+        }
+        catch (e) {
+            console.error('[DELETE /admin/transport/arrival-reports/:id]', e);
+            res.status(500).json({ error: 'Failed to delete arrival report' });
         }
     });
     return r;

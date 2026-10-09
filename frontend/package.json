@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs",
+    "build": "tsc && vite build && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs && node scripts/prerender-spa.mjs && SEO_SMOKE_STRICT=1 node scripts/seo-smoke.mjs",
+    "prerender:spa": "node scripts/prerender-spa.mjs",
+    "seo:smoke": "node scripts/seo-smoke.mjs",
     "preview": "node scripts/serve-dist.mjs",
     "start": "npm run preview",
     "lint": "eslint . --ext ts,tsx,mjs --report-unused-disable-directives --max-warnings 0",
@@ -20,7 +22,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
-    "react-router-dom": "^6.20.0"
+    "react-router-dom": "^6.20.0",
+    "uqr": "0.1.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

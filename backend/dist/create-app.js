@@ -8,6 +8,7 @@ exports.createApp = createApp;
 exports.getRegisteredRoutes = getRegisteredRoutes;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const compression_1 = __importDefault(require("compression"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const poputky_1 = require("./routes/poputky");
@@ -27,8 +28,11 @@ const admin_messaging_1 = require("./routes/admin-messaging");
 const admin_viber_analytics_1 = require("./routes/admin-viber-analytics");
 const admin_referrals_1 = require("./routes/admin-referrals");
 const admin_lunch_1 = require("./routes/admin-lunch");
+const admin_dzhura_1 = require("./routes/admin-dzhura");
 const admin_notification_settings_1 = require("./routes/admin-notification-settings");
 const transport_1 = require("./routes/transport");
+const request_timing_1 = require("./middleware/request-timing");
+const require_admin_1 = require("./middleware/require-admin");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
@@ -65,10 +69,17 @@ function createApp(deps) {
         },
         credentials: true,
     };
+    app.use((0, request_timing_1.requestTiming)());
+    // gzip для JSON (каталоги/оголошення стискаються в 5–10×); маленькі відповіді не чіпаємо
+    app.use((0, compression_1.default)({ threshold: 1024 }));
     app.use((0, cors_1.default)(corsOptions));
     app.use(express_1.default.json({ limit: '2mb' }));
     app.use('/poputky', (0, poputky_1.createPoputkyRouter)({ prisma }));
-    const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
+    const ADMIN_PASSWORD = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
+    if (!deps.adminPassword && !process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'production') {
+        console.warn('[KYIV-MALYN-BACKEND] ADMIN_PASSWORD не задано — адмінка відкрита dev-паролем');
+    }
+    (0, require_admin_1.setAdminPassword)(app, ADMIN_PASSWORD);
     app.use((0, public_routes_1.createPublicRoutesRouter)({ codeVersion: exports.CODE_VERSION }));
     app.use((0, admin_session_1.createAdminSessionRouter)({ adminPassword: ADMIN_PASSWORD }));
     app.use((0, admin_maintenance_1.createAdminMaintenanceRouter)({ prisma }));
@@ -85,8 +96,9 @@ function createApp(deps) {
     app.use((0, admin_viber_analytics_1.createAdminViberAnalyticsRouter)({ prisma }));
     app.use((0, admin_referrals_1.createAdminReferralsRouter)({ prisma }));
     app.use((0, admin_lunch_1.createAdminLunchRouter)({ prisma }));
+    app.use((0, admin_dzhura_1.createAdminDzhuraRouter)({ prisma }));
     app.use((0, admin_notification_settings_1.createAdminNotificationSettingsRouter)({ prisma }));
-    app.use((0, transport_1.createTransportRouter)({ prisma }));
+    app.use((0, transport_1.createTransportRouter)({ prisma, adminPassword: ADMIN_PASSWORD }));
     // Глобальний обробник помилок — завжди повертаємо JSON
     app.use((err, _req, res, _next) => {
         console.error('❌ Unhandled error:', err);

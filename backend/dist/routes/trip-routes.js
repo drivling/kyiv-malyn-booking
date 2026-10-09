@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const schedule_trip_1 = require("../schedule-trip");
 const poputky_od_1 = require("../poputky-od");
+const catalog_cache_1 = require("../catalog-cache");
 const includeStops = {
     startPoint: true,
     endPoint: true,
@@ -72,6 +73,16 @@ async function rebuildStops(prisma, tripRouteId, startPointId, endPointId, viaPo
 function createTripRoutesRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
+    // Після будь-якого запису каталогу — скинути кеш точок/маршрутів (catalog-cache.ts)
+    r.use((req, res, next) => {
+        if (req.method !== 'GET') {
+            res.on('finish', () => {
+                if (res.statusCode < 300)
+                    (0, catalog_cache_1.invalidateCatalogCache)(prisma);
+            });
+        }
+        next();
+    });
     r.get('/trip-routes', async (req, res) => {
         const corridorsOnly = req.query.corridors === 'true' || req.query.corridors === '1';
         const variantsOnly = req.query.variants === 'true' || req.query.variants === '1';

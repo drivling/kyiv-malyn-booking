@@ -23,6 +23,8 @@ _BARE_INLINE_RE = re.compile(
 
 # Особисте замовлення рідко > 5 позицій; більше — підозра на дамп/підсумок
 MAX_PERSONAL_DISHES = 5
+# Порцій разом: «хліб 4 шт» + 3 страви — ще особисте; кілька людей з однаковими стравами — вже дамп
+MAX_PERSONAL_PORTIONS = 2 * MAX_PERSONAL_DISHES
 
 
 @dataclass
@@ -81,8 +83,10 @@ def looks_like_day_summary(text: str) -> bool:
     return False
 
 
-def looks_like_mega_personal_order(dish_count: int) -> bool:
-    return dish_count > MAX_PERSONAL_DISHES
+def looks_like_mega_personal_order(dish_count: int, portions: int = 0) -> bool:
+    """dish_count — скільки РІЗНИХ страв (рядків), portions — скільки порцій разом.
+    «Хліб 4 шт» чи «голубці 2 порції» — одна позиція з кількістю, а не дамп."""
+    return dish_count > MAX_PERSONAL_DISHES or portions > MAX_PERSONAL_PORTIONS
 
 
 def _name_key(name: str) -> str:
@@ -94,6 +98,34 @@ def order_signature(text: str) -> tuple[str, ...]:
     parts = split_order_parts(text.replace("\n", ","))
     norms = [_name_key(p) for p in parts if p.strip()]
     return tuple(sorted(n for n in norms if n))
+
+
+_NUMBERED_ENTRY_RE = re.compile(r"^\s*(\d{1,2})\s*[.)]\s*(.*)$", re.UNICODE)
+
+
+def parse_numbered_summary(text: str) -> list[str]:
+    """Підсумок оператора списком «1. страви / 2. страви …»: кожен пункт — замовлення однієї людини.
+
+    Повертає тексти пунктів по порядку. Порожній список — якщо це не схоже на такий підсумок:
+    потрібні щонайменше три пункти й нумерація строго 1, 2, 3… (інакше це може бути просто
+    нумерований перелік страв у чиємусь особистому замовленні)."""
+    entries: list[tuple[int, list[str]]] = []
+    cur: tuple[int, list[str]] | None = None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        m = _NUMBERED_ENTRY_RE.match(line)
+        if m:
+            body = m.group(2).strip()
+            cur = (int(m.group(1)), [body] if body else [])
+            entries.append(cur)
+        elif not line:
+            cur = None
+        elif cur is not None:
+            cur[1].append(line)
+    numbers = [n for n, _ in entries]
+    if len(entries) < 3 or numbers != list(range(1, len(entries) + 1)):
+        return []
+    return ["\n".join(lines).strip() for _, lines in entries]
 
 
 def _split_blocks(body: str) -> list[str]:

@@ -10,6 +10,7 @@ exports.buildOdMatchWhere = buildOdMatchWhere;
 exports.orderedPointIdsFromStops = orderedPointIdsFromStops;
 exports.isOdAlongItinerary = isOdAlongItinerary;
 exports.classifyPoputkyRouteMatch = classifyPoputkyRouteMatch;
+exports.listingMatchesSearchOd = listingMatchesSearchOd;
 exports.formatOdRouteLabel = formatOdRouteLabel;
 exports.buildOdPairsFromTripRoutes = buildOdPairsFromTripRoutes;
 exports.listOdPairs = listOdPairs;
@@ -19,6 +20,7 @@ exports.listOdPairs = listOdPairs;
  * Along-route: passenger OD is an ordered subset of the driver's TripRoute stops.
  */
 const schedule_trip_1 = require("./schedule-trip");
+const catalog_cache_1 = require("./catalog-cache");
 /** Build route snapshot from two point codes (no via). */
 function buildOdRouteSlug(fromCode, toCode) {
     return (0, schedule_trip_1.buildLegacyRouteKey)(fromCode, toCode, []);
@@ -39,7 +41,7 @@ async function resolveOdPointIdsFromRoute(prisma, route) {
     const parsed = parseOdCodesFromRoute(route);
     if (!parsed)
         return null;
-    const points = await prisma.tripPoint.findMany();
+    const points = (await (0, catalog_cache_1.getCatalogPoints)(prisma));
     const from = findPointByCode(points, parsed.fromCode);
     const to = findPointByCode(points, parsed.toCode);
     if (!from || !to || from.id === to.id)
@@ -48,9 +50,8 @@ async function resolveOdPointIdsFromRoute(prisma, route) {
 }
 /** Validate two appearInPoputky points and return route + ids. */
 async function resolvePoputkyOdPair(prisma, fromRaw, toRaw) {
-    const points = await prisma.tripPoint.findMany({
-        where: { appearInPoputky: true },
-    });
+    // Каталог з кешу; appearInPoputky фільтруємо тут (у кеші лежать усі точки)
+    const points = (await (0, catalog_cache_1.getCatalogPoints)(prisma)).filter((p) => p.appearInPoputky);
     const from = findPointByCode(points, fromRaw);
     const to = findPointByCode(points, toRaw);
     if (!from || !to) {
@@ -124,6 +125,30 @@ function classifyPoputkyRouteMatch(input) {
         return 'along_route';
     }
     return null;
+}
+/**
+ * Чи підходить оголошення під пошук from→to (сайт, /poputky/search):
+ * - точна OD-пара;
+ * - водій, маршрут якого (TripRoute stops) містить from→to у цьому порядку — пасажир по дорозі;
+ * - старий рядок без точок — по route-рядку.
+ * Пасажир з іншою OD-парою на тому ж маршруті НЕ підходить (раніше SQL-гілка `tripRouteId in`
+ * повертала його; Docs/poputky-search-performance-plan.md, Фаза 4.2).
+ */
+function listingMatchesSearchOd(listing, search, itineraryByRouteId) {
+    if (listing.fromPointId === search.fromId && listing.toPointId === search.toId)
+        return true;
+    if (listing.listingType === 'driver' && listing.tripRouteId != null) {
+        const itinerary = itineraryByRouteId.get(listing.tripRouteId);
+        if (itinerary && isOdAlongItinerary(itinerary, search.fromId, search.toId))
+            return true;
+    }
+    if (listing.fromPointId == null && listing.toPointId == null) {
+        const parsed = parseOdCodesFromRoute(listing.route);
+        return (!!parsed &&
+            parsed.fromCode.toLowerCase() === search.fromCode.toLowerCase() &&
+            parsed.toCode.toLowerCase() === search.toCode.toLowerCase());
+    }
+    return false;
 }
 /** Human label from route slug using optional code→nameUk map. */
 function formatOdRouteLabel(route, labelByCode) {

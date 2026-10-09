@@ -13,6 +13,9 @@ import { getSupportPhoneForRoute } from '../support-phone-route';
 import { isValidScheduleDepartureTime, SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE } from '../validation/schedule-departure-time';
 import { validateBookingPhoneInput } from '../validation/booking-phone';
 import { requireAdmin } from '../middleware/require-admin';
+import { getCatalogPoints } from '../catalog-cache';
+import { scheduleInclude } from '../schedule-include';
+import { PHONE_BLOCKED_MESSAGE, isPhoneBlocked, recordBlockedAttempt } from '../phone-block';
 import { defaultSchedulePriceUah, parseOptionalPriceUah } from '../schedule-price';
 import {
   buildLegacyRouteKey,
@@ -28,6 +31,7 @@ import {
   type VehicleType,
 } from '../schedule-trip';
 import { applyTimetablePreview, buildTimetablePreview, parseTimetablePages } from '../schedule-timetable-sync';
+import { PHONE_ONLY_NOTICE_TEXT, isPhoneOnlyBooking } from '../phone-booking';
 
 async function buildAvailabilityPayload(
   prisma: PrismaClient,
@@ -96,18 +100,6 @@ async function buildAvailabilityPayload(
   };
 }
 
-const scheduleInclude = {
-  startPoint: true,
-  endPoint: true,
-  tripRoute: {
-    include: {
-      startPoint: true,
-      endPoint: true,
-      corridorRoute: true,
-      stops: { include: { point: true }, orderBy: { position: 'asc' as const } },
-    },
-  },
-} as const;
 
 async function applyStopOffsets(
   prisma: PrismaClient,
@@ -295,7 +287,7 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
     }
 
     if (typeof fromCode === 'string' && typeof toCode === 'string' && fromCode.trim() && toCode.trim()) {
-      const points = await prisma.tripPoint.findMany();
+      const points = await getCatalogPoints(prisma);
       const from = points.find((p) => p.code.toLowerCase() === fromCode.trim().toLowerCase());
       const to = points.find((p) => p.code.toLowerCase() === toCode.trim().toLowerCase());
       if (from && to) {
@@ -652,6 +644,11 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       return res.status(400).json({ error: phoneValid.error });
     }
 
+    if (await isPhoneBlocked(prisma, phone)) {
+      await recordBlockedAttempt(prisma, String(phone));
+      return res.status(403).json({ error: PHONE_BLOCKED_MESSAGE });
+    }
+
     if (departureTime && !isValidScheduleDepartureTime(departureTime)) {
       return res.status(400).json({ error: SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE });
     }
@@ -854,7 +851,9 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
       }
     }
 
-    res.status(201).json(booking);
+    // «Зубастик» поки лише за телефоном: заявку зберігаємо, але клієнт API має показати попередження
+    const phoneOnly = isPhoneOnlyBooking(resolvedSchedule);
+    res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: PHONE_ONLY_NOTICE_TEXT } : {}) });
   });
 
   r.get('/bookings', requireAdmin, async (_req, res) => {

@@ -101,4 +101,31 @@ describe('datasetToLocalViewModel', () => {
     assert.equal(vm.data.supplement?.routes?.['2']?.from, 'Базар');
     assert.equal(vm.data.supplement?.routes?.['2']?.to, 'Вокзал');
   });
+
+  it('drops unreliable (hidden) routes with their stops, trips and segments', () => {
+    const base = sampleDataset();
+    const withHidden: TransportDataset = {
+      ...base,
+      routes: [...base.routes, { id: '10', fromName: '', toName: '', unreliable: true }],
+      routeStops: [
+        ...base.routeStops,
+        { routeId: '10', stopId: 'st_a', orderThere: 1, orderBack: 2, mapOnly: false },
+        { routeId: '10', stopId: 'st_b', orderThere: 2, orderBack: 1, mapOnly: false },
+      ],
+      trips: [
+        ...base.trips,
+        { id: '10-01', routeId: '10', serviceId: 'everyday', headsign: 'Вокзал', directionId: '1', departureTime: null, blockId: 'АМ0033АА' },
+      ],
+      segments: [...base.segments, { routeId: '10', fromStopId: 'st_a', toStopId: 'st_b', seconds: 300 }],
+    };
+    const vm = datasetToLocalViewModel(withHidden);
+    assert.deepEqual(vm.data.records.map((r) => r.route_id), ['2']);
+    assert.deepEqual(Object.keys(vm.data.supplement?.routes || {}), ['2']);
+    assert.deepEqual(Object.keys(vm.data.supplement?.stops?.stops_by_route || {}), ['2']);
+    assert.equal(vm.segmentDurations['10|st_a|st_b'], undefined);
+    assert.deepEqual(vm.data.stats?.route_ids, ['2']);
+    assert.equal(vm.data.stats?.routes_count, 1);
+    // спільні зупинки лишаються
+    assert.equal(vm.data.supplement?.stops?.stops_catalog?.st_a?.name, 'Базар');
+  });
 });

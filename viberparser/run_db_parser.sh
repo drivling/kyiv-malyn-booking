@@ -3,7 +3,8 @@ set -euo pipefail
 
 # TODO: замени на URL твоего backend/API.
 VIBER_BACKEND_URL="https://kyiv-malyn-booking-production.up.railway.app"
-VIBER_ADMIN_TOKEN="${VIBER_ADMIN_TOKEN:-admin-authenticated}"
+# Токен из POST /admin/login (HMAC от ADMIN_PASSWORD) — см. RAILWAY_CRON_REMINDERS.md, шаг 2
+VIBER_ADMIN_TOKEN="${VIBER_ADMIN_TOKEN:-}"
 VIBER_CHAT_ID="${VIBER_CHAT_ID:-1}"
 VIBER_START_TODAY=true
 VIBER_DB_POLL_INTERVAL_SEC="${VIBER_DB_POLL_INTERVAL_SEC:-3}"
@@ -11,6 +12,11 @@ VIBER_DB_POLL_INTERVAL_SEC="${VIBER_DB_POLL_INTERVAL_SEC:-3}"
 if [[ "$VIBER_BACKEND_URL" == "https://твой-сайт-or-backend-url" ]]; then
   echo "Ошибка: укажи реальный VIBER_BACKEND_URL в viberparser/run_db_parser.sh"
   echo "Например: VIBER_BACKEND_URL=\"https://malin.kiev.ua\""
+  exit 1
+fi
+
+if [[ -z "$VIBER_ADMIN_TOKEN" ]]; then
+  echo "Ошибка: задай VIBER_ADMIN_TOKEN — токен из POST /admin/login"
   exit 1
 fi
 

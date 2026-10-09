@@ -35,6 +35,7 @@ def decide_personal_order_action(
         return PersonalOrderAction.IGNORE
     if day_status == "closed":
         return PersonalOrderAction.DAY_CLOSED
-    if looks_like_mega_personal_order(dish_qty_total):
+    # мега = багато різних страв (або дуже багато порцій); «хліб 4 шт» дампом не робить
+    if looks_like_mega_personal_order(matched_line_count, dish_qty_total):
         return PersonalOrderAction.MEGA
     return PersonalOrderAction.ACCEPT

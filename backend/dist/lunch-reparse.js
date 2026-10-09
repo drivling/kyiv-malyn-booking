@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reparseLunchToday = reparseLunchToday;
+exports.reparseLunchPerson = reparseLunchPerson;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
@@ -18,7 +19,7 @@ function sessionPathBase() {
         return env.replace(/\.session$/, '');
     return path_1.default.join(process.cwd(), 'telegram-user', 'session_telegram_user');
 }
-function spawnReparse() {
+function spawnReparse(extraArgs = []) {
     const sessionPath = sessionPathBase();
     const sessionFile = sessionPath + '.session';
     const apiId = process.env.TELEGRAM_API_ID?.trim();
@@ -30,7 +31,7 @@ function spawnReparse() {
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
     const groupId = (process.env.LUNCH_GROUP_ID || '-5427750954').trim();
     return new Promise((resolve) => {
-        const child = (0, child_process_1.spawn)(pythonCmd, ['-m', 'lunch.reparse'], {
+        const child = (0, child_process_1.spawn)(pythonCmd, ['-m', 'lunch.reparse', ...extraArgs], {
             cwd: telegramUserDir,
             env: {
                 ...process.env,
@@ -57,16 +58,7 @@ function spawnReparse() {
                     resolve({ ok: false, error: String(parsed.error || 'reparse failed') });
                 }
                 else {
-                    resolve({
-                        ok: true,
-                        scanned: parsed.scanned,
-                        orders: parsed.orders,
-                        payments: parsed.payments,
-                        cards: parsed.cards,
-                        summaries: parsed.summaries,
-                        skipped: parsed.skipped,
-                        errors: parsed.errors,
-                    });
+                    resolve({ ...parsed, ok: true });
                 }
             }
             catch {
@@ -85,13 +77,12 @@ function spawnReparse() {
  * Якщо listener працює — ставимо LunchAdminJob і чекаємо результат.
  * Інакше — spawn lunch.reparse (окрема сесія Telethon).
  */
-async function reparseLunchToday(prisma, opts) {
-    const timeoutMs = opts?.timeoutMs ?? 90000;
+async function runLunchJob(prisma, type, params, spawnArgs, timeoutMs) {
     if (!(0, lunch_listener_1.isLunchListenerWanted)()) {
-        return spawnReparse();
+        return spawnReparse(spawnArgs);
     }
     const job = await prisma.lunchAdminJob.create({
-        data: { type: 'reparse_today', status: 'pending' },
+        data: { type, status: 'pending', paramsJson: params ? JSON.stringify(params) : null },
     });
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -118,4 +109,12 @@ async function reparseLunchToday(prisma, opts) {
         ok: false,
         error: 'Таймаут очікування listener. Перевір логи [lunch-listener] / чи запущений python -m lunch.listener',
     };
+}
+async function reparseLunchToday(prisma, opts) {
+    return runLunchJob(prisma, 'reparse_today', null, [], opts?.timeoutMs ?? 90000);
+}
+/** Розібрати повідомлення однієї людини за сьогодні; чужі замовлення й ручні правки не чіпає. */
+async function reparseLunchPerson(prisma, opts) {
+    const notify = opts.notify !== false;
+    return runLunchJob(prisma, 'reparse_person', { tgUserId: opts.tgUserId, notify }, ['--user-id', opts.tgUserId, ...(notify ? [] : ['--no-notify'])], opts.timeoutMs ?? 90000);
 }

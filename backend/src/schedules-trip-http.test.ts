@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
+import { resetTelegramPrismaForTests, setTelegramPrismaForTests } from './telegram';
 
 const TEST_ADMIN_PASSWORD = 'trip-test-admin';
 
@@ -414,4 +415,108 @@ test('POST /bookings rejects elektrichka', async () => {
   });
   assert.equal(res.status, 400);
   assert.match(String(res.body.error), /Електричк/i);
+});
+
+test('POST /bookings: заблокований номер отримує 403 і бронювання не створюється', async () => {
+  const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
+  const prisma = createTripPrismaStub(store) as any;
+  // Номер заборонено адміном за скаргою
+  prisma.person.findUnique = async () => ({ id: 7, phoneBlockedAt: new Date(), blockedAttemptAt: null });
+
+  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const res = await request(app).post('/bookings').send({
+    route: 'Korosten-Malyn',
+    date: '2026-08-12',
+    departureTime: '07:10',
+    seats: 1,
+    name: 'Іван Петренко',
+    phone: '+380501112233',
+  });
+
+  assert.equal(res.status, 403);
+  assert.match(String(res.body.error), /заблоковано/i);
+  assert.equal(store.bookings.length, 0);
+});
+
+test('POST /bookings: незаблокований номер не блокується перевіркою', async () => {
+  const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
+  const prisma = createTripPrismaStub(store) as any;
+  prisma.person.findUnique = async () => ({ id: 7, phoneBlockedAt: null, blockedAttemptAt: null });
+
+  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const res = await request(app).post('/bookings').send({
+    route: 'Korosten-Malyn',
+    date: '2026-08-12',
+    departureTime: '07:10',
+    seats: 1,
+    name: 'Іван Петренко',
+    phone: '+380501112233',
+  });
+
+  // Рейсу в сторі немає — але відмова вже НЕ про заборону номера
+  assert.notEqual(res.status, 403);
+});
+
+function busSchedule(id: number, route: string): Sched {
+  const now = new Date();
+  return {
+    id,
+    route,
+    departureTime: '07:10',
+    maxSeats: 20,
+    supportPhone: '+380(93)1920008',
+    priceUah: 280,
+    startPointId: 1,
+    endPointId: 2,
+    viaPointIds: [],
+    tripRouteId: null,
+    vehicleType: 'marshrutka',
+    boardingPlace: null,
+    alightingPlace: null,
+    tripNumber: null,
+    arrivalTime: null,
+    durationMinutes: null,
+    ticketPurchaseUrl: null,
+    activeWeekdays: [1, 2, 3, 4, 5, 6, 7],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+async function postBooking(store: { points: Point[]; schedules: Sched[]; bookings: any[] }, scheduleId: number) {
+  const prisma = createTripPrismaStub(store) as any;
+  prisma.person.upsert = async ({ create }: any) => ({ id: 1, fullName: null, ...create });
+  // персону шукає/створює telegram.ts через власний клієнт
+  setTelegramPrismaForTests(prisma);
+  try {
+    return await request(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD })).post('/bookings').send({
+      scheduleId,
+      date: '2026-08-12',
+      seats: 1,
+      name: 'Іван Петренко',
+      phone: '+380501112233',
+    });
+  } finally {
+    resetTelegramPrismaForTests();
+  }
+}
+
+test('POST /bookings: «Зубастик» — заявку збережено, у відповіді phoneOnly і попередження «лише за телефоном»', async () => {
+  const store = { points: seedPoints(), schedules: [busSchedule(1, 'Kyiv-Malyn-Irpin')], bookings: [] as any[] };
+  const res = await postBooking(store, 1);
+  assert.equal(res.status, 201);
+  assert.equal(store.bookings.length, 1);
+  assert.equal(store.bookings[0].scheduleId, 1);
+  assert.equal(res.body.phoneOnly, true);
+  assert.match(String(res.body.notice), /Онлайн-бронювання маршруток Київ ↔ Малин поки не працює/);
+  assert.match(String(res.body.notice), /093 192 00 08/);
+});
+
+test('POST /bookings: інші маршрутки бронюються як раніше, без попередження', async () => {
+  const store = { points: seedPoints(), schedules: [busSchedule(1, 'Korosten-Malyn')], bookings: [] as any[] };
+  const res = await postBooking(store, 1);
+  assert.equal(res.status, 201);
+  assert.equal(store.bookings.length, 1);
+  assert.equal(res.body.phoneOnly, false);
+  assert.equal(res.body.notice, undefined);
 });

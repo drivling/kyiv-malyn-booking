@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTripPointsRouter = createTripPointsRouter;
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
+const catalog_cache_1 = require("../catalog-cache");
 function normalizeQuickDirectPointIds(raw) {
     if (raw === undefined)
         return undefined;
@@ -22,6 +23,16 @@ function normalizeQuickDirectPointIds(raw) {
 function createTripPointsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
+    // Після будь-якого запису каталогу — скинути кеш точок/маршрутів (catalog-cache.ts)
+    r.use((req, res, next) => {
+        if (req.method !== 'GET') {
+            res.on('finish', () => {
+                if (res.statusCode < 300)
+                    (0, catalog_cache_1.invalidateCatalogCache)(prisma);
+            });
+        }
+        next();
+    });
     r.get('/trip-points', async (req, res) => {
         const appearFromTo = req.query.appearInFromTo === 'true' || req.query.appearInFromTo === '1';
         const appearPoputky = req.query.appearInPoputky === 'true' || req.query.appearInPoputky === '1';

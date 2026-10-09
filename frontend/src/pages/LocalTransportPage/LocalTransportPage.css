@@ -4,7 +4,7 @@
    ========================================================================== */
 
 .lt-page {
-  /* BlaBlaCar-inspired cyan / navy (як .mizh-page) */
+  /* Токени розділу транспорту — ті самі, що на сторінці схеми та в мініатюрі (cyan / navy сайту) */
   --lt-accent: #00aff5;
   --lt-accent-hover: #0099d9;
   --lt-accent-light: rgba(0, 175, 245, 0.12);
@@ -14,10 +14,13 @@
   --lt-border-light: #e8ecee;
   --lt-text: #054752;
   --lt-text-muted: #708c91;
+  /* З / До: зелений і cyan, «-ink» — той самий відтінок для тексту на світлому тлі */
   --lt-origin: #0fa573;
+  --lt-origin-ink: #0a7a55;
   --lt-destination: #00aff5;
-  --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --lt-card-shadow: 0 2px 12px rgba(5, 71, 82, 0.08);
+  --lt-destination-ink: #0087c0;
+  --lt-font: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --lt-danger: #dc2626;
   --lt-elev-1: 0 2px 12px rgba(5, 71, 82, 0.08);
   --lt-fs-xs: 0.6875rem;
   --lt-fs-sm: 0.75rem;
@@ -25,43 +28,29 @@
   --lt-fs-md: 1rem;
   --lt-fs-lg: 1.125rem;
   --lt-fs-xl: 1.375rem;
+  --lt-fs-2xl: 1.75rem;
   --lt-panel-x: 16px;
   --lt-panel-y: 12px;
   --lt-panel-block: 14px;
   --lt-radius: 16px;
   --lt-radius-sm: 12px;
+  --lt-radius-badge: 6px;
+  --lt-radius-icon: 8px;
+  --lt-radius-pill: 999px;
 }
 
-/* Тема сторінки — ті самі BBC-токени */
-.lt-page.lt-theme-jakdojade {
-  --lt-accent: #00aff5;
-  --lt-accent-hover: #0099d9;
-  --lt-accent-light: rgba(0, 175, 245, 0.12);
-  --lt-bg: #f1f4f5;
-  --lt-card: #ffffff;
-  --lt-border: #dde3e6;
-  --lt-border-light: #e8ecee;
-  --lt-text: #054752;
-  --lt-text-muted: #708c91;
-  --lt-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-/* Кінцева «До» — destination token (cyan сайту) */
-.lt-theme-jakdojade .lt-stop-item--to .lt-stop-content { color: var(--lt-destination); }
-.lt-theme-jakdojade .lt-stop-badge--to {
-  background: rgba(0, 175, 245, 0.12);
-  color: #0087c0;
-}
-.lt-theme-jakdojade .lt-stop-item--to::before {
-  background: var(--lt-destination);
-  box-shadow: 0 0 0 2px rgba(0, 175, 245, 0.25);
+/* Контроли успадковують шрифт сторінки; розмір/висоту задають класи (шорткат font перебив би їх і iOS-правило 16px) */
+.lt-page button,
+.lt-page input,
+.lt-page select {
+  font-family: inherit;
 }
 
 /* Поля всередині сторінки транспорту — фокус і hover у стилі Material */
 .lt-page .combobox-input-wrap {
   border-color: var(--lt-border);
   background: var(--lt-card);
-  border-radius: 8px;
+  border-radius: var(--lt-radius-icon);
   box-shadow: none;
 }
 .lt-page .combobox-input-wrap:focus-within {
@@ -85,22 +74,20 @@
   z-index: 1200;
 }
 
-/* Доступність: видимий фокус для клавіатури (як на Jakdojade) */
+/* Доступність: видимий фокус для клавіатури */
 .lt-page button:focus-visible,
 .lt-page [role="button"]:focus-visible,
 .lt-page a:focus-visible,
 .lt-page .lt-route-card:focus-visible,
 .lt-page .lt-nearest-item:focus-visible,
+.lt-page .lt-stop-pick:focus-visible,
+.lt-page .lt-stop-board-link:focus-visible,
 .lt-page .lt-direction-btn:focus-visible,
 .lt-page .lt-print-btn:focus-visible,
 .lt-page .lt-print-btn--compact:focus-visible,
-.lt-page .lt-detail-summary-change:focus-visible,
 .lt-page .lt-from-to-swap:focus-visible,
 .lt-page .lt-back:focus-visible,
 .lt-page .lt-back--header:focus-visible,
-.lt-page .lt-geo-btn:focus-visible,
-.lt-page .lt-geo-btn--small:focus-visible,
-.lt-page .lt-search-btn:focus-visible,
 .lt-page .lt-subnav-link:focus-visible {
   outline: 2px solid var(--lt-accent);
   outline-offset: 2px;
@@ -113,91 +100,67 @@
 }
 
 /* ========== Split layout: світла BBC-панель + карта ========== */
-.lt-page.lt-layout-dark {
-  --lt-panel-bg: #ffffff;
-  --lt-panel-text: #054752;
-  --lt-panel-text-muted: #708c91;
-  --lt-panel-border: #dde3e6;
-  /* Акцент маршрутів = cyan головної */
-  --lt-route-green: #00aff5;
+.lt-page.lt-layout {
   min-height: 100vh;
   min-height: 100dvh;
   padding: 0;
-  background: #f1f4f5;
+  background: var(--lt-bg);
   font-family: var(--lt-font);
   overflow-x: hidden;
   width: 100%;
 }
 
-.lt-page.lt-layout-dark .lt-container {
+.lt-page.lt-layout .lt-container {
   max-width: none;
   margin: 0;
   border-radius: 0;
   box-shadow: none;
   border: none;
-  background: #f1f4f5;
+  background: var(--lt-bg);
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   overflow-x: hidden;
   width: 100%;
 }
 
 /* iPhone / Android: safe area (виріз, home indicator) */
-.lt-page.lt-layout-dark .lt-container {
+.lt-page.lt-layout .lt-container {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
   padding-top: env(safe-area-inset-top);
 }
-
-/* iPhone / Samsung / Xiaomi: панель зверху, карта знизу (стопка), safe-area для вирізу та home indicator */
 @media (max-width: 767px) {
-  .lt-page.lt-layout-dark .lt-container.lt-split-layout {
+  .lt-page.lt-layout .lt-container.lt-split-layout {
     flex-direction: column;
-    min-height: 100dvh;
     min-height: 100vh;
+    min-height: 100dvh;
   }
-  .lt-page.lt-layout-dark .lt-panel {
+  .lt-page.lt-layout .lt-panel {
     flex: 0 0 auto;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
-  .lt-page.lt-layout-dark .lt-map-column {
-    flex: 0 0 auto;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 45;
-    border-top: 1px solid var(--lt-panel-border);
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35);
-    background: #1a1a1a;
-    overflow: hidden;
-  }
   /* 16px щоб iOS не зумувало при фокусі на даті/часі та селекті зупинок */
-  .lt-datetime-input,
-  .lt-time-picker-select,
-  .lt-detail-picker .combobox-input {
+  .lt-datetime-input {
     font-size: 16px;
   }
 }
 
 @media (min-width: 768px) {
-  .lt-page.lt-layout-dark .lt-container.lt-split-layout {
+  .lt-page.lt-layout .lt-container.lt-split-layout {
     flex-direction: row;
-    height: calc(100vh - 60px);
-    height: calc(100dvh - 60px);
-    min-height: calc(100vh - 60px);
+    height: calc(100vh - var(--app-nav-height));
+    height: calc(100dvh - var(--app-nav-height));
+    min-height: calc(100vh - var(--app-nav-height));
     overflow-x: hidden;
     align-items: stretch;
   }
-  .lt-page.lt-layout-dark .lt-panel {
+  .lt-page.lt-layout .lt-panel {
     width: 380px;
     max-width: 380px;
     min-width: 320px;
@@ -205,7 +168,7 @@
     overflow-y: auto;
     overflow-x: hidden;
   }
-  .lt-page.lt-layout-dark .lt-map-column {
+  .lt-page.lt-layout .lt-map-column {
     flex: 1;
     min-width: 0;
     min-height: 0;
@@ -218,262 +181,51 @@
 }
 
 .lt-panel {
-  background: var(--lt-panel-bg);
-  color: var(--lt-panel-text);
+  background: var(--lt-card);
+  color: var(--lt-text);
 }
 
-.lt-layout-dark .lt-panel .lt-back,
-.lt-layout-dark .lt-panel .lt-detail-from-to-text,
-.lt-layout-dark .lt-panel .lt-detail-date,
-.lt-layout-dark .lt-panel .lt-detail-time,
-.lt-layout-dark .lt-panel .lt-route-title-path,
-.lt-layout-dark .lt-panel .lt-section-title,
-.lt-layout-dark .lt-panel .lt-from-to-label,
-.lt-layout-dark .lt-panel .lt-stops-heading,
-.lt-layout-dark .lt-panel .lt-stop-time,
-.lt-layout-dark .lt-panel .lt-stop-content,
-.lt-layout-dark .lt-panel .lt-th-stop,
-.lt-layout-dark .lt-panel .lt-routes-heading,
-.lt-layout-dark .lt-panel .lt-title,
-.lt-layout-dark .lt-panel .lt-subtitle { color: var(--lt-panel-text) !important; }
-
-.lt-layout-dark .lt-panel .lt-detail-date,
-.lt-layout-dark .lt-panel .lt-timetable-heading,
-.lt-layout-dark .lt-panel .lt-stop-to-next { color: var(--lt-panel-text-muted) !important; }
-
-.lt-layout-dark .lt-panel .lt-detail-topbar,
-.lt-layout-dark .lt-panel .lt-detail-header,
-.lt-layout-dark .lt-panel .lt-timetable-section,
-.lt-layout-dark .lt-panel .lt-timetable-header,
-.lt-layout-dark .lt-panel .lt-map-stops--jd { border-color: var(--lt-panel-border) !important; }
-
-.lt-layout-dark .lt-panel .lt-search--jakdojade,
-.lt-layout-dark .lt-panel .lt-header--jakdojade { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); }
-
-.lt-layout-dark .lt-panel .lt-route-num--verified {
-  background: #0fa573 !important;
-  border-color: #0fa573 !important;
-  color: #fff !important;
-}
-
-.lt-layout-dark .lt-panel .lt-direction-btn--active {
-  background: rgba(0, 175, 245, 0.12) !important;
-  border: 1px solid var(--lt-route-green) !important;
-  color: var(--lt-route-green) !important;
-}
-
-.lt-layout-dark .lt-panel .lt-direction-btn:not(.lt-direction-btn--active) {
-  background: #f1f4f5;
-  border-color: transparent;
-  color: var(--lt-panel-text-muted);
-}
-
-.lt-layout-dark .lt-panel .lt-direction-toggle .lt-direction-btn:not(.lt-direction-btn--active) {
-  background: transparent;
-  border: none;
-  color: var(--lt-panel-text-muted);
-}
-
-.lt-layout-dark .lt-panel .lt-direction-toggle .lt-direction-btn--active {
-  background: #fff !important;
-  border: none !important;
-  color: var(--lt-route-green) !important;
-  box-shadow: inset 0 0 0 1px var(--lt-route-green);
-}
-
-.lt-layout-dark .lt-panel .lt-timetable-table--tablica thead { background: #f1f4f5 !important; }
-.lt-layout-dark .lt-panel .lt-timetable-table--tablica td { border-color: var(--lt-panel-border); background: var(--lt-panel-bg); }
-.lt-layout-dark .lt-panel .lt-timetable-row--selected td { background: rgba(0, 175, 245, 0.1) !important; }
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap,
-.lt-layout-dark .lt-panel .lt-datetime-input {
-  background: #fff;
-  border-color: var(--lt-panel-border);
-  color: var(--lt-panel-text);
-  border-radius: var(--lt-radius-sm, 12px);
-}
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap::placeholder,
-.lt-layout-dark .lt-panel .lt-datetime-input::placeholder { color: var(--lt-panel-text-muted); }
-.lt-layout-dark .lt-panel .lt-from-to-field .combobox-input-wrap:focus-within {
-  border-color: var(--lt-route-green);
-  box-shadow: 0 0 0 3px rgba(0, 175, 245, 0.18);
-}
-.lt-layout-dark .lt-panel .combobox-list { background: #fff; border-color: var(--lt-panel-border); box-shadow: var(--lt-card-shadow); }
-.lt-layout-dark .lt-panel .combobox-option { color: var(--lt-panel-text); }
-.lt-layout-dark .lt-panel .combobox-option:hover,
-.lt-layout-dark .lt-panel .combobox-option--highlight { background: rgba(0, 175, 245, 0.1); }
-.lt-layout-dark .lt-panel .lt-search-btn { background: var(--lt-accent) !important; color: #fff !important; }
-.lt-layout-dark .lt-panel .lt-search-btn:hover:not(:disabled) { background: var(--lt-accent-hover) !important; color: #fff !important; }
-.lt-layout-dark .lt-panel .lt-geo-btn--small { background: #fff; color: var(--lt-panel-text); border: 1px solid var(--lt-panel-border); }
-.lt-layout-dark .lt-panel .lt-from-to-swap {
-  background: #fff;
-  border-color: var(--lt-panel-border);
-  color: var(--lt-panel-text-muted);
-}
-.lt-layout-dark .lt-panel .lt-from-to-swap:hover {
-  border-color: var(--lt-route-green);
-  color: var(--lt-route-green);
-  background: rgba(0, 175, 245, 0.08);
-}
-.lt-layout-dark .lt-panel .lt-route-card { border-color: var(--lt-panel-border); color: var(--lt-panel-text); }
-.lt-layout-dark .lt-panel .lt-route-card:hover { background: #f7fafb; }
-.lt-layout-dark .lt-panel .lt-route-card--jd { background: var(--lt-panel-bg); }
-.lt-layout-dark .lt-panel .lt-route-card--jd:hover { background: #f7fafb; }
-.lt-layout-dark .lt-panel .lt-route-card-time { border-color: var(--lt-panel-border); }
-.lt-layout-dark .lt-panel .lt-route-card-time-value { color: var(--lt-panel-text); }
-.lt-layout-dark .lt-panel .lt-route-card-main .lt-route-path { color: var(--lt-panel-text) !important; }
-.lt-layout-dark .lt-panel .lt-route-card-main .lt-route-meta { color: var(--lt-panel-text-muted); }
-.lt-layout-dark .lt-panel .lt-stops-timeline::before {
-  background: var(--lt-panel-border) !important;
-  background-image: none !important;
-}
-.lt-layout-dark .lt-panel .lt-stops-timeline-segment { background: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .lt-stop-item--from::before { background: #0fa573 !important; }
-.lt-layout-dark .lt-panel .lt-stop-item--to::before { background: #00aff5 !important; }
-.lt-layout-dark .lt-panel .lt-footer { background: var(--lt-panel-bg); border-color: var(--lt-panel-border); color: var(--lt-panel-text-muted); }
-.lt-layout-dark .lt-panel .lt-footer a { color: var(--lt-route-green); }
-
-/* Темна тема — додатково: фон і межі щоб ніде не пробивався світлий стиль */
-.lt-layout-dark .lt-panel .lt-detail-header,
-.lt-layout-dark .lt-panel .lt-detail-header--jd { background: var(--lt-panel-bg) !important; border-color: var(--lt-panel-border) !important; }
-.lt-layout-dark .lt-panel .lt-timetable-header,
-.lt-layout-dark .lt-panel .lt-timetable-header--jd,
-.lt-layout-dark .lt-panel .lt-timetable-header--compact { background: var(--lt-panel-bg) !important; border-color: var(--lt-panel-border) !important; }
-.lt-layout-dark .lt-panel .lt-timetable-section { background: var(--lt-panel-bg); }
-.lt-layout-dark .lt-panel .lt-print-btn,
-.lt-layout-dark .lt-panel .lt-print-btn--compact {
-  background: #fff !important;
-  border-color: var(--lt-panel-border) !important;
-  color: var(--lt-panel-text) !important;
-}
-.lt-layout-dark .lt-panel .lt-print-btn:hover,
-.lt-layout-dark .lt-panel .lt-print-btn--compact:hover {
-  background: rgba(0, 175, 245, 0.08) !important;
-  border-color: var(--lt-route-green) !important;
-  color: var(--lt-route-green) !important;
-}
-
-/* Темна тема: видимий фокус — зелений контур */
-.lt-layout-dark .lt-panel button:focus-visible,
-.lt-layout-dark .lt-panel [role="button"]:focus-visible,
-.lt-layout-dark .lt-panel .lt-route-card:focus-visible,
-.lt-layout-dark .lt-panel .lt-nearest-item:focus-visible,
-.lt-layout-dark .lt-panel .lt-direction-btn:focus-visible,
-.lt-layout-dark .lt-panel .lt-print-btn:focus-visible,
-.lt-layout-dark .lt-panel .lt-print-btn--compact:focus-visible,
-.lt-layout-dark .lt-panel .lt-detail-summary-change:focus-visible,
-.lt-layout-dark .lt-panel .lt-from-to-swap:focus-visible,
-.lt-layout-dark .lt-panel .lt-back:focus-visible,
-.lt-layout-dark .lt-panel .lt-back--header:focus-visible,
-.lt-layout-dark .lt-panel .lt-geo-btn:focus-visible,
-.lt-layout-dark .lt-panel .lt-geo-btn--small:focus-visible,
-.lt-layout-dark .lt-panel .lt-search-btn:focus-visible {
-  outline: 2px solid var(--lt-route-green) !important;
-  outline-offset: 2px;
-}
-
-.lt-layout-dark .lt-panel input:focus-visible,
-.lt-layout-dark .lt-panel select:focus-visible {
-  outline: 2px solid var(--lt-route-green) !important;
-  outline-offset: 0;
-}
-
-.lt-layout-dark .lt-panel .lt-fare:not(.lt-fare--header) {
-  background: rgba(0, 175, 245, 0.12) !important;
-  color: var(--lt-route-green) !important;
-  border: 1px solid rgba(0, 175, 245, 0.35);
-}
-
-.lt-layout-dark .lt-panel .lt-fare--header {
-  background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%) !important;
-  color: #fff !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.lt-layout-dark .lt-panel .lt-back,
-.lt-layout-dark .lt-panel .lt-back--header { color: var(--lt-panel-text-muted) !important; }
-.lt-layout-dark .lt-panel .lt-back:hover,
-.lt-layout-dark .lt-panel .lt-back--header:hover { color: var(--lt-panel-text) !important; }
-.lt-layout-dark .lt-panel .lt-detail-summary-route,
-.lt-layout-dark .lt-panel .lt-detail-summary-meta { color: inherit; }
-.lt-layout-dark .lt-panel .lt-detail-summary-change { color: var(--lt-route-green); border-color: var(--lt-panel-border); }
-.lt-layout-dark .lt-panel .lt-detail-summary-change:hover { border-color: var(--lt-route-green); background: rgba(0, 175, 245, 0.12); }
-.lt-layout-dark .lt-panel .lt-detail-summary-arrow { color: var(--lt-route-green); }
-.lt-layout-dark .lt-panel .lt-route-num--unverified { color: var(--lt-panel-text-muted); }
-
-/* Темна тема — секція «Зупинки на маршруті»: фон і весь текст видимий */
-.lt-layout-dark .lt-panel .lt-map-stops,
-.lt-layout-dark .lt-panel .lt-map-stops--jd,
-.lt-layout-dark .lt-panel .lt-map-stops-inner,
-.lt-layout-dark .lt-panel .lt-stops,
-.lt-layout-dark .lt-panel .lt-stops--jd,
-.lt-layout-dark .lt-panel .lt-map-area {
-  background: var(--lt-panel-bg) !important;
-  border-color: var(--lt-panel-border) !important;
-}
-.lt-layout-dark .lt-panel .lt-map-stops .lt-section-title--stops,
-.lt-layout-dark .lt-panel .lt-stops-heading {
-  color: var(--lt-panel-text) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-time {
-  color: var(--lt-panel-text-muted) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-content {
-  color: var(--lt-panel-text) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-item--from .lt-stop-content {
-  color: #0fa573 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-item--to .lt-stop-content {
-  color: #0087c0 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-to-next {
-  color: var(--lt-panel-text-muted) !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-badge--from {
-  background: rgba(129, 201, 149, 0.2) !important;
-  color: #81c995 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-badge--to {
-  background: rgba(242, 139, 130, 0.2) !important;
-  color: #f28b82 !important;
-}
-.lt-layout-dark .lt-panel .lt-stop-item::before {
-  border-color: var(--lt-panel-bg) !important;
-  box-shadow: 0 0 0 1px var(--lt-panel-border) !important;
-}
-/* Деталі маршруту — компактний стиль як Jakdojade; текст правіше кнопки ← */
-.lt-detail .lt-header--jakdojade {
+/* Деталі маршруту — компактна шапка; текст правіше кнопки ← */
+.lt-detail .lt-header {
   position: relative;
-  padding: 10px var(--lt-panel-x) 10px 0;
+  padding: 10px var(--lt-panel-x);
   min-height: auto;
 }
 
-.lt-detail .lt-header--jakdojade .lt-header-title-wrap {
+.lt-detail .lt-header .lt-header-title-wrap {
   margin-left: 46px;
   min-width: 0;
 }
 
-.lt-detail .lt-header--jakdojade .lt-title {
+.lt-detail .lt-header .lt-title {
   font-size: var(--lt-fs-base);
   margin: 0;
   font-weight: 600;
 }
 
-.lt-detail .lt-header--jakdojade .lt-subtitle {
+.lt-detail .lt-header .lt-subtitle {
   font-size: var(--lt-fs-sm);
   margin: 2px 0 0;
 }
 
+/* «Назад» — іконна кнопка (як .lt-icon-btn), текст шапки правіше */
 .lt-back--header {
   position: absolute;
-  left: 0;
+  left: var(--lt-panel-x);
   top: 50%;
   transform: translateY(-50%);
   margin-bottom: 0;
-  padding: 10px;
-  width: 44px;
-  height: 44px;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
   box-sizing: border-box;
-  font-size: 1.125rem;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-icon);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-size: var(--lt-fs-md);
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -481,18 +233,18 @@
   touch-action: manipulation;
 }
 
-.lt-detail--jakdojade .lt-detail-header--jd {
+.lt-detail .lt-detail-header {
   padding: var(--lt-panel-y) var(--lt-panel-x);
-  border-bottom: 1px solid var(--lt-panel-border);
+  border-bottom: 1px solid var(--lt-border);
 }
 
 /* Відступи панелі деталей */
-.lt-layout-dark .lt-panel .lt-detail--jakdojade {
+.lt-layout .lt-panel .lt-detail {
   padding-left: var(--lt-panel-x);
   padding-right: var(--lt-panel-x);
 }
 
-.lt-detail--jakdojade .lt-detail-header-top {
+.lt-detail .lt-detail-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -500,415 +252,84 @@
   margin-bottom: 10px;
 }
 
-.lt-detail--jakdojade .lt-route-title--jd {
+.lt-detail .lt-route-title {
   margin: 0;
   flex: 1;
   min-width: 0;
 }
 
-.lt-detail--jakdojade .lt-route-title--jd .lt-route-num {
+.lt-detail .lt-route-title .lt-route-num {
   font-size: var(--lt-fs-lg);
 }
 
-.lt-detail--jakdojade .lt-route-title-path {
+.lt-detail .lt-route-title-path {
   font-size: var(--lt-fs-md);
 }
 
-.lt-detail--jakdojade .lt-fare--header {
+/* Чіп «проїзд 20 ₴» — статичний, у мові чіпів */
+.lt-fare-chip {
   flex-shrink: 0;
   align-self: center;
   display: inline-flex;
   align-items: baseline;
-  gap: 7px;
-  padding: 6px 11px 6px 10px;
-  border-radius: 10px;
-  white-space: nowrap;
-  line-height: 1;
-  background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 1px 2px rgba(5, 71, 82, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-.lt-detail--jakdojade .lt-fare--header .lt-fare-label {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.lt-detail--jakdojade .lt-fare--header .lt-fare-amount {
-  font-size: 1.05rem;
-  font-weight: 700;
+  gap: 5px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-  color: #fff;
+  white-space: nowrap;
 }
 
-.lt-detail--jakdojade .lt-fare--header .lt-fare-currency {
-  margin-left: 1px;
-  font-size: 0.95em;
-  font-weight: 700;
-  color: #5ee4b5;
+.lt-fare-chip__label {
+  font-size: var(--lt-fs-xs);
+  font-weight: 500;
+  color: var(--lt-text-muted);
 }
 
-.lt-detail--jakdojade .lt-detail-header-actions {
+.lt-detail .lt-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 0;
 }
 
-.lt-detail--jakdojade .lt-direction-toggle {
+/* Перемикач напрямку — сегментований трек: активний сегмент білий із тінню */
+.lt-detail .lt-direction-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0;
-  width: 100%;
-  padding: 0;
-  border: 1px solid var(--lt-panel-border, #dde3e6);
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f1f4f5;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--lt-radius-pill);
+  background: var(--lt-bg);
 }
 
-.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn {
-  flex: 1;
+.lt-detail .lt-direction-toggle .lt-direction-btn {
   min-width: 0;
-  min-height: 40px;
+  min-height: 34px;
   margin: 0;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border: none;
-  border-radius: 0;
+  border-radius: var(--lt-radius-pill);
   font-size: var(--lt-fs-sm);
   font-weight: 600;
+  color: var(--lt-text-muted);
   background: transparent;
   box-shadow: none;
 }
 
-.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn + .lt-direction-btn {
-  border-left: 1px solid var(--lt-panel-border, #dde3e6);
+.lt-detail .lt-direction-toggle .lt-direction-btn--active {
+  background: var(--lt-card);
+  color: var(--lt-text);
+  box-shadow: var(--lt-elev-1);
 }
 
-.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn--active {
-  background: #fff;
-  color: var(--lt-route-green, #00aff5);
-  box-shadow: inset 0 0 0 1px var(--lt-route-green, #00aff5);
-}
-
-.lt-detail-search {
-  padding-top: 8px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--lt-panel-border);
-}
-
-/* Блок вибору зупинок на сторінці маршруту (коли ще не обрано З/До) */
-.lt-detail-picker {
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  border-bottom: 1px solid var(--lt-panel-border);
-}
-
-.lt-detail-picker .lt-section-title {
-  padding-top: 0;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.lt-detail-picker-row {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.lt-detail-picker-btn {
-  margin-top: 14px;
-  width: 100%;
-}
-
-/* Компактний рядок після вибору маршруту (Jakdojade-стиль) */
-.lt-detail-summary.lt-detail-summary--compact {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 6px 0 8px;
-  border-bottom: 1px solid var(--lt-panel-border);
-}
-
-.lt-detail-summary-route {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.lt-detail-summary-from,
-.lt-detail-summary-to {
-  font-size: var(--lt-fs-base);
-  font-weight: 600;
-  color: var(--lt-panel-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lt-detail-summary-arrow {
+.lt-detail .lt-chip--map {
   flex-shrink: 0;
-  color: var(--lt-accent);
-  font-weight: 700;
-  font-size: var(--lt-fs-base);
-}
-
-.lt-detail-summary-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.lt-detail-summary-meta .lt-detail-date,
-.lt-detail-summary-meta .lt-detail-time {
-  font-variant-numeric: tabular-nums;
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-panel-text-muted);
-}
-
-.lt-detail-summary-meta .lt-detail-time {
-  font-weight: 600;
-  color: var(--lt-panel-text);
-}
-
-.lt-detail-summary-change {
-  padding: 2px 8px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-accent);
-  background: transparent;
-  border: 1px solid var(--lt-panel-border);
-  border-radius: 4px;
-  cursor: pointer;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.lt-detail-summary-change:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--lt-accent);
-}
-
-.lt-detail-from-to-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.lt-detail-from-to-row:last-of-type {
-  margin-bottom: 12px;
-}
-
-.lt-detail-from-value {
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  color: var(--lt-panel-text);
-}
-
-/* Комбобокси в блоці деталей — виглядають як значення на темному фоні */
-.lt-detail-combobox-wrap {
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-detail-combobox-wrap .combobox-input-wrap {
-  border-color: var(--lt-panel-border);
-  background: var(--lt-panel-bg);
-}
-
-.lt-detail-combobox-wrap .combobox-input {
-  color: var(--lt-panel-text);
-  font-weight: 600;
-  font-size: var(--lt-fs-md);
-}
-
-.lt-detail-combobox-wrap .combobox-input::placeholder {
-  color: var(--lt-panel-text-muted);
-}
-
-.lt-detail-from-to-row--swap {
-  justify-content: flex-start;
-  margin-bottom: 4px;
-}
-
-.lt-from-to-arrow--detail {
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid var(--lt-panel-border);
-  border-radius: 8px;
-  color: var(--lt-panel-text);
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.lt-from-to-arrow--detail:hover {
-  background: var(--lt-panel-border);
-  color: var(--lt-panel-text);
-}
-
-.lt-datetime-row--detail {
-  margin-top: 4px;
-  margin-bottom: 0;
-  gap: 12px;
-}
-
-.lt-datetime-row--detail .lt-detail-date,
-.lt-datetime-row--detail .lt-detail-time {
-  font-variant-numeric: tabular-nums;
-}
-
-.lt-datetime-row--detail .lt-detail-time {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.lt-datetime-row--in-rozklad {
-  margin-top: 10px;
-  margin-bottom: 4px;
-}
-
-.lt-map-column {
-  height: 320px;
-  min-height: 280px;
-  background: #1a1a1a;
-}
-
-.lt-mobile-map-toggle {
-  display: none;
-}
-
-.lt-mobile-map-backdrop {
-  display: none;
-}
-
-@media (max-width: 767px) {
-  .lt-page.lt-layout-dark .lt-map-column {
-    min-height: 64px;
-    height: 64px;
-    transition: height 0.22s ease, min-height 0.22s ease;
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid {
-    min-height: 72dvh;
-    height: 72dvh;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full {
-    min-height: 96dvh;
-    height: 96dvh;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-collapsed .lt-map-wrapper {
-    display: none;
-  }
-
-  .lt-page.lt-layout-dark .lt-mobile-map-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: calc(100% - 24px);
-    margin: 10px 12px;
-    min-height: 44px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    background: #2b2c2f;
-    color: #f1f3f4;
-    font-size: var(--lt-fs-base);
-    font-weight: 600;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    position: relative;
-  }
-
-  .lt-page.lt-layout-dark .lt-mobile-map-toggle::before {
-    content: '';
-    width: 30px;
-    height: 4px;
-    border-radius: 999px;
-    background: #9aa0a6;
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .lt-page.lt-layout-dark .lt-panel {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column .lt-map-wrapper {
-    height: calc(100% - 64px);
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid .lt-map-wrapper,
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full .lt-map-wrapper {
-    display: flex;
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid .lt-map-container,
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full .lt-map-container {
-    height: 100%;
-    min-height: 0;
-  }
-
-  .lt-page.lt-layout-dark .lt-map-column--mobile-mid .lt-direction-strip,
-  .lt-page.lt-layout-dark .lt-map-column--mobile-full .lt-direction-strip {
-    margin-left: 10px;
-    margin-right: 10px;
-  }
-
-  .lt-page.lt-layout-dark .lt-mobile-map-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    border: none;
-    background: rgba(0, 0, 0, 0.35);
-  }
-}
-
-@media (min-width: 768px) {
-  .lt-map-column {
-    height: 100%;
-    min-height: 400px;
-  }
-}
-
-.lt-map-column .lt-map-wrapper {
-  padding: 0;
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.lt-map-column .lt-map-heading { display: none; }
-.lt-map-column .lt-map-container {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  border-radius: 0;
-  border: none;
 }
 
 .lt-page {
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   background: var(--lt-bg);
   padding: 20px 16px;
   padding-left: max(16px, env(safe-area-inset-left));
@@ -921,8 +342,8 @@
   max-width: 720px;
   margin: 0 auto;
   background: var(--lt-card);
-  border-radius: 8px;
-  box-shadow: var(--lt-card-shadow);
+  border-radius: var(--lt-radius-icon);
+  box-shadow: var(--lt-elev-1);
   border: 1px solid var(--lt-border);
   overflow: hidden;
 }
@@ -940,25 +361,20 @@
   border-bottom: 1px solid var(--lt-border-light);
 }
 
-.lt-header--jakdojade {
+.lt-header {
   padding: var(--lt-panel-block) var(--lt-panel-x) var(--lt-panel-y);
 }
 
-.lt-theme-jakdojade .lt-header--jakdojade {
+.lt-page .lt-header {
   padding: var(--lt-panel-block) var(--lt-panel-x) 10px;
   border-bottom: 1px solid var(--lt-border-light);
 }
 
-.lt-theme-jakdojade .lt-title {
+.lt-page .lt-title {
   font-size: clamp(1.35rem, 3vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #054752;
-}
-
-.lt-theme-jakdojade .lt-subtitle {
-  font-size: 14px;
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
 }
 
 .lt-title {
@@ -976,15 +392,14 @@
 }
 
 /* ========== Блок З / До — картка як на головній (mizh-search) ========== */
-.lt-search--jakdojade {
-  padding: 12px 14px;
+.lt-search {
   margin: 0 var(--lt-panel-x) var(--lt-panel-block);
   background: var(--lt-card);
   position: sticky;
   top: 0;
   z-index: 20;
-  border: 1px solid var(--lt-border-light);
-  border-radius: var(--lt-radius-sm, 12px);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
   box-shadow: 0 1px 3px rgba(5, 71, 82, 0.04);
 }
 
@@ -1001,59 +416,115 @@
   flex-wrap: wrap;
 }
 
-.lt-theme-jakdojade .lt-from-to-row {
+/*
+ * Планувальник: «З» над «До» на всіх ширинах (панель 380px не вміщує дві назви зупинок
+ * поруч), лейбл-крапка в одному рядку з полем, ⇅ праворуч на обидва рядки.
+ * Табло зупинки (.lt-stop-board-row) має власну одноколонкову сітку нижче.
+ */
+.lt-page .lt-from-to-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  grid-template-areas:
+    'from swap'
+    'to swap';
+  align-items: center;
   gap: 8px;
 }
 
-.lt-theme-jakdojade .lt-from-to-cell {
+.lt-page .lt-from-to-cell {
   padding: 0;
-}
-
-.lt-theme-jakdojade .lt-from-to-cell--to {
-  flex: 1 1 0;
   min-width: 0;
 }
 
-.lt-theme-jakdojade .lt-from-to-cell--from {
+.lt-page .lt-from-to-cell--from {
+  grid-area: from;
   border-right: none;
-  flex: 1 1 0;
-  min-width: 0;
 }
 
-.lt-theme-jakdojade .lt-from-to-swap {
-  align-self: end;
-  width: 44px;
-  min-height: 44px;
-  height: 44px;
-  border-radius: 999px;
+.lt-page .lt-from-to-cell--to {
+  grid-area: to;
+}
+
+.lt-page .lt-from-to-swap {
+  grid-area: swap;
+  align-self: center;
+  justify-self: center;
+  width: 40px;
+  min-height: 40px;
+  height: 40px;
+  border-radius: var(--lt-radius-pill);
   border: 1px solid var(--lt-border);
   box-shadow: 0 1px 2px rgba(60, 64, 67, 0.25);
   background: var(--lt-card);
 }
 
-.lt-theme-jakdojade .lt-from-to-swap:hover {
-  background: #f1f3f4;
+.lt-page .lt-from-to-swap:hover {
+  background: var(--lt-bg);
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
 }
 
-@media (max-width: 639px) {
-  .lt-theme-jakdojade .lt-from-to-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
+/* Лейбл «З»/«До» в рядку з полем (лише планувальник — на табло лейбл «Зупинка» довший). */
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell--from,
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell--to {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-  .lt-theme-jakdojade .lt-from-to-cell--from {
-    border-bottom: none;
-  }
+/* Лейбл — лише маркер (кільце в кольорі З/До, як на карті); текст «Звідки»/«Куди» — для скрінрідера.
+   Так поле отримує всю ширину панелі: довгі назви зупинок читаються повністю в будь-якому шрифті. */
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .lt-from-to-label {
+  margin: 0;
+  flex: 0 0 14px;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+}
 
-  .lt-theme-jakdojade .lt-from-to-swap {
-    width: 44px;
-    justify-self: center;
-    min-height: 44px;
-  }
+.lt-search:not(.lt-stop-board-search) .lt-from-to-dot {
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 3px solid var(--lt-origin);
+  background: var(--lt-card);
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-from-to-dot--to {
+  border-color: var(--lt-destination);
+}
+
+/* Пунктир між маркерами «Звідки» і «Куди» — один маршрут, як на карті */
+.lt-search:not(.lt-stop-board-search) .lt-from-to-row {
+  position: relative;
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-from-to-row::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 22px;
+  bottom: 22px;
+  border-left: 2px dotted var(--lt-border);
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Компактне поле: без стрілки списку (він і так відкривається по фокусу), «×» біля краю —
+   назва зупинки отримує ще ~40px. */
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-toggle {
+  display: none;
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-clear {
+  right: 4px;
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input,
+.lt-search:not(.lt-stop-board-search) .lt-from-to-cell .combobox-input-wrap--clearable .combobox-input {
+  padding-right: 44px;
 }
 
 .lt-from-to-cell {
@@ -1062,7 +533,7 @@
 }
 
 .lt-from-to-cell .combobox-input-wrap {
-  border-radius: var(--lt-radius-sm, 12px);
+  border-radius: var(--lt-radius-sm);
   border: 1px solid var(--lt-border);
   transition: border-color 0.15s, box-shadow 0.15s;
   padding: 2px 4px;
@@ -1075,15 +546,13 @@
 
 .lt-from-to-label {
   display: block;
-  font-size: 12px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
-
-.lt-from-to-cell--from .lt-from-to-label { color: var(--lt-text-muted); }
 
 .lt-from-to-label--with-icon {
   display: flex;
@@ -1099,11 +568,8 @@
   flex-shrink: 0;
 }
 
-.lt-from-to-dot--from { background: var(--lt-origin, #34a853); }
-.lt-from-to-dot--to { background: var(--lt-destination, #ea4335); }
-
-.lt-layout-dark .lt-panel .lt-from-to-dot--from { background: #0fa573; }
-.lt-layout-dark .lt-panel .lt-from-to-dot--to { background: #00aff5; }
+.lt-from-to-dot--from { background: var(--lt-origin); }
+.lt-from-to-dot--to { background: var(--lt-destination); }
 
 .lt-from-to-swap {
   flex-shrink: 0;
@@ -1114,9 +580,9 @@
   justify-content: center;
   background: var(--lt-card);
   border: 1px solid var(--lt-border);
-  border-radius: 999px;
+  border-radius: var(--lt-radius-pill);
   color: var(--lt-text-muted);
-  font-size: 1.25rem;
+  font-size: var(--lt-fs-lg);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -1124,10 +590,9 @@
 }
 
 .lt-from-to-swap:hover {
-  border-color: var(--lt-border);
+  border-color: var(--lt-accent);
   color: var(--lt-accent);
-  background: var(--lt-bg);
-  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.35);
+  background: var(--lt-accent-light);
 }
 
 .lt-from-to-swap--animating {
@@ -1148,7 +613,7 @@
 
 .lt-datetime-label {
   display: block;
-  font-size: 12px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text-muted);
   text-transform: uppercase;
@@ -1165,7 +630,7 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   border: 1px solid var(--lt-border);
-  border-radius: var(--lt-radius-sm, 12px);
+  border-radius: var(--lt-radius-sm);
   background: var(--lt-card);
   color: var(--lt-text);
   box-shadow: none;
@@ -1181,71 +646,167 @@
   min-width: 100px;
 }
 
-.lt-search-btn {
-  flex: 1;
-  min-width: 120px;
-  padding: 12px 22px;
-  background: var(--lt-accent);
-  color: #fff;
-  border: none;
-  border-radius: var(--lt-radius-sm, 12px);
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-}
-
-.lt-search-btn:hover:not(:disabled) {
-  background: var(--lt-accent-hover);
-}
-
-.lt-search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.lt-theme-jakdojade .lt-search--jakdojade {
-  padding: 12px 14px;
-}
-
-.lt-theme-jakdojade .lt-datetime-row {
+.lt-page .lt-datetime-row {
   gap: 8px;
 }
 
-.lt-theme-jakdojade .lt-search-btn {
-  min-width: 100px;
-  padding: 12px 18px;
-  font-size: 15px;
-  font-weight: 700;
+/* Планувальник: «Дата» і «Час» в один рядок. */
+.lt-search:not(.lt-stop-board-search) .lt-datetime-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
 }
 
-.lt-search-extra {
+.lt-search:not(.lt-stop-board-search) .lt-datetime-field {
+  min-width: 0;
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-datetime-input {
+  min-width: 0;
+}
+
+/* Рядок чіпів «Зараз» / «Завтра» / «Сьогодні о 09:12» (останній розгортає нативні поля). */
+.lt-datetime-chips {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.lt-datetime-hint {
-  margin: 4px 0 0;
-  font-size: var(--lt-fs-xs);
-  color: #b45309;
+.lt-datetime-toggle {
+  font-variant-numeric: tabular-nums;
 }
 
-.lt-datetime-input--invalid {
-  border-color: #f59e0b;
-  outline-color: rgba(245, 158, 11, 0.35);
+.lt-datetime-toggle[aria-expanded='true'] {
+  border-color: var(--lt-text);
+}
+
+.lt-search:not(.lt-stop-board-search) .lt-datetime-chips {
+  grid-column: 1 / -1;
+}
+
+.lt-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lt-search-chips .lt-datetime-chips {
+  display: contents;
+}
+
+/* Розгорнуті поля дати/часу — завжди окремим рядком під чіпами (і під чіпом «Карта») */
+.lt-search-chips .lt-datetime-row {
+  order: 10;
+  flex: 1 1 100%;
+}
+
+/* Гео-кнопка всередині поля «Звідки» (слот trailing Combobox), поки поле порожнє */
+.lt-geo-inline {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--lt-radius-icon);
+  background: transparent;
+  color: var(--lt-accent);
+  font-size: var(--lt-fs-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lt-geo-inline:hover {
+  background: var(--lt-accent-light);
+}
+
+.lt-geo-inline[aria-busy='true'] {
+  color: var(--lt-text-muted);
+  cursor: progress;
+}
+
+.lt-geo-inline[aria-busy='true'] svg {
+  animation: lt-geo-pulse 1s ease-in-out infinite;
+}
+
+@keyframes lt-geo-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lt-geo-inline[aria-busy='true'] svg {
+    animation: none;
+  }
+}
+
+.combobox-input-wrap--clearable .lt-geo-inline {
+  display: none;
+}
+
+.lt-chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--lt-radius-pill);
+  border: 1px solid var(--lt-border);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-family: inherit;
+  font-size: var(--lt-fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.lt-chip:hover {
+  border-color: var(--lt-accent);
+  color: var(--lt-accent);
+}
+
+.lt-chip[aria-pressed='true'] {
+  border-color: var(--lt-accent);
+  background: rgba(0, 175, 245, 0.12);
+  box-shadow: inset 0 0 0 1px var(--lt-accent);
+}
+
+.lt-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Підказка над результатами, поки текст у полі не відповідає жодній зупинці. */
+.lt-routes .lt-no-routes {
+  padding: 12px 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
+}
+
+.lt-routes-hint {
+  margin: 0 0 8px;
+  padding: 0 var(--lt-panel-x);
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+}
+
+/* Підказка одразу під полем (табло): без бокових відступів панелі */
+.lt-routes-hint--inline {
+  padding: 0;
+  margin: 6px 0 0;
 }
 
 .lt-routes-heading {
   margin: 0 0 6px;
-  padding: 0 var(--lt-panel-x);
+  padding: 0;
   font-size: var(--lt-fs-sm);
   font-weight: 500;
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1260,7 +821,7 @@
 }
 
 .lt-no-routes p {
-  margin: 0;
+  margin: 0 0 8px;
   font-size: var(--lt-fs-md);
   color: var(--lt-text);
   line-height: 1.45;
@@ -1275,50 +836,12 @@
 
 /* Пошук — компактний, як у HSL */
 .lt-search {
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  background: var(--lt-bg);
-  border-bottom: 1px solid var(--lt-border-light);
+  padding: 12px 14px;
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.lt-search-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-
-.lt-search-row .lt-search-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-geo-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px var(--lt-panel-x);
-  min-height: 44px;
-  background: var(--lt-accent);
-  color: white;
-  border: none;
-  border-radius: var(--pb-radius);
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.lt-geo-btn:hover:not(:disabled) {
-  background: var(--lt-accent-hover);
-}
-
-.lt-geo-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .lt-geo-results {
@@ -1329,7 +852,12 @@
 .lt-geo-error {
   margin: 0;
   font-size: var(--lt-fs-base);
-  color: #dc2626;
+  color: var(--lt-danger);
+}
+
+/* Live-region завжди в DOM; без тексту місця не займає */
+.lt-geo-error:empty {
+  display: none;
 }
 
 .lt-nearest {
@@ -1359,7 +887,7 @@
   text-align: left;
   background: var(--lt-card);
   border: 1px solid var(--lt-border-light);
-  border-radius: var(--pb-radius);
+  border-radius: var(--lt-radius-icon);
   font-size: var(--lt-fs-md);
   color: var(--lt-text);
   cursor: pointer;
@@ -1368,55 +896,43 @@
 
 .lt-nearest-item:hover {
   border-color: var(--lt-border);
-  background: #f1f3f4;
-}
-
-.lt-search .select-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  background: var(--lt-bg);
 }
 
 /* Список маршрутів — плоскі картки як у HSL */
 .lt-routes {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
+  padding: 0 var(--lt-panel-x);
 }
 
 .lt-route-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  text-align: left;
-  background: var(--lt-card);
-  border: none;
-  border-bottom: 1px solid var(--lt-border-light);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.lt-route-card--jd {
   align-items: stretch;
   gap: 0;
-  padding: var(--lt-panel-y) var(--lt-panel-x);
+  width: 100%;
   min-height: 72px;
-}
-
-.lt-route-card--jd:hover {
-  background: #f1f3f4;
-}
-
-.lt-route-card:last-child {
-  border-bottom: none;
+  padding: var(--lt-panel-y) 14px;
+  text-align: left;
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .lt-route-card:hover {
-  background: #f1f3f4;
+  border-color: var(--lt-accent);
+  box-shadow: var(--lt-elev-1);
+}
+
+.lt-route-card-next {
+  flex: 1 1 100%;
+  font-size: var(--lt-fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-text-muted);
+  line-height: 1.3;
 }
 
 .lt-route-card-time {
@@ -1426,11 +942,11 @@
   align-items: flex-start;
   padding-right: 14px;
   min-width: 56px;
-  border-right: 1px solid var(--lt-border-light);
+  border-right: 1px solid var(--lt-border);
 }
 
 .lt-route-card-time-value {
-  font-size: 1.5rem;
+  font-size: var(--lt-fs-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--lt-text);
@@ -1440,18 +956,6 @@
   font-size: var(--lt-fs-xs);
   color: var(--lt-text-muted);
   text-transform: lowercase;
-}
-
-.lt-route-verified-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: var(--lt-fs-xs);
-  font-weight: 600;
-  color: var(--lt-origin);
-  background: rgba(15, 165, 115, 0.12);
-  border: 1px solid rgba(15, 165, 115, 0.35);
 }
 
 .lt-route-card-main {
@@ -1471,12 +975,31 @@
   padding: 4px 8px;
   font-size: var(--lt-fs-base);
   font-weight: 700;
-  border-radius: 6px;
+  border-radius: var(--lt-radius-badge);
   text-align: center;
 }
 
-.lt-route-card-main .lt-route-path {
-  flex: 1 1 100%;
+/* Картка планувальника: кінцева рейсу, рядок «09:24 → 09:41 · 17 хв», підписи під часом. */
+.lt-route-card .lt-route-card-time {
+  min-width: 64px;
+  max-width: 120px;
+}
+
+.lt-route-card-time-label--soon {
+  color: var(--lt-accent);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.lt-route-card-time-label--wrapped {
+  color: var(--lt-text-muted);
+  text-transform: none;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.lt-route-card-main .lt-route-destination {
+  flex: 1 1 auto;
   min-width: 0;
   font-size: var(--lt-fs-md);
   font-weight: 600;
@@ -1484,10 +1007,11 @@
   line-height: 1.3;
 }
 
-.lt-route-card-main .lt-route-meta {
+.lt-route-card-main .lt-route-card-times {
   flex: 1 1 100%;
-  font-size: var(--lt-fs-xs);
+  font-size: var(--lt-fs-sm);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--lt-text-muted);
   line-height: 1.3;
 }
@@ -1496,117 +1020,152 @@
   flex-shrink: 0;
   min-width: 40px;
   padding: 6px 10px;
-  background: var(--lt-accent);
-  color: white;
+  background: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-route-fg, white);
   font-size: var(--lt-fs-lg);
   font-weight: 700;
-  border-radius: var(--pb-radius-sm);
+  border-radius: var(--lt-radius-badge);
   text-align: center;
 }
 
 .lt-route-num--verified {
-  background: var(--lt-accent);
+  background: var(--lt-route-color, var(--lt-accent));
 }
 
+/* Неперевірений (час орієнтовний): контурна плашка в кольорі лінії; без кольору — жовто-гарячий */
 .lt-route-num--unverified {
-  background: #f97316; /* жовто-гарячий для неперевірених маршрутів */
+  background: var(--lt-card);
+  color: var(--lt-route-color, var(--lt-text-muted));
+  box-shadow: inset 0 0 0 2px var(--lt-route-color, var(--lt-text-muted));
 }
 
-.lt-route-path {
-  flex: 1;
-  font-size: var(--lt-fs-md);
+/* «Немає прямого маршруту» → сусідні зупинки, між якими маршрут є */
+
+.lt-no-routes-hint {
+  color: var(--lt-text-muted);
+  font-size: var(--lt-fs-sm);
+}
+
+.lt-nearby {
+  margin: 4px 0 12px;
+}
+
+.lt-nearby-title {
+  margin: 0 0 6px;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
   color: var(--lt-text);
 }
 
-.lt-route-meta {
-  flex-shrink: 0;
-  font-size: var(--lt-fs-base);
-  color: var(--lt-text-muted);
+.lt-nearby-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.lt-empty {
-  text-align: center;
-  padding: 32px var(--lt-panel-x);
-  color: var(--lt-text-muted);
+.lt-nearby-item {
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lt-nearby-item:hover {
+  border-color: var(--lt-accent);
+  background: var(--lt-bg);
+}
+
+.lt-nearby-pair {
   font-size: var(--lt-fs-md);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
-/* ========== Detail view: маршрут (Jakdojade-style) ========== */
+.lt-nearby-meta {
+  font-size: var(--lt-fs-xs);
+  color: var(--lt-text-muted);
+}
+
+/* Швидкий старт без пари: підказка, вузли міста чіпами, карта (телефон), уся схема */
+.lt-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 8px;
+  color: var(--lt-text-muted);
+  font-size: var(--lt-fs-base);
+}
+
+.lt-empty-text {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.lt-quick-title {
+  margin: 4px 0 0;
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  color: var(--lt-text);
+}
+
+.lt-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lt-empty .lts-mini {
+  margin: 4px calc(-1 * var(--lt-panel-x)) 0;
+}
+
+/* «Відкрити карту» має сенс лише на мобільному, де карта — згорнутий лист унизу */
+.lt-empty-map-btn {
+  display: none;
+  margin-top: 12px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: var(--lt-radius-pill);
+  border: 1px solid var(--lt-border);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-family: inherit;
+  font-size: var(--lt-fs-base);
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .lt-empty-map-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ========== Detail view: сторінка маршруту ========== */
 .lt-detail {
   padding-bottom: 0;
 }
 
-/* Верхній бар як у Jakdojade: назад + маршрут З→До + дата/час */
-.lt-detail--jakdojade .lt-detail-topbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--lt-panel-y) var(--lt-panel-x);
-  background: var(--lt-bg);
-  border-bottom: 1px solid var(--lt-border-light);
-  flex-wrap: wrap;
-}
-
-.lt-theme-jakdojade .lt-detail-topbar {
-  padding: 10px var(--lt-panel-x);
-  min-height: 48px;
-}
-
-.lt-detail--jakdojade .lt-back {
-  margin-bottom: 0;
-  padding: 8px 10px;
-  min-width: 40px;
-  min-height: 40px;
-  font-size: var(--lt-fs-lg);
-  line-height: 1;
-}
-
-.lt-detail-route-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-route-num--pill {
-  flex-shrink: 0;
-  min-width: 32px;
-  padding: 4px 8px;
-  font-size: var(--lt-fs-base);
-  font-weight: 700;
-  text-align: center;
-}
-
-.lt-detail-from-to-text {
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  color: var(--lt-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lt-detail-datetime {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-variant-numeric: tabular-nums;
-}
-
-.lt-detail-date {
-  font-size: var(--lt-fs-base);
-  color: var(--lt-text-muted);
-}
-
-.lt-detail-time {
-  font-size: var(--lt-fs-md);
-  font-weight: 700;
-  color: var(--lt-text);
-}
-
-.lt-detail-header--jd {
+.lt-detail-header {
   padding: var(--lt-panel-block) var(--lt-panel-x);
   border-bottom: 1px solid var(--lt-border-light);
 }
@@ -1614,7 +1173,7 @@
 .lt-detail-header {
   padding: var(--lt-panel-block) var(--lt-panel-x);
   background: var(--lt-card);
-  border-bottom: 1px solid var(--lt-border-light);
+  border-bottom: 1px solid var(--lt-border);
 }
 
 .lt-detail-header-top {
@@ -1632,20 +1191,16 @@
   margin-top: 8px;
 }
 
-.lt-detail-header-actions .lt-direction-btn {
-  flex: 1;
-  min-width: 100px;
-}
-
 .lt-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 44px;
   margin-bottom: 10px;
   padding: 8px 12px;
   background: none;
   border: none;
-  border-radius: var(--pb-radius);
+  border-radius: var(--lt-radius-icon);
   color: var(--lt-text-muted);
   font-size: var(--lt-fs-md);
   font-weight: 500;
@@ -1670,12 +1225,8 @@
   flex-wrap: wrap;
 }
 
-.lt-route-title--jd {
+.lt-route-title {
   margin-bottom: 0;
-}
-
-.lt-route-title--jd .lt-route-num {
-  flex-shrink: 0;
 }
 
 .lt-route-title-path {
@@ -1687,19 +1238,7 @@
   flex-shrink: 0;
 }
 
-.lt-fare {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--lt-accent-light);
-  color: var(--lt-accent);
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  border-radius: 10px;
-}
-
-/* Секції з заголовками як у Jakdojade */
+/* Заголовки секцій панелі */
 .lt-section-title {
   margin: 0;
   padding: var(--lt-panel-block) var(--lt-panel-x) 6px;
@@ -1710,72 +1249,31 @@
   letter-spacing: 0.06em;
 }
 
-.lt-section-title--stops {
-  padding-top: var(--lt-panel-block);
-  border-top: 1px solid var(--lt-border-light);
-}
-
 /* Секція зупинок без окремого заголовка — верхня межа */
-.lt-map-stops--jd {
-  border-top: 1px solid var(--lt-border-light);
+.lt-map-stops {
+  border-top: 1px solid var(--lt-border);
 }
-.lt-layout-dark .lt-panel .lt-map-stops--jd {
-  border-top-color: var(--lt-panel-border);
+.lt-layout .lt-panel .lt-map-stops {
+  border-top-color: var(--lt-border);
 }
 
 .lt-timetable-section {
   padding-bottom: 0;
+  background: var(--lt-card);
 }
 
-/* Розклад — tablica odjazdów (таблиця відправлень) */
-.lt-timetable-header--jd {
-  padding: 0 var(--lt-panel-x) var(--lt-panel-block);
-}
-
-/* Компактний ряд: дата, час, Відправлення о, Друк в один рядок */
-.lt-timetable-header--compact {
+/* Шапка секції розкладу: заголовок + «Друк» */
+.lt-section-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  padding: 6px var(--lt-panel-x) 8px;
-}
-
-.lt-timetable-header--compact .lt-detail-date,
-.lt-timetable-header--compact .lt-detail-time {
-  font-variant-numeric: tabular-nums;
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-panel-text-muted);
-}
-
-.lt-timetable-header--compact .lt-detail-time {
-  font-weight: 600;
-  color: var(--lt-panel-text);
-}
-
-.lt-timetable-header--compact .lt-time-picker-label {
-  font-size: var(--lt-fs-sm);
-  margin: 0;
-  margin-right: 2px;
-}
-
-.lt-time-picker-select--compact {
-  padding: 4px 8px;
-  font-size: var(--lt-fs-base);
-  min-height: auto;
-}
-
-@media (min-width: 768px) {
-  .lt-timetable-header--compact .lt-time-picker-label,
-  .lt-timetable-header--compact .lt-time-picker-select--compact {
-    display: none;
-  }
+  justify-content: space-between;
+  gap: 8px;
+  padding-right: var(--lt-panel-x);
 }
 
 .lt-print-btn--compact {
   padding: 4px 10px;
   font-size: var(--lt-fs-sm);
-  margin-left: auto;
 }
 
 .lt-timetable-section--compact .lt-section-title {
@@ -1783,85 +1281,72 @@
   font-size: var(--lt-fs-xs);
 }
 
-.lt-from-to--jd {
+/* Чіпи дати/часу на сторінці маршруту */
+.lt-route-chips {
+  padding: 2px var(--lt-panel-x) 8px;
+}
+
+/* Стрічка відправлень: чіпи з часом на «Звідки» (та прибуттям на «Куди»), горизонтальний скрол */
+.lt-departures {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px var(--lt-panel-x) 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
-.lt-from-to--jd .lt-from-to-field {
-  min-width: 140px;
-}
-
-.lt-from-to-arrow--jd {
-  padding: 0 6px;
-  font-size: 1.125rem;
-}
-
-/* Окремий вибір часу відправлення (як на Jakdojade — окреме поле з dropdown) */
-.lt-time-picker-row {
-  display: flex;
+.lt-departure-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1px;
+  min-width: 64px;
+  padding: 5px 10px;
+  scroll-snap-align: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
-.lt-time-picker-label {
-  font-size: var(--lt-fs-sm);
+.lt-departure-chip__dep {
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+}
+
+.lt-departure-chip__arr {
+  font-size: var(--lt-fs-xs);
   font-weight: 500;
   color: var(--lt-text-muted);
-  text-transform: none;
-  letter-spacing: 0;
-  flex-shrink: 0;
 }
 
-.lt-time-picker-select {
-  flex: 1;
-  min-width: 140px;
-  padding: 10px 36px 10px 12px;
-  font-size: var(--lt-fs-md);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid var(--lt-border);
-  border-radius: 8px;
-  background-color: var(--lt-card);
-  color: var(--lt-text);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235f6368' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
+.lt-departure-chip[aria-pressed='true'] .lt-departure-chip__arr {
+  color: var(--lt-destination-ink);
 }
 
-.lt-time-picker-select:focus {
-  outline: none;
-  border-color: var(--lt-accent);
-  box-shadow: 0 0 0 1px var(--lt-accent);
+.lt-empty--inline {
+  margin: 0;
+  padding: 4px var(--lt-panel-x) 10px;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
 }
 
-.lt-theme-jakdojade .lt-time-picker-select {
-  border-color: var(--lt-accent);
+/* «Повний розклад»: чіп-перемикач; таблиця згорнута на екрані, але завжди є у друці */
+.lt-timetable-toggle {
+  margin: 0 var(--lt-panel-x) 8px;
 }
 
-.lt-layout-dark .lt-panel .lt-time-picker-label {
-  color: var(--lt-panel-text-muted) !important;
+.lt-timetable-toggle[aria-expanded='true'] {
+  border-color: var(--lt-text);
 }
 
-.lt-layout-dark .lt-panel .lt-time-picker-select {
-  background-color: #3d3d3d;
-  border-color: var(--lt-route-green);
-  color: var(--lt-panel-text);
-  /* Іконка стрілки видима на темному фоні */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b0b0b0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+.lt-timetable--collapsed {
+  display: none;
 }
 
-.lt-layout-dark .lt-panel .lt-time-picker-select:focus {
-  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.3);
-}
-
-.lt-timetable--jd {
+.lt-timetable {
   padding: 0 var(--lt-panel-x) var(--lt-panel-block);
 }
 
@@ -1871,22 +1356,12 @@
   font-size: var(--lt-fs-md);
   background: var(--lt-card);
   border: 1px solid var(--lt-border-light);
-  border-radius: var(--pb-radius);
+  border-radius: var(--lt-radius-icon);
   overflow: hidden;
 }
 
-.lt-timetable-table--tablica thead {
-  background: var(--lt-text);
-  color: #fff;
-}
-
-.lt-theme-jakdojade .lt-timetable-table--tablica thead {
-  background: var(--lt-accent);
-  color: #fff;
-}
-
 .lt-timetable-table--tablica th {
-  padding: 10px var(--lt-panel-x);
+  padding: 14px var(--lt-panel-x);
   font-size: var(--lt-fs-xs);
   font-weight: 700;
   text-transform: uppercase;
@@ -1896,8 +1371,9 @@
 }
 
 .lt-timetable-table--tablica td {
-  padding: 10px var(--lt-panel-x);
-  border-bottom: 1px solid var(--lt-border-light);
+  padding: 14px var(--lt-panel-x);
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1915,30 +1391,6 @@
   background: var(--lt-accent-light);
 }
 
-.lt-timetable-grid--jd {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid var(--lt-border-light);
-  border-radius: var(--pb-radius);
-  overflow: hidden;
-}
-
-.lt-timetable-grid--jd .lt-timetable-col {
-  background: var(--lt-card);
-}
-
-.lt-times--jd {
-  gap: 10px 12px;
-}
-
-.lt-time--jd {
-  min-width: 56px;
-  padding: 8px 12px;
-  font-size: var(--lt-fs-md);
-  font-weight: 700;
-}
-
 /* Зупинки + карта — один заголовок «Список зупинок», список лівіше */
 .lt-map-stops-inner {
   display: flex;
@@ -1951,12 +1403,8 @@
     flex-direction: row;
     align-items: flex-start;
   }
-  .lt-map-stops--jd .lt-map-area {
-    flex: 1;
-    min-width: 0;
-  }
   /* Список зупинок у першій колонці (ліворуч) */
-  .lt-map-stops--jd .lt-stops--jd {
+  .lt-map-stops .lt-stops {
     width: 320px;
     flex-shrink: 0;
     order: 1;
@@ -1965,20 +1413,17 @@
     padding-top: var(--lt-panel-y);
     padding-bottom: var(--lt-panel-block);
   }
-  .lt-map-stops--jd .lt-map-area {
-    order: 2;
-  }
 }
 
-.lt-map-stops--jd .lt-stops--jd {
+.lt-map-stops .lt-stops {
   padding-left: 0;
   padding-right: var(--lt-panel-x);
   padding-top: var(--lt-panel-y);
   padding-bottom: var(--lt-panel-block);
 }
 
-.lt-stops--jd .lt-stops-heading {
-  margin: 0 0 8px;
+.lt-stops .lt-stops-heading {
+  margin: 0;
   font-size: var(--lt-fs-sm);
   font-weight: 700;
   color: var(--lt-text-muted);
@@ -1986,78 +1431,30 @@
   letter-spacing: 0.05em;
 }
 
+/* Шапка таймлайну: заголовок + «Скинути» / підказка про тапи */
+.lt-stops-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin: 0 0 8px;
+}
+
+.lt-stops-hint {
+  margin: 0;
+  font-size: var(--lt-fs-xs);
+  color: var(--lt-text-muted);
+  text-align: right;
+}
+
+.lt-chip--small {
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: var(--lt-fs-xs);
+}
+
 /* From/To селектори — як у HSL RouteScheduleHeader */
-.lt-timetable-header {
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  background: var(--lt-bg);
-  border-bottom: 1px solid var(--lt-border-light);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 12px;
-}
-
-.lt-from-to {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.lt-from-to-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-from-to-field {
-  min-width: 160px;
-}
-
-.lt-from-to-field .combobox-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-from-to-field .combobox-input-wrap {
-  border-radius: var(--pb-radius);
-}
-
-.lt-from-to-arrow {
-  border: none;
-  background: transparent;
-  color: var(--lt-text-muted);
-  font-size: 1.25rem;
-  font-weight: 300;
-  padding: 0 4px;
-  cursor: pointer;
-}
-
-.lt-date-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.lt-date-label {
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-}
-
-.lt-date-value {
-  font-size: var(--lt-fs-md);
-  font-weight: 500;
-  color: var(--lt-text);
-}
-
 .lt-print-btn {
   display: inline-flex;
   align-items: center;
@@ -2065,14 +1462,15 @@
   padding: 8px 12px;
   background: var(--lt-card);
   border: 1px solid var(--lt-border);
-  border-radius: var(--pb-radius);
+  border-radius: var(--lt-radius-icon);
   font-size: var(--lt-fs-base);
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .lt-print-btn:hover {
+  background: var(--lt-accent-light);
   border-color: var(--lt-accent);
   color: var(--lt-accent);
 }
@@ -2080,6 +1478,7 @@
 /* Таблиця рейсів — як HSL RouteScheduleTripRow */
 .lt-timetable {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .lt-timetable-table {
@@ -2090,7 +1489,7 @@
 
 .lt-timetable-table th,
 .lt-timetable-table td {
-  padding: 10px var(--lt-panel-x);
+  padding: 14px var(--lt-panel-x);
   text-align: left;
   border-bottom: 1px solid var(--lt-border-light);
 }
@@ -2138,63 +1537,6 @@
   font-size: var(--lt-fs-md);
 }
 
-/* Дві колонки напрямків (якщо без From/To) */
-.lt-timetable-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-}
-
-.lt-timetable-col {
-  padding: var(--lt-panel-block) var(--lt-panel-x);
-  border-right: 1px solid var(--lt-border-light);
-}
-
-.lt-timetable-col:last-child {
-  border-right: none;
-}
-
-.lt-timetable-heading {
-  margin: 0 0 8px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-times {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-.lt-time {
-  display: inline-block;
-  min-width: 52px;
-  padding: 8px 10px;
-  background: var(--lt-bg);
-  border: 1px solid transparent;
-  font-size: var(--lt-fs-md);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  border-radius: var(--pb-radius);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.lt-time:hover {
-  border-color: var(--lt-accent);
-  background: var(--lt-accent-light);
-}
-
-.lt-time--selected {
-  background: var(--lt-accent);
-  border-color: var(--lt-accent);
-  color: white;
-}
-
 /* ========== Зупинки — вертикальна timeline з dotted line (HSL-style) ========== */
 .lt-map-stops {
   margin-top: 0;
@@ -2209,11 +1551,6 @@
     align-items: flex-start;
   }
 
-  .lt-map-area {
-    flex: 1;
-    min-width: 0;
-  }
-
   .lt-stops {
     flex-shrink: 0;
     width: 320px;
@@ -2222,60 +1559,49 @@
   }
 }
 
-.lt-map-area {
-  padding: 20px;
-  border-top: 1px solid var(--lt-border-light);
-}
-
 .lt-stops {
   padding: 20px;
   background: var(--lt-card);
-  border-top: 1px solid var(--lt-border-light);
+  border-top: 1px solid var(--lt-border);
 }
 
 /* Вертикальна лінія та кружки — спільна система координат (менший відступ зліва) */
 .lt-stops-timeline {
   --lt-line-center: 14px;
-  --lt-timeline-pad: 20px;
+  --lt-timeline-pad: 26px;
   position: relative;
   padding-left: var(--lt-timeline-pad);
 }
 
-/* Суцільна сіра лінія маршруту (як у Google Maps) */
+/* Лінія маршруту в його кольорі зі схеми (--lt-route-color ставить routeColorStyle) */
 .lt-stops-timeline::before {
   content: '';
   position: absolute;
-  left: calc(var(--lt-line-center) - 1px);
+  left: calc(var(--lt-line-center) - 1.5px);
   top: 8px;
   bottom: 8px;
-  width: 2px;
-  background: var(--lt-border);
-  opacity: 1;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--lt-route-color, var(--lt-border));
+  opacity: 0.45;
 }
 
-/* Акцентний сегмент між зупинками */
+/* Відрізок «Звідки» → «Куди» — яскравий і товщий */
 .lt-stops-timeline-segment {
   position: absolute;
-  left: calc(var(--lt-line-center) - 2px);
-  width: 4px;
-  background: var(--lt-accent);
-  opacity: 0.9;
+  left: calc(var(--lt-line-center) - 3px);
+  width: 6px;
+  background: var(--lt-route-color, var(--lt-accent));
   pointer-events: none;
-  border-radius: 2px;
-}
-
-.lt-stops-direction-switch {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  border-radius: 3px;
 }
 
 .lt-direction-btn {
   flex: 1;
   padding: 8px 12px;
-  background: #f1f3f4;
+  background: var(--lt-bg);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--lt-radius-icon);
   font-size: var(--lt-fs-base);
   font-weight: 500;
   color: var(--lt-text-muted);
@@ -2284,7 +1610,7 @@
 }
 
 .lt-direction-btn:hover {
-  background: #e8eaed;
+  background: var(--lt-border-light);
   color: var(--lt-text);
 }
 
@@ -2296,11 +1622,25 @@
   box-shadow: none;
 }
 
+/* У треку перемикача напрямку: неактивна кнопка прозора, активна — біла з тонким акцентним кільцем */
+.lt-direction-toggle .lt-direction-btn:not(.lt-direction-btn--active) {
+  background: transparent;
+  border: none;
+  color: var(--lt-text-muted);
+}
+
+.lt-direction-toggle .lt-direction-btn--active {
+  background: var(--lt-card);
+  border: none;
+  color: var(--lt-accent);
+  box-shadow: inset 0 0 0 1px var(--lt-accent);
+}
+
 .lt-stops-heading {
   margin: 0 0 8px;
   font-size: var(--lt-fs-sm);
   font-weight: 600;
-  color: var(--lt-text-muted);
+  color: var(--lt-text);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -2314,45 +1654,39 @@
 .lt-stop-item {
   position: relative;
   display: grid;
-  grid-template-columns: 3.5em 1fr 2.5em;
+  grid-template-columns: 3.5em minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: baseline;
-  padding: 6px 0;
-  min-height: 32px;
+  padding: 10px 0;
+  min-height: 44px;
 }
 
-/* Маркери зупинок: проміжні — нейтральні, як у Google Maps */
+/* Вузли: білі кола з кільцем у кольорі лінії; «Звідки»/«Куди» — кільця origin/destination, як на карті */
 .lt-stop-item::before {
   content: '';
   position: absolute;
-  left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 5px);
+  left: calc(var(--lt-line-center) - var(--lt-timeline-pad) - 5px);
   top: 50%;
   transform: translateY(-50%);
   width: 10px;
   height: 10px;
-  background: #fff;
+  box-sizing: border-box;
+  background: var(--lt-card);
   border-radius: 50%;
-  border: 2px solid var(--lt-border);
-  box-shadow: none;
+  border: 2px solid var(--lt-route-color, var(--lt-border));
 }
 
-.lt-stop-item--from::before {
-  width: 14px;
-  height: 14px;
-  left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 7px);
-  transform: translateY(-50%);
-  background: var(--lt-origin, #34a853);
-  border: 2px solid var(--lt-card);
-  box-shadow: 0 0 0 2px rgba(52, 168, 83, 0.35);
+.lt-stop-item--from::before,
+.lt-stop-item--to::before {
+  width: 16px;
+  height: 16px;
+  left: calc(var(--lt-line-center) - var(--lt-timeline-pad) - 8px);
+  border-width: 3px;
+  border-color: var(--lt-origin);
 }
 
 .lt-stop-item--to::before {
-  width: 14px;
-  height: 14px;
-  left: calc(var(--lt-line-center) - var(--lt-timeline-pad, 20px) - 7px);
-  transform: translateY(-50%);
-  background: var(--lt-destination, #ea4335);
-  box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.25);
+  border-color: var(--lt-destination);
 }
 
 .lt-stop-time {
@@ -2361,21 +1695,77 @@
   color: var(--lt-text-muted);
 }
 
+/* Зупинка, яку обраний рейс не обслуговує (скорочений рейс / інша початкова) */
+.lt-stop-item--unserved {
+  opacity: 0.45;
+}
+
+.lt-stop-item--unserved::before {
+  border-style: dashed;
+}
+
 .lt-stop-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
   min-width: 0;
   font-size: var(--lt-fs-md);
   font-weight: 500;
   color: var(--lt-text);
 }
 
+/* Назва зупинки — кнопка вибору «Звідки»/«Куди»; довга назва переноситься всередині кнопки */
+.lt-stop-pick {
+  flex: 0 0 auto;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.lt-stop-content .lt-stop-badge {
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+.lt-stop-pick:hover {
+  color: var(--lt-accent);
+}
+
+/* Посилання на табло зупинки — маленька пігулка праворуч */
+.lt-stop-board-link {
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px solid var(--lt-border-light);
+  border-radius: var(--lt-radius-pill);
+  font-size: var(--lt-fs-xs);
+  font-weight: 600;
+  color: var(--lt-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lt-stop-board-link:hover {
+  border-color: var(--lt-accent);
+  color: var(--lt-accent);
+}
+
 .lt-stop-item--from .lt-stop-content {
   font-weight: 600;
-  color: var(--lt-origin, #34a853);
+  color: var(--lt-origin);
 }
 
 .lt-stop-item--to .lt-stop-content {
   font-weight: 600;
-  color: var(--lt-destination, #ea4335);
+  color: var(--lt-destination-ink);
 }
 
 .lt-stop-badge {
@@ -2384,260 +1774,274 @@
   padding: 2px 6px;
   font-size: var(--lt-fs-xs);
   font-weight: 600;
-  border-radius: var(--pb-radius-sm);
+  border-radius: var(--lt-radius-badge);
 }
 
 .lt-stop-badge--from {
-  background: #e6f4ea;
-  color: #137333;
+  background: rgba(15, 165, 115, 0.14);
+  color: var(--lt-origin-ink);
 }
 
 .lt-stop-badge--to {
-  background: #fce8e6;
-  color: #c5221f;
+  background: var(--lt-accent-light);
+  color: var(--lt-destination-ink);
 }
 
 .lt-stop-to-next {
   font-size: var(--lt-fs-sm);
   color: var(--lt-text-muted);
   text-align: right;
-}
-
-/* Карта */
-.lt-map-wrapper {
-  position: relative;
-  padding: 0;
-  background: transparent;
-  border: none;
-}
-
-.lt-direction-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-  border: 1px solid var(--lt-panel-border, var(--lt-border));
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.lt-direction-strip__from,
-.lt-direction-strip__to {
-  flex: 1;
-  min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: var(--lt-fs-sm);
 }
 
-.lt-direction-strip__from { color: #81c995; }
-.lt-direction-strip__to { color: #8ab4f8; text-align: right; }
-
-.lt-direction-strip__swap {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: 1px solid var(--lt-panel-border, var(--lt-border));
-  background: #2b2c2f;
-  color: var(--lt-panel-text, var(--lt-text));
-  cursor: pointer;
-}
-
-.lt-direction-strip__swap:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.lt-direction-strip__hint {
-  margin: 0 0 8px;
-  font-size: var(--lt-fs-sm);
-  color: var(--lt-panel-text-muted, var(--lt-text-muted));
-}
-
-.lt-stop-popup__title {
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-
-.lt-stop-popup__actions {
-  display: flex;
-  gap: 6px;
-}
-
-.lt-stop-popup__actions button {
-  border: 1px solid var(--lt-border);
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.lt-stop-sheet {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  z-index: 1000;
-  background: var(--lt-panel-bg, #202124);
-  color: var(--lt-panel-text, #e8eaed);
-  border: 1px solid var(--lt-panel-border, #3c4043);
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-
-.lt-stop-sheet__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.lt-stop-sheet__header button {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.lt-stop-sheet__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.lt-stop-sheet__btn {
-  min-height: 42px;
-  border-radius: 10px;
-  border: none;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.lt-stop-sheet__btn--from { background: #34a853; }
-.lt-stop-sheet__btn--to { background: #1a73e8; }
-
-.lt-stop-sheet__history {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: var(--lt-fs-sm);
-}
-
-.lt-stop-sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.lt-stop-sheet__chip {
-  border: 1px solid var(--lt-panel-border, #3c4043);
-  background: transparent;
-  color: inherit;
-  border-radius: 999px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-
-.lt-map-heading {
-  margin: 0 0 6px;
-  font-size: var(--lt-fs-sm);
-  font-weight: 600;
-  color: var(--lt-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.lt-map-container {
-  height: 280px;
-  width: 100%;
-  border-radius: var(--pb-radius);
-  overflow: hidden;
-  background: var(--lt-bg);
-  border: 1px solid var(--lt-border-light);
-  /* Стабільний рендер карти на iOS/Android: окремий шар, без "стрибків" при скролі */
-  position: relative;
-  isolation: isolate;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-.lt-radial-picker {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 132px;
-  height: 132px;
-  pointer-events: none;
-  z-index: 900;
-}
-
-.lt-radial-picker__btn {
-  position: absolute;
-  min-width: 50px;
-  min-height: 50px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.875rem;
-  cursor: pointer;
-  pointer-events: auto;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.lt-radial-picker__btn--from {
-  left: 6px;
-  top: 40px;
-  background: #34a853;
-}
-
-.lt-radial-picker__btn--to {
-  right: 6px;
-  top: 40px;
-  background: #1a73e8;
+/* ========== Карта: колонка праворуч (десктоп), повноекранний overlay (телефон) ========== */
+.lt-map-column {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 400px;
 }
 
 @media (max-width: 767px) {
-  .lt-radial-picker {
-    width: 150px;
-    height: 150px;
-  }
-  .lt-radial-picker__btn {
-    min-width: 56px;
-    min-height: 56px;
-    font-size: 0.9375rem;
-  }
-  .lt-radial-picker__btn--from {
-    left: 2px;
-    top: 46px;
-  }
-  .lt-radial-picker__btn--to {
-    right: 2px;
-    top: 46px;
+  .lt-map-column {
+    display: none;
   }
 }
 
-@media (min-width: 768px) {
-  .lt-map-container {
-    height: 360px;
-  }
+.lt-map-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: inherit;
 }
 
-.lt-map-arrow {
-  pointer-events: none;
-  background: transparent !important;
-  border: none !important;
+.lt-map-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 320px;
+  background: var(--lt-bg);
 }
 
 .lt-map-container .leaflet-container {
   font: inherit;
-  min-height: 280px;
+  background: var(--lt-bg);
+}
+
+/* Приглушена підкладка лише для стандартних OSM-тайлів (CARTO та інші світлі стилі — без фільтра):
+   лінії у кольорах схеми та вузли — головне; фільтр лише на шарі тайлів */
+.lt-map-container--osm .leaflet-tile-pane {
+  filter: saturate(0.55) contrast(0.95) brightness(1.03);
+}
+
+.lt-map-container .leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--lt-text-muted);
+  font-size: var(--lt-fs-xs);
+}
+
+.lt-map-container .leaflet-control-attribution a {
+  color: var(--lt-text-muted);
+}
+
+/* Підписи зупинок: прозорий текст без рамки, вузли — жирніші */
+.lt-map-label.leaflet-tooltip {
+  padding: 1px 5px;
+  border: 0;
+  border-radius: var(--lt-radius-badge);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: none;
+  color: var(--lt-text);
+  font-size: var(--lt-fs-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.lt-map-label.leaflet-tooltip::before {
+  display: none;
+}
+
+.lt-map-label--node.leaflet-tooltip {
+  font-size: var(--lt-fs-sm);
+  font-weight: 700;
+}
+
+.lt-map-marker {
+  background: none;
+  border: 0;
+}
+
+/* Світла смужка «З … ⇅ До …» над картою (десктоп) */
+.lt-map-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px var(--lt-panel-x);
+  background: var(--lt-card);
+  border-bottom: 1px solid var(--lt-border);
+}
+
+.lt-map-strip__hint {
+  flex-basis: 100%;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+}
+
+.lt-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Картка зупинки над картою — єдиний спосіб вибрати З/До тапом по маркеру */
+.lt-map-card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  padding: 12px 14px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
+  box-shadow: var(--lt-elev-1);
+}
+
+.lt-map-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lt-map-card__title {
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  color: var(--lt-text);
+}
+
+.lt-map-card__lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.lt-map-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.lt-map-card__frequent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+}
+
+/* Повноекранна карта на телефоні */
+.lt-map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--lt-card);
+}
+
+.lt-map-overlay__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top)) var(--lt-panel-x) 10px;
+  border-bottom: 1px solid var(--lt-border);
+}
+
+.lt-map-overlay__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--lt-text);
+  font-size: var(--lt-fs-md);
+}
+
+.lt-map-overlay__subtitle {
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lt-map-overlay__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lt-map-overlay__body .lt-map-wrapper,
+.lt-map-overlay__body .lt-map-container {
+  height: 100%;
+}
+
+.lt-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-icon);
+  background: var(--lt-card);
+  color: var(--lt-text);
+  font-size: var(--lt-fs-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lt-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lt-chip--static {
+  cursor: default;
+}
+
+.lt-chip--origin {
+  border-color: var(--lt-origin);
+  color: var(--lt-origin-ink);
+}
+
+.lt-chip--destination {
+  border-color: var(--lt-destination);
+  color: var(--lt-destination-ink);
+}
+
+.lt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 2px 7px;
+  border-radius: var(--lt-radius-badge);
+  background: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-route-fg, #fff);
+  font-size: var(--lt-fs-sm);
+  font-weight: 700;
 }
 
 /* AEO / SEO crawlable hub (route directory + FAQ) */
@@ -2649,9 +2053,9 @@
 
 .lt-aeo-title {
   margin: 0 0 8px;
-  font-size: 1.05rem;
+  font-size: var(--lt-fs-md);
   font-weight: 700;
-  color: var(--lt-panel-text, #054752);
+  color: var(--lt-text);
 }
 
 .lt-aeo-title + .lt-aeo-title,
@@ -2662,29 +2066,64 @@
 
 .lt-aeo-lead {
   margin: 0 0 12px;
-  font-size: 0.92rem;
+  font-size: var(--lt-fs-base);
   line-height: 1.45;
-  color: var(--lt-panel-text-muted, #708c91);
+  color: var(--lt-text-muted);
 }
 
 .lt-aeo-route-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 6px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
   margin: 0 0 4px;
   padding: 0;
   list-style: none;
 }
 
 .lt-aeo-route-list a {
-  color: var(--lt-accent, #00aff5);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-card);
+  color: var(--lt-text);
   font-weight: 600;
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: var(--lt-fs-base);
 }
 
 .lt-aeo-route-list a:hover {
-  text-decoration: underline;
+  border-color: var(--lt-accent);
+}
+
+.lt-aeo-route-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lt-aeo-route-via {
+  font-size: var(--lt-fs-xs);
+  font-weight: 500;
+  color: var(--lt-text-muted);
+  line-height: 1.35;
+}
+
+/* Каталог ліній: плашка номера в кольорі лінії зі схеми */
+.lt-aeo-route-num {
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 2px 7px;
+  border-radius: var(--lt-radius-badge);
+  background: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-route-fg, #fff);
+  font-size: var(--lt-fs-sm);
+  font-weight: 700;
+  text-align: center;
 }
 
 .lt-aeo-faq {
@@ -2703,24 +2142,24 @@
 .lt-aeo-faq dt {
   font-weight: 600;
   margin-bottom: 4px;
-  font-size: 0.95rem;
+  font-size: var(--lt-fs-base);
 }
 
 .lt-aeo-faq dd {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--lt-fs-base);
   line-height: 1.45;
-  color: var(--lt-panel-text-muted, #3d5a60);
+  color: var(--lt-text-muted);
 }
 
 .lt-aeo-more {
   margin: 14px 0 0;
-  font-size: 0.9rem;
-  color: var(--lt-panel-text-muted, #708c91);
+  font-size: var(--lt-fs-base);
+  color: var(--lt-text-muted);
 }
 
 .lt-aeo-more a {
-  color: var(--lt-accent, #00aff5);
+  color: var(--lt-accent);
   font-weight: 500;
   text-decoration: none;
 }
@@ -2732,14 +2171,14 @@
 .lt-stop-article {
   margin: 4px var(--lt-panel-x) 12px;
   padding: 12px 14px 10px;
-  border: 1px solid var(--lt-panel-border, #dde3e6);
-  border-radius: 12px;
-  background: #f7fafb;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-bg);
 }
 
-.lt-layout-dark .lt-stop-article .lt-aeo-title {
+.lt-layout .lt-stop-article .lt-aeo-title {
   margin: 0 0 8px;
-  font-size: 0.95rem;
+  font-size: var(--lt-fs-base);
 }
 
 .lt-stop-article-body {
@@ -2750,15 +2189,15 @@
 
 .lt-stop-article-p {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--lt-fs-base);
   line-height: 1.55;
-  color: var(--lt-panel-text, #054752);
+  color: var(--lt-text);
 }
 
 .lt-stop-article-p strong,
 .lt-stop-article-name {
   font-weight: 700;
-  color: var(--lt-panel-text, #054752);
+  color: var(--lt-text);
 }
 
 .lt-stop-article-routes {
@@ -2769,9 +2208,9 @@
 }
 
 .lt-stop-article-routes-label {
-  font-size: 0.82rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
-  color: var(--lt-panel-text-muted, #708c91);
+  color: var(--lt-text-muted);
 }
 
 .lt-stop-article-route-list {
@@ -2787,19 +2226,20 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(0, 175, 245, 0.35);
-  background: rgba(0, 175, 245, 0.1);
-  color: #0087c0;
-  font-size: 0.82rem;
+  border-radius: var(--lt-radius-pill);
+  border: 1px solid var(--lt-route-color, rgba(0, 175, 245, 0.35));
+  background: var(--lt-route-color, rgba(0, 175, 245, 0.1));
+  color: var(--lt-route-fg, var(--lt-destination-ink));
+  font-size: var(--lt-fs-sm);
   font-weight: 700;
   line-height: 1.35;
   text-decoration: none;
 }
 
 .lt-stop-article-route:hover {
-  background: rgba(0, 175, 245, 0.18);
-  border-color: var(--lt-accent, #00aff5);
+  background: var(--lt-route-color, rgba(0, 175, 245, 0.18));
+  border-color: var(--lt-route-color, var(--lt-accent));
+  filter: brightness(1.08);
 }
 
 .lt-stop-article-coords {
@@ -2807,8 +2247,8 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 8px;
-  font-size: 0.82rem;
-  color: var(--lt-panel-text-muted, #708c91);
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
 }
 
 .lt-stop-article-coords-label {
@@ -2817,16 +2257,16 @@
 
 .lt-stop-article-coords-value {
   padding: 1px 6px;
-  border-radius: 4px;
-  background: #eef3f4;
-  color: var(--lt-panel-text, #054752);
+  border-radius: var(--lt-radius-badge);
+  background: var(--lt-bg);
+  color: var(--lt-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.8rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
 }
 
 .lt-stop-article-coords-map {
-  color: var(--lt-route-green, #00aff5);
+  color: var(--lt-accent);
   font-weight: 600;
   text-decoration: none;
 }
@@ -2837,36 +2277,36 @@
 
 .lt-stop-article-lead {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--lt-fs-base);
   line-height: 1.55;
-  color: var(--lt-panel-text, #054752);
+  color: var(--lt-text);
 }
 
 .lt-stop-article-tips {
   margin: 10px 0 0;
   padding-left: 1.2rem;
-  font-size: 0.88rem;
+  font-size: var(--lt-fs-base);
   line-height: 1.45;
-  color: var(--lt-panel-text-muted, #708c91);
+  color: var(--lt-text-muted);
 }
 
 .lt-stop-article-howto {
   margin-top: 10px;
   padding: 6px 9px;
-  border-radius: 6px;
-  border: 1px dashed #b7c5c9;
-  background: #fff;
+  border-radius: var(--lt-radius-badge);
+  border: 1px dashed var(--lt-border);
+  background: var(--lt-card);
 }
 
 .lt-stop-article-howto p {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--lt-fs-xs);
   line-height: 1.4;
-  color: var(--lt-panel-text-muted, #708c91);
+  color: var(--lt-text-muted);
 }
 
 .lt-stop-article-howto a {
-  color: #0087c0;
+  color: var(--lt-destination-ink);
   font-weight: 600;
   text-decoration: none;
 }
@@ -2876,7 +2316,7 @@
 }
 
 @media (min-width: 768px) {
-  .lt-page--stop-board.lt-layout-dark .lt-panel {
+  .lt-page--stop-board.lt-layout .lt-panel {
     width: min(460px, 44vw);
     max-width: 520px;
     min-width: 360px;
@@ -2890,7 +2330,7 @@
   border-top: 1px solid var(--lt-border-light);
   font-size: var(--lt-fs-base);
   color: var(--lt-text-muted);
-  background: var(--lt-bg);
+  background: var(--lt-card);
 }
 
 .lt-footer a {
@@ -2914,90 +2354,18 @@
   margin: 0;
 }
 
-/* ========== Mobile-first UX (iPhone, Android) ========== */
-/* Touch targets min 44px (Apple HIG), tap highlight off, no zoom delay */
+/* ========== Дотик (iPhone, Android): без підсвічування тапу й затримки зуму ========== */
 .lt-route-card,
-.lt-geo-btn,
 .lt-nearest-item,
 .lt-back,
 .lt-print-btn,
 .lt-direction-btn,
-.lt-time,
 .lt-timetable-row-clickable,
-.lt-search-btn,
-.lt-detail-summary-change,
 .lt-from-to-swap {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-.lt-route-card {
-  min-height: 48px;
-  padding: 14px 16px;
-}
-
-.lt-nearest-item {
-  min-height: 48px;
-  padding: 12px 16px;
-}
-
-.lt-back {
-  min-height: 44px;
-  padding: 10px 14px;
-}
-
-.lt-print-btn {
-  min-height: 44px;
-  padding: 10px 16px;
-}
-
-.lt-direction-btn {
-  min-height: 44px;
-  padding: 10px 14px;
-}
-
-.lt-detail--jakdojade .lt-direction-toggle .lt-direction-btn {
-  min-height: 40px;
-  padding: 8px 12px;
-}
-
-.lt-time {
-  min-height: 44px;
-  min-width: 52px;
-  padding: 10px 12px;
-}
-
-.lt-timetable-table tbody tr {
-  min-height: 48px;
-}
-
-.lt-timetable-table th,
-.lt-timetable-table td {
-  padding: 14px 16px;
-}
-
-.lt-stop-item {
-  min-height: 44px;
-  padding: 10px 0;
-}
-
-/* Горизонтальний скрол таблиці на мобільному — плавний на iOS */
-.lt-timetable {
-  -webkit-overflow-scrolling: touch;
-  overflow-x: auto;
-}
-
-/* iPhone / Samsung / Xiaomi: 16px інпути щоб iOS Safari не зумував при фокусі */
-.lt-from-to-field .combobox-input {
-  font-size: 16px;
-}
-@media (min-width: 768px) {
-  .lt-from-to-field .combobox-input {
-    font-size: 0.9375rem;
-  }
-}
-
-/* Responsive */
 @media (max-width: 480px) {
   .lt-page {
     padding: 16px 12px;
@@ -3006,83 +2374,26 @@
   }
 
   .lt-header,
-  .lt-detail-header,
-  .lt-search,
-  .lt-timetable-header {
+.lt-detail-header,
+.lt-search {
     padding-left: var(--lt-panel-x);
     padding-right: var(--lt-panel-x);
   }
 
-  .lt-detail .lt-header--jakdojade .lt-header-title-wrap {
+  .lt-detail .lt-header .lt-header-title-wrap {
     margin-left: 46px;
   }
 
   .lt-route-title {
-    font-size: 1.125rem;
+    font-size: var(--lt-fs-lg);
   }
 
-  .lt-search-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .lt-search-row .lt-geo-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .lt-timetable-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .lt-timetable-col {
-    border-right: none;
-    border-bottom: 1px solid var(--lt-border-light);
-    padding: 14px 16px;
-  }
-
-  .lt-timetable-col:last-child {
-    border-bottom: none;
-  }
-
-  .lt-from-to {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .lt-from-to-arrow {
-    transform: rotate(90deg);
-    align-self: center;
-  }
-
-  .lt-from-to-field {
-    min-width: 100%;
-  }
-
-  .lt-date-row {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .lt-map-area,
   .lt-stops {
     padding: 16px;
   }
 
-  /* Висота карти в панелі (деталі) — фіксована; в колонці справа — на всю 40dvh */
-  .lt-map-container {
-    height: 240px;
-  }
-  .lt-map-column .lt-map-container {
-    height: 100%;
-    min-height: 200px;
-  }
-
   /* iOS: 16px щоб не зумувало при фокусі на даті/часі та селекті */
-  .lt-datetime-input,
-  .lt-time-picker-select {
+  .lt-datetime-input {
     font-size: 16px;
   }
 
@@ -3099,30 +2410,29 @@
   }
 
   .lt-header,
-  .lt-detail-header,
-  .lt-search,
-  .lt-timetable-header {
+.lt-detail-header,
+.lt-search {
     padding-left: var(--lt-panel-x);
     padding-right: var(--lt-panel-x);
   }
 
-  .lt-layout-dark .lt-panel .lt-detail--jakdojade {
+  .lt-layout .lt-panel .lt-detail {
     padding-left: 10px;
     padding-right: 10px;
   }
 
   .lt-title {
-    font-size: 1.25rem;
+    font-size: var(--lt-fs-lg);
   }
 
   .lt-route-num {
     min-width: 40px;
-    font-size: 0.9375rem;
+    font-size: var(--lt-fs-base);
   }
 
   .lt-stop-item {
     grid-template-columns: 3em 1fr 2em;
-    font-size: 0.875rem;
+    font-size: var(--lt-fs-base);
   }
 }
 
@@ -3130,61 +2440,77 @@
 .lt-subnav {
   display: inline-flex;
   gap: 2px;
-  margin: 0 var(--lt-panel-x, 16px) 14px;
+  margin: 0 var(--lt-panel-x) 14px;
   padding: 4px;
-  width: calc(100% - 2 * var(--lt-panel-x, 16px));
+  width: calc(100% - 2 * var(--lt-panel-x));
   box-sizing: border-box;
-  background: #fff;
-  border-radius: 999px;
-  box-shadow: var(--lt-card-shadow);
+  background: var(--lt-card);
+  border-radius: var(--lt-radius-pill);
+  box-shadow: var(--lt-elev-1);
 }
 
 .lt-subnav-link {
   flex: 1;
   text-align: center;
   padding: 10px 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: var(--lt-radius-pill);
+  font-size: var(--lt-fs-base);
   font-weight: 600;
-  color: var(--lt-panel-text-muted, #708c91);
+  color: var(--lt-text-muted);
   text-decoration: none;
   border: none;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .lt-subnav-link:hover {
-  color: var(--lt-panel-text, #054752);
+  color: var(--lt-text);
   background: rgba(0, 175, 245, 0.08);
 }
 
-.lt-layout-dark .lt-panel .lt-subnav-link--active {
-  color: #fff;
-  background: #054752;
+.lt-layout .lt-panel .lt-subnav-link--active {
+  color: var(--lt-card);
+  background: var(--lt-text);
   border-color: transparent;
 }
 
 /* Табло зупинки */
-.lt-stop-board-intro {
-  padding: 0 var(--lt-panel-x, 16px) var(--lt-panel-block, 14px);
-}
-
-.lt-stop-board-title {
-  margin-bottom: 6px;
-}
-
-.lt-stop-board-lead {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-}
-
 .lt-stop-board-search {
   padding-top: 0;
 }
 
+/* Чіпи ліній під заголовком табло: кільце в кольорі лінії, натиснутий — залитий */
+.lt-line-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.lt-line-chip {
+  min-width: 44px;
+  border-color: var(--lt-route-color, var(--lt-border));
+  color: var(--lt-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-line-chip:hover {
+  border-color: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-text);
+}
+
+.lt-line-chip[aria-pressed='true'] {
+  border-color: var(--lt-route-color, var(--lt-accent));
+  background: var(--lt-route-color, var(--lt-accent-light));
+  color: var(--lt-route-fg, #fff);
+  box-shadow: none;
+}
+
+.lt-stop-board-search .lt-search-chips {
+  margin-top: 2px;
+}
+
 /* Одна колонка: не наслідувати сітку З/До (1fr | swap | 1fr), інакше combobox ~половина ширини */
-.lt-theme-jakdojade .lt-from-to-row.lt-stop-board-row {
+.lt-page .lt-from-to-row.lt-stop-board-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   width: 100%;
@@ -3203,7 +2529,7 @@
 }
 
 .lt-stop-board-empty {
-  padding: 12px var(--lt-panel-x, 16px);
+  padding: 12px var(--lt-panel-x);
 }
 
 .lt-stop-board {
@@ -3213,369 +2539,133 @@
 }
 
 .lt-stop-board-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 16px;
   margin: 0;
-  padding: 0 var(--lt-panel-x, 16px) 6px;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.lt-stop-board-table-title {
-  margin: 0;
-  font-size: 1.05rem;
-  color: var(--lt-panel-text, #e8eaed);
+  padding: 0 var(--lt-panel-x) 8px;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
   overflow-wrap: anywhere;
 }
 
-.lt-stop-board-date {
-  font-size: 0.8125rem;
-  color: var(--lt-panel-text-muted, #9aa0a6);
+.lt-stop-board-show-all {
+  margin: 4px var(--lt-panel-x) 16px;
 }
 
-.lt-stop-board-hint {
-  margin: 0;
-  padding: 0 var(--lt-panel-x, 16px) 12px;
-  max-width: 100%;
-  box-sizing: border-box;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.lt-stop-board-table-wrap {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--lt-panel-border, #3c4043);
-}
-
-.lt-stop-board-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.lt-stop-board-table thead th {
-  text-align: left;
-  padding: 10px 12px;
-  background: #c62828;
-  color: #fff;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.lt-stop-board-table tbody td {
-  padding: 10px 12px;
-  border-top: 1px solid var(--lt-panel-border, #3c4043);
-  vertical-align: top;
-}
-
-.lt-stop-board-table tbody tr.lt-stop-board-row--next {
-  background: rgba(138, 180, 248, 0.12);
-}
-
-.lt-stop-board-time-link {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--lt-route-green, #8ab4f8);
-  text-decoration: none;
-}
-
-.lt-stop-board-time-link:hover,
-.lt-stop-board-route-link:hover,
-.lt-stop-board-dest-link:hover {
-  text-decoration: underline;
-}
-
-.lt-stop-board-route-link,
-.lt-stop-board-dest-link {
-  color: var(--lt-panel-text, #e8eaed);
-  text-decoration: none;
-}
-
-.lt-stop-board-map-placeholder {
-  min-height: 120px;
-  background: var(--lt-panel-bg, #202124);
-}
-
-.lt-stop-board-toolbar {
-  padding: 0 var(--lt-panel-x, 16px) 10px;
-}
-
-.lt-stop-board-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8125rem;
-  color: var(--lt-panel-text, #e8eaed);
-  cursor: pointer;
-  user-select: none;
-}
-
-.lt-stop-board-checkbox input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--lt-route-green, #8ab4f8);
-}
-
-.lt-stop-board-show-all-btn {
-  margin: 8px var(--lt-panel-x, 16px) 16px;
-  padding: 10px 16px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--lt-route-green, #8ab4f8);
-  background: rgba(138, 180, 248, 0.12);
-  border: 1px solid var(--lt-panel-border, #3c4043);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.lt-stop-board-show-all-btn:hover {
-  background: rgba(138, 180, 248, 0.2);
-}
-
-/* Табло зупинки — картки в дусі Jakdojade (темна тема сайту) */
-.lt-stop-board-intro--jd .lt-stop-board-title--jd {
-  margin-bottom: 8px;
-}
-
-.lt-stop-board-intro--jd .lt-stop-board-lead {
-  max-width: 40rem;
-  line-height: 1.45;
-}
-
-.lt-jd-cards {
+/* Табло зупинки — картки відправлень у мові карток планувальника */
+.lt-board-cards {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 6px var(--lt-panel-x, 16px) 24px;
+  gap: 8px;
+  margin: 0;
+  padding: 0 var(--lt-panel-x) var(--lt-panel-block);
+  list-style: none;
 }
 
-.lt-jd-card {
-  display: grid;
-  grid-template-columns: minmax(6.5rem, 8.5rem) 1fr;
-  gap: 16px 20px;
+/* Справжній список: <li> — елемент, <a> усередині лишається лінком для скрінрідера */
+.lt-board-cards > li {
+  margin: 0;
+  padding: 0;
+}
+
+.lt-board-card {
+  display: flex;
   align-items: stretch;
-  padding: 16px 18px;
-  border-radius: var(--lt-radius, 16px);
-  background: #fff;
-  border: 1px solid var(--lt-panel-border, #dde3e6);
-  box-shadow: var(--lt-card-shadow);
+  min-height: 72px;
+  padding: var(--lt-panel-y) 14px;
+  background: var(--lt-card);
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  color: var(--lt-text);
   text-decoration: none;
-  color: inherit;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.lt-jd-card:hover {
-  border-color: rgba(0, 175, 245, 0.45);
-  box-shadow: 0 8px 28px rgba(5, 71, 82, 0.12);
-  transform: translateY(-1px);
+.lt-board-card:hover {
+  border-color: var(--lt-accent);
+  box-shadow: var(--lt-elev-1);
 }
 
-.lt-jd-card:focus-visible {
-  outline: 2px solid var(--lt-route-green, #8ab4f8);
+.lt-board-card:focus-visible {
+  outline: 2px solid var(--lt-accent);
   outline-offset: 2px;
 }
 
-.lt-jd-card--next {
-  border-color: rgba(15, 165, 115, 0.4);
-  box-shadow:
-    0 2px 12px rgba(5, 71, 82, 0.08),
-    inset 3px 0 0 0 #0fa573;
-  background: linear-gradient(180deg, #fff 0%, #f7fbfc 100%);
+/* Найближчий рейс — смуга origin ліворуч */
+.lt-board-card--next {
+  border-color: var(--lt-origin);
+  box-shadow: inset 3px 0 0 var(--lt-origin);
 }
 
-.lt-jd-card__countdown {
+.lt-board-card__time {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  min-height: 4.25rem;
+  min-width: 64px;
+  max-width: 120px;
+  padding-right: 14px;
+  border-right: 1px solid var(--lt-border);
 }
 
-.lt-jd-card__countdown-label {
-  font-size: 0.625rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-  margin-bottom: 6px;
-}
-
-.lt-jd-card__countdown-big {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-}
-
-.lt-jd-card__countdown-num {
-  font-size: 1.85rem;
+.lt-board-card__clock {
+  font-size: var(--lt-fs-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: #054752;
+  color: var(--lt-text);
 }
 
-.lt-jd-card__countdown-big--hm {
-  align-items: center;
-}
-
-.lt-jd-card__countdown-hm {
-  font-size: 1.28rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.lt-board-card__wait {
+  font-size: var(--lt-fs-xs);
+  color: var(--lt-text-muted);
   line-height: 1.25;
-  color: #054752;
-  letter-spacing: -0.02em;
 }
 
-.lt-jd-card__countdown-hm-suffix {
-  font-size: 0.72em;
+.lt-board-card__wait--soon {
+  color: var(--lt-accent);
   font-weight: 600;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-  letter-spacing: 0;
 }
 
-.lt-jd-card__countdown-at {
-  display: block;
-  margin-top: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-  letter-spacing: 0.04em;
-}
-
-.lt-jd-card__countdown-unit {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-}
-
-.lt-jd-card__countdown-now {
-  font-size: 1.35rem;
+.lt-board-card__wait--now {
+  color: var(--lt-origin-ink);
   font-weight: 700;
-  color: #0fa573;
 }
 
-.lt-jd-card__countdown-past {
-  font-size: 0.8125rem;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-}
-
-.lt-jd-card__countdown-big--static .lt-jd-card__countdown-time {
-  font-size: 1.4rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--lt-route-green, #8ab4f8);
-}
-
-.lt-jd-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.lt-jd-card__route-row {
+.lt-board-card__body {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 8px;
+  align-items: center;
+  align-content: center;
+  gap: 4px 10px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 14px;
 }
 
-.lt-jd-card__route-num {
+/* Номер на табло: контурна плашка в кольорі лінії зі схеми; перевірений маршрут — суцільна */
+.lt-board-card__route-num {
   flex-shrink: 0;
   font-weight: 700;
-  font-size: 0.9375rem;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: rgba(0, 175, 245, 0.12);
-  color: #0087c0;
-  border: 1px solid rgba(0, 175, 245, 0.28);
+  font-size: var(--lt-fs-base);
+  padding: 4px 10px;
+  border-radius: var(--lt-radius-pill);
+  background: var(--lt-card);
+  color: var(--lt-route-color, var(--lt-text-muted));
+  border: 2px solid var(--lt-route-color, rgba(0, 175, 245, 0.45));
   box-shadow: none;
 }
 
-.lt-jd-card__route-num--verified {
-  background: rgba(15, 165, 115, 0.12);
-  color: #0fa573;
-  border-color: rgba(15, 165, 115, 0.35);
+.lt-board-card__route-num--verified {
+  background: var(--lt-route-color, var(--lt-accent));
+  color: var(--lt-route-fg, #fff);
+  border-color: var(--lt-route-color, var(--lt-accent));
 }
 
-.lt-jd-card__route-arrow {
-  color: var(--lt-panel-text-muted, #9aa0a6);
-  font-size: 0.875rem;
-}
-
-.lt-jd-card__destination {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--lt-panel-text, #e8eaed);
-  line-height: 1.35;
-  flex: 1;
+.lt-board-card__destination {
+  flex: 1 1 auto;
   min-width: 0;
-}
-
-.lt-jd-card__time-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-}
-
-.lt-jd-card__pill {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: var(--lt-fs-md);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.lt-jd-card__pill--dep {
-  background: rgba(15, 165, 115, 0.12);
-  color: #0fa573;
-  border: 1px solid rgba(15, 165, 115, 0.35);
-}
-
-.lt-jd-card__pill-hint {
-  font-size: 0.6875rem;
-  color: var(--lt-panel-text-muted, #9aa0a6);
-}
-
-@media (max-width: 520px) {
-  .lt-jd-card {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .lt-jd-card__countdown {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 0;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--lt-panel-border, #3c4043);
-    width: 100%;
-  }
-
-  .lt-jd-card__countdown-label {
-    margin-bottom: 0;
-  }
-}
-
-.lt-stop-content-link {
-  color: inherit;
-  text-decoration: none;
-}
-
-.lt-stop-content-link:hover {
-  color: var(--lt-route-green, #8ab4f8);
-  text-decoration: underline;
+  color: var(--lt-text);
+  line-height: 1.3;
 }
 
 .lt-nearest-item-row {
@@ -3593,20 +2683,18 @@
 .lt-nearest-tablo-link {
   align-self: center;
   padding: 8px 12px;
-  font-size: 0.8125rem;
+  font-size: var(--lt-fs-sm);
   font-weight: 600;
-  color: var(--lt-route-green, #8ab4f8);
+  color: var(--lt-accent);
   text-decoration: none;
   white-space: nowrap;
-  border-radius: 8px;
-  border: 1px solid var(--lt-panel-border, #3c4043);
+  border-radius: var(--lt-radius-icon);
+  border: 1px solid var(--lt-border);
 }
 
 .lt-nearest-tablo-link:hover {
   background: rgba(138, 180, 248, 0.1);
 }
-
-/* Print */
 @media print {
   .lt-page {
     background: white;
@@ -3618,15 +2706,33 @@
     border: none;
   }
 
-  .lt-stops-toggle,
-  .lt-geo-btn,
   .lt-print-btn,
-  .lt-back,
-  .app-nav {
+.lt-back,
+.lt-subnav,
+.lt-route-chips,
+.lt-departures,
+.lt-timetable-toggle,
+.lt-detail-header-actions .lt-chip,
+.lt-stops-head .lt-chip,
+.lt-stops-hint,
+.lt-stop-board-link,
+.lts-mini,
+.lt-map-column,
+.app-nav {
     display: none !important;
+  }
+
+  /* Повна таблиця друкується завжди, навіть згорнута на екрані */
+  .lt-timetable--collapsed {
+    display: block;
   }
 
   .lt-map-container {
     height: 400px;
+  }
+}
+@media (max-width: 767px) {
+  .lt-page--stop-board.lt-layout .lt-panel {
+    padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
 }

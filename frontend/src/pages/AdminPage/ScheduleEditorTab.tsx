@@ -3,15 +3,20 @@ import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
 import { apiClient } from '@/api/client';
-import type { TransportDataset, TransportTripDto } from '@/api/transportDataset';
+import type { TransportDataset, TransportRouteDto, TransportTripDto } from '@/api/transportDataset';
+import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import {
+  autoHeadsign,
   buildSegmentLookup,
+  clockAtStop,
   compareTripsByDeparture,
-  computeStopArrivalClock,
+  computeTripTimes,
+  nextOppositeDeparture,
   nextTripId,
   parseClockToMinutes,
   FALLBACK_DEFAULT_SEGMENT_SEC,
 } from './scheduleEditorTiming';
+import type { TripTiming } from '../LocalTransportPage/dataset/tripTiming';
 import './ScheduleEditorTab.css';
 
 type DirectionMode = 'there' | 'back';
@@ -31,8 +36,17 @@ const SERVICE_OPTIONS = [
 
 const EMPTY_ADD_FORM: AddTripForm = { time: '', headsign: '', serviceId: 'everyday' };
 
+/** Значення селекта «Кінцева» для власного тексту таблички */
+const OTHER_HEADSIGN = '__other__';
+
+/** Людське розписання маршруту (JSON) → текст для textarea */
+function scheduleToText(schedule: unknown): string {
+  return schedule == null ? '' : JSON.stringify(schedule, null, 2);
+}
+
 export const ScheduleEditorTab: React.FC = () => {
   const [baseDataset, setBaseDataset] = useState<TransportDataset | null>(null);
+  const [routes, setRoutes] = useState<TransportRouteDto[]>([]);
   const [trips, setTrips] = useState<TransportTripDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,6 +57,11 @@ export const ScheduleEditorTab: React.FC = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addForm, setAddForm] = useState<AddTripForm>(EMPTY_ADD_FORM);
   const [addError, setAddError] = useState('');
+  /** Чернетки JSON-розкладу по маршрутах (текст у textarea) і помилки парсингу */
+  const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, string>>({});
+  const [scheduleErrors, setScheduleErrors] = useState<Record<string, string>>({});
+  /** Рейси, для яких табличка редагується як текст («Інше…»), а не береться з кінцевої */
+  const [customHeadsign, setCustomHeadsign] = useState<Record<string, boolean>>({});
 
   const loadFromDb = useCallback(async () => {
     setLoading(true);
@@ -51,7 +70,11 @@ export const ScheduleEditorTab: React.FC = () => {
     try {
       const dataset = await apiClient.getTransportDataset();
       setBaseDataset(dataset);
+      setRoutes(dataset.routes);
       setTrips(dataset.trips);
+      setScheduleDrafts({});
+      setScheduleErrors({});
+      setCustomHeadsign({});
       setSelectedRoute((prev) => {
         if (prev && dataset.routes.some((r) => r.id === prev)) return prev;
         const sorted = [...dataset.routes].sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
@@ -70,15 +93,24 @@ export const ScheduleEditorTab: React.FC = () => {
   }, [loadFromDb]);
 
   const handleReloadFromDb = useCallback(async () => {
-    if (!window.confirm('Завантажити з бази? Несхоронені зміни графіка буде втрачено.')) return;
+    if (!window.confirm('Завантажити з бази? Несхоронені зміни графіка та даних маршрутів буде втрачено.')) return;
     await loadFromDb();
   }, [loadFromDb]);
 
+  const scheduleHasErrors = useMemo(
+    () => Object.values(scheduleErrors).some((e) => Boolean(e)),
+    [scheduleErrors]
+  );
+
   const handleSaveToDb = useCallback(async () => {
     if (!baseDataset) return;
+    if (scheduleHasErrors) {
+      setError('Виправте JSON розкладу маршруту перед збереженням.');
+      return;
+    }
     if (
       !window.confirm(
-        'Зберегти графік у базу? Несхоронені правки інших вкладок (карта, зупинки) не торкаються — береться те, що вже в базі.'
+        'Зберегти графік і дані маршрутів у базу? Несхоронені правки інших вкладок (карта, зупинки) не торкаються — береться те, що вже в базі.'
       )
     ) {
       return;
@@ -87,27 +119,56 @@ export const ScheduleEditorTab: React.FC = () => {
     setError('');
     setStatusMsg('');
     try {
-      const merged: TransportDataset = { ...baseDataset, trips };
+      const merged: TransportDataset = { ...baseDataset, routes, trips };
       const result = await apiClient.putTransportDataset(merged);
       setBaseDataset(merged);
-      setStatusMsg(`Збережено: ${result.counts.trips} рейсів`);
+      broadcastTransportDatasetInvalidate();
+      setStatusMsg(`Збережено: ${result.counts.routes} маршрутів, ${result.counts.trips} рейсів`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не вдалося зберегти графік у базу');
     } finally {
       setSaving(false);
     }
-  }, [baseDataset, trips]);
+  }, [baseDataset, routes, trips, scheduleHasErrors]);
 
   const routeOptions = useMemo(() => {
-    if (!baseDataset) return [];
-    return [...baseDataset.routes]
+    return [...routes]
       .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10))
-      .map((r) => ({ value: r.id, label: `№${r.id} — ${r.fromName || '?'} → ${r.toName || '?'}` }));
-  }, [baseDataset]);
+      .map((r) => ({
+        value: r.id,
+        label: `№${r.id} — ${r.fromName || '?'} → ${r.toName || '?'}${r.unreliable ? ' · приховано' : ''}`,
+      }));
+  }, [routes]);
 
   const selectedRouteObj = useMemo(
-    () => baseDataset?.routes.find((r) => r.id === selectedRoute) ?? null,
-    [baseDataset, selectedRoute]
+    () => routes.find((r) => r.id === selectedRoute) ?? null,
+    [routes, selectedRoute]
+  );
+
+  const updateRoute = useCallback((routeId: string, patch: Partial<TransportRouteDto>) => {
+    setRoutes((prev) => prev.map((r) => (r.id === routeId ? { ...r, ...patch } : r)));
+  }, []);
+
+  const handleScheduleTextChange = useCallback(
+    (routeId: string, text: string) => {
+      setScheduleDrafts((prev) => ({ ...prev, [routeId]: text }));
+      if (!text.trim()) {
+        setScheduleErrors((prev) => ({ ...prev, [routeId]: '' }));
+        updateRoute(routeId, { schedule: null });
+        return;
+      }
+      try {
+        const parsed: unknown = JSON.parse(text);
+        setScheduleErrors((prev) => ({ ...prev, [routeId]: '' }));
+        updateRoute(routeId, { schedule: parsed });
+      } catch (err) {
+        setScheduleErrors((prev) => ({
+          ...prev,
+          [routeId]: `Некоректний JSON: ${err instanceof Error ? err.message : String(err)}`,
+        }));
+      }
+    },
+    [updateRoute]
   );
 
   const stopNameById = useMemo(() => {
@@ -116,7 +177,8 @@ export const ScheduleEditorTab: React.FC = () => {
     return map;
   }, [baseDataset]);
 
-  const orderedStopIds = useMemo(() => {
+  /** Ланцюжок напрямку з технічними точками — для розрахунку часу */
+  const chainStopIds = useMemo(() => {
     if (!baseDataset || !selectedRoute) return [];
     const orderKey = directionMode === 'there' ? 'orderThere' : 'orderBack';
     return baseDataset.routeStops
@@ -124,6 +186,28 @@ export const ScheduleEditorTab: React.FC = () => {
       .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0))
       .map((rs) => rs.stopId);
   }, [baseDataset, selectedRoute, directionMode]);
+
+  /** Пасажирські зупинки напрямку — рядки таблиці та селекти «З»/«Кінцева» */
+  const passengerStopIds = useMemo(() => {
+    if (!baseDataset) return [];
+    const mapOnly = new Set(
+      baseDataset.routeStops.filter((rs) => rs.routeId === selectedRoute && rs.mapOnly).map((rs) => rs.stopId)
+    );
+    return chainStopIds.filter((id) => !mapOnly.has(id));
+  }, [baseDataset, selectedRoute, chainStopIds]);
+
+  const routeStopCount = useMemo(
+    () =>
+      baseDataset
+        ? baseDataset.routeStops.filter((rs) => rs.routeId === selectedRoute && !rs.mapOnly).length
+        : 0,
+    [baseDataset, selectedRoute]
+  );
+
+  const routeTripCount = useMemo(
+    () => trips.filter((t) => t.routeId === selectedRoute).length,
+    [trips, selectedRoute]
+  );
 
   const directionId = directionToId[directionMode];
 
@@ -144,6 +228,26 @@ export const ScheduleEditorTab: React.FC = () => {
     const raw = Number(baseDataset?.meta.defaultSec);
     return Number.isFinite(raw) && raw > 0 ? raw : FALLBACK_DEFAULT_SEGMENT_SEC;
   }, [baseDataset]);
+
+  const timingByTrip = useMemo(() => {
+    const map = new Map<string, TripTiming | null>();
+    for (const t of tripsForDirection) {
+      map.set(t.id, computeTripTimes(t, segmentLookup, selectedRoute, chainStopIds, defaultSec));
+    }
+    return map;
+  }, [tripsForDirection, segmentLookup, selectedRoute, chainStopIds, defaultSec]);
+
+  const stopName = useCallback((id: string | null | undefined) => (id ? stopNameById.get(id) || id : ''), [stopNameById]);
+  const lastPassengerStopId = passengerStopIds[passengerStopIds.length - 1] ?? null;
+  const tripStartIndex = (t: TransportTripDto) => (t.startStopId ? passengerStopIds.indexOf(t.startStopId) : 0);
+  const tripEndIndex = (t: TransportTripDto) =>
+    t.endStopId ? passengerStopIds.indexOf(t.endStopId) : passengerStopIds.length - 1;
+  /** Табличка відрізняється від назви фактичної кінцевої → показуємо текстове поле */
+  const isCustomHeadsign = (t: TransportTripDto) => {
+    if (customHeadsign[t.id] != null) return customHeadsign[t.id];
+    const plate = (t.headsign || '').trim();
+    return !!plate && plate !== stopName(t.endStopId || lastPassengerStopId).trim();
+  };
 
   const updateTrip = useCallback((tripId: string, patch: Partial<TransportTripDto>) => {
     setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, ...patch } : t)));
@@ -187,11 +291,30 @@ export const ScheduleEditorTab: React.FC = () => {
         blockId: null,
         wheelchairAccessible: '',
         bikesAllowed: '',
+        startStopId: null,
+        endStopId: null,
+        arrivalTime: null,
       };
       setTrips((prev) => [...prev, newTrip]);
       setAddModalOpen(false);
     },
     [addForm, selectedRoute, trips, directionId]
+  );
+
+  /** Селект «Кінцева»: зупинка → endStopId + автотабличка; порожньо → остання; «Інше…» → текст */
+  const handleEndChange = useCallback(
+    (t: TransportTripDto, value: string) => {
+      if (value === OTHER_HEADSIGN) {
+        setCustomHeadsign((prev) => ({ ...prev, [t.id]: true }));
+        return;
+      }
+      const prevEndName = stopName(t.endStopId || lastPassengerStopId) || null;
+      const nextEndId = value || null;
+      const nextEndName = stopName(nextEndId || lastPassengerStopId);
+      updateTrip(t.id, { endStopId: nextEndId, headsign: autoHeadsign(t.headsign, prevEndName, nextEndName) });
+      setCustomHeadsign((prev) => ({ ...prev, [t.id]: false }));
+    },
+    [stopName, lastPassengerStopId, updateTrip]
   );
 
   const directionLabel = useCallback(
@@ -207,16 +330,33 @@ export const ScheduleEditorTab: React.FC = () => {
     return <div className="schedule-editor-loading">Завантаження...</div>;
   }
 
-  if (error || !baseDataset) {
+  if (error && !baseDataset) {
     return (
       <div className="schedule-editor-error">
-        <p>{error || 'Не вдалося завантажити дані'}</p>
+        <p>{error}</p>
         <Button type="button" onClick={loadFromDb}>
           Спробувати ще раз
         </Button>
       </div>
     );
   }
+
+  if (!baseDataset) {
+    return (
+      <div className="schedule-editor-error">
+        <p>Не вдалося завантажити дані</p>
+        <Button type="button" onClick={loadFromDb}>
+          Спробувати ще раз
+        </Button>
+      </div>
+    );
+  }
+
+  const scheduleText =
+    selectedRouteObj
+      ? (scheduleDrafts[selectedRouteObj.id] ?? scheduleToText(selectedRouteObj.schedule))
+      : '';
+  const scheduleError = selectedRouteObj ? scheduleErrors[selectedRouteObj.id] || '' : '';
 
   return (
     <div className="tab-content schedule-editor-tab">
@@ -255,11 +395,100 @@ export const ScheduleEditorTab: React.FC = () => {
         </div>
       </div>
 
+      {error && <p className="schedule-editor-error">{error}</p>}
       {statusMsg && <p className="schedule-editor-hint">{statusMsg}</p>}
       <p className="schedule-editor-hint">
-        Час на зупинці = час відправлення рейсу + сума тривалостей перегонів (сегментів). Сегменти тут не
-        редагуються — правте їх у «Редакторі карти» кнопкою «Перерахувати час».
+        Час на зупинці = час відправлення рейсу + сума тривалостей перегонів (сегментів). «З» / «Кінцева»
+        роблять рейс скороченим: на інших зупинках він не показується (сайт, табло, GTFS). «Прибуття» —
+        фіксований час на кінцевій: якщо перегони не вкладаються, вони стискаються пропорційно лише для
+        цього рейсу (бейдж ×0.78); із запасом — час за перегонами. Сегменти правте у «Редакторі карти»
+        кнопкою «Перерахувати час».
       </p>
+
+      {selectedRouteObj && (
+        <section className="schedule-editor-route-panel" aria-labelledby="schedule-editor-route-panel-h">
+          <div className="schedule-editor-route-panel-head">
+            <h3 id="schedule-editor-route-panel-h" className="schedule-editor-route-panel-title">
+              Маршрут №{selectedRouteObj.id}
+            </h3>
+            <span className="schedule-editor-count">
+              {routeTripCount} рейсів · {routeStopCount} зупинок
+            </span>
+          </div>
+          <label
+            className={`admin-checkbox schedule-editor-route-flag ${selectedRouteObj.unreliable ? 'schedule-editor-route-flag--on' : ''}`}
+          >
+            <input
+              type="checkbox"
+              checked={selectedRouteObj.unreliable === true}
+              onChange={(e) => updateRoute(selectedRouteObj.id, { unreliable: e.target.checked })}
+            />
+            <span>
+              Ненадійний маршрут — приховати на сайті (список маршрутів, планер, сторінка маршруту, табло
+              зупинок, SEO/AEO-сторінки, sitemap, GTFS)
+            </span>
+          </label>
+          {selectedRouteObj.unreliable && (
+            <p className="schedule-editor-hint">
+              Прихований маршрут лишається в базі та адмінці. Статичні сторінки зупинок і sitemap
+              перегенеруються під час наступного деплою фронтенду.
+            </p>
+          )}
+          <div className="schedule-editor-route-grid">
+            <Input
+              label="Кінцева «звідки» (fromName)"
+              type="text"
+              value={selectedRouteObj.fromName ?? ''}
+              onChange={(e) => updateRoute(selectedRouteObj.id, { fromName: e.target.value })}
+            />
+            <Input
+              label="Кінцева «куди» (toName)"
+              type="text"
+              value={selectedRouteObj.toName ?? ''}
+              onChange={(e) => updateRoute(selectedRouteObj.id, { toName: e.target.value })}
+            />
+            <Input
+              label="Джерело (sourceUrl)"
+              type="url"
+              value={selectedRouteObj.sourceUrl ?? ''}
+              placeholder="https://…"
+              onChange={(e) => updateRoute(selectedRouteObj.id, { sourceUrl: e.target.value })}
+            />
+          </div>
+          <label className="schedule-editor-route-field">
+            <span className="schedule-editor-field-label">Схема руху (scheme)</span>
+            <textarea
+              className="schedule-editor-textarea"
+              rows={2}
+              value={selectedRouteObj.scheme ?? ''}
+              onChange={(e) => updateRoute(selectedRouteObj.id, { scheme: e.target.value })}
+            />
+          </label>
+          <label className="schedule-editor-route-field">
+            <span className="schedule-editor-field-label">Примітка (note)</span>
+            <textarea
+              className="schedule-editor-textarea"
+              rows={2}
+              value={selectedRouteObj.note ?? ''}
+              onChange={(e) => updateRoute(selectedRouteObj.id, { note: e.target.value })}
+            />
+          </label>
+          <label className="schedule-editor-route-field">
+            <span className="schedule-editor-field-label">
+              Людське розписання з міськради (schedule, JSON: schedule_entries, lunch_break, note)
+            </span>
+            <textarea
+              className={`schedule-editor-textarea schedule-editor-textarea--mono ${scheduleError ? 'schedule-editor-textarea--error' : ''}`}
+              rows={6}
+              value={scheduleText}
+              placeholder="Порожньо — без людського розписання"
+              spellCheck={false}
+              onChange={(e) => handleScheduleTextChange(selectedRouteObj.id, e.target.value)}
+            />
+            {scheduleError && <span className="schedule-editor-field-error">{scheduleError}</span>}
+          </label>
+        </section>
+      )}
 
       <div className="schedule-editor-toolbar">
         <Button type="button" variant="secondary" onClick={openAddModal} disabled={!selectedRoute}>
@@ -268,7 +497,7 @@ export const ScheduleEditorTab: React.FC = () => {
         <span className="schedule-editor-count">{tripsForDirection.length} рейсів</span>
       </div>
 
-      {orderedStopIds.length === 0 ? (
+      {passengerStopIds.length === 0 ? (
         <p className="schedule-editor-hint">У цього маршруту немає зупинок для обраного напрямку.</p>
       ) : tripsForDirection.length === 0 ? (
         <p className="schedule-editor-hint">Рейсів ще немає. Натисніть «+ Додати рейс», щоб створити перший.</p>
@@ -278,59 +507,140 @@ export const ScheduleEditorTab: React.FC = () => {
             <thead>
               <tr>
                 <th className="schedule-editor-corner">Зупинка</th>
-                {tripsForDirection.map((t) => (
-                  <th key={t.id} className="schedule-editor-trip-head">
-                    <input
-                      type="time"
-                      className="schedule-editor-time-input"
-                      value={(t.departureTime || '').slice(0, 5)}
-                      onChange={(e) => handleTimeChange(t.id, e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      className="schedule-editor-headsign-input"
-                      value={t.headsign || ''}
-                      placeholder="кінцева"
-                      onChange={(e) => updateTrip(t.id, { headsign: e.target.value })}
-                    />
-                    <select
-                      className="schedule-editor-service-select"
-                      value={t.serviceId || 'everyday'}
-                      onChange={(e) => updateTrip(t.id, { serviceId: e.target.value })}
-                    >
-                      {SERVICE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="schedule-editor-delete-btn"
-                      onClick={() => handleDeleteTrip(t.id)}
-                      title={`Видалити рейс ${t.id}`}
-                    >
-                      ×
-                    </button>
-                  </th>
-                ))}
+                {tripsForDirection.map((t) => {
+                  const timing = timingByTrip.get(t.id) ?? null;
+                  const startIdx = tripStartIndex(t);
+                  const endIdx = tripEndIndex(t);
+                  const startOptions = passengerStopIds.filter((_, i) => i > 0 && i < endIdx);
+                  const endOptions = passengerStopIds.filter(
+                    (_, i) => i > startIdx && i < passengerStopIds.length - 1
+                  );
+                  const custom = isCustomHeadsign(t);
+                  const endSelectValue = t.endStopId ?? (custom ? OTHER_HEADSIGN : '');
+                  const oppositeHint = t.arrivalTime ? null : nextOppositeDeparture(trips, t);
+                  return (
+                    <th key={t.id} className="schedule-editor-trip-head">
+                      <input
+                        type="time"
+                        className="schedule-editor-time-input"
+                        value={(t.departureTime || '').slice(0, 5)}
+                        onChange={(e) => handleTimeChange(t.id, e.target.value)}
+                        title="Відправлення з першої обслуговуваної зупинки"
+                      />
+                      <span className="schedule-editor-head-label">З</span>
+                      <select
+                        className="schedule-editor-stop-select"
+                        value={t.startStopId ?? ''}
+                        onChange={(e) => updateTrip(t.id, { startStopId: e.target.value || null })}
+                        title="Перша обслуговувана зупинка"
+                      >
+                        <option value="">(перша)</option>
+                        {startOptions.map((id) => (
+                          <option key={id} value={id}>
+                            {stopName(id)}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="schedule-editor-head-label">Кінцева</span>
+                      <select
+                        className="schedule-editor-stop-select"
+                        value={endSelectValue}
+                        onChange={(e) => handleEndChange(t, e.target.value)}
+                        title="Остання обслуговувана зупинка; «Інше…» — власний текст таблички"
+                      >
+                        <option value="">(остання)</option>
+                        {endOptions.map((id) => (
+                          <option key={id} value={id}>
+                            {stopName(id)}
+                          </option>
+                        ))}
+                        <option value={OTHER_HEADSIGN}>Інше…</option>
+                      </select>
+                      {custom && (
+                        <input
+                          type="text"
+                          className="schedule-editor-headsign-input"
+                          value={t.headsign || ''}
+                          placeholder="табличка"
+                          onChange={(e) => updateTrip(t.id, { headsign: e.target.value })}
+                        />
+                      )}
+                      <span className="schedule-editor-head-label">Прибуття</span>
+                      <input
+                        type="time"
+                        className="schedule-editor-time-input"
+                        value={(t.arrivalTime || '').slice(0, 5)}
+                        disabled={!t.departureTime}
+                        title={
+                          t.departureTime
+                            ? 'Фіксований час на кінцевій: перегони рейсу стискаються, щоб встигнути'
+                            : 'Спочатку задайте час відправлення'
+                        }
+                        onChange={(e) =>
+                          updateTrip(t.id, { arrivalTime: e.target.value ? `${e.target.value}:00` : null })
+                        }
+                      />
+                      {timing?.arrivalIgnored && (
+                        <span className="schedule-editor-factor schedule-editor-factor--error">
+                          прибуття ≤ відправлення
+                        </span>
+                      )}
+                      {timing && !timing.arrivalIgnored && timing.factor < 1 && (
+                        <span
+                          className={`schedule-editor-factor ${timing.factor < 0.5 ? 'schedule-editor-factor--warn' : ''}`}
+                          title="Перегони цього рейсу стиснуто, щоб встигнути до часу прибуття"
+                        >
+                          ×{timing.factor.toFixed(2)}
+                        </span>
+                      )}
+                      {oppositeHint && (
+                        <button
+                          type="button"
+                          className="schedule-editor-hint-btn"
+                          onClick={() => updateTrip(t.id, { arrivalTime: `${oppositeHint}:00` })}
+                          title="Підставити як час прибуття (виїзд зворотного рейсу з кінцевої)"
+                        >
+                          ↩ зворотний о {oppositeHint}
+                        </button>
+                      )}
+                      <select
+                        className="schedule-editor-service-select"
+                        value={t.serviceId || 'everyday'}
+                        onChange={(e) => updateTrip(t.id, { serviceId: e.target.value })}
+                      >
+                        {SERVICE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="schedule-editor-delete-btn"
+                        onClick={() => handleDeleteTrip(t.id)}
+                        title={`Видалити рейс ${t.id}`}
+                      >
+                        ×
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {orderedStopIds.map((stopId, idx) => (
+              {passengerStopIds.map((stopId) => (
                 <tr key={stopId}>
-                  <td className="schedule-editor-stop-name">{stopNameById.get(stopId) || stopId}</td>
+                  <td className="schedule-editor-stop-name">{stopName(stopId)}</td>
                   {tripsForDirection.map((t) => {
-                    const clock = computeStopArrivalClock(
-                      t.departureTime,
-                      segmentLookup,
-                      selectedRoute,
-                      orderedStopIds,
-                      idx,
-                      defaultSec
-                    );
+                    const timing = timingByTrip.get(t.id) ?? null;
+                    const clock = clockAtStop(timing, stopId);
+                    const unserved = timing != null && clock == null;
                     return (
-                      <td key={t.id} className="schedule-editor-cell">
+                      <td
+                        key={t.id}
+                        className={`schedule-editor-cell ${unserved ? 'schedule-editor-cell--unserved' : ''}`}
+                        title={unserved ? 'Рейс тут не зупиняється' : undefined}
+                      >
                         {clock ?? '—'}
                       </td>
                     );

@@ -9,6 +9,7 @@ import {
   validateTripPointSelection,
 } from '../schedule-trip';
 import { listOdPairs } from '../poputky-od';
+import { invalidateCatalogCache } from '../catalog-cache';
 
 const includeStops = {
   startPoint: true,
@@ -82,6 +83,16 @@ async function rebuildStops(
 export function createTripRoutesRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
   const r = express.Router();
+
+  // Після будь-якого запису каталогу — скинути кеш точок/маршрутів (catalog-cache.ts)
+  r.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      res.on('finish', () => {
+        if (res.statusCode < 300) invalidateCatalogCache(prisma);
+      });
+    }
+    next();
+  });
 
   r.get('/trip-routes', async (req, res) => {
     const corridorsOnly = req.query.corridors === 'true' || req.query.corridors === '1';

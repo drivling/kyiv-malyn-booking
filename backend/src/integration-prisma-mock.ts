@@ -178,6 +178,17 @@ export function createListingFlowPrismaMock(options?: { firstPersonId?: number; 
     tripRoute,
     tripPoint,
     tripRouteStop: { createMany: async () => ({ count: 0 }) },
+    // Ідемпотентний прийом (viber-ingest.ts): у пам'яті — жодного дубля, рядок просто фіксуємо
+    viberListingSource: (() => {
+      const rows: Array<{ hash: string; source: string; listingId: number }> = [];
+      return {
+        findUnique: async ({ where }: { where: { hash: string } }) => rows.find((r) => r.hash === where.hash) ?? null,
+        create: async ({ data }: { data: { hash: string; source: string; listingId: number } }) => {
+          rows.push(data);
+          return { id: rows.length, createdAt: new Date(), ...data };
+        },
+      };
+    })(),
     $connect: async () => {},
     $disconnect: async () => {},
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(shell),

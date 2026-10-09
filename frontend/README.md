@@ -26,6 +26,7 @@ src/
 │   ├── SupportPage/         # Центр допомоги (/support)
 │   ├── LoginPage/           # Вхід (/login)
 │   ├── UserPage/            # Кабінет (/user)
+│   ├── StickerWallPage/     # Стіна сканів стікерів (/admin/wall)
 │   └── AdminPage/           # Адмін панель (/admin)
 ├── site/          # Мапа доменів: редиректи, рідне місто, гейт транспорту
 ├── types/         # TypeScript типи

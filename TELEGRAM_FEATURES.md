@@ -77,19 +77,19 @@
 3. Нагадування включають маршрут, дату, час, ім’я
 
 **Налаштування на Railway:**
-- Детальна інструкція: **[RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md)** (cron-job.org або аналог, заголовок `Authorization: admin-authenticated`).
+- Детальна інструкція: **[RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md)** (cron-job.org або аналог, заголовок `Authorization: <ADMIN_TOKEN>` — токен з `POST /admin/login`).
 - Вручну: `POST /telegram/send-reminders` та `POST /telegram/send-reminders-today` (admin).
 
 **Приклад для cron (завтра):**
 ```bash
 curl -X POST https://your-backend.railway.app/telegram/send-reminders \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 **Приклад для cron (сьогодні):**
 ```bash
 curl -X POST https://your-backend.railway.app/telegram/send-reminders-today \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 ---
@@ -313,7 +313,7 @@ Railway не має вбудованих cron jobs. Повна інструкц�
 **Варіант 1: Зовнішній cron (cron-job.org, easycron.com)**
 - Щодня о 20:00: `POST .../telegram/send-reminders` — нагадування за день до поїздки.
 - Щодня о 08:00: `POST .../telegram/send-reminders-today` — нагадування в день поїздки.
-- Заголовок: `Authorization: admin-authenticated`.
+- Заголовок: `Authorization: <ADMIN_TOKEN>` (токен з `POST /admin/login`, див. RAILWAY_CRON_REMINDERS.md).
 
 **Варіант 2: GitHub Actions**
 Створити workflow, який викликає обидва endpoint’и щодня.
@@ -359,13 +359,13 @@ Railway не має вбудованих cron jobs. Повна інструкц�
 **Тест статусу:**
 ```bash
 GET /telegram/status
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 ```
 
 **Тест нагадувань:**
 ```bash
 POST /telegram/send-reminders
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 ```
 
 ---

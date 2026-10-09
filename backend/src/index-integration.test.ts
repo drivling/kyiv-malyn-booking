@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
+import { adminAuthToken, resolveAdminPassword } from './middleware/require-admin';
 import { createNoDbPrismaStub, createPoputkyAnnouncePrismaStub } from './http-test-prisma-stub';
 import { createListingFlowPrismaMock, EXAMPLE_PHONE_NORMALIZED } from './integration-prisma-mock';
 import {
@@ -16,7 +17,8 @@ import {
   resetSpawnForTests,
 } from './telegram';
 
-const ADMIN_AUTH = { Authorization: 'admin-authenticated' };
+/** createApp без явного пароля бере ADMIN_PASSWORD або dev-fallback — токен рахуємо так само */
+const ADMIN_AUTH = { Authorization: adminAuthToken(resolveAdminPassword()) };
 
 /** Текст як у viber-parser.test (Tatiana / Київ-Малин) — стабільний парсинг */
 const SAMPLE_VIBER_RAW = `[ 10 квітня 2026 р. 12:00 ] ⁨Tatiana⁩: Водій 10.04.2026.

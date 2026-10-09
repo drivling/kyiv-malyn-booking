@@ -1,470 +1,332 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Pane, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { resolveMapTiles } from './mapTiles';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { VERIFIED_ROUTE_IDS } from './routeTiming';
+import { pickBoundsStops, type LatLng, type RouteLine } from './routeGeometry';
+import { routeColorStyle } from './routeColors';
 
 export interface RouteMapCoordsData {
-  center: [number, number];
-  stops: Record<string, [number, number]>;
+  center: LatLng;
+  stops: Record<string, LatLng>;
 }
 
-interface RouteMapProps {
-  /** Номер маршруту (для перевірених малюємо лінію) */
-  routeId?: string;
-  /** Усі точки маршруту в порядку (для полілінії, включно з технічними для поворотів) */
-  stopNames: string[];
-  /** Якщо задано — маркери тільки для цих зупинок; технічні (map_only) не показуються */
-  markerStopNames?: string[];
-  /** Зупинка «З» (підсвічується окремо) */
-  fromStopName?: string;
-  /** Зупинка «До» (підсвічується окремо) */
-  toStopName?: string;
-  /** Темна тема + зелена лінія (як Jakdojade) */
-  dark?: boolean;
-  /** Клік по зупинці: вибрати як "З" */
-  onPickFromStop?: (stopName: string) => void;
-  /** Клік по зупинці: вибрати як "До" */
-  onPickToStop?: (stopName: string) => void;
-  /** Поміняти "З" та "До" місцями */
-  onSwapStops?: () => void;
-  /** Часті кінцеві зупинки (id) для швидкого вибору "До" */
-  frequentToStops?: string[];
-  /** Підпис зупинки для UI (id → назва); якщо немає — показується id */
-  resolveStopLabel?: (stopKey: string) => string;
-  /** Тап по маркеру зупинки (наприклад розгорнути mobile sheet карти) */
-  onStopMarkerActivate?: () => void;
-  /** Стан mobile bottom-sheet: при зміні викликається invalidateSize для коректних тайлів */
-  mapSheetSnap?: 'collapsed' | 'mid' | 'full' | null;
-  /** Координати з dataset (GET /transport/dataset); без окремого JSON-файлу */
+export interface RouteMapProps {
+  /** Координати з dataset (GET /transport/dataset) */
   coordsData?: RouteMapCoordsData | null;
-  /** Сховати radial picker (planner: лише stop-sheet) */
-  hideRadialPicker?: boolean;
-  /** Приглушити невибрані маркери (огляд міста) */
-  dimUnselectedMarkers?: boolean;
+  /** Точки в порядку руху (сторінка маршруту: ланцюжок із технічними точками) або всі зупинки міста */
+  stopNames: string[];
+  /** Маркери лише для цих зупинок (без технічних map_only); без пропа — для всіх stopNames */
+  markerStopNames?: string[];
+  fromStopName?: string;
+  toStopName?: string;
+  /** Підпис зупинки (id → назва) */
+  resolveStopLabel?: (stopKey: string) => string;
+  /** Полілінії у кольорах схеми: усі перевірені маршрути (огляд) або одна (сторінка маршруту) */
+  routeLines?: RouteLine[];
+  /** Лінії, що лишаються яскравими (кандидати для пари, обраний маршрут); порожньо — усі однаково */
+  highlightRouteIds?: string[];
+  /** Головні зупинки вузлів схеми: більший маркер і постійний підпис */
+  nodeStopIds?: string[];
+  /** Лінії через зупинку — чіпи у картці зупинки */
+  routesAtStop?: (stopId: string) => string[];
+  onPickFromStop?: (stopName: string) => void;
+  onPickToStop?: (stopName: string) => void;
+  onSwapStops?: () => void;
+  /** Тап по маркеру одразу віддає зупинку сторінці (табло) — картки «Звідси / Сюди» немає */
+  onStopMarkerClick?: (stopName: string) => void;
+  /** Часті кінцеві (id) — чіпи «Часто їду в…» у картці зупинки */
+  frequentToStops?: string[];
+  /** Посилання «Табло» у картці зупинки */
+  boardHref?: (stopId: string) => string;
+  /** Світла смужка «З … ⇄ До …» над картою (десктоп) */
+  showStrip?: boolean;
+  /** Зміна значення → invalidateSize (карта зʼявилась у overlay після display:none) */
+  resizeToken?: number;
 }
 
-type CoordsData = RouteMapCoordsData;
+/** Центр Малина — поки координати не завантажились */
+const MALYN_CENTER: LatLng = [50.768, 29.242];
+const DEFAULT_ZOOM = 13;
+/** Підписи вузлів видно з цього зуму (ближче — не накладаються) */
+const LABELS_FROM_ZOOM = 13;
+/** Підкладка: OSM за замовчуванням або провайдер зі змінних середовища (див. mapTiles.ts) */
+const TILES = resolveMapTiles({
+  url: import.meta.env.VITE_MAP_TILES_URL,
+  attribution: import.meta.env.VITE_MAP_TILES_ATTRIBUTION,
+});
 
+/**
+ * Підганяє видиму область під зупинки. Залежить від рядкового ключа, а не від масивів-пропів:
+ * інакше кожен рендер батька (зокрема щохвилинний тік відліку) знову викликав би fitBounds і карта
+ * «відстрибувала» з місця, куди її посунула людина.
+ */
 function MapBounds({
   stopNames,
   stops,
-  padding = [30, 30],
+  padding,
+  resizeToken,
 }: {
   stopNames: string[];
-  stops: Record<string, [number, number]>;
-  padding?: [number, number];
+  stops: Record<string, LatLng>;
+  padding: [number, number];
+  /** Після появи в overlay розмір контейнера змінюється — межі треба підігнати ще раз */
+  resizeToken?: number;
 }) {
   const map = useMap();
+  const boundsKey = `${stopNames.join('\u001f')}|${padding.join(',')}|${resizeToken ?? ''}`;
   useEffect(() => {
-    const withCoords = stopNames.filter((n) => stops[n]);
-    if (withCoords.length >= 1) {
-      const bounds = withCoords.map((n) => stops[n] as [number, number]);
-      map.fitBounds(bounds as [number, number][], { padding, maxZoom: 16 });
-    }
-  }, [map, stopNames, stops, padding]);
+    const names = boundsKey.split('|')[0];
+    const withCoords = (names ? names.split('\u001f') : []).filter((n) => stops[n]);
+    if (withCoords.length < 1) return;
+    const fit = () => map.fitBounds(withCoords.map((n) => stops[n]), { padding, maxZoom: 16 });
+    fit();
+    // після invalidateSize (overlay) контейнер уже має справжній розмір
+    const t = window.setTimeout(fit, 300);
+    return () => window.clearTimeout(t);
+    // padding бере участь у boundsKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, boundsKey, stops]);
   return null;
 }
 
-function MapViewportEvents({ onViewportChange }: { onViewportChange: () => void }) {
-  useMapEvents({
-    move: onViewportChange,
-    zoom: onViewportChange,
-    resize: onViewportChange,
-  });
-  return null;
-}
-
-/**
- * Після показу карти з display:none / анімації висоти (mobile sheet) Leaflet має нульовий розмір —
- * тайли сірі, частина підписів не дорисовується. invalidateSize + відкладені повтори це виправляють.
- */
-function MapSizeAfterLayout({
-  sheetSnap,
-}: {
-  sheetSnap?: 'collapsed' | 'mid' | 'full' | null;
-}) {
+/** Після появи з display:none (overlay) Leaflet має нульовий розмір — invalidateSize двічі */
+function MapResize({ token }: { token?: number }) {
   const map = useMap();
   useEffect(() => {
-    if (sheetSnap === undefined || sheetSnap === null) return;
-    if (sheetSnap === 'collapsed') return;
-
-    const refresh = () => {
-      map.invalidateSize({ animate: false, pan: false });
-      map.eachLayer((layer) => {
-        if (layer instanceof L.TileLayer) {
-          layer.redraw();
-        }
-      });
-    };
-
+    if (token === undefined) return;
+    const refresh = () => map.invalidateSize({ animate: false, pan: false });
     refresh();
-    const t1 = window.setTimeout(refresh, 50);
-    const t2 = window.setTimeout(refresh, 230);
-    const t3 = window.setTimeout(refresh, 450);
-
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-  }, [map, sheetSnap]);
+    const t = window.setTimeout(refresh, 250);
+    return () => window.clearTimeout(t);
+  }, [map, token]);
   return null;
 }
 
-function createCircleIcon(color: string, size = 16) {
+function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
+  const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) });
+  useEffect(() => {
+    onZoom(map.getZoom());
+  }, [map, onZoom]);
+  return null;
+}
+
+/** Маркер-коло: біле з кільцем у кольорі (вузол — темне, З/До — origin/destination) */
+function createNodeIcon(ring: string, size: number, ringWidth: number) {
   return L.divIcon({
     className: 'lt-map-marker',
-    html: `<span style="
-      display:inline-block;
-      width:${size}px;
-      height:${size}px;
-      border-radius:999px;
-      background:${color};
-      border:2px solid #ffffff;
-      box-shadow:0 1px 3px rgba(0,0,0,0.4);
-    "></span>`,
+    html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:50%;background:#fff;border:${ringWidth}px solid ${ring};box-sizing:border-box;box-shadow:0 1px 3px rgba(5,71,82,.3)"></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 }
 
-const defaultIcon = createCircleIcon('#1a73e8', 14);
-const fromIcon = createCircleIcon('#34a853', 18);
-const toIcon = createCircleIcon('#1a73e8', 18);
-
-const fromIconGreen = createCircleIcon('#8ab4f8', 18);
-const toIconBlue = createCircleIcon('#f28b82', 18);
-
-const ROUTE_LINE_COLOR = '#1a73e8'; // синій — весь маршрут
-const ROUTE_LINE_GREEN = '#8ab4f8';
-const FROM_TO_SEGMENT_COLOR = '#FF8C00'; // жовтогарячий — тільки ділянка між обраними точками З → До
-const FROM_TO_SEGMENT_GREEN = '#FF6600';
-
-function createArrowIcon(angleDeg: number, color: string) {
-  return L.divIcon({
-    className: 'lt-map-arrow',
-    html: `<span style="
-      display:inline-block;
-      width:0;
-      height:0;
-      border-left:5px solid transparent;
-      border-right:5px solid transparent;
-      border-bottom:8px solid ${color};
-      transform:rotate(${angleDeg}deg);
-    "></span>`,
-    iconSize: [10, 10],
-    iconAnchor: [5, 5],
-  });
-}
-
-const LIGHT_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-/** Центр Малина — fallback коли координати ще не завантажились */
-const MALYN_CENTER: [number, number] = [50.768, 29.242];
+const ICON_STOP = createNodeIcon('#708c91', 9, 2);
+const ICON_NODE = createNodeIcon('#054752', 15, 3);
+const ICON_FROM = createNodeIcon('#0fa573', 19, 3);
+const ICON_TO = createNodeIcon('#00aff5', 19, 3);
 
 export const RouteMap: React.FC<RouteMapProps> = ({
-  routeId,
+  coordsData = null,
   stopNames,
   markerStopNames,
   fromStopName,
   toStopName,
-  dark = false,
+  resolveStopLabel = (k) => k,
+  routeLines = [],
+  highlightRouteIds = [],
+  nodeStopIds = [],
+  routesAtStop,
   onPickFromStop,
   onPickToStop,
   onSwapStops,
+  onStopMarkerClick,
   frequentToStops = [],
-  resolveStopLabel = (k) => k,
-  onStopMarkerActivate,
-  mapSheetSnap,
-  coordsData = null,
-  hideRadialPicker = false,
-  dimUnselectedMarkers = false,
+  boardHref,
+  showStrip = false,
+  resizeToken,
 }) => {
-  const lineColor = dark ? ROUTE_LINE_GREEN : ROUTE_LINE_COLOR;
-  const segmentColor = dark ? FROM_TO_SEGMENT_GREEN : FROM_TO_SEGMENT_COLOR;
-  const fromI = dark ? fromIconGreen : fromIcon;
-  const toI = dark ? toIconBlue : toIcon;
-  const dimIcon = createCircleIcon(dark ? '#9aa0a6' : '#94a3b8', 10);
-  const [coords, setCoords] = useState<CoordsData | null>(coordsData);
   const [mounted, setMounted] = useState(false);
-  const [selectedStopOnMap, setSelectedStopOnMap] = useState<string>('');
-  const [radialPosition, setRadialPosition] = useState<{ x: number; y: number } | null>(null);
-  const [mapRef, setMapRef] = useState<L.Map | null>(null);
+  const [selectedStop, setSelectedStop] = useState('');
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setMounted(true);
+    // Власні divIcon-и — дефолтні URL іконок Leaflet не потрібні
+    delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
   }, []);
 
   useEffect(() => {
-    setCoords(coordsData ?? null);
-  }, [coordsData]);
+    if (selectedStop) closeRef.current?.focus();
+  }, [selectedStop]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-      // Власні іконки, тому дефолтні URL можна не задавати
-      L.Icon.Default.mergeOptions({});
-    }
-  }, []);
+    if (!selectedStop) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedStop('');
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selectedStop]);
 
-  const center = coords?.center ?? MALYN_CENTER;
-  const stopsRecord = coords?.stops ?? {};
-  const stopsWithCoords = stopNames.length > 0 ? stopNames.filter((n) => stopsRecord[n]) : [];
-  const positions = stopsWithCoords.map((n) => stopsRecord[n] as [number, number]);
-  const namesForMarkers = (markerStopNames != null && markerStopNames.length > 0 ? markerStopNames : stopNames).filter(
-    (n) => stopsRecord[n]
+  const center = coordsData?.center ?? MALYN_CENTER;
+  const stops = useMemo(() => coordsData?.stops ?? {}, [coordsData]);
+  const chain = useMemo(() => stopNames.filter((n) => stops[n]), [stopNames, stops]);
+  const markerNames = useMemo(
+    () => (markerStopNames && markerStopNames.length > 0 ? markerStopNames : stopNames).filter((n) => stops[n]),
+    [markerStopNames, stopNames, stops]
   );
-  const showRouteLine = routeId && (VERIFIED_ROUTE_IDS as readonly string[]).includes(routeId) && positions.length >= 2;
-  const hasAnyStops = positions.length > 0;
-  const hasBothStops = Boolean(fromStopName && toStopName);
-  const hasOneStop = Boolean((fromStopName && !toStopName) || (!fromStopName && toStopName));
-  const secondStepHint = fromStopName && !toStopName
-    ? 'Обрано «З». Тепер виберіть «До».'
-    : toStopName && !fromStopName
-      ? 'Обрано «До». Тепер виберіть «З».'
-      : '';
-  const filteredFrequentToStops = frequentToStops.filter((n) => n && n !== fromStopName && n !== toStopName).slice(0, 3);
+  const nodeSet = useMemo(() => new Set(nodeStopIds), [nodeStopIds]);
+  const highlight = useMemo(() => new Set(highlightRouteIds), [highlightRouteIds]);
 
-  useEffect(() => {
-    const stops = coords?.stops ?? {};
-    if (!selectedStopOnMap || !mapRef || !stops[selectedStopOnMap]) {
-      setRadialPosition(null);
-      return;
-    }
-    const [lat, lng] = stops[selectedStopOnMap];
-    const p = mapRef.latLngToContainerPoint([lat, lng]);
-    setRadialPosition({ x: p.x, y: p.y });
-  }, [selectedStopOnMap, mapRef, coords]);
+  // Відрізок З→До вздовж єдиної (обраної) лінії — сторінка маршруту
+  const singleLine = routeLines.length === 1 ? routeLines[0] : null;
+  const fromIdx = fromStopName ? chain.indexOf(fromStopName) : -1;
+  const toIdx = toStopName ? chain.indexOf(toStopName) : -1;
+  const segment: LatLng[] =
+    singleLine && fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx
+      ? chain.slice(Math.min(fromIdx, toIdx), Math.max(fromIdx, toIdx) + 1).map((n) => stops[n])
+      : [];
+  const bounds = pickBoundsStops({ chain, stops, fromStopName, toStopName, hasLine: Boolean(singleLine) });
+
+  const hasBoth = Boolean(fromStopName && toStopName);
+  const hint = fromStopName && !toStopName ? 'Обрано «Звідки». Тепер виберіть «Куди».' : toStopName && !fromStopName ? 'Обрано «Куди». Тепер виберіть «Звідки».' : '';
+  const frequent = frequentToStops.filter((n) => n && n !== fromStopName && n !== toStopName && n !== selectedStop).slice(0, 3);
+  const selectedLines = selectedStop && routesAtStop ? routesAtStop(selectedStop) : [];
 
   if (!mounted) return null;
 
-  const updateRadialPosition = () => {
-    if (!selectedStopOnMap || !mapRef || !stopsRecord[selectedStopOnMap]) return;
-    const [lat, lng] = stopsRecord[selectedStopOnMap];
-    const p = mapRef.latLngToContainerPoint([lat, lng]);
-    setRadialPosition({ x: p.x, y: p.y });
+  const lineStyle = (line: RouteLine) => {
+    if (highlight.size === 0) return { color: line.color, weight: 3, opacity: 0.55 };
+    return highlight.has(line.routeId) ? { color: line.color, weight: 5, opacity: 1 } : { color: line.color, weight: 3, opacity: 0.2 };
   };
 
-  // Ділянка між зупинками «З» та «До» — індекси в порядку маршруту (по повному списку для лінії)
-  const fromIdx = fromStopName ? stopsWithCoords.indexOf(fromStopName) : -1;
-  const toIdx = toStopName ? stopsWithCoords.indexOf(toStopName) : -1;
-  const hasFromToSegment =
-    showRouteLine && fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx;
-  const segmentStart = hasFromToSegment ? Math.min(fromIdx, toIdx) : 0;
-  const segmentEnd = hasFromToSegment ? Math.max(fromIdx, toIdx) + 1 : 0;
-  const fromToPositions = hasFromToSegment ? positions.slice(segmentStart, segmentEnd) : [];
-
-  // Зум: без З/До не підганяємо під усі маркери міста — лишаємо центр Малина
-  const boundsStopNames = hasFromToSegment
-    ? stopsWithCoords.slice(segmentStart, segmentEnd)
-    : fromStopName && toStopName && stopsRecord[fromStopName] && stopsRecord[toStopName]
-      ? [fromStopName, toStopName]
-      : fromStopName && stopsRecord[fromStopName]
-        ? [fromStopName]
-        : toStopName && stopsRecord[toStopName]
-          ? [toStopName]
-          : [];
-  const boundsPadding: [number, number] = hasFromToSegment || (fromStopName && toStopName) ? [50, 50] : [40, 40];
-  const showBounds = boundsStopNames.length >= 1;
-
   return (
-    <div className={`lt-map-wrapper ${dark ? 'lt-map-wrapper--dark' : ''}`}>
-      <div className="lt-direction-strip" aria-label="Обрані зупинки">
-        <span className="lt-direction-strip__from">З {fromStopName ? resolveStopLabel(fromStopName) : '—'}</span>
-        <button
-          type="button"
-          className="lt-direction-strip__swap"
-          onClick={onSwapStops}
-          disabled={!hasBothStops}
-          title="Поміняти місцями"
-          aria-label="Поміняти місцями З та До"
-        >
-          ⇄
-        </button>
-        <span className="lt-direction-strip__to">До {toStopName ? resolveStopLabel(toStopName) : '—'}</span>
-      </div>
-      {hasOneStop && secondStepHint && (
-        <p className="lt-direction-strip__hint">{secondStepHint}</p>
+    <div className="lt-map-wrapper">
+      {showStrip && (
+        <div className="lt-map-strip" aria-label="Обрані зупинки">
+          <span className={`lt-chip lt-chip--static ${fromStopName ? 'lt-chip--origin' : ''}`}>
+            Звідки: {fromStopName ? resolveStopLabel(fromStopName) : '—'}
+          </span>
+          <button type="button" className="lt-icon-btn" onClick={onSwapStops} disabled={!hasBoth} title="Поміняти місцями" aria-label="Поміняти місцями Звідки та Куди">
+            ⇅
+          </button>
+          <span className={`lt-chip lt-chip--static ${toStopName ? 'lt-chip--destination' : ''}`}>
+            Куди: {toStopName ? resolveStopLabel(toStopName) : '—'}
+          </span>
+          {hint && <span className="lt-map-strip__hint">{hint}</span>}
+        </div>
       )}
-      <h3 className="lt-map-heading">Карта маршруту</h3>
-      <div className="lt-map-container">
-        <MapContainer
-          center={center}
-          zoom={13}
-          className="lt-map"
-          scrollWheelZoom
-          style={{ height: '100%', width: '100%' }}
-          ref={setMapRef}
-          whenReady={updateRadialPosition}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url={dark ? LIGHT_TILES : LIGHT_TILES}
-            updateWhenIdle={false}
-            keepBuffer={2}
-          />
-          {mapSheetSnap !== undefined ? <MapSizeAfterLayout sheetSnap={mapSheetSnap} /> : null}
-          {showBounds && <MapBounds stopNames={boundsStopNames} stops={stopsRecord} padding={boundsPadding} />}
-          <MapViewportEvents onViewportChange={updateRadialPosition} />
-          {hasAnyStops && showRouteLine && (
-            <>
-              {/* Весь маршрут — зелений */}
+      <h3 className="lt-map-heading lt-visually-hidden">Карта маршруту</h3>
+      <div className={`lt-map-container${TILES.isDefault ? ' lt-map-container--osm' : ''}`}>
+        <MapContainer center={center} zoom={DEFAULT_ZOOM} className="lt-map" scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <TileLayer attribution={TILES.attribution} url={TILES.url} maxZoom={19} updateWhenIdle={false} keepBuffer={2} />
+          <ZoomWatcher onZoom={setZoom} />
+          <MapResize token={resizeToken} />
+          {bounds.names.length > 0 && <MapBounds stopNames={bounds.names} stops={stops} padding={bounds.padding} resizeToken={resizeToken} />}
+          {/* Порядок шарів задають pane-и, а не порядок монтування: притьмарені лінії → біла підкладка → яскраві → відрізок З→До */}
+          <Pane name="lt-lines-dim" style={{ zIndex: 402 }} />
+          <Pane name="lt-lines-casing" style={{ zIndex: 404 }} />
+          <Pane name="lt-lines" style={{ zIndex: 406 }} />
+          <Pane name="lt-segment" style={{ zIndex: 408 }} />
+          {routeLines.map((line) =>
+            highlight.has(line.routeId) ? (
               <Polyline
-                positions={positions}
-                pathOptions={{
-                  color: lineColor,
-                  weight: 5,
-                  opacity: 1,
-                }}
+                key={`${line.routeId}-casing`}
+                pane="lt-lines-casing"
+                positions={line.positions}
+                pathOptions={{ color: '#fff', weight: 9, opacity: 0.9 }}
+                interactive={false}
               />
-              {/* Ділянка між обраними З і До — жовтогарячий поверх */}
-              {hasFromToSegment && fromToPositions.length >= 2 && (
-                <Polyline
-                  positions={fromToPositions}
-                  pathOptions={{
-                    color: segmentColor,
-                    weight: 8,
-                    opacity: 1,
-                  }}
-                />
-              )}
-              {positions.map((_, i) => {
-                if (i === positions.length - 1) return null;
-                const a = positions[i];
-                const b = positions[i + 1];
-                const midLat = (a[0] + b[0]) / 2;
-                const midLng = (a[1] + b[1]) / 2;
-                const angleDeg = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
-                return (
-                  <Marker
-                    key={`arrow-${i}`}
-                    position={[midLat, midLng]}
-                    icon={createArrowIcon(angleDeg, lineColor)}
-                    zIndexOffset={0}
-                  />
-                );
-              })}
-            </>
+            ) : null
           )}
-          {hasAnyStops && namesForMarkers.map((n) => {
+          {routeLines.map((line) => {
+            // pane — опція шару при створенні, тому зміна яскравості перемонтовує лінію (ключ містить pane)
+            const pane = highlight.size === 0 || highlight.has(line.routeId) ? 'lt-lines' : 'lt-lines-dim';
+            return <Polyline key={`${line.routeId}-${pane}`} pane={pane} positions={line.positions} pathOptions={lineStyle(line)} interactive={false} />;
+          })}
+          {segment.length >= 2 && singleLine && (
+            <Polyline pane="lt-segment" positions={segment} pathOptions={{ color: singleLine.color, weight: 7, opacity: 1 }} interactive={false} />
+          )}
+          {markerNames.map((n) => {
             const isFrom = n === fromStopName;
             const isTo = n === toStopName;
-            const icon = isFrom ? fromI : isTo ? toI : dimUnselectedMarkers ? dimIcon : defaultIcon;
+            const isNode = nodeSet.has(n);
+            const icon = isFrom ? ICON_FROM : isTo ? ICON_TO : isNode ? ICON_NODE : ICON_STOP;
             return (
               <Marker
                 key={n}
-                position={stopsRecord[n] as [number, number]}
+                position={stops[n]}
                 icon={icon}
-                opacity={dimUnselectedMarkers && !isFrom && !isTo ? 0.65 : 1}
-                zIndexOffset={isFrom || isTo ? 200 : 0}
+                zIndexOffset={isFrom || isTo ? 300 : isNode ? 100 : 0}
                 eventHandlers={{
                   click: () => {
-                    setSelectedStopOnMap(n);
-                    onStopMarkerActivate?.();
+                    if (onStopMarkerClick) onStopMarkerClick(n);
+                    else setSelectedStop(n);
                   },
                 }}
               >
-                {!hideRadialPicker && (
-                  <Popup>
-                    <div className="lt-stop-popup">
-                      <div className="lt-stop-popup__title">
-                        {resolveStopLabel(n)}
-                        {isFrom ? ' (З)' : isTo ? ' (До)' : ''}
-                      </div>
-                      <div className="lt-stop-popup__actions">
-                        <button type="button" onClick={() => onPickFromStop?.(n)}>З</button>
-                        <button type="button" onClick={() => onPickToStop?.(n)}>До</button>
-                      </div>
-                    </div>
-                  </Popup>
+                {isNode && zoom >= LABELS_FROM_ZOOM ? (
+                  <Tooltip permanent direction="right" offset={[9, 0]} className="lt-map-label lt-map-label--node">
+                    {resolveStopLabel(n)}
+                  </Tooltip>
+                ) : (
+                  <Tooltip direction="top" offset={[0, -8]} className="lt-map-label">
+                    {resolveStopLabel(n)}
+                  </Tooltip>
                 )}
               </Marker>
             );
           })}
         </MapContainer>
-        {!hideRadialPicker && selectedStopOnMap && radialPosition && (
-          <div
-            className="lt-radial-picker"
-            style={{ left: radialPosition.x, top: radialPosition.y }}
-            role="group"
-            aria-label="Швидкий вибір З або До"
-          >
-            <button
-              type="button"
-              className="lt-radial-picker__btn lt-radial-picker__btn--from"
-              onClick={() => {
-                onPickFromStop?.(selectedStopOnMap);
-                setSelectedStopOnMap('');
-              }}
-            >
-              З
-            </button>
-            <button
-              type="button"
-              className="lt-radial-picker__btn lt-radial-picker__btn--to"
-              onClick={() => {
-                onPickToStop?.(selectedStopOnMap);
-                setSelectedStopOnMap('');
-              }}
-            >
-              До
-            </button>
-          </div>
-        )}
-      </div>
-      {selectedStopOnMap && (
-        <div className="lt-stop-sheet" role="dialog" aria-label="Вибір ролі зупинки">
-          <div className="lt-stop-sheet__header">
-            <strong>{resolveStopLabel(selectedStopOnMap)}</strong>
-            <button type="button" onClick={() => setSelectedStopOnMap('')} aria-label="Закрити">
-              ✕
-            </button>
-          </div>
-          <div className="lt-stop-sheet__actions">
-            <button
-              type="button"
-              className="lt-stop-sheet__btn lt-stop-sheet__btn--from"
-              onClick={() => {
-                onPickFromStop?.(selectedStopOnMap);
-                setSelectedStopOnMap('');
-              }}
-            >
-              Звідси (З)
-            </button>
-            <button
-              type="button"
-              className="lt-stop-sheet__btn lt-stop-sheet__btn--to"
-              onClick={() => {
-                onPickToStop?.(selectedStopOnMap);
-                setSelectedStopOnMap('');
-              }}
-            >
-              Сюди (До)
-            </button>
-          </div>
-          {filteredFrequentToStops.length > 0 && (
-            <div className="lt-stop-sheet__history">
-              <span>Часто їду в…</span>
-              <div className="lt-stop-sheet__chips">
-                {filteredFrequentToStops.map((stop) => (
-                  <button
-                    key={stop}
-                    type="button"
-                    className="lt-stop-sheet__chip"
-                    onClick={() => {
-                      onPickToStop?.(stop);
-                      setSelectedStopOnMap('');
-                    }}
-                  >
+        {selectedStop && (
+          <div className="lt-map-card" role="dialog" aria-label={`Зупинка ${resolveStopLabel(selectedStop)}`}>
+            <div className="lt-map-card__head">
+              <strong className="lt-map-card__title">{resolveStopLabel(selectedStop)}</strong>
+              <button ref={closeRef} type="button" className="lt-icon-btn" onClick={() => setSelectedStop('')} aria-label="Закрити">
+                ✕
+              </button>
+            </div>
+            {selectedLines.length > 0 && (
+              <div className="lt-map-card__lines" aria-label="Лінії через зупинку">
+                {selectedLines.map((id) => (
+                  <span key={id} className="lt-badge" style={routeColorStyle(id)}>
+                    {id}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="lt-map-card__actions">
+              {onPickFromStop && (
+                <button type="button" className="lt-btn lt-btn--origin" onClick={() => { onPickFromStop(selectedStop); setSelectedStop(''); }}>
+                  Звідси
+                </button>
+              )}
+              {onPickToStop && (
+                <button type="button" className="lt-btn lt-btn--destination" onClick={() => { onPickToStop(selectedStop); setSelectedStop(''); }}>
+                  Сюди
+                </button>
+              )}
+              {boardHref && (
+                <a className="lt-btn" href={boardHref(selectedStop)}>
+                  Табло
+                </a>
+              )}
+            </div>
+            {onPickToStop && frequent.length > 0 && (
+              <div className="lt-map-card__frequent">
+                <span>Часто їду в…</span>
+                {frequent.map((stop) => (
+                  <button key={stop} type="button" className="lt-chip" onClick={() => { onPickToStop(stop); setSelectedStop(''); }}>
                     {resolveStopLabel(stop)}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

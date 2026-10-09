@@ -169,7 +169,7 @@ frontend/
 ```json
 {
   "type": "admin",
-  "token": "admin-authenticated"
+  "token": "<токен з POST /admin/login>"
 }
 ```
 

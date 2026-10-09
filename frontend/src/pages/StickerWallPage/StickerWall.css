@@ -1,0 +1,806 @@
+/*
+ * Віджет «Відкриття з QR» на стіну: темне тло, щоб кольори ліній схеми світилися; усе в em від
+ * одного розміру, прив'язаного до меншого з vw / vh — однаково на будь-якому телефоні горизонтально.
+ */
+body.wall-mode {
+  background: #0f1420;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.wall {
+  --bg: #0f1420;
+  --card: rgba(255, 255, 255, 0.055);
+  --line: rgba(255, 255, 255, 0.09);
+  --text: #f4f6fb;
+  --muted: rgba(244, 246, 251, 0.58);
+  --up: #3ddc97;
+  --warn: #ffb547;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(42, 120, 214, 0.18), transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, rgba(0, 175, 245, 0.1), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: min(2.15vw, 4.4vh);
+  line-height: 1.25;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter 1.2s ease;
+}
+
+/* Ніч (23–06): приглушено, щоб не світило на всю кімнату */
+.wall--night {
+  filter: brightness(0.55) saturate(0.85);
+}
+
+.wall-muted {
+  color: var(--muted);
+}
+
+/* ---- Табло */
+.wall-board {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.55fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.9em 1.1em;
+  height: 100%;
+  padding: max(0.9em, env(safe-area-inset-top)) max(1.2em, env(safe-area-inset-right)) max(0.9em, env(safe-area-inset-bottom))
+    max(1.2em, env(safe-area-inset-left));
+  box-sizing: border-box;
+}
+
+.wall-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
+.wall-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  min-width: 0;
+}
+
+.wall-brand-name {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.15em;
+  letter-spacing: 0.18em;
+}
+
+.wall-brand-sub {
+  color: var(--muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wall-status {
+  display: flex;
+  gap: 0.4em;
+  margin-left: auto;
+}
+
+.wall-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.6em;
+  padding: 0 0.6em;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.75em;
+}
+
+.wall-chip--warn {
+  color: #1a1206;
+  background: var(--warn);
+  font-weight: 700;
+}
+
+.wall-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+}
+
+.wall-clock-time {
+  font-size: 1.65em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.wall-clock-date {
+  color: var(--muted);
+  font-size: 0.75em;
+}
+
+.wall-clock-date::first-letter {
+  text-transform: uppercase;
+}
+
+/* ---- Ліворуч: сьогодні */
+.wall-today {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1em 1.1em 0.9em;
+  border: 1px solid var(--line);
+  border-radius: 1.1em;
+  background: var(--card);
+  overflow: hidden;
+}
+
+.wall-stripe {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  height: 0.32em;
+}
+
+.wall-stripe > span {
+  flex: 1;
+}
+
+.wall-today-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.wall-today-total {
+  margin: 0.05em 0 0;
+  font-size: 5.4em;
+  font-weight: 800;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, #ffffff 30%, var(--accent, #6fb6ff));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.wall-today-unit {
+  margin: 0.15em 0 0;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.wall-today-delta {
+  margin: 0.45em 0 0;
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+.wall-today-delta--up {
+  color: var(--up);
+}
+
+.wall-today-delta .wall-muted {
+  color: var(--muted);
+}
+
+.wall-hours {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.14em;
+  flex: 1;
+  min-height: 2.2em;
+  margin-top: 0.8em;
+}
+
+.wall-hour {
+  display: block;
+  border-radius: 0.2em 0.2em 0 0;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.wall-hour--future {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wall-hour--now {
+  background: var(--accent, #6fb6ff);
+  box-shadow: 0 0 0.6em var(--accent, #6fb6ff);
+}
+
+.wall-hours-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.2em;
+  color: var(--muted);
+  font-size: 0.6em;
+  font-variant-numeric: tabular-nums;
+}
+
+.wall-last {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  margin: 0.55em 0 0;
+  font-size: 0.8em;
+}
+
+.wall-last b {
+  font-weight: 700;
+  font-size: 1.1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Праворуч: топ / ростуть */
+.wall-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wall-tabs {
+  position: relative;
+  display: flex;
+  gap: 0.4em;
+  margin-bottom: 0.55em;
+}
+
+.wall-tab {
+  min-height: 2em;
+  padding: 0 1em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wall-tab[aria-selected='true'] {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Смужка під вкладками — скільки до автоперемикання */
+.wall-tabs-timer {
+  position: absolute;
+  left: 0;
+  bottom: -0.3em;
+  height: 0.12em;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--accent, #6fb6ff);
+  opacity: 0.5;
+  transform-origin: left;
+  animation: wall-timer linear forwards;
+}
+
+@keyframes wall-timer {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.wall-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42em;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: wall-fade-in 0.5s ease;
+}
+
+@keyframes wall-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+}
+
+.wall-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.6em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7em;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 3.4em;
+  padding: 0.2em 0.9em 0.2em 0.6em;
+  border: 1px solid var(--line);
+  border-left: 0.28em solid var(--c);
+  border-radius: 0.8em;
+  background: var(--card);
+  overflow: hidden;
+}
+
+.wall-row > :not(.wall-row-bar) {
+  position: relative;
+}
+
+.wall-row-rank {
+  color: var(--muted);
+  font-size: 1.05em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.wall-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  min-width: 0;
+}
+
+.wall-row-name {
+  min-width: 0;
+  font-size: 1.05em;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wall-row-sub {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.6em;
+}
+
+/* Частка від лідера — заливка тла рядка кольором лінії */
+.wall-row-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, transparent), color-mix(in srgb, var(--c) 12%, transparent));
+  transition: width 0.8s ease;
+}
+
+.wall-row-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+}
+
+.wall-row-value b {
+  font-size: 1.55em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wall-row-value small {
+  color: var(--up);
+  font-size: 0.65em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wall-row-spark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.1em;
+  height: 1em;
+}
+
+.wall-row-spark > span {
+  width: 0.32em;
+  border-radius: 0.1em 0.1em 0 0;
+  background: var(--c);
+  opacity: 0.85;
+}
+
+.wall-badges {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0.2em;
+}
+
+.wall-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55em;
+  height: 1.15em;
+  padding: 0 0.25em;
+  border-radius: 0.25em;
+  font-size: 0.72em;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.wall-badge--more {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+.wall-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9em;
+  padding: 1em;
+  border: 1px dashed var(--line);
+  border-radius: 1em;
+  color: var(--muted);
+  text-align: center;
+}
+
+.wall-empty p {
+  margin: 0;
+  max-width: 22em;
+}
+
+/* «QR», що дихає — поки чекаємо на перше відкриття */
+.wall-empty-qr {
+  width: 3em;
+  height: 3em;
+  border-radius: 0.5em;
+  background:
+    linear-gradient(90deg, var(--text) 0.55em, transparent 0) 0 0 / 1em 1em,
+    linear-gradient(var(--text) 0.55em, transparent 0) 0 0 / 1em 1em;
+  opacity: 0.35;
+  animation: wall-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes wall-breathe {
+  50% {
+    opacity: 0.75;
+    transform: scale(1.06);
+  }
+}
+
+/* ---- Святкування нового відкриття */
+.wall-cele {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--fg, #fff);
+  animation: wall-cele-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both, wall-cele-out 0.6s ease 6.4s forwards;
+}
+
+@keyframes wall-cele-in {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes wall-cele-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.wall-cele-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--c) 92%, #fff) 0%, var(--c) 45%, color-mix(in srgb, var(--c) 55%, #000) 100%);
+}
+
+.wall-cele-rings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.wall-cele-rings > span {
+  position: absolute;
+  width: 40vmin;
+  height: 40vmin;
+  border: 0.5vmin solid color-mix(in srgb, var(--fg) 55%, transparent);
+  border-radius: 50%;
+  animation: wall-ring 2.4s ease-out infinite;
+  opacity: 0;
+}
+
+.wall-cele-rings > span:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.wall-cele-rings > span:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+@keyframes wall-ring {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+.wall-cele-confetti > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--size);
+  height: var(--size);
+  box-shadow: 0 0 0 0.06em rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  animation: wall-confetti 2.6s cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay) forwards;
+}
+
+@keyframes wall-confetti {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.4) rotate(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 12vh)) scale(1) rotate(var(--rot));
+  }
+}
+
+.wall-cele-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  max-width: 88vw;
+  text-align: center;
+}
+
+.wall-cele-headline {
+  margin: 0;
+  padding: 0.25em 0.9em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 16%, transparent);
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  animation: wall-pop 0.5s 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+
+.wall-cele-headline--special {
+  font-size: 1.25em;
+  background: var(--fg);
+  color: var(--c);
+}
+
+.wall-cele-name {
+  margin: 0.1em 0 0;
+  font-size: 3.1em;
+  font-weight: 800;
+  line-height: 1.02;
+  text-wrap: balance;
+  text-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.18);
+  animation: wall-rise 0.6s 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+.wall-cele .wall-badges {
+  animation: wall-rise 0.6s 0.4s ease both;
+}
+
+.wall-cele .wall-badge {
+  font-size: 1em;
+  box-shadow: 0 0 0 0.12em color-mix(in srgb, var(--fg) 70%, transparent);
+}
+
+.wall-cele-plus {
+  font-size: 2.6em;
+  font-weight: 800;
+  line-height: 1;
+  animation: wall-plus 0.9s 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.6) both;
+}
+
+.wall-cele-meta {
+  margin: 0;
+  font-size: 1.05em;
+  opacity: 0.92;
+  animation: wall-rise 0.6s 0.7s ease both;
+}
+
+.wall-cele-meta b {
+  font-size: 1.3em;
+}
+
+@keyframes wall-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes wall-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6em);
+  }
+}
+
+@keyframes wall-plus {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+/* ---- Старт, повідомлення, налаштування */
+.wall-start,
+.wall--message {
+  display: grid;
+  place-items: center;
+}
+
+.wall-start {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(10, 13, 20, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.wall-card {
+  max-width: 30em;
+  padding: 1.4em 1.8em;
+  border: 1px solid var(--line);
+  border-radius: 1.2em;
+  background: #161c2b;
+  text-align: center;
+}
+
+.wall-card h1 {
+  margin: 0.3em 0 0.4em;
+  font-size: 1.6em;
+}
+
+.wall-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.wall-start-btn {
+  margin-top: 1em;
+  min-height: 2.6em;
+  padding: 0 2.4em;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(100deg, #00aff5, #2a78d6);
+  color: #fff;
+  font: inherit;
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wall-controls {
+  position: absolute;
+  left: 50%;
+  bottom: max(0.8em, env(safe-area-inset-bottom));
+  z-index: 8;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.55em;
+  border: 1px solid var(--line);
+  border-radius: 1.2em;
+  background: rgba(22, 28, 43, 0.94);
+  transform: translateX(-50%);
+  animation: wall-rise 0.25s ease both;
+}
+
+.wall-controls button {
+  min-height: 2.3em;
+  padding: 0 1em;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.wall-controls button[aria-pressed='false'] {
+  color: var(--muted);
+}
+
+.wall-problem {
+  position: absolute;
+  left: 50%;
+  bottom: 1em;
+  z-index: 9;
+  max-width: 80vw;
+  margin: 0;
+  padding: 0.5em 1em;
+  border-radius: 0.8em;
+  background: var(--warn);
+  color: #1a1206;
+  font-weight: 600;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+/* Телефон вертикально: колонки одна під одною (гарніше — горизонтально) */
+@media (orientation: portrait) {
+  .wall {
+    font-size: min(3.6vw, 2.3vh);
+  }
+
+  .wall-board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .wall-today-total {
+    font-size: 4.4em;
+  }
+
+  .wall-row {
+    max-height: 4em;
+    padding: 0.45em 0.9em 0.45em 0.6em;
+  }
+
+  .wall-row-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25em;
+  }
+
+  .wall-cele-name {
+    font-size: 2.4em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wall-cele-rings,
+  .wall-cele-confetti {
+    display: none;
+  }
+
+  .wall-cele,
+  .wall-cele *,
+  .wall-rows,
+  .wall-empty-qr {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  .wall-cele {
+    animation: none;
+  }
+}

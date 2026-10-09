@@ -1,3 +1,4 @@
+import { invalidateCatalogCache } from './catalog-cache';
 /** Intercity trip helpers: points, legacy route keys, weekdays, arrival. */
 
 export type VehicleType = 'marshrutka' | 'elektrichka';
@@ -217,11 +218,20 @@ export function defaultLabelUk(startCode: string, endCode: string, viaCodes: str
     Korosten: 'Коростень',
     Irpin: 'Ірпінь',
     Bucha: 'Буча',
+    Potiivka: 'Потіївка',
+    Radomyshl: 'Радомишль',
+    Berdychiv: 'Бердичів',
+    Vinnytsia: 'Вінниця',
+    Khmilnyk: 'Хмільник',
+    Stanyshivka: 'Станишівка',
+    Bazar: 'Базар',
   };
+  // знахідний відмінок після «через» (де відрізняється від називного)
+  const acc: Record<string, string> = { Bucha: 'Бучу', Potiivka: 'Потіївку', Vinnytsia: 'Вінницю', Stanyshivka: 'Станишівку' };
   const base = `${map[startCode] || startCode} → ${map[endCode] || endCode}`;
   if (viaCodes.includes('Irpin')) return `${base} (через Ірпінь)`;
   if (viaCodes.includes('Bucha')) return `${base} (через Бучу)`;
-  if (viaCodes.length) return `${base} (через ${viaCodes.map((c) => map[c] || c).join(', ')})`;
+  if (viaCodes.length) return `${base} (через ${viaCodes.map((c) => acc[c] || map[c] || c).join(', ')})`;
   return base;
 }
 
@@ -262,7 +272,7 @@ export async function resolveCorridorTripRouteId(
   return row.corridorTripRouteId;
 }
 
-/** Find or create TripRoute from points; creates RouteStops. */
+/** Find or create TripRoute from points; creates RouteStops. Скидає кеш каталогу. */
 export async function findOrCreateTripRoute(
   prisma: PrismaTripRouteClient,
   input: { startPointId: number; endPointId: number; viaPointIds?: number[] }
@@ -335,5 +345,6 @@ export async function findOrCreateTripRoute(
     },
   ];
   await prisma.tripRouteStop.createMany({ data: stopRows });
+  invalidateCatalogCache(prisma); // новий TripRoute/зупинки — кеш каталогу застарів
   return created;
 }

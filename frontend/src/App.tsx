@@ -1,21 +1,22 @@
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { MizhgorodskiPage, CorridorLandingPage } from '@/pages/MizhgorodskiPage';
+import { MizhgorodskiPage, CorridorLandingPage, ZubastykPage, AvtostantsiyaPage } from '@/pages/MizhgorodskiPage';
 import { LocalTransportPage } from '@/pages/LocalTransportPage';
 import { LocalTransportStopBoardPage } from '@/pages/LocalTransportPage/LocalTransportStopBoardPage';
+import { LocalTransportSchemePage } from '@/pages/LocalTransportPage/LocalTransportSchemePage';
 import { UserPage } from '@/pages/UserPage';
 import { CompanyLegalPage } from '@/pages/CompanyLegalPage/CompanyLegalPage';
 import { SupportLayout, SupportHub, SupportArticle, SUPPORT_PATH } from '@/pages/SupportPage';
+import { StickerWallPage } from '@/pages/StickerWallPage';
 import { GoogleAnalyticsTracker } from '@/analytics/GoogleAnalyticsTracker';
 import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
+import { NavBar } from '@/components/NavBar';
 import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
-import { DomainGuard, LocalTransportGate, getCurrentSite, useHomeCityHandoff } from '@/site';
-import { apiClient } from '@/api/client';
-import { userState } from '@/utils/userState';
+import { DomainGuard, LocalTransportGate, useHomeCityHandoff } from '@/site';
 import './App.css';
 
 function App() {
@@ -48,12 +49,14 @@ function AppContent() {
   useHomeCityHandoff();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
+  // Віджет на стіну — як окремий застосунок: без меню сайту й адмінки
+  const isWidget = pathname === '/admin/wall';
 
   return (
     <div className={`app ${isAdminPath ? 'app--admin' : 'app--bbc'}`}>
       <GoogleAnalyticsTracker />
       <DomainGuard />
-      <NavBar />
+      {!isWidget && <NavBar />}
       <main className="app-main">
         <Routes>
           <Route path="/" element={<MizhgorodskiPage />} />
@@ -61,6 +64,10 @@ function AppContent() {
           <Route path="/mizhgorodski/:corridorSlug" element={<CorridorLandingPage />} />
           <Route path="/poputky" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/booking" element={<Navigate to="/mizhgorodski" replace />} />
+          <Route path="/zubastyk" element={<ZubastykPage />} />
+          <Route path="/zubustik" element={<Navigate to="/zubastyk" replace />} />
+          <Route path="/avtostantsiya-malyn" element={<AvtostantsiyaPage />} />
+          <Route path="/avtostantsiya" element={<Navigate to="/avtostantsiya-malyn" replace />} />
           <Route
             path="/transport/route/:routeId"
             element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>}
@@ -77,6 +84,10 @@ function AppContent() {
             path="/transport/:fromStop/:toStop"
             element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>}
           />
+          <Route
+            path="/transport/scheme"
+            element={<LocalTransportGate><LocalTransportSchemePage /></LocalTransportGate>}
+          />
           <Route path="/transport" element={<LocalTransportGate><LocalTransportPage /></LocalTransportGate>} />
           <Route path="/localtransport/*" element={<LocalTransportLegacyRedirect />} />
           <Route path="/localtransport" element={<LocalTransportLegacyRedirect />} />
@@ -90,6 +101,7 @@ function AppContent() {
           <Route path="/privacy-policy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin/wall" element={<StickerWallPage />} />
           <Route
             path="/admin/:tab?"
             element={
@@ -103,80 +115,6 @@ function AppContent() {
       {showPublicLegalFooter ? <PublicLegalFooter /> : null}
       {!pathname.startsWith('/admin') ? <CookieNotice /> : null}
     </div>
-  );
-}
-
-function NavBar() {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const currentUser = userState.get();
-  const isAdmin = userState.isAdmin();
-  const isTelegramUser = userState.isTelegramUser();
-  const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
-
-  const handleLogout = () => {
-    userState.logout();
-    apiClient.setAuthToken(null);
-    navigate('/mizhgorodski');
-  };
-
-  return (
-    <nav className={`app-nav ${isAdminPath ? 'app-nav--admin' : 'app-nav--bbc'}`}>
-      <div className="nav-left">
-        <Link to="/mizhgorodski" className="nav-link nav-brand">
-          Міжміські
-        </Link>
-        <Link to="/transport" className="nav-link">
-          Транспорт {getCurrentSite().cityNameUkGenitive}
-        </Link>
-        <Link to={COMPANY_LEGAL_PATH} className="nav-link">
-          Про нас
-        </Link>
-        <Link to={SUPPORT_PATH} className="nav-link">
-          Допомога
-        </Link>
-      </div>
-
-      <div className="nav-right">
-        {isAdmin ? (
-          <>
-            <Link to="/admin" className="nav-link">
-              Адмін панель
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="nav-link nav-button"
-              title="Вийти з адмін панелі"
-            >
-              Вийти
-            </button>
-          </>
-        ) : isTelegramUser ? (
-          <>
-            <Link to="/user" className="nav-link nav-user-info">
-              {currentUser?.type === 'telegram' && currentUser.phone ? (
-                <>{currentUser.phone}</>
-              ) : currentUser?.type === 'telegram' && currentUser.user.first_name ? (
-                <>{currentUser.user.first_name}</>
-              ) : (
-                <>Telegram User</>
-              )}
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="nav-link nav-button"
-              title="Вийти з Telegram акаунту"
-            >
-              Вийти
-            </button>
-          </>
-        ) : (
-          <Link to="/login" className="nav-link">
-            Логін
-          </Link>
-        )}
-      </div>
-    </nav>
   );
 }
 

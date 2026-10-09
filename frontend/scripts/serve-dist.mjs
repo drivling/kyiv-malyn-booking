@@ -11,6 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { GONE_HTML, isLegacyGonePath, isRetiredRoutePath, legacyRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -41,6 +42,8 @@ const EXACT_REDIRECTS = new Map([
   ['/', '/mizhgorodski'],
   ['/poputky', '/mizhgorodski'],
   ['/booking', '/mizhgorodski'],
+  ['/zubustik', '/zubastyk'],
+  ['/avtostantsiya', '/avtostantsiya-malyn'],
   ['/help', '/support'],
   ['/privacy', '/about#privacy-policy'],
   ['/privacy-policy', '/about#privacy-policy'],
@@ -76,6 +79,10 @@ function permanentRedirectLocation(urlPath) {
 
   const exact = EXACT_REDIRECTS.get(pathname);
   if (exact) return withSearch(exact, search);
+
+  // Old Zubustik-site booking pages (plan 1.10)
+  const legacy = legacyRedirectLocation(pathname);
+  if (legacy) return legacy;
 
   if (pathname === '/localtransport' || pathname.startsWith('/localtransport/')) {
     const next = pathname.replace(/^\/localtransport/, '/transport') || '/transport';
@@ -116,6 +123,25 @@ function tryResolve(urlPath) {
   if (fs.existsSync(indexInDir) && fs.statSync(indexInDir).isFile()) return indexInDir;
 
   return null;
+}
+
+/** All route ids of the current dataset (written by prerender-transport-stops); null → 410 rule disabled */
+function loadKnownRouteIds() {
+  const p = path.join(dist, 'transport', 'routes.json');
+  if (!fs.existsSync(p)) return null;
+  try {
+    const ids = JSON.parse(fs.readFileSync(p, 'utf8'));
+    // empty list = dataset was unavailable at build → rule off rather than 410 for everything
+    return Array.isArray(ids) && ids.length ? new Set(ids.map(String)) : null;
+  } catch {
+    return null;
+  }
+}
+const KNOWN_ROUTE_IDS = loadKnownRouteIds();
+
+function sendGone(res, extraHeaders = {}) {
+  res.writeHead(410, { 'Content-Type': MIME['.html'], 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex', ...extraHeaders });
+  res.end(GONE_HTML);
 }
 
 /** Вторинний домен (korosten.kiev.ua) поки не індексуємо: канонічний контент — на malin.kiev.ua */
@@ -160,6 +186,15 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  // www → apex (old Zubustik-era links and Google's memory use www.malin.kiev.ua; needs the
+  // www custom domain in Railway + DNS to reach us at all — see Docs/seo-aeo-plan-2026-09.md 1.11)
+  const host = String(req.headers.host || '').toLowerCase();
+  if (host.startsWith('www.')) {
+    res.writeHead(301, { Location: `https://${host.slice(4)}${urlPath}`, 'Cache-Control': 'public, max-age=86400' });
+    res.end();
+    return;
+  }
+
   const redirectTo = permanentRedirectLocation(urlPath);
   if (redirectTo) {
     res.writeHead(301, {
@@ -183,6 +218,15 @@ const server = http.createServer((req, res) => {
     }
     sendFile(res, resolved, extraHeaders);
     return;
+  }
+
+  // 410 before the SPA fallback: retired city routes (plan 1.5) and old-site leftovers (plan 1.10)
+  {
+    const { pathname } = splitUrl(urlPath);
+    if (isRetiredRoutePath(pathname, KNOWN_ROUTE_IDS) || isLegacyGonePath(pathname)) {
+      sendGone(res, extraHeaders);
+      return;
+    }
   }
 
   const spa = path.join(dist, 'index.html');

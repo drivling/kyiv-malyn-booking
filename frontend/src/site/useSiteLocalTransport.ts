@@ -5,33 +5,15 @@
  * Поки він true тільки в Малина; Коростень бачить заглушку «скоро».
  */
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/api/client';
+import { catalogCache } from '@/api/catalogCache';
 import type { TripPoint } from '@/types';
 import { getCurrentSite } from './siteConfig';
 
-let cached: TripPoint[] | null = null;
-let inflight: Promise<TripPoint[]> | null = null;
-
-async function fetchTripPoints(): Promise<TripPoint[]> {
-  if (cached) return cached;
-  if (!inflight) {
-    inflight = apiClient
-      .getTripPoints()
-      .then((points) => {
-        cached = points;
-        inflight = null;
-        return points;
-      })
-      .catch((e) => {
-        inflight = null;
-        throw e;
-      });
-  }
-  return inflight;
-}
+// Один кеш TripPoint на весь SPA (той самий, що в головній і формах) — src/api/catalogCache.ts
+const fetchTripPoints = (): Promise<TripPoint[]> => catalogCache.tripPoints.get();
 
 export function invalidateSiteLocalTransportCache(): void {
-  cached = null;
+  catalogCache.tripPoints.invalidate();
 }
 
 function flagFor(points: TripPoint[], cityCode: string): boolean {
@@ -49,11 +31,12 @@ export function useSiteLocalTransport(): SiteLocalTransport {
   const site = getCurrentSite();
   // Фолбек, якщо API недоступний: головний сайт (Малин) не гасимо через мережеву помилку.
   const fallback = site.isPrimary;
-  const [state, setState] = useState<SiteLocalTransport>(() =>
-    cached
+  const [state, setState] = useState<SiteLocalTransport>(() => {
+    const cached = catalogCache.tripPoints.peek();
+    return cached
       ? { enabled: flagFor(cached, site.cityCode), loading: false }
-      : { enabled: fallback, loading: true },
-  );
+      : { enabled: fallback, loading: true };
+  });
 
   useEffect(() => {
     let cancelled = false;

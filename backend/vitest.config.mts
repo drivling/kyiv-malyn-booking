@@ -11,8 +11,11 @@ export default defineConfig({
         'src/viber-parser.ts',
         'src/validation/**/*.ts',
         'src/local-transport.ts',
+        'src/trip-timing.ts',
+        'src/gtfs-stop-times.ts',
         'src/schedule-price.ts',
         'src/telegram-bot-blocked.ts',
+        'src/phone-block.ts',
       ],
       thresholds: {
         lines: 70,

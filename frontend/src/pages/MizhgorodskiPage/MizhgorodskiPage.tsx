@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
+import { catalogCache } from '@/api/catalogCache';
 import { Alert } from '@/components/Alert';
 import { FaqAnswerText } from '@/components/FaqAnswerText';
 import {
@@ -10,19 +11,22 @@ import {
   useTelegramScenarios,
   TELEGRAM_BOT_USERNAME,
 } from '@/hooks';
-import type { Availability, Schedule, TripPoint, ViberListing, ViberListingType } from '@/types';
+import type { Availability, Schedule, TripPoint, TripRoute, ViberListing, ViberListingType } from '@/types';
 import type { BookingCity } from '@/utils/constants';
+import { ListingContactReveal } from '@/components/ListingContactReveal';
 import {
   BOOKING_CITY_LABELS,
   BOOKING_FROM_TO,
   formatListingContactDisplay,
   getRouteSuffix,
   listingContactHref,
-  supportPhoneToTelLink,
 } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { buildCitySwitchUrl, getCurrentSite } from '@/site/siteConfig';
+import { isPrerendering } from '@/utils/prerender';
 import { BusBookingModal } from './BusBookingModal';
+import { PhoneOnlyNotice } from './PhoneOnlyNotice';
+import { ZUBASTYK_MAIN_PHONE, ZUBASTYK_TEMP_NOTE, isPhoneOnlySchedule, zubastykTelHref } from './phoneOnlyBooking';
 import { TrainTicketModal } from './TrainTicketModal';
 import { CORRIDOR_LANDINGS, corridorPath } from './corridorLandings';
 import {
@@ -60,11 +64,11 @@ const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: 'Як доїхати до Малина з Києва, Житомира чи Коростеня?',
-    a: 'Оберіть міста в пошуку на malin.kiev.ua/mizhgorodski або відкрийте сторінку напрямку (наприклад Київ — Малин). Доступні попутки від водіїв і регулярні маршрутки з бронюванням.',
+    a: `Оберіть міста в пошуку на malin.kiev.ua/mizhgorodski або відкрийте сторінку напрямку (наприклад Київ — Малин). Доступні попутки від водіїв і регулярні маршрутки з бронюванням. ${ZUBASTYK_TEMP_NOTE}`,
   },
   {
     q: 'Чим відрізняється попутка від маршрутки?',
-    a: 'Попутка — оголошення приватного водія або пасажира на конкретну дату. Маршрутка — регулярний рейс з розкладом і онлайн-бронюванням місця.',
+    a: `Попутка — оголошення приватного водія або пасажира на конкретну дату. Маршрутка — регулярний рейс з розкладом і онлайн-бронюванням місця. ${ZUBASTYK_TEMP_NOTE}`,
   },
   {
     q: 'Чи потрібен Telegram?',
@@ -94,7 +98,7 @@ export const MizhgorodskiPage: React.FC = () => {
     title: 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень | malin.kiev.ua',
     canonicalUrl: 'https://malin.kiev.ua/mizhgorodski',
     description:
-      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Ціни, живий пошук і онлайн бронювання.',
+      'Як доїхати до Малина: попутки та маршрутки Малин ↔ Київ, Житомир, Коростень. Ціни, живий пошук і онлайн бронювання («Зубастик» тимчасово — за телефоном).',
     jsonLdId: 'mizh-home-faq-jsonld',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -163,10 +167,11 @@ export const MizhgorodskiPage: React.FC = () => {
   });
 
   useEffect(() => {
+    // Каталоги майже статичні — з кешу модуля (один запит на вкладку, TTL 5 хв)
     Promise.all([
-      apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
-      apiClient.getTripPoints().catch(() => [] as TripPoint[]),
-      apiClient.getOdPairs().catch(() => []),
+      catalogCache.poputkyPoints.get().catch(() => [] as TripPoint[]),
+      catalogCache.tripPoints.get().catch(() => [] as TripPoint[]),
+      catalogCache.odPairs.get().catch(() => []),
     ]).then(([pop, all, pairs]) => {
       setPoputkyPoints(pop);
       setAllTripPoints(all.length ? all : pop);
@@ -226,18 +231,24 @@ export const MizhgorodskiPage: React.FC = () => {
           })))
     : [];
 
+  /** Номер останнього пошуку: відповідь старішого запиту не перезаписує новіший. */
+  const loadSeq = useRef(0);
+
   const loadResults = useCallback(async (from: BookingCity, to: BookingCity, tripDate: string) => {
     if (!from || !to || from === to) return;
+    const seq = ++loadSeq.current;
+    const isCurrent = () => seq === loadSeq.current;
     setLoading(true);
     setError('');
-    setAvailabilityById({});
     try {
-      const [allListings, odSchedules, allTripRoutes, points] = await Promise.all([
-        apiClient.getViberListings(true),
-        apiClient.getSchedules(undefined, { fromCode: from, toCode: to }).catch(() => [] as Schedule[]),
-        apiClient.getTripRoutes().catch(() => []),
-        apiClient.getTripPoints({ appearInPoputky: true }).catch(() => [] as TripPoint[]),
+      // Один запит: попутки + розклад на OD-пару + вільні місця (GET /poputky/search);
+      // каталоги — з кешу модуля, лише для клієнтської страховки по along-route
+      const [result, allTripRoutes, points] = await Promise.all([
+        apiClient.searchPoputky({ from, to, date: tripDate }),
+        catalogCache.tripRoutes.get().catch(() => [] as TripRoute[]),
+        catalogCache.poputkyPoints.get().catch(() => [] as TripPoint[]),
       ]);
+      if (!isCurrent()) return;
       if (points.length) setPoputkyPoints(points);
       const corridorById = new Map(
         allTripRoutes.filter((c) => c.corridorTripRouteId == null).map((c) => [c.id, c])
@@ -251,39 +262,26 @@ export const MizhgorodskiPage: React.FC = () => {
         stopsByTripRouteId.set(tr.id, ordered);
       }
       const pointIdByCode = new Map(points.map((p) => [p.code, p.id]));
-      const byRouteId = new Map<number, Schedule>();
-      for (const s of odSchedules) byRouteId.set(s.id, s);
-      const mergedSchedules = [...byRouteId.values()];
-      setSchedules(mergedSchedules);
+      setSchedules(result.schedules);
+      setAvailabilityById(result.availability ?? {});
+      // Сервер уже відібрав по OD/along-route; клієнтський фільтр лишається як страховка
+      // (along-route гілка сервера не перевіряє OD самого оголошення — див. план, Фаза 4.2).
       setListings(
-        allListings.filter(
+        result.listings.filter(
           (item) =>
             item.isActive &&
             item.date.slice(0, 10) === tripDate.slice(0, 10) &&
             listingMatchesCities(item, from, to, corridorById, pointIdByCode, stopsByTripRouteId)
         )
       );
-      const availEntries = await Promise.all(
-        mergedSchedules.filter(isMarshrutka).map(async (s) => {
-          try {
-            const a = await apiClient.checkAvailabilityByScheduleId(s.id, tripDate);
-            return [s.id, a] as const;
-          } catch {
-            return null;
-          }
-        })
-      );
-      const nextAvail: Record<number, Availability> = {};
-      for (const row of availEntries) {
-        if (row) nextAvail[row[0]] = row[1];
-      }
-      setAvailabilityById(nextAvail);
     } catch (err) {
+      if (!isCurrent()) return;
       setError(err instanceof Error ? err.message : 'Помилка завантаження');
       setListings([]);
       setSchedules([]);
+      setAvailabilityById({});
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, []);
 
@@ -336,37 +334,6 @@ export const MizhgorodskiPage: React.FC = () => {
     writeSearchParams(params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transport, fromCity, toCity, date, persistSearchInUrl]);
-
-  useEffect(() => {
-    if (!schedules.length || !date) {
-      setAvailabilityById({});
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const entries = await Promise.all(
-        schedules
-          .filter((schedule) => isMarshrutka(schedule))
-          .map(async (schedule) => {
-          try {
-            const availability = await apiClient.checkAvailabilityByScheduleId(schedule.id, date);
-            return [schedule.id, availability] as const;
-          } catch {
-            return null;
-          }
-        })
-      );
-      if (cancelled) return;
-      const map: Record<number, Availability> = {};
-      for (const entry of entries) {
-        if (entry) map[entry[0]] = entry[1];
-      }
-      setAvailabilityById(map);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [schedules, date]);
 
   const anyModalOpen =
     showOfferModal ||
@@ -752,6 +719,10 @@ export const MizhgorodskiPage: React.FC = () => {
             </button>
           </div>
         ) : (
+          <>
+          {/* попередження — для того, хто бронює, а не для статичного HTML пошуковиків (SEO/AEO) */}
+          {!isPrerendering() &&
+            results.some((item) => item.kind === 'bus' && isPhoneOnlySchedule(item.schedule)) && <PhoneOnlyNotice />}
           <ul className="mizh-results" aria-label="Результати пошуку">
             {results.map((item) =>
               item.kind === 'carpool' ? (
@@ -814,15 +785,10 @@ export const MizhgorodskiPage: React.FC = () => {
                           </button>
                         ) : item.listing.listingType === 'driver' && !rideshare.isTelegramLoggedIn ? (
                           <>
-                            <a
-                              href={listingContactHref(item.listing.phone)}
+                            <ListingContactReveal
+                              listingId={item.listing.id}
                               className="mizh-card-cta mizh-card-cta--primary"
-                              {...(item.listing.phone.trim().startsWith('@')
-                                ? { target: '_blank', rel: 'noopener noreferrer' }
-                                : {})}
-                            >
-                              Зателефонувати
-                            </a>
+                            />
                             <button
                               type="button"
                               className="mizh-card-cta mizh-card-cta--ghost"
@@ -832,20 +798,12 @@ export const MizhgorodskiPage: React.FC = () => {
                             </button>
                           </>
                         ) : (
-                          <a
-                            href={listingContactHref(item.listing.phone)}
+                          <ListingContactReveal
+                            listingId={item.listing.id}
                             className="mizh-card-cta mizh-card-cta--primary"
-                            {...(item.listing.phone.trim().startsWith('@')
-                              ? { target: '_blank', rel: 'noopener noreferrer' }
-                              : {})}
-                          >
-                            Зателефонувати
-                          </a>
+                          />
                         )}
                       </div>
-                      {item.listing.phone && (
-                        <div className="mizh-card-contact">{formatListingContactDisplay(item.listing.phone)}</div>
-                      )}
                     </div>
                   </div>
                 </li>
@@ -934,6 +892,11 @@ export const MizhgorodskiPage: React.FC = () => {
                         {item.schedule.boardingPlace ? ` · ${item.schedule.boardingPlace}` : ''}
                       </div>
                       <div className="mizh-card-route-hint">{formatRouteLabel(item.schedule.route)}</div>
+                      {isPhoneOnlySchedule(item.schedule) && !isPrerendering() && (
+                        <div className="mizh-card-phone-only">
+                          ⛔️ Онлайн-бронювання поки не працює — лише за телефоном
+                        </div>
+                      )}
                     </div>
                     <div className="mizh-card-aside">
                       <div className="mizh-card-price">
@@ -949,9 +912,20 @@ export const MizhgorodskiPage: React.FC = () => {
                         )}
                       </div>
                       <div className="mizh-card-actions">
+                        {isPhoneOnlySchedule(item.schedule) && (
+                          <a
+                            className="mizh-card-cta mizh-card-cta--bus mizh-card-cta--call"
+                            href={zubastykTelHref()}
+                            aria-label={`Подзвонити ${ZUBASTYK_MAIN_PHONE.label}`}
+                          >
+                            📞 {ZUBASTYK_MAIN_PHONE.label}
+                          </a>
+                        )}
                         <button
                           type="button"
-                          className="mizh-card-cta mizh-card-cta--bus"
+                          className={`mizh-card-cta ${
+                            isPhoneOnlySchedule(item.schedule) ? 'mizh-card-cta--ghost' : 'mizh-card-cta--bus'
+                          }`}
                           onClick={() => setBookingSchedule(item.schedule)}
                           disabled={
                             availabilityById[item.schedule.id] != null &&
@@ -967,6 +941,7 @@ export const MizhgorodskiPage: React.FC = () => {
               )
             )}
           </ul>
+          </>
         )}
 
         <section className="mizh-aeo" aria-labelledby="mizh-aeo-title">
@@ -1013,6 +988,12 @@ export const MizhgorodskiPage: React.FC = () => {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link to="/zubastyk">Маршрутка «Зубастик» Малин — Київ: телефони та розклад</Link>
+            </li>
+            <li>
+              <Link to="/avtostantsiya-malyn">Автостанція Малин: розклад автобусів і телефони каси</Link>
+            </li>
           </ul>
         </nav>
 
@@ -1262,17 +1243,23 @@ export const MizhgorodskiPage: React.FC = () => {
               >
                 Відкрити Telegram
               </a>
-            ) : (
+            ) : rideshare.requestStatusData.contact ? (
               <a
-                href={listingContactHref(rideshare.requestStatusData.listing.phone)}
+                href={listingContactHref(rideshare.requestStatusData.contact)}
                 className="mizh-offer-submit mizh-offer-submit--link"
-                {...(rideshare.requestStatusData.listing.phone.trim().startsWith('@')
+                {...(rideshare.requestStatusData.contact.trim().startsWith('@')
                   ? { target: '_blank', rel: 'noopener noreferrer' }
                   : {})}
               >
                 Зателефонувати:{' '}
-                {formatListingContactDisplay(rideshare.requestStatusData.listing.phone)}
+                {formatListingContactDisplay(rideshare.requestStatusData.contact)}
               </a>
+            ) : (
+              <ListingContactReveal
+                listingId={rideshare.requestStatusData.listing.id}
+                className="mizh-offer-submit mizh-offer-submit--link"
+                label="Показати номер водія"
+              />
             )}
           </div>
         </div>
@@ -1301,12 +1288,20 @@ export const MizhgorodskiPage: React.FC = () => {
             >
               Перевірити через Telegram
             </a>
-            <a
-              href={supportPhoneToTelLink(rideshare.alreadyRequestedListing.phone)}
-              className="mizh-card-cta mizh-card-cta--ghost"
-            >
-              Зателефонувати
-            </a>
+            {rideshare.alreadyRequestedContact ? (
+              <a
+                href={listingContactHref(rideshare.alreadyRequestedContact)}
+                className="mizh-card-cta mizh-card-cta--ghost"
+              >
+                Зателефонувати
+              </a>
+            ) : (
+              <ListingContactReveal
+                listingId={rideshare.alreadyRequestedListing.id}
+                className="mizh-card-cta mizh-card-cta--ghost"
+                label="Показати номер водія"
+              />
+            )}
           </div>
         </div>
       )}

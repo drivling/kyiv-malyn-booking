@@ -1,4 +1,5 @@
 import express, { type Router } from 'express';
+import { importListingsToRideEvents } from '../viber-analytics-import';
 import type { PrismaClient } from '@prisma/client';
 import {
   BEHAVIOR_PROMO_SCENARIO_LABELS,
@@ -37,108 +38,22 @@ export function createAdminViberAnalyticsRouter(deps: { prisma: PrismaClient }):
 
 r.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
   try {
-    // Вихідні дані тепер беремо з таблиці ViberListing (історія оголошень з Viber-чату),
-    // яка вже існує в основній БД backend.
-    type SourceRow = {
-      id: number;
-      route: string;
-      date: Date;
-      departureTime: string | null;
-      seats: number | null;
-      phone: string;
-      priceUah: number | null;
-      isActive: boolean;
-      createdAt: Date;
-      personId: number | null;
-    };
-
-    // Які ViberListing вже імпортовані в ViberRideEvent (по viberRideId)
-    const existing = await (prisma as any).viberRideEvent.findMany({
-      select: { viberRideId: true },
-    });
-    const importedIds = new Set(
-      (existing as Array<{ viberRideId: number }>).map((r) => r.viberRideId),
-    );
-
-    // Читаємо всі (або більшість) записів з ViberListing
-    const rows = (await prisma.viberListing.findMany({
-      orderBy: { id: 'asc' },
-    })) as unknown as SourceRow[];
-
-    const newRows: SourceRow[] = rows.filter((r: SourceRow) => !importedIds.has(r.id));
-
-    if (newRows.length === 0) {
-      const totalEvents = await (prisma as any).viberRideEvent.count();
+    // Спільна логіка з POST /viber-listings/archive-old (viber-analytics-import.ts)
+    const imported = await importListingsToRideEvents(prisma);
+    if (imported.importedNow === 0) {
+      const totalEvents = await prisma.viberRideEvent.count();
       return res.json({
         success: true,
-        totalSource: rows.length,
-        alreadyImported: rows.length,
+        totalSource: imported.totalSource,
+        alreadyImported: imported.alreadyImported,
         importedNow: 0,
         message: 'Нових записів ViberRide немає — все вже імпортовано раніше.',
-        totalListings: rows.length,
+        totalListings: imported.totalSource,
         totalEvents,
       });
     }
 
-    const toInsert: any[] = [];
-
-    for (const r of newRows) {
-      const rawPhone = (r.phone ?? '').trim();
-      const normalized = rawPhone ? normalizePhone(rawPhone) : '';
-
-      let weekday: number | null = null;
-      let hour: number | null = null;
-
-      if (r.date instanceof Date) {
-        // JS: 0 = неділя ... 6 = субота
-        weekday = r.date.getDay();
-      }
-
-      if (r.departureTime) {
-        const timePart = r.departureTime.split('-')[0].trim();
-        const [hStr] = timePart.split(':');
-        const hNum = parseInt(hStr, 10);
-        if (!Number.isNaN(hNum) && hNum >= 0 && hNum <= 23) {
-          hour = hNum;
-        }
-      }
-
-      const phoneNormalized = normalized || rawPhone || '';
-      const personId = r.personId ?? null;
-
-      toInsert.push({
-        viberRideId: r.id,
-        contactPhone: rawPhone || phoneNormalized,
-        phoneNormalized,
-        personId,
-        route: r.route ?? null,
-        departureDate: r.date ?? null,
-        departureTime: r.departureTime ?? null,
-        availableSeats: r.seats ?? null,
-        priceUah: r.priceUah ?? null,
-        isParsed: true,
-        isActive: r.isActive ?? null,
-        parsingErrors: null,
-        weekday,
-        hour,
-        createdAt: r.createdAt ?? new Date(),
-      });
-    }
-
-    let created = 0;
-    const chunkSize = 500;
-    for (let i = 0; i < toInsert.length; i += chunkSize) {
-      const chunk = toInsert.slice(i, i + chunkSize);
-      if (!chunk.length) continue;
-      const result = await (prisma as any).viberRideEvent.createMany({
-        data: chunk,
-        skipDuplicates: true,
-      });
-      created += result.count;
-    }
-
     // Після імпорту чистимо джерело: видаляємо записи старше ніж "дата запиту - 1 місяць".
-    // У поточній схемі історія "ViberRide" зберігається в таблиці ViberListing (поле date = дата поїздки).
     const requestDate = new Date();
     const cutoff = new Date(requestDate);
     cutoff.setMonth(cutoff.getMonth() - 1);
@@ -148,14 +63,14 @@ r.post('/admin/viber-analytics/import', requireAdmin, async (_req, res) => {
       },
     });
 
-    const totalEvents = await (prisma as any).viberRideEvent.count();
+    const totalEvents = await prisma.viberRideEvent.count();
 
     res.json({
       success: true,
-      totalSource: rows.length,
-      alreadyImported: rows.length - newRows.length,
-      importedNow: created,
-      totalListings: rows.length,
+      totalSource: imported.totalSource,
+      alreadyImported: imported.alreadyImported,
+      importedNow: imported.importedNow,
+      totalListings: imported.totalSource,
       totalEvents,
       deletedSourceOld: deletedOldSource.count,
       sourceCleanupBefore: cutoff.toISOString(),

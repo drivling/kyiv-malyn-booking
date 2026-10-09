@@ -9,8 +9,12 @@ const require_admin_1 = require("../middleware/require-admin");
 const lunch_1 = require("../lunch");
 const lunch_telegram_1 = require("../lunch-telegram");
 const lunch_reparse_1 = require("../lunch-reparse");
+const lunch_people_1 = require("../lunch-people");
+const dzhura_1 = require("../dzhura");
 function createAdminLunchRouter(deps) {
     const { prisma } = deps;
+    const runReparsePerson = deps.reparsePerson ?? lunch_reparse_1.reparseLunchPerson;
+    const runReparseToday = deps.reparseToday ?? lunch_reparse_1.reparseLunchToday;
     const r = express_1.default.Router();
     r.get('/admin/lunch/today', require_admin_1.requireAdmin, async (_req, res) => {
         try {
@@ -141,7 +145,7 @@ function createAdminLunchRouter(deps) {
     /** Знову розібрати повідомлення групи за сьогодні (замовлення / оплати / підсумок) */
     r.post('/admin/lunch/reparse', require_admin_1.requireAdmin, async (_req, res) => {
         try {
-            const result = await (0, lunch_reparse_1.reparseLunchToday)(prisma);
+            const result = await runReparseToday(prisma);
             if (!result.ok) {
                 res.status(500).json({ error: result.error || 'Reparse failed', ...result });
                 return;
@@ -152,6 +156,106 @@ function createAdminLunchRouter(deps) {
         catch (e) {
             console.error('[admin/lunch/reparse]', e);
             res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
+        }
+    });
+    /**
+     * Історія за період (меню дня + замовлення з підсумковими рядками) — для оцінки розпізнавання на
+     * реальних даних. ?from=YYYY-MM-DD&to=YYYY-MM-DD, за замовчуванням останні 14 днів, максимум 62.
+     * Імен і Telegram-id немає.
+     */
+    r.get('/admin/lunch/history', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const today = (0, lunch_1.todayKyivDate)().toISOString().slice(0, 10);
+            const to = req.query.to === undefined ? today : (0, dzhura_1.parseIsoDate)(req.query.to);
+            const from = req.query.from === undefined && to ? (0, dzhura_1.addDaysIso)(to, -13) : (0, dzhura_1.parseIsoDate)(req.query.from);
+            if (!from || !to) {
+                res.status(400).json({ error: 'from і to — дати у форматі YYYY-MM-DD' });
+                return;
+            }
+            if (to < from) {
+                res.status(400).json({ error: 'Дата «до» раніша за дату «від»' });
+                return;
+            }
+            if ((0, dzhura_1.daysBetweenInclusive)(from, to) > lunch_1.LUNCH_HISTORY_MAX_DAYS) {
+                res.status(400).json({ error: `Період не більше ${lunch_1.LUNCH_HISTORY_MAX_DAYS} днів` });
+                return;
+            }
+            res.json(await (0, lunch_1.getLunchHistory)(prisma, new Date(`${from}T00:00:00.000Z`), new Date(`${to}T00:00:00.000Z`)));
+        }
+        catch (e) {
+            console.error('[admin/lunch/history]', e);
+            res.status(500).json({ error: 'Не вдалося завантажити історію обідів' });
+        }
+    });
+    /**
+     * Хто писав у групі сьогодні (з бази Джури) і чи є в нього замовлення.
+     * Спершу ті, у кого замовлення немає — саме їх і «губить» автоматичний розбір.
+     */
+    r.get('/admin/lunch/day-people', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            res.json(await (0, lunch_people_1.listLunchDayPeople)(prisma));
+        }
+        catch (e) {
+            console.error('[admin/lunch/day-people]', e);
+            res.status(500).json({ error: 'Не вдалося завантажити, хто писав у групі' });
+        }
+    });
+    /**
+     * Розібрати повідомлення однієї людини за сьогодні (її замовлення й оплати), не чіпаючи інших.
+     * Тіло: { tgUserId } або { participantId }, notify?: boolean (за замовч. true — підтвердження в групу).
+     */
+    r.post('/admin/lunch/reparse-person', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            let tgUserId = String(req.body?.tgUserId ?? '').trim();
+            if (!tgUserId && req.body?.participantId != null) {
+                const participantId = Number(req.body.participantId);
+                if (!Number.isInteger(participantId) || participantId <= 0) {
+                    res.status(400).json({ error: 'Некоректний participantId' });
+                    return;
+                }
+                const participant = await prisma.lunchParticipant.findUnique({ where: { id: participantId } });
+                if (!participant) {
+                    res.status(404).json({ error: 'Учасника не знайдено' });
+                    return;
+                }
+                tgUserId = participant.telegramUserId;
+            }
+            if (!/^\d{1,20}$/.test(tgUserId)) {
+                res.status(400).json({
+                    error: 'У цієї людини немає Telegram id (її додано з підсумку за іменем). Знайди її у списку «Писали в групі».',
+                });
+                return;
+            }
+            const notify = req.body?.notify !== false;
+            const result = await runReparsePerson(prisma, { tgUserId, notify });
+            if (!result.ok) {
+                res.status(500).json({ error: result.error || 'Розбір людини не вдався', ...result });
+                return;
+            }
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, reparse: result, summary });
+        }
+        catch (e) {
+            console.error('[admin/lunch/reparse-person]', e);
+            res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка розбору людини' });
+        }
+    });
+    /** Прибрати замовлення з дня (м'яко: status=cancelled). */
+    r.delete('/admin/lunch/orders/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const orderId = Number(req.params.id);
+            if (!Number.isInteger(orderId) || orderId <= 0) {
+                res.status(400).json({ error: 'Некоректний id замовлення' });
+                return;
+            }
+            await (0, lunch_1.cancelLunchOrder)(prisma, orderId);
+            const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
+            res.json({ ok: true, summary });
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : 'Помилка видалення замовлення';
+            console.error('[admin/lunch/orders:delete]', e);
+            res.status(msg === 'Замовлення не знайдено' ? 404 : 400).json({ error: msg });
         }
     });
     /** Позначити оплату (за замовч. — весь борг учасника) */

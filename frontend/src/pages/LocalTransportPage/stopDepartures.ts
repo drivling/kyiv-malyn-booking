@@ -2,9 +2,9 @@
  * Розклад відправлень з однієї зупинки по всіх маршрутах і напрямках (хронологічно).
  */
 import type { RouteStopWithOrder, TransportRecord, TransportData, SupplementRoute } from './types';
-import { getDurationFromStartSec, getMinsBetweenStops, isVerifiedRoute } from './routeTiming';
+import { recordTiming } from './routeTiming';
 import { getStopKey, invertNameToId, type StopsCatalog } from './stopCatalog';
-import { tripDepartureMinutes, sortTripsByDeparture } from './tripDeparture';
+import { groupTripsByDirection } from './tripDeparture';
 
 export type StopDepartureRow = {
   routeId: string;
@@ -15,14 +15,20 @@ export type StopDepartureRow = {
   tripId: string;
 };
 
-function sortByTime(a: TransportRecord, b: TransportRecord): number {
-  return sortTripsByDeparture(a, b);
-}
-
-function groupTripsByDirection(trips: TransportRecord[]): { dir0: TransportRecord[]; dir1: TransportRecord[] } {
-  const dir0 = trips.filter((t) => t.direction_id === '0').sort(sortByTime);
-  const dir1 = trips.filter((t) => t.direction_id === '1').sort(sortByTime);
-  return { dir0, dir1 };
+/**
+ * Кінцева / табличка рейсу для показу людині:
+ * headsign → назва кінцевої зупинки рейсу (скорочений рейс) → кінець маршруту → «—».
+ */
+export function tripDestination(
+  t: Pick<TransportRecord, 'trip_headsign' | 'end_stop_id'>,
+  direction: 'there' | 'back',
+  route: { from: string | null; to: string | null },
+  catalog?: StopsCatalog
+): string {
+  const headsign = (t.trip_headsign ?? '').trim();
+  const endName = t.end_stop_id ? catalog?.[t.end_stop_id]?.name : undefined;
+  const routeEnd = direction === 'there' ? route.to : route.from;
+  return (headsign || endName || routeEnd || '').trim() || '—';
 }
 
 function getStopNames(stops: string[] | RouteStopWithOrder[]): string[] {
@@ -136,6 +142,8 @@ export function buildRoutesFromData(data: TransportData): RouteBundle[] {
 
 /**
  * Усі відправлення з зупинки `stopKey` (id st_XXXX) по всіх маршрутах (обидва напрямки), відсортовані за часом.
+ * Рейс дає рядок лише якщо обслуговує зупинку (start_stop_id/end_stop_id) і вона не його кінцева:
+ * автобус, що прибув на кінцеву, нікуди не відправляється.
  */
 export function buildStopDepartures(
   stopKey: string,
@@ -155,55 +163,27 @@ export function buildStopDepartures(
     if (!raw?.length) continue;
 
     const stopsWithOrder = normalizeStopsWithOrder(raw);
-    const orderedThere = getOrderedForDirection(stopsWithOrder, 'there');
-    const orderedBack = getOrderedForDirection(stopsWithOrder, 'back');
-    const orderedKeysThere = orderedThere.map((s) => getStopKey(s));
-    const orderedKeysBack = orderedBack.map((s) => getStopKey(s));
-
-    const stopThere = orderedThere.find((s) => getStopKey(s) === stopKey);
-    const stopBack = orderedBack.find((s) => getStopKey(s) === stopKey);
-
-    const verified = isVerifiedRoute(route.id);
-    const minsPerStop = getMinsBetweenStops(route.id);
+    const chainThere = getOrderedForDirection(stopsWithOrder, 'there').map((s) => getStopKey(s));
+    const chainBack = getOrderedForDirection(stopsWithOrder, 'back').map((s) => getStopKey(s));
     const { dir0, dir1 } = groupTripsByDirection(route.trips);
 
-    if (stopThere && (stopThere.order_there ?? 0) > 0) {
-      const order = stopThere.order_there;
-      dir1.forEach((t) => {
-        const mins = tripDepartureMinutes(t);
-        if (mins <= 0) return;
-        const depMins = verified
-          ? mins + getDurationFromStartSec(route.id, orderedKeysThere, order - 1) / 60
-          : mins + (order - 1) * minsPerStop;
-        const dest = (t.trip_headsign || route.to || '').trim() || '—';
-        rows.push({
-          routeId: route.id,
-          departureMins: depMins,
-          direction: 'there',
-          destination: dest,
-          tripId: t.trip_id,
-        });
+    const emit = (t: TransportRecord, direction: 'there' | 'back', chain: string[]) => {
+      const timing = recordTiming(route.id, chain, t);
+      if (!timing) return;
+      const served = timing.stops.find((s) => s.stopId === stopKey);
+      if (!served || served.index === timing.endIndex) return;
+      const dest = tripDestination(t, direction, route, catalog);
+      rows.push({
+        routeId: route.id,
+        departureMins: served.mins,
+        direction,
+        destination: dest,
+        tripId: t.trip_id,
       });
-    }
+    };
 
-    if (stopBack && (stopBack.order_back ?? 0) > 0) {
-      const order = stopBack.order_back;
-      dir0.forEach((t) => {
-        const mins = tripDepartureMinutes(t);
-        if (mins <= 0) return;
-        const depMins = verified
-          ? mins + getDurationFromStartSec(route.id, orderedKeysBack, order - 1) / 60
-          : mins + (order - 1) * minsPerStop;
-        const dest = (t.trip_headsign || route.from || '').trim() || '—';
-        rows.push({
-          routeId: route.id,
-          departureMins: depMins,
-          direction: 'back',
-          destination: dest,
-          tripId: t.trip_id,
-        });
-      });
-    }
+    dir1.forEach((t) => emit(t, 'there', chainThere));
+    dir0.forEach((t) => emit(t, 'back', chainBack));
   }
 
   rows.sort((a, b) => {

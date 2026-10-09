@@ -1,0 +1,585 @@
+.sticker-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sticker-tab-status {
+  padding: 24px;
+  text-align: center;
+  color: var(--pb-text-muted);
+}
+
+.sticker-tab-status--error {
+  color: var(--pb-error, #b91c1c);
+}
+
+.sticker-tab-intro {
+  margin: 0;
+  max-width: 760px;
+  color: var(--pb-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.sticker-tab-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.sticker-tab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+
+.sticker-tab-field > span {
+  font-weight: 600;
+}
+
+.sticker-tab-field input,
+.sticker-tab-field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--pb-bg, #fff);
+}
+
+.sticker-tab-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sticker-tab-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex: none;
+}
+
+.sticker-tab-field--wide {
+  flex: 1 1 320px;
+  max-width: 520px;
+}
+
+.sticker-tab-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+}
+
+.sticker-tab-fieldset legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.sticker-tab-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sticker-tab-lines th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--pb-text-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--pb-border);
+}
+
+.sticker-tab-lines td {
+  padding: 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--pb-border);
+}
+
+.sticker-tab-badge {
+  display: inline-block;
+  min-width: 28px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 800;
+  text-align: center;
+}
+
+.sticker-tab-bearing {
+  display: inline-block;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sticker-tab-muted {
+  color: var(--pb-text-muted);
+  font-size: 0.8125rem;
+}
+
+.sticker-tab-assign,
+.sticker-tab-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.sticker-tab-assign label,
+.sticker-tab-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sticker-tab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.sticker-tab-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.sticker-tab-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  width: min(100%, 380px);
+}
+
+.sticker-tab-preview figcaption {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* прев'ю — той самий SVG, що йде на друк, вписаний у ширину картки */
+.sticker-tab-sheet {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  background: #fff;
+}
+
+.sticker-tab-sheet svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---- Статистика відкриттів з QR (StickerStatsPanel) */
+.sticker-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+  background: #fcfcfb;
+}
+
+.sticker-stats-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.sticker-stats-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sticker-stats-chips {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.sticker-chip {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sticker-chip[aria-pressed='true'] {
+  border-color: #1b1f2a;
+  background: #1b1f2a;
+  color: #fff;
+}
+
+.sticker-stats-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.sticker-stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.sticker-stats-tiles > div {
+  padding: 10px 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.sticker-stats-tiles dt {
+  font-size: 0.8125rem;
+  color: var(--pb-text-muted);
+}
+
+.sticker-stats-tiles dd {
+  margin: 2px 0 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sticker-stats-tiles--parts dd {
+  font-size: 1.125rem;
+}
+
+/* ---- Стовпчики однієї серії (ScanBars): ≤ 24 px, верх округлено 4 px, проміжок 2 px */
+.scan-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.scan-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 0.8125rem;
+}
+
+.scan-chart-title {
+  font-weight: 600;
+}
+
+.scan-chart-readout {
+  color: var(--pb-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-chart-readout strong {
+  color: #1b1f2a;
+}
+
+.scan-chart-plot {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  height: 120px;
+}
+
+.scan-chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-right: 6px;
+  font-size: 0.6875rem;
+  color: var(--pb-text-muted);
+  text-align: right;
+  line-height: 1;
+}
+
+.scan-chart-bars {
+  display: grid;
+  grid-template-columns: repeat(var(--scan-bars), minmax(0, 1fr));
+  align-items: end;
+  height: 100%;
+  border-top: 1px solid #e6e8eb;
+  border-bottom: 1px solid #c9ced6;
+}
+
+.scan-chart-slot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.scan-chart-slot:focus-visible {
+  outline: 2px solid #2a78d6;
+  outline-offset: -2px;
+}
+
+.scan-chart-slot--active {
+  background: rgba(42, 120, 214, 0.08);
+}
+
+.scan-chart-bar {
+  display: block;
+  width: 100%;
+  max-width: 24px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: #2a78d6;
+}
+
+.scan-chart-slot--active .scan-chart-bar {
+  background: #1c5cab;
+}
+
+.scan-chart-x {
+  display: grid;
+  grid-template-columns: repeat(var(--scan-bars, 1), minmax(0, 1fr));
+  margin-left: 28px;
+  font-size: 0.6875rem;
+  color: var(--pb-text-muted);
+  white-space: nowrap;
+}
+
+.scan-chart-x > span {
+  overflow: visible;
+}
+
+.scan-chart-table summary {
+  font-size: 0.8125rem;
+  color: var(--pb-text-muted);
+  cursor: pointer;
+}
+
+.scan-chart-table table {
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-chart-table th,
+.scan-chart-table td {
+  padding: 2px 12px 2px 0;
+  text-align: left;
+}
+
+/* ---- Список зупинок ліворуч + редактор праворуч */
+.sticker-tab-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .sticker-tab-body {
+    grid-template-columns: 1fr;
+  }
+
+  /* одна колонка: список над редактором, не «липне» поверх нього */
+  .sticker-stops {
+    position: static;
+  }
+
+  .sticker-stops-list {
+    max-height: 50vh;
+  }
+}
+
+.sticker-tab-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sticker-tab-editor-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.sticker-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--pb-border);
+  border-radius: 12px;
+  position: sticky;
+  top: 12px;
+}
+
+.sticker-stops h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sticker-stops-search,
+.sticker-stops-tools select {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.sticker-stops-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.875rem;
+}
+
+.sticker-stops-tools label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.sticker-stops p {
+  margin: 0;
+}
+
+.sticker-stops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 70vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.sticker-stops-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sticker-stops-row:hover {
+  background: #f1f4f5;
+}
+
+.sticker-stops-row[aria-pressed='true'] {
+  border-color: #2a78d6;
+  background: rgba(42, 120, 214, 0.08);
+}
+
+.sticker-stops-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.sticker-stops-total {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sticker-stops-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.sticker-stops-badge {
+  min-width: 20px;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+
+.sticker-stops-meta {
+  font-size: 0.75rem;
+  color: var(--pb-text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sticker-stops-printed {
+  color: #1b1f2a;
+}
+
+/* ---- «Віджет на стіну»: QR посилання для телефона (WallLinkDialog) */
+.wall-link-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(15, 20, 32, 0.55);
+}
+
+.wall-link-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, 420px);
+  padding: 20px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.wall-link-dialog h3 {
+  margin: 0;
+}
+
+.wall-link-dialog p {
+  margin: 0;
+}
+
+.wall-link-qr {
+  display: block;
+  width: min(100%, 240px);
+  align-self: center;
+}
+
+.wall-link-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: #1b1f2a;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}

@@ -2,6 +2,7 @@ import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { getPersonByTelegram, sendRideShareRequestToDriver } from '../telegram';
 import { createOrMergeViberListing } from '../viber-listing-merge';
+import { PHONE_BLOCKED_MESSAGE, isPhoneBlockedError } from '../phone-block';
 
 export function createRideshareRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -95,6 +96,10 @@ export function createRideshareRouter(deps: { prisma: PrismaClient }): Router {
         driverNotified,
       });
     } catch (error) {
+      if (isPhoneBlockedError(error)) {
+        res.status(403).json({ error: PHONE_BLOCKED_MESSAGE });
+        return;
+      }
       console.error('❌ Помилка створення ride-share запиту з сайту:', error);
       res.status(500).json({ error: 'Не вдалося створити запит на попутку' });
     }

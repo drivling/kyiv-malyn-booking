@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const phone_lookup_1 = require("../phone-lookup");
 const require_admin_1 = require("../middleware/require-admin");
+const person_archive_1 = require("../person-archive");
 function createAdminPersonsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -264,6 +265,13 @@ function createAdminPersonsRouter(deps) {
                 res.status(400).json({ error: 'Телефон не може бути порожнім' });
                 return;
             }
+            const wasBlocked = person.phoneBlockedAt != null;
+            const willBeBlocked = body.phoneBlocked !== undefined ? body.phoneBlocked === true : wasBlocked;
+            const blockTurnedOn = !wasBlocked && willBeBlocked;
+            const blockTurnedOff = wasBlocked && !willBeBlocked;
+            const newBlockReason = body.phoneBlockReason !== undefined
+                ? (typeof body.phoneBlockReason === 'string' ? body.phoneBlockReason.trim() || null : null)
+                : person.phoneBlockReason;
             const phoneChanged = newPhoneNormalized !== person.phoneNormalized;
             const nameChanged = newFullName !== person.fullName;
             const updated = await prisma.person.update({
@@ -276,8 +284,47 @@ function createAdminPersonsRouter(deps) {
                     telegramUsername: newTelegramUsername,
                     telegramPromoSentAt: newTelegramPromoSentAt,
                     telegramReminderSentAt: newTelegramReminderSentAt,
+                    ...(blockTurnedOn && {
+                        phoneBlockedAt: new Date(),
+                        phoneBlockReason: newBlockReason,
+                        // Заблокованому не шлемо нічого і нікуди: адреси Telegram прибираємо.
+                        smsOptOut: true,
+                        telegramChatId: null,
+                        telegramUserId: null,
+                    }),
+                    ...(blockTurnedOff && {
+                        phoneBlockedAt: null,
+                        phoneBlockReason: null,
+                        blockedAttemptAt: null,
+                        blockedAttemptCount: 0,
+                    }),
+                    ...(!blockTurnedOn && !blockTurnedOff && willBeBlocked && { phoneBlockReason: newBlockReason }),
                 },
             });
+            // Лише на переході false → true: ховаємо активні оголошення з сайту і закриваємо
+            // висячі запити попутників. Повторне збереження картки нічого не перезапускає.
+            if (blockTurnedOn) {
+                const listings = await prisma.viberListing.findMany({ where: { personId: id }, select: { id: true } });
+                const listingIds = listings.map((l) => l.id);
+                const hidden = await prisma.viberListing.updateMany({
+                    where: { personId: id, isActive: true },
+                    data: { isActive: false },
+                });
+                if (listingIds.length > 0) {
+                    await prisma.rideShareRequest.updateMany({
+                        where: {
+                            status: 'pending',
+                            OR: [{ passengerListingId: { in: listingIds } }, { driverListingId: { in: listingIds } }],
+                        },
+                        data: { status: 'rejected' },
+                    });
+                }
+                await prisma.booking.updateMany({
+                    where: { personId: id },
+                    data: { telegramChatId: null, telegramUserId: null },
+                });
+                console.log(`🚫 Заборонено номер персони #${id}: сховано оголошень ${hidden.count}`);
+            }
             if (phoneChanged || nameChanged) {
                 const bookingData = {};
                 if (phoneChanged)
@@ -306,6 +353,89 @@ function createAdminPersonsRouter(deps) {
         catch (e) {
             console.error('❌ PUT /admin/persons/:id:', e);
             res.status(500).json({ error: 'Не вдалося оновити персону' });
+        }
+    });
+    /**
+     * Архівувати всі дані персони: JSON-знімок у PersonDataArchive, робочі рядки видалити.
+     * Person лишається — він носій заборони на номер і автоматично отримує її.
+     */
+    r.post('/admin/persons/:id/archive', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            if (Number.isNaN(id)) {
+                res.status(400).json({ error: 'Невірний id' });
+                return;
+            }
+            const body = (req.body || {});
+            const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+            if (reason.length < 3) {
+                res.status(400).json({ error: 'Потрібна причина архівації (мінімум 3 символи)' });
+                return;
+            }
+            const result = await (0, person_archive_1.archivePersonData)(prisma, { personId: id, reason });
+            if (!result) {
+                res.status(404).json({ error: 'Персону не знайдено' });
+                return;
+            }
+            res.json(result);
+        }
+        catch (e) {
+            console.error('❌ POST /admin/persons/:id/archive:', e);
+            res.status(500).json({ error: 'Не вдалося заархівувати дані персони' });
+        }
+    });
+    /** Список архівів (без payload — він великий). Query: ?search= по телефону/імені/причині. */
+    r.get('/admin/person-archives', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const search = req.query.search?.trim() || '';
+            const digits = search.replace(/\D/g, '');
+            const where = search
+                ? {
+                    OR: [
+                        ...(digits ? [{ phoneNormalized: { contains: digits } }] : []),
+                        { fullName: { contains: search, mode: 'insensitive' } },
+                        { reason: { contains: search, mode: 'insensitive' } },
+                    ],
+                }
+                : {};
+            const archives = await prisma.personDataArchive.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    personId: true,
+                    phoneNormalized: true,
+                    fullName: true,
+                    reason: true,
+                    deletedCounts: true,
+                    createdAt: true,
+                },
+            });
+            res.json(archives);
+        }
+        catch (e) {
+            console.error('❌ GET /admin/person-archives:', e);
+            res.status(500).json({ error: 'Не вдалося завантажити архів' });
+        }
+    });
+    /** Один архів разом із повним знімком. */
+    r.get('/admin/person-archives/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const id = parseInt(req.params.id, 10);
+            if (Number.isNaN(id)) {
+                res.status(400).json({ error: 'Невірний id' });
+                return;
+            }
+            const archive = await prisma.personDataArchive.findUnique({ where: { id } });
+            if (!archive) {
+                res.status(404).json({ error: 'Архів не знайдено' });
+                return;
+            }
+            res.json(archive);
+        }
+        catch (e) {
+            console.error('❌ GET /admin/person-archives/:id:', e);
+            res.status(500).json({ error: 'Не вдалося завантажити архів' });
         }
     });
     /** Видалити персону та всі залежні записи по personId (Booking, ViberListing, ViberRideEvent). */

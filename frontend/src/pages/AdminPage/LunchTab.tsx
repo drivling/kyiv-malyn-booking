@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/Button';
-import type { LunchDaySummary, LunchOrderRow } from '@/types';
+import type { LunchDayPeople, LunchDaySummary, LunchOrderRow, LunchPerson, LunchReparseReport } from '@/types';
+import { LunchPeoplePanel } from './LunchPeoplePanel';
+import { LunchReparseReportView } from './LunchReparseReportView';
 import './LunchTab.css';
 
 const EXAMPLE_JSON = `{"items":[{"name":"Яйце з кабачковою ікрою","price":40},{"name":"Салат «Овочевий мікс»","price":45},{"name":"Пюре","price":45},{"name":"Котлети курячі","price":70}]}`;
@@ -69,6 +71,23 @@ export const LunchTab: React.FC = () => {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [addDishId, setAddDishId] = useState('');
   const [trayPriceDraft, setTrayPriceDraft] = useState('');
+  const [people, setPeople] = useState<LunchDayPeople | null>(null);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [notifyGroup, setNotifyGroup] = useState(true);
+  const [busyTgUserId, setBusyTgUserId] = useState<string | null>(null);
+  const [report, setReport] = useState<{ title: string; data: LunchReparseReport } | null>(null);
+
+  /** Хто писав у групі (з «Джури»). Не критично для вкладки — помилку лише ігноруємо. */
+  const loadPeople = useCallback(async () => {
+    setPeopleLoading(true);
+    try {
+      setPeople(await apiClient.getLunchDayPeople());
+    } catch {
+      setPeople(null);
+    } finally {
+      setPeopleLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,7 +101,8 @@ export const LunchTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+    void loadPeople();
+  }, [loadPeople]);
 
   useEffect(() => {
     void load();
@@ -290,11 +310,67 @@ export const LunchTab: React.FC = () => {
       setSuccess(
         `День розібрано знову: повідомлень ${r.scanned ?? 0}, замовлень ${r.orders ?? 0}, оплат ${r.payments ?? 0}, підсумків ${r.summaries ?? 0}, пропущено ${r.skipped ?? 0}.`
       );
+      setReport({ title: 'Розбір поточного дня', data: r });
       setEdit(null);
       if (res.summary) setSummary(res.summary);
       else await load();
+      void loadPeople();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка повторного розбору');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Розібрати одну людину: або за Telegram id (панель «Писали в групі»), або за учасником з таблиці. */
+  const reparsePerson = async (
+    who: { tgUserId: string } | { participantId: number },
+    label: string
+  ) => {
+    setSaving(true);
+    setBusyTgUserId('tgUserId' in who ? who.tgUserId : null);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.reparseLunchPerson(who, { notify: notifyGroup });
+      const r = res.reparse || {};
+      const name = r.person?.name || label;
+      if ((r.orders ?? 0) + (r.payments ?? 0) === 0) {
+        setError(`${name}: нічого схожого на замовлення чи оплату не знайдено — деталі у звіті нижче.`);
+      } else if (r.placeholder) {
+        setSuccess(
+          `${name}: повідомлення знайдено, але страви не збіглись з меню — додано порожнім рядком, натисни «Редагувати».`
+        );
+      } else {
+        setSuccess(`${name}: розібрано — замовлень ${r.orders ?? 0}, оплат ${r.payments ?? 0}.`);
+      }
+      setReport({ title: `Розбір: ${name}`, data: r });
+      setEdit(null);
+      if (res.summary) setSummary(res.summary);
+      else await load();
+      void loadPeople();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка розбору людини');
+    } finally {
+      setBusyTgUserId(null);
+      setSaving(false);
+    }
+  };
+
+  const removeOrder = async (o: LunchOrderRow) => {
+    if (!window.confirm(`Прибрати замовлення «${o.displayName}» з сьогоднішнього дня? Оплати лишаться.`)) return;
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiClient.deleteLunchOrder(o.id);
+      setSuccess(`Замовлення «${o.displayName}» прибрано.`);
+      setEdit(null);
+      if (res.summary) setSummary(res.summary);
+      else await load();
+      void loadPeople();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Помилка видалення замовлення');
     } finally {
       setSaving(false);
     }
@@ -507,9 +583,11 @@ export const LunchTab: React.FC = () => {
           </div>
         </div>
         <p className="lunch-card__hint" style={{ marginTop: 4 }}>
-          «Розібрати поточний день» — знову читає повідомлення з групи за сьогодні, скидає замовлення/оплати
-          (меню лишається) і парсить заново. «Ітог у групу» — імʼя, страви, лотки, сума. Чуже повідомлення людини
-          в Telegram не редагується; підправляється ваша відповідь «Не розпізнав», якщо її id збережено.
+          «Розібрати поточний день» — знову читає повідомлення з групи за сьогодні, скидає ВСІ замовлення й оплати
+          (разом з вашими ручними правками; меню лишається) і парсить заново. Якщо загубилась одна людина — не
+          чіпайте решту: кнопка «Розібрати» біля імені нижче розбере лише її. «Ітог у групу» — імʼя, страви, лотки,
+          сума. Чуже повідомлення людини в Telegram не редагується; підправляється ваша відповідь «Не розпізнав»,
+          якщо її id збережено.
         </p>
 
         {loading && !summary && <p className="lunch-muted">Завантаження…</p>}
@@ -655,6 +733,26 @@ export const LunchTab: React.FC = () => {
                               onClick={() => startEdit(o)}
                             >
                               Редагувати
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="lunch-pay-btn"
+                              disabled={saving}
+                              title="Заново знайти й розібрати повідомлення цієї людини за сьогодні (інших не чіпає)"
+                              onClick={() => void reparsePerson({ participantId: o.participantId }, o.displayName)}
+                            >
+                              Розібрати
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="danger"
+                              className="lunch-pay-btn"
+                              disabled={saving}
+                              title="Прибрати замовлення з дня (оплати лишаються)"
+                              onClick={() => void removeOrder(o)}
+                            >
+                              Прибрати
                             </Button>
                             {o.debtUah > 0 ? (
                               <Button
@@ -876,12 +974,28 @@ export const LunchTab: React.FC = () => {
         )}
       </section>
 
+      {report && (
+        <LunchReparseReportView title={report.title} report={report.data} onClose={() => setReport(null)} />
+      )}
+
+      <LunchPeoplePanel
+        data={people}
+        loading={peopleLoading}
+        busyTgUserId={busyTgUserId}
+        disabled={saving}
+        notify={notifyGroup}
+        onNotifyChange={setNotifyGroup}
+        onReparse={(person: LunchPerson) => void reparsePerson({ tgUserId: person.tgUserId }, person.name)}
+        onRefresh={() => void loadPeople()}
+      />
+
       <section className="lunch-card">
         <h3 className="lunch-card__title">База страв ({summary?.dishes?.length || 0})</h3>
         <p className="lunch-card__hint">
           Каталог не стирається щодня. Роль лотка: суп — окремий лоток на порцію; друге — один спільний; салат —
           без лотка (крім єдиної страви в заказі). Синоніми впливають на розпізнавання замовлень — хибні можна
-          прибрати або перенести на іншу страву.
+          прибрати або перенести на іншу страву. Червоним підсвічено текст, який лежить одразу на кількох стравах.
+          Автоматично синоніми більше не додаються — лише коли ви виправляєте замовлення вручну.
         </p>
         {!summary?.dishes?.length ? (
           <p className="lunch-muted">Порожньо — зʼявиться після першого імпорту меню.</p>
@@ -910,6 +1024,19 @@ const CatalogTable: React.FC<{
 }> = ({ dishes, saving, onSave, onAddSynonym, onDeleteSynonym, onMoveSynonym }) => {
   const [drafts, setDrafts] = useState<Record<number, { price: string; role: string }>>({});
   const [addDrafts, setAddDrafts] = useState<Record<number, string>>({});
+  // Той самий текст на кількох стравах: діє найновіший запис, решта — сміття (часто стара хибна автоприв'язка)
+  const conflictNorms = useMemo(() => {
+    const owners = new Map<string, Set<number>>();
+    for (const d of dishes) {
+      for (const syn of d.synonyms) {
+        if (!syn.rawNorm) continue;
+        const set = owners.get(syn.rawNorm) ?? new Set<number>();
+        set.add(d.id);
+        owners.set(syn.rawNorm, set);
+      }
+    }
+    return new Set([...owners.entries()].filter(([, ids]) => ids.size > 1).map(([norm]) => norm));
+  }, [dishes]);
   useEffect(() => {
     const next: Record<number, { price: string; role: string }> = {};
     for (const d of dishes) next[d.id] = { price: String(d.priceUah), role: d.trayRole };
@@ -963,7 +1090,15 @@ const CatalogTable: React.FC<{
                   {d.synonyms.length > 0 ? (
                     <div className="lunch-syn-list">
                       {d.synonyms.map((s) => (
-                        <span key={s.id} className="lunch-syn-chip">
+                        <span
+                          key={s.id}
+                          className={`lunch-syn-chip${s.rawNorm && conflictNorms.has(s.rawNorm) ? ' lunch-syn-chip--conflict' : ''}`}
+                          title={
+                            s.rawNorm && conflictNorms.has(s.rawNorm)
+                              ? 'Цей текст є синонімом ще й іншої страви — діє найновіший запис. Видали зайвий.'
+                              : undefined
+                          }
+                        >
                           <span className="lunch-syn-chip__text">{s.rawText}</span>
                           <select
                             className="lunch-syn-move"

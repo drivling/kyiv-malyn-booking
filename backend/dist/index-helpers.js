@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.personTelegramBotBlockedCondition = exports.PROMO_NOT_FOUND_SENTINEL = exports.noTelegramCondition = exports.hasTelegramReminderBaseCondition = void 0;
+exports.personPhoneBlockedCondition = exports.personTelegramBotBlockedCondition = exports.PROMO_NOT_FOUND_SENTINEL = exports.noTelegramCondition = exports.hasTelegramReminderBaseCondition = void 0;
 exports.isPastRideDate = isPastRideDate;
 exports.mapFromToToRoute = mapFromToToRoute;
 exports.hasNonEmptyText = hasNonEmptyText;
@@ -125,6 +125,8 @@ exports.hasTelegramReminderBaseCondition = {
         not: null,
     },
     NOT: [{ telegramChatId: '' }, { telegramChatId: '0' }],
+    // Заборонений номер не потрапляє в жодну розсилку
+    phoneBlockedAt: null,
 };
 const TELEGRAM_REMINDER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 function getTelegramReminderWhere(filter) {
@@ -149,12 +151,18 @@ function getTelegramReminderWhere(filter) {
 }
 exports.noTelegramCondition = {
     OR: [{ telegramChatId: null }, { telegramChatId: '' }, { telegramChatId: '0' }],
+    // Заборонений номер не потрапляє в жодну розсилку
+    phoneBlockedAt: null,
 };
 /** Маркер: пробували промо, номер не знайдено в Telegram */
 exports.PROMO_NOT_FOUND_SENTINEL = new Date(0);
 /** Для вибірок / звітів: користувач заблокував бота (зафіксовано при невдалій outbound-відправці). */
 exports.personTelegramBotBlockedCondition = {
     telegramBotBlockedAt: { not: null },
+};
+/** Для вибірок: адмін заборонив номер за скаргою. */
+exports.personPhoneBlockedCondition = {
+    phoneBlockedAt: { not: null },
 };
 function getChannelPromoWhere(filter) {
     if (filter === 'no_communication') {

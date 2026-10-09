@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import './Combobox.css';
 
 export interface ComboboxOption {
@@ -20,6 +20,14 @@ interface ComboboxProps {
   inputRef?: React.Ref<HTMLInputElement>;
   /** Викликається лише коли користувач обрав опцію зі списку */
   onSelectOption?: (value: string) => void;
+  /** Викликається лише після кліку по кнопці «×» (на відміну від стирання тексту клавіатурою) */
+  onClear?: () => void;
+  /** id інпута — щоб зовнішній <label htmlFor> був пов'язаний з полем */
+  id?: string;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
+  /** Елемент праворуч у полі (напр. кнопка геолокації), перед «×» */
+  trailing?: React.ReactNode;
 }
 
 const defaultFilter = (opt: ComboboxOption, query: string) =>
@@ -34,12 +42,22 @@ export const Combobox: React.FC<ComboboxProps> = ({
   emptyMessage = 'Нічого не знайдено',
   filterFn = defaultFilter,
   clearable = false,
+  trailing,
   inputRef,
   onSelectOption,
+  onClear,
+  id,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
 }) => {
+  const reactId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const [inputValue, setInputValue] = useState(value);
+  // Одразу назва опції, а не сирий value: інакше при прямому заході на URL із зупинкою
+  // перший кадр показує id (напр. «st_0015»), поки не спрацює ефект нижче.
+  const [inputValue, setInputValue] = useState(() =>
+    value === '' ? '' : (options.find((o) => o.value === value)?.label ?? value)
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -137,8 +155,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
     close(false);
   };
 
-  const listId = `combobox-list-${Math.random().toString(36).slice(2)}`;
-  const inputId = `combobox-input-${Math.random().toString(36).slice(2)}`;
+  const listId = `combobox-list-${reactId}`;
+  const inputId = id ?? `combobox-input-${reactId}`;
 
   return (
     <div ref={containerRef} className="combobox">
@@ -156,6 +174,8 @@ export const Combobox: React.FC<ComboboxProps> = ({
           aria-autocomplete="list"
           aria-expanded={isOpen}
           aria-controls={listId}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
           aria-activedescendant={
             isOpen && filtered[highlightIndex]
               ? `${listId}-option-${highlightIndex}`
@@ -170,6 +190,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
           autoComplete="off"
           inputMode="search"
         />
+        {trailing}
         {clearable && value && (
           <button
             type="button"
@@ -179,6 +200,7 @@ export const Combobox: React.FC<ComboboxProps> = ({
               onChange('');
               setInputValue('');
               close(false);
+              onClear?.();
             }}
             tabIndex={-1}
             aria-label="Очистити"

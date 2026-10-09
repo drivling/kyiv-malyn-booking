@@ -46,6 +46,7 @@ def format_order_confirm(
     tray_price_uah: int = 5,
     tray_total_uah: int = 0,
     unavailable: Sequence[str] = (),
+    ambiguous: dict[str, Sequence[str]] | None = None,
 ) -> str:
     parts = [f"{display_name}, заказ:"]
     for line in lines:
@@ -72,6 +73,9 @@ def format_order_confirm(
         parts.append("Сьогодні немає: " + ", ".join(unavailable) + ".")
     if unmatched:
         parts.append("Не розпізнав: " + ", ".join(unmatched))
+        for raw, options in (ambiguous or {}).items():
+            if raw in unmatched and options:
+                parts.append(f"«{raw}» — це " + " чи ".join(options) + "?")
         parts.append("Уточни назви по меню.")
     return "\n".join(parts)
 

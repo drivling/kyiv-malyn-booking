@@ -4,6 +4,7 @@ exports.validateTransportDataset = validateTransportDataset;
 exports.replaceTransportDataset = replaceTransportDataset;
 exports.loadTransportDataset = loadTransportDataset;
 exports.convertLegacyRuntime = convertLegacyRuntime;
+const trip_timing_1 = require("./trip-timing");
 const TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
 /** Перевірка цілісності перед записом у БД. Повертає список помилок (порожній — ок). */
 function validateTransportDataset(data) {
@@ -41,8 +42,12 @@ function validateTransportDataset(data) {
             errors.push(`duplicate route id ${r.id}`);
         else
             routeIds.add(r.id);
+        if (r.unreliable !== undefined && r.unreliable !== null && typeof r.unreliable !== 'boolean') {
+            errors.push(`route ${r.id}: unreliable must be boolean`);
+        }
     }
     const rsKeys = new Set();
+    const routeStopByKey = new Map();
     for (const rs of dataset.routeStops) {
         if (!routeIds.has(rs.routeId))
             errors.push(`routeStop references unknown route ${rs.routeId}`);
@@ -51,9 +56,26 @@ function validateTransportDataset(data) {
         const key = `${rs.routeId}|${rs.stopId}`;
         if (rsKeys.has(key))
             errors.push(`duplicate routeStop ${key}`);
-        else
+        else {
             rsKeys.add(key);
+            routeStopByKey.set(key, rs);
+        }
     }
+    /** Ланцюжок зупинок маршруту в напрямку (з технічними точками), як на сайті/у GTFS. */
+    const chainCache = new Map();
+    const chainFor = (routeId, dir) => {
+        const cacheKey = `${routeId}|${dir}`;
+        const cached = chainCache.get(cacheKey);
+        if (cached)
+            return cached;
+        const orderKey = dir === 'there' ? 'orderThere' : 'orderBack';
+        const chain = dataset.routeStops
+            .filter((rs) => rs.routeId === routeId && (rs[orderKey] ?? -1) > 0)
+            .sort((a, b) => (a[orderKey] ?? -1) - (b[orderKey] ?? -1))
+            .map((rs) => rs.stopId);
+        chainCache.set(cacheKey, chain);
+        return chain;
+    };
     const tripIds = new Set();
     for (const t of dataset.trips) {
         if (!t.id || typeof t.id !== 'string')
@@ -66,6 +88,45 @@ function validateTransportDataset(data) {
             errors.push(`trip ${t.id} references unknown route ${t.routeId}`);
         if (t.departureTime && !TIME_RE.test(t.departureTime)) {
             errors.push(`trip ${t.id}: bad departureTime "${t.departureTime}"`);
+        }
+        const dir = t.directionId === '0' ? 'back' : 'there';
+        const orderKey = dir === 'there' ? 'orderThere' : 'orderBack';
+        for (const field of ['startStopId', 'endStopId']) {
+            const stopId = t[field];
+            if (stopId == null || stopId === '')
+                continue;
+            if (typeof stopId !== 'string') {
+                errors.push(`trip ${t.id}: ${field} must be a string`);
+                continue;
+            }
+            const rs = routeStopByKey.get(`${t.routeId}|${stopId}`);
+            const order = rs ? (rs[orderKey] ?? -1) : -1;
+            if (!rs || order <= 0 || rs.mapOnly) {
+                errors.push(`trip ${t.id}: ${field} ${stopId} is not a passenger stop of route ${t.routeId} (${dir})`);
+            }
+        }
+        const chain = chainFor(t.routeId, dir);
+        if (chain.length >= 2) {
+            const startIdx = t.startStopId ? chain.indexOf(t.startStopId) : 0;
+            const endIdx = t.endStopId ? chain.indexOf(t.endStopId) : chain.length - 1;
+            if (startIdx >= 0 && endIdx >= 0 && startIdx >= endIdx) {
+                errors.push(`trip ${t.id}: startStopId must precede endStopId`);
+            }
+        }
+        if (t.arrivalTime != null && t.arrivalTime !== '') {
+            if (typeof t.arrivalTime !== 'string' || !TIME_RE.test(t.arrivalTime)) {
+                errors.push(`trip ${t.id}: bad arrivalTime "${t.arrivalTime}"`);
+            }
+            else if (!t.departureTime) {
+                errors.push(`trip ${t.id}: arrivalTime requires departureTime`);
+            }
+            else if (TIME_RE.test(t.departureTime)) {
+                const dep = (0, trip_timing_1.parseClockMins)(t.departureTime);
+                const arr = (0, trip_timing_1.parseClockMins)(t.arrivalTime);
+                if (dep != null && arr != null && arr <= dep) {
+                    errors.push(`trip ${t.id}: arrivalTime must be after departureTime`);
+                }
+            }
         }
     }
     const segKeys = new Set();
@@ -103,6 +164,7 @@ async function replaceTransportDataset(prisma, dataset) {
                 note: r.note ?? '',
                 sourceUrl: r.sourceUrl ?? '',
                 schedule: (r.schedule ?? undefined),
+                unreliable: r.unreliable ?? false,
             })),
         }),
         prisma.transportRouteStop.createMany({
@@ -125,6 +187,9 @@ async function replaceTransportDataset(prisma, dataset) {
                 blockId: t.blockId ?? null,
                 wheelchairAccessible: t.wheelchairAccessible ?? '',
                 bikesAllowed: t.bikesAllowed ?? '',
+                startStopId: t.startStopId || null,
+                endStopId: t.endStopId || null,
+                arrivalTime: t.arrivalTime || null,
             })),
         }),
         prisma.transportSegment.createMany({
@@ -162,6 +227,7 @@ async function loadTransportDataset(prisma) {
             note: r.note,
             sourceUrl: r.sourceUrl,
             schedule: r.schedule ?? null,
+            unreliable: r.unreliable,
         })),
         routeStops: routeStops.map((rs) => ({
             routeId: rs.routeId,
@@ -180,6 +246,9 @@ async function loadTransportDataset(prisma) {
             blockId: t.blockId,
             wheelchairAccessible: t.wheelchairAccessible,
             bikesAllowed: t.bikesAllowed,
+            startStopId: t.startStopId,
+            endStopId: t.endStopId,
+            arrivalTime: t.arrivalTime,
         })),
         segments: segments.map((seg) => ({
             routeId: seg.routeId,
@@ -234,6 +303,7 @@ function convertLegacyRuntime(input) {
             note: m.note || '',
             sourceUrl: m.source_url || '',
             schedule: m.schedule ?? null,
+            unreliable: m.unreliable === true,
         };
     });
     const routeStops = [];
@@ -263,6 +333,9 @@ function convertLegacyRuntime(input) {
         blockId: rec.block_id || null,
         wheelchairAccessible: rec.wheelchair_accessible || '',
         bikesAllowed: rec.bikes_allowed || '',
+        startStopId: rec.start_stop_id || null,
+        endStopId: rec.end_stop_id || null,
+        arrivalTime: rec.arrival_time || null,
     }));
     const segmentRows = [];
     for (const [key, seconds] of Object.entries(segments?.segments || {})) {

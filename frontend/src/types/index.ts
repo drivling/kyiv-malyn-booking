@@ -83,6 +83,9 @@ export interface Booking {
   source?: 'schedule' | 'viber_match'; // schedule = маршрутка, viber_match = попутка (водій підтвердив)
   viberListingId?: number | null;
   createdAt: string;
+  /** Лише у відповіді POST /bookings: «Зубастик» поки бронюється тільки за телефоном */
+  phoneOnly?: boolean;
+  notice?: string;
 }
 
 export interface Availability {
@@ -204,9 +207,14 @@ export type UserState = AdminUser | TelegramUserState | null;
 // Viber Listings
 export type ViberListingType = 'driver' | 'passenger';
 
+/**
+ * Публічна форма оголошення (сайт, пошук): без телефону й сирого тексту — контакт
+ * приходить окремим кліком через /viber-listings/:id/contact. Повний рядок — AdminViberListing.
+ */
 export interface ViberListing {
   id: number;
-  rawMessage: string;
+  /** Лише в адмінських відповідях */
+  rawMessage?: string;
   source?: string; // "Viber1" | "telegram1"
   senderName: string | null;
   listingType: ViberListingType;
@@ -217,7 +225,8 @@ export interface ViberListing {
   date: string;
   departureTime: string | null;
   seats: number | null;
-  phone: string;
+  /** Лише в адмінських відповідях та у власних оголошеннях користувача */
+  phone?: string;
   notes: string | null;
   priceUah?: number | null;
   isActive: boolean;
@@ -225,6 +234,19 @@ export interface ViberListing {
   authorNotifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Повний рядок ViberListing — GET /viber-listings з адмін-токеном, create/update/deactivate. */
+export type AdminViberListing = ViberListing & { rawMessage: string; phone: string };
+
+/** GET /poputky/search — попутки + розклад + вільні місця одним запитом. */
+export interface PoputkySearchResponse {
+  from: { id: number; code: string; nameUk: string } | null;
+  to: { id: number; code: string; nameUk: string } | null;
+  date: string;
+  listings: ViberListing[];
+  schedules: Schedule[];
+  availability: Record<number, Availability>;
 }
 
 export interface ViberListingFormData {
@@ -270,8 +292,60 @@ export interface Person {
   telegramUsername: string | null;
   telegramPromoSentAt: string | null;
   telegramReminderSentAt: string | null;
+  telegramBotBlockedAt: string | null;
+  smsOptOut: boolean;
+  /** Адмін заборонив користуватися номером (скарга). null — дозволено. */
+  phoneBlockedAt: string | null;
+  phoneBlockReason: string | null;
+  /** Остання спроба заблокованого номера зайти (рахуються вікна по 10 хв, не кожен клік). */
+  blockedAttemptAt: string | null;
+  blockedAttemptCount: number;
+  /** Коли дані заархівовано й вичищено з робочих таблиць. */
+  dataArchivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Скільки рядків прибрано з кожної таблиці під час архівації. */
+export interface PersonArchiveCounts {
+  bookings: number;
+  viberListings: number;
+  viberRideEvents: number;
+  rideShareRequests: number;
+  matchNotifications: number;
+  rideCompletionProofs: number;
+  referralInvites: number;
+  referralRewardsDeleted: number;
+  referralRewardsKeptPaid: number;
+  referralRewardsFlagged: number;
+  smsSendLogs: number;
+  telegramUserSendErrors: number;
+  pendingReferralCodes: number;
+}
+
+/** Рядок вкладки «Архів» (без payload — він великий). */
+export interface PersonDataArchiveSummary {
+  id: number;
+  personId: number | null;
+  phoneNormalized: string;
+  fullName: string | null;
+  reason: string;
+  deletedCounts: PersonArchiveCounts;
+  createdAt: string;
+}
+
+/** Архів разом із повним JSON-знімком. */
+export interface PersonDataArchiveDetail extends PersonDataArchiveSummary {
+  payload: unknown;
+}
+
+/** Відповідь POST /admin/persons/:id/archive */
+export interface ArchivePersonResponse {
+  archiveId: number;
+  personId: number;
+  phoneNormalized: string;
+  archivedAt: string;
+  counts: PersonArchiveCounts;
 }
 
 /** Помилка відправки через персональний акаунт (send_message.py) */
@@ -610,6 +684,8 @@ export interface LunchMenuItemRow {
 export interface LunchDishSynonymRow {
   id: number;
   rawText: string;
+  /** Нормалізований текст (за ним матчер порівнює); однаковий у двох страв = конфлікт */
+  rawNorm?: string;
 }
 
 export interface LunchDishRow {
@@ -678,6 +754,64 @@ export interface LunchDaySummary {
   };
 }
 
+/** Що сталося з одним повідомленням під час розбору дня/людини. */
+export interface LunchReparseDetail {
+  messageId: number | null;
+  name: string;
+  text: string;
+  /** order | payment | card | summary | skipped */
+  outcome: string;
+  reason: string;
+}
+
+export interface LunchReparseReport {
+  scanned?: number;
+  orders?: number;
+  payments?: number;
+  cards?: number;
+  summaries?: number;
+  skipped?: number;
+  errors?: string[];
+  details?: LunchReparseDetail[];
+  /** лише розбір людини */
+  person?: { tgUserId: string; name: string };
+  source?: 'telegram' | 'dzhura' | 'none';
+  messages?: number;
+  warnings?: string[];
+  replaced?: boolean;
+  placeholder?: boolean;
+  notified?: boolean;
+}
+
+export interface LunchPersonMessage {
+  tgMessageId: string;
+  sentAt: string;
+  editedAt: string | null;
+  text: string;
+  mediaKind: string | null;
+}
+
+/** Людина, що писала в групі обідів сьогодні (з бази «Джури»). */
+export interface LunchPerson {
+  tgUserId: string;
+  name: string;
+  username: string | null;
+  isMe: boolean;
+  participantId: number | null;
+  orderId: number | null;
+  hasOrder: boolean;
+  orderTotalUah: number | null;
+  messageCount: number;
+  messages: LunchPersonMessage[];
+}
+
+export interface LunchDayPeople {
+  date: string;
+  /** false — чат обідів ще не потрапив у «Джуру» */
+  available: boolean;
+  people: LunchPerson[];
+}
+
 export interface LunchMenuImportResult {
   ok: boolean;
   day: { id: number; date: string; status: string };
@@ -688,6 +822,84 @@ export interface LunchMenuImportResult {
   queued?: boolean;
   postError: string | null;
 }
+
+// --- «Джура» · фаза 0 (читання чатів Telegram у базу, /admin/dzhura) ---
+export type DzhuraChatKind = 'group' | 'supergroup' | 'private' | 'channel';
+
+/** Рядок чату з /admin/dzhura/chats. Telegram-id — рядки (BigInt на бекенді). */
+export interface DzhuraChatRow {
+  id: number;
+  tgChatId: string;
+  kind: DzhuraChatKind;
+  title: string;
+  username: string | null;
+  membersCount: number | null;
+  isLunchGroup: boolean;
+  captureEnabled: boolean;
+  relayToSaved: boolean;
+  lastMessageAt: string | null;
+  lastCapturedAt: string | null;
+  dialogSyncedAt: string | null;
+  messagesCount: number;
+}
+
+/** Черга дублів у «Обране» */
+export interface DzhuraQueueStats {
+  pending: number;
+  retrying: number;
+  failed24h: number;
+}
+
+export interface DzhuraStatus {
+  listenerWanted: boolean;
+  heartbeatAt: string | null;
+  heartbeatFresh: boolean;
+  dialogsSyncedAt: string | null;
+  meTgUserId: string | null;
+  queue: DzhuraQueueStats;
+}
+
+/** Рядок збереженого повідомлення для перегляду в адмінці */
+export interface DzhuraMessageRow {
+  id: number;
+  tgMessageId: string;
+  sentAt: string;
+  sender: { tgUserId: string; name: string; username: string | null } | null;
+  isOutgoing: boolean;
+  text: string;
+  mediaKind: string | null;
+  replyToTgMessageId: string | null;
+  editedAt: string | null;
+  deletedAt: string | null;
+  source: string;
+  reactions: Array<{ emoji: string; by: string | null; isMine: boolean }>;
+  reactionsCounts: Record<string, number> | null;
+}
+
+export interface DzhuraMessagesPage {
+  messages: DzhuraMessageRow[];
+  nextBeforeId: number | null;
+}
+
+export type DzhuraJobType = 'sync_dialogs' | 'backfill';
+export type DzhuraJobStatus = 'pending' | 'running' | 'done' | 'failed';
+
+export interface DzhuraJob {
+  id: number;
+  type: DzhuraJobType;
+  status: DzhuraJobStatus;
+  params: Record<string, unknown> | null;
+  progress: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
+  errorText: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export type DzhuraJobRequest =
+  | { type: 'sync_dialogs' }
+  | { type: 'backfill'; chatId: number; from: string; to: string };
 
 export type SmsMatchTypeThreshold = 'exact' | 'exact_approximate' | 'all';
 
@@ -742,4 +954,131 @@ export interface NotificationSettingsUsage {
   sentThisMonth: number;
   capThisMonth: number;
   recent: SmsSendLogEntry[];
+}
+
+/** Наклейка зупинки: a | b — бік дороги, s — одна наклейка з обома боками (backend/src/sticker-scans.ts) */
+export type StickerSide = 'a' | 'b' | 's';
+
+/** GET /admin/transport/sticker-scans — відкриття табло з QR-наклейок */
+export interface StickerScanStat {
+  stopId: string;
+  side: StickerSide;
+  total: number;
+  /** За сьогоднішню київську добу (немає у відповіді старішого бекенда) */
+  today?: number;
+  last7d: number;
+  last30d: number;
+  lastAt: string | null;
+}
+
+/** GET /transport/sticker-wall?key= — віджет «Відкриття з QR» на стіну (сьогодні за Києвом) */
+export interface StickerWallSnapshot {
+  now: string;
+  /** Київська доба знімка (YYYY-MM-DD) */
+  day: string;
+  total: number;
+  /** Учора до тієї самої години й хвилини */
+  yesterdaySameTime: number;
+  /** Сьогодні по годинах доби (0–23) */
+  hourly: number[];
+  stops: {
+    stopId: string;
+    today: number;
+    lastHour: number;
+    last3h: number;
+    lastAt: string | null;
+    hourly: number[];
+  }[];
+  /** Нові скани з id > after */
+  events: { id: number; stopId: string; side: string; createdAt: string }[];
+  lastId: number;
+  /** Найкраща доба за 90 днів до сьогодні */
+  bestDay: { day: string; count: number } | null;
+}
+
+/** Вікно графіків статистики наклейок, днів; 1 — сьогодні (київська доба від півночі) */
+export type StickerStatsDays = 1 | 7 | 30 | 90;
+
+export interface StickerScanStats {
+  rows: StickerScanStat[];
+  total: number;
+  today?: number;
+  last7d: number;
+  last30d: number;
+  days: StickerStatsDays;
+  /** Відкриття по київських добах (YYYY-MM-DD) за вікно days */
+  daily: { day: string; stopId: string; side: StickerSide; count: number }[];
+  /** Відкриття по годинах доби (0–23, Київ) за вікно days */
+  hourly: { hour: number; stopId: string; side: StickerSide; count: number }[];
+  /** Друк / завантаження SVG наклейок в адмінці */
+  printed: { stopId: string; side: StickerSide; count: number; lastAt: string | null }[];
+}
+
+/** Факт прибуття міського автобуса від пасажира (backend/src/arrival-reports.ts) */
+export type ArrivalReportKind = 'arrived' | 'missed';
+
+/** POST /transport/arrival-reports */
+export interface ArrivalReportBody {
+  kind: ArrivalReportKind;
+  routeId: string;
+  tripId: string;
+  direction: 'there' | 'back';
+  stopId: string;
+  /** Час рейсу на зупинці за розкладом, HH:MM */
+  scheduledTime: string;
+  source: 'route' | 'board';
+  /** arrived: скільки хвилин тому приїхав (0–30) */
+  minutesAgo?: number;
+  /** missed: скільки хвилин людина чекала */
+  waitedMin?: number;
+  clientId?: string;
+}
+
+export interface ArrivalReportResult {
+  ok: boolean;
+  counted: boolean;
+  /** Фактичний київський час за годинником сервера; для missed — null */
+  actualTime: string | null;
+  delayMin: number | null;
+}
+
+export type ArrivalReportDays = 1 | 7 | 30 | 90;
+
+export interface ArrivalReportView {
+  id: number;
+  kind: ArrivalReportKind;
+  routeId: string;
+  tripId: string;
+  direction: 'there' | 'back';
+  stopId: string;
+  serviceDate: string;
+  scheduledTime: string;
+  actualTime: string | null;
+  delayMin: number | null;
+  waitedMin: number | null;
+  source: 'route' | 'board';
+  clientId: string | null;
+  createdAt: string;
+}
+
+/** GET /admin/transport/arrival-reports — зведення по рейсах на зупинках і останні звіти */
+export interface ArrivalReportStats {
+  days: ArrivalReportDays;
+  total: number;
+  arrived: number;
+  missed: number;
+  summary: {
+    routeId: string;
+    direction: 'there' | 'back';
+    stopId: string;
+    scheduledTime: string;
+    arrived: number;
+    missed: number;
+    avgDelay: number | null;
+    minDelay: number | null;
+    maxDelay: number | null;
+    days: number;
+    lastAt: string;
+  }[];
+  recent: ArrivalReportView[];
 }

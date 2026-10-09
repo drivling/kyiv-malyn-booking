@@ -6,6 +6,16 @@ import path from 'path';
 import type { PrismaClient } from '@prisma/client';
 import { isLunchListenerWanted } from './lunch-listener';
 
+/** Що сталося з одним повідомленням під час розбору (для діагностики «чому проігноровано»). */
+export type LunchReparseDetail = {
+  messageId: number | null;
+  name: string;
+  text: string;
+  /** order | payment | card | summary | skipped */
+  outcome: string;
+  reason: string;
+};
+
 export type LunchReparseResult = {
   ok: boolean;
   queued?: boolean;
@@ -17,7 +27,18 @@ export type LunchReparseResult = {
   skipped?: number;
   errors?: string[];
   error?: string;
+  details?: LunchReparseDetail[];
+  /** лише reparse_person */
+  person?: { tgUserId: string; name: string };
+  source?: 'telegram' | 'dzhura' | 'none';
+  messages?: number;
+  warnings?: string[];
+  replaced?: boolean;
+  placeholder?: boolean;
+  notified?: boolean;
 };
+
+export type LunchJobType = 'reparse_today' | 'reparse_person';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -29,7 +50,7 @@ function sessionPathBase(): string {
   return path.join(process.cwd(), 'telegram-user', 'session_telegram_user');
 }
 
-function spawnReparse(): Promise<LunchReparseResult> {
+function spawnReparse(extraArgs: string[] = []): Promise<LunchReparseResult> {
   const sessionPath = sessionPathBase();
   const sessionFile = sessionPath + '.session';
   const apiId = process.env.TELEGRAM_API_ID?.trim();
@@ -42,7 +63,7 @@ function spawnReparse(): Promise<LunchReparseResult> {
   const groupId = (process.env.LUNCH_GROUP_ID || '-5427750954').trim();
 
   return new Promise((resolve) => {
-    const child = spawn(pythonCmd, ['-m', 'lunch.reparse'], {
+    const child = spawn(pythonCmd, ['-m', 'lunch.reparse', ...extraArgs], {
       cwd: telegramUserDir,
       env: {
         ...process.env,
@@ -68,16 +89,7 @@ function spawnReparse(): Promise<LunchReparseResult> {
         if (parsed.ok === false) {
           resolve({ ok: false, error: String(parsed.error || 'reparse failed') });
         } else {
-          resolve({
-            ok: true,
-            scanned: parsed.scanned as number | undefined,
-            orders: parsed.orders as number | undefined,
-            payments: parsed.payments as number | undefined,
-            cards: parsed.cards as number | undefined,
-            summaries: parsed.summaries as number | undefined,
-            skipped: parsed.skipped as number | undefined,
-            errors: parsed.errors as string[] | undefined,
-          });
+          resolve({ ...(parsed as LunchReparseResult), ok: true });
         }
       } catch {
         resolve({
@@ -96,18 +108,19 @@ function spawnReparse(): Promise<LunchReparseResult> {
  * Якщо listener працює — ставимо LunchAdminJob і чекаємо результат.
  * Інакше — spawn lunch.reparse (окрема сесія Telethon).
  */
-export async function reparseLunchToday(
+async function runLunchJob(
   prisma: PrismaClient,
-  opts?: { timeoutMs?: number }
+  type: LunchJobType,
+  params: Record<string, unknown> | null,
+  spawnArgs: string[],
+  timeoutMs: number
 ): Promise<LunchReparseResult> {
-  const timeoutMs = opts?.timeoutMs ?? 90_000;
-
   if (!isLunchListenerWanted()) {
-    return spawnReparse();
+    return spawnReparse(spawnArgs);
   }
 
   const job = await prisma.lunchAdminJob.create({
-    data: { type: 'reparse_today', status: 'pending' },
+    data: { type, status: 'pending', paramsJson: params ? JSON.stringify(params) : null },
   });
 
   const deadline = Date.now() + timeoutMs;
@@ -136,4 +149,26 @@ export async function reparseLunchToday(
     error:
       'Таймаут очікування listener. Перевір логи [lunch-listener] / чи запущений python -m lunch.listener',
   };
+}
+
+export async function reparseLunchToday(
+  prisma: PrismaClient,
+  opts?: { timeoutMs?: number }
+): Promise<LunchReparseResult> {
+  return runLunchJob(prisma, 'reparse_today', null, [], opts?.timeoutMs ?? 90_000);
+}
+
+/** Розібрати повідомлення однієї людини за сьогодні; чужі замовлення й ручні правки не чіпає. */
+export async function reparseLunchPerson(
+  prisma: PrismaClient,
+  opts: { tgUserId: string; notify?: boolean; timeoutMs?: number }
+): Promise<LunchReparseResult> {
+  const notify = opts.notify !== false;
+  return runLunchJob(
+    prisma,
+    'reparse_person',
+    { tgUserId: opts.tgUserId, notify },
+    ['--user-id', opts.tgUserId, ...(notify ? [] : ['--no-notify'])],
+    opts.timeoutMs ?? 90_000
+  );
 }

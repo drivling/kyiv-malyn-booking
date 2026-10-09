@@ -74,6 +74,9 @@ export function startLunchListener(): void {
     env: {
       ...process.env,
       LUNCH_LISTENER_CHILD: '1',
+      // Без цього stdout у pipe буферизується блоками: рядки [lunch] у логах Railway з'являлись
+      // лише при виході процесу (раз на ~5 хв), і по логах було не відновити хід подій.
+      PYTHONUNBUFFERED: '1',
       TELEGRAM_USER_SESSION_PATH: session,
       LUNCH_GROUP_ID: groupId,
     },

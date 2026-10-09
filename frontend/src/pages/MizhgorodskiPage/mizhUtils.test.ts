@@ -70,6 +70,28 @@ describe('mizh transport filters', () => {
         stopsByTripRouteId
       )
     ).toBe(false);
+    // Пасажир Ірпінь→Малин на тому ж маршруті не показується в пошуку Київ→Малин
+    expect(
+      listingMatchesCities(
+        { route: 'Irpin-Malyn', listingType: 'passenger', tripRouteId: 20, fromPointId: 3, toPointId: 2 },
+        'Kyiv',
+        'Malyn',
+        undefined,
+        pointIds,
+        stopsByTripRouteId
+      )
+    ).toBe(false);
+    // Водій Київ→Малин через Ірпінь показується в пошуку Ірпінь→Малин
+    expect(
+      listingMatchesCities(
+        { route: 'Kyiv-Malyn', listingType: 'driver', tripRouteId: 20, fromPointId: 1, toPointId: 2 },
+        'Irpin',
+        'Malyn',
+        undefined,
+        pointIds,
+        stopsByTripRouteId
+      )
+    ).toBe(true);
   });
 
   test('quick chips and boarding time helpers', async () => {

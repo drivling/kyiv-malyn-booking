@@ -1,0 +1,5 @@
+/* Кнопка розкриття контакту успадковує вигляд CTA картки через className,
+   тут лише те, що стосується самого стану «ще не показано». */
+.listing-contact-reveal--revealed {
+  word-break: break-word;
+}

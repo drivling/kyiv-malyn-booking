@@ -1,0 +1,26 @@
+.person-archive-title {
+  margin-bottom: 8px;
+}
+
+.person-archive-hint {
+  margin-bottom: 16px;
+  color: var(--color-text-secondary, #666);
+  max-width: 760px;
+}
+
+.person-archive-reason {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-archive-payload {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow: auto;
+  resize: vertical;
+}

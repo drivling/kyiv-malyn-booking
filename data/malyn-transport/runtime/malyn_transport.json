@@ -88,32 +88,12 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "6",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "6-01",
-      "trip_headsign": "Поліклініка",
-      "direction_id": "0",
-      "block_id": "АМ0033АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
-      "route_id": "6",
-      "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "6-02",
-      "trip_headsign": "Залізничний вокзал",
-      "direction_id": "1",
-      "block_id": "АМ0033АА",
-      "wheelchair_accessible": "0",
-      "bikes_allowed": "2"
-    },
-    {
       "route_id": "10",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "10-01",
-      "trip_headsign": "Барміна",
+      "trip_headsign": "Поліклініка",
       "direction_id": "0",
-      "block_id": "АІ5696АН",
+      "block_id": "АМ0033АА",
       "wheelchair_accessible": "0",
       "bikes_allowed": "2"
     },
@@ -121,6 +101,26 @@
       "route_id": "10",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
       "trip_id": "10-02",
+      "trip_headsign": "Залізничний вокзал",
+      "direction_id": "1",
+      "block_id": "АМ0033АА",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "10-old",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "10-old-01",
+      "trip_headsign": "Барміна",
+      "direction_id": "0",
+      "block_id": "АІ5696АН",
+      "wheelchair_accessible": "0",
+      "bikes_allowed": "2"
+    },
+    {
+      "route_id": "10-old",
+      "service_id": "пн-вт-ср-чт-пт-сб-нд",
+      "trip_id": "10-old-02",
       "trip_headsign": "Поліклініка",
       "direction_id": "1",
       "block_id": "АІ5696АН",
@@ -128,9 +128,9 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "10",
+      "route_id": "10-old",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "10-03",
+      "trip_id": "10-old-03",
       "trip_headsign": "Барміна",
       "direction_id": "0",
       "block_id": "АІ8252ЕК",
@@ -138,9 +138,9 @@
       "bikes_allowed": "2"
     },
     {
-      "route_id": "10",
+      "route_id": "10-old",
       "service_id": "пн-вт-ср-чт-пт-сб-нд",
-      "trip_id": "10-04",
+      "trip_id": "10-old-04",
       "trip_headsign": "Поліклініка",
       "direction_id": "1",
       "block_id": "АІ8252ЕК",
@@ -1798,6 +1798,14 @@
         },
         "note": "Маршрут №10. Розклад з оголошення на зупинці (фото).",
         "source_url": null
+      },
+      "10": {
+        "unreliable": true,
+        "note": "Колишній №6 (data.gov.ua): рейси без часу, порядок зупинок не перевірено."
+      },
+      "10-old": {
+        "unreliable": true,
+        "note": "Старий №10 з data.gov.ua (без розкладу). Реальний №10 — колишній №6."
       }
     },
     "news": [
@@ -2673,7 +2681,7 @@
             "id": "st_0101"
           }
         ],
-        "6": [
+        "10": [
           {
             "name": "10 ОГШБ (навпр.РЕМу)",
             "order_there": 1,
@@ -3398,7 +3406,7 @@
             "id": "st_0071"
           }
         ],
-        "10": [
+        "10-old": [
           {
             "name": "10 ОГШБ (навпр.РЕМу)",
             "order_there": 1,
@@ -4399,13 +4407,13 @@
     "routes_count": 11,
     "route_ids": [
       "1",
-      "10",
+      "10-old",
       "11",
       "12",
       "2",
       "3",
       "5",
-      "6",
+      "10",
       "7",
       "8",
       "9"
@@ -4415,11 +4423,11 @@
       "2": 27,
       "3": 21,
       "5": 28,
-      "6": 2,
+      "10": 2,
       "7": 26,
       "8": 21,
       "9": 19,
-      "10": 4,
+      "10-old": 4,
       "11": 17,
       "12": 25
     },

@@ -3,6 +3,7 @@
  */
 import type TelegramBot from 'node-telegram-bot-api';
 import type { PrismaClient } from '@prisma/client';
+import { displayName, firstNameOnly } from './person-name';
 import {
   buildReferralShareInlineQueryResult,
   ensurePersonReferralCode,
@@ -116,13 +117,14 @@ export function buildListingShareMessageText(
   const dateStr = formatDate(listing.date);
   const typeLabel = listing.listingType === 'driver' ? '🚗 Водій' : '👤 Пасажир';
   const bookLink = `https://t.me/${botUsername}?start=book_viber_${listing.id}`;
+  const author = firstNameOnly(listing.senderName);
   const lines = [
     `${typeLabel} · ${routeName}`,
     `📅 ${dateStr}`,
     listing.departureTime ? `🕐 ${listing.departureTime}` : null,
     listing.seats != null ? `🎫 ${listing.seats} місць` : null,
     listing.priceUah != null ? `💰 ${listing.priceUah} грн` : null,
-    listing.senderName ? `👤 ${listing.senderName}` : null,
+    author ? `👤 ${author}` : null,
     '',
     `Забронювати: ${bookLink}`,
     '🌐 https://malin.kiev.ua/mizhgorodski',
@@ -235,8 +237,8 @@ async function answerRidesInline(
     const title = `${typeEmoji} ${routeName} · ${dateStr} ${time}`;
     const desc =
       l.listingType === 'driver'
-        ? `${l.senderName ?? 'Водій'} · ${l.seats ?? '—'} місць`
-        : `${l.senderName ?? 'Пасажир'}`;
+        ? `${displayName(l.senderName, 'Водій')} · ${l.seats ?? '—'} місць`
+        : displayName(l.senderName, 'Пасажир');
     return article(
       `ride_${l.id}`,
       title.slice(0, 64),

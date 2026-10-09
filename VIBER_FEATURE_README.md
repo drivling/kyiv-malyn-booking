@@ -148,7 +148,7 @@ GET /viber-listings/search?route=Kyiv-Malyn&date=2026-02-12
 ```bash
 POST /viber-listings
 Content-Type: application/json
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 
 {
   "rawMessage": "[ 9 лютого 2026 р. 12:55 ] ⁨Ім'я⁩: текст повідомлення"
@@ -160,7 +160,7 @@ Authorization: admin-authenticated
 ```bash
 POST /viber-listings/bulk
 Content-Type: application/json
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 
 {
   "rawMessages": "весь текст з чату"
@@ -171,14 +171,14 @@ Authorization: admin-authenticated
 
 ```bash
 PATCH /viber-listings/:id/deactivate
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 ```
 
 ### Видалити оголошення
 
 ```bash
 DELETE /viber-listings/:id
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 ```
 
 ### Очистити старі
@@ -187,7 +187,7 @@ Authorization: admin-authenticated
 
 ```bash
 POST /viber-listings/cleanup-old
-Authorization: admin-authenticated
+Authorization: <ADMIN_TOKEN>
 ```
 
 ## Структура бази даних
@@ -219,7 +219,7 @@ model ViberListing {
 ```bash
 # Щодня о 00:00
 0 0 * * * curl -X POST http://localhost:3000/viber-listings/cleanup-old \
-  -H "Authorization: admin-authenticated"
+  -H "Authorization: $ADMIN_TOKEN"
 ```
 
 ## Приклади використання

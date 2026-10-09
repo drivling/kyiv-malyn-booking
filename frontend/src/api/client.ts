@@ -6,11 +6,16 @@ import type {
   BookingFormData,
   ScheduleFormData,
   ViberListing,
+  AdminViberListing,
+  PoputkySearchResponse,
   ViberListingFormData,
   TelegramScenariosResponse,
   RideShareRequestFromSiteResponse,
   AnnounceDraftResponse,
   Person,
+  ArchivePersonResponse,
+  PersonDataArchiveSummary,
+  PersonDataArchiveDetail,
   PersonWithCounts,
   TelegramUserSendError,
   RefreshPersonNamesResponse,
@@ -28,11 +33,21 @@ import type {
   ReferralPersonSearchHit,
   ReferralRewardRow,
   RideCompletionProofRow,
+  LunchDayPeople,
   LunchDaySummary,
   LunchMenuImportResult,
+  LunchReparseReport,
   NotificationSettings,
   NotificationSettingsPatch,
   NotificationSettingsUsage,
+  StickerScanStats,
+  StickerWallSnapshot,
+  StickerSide,
+  StickerStatsDays,
+  ArrivalReportBody,
+  ArrivalReportResult,
+  ArrivalReportDays,
+  ArrivalReportStats,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
@@ -90,6 +105,12 @@ class ApiClient {
       try {
         const error = text ? JSON.parse(text) : {};
         errorMessage = error.error || error.message || errorMessage;
+        // Деталі валідації (напр. PUT /transport/dataset) — щоб адмін бачив, який запис зламаний
+        if (Array.isArray(error.details) && error.details.length) {
+          const shown = error.details.slice(0, 3).map(String).join('; ');
+          const more = error.details.length > 3 ? ` (+${error.details.length - 3})` : '';
+          errorMessage = `${errorMessage}: ${shown}${more}`;
+        }
       } catch {
         if (text && text.length < 200) errorMessage = text;
       }
@@ -333,7 +354,7 @@ class ApiClient {
   }
 
   /** Оновити персону. При зміні телефону/імені оновлюються пов’язані Booking та ViberListing. telegramPromoSentAt/telegramReminderSentAt: null або '' — обнулити. */
-  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramUsername?: string | null; telegramPromoSentAt?: string | null; telegramReminderSentAt?: string | null }): Promise<Person> {
+  async updatePerson(id: number, data: { phone?: string; fullName?: string | null; telegramChatId?: string | null; telegramUserId?: string | null; telegramUsername?: string | null; telegramPromoSentAt?: string | null; telegramReminderSentAt?: string | null; phoneBlocked?: boolean; phoneBlockReason?: string | null }): Promise<Person> {
     return this.request<Person>(`/admin/persons/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -351,6 +372,28 @@ class ApiClient {
     }>(`/admin/persons/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  /**
+   * Архівувати всі дані персони: JSON-знімок в архів, робочі рядки видалити.
+   * Person лишається носієм заборони і автоматично її отримує. reason — обовʼязкова.
+   */
+  async archivePersonData(id: number, reason: string): Promise<ArchivePersonResponse> {
+    return this.request<ArchivePersonResponse>(`/admin/persons/${id}/archive`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() }),
+    });
+  }
+
+  /** Список архівів (без payload). search — телефон, імʼя або причина. */
+  async getPersonDataArchives(search?: string): Promise<PersonDataArchiveSummary[]> {
+    const q = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
+    return this.request<PersonDataArchiveSummary[]>(`/admin/person-archives${q}`);
+  }
+
+  /** Один архів разом із повним знімком. */
+  async getPersonDataArchive(id: number): Promise<PersonDataArchiveDetail> {
+    return this.request<PersonDataArchiveDetail>(`/admin/person-archives/${id}`);
   }
 
   /** Перевірити номера: персони без telegramChatId — спробувати знайти @username через ResolvePhone і оновити telegramUsername. */
@@ -477,13 +520,28 @@ class ApiClient {
   }
 
   // Viber Listings endpoints
-  async getViberListings(active?: boolean): Promise<ViberListing[]> {
-    const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';
-    return this.request<ViberListing[]>(endpoint);
+  /**
+   * Контакт автора оголошення — окремим запитом, лише по кліку користувача.
+   * На сторінці контакт не рендериться, тож у DOM його немає.
+   */
+  async getViberListingContact(id: number): Promise<{ contact: string }> {
+    return this.request<{ contact: string }>(`/viber-listings/${id}/contact`);
   }
 
-  async createViberListing(data: ViberListingFormData): Promise<ViberListing> {
-    return this.request<ViberListing>('/viber-listings', {
+  /** Адмінка (з токеном отримує повний рядок). Сайт користується searchPoputky(). */
+  async getViberListings(active?: boolean): Promise<AdminViberListing[]> {
+    const endpoint = active !== undefined ? `/viber-listings?active=${active}` : '/viber-listings';
+    return this.request<AdminViberListing[]>(endpoint);
+  }
+
+  /** Один запит на пошук головної: попутки + розклад на OD-пару + вільні місця. */
+  async searchPoputky(opts: { from: string; to: string; date: string }): Promise<PoputkySearchResponse> {
+    const params = new URLSearchParams({ from: opts.from, to: opts.to, date: opts.date });
+    return this.request<PoputkySearchResponse>(`/poputky/search?${params.toString()}`);
+  }
+
+  async createViberListing(data: ViberListingFormData): Promise<AdminViberListing> {
+    return this.request<AdminViberListing>('/viber-listings', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -501,15 +559,15 @@ class ApiClient {
     });
   }
 
-  async updateViberListing(id: number, data: Partial<ViberListing>): Promise<ViberListing> {
-    return this.request<ViberListing>(`/viber-listings/${id}`, {
+  async updateViberListing(id: number, data: Partial<AdminViberListing>): Promise<AdminViberListing> {
+    return this.request<AdminViberListing>(`/viber-listings/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deactivateViberListing(id: number): Promise<ViberListing> {
-    return this.request<ViberListing>(`/viber-listings/${id}/deactivate`, {
+  async deactivateViberListing(id: number): Promise<AdminViberListing> {
+    return this.request<AdminViberListing>(`/viber-listings/${id}/deactivate`, {
       method: 'PATCH',
     });
   }
@@ -809,18 +867,31 @@ class ApiClient {
 
   async reparseLunchToday(): Promise<{
     ok: boolean;
-    reparse: {
-      scanned?: number;
-      orders?: number;
-      payments?: number;
-      cards?: number;
-      summaries?: number;
-      skipped?: number;
-      errors?: string[];
-    };
+    reparse: LunchReparseReport;
     summary: LunchDaySummary;
   }> {
     return this.request('/admin/lunch/reparse', { method: 'POST' });
+  }
+
+  /** Хто писав у групі обідів сьогодні (з «Джури») і чи є в нього замовлення. */
+  async getLunchDayPeople(): Promise<LunchDayPeople> {
+    return this.request<LunchDayPeople>('/admin/lunch/day-people');
+  }
+
+  /** Розібрати повідомлення однієї людини за сьогодні; чужі замовлення не чіпає. */
+  async reparseLunchPerson(
+    who: { tgUserId: string } | { participantId: number },
+    opts?: { notify?: boolean }
+  ): Promise<{ ok: boolean; reparse: LunchReparseReport; summary: LunchDaySummary }> {
+    return this.request('/admin/lunch/reparse-person', {
+      method: 'POST',
+      body: JSON.stringify({ ...who, notify: opts?.notify !== false }),
+    });
+  }
+
+  /** Прибрати замовлення з дня (м'яко: status=cancelled). */
+  async deleteLunchOrder(orderId: number): Promise<{ ok: boolean; summary: LunchDaySummary }> {
+    return this.request(`/admin/lunch/orders/${orderId}`, { method: 'DELETE' });
   }
 
   async payLunchDebt(participantId: number, amountUah?: number): Promise<{
@@ -907,6 +978,82 @@ class ApiClient {
     });
   }
 
+  // --- «Джура» · читання чатів ---
+  async getDzhuraStatus(): Promise<import('@/types').DzhuraStatus> {
+    return this.request('/admin/dzhura/status');
+  }
+
+  async getDzhuraChats(kind?: string): Promise<import('@/types').DzhuraChatRow[]> {
+    const q = kind ? `?kind=${encodeURIComponent(kind)}` : '';
+    return this.request(`/admin/dzhura/chats${q}`);
+  }
+
+  async updateDzhuraChat(
+    id: number,
+    patch: { captureEnabled?: boolean; relayToSaved?: boolean },
+  ): Promise<import('@/types').DzhuraChatRow> {
+    return this.request(`/admin/dzhura/chats/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  async createDzhuraJob(body: import('@/types').DzhuraJobRequest): Promise<{ job: import('@/types').DzhuraJob }> {
+    return this.request('/admin/dzhura/jobs', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async getDzhuraJob(id: number): Promise<import('@/types').DzhuraJob> {
+    return this.request(`/admin/dzhura/jobs/${id}`);
+  }
+
+  /** Збережені повідомлення чату: новіші першими, пошук по тексту/автору, курсор beforeId */
+  async getDzhuraMessages(
+    chatId: number,
+    params: { q?: string; beforeId?: number | null; limit?: number; from?: string; to?: string } = {},
+  ): Promise<import('@/types').DzhuraMessagesPage> {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set('q', params.q);
+    if (params.beforeId) qs.set('beforeId', String(params.beforeId));
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.from && params.to) {
+      qs.set('from', params.from);
+      qs.set('to', params.to);
+    }
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return this.request(`/admin/dzhura/chats/${chatId}/messages${suffix}`);
+  }
+
+  /** Повернути невдалі дублі в «Обране» у чергу */
+  async retryDzhuraQueue(): Promise<{ requeued: number }> {
+    return this.request('/admin/dzhura/queue/retry-failed', { method: 'POST' });
+  }
+
+  /** JSON-експорт чату за період (доби Києва) — файл з авторизацією */
+  async downloadDzhuraExport(chatId: number, from: string, to: string): Promise<{ blob: Blob; fileName: string }> {
+    const url = `${this.baseUrl}/admin/dzhura/chats/${chatId}/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    const headers = new Headers();
+    if (this.authToken) headers.set('Authorization', this.authToken);
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const text = await response.text();
+      let msg = `Помилка ${response.status}`;
+      try {
+        const err = text ? JSON.parse(text) : {};
+        if (err?.error) msg = err.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg);
+    }
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const m = /filename="([^"]+)"/.exec(disposition);
+    const fileName = m ? m[1] : `dzhura-chat-${chatId}-${from}_${to}.json`;
+    return { blob: await response.blob(), fileName };
+  }
+
   async getNotificationSettings(): Promise<NotificationSettings> {
     return this.request('/admin/notification-settings');
   }
@@ -924,6 +1071,55 @@ class ApiClient {
 
   async getTransportDataset(): Promise<TransportDataset> {
     return this.request('/transport/dataset');
+  }
+
+  /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
+  async trackStickerScan(scan: { stopId: string; side: StickerSide }): Promise<{ ok: boolean; counted: boolean }> {
+    return this.request('/transport/sticker-scans', {
+      method: 'POST',
+      body: JSON.stringify(scan),
+    });
+  }
+
+  /** Пасажир повідомляє факт прибуття рейсу на зупинку (довге натискання на час рейсу) */
+  async reportArrival(body: ArrivalReportBody): Promise<ArrivalReportResult> {
+    return this.request('/transport/arrival-reports', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** Адмін: звіти про факт прибуття — зведення по рейсах на зупинках і останні звіти за `days` */
+  async getArrivalReports(days: ArrivalReportDays = 30): Promise<ArrivalReportStats> {
+    return this.request(`/admin/transport/arrival-reports?days=${days}`);
+  }
+
+  /** Адмін: видалити хибний звіт */
+  async deleteArrivalReport(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/transport/arrival-reports/${id}`, { method: 'DELETE' });
+  }
+
+  /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */
+  async getStickerScanStats(days: StickerStatsDays = 30): Promise<StickerScanStats> {
+    return this.request(`/admin/transport/sticker-scans?days=${days}`);
+  }
+
+  /** Віджет на стіну: сьогоднішні відкриття з QR + нові скани з id > after (доступ за ключем посилання) */
+  async getStickerWall(key: string, after = 0): Promise<StickerWallSnapshot> {
+    return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}`);
+  }
+
+  /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні */
+  async getStickerWallKey(): Promise<{ key: string }> {
+    return this.request('/admin/transport/sticker-wall-key');
+  }
+
+  /** Адмін: друк або SVG наклейок зупинки — для статистики («наклейка є») */
+  async recordStickerPrint(print: { stopId: string; sides: StickerSide[]; size: 'A5' | 'A4' }): Promise<{ ok: boolean; count: number }> {
+    return this.request('/admin/transport/sticker-prints', {
+      method: 'POST',
+      body: JSON.stringify(print),
+    });
   }
 
   async putTransportDataset(dataset: TransportDataset): Promise<{

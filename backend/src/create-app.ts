@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
@@ -20,8 +21,11 @@ import { createAdminMessagingRouter } from './routes/admin-messaging';
 import { createAdminViberAnalyticsRouter } from './routes/admin-viber-analytics';
 import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
+import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
+import { requestTiming } from './middleware/request-timing';
+import { resolveAdminPassword, setAdminPassword } from './middleware/require-admin';
 
 export type CreateAppDeps = {
   prisma: PrismaClient;
@@ -68,11 +72,18 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
 };
+app.use(requestTiming());
+// gzip для JSON (каталоги/оголошення стискаються в 5–10×); маленькі відповіді не чіпаємо
+app.use(compression({ threshold: 1024 }));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 app.use('/poputky', createPoputkyRouter({ prisma }));
 
-const ADMIN_PASSWORD = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? 'admin123';
+const ADMIN_PASSWORD = resolveAdminPassword(deps.adminPassword);
+if (!deps.adminPassword && !process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'production') {
+  console.warn('[KYIV-MALYN-BACKEND] ADMIN_PASSWORD не задано — адмінка відкрита dev-паролем');
+}
+setAdminPassword(app, ADMIN_PASSWORD);
 
 app.use(createPublicRoutesRouter({ codeVersion: CODE_VERSION }));
 app.use(createAdminSessionRouter({ adminPassword: ADMIN_PASSWORD }));
@@ -91,8 +102,9 @@ app.use(createAdminMessagingRouter({ prisma }));
 app.use(createAdminViberAnalyticsRouter({ prisma }));
 app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
+app.use(createAdminDzhuraRouter({ prisma }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
-app.use(createTransportRouter({ prisma }));
+app.use(createTransportRouter({ prisma, adminPassword: ADMIN_PASSWORD }));
 
 // Глобальний обробник помилок — завжди повертаємо JSON
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

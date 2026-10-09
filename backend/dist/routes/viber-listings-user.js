@@ -7,6 +7,7 @@ exports.createViberListingsUserRouter = createViberListingsUserRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const index_helpers_1 = require("../index-helpers");
+const notification_queue_1 = require("../notification-queue");
 const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
 async function getViberListingForUser(prisma, listingId, telegramUserId) {
     const person = await (0, telegram_1.getPersonByTelegram)(telegramUserId, '');
@@ -48,6 +49,9 @@ function createViberListingsUserRouter(deps) {
             if (Object.keys(updates).length === 0) {
                 return res.status(400).json({ error: 'No allowed fields to update' });
             }
+            if (updates.date !== undefined || updates.departureTime !== undefined) {
+                updates.endsAt = (0, index_helpers_1.getViberListingEndDateTime)(updates.date ?? listing.date, updates.departureTime ?? listing.departureTime);
+            }
             let updated = await prisma.viberListing.update({
                 where: { id },
                 data: updates,
@@ -56,13 +60,7 @@ function createViberListingsUserRouter(deps) {
             updated = afterDedupe;
             const matchingRecheckTriggered = (0, telegram_1.isTelegramEnabled)();
             if (matchingRecheckTriggered) {
-                const authorChatId = updated.phone?.trim() ? await (0, telegram_1.getChatIdByPhone)(updated.phone) : null;
-                if (updated.listingType === 'driver') {
-                    (0, telegram_1.notifyMatchingPassengersForNewDriver)(updated, authorChatId).catch((err) => console.error('Telegram match notify after user update (driver):', err));
-                }
-                else if (updated.listingType === 'passenger') {
-                    (0, telegram_1.notifyMatchingDriversForNewPassenger)(updated, authorChatId).catch((err) => console.error('Telegram match notify after user update (passenger):', err));
-                }
+                void (0, notification_queue_1.enqueueListingMatch)(prisma, updated.id).catch((err) => console.error('enqueue listing match:', err));
             }
             res.json({ ...(0, index_helpers_1.serializeViberListing)(updated), matchingRecheckTriggered, mergedAwayIds });
         }
