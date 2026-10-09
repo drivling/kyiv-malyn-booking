@@ -1,0 +1,185 @@
+/* «Факт прибуття»: нижня панель після довгого натискання на час рейсу (портал у body, тож
+   токени .lt-page сюди не доходять — кольори з тими самими значеннями) */
+.lt-arrival-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(5, 71, 82, 0.35);
+}
+
+.lt-arrival-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 24px rgba(5, 71, 82, 0.18);
+  color: #054752;
+  font-family: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  outline: none;
+}
+
+@media (min-width: 640px) {
+  .lt-arrival-backdrop {
+    align-items: center;
+  }
+  .lt-arrival-sheet {
+    border-radius: 16px;
+  }
+}
+
+.lt-arrival-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #708c91;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lt-arrival-title {
+  margin: 0 36px 2px 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-arrival-sub {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  color: #708c91;
+}
+
+.lt-arrival-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lt-arrival-hint,
+.lt-arrival-q {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.lt-arrival-q {
+  font-weight: 600;
+}
+
+.lt-arrival-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f1f4f5;
+  font-size: 0.875rem;
+}
+
+.lt-arrival-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid #dde3e6;
+  border-radius: 12px;
+  background: #fff;
+  color: #054752;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lt-arrival-btn--primary {
+  border-color: #00aff5;
+  background: #00aff5;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.lt-arrival-btn:disabled,
+.lt-arrival-chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.lt-arrival-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lt-arrival-chips__label {
+  font-size: 0.75rem;
+  color: #708c91;
+}
+
+.lt-arrival-chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #dde3e6;
+  border-radius: 999px;
+  background: #fff;
+  color: #054752;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.lt-arrival-link {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: #0087c0;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.lt-arrival-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.lt-arrival-done {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lt-arrival-done p {
+  margin: 0;
+}
+
+/* Елементи з довгим натисканням: без системного меню посилання / виділення тексту на телефоні */
+.lt-long-press {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lt-arrival-tip {
+  margin: 4px var(--lt-panel-x, 16px) 8px;
+  font-size: var(--lt-fs-xs, 0.6875rem);
+  color: var(--lt-text-muted, #708c91);
+}
+
+@media print {
+  .lt-arrival-tip,
+  .lt-arrival-backdrop {
+    display: none !important;
+  }
+}

@@ -44,6 +44,10 @@ import type {
   StickerWallSnapshot,
   StickerSide,
   StickerStatsDays,
+  ArrivalReportBody,
+  ArrivalReportResult,
+  ArrivalReportDays,
+  ArrivalReportStats,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
@@ -1119,6 +1123,24 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(scan),
     });
+  }
+
+  /** Пасажир повідомляє факт прибуття рейсу на зупинку (довге натискання на час рейсу) */
+  async reportArrival(body: ArrivalReportBody): Promise<ArrivalReportResult> {
+    return this.request('/transport/arrival-reports', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** Адмін: звіти про факт прибуття — зведення по рейсах на зупинках і останні звіти за `days` */
+  async getArrivalReports(days: ArrivalReportDays = 30): Promise<ArrivalReportStats> {
+    return this.request(`/admin/transport/arrival-reports?days=${days}`);
+  }
+
+  /** Адмін: видалити хибний звіт */
+  async deleteArrivalReport(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/transport/arrival-reports/${id}`, { method: 'DELETE' });
   }
 
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */

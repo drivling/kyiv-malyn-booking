@@ -899,6 +899,42 @@ model StickerPrint {
   @@index([stopId, side])
 }
 
+/// Факт прибуття міського автобуса від пасажира: довге натискання на час рейсу на сторінці маршруту
+/// або на картку табло зупинки (backend/src/arrival-reports.ts). Поки лише статистика для точних
+/// графіків. Пов'язаний із TransportTrip/TransportStop за id, але без FK: датасет замінюється цілком,
+/// а історія звітів має лишитися (маршрут, напрямок, зупинка й час за розкладом збережені текстом).
+model TransportArrivalReport {
+  id            Int      @id @default(autoincrement())
+  /// arrived — «автобус тут»; missed — «чекав, автобуса не було ні до, ні після»
+  kind          String
+  routeId       String
+  /// TransportTrip.id на момент звіту
+  tripId        String
+  /// there | back
+  direction     String
+  /// TransportStop.id
+  stopId        String
+  /// Київська доба рейсу за розкладом, YYYY-MM-DD
+  serviceDate   String
+  /// Час рейсу на цій зупинці за розкладом, HH:MM
+  scheduledTime String
+  /// Фактичний київський час прибуття HH:MM (годинник сервера); для missed — null
+  actualTime    String?
+  /// Факт − розклад, хв (від'ємне — раніше); для missed — null
+  delayMin      Int?
+  /// missed: скільки хвилин людина чекала (зі слів), необов'язково
+  waitedMin     Int?
+  /// route — сторінка маршруту, board — табло зупинки
+  source        String
+  /// Анонімний id браузера (localStorage) — відсіяти дублі/спам в аналізі; не персональні дані
+  clientId      String?
+  createdAt     DateTime @default(now())
+
+  @@index([routeId, stopId, scheduledTime])
+  @@index([serviceDate])
+  @@index([createdAt])
+}
+
 // ---------------------------------------------------------------------------
 // «Джура» · фаза 0 — читання обраних чатів Telegram у базу (Docs/dzhura-roadmap.md).
 // Пише Python-слухач telegram-user/dzhura/ (asyncpg), читає адмінка через routes/admin-dzhura.ts.

@@ -1013,3 +1013,72 @@ export interface StickerScanStats {
   /** Друк / завантаження SVG наклейок в адмінці */
   printed: { stopId: string; side: StickerSide; count: number; lastAt: string | null }[];
 }
+
+/** Факт прибуття міського автобуса від пасажира (backend/src/arrival-reports.ts) */
+export type ArrivalReportKind = 'arrived' | 'missed';
+
+/** POST /transport/arrival-reports */
+export interface ArrivalReportBody {
+  kind: ArrivalReportKind;
+  routeId: string;
+  tripId: string;
+  direction: 'there' | 'back';
+  stopId: string;
+  /** Час рейсу на зупинці за розкладом, HH:MM */
+  scheduledTime: string;
+  source: 'route' | 'board';
+  /** arrived: скільки хвилин тому приїхав (0–30) */
+  minutesAgo?: number;
+  /** missed: скільки хвилин людина чекала */
+  waitedMin?: number;
+  clientId?: string;
+}
+
+export interface ArrivalReportResult {
+  ok: boolean;
+  counted: boolean;
+  /** Фактичний київський час за годинником сервера; для missed — null */
+  actualTime: string | null;
+  delayMin: number | null;
+}
+
+export type ArrivalReportDays = 1 | 7 | 30 | 90;
+
+export interface ArrivalReportView {
+  id: number;
+  kind: ArrivalReportKind;
+  routeId: string;
+  tripId: string;
+  direction: 'there' | 'back';
+  stopId: string;
+  serviceDate: string;
+  scheduledTime: string;
+  actualTime: string | null;
+  delayMin: number | null;
+  waitedMin: number | null;
+  source: 'route' | 'board';
+  clientId: string | null;
+  createdAt: string;
+}
+
+/** GET /admin/transport/arrival-reports — зведення по рейсах на зупинках і останні звіти */
+export interface ArrivalReportStats {
+  days: ArrivalReportDays;
+  total: number;
+  arrived: number;
+  missed: number;
+  summary: {
+    routeId: string;
+    direction: 'there' | 'back';
+    stopId: string;
+    scheduledTime: string;
+    arrived: number;
+    missed: number;
+    avgDelay: number | null;
+    minDelay: number | null;
+    maxDelay: number | null;
+    days: number;
+    lastAt: string;
+  }[];
+  recent: ArrivalReportView[];
+}
