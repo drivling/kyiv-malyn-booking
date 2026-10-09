@@ -48,6 +48,17 @@ export async function mockBackendApi(page: Page) {
       return json(route, 200, []);
     }
 
+    if (method === 'POST' && path === '/transport/arrival-reports') {
+      const body = req.postDataJSON() as { kind?: string };
+      return json(
+        route,
+        201,
+        body?.kind === 'arrived'
+          ? { ok: true, counted: true, actualTime: '08:33', delayMin: 3 }
+          : { ok: true, counted: true, actualTime: null, delayMin: null }
+      );
+    }
+
     if (method === 'GET' && path === '/transport/dataset') {
       return json(route, 200, {
         // Маршрут №2: Базар → Вокзал → Лікарня (обидва напрямки), сегменти 4 хв і 5 хв.

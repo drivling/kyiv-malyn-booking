@@ -180,6 +180,13 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   (colour of the stop's line, Web Audio chime); the key is read-only, `HMAC(ADMIN_PASSWORD)` from
   `backend/src/sticker-wall.ts`, issued by `GET /admin/transport/sticker-wall-key`.
   Workflow in `Docs/stop-stickers.md`.
+- «Факт прибуття»: a long press (or right click / `contextmenu`) on a departure chip of `/transport/route/:id`
+  or a card of the stop board opens `ArrivalReportSheet` («автобус тут» now / N min ago, or «автобуса не
+  було» + how long they waited) → `POST /transport/arrival-reports` → `TransportArrivalReport` (no FK — the
+  dataset is replaced wholesale; route/stop/scheduled time are stored as text). Actual time is the server's
+  Kyiv clock, windows are ±90 min (arrived) / −5…+180 min (missed), today only. Statistics only for now:
+  admin tab `/admin/arrivals` (`ArrivalReportsTab`). Logic in `backend/src/arrival-reports.ts`,
+  `useLongPress.ts`, `arrivalReport.ts`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram

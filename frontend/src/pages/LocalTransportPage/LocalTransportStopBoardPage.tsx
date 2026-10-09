@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
@@ -29,6 +29,10 @@ import { RouteMap } from './RouteMap';
 import { DateTimeControls } from './DateTimeControls';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import { useStickerScan } from './stickerScan';
+import { ArrivalReportSheet } from './ArrivalReportSheet';
+import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
+import { useLongPress } from './useLongPress';
+import { isPrerendering } from '@/utils/prerender';
 import './LocalTransportPage.css';
 
 /**
@@ -142,6 +146,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   const [stopInput, setStopInput] = useState<string | null>(null);
   /** Показати повний день замість «з обраного часу» */
   const [showFullDay, setShowFullDay] = useState(false);
+  /** Довге натискання на картку відправлення → «Факт прибуття» (ArrivalReportSheet) */
+  const [arrivalTarget, setArrivalTarget] = useState<ArrivalTarget | null>(null);
+  const closeArrival = useCallback(() => setArrivalTarget(null), []);
+  const longPress = useLongPress();
   /** Оновлення «через N хв» раз на хвилину (київський час) */
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
@@ -618,6 +626,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
           ) : (
             <section className="lt-stop-board" aria-label="Відправлення">
               <p className="lt-stop-board-meta">{boardMeta}</p>
+              {travelDayOffsetDays === 0 && !isPrerendering() && isReportableStopId(selectedStop) ? (
+                <p className="lt-arrival-tip">Автобус приїхав не за розкладом або не приїхав? Утримайте картку — позначимо факт.</p>
+              ) : null}
               <ul className="lt-board-cards">
                 {visibleDepartures.map((row, i) => {
                   const isNext = highlightIndex >= 0 && i === highlightIndex;
@@ -652,10 +663,25 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   return (
                     <li key={`${row.tripId}-${depMins}-${i}`}>
                       <Link
-                        className={`lt-board-card ${isNext ? 'lt-board-card--next' : ''}`}
+                        className={`lt-board-card lt-long-press ${isNext ? 'lt-board-card--next' : ''}`}
                         to={toRoute}
                         aria-label={aria}
                         onClick={() => gaTrackEvent('transport_board_card_click', { route_id: row.routeId, dir: row.direction })}
+                        {...(isReportableStopId(selectedStop)
+                          ? longPress(() => {
+                              gaTrackEvent('transport_arrival_open', { route_id: row.routeId, source: 'board' });
+                              setArrivalTarget({
+                                routeId: row.routeId,
+                                tripId: row.tripId,
+                                direction: row.direction,
+                                stopId: selectedStop,
+                                scheduledTime: depClock,
+                                stopName: selectedStopTitle,
+                                destination: row.destination,
+                                source: 'board',
+                              });
+                            })
+                          : {})}
                       >
                         <div className="lt-board-card__time" aria-hidden>
                           <span className="lt-board-card__clock">{depClock}</span>
@@ -678,6 +704,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                   );
                 })}
               </ul>
+              <ArrivalReportSheet target={arrivalTarget} isToday={travelDayOffsetDays === 0} onClose={closeArrival} />
             </section>
           )}
 

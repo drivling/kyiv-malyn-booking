@@ -385,5 +385,28 @@ test.describe('transport', () => {
       await page.goto('/transport/st_a/st_b?d=16.09.26&h=08%3A00');
       await expect(page.getByRole('button', { name: /Маршрут №2/ })).toContainText('через 12 хв');
     });
+
+    test('long press on a departure chip records the actual arrival', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.clock.setFixedTime(new Date('2026-09-16T05:33:00Z')); // 08:33 за Києвом
+      await page.goto('/transport/route/2?stop=st_a&dir=there&d=16.09.26&h=08%3A00');
+      const strip = page.getByRole('group', { name: 'Відправлення за день' });
+      const chip = strip.getByRole('button').first();
+      await expect(chip).toContainText('08:30');
+      const url = page.url();
+      const box = await chip.boundingBox();
+      if (!box) throw new Error('chip is not visible');
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(800);
+      await page.mouse.up();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toContainText('№2 · 08:30 за розкладом');
+      expect(page.url()).toBe(url);
+      const posted = page.waitForRequest((r) => r.url().endsWith('/transport/arrival-reports') && r.method() === 'POST');
+      await dialog.getByRole('button', { name: 'Автобус тут — зараз 08:33' }).click();
+      expect((await posted).postDataJSON()).toMatchObject({ kind: 'arrived', tripId: expect.any(String), stopId: 'st_a', scheduledTime: '08:30', source: 'route' });
+      await expect(dialog).toContainText('Записали: автобус приїхав о 08:33 — запізнення 3 хв.');
+    });
   });
 });

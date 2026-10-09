@@ -39,6 +39,10 @@ import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { findNearbyAlternatives, haversineDistance } from './nearbyAlternatives';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
+import { ArrivalReportSheet } from './ArrivalReportSheet';
+import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
+import { useLongPress } from './useLongPress';
+import { isPrerendering } from '@/utils/prerender';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
@@ -412,6 +416,10 @@ export const LocalTransportPage: React.FC = () => {
   const closeMap = useCallback(() => setMapOpen(false), []);
   /** Повна таблиця розкладу на сторінці маршруту: розгорнута на десктопі, згорнута на телефоні */
   const [timetableOpen, setTimetableOpen] = useState(() => !isPhone);
+  /** Довге натискання на час рейсу → «Факт прибуття» (ArrivalReportSheet) */
+  const [arrivalTarget, setArrivalTarget] = useState<ArrivalTarget | null>(null);
+  const closeArrival = useCallback(() => setArrivalTarget(null), []);
+  const longPress = useLongPress();
 
   useEffect(() => {
     try {
@@ -1260,10 +1268,20 @@ export const LocalTransportPage: React.FC = () => {
                * Рядок на рейс між обраними З/До (або початком/кінцем самого рейсу).
                * Рейси, що не обслуговують пару (скорочені, з іншої початкової), пропускаються.
                */
-              const buildTableTrips = (): Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> | null => {
+              type TableRow = {
+                dep: string;
+                arr: string;
+                direction: 'there' | 'back';
+                baseTime: number;
+                tripId: string;
+                /** Зупинка, на якій показано `dep` («Звідки» або перша зупинка рейсу) */
+                fromKey: string;
+                toKey: string;
+              };
+              const buildTableTrips = (): TableRow[] | null => {
                 if (!stopsWithOrder) return null;
                 const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
-                const rows: Array<{ dep: string; arr: string; direction: 'there' | 'back'; baseTime: number }> = [];
+                const rows: TableRow[] = [];
                 const pushRows = (list: TransportRecord[], direction: 'there' | 'back', chain: string[]) => {
                   if (chain.length < 2) return;
                   list.forEach((t) => {
@@ -1280,6 +1298,9 @@ export const LocalTransportPage: React.FC = () => {
                       arr: formatTime(arrMins),
                       direction,
                       baseTime: tripDepartureMinutes(t),
+                      tripId: t.trip_id,
+                      fromKey,
+                      toKey,
                     });
                   });
                 };
@@ -1289,6 +1310,24 @@ export const LocalTransportPage: React.FC = () => {
               };
 
               const tableTrips = buildTableTrips();
+              const routeDayOffset = dateFromUrl ? searchDateKyivOffsetDays(dateFromUrl) : 0;
+              /** Довге натискання на чіп відправлення → «Факт прибуття» на зупинці «Звідки» */
+              const arrivalPress = (row: TableRow) =>
+                isReportableStopId(row.fromKey)
+                  ? longPress(() => {
+                      gaTrackEvent('transport_arrival_open', { route_id: routeId, source: 'route' });
+                      setArrivalTarget({
+                        routeId,
+                        tripId: row.tripId,
+                        direction: row.direction,
+                        stopId: row.fromKey,
+                        scheduledTime: row.dep,
+                        stopName: displayNameForStopKey(row.fromKey, stopsCatalog),
+                        destination: displayNameForStopKey(row.toKey, stopsCatalog),
+                        source: 'route',
+                      });
+                    })
+                  : {};
               const tableTripsInDirection =
                 tableTrips && stopsDirection
                   ? tableTrips.filter((r) => r.direction === stopsDirection)
@@ -1321,9 +1360,10 @@ export const LocalTransportPage: React.FC = () => {
                             <button
                               key={`${row.dep}-${row.arr}-${i}`}
                               type="button"
-                              className="lt-chip lt-departure-chip"
+                              className="lt-chip lt-departure-chip lt-long-press"
                               aria-pressed={pressed}
                               onClick={() => pickDeparture(row, 'strip')}
+                              {...arrivalPress(row)}
                             >
                               <span className="lt-departure-chip__dep">{row.dep}</span>
                               {fromStop && toStop ? <span className="lt-departure-chip__arr">→ {row.arr}</span> : null}
@@ -1334,6 +1374,12 @@ export const LocalTransportPage: React.FC = () => {
                     ) : (
                       <p className="lt-empty lt-empty--inline">У цьому напрямку між обраними зупинками рейсів немає.</p>
                     )}
+                    {routeDayOffset === 0 && !isPrerendering() && tableTripsInDirection && tableTripsInDirection.length > 0 ? (
+                      <p className="lt-arrival-tip">
+                        Автобус приїхав не за розкладом або не приїхав? Утримайте його час — позначимо факт.
+                      </p>
+                    ) : null}
+                    <ArrivalReportSheet target={arrivalTarget} isToday={routeDayOffset === 0} onClose={closeArrival} />
                     <button
                       type="button"
                       className="lt-chip lt-chip--small lt-timetable-toggle"

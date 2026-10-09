@@ -11,6 +11,7 @@ import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatP
 import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { StopStickerTab } from './StopStickerTab';
+import { ArrivalReportsTab } from './ArrivalReportsTab';
 import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
 import { DzhuraTab } from './DzhuraTab';
@@ -19,7 +20,7 @@ import { PersonArchiveTab } from './PersonArchiveTab';
 import { PERSONS_FILTER_OPTIONS, filterPersons, type PersonsFilterMode } from './personsFilter';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'stickers' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'notifications';
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'stickers' | 'arrivals' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'notifications';
 
 const DEFAULT_TAB: Tab = 'bookings';
 
@@ -38,6 +39,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   mapEditor: 'map-editor',
   scheduleEditor: 'route-schedule',
   stickers: 'stickers',
+  arrivals: 'arrivals',
   userSenderErrors: 'user-sender-errors',
 };
 
@@ -1477,6 +1479,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('stickers')}
           >
             Наклейки зупинок
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'arrivals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('arrivals')}
+          >
+            Факт прибуття
           </button>
           <button
             className={`admin-tab ${activeTab === 'userSenderErrors' ? 'active' : ''}`}
@@ -3050,6 +3058,7 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'mapEditor' && <MapEditorTab />}
         {activeTab === 'scheduleEditor' && <ScheduleEditorTab />}
         {activeTab === 'stickers' && <StopStickerTab />}
+        {activeTab === 'arrivals' && <ArrivalReportsTab />}
 
         {activeTab === 'referrals' && <ReferralTab />}
 
