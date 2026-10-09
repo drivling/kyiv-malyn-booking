@@ -91,10 +91,18 @@ beforeEach(() => {
   );
 });
 
+/**
+ * Поле назви з'являється порожнім, а назву й розподіл по боках ставить ефект після рендеру —
+ * чекаємо саме значення, інакше на повільному CI тест читає проміжний стан.
+ */
+async function stickerReady(name: string) {
+  await waitFor(() => expect(screen.getByLabelText('Назва на наклейці')).toHaveValue(name), { timeout: 5000 });
+}
+
 describe('StopStickerTab', () => {
   it('зупинка з ?stop= — дві наклейки, по одній на кожен бік дороги', async () => {
     renderTab('/admin/stickers?stop=st_0015');
-    expect(await screen.findByLabelText('Назва на наклейці')).toHaveValue('з-д «Прожектор»');
+    await stickerReady('з-д «Прожектор»');
     expect(previews()).toHaveLength(2);
     expect(previews()[0].querySelector('figcaption')).toHaveTextContent(/^Бік 1 · напрямок: Малинівський круг · /);
     expect(previews()[1].querySelector('figcaption')).toHaveTextContent(/^Бік 2 · напрямок: Центр · Базарна площа · /);
@@ -145,7 +153,7 @@ describe('StopStickerTab', () => {
   it('односторонній вузол — одразу одна наклейка; формат A4', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0019');
-    await screen.findByLabelText('Назва на наклейці');
+    await stickerReady('Залізничний вокзал');
     expect(previews()).toHaveLength(1);
     await user.selectOptions(screen.getByLabelText('Формат'), 'A4');
     expect(previews()[0].querySelector('svg')!.getAttribute('width')).toBe('210mm');
@@ -154,7 +162,7 @@ describe('StopStickerTab', () => {
   it('лічильник під прев\'ю кожної наклейки; друк записується в базу й оновлює статистику', async () => {
     const user = userEvent.setup();
     renderTab('/admin/stickers?stop=st_0015');
-    await screen.findByLabelText('Назва на наклейці');
+    await stickerReady('з-д «Прожектор»');
     expect(previews()[0]).toHaveTextContent('відкриттів з QR: 12 (за 7 днів 4)');
     expect(previews()[1]).toHaveTextContent('відкриттів з QR: 0');
     const before = statsRequests.length;
@@ -257,7 +265,7 @@ describe('StopStickerTab', () => {
     expect(listNames()).toEqual(['Залізничний вокзал']);
     await user.click(within(stopList()).getByRole('button'));
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?stop=st_0019');
-    expect(await screen.findByLabelText('Назва на наклейці')).toHaveValue('Залізничний вокзал');
+    await stickerReady('Залізничний вокзал');
     expect(within(stopList()).getByRole('button')).toHaveAttribute('aria-pressed', 'true');
   });
 });
