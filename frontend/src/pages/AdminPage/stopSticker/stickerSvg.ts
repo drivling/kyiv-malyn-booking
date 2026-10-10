@@ -1,5 +1,6 @@
 import { encode } from 'uqr';
 import type { StickerLine, StickerNode } from './stickerModel';
+import { routeNo } from '@/utils/routeNames';
 
 /**
  * SVG наклейки на зупинку у стилі схеми маршрутів (Docs/malyn-transit-scheme/build_scheme.py,
@@ -113,16 +114,18 @@ function r(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
-function badgeWidth(id: string, h: number): number {
-  return id.length === 1 ? h * 1.35 : h * 1.75;
+/** Ширина плашки номера: один знак — майже квадрат, два — як на схемі, довші номери («11/1») — ширші */
+function badgeWidth(no: string, h: number): number {
+  return no.length <= 1 ? h * 1.35 : h * (1.75 + 0.6 * (no.length - 2));
 }
 
 /** Плашка номера, як на схемі: прямокутник у кольорі лінії, білий жирний номер */
 function badge(x: number, y: number, line: Pick<StickerLine, 'routeId' | 'color'>, h: number, width?: number): string {
-  const w = width ?? badgeWidth(line.routeId, h);
+  const no = routeNo(line.routeId); // номер для показу («11/1»); data-route — id
+  const w = width ?? badgeWidth(no, h);
   return (
     `<g data-route="${esc(line.routeId)}"><rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" rx="${r(h * 0.19)}" fill="${line.color ?? FG}"/>` +
-    txt(x + w / 2, y + h * 0.73, line.routeId, h * 0.68, { weight: 800, fill: '#ffffff', anchor: 'middle' }) +
+    txt(x + w / 2, y + h * 0.73, no, h * 0.68, { weight: 800, fill: '#ffffff', anchor: 'middle' }) +
     '</g>'
   );
 }
@@ -148,7 +151,7 @@ const COMPACT_ROW = 12.5;
 type RowGeom = { z: number; badgeChars: number };
 
 function rowBadgeWidth(g: RowGeom, h: number): number {
-  return badgeWidth(g.badgeChars > 1 ? '00' : '0', h);
+  return badgeWidth('0'.repeat(Math.max(1, g.badgeChars)), h);
 }
 
 /**
@@ -237,13 +240,13 @@ function oppositeBlock(y: number, lines: StickerLine[]): { svg: string; height: 
   const bh = 4.8;
   for (const l of lines) {
     const label = `→ ${l.destination}`;
-    const w = badgeWidth(l.routeId, bh) + 1.6 + textWidth(label, 3.3, 600) + 5;
+    const w = badgeWidth(routeNo(l.routeId), bh) + 1.6 + textWidth(label, 3.3, 600) + 5;
     if (x + w > W - M && x > M) {
       x = M;
       row += 6.4;
     }
     o.push(badge(x, row, l, bh));
-    o.push(txt(x + badgeWidth(l.routeId, bh) + 1.6, row + 3.6, label, 3.3, { weight: 600, fill: MUTED }));
+    o.push(txt(x + badgeWidth(routeNo(l.routeId), bh) + 1.6, row + 3.6, label, 3.3, { weight: 600, fill: MUTED }));
     x += w;
   }
   return { svg: o.join(''), height: row + bh - y + 2 };
@@ -291,7 +294,7 @@ export function renderStickerSvg(spec: StickerSpec): string {
   const rowH = compact ? COMPACT_ROW : STRIP_ROW;
   const geom: RowGeom = {
     z: Math.max(0.6, Math.min(1.5, room / Math.max(1, total * rowH))),
-    badgeChars: Math.max(1, ...all.map((l) => l.routeId.length)),
+    badgeChars: Math.max(1, ...all.map((l) => routeNo(l.routeId).length)),
   };
 
   let cy = listTop;

@@ -267,6 +267,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   chips, `prerender-transport-stops.mjs` (static stop pages + sitemap) and the GTFS export. Static
   pages and the sitemap are built at deploy time — after flipping the flag, redeploy the frontend.
   Route numbers are primary keys; renumbering is done in a migration (see the 6 → 10 one).
+- **Route id ≠ the number people see.** `TransportRoute.id` («11») is the key: `/transport/route/<id>`, trip ids,
+  segments, scheme colours `--lts-r<id>` / `data-route`, stop articles' `routeIds`, GTFS `route_id`, GA4 params.
+  The displayed number is `TransportRoute.shortName` («11/1», «5А»; empty → id), edited as «Номер для показу» on
+  `/admin/route-schedule`. Print it only through `routeNo(id)` (`src/utils/routeNames.ts`, filled by
+  `apiClient.getTransportDataset()`); static stop pages use `routeShortNames()` (`scripts/transport-stop-routes.mjs`);
+  the scheme generator reads it from the dataset, so regenerate the scheme and poster after changing it. A `PUT` without
+  the key keeps the stored value. Prefer `shortName` over renumbering when only the label changes.
 - Per-trip `startStopId` / `endStopId` / `arrivalTime` (short-turn trips, fixed arrival that
   compresses that trip's segment durations) are computed on the fly by one pure helper kept
   byte-identical in `frontend/src/pages/LocalTransportPage/dataset/tripTiming.ts` and

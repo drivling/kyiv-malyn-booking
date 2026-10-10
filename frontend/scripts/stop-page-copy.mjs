@@ -11,7 +11,8 @@ export function stopPageTitle(name) {
 
 /**
  * Опис статті «Про зупинку» для meta description (`routeIds` — лише видимі маршрути; статичний
- * пререндер відкидає приховані перед викликом).
+ * пререндер відкидає приховані перед викликом). Тут і нижче в масивах — номери для показу («11/1»),
+ * не id: викликач перетворює id → номер (SPA — routeNo(), пререндер — shortName з датасету).
  */
 export function stopArticleDescription(article) {
   if (article.place) {
@@ -24,7 +25,7 @@ export function stopArticleDescription(article) {
   return (article.lead && article.lead.trim()) || `Зупинка «${article.name}» у Малині.`;
 }
 
-/** Опис, коли статті про зупинку немає */
+/** Опис, коли статті про зупинку немає (`routeIds` — номери для показу) */
 export function stopFallbackDescription(name, routeIds) {
   const routes = routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : '';
   return `Табло зупинки «${name}» у Малині${routes}. Наступні відправлення міського транспорту.`;
@@ -42,7 +43,7 @@ export const STOP_HUB_FAQ = [
   },
 ];
 
-/** Перше питання сторінки зупинки: які маршрути тут зупиняються (`routeIds` — у порядку показу) */
+/** Перше питання сторінки зупинки: які маршрути тут зупиняються (`routeIds` — номери для показу, у порядку показу) */
 export function stopRoutesFaq(name, routeIds, stopId) {
   return {
     q: `Які маршрутки зупиняються на «${name}»?`,

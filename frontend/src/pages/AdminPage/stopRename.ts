@@ -10,6 +10,7 @@
 import { getStopKey, type StopsCatalog } from '../LocalTransportPage/stopCatalog';
 import type { TransportDataset, TransportRouteStopDto, TransportStopDto } from '@/api/transportDataset';
 import type { RouteStop, TransportData } from './mapEditorModel';
+import { routeNo } from '@/utils/routeNames';
 
 export const MAX_STOP_NAME_LENGTH = 80;
 
@@ -159,7 +160,7 @@ export function pluralUk(n: number, forms: [string, string, string]): string {
 /** «Також оновиться при збереженні: кінцева №5, №11 · 55 рейсів» або null, коли нічого */
 export function formatPropagationSummary(s: RenamePropagationSummary): string | null {
   const parts: string[] = [];
-  if (s.routeIds.length) parts.push(`кінцева ${s.routeIds.map((id) => `№${id}`).join(', ')}`);
+  if (s.routeIds.length) parts.push(`кінцева ${s.routeIds.map((id) => `№${routeNo(id)}`).join(', ')}`);
   if (s.tripCount) parts.push(`${s.tripCount} ${pluralUk(s.tripCount, ['рейс', 'рейси', 'рейсів'])}`);
   if (parts.length === 0) return null;
   return `Також оновиться при збереженні: ${parts.join(' · ')}`;

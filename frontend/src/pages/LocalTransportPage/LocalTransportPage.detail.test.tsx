@@ -316,3 +316,19 @@ describe('LocalTransportPage route page: analytics events', () => {
     }
   });
 });
+
+describe('LocalTransportPage route page: display number', () => {
+  it('shows shortName («2К») in the heading, subtitle and page title while the URL keeps the id', async () => {
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({ ...dataset, routes: [{ ...dataset.routes[0], shortName: '2К' }] })
+      )
+    );
+    renderRoute('/transport/route/2');
+    expect(await screen.findByRole('heading', { level: 1, name: /№2К/ }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByText('Маршрут №2К · Малин')).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toContain('№2К'));
+    expect(location()).toBe('/transport/route/2');
+  });
+});
+

@@ -19,6 +19,12 @@ import {
 import type { TripTiming } from '../LocalTransportPage/dataset/tripTiming';
 import './ScheduleEditorTab.css';
 
+/** Номер маршруту для показу з форми (ще не збережений) — «11/1 (id 11)»; без номера — id */
+function formRouteNo(r: Pick<TransportRouteDto, 'id' | 'shortName'>): string {
+  const no = (r.shortName ?? '').trim();
+  return no && no !== r.id ? `${no} (id ${r.id})` : r.id;
+}
+
 type DirectionMode = 'there' | 'back';
 
 const directionToId: Record<DirectionMode, string> = { there: '1', back: '0' };
@@ -136,7 +142,7 @@ export const ScheduleEditorTab: React.FC = () => {
       .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10))
       .map((r) => ({
         value: r.id,
-        label: `№${r.id} — ${r.fromName || '?'} → ${r.toName || '?'}${r.unreliable ? ' · приховано' : ''}`,
+        label: `№${formRouteNo(r)} — ${r.fromName || '?'} → ${r.toName || '?'}${r.unreliable ? ' · приховано' : ''}`,
       }));
   }, [routes]);
 
@@ -409,7 +415,7 @@ export const ScheduleEditorTab: React.FC = () => {
         <section className="schedule-editor-route-panel" aria-labelledby="schedule-editor-route-panel-h">
           <div className="schedule-editor-route-panel-head">
             <h3 id="schedule-editor-route-panel-h" className="schedule-editor-route-panel-title">
-              Маршрут №{selectedRouteObj.id}
+              Маршрут №{formRouteNo(selectedRouteObj)}
             </h3>
             <span className="schedule-editor-count">
               {routeTripCount} рейсів · {routeStopCount} зупинок
@@ -435,6 +441,15 @@ export const ScheduleEditorTab: React.FC = () => {
             </p>
           )}
           <div className="schedule-editor-route-grid">
+            <Input
+              label="Номер для показу (shortName)"
+              type="text"
+              maxLength={16}
+              value={selectedRouteObj.shortName ?? ''}
+              placeholder={selectedRouteObj.id}
+              title="Як номер написано на табличці й у розкладі («11/1», «5А»). Порожньо — показуємо id. Адреси сторінок, рейси й кольори лишаються прив'язані до id. Після зміни — перегенерувати схему міста."
+              onChange={(e) => updateRoute(selectedRouteObj.id, { shortName: e.target.value })}
+            />
             <Input
               label="Кінцева «звідки» (fromName)"
               type="text"

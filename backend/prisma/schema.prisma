@@ -797,6 +797,9 @@ model TransportRoute {
   schedule  Json?
   /// Ненадійний маршрут: не показувати на сайті (сторінки, табло, SEO/AEO, sitemap, GTFS)
   unreliable Boolean  @default(false)
+  /// Номер для показу («11/1», «5А»), як route_short_name у GTFS; порожньо — показуємо id.
+  /// id лишається ключем: адреси /transport/route/<id>, рейси, сегменти, кольори схеми
+  shortName String   @default("")
   updatedAt DateTime @updatedAt
 
   routeStops TransportRouteStop[]

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { StickerSide } from '@/types';
 import { filterStopRows, sortStopRows, type StopSort, type StopStatRow } from './scanStats';
+import { routeNo } from '@/utils/routeNames';
 
 const SIDE_SHORT: Record<StickerSide, string> = { a: 'Б1', b: 'Б2', s: 'Одна' };
 const SIDE_ORDER: StickerSide[] = ['a', 'b', 's'];
@@ -76,7 +77,7 @@ export function StickerStopList({
                 <span className="sticker-stops-lines">
                   {r.lines.map((l) => (
                     <span key={l.routeId} className="sticker-stops-badge" style={{ background: l.color ?? '#1b1f2a' }}>
-                      {l.routeId}
+                      {routeNo(l.routeId)}
                     </span>
                   ))}
                 </span>

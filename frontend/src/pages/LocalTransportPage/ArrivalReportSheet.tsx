@@ -12,6 +12,7 @@ import {
   type ArrivalTarget,
 } from './arrivalReport';
 import { getKyivMinutesNow } from './kyivTime';
+import { routeNo } from '@/utils/routeNames';
 import './ArrivalReportSheet.css';
 
 const MINUTES_AGO = [2, 5, 10] as const;
@@ -123,7 +124,7 @@ export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }
           ×
         </button>
         <h2 id="lt-arrival-title" className="lt-arrival-title">
-          №{target.routeId} · {target.scheduledTime} за розкладом
+          №{routeNo(target.routeId)} · {target.scheduledTime} за розкладом
         </h2>
         <p className="lt-arrival-sub">
           Зупинка «{target.stopName}»

@@ -123,7 +123,7 @@ function exportGtfs(dataset: TransportDataset) {
     return {
       route_id: routeId,
       agency_id: agency.agency_id || 'malyn',
-      route_short_name: routeId,
+      route_short_name: meta?.shortName?.trim() || routeId,
       route_long_name: longName,
       route_type: 3,
     };

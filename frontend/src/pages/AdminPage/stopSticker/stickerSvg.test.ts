@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { configureRouteNames } from '@/utils/routeNames';
 import { stickerLines, type StickerLine } from './stickerModel';
 import { fitText, qrPath, renderStickerSvg, textWidth, wrapWords, type StickerSpec } from './stickerSvg';
 import { STICKER_DATASET } from './stickerTestDataset';
@@ -89,3 +90,26 @@ describe('текст', () => {
     expect(textWidth('Ш', 10, 700)).toBeGreaterThan(textWidth('і', 10, 700));
   });
 });
+
+describe('renderStickerSvg: display number of a line', () => {
+  /** Ширина плашки лінії з data-route=<id> (перша на аркуші) */
+  const badgeWidthOf = (svg: string, id: string) => {
+    const m = new RegExp(`<g data-route="${id}"><rect [^>]*width="([0-9.]+)"`).exec(svg);
+    return m ? Number(m[1]) : NaN;
+  };
+
+  it('the badge prints shortName («5А/1») and grows with it; data-route keeps the id', () => {
+    const id = there[0].routeId;
+    const plain = renderStickerSvg(spec());
+    configureRouteNames([{ id, shortName: `${id}А/1` }]);
+    try {
+      const svg = renderStickerSvg(spec());
+      expect(svg).toContain(`data-route="${id}"`);
+      expect(svg).toContain(`>${id}А/1<`);
+      expect(badgeWidthOf(svg, id)).toBeGreaterThan(badgeWidthOf(plain, id));
+    } finally {
+      configureRouteNames([]);
+    }
+  });
+});
+

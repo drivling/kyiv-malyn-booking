@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client';
 import type { TransportDataset } from '@/api/transportDataset';
 import type { ArrivalReportDays, ArrivalReportStats } from '@/types';
 import './ArrivalReportsTab.css';
+import { routeNo } from '@/utils/routeNames';
 
 const PERIODS: ArrivalReportDays[] = [1, 7, 30, 90];
 const periodChip = (d: ArrivalReportDays) => (d === 1 ? 'Сьогодні' : `${d} днів`);
@@ -139,7 +140,7 @@ export const ArrivalReportsTab: React.FC = () => {
                 <tbody>
                   {stats.summary.map((r) => (
                     <tr key={`${r.routeId}|${r.direction}|${r.stopId}|${r.scheduledTime}`}>
-                      <td>{r.routeId}</td>
+                      <td>{routeNo(r.routeId)}</td>
                       <td>{DIR_LABEL[r.direction] ?? r.direction}</td>
                       <td>{stopName(r.stopId)}</td>
                       <td className="arrival-tab-num">{r.scheduledTime}</td>
@@ -181,7 +182,7 @@ export const ArrivalReportsTab: React.FC = () => {
                     <tr key={r.id} className={r.kind === 'missed' ? 'arrival-tab-row--missed' : ''}>
                       <td className="arrival-tab-num">{KYIV_DT.format(new Date(r.createdAt))}</td>
                       <td>
-                        {r.routeId} {DIR_LABEL[r.direction] ?? r.direction}
+                        {routeNo(r.routeId)} {DIR_LABEL[r.direction] ?? r.direction}
                       </td>
                       <td>{stopName(r.stopId)}</td>
                       <td className="arrival-tab-num">{r.scheduledTime}</td>

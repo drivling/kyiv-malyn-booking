@@ -3,8 +3,10 @@
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import type { PrismaClient } from '@prisma/client';
 import {
   convertLegacyRuntime,
+  replaceTransportDataset,
   validateTransportDataset,
   type TransportDataset,
 } from './local-transport';
@@ -74,6 +76,77 @@ test('validateTransportDataset: accepts boolean / omitted unreliable', () => {
   assert.equal(ok.errors.length, 0);
   const omitted = validateTransportDataset(minimalDataset({ routes: [{ id: '2' }] }));
   assert.equal(omitted.errors.length, 0);
+});
+
+test('validateTransportDataset: shortName is an optional one-line string up to 16 characters', () => {
+  for (const shortName of ['11/1', '5А', '', undefined]) {
+    assert.equal(validateTransportDataset(minimalDataset({ routes: [{ id: '2', shortName }] })).errors.length, 0, String(shortName));
+  }
+  const bad = (shortName: unknown) =>
+    validateTransportDataset(minimalDataset({ routes: [{ id: '2', shortName: shortName as string }] })).errors.join(' ');
+  assert.match(bad(11), /shortName must be a string/);
+  assert.match(bad('11\n1'), /shortName must be one line/);
+  assert.match(bad('Дуже довгий номер маршруту'), /shortName longer than 16/);
+});
+
+/** Мінімальна заглушка Prisma для replaceTransportDataset: зберігає створені маршрути в пам'яті. */
+function routeStore(initial: Array<{ id: string; shortName: string }>) {
+  const state = { routes: initial.map((r) => ({ ...r })) as Array<Record<string, unknown>> };
+  const model = (key?: 'routes') => ({
+    findMany: async () => (key ? state[key] : []),
+    deleteMany: async () => {
+      if (key) state[key] = [];
+      return { count: 0 };
+    },
+    createMany: async ({ data }: { data: Array<Record<string, unknown>> }) => {
+      if (key) state[key] = data.map((r) => ({ ...r }));
+      return { count: data.length };
+    },
+    upsert: async () => ({}),
+  });
+  const prisma = {
+    transportStop: model(),
+    transportRoute: model('routes'),
+    transportRouteStop: model(),
+    transportTrip: model(),
+    transportSegment: model(),
+    transportMeta: model(),
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+  } as unknown as PrismaClient;
+  return { prisma, state };
+}
+
+test('replaceTransportDataset: shortName is saved trimmed; a route without the key keeps its previous number', async () => {
+  const { prisma, state } = routeStore([
+    { id: '2', shortName: '2К' },
+    { id: '11', shortName: '11/1' },
+  ]);
+  await replaceTransportDataset(
+    prisma,
+    minimalDataset({
+      routes: [
+        { id: '2', fromName: 'А', toName: 'Б', shortName: ' 2А ' },
+        { id: '11', fromName: 'А', toName: 'Б' }, // старий клієнт: ключа немає
+        { id: '12', fromName: 'А', toName: 'Б' }, // новий маршрут без номера
+      ],
+    })
+  );
+  const byId = new Map(state.routes.map((r) => [r.id, r.shortName]));
+  assert.equal(byId.get('2'), '2А');
+  assert.equal(byId.get('11'), '11/1');
+  assert.equal(byId.get('12'), '');
+});
+
+test('convertLegacyRuntime: reads short_name from supplement.routes', () => {
+  const { dataset } = convertLegacyRuntime({
+    transport: {
+      records: [{ route_id: '11', trip_id: '11-01', direction_id: '1', departure_time: '07:00:00' }],
+      supplement: { routes: { '11': { from: 'А', to: 'Б', short_name: '11/1' } }, stops: { stops_catalog: {}, stops_by_route: {} } },
+    },
+    coords: { center: [50.77, 29.24], stops: {} },
+    segments: { defaultSec: 120, segments: {} },
+  });
+  assert.equal(dataset.routes[0].shortName, '11/1');
 });
 
 test('convertLegacyRuntime: maps timed trip and coords', () => {

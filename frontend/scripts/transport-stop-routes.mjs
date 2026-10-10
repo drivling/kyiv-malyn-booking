@@ -23,3 +23,21 @@ export function stopRoutesFromRouteStops(routeStops, hiddenRouteIds) {
   }
   return stopToRoutes;
 }
+
+/**
+ * Номери маршрутів для показу (TransportRoute.shortName: «11/1», «5А») — для чіпів і текстів статичних
+ * сторінок. id лишається в адресах; без номера показуємо id (як routeNo() у SPA, frontend/src/utils/routeNames.ts).
+ *
+ * @param {Array<{ id?: string | number, shortName?: string | null }>} routes
+ * @returns {Map<string, string>} id → номер (лише ті, що відрізняються від id)
+ */
+export function routeShortNames(routes) {
+  const names = new Map();
+  for (const r of routes || []) {
+    const id = r?.id == null ? '' : String(r.id);
+    const no = typeof r?.shortName === 'string' ? r.shortName.trim() : '';
+    if (id && no && no !== id) names.set(id, no);
+  }
+  return names;
+}
+

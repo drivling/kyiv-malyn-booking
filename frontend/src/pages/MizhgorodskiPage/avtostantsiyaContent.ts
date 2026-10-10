@@ -6,6 +6,7 @@
 import type { TransportDataset } from '@/api/transportDataset';
 import type { Schedule } from '@/types';
 import { tripsPerDayText } from '@/utils/weekdays';
+import { routeNo } from '@/utils/routeNames';
 
 export const AVTOSTANTSIYA_PATH = '/avtostantsiya-malyn';
 export const AVTOSTANTSIYA_CANONICAL = `https://malin.kiev.ua${AVTOSTANTSIYA_PATH}`;
@@ -125,9 +126,9 @@ export function buildAvtostantsiyaFaq(
     const published = cityRoutes.filter((r) => r.published);
     const pending = cityRoutes.filter((r) => !r.published);
     const parts = [
-      published.length ? `${published.map((r) => `№${r.id}`).join(', ')} — розклад на сторінці маршруту` : null,
+      published.length ? `${published.map((r) => `№${routeNo(r.id)}`).join(', ')} — розклад на сторінці маршруту` : null,
       pending.length
-        ? `${pending.map((r) => `№${r.id}`).join(', ')} — курсує через автостанцію, але розклад по зупинці «Автостанція» ми ще зводимо`
+        ? `${pending.map((r) => `№${routeNo(r.id)}`).join(', ')} — курсує через автостанцію, але розклад по зупинці «Автостанція» ми ще зводимо`
         : null,
     ].filter(Boolean);
     faq.push({

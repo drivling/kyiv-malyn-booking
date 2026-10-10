@@ -1,4 +1,5 @@
 import { API_URL } from '@/utils/constants';
+import { configureRouteNames } from '@/utils/routeNames';
 import type {
   Schedule,
   Booking,
@@ -1071,7 +1072,10 @@ class ApiClient {
   }
 
   async getTransportDataset(): Promise<TransportDataset> {
-    return this.request('/transport/dataset');
+    const dataset = await this.request<TransportDataset>('/transport/dataset');
+    // Номери маршрутів для показу («11/1») — для всіх, хто завантажує датасет (сайт, адмінка, стіна)
+    configureRouteNames(dataset?.routes);
+    return dataset;
   }
 
   /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
