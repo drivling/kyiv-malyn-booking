@@ -19,6 +19,8 @@ export interface TransportRouteDto {
   schedule?: unknown;
   /** Ненадійний маршрут — приховано на сайті (сторінки, табло, SEO/AEO, sitemap) */
   unreliable?: boolean;
+  /** Номер для показу («11/1»); порожньо — id. Показ — через routeNo() з utils/routeNames */
+  shortName?: string;
 }
 
 export interface TransportRouteStopDto {

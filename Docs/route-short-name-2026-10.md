@@ -1,7 +1,7 @@
 # Номер маршруту для показу (`shortName`) — «11/1» без зміни ключа
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⬜ · Фаза 3 ⬜ · Фаза 4 ⬜ · Фаза 5 ⬜ · Фаза 6 ⬜  
-**Де зупинились:** фаза 2 — фронтенд: дані й хелпер `routeNo`  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⬜ · Фаза 4 ⬜ · Фаза 5 ⬜ · Фаза 6 ⬜  
+**Де зупинились:** фаза 3 — замінити показ номера в решті файлів (список нижче); фаза 2 зроблена  
 **Created:** 2026-10-10 · **Гілка:** `feat/route-short-name`
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -38,8 +38,8 @@
 - [x] **1.3** GTFS `route_short_name` = `shortName` або id; тести; `dist`
 
 Фаза 2 — фронтенд: дані й хелпер
-- [ ] **2.1** `TransportRouteDto.shortName`, `routeNames.ts` (`routeNo`, `configureRouteNames`), виклик у `getTransportDataset`
-- [ ] **2.2** `routeTitle` / `routeLine` і view-model через `routeNo`
+- [x] **2.1** `TransportRouteDto.shortName`, `routeNames.ts` (`routeNo`, `configureRouteNames`), виклик у `getTransportDataset`
+- [x] **2.2** `routeTitle` / `routeLine` і view-model через `routeNo`
 
 Фаза 3 — фронтенд: усі місця показу
 - [ ] **3.1** Маршрут, планер, табло, схема, факти прибуття, автостанція, стіна, наклейки
@@ -70,4 +70,31 @@
 - `dist` — `local-transport.js`, `scripts/export-gtfs.js` (решта збігається зі свіжою компіляцією).
 - Локально: `npx prisma generate` оновив застарілий клієнт Prisma; `tsc` лишає одну помилку середовища
   (немає пакета `compression`).
+
+### Фаза 2 — дані й хелпер (зроблено)
+
+- `frontend/src/utils/routeNames.ts`: `configureRouteNames(routes)`, `routeNo(id)`, `routeNoWithId(id)` (для адмінки).
+- `apiClient.getTransportDataset()` заповнює реєстр — сайт, адмінка й стіна отримують номери автоматично.
+- `TransportRouteDto.shortName`; `routeTitle()` і вся `LocalTransportPage.tsx` (заголовок, FAQ, опис, JSON-LD,
+  картки планера, «поряд», список маршрутів) показують `routeNo(id)`. GA4 і адреси — далі з id.
+
+### Що лишилось у фазі 3 (інвентаризація 2026-10-10)
+
+Замінити показ `id` на `routeNo(id)` (ключі, `key=`, адреси, `data-route`, CSS-змінні, GA4 — лишити з id):
+- `LocalTransportSchemePage.tsx`: чипи (aria + текст), «Лінії через …», `lts-card-num`, «Розклад №…»
+- `LocalTransportStopBoardPage.tsx`: `schemeMiniNote`, FAQ-приклади, JSON-LD, фільтр ліній (title + текст),
+  «маршрут №… в …», aria картки, плашка картки, чипи статті; у `stopFallbackDescription` / `stopRoutesFaq` /
+  `stopArticlePlainText` передавати вже `routeIds.map(routeNo)`
+- `ArrivalReportSheet.tsx` (№…), `RouteMap.tsx` (плашки ліній на картці зупинки)
+- `StickerWallPage/WallBadges.tsx` (aria + текст)
+- `MizhgorodskiPage/AvtostantsiyaPage.tsx`, `avtostantsiyaContent.ts`
+- Адмінка: `MapEditorTab.tsx` (підписи вибору й перерахунку; технічні точки «№id т.N» НЕ чіпати — це назви
+  зупинок), `StopStickerTab.tsx`, `stopSticker/StickerStopList.tsx`, `stopSticker/stickerSvg.ts` (текст і
+  ширина плашки — номер, `data-route` — id), `stopRename.ts`, `ArrivalReportsTab.tsx`
+- `ScheduleEditorTab.tsx`: поле «Номер для показу» (`shortName`, до 16 символів) поруч із «Ненадійний»;
+  у списку маршрутів і заголовку — номер з форми + id
+
+Далі фази 4 (prerender: номери з `dataset.routes[].shortName`), 5 (генератор схеми: плашки й легенда з
+датасету — до деплою генерувати з `--dataset` = продовий датасет + `shortName: '11/1'` для 11; ширина плашки за
+довжиною; `SCHEME_ROUTES.label`), 6 (CLAUDE.md, тести, підсумок).
 

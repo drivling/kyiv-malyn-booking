@@ -43,6 +43,7 @@ import { ArrivalReportSheet } from './ArrivalReportSheet';
 import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
 import { isPrerendering } from '@/utils/prerender';
+import { routeNo } from '@/utils/routeNames';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
@@ -651,21 +652,21 @@ export const LocalTransportPage: React.FC = () => {
           : '';
       const faq = [
         {
-          q: `Який розклад маршруту №${detailRoute.id} у Малині?`,
+          q: `Який розклад маршруту №${routeNo(detailRoute.id)} у Малині?`,
           a:
             first && last
               ? `На malin.kiev.ua/transport/route/${detailRoute.id}: рейси з ${first} до ${last}. Повний список зупинок і табло — на сторінці маршруту.`
               : `Відкрийте malin.kiev.ua/transport/route/${detailRoute.id} — таблиця відправлень і список зупинок.`,
         },
         {
-          q: `Куди їде маршрутка №${detailRoute.id}?`,
+          q: `Куди їде маршрутка №${routeNo(detailRoute.id)}?`,
           a: `${path ? `Лінія ${path}. ` : ''}Планер «Звідки → Куди» і карта: malin.kiev.ua/transport.`,
         },
       ];
       return {
         title: `Маршрут ${routeTitle(detailRoute)} | Транспорт Малина | malin.kiev.ua`,
         canonicalUrl: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
-        description: `Розклад і зупинки маршруту №${detailRoute.id}${path ? ` (${path})` : ''} у Малині.${tripHint}`,
+        description: `Розклад і зупинки маршруту №${routeNo(detailRoute.id)}${path ? ` (${path})` : ''} у Малині.${tripHint}`,
         jsonLdId: `transport-route-jsonld-${detailRoute.id}`,
         jsonLd: {
           '@context': 'https://schema.org',
@@ -699,7 +700,7 @@ export const LocalTransportPage: React.FC = () => {
               ? [
                   {
                     '@type': 'ItemList',
-                    name: `Рейси маршруту №${detailRoute.id}`,
+                    name: `Рейси маршруту №${routeNo(detailRoute.id)}`,
                     numberOfItems: times.length,
                     itemListElement: times.slice(0, 40).map((m, i) => ({
                       '@type': 'ListItem',
@@ -1171,7 +1172,7 @@ export const LocalTransportPage: React.FC = () => {
               <div className="lt-header-title-wrap">
                 {/* Декоративний заголовок: єдиний h1 сторінки маршруту — назва лінії нижче */}
                 <p className="lt-title">Як доїхати</p>
-                <p className="lt-subtitle">Маршрут №{detailRoute.id} · Малин</p>
+                <p className="lt-subtitle">Маршрут №{routeNo(detailRoute.id)} · Малин</p>
               </div>
             </header>
 
@@ -1189,7 +1190,7 @@ export const LocalTransportPage: React.FC = () => {
                     className={`lt-route-num ${isVerifiedRoute(detailRoute.id) ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
                     style={routeColorStyle(detailRoute.id)}
                   >
-                    №{detailRoute.id}
+                    №{routeNo(detailRoute.id)}
                   </span>
                   <span className="lt-route-title-path">
                     {stopsDirection === 'there'
@@ -1457,7 +1458,7 @@ export const LocalTransportPage: React.FC = () => {
                   date: dateFromUrl || searchDate || formatDateUrl(new Date()),
                   time: hourFromUrl || timeFromUrl || searchTime,
                 })}
-                label={`Відкрити схему маршрутів: маршрут №${detailRoute.id}`}
+                label={`Відкрити схему маршрутів: маршрут №${routeNo(detailRoute.id)}`}
               />
             )}
             {(() => {
@@ -1632,7 +1633,7 @@ export const LocalTransportPage: React.FC = () => {
                 coordsData: mapCoordsData,
               };
               return isPhone ? (
-                <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={`Маршрут №${detailRoute.id}`}>
+                <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={`Маршрут №${routeNo(detailRoute.id)}`}>
                   <RouteMap {...mapProps} resizeToken={mapResizeToken} />
                 </LocalTransportMapOverlay>
               ) : (
@@ -1894,7 +1895,7 @@ export const LocalTransportPage: React.FC = () => {
                                   {displayNameForStopKey(alt.from, stopsCatalog)} → {displayNameForStopKey(alt.to, stopsCatalog)}
                                 </span>
                                 <span className="lt-nearby-meta">
-                                  {walk} · №{alt.routeIds.join(', №')}
+                                  {walk} · {alt.routeIds.map((id) => `№${routeNo(id)}`).join(', ')}
                                 </span>
                               </button>
                             </li>
@@ -1983,7 +1984,7 @@ export const LocalTransportPage: React.FC = () => {
                         })
                         .join(' · ');
                       const ariaLabel = [
-                        `Маршрут №${r.id} до ${destination}`,
+                        `Маршрут №${routeNo(r.id)} до ${destination}`,
                         `відправлення ${nextTimeStr}`,
                         arrivalStr ? `прибуття ${arrivalStr}` : '',
                         durationMins != null ? `${durationMins} хвилин` : '',
@@ -2013,7 +2014,7 @@ export const LocalTransportPage: React.FC = () => {
                               style={routeColorStyle(r.id)}
                               title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
                             >
-                              №{r.id}
+                              №{routeNo(r.id)}
                             </span>
                             <span className="lt-route-destination">
                               <span aria-hidden>→ </span>
@@ -2052,7 +2053,7 @@ export const LocalTransportPage: React.FC = () => {
                         aria-label={routeTitle(r)}
                       >
                         <span className="lt-aeo-route-num" style={routeColorStyle(r.id)} aria-hidden>
-                          {r.id}
+                          {routeNo(r.id)}
                         </span>
                         <span className="lt-aeo-route-text">
                           {routeLine(r) ? <span className="lt-aeo-route-line">{routeLine(r)}</span> : null}
