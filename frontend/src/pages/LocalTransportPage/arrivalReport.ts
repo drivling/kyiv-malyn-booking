@@ -73,21 +73,5 @@ export function delayLabel(delayMin: number): string {
   return `на ${-delayMin} хв раніше`;
 }
 
-const CLIENT_ID_KEY = 'arrival-report-client';
-
-/** Анонімний id браузера — щоб в аналізі відсіяти дублі одного пристрою; без localStorage — null */
-export function arrivalClientId(): string | null {
-  try {
-    let id = localStorage.getItem(CLIENT_ID_KEY);
-    if (!id || !/^[A-Za-z0-9-]{8,64}$/.test(id)) {
-      id =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-      localStorage.setItem(CLIENT_ID_KEY, id);
-    }
-    return id;
-  } catch {
-    return null;
-  }
-}
+/** Анонімний id браузера — щоб в аналізі відсіяти дублі одного пристрою (src/analytics/visitorId.ts) */
+export { visitorId as arrivalClientId } from '@/analytics/visitorId';

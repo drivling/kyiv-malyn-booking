@@ -1,7 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
+import { visitorId } from '@/analytics/visitorId';
 import type { StickerSide } from '@/types';
+import { rememberStickerOrigin } from './stickerReturn';
 
 /**
  * QR наклейки на зупинці (адмінка «Наклейки зупинок») веде на табло з
@@ -17,22 +20,58 @@ export function parseStickerCampaign(search: string): { stopId: string; side: St
 const SEEN_PREFIX = 'sticker-scan:';
 
 /**
+ * Адреса після зарахованого скану: `utm_source=sticker` → `utm_source=reload` (кампанія з кодом
+ * наклейки лишається). Відновлена браузером вкладка — уже не новий скан, а в GA окреме джерело
+ * «reload / qr»: люди з наклейки, що повернулись до табло.
+ */
+export function toReloadMark(search: string): string {
+  const p = new URLSearchParams(search);
+  if (p.get('utm_source') === 'sticker') p.set('utm_source', 'reload');
+  const q = p.toString();
+  return q ? `?${q}` : '';
+}
+
+/** Стан переходу, який GoogleAnalyticsTracker не рахує як новий page_view */
+export const GA_SKIP_STATE = { gaSkip: true } as const;
+
+/**
  * Відкриття табло з наклейки: подія GA4 `transport_sticker_open` і запис у базу
  * (POST /transport/sticker-scans → лічильники в адмінці). Один раз за сесію браузера на наклейку —
  * перезавантаження й «назад» не рахуються; без sessionStorage повтори відсіює сервер.
+ *
+ * Потім мітку на адресі міняємо на `utm_source=reload` (toReloadMark): інакше вкладка, яку браузер
+ * відновить завтра, знову прийде з `utm_source=sticker` і порахується як новий скан. Міняємо після
+ * першого page_view (GA уже записав кампанію в сесію) заміною адреси, яку GoogleAnalyticsTracker не
+ * рахує повторно. Браузер запамʼятовує наклейку — для обліку повернень (stickerReturn.ts).
  */
 export function useStickerScan(search: string): void {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // останні navigate/адреса: табло могло вже уточнити URL, а ефект не має перезапускатись від них
+  const latest = useRef({ navigate, location });
+  latest.current = { navigate, location };
   useEffect(() => {
     const scan = parseStickerCampaign(search);
     if (!scan) return;
+    rememberStickerOrigin(scan);
     const key = `${SEEN_PREFIX}${scan.stopId}-${scan.side}`;
+    let seen = false;
     try {
-      if (sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key, '1');
+      seen = Boolean(sessionStorage.getItem(key));
+      if (!seen) sessionStorage.setItem(key, '1');
     } catch {
       /* приватний режим — рахуємо, сервер відсіє повтори */
     }
-    gaTrackEvent('transport_sticker_open', { stop: scan.stopId, side: scan.side });
-    void apiClient.trackStickerScan(scan).catch(() => undefined);
+    if (!seen) {
+      gaTrackEvent('transport_sticker_open', { stop: scan.stopId, side: scan.side });
+      const clientId = visitorId();
+      void apiClient.trackStickerScan(clientId ? { ...scan, clientId } : scan).catch(() => undefined);
+    }
+    // після ефектів батьків, тобто вже після page_view з міткою
+    const strip = window.setTimeout(() => {
+      const { pathname, search: now, hash } = latest.current.location;
+      latest.current.navigate({ pathname, search: toReloadMark(now), hash }, { replace: true, state: GA_SKIP_STATE });
+    }, 0);
+    return () => window.clearTimeout(strip);
   }, [search]);
 }

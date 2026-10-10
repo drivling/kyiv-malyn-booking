@@ -15,3 +15,4 @@ export { readCityHandoff, useHomeCityHandoff } from './homeCityHandoff';
 export { DomainGuard } from './DomainGuard';
 export { useSiteLocalTransport, invalidateSiteLocalTransportCache } from './useSiteLocalTransport';
 export { LocalTransportGate } from './LocalTransportGate';
+export { useFreshBuild } from './freshBuild';

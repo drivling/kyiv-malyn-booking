@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STATS_DAYS = exports.STICKER_SIDES = void 0;
+exports.STATS_DAYS = exports.RETURN_VIA = exports.STICKER_SIDES = void 0;
 exports.parseStickerScan = parseStickerScan;
+exports.parseStickerReturn = parseStickerReturn;
 exports.createScanDeduper = createScanDeduper;
 exports.parseStatsDays = parseStatsDays;
 exports.kyivDayHour = kyivDayHour;
 exports.stickerScanStats = stickerScanStats;
+exports.buildAudience = buildAudience;
 exports.parseStickerPrint = parseStickerPrint;
 exports.clientKey = clientKey;
 /**
@@ -18,6 +20,13 @@ exports.clientKey = clientKey;
  */
 exports.STICKER_SIDES = ['a', 'b', 's'];
 const STOP_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+/** Анонімний id браузера з localStorage (frontend visitorId.ts) */
+const CLIENT_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
+function clientIdOf(v) {
+    const id = typeof v === 'string' ? v.trim() : '';
+    return CLIENT_ID_RE.test(id) ? id : null;
+}
+/** Body POST /transport/sticker-scans: { stopId, side: a|b|s, clientId? } (невалідний clientId — null) */
 function parseStickerScan(body) {
     const b = (body ?? {});
     const stopId = typeof b.stopId === 'string' ? b.stopId.trim() : '';
@@ -26,7 +35,26 @@ function parseStickerScan(body) {
         return null;
     if (!exports.STICKER_SIDES.includes(side))
         return null;
-    return { stopId, side: side };
+    return { stopId, side: side, clientId: clientIdOf(b.clientId) };
+}
+/** reload — відновлена вкладка табло з utm_source=reload; tab — повернулись до відкритої вкладки; direct — відкрили сайт інакше */
+exports.RETURN_VIA = ['reload', 'tab', 'direct'];
+const PAGE_RE = /^[a-z0-9-]{1,30}$/;
+/**
+ * Body POST /transport/sticker-returns: { stopId, side — наклейка, з якої людина прийшла вперше,
+ * clientId (обовʼязковий: без нього не порахувати людей), via: reload|tab|direct, page }.
+ */
+function parseStickerReturn(body) {
+    const b = (body ?? {});
+    const scan = parseStickerScan(body);
+    const clientId = clientIdOf(b.clientId);
+    const via = typeof b.via === 'string' ? b.via : '';
+    const page = typeof b.page === 'string' ? b.page.trim().toLowerCase() : '';
+    if (!scan || !clientId)
+        return null;
+    if (!exports.RETURN_VIA.includes(via))
+        return null;
+    return { stopId: scan.stopId, side: scan.side, clientId, via: via, page: PAGE_RE.test(page) ? page : 'other' };
 }
 const DEDUPE_MS = 2 * 60 * 1000;
 const DEDUPE_MAX = 5000;
@@ -79,7 +107,7 @@ async function stickerScanStats(prisma, opts = {}) {
     const now = opts.now ?? new Date();
     const days = opts.days ?? 30;
     const since = (n) => new Date(now.getTime() - n * DAY_MS);
-    const [all, week, month, windowRows, prints] = await Promise.all([
+    const [all, week, month, windowRows, prints, idScans, returns] = await Promise.all([
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(7) } }, _count: { _all: true } }),
         prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(30) } }, _count: { _all: true } }),
@@ -90,6 +118,8 @@ async function stickerScanStats(prisma, opts = {}) {
             select: { stopId: true, side: true, createdAt: true },
         }),
         prisma.stickerPrint.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
+        prisma.stickerScan.findMany({ where: { clientId: { not: null } }, select: { stopId: true, side: true, clientId: true } }),
+        prisma.stickerReturn.findMany({ select: { stopId: true, side: true, clientId: true, via: true, createdAt: true } }),
     ]);
     const key = (r) => `${r.stopId}|${r.side}`;
     const weekBy = new Map(week.map((r) => [key(r), r._count._all]));
@@ -137,8 +167,11 @@ async function stickerScanStats(prisma, opts = {}) {
         lastAt: p._max.createdAt ? p._max.createdAt.toISOString() : null,
     }))
         .sort((a, b) => key(a).localeCompare(key(b)));
+    const returnsInWindow = days === 1 ? returns.filter((r) => kyivDayHour(r.createdAt).day === todayKyiv) : returns.filter((r) => r.createdAt >= since(days));
+    const audience = buildAudience(idScans, returns, returnsInWindow);
     return {
         rows,
+        audience,
         total: sum('total'),
         today: sum('today'),
         last7d: sum('last7d'),
@@ -148,6 +181,42 @@ async function stickerScanStats(prisma, opts = {}) {
         hourly,
         printed,
     };
+}
+/** Унікальні люди по наклейках: сканували (StickerScan з clientId) і повертались (StickerReturn) */
+function buildAudience(scans, returns, returnsInWindow) {
+    const key = (r) => `${r.stopId}|${r.side}`;
+    const by = new Map();
+    const acc = (r) => {
+        const k = key(r);
+        let a = by.get(k);
+        if (!a) {
+            a = { stopId: r.stopId, side: r.side, scanners: new Set(), returning: new Set(), returns: 0 };
+            by.set(k, a);
+        }
+        return a;
+    };
+    const scanners = new Set();
+    const returning = new Set();
+    for (const s of scans) {
+        if (!s.clientId)
+            continue;
+        acc(s).scanners.add(s.clientId);
+        scanners.add(s.clientId);
+    }
+    for (const r of returns) {
+        acc(r).returning.add(r.clientId);
+        returning.add(r.clientId);
+    }
+    const byVia = { reload: 0, tab: 0, direct: 0 };
+    for (const r of returnsInWindow) {
+        acc(r).returns += 1;
+        if (exports.RETURN_VIA.includes(r.via))
+            byVia[r.via] += 1;
+    }
+    const rows = [...by.values()]
+        .map((a) => ({ stopId: a.stopId, side: a.side, scanners: a.scanners.size, returning: a.returning.size, returns: a.returns }))
+        .sort((a, b) => b.returning - a.returning || b.scanners - a.scanners || key(a).localeCompare(key(b)));
+    return { scanners: scanners.size, returning: returning.size, returns: returnsInWindow.length, byVia, rows };
 }
 const PRINT_SIZES = ['A5', 'A4'];
 /** Body POST /admin/transport/sticker-prints: { stopId, sides: (a|b|s)[], size: A5|A4 } */

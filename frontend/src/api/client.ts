@@ -44,6 +44,7 @@ import type {
   StickerWallSnapshot,
   StickerSide,
   StickerStatsDays,
+  StickerReturnBody,
   ArrivalReportBody,
   ArrivalReportResult,
   ArrivalReportDays,
@@ -1074,10 +1075,18 @@ class ApiClient {
   }
 
   /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
-  async trackStickerScan(scan: { stopId: string; side: StickerSide }): Promise<{ ok: boolean; counted: boolean }> {
+  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string }): Promise<{ ok: boolean; counted: boolean }> {
     return this.request('/transport/sticker-scans', {
       method: 'POST',
       body: JSON.stringify(scan),
+    });
+  }
+
+  /** Людина, що колись прийшла з QR-наклейки, знову відкрила сайт (stickerReturn.ts, раз за сесію) */
+  async trackStickerReturn(body: StickerReturnBody): Promise<{ ok: boolean; counted: boolean }> {
+    return this.request('/transport/sticker-returns', {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
   }
 

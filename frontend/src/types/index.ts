@@ -1012,6 +1012,30 @@ export interface StickerScanStats {
   hourly: { hour: number; stopId: string; side: StickerSide; count: number }[];
   /** Друк / завантаження SVG наклейок в адмінці */
   printed: { stopId: string; side: StickerSide; count: number; lastAt: string | null }[];
+  /** Люди з наклейок за анонімним id браузера (немає у відповіді старішого бекенда) */
+  audience?: StickerAudience;
+}
+
+/** Люди з наклейок: сканували (різні id) і хто з них потім знову відкривав сайт */
+export interface StickerAudience {
+  scanners: number;
+  returning: number;
+  /** Повернень за вікно days */
+  returns: number;
+  /** reload — відновлена вкладка табло з utm_source=reload; tab — повернулись до відкритої вкладки; direct — інакше */
+  byVia: { reload: number; tab?: number; direct: number };
+  rows: { stopId: string; side: StickerSide; scanners: number; returning: number; returns: number }[];
+}
+
+/** POST /transport/sticker-returns */
+export interface StickerReturnBody {
+  /** Наклейка, з якої людина прийшла вперше */
+  stopId: string;
+  side: StickerSide;
+  clientId: string;
+  via: 'reload' | 'tab' | 'direct';
+  /** Перший сегмент шляху: transport | mizhgorodski | home | … */
+  page: string;
 }
 
 /** Факт прибуття міського автобуса від пасажира (backend/src/arrival-reports.ts) */
