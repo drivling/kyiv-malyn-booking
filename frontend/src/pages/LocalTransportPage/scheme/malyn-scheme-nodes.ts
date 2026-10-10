@@ -99,10 +99,18 @@ export const SCHEME_NODES: SchemeNode[] = [
   {
     "id": "st_0004",
     "kind": "waypoint",
-    "name": "Автостанція · Укр. Повстанців",
+    "name": "Автостанція",
     "stopIds": [
       "st_0004",
       "st_0005"
+    ]
+  },
+  {
+    "id": "st_0088",
+    "kind": "waypoint",
+    "name": "Укр. Повстанців",
+    "stopIds": [
+      "st_0088"
     ]
   },
   {

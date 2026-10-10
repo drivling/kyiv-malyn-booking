@@ -18,20 +18,20 @@
 </g>
 <g class="lts-routes" fill="none" stroke-linecap="round" stroke-linejoin="round">
 <g class="lts-route" data-route="2">
-<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,420.0 L267.1,420.0 L203.5,483.5" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,420.0 L267.1,420.0 L203.5,483.5" stroke="#D7263D" stroke-width="7"/>
+<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,425.0 L262.1,425.0 L203.5,483.5" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M340.0,535.0 L517.9,535.0 L550.0,502.9 L550.0,425.0 L262.1,425.0 L203.5,483.5" stroke="#D7263D" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="3">
-<path d="M110.0,400.0 L280.0,400.0 L320.0,380.0 L551.7,380.0 L605.9,325.9 L651.7,280.0 L860.0,280.0 L900.0,280.0 L1088.3,280.0 L1194.1,385.9" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M110.0,400.0 L280.0,400.0 L320.0,380.0 L551.7,380.0 L605.9,325.9 L651.7,280.0 L860.0,280.0 L900.0,280.0 L1088.3,280.0 L1194.1,385.9" stroke="#1B9E4B" stroke-width="7"/>
+<path d="M110.0,400.0 L280.0,400.0 L310.0,385.0 L553.8,385.0 L609.4,329.4 L653.8,285.0 L860.0,285.0 L900.0,285.0 L910.0,280.0 L1088.3,280.0 L1194.1,385.9" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M110.0,400.0 L280.0,400.0 L310.0,385.0 L553.8,385.0 L609.4,329.4 L653.8,285.0 L860.0,285.0 L900.0,285.0 L910.0,280.0 L1088.3,280.0 L1194.1,385.9" stroke="#1B9E4B" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="5">
-<path d="M196.5,476.5 L272.9,400.0 L574.1,400.0 L624.1,350.0 L824.1,350.0 L864.1,310.0 L900.0,310.0 L1075.9,310.0 L1172.9,407.1" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M196.5,476.5 L272.9,400.0 L574.1,400.0 L624.1,350.0 L824.1,350.0 L864.1,310.0 L900.0,310.0 L1075.9,310.0 L1172.9,407.1" stroke="#1F6FD6" stroke-width="7"/>
+<path d="M196.5,476.5 L267.9,405.0 L562.1,405.0 L622.1,345.0 L822.1,345.0 L862.1,305.0 L900.0,305.0 L910.0,310.0 L1075.9,310.0 L1172.9,407.1" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M196.5,476.5 L267.9,405.0 L562.1,405.0 L622.1,345.0 L822.1,345.0 L862.1,305.0 L900.0,305.0 L910.0,310.0 L1075.9,310.0 L1172.9,407.1" stroke="#1F6FD6" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="7">
-<path d="M280.0,410.0 L555.9,410.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M280.0,410.0 L555.9,410.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="#F08A1C" stroke-width="7"/>
+<path d="M280.0,415.0 L560.9,415.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M280.0,415.0 L560.9,415.0 L672.9,527.1 L755.9,610.0 L980.0,610.0 L1104.1,610.0 L1190.0,524.1 L1190.0,400.0" stroke="#F08A1C" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="8">
 <path d="M627.1,592.9 L570.0,535.9 L570.0,500.0 L570.0,410.0 L680.0,520.0 L760.0,600.0 L980.0,600.0 L1180.0,400.0" stroke="#ffffff" stroke-width="9.5"/>
@@ -43,31 +43,36 @@
 <path d="M1180.0,340.0 L1180.0,400.0" stroke="#E3368C" stroke-width="5.5" stroke-dasharray="8 9"/>
 </g>
 <g class="lts-route" data-route="10">
-<path d="M280.0,400.0 L280.0,360.0 L320.0,320.0 L480.0,320.0 L560.0,400.0 L620.0,340.0 L660.0,300.0 L860.0,300.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M280.0,400.0 L280.0,360.0 L320.0,320.0 L480.0,320.0 L560.0,400.0 L620.0,340.0 L660.0,300.0 L860.0,300.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="#C99700" stroke-width="7"/>
+<path d="M280.0,375.0 L560.0,375.0 L560.0,340.0 L520.0,300.0 L520.0,230.0 L830.0,230.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M280.0,375.0 L560.0,375.0 L560.0,340.0 L520.0,300.0 L520.0,230.0 L830.0,230.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="#C99700" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="11">
-<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,428.3 L628.3,360.0 L828.3,360.0 L868.3,320.0 L900.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,428.3 L628.3,360.0 L828.3,360.0 L868.3,320.0 L900.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#0E9AA7" stroke-width="7"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#0E9AA7" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="12">
-<path d="M280.0,390.0 L555.9,390.0 L612.9,332.9 L655.9,290.0 L860.0,290.0 L900.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M280.0,390.0 L555.9,390.0 L612.9,332.9 L655.9,290.0 L860.0,290.0 L900.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="#8A5A2B" stroke-width="7"/>
+<path d="M280.0,395.0 L557.9,395.0 L616.5,336.5 L657.9,295.0 L860.0,295.0 L900.0,295.0 L910.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M280.0,395.0 L557.9,395.0 L616.5,336.5 L657.9,295.0 L860.0,295.0 L900.0,295.0 L910.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="#8A5A2B" stroke-width="7"/>
 </g>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_0004" data-stops="st_0004 st_0005">
-<line x1="400.0" y1="320.0" x2="400.0" y2="320.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
-<line x1="400.0" y1="320.0" x2="400.0" y2="320.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
-<text x="400" y="302" text-anchor="middle" font-size="11.5" fill="#5f6673">Автостанція · Укр. Повстанців</text>
+<line x1="520.0" y1="265.0" x2="520.0" y2="265.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
+<line x1="520.0" y1="265.0" x2="520.0" y2="265.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+<text x="506" y="269" text-anchor="end" font-size="11.5" fill="#5f6673">Автостанція</text>
 </g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_0013" data-stops="st_0013">
-<line x1="760.0" y1="300.0" x2="760.0" y2="280.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
-<line x1="760.0" y1="300.0" x2="760.0" y2="280.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0088" data-stops="st_0088">
+<line x1="557.2" y1="230.0" x2="557.2" y2="230.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
+<line x1="557.2" y1="230.0" x2="557.2" y2="230.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+<text x="557" y="216" text-anchor="middle" font-size="11.5" fill="#5f6673">Укр. Повстанців</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0013" data-stops="st_0013 st_0042">
+<line x1="760.0" y1="295.0" x2="760.0" y2="285.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
+<line x1="760.0" y1="295.0" x2="760.0" y2="285.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
 <text x="760" y="270" text-anchor="middle" font-size="11.5" fill="#5f6673">Грушевського</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_0015" data-stops="st_0015 st_0046">
-<line x1="720.0" y1="360.0" x2="720.0" y2="350.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
-<line x1="720.0" y1="360.0" x2="720.0" y2="350.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+<line x1="720.0" y1="355.0" x2="720.0" y2="345.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
+<line x1="720.0" y1="355.0" x2="720.0" y2="345.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
 <text x="720" y="378" text-anchor="middle" font-size="11.5" fill="#5f6673">з-д «Прожектор»</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_0090" data-stops="st_0090">
@@ -148,14 +153,14 @@
 <text x="266" y="346" text-anchor="end" font-size="16" font-weight="800" fill="#1b1f2a">Лікарня · Поліклініка</text>
 <g class="lts-badge" data-route="7"><rect x="180.0" y="354.0" width="22" height="16" rx="4" fill="#F08A1C"/><text x="191.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text></g><g class="lts-badge" data-route="12"><rect x="206.0" y="354.0" width="28" height="16" rx="4" fill="#8A5A2B"/><text x="220.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text></g><g class="lts-badge" data-route="10"><rect x="238.0" y="354.0" width="28" height="16" rx="4" fill="#C99700"/><text x="252.0" y="365.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">10</text></g>
 </g>
-<g class="lts-stop lts-stop--hub" data-stop="st_0070" data-stops="st_0070 st_0082 st_0008 st_0056 st_0049 st_0044">
+<g class="lts-stop lts-stop--hub" data-stop="st_0070" data-stops="st_0070 st_0056 st_0049 st_0044">
 <circle cx="560" cy="400" r="26" fill="#ffffff" stroke="#1b1f2a" stroke-width="4"/>
 <circle cx="560" cy="400" r="18" fill="none" stroke="#1b1f2a" stroke-width="1.5" opacity="0.35"/>
 <text x="536" y="446" text-anchor="end" font-size="16" font-weight="800" fill="#1b1f2a">Центр · Базарна площа</text>
 <text x="506" y="462" text-anchor="end" font-size="11" fill="#5f6673">пл. Соборна · ТЦ «Промінь» · Коопринок</text>
 <g class="lts-badge" data-route="9"><rect x="514.0" y="450.0" width="22" height="16" rx="4" fill="#E3368C"/><text x="525.0" y="461.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">9</text></g>
 </g>
-<g class="lts-stop lts-stop--hub" data-stop="st_0054" data-stops="st_0054">
+<g class="lts-stop lts-stop--hub" data-stop="st_0054" data-stops="st_0054 st_0082">
 <circle cx="900" cy="300" r="26" fill="#ffffff" stroke="#1b1f2a" stroke-width="4"/>
 <circle cx="900" cy="300" r="18" fill="none" stroke="#1b1f2a" stroke-width="1.5" opacity="0.35"/>
 <text x="918" y="342" text-anchor="start" font-size="16" font-weight="800" fill="#1b1f2a">Малинівський круг</text>
@@ -207,9 +212,9 @@
 </g>
 <g class="lts-legend-row" data-route="10">
 <g class="lts-badge" data-route="10"><rect x="720.0" y="827.0" width="28" height="20" rx="4" fill="#C99700"/><text x="734.0" y="842.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">10</text></g>
-<text x="758" y="842" font-size="13.5" font-weight="700" fill="#1b1f2a">Лікарня — Залізничний вокзал</text>
-<text x="1342" y="842" text-anchor="end" font-size="11.5" font-style="italic" fill="#5f6673">розклад уточнюється</text>
-<text x="758" y="857" font-size="10.5" fill="#5f6673">Автостанція · Укр. Повстанців · Центр · Грушевського · Малинівський круг · Огієнка</text>
+<text x="758" y="842" font-size="13.5" font-weight="700" fill="#1b1f2a">Поліклініка — Залізничний вокзал</text>
+<text x="1342" y="842" text-anchor="end" font-size="11.5" fill="#5f6673" font-variant-numeric="tabular-nums">13 рейс. · 6:15–18:25</text>
+<text x="758" y="857" font-size="10.5" fill="#5f6673">Шевченка · Центр · Автостанція · Укр. Повстанців · Мирутенка · Малинівський круг · Огієнка</text>
 </g>
 <g class="lts-legend-row" data-route="11">
 <g class="lts-badge" data-route="11"><rect x="720.0" y="865.0" width="28" height="20" rx="4" fill="#0E9AA7"/><text x="734.0" y="880.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text></g>

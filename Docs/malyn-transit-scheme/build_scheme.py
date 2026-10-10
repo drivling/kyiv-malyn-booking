@@ -16,7 +16,7 @@
       --site-dir ../../frontend/src/pages/LocalTransportPage/scheme \
       --poster-dir ../../frontend/public/transport/scheme --qr-url https://malin.kiev.ua/transport/scheme
 """
-import argparse, base64, json, math, os, sys, urllib.request
+import argparse, base64, json, math, os, re, sys, urllib.request
 from collections import defaultdict
 
 API = 'https://kyiv-malyn-booking-production.up.railway.app/transport/dataset'
@@ -29,7 +29,8 @@ QR_URL_DEFAULT = 'https://malin.kiev.ua/transport/scheme'
 # ---------------------------------------------------------------- маршрути
 ROUTE_ORDER = ['2', '3', '5', '7', '8', '9', '10', '11', '12']
 # Маршрути, намальовані за старою схемою на вокзалі, але без заповненого розкладу в базі
-UNCONFIRMED = {'10'}
+# (у легенді — «розклад уточнюється», сторінка схеми не веде на розклад). З 2026-10 таких немає.
+UNCONFIRMED = set()
 COLORS = {  # світла тема / темна тема
     '2':  ('#D7263D', '#FF5F73'),
     '3':  ('#1B9E4B', '#3FCB70'),
@@ -48,7 +49,7 @@ LEGEND = {  # кінцеві та «через» — коротко, для ле
     '7':  ('Лікарня', 'Залізничний вокзал', 'Центр · С. Бандери · ПТЛ · Городище (14 ОМБ) · тимчасова схема'),
     '8':  ('Чорновола, 53', 'Залізничний вокзал', 'Барміна · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема'),
     '9':  ('Центр (ТЦ «Промінь»)', 'вул. Олекси Тихого', 'Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня'),
-    '10': ('Лікарня', 'Залізничний вокзал', 'Автостанція · Укр. Повстанців · Центр · Грушевського · Малинівський круг · Огієнка'),
+    '10': ('Поліклініка', 'Залізничний вокзал', 'Шевченка · Центр · Автостанція · Укр. Повстанців · Мирутенка · Малинівський круг · Огієнка'),
     '11': ('Паперова фабрика', 'Залізничний вокзал', 'Приходька · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка'),
     '12': ('Лікарня', 'Залізничний вокзал', 'Центр · Грушевського · Малинівський круг · Огієнка (БАМ)'),
 }
@@ -61,20 +62,23 @@ N = {
     'GB': (680, 520), 'B2': (760, 600), 'PTL': (980, 600), 'GOR': (1100, 600), 'C7': (1180, 520),
     'VOK': (1180, 400), 'OT': (1180, 340), 'YUR': (1060, 220), 'MAL': (980, 220), 'MK': (900, 300),
     'F1': (620, 340), 'F2': (660, 300), 'L1': (820, 340), 'L2': (860, 300), 'N1': (1080, 300),
-    'A0': (280, 360), 'A1': (320, 320), 'A2': (480, 320),
+    # №10 від Центру: угору (Залужного), ліворуч-угору до Винниченка, угору повз Автостанцію до
+    # Укр. Повстанців, праворуч Мирутенкою, униз-праворуч на Малинівський круг
+    'Z1': (560, 340), 'Z2': (520, 300), 'Z3': (520, 230), 'Z4': (830, 230),
 }
 # коридор: точки (у канонічному напрямку) + зсув кожного маршруту в смугах
 # (+ = візуально ліворуч від напрямку руху, у координатах екрана)
 C = {
     'LIS':   (['LIS', 'LIK'],                 {'3': 0}),
     'SH':    (['SH119', 'LIK'],               {'5': 0.5, '2': -0.5}),
-    'TRUNK': (['LIK', 'CEN'],                 {'3': 2, '12': 1, '5': 0, '7': -1, '2': -2}),
-    'NE1':   (['CEN', 'F1'],                  {'3': 2, '12': 1, '10': 0, '5': -1, '11': -2}),
-    'NE2':   (['F1', 'F2', 'L2'],             {'3': 2, '12': 1, '10': 0}),
-    'LOW':   (['F1', 'L1', 'L2'],             {'5': -1, '11': -2}),
-    'NE3':   (['L2', 'MK'],                   {'3': 2, '12': 1, '10': 0, '5': -1, '11': -2}),
+    # Шевченка: шість ліній; 10 — верхня, бо в Центрі повертає вгору (поворот усередині кільця вузла)
+    'TRUNK': (['LIK', 'CEN'],                 {'10': 2.5, '3': 1.5, '12': 0.5, '5': -0.5, '7': -1.5, '2': -2.5}),
+    'NE1':   (['CEN', 'F1'],                  {'3': 1.5, '12': 0.5, '5': -0.5, '11': -1.5}),
+    'NE2':   (['F1', 'F2', 'L2'],             {'3': 1.5, '12': 0.5}),
+    'LOW':   (['F1', 'L1', 'L2'],             {'5': -0.5, '11': -1.5}),
+    'NE3':   (['L2', 'MK'],                   {'3': 1.5, '12': 0.5, '5': -0.5, '11': -1.5}),
     'EAST':  (['MK', 'N1', 'VOK'],            {'3': 2, '12': 1, '10': 0, '5': -1, '11': -2}),
-    'R10A':  (['LIK', 'A0', 'A1', 'A2', 'CEN'], {'10': 0}),   # петля через Автостанцію / Укр. Повстанців
+    'R10B':  (['CEN', 'Z1', 'Z2', 'Z3', 'Z4', 'MK'], {'10': 0}),  # Залужного · Винниченка · Укр. Повстанців · Мирутенка
     'SOUTH': (['CEN', 'MAZ'],                 {'8': 1, '11': 0, '2': -1}),
     'PF':    (['MAZ', 'P1', 'PF'],            {'11': 0.5, '2': -0.5}),
     'CH':    (['MAZ', 'BAR', 'CH53'],         {'8': 1}),
@@ -93,7 +97,7 @@ ROUTES = {
     '7':  ['TRUNK', 'SE', 'B78', 'R7'],
     '8':  ['CH', 'SOUTH', 'SE', 'B78', 'R8'],
     '9':  ['SE', 'R9A', 'R9B'],
-    '10': ['R10A', 'NE1', 'NE2', 'NE3', 'EAST'],
+    '10': ['TRUNK', 'R10B', 'EAST'],
     '11': ['PF', 'SOUTH', 'NE1', 'LOW', 'NE3', 'EAST'],
     '12': ['TRUNK', 'NE1', 'NE2', 'NE3', 'EAST'],
 }
@@ -115,7 +119,8 @@ TERMS = [
 ]
 # проміжні орієнтири (маленькі): коридор, точка на осі, підпис
 WAYPOINTS = [
-    dict(cor='R10A', seg=2, t=0.5, stop='st_0004', name='Автостанція · Укр. Повстанців', lx=400, ly=302, anchor='middle'),
+    dict(cor='R10B', seg=2, t=0.5, stop='st_0004', name='Автостанція', lx=506, ly=269, anchor='end'),
+    dict(cor='R10B', seg=3, t=0.12, stop='st_0088', name='Укр. Повстанців', lx=557, ly=216, anchor='middle'),
     dict(cor='NE2',  seg=1, t=(760-660)/(860-660), stop='st_0013', name='Грушевського', lx=760, ly=270, anchor='middle'),
     dict(cor='LOW',  seg=0, t=(720-620)/(820-620), stop='st_0015', name='з-д «Прожектор»', lx=720, ly=378, anchor='middle'),
     dict(cor='R9A',  seg=0, t=0.5, stop='st_0090', name='Царське село', lx=806, ly=424, anchor='start'),
@@ -360,6 +365,17 @@ def font_face_style(fonts_dir):
     faces.append('@media print{@page{size:594mm 420mm;margin:0}svg:root{width:594mm;height:420mm}}')
     return '<style>' + ''.join(faces) + '</style>'
 
+def poster_assets_from(path, qr_url):
+    """--reuse-poster: QR-код і блок @font-face з уже згенерованого плаката — коли немає segno чи папки
+    шрифтів. QR той самий, якщо адреса та сама (перевіряємо підпис під кодом)."""
+    old = open(path, encoding='utf-8').read()
+    styles = re.findall(r'<style>.*?</style>', old, flags=re.S)
+    qrs = re.findall(r'<path d="([^"]+)" fill="#1b1f2a" shape-rendering="crispEdges"/>', old)
+    host = qr_url.replace('https://', '')
+    if len(styles) != 1 or len(qrs) != 1 or f'>{esc(host)}<' not in old:
+        raise SystemExit(f'--reuse-poster: у {path} немає рівно одного QR-коду для {host} і одного блоку шрифтів')
+    return qrs[0], styles[0]
+
 # ---------------------------------------------------------------- SVG
 def esc(s):
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -391,8 +407,9 @@ def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
     return ''.join(parts)
 
 def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text, font,
-              variant='page', standalone=False, qr_url=QR_URL_DEFAULT, fonts_dir=''):
-    """variant: page (заголовок + легенда) | poster (page + QR) | site (лише карта, data-атрибути)."""
+              variant='page', standalone=False, qr_url=QR_URL_DEFAULT, fonts_dir='', reuse=None):
+    """variant: page (заголовок + легенда) | poster (page + QR) | site (лише карта, data-атрибути).
+    reuse — (шлях QR-коду, блок <style>) з poster_assets_from замість segno і fonts_dir."""
     site = variant == 'site'
     W_, H_ = 1400, 1012
     view = '0 176 1400 566' if site else f'0 0 {W_} {H_}'
@@ -405,7 +422,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
              f'aria-label="Схема міських автобусних маршрутів Малина: 9 ліній, кінцеві та пересадкові зупинки" '
              f'font-family="{font}" color="{fg}">')
     if variant == 'poster':
-        o.append(font_face_style(fonts_dir))
+        o.append(reuse[1] if reuse else font_face_style(fonts_dir))
     if standalone:
         o.append(f'<rect width="{W_}" height="{H_}" fill="{bg}"/>')
     # ---- заголовок
@@ -422,7 +439,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
     if variant == 'poster':
         box_x, box_y, box = 1170, 36, 170
         quiet = 12
-        d, n = qr_svg_path(qr_url, box_x + quiet, box_y + quiet, box - 2 * quiet)
+        d = reuse[0] if reuse else qr_svg_path(qr_url, box_x + quiet, box_y + quiet, box - 2 * quiet)[0]
         o.append(f'<rect x="{box_x}" y="{box_y}" width="{box}" height="{box}" rx="10" fill="#ffffff" stroke="{muted}" stroke-width="1.5"/>')
         o.append(f'<path d="{d}" fill="#1b1f2a" shape-rendering="crispEdges"/>')
         o.append(f'<text x="{box_x + box / 2:.0f}" y="{box_y + box + 20}" text-anchor="middle" font-size="12" font-weight="700" fill="{fg}">Скануй: інтерактивна схема й розклад</text>')
@@ -568,7 +585,8 @@ __SVG__
     <section>
       <h2>Що взято з даних сайту</h2>
       <ul>
-        <li>8 маршрутів, які показує malin.kiev.ua, плюс <span class="pill" style="background:var(--r10)">10</span>, намальований за старою схемою на вокзалі: його розклад у базі ще не заповнений, тому в легенді стоїть «розклад уточнюється». Маршрут 1 на схему не потрапив.</li>
+        <li>9 маршрутів, які показує malin.kiev.ua. Маршрут 1 на схему не потрапив.</li>
+        <li><span class="pill" style="background:var(--r10)">10</span> (колишній 6) намальований за списком зупинок data.gov.ua 2024 і OpenStreetMap: Шевченка, Центр, Автостанція, Укр. Повстанців, Мирутенка, Малинівський круг.</li>
         <li>Річка Ірша та Малинське водосховище показані схематично за контурами OpenStreetMap: міст на Мазепи між Кооперативним ринком і Мазепи, 3; Барміна, Чорновола й Приходька — на південному березі.</li>
         <li><span class="pill" style="background:var(--r9)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
         <li><span class="pill" style="background:var(--r8)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
@@ -626,6 +644,8 @@ def main():
     ap.add_argument('--poster-dir', default='')
     ap.add_argument('--qr-url', default=QR_URL_DEFAULT)
     ap.add_argument('--fonts-dir', default='')
+    ap.add_argument('--reuse-poster', action='store_true',
+                    help='QR-код і шрифти взяти з наявного плаката в --poster-dir (без segno і --fonts-dir)')
     ap.add_argument('--suggest-node-stops', action='store_true', help='звіт по зупинках навколо вузлів (ревізія NODE_STOPS)')
     args = ap.parse_args()
     ds = load_dataset(args.dataset)
@@ -666,9 +686,12 @@ def main():
                     + json.dumps(scheme_nodes(), ensure_ascii=False, indent=2) + ';\n')
     if args.poster_dir:
         os.makedirs(args.poster_dir, exist_ok=True)
-        with open(os.path.join(args.poster_dir, 'malyn-transit-scheme-poster.svg'), 'w', encoding='utf-8') as f:
+        poster = os.path.join(args.poster_dir, 'malyn-transit-scheme-poster.svg')
+        reuse = poster_assets_from(poster, args.qr_url) if args.reuse_poster else None
+        with open(poster, 'w', encoding='utf-8') as f:
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n'
-                    + build_svg(stats, standalone=True, variant='poster', qr_url=args.qr_url, fonts_dir=args.fonts_dir, **light))
+                    + build_svg(stats, standalone=True, variant='poster', qr_url=args.qr_url, fonts_dir=args.fonts_dir,
+                                reuse=reuse, **light))
     print('ok', {k: v['trips'] for k, v in stats.items()})
 
 if __name__ == '__main__':

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router-dom';
-import { renderWithProviders, screen, within, fireEvent } from '@/test/utils';
+import { renderWithProviders, screen, within, fireEvent, waitFor } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import { LocalTransportSchemePage } from './LocalTransportSchemePage';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
+import { invalidateTransportDatasetCache } from './dataset/useTransportDataset';
 
 const dataset = {
   stops: [
@@ -35,8 +36,8 @@ const dataset = {
   meta: { defaultSec: 120, center: [50.768, 29.242] },
 };
 
-function renderPage(path = '/transport/scheme') {
-  server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(dataset)));
+function renderPage(path = '/transport/scheme', data: typeof dataset = dataset) {
+  server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(data)));
   return renderWithProviders(
     <Routes>
       <Route path="/transport/scheme" element={<LocalTransportSchemePage />} />
@@ -101,11 +102,32 @@ describe('LocalTransportSchemePage', () => {
     expect(container.querySelector('.lts-route--dim')).toBeNull();
   });
 
-  it('deep link ?route=10 opens the unconfirmed route without a schedule link', async () => {
+  it('deep link ?route=10: no schedule link while the dataset hides the route', async () => {
     renderPage('/transport/scheme?route=10');
-    expect(screen.getByRole('heading', { level: 2, name: /Лікарня — Залізничний вокзал/ })).toBeInTheDocument();
-    expect(await screen.findByText('Розклад уточнюється')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^Розклад №/ })).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: /Поліклініка — Залізничний вокзал/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('link', { name: /^Розклад №/ })).toBeNull());
+    expect(screen.queryByText('Розклад уточнюється')).toBeNull();
+  });
+
+  it('deep link ?route=10 links to its schedule once the route is open (redrawn 2026-10)', async () => {
+    const open = {
+      ...dataset,
+      routes: dataset.routes.map((r) => (r.id === '10' ? { ...r, fromName: 'Поліклініка', toName: 'Залізничний вокзал', unreliable: false } : r)),
+      trips: [
+        ...dataset.trips,
+        { id: '10-03', routeId: '10', directionId: '1', departureTime: '06:45:00' },
+        { id: '10-04', routeId: '10', directionId: '0', departureTime: '18:00:00' },
+      ],
+    };
+    invalidateTransportDatasetCache(); // інші тести вже закешували датасет, де №10 прихований
+    try {
+      renderPage('/transport/scheme?route=10', open);
+      expect(await screen.findByText('1 рейсів у кожен бік · 6:45–18:00')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Розклад №10' })).toHaveAttribute('href', '/transport/route/10');
+      expect(screen.queryByText('Розклад уточнюється')).toBeNull();
+    } finally {
+      invalidateTransportDatasetCache();
+    }
   });
 
   it('a stop on the scheme opens its board', async () => {
