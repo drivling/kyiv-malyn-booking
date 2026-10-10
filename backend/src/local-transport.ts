@@ -23,7 +23,15 @@ export interface TransportRouteInput {
   schedule?: unknown;
   /** Ненадійний маршрут — приховати на сайті/SEO (default false) */
   unreliable?: boolean;
+  /**
+   * Номер для показу («11/1», «5А»), як route_short_name у GTFS; порожньо — id.
+   * Без ключа в PUT — лишається попереднє значення (старі клієнти не стирають номер).
+   */
+  shortName?: string;
 }
+
+/** Найдовший номер маршруту для показу (символів) */
+export const ROUTE_SHORT_NAME_MAX = 16;
 
 export interface TransportRouteStopInput {
   routeId: string;
@@ -99,6 +107,13 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
     else routeIds.add(r.id);
     if (r.unreliable !== undefined && r.unreliable !== null && typeof r.unreliable !== 'boolean') {
       errors.push(`route ${r.id}: unreliable must be boolean`);
+    }
+    if (r.shortName !== undefined && r.shortName !== null) {
+      if (typeof r.shortName !== 'string') errors.push(`route ${r.id}: shortName must be a string`);
+      else if (/[\r\n\t]/.test(r.shortName)) errors.push(`route ${r.id}: shortName must be one line`);
+      else if (r.shortName.trim().length > ROUTE_SHORT_NAME_MAX) {
+        errors.push(`route ${r.id}: shortName longer than ${ROUTE_SHORT_NAME_MAX} characters`);
+      }
     }
   }
 
@@ -193,8 +208,18 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
   return errors.length ? { errors } : { errors: [], dataset };
 }
 
+/** Номер для показу: з датасету (обрізаний), а коли ключа немає — попередній з БД. */
+function shortNameFor(r: TransportRouteInput, previous: Map<string, string>): string {
+  return typeof r.shortName === 'string' ? r.shortName.trim() : previous.get(r.id) ?? '';
+}
+
 /** Транзакційна заміна всього датасету. */
 export async function replaceTransportDataset(prisma: PrismaClient, dataset: TransportDataset): Promise<void> {
+  const previousShortNames = dataset.routes.some((r) => typeof r.shortName !== 'string')
+    ? new Map(
+        (await prisma.transportRoute.findMany({ select: { id: true, shortName: true } })).map((r) => [r.id, r.shortName ?? ''])
+      )
+    : new Map<string, string>();
   await prisma.$transaction([
     prisma.transportSegment.deleteMany(),
     prisma.transportTrip.deleteMany(),
@@ -214,6 +239,7 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
         sourceUrl: r.sourceUrl ?? '',
         schedule: (r.schedule ?? undefined) as Prisma.InputJsonValue | undefined,
         unreliable: r.unreliable ?? false,
+        shortName: shortNameFor(r, previousShortNames),
       })),
     }),
     prisma.transportRouteStop.createMany({
@@ -278,6 +304,7 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
       sourceUrl: r.sourceUrl,
       schedule: r.schedule ?? null,
       unreliable: r.unreliable,
+      shortName: r.shortName ?? '',
     })),
     routeStops: routeStops.map((rs) => ({
       routeId: rs.routeId,
@@ -363,6 +390,7 @@ export function convertLegacyRuntime(input: {
         sourceUrl: m.source_url || '',
         schedule: m.schedule ?? null,
         unreliable: m.unreliable === true,
+        ...(typeof m.short_name === 'string' ? { shortName: m.short_name } : {}),
       };
     });
 

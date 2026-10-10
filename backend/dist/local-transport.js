@@ -1,10 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ROUTE_SHORT_NAME_MAX = void 0;
 exports.validateTransportDataset = validateTransportDataset;
 exports.replaceTransportDataset = replaceTransportDataset;
 exports.loadTransportDataset = loadTransportDataset;
 exports.convertLegacyRuntime = convertLegacyRuntime;
 const trip_timing_1 = require("./trip-timing");
+/** Найдовший номер маршруту для показу (символів) */
+exports.ROUTE_SHORT_NAME_MAX = 16;
 const TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
 /** Перевірка цілісності перед записом у БД. Повертає список помилок (порожній — ок). */
 function validateTransportDataset(data) {
@@ -44,6 +47,15 @@ function validateTransportDataset(data) {
             routeIds.add(r.id);
         if (r.unreliable !== undefined && r.unreliable !== null && typeof r.unreliable !== 'boolean') {
             errors.push(`route ${r.id}: unreliable must be boolean`);
+        }
+        if (r.shortName !== undefined && r.shortName !== null) {
+            if (typeof r.shortName !== 'string')
+                errors.push(`route ${r.id}: shortName must be a string`);
+            else if (/[\r\n\t]/.test(r.shortName))
+                errors.push(`route ${r.id}: shortName must be one line`);
+            else if (r.shortName.trim().length > exports.ROUTE_SHORT_NAME_MAX) {
+                errors.push(`route ${r.id}: shortName longer than ${exports.ROUTE_SHORT_NAME_MAX} characters`);
+            }
         }
     }
     const rsKeys = new Set();
@@ -144,8 +156,15 @@ function validateTransportDataset(data) {
     }
     return errors.length ? { errors } : { errors: [], dataset };
 }
+/** Номер для показу: з датасету (обрізаний), а коли ключа немає — попередній з БД. */
+function shortNameFor(r, previous) {
+    return typeof r.shortName === 'string' ? r.shortName.trim() : previous.get(r.id) ?? '';
+}
 /** Транзакційна заміна всього датасету. */
 async function replaceTransportDataset(prisma, dataset) {
+    const previousShortNames = dataset.routes.some((r) => typeof r.shortName !== 'string')
+        ? new Map((await prisma.transportRoute.findMany({ select: { id: true, shortName: true } })).map((r) => [r.id, r.shortName ?? '']))
+        : new Map();
     await prisma.$transaction([
         prisma.transportSegment.deleteMany(),
         prisma.transportTrip.deleteMany(),
@@ -165,6 +184,7 @@ async function replaceTransportDataset(prisma, dataset) {
                 sourceUrl: r.sourceUrl ?? '',
                 schedule: (r.schedule ?? undefined),
                 unreliable: r.unreliable ?? false,
+                shortName: shortNameFor(r, previousShortNames),
             })),
         }),
         prisma.transportRouteStop.createMany({
@@ -228,6 +248,7 @@ async function loadTransportDataset(prisma) {
             sourceUrl: r.sourceUrl,
             schedule: r.schedule ?? null,
             unreliable: r.unreliable,
+            shortName: r.shortName ?? '',
         })),
         routeStops: routeStops.map((rs) => ({
             routeId: rs.routeId,
@@ -304,6 +325,7 @@ function convertLegacyRuntime(input) {
             sourceUrl: m.source_url || '',
             schedule: m.schedule ?? null,
             unreliable: m.unreliable === true,
+            ...(typeof m.short_name === 'string' ? { shortName: m.short_name } : {}),
         };
     });
     const routeStops = [];
