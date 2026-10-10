@@ -12,6 +12,7 @@ import schemeSvg from './scheme/malyn-scheme.svg?raw';
 import './LocalTransportPage.css';
 import './scheme/scheme-svg.css';
 import './LocalTransportSchemePage.css';
+import { routeNo } from '@/utils/routeNames';
 
 const SITE = 'https://malin.kiev.ua';
 /** Статика з frontend/public (генерується build_scheme.py --poster-dir; PDF — Chromium print, див. README) */
@@ -233,10 +234,10 @@ export function LocalTransportSchemePage() {
                   className={`lts-chip ${activeRoute === r.id ? 'lts-chip--active' : ''}`}
                   style={{ '--lts-chip': `var(--lts-r${r.id})` } as React.CSSProperties}
                   aria-pressed={activeRoute === r.id}
-                  aria-label={`Маршрут №${r.id}: ${r.from} — ${r.to}`}
+                  aria-label={`Маршрут №${routeNo(r.id)}: ${r.from} — ${r.to}`}
                   onClick={() => toggleRoute(r.id)}
                 >
-                  {r.id}
+                  {routeNo(r.id)}
                 </button>
               ))}
             </div>
@@ -277,7 +278,7 @@ export function LocalTransportSchemePage() {
               <p className="lts-card-meta">
                 {/* «вузол» лише коли він обʼєднує кілька зупинок; вузол з однієї зупинки — просто зупинка */}
                 {hereRoutes.length
-                  ? `Лінії через ${hereNode && hereNode.stopIds.length > 1 ? 'вузол' : 'зупинку'}: ${hereRoutes.map((id) => `№${id}`).join(', ')}`
+                  ? `Лінії через ${hereNode && hereNode.stopIds.length > 1 ? 'вузол' : 'зупинку'}: ${hereRoutes.map((id) => `№${routeNo(id)}`).join(', ')}`
                   : `Через ${hereNode && hereNode.stopIds.length > 1 ? 'вузол' : 'зупинку'} не проходить жодна лінія схеми`}
               </p>
               {hereNodeStops.length > 1 && (
@@ -312,7 +313,7 @@ export function LocalTransportSchemePage() {
             <section className="lts-card" aria-labelledby="lts-card-title">
               <h2 id="lts-card-title" className="lts-card-title">
                 <span className="lts-card-num" style={{ background: `var(--lts-r${active.id})` }} aria-hidden>
-                  {active.id}
+                  {routeNo(active.id)}
                 </span>
                 <span>
                   {active.from} — {active.to}
@@ -323,7 +324,7 @@ export function LocalTransportSchemePage() {
               <div className="lts-card-actions">
                 {hasSchedulePage && (
                   <Link className="lts-btn lts-btn--primary" to={`/transport/route/${encodeURIComponent(active.id)}${suffix}`}>
-                    Розклад №{active.id}
+                    Розклад №{routeNo(active.id)}
                   </Link>
                 )}
                 <button type="button" className="lts-btn" onClick={() => setActiveRoute(null)}>

@@ -26,6 +26,7 @@ import { stickerStopCatalog, stopStatRows } from './stopSticker/scanStats';
 import { StickerStatsPanel } from './stopSticker/StickerStatsPanel';
 import { StickerStopList } from './stopSticker/StickerStopList';
 import './StopStickerTab.css';
+import { routeNo } from '@/utils/routeNames';
 
 /** Стрілка напрямку руху: ↑ повернута на кут (0° — схід) */
 function BearingArrow({ bearing }: { bearing: number }) {
@@ -212,11 +213,11 @@ export const StopStickerTab: React.FC = () => {
                     <span className="sticker-tab-swatch" style={{ background: titleColor || '#1b1f2a' }} aria-hidden="true" />
                     <select value={titleColorChoice} onChange={(e) => setTitleColorChoice(e.target.value)}>
                       <option value="auto">
-                        Найяскравіша лінія{brightest ? ` (№${printable.find((l) => l.color === brightest)?.routeId})` : ''}
+                        Найяскравіша лінія{brightest ? ` (№${routeNo(printable.find((l) => l.color === brightest)?.routeId)})` : ''}
                       </option>
                       {colorOptions.map(([id]) => (
                         <option key={id} value={id}>
-                          Як лінія №{id}
+                          Як лінія №{routeNo(id)}
                         </option>
                       ))}
                       <option value="dark">Темний</option>
@@ -248,7 +249,7 @@ export const StopStickerTab: React.FC = () => {
                       <tr key={l.key}>
                         <td>
                           <span className="sticker-tab-badge" style={{ background: l.color ?? '#1b1f2a' }}>
-                            {l.routeId}
+                            {routeNo(l.routeId)}
                           </span>
                         </td>
                         <td>
@@ -259,7 +260,7 @@ export const StopStickerTab: React.FC = () => {
                           {l.via.length > 0 && <div className="sticker-tab-muted">через {l.via.map((v) => v.name).join(' · ')}</div>}
                         </td>
                         <td>
-                          <div className="sticker-tab-assign" role="radiogroup" aria-label={`№${l.routeId} → ${l.destination}: бік`}>
+                          <div className="sticker-tab-assign" role="radiogroup" aria-label={`№${routeNo(l.routeId)} → ${l.destination}: бік`}>
                             {(['a', 'b', 'off'] as const).map((k) => (
                               <label key={k}>
                                 <input

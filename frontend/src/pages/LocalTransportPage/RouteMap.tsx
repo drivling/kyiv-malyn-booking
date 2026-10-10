@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { pickBoundsStops, type LatLng, type RouteLine } from './routeGeometry';
 import { routeColorStyle } from './routeColors';
+import { routeNo } from '@/utils/routeNames';
 
 export interface RouteMapCoordsData {
   center: LatLng;
@@ -292,7 +293,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
               <div className="lt-map-card__lines" aria-label="Лінії через зупинку">
                 {selectedLines.map((id) => (
                   <span key={id} className="lt-badge" style={routeColorStyle(id)}>
-                    {id}
+                    {routeNo(id)}
                   </span>
                 ))}
               </div>

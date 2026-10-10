@@ -16,6 +16,7 @@ import {
 } from '@/api/transportDataset';
 import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import { getStopArticle } from '@/content/stops';
+import { routeNo, routeNoWithId } from '@/utils/routeNames';
 import { StopsPanel } from './MapEditorStopsPanel';
 import {
   applyStopRenamesToDataset,
@@ -385,8 +386,8 @@ export const MapEditorTab: React.FC = () => {
 
   const handleRecalculateSegments = useCallback(async () => {
     const scope = selectedRoute
-      ? `маршруту №${selectedRoute}`
-      : 'усіх перевірених маршрутів (2,3,5,7,8,9,11,12)';
+      ? `маршруту №${routeNo(selectedRoute)}`
+      : 'усіх перевірених маршрутів (2,3,5,7,8,9,10,11,12)';
     if (
       !window.confirm(
         `Перерахувати час між зупинками (OSRM) для ${scope}?\n\n` +
@@ -423,7 +424,7 @@ export const MapEditorTab: React.FC = () => {
     if (sbr) {
       Object.keys(sbr)
         .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
-        .forEach((id) => opts.push({ value: id, label: `Маршрут №${id}` }));
+        .forEach((id) => opts.push({ value: id, label: `Маршрут №${routeNoWithId(id)}` }));
     }
     return opts;
   }, [transportData]);
@@ -785,14 +786,14 @@ export const MapEditorTab: React.FC = () => {
               disabled={loading || saving || recalculating || !baseDataset}
               title={
                 selectedRoute
-                  ? `OSRM-перерахунок сегментів маршруту №${selectedRoute} (з даних у БД)`
+                  ? `OSRM-перерахунок сегментів маршруту №${routeNo(selectedRoute)} (з даних у БД)`
                   : 'OSRM-перерахунок усіх перевірених маршрутів (з даних у БД)'
               }
             >
               {recalculating
                 ? 'OSRM…'
                 : selectedRoute
-                  ? `Перерахувати час №${selectedRoute}`
+                  ? `Перерахувати час №${routeNo(selectedRoute)}`
                   : 'Перерахувати час (усі)'}
             </Button>
           </div>
@@ -847,7 +848,7 @@ export const MapEditorTab: React.FC = () => {
             onClick={handleRecalculateSegments}
             disabled={loading || saving || recalculating || !baseDataset}
           >
-            {recalculating ? 'OSRM…' : `Перерахувати час №${selectedRoute}`}
+            {recalculating ? 'OSRM…' : `Перерахувати час №${routeNo(selectedRoute)}`}
           </Button>
         </div>
       )}

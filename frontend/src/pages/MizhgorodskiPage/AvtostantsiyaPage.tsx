@@ -20,6 +20,7 @@ import {
   type BoardGroup,
 } from './avtostantsiyaContent';
 import './CorridorLandingPage.css';
+import { routeNo } from '@/utils/routeNames';
 
 const label = (s: Schedule) => s.tripRoute?.labelUk ?? getRouteLabel(s.route);
 
@@ -230,13 +231,13 @@ export function AvtostantsiyaPage() {
                 r.published ? (
                   <li key={r.id}>
                     <Link to={`/transport/route/${encodeURIComponent(r.id)}`}>
-                      <strong>№{r.id}</strong>
+                      <strong>№{routeNo(r.id)}</strong>
                     </Link>
                     {r.line ? ` — ${r.line}` : ''}
                   </li>
                 ) : (
                   <li key={r.id}>
-                    <strong>№{r.id}</strong>
+                    <strong>№{routeNo(r.id)}</strong>
                     {r.line ? ` — ${r.line}` : ''} — курсує через автостанцію; розклад саме по цій зупинці ми ще
                     зводимо, тому сторінки маршруту поки немає.
                   </li>

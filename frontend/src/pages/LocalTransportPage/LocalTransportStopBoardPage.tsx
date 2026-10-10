@@ -33,6 +33,7 @@ import { ArrivalReportSheet } from './ArrivalReportSheet';
 import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
 import { isPrerendering } from '@/utils/prerender';
+import { routeNo } from '@/utils/routeNames';
 import './LocalTransportPage.css';
 
 /**
@@ -40,7 +41,7 @@ import './LocalTransportPage.css';
  * фізичних зупинок (тоді підсвічено лінії всього вузла).
  */
 function schemeMiniNote(node: { name: string; size: number; stops: string[] } | null, routeIds: string[]): string {
-  const lines = routeIds.map((id) => `№${id}`).join(', ');
+  const lines = routeIds.map((id) => `№${routeNo(id)}`).join(', ');
   if (!node) return `Зупинка між вузлами схеми — підсвічено лінії, що проходять через неї: ${lines}.`;
   if (node.size > 1) {
     const list = node.stops.length > 1 ? ` обʼєднує зупинки ${node.stops.join(', ')}` : '';
@@ -276,9 +277,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         .slice()
         .sort((a, b) => a.departureMins - b.departureMins)
         .slice(0, 8)
-        .map((d) => `${formatMinsClock(Math.round(d.departureMins))} №${d.routeId}`);
+        .map((d) => `${formatMinsClock(Math.round(d.departureMins))} №${routeNo(d.routeId)}`);
       const faq = [
-        stopRoutesFaq(selectedStopTitle, routeIds, selectedStop),
+        stopRoutesFaq(selectedStopTitle, routeIds.map(routeNo), selectedStop),
         {
           q: `О котрій найближчі рейси з «${selectedStopTitle}»?`,
           a: sample.length
@@ -287,7 +288,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         },
         ...STOP_HUB_FAQ.slice(1),
       ];
-      const description = stopArticle ? stopArticlePlainText(stopArticle) : stopFallbackDescription(selectedStopTitle, routeIds);
+      // Тексти — з номерами для показу («11/1»), а не з id
+      const description = stopArticle
+        ? stopArticlePlainText({ ...stopArticle, routeIds: stopArticle.routeIds?.map(routeNo) })
+        : stopFallbackDescription(selectedStopTitle, routeIds.map(routeNo));
       return {
         title: stopPageTitle(selectedStopTitle),
         canonicalUrl: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
@@ -334,7 +338,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       .map((d, i) => ({
                         '@type': 'ListItem',
                         position: i + 1,
-                        name: `${formatMinsClock(Math.round(d.departureMins))} · №${d.routeId} → ${d.destination}`,
+                        name: `${formatMinsClock(Math.round(d.departureMins))} · №${routeNo(d.routeId)} → ${d.destination}`,
                       })),
                   },
                 ]
@@ -508,9 +512,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                     style={routeColorStyle(id)}
                     aria-pressed={lineFilter === id}
                     onClick={() => toggleLine(id)}
-                    title={lineFilter === id ? 'Показати всі маршрути' : `Лише маршрут №${id}`}
+                    title={lineFilter === id ? 'Показати всі маршрути' : `Лише маршрут №${routeNo(id)}`}
                   >
-                    №{id}
+                    №{routeNo(id)}
                   </button>
                 ))}
               </div>
@@ -614,7 +618,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <section className="lt-stop-board" aria-label="Відправлення">
               <p className="lt-stop-board-meta">{boardMeta}</p>
               <p className="lt-empty">
-                Після {searchTime} на цій зупинці{lineFilter ? ` маршрут №${lineFilter}` : ''} в розкладі не має відправлень.
+                Після {searchTime} на цій зупинці{lineFilter ? ` маршрут №${routeNo(lineFilter)}` : ''} в розкладі не має відправлень.
               </p>
               <button type="button" className="lt-btn lt-stop-board-show-all" onClick={() => {
                   gaTrackEvent('transport_full_day', { stop: selectedStop, on: true });
@@ -659,7 +663,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                       waitLabel = 'вже вирушив';
                     }
                   }
-                  const aria = `Маршрут ${row.routeId}, відправлення ${depClock}, ${row.destination}`;
+                  const aria = `Маршрут ${routeNo(row.routeId)}, відправлення ${depClock}, ${row.destination}`;
                   return (
                     <li key={`${row.tripId}-${depMins}-${i}`}>
                       <Link
@@ -692,7 +696,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                             className={`lt-board-card__route-num ${isVerifiedRoute(row.routeId) ? 'lt-board-card__route-num--verified' : ''}`}
                             style={routeColorStyle(row.routeId)}
                           >
-                            №{row.routeId}
+                            №{routeNo(row.routeId)}
                           </span>
                           <span className="lt-board-card__destination">
                             <span aria-hidden>→ </span>
@@ -741,7 +745,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                               style={routeColorStyle(r)}
                               to={`/transport/route/${encodeURIComponent(r)}`}
                             >
-                              №{r}
+                              №{routeNo(r)}
                             </Link>
                           </li>
                         ))}
@@ -803,7 +807,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <dl className="lt-aeo-faq">
               {(selectedStopTitle
                 ? [
-                    stopRoutesFaq(selectedStopTitle, [...new Set(departures.map((d) => d.routeId))], selectedStop),
+                    stopRoutesFaq(selectedStopTitle, [...new Set(departures.map((d) => routeNo(d.routeId)))], selectedStop),
                     STOP_HUB_FAQ[1],
                   ]
                 : STOP_HUB_FAQ
