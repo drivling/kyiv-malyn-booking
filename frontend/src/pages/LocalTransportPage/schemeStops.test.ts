@@ -40,6 +40,19 @@ describe('routesAtStop', () => {
     expect(routesAtStop({ ...dataset, routeStops: [{ routeId: '401', stopId: 'st_x' }] }, 'st_x')).toEqual([]);
   });
 
+  it('skips routes on which the stop is switched off (-1 both ways), e.g. route 10 past «Будматеріали»', () => {
+    const switchedOff = {
+      ...dataset,
+      routeStops: [
+        { routeId: '3', stopId: 'st_b', orderThere: -1, orderBack: 7 },
+        { routeId: '12', stopId: 'st_b', orderThere: 4, orderBack: -1 },
+        { routeId: '7', stopId: 'st_b', orderThere: -1, orderBack: -1 },
+      ],
+      routes: dataset.routes.map((r) => ({ ...r, unreliable: false })),
+    };
+    expect(routesAtStop(switchedOff, 'st_b')).toEqual(['3', '12']);
+  });
+
   it('returns nothing for an empty or unknown stop', () => {
     expect(routesAtStop(dataset, '')).toEqual([]);
     expect(routesAtStop(dataset, 'st_9999')).toEqual([]);

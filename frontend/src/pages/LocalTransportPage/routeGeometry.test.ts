@@ -54,6 +54,19 @@ describe('buildRouteLines', () => {
   it('skips a line with fewer than two located vertices', () => {
     expect(buildRouteLines({ st_a: coords.st_a }, stopsByRoute, ['3'])).toEqual([]);
   });
+
+  it('draws route 10 (ex-6): its stop order and segments are rebuilt, so it is a verified route', () => {
+    const withTen = {
+      ...stopsByRoute,
+      '10': [
+        { id: 'st_a', name: 'A', order_there: 1, order_back: 2 },
+        { id: 'st_c', name: 'C', order_there: 2, order_back: 1 },
+      ],
+    };
+    const lines = buildRouteLines(coords, withTen, ['10']);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ routeId: '10', color: '#C99700', positions: [coords.st_a, coords.st_c] });
+  });
 });
 
 describe('pickBoundsStops', () => {
