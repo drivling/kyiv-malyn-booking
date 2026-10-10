@@ -1,0 +1,35 @@
+[
+ {
+  "place_id": 191156237,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 777466554,
+  "lat": "50.7708554",
+  "lon": "29.2374462",
+  "category": "building",
+  "type": "house",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "43, вулиця Володимира Винниченка, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11601, Україна",
+  "address": {
+   "house_number": "43",
+   "road": "вулиця Володимира Винниченка",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11601",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7707917",
+   "50.7709392",
+   "29.2373571",
+   "29.2375413"
+  ]
+ }
+]

@@ -1,0 +1,36 @@
+[
+ {
+  "place_id": 191285491,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 273802649,
+  "lat": "50.7651181",
+  "lon": "29.2921566",
+  "category": "building",
+  "type": "apartments",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "14, вулиця Героїв Малинського Підпілля, Посьолок, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11604, Україна",
+  "address": {
+   "house_number": "14",
+   "road": "вулиця Героїв Малинського Підпілля",
+   "neighbourhood": "Посьолок",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11604",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7648760",
+   "50.7655990",
+   "29.2920648",
+   "29.2923032"
+  ]
+ }
+]

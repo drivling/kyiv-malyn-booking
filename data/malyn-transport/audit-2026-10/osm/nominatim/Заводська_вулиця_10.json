@@ -1,0 +1,36 @@
+[
+ {
+  "place_id": 190784916,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "node",
+  "osm_id": 5347550327,
+  "lat": "50.7736708",
+  "lon": "29.2876840",
+  "category": "place",
+  "type": "house",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "place",
+  "name": "",
+  "display_name": "10, Заводська вулиця, П’ята школа, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11604, Україна",
+  "address": {
+   "house_number": "10",
+   "road": "Заводська вулиця",
+   "neighbourhood": "П’ята школа",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11604",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7736208",
+   "50.7737208",
+   "29.2876340",
+   "29.2877340"
+  ]
+ }
+]

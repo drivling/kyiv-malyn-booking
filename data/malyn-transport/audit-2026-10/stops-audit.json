@@ -1,0 +1,6286 @@
+{
+ "db_snapshot": "db-2026-10-10T012511-start.json",
+ "file_stops": [
+  {
+   "file_id": "z-001",
+   "file_name": "Барміна",
+   "file_street": "вул. Барміна",
+   "file_house": null,
+   "osm_street": "вулиця Іллі Барміна",
+   "terminus": true,
+   "db_id": "st_0007",
+   "db_name": "Барміна",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75638,
+   "lon": 29.2436864,
+   "d_file_street": 18,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Вʼячеслава Чорновола"
+    ],
+    [
+     18,
+     "вулиця Іллі Барміна"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     0,
+     "Вул. Барміна",
+     5010040075
+    ],
+    [
+     40,
+     "(без назви)",
+     7658167123
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-002",
+   "file_name": "Чорновола 53",
+   "file_street": "вул. Чорновола",
+   "file_house": "53",
+   "osm_street": "вулиця Вʼячеслава Чорновола",
+   "terminus": false,
+   "db_id": "st_0094",
+   "db_name": "Чорновола 53",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75596937258579,
+   "lon": 29.24928009510041,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Вʼячеслава Чорновола"
+    ],
+    [
+     99,
+     "провулок Вʼячеслава Чорновола"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "(без назви)",
+     5288428648
+    ],
+    [
+     6,
+     "(без назви)",
+     1933706205
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "53",
+    "lat": 50.7557443,
+    "lon": 29.2500118
+   },
+   "d_addr": 57,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-003",
+   "file_name": "Чорновола 36",
+   "file_street": "вул. Чорновола",
+   "file_house": "36",
+   "osm_street": "вулиця Вʼячеслава Чорновола",
+   "terminus": false,
+   "db_id": "st_0093",
+   "db_name": "Чорновола 36",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75591507394546,
+   "lon": 29.24869000911713,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Вʼячеслава Чорновола"
+    ],
+    [
+     101,
+     "вулиця Петра Філоненка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "(без назви)",
+     5288387370
+    ],
+    [
+     40,
+     "(без назви)",
+     1933706205
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "34б",
+    "lat": 50.7552465,
+    "lon": 29.2483923
+   },
+   "d_addr": 77,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-004",
+   "file_name": "Чорновола 15",
+   "file_street": "вул. Чорновола",
+   "file_house": "15",
+   "osm_street": "вулиця Вʼячеслава Чорновола",
+   "terminus": false,
+   "db_id": "st_0092",
+   "db_name": "Чорновола 15",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75626122669818,
+   "lon": 29.24466669559479,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Вʼячеслава Чорновола"
+    ],
+    [
+     65,
+     "Шкільний провулок"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     70,
+     "Вул. Барміна",
+     5010040075
+    ],
+    [
+     108,
+     "Вул. Барміна",
+     5010040076
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "15/2",
+    "lat": 50.7564155,
+    "lon": 29.2446685
+   },
+   "d_addr": 17,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-005",
+   "file_name": "Чорновола 10",
+   "file_street": "вул. Чорновола",
+   "file_house": "10",
+   "osm_street": "вулиця Вʼячеслава Чорновола",
+   "terminus": false,
+   "db_id": "st_0091",
+   "db_name": "Чорновола 10",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7566928,
+   "lon": 29.2422352,
+   "d_file_street": 19,
+   "nearest_streets": [
+    [
+     19,
+     "вулиця Вʼячеслава Чорновола"
+    ],
+    [
+     20,
+     "вулиця Івана Сірка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     70,
+     "(без назви)",
+     7658167123
+    ],
+    [
+     71,
+     "Вул. Барміна",
+     5010040076
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "10",
+    "lat": 50.7566928,
+    "lon": 29.2422352
+   },
+   "d_addr": 0,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-006",
+   "file_name": "м-н \"Вікторія\"",
+   "file_street": "вул. Чорновола",
+   "file_house": "2",
+   "osm_street": "вулиця Вʼячеслава Чорновола",
+   "terminus": false,
+   "db_id": "st_0043",
+   "db_name": "м-н \"Вікторія\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "8",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7570606,
+   "lon": 29.2409228,
+   "d_file_street": 22,
+   "nearest_streets": [
+    [
+     22,
+     "вулиця Вʼячеслава Чорновола"
+    ],
+    [
+     52,
+     "Набережна вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     170,
+     "(без назви)",
+     7658167123
+    ],
+    [
+     170,
+     "Вул. Барміна",
+     5010040076
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "2",
+    "lat": 50.7570606,
+    "lon": 29.2409228
+   },
+   "d_addr": 0,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-007",
+   "file_name": "Приходька 8",
+   "file_street": "вул. Приходька",
+   "file_house": "8",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": false,
+   "db_id": "st_0077",
+   "db_name": "Приходька 8",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.757574547682,
+   "lon": 29.23788070678711,
+   "d_file_street": 16,
+   "nearest_streets": [
+    [
+     16,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     29,
+     "вулиця Олександра Гулькевича"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     66,
+     "(без назви)",
+     4849400022
+    ],
+    [
+     139,
+     "Вул. Клубна",
+     4849400021
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "8",
+    "lat": 50.7575917,
+    "lon": 29.2378904
+   },
+   "d_addr": 2,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-008",
+   "file_name": "Приходька 9",
+   "file_street": "вул. Приходька",
+   "file_house": "9",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": false,
+   "db_id": "st_0078",
+   "db_name": "Приходька 9",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7573403923768,
+   "lon": 29.2377519607544,
+   "d_file_street": 10,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     14,
+     "вулиця Олександра Гулькевича"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     60,
+     "(без назви)",
+     4849400022
+    ],
+    [
+     129,
+     "Вул. Клубна",
+     4849400021
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "9",
+    "lat": 50.75728,
+    "lon": 29.2377459
+   },
+   "d_addr": 7,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-009",
+   "file_name": "Приходька 28",
+   "file_street": "вул. Приходька",
+   "file_house": "28",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": false,
+   "db_id": "st_0074",
+   "db_name": "Приходька 28",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75768992812615,
+   "lon": 29.2317008972168,
+   "d_file_street": 11,
+   "nearest_streets": [
+    [
+     11,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     19,
+     "1-й провулок Івана Богуна"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     224,
+     "Вул. Гончарова",
+     6531931508
+    ],
+    [
+     298,
+     "Вул. Клубна",
+     4849400021
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "28",
+    "lat": 50.7578016,
+    "lon": 29.2317225
+   },
+   "d_addr": 13,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-010",
+   "file_name": "Приходька 29",
+   "file_street": "вул. Приходька",
+   "file_house": "29",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": false,
+   "db_id": "st_0075",
+   "db_name": "Приходька 29",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75740487004148,
+   "lon": 29.23364281654358,
+   "d_file_street": 15,
+   "nearest_streets": [
+    [
+     15,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     44,
+     "вулиця Олени Пчілки"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     86,
+     "Вул. Гончарова",
+     6531931508
+    ],
+    [
+     160,
+     "Вул. Клубна",
+     4849400021
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "29",
+    "lat": 50.7573222,
+    "lon": 29.2336503
+   },
+   "d_addr": 9,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-011",
+   "file_name": "м-н \"Наталка\"",
+   "file_street": "вул. Приходька",
+   "file_house": "63г",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": false,
+   "db_id": "st_0047",
+   "db_name": "м-н \"Наталка\"",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75757794122853,
+   "lon": 29.22716796398163,
+   "d_file_street": 14,
+   "nearest_streets": [
+    [
+     14,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     18,
+     "Фабрика банкнотного паперу"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     25,
+     "(без назви)",
+     5755206039
+    ],
+    [
+     75,
+     "(без назви)",
+     5755206040
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "63",
+    "lat": 50.7561266,
+    "lon": 29.2271123
+   },
+   "d_addr": 161,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-012",
+   "file_name": "Приходька 60 (ФБП)",
+   "file_street": "вул. Приходька",
+   "file_house": "60",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": false,
+   "db_id": "st_0076",
+   "db_name": "Приходька 60 (ФБП)",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75779173416417,
+   "lon": 29.22612190246582,
+   "d_file_street": 7,
+   "nearest_streets": [
+    [
+     7,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     53,
+     "Фабрика банкнотного паперу"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "Фабрика банкнотного паперу",
+     4849400024
+    ],
+    [
+     7,
+     "(без назви)",
+     5755206040
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "62",
+    "lat": 50.758484,
+    "lon": 29.2254346
+   },
+   "d_addr": 91,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-013",
+   "file_name": "Паперова фабрика Вайдманн",
+   "file_street": "вул. Приходька",
+   "file_house": "66",
+   "osm_street": "вулиця Юрія Приходька",
+   "terminus": true,
+   "db_id": "st_0064",
+   "db_name": "Паперова фабрика Вайдманн",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "11"
+   ],
+   "routes_db_active": [
+    "2",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76204702845138,
+   "lon": 29.2226243019104,
+   "d_file_street": 471,
+   "nearest_streets": [
+    [
+     231,
+     "Місток для персоналу"
+    ],
+    [
+     471,
+     "вулиця Юрія Приходька"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     532,
+     "Фабрика банкнотного паперу",
+     4849400024
+    ],
+    [
+     540,
+     "(без назви)",
+     5755206040
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "66",
+    "lat": 50.7612136,
+    "lon": 29.2266914
+   },
+   "d_addr": 301,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-014",
+   "file_name": "Івана Мазепи 27",
+   "file_street": "вул. Івана Мазепи",
+   "file_house": "27",
+   "osm_street": "вулиця Івана Мазепи",
+   "terminus": false,
+   "db_id": "st_0024",
+   "db_name": "Івана Мазепи 27",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75770350227737,
+   "lon": 29.24004793167115,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Івана Мазепи"
+    ],
+    [
+     10,
+     "Аптека"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     220,
+     "(без назви)",
+     4849400022
+    ],
+    [
+     255,
+     "Вул. Барміна",
+     5010040076
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "27",
+    "lat": 50.7577402,
+    "lon": 29.2409363
+   },
+   "d_addr": 63,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-015",
+   "file_name": "Івана Мазепи 4",
+   "file_street": "вул. Івана Мазепи",
+   "file_house": "4",
+   "osm_street": "вулиця Івана Мазепи",
+   "terminus": false,
+   "db_id": "st_0026",
+   "db_name": "Івана Мазепи 4",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76029948631453,
+   "lon": 29.23923790454865,
+   "d_file_street": 10,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Івана Мазепи"
+    ],
+    [
+     24,
+     "Паперова Фабрика"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     70,
+     "(без назви)",
+     7658167120
+    ],
+    [
+     73,
+     "Паперова Фабрика",
+     4849385911
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "4",
+    "lat": 50.7599327,
+    "lon": 29.2388738
+   },
+   "d_addr": 48,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-016",
+   "file_name": "Івана Мазепи 3",
+   "file_street": "вул. Івана мазепи",
+   "file_house": "3",
+   "osm_street": "вулиця Івана Мазепи",
+   "terminus": false,
+   "db_id": "st_0025",
+   "db_name": "Івана Мазепи 3",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76096118470377,
+   "lon": 29.23909306526184,
+   "d_file_street": 15,
+   "nearest_streets": [
+    [
+     15,
+     "вулиця Івана Мазепи"
+    ],
+    [
+     36,
+     "Набережна вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "Паперова Фабрика",
+     4849385911
+    ],
+    [
+     15,
+     "(без назви)",
+     7658167120
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "3",
+    "lat": 50.7612309,
+    "lon": 29.2394481
+   },
+   "d_addr": 39,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-017",
+   "file_name": "Кооперативний ринок",
+   "file_street": "вул. Грушевського",
+   "file_house": "2",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0031",
+   "db_name": "Кооперативний ринок",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76594228555578,
+   "lon": 29.24120664596558,
+   "d_file_street": 16,
+   "nearest_streets": [
+    [
+     16,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     82,
+     "Стара Базарна площа"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     146,
+     "(без назви)",
+     7658167118
+    ],
+    [
+     146,
+     "(без назви)",
+     5253992378
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "2-б",
+    "lat": 50.7645349,
+    "lon": 29.2407368
+   },
+   "d_addr": 160,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-018",
+   "file_name": "Кооперативний ринок (навпр.)",
+   "file_street": "вул. Грушевського",
+   "file_house": "1д",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0032",
+   "db_name": "Кооперативний ринок (навпр.)",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76596264319056,
+   "lon": 29.24082040786744,
+   "d_file_street": 11,
+   "nearest_streets": [
+    [
+     11,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     73,
+     "Соборний узвіз"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     137,
+     "(без назви)",
+     5253992378
+    ],
+    [
+     138,
+     "(без назви)",
+     7658167118
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "1-б",
+    "lat": 50.7655434,
+    "lon": 29.2395061
+   },
+   "d_addr": 104,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-019",
+   "file_name": "м-н \"Доктор ЗОО\"",
+   "file_street": "вул. Грушевського",
+   "file_house": "1б",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0044",
+   "db_name": "м-н \"Доктор ЗОО\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "1",
+    "2",
+    "8",
+    "11",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76710265659914,
+   "lon": 29.24164652824402,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     25,
+     "вулиця Степана Бандери"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     64,
+     "(без назви)",
+     5983330685
+    ],
+    [
+     110,
+     "Центр",
+     4799795604
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "1-б",
+    "lat": 50.7655434,
+    "lon": 29.2395061
+   },
+   "d_addr": 230,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-020",
+   "file_name": "пл. Соборна (біля РБК)",
+   "file_street": "вул. Грушевського",
+   "file_house": "16а",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0070",
+   "db_name": "пл. Соборна (біля РБК)",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76803568261603,
+   "lon": 29.24266040325165,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     69,
+     "вулиця Івана Кривенчука"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     17,
+     "(без назви)",
+     7658167117
+    ],
+    [
+     18,
+     "Центр",
+     4738450645
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "16",
+    "lat": 50.7681874,
+    "lon": 29.2434396
+   },
+   "d_addr": 57,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-021",
+   "file_name": "Грушевського 48",
+   "file_street": "вул. Грушевського",
+   "file_house": "48",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0012",
+   "db_name": "Грушевського 48",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77226290552365,
+   "lon": 29.24483835697174,
+   "d_file_street": 15,
+   "nearest_streets": [
+    [
+     15,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     44,
+     "вулиця Валерія Мельника"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "Меблева фабрика",
+     4738455124
+    ],
+    [
+     30,
+     "Меблева фабрика",
+     4738455123
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "52/1",
+    "lat": 50.7727493,
+    "lon": 29.2452551
+   },
+   "d_addr": 62,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-022",
+   "file_name": "м-н \"Сільпо\"",
+   "file_street": "вул. Грушевського",
+   "file_house": "43",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0051",
+   "db_name": "м-н \"Сільпо\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77225951304207,
+   "lon": 29.24444139003754,
+   "d_file_street": 12,
+   "nearest_streets": [
+    [
+     12,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     55,
+     "вулиця Валерія Мельника"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     3,
+     "Меблева фабрика",
+     4738455123
+    ],
+    [
+     27,
+     "Меблева фабрика",
+     4738455124
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "43",
+    "lat": 50.772585,
+    "lon": 29.2443466
+   },
+   "d_addr": 37,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-023",
+   "file_name": "Ярослава Мудрого",
+   "file_street": "вул. Грушевського",
+   "file_house": "62",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0100",
+   "db_name": "Ярослава Мудрого",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "10",
+    "12"
+   ],
+   "routes_db_disabled": [
+    "5",
+    "11"
+   ],
+   "only_file_disabled": [
+    "11",
+    "5"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7742024,
+   "lon": 29.2495702,
+   "d_file_street": 32,
+   "nearest_streets": [
+    [
+     25,
+     "Хлібна вулиця"
+    ],
+    [
+     32,
+     "вулиця Михайла Грушевського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     23,
+     "Вул. Пушкіна",
+     4738455132
+    ],
+    [
+     125,
+     "Вул. Пушкіна",
+     4738455131
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "64/1",
+    "lat": 50.7743887,
+    "lon": 29.2500703
+   },
+   "d_addr": 41,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-024",
+   "file_name": "м-н \"Будматеріали\"",
+   "file_street": "вул. Грушевського",
+   "file_house": "77",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0042",
+   "db_name": "м-н \"Будматеріали\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "10"
+   ],
+   "routes_db_disabled": [
+    "3",
+    "5",
+    "11",
+    "12"
+   ],
+   "only_file_disabled": [
+    "11",
+    "12",
+    "3",
+    "5"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76480902991684,
+   "lon": 29.24014449119568,
+   "d_file_street": 10,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     103,
+     "Соборний узвіз"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "(без назви)",
+     5253992378
+    ],
+    [
+     10,
+     "(без назви)",
+     7658167118
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "77",
+    "lat": 50.7751772,
+    "lon": 29.2508212
+   },
+   "d_addr": 1376,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-025",
+   "file_name": "Й. Кульчицького",
+   "file_street": "вул. Грушевського",
+   "file_house": "90",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0029",
+   "db_name": "Й. Кульчицького",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "5",
+    "10",
+    "11"
+   ],
+   "routes_db_disabled": [
+    "3",
+    "12"
+   ],
+   "only_file_disabled": [
+    "12",
+    "3"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77624211701746,
+   "lon": 29.26165580749512,
+   "d_file_street": 173,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Перемоги"
+    ],
+    [
+     34,
+     "вулиця Йосипа Кульчицького"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     234,
+     "(без назви)",
+     5143895759
+    ],
+    [
+     239,
+     "Сонечко",
+     4801168320
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "90",
+    "lat": 50.7760433,
+    "lon": 29.2544578
+   },
+   "d_addr": 507,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-026",
+   "file_name": "Грушевського 87",
+   "file_street": "вул. Грушевського",
+   "file_house": "87",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0013",
+   "db_name": "Грушевського 87",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "10",
+    "12"
+   ],
+   "routes_db_disabled": [
+    "5",
+    "11"
+   ],
+   "only_file_disabled": [
+    "11",
+    "5"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.775788,
+   "lon": 29.2522361,
+   "d_file_street": 33,
+   "nearest_streets": [
+    [
+     33,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     95,
+     "Затишна вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     133,
+     "Вул. Пушкіна",
+     4738455131
+    ],
+    [
+     263,
+     "(без назви)",
+     5143895757
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "87",
+    "lat": 50.775788,
+    "lon": 29.2522361
+   },
+   "d_addr": 0,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-027",
+   "file_name": "Малинівський круг",
+   "file_street": "вул.Грушевського",
+   "file_house": "100",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0054",
+   "db_name": "Малинівський круг",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "9",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.77836558154032,
+   "lon": 29.2617952823639,
+   "d_file_street": 24,
+   "nearest_streets": [
+    [
+     17,
+     "Малинівський круг"
+    ],
+    [
+     24,
+     "вулиця Михайла Грушевського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     25,
+     "(без назви)",
+     5358965605
+    ],
+    [
+     26,
+     "(без назви)",
+     4997250440
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-028",
+   "file_name": "сквер \"Жертв Чорнобиля\"",
+   "file_street": "вул. Грушевського",
+   "file_house": "99",
+   "osm_street": "вулиця Михайла Грушевського",
+   "terminus": false,
+   "db_id": "st_0082",
+   "db_name": "сквер \"Жертв Чорнобиля\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "10"
+   ],
+   "routes_db_disabled": [
+    "3",
+    "5",
+    "11",
+    "12"
+   ],
+   "only_file_disabled": [
+    "11",
+    "12",
+    "3",
+    "5"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76804246819163,
+   "lon": 29.24236536026001,
+   "d_file_street": 13,
+   "nearest_streets": [
+    [
+     13,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     73,
+     "Соборна площа"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     26,
+     "(без назви)",
+     7658167117
+    ],
+    [
+     35,
+     "Центр",
+     4738450645
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-029",
+   "file_name": "Перемоги 15-17",
+   "file_street": "вул. Перемоги",
+   "file_house": "15-17",
+   "osm_street": "вулиця Перемоги",
+   "terminus": false,
+   "db_id": "st_0065",
+   "db_name": "Перемоги 15-17",
+   "renamed": false,
+   "routes_file": [
+    "5",
+    "11"
+   ],
+   "routes_db_active": [
+    "5",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77282266161676,
+   "lon": 29.25806701183319,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Перемоги"
+    ],
+    [
+     131,
+     "Фабрична вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     222,
+     "Сонечко",
+     4801168319
+    ],
+    [
+     227,
+     "Сонечко",
+     4801168320
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-030",
+   "file_name": "Перемоги 15-17 (зв)",
+   "file_street": "вул. Перемоги",
+   "file_house": "15-17",
+   "osm_street": "вулиця Перемоги",
+   "terminus": false,
+   "db_id": "st_0066",
+   "db_name": "Перемоги 15-17 (зв)",
+   "renamed": false,
+   "routes_file": [
+    "5",
+    "11"
+   ],
+   "routes_db_active": [
+    "5",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77287015576483,
+   "lon": 29.25786316394806,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Перемоги"
+    ],
+    [
+     131,
+     "Фабрична вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     224,
+     "Сонечко",
+     4801168319
+    ],
+    [
+     227,
+     "Сонечко",
+     4801168320
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-031",
+   "file_name": "м-н \"Меркурій\"",
+   "file_street": "вул. Володимирська",
+   "file_house": "27а",
+   "osm_street": "Володимирська вулиця",
+   "terminus": false,
+   "db_id": "st_0046",
+   "db_name": "м-н \"Меркурій\"",
+   "renamed": false,
+   "routes_file": [
+    "5",
+    "11"
+   ],
+   "routes_db_active": [],
+   "routes_db_disabled": [
+    "5",
+    "11"
+   ],
+   "only_file_disabled": [
+    "11",
+    "5"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77073287135801,
+   "lon": 29.25602853298188,
+   "d_file_street": 3,
+   "nearest_streets": [
+    [
+     3,
+     "Володимирська вулиця"
+    ],
+    [
+     35,
+     "вулиця Перемоги"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     3,
+     "Прожектор",
+     4801168318
+    ],
+    [
+     7,
+     "Прожектор",
+     4801168317
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "27",
+    "lat": 50.7712791,
+    "lon": 29.2560523
+   },
+   "d_addr": 61,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-032",
+   "file_name": "з-д \"Прожектор\"",
+   "file_street": "вул. Володимирська",
+   "file_house": "27а",
+   "osm_street": "Володимирська вулиця",
+   "terminus": false,
+   "db_id": "st_0015",
+   "db_name": "з-д \"Прожектор\"",
+   "renamed": false,
+   "routes_file": [
+    "5",
+    "11"
+   ],
+   "routes_db_active": [
+    "5",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77062430827407,
+   "lon": 29.25598025321961,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "Володимирська вулиця"
+    ],
+    [
+     34,
+     "вулиця Перемоги"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     5,
+     "Прожектор",
+     4801168317
+    ],
+    [
+     14,
+     "Прожектор",
+     4801168318
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "27",
+    "lat": 50.7712791,
+    "lon": 29.2560523
+   },
+   "d_addr": 73,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-033",
+   "file_name": "Швейна фабрика",
+   "file_street": "вул  Володимирська",
+   "file_house": "21а",
+   "osm_street": "Володимирська вулиця",
+   "terminus": false,
+   "db_id": "st_0095",
+   "db_name": "Швейна фабрика",
+   "renamed": false,
+   "routes_file": [
+    "5",
+    "11"
+   ],
+   "routes_db_active": [
+    "5",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77171671281825,
+   "lon": 29.25340533256531,
+   "d_file_street": 3,
+   "nearest_streets": [
+    [
+     3,
+     "Володимирська вулиця"
+    ],
+    [
+     120,
+     "Фабрична вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     6,
+     "Швейна Фабрика",
+     5755206048
+    ],
+    [
+     14,
+     "Швейна Фабрика",
+     5010040074
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "21-а",
+    "lat": 50.7732497,
+    "lon": 29.2552893
+   },
+   "d_addr": 216,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-034",
+   "file_name": "Швейна фабрика (навпроти)",
+   "file_street": "вул. Володимирська",
+   "file_house": "21а",
+   "osm_street": "Володимирська вулиця",
+   "terminus": false,
+   "db_id": "st_0096",
+   "db_name": "Швейна фабрика (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "5",
+    "11"
+   ],
+   "routes_db_active": [
+    "5",
+    "11"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77161154454646,
+   "lon": 29.25318002700806,
+   "d_file_street": 15,
+   "nearest_streets": [
+    [
+     15,
+     "Володимирська вулиця"
+    ],
+    [
+     125,
+     "вулиця Йосипа Кульчицького"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     6,
+     "Швейна Фабрика",
+     5010040074
+    ],
+    [
+     20,
+     "Швейна Фабрика",
+     5755206048
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "21-а",
+    "lat": 50.7732497,
+    "lon": 29.2552893
+   },
+   "d_addr": 235,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-035",
+   "file_name": "Огієнка 65 (БАМ)",
+   "file_street": "вул. Огієнка",
+   "file_house": "65",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0062",
+   "db_name": "Огієнка 65 (БАМ)",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "9",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.77830791684445,
+   "lon": 29.26771223545075,
+   "d_file_street": 15,
+   "nearest_streets": [
+    [
+     15,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     51,
+     "БАМ"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     390,
+     "(без назви)",
+     4997250440
+    ],
+    [
+     391,
+     "(без назви)",
+     5358965605
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "65-а",
+    "lat": 50.7781073,
+    "lon": 29.2670757
+   },
+   "d_addr": 50,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-036",
+   "file_name": "Огієнка 65 (БАМ) (навпроти)",
+   "file_street": "вул. Огієнка",
+   "file_house": "65",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0063",
+   "db_name": "Огієнка 65 (БАМ) (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77846055853144,
+   "lon": 29.26842570304871,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     0,
+     "БАМ"
+    ],
+    [
+     9,
+     "вулиця Івана Огієнка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     440,
+     "(без назви)",
+     4997250440
+    ],
+    [
+     441,
+     "(без назви)",
+     5358965605
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "65-а",
+    "lat": 50.7781073,
+    "lon": 29.2670757
+   },
+   "d_addr": 103,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-037",
+   "file_name": "з-д \"РЕЙЛ\"",
+   "file_street": "вул. Огієнка",
+   "file_house": "63",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0016",
+   "db_name": "з-д \"РЕЙЛ\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77757862190774,
+   "lon": 29.27598953247071,
+   "d_file_street": 17,
+   "nearest_streets": [
+    [
+     17,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     18,
+     "Джерельна вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     9,
+     "Рейл",
+     4801170426
+    ],
+    [
+     63,
+     "Рейл",
+     4801170425
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "63г",
+    "lat": 50.7729109,
+    "lon": 29.2766386
+   },
+   "d_addr": 521,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-038",
+   "file_name": "з-д \"РЕЙЛ\" (навпроти)",
+   "file_street": "вул. Огієнка",
+   "file_house": "63",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0017",
+   "db_name": "з-д \"РЕЙЛ\" (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77789408576449,
+   "lon": 29.27523851394654,
+   "d_file_street": 10,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     58,
+     "вулиця Князя Мала"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     0,
+     "Рейл",
+     4801170425
+    ],
+    [
+     59,
+     "Рейл",
+     4801170426
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "63г",
+    "lat": 50.7729109,
+    "lon": 29.2766386
+   },
+   "d_addr": 563,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-039",
+   "file_name": "Молокозавод",
+   "file_street": "вул. Огієнка",
+   "file_house": "54",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0060",
+   "db_name": "Молокозавод",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77721227411325,
+   "lon": 29.2827969789505,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     156,
+     "вулиця 44-ї Окремої Артилерійської Бригади"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     172,
+     "МДЕЗ",
+     4801170431
+    ],
+    [
+     175,
+     "МДЕЗ",
+     4801170432
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "54",
+    "lat": 50.777743,
+    "lon": 29.2795103
+   },
+   "d_addr": 239,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-040",
+   "file_name": "Хлібзавод",
+   "file_street": "вул. Огієнка",
+   "file_house": "61",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0089",
+   "db_name": "Хлібзавод",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77746329050414,
+   "lon": 29.27898287773133,
+   "d_file_street": 2,
+   "nearest_streets": [
+    [
+     2,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     95,
+     "Світанкова вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     211,
+     "Рейл",
+     4801170426
+    ],
+    [
+     267,
+     "Рейл",
+     4801170425
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "61",
+    "lat": 50.7763334,
+    "lon": 29.2788999
+   },
+   "d_addr": 126,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-041",
+   "file_name": "Ливарний завод",
+   "file_street": "вул. Огієнка",
+   "file_house": "55",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0033",
+   "db_name": "Ливарний завод",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77662204107472,
+   "lon": 29.2849588394165,
+   "d_file_street": 20,
+   "nearest_streets": [
+    [
+     20,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     149,
+     "вулиця 44-ї Окремої Артилерійської Бригади"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     11,
+     "МДЕЗ",
+     4801170431
+    ],
+    [
+     29,
+     "МДЕЗ",
+     4801170432
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "55",
+    "lat": 50.7743556,
+    "lon": 29.271948
+   },
+   "d_addr": 949,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-042",
+   "file_name": "Ливарний завод (а/стоянка)",
+   "file_street": "вул. Огієнка",
+   "file_house": "55",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0034",
+   "db_name": "Ливарний завод (а/стоянка)",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77681539409744,
+   "lon": 29.28524851799012,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     121,
+     "вулиця 44-ї Окремої Артилерійської Бригади"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     3,
+     "МДЕЗ",
+     4801170432
+    ],
+    [
+     19,
+     "МДЕЗ",
+     4801170431
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "55",
+    "lat": 50.7743556,
+    "lon": 29.271948
+   },
+   "d_addr": 974,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-043",
+   "file_name": "ТОВ \"Фратеко\"",
+   "file_street": "вул. Огієнка",
+   "file_house": "51",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0085",
+   "db_name": "ТОВ \"Фратеко\"",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7753737075828,
+   "lon": 29.28877830505371,
+   "d_file_street": 19,
+   "nearest_streets": [
+    [
+     12,
+     "Заводська вулиця"
+    ],
+    [
+     19,
+     "вулиця Івана Огієнка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     9,
+     "(без назви)",
+     4831290616
+    ],
+    [
+     62,
+     "(без назви)",
+     4801170433
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "51",
+    "lat": 50.7745944,
+    "lon": 29.2894853
+   },
+   "d_addr": 100,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-044",
+   "file_name": "Огієнка 36",
+   "file_street": "вул. Огієнка",
+   "file_house": "36",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0061",
+   "db_name": "Огієнка 36",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77585540543252,
+   "lon": 29.28817749023438,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     43,
+     "Базарна вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     6,
+     "(без назви)",
+     4801170433
+    ],
+    [
+     65,
+     "(без назви)",
+     4831290616
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "34",
+    "lat": 50.7772149,
+    "lon": 29.2872017
+   },
+   "d_addr": 166,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-045",
+   "file_name": "Заводська",
+   "file_street": "вул. Заводська",
+   "file_house": "10",
+   "osm_street": "Заводська вулиця",
+   "terminus": false,
+   "db_id": "st_0018",
+   "db_name": "Заводська",
+   "renamed": false,
+   "routes_file": [
+    "12"
+   ],
+   "routes_db_active": [],
+   "routes_db_disabled": [
+    "12"
+   ],
+   "only_file_disabled": [
+    "12"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7736708,
+   "lon": 29.287684,
+   "d_file_street": 24,
+   "nearest_streets": [
+    [
+     24,
+     "Заводська вулиця"
+    ],
+    [
+     34,
+     "Покровська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     156,
+     "(без назви)",
+     5755206051
+    ],
+    [
+     213,
+     "(без назви)",
+     4831290616
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "10",
+    "lat": 50.7736708,
+    "lon": 29.287684
+   },
+   "d_addr": 0,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-046",
+   "file_name": "Вербицького",
+   "file_street": "вул. М.Вербицького",
+   "file_house": "10",
+   "osm_street": "вулиця Михайла Вербицького",
+   "terminus": false,
+   "db_id": "st_0008",
+   "db_name": "Вербицького",
+   "renamed": false,
+   "routes_file": [
+    "12"
+   ],
+   "routes_db_active": [],
+   "routes_db_disabled": [
+    "12"
+   ],
+   "only_file_disabled": [
+    "12"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.768,
+   "lon": 29.242,
+   "d_file_street": 2567,
+   "nearest_streets": [
+    [
+     34,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     56,
+     "Алея Надії"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     50,
+     "(без назви)",
+     7658167117
+    ],
+    [
+     59,
+     "Центр",
+     4799795604
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-047",
+   "file_name": "Залізничний вокзал",
+   "file_street": "вул. Огієнка",
+   "file_house": "8",
+   "osm_street": "вулиця Івана Огієнка",
+   "terminus": false,
+   "db_id": "st_0019",
+   "db_name": "Залізничний вокзал",
+   "renamed": false,
+   "routes_file": [
+    "1",
+    "3",
+    "5",
+    "7",
+    "8",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_active": [
+    "1",
+    "3",
+    "5",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.77416604891004,
+   "lon": 29.2950975894928,
+   "d_file_street": 76,
+   "nearest_streets": [
+    [
+     2,
+     "Вокзальна площа"
+    ],
+    [
+     76,
+     "вулиця Івана Огієнка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     4,
+     "Залізничний вокзал",
+     5283945324
+    ],
+    [
+     78,
+     "(без назви)",
+     2786114229
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "12",
+    "lat": 50.7746435,
+    "lon": 29.2954918
+   },
+   "d_addr": 60,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-048",
+   "file_name": "ЗОШ 5",
+   "file_street": "вул. Покровська",
+   "file_house": "26",
+   "osm_street": "Покровська вулиця",
+   "terminus": false,
+   "db_id": "st_0021",
+   "db_name": "ЗОШ 5",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77174385297904,
+   "lon": 29.29251194000244,
+   "d_file_street": 22,
+   "nearest_streets": [
+    [
+     15,
+     "Покровський провулок"
+    ],
+    [
+     22,
+     "Покровська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     293,
+     "(без назви)",
+     2786114229
+    ],
+    [
+     328,
+     "Залізничний вокзал",
+     5283945324
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "20-а",
+    "lat": 50.7727107,
+    "lon": 29.2910827
+   },
+   "d_addr": 147,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-049",
+   "file_name": "ЗОШ 5 (навпроти)",
+   "file_street": "вул. Покровська",
+   "file_house": "26",
+   "osm_street": "Покровська вулиця",
+   "terminus": false,
+   "db_id": "st_0022",
+   "db_name": "ЗОШ 5 (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77170314273194,
+   "lon": 29.29298400878906,
+   "d_file_street": 27,
+   "nearest_streets": [
+    [
+     19,
+     "Покровський провулок"
+    ],
+    [
+     27,
+     "Покровська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     273,
+     "(без назви)",
+     2786114229
+    ],
+    [
+     314,
+     "Залізничний вокзал",
+     5283945324
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "20-а",
+    "lat": 50.7727107,
+    "lon": 29.2910827
+   },
+   "d_addr": 174,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-050",
+   "file_name": "Миру - ГМП (до перехрестя)",
+   "file_street": "вул. Миру",
+   "file_house": "00",
+   "osm_street": "вулиця Миру",
+   "terminus": false,
+   "db_id": "st_0057",
+   "db_name": "Миру - ГМП (до перехрестя)",
+   "renamed": false,
+   "routes_file": [
+    "8"
+   ],
+   "routes_db_active": [
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76527726461632,
+   "lon": 29.29032325744629,
+   "d_file_street": 213,
+   "nearest_streets": [
+    [
+     30,
+     "вулиця Тараса Яремчука"
+    ],
+    [
+     45,
+     "вулиця Героїв Малинського Підпілля"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     5,
+     "(без назви)",
+     4848968816
+    ],
+    [
+     545,
+     "(без назви)",
+     5059749674
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-051",
+   "file_name": "Миру - ГМП (за перехрестям)",
+   "file_street": "вул. Миру",
+   "file_house": "00",
+   "osm_street": "вулиця Миру",
+   "terminus": false,
+   "db_id": "st_0058",
+   "db_name": "Миру - ГМП (за перехрестям)",
+   "renamed": false,
+   "routes_file": [
+    "8"
+   ],
+   "routes_db_active": [
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76051326681728,
+   "lon": 29.28869247436524,
+   "d_file_street": 40,
+   "nearest_streets": [
+    [
+     40,
+     "вулиця Васі Мелещенка"
+    ],
+    [
+     40,
+     "вулиця Миру"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     43,
+     "(без назви)",
+     6349352319
+    ],
+    [
+     292,
+     "(без назви)",
+     4848968818
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-052",
+   "file_name": "ГМП 14",
+   "file_street": "вул. Героїв Малинського підпілля",
+   "file_house": "14",
+   "osm_street": "вулиця Героїв Малинського Підпілля",
+   "terminus": false,
+   "db_id": "st_0010",
+   "db_name": "ГМП 14",
+   "renamed": false,
+   "routes_file": [
+    "7"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75850437022937,
+   "lon": 29.28997993469239,
+   "d_file_street": 705,
+   "nearest_streets": [
+    [
+     47,
+     "Молодіжна вулиця"
+    ],
+    [
+     110,
+     "Городищанська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     223,
+     "(без назви)",
+     6349352319
+    ],
+    [
+     389,
+     "(без назви)",
+     4848968818
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "14",
+    "lat": 50.7651181,
+    "lon": 29.2921566
+   },
+   "d_addr": 751,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-053",
+   "file_name": "ГМП 14 (навпроти)",
+   "file_street": "вул. Героїв Малинського підпілля",
+   "file_house": "14",
+   "osm_street": "вулиця Героїв Малинського Підпілля",
+   "terminus": false,
+   "db_id": "st_0011",
+   "db_name": "ГМП 14 (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "7"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75991603629921,
+   "lon": 29.29040908813477,
+   "d_file_street": 546,
+   "nearest_streets": [
+    [
+     49,
+     "Городищанська вулиця"
+    ],
+    [
+     97,
+     "вулиця Васі Мелещенка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     151,
+     "(без назви)",
+     6349352319
+    ],
+    [
+     398,
+     "(без назви)",
+     4848968818
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "14",
+    "lat": 50.7651181,
+    "lon": 29.2921566
+   },
+   "d_addr": 591,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-054",
+   "file_name": "14 ОМБ",
+   "file_street": "вул. 14 ОМБ",
+   "file_house": "00",
+   "osm_street": "провулок 14-ї ОМБ Князя Романа Великого",
+   "terminus": false,
+   "db_id": "st_0002",
+   "db_name": "14 ОМБ",
+   "renamed": false,
+   "routes_file": [
+    "7"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76508725689741,
+   "lon": 29.29833769798279,
+   "d_file_street": 14,
+   "nearest_streets": [
+    [
+     14,
+     "провулок 14-ї ОМБ Князя Романа Великого"
+    ],
+    [
+     62,
+     "вулиця Героїв Малинського Підпілля"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     49,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     566,
+     "(без назви)",
+     4848968816
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-055",
+   "file_name": "14 ОМБ (навпр)",
+   "file_street": "вул. 14 ОМБ",
+   "file_house": "00",
+   "osm_street": "провулок 14-ї ОМБ Князя Романа Великого",
+   "terminus": false,
+   "db_id": "st_0003",
+   "db_name": "14 ОМБ (навпр)",
+   "renamed": false,
+   "routes_file": [
+    "7"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76468688096373,
+   "lon": 29.29788708686829,
+   "d_file_street": 18,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Героїв Малинського Підпілля"
+    ],
+    [
+     18,
+     "провулок 14-ї ОМБ Князя Романа Великого"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     9,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     538,
+     "(без назви)",
+     4848968816
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-056",
+   "file_name": "Їдальня ЗОШ 6",
+   "file_street": "вул. Городищанська",
+   "file_house": "171",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0027",
+   "db_name": "Їдальня ЗОШ 6",
+   "renamed": false,
+   "routes_file": [
+    "7"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7605472001406,
+   "lon": 29.3026077747345,
+   "d_file_street": 19,
+   "nearest_streets": [
+    [
+     19,
+     "Городищанська вулиця"
+    ],
+    [
+     122,
+     "Житомирська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     563,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     1006,
+     "(без назви)",
+     6349352319
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "171",
+    "lat": 50.760452,
+    "lon": 29.3021351
+   },
+   "d_addr": 35,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-057",
+   "file_name": "Їдальня ЗОШ 6 (навпроти)",
+   "file_street": "вул. Городищанська",
+   "file_house": "171",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0028",
+   "db_name": "Їдальня ЗОШ 6 (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "7"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76050648014968,
+   "lon": 29.30217862129212,
+   "d_file_street": 18,
+   "nearest_streets": [
+    [
+     18,
+     "Городищанська вулиця"
+    ],
+    [
+     120,
+     "Житомирська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     550,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     976,
+     "(без назви)",
+     6349352319
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "171",
+    "lat": 50.760452,
+    "lon": 29.3021351
+   },
+   "d_addr": 7,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-058",
+   "file_name": "Миру-Городищанська (перехр)",
+   "file_street": "вул. Городищанська",
+   "file_house": "35",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0059",
+   "db_name": "Миру-Городищанська (перехр)",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7"
+   ],
+   "routes_db_disabled": [
+    "8"
+   ],
+   "only_file_disabled": [
+    "8"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75996015017775,
+   "lon": 29.28212642669678,
+   "d_file_street": 8,
+   "nearest_streets": [
+    [
+     8,
+     "Городищанська вулиця"
+    ],
+    [
+     62,
+     "вулиця Незалежності"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     123,
+     "(без назви)",
+     11998971869
+    ],
+    [
+     150,
+     "(без назви)",
+     4848968817
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "35",
+    "lat": 50.7600963,
+    "lon": 29.2821818
+   },
+   "d_addr": 16,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-059",
+   "file_name": "ПТЛ",
+   "file_street": "вул. Городищанська",
+   "file_house": "20",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0079",
+   "db_name": "ПТЛ",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.75975315392596,
+   "lon": 29.28151488304139,
+   "d_file_street": 18,
+   "nearest_streets": [
+    [
+     18,
+     "Городищанська вулиця"
+    ],
+    [
+     97,
+     "вулиця Незалежності"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     166,
+     "(без назви)",
+     11998971869
+    ],
+    [
+     193,
+     "(без назви)",
+     4848968817
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "20",
+    "lat": 50.7594838,
+    "lon": 29.2822552
+   },
+   "d_addr": 60,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-060",
+   "file_name": "м-н \"Продукти\" навпроти ПТЛ",
+   "file_street": "вул. Городищанська",
+   "file_house": "51",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0048",
+   "db_name": "м-н \"Продукти\" навпроти ПТЛ",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7599409,
+   "lon": 29.2847722,
+   "d_file_street": 20,
+   "nearest_streets": [
+    [
+     20,
+     "Городищанська вулиця"
+    ],
+    [
+     32,
+     "Заводська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     32,
+     "(без назви)",
+     4848968818
+    ],
+    [
+     38,
+     "(без назви)",
+     4848968817
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "51",
+    "lat": 50.7599409,
+    "lon": 29.2847722
+   },
+   "d_addr": 0,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-061",
+   "file_name": "Малинське УЕГГ",
+   "file_street": "вул. Городищанська",
+   "file_house": "1",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0055",
+   "db_name": "Малинське УЕГГ",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7598379885661,
+   "lon": 29.27431583404541,
+   "d_file_street": 8,
+   "nearest_streets": [
+    [
+     8,
+     "Городищанська вулиця"
+    ],
+    [
+     144,
+     "вулиця Степана Бандери"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     10,
+     "Газове господарство",
+     4848968819
+    ],
+    [
+     346,
+     "(без назви)",
+     5010280537
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "1-а",
+    "lat": 50.7610061,
+    "lon": 29.2744262
+   },
+   "d_addr": 130,
+   "merged_with": [
+    "z-062"
+   ]
+  },
+  {
+   "file_id": "z-062",
+   "file_name": "Малинське УЕГГ",
+   "file_street": "вул. Городищанська",
+   "file_house": "2",
+   "osm_street": "Городищанська вулиця",
+   "terminus": false,
+   "db_id": "st_0055",
+   "db_name": "Малинське УЕГГ",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7598379885661,
+   "lon": 29.27431583404541,
+   "d_file_street": 8,
+   "nearest_streets": [
+    [
+     8,
+     "Городищанська вулиця"
+    ],
+    [
+     144,
+     "вулиця Степана Бандери"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     10,
+     "Газове господарство",
+     4848968819
+    ],
+    [
+     346,
+     "(без назви)",
+     5010280537
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": [
+    "z-061"
+   ]
+  },
+  {
+   "file_id": "z-063",
+   "file_name": "м-н \"Будмаркет\"",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "120",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0040",
+   "db_name": "м-н \"Будмаркет\"",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76071007975003,
+   "lon": 29.26703095436097,
+   "d_file_street": 29,
+   "nearest_streets": [
+    [
+     29,
+     "вулиця Степана Бандери"
+    ],
+    [
+     79,
+     "Митний термінал"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     45,
+     "Будмаркет",
+     4848969421
+    ],
+    [
+     176,
+     "(без назви)",
+     5010280537
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "120",
+    "lat": 50.760205,
+    "lon": 29.2664825
+   },
+   "d_addr": 68,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-064",
+   "file_name": "м-н \"Будмаркет\" (навпроти)",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "131",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0041",
+   "db_name": "м-н \"Будмаркет\" (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76096118470377,
+   "lon": 29.26764249801636,
+   "d_file_street": 12,
+   "nearest_streets": [
+    [
+     12,
+     "вулиця Степана Бандери"
+    ],
+    [
+     47,
+     "вулиця Антоновича"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     8,
+     "Будмаркет",
+     4848969421
+    ],
+    [
+     146,
+     "(без назви)",
+     5010280537
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "137",
+    "lat": 50.7591411,
+    "lon": 29.2718751
+   },
+   "d_addr": 360,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-065",
+   "file_name": "ТОВ \"Юнігран\"",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "118",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0086",
+   "db_name": "ТОВ \"Юнігран\"",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76139552522646,
+   "lon": 29.26446676254273,
+   "d_file_street": 22,
+   "nearest_streets": [
+    [
+     22,
+     "вулиця Степана Бандери"
+    ],
+    [
+     111,
+     "провулок Сагайдачного"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     163,
+     "Степана Бандери",
+     4848969423
+    ],
+    [
+     220,
+     "Будмаркет",
+     4848969421
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "118",
+    "lat": 50.7607853,
+    "lon": 29.263162
+   },
+   "d_addr": 114,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-066",
+   "file_name": "ТОВ \"Юнігран\" (навпроти)",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "111",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0087",
+   "db_name": "ТОВ \"Юнігран\" (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76155500862519,
+   "lon": 29.26500320434571,
+   "d_file_street": 8,
+   "nearest_streets": [
+    [
+     8,
+     "вулиця Степана Бандери"
+    ],
+    [
+     98,
+     "провулок Сагайдачного"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     189,
+     "Будмаркет",
+     4848969421
+    ],
+    [
+     192,
+     "Степана Бандери",
+     4848969423
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "111",
+    "lat": 50.761551,
+    "lon": 29.2663111
+   },
+   "d_addr": 92,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-067",
+   "file_name": "перехр.Горбатюка-Бандери",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "96",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0068",
+   "db_name": "перехр.Горбатюка-Бандери",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8",
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.76291568530763,
+   "lon": 29.25793290138245,
+   "d_file_street": 22,
+   "nearest_streets": [
+    [
+     22,
+     "вулиця Степана Бандери"
+    ],
+    [
+     68,
+     "вулиця Івана Миколайчука"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     46,
+     "Супутник",
+     5013872786
+    ],
+    [
+     51,
+     "Супутник",
+     5755206041
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "96",
+    "lat": 50.7633667,
+    "lon": 29.2560336
+   },
+   "d_addr": 143,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-068",
+   "file_name": "прехр.Горбатюка-Бандери 2",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "93",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0073",
+   "db_name": "прехр.Горбатюка-Бандери 2",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8",
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.76253564991726,
+   "lon": 29.26097989082337,
+   "d_file_street": 13,
+   "nearest_streets": [
+    [
+     13,
+     "вулиця Степана Бандери"
+    ],
+    [
+     17,
+     "проспект Машинобудівників"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     56,
+     "Юнігран",
+     6110854977
+    ],
+    [
+     113,
+     "Степана Бандери",
+     4848969423
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "87",
+    "lat": 50.7630497,
+    "lon": 29.2604622
+   },
+   "d_addr": 68,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-069",
+   "file_name": "ДНЗ № 3",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "35",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0014",
+   "db_name": "ДНЗ № 3",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8",
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.76519243983714,
+   "lon": 29.24942493438721,
+   "d_file_street": 7,
+   "nearest_streets": [
+    [
+     7,
+     "вулиця Степана Бандери"
+    ],
+    [
+     115,
+     "вулиця Анатолія Самойленка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     121,
+     "(без назви)",
+     4848969426
+    ],
+    [
+     140,
+     "(без назви)",
+     4848969427
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "35",
+    "lat": 50.7653028,
+    "lon": 29.249697
+   },
+   "d_addr": 23,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-070",
+   "file_name": "С.Бандери 36",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "36",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0081",
+   "db_name": "С.Бандери 36",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8",
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.76552834506131,
+   "lon": 29.24761712551117,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Степана Бандери"
+    ],
+    [
+     88,
+     "вулиця Анатолія Самойленка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     253,
+     "(без назви)",
+     4848969426
+    ],
+    [
+     271,
+     "(без назви)",
+     4848969427
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "36",
+    "lat": 50.7653604,
+    "lon": 29.2474462
+   },
+   "d_addr": 22,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-071",
+   "file_name": "м-н \"Промінь\"",
+   "file_street": "вул. Степана Бандери",
+   "file_house": "2",
+   "osm_street": "вулиця Степана Бандери",
+   "terminus": false,
+   "db_id": "st_0049",
+   "db_name": "м-н \"Промінь\"",
+   "renamed": false,
+   "routes_file": [
+    "7",
+    "8"
+   ],
+   "routes_db_active": [
+    "7",
+    "8",
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.76699408509039,
+   "lon": 29.24245119094849,
+   "d_file_street": 11,
+   "nearest_streets": [
+    [
+     11,
+     "вулиця Степана Бандери"
+    ],
+    [
+     46,
+     "вулиця Михайла Грушевського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     115,
+     "(без назви)",
+     5983330685
+    ],
+    [
+     131,
+     "Центр",
+     4738450645
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "2",
+    "lat": 50.7667272,
+    "lon": 29.2421133
+   },
+   "d_addr": 38,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-072",
+   "file_name": "маркет \"Соборний\"",
+   "file_street": "пл. Соборна",
+   "file_house": "1",
+   "osm_street": "Соборна площа",
+   "terminus": false,
+   "db_id": "st_0056",
+   "db_name": "маркет \"Соборний\"",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7681306805849,
+   "lon": 29.24183428287506,
+   "d_file_street": 71,
+   "nearest_streets": [
+    [
+     51,
+     "Алея Надії"
+    ],
+    [
+     51,
+     "вулиця Михайла Грушевського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     48,
+     "Центр",
+     4799795604
+    ],
+    [
+     57,
+     "(без назви)",
+     7658167117
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "1/1",
+    "lat": 50.7673225,
+    "lon": 29.2412857
+   },
+   "d_addr": 98,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-073",
+   "file_name": "Шевченка 22",
+   "file_street": "вул. Шевченка",
+   "file_house": "22",
+   "osm_street": "вулиця Шевченка",
+   "terminus": false,
+   "db_id": "st_0098",
+   "db_name": "Шевченка 22",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76901279536931,
+   "lon": 29.23465669155121,
+   "d_file_street": 9,
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Шевченка"
+    ],
+    [
+     12,
+     "вулиця Павла Захарченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     313,
+     "Нікон",
+     4801168308
+    ],
+    [
+     317,
+     "Школа №3",
+     4738454401
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "22",
+    "lat": 50.7691311,
+    "lon": 29.2347628
+   },
+   "d_addr": 15,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-074",
+   "file_name": "м-н \"Сонечко\"",
+   "file_street": "вул. Шевченка",
+   "file_house": "48",
+   "osm_street": "вулиця Шевченка",
+   "terminus": false,
+   "db_id": "st_0052",
+   "db_name": "м-н \"Сонечко\"",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77393536898738,
+   "lon": 29.22687292098999,
+   "d_file_street": 205,
+   "nearest_streets": [
+    [
+     8,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     98,
+     "вулиця Миколи Лисенка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     102,
+     "РЕМ",
+     4738449211
+    ],
+    [
+     111,
+     "РЕМ",
+     4738449212
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "44кв.1",
+    "lat": 50.7698743,
+    "lon": 29.2334497
+   },
+   "d_addr": 646,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-075",
+   "file_name": "м-н \"Росава\"",
+   "file_street": "вул. Шевченка",
+   "file_house": "51",
+   "osm_street": "вулиця Шевченка",
+   "terminus": false,
+   "db_id": "st_0050",
+   "db_name": "м-н \"Росава\"",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "2",
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [
+    "5"
+   ],
+   "only_file_disabled": [
+    "5"
+   ],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76920617984909,
+   "lon": 29.2336642742157,
+   "d_file_street": 8,
+   "nearest_streets": [
+    [
+     8,
+     "вулиця Шевченка"
+    ],
+    [
+     14,
+     "1-й провулок Шевченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     263,
+     "Школа №3",
+     4738454401
+    ],
+    [
+     265,
+     "Школа №3",
+     4738454402
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "51",
+    "lat": 50.7702335,
+    "lon": 29.2327099
+   },
+   "d_addr": 132,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-076",
+   "file_name": "ЗОШ \" 3",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": "1",
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": false,
+   "db_id": "st_0020",
+   "db_name": "ЗОШ 3",
+   "renamed": true,
+   "routes_file": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77125532767558,
+   "lon": 29.23197984695435,
+   "d_file_street": 14,
+   "nearest_streets": [
+    [
+     14,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     43,
+     "вулиця Шевченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     10,
+     "Школа №3",
+     4738454401
+    ],
+    [
+     19,
+     "Школа №3",
+     4738454402
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "1",
+    "lat": 50.7713681,
+    "lon": 29.2312226
+   },
+   "d_addr": 55,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-077",
+   "file_name": "ЗОШ № 3 (навпроти)",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": "4",
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": false,
+   "db_id": "st_0023",
+   "db_name": "ЗОШ 3 (навпроти)",
+   "renamed": true,
+   "routes_file": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77138424457063,
+   "lon": 29.23219442367554,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     62,
+     "вулиця Шевченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     3,
+     "Школа №3",
+     4738454402
+    ],
+    [
+     12,
+     "Школа №3",
+     4738454401
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "4",
+    "lat": 50.7711662,
+    "lon": 29.2326451
+   },
+   "d_addr": 40,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-078",
+   "file_name": "РЕМ",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": "56",
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": false,
+   "db_id": "st_0080",
+   "db_name": "РЕМ",
+   "renamed": false,
+   "routes_file": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77440012002155,
+   "lon": 29.22562301158905,
+   "d_file_street": 7,
+   "nearest_streets": [
+    [
+     7,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     55,
+     "вулиця Віктора Михайленка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     0,
+     "РЕМ",
+     4738449211
+    ],
+    [
+     18,
+     "РЕМ",
+     4738449212
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "56-А",
+    "lat": 50.7743589,
+    "lon": 29.2265076
+   },
+   "d_addr": 62,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-079",
+   "file_name": "10 ОГШБ (навпр.РЕМу)",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": "53",
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": false,
+   "db_id": "st_0001",
+   "db_name": "10 ОГШБ (навпр.РЕМу)",
+   "renamed": false,
+   "routes_file": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "3",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77429495778303,
+   "lon": 29.22540307044983,
+   "d_file_street": 11,
+   "nearest_streets": [
+    [
+     11,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     43,
+     "вулиця Віктора Михайленка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     1,
+     "РЕМ",
+     4738449212
+    ],
+    [
+     20,
+     "РЕМ",
+     4738449211
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "59-а",
+    "lat": 50.7759615,
+    "lon": 29.2198626
+   },
+   "d_addr": 431,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-080",
+   "file_name": "Поліклініка",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": "83",
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": true,
+   "db_id": "st_0072",
+   "db_name": "Поліклініка",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_active": [
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "12",
+    "10-old"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77612678231798,
+   "lon": 29.21936273574829,
+   "d_file_street": 12,
+   "nearest_streets": [
+    [
+     12,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     97,
+     "вулиця Галини Бондарик"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     8,
+     "Лікарня",
+     4738449214
+    ],
+    [
+     12,
+     "(без назви)",
+     5755206047
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "83-б",
+    "lat": 50.7754104,
+    "lon": 29.2186411
+   },
+   "d_addr": 94,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-081",
+   "file_name": "м-н \"Богдан\"",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": "96",
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": false,
+   "db_id": "st_0039",
+   "db_name": "м-н \"Богдан\"",
+   "renamed": false,
+   "routes_file": [
+    "3"
+   ],
+   "routes_db_active": [
+    "3"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7763805,
+   "lon": 29.2183479,
+   "d_file_street": 19,
+   "nearest_streets": [
+    [
+     19,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     76,
+     "Партизанська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     17,
+     "Лікарня",
+     4738449213
+    ],
+    [
+     73,
+     "(без назви)",
+     5755206047
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "96",
+    "lat": 50.7763805,
+    "lon": 29.2183479
+   },
+   "d_addr": 0,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-082",
+   "file_name": "Лісна",
+   "file_street": "вул. 10 ОГШБ",
+   "file_house": null,
+   "osm_street": "вулиця 10-ї Окремої Гірсько-Штурмової Бригади",
+   "terminus": false,
+   "db_id": "st_0037",
+   "db_name": "Лісна",
+   "renamed": false,
+   "routes_file": [
+    "3"
+   ],
+   "routes_db_active": [
+    "3"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.78293782636544,
+   "lon": 29.18930053710938,
+   "d_file_street": 1672,
+   "nearest_streets": [
+    [
+     470,
+     "Центральна вулиця"
+    ],
+    [
+     508,
+     "Лісний провулок"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "(без назви)",
+     5755206043
+    ],
+    [
+     996,
+     "Лісоколедж",
+     2157757239
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-083",
+   "file_name": "Лісотехнікум",
+   "file_street": "с. Гамарня",
+   "file_house": "00",
+   "osm_street": null,
+   "terminus": true,
+   "db_id": "st_0038",
+   "db_name": "Лісотехнікум",
+   "renamed": false,
+   "routes_file": [
+    "3"
+   ],
+   "routes_db_active": [
+    "3"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77793818269323,
+   "lon": 29.17742371559143,
+   "d_file_street": null,
+   "nearest_streets": [
+    [
+     7,
+     "вулиця Бондарик"
+    ],
+    [
+     42,
+     "вулиця Миклухо-Маклая"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     15,
+     "Лісоколедж",
+     2157757239
+    ],
+    [
+     1005,
+     "(без назви)",
+     5755206043
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-084",
+   "file_name": "Лікарня",
+   "file_street": "вул. Бондарик",
+   "file_house": "17",
+   "osm_street": "вулиця Галини Бондарик",
+   "terminus": false,
+   "db_id": "st_0035",
+   "db_name": "Лікарня",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "5"
+   ],
+   "routes_db_active": [
+    "2",
+    "5",
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [
+    "9"
+   ],
+   "lat": 50.77437298140198,
+   "lon": 29.22046780586243,
+   "d_file_street": 12,
+   "nearest_streets": [
+    [
+     12,
+     "вулиця Галини Бондарик"
+    ],
+    [
+     42,
+     "вулиця Космонавтів"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     21,
+     "(без назви)",
+     4801168310
+    ],
+    [
+     217,
+     "Лікарня",
+     4738449214
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "17",
+    "lat": 50.7751329,
+    "lon": 29.2194271
+   },
+   "d_addr": 112,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-085",
+   "file_name": "Лікарня 2",
+   "file_street": "вул. Бондарик",
+   "file_house": "14",
+   "osm_street": "вулиця Галини Бондарик",
+   "terminus": false,
+   "db_id": "st_0036",
+   "db_name": "Лікарня 2",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "5"
+   ],
+   "routes_db_active": [
+    "2",
+    "5"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77443065094973,
+   "lon": 29.22074139118195,
+   "d_file_street": 7,
+   "nearest_streets": [
+    [
+     7,
+     "вулиця Галини Бондарик"
+    ],
+    [
+     35,
+     "вулиця Космонавтів"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     3,
+     "(без назви)",
+     4801168310
+    ],
+    [
+     219,
+     "Лікарня",
+     4738449214
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-086",
+   "file_name": "Шевченка 119",
+   "file_street": "вул. Шевченка",
+   "file_house": "119",
+   "osm_street": "вулиця Шевченка",
+   "terminus": false,
+   "db_id": "st_0097",
+   "db_name": "Шевченка 119",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "5"
+   ],
+   "routes_db_active": [
+    "2",
+    "5"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.7719881137175,
+   "lon": 29.22239899635315,
+   "d_file_street": 15,
+   "nearest_streets": [
+    [
+     15,
+     "вулиця Шевченка"
+    ],
+    [
+     44,
+     "провулок Героїв Крут"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     98,
+     "(без назви)",
+     4801168311
+    ],
+    [
+     100,
+     "(без назви)",
+     4801168312
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-087",
+   "file_name": "перехр-тя Бондарик-Шевченка",
+   "file_street": "вул. Бондарик",
+   "file_house": "28",
+   "osm_street": "вулиця Галини Бондарик",
+   "terminus": false,
+   "db_id": "st_0067",
+   "db_name": "перехр-тя Бондарик-Шевченка",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "5"
+   ],
+   "routes_db_active": [
+    "2",
+    "5"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77194740368301,
+   "lon": 29.22097206115723,
+   "d_file_street": 6,
+   "nearest_streets": [
+    [
+     6,
+     "вулиця Галини Бондарик"
+    ],
+    [
+     11,
+     "вулиця Шевченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     3,
+     "(без назви)",
+     4801168311
+    ],
+    [
+     17,
+     "(без назви)",
+     4801168312
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-088",
+   "file_name": "м-н \"Корона\"",
+   "file_street": "вул. Шевченка",
+   "file_house": "58",
+   "osm_street": "вулиця Шевченка",
+   "terminus": false,
+   "db_id": "st_0045",
+   "db_name": "м-н \"Корона\"",
+   "renamed": false,
+   "routes_file": [
+    "2",
+    "5"
+   ],
+   "routes_db_active": [
+    "2",
+    "5"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.76944366846736,
+   "lon": 29.23369109630585,
+   "d_file_street": 12,
+   "nearest_streets": [
+    [
+     12,
+     "вулиця Шевченка"
+    ],
+    [
+     13,
+     "1-й провулок Шевченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     240,
+     "Школа №3",
+     4738454401
+    ],
+    [
+     242,
+     "Школа №3",
+     4738454402
+    ]
+   ],
+   "addr": null,
+   "d_addr": null,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-089",
+   "file_name": "Автостанція",
+   "file_street": "вул. Винниченка",
+   "file_house": "43",
+   "osm_street": "вулиця Володимира Винниченка",
+   "terminus": false,
+   "db_id": "st_0004",
+   "db_name": "Автостанція",
+   "renamed": false,
+   "routes_file": [
+    "10"
+   ],
+   "routes_db_active": [
+    "10"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77398286200562,
+   "lon": 29.2366898059845,
+   "d_file_street": 34,
+   "nearest_streets": [
+    [
+     32,
+     "Черешнева вулиця"
+    ],
+    [
+     34,
+     "вулиця Володимира Винниченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     430,
+     "Школа №3",
+     4738454402
+    ],
+    [
+     440,
+     "Школа №3",
+     4738454401
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "43",
+    "lat": 50.7708554,
+    "lon": 29.2374462
+   },
+   "d_addr": 352,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-090",
+   "file_name": "Автостанція (навпроти)",
+   "file_street": "вул. Винниченка",
+   "file_house": "50",
+   "osm_street": "вулиця Володимира Винниченка",
+   "terminus": false,
+   "db_id": "st_0005",
+   "db_name": "Автостанція (навпроти)",
+   "renamed": false,
+   "routes_file": [
+    "10"
+   ],
+   "routes_db_active": [
+    "10"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77394215370721,
+   "lon": 29.23728525638581,
+   "d_file_street": 8,
+   "nearest_streets": [
+    [
+     8,
+     "вулиця Володимира Винниченка"
+    ],
+    [
+     50,
+     "Черешнева вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     459,
+     "Школа №3",
+     4738454402
+    ],
+    [
+     469,
+     "Школа №3",
+     4738454401
+    ]
+   ],
+   "addr": {
+    "method": "nominatim",
+    "house": "50",
+    "lat": 50.7726921,
+    "lon": 29.2376259
+   },
+   "d_addr": 141,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-091",
+   "file_name": "Укр. Повстанців 38",
+   "file_street": "вул.Укр.Повстанців",
+   "file_house": "38",
+   "osm_street": "вулиця Українських Повстанців",
+   "terminus": false,
+   "db_id": "st_0088",
+   "db_name": "Укр. Повстанців 38",
+   "renamed": false,
+   "routes_file": [
+    "10"
+   ],
+   "routes_db_active": [
+    "10"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77983770322658,
+   "lon": 29.23753738403321,
+   "d_file_street": 22,
+   "nearest_streets": [
+    [
+     22,
+     "вулиця Українських Повстанців"
+    ],
+    [
+     99,
+     "вулиця Володимира Винниченка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     402,
+     "(без назви)",
+     5025050383
+    ],
+    [
+     451,
+     "(без назви)",
+     5025050382
+    ]
+   ],
+   "addr": {
+    "method": "osm-near-number",
+    "house": "32",
+    "lat": 50.7777567,
+    "lon": 29.2438172
+   },
+   "d_addr": 498,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-092",
+   "file_name": "ТОВ \"Малин Енергоінвест\"",
+   "file_street": "вул.Укр.Повстанців",
+   "file_house": "27",
+   "osm_street": "вулиця Українських Повстанців",
+   "terminus": false,
+   "db_id": "st_0083",
+   "db_name": "ТОВ \"Малин Енергоінвест\"",
+   "renamed": false,
+   "routes_file": [
+    "10"
+   ],
+   "routes_db_active": [
+    "10"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77745989839973,
+   "lon": 29.24186646938324,
+   "d_file_street": 10,
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Українських Повстанців"
+    ],
+    [
+     12,
+     "Київська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     2,
+     "(без назви)",
+     5025050383
+    ],
+    [
+     53,
+     "(без назви)",
+     5025050382
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "27",
+    "lat": 50.7769229,
+    "lon": 29.2427838
+   },
+   "d_addr": 88,
+   "merged_with": []
+  },
+  {
+   "file_id": "z-093",
+   "file_name": "ТОВ \"Райагрошляхбуд\"",
+   "file_street": "вул.Укр.Повстанців",
+   "file_house": "32",
+   "osm_street": "вулиця Українських Повстанців",
+   "terminus": false,
+   "db_id": "st_0084",
+   "db_name": "ТОВ \"Райагрошляхбуд\"",
+   "renamed": false,
+   "routes_file": [
+    "10"
+   ],
+   "routes_db_active": [
+    "10"
+   ],
+   "routes_db_disabled": [],
+   "only_file_disabled": [],
+   "only_file_absent": [],
+   "only_db": [],
+   "lat": 50.77731064556212,
+   "lon": 29.24255311489105,
+   "d_file_street": 5,
+   "nearest_streets": [
+    [
+     5,
+     "вулиця Українських Повстанців"
+    ],
+    [
+     42,
+     "Київська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     4,
+     "(без назви)",
+     5025050382
+    ],
+    [
+     52,
+     "(без назви)",
+     5025050383
+    ]
+   ],
+   "addr": {
+    "method": "osm-exact",
+    "house": "32",
+    "lat": 50.7777567,
+    "lon": 29.2438172
+   },
+   "d_addr": 102,
+   "merged_with": []
+  }
+ ],
+ "db_only_stops": [
+  {
+   "db_id": "st_0006",
+   "db_name": "БАМ",
+   "lat": 50.7779679,
+   "lon": 29.2678191,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     52,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     68,
+     "БАМ"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     400,
+     "(без назви)",
+     4997250440
+    ],
+    [
+     401,
+     "(без назви)",
+     5358965605
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0009",
+   "db_name": "вул. Олекси Тихого",
+   "lat": 50.77826382026436,
+   "lon": 29.29712533950806,
+   "routes_db_active": [
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     5,
+     "вулиця Олекси Тихого"
+    ],
+    [
+     54,
+     "2-й провулок Івана Виговського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     476,
+     "Залізничний вокзал",
+     5283945324
+    ],
+    [
+     537,
+     "(без назви)",
+     2786114229
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0030",
+   "db_name": "Й. Кульчицького (груш)",
+   "lat": 50.7766491783893,
+   "lon": 29.25577640533448,
+   "routes_db_active": [
+    "12",
+    "3"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     2,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     81,
+     "1-й провулок Віктора Мирутенка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     6,
+     "(без назви)",
+     5143895757
+    ],
+    [
+     23,
+     "(без назви)",
+     5143895760
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0053",
+   "db_name": "Малинівка",
+   "lat": 50.78502028820555,
+   "lon": 29.27852153778077,
+   "routes_db_active": [
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     20,
+     "Молодіжна вулиця"
+    ],
+    [
+     148,
+     "Садовий провулок"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     194,
+     "Малинівка",
+     5041161772
+    ],
+    [
+     825,
+     "Рейл",
+     4801170425
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0069",
+   "db_name": "перехрестя О. Тихого та Філатова",
+   "lat": 50.77150637603823,
+   "lon": 29.30542945861817,
+   "routes_db_active": [
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     5,
+     "вулиця Олекси Тихого"
+    ],
+    [
+     145,
+     "1-й провулок Гетьмана Скоропадського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     728,
+     "(без назви)",
+     2786114229
+    ],
+    [
+     781,
+     "Залізничний вокзал",
+     5283945324
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0071",
+   "db_name": "Поворот на Коновальця",
+   "lat": 50.76611193224141,
+   "lon": 29.26340997219086,
+   "routes_db_active": [
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     2,
+     "проспект Машинобудівників"
+    ],
+    [
+     6,
+     "вулиця Євгена Коновальця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     435,
+     "Юнігран",
+     6110854977
+    ],
+    [
+     459,
+     "Степана Бандери",
+     4848969423
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0090",
+   "db_name": "Царське село",
+   "lat": 50.76994578329106,
+   "lon": 29.26604390144348,
+   "routes_db_active": [
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     0,
+     "вулиця Бульби-Боровця"
+    ],
+    [
+     4,
+     "проспект Машинобудівників"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     704,
+     "Сонечко",
+     4801168319
+    ],
+    [
+     711,
+     "Прожектор",
+     4801168317
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0099",
+   "db_name": "Юрівка",
+   "lat": 50.78365007945074,
+   "lon": 29.2856240272522,
+   "routes_db_active": [
+    "9"
+   ],
+   "routes_db_disabled": [],
+   "routes_map_only": [],
+   "nearest_streets": [
+    [
+     4,
+     "Незламна вулиця"
+    ],
+    [
+     126,
+     "провулок Павла Тараскіна"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     368,
+     "Малинівка",
+     5041161772
+    ],
+    [
+     759,
+     "МДЕЗ",
+     4801170432
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0101",
+   "db_name": "№11 т.1",
+   "lat": 50.77365040986513,
+   "lon": 29.24719333648682,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "5"
+   ],
+   "nearest_streets": [
+    [
+     4,
+     "вулиця Михайла Грушевського"
+    ],
+    [
+     8,
+     "Володимирська вулиця"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     28,
+     "(без назви)",
+     5573062942
+    ],
+    [
+     55,
+     "(без назви)",
+     6151906879
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0102",
+   "db_name": "№11 т.2",
+   "lat": 50.77373521930917,
+   "lon": 29.29404079914093,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "12",
+    "3",
+    "5"
+   ],
+   "nearest_streets": [
+    [
+     2,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     4,
+     "Вокзальна площа"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     92,
+     "Залізничний вокзал",
+     5283945324
+    ],
+    [
+     111,
+     "(без назви)",
+     2786114229
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0103",
+   "db_name": "№11 т.3",
+   "lat": 50.77442386630076,
+   "lon": 29.29473280906678,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "12",
+    "3",
+    "5"
+   ],
+   "nearest_streets": [
+    [
+     1,
+     "Вокзальна площа"
+    ],
+    [
+     89,
+     "вулиця Івана Огієнка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     41,
+     "Залізничний вокзал",
+     5283945324
+    ],
+    [
+     116,
+     "(без назви)",
+     2786114229
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0104",
+   "db_name": "№11 т.4",
+   "lat": 50.77392858426656,
+   "lon": 29.29346680641175,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "12",
+    "3",
+    "5"
+   ],
+   "nearest_streets": [
+    [
+     2,
+     "Вокзальна площа"
+    ],
+    [
+     2,
+     "вулиця Івана Огієнка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     122,
+     "Залізничний вокзал",
+     5283945324
+    ],
+    [
+     155,
+     "(без назви)",
+     2786114229
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0105",
+   "db_name": "№11 т.5",
+   "lat": 50.7785826715223,
+   "lon": 29.26298618316651,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "5"
+   ],
+   "nearest_streets": [
+    [
+     14,
+     "Малинівський круг"
+    ],
+    [
+     62,
+     "вулиця Михайла Грушевського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     61,
+     "(без назви)",
+     4997250440
+    ],
+    [
+     63,
+     "(без назви)",
+     5358965605
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0106",
+   "db_name": "№11 т.6",
+   "lat": 50.77906433632133,
+   "lon": 29.26211714744568,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "5"
+   ],
+   "nearest_streets": [
+    [
+     5,
+     "Малинівський круг"
+    ],
+    [
+     16,
+     "вулиця Михайла Грушевського"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     1,
+     "(без назви)",
+     5318309371
+    ],
+    [
+     74,
+     "(без назви)",
+     4997250440
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0107",
+   "db_name": "№11 т.7",
+   "lat": 50.75786639178465,
+   "lon": 29.22110080718994,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "2"
+   ],
+   "nearest_streets": [
+    [
+     74,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     403,
+     "Фабрика банкнотного паперу"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     354,
+     "(без назви)",
+     5755206040
+    ],
+    [
+     355,
+     "Фабрика банкнотного паперу",
+     4849400024
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0108",
+   "db_name": "№11 т.8",
+   "lat": 50.75997033029763,
+   "lon": 29.22215223312378,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "11",
+    "2"
+   ],
+   "nearest_streets": [
+    [
+     240,
+     "вулиця Юрія Приходька"
+    ],
+    [
+     420,
+     "Фабрика банкнотного паперу"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     370,
+     "Фабрика банкнотного паперу",
+     4849400024
+    ],
+    [
+     375,
+     "(без назви)",
+     5755206040
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0109",
+   "db_name": "№3 т.1",
+   "lat": 50.77626925455249,
+   "lon": 29.21333312988281,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "3"
+   ],
+   "nearest_streets": [
+    [
+     5,
+     "вулиця 10-ї Окремої Гірсько-Штурмової Бригади"
+    ],
+    [
+     59,
+     "Лісний провулок"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     200,
+     "Лісна",
+     4738449216
+    ],
+    [
+     215,
+     "Лісна",
+     4738449215
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0110",
+   "db_name": "№3 т.2",
+   "lat": 50.78246976843035,
+   "lon": 29.19912815093994,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "3"
+   ],
+   "nearest_streets": [
+    [
+     901,
+     "Центральна вулиця"
+    ],
+    [
+     1027,
+     "Лісний провулок"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     692,
+     "(без назви)",
+     5755206043
+    ],
+    [
+     750,
+     "Новий цвинтар",
+     6385992696
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0111",
+   "db_name": "№7 т.1",
+   "lat": 50.76413042058631,
+   "lon": 29.30129885673523,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "7"
+   ],
+   "nearest_streets": [
+    [
+     5,
+     "провулок 14-ї ОМБ Князя Романа Великого"
+    ],
+    [
+     147,
+     "вулиця Малуші"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     240,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     785,
+     "(без назви)",
+     4848968816
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0112",
+   "db_name": "№7 т.2",
+   "lat": 50.7639030842597,
+   "lon": 29.29809629917145,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "7"
+   ],
+   "nearest_streets": [
+    [
+     2,
+     "провулок 14-ї ОМБ Князя Романа Великого"
+    ],
+    [
+     78,
+     "вулиця Героїв Малинського Підпілля"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     88,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     570,
+     "(без назви)",
+     4848968816
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0113",
+   "db_name": "№7 т.3",
+   "lat": 50.76618657658816,
+   "lon": 29.2980694770813,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "7"
+   ],
+   "nearest_streets": [
+    [
+     6,
+     "провулок 14-ї ОМБ Князя Романа Великого"
+    ],
+    [
+     177,
+     "вулиця Героїв Малинського Підпілля"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     166,
+     "(без назви)",
+     5059749674
+    ],
+    [
+     554,
+     "(без назви)",
+     4848968816
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0114",
+   "db_name": "№7 т.4",
+   "lat": 50.7661526473544,
+   "lon": 29.29068803787232,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "7"
+   ],
+   "nearest_streets": [
+    [
+     2,
+     "Каштанова вулиця"
+    ],
+    [
+     95,
+     "1-й Квітневий провулок"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     96,
+     "(без назви)",
+     4848968816
+    ],
+    [
+     540,
+     "(без назви)",
+     5059749674
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0115",
+   "db_name": "№7 т.5",
+   "lat": 50.77372164980847,
+   "lon": 29.29388523101807,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "7"
+   ],
+   "nearest_streets": [
+    [
+     9,
+     "вулиця Івана Огієнка"
+    ],
+    [
+     10,
+     "Вокзальна площа"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     102,
+     "Залізничний вокзал",
+     5283945324
+    ],
+    [
+     121,
+     "(без назви)",
+     2786114229
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0116",
+   "db_name": "№9 т.1",
+   "lat": 50.76229812623087,
+   "lon": 29.26106572151184,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "9"
+   ],
+   "nearest_streets": [
+    [
+     10,
+     "вулиця Степана Бандери"
+    ],
+    [
+     10,
+     "проспект Машинобудівників"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     46,
+     "Юнігран",
+     6110854977
+    ],
+    [
+     97,
+     "Степана Бандери",
+     4848969423
+    ]
+   ]
+  },
+  {
+   "db_id": "st_0117",
+   "db_name": "№9 т.2",
+   "lat": 50.77820276339247,
+   "lon": 29.27117228507996,
+   "routes_db_active": [],
+   "routes_db_disabled": [],
+   "routes_map_only": [
+    "9"
+   ],
+   "nearest_streets": [
+    [
+     1,
+     "Вишнева вулиця"
+    ],
+    [
+     7,
+     "вулиця Івана Огієнка"
+    ]
+   ],
+   "nearest_osm_stops": [
+    [
+     288,
+     "Рейл",
+     4801170425
+    ],
+    [
+     344,
+     "Рейл",
+     4801170426
+    ]
+   ]
+  }
+ ]
+}

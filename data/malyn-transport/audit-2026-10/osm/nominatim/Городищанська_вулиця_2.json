@@ -1,0 +1,35 @@
+[
+ {
+  "place_id": 190123757,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 454109288,
+  "lat": "50.7596388",
+  "lon": "29.2953833",
+  "category": "highway",
+  "type": "tertiary",
+  "place_rank": 26,
+  "importance": 0.053387401388570954,
+  "addresstype": "road",
+  "name": "Городищанська вулиця",
+  "display_name": "Городищанська вулиця, Городище, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11604, Україна",
+  "address": {
+   "road": "Городищанська вулиця",
+   "neighbourhood": "Городище",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11604",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7593629",
+   "50.7603894",
+   "29.2882258",
+   "29.3025206"
+  ]
+ }
+]

@@ -1,0 +1,37 @@
+[
+ {
+  "place_id": 191708468,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 475921967,
+  "lat": "50.7751772",
+  "lon": "29.2508212",
+  "category": "shop",
+  "type": "doityourself",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "shop",
+  "name": "Будівельна Лавка",
+  "display_name": "Будівельна Лавка, 77, вулиця Михайла Грушевського, Прожектор, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11601, Україна",
+  "address": {
+   "shop": "Будівельна Лавка",
+   "house_number": "77",
+   "road": "вулиця Михайла Грушевського",
+   "neighbourhood": "Прожектор",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11601",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7751002",
+   "50.7752542",
+   "29.2507070",
+   "29.2509355"
+  ]
+ }
+]

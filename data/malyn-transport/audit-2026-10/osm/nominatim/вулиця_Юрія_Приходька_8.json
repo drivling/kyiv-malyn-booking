@@ -1,0 +1,36 @@
+[
+ {
+  "place_id": 191494572,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 273797836,
+  "lat": "50.7575917",
+  "lon": "29.2378904",
+  "category": "building",
+  "type": "apartments",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "8, вулиця Юрія Приходька, район Паперової Фабрики, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11602, Україна",
+  "address": {
+   "house_number": "8",
+   "road": "вулиця Юрія Приходька",
+   "suburb": "район Паперової Фабрики",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11602",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7575281",
+   "50.7576553",
+   "29.2377387",
+   "29.2380421"
+  ]
+ }
+]

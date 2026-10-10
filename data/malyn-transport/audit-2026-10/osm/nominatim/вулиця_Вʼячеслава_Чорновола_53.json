@@ -1,0 +1,36 @@
+[
+ {
+  "place_id": 190772600,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 273789772,
+  "lat": "50.7557443",
+  "lon": "29.2500118",
+  "category": "building",
+  "type": "apartments",
+  "place_rank": 30,
+  "importance": 5.000152590214416e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "53, вулиця Вʼячеслава Чорновола, район Паперової Фабрики, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11602, Україна",
+  "address": {
+   "house_number": "53",
+   "road": "вулиця Вʼячеслава Чорновола",
+   "suburb": "район Паперової Фабрики",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11602",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7555747",
+   "50.7561818",
+   "29.2492503",
+   "29.2501213"
+  ]
+ }
+]

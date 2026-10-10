@@ -1,0 +1,37 @@
+[
+ {
+  "place_id": 426196684,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 466126672,
+  "lat": "50.7702335",
+  "lon": "29.2327099",
+  "category": "building",
+  "type": "yes",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "51, вулиця Шевченка, Центр, Михайлівка, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11601, Україна",
+  "address": {
+   "house_number": "51",
+   "road": "вулиця Шевченка",
+   "neighbourhood": "Центр",
+   "suburb": "Михайлівка",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11601",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7701458",
+   "50.7703325",
+   "29.2324528",
+   "29.2328362"
+  ]
+ }
+]

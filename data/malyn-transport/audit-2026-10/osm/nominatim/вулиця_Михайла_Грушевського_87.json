@@ -1,0 +1,35 @@
+[
+ {
+  "place_id": 192057894,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 475924741,
+  "lat": "50.7757880",
+  "lon": "29.2522361",
+  "category": "building",
+  "type": "house",
+  "place_rank": 30,
+  "importance": 5.406805523761376e-05,
+  "addresstype": "building",
+  "name": "",
+  "display_name": "87, вулиця Михайла Грушевського, Малин, Малинська міська громада, Коростенський район, Житомирська область, 11601, Україна",
+  "address": {
+   "house_number": "87",
+   "road": "вулиця Михайла Грушевського",
+   "town": "Малин",
+   "municipality": "Малинська міська громада",
+   "district": "Коростенський район",
+   "state": "Житомирська область",
+   "ISO3166-2-lvl4": "UA-18",
+   "postcode": "11601",
+   "country": "Україна",
+   "country_code": "ua"
+  },
+  "boundingbox": [
+   "50.7757598",
+   "50.7758699",
+   "29.2521423",
+   "29.2523659"
+  ]
+ }
+]
