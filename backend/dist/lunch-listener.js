@@ -4,20 +4,54 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.LUNCH_LISTENER_FATAL_SESSION_EXIT = void 0;
+exports.setLunchListenerFatalHandler = setLunchListenerFatalHandler;
+exports.lunchListenerFatalSessionError = lunchListenerFatalSessionError;
+exports.resetLunchListenerStateForTests = resetLunchListenerStateForTests;
 exports.isLunchListenerWanted = isLunchListenerWanted;
 exports.startLunchListener = startLunchListener;
 exports.pauseLunchListenerForExclusiveSession = pauseLunchListenerForExclusiveSession;
 exports.resumeLunchListenerAfterExclusiveSession = resumeLunchListenerAfterExclusiveSession;
 exports.stopLunchListener = stopLunchListener;
+exports.stopLunchListenerAndWait = stopLunchListenerAndWait;
+exports.interruptLunchListenerForLeaseLoss = interruptLunchListenerForLeaseLoss;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const telegram_session_lease_1 = require("./telegram-session-lease");
 let child = null;
 let stopping = false;
 /** >0 — тимчасово зупинили listener, щоб інший Telethon (fetch/send) міг відкрити ту саму .session */
 let exclusivePauseDepth = 0;
 let restartTimer = null;
 let restartAttempt = 0;
+/** Процес, що прожив стільки, вважаємо стабільним: наступний збій знову «перший» (4 с паузи) */
+const STABLE_RUN_MS = 60000;
+/** Код виходу lunch.listener, коли Telegram відкликав сесію: перезапуск не допоможе */
+exports.LUNCH_LISTENER_FATAL_SESSION_EXIT = 78;
+/** Сесію відкликано — більше не стартуємо до нового деплою з новою сесією */
+let fatalSessionError = null;
+let onFatalSession = null;
+let waitingForLease = false;
+/** Скільки чекати оренду за раз; потім — новий цикл очікування (з рядком у логах) */
+const LEASE_WAIT_MS = 10 * 60000;
+/** index.ts: сповістити власника (адмін-чат бота), що сесію треба створити заново */
+function setLunchListenerFatalHandler(fn) {
+    onFatalSession = fn;
+}
+function lunchListenerFatalSessionError() {
+    return fatalSessionError;
+}
+/** Тести: скинути стан модуля */
+function resetLunchListenerStateForTests() {
+    fatalSessionError = null;
+    onFatalSession = null;
+    waitingForLease = false;
+    stopping = false;
+    exclusivePauseDepth = 0;
+    restartAttempt = 0;
+    child = null;
+}
 /**
  * Після exclusive-сесії не піднімаємо listener миттєво: серія коротких Telethon-скриптів
  * (send_message / resolve) йде впритул, і кожен рестарт listener'а тільки б знову ловив
@@ -60,16 +94,37 @@ function startLunchListener() {
         console.log('[lunch-listener] skipped (set LUNCH_LISTENER_ENABLED=1 + TELEGRAM_* + DATABASE_URL + session file to enable)');
         return;
     }
+    if (fatalSessionError) {
+        console.warn(`[lunch-listener] not starting: the Telegram session is dead (${fatalSessionError}) — log in again`);
+        return;
+    }
     if (child && !child.killed) {
         console.log('[lunch-listener] already running pid=' + child.pid);
         return;
     }
+    const lease = (0, telegram_session_lease_1.getTelegramSessionLease)();
+    if (lease && !lease.isHeld()) {
+        if (waitingForLease)
+            return;
+        waitingForLease = true;
+        console.log('[lunch-listener] waiting for the Telegram session lease');
+        void lease.waitUntilHeld(LEASE_WAIT_MS).then(() => {
+            waitingForLease = false;
+            if (stopping || exclusivePauseDepth > 0 || child)
+                return;
+            startLunchListener();
+        });
+        return;
+    }
+    spawnListener();
+}
+function spawnListener() {
     const dir = telegramUserDir();
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
     const session = sessionPathBase();
     const groupId = (process.env.LUNCH_GROUP_ID || '-5427750954').trim();
     console.log('[lunch-listener] starting python -m lunch.listener cwd=' + dir);
-    child = (0, child_process_1.spawn)(pythonCmd, ['-m', 'lunch.listener'], {
+    const proc = (0, child_process_1.spawn)(pythonCmd, ['-m', 'lunch.listener'], {
         cwd: dir,
         env: {
             ...process.env,
@@ -82,22 +137,44 @@ function startLunchListener() {
         },
         stdio: ['ignore', 'pipe', 'pipe'],
     });
-    const pid = child.pid;
-    child.stdout?.on('data', (buf) => {
+    child = proc;
+    const pid = proc.pid;
+    const startedAt = Date.now();
+    let fatalSeen = null;
+    proc.stdout?.on('data', (buf) => {
         const lines = buf.toString().split(/\r?\n/).filter(Boolean);
         for (const line of lines)
             console.log('[lunch-listener]', line);
     });
-    child.stderr?.on('data', (buf) => {
+    proc.stderr?.on('data', (buf) => {
         const lines = buf.toString().split(/\r?\n/).filter(Boolean);
-        for (const line of lines)
+        for (const line of lines) {
             console.error('[lunch-listener]', line);
+            fatalSeen ?? (fatalSeen = (0, telegram_session_lease_1.fatalTelegramSessionError)(line));
+        }
     });
-    child.on('exit', (code, signal) => {
+    proc.on('exit', (code, signal) => {
         console.warn(`[lunch-listener] exited code=${code} signal=${signal} pid=${pid}`);
-        child = null;
+        if (child === proc)
+            child = null;
+        if (code === exports.LUNCH_LISTENER_FATAL_SESSION_EXIT || (code !== 0 && fatalSeen)) {
+            fatalSessionError = fatalSeen ?? 'fatal session error';
+            console.error(`[lunch-listener] the Telegram session is dead (${fatalSessionError}): not restarting. ` +
+                'Create a new one with telegram-user/auth_session.py and set TELEGRAM_USER_SESSION_BASE64');
+            try {
+                onFatalSession?.(fatalSessionError);
+            }
+            catch (e) {
+                console.error('[lunch-listener] fatal handler failed', e);
+            }
+            return;
+        }
         if (stopping || exclusivePauseDepth > 0)
             return;
+        // Лічильник скидаємо лише після стабільної роботи: інакше процес, що падає одразу, щоразу
+        // рахувався «першою» спробою і перезапускався кожні 4 с без кінця (2026-10-10)
+        if (Date.now() - startedAt >= STABLE_RUN_MS)
+            restartAttempt = 0;
         restartAttempt += 1;
         const delay = Math.min(60000, 2000 * Math.pow(2, Math.min(restartAttempt, 5)));
         console.log(`[lunch-listener] restart in ${delay}ms (attempt ${restartAttempt})`);
@@ -106,10 +183,9 @@ function startLunchListener() {
             startLunchListener();
         }, delay);
     });
-    child.on('error', (err) => {
+    proc.on('error', (err) => {
         console.error('[lunch-listener] spawn error', err);
     });
-    restartAttempt = 0;
 }
 /**
  * Зупиняє lunch.listener і чекає exit — щоб звільнити SQLite Telethon-сесію
@@ -174,6 +250,13 @@ function resumeLunchListenerAfterExclusiveSession() {
     resumeTimer.unref?.();
 }
 function stopLunchListener() {
+    void stopLunchListenerAndWait(8000);
+}
+/**
+ * Зупинити listener і дочекатися виходу (не довше timeoutMs, потім SIGKILL). Перед звільненням
+ * оренди сесії процес має точно зникнути — інакше новий контейнер підключиться поруч із ним.
+ */
+async function stopLunchListenerAndWait(timeoutMs = 5000) {
     stopping = true;
     exclusivePauseDepth = 0;
     clearResumeTimer();
@@ -181,9 +264,44 @@ function stopLunchListener() {
         clearTimeout(restartTimer);
         restartTimer = null;
     }
-    if (child && !child.killed) {
-        console.log('[lunch-listener] stopping pid=' + child.pid);
-        child.kill('SIGTERM');
-        child = null;
+    const proc = child;
+    child = null;
+    if (!proc || proc.killed || proc.exitCode !== null)
+        return;
+    console.log('[lunch-listener] stopping pid=' + proc.pid);
+    await new Promise((resolve) => {
+        const timer = setTimeout(() => {
+            try {
+                proc.kill('SIGKILL');
+            }
+            catch {
+                /* ignore */
+            }
+            resolve();
+        }, timeoutMs);
+        proc.once('exit', () => {
+            clearTimeout(timer);
+            resolve();
+        });
+        try {
+            proc.kill('SIGTERM');
+        }
+        catch {
+            clearTimeout(timer);
+            resolve();
+        }
+    });
+}
+/** Оренду сесії втрачено: зупинити процес; перезапуск сам дочекається нової оренди */
+function interruptLunchListenerForLeaseLoss() {
+    const proc = child;
+    if (!proc || proc.killed)
+        return;
+    console.warn('[lunch-listener] lease lost — stopping pid=' + proc.pid);
+    try {
+        proc.kill('SIGTERM');
+    }
+    catch {
+        /* ignore */
     }
 }

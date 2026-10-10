@@ -18,6 +18,18 @@
   У телефоні: Telegram → Налаштування → Пристрої → Підключити пристрій → навести камеру на QR.
   Ліміт на відправку кодів тут не діє. QR малюється в терміналі, якщо встановлено `pip install qrcode`.
 
+Для Railway (сесія живе у змінній, а не в git):
+  python3 auth_session.py --fresh --qr --export
+  --fresh   — спершу видалити старий локальний файл (мертвий після AuthKeyDuplicatedError);
+  --export  — надрукувати значення для Railway → Variables → TELEGRAM_USER_SESSION_BASE64
+              (base64 від gzip файлу; на Mac одразу копіюється в буфер обміну) і видалити
+              локальний файл, щоб ним випадково не скористатися поруч із сервером.
+              Якщо файл уже є, --export без входу лише експортує його.
+  --keep-local — не видаляти локальний файл після --export.
+  Одна сесія — одне місце: запуск будь-якого скрипта з тим самим файлом, поки він працює на
+  Railway, — це вхід з двох IP одночасно, і Telegram анулює ключ. Для локальних скриптів
+  створіть окрему сесію: python3 auth_session.py local_session
+
 Жорсткий вихід (якщо сесію скомпрометовано):
   python3 auth_session.py --logout
   Відкликає сесію на серверах Telegram і видаляє локальні файли сесії.
@@ -84,6 +96,12 @@ QR = "--qr" in sys.argv
 if QR:
     sys.argv = [a for a in sys.argv if a != "--qr"]
 
+# --export / --keep-local / --fresh — див. docstring
+EXPORT = "--export" in sys.argv
+KEEP_LOCAL = "--keep-local" in sys.argv
+FRESH = "--fresh" in sys.argv
+sys.argv = [a for a in sys.argv if a not in ("--export", "--keep-local", "--fresh")]
+
 # Якщо передано один аргумент (не --logout) — це шлях до сесії
 if len(sys.argv) > 1:
     SESSION_NAME = sys.argv[1]
@@ -107,6 +125,31 @@ def _delete_session_files(base: str) -> int:
             except OSError as e:
                 print(f"Помилка видалення {p}: {e}", file=sys.stderr)
     return deleted
+
+
+def export_session(base: str) -> None:
+    """Надрукувати значення TELEGRAM_USER_SESSION_BASE64 (base64 від gzip .session)."""
+    import base64
+    import gzip
+    import shutil
+    import subprocess
+
+    session_path = os.path.abspath(base) + ".session"
+    with open(session_path, "rb") as f:
+        raw = f.read()
+    value = base64.b64encode(gzip.compress(raw, 9)).decode("ascii")
+    print()
+    print("Railway → сервіс kyiv-malyn-booking → Variables → TELEGRAM_USER_SESSION_BASE64 =")
+    print(value)
+    print(f"({len(value)} символів)")
+    if shutil.which("pbcopy"):
+        subprocess.run(["pbcopy"], input=value.encode("ascii"), check=False)
+        print("Значення скопійовано в буфер обміну.")
+    if KEEP_LOCAL:
+        print("Локальний файл лишається (--keep-local): не запускайте з ним нічого, поки сесія працює на Railway.")
+    else:
+        _delete_session_files(base)
+        print("Локальну копію видалено: тепер сесія живе лише на Railway.")
 
 
 async def logout_main():
@@ -284,9 +327,15 @@ async def main():
 
 
 if __name__ == "__main__":
+    if FRESH and not LOGOUT:
+        _delete_session_files(SESSION_NAME)
     if LOGOUT:
         asyncio.run(logout_main())
-    elif QR:
-        asyncio.run(qr_main())
+    elif EXPORT and os.path.isfile(os.path.abspath(SESSION_NAME) + ".session"):
+        print("Файл сесії вже є — експортую без входу. Якщо це стара сесія з репозиторію, вона мертва:")
+        print("запустіть з --fresh, щоб увійти заново.")
+        export_session(SESSION_NAME)
     else:
-        asyncio.run(main())
+        asyncio.run(qr_main() if QR else main())
+        if EXPORT and os.path.isfile(os.path.abspath(SESSION_NAME) + ".session"):
+            export_session(SESSION_NAME)

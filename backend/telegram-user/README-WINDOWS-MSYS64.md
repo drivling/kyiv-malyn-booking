@@ -56,8 +56,8 @@ python auth_session.py
 
 ### 6. Далі — як у головному README
 
-- Додати в git: `session_telegram_user.session`
-- На Railway задати `TELEGRAM_API_ID` та `TELEGRAM_API_HASH`
+- **Не** додавати сесію в git: `python auth_session.py --fresh --qr --export` друкує значення для Railway
+- На Railway задати `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` і `TELEGRAM_USER_SESSION_BASE64`
 - Решту кроків див. у [README.md](./README.md)
 
 ---

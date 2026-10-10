@@ -8,6 +8,7 @@ exports.postTextToLunchGroup = postTextToLunchGroup;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const telegram_session_lease_1 = require("./telegram-session-lease");
 const lunch_listener_1 = require("./lunch-listener");
 function toBigIntOrNull(v) {
     if (v === null || v === undefined || v === '')
@@ -25,7 +26,13 @@ function sessionPathBase() {
         return env.replace(/\.session$/, '');
     return path_1.default.join(process.cwd(), 'telegram-user', 'session_telegram_user');
 }
-function spawnPostText(text) {
+/** Telethon стартує лише з орендою сесії (див. telegram-session-lease.ts) */
+async function spawnPostText(text) {
+    if (!(await (0, telegram_session_lease_1.awaitTelegramSession)()))
+        return false;
+    return spawnPostTextNow(text);
+}
+function spawnPostTextNow(text) {
     const sessionPath = sessionPathBase();
     const sessionFile = sessionPath + '.session';
     const apiId = process.env.TELEGRAM_API_ID?.trim();

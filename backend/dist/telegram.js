@@ -11,6 +11,7 @@ exports.resetTelegramPrismaForTests = resetTelegramPrismaForTests;
 exports.createOrMergeViberListing = createOrMergeViberListing;
 exports.setAnnounceDraft = setAnnounceDraft;
 exports.getAnnounceDraft = getAnnounceDraft;
+exports.sendAdminAlertHtml = sendAdminAlertHtml;
 exports.getTelegramScenarioLinks = getTelegramScenarioLinks;
 exports.buildBehaviorPromoMessage = buildBehaviorPromoMessage;
 exports.sendBehaviorPromoMessage = sendBehaviorPromoMessage;
@@ -51,6 +52,7 @@ const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api")
 const child_process_1 = require("child_process");
 const path_1 = __importDefault(require("path"));
 const lunch_listener_1 = require("./lunch-listener");
+const telegram_session_lease_1 = require("./telegram-session-lease");
 let spawnChild = child_process_1.spawn;
 /** Юніт-тести: підміна spawn (Python Telethon) без реальних процесів. */
 function setSpawnForTests(fn) {
@@ -61,7 +63,11 @@ function resetSpawnForTests() {
 }
 /** Черга: один Telethon-скрипт одночасно + пауза lunch.listener на час сесії. */
 let telegramUserSessionTail = Promise.resolve();
-async function withTelegramUserSessionExclusive(fn) {
+/**
+ * `unavailable` — результат, коли сесію тримає інший екземпляр бекенду (перекриття деплою):
+ * запуск Telethon тоді анулював би ключ (AuthKeyDuplicatedError), тож краще пропустити цей раз.
+ */
+async function withTelegramUserSessionExclusive(fn, unavailable) {
     let release;
     const gate = new Promise((resolve) => {
         release = resolve;
@@ -70,6 +76,10 @@ async function withTelegramUserSessionExclusive(fn) {
     telegramUserSessionTail = prev.then(() => gate).catch(() => gate);
     await prev.catch(() => undefined);
     try {
+        if (!(await (0, telegram_session_lease_1.awaitTelegramSession)())) {
+            console.warn('[telegram-session] skipped a Telethon script: ' + telegram_session_lease_1.TELEGRAM_SESSION_BUSY_ERROR);
+            return unavailable();
+        }
         await (0, lunch_listener_1.pauseLunchListenerForExclusiveSession)();
         try {
             return await fn();
@@ -152,6 +162,21 @@ const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
 /** Єдиний допуск до адмін-команд бота: приватний чат з TELEGRAM_ADMIN_CHAT_ID. */
 function isTelegramAdminChat(chatId) {
     return !!adminChatId && chatId === adminChatId;
+}
+/** Службове повідомлення власнику в адмін-чат бота (HTML). Без бота — лише лог. */
+async function sendAdminAlertHtml(html) {
+    if (!bot) {
+        console.warn('[telegram] admin alert skipped (bot is not configured):', html.replace(/<[^>]+>/g, ''));
+        return false;
+    }
+    try {
+        await bot.sendMessage(adminChatId, html, { parse_mode: 'HTML' });
+        return true;
+    }
+    catch (e) {
+        console.error('[telegram] admin alert failed', e);
+        return false;
+    }
 }
 const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
 let bot = null;
@@ -1691,7 +1716,7 @@ async function resolveNameByPhoneFromTelegram(phone) {
             }
         });
         child.on('error', () => resolve(null));
-    }));
+    }), () => null);
 }
 /**
  * Знайти @username в Telegram по номеру телефону (Python send_message.py --resolve-username).
@@ -1739,7 +1764,7 @@ async function resolveUsernameByPhoneFromTelegram(phone) {
             }
         });
         child.on('error', () => resolve(null));
-    }));
+    }), () => null);
 }
 /** Групи-джерела для fetch_telegram_messages.py. topicId 0 = плоска група без топіків. */
 const TELEGRAM_GROUPS = [
@@ -1825,6 +1850,13 @@ async function fetchTelegramGroupMessages(options) {
         if (spawnResult.code !== 0) {
             const detail = (spawnResult.stderr.trim() || `python exit ${spawnResult.code}`).slice(0, 400);
             console.error('fetchTelegramGroupMessages:', spawnResult.code, detail);
+            const fatal = (0, telegram_session_lease_1.fatalTelegramSessionError)(spawnResult.stderr);
+            if (fatal) {
+                return {
+                    text: null,
+                    error: `Сесію Telegram відкликано (${fatal}) — потрібен новий вхід: backend/telegram-user/auth_session.py`,
+                };
+            }
             return { text: null, error: detail };
         }
         // Успіх: навіть порожній stdout (немає __LAST_IDS__) — не плутати з помилкою
@@ -1870,7 +1902,7 @@ async function fetchTelegramGroupMessages(options) {
             }
         }
         return { text: messagesText };
-    });
+    }, () => ({ text: null, error: telegram_session_lease_1.TELEGRAM_SESSION_BUSY_ERROR }));
 }
 /** Person + контакт для ViberListing при імпорті з Telegram групи. */
 async function resolveTelegramImportPerson(params) {
@@ -2107,7 +2139,7 @@ async function sendMessageViaUserAccount(phone, message, options) {
             console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
         }
         return false;
-    });
+    }, () => false);
 }
 function spawnSendMessage(value, message, isUsername) {
     const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();

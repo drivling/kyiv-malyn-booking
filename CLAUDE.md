@@ -144,6 +144,20 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   API can't do (DMing users who haven't started the bot) — invoked from Node via `spawn`, queued
   through a single-flight exclusive-session lock in `telegram.ts` that also pauses the lunch listener
   while it runs.
+- **One Telethon session, one place.** The same session connected from two IPs at once makes Telegram
+  revoke it for good (`AuthKeyDuplicatedError`, which happened during a deploy on 2026-10-10). So:
+  - the session lives only in the Railway variable `TELEGRAM_USER_SESSION_BASE64`
+    (`auth_session.py --export`); `telegram-user-session.ts` writes it to
+    `telegram-user/session_telegram_user.session` at boot, and it is never in git;
+  - every Telethon spawn (listener, fetch/send/resolve, `post_text`, `reparse`) first awaits the
+    `TelegramSessionLease` row through `awaitTelegramSession()` in `telegram-session-lease.ts`. That
+    lease has a DB heartbeat and is released on SIGTERM only after the listener has exited, so during
+    a deploy the new container waits for the old one;
+  - a dead session (`FATAL_TELEGRAM_SESSION_ERRORS`; listener exit code 78) stops listener restarts
+    and alerts the owner's admin chat.
+
+  New Telethon call sites must go through `withTelegramUserSessionExclusive` or
+  `awaitTelegramSession()`.
 - OCR-based lunch order parsing (`LUNCH_OCR_MODEL`, `OPENAI_API_KEY`) via the Python lunch listener.
 - The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and

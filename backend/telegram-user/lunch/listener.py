@@ -177,9 +177,9 @@ async def run() -> None:
     client = TelegramClient(session, api_id, api_hash)
     await client.connect()
     if not await client.is_user_authorized():
-        print("Сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
+        print("[lunch] FATAL_SESSION SessionNotAuthorized: сесія не авторизована. Запустіть auth_session.py", file=sys.stderr)
         await db.close()
-        sys.exit(2)
+        sys.exit(FATAL_SESSION_EXIT)
 
     me = await client.get_me()
     me_id = int(me.id) if me else None
@@ -658,11 +658,30 @@ async def run() -> None:
         await client.disconnect()
 
 
+# Після цих помилок сесія мертва назавжди: перезапуск лише смикав би Telegram (backend/src/lunch-listener.ts
+# за кодом 78 більше не перезапускає й пише власнику). Список — як FATAL_TELEGRAM_SESSION_ERRORS у Node.
+FATAL_SESSION_EXIT = 78
+FATAL_SESSION_ERRORS = {
+    "AuthKeyDuplicatedError",
+    "AuthKeyUnregisteredError",
+    "SessionRevokedError",
+    "SessionExpiredError",
+    "UserDeactivatedError",
+    "UserDeactivatedBanError",
+}
+
+
 def main() -> None:
     try:
         asyncio.run(run())
     except KeyboardInterrupt:
         print("\n[lunch] stopped")
+    except Exception as e:  # noqa: BLE001
+        name = type(e).__name__
+        if name in FATAL_SESSION_ERRORS:
+            print(f"[lunch] FATAL_SESSION {name}: {e}", file=sys.stderr)
+            sys.exit(FATAL_SESSION_EXIT)
+        raise
 
 
 if __name__ == "__main__":
