@@ -419,6 +419,31 @@ test.describe('transport', () => {
     });
   });
 
+  test('QR sticker: counted once, then the utm mark leaves the address; GA counts no extra page_view', async ({ page }) => {
+    const scans: unknown[] = [];
+    await page.route(/\/transport\/sticker-scans$/, async (route) => {
+      scans.push(route.request().postDataJSON());
+      await route.fulfill({ status: 201, contentType: 'application/json', body: '{"ok":true,"counted":true}' });
+    });
+    await page.goto('/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-a');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
+    await expect(page).toHaveURL(/\/transport\/stop\/st_a$/);
+    expect(scans).toEqual([{ stopId: 'st_a', side: 'a' }]);
+    const views = await page.evaluate(() =>
+      ((window as unknown as { dataLayer: unknown[] }).dataLayer ?? [])
+        .map((x) => Array.from(x as ArrayLike<unknown>))
+        .filter((a) => a[0] === 'event' && a[1] === 'page_view')
+        .map((a) => (a[2] as { page_location: string }).page_location)
+    );
+    // dev-сервер у StrictMode шле page_view двічі; головне — немає перегляду без мітки після її зняття
+    expect(views.length).toBeGreaterThan(0);
+    expect(views.every((v) => v.includes('utm_campaign=st_a-a'))).toBe(true);
+    // відновлена вкладка відкриває вже чисту адресу — новий скан не рахується
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
+    expect(scans).toHaveLength(1);
+  });
+
   test.describe('today by the Kyiv clock', () => {
     test.use({ timezoneId: 'Europe/Kyiv' });
 

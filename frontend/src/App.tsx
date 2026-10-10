@@ -16,7 +16,7 @@ import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRo
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
-import { DomainGuard, LocalTransportGate, useHomeCityHandoff } from '@/site';
+import { DomainGuard, LocalTransportGate, useFreshBuild, useHomeCityHandoff } from '@/site';
 import './App.css';
 
 function App() {
@@ -47,6 +47,8 @@ function LocalTransportLegacyRedirect() {
 function AppContent() {
   const { pathname } = useLocation();
   useHomeCityHandoff();
+  // стара вкладка після деплою сама підтягує нову збірку (src/site/freshBuild.ts)
+  useFreshBuild();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
   // Віджет на стіну — як окремий застосунок: без меню сайту й адмінки

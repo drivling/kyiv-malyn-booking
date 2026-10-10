@@ -343,9 +343,13 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
       await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
       await waitFor(() => expect(posted).toEqual([{ stopId: 'st_a', side: 'b' }]));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_sticker_open', { stop: 'st_a', side: 'b' });
+      // мітку знято з адреси: відновлена завтра вкладка не прийде як новий скан
+      await waitFor(() => expect(location()).not.toContain('utm_'));
+      expect(location()).toMatch(/^\/transport\/stop\/st_a/);
       first.unmount();
       renderBoard(url);
       await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
+      await waitFor(() => expect(location()).not.toContain('utm_'));
       expect(posted).toHaveLength(1);
     } finally {
       Reflect.deleteProperty(window, 'gtag');
