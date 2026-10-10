@@ -75,8 +75,8 @@ ul { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
 <path d="M280.0,375.0 L560.0,375.0 L560.0,340.0 L520.0,300.0 L520.0,230.0 L830.0,230.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="var(--r10)" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="11">
-<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="var(--line-bg)" stroke-width="9.5"/>
-<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="var(--r11)" stroke-width="7"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,540.0 L560.0,500.0 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,540.0 L560.0,500.0 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="var(--r11)" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="12">
 <path d="M280.0,395.0 L557.9,395.0 L616.5,336.5 L657.9,295.0 L860.0,295.0 L900.0,295.0 L910.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="var(--line-bg)" stroke-width="9.5"/>
@@ -143,9 +143,9 @@ ul { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
 <line x1="440.0" y1="535.0" x2="440.0" y2="545.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
 <text x="440" y="522" text-anchor="middle" font-size="11.5" fill="var(--muted)">Приходька</text>
 </g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_0007" data-stops="st_0007 st_0092">
-<line x1="570.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="570.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0007" data-stops="st_0007 st_0092 st_0091">
+<line x1="560.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="560.0" y1="540.0" x2="570.0" y2="540.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
 <text x="584" y="544" text-anchor="start" font-size="11.5" fill="var(--muted)">Барміна</text>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_0038" data-stops="st_0038">
@@ -247,8 +247,8 @@ ul { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
 <g class="lts-legend-row" data-route="11">
 <g class="lts-badge" data-route="11"><rect x="720.0" y="865.0" width="28" height="20" rx="4" fill="var(--r11)"/><text x="734.0" y="880.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text></g>
 <text x="758" y="880" font-size="13.5" font-weight="700" fill="var(--fg)">Паперова фабрика — Залізничний вокзал</text>
-<text x="1342" y="880" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">8–9 рейс. · 6:45–18:50</text>
-<text x="758" y="895" font-size="10.5" fill="var(--muted)">Приходька · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка</text>
+<text x="1342" y="880" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">16 рейс. · 5:50–19:30</text>
+<text x="758" y="895" font-size="10.5" fill="var(--muted)">Приходька · Барміна · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка</text>
 </g>
 <g class="lts-legend-row" data-route="12">
 <g class="lts-badge" data-route="12"><rect x="720.0" y="903.0" width="28" height="20" rx="4" fill="var(--r12)"/><text x="734.0" y="918.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">12</text></g>
@@ -276,6 +276,7 @@ ul { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
         <li><span class="pill" style="background:var(--r10)">10</span> (колишній 6) намальований за списком зупинок data.gov.ua 2024 і OpenStreetMap: Шевченка, Центр, Автостанція, Укр. Повстанців, Мирутенка, Малинівський круг.</li>
         <li>Річка Ірша та Малинське водосховище показані схематично за контурами OpenStreetMap: міст на Мазепи між Кооперативним ринком і Мазепи, 3; Барміна, Чорновола й Приходька — на південному березі.</li>
         <li><span class="pill" style="background:var(--r9)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
+        <li><span class="pill" style="background:var(--r11)">11</span> (на листку розкладу — 11/1) від світлофора на Мазепи спершу заїжджає на Барміна і повертається, далі йде через центр і з-д «Прожектор» до Вокзалу; назад — через Паперову фабрику до Барміна.</li>
         <li><span class="pill" style="background:var(--r8)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
         <li><span class="pill" style="background:var(--r7)">7</span> та <span class="pill" style="background:var(--r8)">8</span> ходять за тимчасовою схемою (жовтень 2023, ремонт вул. Городищанської).</li>
         <li>Кількість рейсів і час першого/останнього — з розкладів у базі (/transport/dataset).</li>

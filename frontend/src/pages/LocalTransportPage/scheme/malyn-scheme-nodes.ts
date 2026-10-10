@@ -204,7 +204,8 @@ export const SCHEME_NODES: SchemeNode[] = [
     "name": "Барміна",
     "stopIds": [
       "st_0007",
-      "st_0092"
+      "st_0092",
+      "st_0091"
     ]
   }
 ];
