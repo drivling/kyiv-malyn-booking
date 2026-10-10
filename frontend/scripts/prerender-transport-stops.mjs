@@ -10,6 +10,7 @@ import { setCanonical, setOg, stripRobots } from './html-head.mjs';
 import { publishableRouteIds } from './prerender-spa.mjs';
 import { relatedPagesForStop } from './stop-related-pages.mjs';
 import { STOP_HUB_FAQ, stopArticleDescription, stopFallbackDescription, stopPageTitle, stopRoutesFaq } from './stop-page-copy.mjs';
+import { stopRoutesFromRouteStops } from './transport-stop-routes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
@@ -79,15 +80,8 @@ function collectFromApiDataset(dataset) {
   const hiddenRouteIds = new Set(
     (dataset.routes || []).filter((r) => r && r.unreliable === true).map((r) => String(r.id))
   );
-  const stopToRoutes = new Map();
-  for (const rs of dataset.routeStops || []) {
-    if (!rs?.stopId || !rs?.routeId) continue;
-    if (!String(rs.stopId).startsWith('st_')) continue;
-    if (hiddenRouteIds.has(String(rs.routeId))) continue;
-    if (rs.mapOnly === true) continue; // лише точка геометрії на карті, не зупинка маршруту
-    if (!stopToRoutes.has(rs.stopId)) stopToRoutes.set(rs.stopId, new Set());
-    stopToRoutes.get(rs.stopId).add(String(rs.routeId));
-  }
+  // Сторінки — як і раніше; маршрути в чіпах — лише ті, де зупинку не вимкнено (-1 / -1)
+  const stopToRoutes = stopRoutesFromRouteStops(dataset.routeStops, hiddenRouteIds);
   // Sitemap / route pages: not hidden AND both termini named (rule D1) — same filter as prerender-spa.
   const routeIds = publishableRouteIds(dataset).filter((id) => !hiddenRouteIds.has(id));
   const allRouteIds = [...new Set((dataset.routes || []).map((r) => String(r?.id)).filter(Boolean))].sort(compareRouteId);
