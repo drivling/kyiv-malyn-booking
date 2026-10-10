@@ -274,6 +274,10 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `apiClient.getTransportDataset()`); static stop pages use `routeShortNames()` (`scripts/transport-stop-routes.mjs`);
   the scheme generator reads it from the dataset, so regenerate the scheme and poster after changing it. A `PUT` without
   the key keeps the stored value. Prefer `shortName` over renumbering when only the label changes.
+- Route lines on the map are straight lines between consecutive chain points; technical points (`mapOnly`
+  route stops named «№<id> т.N») bend them along the roads (`Docs/route-geometry-5-2-2026-10.md`). They do not
+  change trip times: `recalculate-segments` times each span between real stops (stop pause, speed, 30 s minimum)
+  and splits it by length across the hops (`chainSegmentSeconds` in `backend/src/transport-segments.ts`).
 - Per-trip `startStopId` / `endStopId` / `arrivalTime` (short-turn trips, fixed arrival that
   compresses that trip's segment durations) are computed on the fly by one pure helper kept
   byte-identical in `frontend/src/pages/LocalTransportPage/dataset/tripTiming.ts` and

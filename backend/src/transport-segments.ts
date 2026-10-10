@@ -18,6 +18,10 @@ const SPEED_KMH_URBAN = 35;
 const SPEED_KMH_FAST = 45;
 const SEGMENT_LONG_M = 600;
 const CORRELATION_SPEED_KMH = 24;
+/** Коли OSRM не відповів: довжина дорогою ≈ пряма × цей коефіцієнт */
+const ROAD_FACTOR = 1.3;
+/** Найкоротший час між сусідніми справжніми зупинками (с) */
+const MIN_SPAN_SEC = 30;
 
 export type RecalculateSegmentsOptions = {
   /** Один маршрут; якщо не задано — усі verified, що є в БД */
@@ -50,6 +54,46 @@ function segmentTimeSecFromDistanceM(distanceM: number, withStopPause: boolean):
   const driveSec = (distanceM / 1000 / speedKmh) * 3600;
   const stopSec = withStopPause ? STOP_TIME_SEC : 0;
   return Math.round(stopSec + driveSec);
+}
+
+function straightLineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const r = 6371000;
+  const p1 = (a.lat * Math.PI) / 180;
+  const p2 = (b.lat * Math.PI) / 180;
+  const dp = p2 - p1;
+  const dl = ((b.lng - a.lng) * Math.PI) / 180;
+  const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Час перегонів одного напрямку (с) за їхньою довжиною дорогою (м).
+ * Технічні точки (mapOnly) лише малюють лінію, тож пауза на зупинці, швидкість і мінімум MIN_SPAN_SEC
+ * рахуються на відрізок між сусідніми справжніми зупинками, а його час ділиться між перегонами за довжиною
+ * (накопичене округлення: сума перегонів = час відрізка). Без технічних точок — як раніше: кожен перегін окремо.
+ * @param technical для кожної точки ланцюжка: чи технічна
+ * @param distancesM довжина кожного перегону (на 1 менше за точки)
+ */
+export function chainSegmentSeconds(technical: boolean[], distancesM: number[]): number[] {
+  const n = distancesM.length;
+  const out = new Array<number>(n).fill(0);
+  let start = 0;
+  for (let i = 1; i <= n; i++) {
+    if (i < n && technical[i]) continue; // відрізок триває через технічні точки
+    const hops = distancesM.slice(start, i);
+    const spanM = hops.reduce((sum, d) => sum + Math.max(0, d), 0);
+    const spanSec = Math.max(MIN_SPAN_SEC, segmentTimeSecFromDistanceM(spanM, !technical[start]));
+    let acc = 0;
+    let prev = 0;
+    hops.forEach((d, k) => {
+      acc += Math.max(0, d);
+      const cum = spanM > 0 ? Math.round((spanSec * acc) / spanM) : Math.round((spanSec * (k + 1)) / hops.length);
+      out[start + k] = Math.max(1, cum - prev);
+      prev = cum;
+    });
+    start = i;
+  }
+  return out;
 }
 
 async function fetchOsrmRoute(lon1: number, lat1: number, lon2: number, lat2: number) {
@@ -103,74 +147,48 @@ export async function recalculateSegmentDurations(
   }
 
   const newSegments = new Map<string, number>();
-  const segmentDistancesM: Record<string, number> = {};
   const corrections: string[] = [];
   let osrmRequested = 0;
   let osrmFailed = 0;
 
   for (const routeId of routesToProcess) {
     const routeStops = routeStopsByRoute.get(routeId) || [];
+    const technicalIds = new Set(routeStops.filter((s) => s.mapOnly === true).map((s) => s.stopId));
     for (const dir of ['there', 'back'] as const) {
       const ids = orderedStopIds(routeStops, dir);
+      if (ids.length < 2) continue;
+      const distances: number[] = [];
+      const fromOsrm: boolean[] = [];
       for (let i = 0; i < ids.length - 1; i++) {
-        const a = ids[i];
-        const b = ids[i + 1];
-        const key = `${routeId}|${a}|${b}`;
-        const ca = stopById.get(a);
-        const cb = stopById.get(b);
-        const fromStop = routeStops.find((s) => s.stopId === a);
-        const isTechnicalStop = fromStop?.mapOnly === true;
-
-        if (!ca || !cb) {
-          newSegments.set(
-            key,
-            isTechnicalStop ? Math.max(30, DEFAULT_SEC - STOP_TIME_SEC) : DEFAULT_SEC
-          );
-          continue;
+        const ca = stopById.get(ids[i]);
+        const cb = stopById.get(ids[i + 1]);
+        let distM: number | null = null;
+        if (ca && cb) {
+          osrmRequested++;
+          const res = await fetchOsrmRoute(ca.lng, ca.lat, cb.lng, cb.lat);
+          await sleep(DELAY_MS);
+          if (res.distance != null && res.distance > 0) distM = res.distance;
+          else osrmFailed++;
         }
-
-        osrmRequested++;
-        const { distance: distM } = await fetchOsrmRoute(ca.lng, ca.lat, cb.lng, cb.lat);
-        await sleep(DELAY_MS);
-
-        if (distM != null && distM > 0) {
-          segmentDistancesM[key] = distM;
-          newSegments.set(key, Math.max(30, segmentTimeSecFromDistanceM(distM, !isTechnicalStop)));
-        } else {
-          newSegments.set(
-            key,
-            isTechnicalStop ? Math.max(30, DEFAULT_SEC - STOP_TIME_SEC) : DEFAULT_SEC
-          );
-          osrmFailed++;
-        }
+        fromOsrm.push(distM != null);
+        distances.push(distM ?? (ca && cb ? straightLineM(ca, cb) * ROAD_FACTOR : 0));
       }
-    }
-  }
-
-  for (const routeId of routesToProcess) {
-    const routeStops = routeStopsByRoute.get(routeId) || [];
-    for (const dir of ['there', 'back'] as const) {
-      const ids = orderedStopIds(routeStops, dir);
-      const keys: string[] = [];
-      for (let i = 0; i < ids.length - 1; i++) keys.push(`${routeId}|${ids[i]}|${ids[i + 1]}`);
-      let totalDistM = 0;
-      let totalTimeSec = 0;
-      for (const k of keys) {
-        if (segmentDistancesM[k] != null) totalDistM += segmentDistancesM[k];
-        totalTimeSec += newSegments.get(k) || 0;
-      }
-      if (totalDistM <= 0 || totalTimeSec <= 0) continue;
-      const timeAt24Sec = (totalDistM / 1000 / CORRELATION_SPEED_KMH) * 3600;
-      if (timeAt24Sec > totalTimeSec) {
-        const factor = timeAt24Sec / totalTimeSec;
-        for (const k of keys) {
-          const v = newSegments.get(k);
-          if (v != null) newSegments.set(k, Math.max(30, Math.round(v * factor)));
-        }
+      let seconds = chainSegmentSeconds(
+        ids.map((id) => technicalIds.has(id)),
+        distances
+      );
+      // Поправка: не швидше за CORRELATION_SPEED_KMH у середньому (за довжиною, відомою з OSRM)
+      const knownM = distances.reduce((sum, d, i) => sum + (fromOsrm[i] ? d : 0), 0);
+      const totalSec = seconds.reduce((sum, v) => sum + v, 0);
+      const timeAt24Sec = (knownM / 1000 / CORRELATION_SPEED_KMH) * 3600;
+      if (knownM > 0 && totalSec > 0 && timeAt24Sec > totalSec) {
+        const factor = timeAt24Sec / totalSec;
+        seconds = seconds.map((v) => Math.max(1, Math.round(v * factor)));
         corrections.push(
-          `${routeId} ${dir}: ${CORRELATION_SPEED_KMH} км/год ${Math.round(timeAt24Sec)} с > ${totalTimeSec} с → ×${factor.toFixed(3)}`
+          `${routeId} ${dir}: ${CORRELATION_SPEED_KMH} км/год ${Math.round(timeAt24Sec)} с > ${totalSec} с → ×${factor.toFixed(3)}`
         );
       }
+      for (let i = 0; i < ids.length - 1; i++) newSegments.set(`${routeId}|${ids[i]}|${ids[i + 1]}`, seconds[i]);
     }
   }
 
