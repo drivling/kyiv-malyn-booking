@@ -10,7 +10,7 @@ import { setCanonical, setOg, stripRobots } from './html-head.mjs';
 import { publishableRouteIds } from './prerender-spa.mjs';
 import { relatedPagesForStop } from './stop-related-pages.mjs';
 import { STOP_HUB_FAQ, stopArticleDescription, stopFallbackDescription, stopPageTitle, stopRoutesFaq } from './stop-page-copy.mjs';
-import { stopRoutesFromRouteStops } from './transport-stop-routes.mjs';
+import { routeShortNames, stopRoutesFromRouteStops } from './transport-stop-routes.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
@@ -68,7 +68,8 @@ function collectFromLegacyJson(data) {
   );
 
   const allRouteIds = [...new Set([...Object.keys(routesMeta), ...Object.keys(byRoute)].map(String))].sort(compareRouteId);
-  return { catalog, stopToRoutes, routeIds: [...routeIds].sort(compareRouteId), hiddenRouteIds, allRouteIds };
+  const routeNames = routeShortNames(Object.entries(routesMeta).map(([id, m]) => ({ id, shortName: m?.short_name })));
+  return { catalog, stopToRoutes, routeIds: [...routeIds].sort(compareRouteId), hiddenRouteIds, allRouteIds, routeNames };
 }
 
 function collectFromApiDataset(dataset) {
@@ -85,7 +86,9 @@ function collectFromApiDataset(dataset) {
   // Sitemap / route pages: not hidden AND both termini named (rule D1) — same filter as prerender-spa.
   const routeIds = publishableRouteIds(dataset).filter((id) => !hiddenRouteIds.has(id));
   const allRouteIds = [...new Set((dataset.routes || []).map((r) => String(r?.id)).filter(Boolean))].sort(compareRouteId);
-  return { catalog, stopToRoutes, routeIds, hiddenRouteIds, allRouteIds };
+  // Номери для показу («11/1») — у чіпах і текстах; адреси лишаються з id
+  const routeNames = routeShortNames(dataset.routes);
+  return { catalog, stopToRoutes, routeIds, hiddenRouteIds, allRouteIds, routeNames };
 }
 
 function compareRouteId(a, b) {
@@ -112,7 +115,7 @@ async function loadTransportIndex() {
   }
   if (!fs.existsSync(localJson)) {
     console.warn(`prerender-transport-stops: no API and missing ${localJson} — skip stop prerender`);
-    return { catalog: {}, stopToRoutes: new Map(), routeIds: [], hiddenRouteIds: new Set() };
+    return { catalog: {}, stopToRoutes: new Map(), routeIds: [], hiddenRouteIds: new Set(), routeNames: new Map() };
   }
   const data = JSON.parse(fs.readFileSync(localJson, 'utf8'));
   console.log('prerender-transport-stops: dataset from local JSON');
@@ -178,30 +181,34 @@ function compareLineId(a, b, legend) {
   return oa - ob || compareRouteId(a, b);
 }
 
-/** Чіпи «№N» у кольорах ліній схеми (без кольору — контурний чіп), посилання на сторінку маршруту */
-function lineChipsHtml(routeIds, legend) {
+/**
+ * Чіпи «№N» у кольорах ліній схеми (без кольору — контурний чіп), посилання на сторінку маршруту.
+ * N — номер для показу (`no(id)`: «11/1»), адреса — з id.
+ */
+function lineChipsHtml(routeIds, legend, no = (id) => String(id)) {
   const chip = 'display:inline-block;margin:0 6px 6px 0;padding:3px 12px;border:2px solid;border-radius:999px;font-weight:700;text-decoration:none';
   return [...routeIds]
     .sort((a, b) => compareLineId(a, b, legend))
     .map((r) => {
       const color = legend.get(String(r))?.color;
       const paint = color ? `background:${color};color:#fff;border-color:${color}` : 'background:#fff;color:#054752;border-color:#dde3e6';
-      return `<a href="/transport/route/${encodeURIComponent(r)}" style="${chip};${paint}">№${escapeHtml(r)}</a>`;
+      return `<a href="/transport/route/${encodeURIComponent(r)}" style="${chip};${paint}">№${escapeHtml(no(r))}</a>`;
     })
     .join('');
 }
 
-function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = new Set(), legend = new Map()) {
+function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = new Set(), legend = new Map(), routeNames = new Map()) {
+  const no = (id) => routeNames.get(String(id)) || String(id);
   const canonical = `https://malin.kiev.ua/transport/stop/${encodeURIComponent(stopId)}`;
   const title = stopPageTitle(name);
   // Статичні статті теж не згадують приховані маршрути
   const articleRoutes = (article?.routeIds || []).filter((r) => !hiddenRouteIds.has(String(r)));
   const effectiveRoutes = (articleRoutes.length ? articleRoutes : routeIds) || [];
   const description =
-    (article ? stopArticleDescription({ ...article, routeIds: articleRoutes }) : '') ||
-    stopFallbackDescription(name, effectiveRoutes);
+    (article ? stopArticleDescription({ ...article, routeIds: articleRoutes.map(no) }) : '') ||
+    stopFallbackDescription(name, effectiveRoutes.map(no));
   // Ті самі питання й відповіді, що на SPA-табло (stop-page-copy.mjs)
-  const faq = [stopRoutesFaq(name, effectiveRoutes, stopId), STOP_HUB_FAQ[1]];
+  const faq = [stopRoutesFaq(name, effectiveRoutes.map(no), stopId), STOP_HUB_FAQ[1]];
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -225,7 +232,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
 
   // Чіпи ліній під заголовком — як .lt-line-chips на табло
   const routesHtml = effectiveRoutes.length
-    ? `<p>${lineChipsHtml(effectiveRoutes, legend)}</p>`
+    ? `<p>${lineChipsHtml(effectiveRoutes, legend, no)}</p>`
     : '<p>Через цю зупинку наразі не проходить жоден активний маршрут.</p>';
 
   // Пов'язані сторінки (зупинка «Автостанція» → сторінка автостанції) — та сама мапа, що в SPA
@@ -239,7 +246,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
       ? `<p>Координати: <code>${article.coords[0].toFixed(5)}, ${article.coords[1].toFixed(5)}</code>
          · <a href="https://www.openstreetmap.org/?mlat=${article.coords[0]}&amp;mlon=${article.coords[1]}#map=17/${article.coords[0]}/${article.coords[1]}">на карті</a></p>`
       : '';
-    const routesLine = articleRoutes.length ? `<p>Маршрути: ${lineChipsHtml(articleRoutes, legend)}</p>` : '';
+    const routesLine = articleRoutes.length ? `<p>Маршрути: ${lineChipsHtml(articleRoutes, legend, no)}</p>` : '';
     articleHtml = `
     <h2>Про зупинку</h2>
     <p>Зупинка <strong>«${escapeHtml(name)}»</strong> у Малині — ${escapeHtml(article.place)}.</p>
@@ -346,7 +353,7 @@ async function main() {
     process.exit(1);
   }
   const shell = fs.readFileSync(indexPath, 'utf8');
-  const { catalog, stopToRoutes, routeIds, hiddenRouteIds, allRouteIds = [] } = await loadTransportIndex();
+  const { catalog, stopToRoutes, routeIds, hiddenRouteIds, allRouteIds = [], routeNames = new Map() } = await loadTransportIndex();
   // serve-dist 410s /transport/route/{id} for ids missing here (plan 1.5); empty list = rule off
   fs.mkdirSync(path.join(distDir, 'transport'), { recursive: true });
   fs.writeFileSync(path.join(distDir, 'transport', 'routes.json'), JSON.stringify(allRouteIds), 'utf8');
@@ -360,7 +367,7 @@ async function main() {
   for (const id of stopIds) {
     const name = articles.get(id)?.name || catalog[id]?.name || id;
     const routes = [...(stopToRoutes.get(id) || [])].sort(compareRouteId);
-    const html = buildStopHtml(shell, id, name, routes, articles.get(id), hiddenRouteIds, legend);
+    const html = buildStopHtml(shell, id, name, routes, articles.get(id), hiddenRouteIds, legend, routeNames);
     const outDir = path.join(distDir, 'transport', 'stop', id);
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'index.html'), html, 'utf8');

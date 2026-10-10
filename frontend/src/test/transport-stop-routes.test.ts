@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { stopRoutesFromRouteStops } from '../../scripts/transport-stop-routes.mjs';
+import { routeShortNames, stopRoutesFromRouteStops } from '../../scripts/transport-stop-routes.mjs';
 
 describe('stopRoutesFromRouteStops (static stop pages)', () => {
   const rows = [
@@ -31,3 +31,17 @@ describe('stopRoutesFromRouteStops (static stop pages)', () => {
     expect(stopRoutesFromRouteStops(undefined, new Set()).size).toBe(0);
   });
 });
+
+describe('routeShortNames (numbers on static stop pages)', () => {
+  it('maps ids to their trimmed display numbers, skipping empty ones and numbers equal to the id', () => {
+    const names = routeShortNames([
+      { id: '11', shortName: ' 11/1 ' },
+      { id: '5', shortName: '' },
+      { id: '7', shortName: '7' },
+      { id: '2' },
+    ]);
+    expect([...names]).toEqual([['11', '11/1']]);
+    expect(routeShortNames(undefined).size).toBe(0);
+  });
+});
+
