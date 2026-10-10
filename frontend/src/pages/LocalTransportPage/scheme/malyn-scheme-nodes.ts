@@ -32,8 +32,6 @@ export const SCHEME_NODES: SchemeNode[] = [
     "name": "Центр · Базарна площа",
     "stopIds": [
       "st_0070",
-      "st_0082",
-      "st_0008",
       "st_0056",
       "st_0049",
       "st_0044"
@@ -44,7 +42,8 @@ export const SCHEME_NODES: SchemeNode[] = [
     "kind": "hub",
     "name": "Малинівський круг",
     "stopIds": [
-      "st_0054"
+      "st_0054",
+      "st_0082"
     ]
   },
   {
@@ -100,10 +99,18 @@ export const SCHEME_NODES: SchemeNode[] = [
   {
     "id": "st_0004",
     "kind": "waypoint",
-    "name": "Автостанція · Укр. Повстанців",
+    "name": "Автостанція",
     "stopIds": [
       "st_0004",
       "st_0005"
+    ]
+  },
+  {
+    "id": "st_0088",
+    "kind": "waypoint",
+    "name": "Укр. Повстанців",
+    "stopIds": [
+      "st_0088"
     ]
   },
   {
@@ -111,7 +118,8 @@ export const SCHEME_NODES: SchemeNode[] = [
     "kind": "waypoint",
     "name": "Грушевського",
     "stopIds": [
-      "st_0013"
+      "st_0013",
+      "st_0042"
     ]
   },
   {

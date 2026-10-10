@@ -7,7 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VERIFIED_ROUTE_IDS = void 0;
 exports.recalculateSegmentDurations = recalculateSegmentDurations;
 const local_transport_1 = require("./local-transport");
-exports.VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '11', '12'];
+exports.VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '10', '11', '12'];
 const DEFAULT_SEC = 120;
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving';
 const DELAY_MS = 300;

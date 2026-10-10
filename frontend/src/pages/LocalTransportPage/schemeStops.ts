@@ -16,18 +16,28 @@ function inLegendOrder(ids: Iterable<string>): string[] {
     .sort((a, b) => (ROUTE_RANK.get(a) ?? 0) - (ROUTE_RANK.get(b) ?? 0));
 }
 
-/** Лінії через зупинку з routeStops датасету: без «лише для карти» (mapOnly) і без ненадійних маршрутів. */
+/** Зупинка справді обслуговується маршрутом: є в ланцюжку хоча б одного напрямку (не -1 / -1 з адмінки). */
+function servesStop(rs: StopsDataset['routeStops'][number]): boolean {
+  return Number(rs.orderThere) > 0 || Number(rs.orderBack) > 0;
+}
+
+/**
+ * Лінії через зупинку з routeStops датасету: без «лише для карти» (mapOnly), без ненадійних маршрутів
+ * і без маршрутів, на яких зупинку вимкнено (-1 в обидва боки) — інакше схема підсвічує лінію там,
+ * де автобус не зупиняється.
+ */
 function rawRoutesAtStop(dataset: StopsDataset, stopId: string, hidden: Set<string>): string[] {
   const out: string[] = [];
   for (const rs of dataset.routeStops) {
-    if (rs.stopId === stopId && !rs.mapOnly && !hidden.has(rs.routeId)) out.push(rs.routeId);
+    if (rs.stopId === stopId && !rs.mapOnly && !hidden.has(rs.routeId) && servesStop(rs)) out.push(rs.routeId);
   }
   return out;
 }
 
 /**
  * Лінії схеми, що проходять через зупинку: з routeStops датасету, без «лише для карти»
- * (mapOnly) і без ненадійних маршрутів; порядок — як у легенді схеми (ROUTE_ORDER генератора).
+ * (mapOnly), без ненадійних маршрутів і без вимкнених членств (-1 / -1); порядок — як у легенді
+ * схеми (ROUTE_ORDER генератора).
  * Маршрути поза схемою (міжміські, без кольору) не повертаються.
  */
 export function routesAtStop(dataset: StopsDataset, stopId: string): string[] {
