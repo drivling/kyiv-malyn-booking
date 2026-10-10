@@ -16,6 +16,8 @@ function createTransportRouter(deps) {
     const adminPassword = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
     const r = express_1.default.Router();
     const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
+    // Повернення — раз за сесію на клієнті; сервер ще відсіює повтори того самого id за 30 хв
+    const isRepeatReturn = (0, sticker_scans_1.createScanDeduper)(30 * 60 * 1000);
     // Той самий звіт про рейс із того самого клієнта за 10 хв — подвійне натискання, не новий факт
     const isRepeatArrival = (0, sticker_scans_1.createScanDeduper)(10 * 60 * 1000);
     /** Публічний повний датасет міського транспорту (~150 КБ). */
@@ -100,6 +102,29 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[POST /transport/sticker-scans]', e);
             res.status(500).json({ error: 'Failed to save sticker scan' });
+        }
+    });
+    /**
+     * Публічний: людина, що колись прийшла з QR-наклейки, знову відкрила сайт (src/sticker-scans.ts).
+     * Body: { stopId, side, clientId, via: reload|tab|direct, page }. Повтор того самого id за 30 хв — 200 { counted: false }.
+     */
+    r.post('/transport/sticker-returns', async (req, res) => {
+        const ret = (0, sticker_scans_1.parseStickerReturn)(req.body);
+        if (!ret) {
+            res.status(400).json({ error: 'Invalid sticker return' });
+            return;
+        }
+        try {
+            if (isRepeatReturn(ret.clientId)) {
+                res.json({ ok: true, counted: false });
+                return;
+            }
+            await prisma.stickerReturn.create({ data: ret });
+            res.status(201).json({ ok: true, counted: true });
+        }
+        catch (e) {
+            console.error('[POST /transport/sticker-returns]', e);
+            res.status(500).json({ error: 'Failed to save sticker return' });
         }
     });
     /**

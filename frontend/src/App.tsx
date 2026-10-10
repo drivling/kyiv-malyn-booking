@@ -17,6 +17,7 @@ import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFoo
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
 import { DomainGuard, LocalTransportGate, useFreshBuild, useHomeCityHandoff } from '@/site';
+import { useStickerReturn } from '@/pages/LocalTransportPage/stickerReturn';
 import './App.css';
 
 function App() {
@@ -49,6 +50,8 @@ function AppContent() {
   useHomeCityHandoff();
   // стара вкладка після деплою сама підтягує нову збірку (src/site/freshBuild.ts)
   useFreshBuild();
+  // люди з QR-наклейок, що повертаються на сайт (stickerReturn.ts)
+  useStickerReturn();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
   // Віджет на стіну — як окремий застосунок: без меню сайту й адмінки

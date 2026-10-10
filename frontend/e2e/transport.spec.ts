@@ -419,7 +419,7 @@ test.describe('transport', () => {
     });
   });
 
-  test('QR sticker: counted once, then the utm mark leaves the address; GA counts no extra page_view', async ({ page }) => {
+  test('QR sticker: counted once, then the mark becomes utm_source=reload; GA counts no extra page_view', async ({ page }) => {
     const scans: unknown[] = [];
     await page.route(/\/transport\/sticker-scans$/, async (route) => {
       scans.push(route.request().postDataJSON());
@@ -427,8 +427,8 @@ test.describe('transport', () => {
     });
     await page.goto('/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-a');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
-    await expect(page).toHaveURL(/\/transport\/stop\/st_a$/);
-    expect(scans).toEqual([{ stopId: 'st_a', side: 'a' }]);
+    await expect(page).toHaveURL(/\/transport\/stop\/st_a\?utm_source=reload&utm_medium=qr&utm_campaign=st_a-a$/);
+    expect(scans).toEqual([{ stopId: 'st_a', side: 'a', clientId: expect.stringMatching(/^[A-Za-z0-9-]{8,64}$/) }]);
     const views = await page.evaluate(() =>
       ((window as unknown as { dataLayer: unknown[] }).dataLayer ?? [])
         .map((x) => Array.from(x as ArrayLike<unknown>))
@@ -438,9 +438,40 @@ test.describe('transport', () => {
     // dev-сервер у StrictMode шле page_view двічі; головне — немає перегляду без мітки після її зняття
     expect(views.length).toBeGreaterThan(0);
     expect(views.every((v) => v.includes('utm_campaign=st_a-a'))).toBe(true);
-    // відновлена вкладка відкриває вже чисту адресу — новий скан не рахується
+    // відновлена вкладка відкриває адресу з reload — новий скан не рахується
     await page.reload();
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
+    expect(scans).toHaveLength(1);
+  });
+
+  test('QR sticker: the tab restored an hour later is a «reload» return of that person, not a new scan', async ({ page, context }) => {
+    const scans: unknown[] = [];
+    const returns: unknown[] = [];
+    const capture = (p: Page) =>
+      p.route(/\/transport\/sticker-(scans|returns)$/, async (route) => {
+        (route.request().url().endsWith('scans') ? scans : returns).push(route.request().postDataJSON());
+        await route.fulfill({ status: 201, contentType: 'application/json', body: '{"ok":true,"counted":true}' });
+      });
+    await capture(page);
+    await page.clock.install({ time: new Date('2026-10-10T07:00:00Z') });
+    await page.goto('/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-b');
+    await expect(page).toHaveURL(/utm_source=reload/);
+    const restoredUrl = page.url();
+    // той самий візит (перезавантаження) — не повернення
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
+    expect(returns).toEqual([]);
+    // людина закрила вкладку, а через годину браузер її відновив
+    await page.close();
+    await context.clock.fastForward('01:00:00');
+    const restored = await context.newPage();
+    await mockBackendApi(restored);
+    await capture(restored);
+    await restored.goto(restoredUrl);
+    await expect(restored.getByRole('heading', { level: 1 })).toContainText('Базар');
+    await expect.poll(() => returns.length).toBe(1);
+    expect(returns[0]).toMatchObject({ stopId: 'st_a', side: 'b', via: 'reload', page: 'transport' });
+    expect((returns[0] as { clientId: string }).clientId).toBe((scans[0] as { clientId: string }).clientId);
     expect(scans).toHaveLength(1);
   });
 

@@ -13,14 +13,44 @@ export const STICKER_SIDES = ['a', 'b', 's'] as const;
 export type StickerSide = (typeof STICKER_SIDES)[number];
 
 const STOP_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+/** Анонімний id браузера з localStorage (frontend visitorId.ts) */
+const CLIENT_ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 
-export function parseStickerScan(body: unknown): { stopId: string; side: StickerSide } | null {
-  const b = (body ?? {}) as { stopId?: unknown; side?: unknown };
+function clientIdOf(v: unknown): string | null {
+  const id = typeof v === 'string' ? v.trim() : '';
+  return CLIENT_ID_RE.test(id) ? id : null;
+}
+
+/** Body POST /transport/sticker-scans: { stopId, side: a|b|s, clientId? } (невалідний clientId — null) */
+export function parseStickerScan(body: unknown): { stopId: string; side: StickerSide; clientId: string | null } | null {
+  const b = (body ?? {}) as { stopId?: unknown; side?: unknown; clientId?: unknown };
   const stopId = typeof b.stopId === 'string' ? b.stopId.trim() : '';
   const side = typeof b.side === 'string' ? b.side.trim() : '';
   if (!STOP_ID_RE.test(stopId)) return null;
   if (!(STICKER_SIDES as readonly string[]).includes(side)) return null;
-  return { stopId, side: side as StickerSide };
+  return { stopId, side: side as StickerSide, clientId: clientIdOf(b.clientId) };
+}
+
+/** reload — відновлена вкладка табло з utm_source=reload; tab — повернулись до відкритої вкладки; direct — відкрили сайт інакше */
+export const RETURN_VIA = ['reload', 'tab', 'direct'] as const;
+export type ReturnVia = (typeof RETURN_VIA)[number];
+const PAGE_RE = /^[a-z0-9-]{1,30}$/;
+
+/**
+ * Body POST /transport/sticker-returns: { stopId, side — наклейка, з якої людина прийшла вперше,
+ * clientId (обовʼязковий: без нього не порахувати людей), via: reload|tab|direct, page }.
+ */
+export function parseStickerReturn(
+  body: unknown
+): { stopId: string; side: StickerSide; clientId: string; via: ReturnVia; page: string } | null {
+  const b = (body ?? {}) as { via?: unknown; page?: unknown; clientId?: unknown };
+  const scan = parseStickerScan(body);
+  const clientId = clientIdOf(b.clientId);
+  const via = typeof b.via === 'string' ? b.via : '';
+  const page = typeof b.page === 'string' ? b.page.trim().toLowerCase() : '';
+  if (!scan || !clientId) return null;
+  if (!(RETURN_VIA as readonly string[]).includes(via)) return null;
+  return { stopId: scan.stopId, side: scan.side, clientId, via: via as ReturnVia, page: PAGE_RE.test(page) ? page : 'other' };
 }
 
 const DEDUPE_MS = 2 * 60 * 1000;
@@ -57,6 +87,27 @@ export type StickerScanDay = { day: string; stopId: string; side: StickerSide; c
 export type StickerScanHour = { hour: number; stopId: string; side: StickerSide; count: number };
 export type StickerPrintStat = { stopId: string; side: StickerSide; count: number; lastAt: string | null };
 
+/** Люди з наклейок (за анонімним id браузера): скільки сканували, скільки повернулись */
+export type StickerAudienceRow = {
+  stopId: string;
+  side: StickerSide;
+  /** Різних людей, що сканували цю наклейку (від 10.10.2026, коли почали писати id) */
+  scanners: number;
+  /** Різних людей із цієї наклейки, що потім знову відкривали сайт */
+  returning: number;
+  /** Повернень за вікно days */
+  returns: number;
+};
+
+export type StickerAudience = {
+  scanners: number;
+  returning: number;
+  returns: number;
+  /** Повернень за вікно за способом: відновлена вкладка табло / відкрита вкладка / інакше */
+  byVia: Record<ReturnVia, number>;
+  rows: StickerAudienceRow[];
+};
+
 export type StickerScanStatsResult = {
   rows: StickerScanStat[];
   total: number;
@@ -69,6 +120,7 @@ export type StickerScanStatsResult = {
   daily: StickerScanDay[];
   hourly: StickerScanHour[];
   printed: StickerPrintStat[];
+  audience: StickerAudience;
 };
 
 /** 1 — «сьогодні»: київська доба від півночі, а не останні 24 години */
@@ -111,7 +163,7 @@ export async function stickerScanStats(
   const now = opts.now ?? new Date();
   const days = opts.days ?? 30;
   const since = (n: number) => new Date(now.getTime() - n * DAY_MS);
-  const [all, week, month, windowRows, prints] = await Promise.all([
+  const [all, week, month, windowRows, prints, idScans, returns] = await Promise.all([
     prisma.stickerScan.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
     prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(7) } }, _count: { _all: true } }),
     prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(30) } }, _count: { _all: true } }),
@@ -122,6 +174,8 @@ export async function stickerScanStats(
       select: { stopId: true, side: true, createdAt: true },
     }),
     prisma.stickerPrint.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
+    prisma.stickerScan.findMany({ where: { clientId: { not: null } }, select: { stopId: true, side: true, clientId: true } }),
+    prisma.stickerReturn.findMany({ select: { stopId: true, side: true, clientId: true, via: true, createdAt: true } }),
   ]);
   const key = (r: { stopId: string; side: string }) => `${r.stopId}|${r.side}`;
   const weekBy = new Map(week.map((r) => [key(r), r._count._all]));
@@ -169,8 +223,13 @@ export async function stickerScanStats(
     }))
     .sort((a, b) => key(a).localeCompare(key(b)));
 
+  const returnsInWindow =
+    days === 1 ? returns.filter((r) => kyivDayHour(r.createdAt).day === todayKyiv) : returns.filter((r) => r.createdAt >= since(days));
+  const audience = buildAudience(idScans, returns, returnsInWindow);
+
   return {
     rows,
+    audience,
     total: sum('total'),
     today: sum('today'),
     last7d: sum('last7d'),
@@ -180,6 +239,46 @@ export async function stickerScanStats(
     hourly,
     printed,
   };
+}
+
+/** Унікальні люди по наклейках: сканували (StickerScan з clientId) і повертались (StickerReturn) */
+export function buildAudience(
+  scans: { stopId: string; side: string; clientId: string | null }[],
+  returns: { stopId: string; side: string; clientId: string; via: string }[],
+  returnsInWindow: { stopId: string; side: string; via: string }[]
+): StickerAudience {
+  const key = (r: { stopId: string; side: string }) => `${r.stopId}|${r.side}`;
+  type Acc = { stopId: string; side: StickerSide; scanners: Set<string>; returning: Set<string>; returns: number };
+  const by = new Map<string, Acc>();
+  const acc = (r: { stopId: string; side: string }) => {
+    const k = key(r);
+    let a = by.get(k);
+    if (!a) {
+      a = { stopId: r.stopId, side: r.side as StickerSide, scanners: new Set(), returning: new Set(), returns: 0 };
+      by.set(k, a);
+    }
+    return a;
+  };
+  const scanners = new Set<string>();
+  const returning = new Set<string>();
+  for (const s of scans) {
+    if (!s.clientId) continue;
+    acc(s).scanners.add(s.clientId);
+    scanners.add(s.clientId);
+  }
+  for (const r of returns) {
+    acc(r).returning.add(r.clientId);
+    returning.add(r.clientId);
+  }
+  const byVia: Record<ReturnVia, number> = { reload: 0, tab: 0, direct: 0 };
+  for (const r of returnsInWindow) {
+    acc(r).returns += 1;
+    if ((RETURN_VIA as readonly string[]).includes(r.via)) byVia[r.via as ReturnVia] += 1;
+  }
+  const rows: StickerAudienceRow[] = [...by.values()]
+    .map((a) => ({ stopId: a.stopId, side: a.side, scanners: a.scanners.size, returning: a.returning.size, returns: a.returns }))
+    .sort((a, b) => b.returning - a.returning || b.scanners - a.scanners || key(a).localeCompare(key(b)));
+  return { scanners: scanners.size, returning: returning.size, returns: returnsInWindow.length, byVia, rows };
 }
 
 const PRINT_SIZES = ['A5', 'A4'] as const;

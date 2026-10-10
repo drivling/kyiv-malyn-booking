@@ -186,9 +186,13 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   (`splitSides`) and the admin can move them; the QR always targets the primary domain with
   `utm_source=sticker&utm_medium=qr&utm_campaign=<stopId>-<a|b|s>`. The board counts each opening
   once per session (`stickerScan.ts` → GA4 `transport_sticker_open` + `POST /transport/sticker-scans`
-  → `StickerScan` table, `backend/src/sticker-scans.ts`), then strips `utm_*` from the address (router
-  replace with state `{ gaSkip: true }`, which `GoogleAnalyticsTracker` doesn't count as a page_view) so a
-  tab the browser restores later is not a new scan. The tab lists every stop with its counts,
+  → `StickerScan` table, `backend/src/sticker-scans.ts`), then rewrites `utm_source=sticker` to
+  `utm_source=reload` (router replace with state `{ gaSkip: true }`, which `GoogleAnalyticsTracker` doesn't
+  count as a page_view) so a tab the browser restores later is not a new scan but a `reload / qr` source in GA.
+  Scans carry an anonymous browser id (`src/analytics/visitorId.ts`, also used by «Факт прибуття»); the
+  browser remembers the first sticker and, when that person opens the site again after ≥ 30 min,
+  `stickerReturn.ts` posts `POST /transport/sticker-returns` (`StickerReturn`, `via: reload | tab | direct`) —
+  «people from stickers who came back» tiles on the tab. The tab lists every stop with its counts,
   daily / hourly charts (Kyiv time) and prints recorded in `StickerPrint` on print/SVG download
   (`GET /admin/transport/sticker-scans?days=1|7|30|90`, 1 = today since Kyiv midnight; `POST /admin/transport/sticker-prints`).
   Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in

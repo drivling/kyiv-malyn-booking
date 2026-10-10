@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseStickerCampaign, stripUtm } from './stickerScan';
+import { parseStickerCampaign, toReloadMark } from './stickerScan';
 
 describe('parseStickerCampaign', () => {
   it('код наклейки з utm_campaign лише для utm_source=sticker', () => {
@@ -12,10 +12,11 @@ describe('parseStickerCampaign', () => {
   });
 });
 
-describe('stripUtm', () => {
-  it('прибирає лише utm_*, решта параметрів лишається', () => {
-    expect(stripUtm('?utm_source=sticker&utm_medium=qr&utm_campaign=st_0015-a')).toBe('');
-    expect(stripUtm('?d=10.10.26&utm_source=sticker&h=08%3A00&utm_campaign=st_0015-a')).toBe('?d=10.10.26&h=08%3A00');
-    expect(stripUtm('')).toBe('');
+describe('toReloadMark', () => {
+  it('utm_source=sticker → reload, кампанія й решта параметрів лишаються', () => {
+    expect(toReloadMark('?utm_source=sticker&utm_medium=qr&utm_campaign=st_0015-a')).toBe('?utm_source=reload&utm_medium=qr&utm_campaign=st_0015-a');
+    expect(toReloadMark('?d=10.10.26&utm_source=sticker&utm_campaign=st_0015-a')).toBe('?d=10.10.26&utm_source=reload&utm_campaign=st_0015-a');
+    expect(toReloadMark('?utm_source=facebook')).toBe('?utm_source=facebook');
+    expect(toReloadMark('')).toBe('');
   });
 });

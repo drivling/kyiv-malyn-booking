@@ -80,6 +80,20 @@ export function scopeTotals(stats: StickerScanStats, scope?: ScanScope) {
   };
 }
 
+/**
+ * Люди з наклейок в обсязі (уся мережа або зупинка): сканували, повернулись, повернень за вікно.
+ * Для всієї мережі — унікальні id з бекенда; для зупинки — сума по її боках (людина з двома
+ * наклейками однієї зупинки там порахується двічі — рідкість).
+ */
+export function scopeAudience(stats: StickerScanStats, scope?: ScanScope) {
+  const a = stats.audience;
+  if (!a) return null;
+  if (!scope?.stopId) return { scanners: a.scanners, returning: a.returning, returns: a.returns, byVia: a.byVia };
+  const rows = a.rows.filter(inScope(scope));
+  const sum = (k: 'scanners' | 'returning' | 'returns') => rows.reduce((n, r) => n + r[k], 0);
+  return { scanners: sum('scanners'), returning: sum('returning'), returns: sum('returns'), byVia: null };
+}
+
 export type StopCatalogEntry = {
   stopId: string;
   name: string;

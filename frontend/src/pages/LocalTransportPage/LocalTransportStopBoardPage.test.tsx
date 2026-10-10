@@ -341,19 +341,24 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
     try {
       const first = renderBoard(url);
       await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
-      await waitFor(() => expect(posted).toEqual([{ stopId: 'st_a', side: 'b' }]));
+      await waitFor(() => expect(posted).toEqual([{ stopId: 'st_a', side: 'b', clientId: expect.stringMatching(/^[A-Za-z0-9-]{8,64}$/) }]));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_sticker_open', { stop: 'st_a', side: 'b' });
-      // мітку знято з адреси: відновлена завтра вкладка не прийде як новий скан
-      await waitFor(() => expect(location()).not.toContain('utm_'));
-      expect(location()).toMatch(/^\/transport\/stop\/st_a/);
+      // sticker → reload: відновлена завтра вкладка не прийде як новий скан, а в GA — окреме джерело
+      await waitFor(() => expect(location()).toContain('utm_source=reload'));
+      expect(location()).toMatch(/^\/transport\/stop\/st_a\?/);
+      expect(location()).toContain('utm_campaign=st_a-b');
+      expect(location()).not.toContain('utm_source=sticker');
+      // браузер запамʼятав наклейку — для обліку повернень
+      expect(JSON.parse(localStorage.getItem('sticker-origin') ?? '{}')).toMatchObject({ stopId: 'st_a', side: 'b' });
       first.unmount();
       renderBoard(url);
       await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
-      await waitFor(() => expect(location()).not.toContain('utm_'));
+      await waitFor(() => expect(location()).toContain('utm_source=reload'));
       expect(posted).toHaveLength(1);
     } finally {
       Reflect.deleteProperty(window, 'gtag');
       sessionStorage.clear();
+      localStorage.removeItem('sticker-origin');
     }
   });
 
