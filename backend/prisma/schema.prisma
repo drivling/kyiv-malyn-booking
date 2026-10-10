@@ -881,9 +881,33 @@ model StickerScan {
   stopId    String
   /// Наклейка зупинки: a | b — бік дороги, s — одна наклейка з обома боками
   side      String
+  /// Анонімний id браузера (localStorage, той самий, що у звітах «Факт прибуття») — унікальні люди
+  /// і хто з них повернувся (StickerReturn); не персональні дані. null — скани до 10.10.2026
+  clientId  String?
   createdAt DateTime @default(now())
 
   @@index([stopId, side])
+  @@index([createdAt])
+  @@index([clientId])
+}
+
+/// Людина, яка колись прийшла з QR-наклейки, знову відкрила сайт (frontend stickerReturn.ts): раз за
+/// візит (30 хв без сайту — як сесія GA). Зупинка й бік — тієї наклейки, з якої вона прийшла вперше.
+/// via: reload — відновлена вкладка з `utm_source=reload` (адреса табло після скану), tab — повернулась
+/// до вже відкритої вкладки, direct — відкрила сайт інакше.
+model StickerReturn {
+  id        Int      @id @default(autoincrement())
+  stopId    String
+  side      String
+  clientId  String
+  /// reload | tab | direct
+  via       String
+  /// Перший сегмент шляху, де людина повернулась: transport | mizhgorodski | home | …
+  page      String
+  createdAt DateTime @default(now())
+
+  @@index([stopId, side])
+  @@index([clientId])
   @@index([createdAt])
 }
 

@@ -13,6 +13,7 @@ import {
   kyivDayHour,
   parseStatsDays,
   parseStickerPrint,
+  parseStickerReturn,
   parseStickerScan,
   stickerScanStats,
 } from './sticker-scans';
@@ -20,11 +21,14 @@ import {
 const TEST_ADMIN_PASSWORD = 'http-test-admin-password-x7';
 const DAY = 24 * 60 * 60 * 1000;
 
-type Scan = { stopId: string; side: string; createdAt: Date };
+type Scan = { stopId: string; side: string; createdAt: Date; clientId?: string | null };
+
+type Return = { stopId: string; side: string; clientId: string; via: string; page: string; createdAt: Date };
 
 type Print = { stopId: string; side: string; size: string; createdAt: Date };
 
-function makeApp(initial: Scan[] = [], initialPrints: Print[] = []) {
+function makeApp(initial: Scan[] = [], initialPrints: Print[] = [], initialReturns: Return[] = []) {
+  const returns: Return[] = [...initialReturns];
   const scans: Scan[] = [...initial];
   const prints: Print[] = [...initialPrints];
   const groupBy = async (args: { where?: { createdAt?: { gte: Date } } }) => {
@@ -45,7 +49,7 @@ function makeApp(initial: Scan[] = [], initialPrints: Print[] = []) {
       findUnique: async ({ where }: { where: { id: string } }) => (['st_0015', 'st_0019'].includes(where.id) ? { id: where.id } : null),
     },
     stickerScan: {
-      create: async ({ data }: { data: { stopId: string; side: string } }) => {
+      create: async ({ data }: { data: { stopId: string; side: string; clientId?: string | null } }) => {
         const row = { ...data, createdAt: new Date() };
         scans.push(row);
         return { id: scans.length, ...row };
@@ -55,6 +59,14 @@ function makeApp(initial: Scan[] = [], initialPrints: Print[] = []) {
         const gte = args.where?.createdAt?.gte;
         return scans.filter((s) => !gte || s.createdAt >= gte).map((s) => ({ ...s }));
       },
+    },
+    stickerReturn: {
+      create: async ({ data }: { data: Omit<Return, 'createdAt'> }) => {
+        const row = { ...data, createdAt: new Date() };
+        returns.push(row);
+        return { id: returns.length, ...row };
+      },
+      findMany: async () => returns.map((r) => ({ ...r })),
     },
     stickerPrint: {
       createMany: async ({ data }: { data: Array<{ stopId: string; side: string; size: string }> }) => {
@@ -74,7 +86,7 @@ function makeApp(initial: Scan[] = [], initialPrints: Print[] = []) {
       },
     },
   } as unknown as PrismaClient;
-  return { app: createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }), prisma, scans, prints };
+  return { app: createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }), prisma, scans, prints, returns };
 }
 
 async function token(app: ReturnType<typeof createApp>) {
@@ -253,7 +265,9 @@ test('kyivDayHour / parseStatsDays / parseStickerPrint', () => {
 });
 
 test('parseStickerScan / clientKey / createScanDeduper', () => {
-  assert.deepEqual(parseStickerScan({ stopId: ' st_0015 ', side: 's' }), { stopId: 'st_0015', side: 's' });
+  assert.deepEqual(parseStickerScan({ stopId: ' st_0015 ', side: 's' }), { stopId: 'st_0015', side: 's', clientId: null });
+  assert.deepEqual(parseStickerScan({ stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh' }), { stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh' });
+  assert.equal(parseStickerScan({ stopId: 'st_0015', side: 'a', clientId: '<x>' })?.clientId, null);
   assert.equal(parseStickerScan({ stopId: 'st_0015', side: 1 }), null);
   assert.equal(clientKey({ 'x-forwarded-for': '198.51.100.1, 10.0.0.2', 'user-agent': 'UA' }, '127.0.0.1'), '198.51.100.1|UA');
   assert.equal(clientKey({}, '127.0.0.1'), '127.0.0.1|');
@@ -263,4 +277,60 @@ test('parseStickerScan / clientKey / createScanDeduper', () => {
   assert.equal(seen('k', 1500), false);
   assert.equal(seen('k2', 1600), false);
   assert.equal(seen('k3', 1700), false); // переповнення: старі ключі прибрано
+});
+
+test('parseStickerReturn: обовʼязковий clientId, via reload|tab|direct, сторінка — лише короткий сегмент', () => {
+  const ok = { stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh', via: 'reload', page: 'transport' };
+  assert.deepEqual(parseStickerReturn(ok), ok);
+  assert.equal(parseStickerReturn({ ...ok, clientId: undefined }), null);
+  assert.equal(parseStickerReturn({ ...ok, via: 'qr' }), null);
+  assert.equal(parseStickerReturn({ ...ok, via: 'tab' })?.via, 'tab');
+  assert.equal(parseStickerReturn({ ...ok, side: 'x' }), null);
+  assert.equal(parseStickerReturn({ ...ok, page: '../../etc/passwd' })?.page, 'other');
+});
+
+test('POST /transport/sticker-scans: зберігає анонімний id браузера', async () => {
+  const { app, scans } = makeApp();
+  await request(app).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh' }).expect(201);
+  assert.equal(scans[0].clientId, 'abcd-1234-efgh');
+});
+
+test('POST /transport/sticker-returns: записує повернення, повтор того самого id за 30 хв не рахується', async () => {
+  const { app, returns } = makeApp();
+  const body = { stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh', via: 'reload', page: 'transport' };
+  await request(app).post('/transport/sticker-returns').send({ ...body, clientId: 'bad' }).expect(400);
+  const first = await request(app).post('/transport/sticker-returns').send(body).expect(201);
+  assert.equal(first.body.counted, true);
+  const again = await request(app).post('/transport/sticker-returns').send({ ...body, via: 'direct' }).expect(200);
+  assert.equal(again.body.counted, false);
+  await request(app).post('/transport/sticker-returns').send({ ...body, clientId: 'zzzz-1234-efgh' }).expect(201);
+  assert.deepEqual(returns.map((r) => [r.clientId, r.via, r.page]), [['abcd-1234-efgh', 'reload', 'transport'], ['zzzz-1234-efgh', 'reload', 'transport']]);
+});
+
+test('GET /admin/transport/sticker-scans: люди з наклейок — сканували, повернулись, повернення за період', async () => {
+  const now = Date.now();
+  const at = (daysAgo: number) => new Date(now - daysAgo * DAY);
+  const r = (clientId: string, via: string, daysAgo: number, stopId = 'st_0015', side = 'a'): Return => ({ stopId, side, clientId, via, page: 'transport', createdAt: at(daysAgo) });
+  const { app } = makeApp(
+    [
+      { stopId: 'st_0015', side: 'a', createdAt: at(1), clientId: 'aaaa-1111' },
+      { stopId: 'st_0015', side: 'a', createdAt: at(2), clientId: 'aaaa-1111' },
+      { stopId: 'st_0015', side: 'a', createdAt: at(3), clientId: 'bbbb-2222' },
+      { stopId: 'st_0015', side: 'a', createdAt: at(3) },
+      { stopId: 'st_0019', side: 's', createdAt: at(4), clientId: 'cccc-3333' },
+    ],
+    [],
+    [r('aaaa-1111', 'reload', 1), r('aaaa-1111', 'direct', 2), r('aaaa-1111', 'direct', 40), r('cccc-3333', 'direct', 5, 'st_0019', 's')]
+  );
+  const res = await request(app).get('/admin/transport/sticker-scans?days=30').set('Authorization', await token(app)).expect(200);
+  const a = res.body.audience;
+  assert.deepEqual([a.scanners, a.returning, a.returns], [3, 2, 3]);
+  assert.deepEqual(a.byVia, { reload: 1, tab: 0, direct: 2 });
+  assert.deepEqual(
+    a.rows.map((x: { stopId: string; side: string; scanners: number; returning: number; returns: number }) => [x.stopId, x.side, x.scanners, x.returning, x.returns]),
+    [
+      ['st_0015', 'a', 2, 1, 2],
+      ['st_0019', 's', 1, 1, 1],
+    ]
+  );
 });

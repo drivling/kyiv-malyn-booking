@@ -31,6 +31,7 @@
 | `transport_scheme_route` | чіп або лінія маршруту на сторінці схеми | `route_id`, `on` |
 | `transport_scheme_stop` | зупинка на схемі → табло | `stop` |
 | `transport_sticker_open` | табло відкрито з QR наклейки на зупинці (раз за сесію на наклейку) | `stop`, `side: a \| b \| s` |
+| `transport_sticker_return` | людина, що колись прийшла з QR-наклейки, знову на сайті після перерви ≥ 30 хв (`stickerReturn.ts`) | `stop`, `side` — перша наклейка людини, `via: reload \| tab \| direct` |
 | `transport_arrival_open` | довге натискання на чіп часу (сторінка маршруту) або картку табло — відкрито «Факт прибуття» | `route_id`, `source: route \| board` |
 | `transport_arrival_report` | позначку «автобус тут» / «автобуса не було» записано | `route_id`, `kind: arrived \| missed`, `source: route \| board` |
 

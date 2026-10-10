@@ -82,6 +82,16 @@ beforeEach(() => {
           { hour: 23, stopId: 'st_0019', side: 's', count: 1 },
         ],
         printed: [{ stopId: 'st_0015', side: 'a', count: 1, lastAt: '2026-10-06T09:00:00.000Z' }],
+        audience: {
+          scanners: 8,
+          returning: 3,
+          returns: 5,
+          byVia: { reload: 2, tab: 1, direct: 2 },
+          rows: [
+            { stopId: 'st_0015', side: 'a', scanners: 6, returning: 3, returns: 5 },
+            { stopId: 'st_0019', side: 's', scanners: 2, returning: 0, returns: 0 },
+          ],
+        },
       });
     }),
     http.post(`${TEST_API_URL}/admin/transport/sticker-prints`, async ({ request }) => {
@@ -188,6 +198,10 @@ describe('StopStickerTab', () => {
     expect(tile(all, 'За 7 днів')).toBe('4');
     expect(tile(all, 'За 30 днів')).toBe('12');
     expect(tile(all, 'Наклейок надруковано')).toBe('1 · зі сканами 2');
+    const people = 'Люди з наклейок: усі наклейки';
+    expect(tile(people, 'Людей сканували')).toBe('8');
+    expect(tile(people, 'З них повертались')).toBe('3 · 38 %');
+    expect(tile(people, 'Повернень за 30 днів')).toBe('5 · вкладка табло 2 · відкрита вкладка 1 · сайт 2');
     expect(screen.getByRole('button', { name: `${dayLabels(today).long}: 7 відкриттів` })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: `${dayLabels(yesterday).long}: 1 відкриття` })).toBeInTheDocument();
     expect(statsRequests[statsRequests.length - 1]).toBe('?days=30');
@@ -239,6 +253,10 @@ describe('StopStickerTab', () => {
     const one = 'Підсумки: зупинка «з-д «Прожектор»»';
     expect(tile(one, 'Усього')).toBe('12');
     expect(tile(one, 'Наклейок надруковано')).toBe('1 · зі сканами 1');
+    const people = 'Люди з наклейок: зупинка «з-д «Прожектор»»';
+    expect(tile(people, 'Людей сканували')).toBe('6');
+    expect(tile(people, 'З них повертались')).toBe('3 · 50 %');
+    expect(tile(people, 'Повернень за 30 днів')).toBe('5');
     expect(screen.getByRole('button', { name: `${dayLabels(yesterday).long}: 0 відкриттів` })).toBeInTheDocument();
     await user.click(screen.getByLabelText('По годинах доби'));
     expect(tile('Частини доби', 'Ніч')).toBe('0 · 0 %');

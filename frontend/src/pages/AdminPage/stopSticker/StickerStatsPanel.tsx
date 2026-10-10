@@ -3,7 +3,7 @@ import { Button } from '@/components/Button';
 import type { StickerScanStats, StickerStatsDays } from '@/types';
 import { ScanBars, type ScanBar } from './ScanBars';
 import { WallLinkDialog } from './WallLinkDialog';
-import { dailySeries, dayLabels, dayParts, hourBuckets, kyivToday, scopeTotals } from './scanStats';
+import { dailySeries, dayLabels, dayParts, hourBuckets, kyivToday, scopeAudience, scopeTotals } from './scanStats';
 
 const PERIODS: StickerStatsDays[] = [1, 7, 30, 90];
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -41,6 +41,7 @@ export function StickerStatsPanel({
   const scope = scopeId ? { stopId: scopeId } : undefined;
 
   const totals = stats ? scopeTotals(stats, scope) : null;
+  const people = stats ? scopeAudience(stats, scope) : null;
   const dayBars = useMemo<ScanBar[]>(() => {
     if (!stats) return [];
     return dailySeries(stats.daily, days, kyivToday(), scopeId ? { stopId: scopeId } : undefined).map((d) => {
@@ -103,6 +104,35 @@ export function StickerStatsPanel({
             <dd>
               {totals.printed}
               <span className="sticker-tab-muted"> · зі сканами {totals.scanned}</span>
+            </dd>
+          </div>
+        </dl>
+      )}
+      {people && (
+        <dl className="sticker-stats-tiles" aria-label={`Люди з наклейок: ${scopeName}`}>
+          <div>
+            <dt>Людей сканували</dt>
+            <dd>{people.scanners}</dd>
+          </div>
+          <div>
+            <dt>З них повертались</dt>
+            <dd>
+              {people.returning}
+              {people.scanners > 0 && (
+                <span className="sticker-tab-muted"> · {Math.round((people.returning / people.scanners) * 100)} %</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Повернень {periodText(days)}</dt>
+            <dd>
+              {people.returns}
+              {people.byVia && (
+                <span className="sticker-tab-muted">
+                  {' '}
+                  · вкладка табло {people.byVia.reload} · відкрита вкладка {people.byVia.tab ?? 0} · сайт {people.byVia.direct}
+                </span>
+              )}
             </dd>
           </div>
         </dl>

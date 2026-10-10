@@ -186,7 +186,13 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   (`splitSides`) and the admin can move them; the QR always targets the primary domain with
   `utm_source=sticker&utm_medium=qr&utm_campaign=<stopId>-<a|b|s>`. The board counts each opening
   once per session (`stickerScan.ts` → GA4 `transport_sticker_open` + `POST /transport/sticker-scans`
-  → `StickerScan` table, `backend/src/sticker-scans.ts`). The tab lists every stop with its counts,
+  → `StickerScan` table, `backend/src/sticker-scans.ts`), then rewrites `utm_source=sticker` to
+  `utm_source=reload` (router replace with state `{ gaSkip: true }`, which `GoogleAnalyticsTracker` doesn't
+  count as a page_view) so a tab the browser restores later is not a new scan but a `reload / qr` source in GA.
+  Scans carry an anonymous browser id (`src/analytics/visitorId.ts`, also used by «Факт прибуття»); the
+  browser remembers the first sticker and, when that person opens the site again after ≥ 30 min,
+  `stickerReturn.ts` posts `POST /transport/sticker-returns` (`StickerReturn`, `via: reload | tab | direct`) —
+  «people from stickers who came back» tiles on the tab. The tab lists every stop with its counts,
   daily / hourly charts (Kyiv time) and prints recorded in `StickerPrint` on print/SVG download
   (`GET /admin/transport/sticker-scans?days=1|7|30|90`, 1 = today since Kyiv midnight; `POST /admin/transport/sticker-prints`).
   Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in
@@ -201,6 +207,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   Kyiv clock, windows are ±90 min (arrived) / −5…+180 min (missed), today only. Statistics only for now:
   admin tab `/admin/arrivals` (`ArrivalReportsTab`). Logic in `backend/src/arrival-reports.ts`,
   `useLongPress.ts`, `arrivalReport.ts`. Facebook post for users: `Docs/arrivals-facebook-post.md`.
+- Stale tabs update themselves (`src/site/freshBuild.ts`, `useFreshBuild` in `App.tsx`): when a tab becomes
+  visible again (at most every 10 min) it fetches `/` uncached and compares the `/assets/index-<hash>.js` it
+  references with the loaded one. New build + tab away ≥ 30 min + no `aria-modal` dialog / focused field →
+  reload at once; otherwise the next page change is a full load. Never on `/admin*`; one try per build per
+  session. Dev and prerender have no `/assets/index-*` script, so it is off there.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram
