@@ -382,21 +382,44 @@ def poster_assets_from(path, qr_url):
 def esc(s):
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
+# Номери маршрутів для показу (TransportRoute.shortName з датасету: «11/1»); ключ лінії (data-route, кольори) — id
+LABELS = {}
+
+
+def route_label(rid):
+    return LABELS.get(rid) or rid
+
+
+def badge_width(text):
+    """Ширина плашки: один знак — 22, два — 28, довші номери («11/1») — ширші"""
+    return 22 if len(text) <= 1 else 28 + 7 * (len(text) - 2)
+
+
+def load_labels(ds):
+    """id → номер для показу з датасету (порожній shortName або старий бекенд — номер = id)"""
+    LABELS.clear()
+    for r in (ds or {}).get('routes', []):
+        no = (r.get('shortName') or '').strip()
+        if no and no != r['id']:
+            LABELS[r['id']] = no
+
+
 def badge(x, y, rid, col, align='start', h=16, extra=''):
-    w = 22 if len(rid) == 1 else 28
+    label = route_label(rid)
+    w = badge_width(label)
     if align == 'middle':
         x = x - w / 2
     elif align == 'end':
         x = x - w
     return (f'<g class="lts-badge" data-route="{rid}"{extra}>'
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="4" fill="{col(rid)}"/>'
-            f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">{rid}</text></g>')
+            f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">{esc(label)}</text></g>')
 
 def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
     if len(rids) > per_row:
         return ''.join(badges_row(x, y + i * 20, rids[i * per_row:(i + 1) * per_row], col, align, gap, per_row)
                        for i in range((len(rids) + per_row - 1) // per_row))
-    ws = [22 if len(r) == 1 else 28 for r in rids]
+    ws = [badge_width(route_label(r)) for r in rids]
     total = sum(ws) + gap * (len(rids) - 1)
     if align == 'middle':
         x = x - total / 2
@@ -458,7 +481,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
     o.append('<g class="lts-routes" fill="none" stroke-linecap="round" stroke-linejoin="round">')
     for rid in ROUTE_ORDER:
         a, b, via = LEGEND[rid]
-        extra = f' role="button" tabindex="0" aria-label="Маршрут №{rid}: {esc(a)} — {esc(b)}"' if site else ''
+        extra = f' role="button" tabindex="0" aria-label="Маршрут №{esc(route_label(rid))}: {esc(a)} — {esc(b)}"' if site else ''
         o.append(f'<g class="lts-route" data-route="{rid}"{extra}>')
         o.append(f'<path d="{path_d(paths[rid])}" stroke="{line_bg}" stroke-width="{W + 2.5}"/>')
         o.append(f'<path d="{path_d(paths[rid])}" stroke="{col(rid)}" stroke-width="{W}"/>')
@@ -519,6 +542,8 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
                  f'<circle cx="150" cy="0" r="5.5" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="162" y="4">кінцева</text>'
                  f'<line x1="228" y1="0" x2="262" y2="0" stroke="{fg}" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>')
         row_h = 38
+        # Текст легенди — одною колонкою після найширшої плашки колонки (номери на кшталт «11/1» ширші)
+        col_tx = [max(38, max(badge_width(route_label(r)) for r in part) + 10) for part in (ROUTE_ORDER[:5], ROUTE_ORDER[5:])]
         for i, rid in enumerate(ROUTE_ORDER):
             colx = x0 if i < 5 else x0 + 660
             y = y0 + (i % 5) * row_h
@@ -526,12 +551,13 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
             st = stats.get(rid)
             o.append(f'<g class="lts-legend-row" data-route="{rid}">')
             o.append(badge(colx, y - 1, rid, col, 'start', h=20).replace('font-size="11.5"', 'font-size="13"').replace(f'y="{y - 1 + 20 - 4.2:.1f}"', f'y="{y + 14:.1f}"'))
-            o.append(f'<text x="{colx + 38}" y="{y + 14}" font-size="13.5" font-weight="700" fill="{fg}">{esc(a)} — {esc(b)}</text>')
+            tx = colx + col_tx[0 if i < 5 else 1]
+            o.append(f'<text x="{tx}" y="{y + 14}" font-size="13.5" font-weight="700" fill="{fg}">{esc(a)} — {esc(b)}</text>')
             if rid in UNCONFIRMED:
                 o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" font-style="italic" fill="{muted}">розклад уточнюється</text>')
             elif st:
                 o.append(f'<text x="{colx + 622}" y="{y + 14}" text-anchor="end" font-size="11.5" fill="{muted}" font-variant-numeric="tabular-nums">{esc(st["trips"])} рейс. · {esc(st["first"])}–{esc(st["last"])}</text>')
-            o.append(f'<text x="{colx + 38}" y="{y + 29}" font-size="10.5" fill="{muted}">{esc(via)}</text>')
+            o.append(f'<text x="{tx}" y="{y + 29}" font-size="10.5" fill="{muted}">{esc(via)}</text>')
             o.append('</g>')
         o.append(f'<text x="60" y="{H_ - 16}" font-size="10" fill="{muted}">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026 · контури води за © OpenStreetMap</text>')
     o.append('</svg>')
@@ -591,7 +617,7 @@ __SVG__
         <li><span class="pill" style="background:var(--r10)">10</span> (колишній 6) намальований за списком зупинок data.gov.ua 2024 і OpenStreetMap: Шевченка, Центр, Автостанція, Укр. Повстанців, Мирутенка, Малинівський круг.</li>
         <li>Річка Ірша та Малинське водосховище показані схематично за контурами OpenStreetMap: міст на Мазепи між Кооперативним ринком і Мазепи, 3; Барміна, Чорновола й Приходька — на південному березі.</li>
         <li><span class="pill" style="background:var(--r9)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
-        <li><span class="pill" style="background:var(--r11)">11</span> (на листку розкладу — 11/1) від світлофора на Мазепи спершу заїжджає на Барміна і повертається, далі йде через центр і з-д «Прожектор» до Вокзалу; назад — через Паперову фабрику до Барміна.</li>
+        <li><span class="pill" style="background:var(--r11)">11/1</span> від світлофора на Мазепи спершу заїжджає на Барміна і повертається, далі йде через центр і з-д «Прожектор» до Вокзалу; назад — через Паперову фабрику до Барміна.</li>
         <li><span class="pill" style="background:var(--r8)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
         <li><span class="pill" style="background:var(--r7)">7</span> та <span class="pill" style="background:var(--r8)">8</span> ходять за тимчасовою схемою (жовтень 2023, ремонт вул. Городищанської).</li>
         <li>Кількість рейсів і час першого/останнього — з розкладів у базі (/transport/dataset).</li>
@@ -652,6 +678,7 @@ def main():
     ap.add_argument('--suggest-node-stops', action='store_true', help='звіт по зупинках навколо вузлів (ревізія NODE_STOPS)')
     args = ap.parse_args()
     ds = load_dataset(args.dataset)
+    load_labels(ds)
     if args.suggest_node_stops:
         suggest_node_stops(ds)
         return

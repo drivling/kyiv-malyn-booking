@@ -135,7 +135,7 @@
 <circle cx="340.0" cy="540.0" r="9" fill="#ffffff" stroke="#1b1f2a" stroke-width="3.5"/>
 <text x="340" y="570" text-anchor="middle" font-size="14" font-weight="700" fill="#1b1f2a">Паперова фабрика</text>
 <text x="340" y="585" text-anchor="middle" font-size="11" fill="#5f6673">Вайдманн</text>
-<g class="lts-badge" data-route="2"><rect x="313.0" y="594.0" width="22" height="16" rx="4" fill="#D7263D"/><text x="324.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">2</text></g><g class="lts-badge" data-route="11"><rect x="339.0" y="594.0" width="28" height="16" rx="4" fill="#0E9AA7"/><text x="353.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11</text></g>
+<g class="lts-badge" data-route="2"><rect x="306.0" y="594.0" width="22" height="16" rx="4" fill="#D7263D"/><text x="317.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">2</text></g><g class="lts-badge" data-route="11"><rect x="332.0" y="594.0" width="42" height="16" rx="4" fill="#0E9AA7"/><text x="353.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11/1</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_0094" data-stops="st_0094 st_0093">
 <circle cx="627.1" cy="592.9" r="9" fill="#ffffff" stroke="#7E3FC2" stroke-width="3.5"/>
@@ -169,7 +169,7 @@
 <circle cx="1180" cy="400" r="26" fill="#ffffff" stroke="#1b1f2a" stroke-width="4"/>
 <circle cx="1180" cy="400" r="18" fill="none" stroke="#1b1f2a" stroke-width="1.5" opacity="0.35"/>
 <text x="1218" y="398" text-anchor="start" font-size="16" font-weight="800" fill="#1b1f2a">Залізничний вокзал</text>
-<g class="lts-badge" data-route="3"><rect x="1218.0" y="408.0" width="22" height="16" rx="4" fill="#1B9E4B"/><text x="1229.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">3</text></g><g class="lts-badge" data-route="5"><rect x="1244.0" y="408.0" width="22" height="16" rx="4" fill="#1F6FD6"/><text x="1255.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">5</text></g><g class="lts-badge" data-route="7"><rect x="1270.0" y="408.0" width="22" height="16" rx="4" fill="#F08A1C"/><text x="1281.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text></g><g class="lts-badge" data-route="8"><rect x="1296.0" y="408.0" width="22" height="16" rx="4" fill="#7E3FC2"/><text x="1307.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">8</text></g><g class="lts-badge" data-route="10"><rect x="1218.0" y="428.0" width="28" height="16" rx="4" fill="#C99700"/><text x="1232.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">10</text></g><g class="lts-badge" data-route="11"><rect x="1250.0" y="428.0" width="28" height="16" rx="4" fill="#0E9AA7"/><text x="1264.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11</text></g><g class="lts-badge" data-route="12"><rect x="1282.0" y="428.0" width="28" height="16" rx="4" fill="#8A5A2B"/><text x="1296.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text></g>
+<g class="lts-badge" data-route="3"><rect x="1218.0" y="408.0" width="22" height="16" rx="4" fill="#1B9E4B"/><text x="1229.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">3</text></g><g class="lts-badge" data-route="5"><rect x="1244.0" y="408.0" width="22" height="16" rx="4" fill="#1F6FD6"/><text x="1255.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">5</text></g><g class="lts-badge" data-route="7"><rect x="1270.0" y="408.0" width="22" height="16" rx="4" fill="#F08A1C"/><text x="1281.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">7</text></g><g class="lts-badge" data-route="8"><rect x="1296.0" y="408.0" width="22" height="16" rx="4" fill="#7E3FC2"/><text x="1307.0" y="419.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">8</text></g><g class="lts-badge" data-route="10"><rect x="1218.0" y="428.0" width="28" height="16" rx="4" fill="#C99700"/><text x="1232.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">10</text></g><g class="lts-badge" data-route="11"><rect x="1250.0" y="428.0" width="42" height="16" rx="4" fill="#0E9AA7"/><text x="1271.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">11/1</text></g><g class="lts-badge" data-route="12"><rect x="1296.0" y="428.0" width="28" height="16" rx="4" fill="#8A5A2B"/><text x="1310.0" y="439.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">12</text></g>
 </g>
 <line x1="60" y1="768" x2="1340" y2="768" stroke="#5f6673" stroke-width="1" opacity="0.5"/>
 <text x="60" y="760" font-size="11" font-weight="700" letter-spacing="1.5" fill="#5f6673">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>
@@ -206,27 +206,27 @@
 </g>
 <g class="lts-legend-row" data-route="9">
 <g class="lts-badge" data-route="9"><rect x="720.0" y="789.0" width="22" height="20" rx="4" fill="#E3368C"/><text x="731.0" y="804.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">9</text></g>
-<text x="758" y="804" font-size="13.5" font-weight="700" fill="#1b1f2a">Центр (ТЦ «Промінь») — вул. Олекси Тихого</text>
+<text x="772" y="804" font-size="13.5" font-weight="700" fill="#1b1f2a">Центр (ТЦ «Промінь») — вул. Олекси Тихого</text>
 <text x="1342" y="804" text-anchor="end" font-size="11.5" fill="#5f6673" font-variant-numeric="tabular-nums">10 рейс. · 6:45–17:40</text>
-<text x="758" y="819" font-size="10.5" fill="#5f6673">Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня</text>
+<text x="772" y="819" font-size="10.5" fill="#5f6673">Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня</text>
 </g>
 <g class="lts-legend-row" data-route="10">
 <g class="lts-badge" data-route="10"><rect x="720.0" y="827.0" width="28" height="20" rx="4" fill="#C99700"/><text x="734.0" y="842.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">10</text></g>
-<text x="758" y="842" font-size="13.5" font-weight="700" fill="#1b1f2a">Поліклініка — Залізничний вокзал</text>
+<text x="772" y="842" font-size="13.5" font-weight="700" fill="#1b1f2a">Поліклініка — Залізничний вокзал</text>
 <text x="1342" y="842" text-anchor="end" font-size="11.5" fill="#5f6673" font-variant-numeric="tabular-nums">13 рейс. · 6:15–18:25</text>
-<text x="758" y="857" font-size="10.5" fill="#5f6673">Шевченка · Центр · Автостанція · Укр. Повстанців · Мирутенка · Малинівський круг · Огієнка</text>
+<text x="772" y="857" font-size="10.5" fill="#5f6673">Шевченка · Центр · Автостанція · Укр. Повстанців · Мирутенка · Малинівський круг · Огієнка</text>
 </g>
 <g class="lts-legend-row" data-route="11">
-<g class="lts-badge" data-route="11"><rect x="720.0" y="865.0" width="28" height="20" rx="4" fill="#0E9AA7"/><text x="734.0" y="880.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11</text></g>
-<text x="758" y="880" font-size="13.5" font-weight="700" fill="#1b1f2a">Паперова фабрика — Залізничний вокзал</text>
+<g class="lts-badge" data-route="11"><rect x="720.0" y="865.0" width="42" height="20" rx="4" fill="#0E9AA7"/><text x="741.0" y="880.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">11/1</text></g>
+<text x="772" y="880" font-size="13.5" font-weight="700" fill="#1b1f2a">Паперова фабрика — Залізничний вокзал</text>
 <text x="1342" y="880" text-anchor="end" font-size="11.5" fill="#5f6673" font-variant-numeric="tabular-nums">16 рейс. · 5:50–19:30</text>
-<text x="758" y="895" font-size="10.5" fill="#5f6673">Приходька · Барміна · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка</text>
+<text x="772" y="895" font-size="10.5" fill="#5f6673">Приходька · Барміна · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка</text>
 </g>
 <g class="lts-legend-row" data-route="12">
 <g class="lts-badge" data-route="12"><rect x="720.0" y="903.0" width="28" height="20" rx="4" fill="#8A5A2B"/><text x="734.0" y="918.0" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">12</text></g>
-<text x="758" y="918" font-size="13.5" font-weight="700" fill="#1b1f2a">Лікарня — Залізничний вокзал</text>
+<text x="772" y="918" font-size="13.5" font-weight="700" fill="#1b1f2a">Лікарня — Залізничний вокзал</text>
 <text x="1342" y="918" text-anchor="end" font-size="11.5" fill="#5f6673" font-variant-numeric="tabular-nums">12–13 рейс. · 6:25–18:25</text>
-<text x="758" y="933" font-size="10.5" fill="#5f6673">Центр · Грушевського · Малинівський круг · Огієнка (БАМ)</text>
+<text x="772" y="933" font-size="10.5" fill="#5f6673">Центр · Грушевського · Малинівський круг · Огієнка (БАМ)</text>
 </g>
 <text x="60" y="996" font-size="10" fill="#5f6673">Дані: розклади Малинської міської ради · malin.kiev.ua/transport · жовтень 2026 · контури води за © OpenStreetMap</text>
 </svg>
