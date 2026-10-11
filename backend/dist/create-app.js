@@ -32,18 +32,28 @@ const admin_dzhura_1 = require("./routes/admin-dzhura");
 const admin_notification_settings_1 = require("./routes/admin-notification-settings");
 const transport_1 = require("./routes/transport");
 const request_timing_1 = require("./middleware/request-timing");
+const telegram_user_session_1 = require("./telegram-user-session");
 const require_admin_1 = require("./middleware/require-admin");
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
 exports.CODE_VERSION = 'viber-v2-2026';
 // Лог при завантаженні модуля — якщо це є в Deploy Logs, деплой новий
 console.log('[KYIV-MALYN-BACKEND] BOOT codeVersion=' + exports.CODE_VERSION + ' build=' + (typeof __dirname !== 'undefined' ? 'node' : 'unknown'));
-// Сесія для одноразового промо: якщо TELEGRAM_USER_SESSION_PATH не задано — шукаємо файл у репо (telegram-user/session_telegram_user.session)
+// Telethon-сесія акаунта власника: зі змінної TELEGRAM_USER_SESSION_BASE64 (Railway) у файл
+// telegram-user/session_telegram_user.session. У git файлу немає — див. src/telegram-user-session.ts.
+const userSession = (0, telegram_user_session_1.materializeTelegramUserSession)();
+if (userSession.status === 'written') {
+    console.log(`[KYIV-MALYN-BACKEND] Telegram user session written from TELEGRAM_USER_SESSION_BASE64 (${userSession.bytes} bytes)`);
+}
+else if (userSession.status === 'invalid') {
+    console.error(`[KYIV-MALYN-BACKEND] TELEGRAM_USER_SESSION_BASE64 ignored: ${userSession.error}`);
+}
+// Локально (без змінної): файл сесії, створений auth_session.py поруч зі скриптами
 if (!process.env.TELEGRAM_USER_SESSION_PATH?.trim() && process.env.TELEGRAM_API_ID?.trim() && process.env.TELEGRAM_API_HASH?.trim()) {
     const defaultSessionPath = path_1.default.join(process.cwd(), 'telegram-user', 'session_telegram_user');
     const defaultSessionFile = defaultSessionPath + '.session';
     if (fs_1.default.existsSync(defaultSessionFile)) {
         process.env.TELEGRAM_USER_SESSION_PATH = defaultSessionPath;
-        console.log('[KYIV-MALYN-BACKEND] Telegram user session loaded from repo file telegram-user/session_telegram_user.session');
+        console.log('[KYIV-MALYN-BACKEND] Telegram user session loaded from local file telegram-user/session_telegram_user.session');
     }
 }
 function createApp(deps) {

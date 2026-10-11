@@ -23,7 +23,7 @@ RUN npm ci \
     && python3 -m pip install --break-system-packages --no-cache-dir -r telegram-user/lunch/requirements.txt \
     && python3 -m pip install --break-system-packages --no-cache-dir -r opendatabot-fop-parser/requirements.txt
 
-# telegram-user (скрипти + файл сесії)
+# telegram-user (скрипти; сесію backend пише під час старту зі змінної TELEGRAM_USER_SESSION_BASE64)
 COPY telegram-user ./telegram-user/
 
 # решта backend-коду (включно з opendatabot-fop-parser)

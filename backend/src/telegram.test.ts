@@ -16,6 +16,8 @@ import {
   getAnnounceDraft,
   resetTelegramBotForTests,
   resetSpawnForTests,
+  setSpawnForTests,
+  sendMessageViaUserAccount,
   buildAuthorConfirmationSms,
   buildMatchSms,
   buildViberListingConfirmationMessage,
@@ -24,10 +26,29 @@ import {
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
 } from './telegram';
+import { setTelegramSessionLease, type TelegramSessionLease } from './telegram-session-lease';
 
 afterEach(() => {
   resetTelegramBotForTests();
   resetSpawnForTests();
+  setTelegramSessionLease(null);
+});
+
+test('Telethon-скрипт без оренди сесії (триває деплой) не запускається: інакше Telegram анулює ключ', async () => {
+  const spawn = vi.fn();
+  setSpawnForTests(spawn as never);
+  setTelegramSessionLease({ isHeld: () => false, waitUntilHeld: async () => false } as unknown as TelegramSessionLease);
+  const prev = { ...process.env };
+  Object.assign(process.env, { TELEGRAM_USER_SESSION_PATH: '/tmp/x/s', TELEGRAM_API_ID: '1', TELEGRAM_API_HASH: 'h' });
+  try {
+    assert.equal(await sendMessageViaUserAccount('+380671234567', 'hi'), false);
+    assert.equal(spawn.mock.calls.length, 0);
+  } finally {
+    for (const k of ['TELEGRAM_USER_SESSION_PATH', 'TELEGRAM_API_ID', 'TELEGRAM_API_HASH'] as const) {
+      if (prev[k] === undefined) delete process.env[k];
+      else process.env[k] = prev[k];
+    }
+  }
 });
 
 test('buildViberListingConfirmationMessage: сайт і платформа за маршрутом поїздки', () => {

@@ -3,6 +3,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { awaitTelegramSession } from './telegram-session-lease';
 import type { PrismaClient } from '@prisma/client';
 import { isLunchListenerWanted } from './lunch-listener';
 
@@ -35,7 +36,13 @@ function sessionPathBase(): string {
   return path.join(process.cwd(), 'telegram-user', 'session_telegram_user');
 }
 
-function spawnPostText(text: string): Promise<boolean> {
+/** Telethon стартує лише з орендою сесії (див. telegram-session-lease.ts) */
+async function spawnPostText(text: string): Promise<boolean> {
+  if (!(await awaitTelegramSession())) return false;
+  return spawnPostTextNow(text);
+}
+
+function spawnPostTextNow(text: string): Promise<boolean> {
   const sessionPath = sessionPathBase();
   const sessionFile = sessionPath + '.session';
   const apiId = process.env.TELEGRAM_API_ID?.trim();

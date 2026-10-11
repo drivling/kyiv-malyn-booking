@@ -9,6 +9,7 @@ exports.reparseLunchPerson = reparseLunchPerson;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const telegram_session_lease_1 = require("./telegram-session-lease");
 const lunch_listener_1 = require("./lunch-listener");
 function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
@@ -19,7 +20,13 @@ function sessionPathBase() {
         return env.replace(/\.session$/, '');
     return path_1.default.join(process.cwd(), 'telegram-user', 'session_telegram_user');
 }
-function spawnReparse(extraArgs = []) {
+/** Telethon стартує лише з орендою сесії (див. telegram-session-lease.ts) */
+async function spawnReparse(extraArgs = []) {
+    if (!(await (0, telegram_session_lease_1.awaitTelegramSession)()))
+        return { ok: false, error: telegram_session_lease_1.TELEGRAM_SESSION_BUSY_ERROR };
+    return spawnReparseNow(extraArgs);
+}
+function spawnReparseNow(extraArgs = []) {
     const sessionPath = sessionPathBase();
     const sessionFile = sessionPath + '.session';
     const apiId = process.env.TELEGRAM_API_ID?.trim();

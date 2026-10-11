@@ -1,6 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
-import { startLunchListener, stopLunchListener } from './lunch-listener';
+import {
+  interruptLunchListenerForLeaseLoss,
+  setLunchListenerFatalHandler,
+  startLunchListener,
+  stopLunchListenerAndWait,
+} from './lunch-listener';
+import {
+  TelegramSessionLease,
+  createPrismaTelegramSessionLeaseStore,
+  setTelegramSessionLease,
+} from './telegram-session-lease';
+import { sendAdminAlertHtml } from './telegram';
 import { startListingMatchWorker } from './listing-match-jobs';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
@@ -9,6 +20,24 @@ function main(): void {
   const prisma = new PrismaClient();
   let worker: ReturnType<typeof startListingMatchWorker> | null = null;
   const app = createApp({ prisma });
+
+  // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
+  let lease: TelegramSessionLease | null = null;
+  if (process.env.TELEGRAM_USER_SESSION_PATH?.trim() && process.env.TELEGRAM_API_ID?.trim() && process.env.DATABASE_URL) {
+    lease = new TelegramSessionLease(createPrismaTelegramSessionLeaseStore(prisma), {
+      onLost: interruptLunchListenerForLeaseLoss,
+    });
+    setTelegramSessionLease(lease);
+    lease.start();
+  }
+  setLunchListenerFatalHandler((error) => {
+    void sendAdminAlertHtml(
+      `⛔️ <b>Сесію Telegram вашого акаунта відкликано</b> (${error}).\n` +
+        'Не працюють: імпорт PoDoroguem, слухач обідів і «Джура», повідомлення від вашого акаунта.\n' +
+        'Створіть нову: <code>python3 auth_session.py --fresh --qr --export</code> у backend/telegram-user, ' +
+        'вставте результат у Railway → TELEGRAM_USER_SESSION_BASE64.'
+    );
+  });
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     const routes = getRegisteredRoutes(app);
@@ -29,14 +58,16 @@ function main(): void {
     }
   });
 
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
-    stopLunchListener();
     worker?.stop();
+    // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
+    await stopLunchListenerAndWait(3000);
+    await lease?.stop();
     process.exit(0);
   };
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 if (require.main === module) {

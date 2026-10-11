@@ -5,6 +5,7 @@ import {
   pauseLunchListenerForExclusiveSession,
   resumeLunchListenerAfterExclusiveSession,
 } from './lunch-listener';
+import { TELEGRAM_SESSION_BUSY_ERROR, awaitTelegramSession, fatalTelegramSessionError } from './telegram-session-lease';
 
 type SpawnFn = typeof nodeSpawn;
 let spawnChild: SpawnFn = nodeSpawn;
@@ -21,7 +22,11 @@ export function resetSpawnForTests(): void {
 /** Черга: один Telethon-скрипт одночасно + пауза lunch.listener на час сесії. */
 let telegramUserSessionTail: Promise<unknown> = Promise.resolve();
 
-async function withTelegramUserSessionExclusive<T>(fn: () => Promise<T>): Promise<T> {
+/**
+ * `unavailable` — результат, коли сесію тримає інший екземпляр бекенду (перекриття деплою):
+ * запуск Telethon тоді анулював би ключ (AuthKeyDuplicatedError), тож краще пропустити цей раз.
+ */
+async function withTelegramUserSessionExclusive<T>(fn: () => Promise<T>, unavailable: () => T): Promise<T> {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -30,6 +35,10 @@ async function withTelegramUserSessionExclusive<T>(fn: () => Promise<T>): Promis
   telegramUserSessionTail = prev.then(() => gate).catch(() => gate);
   await prev.catch(() => undefined);
   try {
+    if (!(await awaitTelegramSession())) {
+      console.warn('[telegram-session] skipped a Telethon script: ' + TELEGRAM_SESSION_BUSY_ERROR);
+      return unavailable();
+    }
     await pauseLunchListenerForExclusiveSession();
     try {
       return await fn();
@@ -238,6 +247,21 @@ const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || '5072659044';
 /** Єдиний допуск до адмін-команд бота: приватний чат з TELEGRAM_ADMIN_CHAT_ID. */
 function isTelegramAdminChat(chatId: string): boolean {
   return !!adminChatId && chatId === adminChatId;
+}
+
+/** Службове повідомлення власнику в адмін-чат бота (HTML). Без бота — лише лог. */
+export async function sendAdminAlertHtml(html: string): Promise<boolean> {
+  if (!bot) {
+    console.warn('[telegram] admin alert skipped (bot is not configured):', html.replace(/<[^>]+>/g, ''));
+    return false;
+  }
+  try {
+    await bot.sendMessage(adminChatId, html, { parse_mode: 'HTML' });
+    return true;
+  } catch (e) {
+    console.error('[telegram] admin alert failed', e);
+    return false;
+  }
 }
 const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'malin_kiev_ua_bot';
 
@@ -2196,7 +2220,7 @@ export async function resolveNameByPhoneFromTelegram(phone: string): Promise<str
       }
     });
     child.on('error', () => resolve(null));
-  }));
+  }), () => null);
 }
 
 /**
@@ -2242,7 +2266,7 @@ export async function resolveUsernameByPhoneFromTelegram(phone: string): Promise
       }
     });
     child.on('error', () => resolve(null));
-  }));
+  }), () => null);
 }
 
 /** Групи-джерела для fetch_telegram_messages.py. topicId 0 = плоска група без топіків. */
@@ -2343,6 +2367,13 @@ export async function fetchTelegramGroupMessages(options?: {
     if (spawnResult.code !== 0) {
       const detail = (spawnResult.stderr.trim() || `python exit ${spawnResult.code}`).slice(0, 400);
       console.error('fetchTelegramGroupMessages:', spawnResult.code, detail);
+      const fatal = fatalTelegramSessionError(spawnResult.stderr);
+      if (fatal) {
+        return {
+          text: null,
+          error: `Сесію Telegram відкликано (${fatal}) — потрібен новий вхід: backend/telegram-user/auth_session.py`,
+        };
+      }
       return { text: null, error: detail };
     }
 
@@ -2388,7 +2419,7 @@ export async function fetchTelegramGroupMessages(options?: {
     }
 
     return { text: messagesText };
-  });
+  }, () => ({ text: null, error: TELEGRAM_SESSION_BUSY_ERROR }));
 }
 
 /** Результат автоматичного імпорту з групи PoDoroguem */
@@ -2672,7 +2703,7 @@ export async function sendMessageViaUserAccount(
       console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
     }
     return false;
-  });
+  }, () => false);
 }
 
 function spawnSendMessage(value: string, message: string, isUsername: boolean): Promise<boolean> {

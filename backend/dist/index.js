@@ -4,6 +4,8 @@ exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createAp
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
 const lunch_listener_1 = require("./lunch-listener");
+const telegram_session_lease_1 = require("./telegram-session-lease");
+const telegram_1 = require("./telegram");
 const listing_match_jobs_1 = require("./listing-match-jobs");
 var create_app_2 = require("./create-app");
 Object.defineProperty(exports, "CODE_VERSION", { enumerable: true, get: function () { return create_app_2.CODE_VERSION; } });
@@ -14,6 +16,21 @@ function main() {
     const prisma = new client_1.PrismaClient();
     let worker = null;
     const app = (0, create_app_1.createApp)({ prisma });
+    // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
+    let lease = null;
+    if (process.env.TELEGRAM_USER_SESSION_PATH?.trim() && process.env.TELEGRAM_API_ID?.trim() && process.env.DATABASE_URL) {
+        lease = new telegram_session_lease_1.TelegramSessionLease((0, telegram_session_lease_1.createPrismaTelegramSessionLeaseStore)(prisma), {
+            onLost: lunch_listener_1.interruptLunchListenerForLeaseLoss,
+        });
+        (0, telegram_session_lease_1.setTelegramSessionLease)(lease);
+        lease.start();
+    }
+    (0, lunch_listener_1.setLunchListenerFatalHandler)((error) => {
+        void (0, telegram_1.sendAdminAlertHtml)(`⛔️ <b>Сесію Telegram вашого акаунта відкликано</b> (${error}).\n` +
+            'Не працюють: імпорт PoDoroguem, слухач обідів і «Джура», повідомлення від вашого акаунта.\n' +
+            'Створіть нову: <code>python3 auth_session.py --fresh --qr --export</code> у backend/telegram-user, ' +
+            'вставте результат у Railway → TELEGRAM_USER_SESSION_BASE64.');
+    });
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
         const routes = (0, create_app_1.getRegisteredRoutes)(app);
@@ -34,14 +51,16 @@ function main() {
             worker = (0, listing_match_jobs_1.startListingMatchWorker)(prisma);
         }
     });
-    const shutdown = (signal) => {
+    const shutdown = async (signal) => {
         console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
-        (0, lunch_listener_1.stopLunchListener)();
         worker?.stop();
+        // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
+        await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);
+        await lease?.stop();
         process.exit(0);
     };
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => void shutdown('SIGTERM'));
+    process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 if (require.main === module) {
     main();

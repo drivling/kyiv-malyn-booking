@@ -1,6 +1,6 @@
 # Реєстрація особистого Telegram-акаунта для одноразового промо (Railway)
 
-Підключення відправки одноразових промо-повідомлень від вашого особистого акаунта на **Railway**. Сесія зберігається у **файлі в репо** — змінні середовища на Railway не обмежуються довжиною.
+Підключення відправки одноразових промо-повідомлень від вашого особистого акаунта на **Railway**. Сесія зберігається у змінній Railway `TELEGRAM_USER_SESSION_BASE64` (gzip + base64, ~1,5 тис. символів), а не в репозиторії.
 
 ---
 
@@ -26,7 +26,11 @@
 
 ---
 
-## Крок 2: Авторизувати акаунт локально і додати файл сесії в репо
+## Крок 2: Авторизувати акаунт локально і передати сесію в Railway
+
+Файл сесії дає **повний доступ до вашого Telegram**, тому в git його більше не тримаємо (з 2026-10-10):
+сесія живе лише у змінній Railway `TELEGRAM_USER_SESSION_BASE64`, а backend під час старту пише її у
+`telegram-user/session_telegram_user.session` поруч зі скриптами.
 
 **Один раз** на своєму комп’ютері:
 
@@ -35,37 +39,28 @@ cd backend/telegram-user
 pip install -r requirements.txt
 export TELEGRAM_API_ID="35076972"
 export TELEGRAM_API_HASH="9b47fc0d11ed33c59e16047d084da56b"
-python3 auth_session.py
+python3 auth_session.py --fresh --qr --export     # або без --qr — вхід за кодом
 ```
 
-Ввести номер телефону, код з Telegram, 2FA (якщо є). Після успіху в папці з’являться:
-
-- `session_telegram_user.session`
-- (іноді) `session_telegram_user.session-journal`
-
-**Додати в git і закомітити тільки основний файл сесії:**
-
-```bash
-cd backend/telegram-user
-git add session_telegram_user.session
-git commit -m "Add Telegram user session for one-time promo"
-git push
-```
-
-**Важливо:** файл сесії дає повний доступ до вашого Telegram. **Репозиторій має бути приватним** (або не публікуйте цей файл у публічний репо).
+- `--fresh` спершу видаляє старий локальний файл сесії (мертвий після `AuthKeyDuplicatedError`).
+- `--qr` — вхід через Telegram → Налаштування → Пристрої → Підключити пристрій (без коду).
+- `--export` друкує значення для Railway (base64 від gzip файлу, ~1,5 тис. символів; на Mac одразу
+  в буфері обміну) і **видаляє локальну копію**, щоб ніхто не відкрив ту саму сесію поруч із сервером.
 
 ---
 
 ## Крок 3: Змінні середовища на Railway
 
-У **Railway** → проєкт → сервіс **backend** → **Variables** додайте **лише дві** змінні:
+У **Railway** → проєкт → сервіс **backend** (`kyiv-malyn-booking`) → **Variables**:
 
 | Змінна | Значення |
 |--------|----------|
 | `TELEGRAM_API_ID` | `35076972` |
 | `TELEGRAM_API_HASH` | `9b47fc0d11ed33c59e16047d084da56b` |
+| `TELEGRAM_USER_SESSION_BASE64` | значення з `auth_session.py --export` |
 
-**TELEGRAM_USER_SESSION_BASE64 не потрібна** — backend читає сесію з файлу `telegram-user/session_telegram_user.session` у репо.
+Після збереження Railway перезапустить backend. Якщо слухача обідів вимикали (`LUNCH_LISTENER_ENABLED=0`),
+приберіть цю змінну або поставте `1`.
 
 Переконайтеся, що є також: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID` (для бота).
 
@@ -77,11 +72,24 @@ git push
 
 ## Крок 4: Після деплою
 
-Після `git push` Railway задеплоїть backend. У **Deploy Logs** має з’явитися:
+У **Deploy Logs** мають з’явитися:
 
-`[KYIV-MALYN-BACKEND] Telegram user session loaded from repo file telegram-user/session_telegram_user.session`
+- `[KYIV-MALYN-BACKEND] Telegram user session written from TELEGRAM_USER_SESSION_BASE64 (… bytes)`
+- `[telegram-session] lease acquired …` — цей екземпляр тримає сесію;
+- `[lunch] listening group=…` — слухач обідів підключився.
 
-Якщо цього рядка немає — перевірте, що файл `backend/telegram-user/session_telegram_user.session` дійсно є в репо і що задані `TELEGRAM_API_ID` та `TELEGRAM_API_HASH`.
+### Одна сесія — одне місце
+
+Telegram анулює ключ назавжди (`AuthKeyDuplicatedError`), якщо та сама сесія підключена з двох IP
+одночасно. Так сталося 2026-10-10: під час деплою новий контейнер Railway підключився, поки старий ще
+працював. Тепер backend бере **оренду сесії** в таблиці `TelegramSessionLease`
+(`src/telegram-session-lease.ts`): новий контейнер чекає, поки старий звільнить її на SIGTERM (або поки
+його серцебиття не застаріє на 45 с), і лише тоді запускає Telethon. Якщо сесію все ж відкликано,
+слухач більше не перезапускається, а бот пише вам в адмін-чат — повторіть **Крок 2**.
+
+Локально **не запускайте** скрипти з тією ж сесією, поки вона працює на Railway. Для локальних
+скриптів створіть окрему: `python3 auth_session.py local_session` і
+`TELEGRAM_USER_SESSION_PATH=local_session python3 …`.
 
 ---
 
@@ -118,22 +126,21 @@ cd backend/telegram-user
 rm -f session_telegram_user.session session_telegram_user.session-journal
 ```
 
-Потім повторити **Крок 2**: запустити `auth_session.py`, отримати новий файл сесії, закомітити і запушити.
+Потім повторити **Крок 2** і оновити `TELEGRAM_USER_SESSION_BASE64` у Railway.
 
 ---
 
 ## Якщо змінили пароль Telegram або вийшли з акаунта
 
-Повторити **Крок 2**: знову запустити `auth_session.py` локально, отримати новий `session_telegram_user.session`, замінити файл у репо і зробити commit + push. Після деплою буде використовуватися нова сесія.
+Повторити **Крок 2** і оновити `TELEGRAM_USER_SESSION_BASE64` у Railway — backend перезапуститься з новою сесією.
 
 ---
 
 ## Короткий чеклист
 
-- [ ] Локально виконано `python3 auth_session.py`, з’явився `session_telegram_user.session`
-- [ ] Файл `session_telegram_user.session` додано в git і запушено (репо приватний)
-- [ ] У Railway додано **TELEGRAM_API_ID** та **TELEGRAM_API_HASH**
-- [ ] Після деплою в логах є рядок про завантаження сесії з файлу
+- [ ] Локально виконано `python3 auth_session.py --fresh --qr --export`
+- [ ] У Railway є **TELEGRAM_API_ID**, **TELEGRAM_API_HASH** і **TELEGRAM_USER_SESSION_BASE64**
+- [ ] Після деплою в логах є рядки про сесію зі змінної, оренду та `[lunch] listening`
 - [ ] Тестове Viber-оголошення (номер без бота) дає лог про відправку промо
 
 Готово. Одноразове промо працює автоматично.
@@ -148,7 +155,8 @@ rm -f session_telegram_user.session session_telegram_user.session-journal
 cd backend/telegram-user
 export TELEGRAM_API_ID="35076972"
 export TELEGRAM_API_HASH="9b47fc0d11ed33c59e16047d084da56b"
-# Сесія має вже існувати (після auth_session.py)
+# Окрема локальна сесія (python3 auth_session.py local_session) — не та, що на Railway
+export TELEGRAM_USER_SESSION_PATH=local_session
 python3 test_resolve_phone.py 0501399910
 ```
 

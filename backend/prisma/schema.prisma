@@ -517,6 +517,17 @@ model TelegramFetchState {
   @@unique([chat, topicId])
 }
 
+/// Хто зараз тримає Telethon-сесію акаунта власника (singleton id=1). Під час деплою Railway
+/// новий контейнер стартує до зупинки старого: дві копії однієї сесії з різних IP — і Telegram
+/// анулює ключ (AuthKeyDuplicatedError). Оренда з серцебиттям пускає до сесії лише один процес.
+model TelegramSessionLease {
+  id          Int      @id
+  /// `<RAILWAY_DEPLOYMENT_ID або hostname>:<pid>:<випадковий суфікс>`
+  holder      String
+  /// Час бази даних; запис, старший за staleMs, вважається покинутим
+  heartbeatAt DateTime @default(now())
+}
+
 /// Глобальні налаштування столової (singleton id=1)
 model LunchSettings {
   id           Int      @id

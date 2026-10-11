@@ -57,3 +57,8 @@ backend/testdata/
 
 # GTFS validator reports (generated)
 data/malyn-transport/validation/
+
+# Telethon-сесія акаунта власника = повний доступ до його Telegram. Лише у змінній Railway
+# TELEGRAM_USER_SESSION_BASE64 (auth_session.py --export), ніколи в git.
+backend/telegram-user/*.session
+backend/telegram-user/*.session-journal
