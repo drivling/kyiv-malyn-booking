@@ -214,13 +214,15 @@ model ViberListing {
 
 ## Автоматизація (опціонально)
 
-Можна налаштувати cron job для автоматичного очищення старих оголошень:
+Зовнішній cron не потрібен: бекенд сам деактивує протерміновані оголошення (таймер раз на 5 хв,
+`VIBER_CLEANUP_INTERVAL_MIN`), щодоби архівує старі (`VIBER_ARCHIVE_INTERVAL_MIN`), а сайт показує
+оголошення до `endsAt + 1 год` (кінець часу відправлення за Києвом). Вручну:
 
 ```bash
-# Щодня о 00:00
-0 0 * * * curl -X POST http://localhost:3000/viber-listings/cleanup-old \
-  -H "Authorization: $ADMIN_TOKEN"
+curl -X POST http://localhost:3000/viber-listings/cleanup-old -H "Authorization: $ADMIN_TOKEN"
 ```
+
+Деталі — `RAILWAY_CRON_REMINDERS.md`, код — `backend/src/viber-listing-expiry.ts`.
 
 ## Приклади використання
 

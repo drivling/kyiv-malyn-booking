@@ -95,8 +95,9 @@ of `dist` in a commit.
   simple shared token/password (`ADMIN_PASSWORD` env var, dev fallback `admin123`), not per-user JWTs.
   The token `POST /admin/login` returns is `HMAC-SHA256(ADMIN_PASSWORD, 'admin-session-v1')`
   (`adminAuthToken`; `createApp` binds it via `setAdminPassword(app, …)` → `app.locals`). External
-  automation (cron-job.org jobs, the Viber parser's `VIBER_ADMIN_TOKEN`) sends the same static value,
-  so changing the password means updating them too (`RAILWAY_CRON_REMINDERS.md`, step 2). Backend tests take
+  automation (any remaining external callers, the Viber parser's `VIBER_ADMIN_TOKEN`) sends the same static value,
+  so changing the password means updating them too (`RAILWAY_CRON_REMINDERS.md`, step 2). The old cron-job.org
+  jobs are gone — see "In-process scheduled jobs" below. Backend tests take
   the header from `adminAuthToken(<test password>)` — never hardcode a token.
 - Large standalone domain modules at `src/` top level, each usually paired with its own `*.test.ts`:
   `telegram.ts` (very large — bot commands, notifications, DI hooks), `referral.ts`, `viber-parser.ts`,
@@ -122,6 +123,29 @@ of `dist` in a commit.
   into a captured chat. The only Telegram output is the shared `LunchOutboundMessage` queue, whose
   `target` column routes rows to the lunch group (`lunch`, markdown) or the owner's Saved Messages
   (`saved`, HTML).
+
+### In-process scheduled jobs (no external cron)
+
+`src/index.ts` starts these timers via `startIntervalJob` (`src/interval-job.ts`: single-flight, errors only
+logged); each interval env var accepts `0` to switch the job off. The matching admin `POST` endpoints stay for
+manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
+
+| Job | Env (default, min) | Code |
+|-----|--------------------|------|
+| Telegram group import (PoDoroguem etc.) read from `DzhuraMessage`, cursor `TelegramFetchState` | `TELEGRAM_IMPORT_INTERVAL_MIN` (10) | `telegram-dzhura-source.ts`, `fetchAndImportTelegramGroupMessages` |
+| Deactivate expired poputky listings + expire pending `RideShareRequest` | `VIBER_CLEANUP_INTERVAL_MIN` (5) | `viber-listing-expiry.ts` |
+| Archive old listings (`ViberRideEvent` import, delete inactive > 90 d) | `VIBER_ARCHIVE_INTERVAL_MIN` (1440) | `viber-listing-archive.ts` |
+| Trip reminders: 20:00 day before, 08:00, one pre-departure (2 h / 30 min) | `BOOKING_REMINDERS_INTERVAL_MIN` (1) | `booking-reminders.ts` |
+
+- A listing is visible until `endsAt + 1 h`. `endsAt` = trip day + end of `departureTime` **in Kyiv time** stored as
+  UTC (`getListingEndsAt`; Railway runs TZ=UTC). Public reads (`/viber-listings`, `/search`, `/:id/contact`,
+  `searchPoputky`) filter with `notExpiredWhere()` themselves, so the site does not depend on the sweeper.
+- Reminders are at-most-once: `BookingReminder(bookingId, kind)` is claimed before sending (timer, manual POSTs and
+  overlapping containers share it). Stale reminders (server down) are skipped.
+- Telegram-group messages reach the parser as text `Name|@username: body` (`formatSenderLine`,
+  `fetch_telegram_messages.py`). The name may contain anything except newline/`|`; the parser anchors on
+  `|@username:` (`telegram-parser.ts`). A username without a phone becomes a `Person` with a technical phone
+  `380010000000+` (`findOrCreatePersonByTelegramUsername`).
 
 ### Testability pattern
 

@@ -111,11 +111,12 @@ VITE_API_URL=https://ваш-backend-url.railway.app
 2. Перевірте, що форма бронювання працює та API відповідає (бекенд: `kyiv-malyn-booking-production.up.railway.app`)
 3. Спробуйте зайти в адмін панель (пароль з `ADMIN_PASSWORD`)
 
-### 9. Нагадування в Telegram (cron)
+### 9. Нагадування в Telegram та фонові задачі
 
-Щоб клієнти автоматично отримували нагадування **за день до поїздки** та **в день поїздки**, потрібно налаштувати зовнішній cron (Railway не має вбудованого cron).
-
-**Покрокова інструкція:** дивіться **[RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md)** — там описано, як додати два cronjob’и (наприклад на cron-job.org) з правильним URL backend та заголовком `Authorization: <ADMIN_TOKEN>` (токен з `POST /admin/login`).
+Зовнішній cron **не потрібен**: нагадування про поїздки (20:00, 08:00 і одне «перед поїздкою»), очищення та архів
+оголошень попуток, імпорт Telegram-груп працюють таймерами всередині backend. Налаштування та змінні
+(`BOOKING_REMINDERS_INTERVAL_MIN`, `VIBER_CLEANUP_INTERVAL_MIN`, `VIBER_ARCHIVE_INTERVAL_MIN`,
+`TELEGRAM_IMPORT_INTERVAL_MIN`; `0` вимикає) — **[RAILWAY_CRON_REMINDERS.md](./RAILWAY_CRON_REMINDERS.md)**.
 
 ---
 
