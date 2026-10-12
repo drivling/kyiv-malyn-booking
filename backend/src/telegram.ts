@@ -1,3 +1,4 @@
+import { fetchGroupMessagesFromDzhura, saveCursors } from './telegram-dzhura-source';
 import TelegramBot from 'node-telegram-bot-api';
 import { spawn as nodeSpawn } from 'child_process';
 import path from 'path';
@@ -2428,6 +2429,10 @@ export interface FetchAndImportResult {
   created: number;
   total: number;
   error?: string;
+  /** Групи, яких немає серед діалогів Джури (запустіть «Оновити список» в /admin/dzhura) */
+  missingGroups?: string[];
+  /** Групам щойно ввімкнено «Читати» — повідомлення з'являться після наступних постів */
+  enabledGroups?: string[];
 }
 
 /** Person + контакт для ViberListing при імпорті з Telegram групи. */
@@ -2570,27 +2575,41 @@ export function describeTelegramUserSessionError(detail?: string | null): string
 }
 
 /**
- * Завантажити нові повідомлення з групи PoDoroguem і імпортувати їх у Viber listings.
- * Використовує TelegramFetchState — тільки нові повідомлення.
- * Для cron: POST /telegram/fetch-group-messages кожні 2 год.
+ * Завантажити нові повідомлення з груп попуток (PoDoroguem тощо) і імпортувати їх у Viber listings.
+ * Джерело — «Джура» (DzhuraMessage), не окремий Telethon-spawn; курсор — TelegramFetchState.
+ * Викликається внутрішнім планувальником (index.ts) і вручну: POST /telegram/fetch-group-messages.
  */
-export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImportResult> {
-  const fetched = await fetchTelegramGroupMessages({ limit: 50, fullFetch: false });
-  const rawText = fetched.text;
-  if (rawText === null) {
-    return {
-      success: false,
-      created: 0,
-      total: 0,
-      error: fetched.error || 'Failed to fetch (check session, API, group access)',
-    };
+let telegramImportInFlight: Promise<FetchAndImportResult> | null = null;
+
+export function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImportResult> {
+  // Планувальник і ручний POST не повинні імпортувати одне й те саме паралельно
+  if (!telegramImportInFlight) {
+    telegramImportInFlight = importTelegramGroupMessagesOnce().finally(() => {
+      telegramImportInFlight = null;
+    });
   }
+  return telegramImportInFlight;
+}
+
+async function importTelegramGroupMessagesOnce(): Promise<FetchAndImportResult> {
+  const source = await fetchGroupMessagesFromDzhura(tgPrisma, TELEGRAM_GROUPS);
+  const { missingGroups, enabledGroups } = source;
+  if (missingGroups.length) {
+    console.warn(`⚠️ Telegram-імпорт: Джура не бачить групи: ${missingGroups.join(', ')}`);
+  }
+  if (enabledGroups.length) {
+    console.log(`ℹ️ Telegram-імпорт: увімкнено «Читати» для: ${enabledGroups.join(', ')}`);
+  }
+  const extra = { missingGroups, enabledGroups };
+  const rawText = source.text;
   if (!rawText.trim()) {
-    return { success: true, created: 0, total: 0 };
+    await saveCursors(tgPrisma, source.cursors);
+    return { success: true, created: 0, total: 0, ...extra };
   }
   const parsedMessages = parseTelegramMessages(rawText);
   if (parsedMessages.length === 0) {
-    return { success: true, created: 0, total: 0 };
+    await saveCursors(tgPrisma, source.cursors);
+    return { success: true, created: 0, total: 0, ...extra };
   }
   let created = 0;
   for (let i = 0; i < parsedMessages.length; i++) {
@@ -2618,8 +2637,10 @@ export async function fetchAndImportTelegramGroupMessages(): Promise<FetchAndImp
       console.error(`fetchAndImportTelegramGroupMessages item ${i} error:`, err);
     }
   }
+  // Курсор рухаємо після імпорту: збій посеред тіку не губить повідомлення (дублі зливає createOrMergeViberListing)
+  await saveCursors(tgPrisma, source.cursors);
   console.log(`📥 Telegram fetch: імпортовано ${created} нових з ${parsedMessages.length} повідомлень`);
-  return { success: true, created, total: parsedMessages.length };
+  return { success: true, created, total: parsedMessages.length, ...extra };
 }
 
 /**

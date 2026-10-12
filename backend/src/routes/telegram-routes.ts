@@ -108,6 +108,8 @@ export function createTelegramRoutesRouter(deps: { prisma: PrismaClient }): Rout
           result.created > 0 ? `Імпортовано ${result.created} нових з ${result.total} повідомлень` : 'Немає нових повідомлень',
         created: result.created,
         total: result.total,
+        missingGroups: result.missingGroups ?? [],
+        enabledGroups: result.enabledGroups ?? [],
       });
     } catch (error) {
       console.error('❌ /telegram/fetch-group-messages:', error);

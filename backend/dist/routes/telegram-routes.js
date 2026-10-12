@@ -105,6 +105,8 @@ function createTelegramRoutesRouter(deps) {
                 message: result.created > 0 ? `Імпортовано ${result.created} нових з ${result.total} повідомлень` : 'Немає нових повідомлень',
                 created: result.created,
                 total: result.total,
+                missingGroups: result.missingGroups ?? [],
+                enabledGroups: result.enabledGroups ?? [],
             });
         }
         catch (error) {

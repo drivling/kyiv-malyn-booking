@@ -108,15 +108,9 @@ cronjob'ах і `VIBER_ADMIN_TOKEN` Viber-парсера. Це секрет — 
    - **Schedule:** `0 4 1 * *` (1-го числа о 04:00).
    - Зберегти.
 
-6. **Завантажити нові повідомлення з групи PoDoroguem (Telegram):**
-   - **Title:** `Telegram: fetch group messages (PoDoroguem)`
-   - **URL:** `https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messages`
-   - **Method:** `POST`
-   - **Request Headers:**  
-     `Authorization` = `<ADMIN_TOKEN>` (крок 2)
-   - **Schedule:** кожні **2 години** (наприклад `0 */2 * * *`).
-   - Зберегти.
-   - *Потрібно: особистий акаунт в групі PoDoroguem, TELEGRAM_USER_SESSION_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH.*
+7. ~~Завантажити нові повідомлення з групи PoDoroguem~~ — **cron-job більше не потрібен**: бекенд сам
+   імпортує групи попуток з «Джури» (див. «Імпорт груп попуток» нижче). Якщо в cron-job.org лишився
+   job `Telegram: fetch group messages` — вимкніть/видаліть його.
 
 Підставте замість `ВАШ-BACKEND-URL` реальний домен backend з кроку 1.
 
@@ -175,7 +169,7 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messag
 | `POST /telegram/send-reminders-today` | Щодня о 08:00 | Шукає бронювання на **сьогодні**, відправляє нагадування «сьогодні у вас поїздка». |
 | `POST /viber-listings/cleanup-old` | Кожні 1–2 год | Деактивує Viber оголошення, у яких **дата по** (`endsAt` = дата + кінець часу) минула більш ніж на **1 год** (одним `updateMany` по індексу), і переводить протерміновані запити пасажир→водій у `expired`. |
 | `POST /viber-listings/archive-old?days=90` | Раз на місяць | Копіює нові оголошення в аналітику (`ViberRideEvent`) і видаляє **неактивні** оголошення старші за N днів (мінімум 30), щоб гаряча таблиця не росла безкінечно. |
-| `POST /telegram/fetch-group-messages` | Кожні 2 год | Завантажує **нові** повідомлення з групи PoDoroguem (Малин-Київ, Малин-Житомир, Малин-Коростень), імпортує в Viber listings, прив'язує telegramUserId до Person. |
+| `POST /telegram/fetch-group-messages` | **Не потрібен** (лише вручну) | Те саме, що робить внутрішній планувальник: нові повідомлення груп попуток → Viber listings. Відповідь містить `missingGroups` / `enabledGroups`. |
 
 Нагадування отримують тільки бронювання, у яких заповнений `telegramChatId` (користувач підписаний на бота).
 
@@ -196,3 +190,16 @@ curl -X POST "https://ВАШ-BACKEND-URL.railway.app/telegram/fetch-group-messag
 - [ ] Час виклику в налаштуваннях cron відповідає вашому часовому поясу.
 
 Після цього нагадування про поїздки будуть відправлятися автоматично.
+
+---
+
+## Імпорт груп попуток (замість cron-job.org)
+
+`backend/src/telegram-dzhura-source.ts`: кожні `TELEGRAM_IMPORT_INTERVAL_MIN` хв (за замовч. **10**, `0` — вимкнено)
+процес бекенду читає нові повідомлення груп `PoDoroguem` (топіки 2/6/108), `poputka_zhytomyr_kyiv`,
+`poputka_zhitomir`, `Korosten_Kyiv` з таблиці `DzhuraMessage` — їх уже пише слухач Джури, окремого
+Telethon-spawn немає. Курсор — той самий `TelegramFetchState`, тож перехід з cron безшовний.
+
+Вимоги: `DZHURA_ENABLED` не `0`; групи є в `/admin/dzhura` (кнопка «Оновити список»). Якщо для групи
+вимкнено «Читати», планувальник вмикає її сам; повідомлення до цього моменту підтягніть backfill-ом.
+Група, якої Джура не бачить, потрапляє в `missingGroups` відповіді ручного POST і в лог.

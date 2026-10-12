@@ -11,7 +11,8 @@ import {
   createPrismaTelegramSessionLeaseStore,
   setTelegramSessionLease,
 } from './telegram-session-lease';
-import { sendAdminAlertHtml } from './telegram';
+import { fetchAndImportTelegramGroupMessages, sendAdminAlertHtml } from './telegram';
+import { startTelegramImportScheduler, type TelegramImportScheduler } from './telegram-dzhura-source';
 import { startListingMatchWorker } from './listing-match-jobs';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
@@ -19,6 +20,7 @@ export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute }
 function main(): void {
   const prisma = new PrismaClient();
   let worker: ReturnType<typeof startListingMatchWorker> | null = null;
+  let importScheduler: TelegramImportScheduler | null = null;
   const app = createApp({ prisma });
 
   // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
@@ -56,11 +58,16 @@ function main(): void {
     if (process.env.NOTIFICATION_WORKER_DISABLED !== '1') {
       worker = startListingMatchWorker(prisma);
     }
+    // Імпорт груп попуток з Джури замість зовнішнього cron-job.org (TELEGRAM_IMPORT_INTERVAL_MIN, 0 = вимкнено)
+    if (process.env.DATABASE_URL) {
+      importScheduler = startTelegramImportScheduler(fetchAndImportTelegramGroupMessages);
+    }
   });
 
   const shutdown = async (signal: string) => {
     console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
     worker?.stop();
+    importScheduler?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);
     await lease?.stop();

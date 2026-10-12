@@ -6,6 +6,7 @@ const create_app_1 = require("./create-app");
 const lunch_listener_1 = require("./lunch-listener");
 const telegram_session_lease_1 = require("./telegram-session-lease");
 const telegram_1 = require("./telegram");
+const telegram_dzhura_source_1 = require("./telegram-dzhura-source");
 const listing_match_jobs_1 = require("./listing-match-jobs");
 var create_app_2 = require("./create-app");
 Object.defineProperty(exports, "CODE_VERSION", { enumerable: true, get: function () { return create_app_2.CODE_VERSION; } });
@@ -15,6 +16,7 @@ Object.defineProperty(exports, "getSupportPhoneForRoute", { enumerable: true, ge
 function main() {
     const prisma = new client_1.PrismaClient();
     let worker = null;
+    let importScheduler = null;
     const app = (0, create_app_1.createApp)({ prisma });
     // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
     let lease = null;
@@ -50,10 +52,15 @@ function main() {
         if (process.env.NOTIFICATION_WORKER_DISABLED !== '1') {
             worker = (0, listing_match_jobs_1.startListingMatchWorker)(prisma);
         }
+        // Імпорт груп попуток з Джури замість зовнішнього cron-job.org (TELEGRAM_IMPORT_INTERVAL_MIN, 0 = вимкнено)
+        if (process.env.DATABASE_URL) {
+            importScheduler = (0, telegram_dzhura_source_1.startTelegramImportScheduler)(telegram_1.fetchAndImportTelegramGroupMessages);
+        }
     });
     const shutdown = async (signal) => {
         console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
         worker?.stop();
+        importScheduler?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);
         await lease?.stop();
