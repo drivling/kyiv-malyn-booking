@@ -63,9 +63,10 @@ def road(a, b, via=()):
     return out
 
 
-def osm_route_anchors(st, rid, rel, max_m):
-    """Зупинка ближче max_m до лінії маршруту з OSM (relation rel) → її проєкція на цю лінію (обидва напрямки rid).
-    Для доріг без назви в OSM, де загальне правило (найближча вулиця з назвою) чіпляє зупинку до сусідньої вулиці."""
+def osm_route_anchors(st, rid, rel, max_m, keys=('orderThere', 'orderBack')):
+    """Зупинка ближче max_m до лінії маршруту з OSM (relation rel) → її проєкція на цю лінію (напрямки keys маршруту
+    rid). Для доріг без назви в OSM, де загальне правило (найближча вулиця з назвою) чіпляє зупинку до сусідньої вулиці.
+    Якщо relation описує лише один напрямок, а дорога там має дві окремі проїжджі частини, — передати лише його."""
     els = load(os.path.join(OSM, 'relations.json'))['elements']
     rel_ = next(e for e in els if e.get('type') == 'relation' and e['id'] == rel)
     ways = {e['id']: e for e in els if e.get('type') == 'way'}
@@ -85,9 +86,28 @@ def osm_route_anchors(st, rid, rel, max_m):
             if best is None or d < best[0]:
                 best = (d, (cx, cy))
         if best and best[0] <= max_m:
-            for key in ('orderThere', 'orderBack'):
+            for key in keys:
                 out[(rid, key, sid)] = unxy(*best[1])
     return out
+
+
+def osm_ways_projection(p, way_ids):
+    """Найближча до p точка на дорогах OSM way_ids (геометрія з кешу relations.json або streets.json)."""
+    els = load(os.path.join(OSM, 'relations.json'))['elements'] + load(os.path.join(OSM, 'streets.json'))['elements']
+    geoms = {e['id']: [(q['lat'], q['lon']) for q in e['geometry']] for e in els
+             if e.get('type') == 'way' and e['id'] in way_ids and e.get('geometry')}
+    assert set(geoms) == set(way_ids), set(way_ids) - set(geoms)
+    px, py = xy(*p)
+    best = None
+    for g in geoms.values():
+        for a, b in zip(g, g[1:]):
+            (ax, ay), (bx, by) = xy(*a), xy(*b)
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
+            d = math.hypot(px - ax - t * dx, py - ay - t * dy)
+            if best is None or d < best[0]:
+                best = (d, unxy(ax + t * dx, ay + t * dy))
+    return best[1]
 
 
 def street_between(name, a, b):
