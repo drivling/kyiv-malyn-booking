@@ -24,25 +24,34 @@ import {
 } from './viber-parser';
 
 /**
+ * Префікс "Ім'я|@username: " формуємо ми самі (fetch_telegram_messages.py, telegram-dzhura-source.ts), тож
+ * ім'я може бути ЧИМОСЬ ЗАВГОДНО: "Дима .", "Олена (Київ)", "Max 🚗", цифри, крапки. Якір — перше "|@username:",
+ * а не перелік дозволених символів (раніше крапка в імені губила і ім'я, і @username, і Person).
+ */
+const WITH_USERNAME_RE = /^([^\n|]{1,80}?)\|(@[a-zA-Z0-9_]+):\s*(.*)/s;
+
+/** Префікс без @username ("Ім'я: текст"): символи обмежені, інакше "Київ-Малин 15:00" вважалось би іменем. */
+const PLAIN_PREFIX_RE = /^([А-Яа-яІіЇїЄєҐґA-Za-z\s\-'’ʼ.@&]+):\s*(.*)/s;
+
+/** Ім'я для відображення: без службових символів по краях; без жодної літери ("🔥", ".") → null. */
+function cleanSenderName(raw: string): string | null {
+  const name = raw.trim().replace(/^[\s.,_\-|]+|[\s.,_\-|]+$/g, '').trim();
+  if (name.length < 2 || name.length >= 80 || !/\p{L}/u.test(name)) return null;
+  return name;
+}
+
+/**
  * Витягує ім'я відправника з Telegram повідомлення
  * Формати: "Ім'я: текст", "Ім'я|@username: текст", "Forwarded from Channel Name: текст"
  */
 export function extractSenderNameTelegram(text: string): string | null {
-  // "Name|@username: " або "FirstName LastName: " або "Ім'я: " або "@username: " на початку
-  const withUsername = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+)\|(@[a-zA-Z0-9_]+):\s*(.*)/s);
-  if (withUsername) {
-    const name = withUsername[1].trim();
-    if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
-      return name;
-    }
-  }
+  const withUsername = text.match(WITH_USERNAME_RE);
+  if (withUsername) return cleanSenderName(withUsername[1]);
 
-  const namePrefixMatch = text.match(/^([А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+):\s*(.*)/s);
+  const namePrefixMatch = text.match(PLAIN_PREFIX_RE);
   if (namePrefixMatch) {
-    const name = namePrefixMatch[1].trim();
-    if (name.length > 1 && name.length < 80 && !/^\d+$/.test(name)) {
-      return name;
-    }
+    const name = cleanSenderName(namePrefixMatch[1]);
+    if (name && !/^\d+$/.test(name)) return name;
   }
 
   // "Forwarded from X: текст"
@@ -58,22 +67,22 @@ export function extractSenderNameTelegram(text: string): string | null {
  * Витягує @username з повідомлення (формат "Name|@username: текст" з fetch_telegram_messages.py)
  */
 export function extractTelegramUsername(rawMessage: string): string | null {
-  const match = rawMessage.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+\|(@[a-zA-Z0-9_]+):\s*/s);
-  return match ? match[1] : null;
+  const match = rawMessage.match(WITH_USERNAME_RE);
+  return match ? match[2] : null;
 }
 
 /**
  * Витягує тіло повідомлення (без префіксу "Ім'я: " або "Ім'я|@username: " або "Forwarded from X: ")
  */
 export function extractMessageBodyTelegram(text: string): string {
-  const withUsername = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+\|@[a-zA-Z0-9_]+:\s*(.*)/s);
+  const withUsername = text.match(WITH_USERNAME_RE);
   if (withUsername) {
-    return withUsername[1].trim();
+    return withUsername[3].trim();
   }
 
-  const namePrefixMatch = text.match(/^[А-Яа-яІіЇїЄєA-Za-z\s\-'@&]+:\s*(.*)/s);
+  const namePrefixMatch = text.match(PLAIN_PREFIX_RE);
   if (namePrefixMatch) {
-    return namePrefixMatch[1].trim();
+    return namePrefixMatch[2].trim();
   }
 
   const forwardedMatch = text.match(/^Forwarded\s+from\s+.+?:\s*(.*)/is);
@@ -155,7 +164,9 @@ export interface ParsedTelegramMessageWithRaw {
  * Роздільники: "---" (з fetch_telegram_messages.py), подвійний перенос рядка, або "Ім'я: " на початку рядка.
  */
 function splitTelegramMessages(rawText: string): string[] {
-  const trimmed = rawText.trim();
+  // Хвостовий "---" останнього повідомлення не є роздільником (після trim поруч нема \n) — прибираємо,
+  // інакше він лишався в rawMessage й тілі
+  const trimmed = rawText.trim().replace(/\n?---\s*$/, '').trim();
   if (!trimmed) return [];
 
   // Роздільник "---" з fetch_telegram_messages.py

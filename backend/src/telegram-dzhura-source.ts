@@ -38,12 +38,17 @@ export interface DzhuraFetchResult {
   enabledGroups: string[];
 }
 
+/** Ім'я для рядка-протоколу: без переносів і "|" (роздільник з @username), не довше 60 символів. */
+function sanitizeDisplayName(raw: string): string {
+  return raw.replace(/[\r\n|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60).trim();
+}
+
 export function formatSenderLine(
   sender: { firstName: string | null; lastName: string | null; username: string | null } | null,
   text: string,
 ): string {
   const username = sender?.username?.trim().replace(/^@/, '') || null;
-  const name = [sender?.firstName, sender?.lastName].filter((p) => p && p.trim()).join(' ').trim();
+  const name = sanitizeDisplayName([sender?.firstName, sender?.lastName].filter((p) => p && p.trim()).join(' '));
   const display = name || (username ? `@${username}` : 'Невідомий');
   const body = text.trim();
   return username ? `${display}|@${username}: ${body}` : `${display}: ${body}`;

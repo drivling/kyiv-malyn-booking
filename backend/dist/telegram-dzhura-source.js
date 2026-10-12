@@ -10,9 +10,13 @@ const interval_job_1 = require("./interval-job");
 exports.COLD_START_HOURS = 120;
 /** Максимум повідомлень на топік за один прохід; решта — наступним тіком (курсор не губить). */
 exports.TOPIC_BATCH_LIMIT = 200;
+/** Ім'я для рядка-протоколу: без переносів і "|" (роздільник з @username), не довше 60 символів. */
+function sanitizeDisplayName(raw) {
+    return raw.replace(/[\r\n|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60).trim();
+}
 function formatSenderLine(sender, text) {
     const username = sender?.username?.trim().replace(/^@/, '') || null;
-    const name = [sender?.firstName, sender?.lastName].filter((p) => p && p.trim()).join(' ').trim();
+    const name = sanitizeDisplayName([sender?.firstName, sender?.lastName].filter((p) => p && p.trim()).join(' '));
     const display = name || (username ? `@${username}` : 'Невідомий');
     const body = text.trim();
     return username ? `${display}|@${username}: ${body}` : `${display}: ${body}`;
