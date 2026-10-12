@@ -1,7 +1,7 @@
 # Варіанти шляху маршруту й опорні часи рейсів
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳ · Фаза 7 ⏳ · Фаза 8 ⏳  
-**Де зупинились:** бекенд готовий (фази 1–2); далі — шар даних фронтенду (фаза 3)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳ · Фаза 7 ⏳ · Фаза 8 ⏳  
+**Де зупинились:** бекенд і шар даних фронтенду готові (фази 1–3); далі — публічний сайт (фаза 4)  
 **Created:** 2026-10-12 · **Гілка:** `feat/route-variants`
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -74,10 +74,13 @@
 - [x] **2.3** `transport-segments.ts`: перерахунок проходить і ланцюжки варіантів (інакше видаляє їхні перегони)
 
 Фаза 3 — шар даних фронтенду
-- [ ] **3.1** DTO (поля необов'язкові), `datasetToEditor` (`variant_id`, `timepoints`, `variants_by_route`),
-  `editorToDataset` (без варіантів, з `baseRevision`)
-- [ ] **3.2** `routeVariants.ts`: `routeChains`, `chainForRecord`, `servedStopIds`, `chainsServingPair`
-- [ ] **3.3** Опорні часи в `recordTiming` і `computeTripTimes`; адмінка вантажить датасет з `no-store`
+- [x] **3.1** DTO (поля необов'язкові), `datasetToEditor` (`variant_id`, `timepoints`, `variants_by_route`),
+  `editorToDataset` (без варіантів). Надсилання `baseRevision` перенесено у фазу 5 — разом з оновленням після
+  збереження, інакше друге збереження з тієї самої вкладки отримало б 409.
+- [x] **3.2** `routeVariants.ts`: `routeChainSources`, `recordDirection`, `recordVariant`, `chainForRecord`,
+  `servedStopIds`, `chainsServingPair`
+- [x] **3.3** Опорні часи в `recordTiming` і `computeTripTimes`; `getTransportDataset({ fresh })` → `no-store`
+  (вмикає адмінка у фазі 5)
 
 Фаза 4 — публічний сайт
 - [ ] **4.1** Табло, каталог зупинок, `nearestTrip`, схема, наклейки (рейси варіантів пропускати), автостанція,
@@ -172,3 +175,18 @@
     значення), варіант лише доповнює;
   - для маршрутів без варіантів перерахунок не змінився.
 - Тести бекенду: 574. `dist`: `gtfs-stop-times.js`, `scripts/export-gtfs.js`, `transport-segments.js`.
+
+### Фаза 3 — шар даних фронтенду (зроблено)
+
+- `api/transportDataset.ts`:
+  - `TransportRouteVariantDto`, `TransportTripTimepointDto`;
+  - `routes[].variants`, `trips[].variantId / timepoints`, `revision` / `baseRevision` — усе необов'язкове;
+  - `datasetToEditor` → `records[].variant_id / timepoints` і `supplement.stops.variants_by_route`
+    (`{ id, direction, name, stops: [{ id, name, map_only? }] }`);
+  - `editorToDataset` ключа `variants` не шле.
+- `LocalTransportPage/routeVariants.ts`: вибір ланцюжка рейсу і «які зупинки обслуговує маршрут» з урахуванням
+  варіантів (покриття 100%).
+- Опорні часи вже враховуються в `recordTiming` (сайт) і `computeTripTimes` (адмінка). Для даних без варіантів
+  нічого не змінилося.
+- Тести фронтенду: 483 пройшли. Три файли наклейок локально не вантажаться без `uqr`; з тимчасовою заглушкою
+  2 тести QR падають, як і раніше. Лінтер чистий.

@@ -1071,8 +1071,15 @@ class ApiClient {
     });
   }
 
-  async getTransportDataset(): Promise<TransportDataset> {
-    const dataset = await this.request<TransportDataset>('/transport/dataset');
+  /**
+   * Датасет міського транспорту. fresh — повз HTTP-кеш браузера (GET кешується на 5 хв): адмінка редагує
+   * датасет і має бачити останній запис, інакше збереження відкотить чужі зміни (revision / 409).
+   */
+  async getTransportDataset(opts: { fresh?: boolean } = {}): Promise<TransportDataset> {
+    const dataset = await this.request<TransportDataset>(
+      '/transport/dataset',
+      opts.fresh ? { cache: 'no-store' } : undefined
+    );
     // Номери маршрутів для показу («11/1») — для всіх, хто завантажує датасет (сайт, адмінка, стіна)
     configureRouteNames(dataset?.routes);
     return dataset;
@@ -1143,7 +1150,11 @@ class ApiClient {
       routeStops: number;
       trips: number;
       segments: number;
+      /** Варіантів шляху в усіх маршрутах (новий сервер) */
+      variants?: number;
     };
+    /** Мітка щойно збереженого датасету — наступний PUT шле її як baseRevision */
+    revision?: string | null;
   }> {
     return this.request('/transport/dataset', {
       method: 'PUT',

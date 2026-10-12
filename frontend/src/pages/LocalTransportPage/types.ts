@@ -23,6 +23,10 @@ export interface TransportRecord {
   end_stop_id?: string | null;
   /** Фіксований час на останній обслуговуваній зупинці (HH:MM[:SS]) — сегменти рейсу стискаються */
   arrival_time?: string | null;
+  /** Варіант шляху маршруту (supplement.stops.variants_by_route); відсутнє — основний ланцюжок напрямку */
+  variant_id?: string | null;
+  /** Опорні часи з листка ([{ stopId, time }]) — точний час на зупинках */
+  timepoints?: Array<{ stopId: string; time: string }> | null;
 }
 
 export interface SupplementRoute {
@@ -81,6 +85,18 @@ export interface SupplementStops {
   stops_catalog?: Record<string, { name: string }>;
   /** Зупинки по маршрутах з порядком у кожному напрямку */
   stops_by_route?: Record<string, RouteStopWithOrder[]>;
+  /** Варіанти шляху за маршрутами: інший ланцюжок для окремих рейсів (TransportRecord.variant_id) */
+  variants_by_route?: Record<string, RouteVariantVm[]>;
+}
+
+/** Варіант шляху маршруту (Docs/route-variants-2026-10.md): ланцюжок у порядку руху, без повторів зупинок */
+export interface RouteVariantVm {
+  id: string;
+  direction: 'there' | 'back';
+  /** Підпис для людей: «Перший рейс ч/з вокзал» */
+  name: string;
+  /** Точки в порядку руху; map_only — технічні (лише лінія на карті) */
+  stops: Array<{ id: string; name: string; map_only?: boolean }>;
 }
 
 export interface Supplement {
