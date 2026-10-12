@@ -40,7 +40,7 @@ exports.createViberListingsRouter = createViberListingsRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const notification_queue_1 = require("../notification-queue");
-const viber_analytics_import_1 = require("../viber-analytics-import");
+const viber_listing_archive_1 = require("../viber-listing-archive");
 const viber_parser_1 = require("../viber-parser");
 const viber_ingest_1 = require("../viber-ingest");
 const index_helpers_1 = require("../index-helpers");
@@ -443,22 +443,16 @@ function createViberListingsRouter(deps) {
         }
     });
     /**
-     * Архів для cron (раз на місяць): нові рядки → ViberRideEvent (аналітика), потім видаляємо
-     * неактивні оголошення старші за `days` (за замовчуванням 90, мінімум 30). Гаряча таблиця
-     * лишається невеликою; Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
+     * Ручний запуск архіву (щодоби це робить таймер у процесі, VIBER_ARCHIVE_INTERVAL_MIN): нові рядки →
+     * ViberRideEvent (аналітика), потім видаляємо неактивні оголошення старші за `days` (за замовчуванням 90,
+     * мінімум 30). Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
      */
     r.post('/viber-listings/archive-old', require_admin_1.requireAdmin, async (req, res) => {
         try {
-            const raw = Number((req.query.days ?? req.body?.days) ?? 90);
-            const days = Number.isFinite(raw) ? Math.max(30, Math.round(raw)) : 90;
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - days);
-            const imported = await (0, viber_analytics_import_1.importListingsToRideEvents)(prisma);
-            const deleted = await prisma.viberListing.deleteMany({
-                where: { isActive: false, date: { lt: cutoff } },
-            });
-            console.log(`🗄️ Архів: імпортовано в аналітику ${imported.importedNow}, видалено неактивних старших за ${days} дн.: ${deleted.count}`);
-            res.json({ success: true, days, cutoff: cutoff.toISOString(), ...imported, deleted: deleted.count });
+            const days = (0, viber_listing_archive_1.normalizeArchiveDays)(req.query.days ?? req.body?.days);
+            const result = await (0, viber_listing_archive_1.archiveOldListings)(prisma, days);
+            console.log(`🗄️ Архів: імпортовано в аналітику ${result.importedNow}, видалено неактивних старших за ${days} дн.: ${result.deleted}`);
+            res.json({ success: true, ...result, cutoff: result.cutoff.toISOString() });
         }
         catch (error) {
             console.error('❌ Помилка архівування Viber оголошень:', error);

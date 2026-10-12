@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendTripReminderVia = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
 exports.setSpawnForTests = setSpawnForTests;
 exports.resetSpawnForTests = resetSpawnForTests;
 exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
@@ -2318,9 +2318,14 @@ ${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${phone_booking_1.PHONE_
     }
 };
 exports.sendBookingConfirmationToCustomer = sendBookingConfirmationToCustomer;
-/** Короткий plain-text нагадування для платного SMS (без HTML). */
+const TRIP_REMINDER_SMS_LEAD = {
+    tomorrow: 'Нагадування: завтра поїздка',
+    today: 'Сьогодні у вас поїздка',
+    in2h: 'Через 2 години у вас поїздка',
+    in30m: 'Через 30 хвилин у вас поїздка',
+};
 function buildTripReminderSms(booking, when) {
-    const lead = when === 'today' ? 'Сьогодні у вас поїздка' : 'Нагадування: завтра поїздка';
+    const lead = TRIP_REMINDER_SMS_LEAD[when];
     const drv = booking.driver
         ? ` Водій ${(0, person_name_1.displayName)(booking.driver.senderName, '—')}, тел +${(0, exports.normalizePhone)(booking.driver.phone)}.`
         : '';
@@ -2340,11 +2345,35 @@ async function sendTripReminderSmsOnly(booking, when) {
     });
     return { delivered: r.sent ? 'sms' : 'none' };
 }
-const sendTripReminder = async (chatId, booking) => {
+const TRIP_REMINDER_TEXT = {
+    tomorrow: {
+        heading: '🔔 <b>Нагадування про поїздку!</b>',
+        intro: (name) => `👋 ${name}, нагадуємо про вашу поїздку завтра:`,
+        log: 'нагадування',
+    },
+    today: {
+        heading: '🔔 <b>Сьогодні у вас поїздка!</b>',
+        intro: (name) => `👋 ${name}, нагадуємо:`,
+        log: 'нагадування (сьогодні)',
+    },
+    in2h: {
+        heading: '🔔 <b>Через 2 години у вас поїздка!</b>',
+        intro: (name) => `👋 ${name}, нагадуємо:`,
+        log: 'нагадування (за 2 год)',
+    },
+    in30m: {
+        heading: '🔔 <b>Через 30 хвилин у вас поїздка!</b>',
+        intro: (name) => `👋 ${name}, нагадуємо:`,
+        log: 'нагадування (за 30 хв)',
+    },
+};
+/** Telegram-нагадування про поїздку; недоступний бот/збій → платний SMS-фолбек. */
+const sendTripReminderVia = async (chatId, booking, when) => {
     if (!bot) {
         console.log('⚠️ Telegram bot не налаштовано');
-        return sendTripReminderSmsOnly(booking, 'tomorrow');
+        return sendTripReminderSmsOnly(booking, when);
     }
+    const text = TRIP_REMINDER_TEXT[when];
     try {
         const schedule = await tgPrisma.schedule.findFirst({
             where: { route: booking.route, supportPhone: { not: null } },
@@ -2360,9 +2389,9 @@ const sendTripReminder = async (chatId, booking) => {
         const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
 ${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n` : ''}
-🔔 <b>Нагадування про поїздку!</b>
+${text.heading}
 
-👋 ${(0, person_name_1.displayName)(booking.name, 'Друже')}, нагадуємо про вашу поїздку завтра:
+${text.intro((0, person_name_1.displayName)(booking.name, 'Друже'))}
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -2371,7 +2400,7 @@ ${driverLine}${supportPhoneLine}
 <i>Не спізніться! ⏰</i>
     `.trim();
         await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-        console.log(`✅ Telegram нагадування надіслано`);
+        console.log(`✅ Telegram ${text.log} надіслано`);
         return { delivered: 'bot' };
     }
     catch (error) {
@@ -2380,58 +2409,16 @@ ${driverLine}${supportPhoneLine}
             personId: booking.personId ?? null,
             normalizedPhone: booking.phone ? (0, exports.normalizePhone)(booking.phone) : null,
         });
-        console.error('❌ Помилка відправки Telegram нагадування:', error);
-        return sendTripReminderSmsOnly(booking, 'tomorrow');
+        console.error(`❌ Помилка відправки Telegram ${text.log}:`, error);
+        return sendTripReminderSmsOnly(booking, when);
     }
 };
+exports.sendTripReminderVia = sendTripReminderVia;
+/** Нагадування за день до поїздки (вечір). */
+const sendTripReminder = (chatId, booking) => (0, exports.sendTripReminderVia)(chatId, booking, 'tomorrow');
 exports.sendTripReminder = sendTripReminder;
-/**
- * Відправка нагадування в день поїздки (сьогодні)
- */
-const sendTripReminderToday = async (chatId, booking) => {
-    if (!bot) {
-        console.log('⚠️ Telegram bot не налаштовано');
-        return sendTripReminderSmsOnly(booking, 'today');
-    }
-    try {
-        const schedule = await tgPrisma.schedule.findFirst({
-            where: { route: booking.route, supportPhone: { not: null } },
-            select: { supportPhone: true }
-        });
-        const supportPhone = schedule?.supportPhone ?? null;
-        const supportPhoneLine = supportPhone
-            ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
-            : '';
-        const driverLine = booking.driver
-            ? `\n🚗 <b>Водій:</b> ${(0, person_name_1.displayName)(booking.driver.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
-            : '';
-        const message = `
-⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
-${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n` : ''}
-🔔 <b>Сьогодні у вас поїздка!</b>
-
-👋 ${(0, person_name_1.displayName)(booking.name, 'Друже')}, нагадуємо:
-
-🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
-📅 <b>Дата:</b> ${formatDate(booking.date)}
-🕐 <b>Час відправлення:</b> ${booking.departureTime}
-${driverLine}${supportPhoneLine}
-<i>Не спізніться! ⏰</i>
-    `.trim();
-        await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-        console.log(`✅ Telegram нагадування (сьогодні) надіслано`);
-        return { delivered: 'bot' };
-    }
-    catch (error) {
-        await (0, revoke_telegram_bot_1.handleTelegramBotBlockedFromOutboundSend)(tgPrisma, error, {
-            chatId,
-            personId: booking.personId ?? null,
-            normalizedPhone: booking.phone ? (0, exports.normalizePhone)(booking.phone) : null,
-        });
-        console.error('❌ Помилка відправки Telegram нагадування (сьогодні):', error);
-        return sendTripReminderSmsOnly(booking, 'today');
-    }
-};
+/** Нагадування в день поїздки (ранок). */
+const sendTripReminderToday = (chatId, booking) => (0, exports.sendTripReminderVia)(chatId, booking, 'today');
 exports.sendTripReminderToday = sendTripReminderToday;
 /**
  * Текст нагадування неактивним (з посиланнями на сценарії). Використовується ботом та відправкою від особистого акаунта.

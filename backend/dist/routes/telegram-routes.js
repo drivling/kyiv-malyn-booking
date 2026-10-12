@@ -6,82 +6,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTelegramRoutesRouter = createTelegramRoutesRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
+const booking_reminders_1 = require("../booking-reminders");
 const require_admin_1 = require("../middleware/require-admin");
 function createTelegramRoutesRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
+    /**
+     * Ручний запуск вечірнього нагадування (завтрашні поїздки). Щодня о 20:00 це робить таймер у процесі
+     * (booking-reminders.ts); журнал BookingReminder не дає надіслати те саме двічі.
+     */
     r.post('/telegram/send-reminders', require_admin_1.requireAdmin, async (_req, res) => {
         if (!(0, telegram_1.isTelegramEnabled)()) {
             return res.status(400).json({ error: 'Telegram bot не налаштовано' });
         }
         try {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const startOfDay = new Date(tomorrow);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(tomorrow);
-            endOfDay.setHours(23, 59, 59, 999);
-            // Беремо всі бронювання на завтра (не лише з Telegram) — тих, хто без бота
-            // або заблокував його, намагаємось дістати платним SMS-фолбеком.
-            const bookings = await prisma.booking.findMany({
-                where: {
-                    date: {
-                        gte: startOfDay,
-                        lte: endOfDay,
-                    },
-                },
-                include: { viberListing: true },
-            });
-            let sent = 0;
-            let smsSent = 0;
-            let failed = 0;
-            let skipped = 0;
-            for (const booking of bookings) {
-                const driver = booking.viberListing
-                    ? { senderName: booking.viberListing.senderName, phone: booking.viberListing.phone }
-                    : undefined;
-                const rb = {
-                    route: booking.route,
-                    source: booking.source,
-                    date: booking.date,
-                    departureTime: booking.departureTime,
-                    name: booking.name,
-                    driver,
-                    personId: booking.personId,
-                    phone: booking.phone,
-                    bookingId: booking.id,
-                };
-                try {
-                    if (booking.telegramChatId) {
-                        const d = await (0, telegram_1.sendTripReminder)(booking.telegramChatId, rb);
-                        if (d.delivered === 'bot')
-                            sent++;
-                        else if (d.delivered === 'sms')
-                            smsSent++;
-                        else
-                            failed++;
-                    }
-                    else {
-                        const d = await (0, telegram_1.sendTripReminderSmsOnly)(rb, 'tomorrow');
-                        if (d.delivered === 'sms')
-                            smsSent++;
-                        else
-                            skipped++; // немає Telegram і платний SMS не пройшов/вимкнено
-                    }
-                }
-                catch (error) {
-                    console.error(`❌ Не вдалося надіслати нагадування для booking #${booking.id}:`, error);
-                    failed++;
-                }
-            }
+            const c = await (0, booking_reminders_1.sendManualReminders)(prisma, booking_reminders_1.defaultReminderDeps, 'evening');
             res.json({
                 success: true,
-                message: `Нагадування: бот ${sent}, SMS ${smsSent}, помилок ${failed}, без каналу ${skipped}`,
-                total: bookings.length,
-                sent,
-                smsSent,
-                failed,
-                skipped,
+                message: `Нагадування: бот ${c.sent}, SMS ${c.smsSent}, помилок ${c.failed}, без каналу ${c.skipped}, уже надсилали ${c.duplicate}`,
+                ...c,
             });
         }
         catch (error) {
@@ -114,75 +57,17 @@ function createTelegramRoutesRouter(deps) {
             res.status(500).json({ success: false, error: 'Failed to fetch and import', created: 0, total: 0 });
         }
     });
+    /** Ручний запуск ранкового нагадування (поїздки сьогодні); щодня о 08:00 це робить таймер у процесі. */
     r.post('/telegram/send-reminders-today', require_admin_1.requireAdmin, async (_req, res) => {
         if (!(0, telegram_1.isTelegramEnabled)()) {
             return res.status(400).json({ error: 'Telegram bot не налаштовано' });
         }
         try {
-            const today = new Date();
-            const startOfDay = new Date(today);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(today);
-            endOfDay.setHours(23, 59, 59, 999);
-            const bookings = await prisma.booking.findMany({
-                where: {
-                    date: {
-                        gte: startOfDay,
-                        lte: endOfDay,
-                    },
-                },
-                include: { viberListing: true },
-            });
-            let sent = 0;
-            let smsSent = 0;
-            let failed = 0;
-            let skipped = 0;
-            for (const booking of bookings) {
-                const driver = booking.viberListing
-                    ? { senderName: booking.viberListing.senderName, phone: booking.viberListing.phone }
-                    : undefined;
-                const rb = {
-                    route: booking.route,
-                    source: booking.source,
-                    date: booking.date,
-                    departureTime: booking.departureTime,
-                    name: booking.name,
-                    driver,
-                    personId: booking.personId,
-                    phone: booking.phone,
-                    bookingId: booking.id,
-                };
-                try {
-                    if (booking.telegramChatId) {
-                        const d = await (0, telegram_1.sendTripReminderToday)(booking.telegramChatId, rb);
-                        if (d.delivered === 'bot')
-                            sent++;
-                        else if (d.delivered === 'sms')
-                            smsSent++;
-                        else
-                            failed++;
-                    }
-                    else {
-                        const d = await (0, telegram_1.sendTripReminderSmsOnly)(rb, 'today');
-                        if (d.delivered === 'sms')
-                            smsSent++;
-                        else
-                            skipped++;
-                    }
-                }
-                catch (error) {
-                    console.error(`❌ Не вдалося надіслати нагадування (сьогодні) для booking #${booking.id}:`, error);
-                    failed++;
-                }
-            }
+            const c = await (0, booking_reminders_1.sendManualReminders)(prisma, booking_reminders_1.defaultReminderDeps, 'morning');
             res.json({
                 success: true,
-                message: `Нагадування (сьогодні): бот ${sent}, SMS ${smsSent}, помилок ${failed}, без каналу ${skipped}`,
-                total: bookings.length,
-                sent,
-                smsSent,
-                failed,
-                skipped,
+                message: `Нагадування (сьогодні): бот ${c.sent}, SMS ${c.smsSent}, помилок ${c.failed}, без каналу ${c.skipped}, уже надсилали ${c.duplicate}`,
+                ...c,
             });
         }
         catch (error) {

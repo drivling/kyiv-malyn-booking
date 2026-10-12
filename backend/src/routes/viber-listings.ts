@@ -2,7 +2,7 @@ import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { isTelegramEnabled } from '../telegram';
 import { enqueueListingMatch } from '../notification-queue';
-import { importListingsToRideEvents } from '../viber-analytics-import';
+import { archiveOldListings, normalizeArchiveDays } from '../viber-listing-archive';
 import { parseViberMessages } from '../viber-parser';
 import { ingestRawListing } from '../viber-ingest';
 import {
@@ -425,23 +425,16 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
   });
 
   /**
-   * Архів для cron (раз на місяць): нові рядки → ViberRideEvent (аналітика), потім видаляємо
-   * неактивні оголошення старші за `days` (за замовчуванням 90, мінімум 30). Гаряча таблиця
-   * лишається невеликою; Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
+   * Ручний запуск архіву (щодоби це робить таймер у процесі, VIBER_ARCHIVE_INTERVAL_MIN): нові рядки →
+   * ViberRideEvent (аналітика), потім видаляємо неактивні оголошення старші за `days` (за замовчуванням 90,
+   * мінімум 30). Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
    */
   r.post('/viber-listings/archive-old', requireAdmin, async (req, res) => {
     try {
-      const raw = Number((req.query.days ?? (req.body as { days?: unknown } | undefined)?.days) ?? 90);
-      const days = Number.isFinite(raw) ? Math.max(30, Math.round(raw)) : 90;
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
-
-      const imported = await importListingsToRideEvents(prisma);
-      const deleted = await prisma.viberListing.deleteMany({
-        where: { isActive: false, date: { lt: cutoff } },
-      });
-      console.log(`🗄️ Архів: імпортовано в аналітику ${imported.importedNow}, видалено неактивних старших за ${days} дн.: ${deleted.count}`);
-      res.json({ success: true, days, cutoff: cutoff.toISOString(), ...imported, deleted: deleted.count });
+      const days = normalizeArchiveDays(req.query.days ?? (req.body as { days?: unknown } | undefined)?.days);
+      const result = await archiveOldListings(prisma, days);
+      console.log(`🗄️ Архів: імпортовано в аналітику ${result.importedNow}, видалено неактивних старших за ${days} дн.: ${result.deleted}`);
+      res.json({ success: true, ...result, cutoff: result.cutoff.toISOString() });
     } catch (error) {
       console.error('❌ Помилка архівування Viber оголошень:', error);
       res.status(500).json({ error: 'Failed to archive old listings' });

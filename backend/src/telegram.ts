@@ -2948,8 +2948,17 @@ export type TripReminderBooking = {
 export type TripReminderDelivery = { delivered: 'bot' | 'sms' | 'none' };
 
 /** Короткий plain-text нагадування для платного SMS (без HTML). */
-export function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorrow' | 'today'): string {
-  const lead = when === 'today' ? 'Сьогодні у вас поїздка' : 'Нагадування: завтра поїздка';
+export type TripReminderWhen = 'tomorrow' | 'today' | 'in2h' | 'in30m';
+
+const TRIP_REMINDER_SMS_LEAD: Record<TripReminderWhen, string> = {
+  tomorrow: 'Нагадування: завтра поїздка',
+  today: 'Сьогодні у вас поїздка',
+  in2h: 'Через 2 години у вас поїздка',
+  in30m: 'Через 30 хвилин у вас поїздка',
+};
+
+export function buildTripReminderSms(booking: TripReminderBooking, when: TripReminderWhen): string {
+  const lead = TRIP_REMINDER_SMS_LEAD[when];
   const drv = booking.driver
     ? ` Водій ${displayName(booking.driver.senderName, '—')}, тел +${normalizePhone(booking.driver.phone)}.`
     : '';
@@ -2963,7 +2972,7 @@ export function buildTripReminderSms(booking: TripReminderBooking, when: 'tomorr
 /** Платний SMS-фолбек нагадування (коли Telegram недосяжний). */
 export async function sendTripReminderSmsOnly(
   booking: TripReminderBooking,
-  when: 'tomorrow' | 'today'
+  when: TripReminderWhen
 ): Promise<TripReminderDelivery> {
   if (!booking.phone) return { delivered: 'none' };
   const r = await sendPaidFallbackSms(tgPrisma, {
@@ -2975,14 +2984,40 @@ export async function sendTripReminderSmsOnly(
   return { delivered: r.sent ? 'sms' : 'none' };
 }
 
-export const sendTripReminder = async (
+const TRIP_REMINDER_TEXT: Record<TripReminderWhen, { heading: string; intro: (name: string) => string; log: string }> = {
+  tomorrow: {
+    heading: '🔔 <b>Нагадування про поїздку!</b>',
+    intro: (name) => `👋 ${name}, нагадуємо про вашу поїздку завтра:`,
+    log: 'нагадування',
+  },
+  today: {
+    heading: '🔔 <b>Сьогодні у вас поїздка!</b>',
+    intro: (name) => `👋 ${name}, нагадуємо:`,
+    log: 'нагадування (сьогодні)',
+  },
+  in2h: {
+    heading: '🔔 <b>Через 2 години у вас поїздка!</b>',
+    intro: (name) => `👋 ${name}, нагадуємо:`,
+    log: 'нагадування (за 2 год)',
+  },
+  in30m: {
+    heading: '🔔 <b>Через 30 хвилин у вас поїздка!</b>',
+    intro: (name) => `👋 ${name}, нагадуємо:`,
+    log: 'нагадування (за 30 хв)',
+  },
+};
+
+/** Telegram-нагадування про поїздку; недоступний бот/збій → платний SMS-фолбек. */
+export const sendTripReminderVia = async (
   chatId: string,
-  booking: TripReminderBooking
+  booking: TripReminderBooking,
+  when: TripReminderWhen
 ): Promise<TripReminderDelivery> => {
   if (!bot) {
     console.log('⚠️ Telegram bot не налаштовано');
-    return sendTripReminderSmsOnly(booking, 'tomorrow');
+    return sendTripReminderSmsOnly(booking, when);
   }
+  const text = TRIP_REMINDER_TEXT[when];
 
   try {
     const schedule = await tgPrisma.schedule.findFirst({
@@ -3000,62 +3035,9 @@ export const sendTripReminder = async (
     const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
 ${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}
-🔔 <b>Нагадування про поїздку!</b>
+${text.heading}
 
-👋 ${displayName(booking.name, 'Друже')}, нагадуємо про вашу поїздку завтра:
-
-🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
-📅 <b>Дата:</b> ${formatDate(booking.date)}
-🕐 <b>Час відправлення:</b> ${booking.departureTime}
-${driverLine}${supportPhoneLine}
-<i>Не спізніться! ⏰</i>
-    `.trim();
-
-    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    console.log(`✅ Telegram нагадування надіслано`);
-    return { delivered: 'bot' };
-  } catch (error) {
-    await handleTelegramBotBlockedFromOutboundSend(tgPrisma, error, {
-      chatId,
-      personId: booking.personId ?? null,
-      normalizedPhone: booking.phone ? normalizePhone(booking.phone) : null,
-    });
-    console.error('❌ Помилка відправки Telegram нагадування:', error);
-    return sendTripReminderSmsOnly(booking, 'tomorrow');
-  }
-};
-
-/**
- * Відправка нагадування в день поїздки (сьогодні)
- */
-export const sendTripReminderToday = async (
-  chatId: string,
-  booking: TripReminderBooking
-): Promise<TripReminderDelivery> => {
-  if (!bot) {
-    console.log('⚠️ Telegram bot не налаштовано');
-    return sendTripReminderSmsOnly(booking, 'today');
-  }
-
-  try {
-    const schedule = await tgPrisma.schedule.findFirst({
-      where: { route: booking.route, supportPhone: { not: null } },
-      select: { supportPhone: true }
-    });
-    const supportPhone = schedule?.supportPhone ?? null;
-    const supportPhoneLine = supportPhone
-      ? `\n📞 <b>Перевірити бронювання за тел.:</b> ${supportPhone}\n`
-      : '';
-    const driverLine = booking.driver
-      ? `\n🚗 <b>Водій:</b> ${displayName(booking.driver.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.driver.phone)}\n`
-      : '';
-
-    const message = `
-⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
-${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}
-🔔 <b>Сьогодні у вас поїздка!</b>
-
-👋 ${displayName(booking.name, 'Друже')}, нагадуємо:
+${text.intro(displayName(booking.name, 'Друже'))}
 
 🚌 <b>Маршрут:</b> ${getRouteName(booking.route)}
 📅 <b>Дата:</b> ${formatDate(booking.date)}
@@ -3065,7 +3047,7 @@ ${driverLine}${supportPhoneLine}
     `.trim();
 
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    console.log(`✅ Telegram нагадування (сьогодні) надіслано`);
+    console.log(`✅ Telegram ${text.log} надіслано`);
     return { delivered: 'bot' };
   } catch (error) {
     await handleTelegramBotBlockedFromOutboundSend(tgPrisma, error, {
@@ -3073,10 +3055,18 @@ ${driverLine}${supportPhoneLine}
       personId: booking.personId ?? null,
       normalizedPhone: booking.phone ? normalizePhone(booking.phone) : null,
     });
-    console.error('❌ Помилка відправки Telegram нагадування (сьогодні):', error);
-    return sendTripReminderSmsOnly(booking, 'today');
+    console.error(`❌ Помилка відправки Telegram ${text.log}:`, error);
+    return sendTripReminderSmsOnly(booking, when);
   }
 };
+
+/** Нагадування за день до поїздки (вечір). */
+export const sendTripReminder = (chatId: string, booking: TripReminderBooking): Promise<TripReminderDelivery> =>
+  sendTripReminderVia(chatId, booking, 'tomorrow');
+
+/** Нагадування в день поїздки (ранок). */
+export const sendTripReminderToday = (chatId: string, booking: TripReminderBooking): Promise<TripReminderDelivery> =>
+  sendTripReminderVia(chatId, booking, 'today');
 
 /**
  * Текст нагадування неактивним (з посиланнями на сценарії). Використовується ботом та відправкою від особистого акаунта.

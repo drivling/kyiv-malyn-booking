@@ -15,6 +15,8 @@ import { fetchAndImportTelegramGroupMessages, sendAdminAlertHtml } from './teleg
 import { startTelegramImportScheduler, type TelegramImportScheduler } from './telegram-dzhura-source';
 import { startIntervalJob, type IntervalJob } from './interval-job';
 import { deactivateExpiredListings } from './viber-listing-expiry';
+import { archiveOldListings } from './viber-listing-archive';
+import { defaultReminderDeps, runDueBookingReminders } from './booking-reminders';
 import { startListingMatchWorker } from './listing-match-jobs';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
@@ -24,6 +26,8 @@ function main(): void {
   let worker: ReturnType<typeof startListingMatchWorker> | null = null;
   let importScheduler: TelegramImportScheduler | null = null;
   let cleanupJob: IntervalJob | null = null;
+  let archiveJob: IntervalJob | null = null;
+  let reminderJob: IntervalJob | null = null;
   const app = createApp({ prisma });
 
   // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
@@ -76,6 +80,30 @@ function main(): void {
         },
         { intervalMin: Number(process.env.VIBER_CLEANUP_INTERVAL_MIN ?? 5), firstDelayMs: 30_000 },
       );
+      // Архів старих оголошень (аналітика + видалення неактивних > 90 дн.) замість щомісячного cron-job.org;
+      // ідемпотентний, тому щодоби (VIBER_ARCHIVE_INTERVAL_MIN, 0 = вимкнено)
+      archiveJob = startIntervalJob(
+        'viber-archive',
+        async () => {
+          const r = await archiveOldListings(prisma);
+          if (r.importedNow || r.deleted) {
+            console.log(`🗄️ Архів: в аналітику ${r.importedNow}, видалено неактивних > ${r.days} дн.: ${r.deleted}`);
+          }
+        },
+        { intervalMin: Number(process.env.VIBER_ARCHIVE_INTERVAL_MIN ?? 1440), firstDelayMs: 10 * 60_000 },
+      );
+      // Нагадування про поїздки (вечір 20:00, ранок 08:00, одне «перед поїздкою») замість cron-job.org;
+      // BOOKING_REMINDERS_INTERVAL_MIN (за замовч. 1, 0 = вимкнено)
+      reminderJob = startIntervalJob(
+        'booking-reminders',
+        async () => {
+          const c = await runDueBookingReminders(prisma, defaultReminderDeps);
+          if (c.total) {
+            console.log(`🔔 Нагадування: бот ${c.sent}, SMS ${c.smsSent}, помилок ${c.failed}, без каналу ${c.skipped}, дублів ${c.duplicate}`);
+          }
+        },
+        { intervalMin: Number(process.env.BOOKING_REMINDERS_INTERVAL_MIN ?? 1), firstDelayMs: 45_000 },
+      );
     }
   });
 
@@ -84,6 +112,8 @@ function main(): void {
     worker?.stop();
     importScheduler?.stop();
     cleanupJob?.stop();
+    archiveJob?.stop();
+    reminderJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);
     await lease?.stop();
