@@ -8,47 +8,18 @@ OSRM вів провулками. Тут зупинку для маршрути�
 №11, петля біля вокзалу), крім старих точок №11, що лишились без маршруту.
 Біля вокзалу «назад» — через петлю навколо привокзальної площі (т.3 → т.4), як у OSM і як їздять №5, №10, №11:
 OSRM повертав автобус від зупинки тією самою дорогою. Час кожного відрізка між справжніми зупинками не змінюємо. Нічого не записує, якщо не передати --apply."""
-import math
-import os
 import sys
 
-from build_more import DROP_TECH, build_routes, put_routes
-from common import OSM, load, xy
-from geo_lib import unxy
+from build_more import DROP_TECH, build_routes, osm_route_anchors, put_routes
 
 ROUTES = ['8']
 REL = 17747121   # OSM: «Залізничний вокзал - Центр #8», via «ч/з вулиця Миру»
 REL_MAX = 35.0   # м — далі від лінії OSM зупинку не проєктуємо
 
 
-def rel_lines():
-    """Дороги маршруту №8 з OSM (без майданчиків зупинок)."""
-    els = load(os.path.join(OSM, 'relations.json'))['elements']
-    rel = next(e for e in els if e.get('type') == 'relation' and e['id'] == REL)
-    ways = {e['id']: e for e in els if e.get('type') == 'way'}
-    return [[(p['lat'], p['lon']) for p in ways[m['ref']]['geometry']] for m in rel['members']
-            if m['type'] == 'way' and m.get('role') in ('', 'forward', 'backward')
-            and ways[m['ref']].get('tags', {}).get('highway') != 'bus_stop']
-
-
 def anchors(st):
     """Зупинка ближче REL_MAX до лінії №8 з OSM → її проєкція на цю лінію (обидва напрямки №8)."""
-    segs = [(xy(*p), xy(*q)) for g in rel_lines() for p, q in zip(g, g[1:])]
-    out = {}
-    for sid, s in st.items():
-        px, py = xy(s['lat'], s['lng'])
-        best = None
-        for (ax, ay), (bx, by) in segs:
-            dx, dy = bx - ax, by - ay
-            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
-            cx, cy = ax + t * dx, ay + t * dy
-            d = math.hypot(px - cx, py - cy)
-            if best is None or d < best[0]:
-                best = (d, (cx, cy))
-        if best and best[0] <= REL_MAX:
-            for key in ('orderThere', 'orderBack'):
-                out[('8', key, sid)] = unxy(*best[1])
-    return out
+    return osm_route_anchors(st, '8', REL, REL_MAX)
 
 
 def via_points(st):

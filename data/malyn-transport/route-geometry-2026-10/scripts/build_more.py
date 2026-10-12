@@ -8,13 +8,14 @@
 Час кожного відрізка між справжніми зупинками не змінюємо: ділимо поточний час відрізка між новими перегонами
 за довжиною. Нічого не записує, якщо не передати --apply."""
 import copy
+import math
 import os
 import re
 import sys
 
 from build_geometry import KEEP_TECH, MERGE, anchor, bends_for
 from geo_lib2 import chain, fetch, osrm_path, route_minutes, set_chains
-from common import OSM, dist_m, load
+from common import OSM, dist_m, load, xy
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', 'audit-2026-10', 'scripts')))
 from geo_lib import axis_point, lines, unxy  # noqa: E402
 
@@ -60,6 +61,56 @@ def road(a, b, via=()):
         part = osrm_path(p, q) or [p, q]
         out += part if not out else part[1:]
     return out
+
+
+def osm_route_anchors(st, rid, rel, max_m):
+    """Зупинка ближче max_m до лінії маршруту з OSM (relation rel) → її проєкція на цю лінію (обидва напрямки rid).
+    Для доріг без назви в OSM, де загальне правило (найближча вулиця з назвою) чіпляє зупинку до сусідньої вулиці."""
+    els = load(os.path.join(OSM, 'relations.json'))['elements']
+    rel_ = next(e for e in els if e.get('type') == 'relation' and e['id'] == rel)
+    ways = {e['id']: e for e in els if e.get('type') == 'way'}
+    lines_ = [[(p['lat'], p['lon']) for p in ways[m['ref']]['geometry']] for m in rel_['members']
+              if m['type'] == 'way' and m.get('role') in ('', 'forward', 'backward')
+              and ways[m['ref']].get('tags', {}).get('highway') != 'bus_stop']
+    segs = [(xy(*p), xy(*q)) for g in lines_ for p, q in zip(g, g[1:])]
+    out = {}
+    for sid, s in st.items():
+        px, py = xy(s['lat'], s['lng'])
+        best = None
+        for (ax, ay), (bx, by) in segs:
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
+            cx, cy = ax + t * dx, ay + t * dy
+            d = math.hypot(px - cx, py - cy)
+            if best is None or d < best[0]:
+                best = (d, (cx, cy))
+        if best and best[0] <= max_m:
+            for key in ('orderThere', 'orderBack'):
+                out[(rid, key, sid)] = unxy(*best[1])
+    return out
+
+
+def street_between(name, a, b):
+    """Шлях уздовж вулиці name від проєкції точки a до проєкції b (вершини вулиці між ними, у порядку руху).
+    Для ділянок, які OSRM об'їжджає, бо в OSM вулиця не з'єднана з сусідньою."""
+    g = min(lines()[name], key=lambda g: min(dist_m(*a, *p) for p in g))
+    pts = [xy(*p) for p in g]
+
+    def proj(p):
+        px, py = xy(*p)
+        best = None
+        for i, ((ax, ay), (bx, by)) in enumerate(zip(pts, pts[1:])):
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
+            d = math.hypot(px - ax - t * dx, py - ay - t * dy)
+            if best is None or d < best[0]:
+                best = (d, i + t, unxy(ax + t * dx, ay + t * dy))
+        return best[1], best[2]
+
+    (ta, pa), (tb, pb) = proj(a), proj(b)
+    inner = [g[i] for i in range(math.ceil(ta), math.floor(tb) + 1)] if ta <= tb else \
+        [g[i] for i in range(math.floor(ta), math.ceil(tb) - 1, -1)]
+    return [pa, *inner, pb]
 
 
 def mk_exit_mirutenka():
@@ -174,7 +225,10 @@ def build_routes(d, routes, drop=None, special_fn=None, via_fn=None, leg_fn=None
     new_tech = {p['id'] for p in created} | {s['id'] for s in shared}
     for rid in routes:
         set_chains(d, rid, new_chains[(rid, 'orderThere')], new_chains[(rid, 'orderBack')], map_only=sorted(new_tech))
-        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] in drop.get(rid, set()))]
+        # рядки старих точок прибираємо, якщо точку не взято знову як точку повороту
+        in_chains = set(new_chains[(rid, 'orderThere')]) | set(new_chains[(rid, 'orderBack')])
+        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] in drop.get(rid, set())
+                                                               and x['stopId'] not in in_chains)]
 
     # час: кожен відрізок між сусідніми справжніми зупинками — як був, ділимо за довжиною
     default = d['meta'].get('defaultSec', 120)
