@@ -935,6 +935,13 @@
   line-height: 1.3;
 }
 
+.lt-route-card-variant {
+  flex: 1 1 100%;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  line-height: 1.3;
+}
+
 .lt-route-card-time {
   display: flex;
   flex-direction: column;
@@ -1324,6 +1331,29 @@
 
 .lt-departure-chip[aria-pressed='true'] .lt-departure-chip__arr {
   color: var(--lt-destination-ink);
+}
+
+/* Рейс іншим шляхом (варіант маршруту): «*» біля часу, пояснення — у легенді під стрічкою */
+.lt-variant-mark {
+  margin-left: 1px;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 0;
+  color: var(--lt-accent);
+}
+
+.lt-variant-legend {
+  margin: 0;
+  padding: 0 var(--lt-panel-x) 8px;
+  list-style: none;
+  font-size: var(--lt-fs-xs);
+  color: var(--lt-text-muted);
+}
+
+.lt-variant-note {
+  margin: 0 0 8px;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
 }
 
 .lt-empty--inline {

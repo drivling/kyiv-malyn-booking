@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildRouteLines, pickBoundsStops, routeStopChain, withOrder } from './routeGeometry';
+import { buildChainLine, buildRouteLines, pickBoundsStops, routeStopChain, withOrder } from './routeGeometry';
 import type { RouteStopWithOrder } from './types';
 
 const stopsByRoute: Record<string, RouteStopWithOrder[]> = {
@@ -53,6 +53,12 @@ describe('buildRouteLines', () => {
 
   it('skips a line with fewer than two located vertices', () => {
     expect(buildRouteLines({ st_a: coords.st_a }, stopsByRoute, ['3'])).toEqual([]);
+  });
+
+  it('buildChainLine draws any chain of a verified route (a path variant), null without colour or two points', () => {
+    expect(buildChainLine(coords, '3', ['st_c', 'st_b', 'st_a'])?.positions).toEqual([coords.st_c, coords.st_b, coords.st_a]);
+    expect(buildChainLine(coords, '3', ['st_a', 'nowhere'])).toBeNull();
+    expect(buildChainLine(coords, '1', ['st_a', 'st_c'])).toBeNull(); // неперевірений маршрут
   });
 
   it('draws route 10 (ex-6): its stop order and segments are rebuilt, so it is a verified route', () => {

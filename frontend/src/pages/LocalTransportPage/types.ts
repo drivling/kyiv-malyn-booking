@@ -93,7 +93,7 @@ export interface SupplementStops {
 export interface RouteVariantVm {
   id: string;
   direction: 'there' | 'back';
-  /** Підпис для людей: «Перший рейс ч/з вокзал» */
+  /** Шлях для людей, з малої літери: «через вокзал» (сайт пише «іншим шляхом: через вокзал») */
   name: string;
   /** Точки в порядку руху; map_only — технічні (лише лінія на карті) */
   stops: Array<{ id: string; name: string; map_only?: boolean }>;

@@ -54,6 +54,18 @@ export function routeStopChain(
 }
 
 /**
+ * Полілінія одного ланцюжка перевіреного маршруту (основний напрямок або варіант шляху) у кольорі схеми;
+ * null — маршрут без кольору або менше двох точок із координатами.
+ */
+export function buildChainLine(stops: Record<string, LatLng>, routeId: string, chain: readonly string[]): RouteLine | null {
+  if (!isVerifiedRoute(routeId)) return null;
+  const color = routeColor(routeId);
+  if (!color) return null;
+  const positions = chain.map((k) => stops[k]).filter((p): p is LatLng => Array.isArray(p));
+  return positions.length >= 2 ? { routeId, color, positions } : null;
+}
+
+/**
  * Полілінії перевірених маршрутів (за напрямком, запасний варіант — усі точки) у кольорах схеми.
  * Маршрути без кольору й без двох точок із координатами пропускаються.
  */
@@ -65,13 +77,10 @@ export function buildRouteLines(
 ): RouteLine[] {
   const out: RouteLine[] = [];
   for (const routeId of routeIds) {
-    if (!isVerifiedRoute(routeId)) continue;
-    const color = routeColor(routeId);
-    if (!color) continue;
     let chain = routeStopChain(stopsByRoute, routeId, direction);
     if (!chain.length) chain = routeStopChain(stopsByRoute, routeId, direction, { all: true });
-    const positions = chain.map((k) => stops[k]).filter((p): p is LatLng => Array.isArray(p));
-    if (positions.length >= 2) out.push({ routeId, color, positions });
+    const line = buildChainLine(stops, routeId, chain);
+    if (line) out.push(line);
   }
   return out;
 }

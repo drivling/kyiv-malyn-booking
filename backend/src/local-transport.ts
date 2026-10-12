@@ -53,7 +53,7 @@ export interface TransportRouteVariantInput {
   id: string;
   /** "0" | "1" — як у рейсів */
   directionId: string;
-  /** Підпис для людей: «Перший рейс ч/з вокзал» */
+  /** Шлях для людей, з малої літери: «через вокзал» (сайт пише «іншим шляхом: через вокзал») */
   name: string;
   stops: TransportVariantStopInput[];
 }
