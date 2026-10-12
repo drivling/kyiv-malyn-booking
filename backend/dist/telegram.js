@@ -48,6 +48,7 @@ exports.getTelegramNameByChatId = getTelegramNameByChatId;
 exports.hasCyrillic = hasCyrillic;
 exports.getResolvedNameForPerson = getResolvedNameForPerson;
 exports.pickBestNameFromCandidates = pickBestNameFromCandidates;
+const telegram_source_link_1 = require("./telegram-source-link");
 const telegram_dzhura_source_1 = require("./telegram-dzhura-source");
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const child_process_1 = require("child_process");
@@ -1451,6 +1452,11 @@ const sendViberListingNotificationToAdmin = async (listing) => {
         const typeEmoji = listing.listingType === 'driver' ? '🚗' : '👤';
         const typeLabel = listing.listingType === 'driver' ? 'Водій' : 'Пасажир';
         const sourceLabel = listing.source === 'telegram1' ? 'Telegram' : 'Viber';
+        const originName = (0, telegram_source_link_1.describeListingOrigin)(listing);
+        const originUrl = (0, telegram_source_link_1.buildTelegramMessageLink)(listing);
+        const originLine = originName
+            ? `📍 <b>Група:</b> ${originUrl ? `<a href="${originUrl}">${originName}</a>` : originName}\n`
+            : '';
         const message = `
 📱 <b>Нове ${sourceLabel} оголошення #${listing.id}</b>
 
@@ -1460,7 +1466,7 @@ ${typeEmoji} <b>Тип:</b> ${typeLabel}
 🕐 <b>Час:</b> ${listing.departureTime ?? '—'}
 ${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}${listing.priceUah != null ? `💰 <b>Ціна:</b> ${listing.priceUah} грн\n` : ''}
 📞 <b>Телефон:</b> ${formatPhoneTelLink(listing.phone)}
-${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
+${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${originLine}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
     `.trim();
         await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
         console.log(`✅ Telegram: адміну надіслано сповіщення про ${sourceLabel} оголошення #${listing.id}`);
@@ -1969,6 +1975,9 @@ async function afterTelegramListingImported(listing) {
         notes: listing.notes,
         priceUah: listing.priceUah ?? undefined,
         source: listing.source,
+        sourceChat: listing.sourceChat,
+        sourceTopicId: listing.sourceTopicId,
+        sourceMessageId: listing.sourceMessageId,
     }).catch((err) => console.error('Telegram notify:', err));
     if (listing.phone?.trim()) {
         (0, exports.sendViberListingConfirmationToUser)(listing.phone, {
@@ -2041,24 +2050,29 @@ async function importTelegramGroupMessagesOnce() {
         console.log(`ℹ️ Telegram-імпорт: увімкнено «Читати» для: ${enabledGroups.join(', ')}`);
     }
     const extra = { missingGroups, enabledGroups };
-    const rawText = source.text;
-    if (!rawText.trim()) {
-        await (0, telegram_dzhura_source_1.saveCursors)(tgPrisma, source.cursors);
-        return { success: true, created: 0, total: 0, ...extra };
-    }
-    const parsedMessages = (0, telegram_parser_1.parseTelegramMessages)(rawText);
+    // По одному повідомленню: парсер лишається текстовим, але група/топік/id повідомлення йдуть у провенанс
+    // (одне повідомлення = один виклик парсера, без евристики поділу тексту на кілька оголошень)
+    const parsedMessages = source.items.flatMap((item) => {
+        const parsed = (0, telegram_parser_1.parseTelegramMessage)(item.line);
+        return parsed
+            ? [{ parsed, rawMessage: item.line, telegramUsername: (0, telegram_parser_1.extractTelegramUsername)(item.line), origin: item }]
+            : [];
+    });
     if (parsedMessages.length === 0) {
         await (0, telegram_dzhura_source_1.saveCursors)(tgPrisma, source.cursors);
         return { success: true, created: 0, total: 0, ...extra };
     }
     let created = 0;
     for (let i = 0; i < parsedMessages.length; i++) {
-        const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername } = parsedMessages[i];
+        const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername, origin } = parsedMessages[i];
         try {
             const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
             const { listing, isNew } = await createOrMergeViberListing({
                 rawMessage: rawTextItem,
                 source: 'telegram1',
+                sourceChat: origin.chat,
+                sourceTopicId: origin.topicId || null,
+                sourceMessageId: origin.messageId,
                 senderName: senderName ?? undefined,
                 listingType: parsed.listingType,
                 route: parsed.route,

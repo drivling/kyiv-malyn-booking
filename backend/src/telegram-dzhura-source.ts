@@ -27,9 +27,21 @@ export interface DzhuraCursorUpdate {
   lastMessageId: number;
 }
 
+/** Одне повідомлення групи: рядок-протокол для парсера + звідки воно (провенанс оголошення). */
+export interface DzhuraFetchItem {
+  chat: string;
+  /** 0 — плоска група без топіків */
+  topicId: number;
+  messageId: number;
+  /** "Ім'я|@user: текст" */
+  line: string;
+}
+
 export interface DzhuraFetchResult {
   /** Текст у форматі parseTelegramMessages: "Ім'я|@user: текст\n---\n" */
   text: string;
+  /** Те саме по одному повідомленню — з групою, топіком і id (для провенансу) */
+  items: DzhuraFetchItem[];
   /** Курсори, які слід зберегти ПІСЛЯ імпорту */
   cursors: DzhuraCursorUpdate[];
   /** Групи, яких Джура не бачить (немає діалогу в DzhuraChat) */
@@ -67,6 +79,7 @@ export async function fetchGroupMessagesFromDzhura(
     states.find((s) => (s.chat || 'PoDoroguem') === chat && s.topicId === topicId)?.lastMessageId ?? 0;
 
   const lines: string[] = [];
+  const items: DzhuraFetchItem[] = [];
   const cursors: DzhuraCursorUpdate[] = [];
   const missingGroups: string[] = [];
   const enabledGroups: string[] = [];
@@ -108,13 +121,15 @@ export async function fetchGroupMessagesFromDzhura(
         const id = Number(row.tgMessageId);
         if (id > maxId) maxId = id;
         if (!row.text.trim()) continue; // медіа без підпису
-        lines.push(formatSenderLine(row.sender, row.text), '---');
+        const line = formatSenderLine(row.sender, row.text);
+        lines.push(line, '---');
+        items.push({ chat: g.chat, topicId, messageId: id, line });
       }
       if (maxId > cursor) cursors.push({ chat: g.chat, topicId, lastMessageId: maxId });
     }
   }
 
-  return { text: lines.length ? lines.join('\n') + '\n' : '', cursors, missingGroups, enabledGroups };
+  return { text: lines.length ? lines.join('\n') + '\n' : '', items, cursors, missingGroups, enabledGroups };
 }
 
 export async function saveCursors(prisma: PrismaClient, cursors: DzhuraCursorUpdate[]): Promise<void> {

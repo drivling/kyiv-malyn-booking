@@ -146,6 +146,10 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
   `fetch_telegram_messages.py`). The name may contain anything except newline/`|`; the parser anchors on
   `|@username:` (`telegram-parser.ts`). A username without a phone becomes a `Person` with a technical phone
   `380010000000+` (`findOrCreatePersonByTelegramUsername`).
+- `ViberListing.source` is only the coarse channel (`Viber1` / `telegram1`; also feeds the ingest hash). Where a
+  Telegram listing came from is in `sourceChat` / `sourceTopicId` / `sourceMessageId` (first source wins on merge,
+  filled only if empty); `serializeViberListing` adds `sourceUrl` (`telegram-source-link.ts`) for the admin list and
+  the admin-chat notification. Public DTOs (`PUBLIC_LISTING_SELECT`) never expose them.
 
 ### Testability pattern
 

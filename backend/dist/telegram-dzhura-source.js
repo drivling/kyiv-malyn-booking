@@ -27,6 +27,7 @@ async function fetchGroupMessagesFromDzhura(prisma, groups, opts = {}) {
     const states = await prisma.telegramFetchState.findMany();
     const cursorOf = (chat, topicId) => states.find((s) => (s.chat || 'PoDoroguem') === chat && s.topicId === topicId)?.lastMessageId ?? 0;
     const lines = [];
+    const items = [];
     const cursors = [];
     const missingGroups = [];
     const enabledGroups = [];
@@ -68,13 +69,15 @@ async function fetchGroupMessagesFromDzhura(prisma, groups, opts = {}) {
                     maxId = id;
                 if (!row.text.trim())
                     continue; // медіа без підпису
-                lines.push(formatSenderLine(row.sender, row.text), '---');
+                const line = formatSenderLine(row.sender, row.text);
+                lines.push(line, '---');
+                items.push({ chat: g.chat, topicId, messageId: id, line });
             }
             if (maxId > cursor)
                 cursors.push({ chat: g.chat, topicId, lastMessageId: maxId });
         }
     }
-    return { text: lines.length ? lines.join('\n') + '\n' : '', cursors, missingGroups, enabledGroups };
+    return { text: lines.length ? lines.join('\n') + '\n' : '', items, cursors, missingGroups, enabledGroups };
 }
 async function saveCursors(prisma, cursors) {
     for (const c of cursors) {

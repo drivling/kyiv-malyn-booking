@@ -216,6 +216,12 @@ export interface ViberListing {
   /** Лише в адмінських відповідях */
   rawMessage?: string;
   source?: string; // "Viber1" | "telegram1"
+  /** Лише в адмінських відповідях: першоджерело в Telegram-групі (імпорт) */
+  sourceChat?: string | null;
+  sourceTopicId?: number | null;
+  sourceMessageId?: number | null;
+  /** Лише в адмінських відповідях: посилання на повідомлення в групі */
+  sourceUrl?: string | null;
   senderName: string | null;
   listingType: ViberListingType;
   route: string;

@@ -2,6 +2,7 @@
  * Чиста логіка, винесена з index.ts для юніт-тестів без підняття HTTP-сервера.
  */
 import { getListingEndsAt } from './viber-listing-expiry';
+import { buildTelegramMessageLink, type ListingOrigin } from './telegram-source-link';
 import {
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
@@ -80,6 +81,8 @@ export function serializeViberListing(row: {
     date: row.date instanceof Date ? row.date.toISOString() : row.date,
     createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
     updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+    // Посилання на повідомлення в групі — лише адмінська форма (публічний DTO ходить через toPublicListing)
+    sourceUrl: buildTelegramMessageLink(row as ListingOrigin),
     authorNotifiedAt:
       row.authorNotifiedAt instanceof Date
         ? row.authorNotifiedAt.toISOString()

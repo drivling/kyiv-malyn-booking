@@ -1,3 +1,4 @@
+import { buildTelegramMessageLink, describeListingOrigin } from './telegram-source-link';
 import { fetchGroupMessagesFromDzhura, saveCursors } from './telegram-dzhura-source';
 import TelegramBot from 'node-telegram-bot-api';
 import { spawn as nodeSpawn } from 'child_process';
@@ -53,7 +54,7 @@ async function withTelegramUserSessionExclusive<T>(fn: () => Promise<T>, unavail
 import { PrismaClient } from '@prisma/client';
 import { extractDate, extractTime, parseViberMessage, parseViberMessages } from './viber-parser';
 import type { ParsedViberMessage } from './viber-parser';
-import { parseTelegramMessage, parseTelegramMessages } from './telegram-parser';
+import { extractTelegramUsername, parseTelegramMessage, parseTelegramMessages } from './telegram-parser';
 import {
   createOrMergeViberListing as createOrMergeViberListingShared,
   type ViberListingMergeInput,
@@ -1901,6 +1902,10 @@ export const sendViberListingNotificationToAdmin = async (listing: {
   priceUah?: number | null;
   /** Джерело рядка в БД: telegram1 — група PoDoroguem, інакше Viber */
   source?: string | null;
+  /** Першоджерело в Telegram-групі (група, топік, id повідомлення) */
+  sourceChat?: string | null;
+  sourceTopicId?: number | null;
+  sourceMessageId?: number | null;
 }) => {
   if (!bot || !adminChatId) {
     console.log('⚠️ Telegram bot або admin chat ID не налаштовано');
@@ -1917,6 +1922,11 @@ export const sendViberListingNotificationToAdmin = async (listing: {
     const typeLabel = listing.listingType === 'driver' ? 'Водій' : 'Пасажир';
     const sourceLabel =
       listing.source === 'telegram1' ? 'Telegram' : 'Viber';
+    const originName = describeListingOrigin(listing);
+    const originUrl = buildTelegramMessageLink(listing);
+    const originLine = originName
+      ? `📍 <b>Група:</b> ${originUrl ? `<a href="${originUrl}">${originName}</a>` : originName}\n`
+      : '';
     const message = `
 📱 <b>Нове ${sourceLabel} оголошення #${listing.id}</b>
 
@@ -1926,7 +1936,7 @@ ${typeEmoji} <b>Тип:</b> ${typeLabel}
 🕐 <b>Час:</b> ${listing.departureTime ?? '—'}
 ${listing.seats != null ? `🎫 <b>Місця:</b> ${listing.seats}\n` : ''}${listing.priceUah != null ? `💰 <b>Ціна:</b> ${listing.priceUah} грн\n` : ''}
 📞 <b>Телефон:</b> ${formatPhoneTelLink(listing.phone)}
-${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
+${listing.senderName ? `👤 <b>Відправник:</b> ${listing.senderName}\n` : ''}${originLine}${listing.notes ? `📝 <b>Примітки:</b> ${listing.notes}` : ''}
     `.trim();
 
     await bot.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
@@ -2498,6 +2508,9 @@ async function afterTelegramListingImported(listing: {
   priceUah: number | null;
   source: string;
   personId: number | null;
+  sourceChat?: string | null;
+  sourceTopicId?: number | null;
+  sourceMessageId?: number | null;
 }): Promise<void> {
   if (!isTelegramEnabled()) return;
   if (isPastRideDate(listing.date)) {
@@ -2518,6 +2531,9 @@ async function afterTelegramListingImported(listing: {
     notes: listing.notes,
     priceUah: listing.priceUah ?? undefined,
     source: listing.source,
+    sourceChat: listing.sourceChat,
+    sourceTopicId: listing.sourceTopicId,
+    sourceMessageId: listing.sourceMessageId,
   }).catch((err) => console.error('Telegram notify:', err));
   if (listing.phone?.trim()) {
     sendViberListingConfirmationToUser(listing.phone, {
@@ -2601,24 +2617,29 @@ async function importTelegramGroupMessagesOnce(): Promise<FetchAndImportResult> 
     console.log(`ℹ️ Telegram-імпорт: увімкнено «Читати» для: ${enabledGroups.join(', ')}`);
   }
   const extra = { missingGroups, enabledGroups };
-  const rawText = source.text;
-  if (!rawText.trim()) {
-    await saveCursors(tgPrisma, source.cursors);
-    return { success: true, created: 0, total: 0, ...extra };
-  }
-  const parsedMessages = parseTelegramMessages(rawText);
+  // По одному повідомленню: парсер лишається текстовим, але група/топік/id повідомлення йдуть у провенанс
+  // (одне повідомлення = один виклик парсера, без евристики поділу тексту на кілька оголошень)
+  const parsedMessages = source.items.flatMap((item) => {
+    const parsed = parseTelegramMessage(item.line);
+    return parsed
+      ? [{ parsed, rawMessage: item.line, telegramUsername: extractTelegramUsername(item.line), origin: item }]
+      : [];
+  });
   if (parsedMessages.length === 0) {
     await saveCursors(tgPrisma, source.cursors);
     return { success: true, created: 0, total: 0, ...extra };
   }
   let created = 0;
   for (let i = 0; i < parsedMessages.length; i++) {
-    const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername } = parsedMessages[i];
+    const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername, origin } = parsedMessages[i];
     try {
       const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
       const { listing, isNew } = await createOrMergeViberListing({
         rawMessage: rawTextItem,
         source: 'telegram1',
+        sourceChat: origin.chat,
+        sourceTopicId: origin.topicId || null,
+        sourceMessageId: origin.messageId,
         senderName: senderName ?? undefined,
         listingType: parsed.listingType,
         route: parsed.route,

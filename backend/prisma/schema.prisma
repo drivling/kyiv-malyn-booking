@@ -369,6 +369,11 @@ model ViberListing {
   /// «Дата по»: дата поїздки + кінець часу (діапазон → кінець; без часу → 23:59). Рахується
   /// при записі (index-helpers getViberListingEndDateTime), щоб cleanup був одним updateMany.
   endsAt        DateTime?
+  /// Звідки прийшло першоджерело (імпорт Telegram-груп): username групи, топік форуму (null — плоска група),
+  /// id повідомлення. `source` лишається грубою міткою каналу; при мержі зберігається перше джерело.
+  sourceChat      String?
+  sourceTopicId   Int?
+  sourceMessageId Int?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
