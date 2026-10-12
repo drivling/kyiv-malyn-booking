@@ -16,6 +16,7 @@ exports.getScenarioKeysForProfile = getScenarioKeysForProfile;
  * Чиста логіка, винесена з index.ts для юніт-тестів без підняття HTTP-сервера.
  */
 const viber_listing_expiry_1 = require("./viber-listing-expiry");
+const telegram_source_link_1 = require("./telegram-source-link");
 const telegram_1 = require("./telegram");
 /**
  * «Вчора і раніше» відносно поточної дати в Києві — порівняння лише календарного дня,
@@ -92,6 +93,8 @@ function serializeViberListing(row) {
         date: row.date instanceof Date ? row.date.toISOString() : row.date,
         createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
         updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+        // Посилання на повідомлення в групі — лише адмінська форма (публічний DTO ходить через toPublicListing)
+        sourceUrl: (0, telegram_source_link_1.buildTelegramMessageLink)(row),
         authorNotifiedAt: row.authorNotifiedAt instanceof Date
             ? row.authorNotifiedAt.toISOString()
             : (row.authorNotifiedAt ?? null),

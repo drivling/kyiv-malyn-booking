@@ -76,6 +76,13 @@ describe('fetchGroupMessagesFromDzhura', () => {
     expect(r.cursors).toContainEqual({ chat: 'PoDoroguem', topicId: 2, lastMessageId: 14 });
     // топік 6 без курсору: бере все в межах cold start
     expect(r.cursors).toContainEqual({ chat: 'PoDoroguem', topicId: 6, lastMessageId: 12 });
+    // провенанс: група, топік і id кожного повідомлення
+    expect(r.items.map((i) => [i.chat, i.topicId, i.messageId])).toEqual([
+      ['PoDoroguem', 2, 11],
+      ['PoDoroguem', 2, 14],
+      ['PoDoroguem', 6, 12],
+    ]);
+    expect(r.items[0].line).toBe('Невідомий: Київ-Малин 12.10 о 15:00');
   });
 
   it('cold start: без курсору ігнорує повідомлення старші за COLD_START_HOURS', async () => {

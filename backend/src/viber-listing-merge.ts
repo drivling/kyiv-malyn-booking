@@ -22,6 +22,10 @@ export type ViberListingMergeInput = {
   priceUah?: number | null;
   isActive: boolean;
   personId?: number | null;
+  /** Першоджерело (імпорт Telegram-груп): група, топік, id повідомлення */
+  sourceChat?: string | null;
+  sourceTopicId?: number | null;
+  sourceMessageId?: number | null;
 };
 
 export function normalizePhoneForMerge(phone: string): string {
@@ -140,7 +144,14 @@ export async function createOrMergeViberListing(
       isActive: isPastDate ? false : existing.isActive || data.isActive,
       personId: existing.personId ?? personId,
       endsAt: existing.endsAt ?? getViberListingEndDateTime(existing.date, existing.departureTime),
-      // source не оновлюємо — залишаємо перший
+      // source не оновлюємо — залишаємо перший; провенанс лише доповнюємо, якщо його ще не було
+      ...(existing.sourceMessageId == null && data.sourceMessageId != null
+        ? {
+            sourceChat: data.sourceChat ?? null,
+            sourceTopicId: data.sourceTopicId ?? null,
+            sourceMessageId: data.sourceMessageId,
+          }
+        : {}),
     },
   });
 

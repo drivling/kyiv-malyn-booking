@@ -164,3 +164,11 @@ test('isPastRideDate: пізній вечір Києва — «сьогодні�
   assert.equal(isPastRideDate(new Date('2026-09-08T00:00:00.000Z'), now), false); // сьогодні
   assert.equal(isPastRideDate(new Date('2026-09-07T00:00:00.000Z'), now), true); // вчора
 });
+
+test('serializeViberListing: адмінська форма має sourceUrl на повідомлення в групі', () => {
+  const d = new Date('2026-10-12T00:00:00Z');
+  const base = { date: d, createdAt: d, updatedAt: d, id: 1 };
+  const withOrigin = serializeViberListing({ ...base, sourceChat: 'PoDoroguem', sourceTopicId: 6, sourceMessageId: 99 });
+  assert.equal(withOrigin.sourceUrl, 'https://t.me/PoDoroguem/6/99');
+  assert.equal(serializeViberListing(base).sourceUrl, null);
+});

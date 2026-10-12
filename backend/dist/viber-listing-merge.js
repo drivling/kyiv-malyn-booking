@@ -106,7 +106,14 @@ async function createOrMergeViberListing(prisma, data) {
             isActive: isPastDate ? false : existing.isActive || data.isActive,
             personId: existing.personId ?? personId,
             endsAt: existing.endsAt ?? (0, index_helpers_1.getViberListingEndDateTime)(existing.date, existing.departureTime),
-            // source не оновлюємо — залишаємо перший
+            // source не оновлюємо — залишаємо перший; провенанс лише доповнюємо, якщо його ще не було
+            ...(existing.sourceMessageId == null && data.sourceMessageId != null
+                ? {
+                    sourceChat: data.sourceChat ?? null,
+                    sourceTopicId: data.sourceTopicId ?? null,
+                    sourceMessageId: data.sourceMessageId,
+                }
+                : {}),
         },
     });
     console.log(`♻️ Listing merged with existing #${existing.id} (route+date+time+phone match, source=${existing.source})`);

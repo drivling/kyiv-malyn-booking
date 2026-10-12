@@ -1990,7 +1990,24 @@ export const AdminPage: React.FC = () => {
                         <td>{listing.seats ?? '-'}</td>
                         <td>{listing.priceUah != null ? `${listing.priceUah} грн` : '—'}</td>
                         <td><strong>{formatPhoneDisplay(listing.phone)}</strong></td>
-                        <td>{listing.senderName || '-'}</td>
+                        <td>
+                          {listing.senderName || '-'}
+                          {listing.sourceChat && (
+                            <div style={{ fontSize: 11, marginTop: 2, color: '#666' }}>
+                              {listing.sourceUrl ? (
+                                <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer">
+                                  📍 {listing.sourceChat}
+                                  {listing.sourceTopicId ? `/${listing.sourceTopicId}` : ''}
+                                </a>
+                              ) : (
+                                <>
+                                  📍 {listing.sourceChat}
+                                  {listing.sourceTopicId ? `/${listing.sourceTopicId}` : ''}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge ${listing.isActive ? 'badge-success' : 'badge-secondary'}`}>
                             {listing.isActive ? 'Активне' : 'Неактивне'}
