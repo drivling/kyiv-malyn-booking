@@ -8,13 +8,14 @@
 Час кожного відрізка між справжніми зупинками не змінюємо: ділимо поточний час відрізка між новими перегонами
 за довжиною. Нічого не записує, якщо не передати --apply."""
 import copy
+import math
 import os
 import re
 import sys
 
 from build_geometry import KEEP_TECH, MERGE, anchor, bends_for
 from geo_lib2 import chain, fetch, osrm_path, route_minutes, set_chains
-from common import OSM, dist_m, load
+from common import OSM, dist_m, load, xy
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', 'audit-2026-10', 'scripts')))
 from geo_lib import axis_point, lines, unxy  # noqa: E402
 
@@ -45,7 +46,7 @@ def street_mid(name):
     return g[-1]
 
 
-def via_points():
+def via_points(st=None):
     """(маршрут, напрямок, зупинка, наступна зупинка) → проміжні точки дороги: OSRM вибирає коротший шлях, а
     автобус їде інакше. №10 від Соборної — Грушевського → Залужного → Винниченка (і так само назад), а не через площу."""
     zal = street_mid('вулиця Валерія Залужного')
@@ -60,6 +61,56 @@ def road(a, b, via=()):
         part = osrm_path(p, q) or [p, q]
         out += part if not out else part[1:]
     return out
+
+
+def osm_route_anchors(st, rid, rel, max_m):
+    """Зупинка ближче max_m до лінії маршруту з OSM (relation rel) → її проєкція на цю лінію (обидва напрямки rid).
+    Для доріг без назви в OSM, де загальне правило (найближча вулиця з назвою) чіпляє зупинку до сусідньої вулиці."""
+    els = load(os.path.join(OSM, 'relations.json'))['elements']
+    rel_ = next(e for e in els if e.get('type') == 'relation' and e['id'] == rel)
+    ways = {e['id']: e for e in els if e.get('type') == 'way'}
+    lines_ = [[(p['lat'], p['lon']) for p in ways[m['ref']]['geometry']] for m in rel_['members']
+              if m['type'] == 'way' and m.get('role') in ('', 'forward', 'backward')
+              and ways[m['ref']].get('tags', {}).get('highway') != 'bus_stop']
+    segs = [(xy(*p), xy(*q)) for g in lines_ for p, q in zip(g, g[1:])]
+    out = {}
+    for sid, s in st.items():
+        px, py = xy(s['lat'], s['lng'])
+        best = None
+        for (ax, ay), (bx, by) in segs:
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
+            cx, cy = ax + t * dx, ay + t * dy
+            d = math.hypot(px - cx, py - cy)
+            if best is None or d < best[0]:
+                best = (d, (cx, cy))
+        if best and best[0] <= max_m:
+            for key in ('orderThere', 'orderBack'):
+                out[(rid, key, sid)] = unxy(*best[1])
+    return out
+
+
+def street_between(name, a, b):
+    """Шлях уздовж вулиці name від проєкції точки a до проєкції b (вершини вулиці між ними, у порядку руху).
+    Для ділянок, які OSRM об'їжджає, бо в OSM вулиця не з'єднана з сусідньою."""
+    g = min(lines()[name], key=lambda g: min(dist_m(*a, *p) for p in g))
+    pts = [xy(*p) for p in g]
+
+    def proj(p):
+        px, py = xy(*p)
+        best = None
+        for i, ((ax, ay), (bx, by)) in enumerate(zip(pts, pts[1:])):
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
+            d = math.hypot(px - ax - t * dx, py - ay - t * dy)
+            if best is None or d < best[0]:
+                best = (d, i + t, unxy(ax + t * dx, ay + t * dy))
+        return best[1], best[2]
+
+    (ta, pa), (tb, pb) = proj(a), proj(b)
+    inner = [g[i] for i in range(math.ceil(ta), math.floor(tb) + 1)] if ta <= tb else \
+        [g[i] for i in range(math.floor(ta), math.ceil(tb) - 1, -1)]
+    return [pa, *inner, pb]
 
 
 def mk_exit_mirutenka():
@@ -102,18 +153,32 @@ def tech_ids(d, rid):
 
 
 def build(d):
+    """№10 і №11. Перевикористовуємо технічні точки №5 / №2 (спільні вулиці) і вже створені для №10 / №11
+    (повторний запуск на записаній базі нічого не змінює)."""
+    return build_routes(d, ROUTES, drop=DROP_TECH, special_fn=anchors, via_fn=via_points, leg_fn=leg_path,
+                        pool=r'^№(5|2|10|11) т\.\d+$', pool_skip=KEEP_TECH | set().union(*DROP_TECH.values()))
+
+
+def build_routes(d, routes, drop=None, special_fn=None, via_fn=None, leg_fn=None, pool=r'^№\S+ т\.\d+$',
+                 pool_skip=frozenset(), keep=KEEP_TECH):
+    """Технічні точки для маршрутів routes (мутує датасет d) → (d, створені точки).
+    drop — {маршрут: старі технічні точки, які прибрати з ланцюжків}; special_fn(st) — {(маршрут, напрямок,
+    зупинка): точка маршрутизації}; via_fn(st) — {(маршрут, напрямок, зупинка, наступна): [точки «через»]};
+    leg_fn(st, special, via, маршрут, напрямок, a, b, aa, bb) — шлях перегону (за замовчуванням OSRM через via);
+    pool / pool_skip — які наявні технічні точки можна перевикористати (назва за шаблоном, крім pool_skip);
+    keep — технічні точки, що лишаються в ланцюжку як є (петля біля вокзалу №10 / №11)."""
+    drop = drop or {}
     st = {s['id']: s for s in d['stops']}
     P = lambda i: (st[i]['lat'], st[i]['lng'])  # noqa: E731
-    special, via = anchors(st), via_points()
-    # точки, які можна перевикористати: технічні точки №5 і №2 (спільні вулиці) і вже створені для №10 / №11
-    # (повторний запуск на записаній базі нічого не змінює)
-    skip = KEEP_TECH | set().union(*DROP_TECH.values())
-    shared = [s for s in d['stops'] if re.match(r'^№(5|2|10|11) т\.\d+$', s['name']) and s['id'] not in skip]
+    special = special_fn(st) if special_fn else {}
+    via = via_fn(st) if via_fn else {}
+    leg = leg_fn or (lambda st_, sp, vi, rid, key, a, b, aa, bb: road(aa, bb, vi.get((rid, key, a, b), ())))
+    shared = [s for s in d['stops'] if re.match(pool, s['name']) and s['id'] not in pool_skip]
     taken_names = {s['name'] for s in d['stops']}
     next_id = 1 + max(int(s['id'][3:]) for s in d['stops'] if re.match(r'^st_\d+$', s['id']))
     created, new_chains, old_chains = [], {}, {}
     counters = {}
-    for rid in ROUTES:
+    for rid in routes:
         nums = [int(m.group(1)) for s in d['stops'] for m in [re.match(rf'^№{rid} т\.(\d+)$', s['name'])] if m]
         counters[rid] = max(nums, default=0)
 
@@ -137,18 +202,18 @@ def build(d):
         st[sid] = p
         return sid
 
-    for rid in ROUTES:
+    for rid in routes:
         mo = tech_ids(d, rid)
         for key in ('orderThere', 'orderBack'):
             old = chain(d, rid, key)
             old_chains[(rid, key)] = old
-            base = [x for x in old if x not in mo or x in KEEP_TECH]
-            assert not set(base) & DROP_TECH[rid], (rid, key)
+            base = [x for x in old if x not in mo or x in keep]
+            assert not set(base) & drop.get(rid, set()), (rid, key)
             out, used = [base[0]], set()
             for a, b in zip(base, base[1:]):
-                aa = P(a) if a in KEEP_TECH else special.get((rid, key, a), anchor(st, a))
-                bb = P(b) if b in KEEP_TECH else special.get((rid, key, b), anchor(st, b))
-                path = leg_path(st, special, via, rid, key, a, b, aa, bb)
+                aa = P(a) if a in keep else special.get((rid, key, a), anchor(st, a))
+                bb = P(b) if b in keep else special.get((rid, key, b), anchor(st, b))
+                path = leg(st, special, via, rid, key, a, b, aa, bb)
                 for pos in bends_for(P(a), P(b), path):
                     sid = point_for(rid, pos, used)
                     used.add(sid)
@@ -158,16 +223,19 @@ def build(d):
 
     d['stops'] += [{k: p[k] for k in ('id', 'name', 'lat', 'lng')} for p in created]
     new_tech = {p['id'] for p in created} | {s['id'] for s in shared}
-    for rid in ROUTES:
+    for rid in routes:
         set_chains(d, rid, new_chains[(rid, 'orderThere')], new_chains[(rid, 'orderBack')], map_only=sorted(new_tech))
-        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] in DROP_TECH[rid])]
+        # рядки технічних точок, яких немає в нових ланцюжках (старі й ті, що лишились без повороту), прибираємо
+        in_chains = set(new_chains[(rid, 'orderThere')]) | set(new_chains[(rid, 'orderBack')])
+        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] not in in_chains
+                                                               and (x.get('mapOnly') or x['stopId'] in drop.get(rid, set())))]
 
     # час: кожен відрізок між сусідніми справжніми зупинками — як був, ділимо за довжиною
     default = d['meta'].get('defaultSec', 120)
     seg = {(s['routeId'], s['fromStopId'], s['toStopId']): s['seconds'] for s in d['segments']}
-    segments = [s for s in d['segments'] if s['routeId'] not in ROUTES]
+    segments = [s for s in d['segments'] if s['routeId'] not in routes]
     new_seg = {}  # пара може повторюватись у «туди» й «назад» (№11: фабрика → Барміна) — один сегмент на пару
-    for rid in ROUTES:
+    for rid in routes:
         mo_new = {x['stopId'] for x in d['routeStops'] if x['routeId'] == rid and x.get('mapOnly')}
         for key in ('orderThere', 'orderBack'):
             oc, nc = old_chains[(rid, key)], new_chains[(rid, key)]
@@ -199,35 +267,57 @@ def build(d):
 
 
 def put(dry):
+    put_routes(build, ROUTES, 'geom-2', dry)
+
+
+def put_routes(build_fn, routes, tag, dry, moved=()):
+    """Свіжий датасет → build_fn → перевірки (поза маршрутами routes, новими точками й координатами зупинок moved
+    нічого не змінилось, валідатор) → кандидат; з --apply — бекап, PUT, перевірка «після PUT = кандидат»."""
     from apply_lib import API, canon, http_json, now, save, token, validate
     from common import path
     ts = now()
     cur = fetch()
-    nxt, created = build(copy.deepcopy(cur))
-    other = lambda d: {**d, 'routeStops': [x for x in d['routeStops'] if x['routeId'] not in ROUTES],  # noqa: E731
-                       'segments': [x for x in d['segments'] if x['routeId'] not in ROUTES],
-                       'stops': [s for s in d['stops'] if s['id'] not in {p['id'] for p in created}]}
-    assert canon(other(cur)) == canon(other(nxt)), 'змінилось щось поза №10 / №11 і новими точками'
+    nxt, created = build_fn(copy.deepcopy(cur))
+    removed = {s['id'] for s in cur['stops']} - {s['id'] for s in nxt['stops']}
+    refs = {x['stopId'] for x in nxt['routeStops']} | {x[k] for x in nxt['segments'] for k in ('fromStopId', 'toStopId')} \
+        | {x.get(k) for x in nxt['trips'] for k in ('startStopId', 'endStopId')}
+    for s in cur['stops']:
+        if s['id'] in removed:  # прибирати можна лише технічні точки, на які ніщо не посилається
+            assert re.match(r'^№\S+ т\.\d+$', s['name']) and s['id'] not in refs, s
+            print(f"[{tag}] прибрано точку без маршруту: {s['name']} ({s['id']})")
+    skip = {p['id'] for p in created} | set(moved) | removed
+    other = lambda d: {**d, 'routeStops': [x for x in d['routeStops'] if x['routeId'] not in routes],  # noqa: E731
+                       'segments': [x for x in d['segments'] if x['routeId'] not in routes],
+                       'stops': [s for s in d['stops'] if s['id'] not in skip]}
+    assert canon(other(cur)) == canon(other(nxt)), f'змінилось щось поза {routes} і новими точками'
+    before = {s['id']: s for s in cur['stops']}
+    for s in nxt['stops']:
+        if s['id'] in moved:
+            b = before[s['id']]
+            assert {k: v for k, v in s.items() if k not in ('lat', 'lng')} == {k: v for k, v in b.items() if k not in ('lat', 'lng')}
+            if (b['lat'], b['lng']) != (s['lat'], s['lng']):
+                print(f"[{tag}] зупинка {s['name']}: {b['lat']:.6f},{b['lng']:.6f} → {s['lat']:.6f},{s['lng']:.6f}"
+                      f" ({dist_m(b['lat'], b['lng'], s['lat'], s['lng']):.0f} м)")
     if canon(nxt) == canon(cur):
-        print('[geom-2] змін немає — база вже з цими точками')
+        print(f'[{tag}] змін немає — база вже з цими точками')
         return
-    validate(nxt, f'{ts}-geom-2')
-    print(f'[geom-2] валідатор: OK; нових точок {len(created)}:', ', '.join(p['name'] for p in created[:3]), '…')
-    for rid in ROUTES:
+    validate(nxt, f'{ts}-{tag}')
+    print(f'[{tag}] валідатор: OK; нових точок {len(created)}:', ', '.join(p['name'] for p in created[:3]), '…')
+    for rid in routes:
         print(f'№{rid}: хв {route_minutes(cur, rid)} → {route_minutes(nxt, rid)}; точок туди/назад '
               f'{len(chain(cur, rid, "orderThere"))}/{len(chain(cur, rid, "orderBack"))} → '
               f'{len(chain(nxt, rid, "orderThere"))}/{len(chain(nxt, rid, "orderBack"))}')
-    save(path(f'db-{ts}-geom-2-candidate.json'), nxt, indent=None)
+    save(path(f'db-{ts}-{tag}-candidate.json'), nxt, indent=None)
     if dry:
         return
-    save(path(f'db-{ts}-before-geom-2.json'), cur, indent=None)
+    save(path(f'db-{ts}-before-{tag}.json'), cur, indent=None)
     tok = token()
     assert canon(fetch()) == canon(cur), 'база змінилась після знімка'
     res = http_json('PUT', f'{API}/transport/dataset', nxt, tok)
     after = fetch()
-    save(path(f'db-{ts}-after-geom-2.json'), after, indent=None)
+    save(path(f'db-{ts}-after-{tag}.json'), after, indent=None)
     assert canon(after) == canon(nxt), 'після PUT база не збігається'
-    print('[geom-2] PUT:', res['counts'], '| перевірка після PUT: OK')
+    print(f'[{tag}] PUT:', res['counts'], '| перевірка після PUT: OK')
 
 
 if __name__ == '__main__':
