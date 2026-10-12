@@ -5,6 +5,7 @@
  * та вільні місця по всіх маршрутках однією вибіркою бронювань. Точки й маршрути — з
  * кешу процесу (catalog-cache.ts), тож на бекенді це 3 SQL-запити замість 4+2N HTTP.
  */
+import { notExpiredWhere } from './viber-listing-expiry';
 import type { PrismaClient } from '@prisma/client';
 import { getCatalog } from './catalog-cache';
 import { scheduleInclude } from './schedule-include';
@@ -75,6 +76,7 @@ export async function searchPoputky(
     prisma.viberListing.findMany({
       where: {
         isActive: true,
+        AND: [notExpiredWhere()],
         date: { gte: startOfDay, lt: endOfDay },
         OR: [
           { fromPointId: from.id, toPointId: to.id },

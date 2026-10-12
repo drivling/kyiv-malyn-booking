@@ -5,6 +5,7 @@ exports.formatSenderLine = formatSenderLine;
 exports.fetchGroupMessagesFromDzhura = fetchGroupMessagesFromDzhura;
 exports.saveCursors = saveCursors;
 exports.startTelegramImportScheduler = startTelegramImportScheduler;
+const interval_job_1 = require("./interval-job");
 /** Скільки годин історії брати для топіка без курсору (як COLD_START_HOURS у Python). */
 exports.COLD_START_HOURS = 120;
 /** Максимум повідомлень на топік за один прохід; решта — наступним тіком (курсор не губить). */
@@ -80,41 +81,17 @@ async function saveCursors(prisma, cursors) {
         });
     }
 }
-/**
- * Внутрішній планувальник замість cron-job.org. `runImport` не кидає (повертає результат);
- * наступний тік не стартує, поки попередній не завершився.
- */
+/** Внутрішній планувальник замість cron-job.org (`runImport` не кидає — повертає результат). */
 function startTelegramImportScheduler(runImport, opts = {}) {
-    const intervalMin = opts.intervalMin ?? Number(process.env.TELEGRAM_IMPORT_INTERVAL_MIN ?? 10);
-    if (!Number.isFinite(intervalMin) || intervalMin <= 0)
-        return null; // 0 = вимкнено (лише ручний POST)
     const log = opts.log ?? ((m) => console.log(m));
-    let running = false;
-    const tick = async () => {
-        if (running)
-            return;
-        running = true;
-        try {
-            const r = await runImport();
-            if (!r.success)
-                log(`[telegram-import] помилка: ${r.error ?? 'unknown'}`);
-        }
-        catch (e) {
-            log(`[telegram-import] tick error: ${e instanceof Error ? e.message : String(e)}`);
-        }
-        finally {
-            running = false;
-        }
-    };
-    const timer = setInterval(() => void tick(), intervalMin * 60000);
-    timer.unref();
-    const first = setTimeout(() => void tick(), opts.firstDelayMs ?? 60000);
-    first.unref();
-    log(`[telegram-import] scheduler started (every ${intervalMin} min, source: Джура)`);
-    return {
-        stop() {
-            clearInterval(timer);
-            clearTimeout(first);
-        },
-    };
+    return (0, interval_job_1.startIntervalJob)('telegram-import', async () => {
+        const r = await runImport();
+        if (!r.success)
+            log(`[telegram-import] помилка: ${r.error ?? 'unknown'}`);
+    }, {
+        intervalMin: opts.intervalMin ?? Number(process.env.TELEGRAM_IMPORT_INTERVAL_MIN ?? 10),
+        firstDelayMs: opts.firstDelayMs,
+        log,
+        note: 'source: Джура',
+    });
 }

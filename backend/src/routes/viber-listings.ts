@@ -15,6 +15,7 @@ import { getCatalog } from '../catalog-cache';
 import { listingMatchesSearchOd } from '../poputky-od';
 import { PUBLIC_LISTING_SELECT, toPublicListing } from '../viber-listing-public';
 import { tripDayWhere } from '../trip-day';
+import { deactivateExpiredListings, isListingExpired, notExpiredWhere } from '../viber-listing-expiry';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
 import { createOrMergeViberListing } from '../viber-listing-merge';
 import { PHONE_BLOCKED_ADMIN_MESSAGE, isPhoneBlockedError } from '../phone-block';
@@ -36,7 +37,6 @@ const VIBER_LISTING_UPDATE_FIELDS = [
   'isActive',
 ] as const;
 
-const CLEANUP_CUTOFF_HOURS = 1;
 
 export function createViberListingsRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -62,7 +62,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const listings = await prisma.viberListing.findMany({
-        where: { isActive: true, date: { gte: today } },
+        where: { isActive: true, date: { gte: today }, AND: [notExpiredWhere()] },
         orderBy: [{ date: 'asc' }, { createdAt: 'desc' }],
         select: PUBLIC_LISTING_SELECT,
       });
@@ -87,9 +87,9 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       }
       const listing = await prisma.viberListing.findUnique({
         where: { id },
-        select: { phone: true, isActive: true },
+        select: { phone: true, isActive: true, endsAt: true },
       });
-      if (!listing || !listing.isActive || !listing.phone?.trim()) {
+      if (!listing || !listing.isActive || !listing.phone?.trim() || isListingExpired(listing.endsAt)) {
         return res.status(404).json({ error: 'Контакт недоступний' });
       }
       return res.json({ contact: listing.phone.trim() });
@@ -118,6 +118,7 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
       const dateFilter = {
         date: tripDayWhere(String(date)),
         isActive: true,
+        AND: [notExpiredWhere()],
       };
 
       let listings;
@@ -407,49 +408,15 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
     }
   });
 
+  /** Ручний запуск; те саме щохвилини-кілька робить таймер у процесі (index.ts, VIBER_CLEANUP_INTERVAL_MIN). */
   r.post('/viber-listings/cleanup-old', requireAdmin, async (_req, res) => {
     try {
-      const now = new Date();
-      const cutoff = new Date(now);
-      cutoff.setHours(cutoff.getHours() - CLEANUP_CUTOFF_HOURS);
-
-      // Основний шлях: один updateMany по індексу (isActive, endsAt)
-      const byEndsAt = await prisma.viberListing.updateMany({
-        where: { isActive: true, endsAt: { lt: cutoff } },
-        data: { isActive: false },
-      });
-
-      // Рядки без endsAt (до backfill або з обхідного шляху запису) — як раніше, в JS; їх одиниці
-      const withoutEndsAt = await prisma.viberListing.findMany({
-        where: { isActive: true, endsAt: null },
-        select: { id: true, date: true, departureTime: true },
-      });
-      const legacyIds = withoutEndsAt
-        .filter((l) => getViberListingEndDateTime(l.date, l.departureTime) < cutoff)
-        .map((l) => l.id);
-      if (legacyIds.length > 0) {
-        await prisma.viberListing.updateMany({
-          where: { id: { in: legacyIds } },
-          data: { isActive: false },
-        });
-      }
-
-      // Протерміновані запити «пасажир → водій» (1 год на підтвердження) — раніше їх ніхто не закривав
-      const expiredRequests = await prisma.rideShareRequest.updateMany({
-        where: { status: 'pending', expiresAt: { lt: now } },
-        data: { status: 'expired' },
-      });
-
-      const count = byEndsAt.count + legacyIds.length;
-      console.log(
-        `🧹 Деактивовано ${count} старих Viber оголошень (дата по < ${cutoff.toISOString()}), протерміновано запитів: ${expiredRequests.count}`,
-      );
-
+      const { deactivated, expiredRequests } = await deactivateExpiredListings(prisma);
       res.json({
         success: true,
-        deactivated: count,
-        expiredRequests: expiredRequests.count,
-        message: `Деактивовано ${count} оголошень`,
+        deactivated,
+        expiredRequests,
+        message: `Деактивовано ${deactivated} оголошень`,
       });
     } catch (error) {
       console.error('❌ Помилка очищення старих Viber оголошень:', error);

@@ -1,6 +1,7 @@
 /**
  * Чиста логіка, винесена з index.ts для юніт-тестів без підняття HTTP-сервера.
  */
+import { getListingEndsAt } from './viber-listing-expiry';
 import {
   BEHAVIOR_PROMO_SCENARIO_PROFILES,
   type BehaviorPromoScenarioKey,
@@ -86,29 +87,9 @@ export function serializeViberListing(row: {
   };
 }
 
-/** «Дата по» для оголошення: дата поїздки + кінець часу (діапазон → кінець інтервалу). */
+/** «Дата по» для оголошення: доба поїздки + кінець часу за Києвом (див. viber-listing-expiry.ts). */
 export function getViberListingEndDateTime(date: Date, departureTime: string | null): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const t = (departureTime ?? '').trim();
-  if (!t) {
-    d.setHours(23, 59, 0, 0);
-    return d;
-  }
-  const rangeMatch = t.match(/^\d{1,2}:\d{2}-(\d{1,2}):(\d{2})$/);
-  const singleMatch = t.match(/^(\d{1,2}):(\d{2})$/);
-  const timeStr = rangeMatch
-    ? `${rangeMatch[1]}:${rangeMatch[2]}`
-    : singleMatch
-      ? `${singleMatch[1]}:${singleMatch[2]}`
-      : null;
-  if (timeStr) {
-    const [h, m] = timeStr.split(':').map(Number);
-    d.setHours(h, m, 0, 0);
-    return d;
-  }
-  d.setHours(23, 59, 0, 0);
-  return d;
+  return getListingEndsAt(date, departureTime);
 }
 
 export const hasTelegramReminderBaseCondition = {

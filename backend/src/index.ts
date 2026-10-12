@@ -13,6 +13,8 @@ import {
 } from './telegram-session-lease';
 import { fetchAndImportTelegramGroupMessages, sendAdminAlertHtml } from './telegram';
 import { startTelegramImportScheduler, type TelegramImportScheduler } from './telegram-dzhura-source';
+import { startIntervalJob, type IntervalJob } from './interval-job';
+import { deactivateExpiredListings } from './viber-listing-expiry';
 import { startListingMatchWorker } from './listing-match-jobs';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
@@ -21,6 +23,7 @@ function main(): void {
   const prisma = new PrismaClient();
   let worker: ReturnType<typeof startListingMatchWorker> | null = null;
   let importScheduler: TelegramImportScheduler | null = null;
+  let cleanupJob: IntervalJob | null = null;
   const app = createApp({ prisma });
 
   // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
@@ -61,6 +64,18 @@ function main(): void {
     // Імпорт груп попуток з Джури замість зовнішнього cron-job.org (TELEGRAM_IMPORT_INTERVAL_MIN, 0 = вимкнено)
     if (process.env.DATABASE_URL) {
       importScheduler = startTelegramImportScheduler(fetchAndImportTelegramGroupMessages);
+      // Деактивація протермінованих оголошень замість cron-job.org (VIBER_CLEANUP_INTERVAL_MIN, 0 = вимкнено).
+      // Сайт і так фільтрує за endsAt при читанні — таймер потрібен матчингу, сповіщенням і адмінці.
+      cleanupJob = startIntervalJob(
+        'viber-cleanup',
+        async () => {
+          const r = await deactivateExpiredListings(prisma);
+          if (r.deactivated || r.expiredRequests) {
+            console.log(`🧹 Деактивовано ${r.deactivated} оголошень, протерміновано запитів: ${r.expiredRequests}`);
+          }
+        },
+        { intervalMin: Number(process.env.VIBER_CLEANUP_INTERVAL_MIN ?? 5), firstDelayMs: 30_000 },
+      );
     }
   });
 
@@ -68,6 +83,7 @@ function main(): void {
     console.log(`[KYIV-MALYN-BACKEND] ${signal} — stopping lunch listener and notification worker`);
     worker?.stop();
     importScheduler?.stop();
+    cleanupJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);
     await lease?.stop();

@@ -7,6 +7,7 @@
  * Курсор той самий — `TelegramFetchState` (chat, topicId) → останній оброблений tgMessageId.
  */
 import type { PrismaClient } from '@prisma/client';
+import { startIntervalJob, type IntervalJob } from './interval-job';
 
 export interface TelegramSourceGroup {
   /** username групи без @ (PoDoroguem) */
@@ -121,43 +122,25 @@ export async function saveCursors(prisma: PrismaClient, cursors: DzhuraCursorUpd
   }
 }
 
-export interface TelegramImportScheduler {
-  stop(): void;
-}
+export type TelegramImportScheduler = IntervalJob;
 
-/**
- * Внутрішній планувальник замість cron-job.org. `runImport` не кидає (повертає результат);
- * наступний тік не стартує, поки попередній не завершився.
- */
+/** Внутрішній планувальник замість cron-job.org (`runImport` не кидає — повертає результат). */
 export function startTelegramImportScheduler(
   runImport: () => Promise<{ success: boolean; created: number; total: number; error?: string }>,
   opts: { intervalMin?: number; firstDelayMs?: number; log?: (m: string) => void } = {},
 ): TelegramImportScheduler | null {
-  const intervalMin = opts.intervalMin ?? Number(process.env.TELEGRAM_IMPORT_INTERVAL_MIN ?? 10);
-  if (!Number.isFinite(intervalMin) || intervalMin <= 0) return null; // 0 = вимкнено (лише ручний POST)
   const log = opts.log ?? ((m: string) => console.log(m));
-  let running = false;
-  const tick = async (): Promise<void> => {
-    if (running) return;
-    running = true;
-    try {
+  return startIntervalJob(
+    'telegram-import',
+    async () => {
       const r = await runImport();
       if (!r.success) log(`[telegram-import] помилка: ${r.error ?? 'unknown'}`);
-    } catch (e) {
-      log(`[telegram-import] tick error: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      running = false;
-    }
-  };
-  const timer = setInterval(() => void tick(), intervalMin * 60_000);
-  timer.unref();
-  const first = setTimeout(() => void tick(), opts.firstDelayMs ?? 60_000);
-  first.unref();
-  log(`[telegram-import] scheduler started (every ${intervalMin} min, source: Джура)`);
-  return {
-    stop(): void {
-      clearInterval(timer);
-      clearTimeout(first);
     },
-  };
+    {
+      intervalMin: opts.intervalMin ?? Number(process.env.TELEGRAM_IMPORT_INTERVAL_MIN ?? 10),
+      firstDelayMs: opts.firstDelayMs,
+      log,
+      note: 'source: Джура',
+    },
+  );
 }
