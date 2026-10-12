@@ -225,10 +225,10 @@ def build_routes(d, routes, drop=None, special_fn=None, via_fn=None, leg_fn=None
     new_tech = {p['id'] for p in created} | {s['id'] for s in shared}
     for rid in routes:
         set_chains(d, rid, new_chains[(rid, 'orderThere')], new_chains[(rid, 'orderBack')], map_only=sorted(new_tech))
-        # рядки старих точок прибираємо, якщо точку не взято знову як точку повороту
+        # рядки технічних точок, яких немає в нових ланцюжках (старі й ті, що лишились без повороту), прибираємо
         in_chains = set(new_chains[(rid, 'orderThere')]) | set(new_chains[(rid, 'orderBack')])
-        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] in drop.get(rid, set())
-                                                               and x['stopId'] not in in_chains)]
+        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] not in in_chains
+                                                               and (x.get('mapOnly') or x['stopId'] in drop.get(rid, set())))]
 
     # час: кожен відрізок між сусідніми справжніми зупинками — як був, ділимо за довжиною
     default = d['meta'].get('defaultSec', 120)
@@ -270,18 +270,34 @@ def put(dry):
     put_routes(build, ROUTES, 'geom-2', dry)
 
 
-def put_routes(build_fn, routes, tag, dry):
-    """Свіжий датасет → build_fn → перевірки (поза маршрутами routes і новими точками нічого не змінилось,
-    валідатор) → кандидат; з --apply — бекап, PUT, перевірка «після PUT = кандидат»."""
+def put_routes(build_fn, routes, tag, dry, moved=()):
+    """Свіжий датасет → build_fn → перевірки (поза маршрутами routes, новими точками й координатами зупинок moved
+    нічого не змінилось, валідатор) → кандидат; з --apply — бекап, PUT, перевірка «після PUT = кандидат»."""
     from apply_lib import API, canon, http_json, now, save, token, validate
     from common import path
     ts = now()
     cur = fetch()
     nxt, created = build_fn(copy.deepcopy(cur))
+    removed = {s['id'] for s in cur['stops']} - {s['id'] for s in nxt['stops']}
+    refs = {x['stopId'] for x in nxt['routeStops']} | {x[k] for x in nxt['segments'] for k in ('fromStopId', 'toStopId')} \
+        | {x.get(k) for x in nxt['trips'] for k in ('startStopId', 'endStopId')}
+    for s in cur['stops']:
+        if s['id'] in removed:  # прибирати можна лише технічні точки, на які ніщо не посилається
+            assert re.match(r'^№\S+ т\.\d+$', s['name']) and s['id'] not in refs, s
+            print(f"[{tag}] прибрано точку без маршруту: {s['name']} ({s['id']})")
+    skip = {p['id'] for p in created} | set(moved) | removed
     other = lambda d: {**d, 'routeStops': [x for x in d['routeStops'] if x['routeId'] not in routes],  # noqa: E731
                        'segments': [x for x in d['segments'] if x['routeId'] not in routes],
-                       'stops': [s for s in d['stops'] if s['id'] not in {p['id'] for p in created}]}
+                       'stops': [s for s in d['stops'] if s['id'] not in skip]}
     assert canon(other(cur)) == canon(other(nxt)), f'змінилось щось поза {routes} і новими точками'
+    before = {s['id']: s for s in cur['stops']}
+    for s in nxt['stops']:
+        if s['id'] in moved:
+            b = before[s['id']]
+            assert {k: v for k, v in s.items() if k not in ('lat', 'lng')} == {k: v for k, v in b.items() if k not in ('lat', 'lng')}
+            if (b['lat'], b['lng']) != (s['lat'], s['lng']):
+                print(f"[{tag}] зупинка {s['name']}: {b['lat']:.6f},{b['lng']:.6f} → {s['lat']:.6f},{s['lng']:.6f}"
+                      f" ({dist_m(b['lat'], b['lng'], s['lat'], s['lng']):.0f} м)")
     if canon(nxt) == canon(cur):
         print(f'[{tag}] змін немає — база вже з цими точками')
         return
