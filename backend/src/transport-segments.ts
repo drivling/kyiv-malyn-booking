@@ -7,6 +7,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import {
   loadTransportDataset,
   type TransportRouteStopInput,
+  type TransportRouteVariantInput,
 } from './local-transport';
 
 export const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '10', '11', '12'];
@@ -47,6 +48,56 @@ function orderedStopIds(routeStops: TransportRouteStopInput[], direction: 'there
     .filter((s) => (s[key] ?? -1) > 0)
     .sort((a, b) => (a[key] ?? -1) - (b[key] ?? -1))
     .map((s) => s.stopId);
+}
+
+/** Ланцюжок для перерахунку: ключі точок і чи точка технічна (mapOnly) */
+export interface SegmentChain {
+  label: string;
+  ids: string[];
+  technical: boolean[];
+  /** Варіант шляху: його перегони не перезаписують уже пораховані основними ланцюжками */
+  variant: boolean;
+}
+
+/**
+ * Усі ланцюжки маршруту, перегони яких мають сегменти: спершу основні «туди» й «назад», потім варіанти шляху
+ * (з їхніми власними технічними точками). Без варіантів перерахунок видаляв би їхні перегони.
+ */
+export function segmentChains(
+  routeStops: TransportRouteStopInput[],
+  variants: TransportRouteVariantInput[] = []
+): SegmentChain[] {
+  const technicalIds = new Set(routeStops.filter((s) => s.mapOnly === true).map((s) => s.stopId));
+  const chains: SegmentChain[] = (['there', 'back'] as const).map((dir) => {
+    const ids = orderedStopIds(routeStops, dir);
+    return { label: dir, ids, technical: ids.map((id) => technicalIds.has(id)), variant: false };
+  });
+  for (const v of variants) {
+    chains.push({
+      label: `variant ${v.id}`,
+      ids: v.stops.map((p) => p.stopId),
+      technical: v.stops.map((p) => p.mapOnly === true),
+      variant: true,
+    });
+  }
+  return chains.filter((c) => c.ids.length >= 2);
+}
+
+/**
+ * Час перегонів ланцюжка в спільну таблицю маршруту. Основні ланцюжки пишуть як раніше (спільний перегін «туди» й
+ * «назад» отримує значення пізнішого); варіант лише доповнює — перегін, уже порахований основними, лишається.
+ */
+export function mergeChainSeconds(
+  target: Map<string, number>,
+  routeId: string,
+  ids: string[],
+  seconds: number[],
+  keepExisting = false
+): void {
+  for (let i = 0; i < ids.length - 1; i++) {
+    const key = `${routeId}|${ids[i]}|${ids[i + 1]}`;
+    if (!keepExisting || !target.has(key)) target.set(key, seconds[i]);
+  }
 }
 
 function segmentTimeSecFromDistanceM(distanceM: number, withStopPause: boolean): number {
@@ -151,12 +202,10 @@ export async function recalculateSegmentDurations(
   let osrmRequested = 0;
   let osrmFailed = 0;
 
+  const variantsByRoute = new Map(dataset.routes.map((r) => [r.id, r.variants ?? []]));
   for (const routeId of routesToProcess) {
     const routeStops = routeStopsByRoute.get(routeId) || [];
-    const technicalIds = new Set(routeStops.filter((s) => s.mapOnly === true).map((s) => s.stopId));
-    for (const dir of ['there', 'back'] as const) {
-      const ids = orderedStopIds(routeStops, dir);
-      if (ids.length < 2) continue;
+    for (const { label: dir, ids, technical, variant } of segmentChains(routeStops, variantsByRoute.get(routeId))) {
       const distances: number[] = [];
       const fromOsrm: boolean[] = [];
       for (let i = 0; i < ids.length - 1; i++) {
@@ -173,10 +222,7 @@ export async function recalculateSegmentDurations(
         fromOsrm.push(distM != null);
         distances.push(distM ?? (ca && cb ? straightLineM(ca, cb) * ROAD_FACTOR : 0));
       }
-      let seconds = chainSegmentSeconds(
-        ids.map((id) => technicalIds.has(id)),
-        distances
-      );
+      let seconds = chainSegmentSeconds(technical, distances);
       // Поправка: не швидше за CORRELATION_SPEED_KMH у середньому (за довжиною, відомою з OSRM)
       const knownM = distances.reduce((sum, d, i) => sum + (fromOsrm[i] ? d : 0), 0);
       const totalSec = seconds.reduce((sum, v) => sum + v, 0);
@@ -188,7 +234,7 @@ export async function recalculateSegmentDurations(
           `${routeId} ${dir}: ${CORRELATION_SPEED_KMH} км/год ${Math.round(timeAt24Sec)} с > ${totalSec} с → ×${factor.toFixed(3)}`
         );
       }
-      for (let i = 0; i < ids.length - 1; i++) newSegments.set(`${routeId}|${ids[i]}|${ids[i + 1]}`, seconds[i]);
+      mergeChainSeconds(newSegments, routeId, ids, seconds, variant);
     }
   }
 

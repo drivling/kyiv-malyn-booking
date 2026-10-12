@@ -3,8 +3,8 @@
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { buildTripStopTimes, makeSegSec, toGtfsTime } from './gtfs-stop-times';
-import type { TransportRouteStopInput, TransportTripInput } from './local-transport';
+import { buildTripStopTimes, makeSegSec, resolveTripChain, toGtfsTime } from './gtfs-stop-times';
+import type { TransportRouteStopInput, TransportRouteVariantInput, TransportTripInput } from './local-transport';
 
 const routeStops: TransportRouteStopInput[] = [
   { routeId: '5', stopId: 'st_a', orderThere: 1, orderBack: 5, mapOnly: false },
@@ -79,4 +79,50 @@ test('route without any segments falls back to 2 minutes per chain step', () => 
 test('toGtfsTime normalises H:MM and rejects plates', () => {
   assert.equal(toGtfsTime('6:05'), '06:05:00');
   assert.equal(toGtfsTime('АМ0033АА'), null);
+});
+
+// ---------- Варіанти шляху й опорні часи ----------
+
+const variants: TransportRouteVariantInput[] = [
+  { id: '5-v1', directionId: '1', name: 'Через вокзал', stops: [{ stopId: 'st_a' }, { stopId: 'st_m', mapOnly: true }, { stopId: 'st_v' }, { stopId: 'st_d' }] },
+  { id: '5-v0', directionId: '0', name: 'Назад іншим шляхом', stops: [{ stopId: 'st_d' }, { stopId: 'st_a' }] },
+];
+const knownV = new Set([...known, 'st_v']);
+const segV = { ...segments, '5|st_m|st_v': 240, '5|st_v|st_d': 300 };
+
+test('resolveTripChain: variant of the same direction, else the main chain', () => {
+  const v = resolveTripChain({ ...base, variantId: '5-v1' }, routeStops, variants);
+  assert.equal(v.variantId, '5-v1');
+  assert.deepEqual(v.chainKeys, ['st_a', 'st_m', 'st_v', 'st_d']);
+  assert.deepEqual([...v.passengerSet], ['st_a', 'st_v', 'st_d']);
+  const wrongDir = resolveTripChain({ ...base, variantId: '5-v0' }, routeStops, variants);
+  assert.equal(wrongDir.variantId, null);
+  assert.equal(wrongDir.chainKeys.length, 5);
+  assert.equal(resolveTripChain({ ...base, variantId: 'nope' }, routeStops, variants).variantId, null);
+  assert.equal(resolveTripChain(base, routeStops).variantId, null);
+});
+
+test('variant trip: rows follow the variant chain; timepoints are exact and flagged', () => {
+  const r = buildTripStopTimes(
+    { ...base, variantId: '5-v1', timepoints: [{ stopId: 'st_v', time: '06:20:00' }, { stopId: 'st_d', time: '06:30' }] },
+    routeStops,
+    segV,
+    120,
+    knownV,
+    variants
+  )!;
+  assert.equal(r.variantId, '5-v1');
+  assert.deepEqual(
+    r.rows.map((x) => [x.stop_id, x.departure_time, x.timepoint]),
+    [['st_a', '06:00:00', 1], ['st_v', '06:20:00', 1], ['st_d', '06:30:00', 1]]
+  );
+});
+
+test('main trip with an arrivalTime keeps the old timepoint rule; timepoints mark only fixed stops', () => {
+  const r = buildTripStopTimes({ ...base, timepoints: [{ stopId: 'st_b', time: '06:10' }] }, routeStops, segments, 120, known)!;
+  assert.deepEqual(
+    r.rows.map((x) => [x.stop_id, x.departure_time, x.timepoint]),
+    [['st_a', '06:00:00', 1], ['st_b', '06:10:00', 1], ['st_c', '06:15:00', 0], ['st_d', '06:19:00', 0]]
+  );
+  assert.equal(r.variantId, null);
 });

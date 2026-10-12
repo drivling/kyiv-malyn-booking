@@ -1,9 +1,9 @@
 /**
- * Синтез GTFS stop_times для одного рейсу: зріз ланцюжка [start..end], сегменти маршруту,
- * пропорційне стиснення під arrivalTime (спільна логіка з сайтом — див. ./trip-timing).
+ * Синтез GTFS stop_times для одного рейсу: ланцюжок рейсу (основний напрямку або варіант шляху), зріз [start..end],
+ * сегменти маршруту, пропорційне стиснення під arrivalTime або опорні часи (спільна логіка з сайтом — ./trip-timing).
  */
-import type { TransportRouteStopInput, TransportTripInput } from './local-transport';
-import { computeTripTiming, parseClockMins, roundMonotonic, type SegSecFn } from './trip-timing';
+import type { TransportRouteStopInput, TransportRouteVariantInput, TransportTripInput } from './local-transport';
+import { computeTripTiming, parseClockMins, parseTimepoints, roundMonotonic, type SegSecFn } from './trip-timing';
 
 export const DEFAULT_SEC = 120;
 export const FALLBACK_MINS = 2;
@@ -51,6 +51,32 @@ export function orderedAllStops(stops: TransportRouteStopInput[], direction: Dir
     .sort((a, b) => (a[key] ?? -1) - (b[key] ?? -1));
 }
 
+/** Ланцюжок рейсу: варіант шляху (variantId того самого напрямку) або основний ланцюжок напрямку. */
+export function resolveTripChain(
+  trip: TransportTripInput,
+  routeStops: TransportRouteStopInput[],
+  variants: TransportRouteVariantInput[] = []
+): { direction: Direction; chainKeys: string[]; passengerSet: Set<string>; variantId: string | null } {
+  const direction = tripDirection(trip.directionId);
+  const variant = trip.variantId
+    ? variants.find((v) => v.id === trip.variantId && tripDirection(v.directionId) === direction)
+    : undefined;
+  if (variant) {
+    return {
+      direction,
+      chainKeys: variant.stops.map((p) => p.stopId),
+      passengerSet: new Set(variant.stops.filter((p) => !p.mapOnly).map((p) => p.stopId)),
+      variantId: variant.id,
+    };
+  }
+  return {
+    direction,
+    chainKeys: orderedAllStops(routeStops, direction).map((s) => s.stopId),
+    passengerSet: new Set(orderedPassengerStops(routeStops, direction).map((s) => s.stopId)),
+    variantId: null,
+  };
+}
+
 /**
  * Тривалість перегону для маршруту: прямий ключ, зворотний ключ, defaultSec.
  * Маршрут без жодного сегмента — плоскі FALLBACK_MINS на перегін.
@@ -74,7 +100,9 @@ export interface StopTimeRow {
 export interface TripStopTimes {
   rows: StopTimeRow[];
   direction: Direction;
-  /** Повний ланцюжок напрямку (з технічними точками) */
+  /** Варіант шляху рейсу; null — основний ланцюжок напрямку */
+  variantId: string | null;
+  /** Повний ланцюжок рейсу (з технічними точками) */
   chainKeys: string[];
   startIndex: number;
   endIndex: number;
@@ -92,19 +120,20 @@ export function buildTripStopTimes(
   routeStops: TransportRouteStopInput[],
   segments: Record<string, number>,
   defaultSec: number,
-  knownStopIds: Set<string>
+  knownStopIds: Set<string>,
+  variants: TransportRouteVariantInput[] = []
 ): TripStopTimes | null {
   const dep = toGtfsTime(trip.departureTime);
   if (!dep) return null;
-  const direction = tripDirection(trip.directionId);
-  const chainKeys = orderedAllStops(routeStops, direction).map((s) => s.stopId);
-  const passengerSet = new Set(orderedPassengerStops(routeStops, direction).map((s) => s.stopId));
+  const { direction, chainKeys, passengerSet, variantId } = resolveTripChain(trip, routeStops, variants);
   const arrivalMins = parseClockMins(trip.arrivalTime);
+  const timepoints = parseTimepoints(trip.timepoints);
   const timing = computeTripTiming(chainKeys, makeSegSec(segments, defaultSec, trip.routeId), {
     departureMins: parseMinutes(dep),
     arrivalMins,
     startStopId: trip.startStopId || null,
     endStopId: trip.endStopId || null,
+    timepoints,
   });
   if (!timing) return null;
 
@@ -112,7 +141,8 @@ export function buildTripStopTimes(
   if (served.length < 2) return null;
 
   const rounded = roundMonotonic(served.map((s) => s.mins));
-  const fixedArrival = arrivalMins != null && !timing.arrivalIgnored;
+  const fixedIndexes = new Set(timing.timepointIndexes);
+  const fixedArrival = !fixedIndexes.size && arrivalMins != null && !timing.arrivalIgnored;
   const rows: StopTimeRow[] = served.map((s, i) => {
     const t = minutesToGtfs(rounded[i]);
     const last = i === served.length - 1;
@@ -122,13 +152,14 @@ export function buildTripStopTimes(
       departure_time: t,
       stop_id: s.stopId,
       stop_sequence: i + 1,
-      timepoint: i === 0 || (last && fixedArrival) ? 1 : 0,
+      timepoint: i === 0 || fixedIndexes.has(s.index) || (last && fixedArrival) ? 1 : 0,
     };
   });
 
   return {
     rows,
     direction,
+    variantId,
     chainKeys,
     startIndex: timing.startIndex,
     endIndex: timing.endIndex,

@@ -7,6 +7,7 @@ exports.parseMinutes = parseMinutes;
 exports.tripDirection = tripDirection;
 exports.orderedPassengerStops = orderedPassengerStops;
 exports.orderedAllStops = orderedAllStops;
+exports.resolveTripChain = resolveTripChain;
 exports.makeSegSec = makeSegSec;
 exports.buildTripStopTimes = buildTripStopTimes;
 const trip_timing_1 = require("./trip-timing");
@@ -49,6 +50,27 @@ function orderedAllStops(stops, direction) {
         .filter((s) => (s[key] ?? -1) > 0)
         .sort((a, b) => (a[key] ?? -1) - (b[key] ?? -1));
 }
+/** Ланцюжок рейсу: варіант шляху (variantId того самого напрямку) або основний ланцюжок напрямку. */
+function resolveTripChain(trip, routeStops, variants = []) {
+    const direction = tripDirection(trip.directionId);
+    const variant = trip.variantId
+        ? variants.find((v) => v.id === trip.variantId && tripDirection(v.directionId) === direction)
+        : undefined;
+    if (variant) {
+        return {
+            direction,
+            chainKeys: variant.stops.map((p) => p.stopId),
+            passengerSet: new Set(variant.stops.filter((p) => !p.mapOnly).map((p) => p.stopId)),
+            variantId: variant.id,
+        };
+    }
+    return {
+        direction,
+        chainKeys: orderedAllStops(routeStops, direction).map((s) => s.stopId),
+        passengerSet: new Set(orderedPassengerStops(routeStops, direction).map((s) => s.stopId)),
+        variantId: null,
+    };
+}
 /**
  * Тривалість перегону для маршруту: прямий ключ, зворотний ключ, defaultSec.
  * Маршрут без жодного сегмента — плоскі FALLBACK_MINS на перегін.
@@ -64,19 +86,19 @@ function makeSegSec(segments, defaultSec, routeId) {
  * stop_times рейсу або null, якщо рейс без часу / зріз не має ≥2 пасажирських зупинок.
  * knownStopIds — зупинки, що є в датасеті (без координат у фід не потрапляють).
  */
-function buildTripStopTimes(trip, routeStops, segments, defaultSec, knownStopIds) {
+function buildTripStopTimes(trip, routeStops, segments, defaultSec, knownStopIds, variants = []) {
     const dep = toGtfsTime(trip.departureTime);
     if (!dep)
         return null;
-    const direction = tripDirection(trip.directionId);
-    const chainKeys = orderedAllStops(routeStops, direction).map((s) => s.stopId);
-    const passengerSet = new Set(orderedPassengerStops(routeStops, direction).map((s) => s.stopId));
+    const { direction, chainKeys, passengerSet, variantId } = resolveTripChain(trip, routeStops, variants);
     const arrivalMins = (0, trip_timing_1.parseClockMins)(trip.arrivalTime);
+    const timepoints = (0, trip_timing_1.parseTimepoints)(trip.timepoints);
     const timing = (0, trip_timing_1.computeTripTiming)(chainKeys, makeSegSec(segments, defaultSec, trip.routeId), {
         departureMins: parseMinutes(dep),
         arrivalMins,
         startStopId: trip.startStopId || null,
         endStopId: trip.endStopId || null,
+        timepoints,
     });
     if (!timing)
         return null;
@@ -84,7 +106,8 @@ function buildTripStopTimes(trip, routeStops, segments, defaultSec, knownStopIds
     if (served.length < 2)
         return null;
     const rounded = (0, trip_timing_1.roundMonotonic)(served.map((s) => s.mins));
-    const fixedArrival = arrivalMins != null && !timing.arrivalIgnored;
+    const fixedIndexes = new Set(timing.timepointIndexes);
+    const fixedArrival = !fixedIndexes.size && arrivalMins != null && !timing.arrivalIgnored;
     const rows = served.map((s, i) => {
         const t = minutesToGtfs(rounded[i]);
         const last = i === served.length - 1;
@@ -94,12 +117,13 @@ function buildTripStopTimes(trip, routeStops, segments, defaultSec, knownStopIds
             departure_time: t,
             stop_id: s.stopId,
             stop_sequence: i + 1,
-            timepoint: i === 0 || (last && fixedArrival) ? 1 : 0,
+            timepoint: i === 0 || fixedIndexes.has(s.index) || (last && fixedArrival) ? 1 : 0,
         };
     });
     return {
         rows,
         direction,
+        variantId,
         chainKeys,
         startIndex: timing.startIndex,
         endIndex: timing.endIndex,

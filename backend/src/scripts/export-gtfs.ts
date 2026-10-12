@@ -133,23 +133,19 @@ function exportGtfs(dataset: TransportDataset) {
   const shapeRows: Record<string, unknown>[] = [];
   const shapeIdByRouteDir = new Map<string, string>();
 
-  /** Shape на маршрут+напрямок+зріз: скорочені рейси отримують власну (коротшу) лінію. */
+  /** Shape на маршрут+напрямок+варіант+зріз: скорочені рейси й варіанти шляху отримують власну лінію. */
   function ensureShape(routeId: string, built: TripStopTimes): string {
-    const { direction, chainKeys, startIndex, endIndex } = built;
+    const { direction, variantId, chainKeys, startIndex, endIndex } = built;
     const directionId = direction === 'there' ? 1 : 0;
     const full = startIndex === 0 && endIndex === chainKeys.length - 1;
-    const cacheKey = `${routeId}|${direction}|${startIndex}|${endIndex}`;
+    const cacheKey = `${routeId}|${direction}|${variantId ?? ''}|${startIndex}|${endIndex}`;
     if (shapeIdByRouteDir.has(cacheKey)) return shapeIdByRouteDir.get(cacheKey)!;
     const points = chainKeys
       .slice(startIndex, endIndex + 1)
       .map((stopId) => stopById.get(stopId))
       .filter((s): s is NonNullable<typeof s> => !!s);
-    const shapeId =
-      points.length >= 2
-        ? full
-          ? `shp_${routeId}_${directionId}`
-          : `shp_${routeId}_${directionId}_${startIndex}_${endIndex}`
-        : '';
+    const base = variantId ? `shp_${routeId}_${directionId}_${variantId}` : `shp_${routeId}_${directionId}`;
+    const shapeId = points.length >= 2 ? (full ? base : `${base}_${startIndex}_${endIndex}`) : '';
     if (shapeId) {
       points.forEach((s, i) => {
         shapeRows.push({
@@ -173,7 +169,7 @@ function exportGtfs(dataset: TransportDataset) {
   for (const rec of timedTrips) {
     const serviceId = SERVICE_MAP[rec.serviceId || ''] || 'everyday';
     const routeStops = routeStopsByRoute.get(rec.routeId) || [];
-    const built = buildTripStopTimes(rec, routeStops, segments, defaultSec, usedStopIds);
+    const built = buildTripStopTimes(rec, routeStops, segments, defaultSec, usedStopIds, routeById.get(rec.routeId)?.variants ?? []);
     if (!built) {
       skippedNoStops++;
       continue;

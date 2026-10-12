@@ -5,6 +5,8 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VERIFIED_ROUTE_IDS = void 0;
+exports.segmentChains = segmentChains;
+exports.mergeChainSeconds = mergeChainSeconds;
 exports.chainSegmentSeconds = chainSegmentSeconds;
 exports.recalculateSegmentDurations = recalculateSegmentDurations;
 const local_transport_1 = require("./local-transport");
@@ -30,6 +32,37 @@ function orderedStopIds(routeStops, direction) {
         .filter((s) => (s[key] ?? -1) > 0)
         .sort((a, b) => (a[key] ?? -1) - (b[key] ?? -1))
         .map((s) => s.stopId);
+}
+/**
+ * Усі ланцюжки маршруту, перегони яких мають сегменти: спершу основні «туди» й «назад», потім варіанти шляху
+ * (з їхніми власними технічними точками). Без варіантів перерахунок видаляв би їхні перегони.
+ */
+function segmentChains(routeStops, variants = []) {
+    const technicalIds = new Set(routeStops.filter((s) => s.mapOnly === true).map((s) => s.stopId));
+    const chains = ['there', 'back'].map((dir) => {
+        const ids = orderedStopIds(routeStops, dir);
+        return { label: dir, ids, technical: ids.map((id) => technicalIds.has(id)), variant: false };
+    });
+    for (const v of variants) {
+        chains.push({
+            label: `variant ${v.id}`,
+            ids: v.stops.map((p) => p.stopId),
+            technical: v.stops.map((p) => p.mapOnly === true),
+            variant: true,
+        });
+    }
+    return chains.filter((c) => c.ids.length >= 2);
+}
+/**
+ * Час перегонів ланцюжка в спільну таблицю маршруту. Основні ланцюжки пишуть як раніше (спільний перегін «туди» й
+ * «назад» отримує значення пізнішого); варіант лише доповнює — перегін, уже порахований основними, лишається.
+ */
+function mergeChainSeconds(target, routeId, ids, seconds, keepExisting = false) {
+    for (let i = 0; i < ids.length - 1; i++) {
+        const key = `${routeId}|${ids[i]}|${ids[i + 1]}`;
+        if (!keepExisting || !target.has(key))
+            target.set(key, seconds[i]);
+    }
 }
 function segmentTimeSecFromDistanceM(distanceM, withStopPause) {
     const speedKmh = distanceM >= SEGMENT_LONG_M ? SPEED_KMH_FAST : SPEED_KMH_URBAN;
@@ -127,13 +160,10 @@ async function recalculateSegmentDurations(prisma, options = {}) {
     const corrections = [];
     let osrmRequested = 0;
     let osrmFailed = 0;
+    const variantsByRoute = new Map(dataset.routes.map((r) => [r.id, r.variants ?? []]));
     for (const routeId of routesToProcess) {
         const routeStops = routeStopsByRoute.get(routeId) || [];
-        const technicalIds = new Set(routeStops.filter((s) => s.mapOnly === true).map((s) => s.stopId));
-        for (const dir of ['there', 'back']) {
-            const ids = orderedStopIds(routeStops, dir);
-            if (ids.length < 2)
-                continue;
+        for (const { label: dir, ids, technical, variant } of segmentChains(routeStops, variantsByRoute.get(routeId))) {
             const distances = [];
             const fromOsrm = [];
             for (let i = 0; i < ids.length - 1; i++) {
@@ -152,7 +182,7 @@ async function recalculateSegmentDurations(prisma, options = {}) {
                 fromOsrm.push(distM != null);
                 distances.push(distM ?? (ca && cb ? straightLineM(ca, cb) * ROAD_FACTOR : 0));
             }
-            let seconds = chainSegmentSeconds(ids.map((id) => technicalIds.has(id)), distances);
+            let seconds = chainSegmentSeconds(technical, distances);
             // Поправка: не швидше за CORRELATION_SPEED_KMH у середньому (за довжиною, відомою з OSRM)
             const knownM = distances.reduce((sum, d, i) => sum + (fromOsrm[i] ? d : 0), 0);
             const totalSec = seconds.reduce((sum, v) => sum + v, 0);
@@ -162,8 +192,7 @@ async function recalculateSegmentDurations(prisma, options = {}) {
                 seconds = seconds.map((v) => Math.max(1, Math.round(v * factor)));
                 corrections.push(`${routeId} ${dir}: ${CORRELATION_SPEED_KMH} км/год ${Math.round(timeAt24Sec)} с > ${totalSec} с → ×${factor.toFixed(3)}`);
             }
-            for (let i = 0; i < ids.length - 1; i++)
-                newSegments.set(`${routeId}|${ids[i]}|${ids[i + 1]}`, seconds[i]);
+            mergeChainSeconds(newSegments, routeId, ids, seconds, variant);
         }
     }
     const segmentsKept = dataset.segments.filter((s) => !routesToProcess.includes(s.routeId)).length;
