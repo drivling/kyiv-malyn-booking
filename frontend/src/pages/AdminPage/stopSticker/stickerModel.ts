@@ -78,7 +78,8 @@ function nodeRef(stopId: string, stopNames: ReadonlyMap<string, string>): Sticke
  * Лінії, що відправляються з зупинки: маршрут проходить через неї в цьому напрямку (order > 0,
  * не «лише для карти»), вона не кінцева напрямку, і хоча б один рейс напрямку її обслуговує
  * (з урахуванням startStopId/endStopId скорочених рейсів — як на табло, рейс не «відправляється»
- * зі своєї кінцевої). Ненадійні маршрути приховано, як на сайті.
+ * зі своєї кінцевої). Ненадійні маршрути приховано, як на сайті. Рейси варіантів шляху не рахуються:
+ * наклейка висить роками, а такий рейс — один-два на день (перше коло №9 через вокзал).
  */
 export function stickerLines(dataset: TransportDataset, stopId: string): StickerLine[] {
   const hidden = hiddenTransportRouteIds(dataset);
@@ -102,6 +103,8 @@ export function stickerLines(dataset: TransportDataset, stopId: string): Sticker
 
       const served = dataset.trips.some((t) => {
         if (t.routeId !== route.id || tripDir(t.directionId) !== dir) return false;
+        // рейс варіанта шляху їде іншим ланцюжком; наклейка — лише про основні (Docs/route-variants-2026-10.md)
+        if (t.variantId) return false;
         const start = t.startStopId ? real.indexOf(t.startStopId) : 0;
         const end = t.endStopId ? real.indexOf(t.endStopId) : real.length - 1;
         return (start < 0 ? 0 : start) <= at && at < (end < 0 ? real.length - 1 : end);

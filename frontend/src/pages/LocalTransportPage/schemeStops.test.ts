@@ -53,6 +53,23 @@ describe('routesAtStop', () => {
     expect(routesAtStop(switchedOff, 'st_b')).toEqual(['3', '12']);
   });
 
+  it('adds routes whose path variant stops here; map-only variant points and unreliable routes do not count', () => {
+    const variant = (id: string, stops: Array<{ stopId: string; mapOnly?: boolean }>) => ({ id, directionId: '1', name: id, stops });
+    const withVariants = {
+      ...dataset,
+      routes: dataset.routes.map((r) =>
+        r.id === '7'
+          ? { ...r, variants: [variant('7-v', [{ stopId: 'st_0072' }, { stopId: 'st_0036', mapOnly: true }, { stopId: 'st_0035' }])] }
+          : r.id === '12'
+            ? { ...r, variants: [variant('12-v', [{ stopId: 'st_0072' }, { stopId: 'st_0035' }])] }
+            : r
+      ),
+    };
+    expect(routesAtStop(withVariants, 'st_0035')).toEqual(['2', '7']);
+    expect(routesAtStop(withVariants, 'st_0036')).toEqual(['2']);
+    expect(routesAtStop(withVariants, 'st_0072')).toEqual(['3', '7']); // і основний ланцюжок, і варіант — один раз
+  });
+
   it('returns nothing for an empty or unknown stop', () => {
     expect(routesAtStop(dataset, '')).toEqual([]);
     expect(routesAtStop(dataset, 'st_9999')).toEqual([]);

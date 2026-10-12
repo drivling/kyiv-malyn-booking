@@ -7,6 +7,7 @@ import {
   routeChainSources,
   servedStopIds,
   variantChain,
+  variantEndStopId,
   type VariantsByRoute,
 } from './routeVariants';
 import type { RouteStopWithOrder, TransportData, TransportRecord } from './types';
@@ -77,6 +78,12 @@ describe('chainForRecord', () => {
     expect(variantChain(variantsByRoute['9']![1])).toEqual(['st_v', 'st_o', 'st_m', 'st_p', 'st_l']);
   });
 
+  it('variantEndStopId — last passenger stop of the variant', () => {
+    expect(variantEndStopId(variantsByRoute['9']![0])).toBe('st_v');
+    expect(variantEndStopId({ id: 'x', direction: 'there', name: 'x', stops: [{ id: 'st_p', name: 'Промінь' }, { id: 'st_w', name: '№9 т.9', map_only: true }] })).toBe('st_p');
+    expect(variantEndStopId({ id: 'x', direction: 'there', name: 'x', stops: [] })).toBeUndefined();
+  });
+
   it('main trip or unknown variant → main chain of its direction', () => {
     expect(chainForRecord(stopsByRoute, variantsByRoute, rec({}))).toEqual(['st_p', 'st_t', 'st_m', 'st_o']);
     expect(chainForRecord(stopsByRoute, variantsByRoute, rec({ direction_id: '0', variant_id: 'nope' }), { markersOnly: true })).toEqual([
@@ -105,6 +112,7 @@ describe('servedStopIds / chainsServingPair', () => {
     const toStation = chainsServingPair(stopsByRoute, variantsByRoute, '9', 'st_p', 'st_v');
     expect(toStation).toEqual([{ direction: 'there', variantId: '9-v1', chain: ['st_p', 'st_w', 'st_v'] }]);
     expect(chainsServingPair(stopsByRoute, variantsByRoute, '9', 'st_p', 'st_w')).toEqual([]); // технічна точка
+    expect(chainsServingPair(stopsByRoute, undefined, '9', 'st_p', 'st_v')).toEqual([]); // без варіантів вокзалу немає
   });
 
   it('routeChainSources reads both maps from the site data', () => {

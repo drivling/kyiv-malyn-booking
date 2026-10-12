@@ -40,6 +40,12 @@ export function variantChain(variant: RouteVariantVm, opts: { markersOnly?: bool
   return variant.stops.filter((p) => !opts.markersOnly || !p.map_only).map((p) => p.id);
 }
 
+/** Кінцева варіанта: остання пасажирська зупинка його ланцюжка */
+export function variantEndStopId(variant: RouteVariantVm): string | undefined {
+  const markers = variantChain(variant, { markersOnly: true });
+  return markers[markers.length - 1];
+}
+
 /** Ланцюжок рейсу: варіант шляху або основний ланцюжок напрямку (з технічними точками, якщо не markersOnly). */
 export function chainForRecord(
   stopsByRoute: StopsByRoute | undefined,

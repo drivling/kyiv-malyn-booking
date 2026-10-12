@@ -24,6 +24,19 @@ describe('stopRoutesFromRouteStops (static stop pages)', () => {
     expect([...map.get('st_0008')]).toEqual([]);
   });
 
+  it('stops of path variants add the route chip and a page — not map-only points, not hidden routes', () => {
+    const routes = [
+      { id: '9', variants: [{ stops: [{ stopId: 'st_0019' }, { stopId: 'st_0300', mapOnly: true }, { stopId: 'st_0042' }] }] },
+      { id: '1', variants: [{ stops: [{ stopId: 'st_0050' }] }] },
+      { id: '12', variants: null },
+    ];
+    const map = stopRoutesFromRouteStops(rows, new Set(['1']), routes);
+    expect([...map.get('st_0019')]).toEqual(['9']);
+    expect([...map.get('st_0042')].sort()).toEqual(['12', '3', '9']);
+    expect(map.has('st_0300')).toBe(false);
+    expect(map.has('st_0050')).toBe(false);
+  });
+
   it('map-only points and non-stop ids get no page', () => {
     const map = stopRoutesFromRouteStops(rows, new Set(['1']));
     expect(map.has('st_0113')).toBe(false);

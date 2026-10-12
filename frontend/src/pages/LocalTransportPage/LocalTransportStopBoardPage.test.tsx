@@ -143,6 +143,33 @@ function stubGeolocation(impl: (ok: PositionCallback, err?: PositionErrorCallbac
   });
 }
 
+describe('LocalTransportStopBoardPage: route variants', () => {
+  it('a stop that only a path variant serves has a board with that trip, going to the end of the variant', async () => {
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({
+          ...dataset,
+          stops: [...dataset.stops, { id: 'st_v', name: 'Залізничний вокзал', lat: 50.781, lng: 29.27 }],
+          routes: [
+            {
+              ...dataset.routes[0],
+              variants: [{ id: '2-v2', directionId: '0', name: 'Від вокзалу', stops: [{ stopId: 'st_v' }, { stopId: 'st_b' }, { stopId: 'st_a' }] }],
+            },
+          ],
+          trips: [
+            ...dataset.trips,
+            { id: 't9', routeId: '2', serviceId: 'everyday', headsign: '', directionId: '0', departureTime: '07:05:00', blockId: null, variantId: '2-v2' },
+          ],
+        })
+      )
+    );
+    renderBoard('/transport/stop/st_v?d=01.03.26&h=07%3A00');
+    await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Залізничний вокзал»'), { timeout: 5000 });
+    expect(screen.getByRole('link', { name: /Маршрут 2, відправлення 07:05, Базар/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Маршрут 2, відправлення/ })).toHaveLength(1);
+  });
+});
+
 describe('LocalTransportStopBoardPage: stop from the URL', () => {
   it('direct hit renders the stop, its departures and hands the stop to the planner tab', async () => {
     const field = await openBoard();

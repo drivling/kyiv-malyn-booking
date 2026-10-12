@@ -35,6 +35,16 @@ describe('stickerLines', () => {
     expect(stickerLines(STICKER_DATASET, 'st_0070').map((l) => l.key)).toContain('3:there');
     expect(stickerLines(STICKER_DATASET, 'st_0015').map((l) => l.key)).not.toContain('3:there');
   });
+
+  it('рейс варіанта шляху лінію не відкриває: на наклейці лише основні ланцюжки', () => {
+    const shortTrip = STICKER_DATASET.trips.find((t) => t.id === '3-1')!;
+    const withTrip = (extra: Partial<typeof shortTrip>) => ({
+      ...STICKER_DATASET,
+      trips: [...STICKER_DATASET.trips, { ...shortTrip, id: '3-2', endStopId: null, ...extra }],
+    });
+    expect(stickerLines(withTrip({}), 'st_0015').map((l) => l.key)).toContain('3:there');
+    expect(stickerLines(withTrip({ variantId: '3-v' }), 'st_0015').map((l) => l.key)).not.toContain('3:there');
+  });
 });
 
 describe('splitSides / sideHeading', () => {

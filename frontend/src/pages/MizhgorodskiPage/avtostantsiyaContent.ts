@@ -3,7 +3,7 @@
  * AI Overview з телефонами каси — Docs/seo-aeo-review-2026-09.md §6–§7). Сторінка = повна доска
  * відправлень з автостанції з БД + телефони каси + прибуття з Житомира.
  */
-import type { TransportDataset } from '@/api/transportDataset';
+import { variantsStopAt, type TransportDataset } from '@/api/transportDataset';
 import type { Schedule } from '@/types';
 import { tripsPerDayText } from '@/utils/weekdays';
 import { routeNo } from '@/utils/routeNames';
@@ -47,6 +47,8 @@ export function cityRoutesAtAutostation(dataset: TransportDataset | null | undef
   const stopIds = new Set(dataset.stops.filter((s) => AUTOSTATION_STOP_RE.test(s.name)).map((s) => s.id));
   if (!stopIds.size) return [];
   const routeIds = new Set(dataset.routeStops.filter((rs) => stopIds.has(rs.stopId)).map((rs) => rs.routeId));
+  // і маршрути, чий варіант шляху зупиняється біля автостанції
+  for (const r of dataset.routes) if ([...stopIds].some((id) => variantsStopAt(r, id))) routeIds.add(r.id);
   return dataset.routes
     .filter((r) => routeIds.has(r.id) && !String(r.id).endsWith('-old'))
     .map((r) => {

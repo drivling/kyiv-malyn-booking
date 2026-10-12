@@ -156,6 +156,11 @@ export function hiddenTransportRouteIds(dataset: Pick<TransportDataset, 'routes'
   return new Set(dataset.routes.filter((r) => r.unreliable === true).map((r) => r.id));
 }
 
+/** Чи зупиняється на зупинці хоч один варіант шляху маршруту (технічні точки mapOnly — ні) */
+export function variantsStopAt(route: Pick<TransportRouteDto, 'variants'>, stopId: string): boolean {
+  return (route.variants ?? []).some((v) => (v.stops ?? []).some((p) => p.stopId === stopId && p.mapOnly !== true));
+}
+
 /**
  * Публічна версія датасету: без ненадійних маршрутів і всього, що на них посилається
  * (зупинки маршруту, рейси, сегменти). Зупинки лишаються — вони спільні між маршрутами.

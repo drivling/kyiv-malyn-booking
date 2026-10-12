@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock, tripDestination } from './stopDepartures';
 import { configureSegmentDurations } from './segmentDurations';
-import type { RouteStopWithOrder, TransportData, TransportRecord } from './types';
+import type { RouteStopWithOrder, RouteVariantVm, TransportData, TransportRecord } from './types';
 
 // «2» — перевірений маршрут (сегменти), «1» — неперевірений (2 хв на крок)
 const stopsByRoute: Record<string, RouteStopWithOrder[]> = {
@@ -104,6 +104,74 @@ describe('buildStopDepartures', () => {
   });
 });
 
+describe('buildStopDepartures with route variants', () => {
+  // Варіант «туди» А → Б → Вокзал (лише у варіанті); варіант «назад» Вокзал → Б → А → Лікарня з опорним часом на Б
+  const variantsByRoute: Record<string, RouteVariantVm[]> = {
+    '2': [
+      {
+        id: '2-v1',
+        direction: 'there',
+        name: 'Перший рейс до вокзалу',
+        stops: [
+          { id: 'st_a', name: 'А' },
+          { id: 'st_b', name: 'Б' },
+          { id: 'st_x', name: 'Вокзал' },
+        ],
+      },
+      {
+        id: '2-v2',
+        direction: 'back',
+        name: 'Від вокзалу до лікарні',
+        stops: [
+          { id: 'st_x', name: 'Вокзал' },
+          { id: 'st_xm', name: 'Тех 2', map_only: true },
+          { id: 'st_b', name: 'Б' },
+          { id: 'st_a', name: 'А' },
+          { id: 'st_y', name: 'Лікарня' },
+        ],
+      },
+    ],
+  };
+  const vCatalog = { ...catalog, st_x: { name: 'Вокзал' }, st_y: { name: 'Лікарня' } };
+  const toStation: TransportRecord = { ...full, trip_id: '2-v1', trip_headsign: '', departure_time: '06:40:00', variant_id: '2-v1' };
+  const fromStation: TransportRecord = {
+    route_id: '2',
+    trip_id: '2-v2',
+    trip_headsign: '',
+    direction_id: '0',
+    departure_time: '07:05:00',
+    variant_id: '2-v2',
+    timepoints: [{ stopId: 'st_b', time: '07:15' }],
+  };
+  const routes = () => buildRoutesFromData(data([full, toStation, fromStation]));
+  const rowsAt = (stop: string) =>
+    buildStopDepartures(stop, routes(), stopsByRoute, vCatalog, variantsByRoute).map(
+      (r) => `${formatMinsClock(r.departureMins)} ${r.direction} → ${r.destination}${r.variantId ? ` [${r.variantId}]` : ''}`
+    );
+
+  it('each trip runs its own chain; a variant trip without a headsign goes to the end of its variant', () => {
+    // 2-v1: А→Б за замовчуванням 2 хв; 2-v2: Вокзал 07:05 → Б 07:15 (опорний час розтягує 4 хв до 10)
+    expect(rowsAt('st_b')).toEqual(['06:03 there → Г', '06:42 there → Вокзал [2-v1]', '07:15 back → Лікарня [2-v2]']);
+    expect(rowsAt('st_c')).toEqual(['06:08 there → Г']);
+  });
+
+  it('a stop that only a variant serves gets its departures; the variant end gets none', () => {
+    expect(rowsAt('st_x')).toEqual(['07:05 back → Лікарня [2-v2]']);
+    expect(rowsAt('st_y')).toEqual([]);
+    // без варіантів (старий бандл) зупинки вокзалу в маршруті №2 немає
+    expect(buildStopDepartures('st_x', routes(), stopsByRoute, vCatalog)).toEqual([]);
+  });
+
+  it('variant trip headsigns do not rename the route termini', () => {
+    const d: TransportData = {
+      source: 'test',
+      records: [full, { ...toStation, trip_headsign: 'Вокзал' }],
+      supplement: { stops: { stops_catalog: vCatalog, stops_by_route: stopsByRoute, variants_by_route: variantsByRoute } },
+    };
+    expect(buildRoutesFromData(d).find((r) => r.id === '2')?.to).toBe('Г');
+  });
+});
+
 describe('tripDestination', () => {
   const route = { from: 'А', to: 'Г' };
 
@@ -118,6 +186,22 @@ describe('tripDestination', () => {
   it('далі — кінець маршруту за напрямком', () => {
     expect(tripDestination({ trip_headsign: '', end_stop_id: null }, 'there', route, catalog)).toBe('Г');
     expect(tripDestination({ trip_headsign: '  ', end_stop_id: null }, 'back', route, catalog)).toBe('А');
+  });
+
+  it('рейс варіанта без таблички — кінець варіанта (end_stop_id важливіший)', () => {
+    const variant: RouteVariantVm = {
+      id: 'v',
+      direction: 'there',
+      name: 'До Б',
+      stops: [
+        { id: 'st_a', name: 'А' },
+        { id: 'st_m', name: 'Тех', map_only: true },
+        { id: 'st_b', name: 'Б' },
+      ],
+    };
+    expect(tripDestination({ trip_headsign: '', end_stop_id: null }, 'there', route, catalog, variant)).toBe('Б');
+    expect(tripDestination({ trip_headsign: '', end_stop_id: 'st_a' }, 'there', route, catalog, variant)).toBe('А');
+    expect(tripDestination({ trip_headsign: 'Вокзал', end_stop_id: null }, 'there', route, catalog, variant)).toBe('Вокзал');
   });
 
   it('нічого не відомо — «—»', () => {

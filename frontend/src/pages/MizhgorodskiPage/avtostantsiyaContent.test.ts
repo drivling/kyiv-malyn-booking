@@ -78,6 +78,23 @@ describe('cityRoutesAtAutostation (rule D1: link only to pages that exist)', () 
     ]);
   });
 
+  it('counts a route whose path variant stops at the autostation, not one that only passes it (mapOnly)', () => {
+    const withVariants = {
+      stops: [
+        { id: 'st_0004', name: 'Автостанція', lat: 0, lng: 0 },
+        { id: 'st_0019', name: 'Залізничний вокзал', lat: 0, lng: 0 },
+      ],
+      routes: [
+        { id: '9', fromName: 'Базарна площа', toName: 'вул. Олекси Тихого', variants: [{ id: '9-v1', directionId: '1', name: 'Перший рейс', stops: [{ stopId: 'st_0004' }, { stopId: 'st_0019' }] }] },
+        { id: '7', fromName: 'Лікарня', toName: 'Залізничний вокзал', variants: [{ id: '7-v', directionId: '1', name: 'По Миру', stops: [{ stopId: 'st_0004', mapOnly: true }, { stopId: 'st_0019' }] }] },
+      ],
+      routeStops: [],
+      trips: [],
+      segments: [],
+    } as never;
+    expect(cityRoutesAtAutostation(withVariants)).toEqual([{ id: '9', line: 'Базарна площа — вул. Олекси Тихого', published: true }]);
+  });
+
   it('treats an unreliable or unnamed route as pending, never published', () => {
     const [, pending] = cityRoutesAtAutostation(dataset);
     expect(pending).toMatchObject({ id: '10', published: false });
