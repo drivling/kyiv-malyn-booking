@@ -2,6 +2,8 @@ import express, { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { requireAdmin, resolveAdminPassword } from '../middleware/require-admin';
 import {
+  currentTransportRevision,
+  fillOmittedRouteFields,
   loadTransportDataset,
   replaceTransportDataset,
   validateTransportDataset,
@@ -41,9 +43,26 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
     }
   });
 
-  /** Адмін: транзакційна заміна всього датасету. */
+  /**
+   * Адмін: транзакційна заміна всього датасету.
+   * Маршрут без ключа variants зберігає свої варіанти (fillOmittedRouteFields — до валідації).
+   * baseRevision (необов'язково) — revision з GET: якщо відтоді датасет змінився, 409, щоб застаріла вкладка
+   * не відкотила чужі зміни. Старі клієнти поля не шлють — їх це не зачіпає.
+   */
   r.put('/transport/dataset', requireAdmin, async (req, res) => {
     try {
+      const baseRevision = typeof req.body?.baseRevision === 'string' ? req.body.baseRevision : null;
+      if (baseRevision) {
+        const revision = await currentTransportRevision(prisma);
+        if (revision && revision !== baseRevision) {
+          res.status(409).json({
+            error: 'Transport dataset changed since it was loaded — reload and repeat the edit',
+            revision,
+          });
+          return;
+        }
+      }
+      await fillOmittedRouteFields(prisma, req.body);
       const { errors, dataset } = validateTransportDataset(req.body);
       if (errors.length || !dataset) {
         res.status(400).json({ error: 'Invalid transport dataset', details: errors });
@@ -58,7 +77,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
           routeStops: dataset.routeStops.length,
           trips: dataset.trips.length,
           segments: dataset.segments.length,
+          variants: dataset.routes.reduce((n, route) => n + (route.variants?.length ?? 0), 0),
         },
+        revision: await currentTransportRevision(prisma),
       });
     } catch (e) {
       console.error('[PUT /transport/dataset]', e);

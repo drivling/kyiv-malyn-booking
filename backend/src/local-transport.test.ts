@@ -6,9 +6,11 @@ import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import {
   convertLegacyRuntime,
+  fillOmittedRouteFields,
   replaceTransportDataset,
   validateTransportDataset,
   type TransportDataset,
+  type TransportRouteVariantInput,
 } from './local-transport';
 
 function minimalDataset(overrides: Partial<TransportDataset> = {}): TransportDataset {
@@ -281,4 +283,185 @@ test('convertLegacyRuntime: maps snake_case start/end/arrival, empty → null', 
   assert.equal(dataset.trips[0].arrivalTime, '07:10:00');
   assert.equal(dataset.trips[1].startStopId, null);
   assert.equal(dataset.trips[1].arrivalTime, null);
+});
+
+// ---------- Варіанти шляху й опорні часи (Docs/route-variants-2026-10.md) ----------
+
+/** Маршрут 9: основний ланцюжок туди a → b → c, назад c → b → a; варіант «туди» a → тех → v (v — лише у варіанті). */
+function variantDataset(
+  variants: TransportRouteVariantInput[] = [mainVariant()],
+  trips: TransportDataset['trips'] = []
+): TransportDataset {
+  return minimalDataset({
+    stops: [
+      { id: 'st_a', name: 'А', lat: 50.77, lng: 29.24 },
+      { id: 'st_b', name: 'Б', lat: 50.771, lng: 29.241 },
+      { id: 'st_c', name: 'В', lat: 50.772, lng: 29.242 },
+      { id: 'st_m', name: '№9 т.1', lat: 50.773, lng: 29.243 },
+      { id: 'st_v', name: 'Вокзал', lat: 50.774, lng: 29.244 },
+    ],
+    routes: [{ id: '9', fromName: 'А', toName: 'В', variants }],
+    routeStops: [
+      { routeId: '9', stopId: 'st_a', orderThere: 1, orderBack: 3 },
+      { routeId: '9', stopId: 'st_b', orderThere: 2, orderBack: 2 },
+      { routeId: '9', stopId: 'st_c', orderThere: 3, orderBack: 1 },
+    ],
+    trips,
+  });
+}
+
+function mainVariant(extra: Partial<TransportRouteVariantInput> = {}): TransportRouteVariantInput {
+  return {
+    id: '9-v1',
+    directionId: '1',
+    name: 'Перший рейс ч/з вокзал',
+    stops: [{ stopId: 'st_a' }, { stopId: 'st_m', mapOnly: true }, { stopId: 'st_b' }, { stopId: 'st_v' }],
+    ...extra,
+  };
+}
+
+function variantTrip(extra: Partial<TransportDataset['trips'][number]> = {}): TransportDataset['trips'][number] {
+  return { id: '9-01', routeId: '9', directionId: '1', departureTime: '06:45:00', variantId: '9-v1', ...extra };
+}
+
+test('validate: a variant trip with timepoints on its own chain is accepted', () => {
+  const { errors } = validateTransportDataset(
+    variantDataset(undefined, [
+      variantTrip({ timepoints: [{ stopId: 'st_b', time: '06:55' }, { stopId: 'st_v', time: '07:05:00' }] }),
+      { id: '9-02', routeId: '9', directionId: '1', departureTime: '08:00:00', variantId: null, timepoints: [] },
+    ])
+  );
+  assert.deepEqual(errors, []);
+});
+
+test('validate: variant shape errors', () => {
+  const cases: Array<[unknown, string]> = [
+    ['nope', 'variants must be an array'],
+    [[null], 'variant must be an object'],
+    [[mainVariant({ id: 'бад id' })], 'bad id'],
+    [[mainVariant(), mainVariant()], 'duplicate variant id'],
+    [[mainVariant({ directionId: '2' })], 'directionId must be "0" or "1"'],
+    [[mainVariant({ name: ' ' })], 'name required'],
+    [[mainVariant({ name: 'два\nрядки' })], 'name must be one line'],
+    [[mainVariant({ name: 'х'.repeat(81) })], 'name longer than 80'],
+    [[mainVariant({ stops: 'a' as unknown as [] })], 'stops must be an array'],
+    [[mainVariant({ stops: [{ stopId: 'st_a' }, { stopId: 'st_zzz' }] })], 'unknown stop st_zzz'],
+    [[mainVariant({ stops: [{ stopId: 'st_a' }, { stopId: 'st_b' }, { stopId: 'st_a' }] })], 'stop st_a repeats'],
+    [[mainVariant({ stops: [{ stopId: 'st_a' }, { stopId: 'st_m', mapOnly: true }] })], 'needs at least 2 passenger stops'],
+    [[mainVariant({ stops: [{ stopId: 'st_a' }, { stopId: 'st_b' }, { stopId: 'st_m', mapOnly: true }] })], 'first and last points'],
+    [[mainVariant({ stops: [{ stopId: 'st_a' }, { stopId: 'st_b', mapOnly: 'так' as unknown as boolean }, { stopId: 'st_v' }] })], 'mapOnly must be boolean'],
+    [[mainVariant({ stops: [5 as unknown as { stopId: string }, { stopId: 'st_a' }, { stopId: 'st_b' }] })], 'stop #1 must be { stopId }'],
+  ];
+  for (const [variants, expected] of cases) {
+    const { errors } = validateTransportDataset(variantDataset(variants as TransportRouteVariantInput[]));
+    assert.ok(errors.some((e) => e.includes(expected)), `${expected} → ${errors.join('; ')}`);
+  }
+});
+
+test('validate: a trip variant must exist, belong to the route and match the direction; start/end use its chain', () => {
+  const other = { id: '5', fromName: 'X', toName: 'Y', variants: [mainVariant({ id: '5-v1' })] };
+  const cases: Array<[Partial<TransportDataset['trips'][number]>, string]> = [
+    [{ variantId: 'nope' }, 'unknown variant nope'],
+    [{ variantId: 5 as unknown as string }, 'variantId must be a string'],
+    [{ variantId: '5-v1' }, 'variant 5-v1 belongs to route 5'],
+    [{ directionId: '0' }, 'is for the other direction'],
+    [{ endStopId: 'st_c' }, 'endStopId st_c is not a passenger stop of variant 9-v1'], // c — лише в основному ланцюжку
+    [{ startStopId: 'st_m' }, 'startStopId st_m is not a passenger stop of variant 9-v1'], // технічна точка
+    [{ startStopId: 'st_v', endStopId: 'st_b' }, 'startStopId must precede endStopId'],
+  ];
+  for (const [extra, expected] of cases) {
+    const ds = variantDataset(undefined, [variantTrip(extra)]);
+    ds.routes.push(other);
+    const { errors } = validateTransportDataset(ds);
+    assert.ok(errors.some((e) => e.includes(expected)), `${JSON.stringify(extra)} → ${errors.join('; ')}`);
+  }
+  // кінцева у варіанті — st_v, якої немає в основному ланцюжку
+  assert.deepEqual(validateTransportDataset(variantDataset(undefined, [variantTrip({ endStopId: 'st_v' })])).errors, []);
+});
+
+test('validate: timepoints rules', () => {
+  const tp = (stopId: string, time: string) => ({ stopId, time });
+  const cases: Array<[Partial<TransportDataset['trips'][number]>, string]> = [
+    [{ timepoints: 'x' as unknown as [] }, 'timepoints must be an array'],
+    [{ timepoints: Array.from({ length: 41 }, () => tp('st_v', '07:05')) }, 'more than 40 timepoints'],
+    [{ departureTime: null, timepoints: [tp('st_v', '07:05')] }, 'timepoints require departureTime'],
+    [{ arrivalTime: '07:10', timepoints: [tp('st_v', '07:05')] }, 'use timepoints or arrivalTime'],
+    [{ timepoints: [tp('st_v', '7am')] }, 'bad time "7am"'],
+    [{ timepoints: [{ stopId: 'st_v' } as unknown as { stopId: string; time: string }] }, 'timepoint must be { stopId, time }'],
+    [{ timepoints: [tp('st_m', '07:00')] }, 'timepoint st_m is not a passenger stop'],
+    [{ timepoints: [tp('st_a', '06:50')] }, 'must follow the previous one'], // перша зупинка — це відправлення
+    [{ timepoints: [tp('st_v', '07:05'), tp('st_b', '07:10')] }, 'must follow the previous one'],
+    [{ endStopId: 'st_b', timepoints: [tp('st_v', '07:05')] }, 'must follow the previous one'], // поза зрізом
+    [{ timepoints: [tp('st_b', '06:45')] }, 'must be later than the previous time'],
+    [{ timepoints: [tp('st_b', '07:00'), tp('st_v', '06:59')] }, 'must be later than the previous time'],
+  ];
+  for (const [extra, expected] of cases) {
+    const { errors } = validateTransportDataset(variantDataset(undefined, [variantTrip(extra)]));
+    assert.ok(errors.some((e) => e.includes(expected)), `${JSON.stringify(extra)} → ${errors.join('; ')}`);
+  }
+  // опорні часи на основному ланцюжку теж можна
+  const main = validateTransportDataset(
+    variantDataset([], [{ id: '9-02', routeId: '9', directionId: '1', departureTime: '08:00', timepoints: [tp('st_c', '08:20')] }])
+  );
+  assert.deepEqual(main.errors, []);
+});
+
+test('fillOmittedRouteFields: missing or null keeps stored variants, [] clears, unknown route gets none', async () => {
+  const stored = [mainVariant()];
+  const prisma = {
+    transportRoute: { findMany: async () => [{ id: '9', variants: stored }, { id: '5', variants: null }] },
+  } as unknown as PrismaClient;
+  const body = {
+    routes: [{ id: '9' }, { id: '5', variants: null }, { id: '7', variants: [] }, { id: '12' }],
+  } as unknown as TransportDataset;
+  await fillOmittedRouteFields(prisma, body);
+  const byId = new Map(body.routes.map((r) => [r.id, r.variants]));
+  assert.deepEqual(byId.get('9'), stored);
+  assert.deepEqual(byId.get('5'), []);
+  assert.deepEqual(byId.get('7'), []);
+  assert.deepEqual(byId.get('12'), []);
+
+  let calls = 0;
+  const counting = { transportRoute: { findMany: async () => (calls++, []) } } as unknown as PrismaClient;
+  await fillOmittedRouteFields(counting, { routes: [{ id: '9', variants: [] }] });
+  await fillOmittedRouteFields(counting, null);
+  assert.equal(calls, 0); // усі ключі є — БД не читаємо
+});
+
+test('replaceTransportDataset: stores variants and trip variantId/timepoints in a compact form, empty → NULL', async () => {
+  const rows: Record<string, Array<Record<string, unknown>>> = { routes: [], trips: [] };
+  const model = (key?: 'routes' | 'trips') => ({
+    findMany: async () => [],
+    deleteMany: async () => ({ count: 0 }),
+    createMany: async ({ data }: { data: Array<Record<string, unknown>> }) => {
+      if (key) rows[key] = data;
+      return { count: data.length };
+    },
+    upsert: async () => ({}),
+  });
+  const prisma = {
+    transportStop: model(),
+    transportRoute: model('routes'),
+    transportRouteStop: model(),
+    transportTrip: model('trips'),
+    transportSegment: model(),
+    transportMeta: model(),
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+  } as unknown as PrismaClient;
+  const ds = variantDataset(
+    [mainVariant({ name: ' Перший рейс ', stops: [{ stopId: 'st_a', mapOnly: false }, { stopId: 'st_m', mapOnly: true }, { stopId: 'st_v' }] })],
+    [variantTrip({ timepoints: [{ stopId: 'st_v', time: '07:05:00' }] }), { id: '9-02', routeId: '9', directionId: '1', variantId: '', timepoints: [] }]
+  );
+  ds.routes.push({ id: '5', variants: [] });
+  await replaceTransportDataset(prisma, { ...ds, routes: ds.routes.map((r) => ({ ...r, shortName: '' })) });
+  const routes = new Map(rows.routes.map((r) => [r.id, r.variants]));
+  assert.deepEqual(routes.get('9'), [
+    { id: '9-v1', directionId: '1', name: 'Перший рейс', stops: [{ stopId: 'st_a' }, { stopId: 'st_m', mapOnly: true }, { stopId: 'st_v' }] },
+  ]);
+  assert.equal(routes.get('5'), undefined);
+  const trips = new Map(rows.trips.map((t) => [t.id, t]));
+  assert.equal(trips.get('9-01')?.variantId, '9-v1');
+  assert.deepEqual(trips.get('9-01')?.timepoints, [{ stopId: 'st_v', time: '07:05:00' }]);
+  assert.equal(trips.get('9-02')?.variantId, null);
+  assert.equal(trips.get('9-02')?.timepoints, undefined);
 });

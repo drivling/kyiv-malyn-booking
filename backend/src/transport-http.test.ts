@@ -222,3 +222,88 @@ test('PUT /transport/dataset: 400 names the trip whose arrivalTime is invalid', 
     .expect(400);
   assert.ok((res.body.details as string[]).some((d) => d.includes('trip 2-01') && d.includes('arrivalTime')));
 });
+
+// ---------- Варіанти шляху, опорні часи, revision (Docs/route-variants-2026-10.md) ----------
+
+function variantSample(): TransportDataset {
+  const ds = sampleDataset();
+  ds.stops.push({ id: 'st_0003', name: 'Вокзал', lat: 50.774, lng: 29.244 });
+  ds.routes[0].variants = [
+    { id: '2-v1', directionId: '1', name: 'Через вокзал', stops: [{ stopId: 'st_0001' }, { stopId: 'st_0003' }] },
+  ];
+  ds.trips.push({
+    id: '2-02',
+    routeId: '2',
+    directionId: '1',
+    departureTime: '06:45:00',
+    variantId: '2-v1',
+    timepoints: [{ stopId: 'st_0003', time: '07:05:00' }],
+  });
+  return ds;
+}
+
+async function adminToken(app: ReturnType<typeof appWithStore>): Promise<string> {
+  const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
+  return String(login.body.token);
+}
+
+test('PUT then GET /transport/dataset: variants, trip variantId and timepoints round-trip; counts.variants', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  const put = await request(app).put('/transport/dataset').set('Authorization', token).send(variantSample()).expect(200);
+  assert.equal(put.body.counts.variants, 1);
+
+  const get = await request(app).get('/transport/dataset').expect(200);
+  assert.deepEqual(get.body.routes[0].variants, [
+    { id: '2-v1', directionId: '1', name: 'Через вокзал', stops: [{ stopId: 'st_0001' }, { stopId: 'st_0003' }] },
+  ]);
+  const byId = new Map((get.body.trips as Array<Record<string, unknown>>).map((t) => [t.id, t]));
+  assert.equal(byId.get('2-02')?.variantId, '2-v1');
+  assert.deepEqual(byId.get('2-02')?.timepoints, [{ stopId: 'st_0003', time: '07:05:00' }]);
+  assert.equal(byId.get('2-01')?.variantId, null);
+  assert.equal(byId.get('2-01')?.timepoints, null);
+});
+
+test('PUT /transport/dataset: a route without the variants key keeps them (map editor save); [] clears them', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(variantSample()).expect(200);
+
+  const withoutKey = variantSample();
+  delete withoutKey.routes[0].variants;
+  await request(app).put('/transport/dataset').set('Authorization', token).send(withoutKey).expect(200);
+  const get = await request(app).get('/transport/dataset').expect(200);
+  assert.equal(get.body.routes[0].variants.length, 1);
+
+  const cleared = variantSample();
+  cleared.routes[0].variants = [];
+  const res = await request(app).put('/transport/dataset').set('Authorization', token).send(cleared).expect(400);
+  assert.ok((res.body.details as string[]).some((d) => d.includes('unknown variant 2-v1')));
+});
+
+test('PUT /transport/dataset: stale baseRevision → 409; current one or none → 200 with the new revision', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  store.meta = { ...(store.meta as { id: number; payload: Record<string, unknown> }), updatedAt: new Date('2026-10-12T10:00:00Z') } as never;
+
+  const get = await request(app).get('/transport/dataset').expect(200);
+  assert.equal(get.body.revision, '2026-10-12T10:00:00.000Z');
+
+  const stale = await request(app)
+    .put('/transport/dataset')
+    .set('Authorization', token)
+    .send({ ...sampleDataset(), baseRevision: '2026-10-12T09:00:00.000Z' })
+    .expect(409);
+  assert.equal(stale.body.revision, '2026-10-12T10:00:00.000Z');
+
+  const ok = await request(app)
+    .put('/transport/dataset')
+    .set('Authorization', token)
+    .send({ ...sampleDataset(), baseRevision: get.body.revision, revision: 'ignored' })
+    .expect(200);
+  assert.equal(ok.body.revision, '2026-10-12T10:00:00.000Z');
+});

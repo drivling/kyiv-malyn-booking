@@ -32,9 +32,26 @@ function createTransportRouter(deps) {
             res.status(500).json({ error: 'Failed to load transport dataset' });
         }
     });
-    /** Адмін: транзакційна заміна всього датасету. */
+    /**
+     * Адмін: транзакційна заміна всього датасету.
+     * Маршрут без ключа variants зберігає свої варіанти (fillOmittedRouteFields — до валідації).
+     * baseRevision (необов'язково) — revision з GET: якщо відтоді датасет змінився, 409, щоб застаріла вкладка
+     * не відкотила чужі зміни. Старі клієнти поля не шлють — їх це не зачіпає.
+     */
     r.put('/transport/dataset', require_admin_1.requireAdmin, async (req, res) => {
         try {
+            const baseRevision = typeof req.body?.baseRevision === 'string' ? req.body.baseRevision : null;
+            if (baseRevision) {
+                const revision = await (0, local_transport_1.currentTransportRevision)(prisma);
+                if (revision && revision !== baseRevision) {
+                    res.status(409).json({
+                        error: 'Transport dataset changed since it was loaded — reload and repeat the edit',
+                        revision,
+                    });
+                    return;
+                }
+            }
+            await (0, local_transport_1.fillOmittedRouteFields)(prisma, req.body);
             const { errors, dataset } = (0, local_transport_1.validateTransportDataset)(req.body);
             if (errors.length || !dataset) {
                 res.status(400).json({ error: 'Invalid transport dataset', details: errors });
@@ -49,7 +66,9 @@ function createTransportRouter(deps) {
                     routeStops: dataset.routeStops.length,
                     trips: dataset.trips.length,
                     segments: dataset.segments.length,
+                    variants: dataset.routes.reduce((n, route) => n + (route.variants?.length ?? 0), 0),
                 },
+                revision: await (0, local_transport_1.currentTransportRevision)(prisma),
             });
         }
         catch (e) {

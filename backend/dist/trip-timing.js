@@ -1,13 +1,15 @@
 "use strict";
 /**
  * Час рейсу по зупинках: зріз ланцюжка [start..end], сума сегментів,
- * пропорційне стиснення під фіксований час прибуття на останню обслуговувану зупинку.
+ * пропорційне стиснення під фіксований час прибуття на останню обслуговувану зупинку
+ * або точні опорні часи на проміжних зупинках (timepoints).
  *
  * MIRROR: keep byte-identical with backend/src/trip-timing.ts
  * (frontend copy: frontend/src/pages/LocalTransportPage/dataset/tripTiming.ts). Чистий модуль без імпортів.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseClockMins = parseClockMins;
+exports.parseTimepoints = parseTimepoints;
 exports.computeTripTiming = computeTripTiming;
 exports.minutesAtStop = minutesAtStop;
 exports.tripServesPair = tripServesPair;
@@ -24,6 +26,22 @@ function parseClockMins(s) {
     if (!Number.isFinite(h) || !Number.isFinite(min) || min > 59)
         return null;
     return h * 60 + min;
+}
+/** Опорні часи з даних рейсу ([{ stopId, time: 'HH:MM[:SS]' }]) → хвилини; некоректні записи відкидаються. */
+function parseTimepoints(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    const out = [];
+    for (const tp of raw) {
+        if (!tp || typeof tp !== 'object')
+            continue;
+        const stopId = tp.stopId;
+        const time = tp.time;
+        const mins = typeof time === 'string' ? parseClockMins(time) : null;
+        if (typeof stopId === 'string' && stopId && mins != null)
+            out.push({ stopId, mins });
+    }
+    return out;
 }
 /**
  * Обчислити час на кожній обслуговуваній зупинці рейсу.
@@ -42,18 +60,79 @@ function computeTripTiming(chainKeys, segSec, trip) {
         cum.push(cum[cum.length - 1] + (Number.isFinite(sec) && sec > 0 ? sec : 0));
     }
     const neededSec = cum[cum.length - 1];
-    const availableSec = trip.arrivalMins == null ? null : (trip.arrivalMins - trip.departureMins) * 60;
-    const arrivalIgnored = availableSec != null && availableSec <= 0;
-    const factor = availableSec != null && availableSec > 0 && neededSec > availableSec ? availableSec / neededSec : 1;
+    // Опори: відправлення + опорні часи по порядку ланцюжка в межах зрізу, час строго зростає
+    const anchors = [{ k: 0, mins: trip.departureMins }];
+    let timepointsIgnored = 0;
+    for (const tp of trip.timepoints ?? []) {
+        const k = chainKeys.indexOf(tp.stopId) - startIndex;
+        const prev = anchors[anchors.length - 1];
+        if (k <= prev.k || k > endIndex - startIndex || !(tp.mins > prev.mins)) {
+            timepointsIgnored++;
+            continue;
+        }
+        anchors.push({ k, mins: tp.mins });
+    }
+    const timepointIndexes = anchors.slice(1).map((a) => startIndex + a.k);
     const stops = [];
     const minsByStop = {};
+    if (anchors.length === 1) {
+        const availableSec = trip.arrivalMins == null ? null : (trip.arrivalMins - trip.departureMins) * 60;
+        const arrivalIgnored = availableSec != null && availableSec <= 0;
+        const factor = availableSec != null && availableSec > 0 && neededSec > availableSec ? availableSec / neededSec : 1;
+        for (let k = 0; k < cum.length; k++) {
+            const index = startIndex + k;
+            const mins = trip.departureMins + (cum[k] * factor) / 60;
+            stops.push({ stopId: chainKeys[index], index, mins });
+            minsByStop[chainKeys[index]] = mins;
+        }
+        return {
+            stops,
+            startIndex,
+            endIndex,
+            neededSec,
+            availableSec,
+            factor,
+            arrivalIgnored,
+            minsByStop,
+            timepointIndexes,
+            timepointsIgnored,
+        };
+    }
+    const last = anchors[anchors.length - 1];
+    const endFixed = last.k === cum.length - 1;
+    const availableSec = endFixed ? (last.mins - trip.departureMins) * 60 : null;
+    const factor = availableSec != null && neededSec > 0 ? availableSec / neededSec : 1;
+    let j = 0;
     for (let k = 0; k < cum.length; k++) {
+        while (j < anchors.length - 1 && k > anchors[j + 1].k)
+            j++;
+        let mins;
+        if (k >= last.k) {
+            mins = last.mins + (cum[k] - cum[last.k]) / 60;
+        }
+        else {
+            const a = anchors[j];
+            const b = anchors[j + 1];
+            const span = cum[b.k] - cum[a.k];
+            const t = span > 0 ? (cum[k] - cum[a.k]) / span : (k - a.k) / (b.k - a.k);
+            mins = a.mins + t * (b.mins - a.mins);
+        }
         const index = startIndex + k;
-        const mins = trip.departureMins + (cum[k] * factor) / 60;
         stops.push({ stopId: chainKeys[index], index, mins });
         minsByStop[chainKeys[index]] = mins;
     }
-    return { stops, startIndex, endIndex, neededSec, availableSec, factor, arrivalIgnored, minsByStop };
+    return {
+        stops,
+        startIndex,
+        endIndex,
+        neededSec,
+        availableSec,
+        factor,
+        arrivalIgnored: false,
+        minsByStop,
+        timepointIndexes,
+        timepointsIgnored,
+    };
 }
 /** Хвилини на зупинці або null, якщо рейс її не обслуговує. */
 function minutesAtStop(timing, stopId) {
