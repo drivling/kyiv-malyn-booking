@@ -95,10 +95,21 @@ export interface TransportDataset {
   trips: TransportTripDto[];
   segments: TransportSegmentDto[];
   meta: Record<string, unknown>;
-  /** Лише у відповіді GET: мітка останнього запису. Адмінка повертає її в PUT як baseRevision (409, якщо застаріла) */
+  /**
+   * Лише у відповіді GET (і PUT): мітка останнього запису. Адмінка передає її в putTransportDataset як
+   * baseRevision — 409, якщо датасет відтоді змінився.
+   */
   revision?: string | null;
-  /** Лише в PUT: revision, з якою редагували */
-  baseRevision?: string | null;
+}
+
+/** Що показати адміну, коли PUT датасету отримав 409 */
+export const DATASET_CONFLICT_MESSAGE =
+  'Дані в базі змінилися після завантаження (інша вкладка, перерахунок часу чи скрипт). Натисніть «Завантажити з бази» і повторіть правку.';
+
+/** Текст помилки збереження датасету: 409 — DATASET_CONFLICT_MESSAGE, інакше повідомлення помилки */
+export function datasetSaveErrorMessage(err: unknown, fallback: string): string {
+  if ((err as { status?: unknown } | null)?.status === 409) return DATASET_CONFLICT_MESSAGE;
+  return err instanceof Error ? err.message : fallback;
 }
 
 /** Варіант шляху у формі редактора / сайту: напрямок і точки з назвами */

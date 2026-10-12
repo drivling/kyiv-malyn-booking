@@ -9,7 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { TransportDataset } from '@/api/transportDataset';
+import { DATASET_CONFLICT_MESSAGE, type TransportDataset } from '@/api/transportDataset';
 import { MapEditorTab } from './MapEditorTab';
 
 const mapMock = vi.hoisted(() => ({
@@ -267,5 +267,62 @@ describe('MapEditorTab: stops panel', () => {
 
     await user.click(within(rowOf('Лікарня (центр)')).getByRole('button', { name: 'Порядок…' }));
     expect(screen.getByRole('heading', { name: /Зупинка: Лікарня \(центр\)/ })).toBeInTheDocument();
+  });
+});
+
+describe('MapEditorTab: revision and route variants', () => {
+  /** №2 має варіант шляху; редактор карти його лише показує, а PUT шле без ключа variants */
+  const withVariants: TransportDataset = {
+    ...dataset,
+    routes: dataset.routes.map((r) =>
+      r.id === '2'
+        ? { ...r, variants: [{ id: '2-v1', directionId: '1', name: 'через вокзал', stops: [{ stopId: 'st_a' }, { stopId: 'st_b' }] }] }
+        : r
+    ),
+    revision: 'rev-1',
+  };
+
+  beforeEach(() => {
+    server.use(http.get(DATASET_URL, () => HttpResponse.json(withVariants)));
+  });
+
+  it('save sends baseRevision without the variants; the next save uses the new revision and variants stay shown', async () => {
+    const user = userEvent.setup();
+    const bodies: Array<Record<string, unknown>> = [];
+    server.use(
+      http.put(DATASET_URL, async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json({ ok: true, counts: { stops: 3, routes: 2, routeStops: 4, trips: 2, segments: 1 }, revision: `rev-${bodies.length + 1}` });
+      })
+    );
+    await openEditor();
+    await renameLikarnia(user);
+    await user.selectOptions(screen.getByLabelText('Маршрут'), '2');
+    expect(screen.getByLabelText('Варіанти шляху маршруту')).toHaveTextContent('Варіанти шляху №2: «через вокзал» (туди, 2 зуп.)');
+
+    await user.click(saveButton());
+    await screen.findByText(/Збережено: 3 зупинок/);
+    expect(bodies[0].baseRevision).toBe('rev-1');
+    expect((bodies[0].routes as Array<Record<string, unknown>>).some((r) => 'variants' in r)).toBe(false);
+    expect(screen.getByLabelText('Варіанти шляху маршруту')).toHaveTextContent('«через вокзал»');
+
+    await user.selectOptions(screen.getByLabelText('Маршрут'), '');
+    // зупинка лишилась обраною — клік по назві одразу відкриває редагування
+    await user.click(within(list()).getByRole('button', { name: 'Лікарня (центр)' }));
+    const input = screen.getByRole('textbox', { name: 'Нова назва зупинки' });
+    await user.clear(input);
+    await user.type(input, 'Лікарня (стара){Enter}');
+    await user.click(saveButton());
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1].baseRevision).toBe('rev-2');
+  });
+
+  it('409 says the data changed and how to recover', async () => {
+    const user = userEvent.setup();
+    server.use(http.put(DATASET_URL, () => HttpResponse.json({ error: 'changed' }, { status: 409 })));
+    await openEditor();
+    await renameLikarnia(user);
+    await user.click(saveButton());
+    expect(await screen.findByText(DATASET_CONFLICT_MESSAGE)).toBeInTheDocument();
   });
 });

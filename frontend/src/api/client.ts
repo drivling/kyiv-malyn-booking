@@ -116,7 +116,8 @@ class ApiClient {
       } catch {
         if (text && text.length < 200) errorMessage = text;
       }
-      throw new Error(errorMessage);
+      // status — щоб викликач розрізняв, напр., 409 «датасет змінився» від решти помилок
+      throw Object.assign(new Error(errorMessage), { status: response.status });
     }
 
     if (response.status === 204) {
@@ -1142,7 +1143,12 @@ class ApiClient {
     });
   }
 
-  async putTransportDataset(dataset: TransportDataset): Promise<{
+  /**
+   * Повний датасет у базу. baseRevision — revision з GET, від якої редагувала вкладка: якщо датасет у базі
+   * відтоді змінився (інша вкладка, перерахунок часу, скрипт), сервер відповідає 409 і нічого не пише.
+   * Без baseRevision перевірки немає (скрипти).
+   */
+  async putTransportDataset(dataset: TransportDataset, baseRevision?: string | null): Promise<{
     ok: boolean;
     counts: {
       stops: number;
@@ -1156,9 +1162,12 @@ class ApiClient {
     /** Мітка щойно збереженого датасету — наступний PUT шле її як baseRevision */
     revision?: string | null;
   }> {
+    const body: Record<string, unknown> = { ...dataset };
+    delete body.revision;
+    if (baseRevision) body.baseRevision = baseRevision;
     return this.request('/transport/dataset', {
       method: 'PUT',
-      body: JSON.stringify(dataset),
+      body: JSON.stringify(body),
     });
   }
 

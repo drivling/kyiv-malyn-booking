@@ -345,3 +345,15 @@
   color: var(--pb-border);
   background: var(--pb-bg-secondary);
 }
+
+/* Опорний час із листка (Docs/route-variants-2026-10.md): точний, між опорами час розподіляється */
+.schedule-editor-cell--timepoint {
+  font-weight: 700;
+  color: var(--pb-primary);
+}
+
+/* У режимі «Опорні часи» під порожнім полем — розрахований час */
+.schedule-editor-cell-calc {
+  display: block;
+  font-size: 0.75rem;
+}

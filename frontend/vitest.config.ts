@@ -14,6 +14,7 @@ export default mergeConfig(
           'src/pages/LocalTransportPage/dataset/datasetAdapter.ts',
           'src/pages/LocalTransportPage/dataset/tripTiming.ts',
           'src/pages/LocalTransportPage/routeVariants.ts',
+          'src/pages/AdminPage/scheduleEditorVariants.ts',
           'src/pages/LocalTransportPage/stopDepartures.ts',
           'src/pages/LocalTransportPage/stopCatalog.ts',
           'src/pages/LocalTransportPage/tripDeparture.ts',
