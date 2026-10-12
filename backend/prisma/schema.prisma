@@ -306,10 +306,27 @@ model Booking {
   viberListing ViberListing? @relation(fields: [viberListingId], references: [id], onDelete: SetNull)
   fromPoint    TripPoint?    @relation("BookingFromPoint", fields: [fromPointId], references: [id], onDelete: SetNull)
   toPoint      TripPoint?    @relation("BookingToPoint", fields: [toPointId], references: [id], onDelete: SetNull)
+  reminders    BookingReminder[]
 
   @@index([scheduleId])
   @@index([tripRouteId])
   @@index([fromPointId, toPointId])
+}
+
+/// Яке нагадування про поїздку вже надіслано (унікальність = «не більше одного разу»: таймер у процесі,
+/// ручні POST /telegram/send-reminders* і кілька контейнерів під час деплою не дублюють повідомлення).
+model BookingReminder {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  /// evening (за день, 20:00 Київ) | morning (в день, 08:00) | soon_120 (за 2 год) | soon_30 (за 30 хв)
+  kind      String
+  /// bot | sms | none
+  delivered String?
+  sentAt    DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, kind])
 }
 
 // Запит пасажира на бронювання у водія (пряме співпадіння). Водій має 1 год на підтвердження.

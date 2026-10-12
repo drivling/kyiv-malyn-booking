@@ -40,7 +40,7 @@ exports.createViberListingsRouter = createViberListingsRouter;
 const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const notification_queue_1 = require("../notification-queue");
-const viber_analytics_import_1 = require("../viber-analytics-import");
+const viber_listing_archive_1 = require("../viber-listing-archive");
 const viber_parser_1 = require("../viber-parser");
 const viber_ingest_1 = require("../viber-ingest");
 const index_helpers_1 = require("../index-helpers");
@@ -49,6 +49,7 @@ const catalog_cache_1 = require("../catalog-cache");
 const poputky_od_1 = require("../poputky-od");
 const viber_listing_public_1 = require("../viber-listing-public");
 const trip_day_1 = require("../trip-day");
+const viber_listing_expiry_1 = require("../viber-listing-expiry");
 const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
 const phone_block_1 = require("../phone-block");
 const VIBER_LISTING_UPDATE_FIELDS = [
@@ -67,7 +68,6 @@ const VIBER_LISTING_UPDATE_FIELDS = [
     'priceUah',
     'isActive',
 ];
-const CLEANUP_CUTOFF_HOURS = 1;
 function createViberListingsRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -91,7 +91,7 @@ function createViberListingsRouter(deps) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const listings = await prisma.viberListing.findMany({
-                where: { isActive: true, date: { gte: today } },
+                where: { isActive: true, date: { gte: today }, AND: [(0, viber_listing_expiry_1.notExpiredWhere)()] },
                 orderBy: [{ date: 'asc' }, { createdAt: 'desc' }],
                 select: viber_listing_public_1.PUBLIC_LISTING_SELECT,
             });
@@ -116,9 +116,9 @@ function createViberListingsRouter(deps) {
             }
             const listing = await prisma.viberListing.findUnique({
                 where: { id },
-                select: { phone: true, isActive: true },
+                select: { phone: true, isActive: true, endsAt: true },
             });
-            if (!listing || !listing.isActive || !listing.phone?.trim()) {
+            if (!listing || !listing.isActive || !listing.phone?.trim() || (0, viber_listing_expiry_1.isListingExpired)(listing.endsAt)) {
                 return res.status(404).json({ error: 'Контакт недоступний' });
             }
             return res.json({ contact: listing.phone.trim() });
@@ -144,6 +144,7 @@ function createViberListingsRouter(deps) {
             const dateFilter = {
                 date: (0, trip_day_1.tripDayWhere)(String(date)),
                 isActive: true,
+                AND: [(0, viber_listing_expiry_1.notExpiredWhere)()],
             };
             let listings;
             if (hasOd) {
@@ -425,42 +426,15 @@ function createViberListingsRouter(deps) {
             res.status(500).json({ error: 'Failed to delete Viber listing' });
         }
     });
+    /** Ручний запуск; те саме щохвилини-кілька робить таймер у процесі (index.ts, VIBER_CLEANUP_INTERVAL_MIN). */
     r.post('/viber-listings/cleanup-old', require_admin_1.requireAdmin, async (_req, res) => {
         try {
-            const now = new Date();
-            const cutoff = new Date(now);
-            cutoff.setHours(cutoff.getHours() - CLEANUP_CUTOFF_HOURS);
-            // Основний шлях: один updateMany по індексу (isActive, endsAt)
-            const byEndsAt = await prisma.viberListing.updateMany({
-                where: { isActive: true, endsAt: { lt: cutoff } },
-                data: { isActive: false },
-            });
-            // Рядки без endsAt (до backfill або з обхідного шляху запису) — як раніше, в JS; їх одиниці
-            const withoutEndsAt = await prisma.viberListing.findMany({
-                where: { isActive: true, endsAt: null },
-                select: { id: true, date: true, departureTime: true },
-            });
-            const legacyIds = withoutEndsAt
-                .filter((l) => (0, index_helpers_1.getViberListingEndDateTime)(l.date, l.departureTime) < cutoff)
-                .map((l) => l.id);
-            if (legacyIds.length > 0) {
-                await prisma.viberListing.updateMany({
-                    where: { id: { in: legacyIds } },
-                    data: { isActive: false },
-                });
-            }
-            // Протерміновані запити «пасажир → водій» (1 год на підтвердження) — раніше їх ніхто не закривав
-            const expiredRequests = await prisma.rideShareRequest.updateMany({
-                where: { status: 'pending', expiresAt: { lt: now } },
-                data: { status: 'expired' },
-            });
-            const count = byEndsAt.count + legacyIds.length;
-            console.log(`🧹 Деактивовано ${count} старих Viber оголошень (дата по < ${cutoff.toISOString()}), протерміновано запитів: ${expiredRequests.count}`);
+            const { deactivated, expiredRequests } = await (0, viber_listing_expiry_1.deactivateExpiredListings)(prisma);
             res.json({
                 success: true,
-                deactivated: count,
-                expiredRequests: expiredRequests.count,
-                message: `Деактивовано ${count} оголошень`,
+                deactivated,
+                expiredRequests,
+                message: `Деактивовано ${deactivated} оголошень`,
             });
         }
         catch (error) {
@@ -469,22 +443,16 @@ function createViberListingsRouter(deps) {
         }
     });
     /**
-     * Архів для cron (раз на місяць): нові рядки → ViberRideEvent (аналітика), потім видаляємо
-     * неактивні оголошення старші за `days` (за замовчуванням 90, мінімум 30). Гаряча таблиця
-     * лишається невеликою; Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
+     * Ручний запуск архіву (щодоби це робить таймер у процесі, VIBER_ARCHIVE_INTERVAL_MIN): нові рядки →
+     * ViberRideEvent (аналітика), потім видаляємо неактивні оголошення старші за `days` (за замовчуванням 90,
+     * мінімум 30). Booking/RideShareRequest на видалені рядки — SetNull/Cascade у схемі.
      */
     r.post('/viber-listings/archive-old', require_admin_1.requireAdmin, async (req, res) => {
         try {
-            const raw = Number((req.query.days ?? req.body?.days) ?? 90);
-            const days = Number.isFinite(raw) ? Math.max(30, Math.round(raw)) : 90;
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - days);
-            const imported = await (0, viber_analytics_import_1.importListingsToRideEvents)(prisma);
-            const deleted = await prisma.viberListing.deleteMany({
-                where: { isActive: false, date: { lt: cutoff } },
-            });
-            console.log(`🗄️ Архів: імпортовано в аналітику ${imported.importedNow}, видалено неактивних старших за ${days} дн.: ${deleted.count}`);
-            res.json({ success: true, days, cutoff: cutoff.toISOString(), ...imported, deleted: deleted.count });
+            const days = (0, viber_listing_archive_1.normalizeArchiveDays)(req.query.days ?? req.body?.days);
+            const result = await (0, viber_listing_archive_1.archiveOldListings)(prisma, days);
+            console.log(`🗄️ Архів: імпортовано в аналітику ${result.importedNow}, видалено неактивних старших за ${days} дн.: ${result.deleted}`);
+            res.json({ success: true, ...result, cutoff: result.cutoff.toISOString() });
         }
         catch (error) {
             console.error('❌ Помилка архівування Viber оголошень:', error);

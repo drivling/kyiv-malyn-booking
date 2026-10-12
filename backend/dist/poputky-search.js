@@ -4,6 +4,14 @@ exports.DATE_RE = void 0;
 exports.dayBounds = dayBounds;
 exports.bookedSeatsBySchedule = bookedSeatsBySchedule;
 exports.searchPoputky = searchPoputky;
+/**
+ * Один пошук на головній = один HTTP-запит (Docs/poputky-search-performance-plan.md, Фаза 2.4).
+ *
+ * Повертає попутки (публічний DTO), розклад маршруток/електричок на цю OD-пару й дату
+ * та вільні місця по всіх маршрутках однією вибіркою бронювань. Точки й маршрути — з
+ * кешу процесу (catalog-cache.ts), тож на бекенді це 3 SQL-запити замість 4+2N HTTP.
+ */
+const viber_listing_expiry_1 = require("./viber-listing-expiry");
 const catalog_cache_1 = require("./catalog-cache");
 const schedule_include_1 = require("./schedule-include");
 const schedule_trip_1 = require("./schedule-trip");
@@ -43,6 +51,7 @@ async function searchPoputky(prisma, input) {
         prisma.viberListing.findMany({
             where: {
                 isActive: true,
+                AND: [(0, viber_listing_expiry_1.notExpiredWhere)()],
                 date: { gte: startOfDay, lt: endOfDay },
                 OR: [
                     { fromPointId: from.id, toPointId: to.id },

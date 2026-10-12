@@ -15,6 +15,7 @@ exports.getScenarioKeysForProfile = getScenarioKeysForProfile;
 /**
  * Чиста логіка, винесена з index.ts для юніт-тестів без підняття HTTP-сервера.
  */
+const viber_listing_expiry_1 = require("./viber-listing-expiry");
 const telegram_1 = require("./telegram");
 /**
  * «Вчора і раніше» відносно поточної дати в Києві — порівняння лише календарного дня,
@@ -96,29 +97,9 @@ function serializeViberListing(row) {
             : (row.authorNotifiedAt ?? null),
     };
 }
-/** «Дата по» для оголошення: дата поїздки + кінець часу (діапазон → кінець інтервалу). */
+/** «Дата по» для оголошення: доба поїздки + кінець часу за Києвом (див. viber-listing-expiry.ts). */
 function getViberListingEndDateTime(date, departureTime) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const t = (departureTime ?? '').trim();
-    if (!t) {
-        d.setHours(23, 59, 0, 0);
-        return d;
-    }
-    const rangeMatch = t.match(/^\d{1,2}:\d{2}-(\d{1,2}):(\d{2})$/);
-    const singleMatch = t.match(/^(\d{1,2}):(\d{2})$/);
-    const timeStr = rangeMatch
-        ? `${rangeMatch[1]}:${rangeMatch[2]}`
-        : singleMatch
-            ? `${singleMatch[1]}:${singleMatch[2]}`
-            : null;
-    if (timeStr) {
-        const [h, m] = timeStr.split(':').map(Number);
-        d.setHours(h, m, 0, 0);
-        return d;
-    }
-    d.setHours(23, 59, 0, 0);
-    return d;
+    return (0, viber_listing_expiry_1.getListingEndsAt)(date, departureTime);
 }
 exports.hasTelegramReminderBaseCondition = {
     telegramChatId: {

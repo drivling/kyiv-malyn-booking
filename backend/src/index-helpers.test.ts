@@ -74,22 +74,20 @@ test('serializeViberListing: ISO для Date', () => {
   assert.equal(s.route, 'X');
 });
 
-test('getViberListingEndDateTime: без часу — 23:59', () => {
-  const end = getViberListingEndDateTime(new Date('2026-06-10T00:00:00.000Z'), null);
-  assert.equal(end.getHours(), 23);
-  assert.equal(end.getMinutes(), 59);
+// «Дата по» — київський час стіни, переведений в UTC (departureTime вводять за Києвом)
+test('getViberListingEndDateTime: без часу — 23:59 за Києвом', () => {
+  const end = getViberListingEndDateTime(new Date(2026, 5, 10), null);
+  assert.equal(end.toISOString(), '2026-06-10T20:59:00.000Z'); // літо UTC+3
 });
 
 test('getViberListingEndDateTime: один час', () => {
-  const end = getViberListingEndDateTime(new Date('2026-06-10T00:00:00.000Z'), '14:30');
-  assert.equal(end.getHours(), 14);
-  assert.equal(end.getMinutes(), 30);
+  const end = getViberListingEndDateTime(new Date(2026, 5, 10), '14:30');
+  assert.equal(end.toISOString(), '2026-06-10T11:30:00.000Z');
 });
 
 test('getViberListingEndDateTime: діапазон — кінець', () => {
-  const end = getViberListingEndDateTime(new Date('2026-06-10T00:00:00.000Z'), '9:05-16:40');
-  assert.equal(end.getHours(), 16);
-  assert.equal(end.getMinutes(), 40);
+  const end = getViberListingEndDateTime(new Date(2026, 5, 10), '9:05-16:40');
+  assert.equal(end.toISOString(), '2026-06-10T13:40:00.000Z');
 });
 
 test('getTelegramReminderWhere: all / default', () => {
