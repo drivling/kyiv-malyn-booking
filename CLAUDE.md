@@ -290,7 +290,8 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   the key keeps the stored value. Prefer `shortName` over renumbering when only the label changes.
 - Route lines on the map are straight lines between consecutive chain points; technical points (`mapOnly`
   route stops named «№<id> т.N») bend them along the roads (`Docs/route-geometry-5-2-2026-10.md`,
-  `Docs/route-geometry-10-11-2026-10.md`, `Docs/route-geometry-8-2026-10.md`, `Docs/route-geometry-7-2026-10.md`;
+  `Docs/route-geometry-10-11-2026-10.md`, `Docs/route-geometry-8-2026-10.md`, `Docs/route-geometry-7-2026-10.md`,
+  `Docs/route-geometry-12-2026-10.md`;
   generator `build_routes()` in
   `data/malyn-transport/route-geometry-2026-10/scripts/build_more.py`; points within 10 m are shared between routes). They do not
   change trip times: `recalculate-segments` times each span between real stops (stop pause, speed, 30 s minimum)
