@@ -45,7 +45,7 @@ def street_mid(name):
     return g[-1]
 
 
-def via_points():
+def via_points(st=None):
     """(маршрут, напрямок, зупинка, наступна зупинка) → проміжні точки дороги: OSRM вибирає коротший шлях, а
     автобус їде інакше. №10 від Соборної — Грушевського → Залужного → Винниченка (і так само назад), а не через площу."""
     zal = street_mid('вулиця Валерія Залужного')
@@ -102,18 +102,32 @@ def tech_ids(d, rid):
 
 
 def build(d):
+    """№10 і №11. Перевикористовуємо технічні точки №5 / №2 (спільні вулиці) і вже створені для №10 / №11
+    (повторний запуск на записаній базі нічого не змінює)."""
+    return build_routes(d, ROUTES, drop=DROP_TECH, special_fn=anchors, via_fn=via_points, leg_fn=leg_path,
+                        pool=r'^№(5|2|10|11) т\.\d+$', pool_skip=KEEP_TECH | set().union(*DROP_TECH.values()))
+
+
+def build_routes(d, routes, drop=None, special_fn=None, via_fn=None, leg_fn=None, pool=r'^№\S+ т\.\d+$',
+                 pool_skip=frozenset(), keep=KEEP_TECH):
+    """Технічні точки для маршрутів routes (мутує датасет d) → (d, створені точки).
+    drop — {маршрут: старі технічні точки, які прибрати з ланцюжків}; special_fn(st) — {(маршрут, напрямок,
+    зупинка): точка маршрутизації}; via_fn(st) — {(маршрут, напрямок, зупинка, наступна): [точки «через»]};
+    leg_fn(st, special, via, маршрут, напрямок, a, b, aa, bb) — шлях перегону (за замовчуванням OSRM через via);
+    pool / pool_skip — які наявні технічні точки можна перевикористати (назва за шаблоном, крім pool_skip);
+    keep — технічні точки, що лишаються в ланцюжку як є (петля біля вокзалу №10 / №11)."""
+    drop = drop or {}
     st = {s['id']: s for s in d['stops']}
     P = lambda i: (st[i]['lat'], st[i]['lng'])  # noqa: E731
-    special, via = anchors(st), via_points()
-    # точки, які можна перевикористати: технічні точки №5 і №2 (спільні вулиці) і вже створені для №10 / №11
-    # (повторний запуск на записаній базі нічого не змінює)
-    skip = KEEP_TECH | set().union(*DROP_TECH.values())
-    shared = [s for s in d['stops'] if re.match(r'^№(5|2|10|11) т\.\d+$', s['name']) and s['id'] not in skip]
+    special = special_fn(st) if special_fn else {}
+    via = via_fn(st) if via_fn else {}
+    leg = leg_fn or (lambda st_, sp, vi, rid, key, a, b, aa, bb: road(aa, bb, vi.get((rid, key, a, b), ())))
+    shared = [s for s in d['stops'] if re.match(pool, s['name']) and s['id'] not in pool_skip]
     taken_names = {s['name'] for s in d['stops']}
     next_id = 1 + max(int(s['id'][3:]) for s in d['stops'] if re.match(r'^st_\d+$', s['id']))
     created, new_chains, old_chains = [], {}, {}
     counters = {}
-    for rid in ROUTES:
+    for rid in routes:
         nums = [int(m.group(1)) for s in d['stops'] for m in [re.match(rf'^№{rid} т\.(\d+)$', s['name'])] if m]
         counters[rid] = max(nums, default=0)
 
@@ -137,18 +151,18 @@ def build(d):
         st[sid] = p
         return sid
 
-    for rid in ROUTES:
+    for rid in routes:
         mo = tech_ids(d, rid)
         for key in ('orderThere', 'orderBack'):
             old = chain(d, rid, key)
             old_chains[(rid, key)] = old
-            base = [x for x in old if x not in mo or x in KEEP_TECH]
-            assert not set(base) & DROP_TECH[rid], (rid, key)
+            base = [x for x in old if x not in mo or x in keep]
+            assert not set(base) & drop.get(rid, set()), (rid, key)
             out, used = [base[0]], set()
             for a, b in zip(base, base[1:]):
-                aa = P(a) if a in KEEP_TECH else special.get((rid, key, a), anchor(st, a))
-                bb = P(b) if b in KEEP_TECH else special.get((rid, key, b), anchor(st, b))
-                path = leg_path(st, special, via, rid, key, a, b, aa, bb)
+                aa = P(a) if a in keep else special.get((rid, key, a), anchor(st, a))
+                bb = P(b) if b in keep else special.get((rid, key, b), anchor(st, b))
+                path = leg(st, special, via, rid, key, a, b, aa, bb)
                 for pos in bends_for(P(a), P(b), path):
                     sid = point_for(rid, pos, used)
                     used.add(sid)
@@ -158,16 +172,16 @@ def build(d):
 
     d['stops'] += [{k: p[k] for k in ('id', 'name', 'lat', 'lng')} for p in created]
     new_tech = {p['id'] for p in created} | {s['id'] for s in shared}
-    for rid in ROUTES:
+    for rid in routes:
         set_chains(d, rid, new_chains[(rid, 'orderThere')], new_chains[(rid, 'orderBack')], map_only=sorted(new_tech))
-        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] in DROP_TECH[rid])]
+        d['routeStops'] = [x for x in d['routeStops'] if not (x['routeId'] == rid and x['stopId'] in drop.get(rid, set()))]
 
     # час: кожен відрізок між сусідніми справжніми зупинками — як був, ділимо за довжиною
     default = d['meta'].get('defaultSec', 120)
     seg = {(s['routeId'], s['fromStopId'], s['toStopId']): s['seconds'] for s in d['segments']}
-    segments = [s for s in d['segments'] if s['routeId'] not in ROUTES]
+    segments = [s for s in d['segments'] if s['routeId'] not in routes]
     new_seg = {}  # пара може повторюватись у «туди» й «назад» (№11: фабрика → Барміна) — один сегмент на пару
-    for rid in ROUTES:
+    for rid in routes:
         mo_new = {x['stopId'] for x in d['routeStops'] if x['routeId'] == rid and x.get('mapOnly')}
         for key in ('orderThere', 'orderBack'):
             oc, nc = old_chains[(rid, key)], new_chains[(rid, key)]
@@ -199,35 +213,41 @@ def build(d):
 
 
 def put(dry):
+    put_routes(build, ROUTES, 'geom-2', dry)
+
+
+def put_routes(build_fn, routes, tag, dry):
+    """Свіжий датасет → build_fn → перевірки (поза маршрутами routes і новими точками нічого не змінилось,
+    валідатор) → кандидат; з --apply — бекап, PUT, перевірка «після PUT = кандидат»."""
     from apply_lib import API, canon, http_json, now, save, token, validate
     from common import path
     ts = now()
     cur = fetch()
-    nxt, created = build(copy.deepcopy(cur))
-    other = lambda d: {**d, 'routeStops': [x for x in d['routeStops'] if x['routeId'] not in ROUTES],  # noqa: E731
-                       'segments': [x for x in d['segments'] if x['routeId'] not in ROUTES],
+    nxt, created = build_fn(copy.deepcopy(cur))
+    other = lambda d: {**d, 'routeStops': [x for x in d['routeStops'] if x['routeId'] not in routes],  # noqa: E731
+                       'segments': [x for x in d['segments'] if x['routeId'] not in routes],
                        'stops': [s for s in d['stops'] if s['id'] not in {p['id'] for p in created}]}
-    assert canon(other(cur)) == canon(other(nxt)), 'змінилось щось поза №10 / №11 і новими точками'
+    assert canon(other(cur)) == canon(other(nxt)), f'змінилось щось поза {routes} і новими точками'
     if canon(nxt) == canon(cur):
-        print('[geom-2] змін немає — база вже з цими точками')
+        print(f'[{tag}] змін немає — база вже з цими точками')
         return
-    validate(nxt, f'{ts}-geom-2')
-    print(f'[geom-2] валідатор: OK; нових точок {len(created)}:', ', '.join(p['name'] for p in created[:3]), '…')
-    for rid in ROUTES:
+    validate(nxt, f'{ts}-{tag}')
+    print(f'[{tag}] валідатор: OK; нових точок {len(created)}:', ', '.join(p['name'] for p in created[:3]), '…')
+    for rid in routes:
         print(f'№{rid}: хв {route_minutes(cur, rid)} → {route_minutes(nxt, rid)}; точок туди/назад '
               f'{len(chain(cur, rid, "orderThere"))}/{len(chain(cur, rid, "orderBack"))} → '
               f'{len(chain(nxt, rid, "orderThere"))}/{len(chain(nxt, rid, "orderBack"))}')
-    save(path(f'db-{ts}-geom-2-candidate.json'), nxt, indent=None)
+    save(path(f'db-{ts}-{tag}-candidate.json'), nxt, indent=None)
     if dry:
         return
-    save(path(f'db-{ts}-before-geom-2.json'), cur, indent=None)
+    save(path(f'db-{ts}-before-{tag}.json'), cur, indent=None)
     tok = token()
     assert canon(fetch()) == canon(cur), 'база змінилась після знімка'
     res = http_json('PUT', f'{API}/transport/dataset', nxt, tok)
     after = fetch()
-    save(path(f'db-{ts}-after-geom-2.json'), after, indent=None)
+    save(path(f'db-{ts}-after-{tag}.json'), after, indent=None)
     assert canon(after) == canon(nxt), 'після PUT база не збігається'
-    print('[geom-2] PUT:', res['counts'], '| перевірка після PUT: OK')
+    print(f'[{tag}] PUT:', res['counts'], '| перевірка після PUT: OK')
 
 
 if __name__ == '__main__':
