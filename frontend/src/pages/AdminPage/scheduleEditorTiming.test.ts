@@ -89,6 +89,14 @@ describe('computeTripTimes / clockAtStop', () => {
     expect(clockAtStop(e, 'c')).toBeNull();
   });
 
+  it('timepoints: exact clocks at fixed stops, the span between them is stretched by segments', () => {
+    const t = computeTripTimes({ ...trip, timepoints: [{ stopId: 'c', time: '07:10' }] }, lookup, '3', chain, 120)!;
+    expect(clockAtStop(t, 'a')).toBe('06:40');
+    expect(clockAtStop(t, 'b')).toBe('06:50'); // 30 хв на 15 хв сегментів → b на третині
+    expect(clockAtStop(t, 'c')).toBe('07:10');
+    expect(t.timepointIndexes).toEqual([2]);
+  });
+
   it('compresses to arrivalTime when segments overshoot, never stretches', () => {
     const t = computeTripTimes({ ...trip, arrivalTime: '06:50' }, lookup, '3', chain, 120)!;
     expect(t.factor).toBeCloseTo(10 / 15, 6);

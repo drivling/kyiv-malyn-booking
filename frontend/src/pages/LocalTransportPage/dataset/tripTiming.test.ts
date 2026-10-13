@@ -1,6 +1,13 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { computeTripTiming, minutesAtStop, parseClockMins, roundMonotonic, tripServesPair } from './tripTiming';
+import {
+  computeTripTiming,
+  minutesAtStop,
+  parseClockMins,
+  parseTimepoints,
+  roundMonotonic,
+  tripServesPair,
+} from './tripTiming';
 
 const seg = (table: Record<string, number>, def = 120) => (a: string, b: string) =>
   table[`${a}|${b}`] ?? table[`${b}|${a}`] ?? def;
@@ -121,4 +128,71 @@ test('mirror: frontend tripTiming.ts is byte-identical to backend trip-timing.ts
   const mirror = path.resolve(__dirname, '../../../../../backend/src/trip-timing.ts');
   if (!fs.existsSync(mirror)) return; // поза монорепо (Docker/CI фронтенду) — пропускаємо
   assert.equal(fs.readFileSync(here, 'utf8'), fs.readFileSync(mirror, 'utf8'));
+});
+
+test('timepoints: exact times at fixed stops, piecewise stretch and compress between them', () => {
+  // a 6:00 → b 6:10 (опора; сегменти дають 3 хв → розтяг) → d 6:16 (опора; сегменти 9 хв → стиск)
+  const t = computeTripTiming(chain, segs, {
+    departureMins: 360,
+    timepoints: [
+      { stopId: 'b', mins: 370 },
+      { stopId: 'd', mins: 376 },
+    ],
+  })!;
+  assert.deepEqual(t.timepointIndexes, [2, 4]);
+  assert.equal(t.timepointsIgnored, 0);
+  assert.equal(minutesAtStop(t, 'm'), 360 + (60 / 180) * 10);
+  assert.equal(minutesAtStop(t, 'b'), 370);
+  assert.equal(minutesAtStop(t, 'c'), 370 + (300 / 540) * 6);
+  assert.equal(minutesAtStop(t, 'd'), 376);
+  assert.equal(t.availableSec, 960);
+  assert.equal(t.factor, 960 / 720);
+  assert.equal(t.arrivalIgnored, false);
+});
+
+test('timepoints: after the last fixed stop segment times run as is; arrivalMins is not used', () => {
+  const t = computeTripTiming(chain, segs, {
+    departureMins: 360,
+    arrivalMins: 365,
+    timepoints: [{ stopId: 'b', mins: 370 }],
+  })!;
+  assert.equal(minutesAtStop(t, 'b'), 370);
+  assert.equal(minutesAtStop(t, 'c'), 375);
+  assert.equal(minutesAtStop(t, 'd'), 379);
+  assert.equal(t.availableSec, null);
+  assert.equal(t.factor, 1);
+});
+
+test('timepoints: wrong stop, wrong order, outside the served range or not later are ignored', () => {
+  const t = computeTripTiming(chain, segs, {
+    departureMins: 400,
+    startStopId: 'b',
+    endStopId: 'c',
+    timepoints: [
+      { stopId: 'zzz', mins: 410 }, // не в ланцюжку
+      { stopId: 'a', mins: 405 }, // до початку зрізу
+      { stopId: 'b', mins: 402 }, // перша зупинка — це відправлення
+      { stopId: 'd', mins: 420 }, // після кінця зрізу
+      { stopId: 'c', mins: 399 }, // раніше відправлення
+    ],
+  })!;
+  assert.equal(t.timepointsIgnored, 5);
+  assert.deepEqual(t.timepointIndexes, []);
+  assert.equal(minutesAtStop(t, 'c'), 405);
+});
+
+test('timepoints: zero-length span between fixed stops is split evenly by hops', () => {
+  const zero = seg({}, 0);
+  const t = computeTripTiming(['a', 'b', 'c'], zero, { departureMins: 600, timepoints: [{ stopId: 'c', mins: 610 }] })!;
+  assert.deepEqual(t.stops.map((s) => s.mins), [600, 605, 610]);
+});
+
+test('parseTimepoints keeps valid {stopId, time} entries only', () => {
+  assert.deepEqual(parseTimepoints([{ stopId: 'b', time: '07:15:00' }, { stopId: 'c', time: '7:30' }]), [
+    { stopId: 'b', mins: 435 },
+    { stopId: 'c', mins: 450 },
+  ]);
+  assert.deepEqual(parseTimepoints([{ stopId: '', time: '07:15' }, { time: '07:15' }, null, 5, { stopId: 'b', time: 7 }]), []);
+  assert.deepEqual(parseTimepoints(null), []);
+  assert.deepEqual(parseTimepoints('07:15'), []);
 });

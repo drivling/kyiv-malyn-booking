@@ -81,8 +81,8 @@ function collectFromApiDataset(dataset) {
   const hiddenRouteIds = new Set(
     (dataset.routes || []).filter((r) => r && r.unreliable === true).map((r) => String(r.id))
   );
-  // Сторінки — як і раніше; маршрути в чіпах — лише ті, де зупинку не вимкнено (-1 / -1)
-  const stopToRoutes = stopRoutesFromRouteStops(dataset.routeStops, hiddenRouteIds);
+  // Сторінки — як і раніше; маршрути в чіпах — лише ті, де зупинку не вимкнено (-1 / -1), плюс варіанти шляху
+  const stopToRoutes = stopRoutesFromRouteStops(dataset.routeStops, hiddenRouteIds, dataset.routes);
   // Sitemap / route pages: not hidden AND both termini named (rule D1) — same filter as prerender-spa.
   const routeIds = publishableRouteIds(dataset).filter((id) => !hiddenRouteIds.has(id));
   const allRouteIds = [...new Set((dataset.routes || []).map((r) => String(r?.id)).filter(Boolean))].sort(compareRouteId);

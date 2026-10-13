@@ -833,6 +833,9 @@ model TransportRoute {
   /// Номер для показу («11/1», «5А»), як route_short_name у GTFS; порожньо — показуємо id.
   /// id лишається ключем: адреси /transport/route/<id>, рейси, сегменти, кольори схеми
   shortName String   @default("")
+  /// Варіанти шляху: [{ id, directionId, name, stops: [{ stopId, mapOnly? }] }] — інший ланцюжок зупинок
+  /// для окремих рейсів (TransportTrip.variantId). Без ключа в PUT — лишаються попередні. Docs/route-variants-2026-10.md
+  variants  Json?
   updatedAt DateTime @updatedAt
 
   routeStops TransportRouteStop[]
@@ -880,6 +883,10 @@ model TransportTrip {
   endStopId            String?
   /// Фіксований час на останній обслуговуваній зупинці, HH:MM:SS; сегменти рейсу стискаються пропорційно
   arrivalTime          String?
+  /// Варіант шляху маршруту (TransportRoute.variants[].id); null — основний ланцюжок напрямку
+  variantId            String?
+  /// Опорні часи з листка: [{ stopId, time: "HH:MM:SS" }] — точний час на зупинках; з ними arrivalTime порожній
+  timepoints           Json?
 
   route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
 

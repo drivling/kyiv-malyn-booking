@@ -21,6 +21,34 @@ export interface TransportRouteDto {
   unreliable?: boolean;
   /** Номер для показу («11/1»); порожньо — id. Показ — через routeNo() з utils/routeNames */
   shortName?: string;
+  /**
+   * Варіанти шляху: інший ланцюжок зупинок для окремих рейсів (TransportTripDto.variantId).
+   * Маршрут без ключа в PUT зберігає свої варіанти на сервері (Docs/route-variants-2026-10.md).
+   */
+  variants?: TransportRouteVariantDto[] | null;
+}
+
+/** Точка ланцюжка варіанта шляху: зупинка або технічна точка лінії (mapOnly) */
+export interface TransportVariantStopDto {
+  stopId: string;
+  mapOnly?: boolean;
+}
+
+/** Варіант шляху маршруту: рейс з variantId іде цим ланцюжком замість основного */
+export interface TransportRouteVariantDto {
+  id: string;
+  /** "0" | "1" — як у рейсів */
+  directionId: string;
+  /** Шлях для людей, з малої літери: «через вокзал» (сайт пише «іншим шляхом: через вокзал») */
+  name: string;
+  stops: TransportVariantStopDto[];
+}
+
+/** Опорний час рейсу з листка розкладу: точний час на зупинці */
+export interface TransportTripTimepointDto {
+  stopId: string;
+  /** HH:MM[:SS] */
+  time: string;
 }
 
 export interface TransportRouteStopDto {
@@ -47,6 +75,10 @@ export interface TransportTripDto {
   endStopId?: string | null;
   /** Фіксований час на останній обслуговуваній зупинці, HH:MM:SS */
   arrivalTime?: string | null;
+  /** Варіант шляху маршруту (routes[].variants[].id); null — основний ланцюжок напрямку */
+  variantId?: string | null;
+  /** Опорні часи з листка; з ними arrivalTime порожній */
+  timepoints?: TransportTripTimepointDto[] | null;
 }
 
 export interface TransportSegmentDto {
@@ -63,6 +95,29 @@ export interface TransportDataset {
   trips: TransportTripDto[];
   segments: TransportSegmentDto[];
   meta: Record<string, unknown>;
+  /**
+   * Лише у відповіді GET (і PUT): мітка останнього запису. Адмінка передає її в putTransportDataset як
+   * baseRevision — 409, якщо датасет відтоді змінився.
+   */
+  revision?: string | null;
+}
+
+/** Що показати адміну, коли PUT датасету отримав 409 */
+export const DATASET_CONFLICT_MESSAGE =
+  'Дані в базі змінилися після завантаження (інша вкладка, перерахунок часу чи скрипт). Натисніть «Завантажити з бази» і повторіть правку.';
+
+/** Текст помилки збереження датасету: 409 — DATASET_CONFLICT_MESSAGE, інакше повідомлення помилки */
+export function datasetSaveErrorMessage(err: unknown, fallback: string): string {
+  if ((err as { status?: unknown } | null)?.status === 409) return DATASET_CONFLICT_MESSAGE;
+  return err instanceof Error ? err.message : fallback;
+}
+
+/** Варіант шляху у формі редактора / сайту: напрямок і точки з назвами */
+export interface EditorRouteVariant {
+  id: string;
+  direction: 'there' | 'back';
+  name: string;
+  stops: Array<{ id: string; name: string; map_only?: boolean }>;
 }
 
 /** Формат, з яким працює MapEditorTab (легасі JSON). */
@@ -90,6 +145,8 @@ export interface EditorTransportData {
         map_only?: boolean;
       }>>;
       stops_catalog?: Record<string, { name: string }>;
+      /** Варіанти шляху за маршрутами (з routes[].variants) */
+      variants_by_route?: Record<string, EditorRouteVariant[]>;
     };
     fare?: unknown;
     contacts?: unknown;
@@ -108,6 +165,11 @@ export interface EditorCoordsData {
 /** Id маршрутів, позначених «ненадійний» (приховані на сайті). */
 export function hiddenTransportRouteIds(dataset: Pick<TransportDataset, 'routes'>): Set<string> {
   return new Set(dataset.routes.filter((r) => r.unreliable === true).map((r) => r.id));
+}
+
+/** Чи зупиняється на зупинці хоч один варіант шляху маршруту (технічні точки mapOnly — ні) */
+export function variantsStopAt(route: Pick<TransportRouteDto, 'variants'>, stopId: string): boolean {
+  return (route.variants ?? []).some((v) => (v.stops ?? []).some((p) => p.stopId === stopId && p.mapOnly !== true));
 }
 
 /**
@@ -168,6 +230,21 @@ export function datasetToEditor(dataset: TransportDataset): {
     });
   }
 
+  const variantsByRoute: Record<string, EditorRouteVariant[]> = {};
+  for (const r of dataset.routes) {
+    if (!Array.isArray(r.variants) || !r.variants.length) continue;
+    variantsByRoute[r.id] = r.variants.map((v) => ({
+      id: v.id,
+      direction: v.directionId === '0' ? 'back' : 'there',
+      name: v.name,
+      stops: v.stops.map((p) => ({
+        id: p.stopId,
+        name: catalog[p.stopId]?.name || p.stopId,
+        ...(p.mapOnly ? { map_only: true } : {}),
+      })),
+    }));
+  }
+
   const center = (dataset.meta.center as [number, number] | null) ?? [50.768, 29.242];
 
   return {
@@ -185,10 +262,12 @@ export function datasetToEditor(dataset: TransportDataset): {
         start_stop_id: t.startStopId ?? null,
         end_stop_id: t.endStopId ?? null,
         arrival_time: t.arrivalTime ?? null,
+        variant_id: t.variantId ?? null,
+        timepoints: t.timepoints ?? null,
       })),
       supplement: {
         routes,
-        stops: { stops_catalog: catalog, stops_by_route: stopsByRoute },
+        stops: { stops_catalog: catalog, stops_by_route: stopsByRoute, variants_by_route: variantsByRoute },
         fare: dataset.meta.fare,
         contacts: dataset.meta.contacts,
         news: dataset.meta.news,
@@ -200,7 +279,11 @@ export function datasetToEditor(dataset: TransportDataset): {
   };
 }
 
-/** Збирає нормалізований датасет з поточного стану редактора + незмінених trips/segments/meta.agency. */
+/**
+ * Збирає нормалізований датасет з поточного стану редактора + незмінених trips/segments/meta.agency.
+ * Маршрути — без ключа variants: варіанти шляху редактор карти не змінює, сервер зберігає їх сам
+ * (рейси з variantId приходять у base.trips без змін).
+ */
 export function editorToDataset(
   transport: EditorTransportData,
   coords: EditorCoordsData,

@@ -46,4 +46,24 @@ describe('stopCatalog', () => {
     expect(ids).toContain('st_b');
     expect(ids.indexOf('st_a')).toBeLessThan(ids.indexOf('st_b'));
   });
+
+  it('buildSortedStopIds adds passenger stops of path variants, not their technical points', () => {
+    const ids = buildSortedStopIds([], undefined, { ...catalog, st_l: { name: 'Лікарня' }, st_t: { name: '№9 т.1' } }, {
+      '9': [
+        {
+          id: '9-v2',
+          direction: 'back',
+          name: 'Від вокзалу до лікарні',
+          stops: [
+            { id: 'st_b', name: 'Вокзал' },
+            { id: 'st_t', name: '№9 т.1', map_only: true },
+            { id: 'st_l', name: 'Лікарня' },
+          ],
+        },
+      ],
+    });
+    expect(ids).toContain('st_b');
+    expect(ids).toContain('st_l');
+    expect(ids).not.toContain('st_t');
+  });
 });

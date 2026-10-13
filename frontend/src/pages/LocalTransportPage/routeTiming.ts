@@ -9,7 +9,7 @@ import {
   getDurationFromStartSec as getDurationFromStartSecFromFile,
   DEFAULT_SEGMENT_DURATION_SEC,
 } from './segmentDurations';
-import { computeTripTiming, type SegSecFn, type TripTiming } from './dataset/tripTiming';
+import { computeTripTiming, parseTimepoints, type SegSecFn, type TripTiming } from './dataset/tripTiming';
 import type { TransportRecord } from './types';
 import { parseClockToMinutes, tripDepartureMinutes } from './tripDeparture';
 
@@ -56,8 +56,8 @@ export function segSecForRoute(routeId: string): SegSecFn {
 }
 
 /**
- * Час рейсу по зупинках ланцюжка напрямку (з технічними точками) з урахуванням
- * start_stop_id / end_stop_id / arrival_time. null — рейс без часу відправлення або поганий зріз.
+ * Час рейсу по зупинках його ланцюжка (з технічними точками; варіант шляху — chainForRecord) з урахуванням
+ * start_stop_id / end_stop_id / arrival_time / опорних часів. null — рейс без часу відправлення або поганий зріз.
  */
 export function recordTiming(routeId: string, chainKeys: string[], record: TransportRecord): TripTiming | null {
   const departureMins = tripDepartureMinutes(record);
@@ -68,5 +68,6 @@ export function recordTiming(routeId: string, chainKeys: string[], record: Trans
     arrivalMins: arrival > 0 ? arrival : null,
     startStopId: record.start_stop_id || null,
     endStopId: record.end_stop_id || null,
+    timepoints: parseTimepoints(record.timepoints),
   });
 }

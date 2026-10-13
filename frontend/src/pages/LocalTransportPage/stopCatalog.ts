@@ -2,6 +2,7 @@
  * Каталог зупинок (st_XXXX) — стабільні ідентифікатори для URL, координат і сегментів.
  */
 import type { RouteStopWithOrder, TransportData } from './types';
+import type { VariantsByRoute } from './routeVariants';
 
 export type StopsCatalog = Record<string, { name: string }>;
 
@@ -67,11 +68,12 @@ export function resolveStopIdInList(
   return '';
 }
 
-/** Зібрати відсортовані id зупинок для комбобоксів. */
+/** Зібрати відсортовані id зупинок для комбобоксів (разом із зупинками варіантів шляху). */
 export function buildSortedStopIds(
   routes: Array<{ from: string | null; to: string | null }>,
   stopsByRoute: Record<string, string[] | RouteStopWithOrder[]> | undefined,
-  catalog: StopsCatalog | undefined
+  catalog: StopsCatalog | undefined,
+  variantsByRoute?: VariantsByRoute
 ): string[] {
   const nameToId = invertNameToId(catalog);
   const stopSet = new Set<string>();
@@ -105,6 +107,10 @@ export function buildSortedStopIds(
       }
     });
   }
+
+  Object.values(variantsByRoute ?? {}).forEach((variants) => {
+    variants?.forEach((v) => v.stops.filter((p) => !p.map_only).forEach((p) => stopSet.add(p.id)));
+  });
 
   ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((legacy) => {
     const id = nameToId.get(legacy);

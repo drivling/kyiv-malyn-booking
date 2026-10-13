@@ -1,8 +1,10 @@
 /**
  * Розклад відправлень з однієї зупинки по всіх маршрутах і напрямках (хронологічно).
  */
-import type { RouteStopWithOrder, TransportRecord, TransportData, SupplementRoute } from './types';
+import type { RouteStopWithOrder, RouteVariantVm, TransportRecord, TransportData, SupplementRoute } from './types';
 import { recordTiming } from './routeTiming';
+import { routeStopChain } from './routeGeometry';
+import { recordVariant, variantChain, variantEndStopId, type VariantsByRoute } from './routeVariants';
 import { getStopKey, invertNameToId, type StopsCatalog } from './stopCatalog';
 import { groupTripsByDirection } from './tripDeparture';
 
@@ -13,20 +15,25 @@ export type StopDepartureRow = {
   /** Кінцева / табличка рейсу (як у даних) */
   destination: string;
   tripId: string;
+  /** Варіант шляху рейсу (Docs/route-variants-2026-10.md); немає — основний ланцюжок */
+  variantId?: string;
 };
 
 /**
  * Кінцева / табличка рейсу для показу людині:
- * headsign → назва кінцевої зупинки рейсу (скорочений рейс) → кінець маршруту → «—».
+ * headsign → назва кінцевої зупинки рейсу (скорочений рейс; для рейсу варіанта — кінець варіанта) →
+ * кінець маршруту → «—».
  */
 export function tripDestination(
   t: Pick<TransportRecord, 'trip_headsign' | 'end_stop_id'>,
   direction: 'there' | 'back',
   route: { from: string | null; to: string | null },
-  catalog?: StopsCatalog
+  catalog?: StopsCatalog,
+  variant?: RouteVariantVm | null
 ): string {
   const headsign = (t.trip_headsign ?? '').trim();
-  const endName = t.end_stop_id ? catalog?.[t.end_stop_id]?.name : undefined;
+  const endId = t.end_stop_id || (variant ? variantEndStopId(variant) : undefined);
+  const endName = endId ? catalog?.[endId]?.name : undefined;
   const routeEnd = direction === 'there' ? route.to : route.from;
   return (headsign || endName || routeEnd || '').trim() || '—';
 }
@@ -42,11 +49,13 @@ function routeHasStop(
   stopKey: string,
   route: { from: string | null; to: string | null },
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
-  catalog?: StopsCatalog
+  catalog?: StopsCatalog,
+  variantsByRoute?: VariantsByRoute
 ): boolean {
   const n2i = invertNameToId(catalog);
   if (route.from && (n2i.get(route.from) === stopKey || route.from === stopKey)) return true;
   if (route.to && (n2i.get(route.to) === stopKey || route.to === stopKey)) return true;
+  if (variantsByRoute?.[routeId]?.some((v) => variantChain(v, { markersOnly: true }).includes(stopKey))) return true;
   const routeStops = stopsByRoute?.[routeId];
   if (!routeStops?.length) return false;
   const first = routeStops[0];
@@ -65,35 +74,6 @@ function routeHasStop(
   });
 }
 
-function normalizeStopsWithOrder(routeStops: string[] | RouteStopWithOrder[]): RouteStopWithOrder[] {
-  if (!routeStops.length) return [];
-  const first = routeStops[0];
-  if (first && typeof first === 'object' && 'name' in first) {
-    return routeStops as RouteStopWithOrder[];
-  }
-  const names = routeStops as unknown as string[];
-  return names.map((name, i) => ({
-    name,
-    order_there: i + 1,
-    order_back: names.length - i,
-    belongs_to: 'both' as const,
-  }));
-}
-
-function getOrderedForDirection(
-  stopsWithOrder: RouteStopWithOrder[],
-  dir: 'there' | 'back'
-): RouteStopWithOrder[] {
-  if (dir === 'there') {
-    return [...stopsWithOrder]
-      .filter((s) => (s.belongs_to ?? 'both') !== 'back' && (s.order_there ?? 0) > 0)
-      .sort((a, b) => (a.order_there ?? 0) - (b.order_there ?? 0));
-  }
-  return [...stopsWithOrder]
-    .filter((s) => (s.belongs_to ?? 'both') !== 'there' && (s.order_back ?? 0) > 0)
-    .sort((a, b) => (a.order_back ?? 0) - (b.order_back ?? 0));
-}
-
 export type RouteBundle = {
   id: string;
   from: string | null;
@@ -108,11 +88,15 @@ export function buildRoutesFromData(data: TransportData): RouteBundle[] {
     { from: string | null; to: string | null; trips: TransportRecord[]; supplement?: SupplementRoute }
   > = {};
 
+  const variantsByRoute = data.supplement?.stops?.variants_by_route;
   for (const r of data.records) {
     const id = r.route_id;
     if (!byRoute[id]) byRoute[id] = { from: null, to: null, trips: [] };
-    if (r.direction_id === '0') byRoute[id].from = r.trip_headsign;
-    else byRoute[id].to = r.trip_headsign;
+    // табличка рейсу варіанта (до вокзалу, до лікарні) — не кінцева маршруту
+    if (!recordVariant(variantsByRoute, r)) {
+      if (r.direction_id === '0') byRoute[id].from = r.trip_headsign;
+      else byRoute[id].to = r.trip_headsign;
+    }
     byRoute[id].trips.push(r);
   }
 
@@ -143,13 +127,14 @@ export function buildRoutesFromData(data: TransportData): RouteBundle[] {
 /**
  * Усі відправлення з зупинки `stopKey` (id st_XXXX) по всіх маршрутах (обидва напрямки), відсортовані за часом.
  * Рейс дає рядок лише якщо обслуговує зупинку (start_stop_id/end_stop_id) і вона не його кінцева:
- * автобус, що прибув на кінцеву, нікуди не відправляється.
+ * автобус, що прибув на кінцеву, нікуди не відправляється. Рейс варіанта шляху рахується своїм ланцюжком.
  */
 export function buildStopDepartures(
   stopKey: string,
   routes: RouteBundle[],
   stopsByRoute: Record<string, string[] | RouteStopWithOrder[]> | undefined,
-  catalog?: StopsCatalog
+  catalog?: StopsCatalog,
+  variantsByRoute?: VariantsByRoute
 ): StopDepartureRow[] {
   if (!stopKey || !stopsByRoute) return [];
 
@@ -157,33 +142,32 @@ export function buildStopDepartures(
 
   for (const route of routes) {
     if (!route.trips.length) continue;
-    if (!routeHasStop(route.id, stopKey, route, stopsByRoute, catalog)) continue;
+    if (!routeHasStop(route.id, stopKey, route, stopsByRoute, catalog, variantsByRoute)) continue;
 
-    const raw = stopsByRoute[route.id];
-    if (!raw?.length) continue;
-
-    const stopsWithOrder = normalizeStopsWithOrder(raw);
-    const chainThere = getOrderedForDirection(stopsWithOrder, 'there').map((s) => getStopKey(s));
-    const chainBack = getOrderedForDirection(stopsWithOrder, 'back').map((s) => getStopKey(s));
+    const main = {
+      there: routeStopChain(stopsByRoute, route.id, 'there'),
+      back: routeStopChain(stopsByRoute, route.id, 'back'),
+    };
     const { dir0, dir1 } = groupTripsByDirection(route.trips);
 
-    const emit = (t: TransportRecord, direction: 'there' | 'back', chain: string[]) => {
-      const timing = recordTiming(route.id, chain, t);
+    const emit = (t: TransportRecord, direction: 'there' | 'back') => {
+      const variant = recordVariant(variantsByRoute, t);
+      const timing = recordTiming(route.id, variant ? variantChain(variant) : main[direction], t);
       if (!timing) return;
       const served = timing.stops.find((s) => s.stopId === stopKey);
       if (!served || served.index === timing.endIndex) return;
-      const dest = tripDestination(t, direction, route, catalog);
       rows.push({
         routeId: route.id,
         departureMins: served.mins,
         direction,
-        destination: dest,
+        destination: tripDestination(t, direction, route, catalog, variant),
         tripId: t.trip_id,
+        ...(variant ? { variantId: variant.id } : {}),
       });
     };
 
-    dir1.forEach((t) => emit(t, 'there', chainThere));
-    dir0.forEach((t) => emit(t, 'back', chainBack));
+    dir1.forEach((t) => emit(t, 'there'));
+    dir0.forEach((t) => emit(t, 'back'));
   }
 
   rows.sort((a, b) => {

@@ -6,6 +6,7 @@ import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import type { TransportData } from './types';
 import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './stopDepartures';
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
+import { routeChainSources } from './routeVariants';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { VERIFIED_ROUTE_IDS, isVerifiedRoute } from './routeTiming';
 import { buildRouteLines } from './routeGeometry';
@@ -170,11 +171,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   }, [hParam]);
 
   const routes = useMemo(() => (data ? buildRoutesFromData(data) : []), [data]);
-  const stopsByRoute = data?.supplement?.stops?.stops_by_route;
+  const { stopsByRoute, variantsByRoute } = routeChainSources(data);
   const stopsCatalog = useMemo(() => getStopsCatalog(data), [data]);
   const stops = useMemo(
-    () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog),
-    [routes, stopsByRoute, stopsCatalog]
+    () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog, variantsByRoute),
+    [routes, stopsByRoute, stopsCatalog, variantsByRoute]
   );
 
   /** Координати лише зупинок зі списку табло — щоб «Поруч зі мною» завжди відкривало табло зупинки */
@@ -243,8 +244,8 @@ export const LocalTransportStopBoardPage: React.FC = () => {
 
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
-    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog);
-  }, [selectedStop, routes, stopsByRoute, stopsCatalog]);
+    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute);
+  }, [selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute]);
 
   /** Усі маршрути з відправленнями на зупинці за день — чіпи-фільтри під заголовком */
   const lineIdsAtStop = useMemo(

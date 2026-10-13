@@ -116,7 +116,8 @@ class ApiClient {
       } catch {
         if (text && text.length < 200) errorMessage = text;
       }
-      throw new Error(errorMessage);
+      // status — щоб викликач розрізняв, напр., 409 «датасет змінився» від решти помилок
+      throw Object.assign(new Error(errorMessage), { status: response.status });
     }
 
     if (response.status === 204) {
@@ -1071,8 +1072,15 @@ class ApiClient {
     });
   }
 
-  async getTransportDataset(): Promise<TransportDataset> {
-    const dataset = await this.request<TransportDataset>('/transport/dataset');
+  /**
+   * Датасет міського транспорту. fresh — повз HTTP-кеш браузера (GET кешується на 5 хв): адмінка редагує
+   * датасет і має бачити останній запис, інакше збереження відкотить чужі зміни (revision / 409).
+   */
+  async getTransportDataset(opts: { fresh?: boolean } = {}): Promise<TransportDataset> {
+    const dataset = await this.request<TransportDataset>(
+      '/transport/dataset',
+      opts.fresh ? { cache: 'no-store' } : undefined
+    );
     // Номери маршрутів для показу («11/1») — для всіх, хто завантажує датасет (сайт, адмінка, стіна)
     configureRouteNames(dataset?.routes);
     return dataset;
@@ -1135,7 +1143,12 @@ class ApiClient {
     });
   }
 
-  async putTransportDataset(dataset: TransportDataset): Promise<{
+  /**
+   * Повний датасет у базу. baseRevision — revision з GET, від якої редагувала вкладка: якщо датасет у базі
+   * відтоді змінився (інша вкладка, перерахунок часу, скрипт), сервер відповідає 409 і нічого не пише.
+   * Без baseRevision перевірки немає (скрипти).
+   */
+  async putTransportDataset(dataset: TransportDataset, baseRevision?: string | null): Promise<{
     ok: boolean;
     counts: {
       stops: number;
@@ -1143,11 +1156,18 @@ class ApiClient {
       routeStops: number;
       trips: number;
       segments: number;
+      /** Варіантів шляху в усіх маршрутах (новий сервер) */
+      variants?: number;
     };
+    /** Мітка щойно збереженого датасету — наступний PUT шле її як baseRevision */
+    revision?: string | null;
   }> {
+    const body: Record<string, unknown> = { ...dataset };
+    delete body.revision;
+    if (baseRevision) body.baseRevision = baseRevision;
     return this.request('/transport/dataset', {
       method: 'PUT',
-      body: JSON.stringify(dataset),
+      body: JSON.stringify(body),
     });
   }
 

@@ -67,6 +67,21 @@ describe('findNearestTrip', () => {
     expect(n!.timeAtTo).toBeNull();
   });
 
+  it('chainFor: рейс варіанта шляху рахується своїм ланцюжком (пара, якої немає в основному)', () => {
+    const variantTrip = trip('t-v', '06:50:00', '1', { variant_id: 'v' });
+    const main = trip('t1', '08:30:00');
+    const chainFor = (r: TransportRecord) => (r.variant_id === 'v' ? ['st_a', 'st_x'] : chain);
+    const toStation = { ...at, toStop: 'st_x', chainFor };
+    const n = findNearestTrip([variantTrip, main], 6 * 60, 'there', toStation);
+    expect(n!.record.trip_id).toBe('t-v');
+    expect(n!.timeAtTo).toBe(6 * 60 + 52); // сегмент за замовчуванням 2 хв
+    // основний рейс до «вокзалу» не їде: після 06:50 — той самий рейс уже наступного дня
+    const later = findNearestTrip([variantTrip, main], 7 * 60, 'there', toStation);
+    expect([later!.record.trip_id, later!.wrapped]).toEqual(['t-v', true]);
+    // А→В варіант не обслуговує, основний — так
+    expect(findNearestTrip([variantTrip, main], 6 * 60, 'there', { ...at, chainFor })!.record.trip_id).toBe('t1');
+  });
+
   it('рейси без часу (номер машини в block_id) ігноруються; порожній список → null', () => {
     const plate = trip('t-plate', '', '1', { departure_time: undefined, block_id: 'АМ0033АА' });
     expect(findNearestTrip([plate], 8 * 60, 'there', at)).toBeNull();

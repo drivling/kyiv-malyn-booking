@@ -76,3 +76,59 @@ describe('editor round-trip keeps unreliable', () => {
     assert.equal(byId.get('77')?.unreliable, false);
   });
 });
+
+describe('route variants and timepoints in the adapter', () => {
+  function withVariant(): TransportDataset {
+    const d = sampleDataset();
+    d.routes[0].variants = [
+      { id: '2-v1', directionId: '0', name: 'Через вокзал', stops: [{ stopId: 'st_b' }, { stopId: 'st_x', mapOnly: true }, { stopId: 'st_a' }] },
+    ];
+    d.trips.push({
+      id: '2-02',
+      routeId: '2',
+      directionId: '0',
+      departureTime: '06:45:00',
+      variantId: '2-v1',
+      timepoints: [{ stopId: 'st_a', time: '07:05:00' }],
+    });
+    return d;
+  }
+
+  it('datasetToEditor: variants_by_route with names and direction; records carry variant_id and timepoints', () => {
+    const { transport } = datasetToEditor(withVariant());
+    assert.deepEqual(transport.supplement?.stops?.variants_by_route?.['2'], [
+      {
+        id: '2-v1',
+        direction: 'back',
+        name: 'Через вокзал',
+        stops: [
+          { id: 'st_b', name: 'Вокзал' },
+          { id: 'st_x', name: 'st_x', map_only: true },
+          { id: 'st_a', name: 'Базар' },
+        ],
+      },
+    ]);
+    assert.equal(transport.supplement?.stops?.variants_by_route?.['10'], undefined);
+    const rec = (transport.records as Array<Record<string, unknown>>).find((r) => r.trip_id === '2-02')!;
+    assert.equal(rec.variant_id, '2-v1');
+    assert.deepEqual(rec.timepoints, [{ stopId: 'st_a', time: '07:05:00' }]);
+    const plain = (transport.records as Array<Record<string, unknown>>).find((r) => r.trip_id === '2-01')!;
+    assert.equal(plain.variant_id, null);
+    assert.equal(plain.timepoints, null);
+  });
+
+  it('editorToDataset leaves the variants key out (the server keeps them) and keeps trip variant fields', () => {
+    const base = withVariant();
+    const { transport, coords } = datasetToEditor(base);
+    const out = editorToDataset(transport, coords, base);
+    assert.ok(out.routes.every((r) => !('variants' in r)));
+    assert.equal(out.trips.find((t) => t.id === '2-02')?.variantId, '2-v1');
+  });
+
+  it('a hidden route takes its variants with it', () => {
+    const d = withVariant();
+    d.routes[0].unreliable = true;
+    const { transport } = datasetToEditor(publicTransportDataset(d));
+    assert.equal(transport.supplement?.stops?.variants_by_route?.['2'], undefined);
+  });
+});

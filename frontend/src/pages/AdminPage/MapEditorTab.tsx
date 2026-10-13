@@ -10,6 +10,7 @@ import { displayNameForStopKey, getStopKey } from '../LocalTransportPage/stopCat
 import { getRouteStopsWithOrder, type RouteStop, type StopsCoordsData, type TransportData } from './mapEditorModel';
 import { apiClient } from '@/api/client';
 import {
+  datasetSaveErrorMessage,
   datasetToEditor,
   editorToDataset,
   type TransportDataset,
@@ -318,7 +319,8 @@ export const MapEditorTab: React.FC = () => {
     setStatusMsg('');
     setEditingStopId(null);
     try {
-      const dataset = await apiClient.getTransportDataset();
+      // Повз HTTP-кеш: revision має бути свіжою, інакше перше ж збереження отримає 409
+      const dataset = await apiClient.getTransportDataset({ fresh: true });
       applyDataset(dataset);
       setStatusMsg('Завантажено з бази');
     } catch (err) {
@@ -359,15 +361,25 @@ export const MapEditorTab: React.FC = () => {
     setActionError('');
     setStatusMsg('');
     try {
-      const result = await apiClient.putTransportDataset(dataset);
-      applyDataset(dataset);
+      const result = await apiClient.putTransportDataset(dataset, baseDataset.revision);
+      // Варіанти шляху й номери для показу редактор не шле — сервер лишив їх як були; тримаємо їх і нову revision
+      const prevRoutes = new Map(baseDataset.routes.map((r) => [r.id, r] as const));
+      applyDataset({
+        ...dataset,
+        routes: dataset.routes.map((r) => ({
+          ...r,
+          shortName: prevRoutes.get(r.id)?.shortName,
+          variants: prevRoutes.get(r.id)?.variants,
+        })),
+        revision: result.revision ?? null,
+      });
       broadcastTransportDatasetInvalidate();
       setEditingStopId(null);
       setStatusMsg(
         `Збережено: ${result.counts.stops} зупинок, ${result.counts.routes} маршрутів, ${result.counts.trips} рейсів`
       );
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Не вдалося зберегти в базу');
+      setActionError(datasetSaveErrorMessage(err, 'Не вдалося зберегти в базу'));
     } finally {
       setSaving(false);
     }
@@ -407,8 +419,8 @@ export const MapEditorTab: React.FC = () => {
           `записано ${result.segmentsWritten}, OSRM ${result.osrmRequested}` +
           (result.osrmFailed ? ` (fallback: ${result.osrmFailed})` : '')
       );
-      // підтягнути свіжі сегменти в baseDataset (для наступного збереження)
-      const dataset = await apiClient.getTransportDataset();
+      // підтягнути свіжі сегменти й revision у baseDataset (для наступного збереження)
+      const dataset = await apiClient.getTransportDataset({ fresh: true });
       applyDataset(dataset);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Не вдалося перерахувати сегменти');
@@ -417,6 +429,12 @@ export const MapEditorTab: React.FC = () => {
       setRecalculating(false);
     }
   }, [selectedRoute, applyDataset]);
+
+  /** Варіанти шляху обраного маршруту — лише показ (Docs/route-variants-2026-10.md) */
+  const selectedVariants = useMemo(
+    () => (selectedRoute ? (baseDataset?.routes.find((r) => r.id === selectedRoute)?.variants ?? []) : []),
+    [baseDataset, selectedRoute]
+  );
 
   const routeOptions = useMemo(() => {
     const opts = [{ value: '', label: 'Всі зупинки / виберіть маршрут' }];
@@ -857,6 +875,19 @@ export const MapEditorTab: React.FC = () => {
         <p className="map-editor-hint">
           Натисніть на маркер, щоб змінити номер зупинки по напрямку або виключити (-1). Темно-синій — виключена.
           Назву зупинки можна змінити в списку праворуч.
+        </p>
+      )}
+
+      {selectedVariants.length > 0 && (
+        <p className="map-editor-hint" aria-label="Варіанти шляху маршруту">
+          Варіанти шляху №{routeNo(selectedRoute)}:{' '}
+          {selectedVariants
+            .map(
+              (v) =>
+                `«${v.name}» (${v.directionId === '0' ? 'назад' : 'туди'}, ${v.stops.filter((p) => !p.mapOnly).length} зуп.)`
+            )
+            .join(' · ')}
+          . Тут видно й редагується лише основний ланцюжок; варіанти — у вкладці розкладу (JSON) або скриптом.
         </p>
       )}
 

@@ -35,8 +35,9 @@ Agency metadata lives in `TransportMeta.payload.agency` (seeded from `runtime/ag
 | Trips with `departureTime` | Verified timed routes (2, 3, 5, 7, 8, 9, 11, 12) |
 | Passenger stops | Only stops referenced by `stop_times`; `mapOnly` points excluded from `stops.txt` |
 | `route_type=3` | Bus / marshrutka |
-| Synthetic `stop_times` | First stop = departure; later = Σ segment seconds along full chain (incl. technical points) |
-| `shapes.txt` | One polyline per route+direction from ordered points incl. `mapOnly`; trips carry `shape_id` |
+| Synthetic `stop_times` | First stop = departure; later = Σ segment seconds along full chain (incl. technical points); trip timepoints (sheet times) are exact and marked `timepoint=1` |
+| Route variants | A trip with `variantId` follows its variant chain (`Docs/route-variants-2026-10.md`) |
+| `shapes.txt` | One polyline per route+direction (and per variant: `shp_<route>_<dir>_<variant>`) from ordered points incl. `mapOnly`; trips carry `shape_id` |
 | `feed_info.txt` | Publisher, contact, validity dates (shared with `calendar.txt`), `feed_version` = export date |
 
 | Omitted | Why |

@@ -1,4 +1,4 @@
-import { hiddenTransportRouteIds, type TransportDataset } from '@/api/transportDataset';
+import { hiddenTransportRouteIds, variantsStopAt, type TransportDataset } from '@/api/transportDataset';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 import { SCHEME_NODES, type SchemeNode } from './scheme/malyn-scheme-nodes';
 
@@ -24,12 +24,15 @@ function servesStop(rs: StopsDataset['routeStops'][number]): boolean {
 /**
  * Лінії через зупинку з routeStops датасету: без «лише для карти» (mapOnly), без ненадійних маршрутів
  * і без маршрутів, на яких зупинку вимкнено (-1 в обидва боки) — інакше схема підсвічує лінію там,
- * де автобус не зупиняється.
+ * де автобус не зупиняється. Плюс маршрути, чий варіант шляху тут зупиняється (перший рейс №9 — вокзал).
  */
 function rawRoutesAtStop(dataset: StopsDataset, stopId: string, hidden: Set<string>): string[] {
   const out: string[] = [];
   for (const rs of dataset.routeStops) {
     if (rs.stopId === stopId && !rs.mapOnly && !hidden.has(rs.routeId) && servesStop(rs)) out.push(rs.routeId);
+  }
+  for (const r of dataset.routes) {
+    if (!hidden.has(r.id) && variantsStopAt(r, stopId)) out.push(r.id);
   }
   return out;
 }

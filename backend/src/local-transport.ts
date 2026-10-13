@@ -28,10 +28,47 @@ export interface TransportRouteInput {
    * Без ключа в PUT — лишається попереднє значення (старі клієнти не стирають номер).
    */
   shortName?: string;
+  /**
+   * Варіанти шляху: інший ланцюжок зупинок для окремих рейсів (TransportTripInput.variantId).
+   * Без ключа (або null) у PUT — лишаються попередні (fillOmittedRouteFields); [] — стерти.
+   */
+  variants?: TransportRouteVariantInput[] | null;
 }
 
 /** Найдовший номер маршруту для показу (символів) */
 export const ROUTE_SHORT_NAME_MAX = 16;
+
+/** Точка ланцюжка варіанта: зупинка або технічна точка лінії (mapOnly) */
+export interface TransportVariantStopInput {
+  stopId: string;
+  mapOnly?: boolean;
+}
+
+/**
+ * Варіант шляху маршруту (Docs/route-variants-2026-10.md): рейс з variantId іде цим ланцюжком замість основного
+ * ланцюжка свого напрямку. Зупинка в ланцюжку — не більше одного разу (час рейсу ключується за stopId).
+ */
+export interface TransportRouteVariantInput {
+  /** Унікальний у всьому датасеті ключ, напр. «9-v1» */
+  id: string;
+  /** "0" | "1" — як у рейсів */
+  directionId: string;
+  /** Шлях для людей, з малої літери: «через вокзал» (сайт пише «іншим шляхом: через вокзал») */
+  name: string;
+  stops: TransportVariantStopInput[];
+}
+
+/** Опорний час рейсу з листка: точний час на зупинці */
+export interface TransportTripTimepointInput {
+  stopId: string;
+  /** HH:MM[:SS] */
+  time: string;
+}
+
+export const VARIANT_ID_RE = /^[A-Za-z0-9_.-]{1,40}$/;
+export const VARIANT_NAME_MAX = 80;
+export const VARIANT_STOPS_MAX = 400;
+export const TRIP_TIMEPOINTS_MAX = 40;
 
 export interface TransportRouteStopInput {
   routeId: string;
@@ -57,6 +94,10 @@ export interface TransportTripInput {
   endStopId?: string | null;
   /** Фіксований час на останній обслуговуваній зупинці, HH:MM[:SS] */
   arrivalTime?: string | null;
+  /** Варіант шляху маршруту (routes[].variants[].id); null — основний ланцюжок напрямку */
+  variantId?: string | null;
+  /** Опорні часи з листка; з ними arrivalTime порожній. Між опорами час ділиться за сегментами */
+  timepoints?: TransportTripTimepointInput[] | null;
 }
 
 export interface TransportSegmentInput {
@@ -74,9 +115,85 @@ export interface TransportDataset {
   segments: TransportSegmentInput[];
   /** center карти, defaultSec, fare, contacts, news, sources, agency, description */
   meta: Record<string, unknown>;
+  /**
+   * Лише у відповіді GET: мітка останнього запису (TransportMeta.updatedAt). Клієнт повертає її в PUT як
+   * baseRevision — сервер відмовить (409), якщо датасет відтоді змінився.
+   */
+  revision?: string | null;
 }
 
 const TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
+
+/**
+ * Маршрут без ключа variants (або з null) отримує збережені варіанти з БД — до валідації, бо рейси такого клієнта
+ * (вкладка карти, старий бандл адмінки) лишаються з variantId. Мутує data. Порожній масив — стерти варіанти.
+ */
+export async function fillOmittedRouteFields(prisma: PrismaClient, data: unknown): Promise<void> {
+  const routes = (data as Partial<TransportDataset> | null)?.routes;
+  if (!Array.isArray(routes)) return;
+  const omitted = routes.filter(
+    (r): r is TransportRouteInput => !!r && typeof r === 'object' && (r.variants === undefined || r.variants === null)
+  );
+  if (!omitted.length) return;
+  const rows = await prisma.transportRoute.findMany({ select: { id: true, variants: true } });
+  const previous = new Map(rows.map((r) => [r.id, r.variants]));
+  for (const r of omitted) {
+    const stored = previous.get(r.id);
+    r.variants = Array.isArray(stored) ? (stored as unknown as TransportRouteVariantInput[]) : [];
+  }
+}
+
+/** Перевірка варіантів маршруту; заповнює variantById для перевірки рейсів. */
+function validateRouteVariants(
+  r: TransportRouteInput,
+  stopIds: Set<string>,
+  variantById: Map<string, { routeId: string; variant: TransportRouteVariantInput }>,
+  errors: string[]
+): void {
+  if (r.variants === undefined || r.variants === null) return;
+  if (!Array.isArray(r.variants)) {
+    errors.push(`route ${r.id}: variants must be an array`);
+    return;
+  }
+  for (const v of r.variants) {
+    if (!v || typeof v !== 'object') {
+      errors.push(`route ${r.id}: variant must be an object`);
+      continue;
+    }
+    const where = `route ${r.id} variant ${typeof v.id === 'string' ? v.id : JSON.stringify(v.id)}`;
+    if (typeof v.id !== 'string' || !VARIANT_ID_RE.test(v.id)) errors.push(`${where}: bad id (A-Z a-z 0-9 _ . -, ≤40)`);
+    else if (variantById.has(v.id)) errors.push(`${where}: duplicate variant id`);
+    else variantById.set(v.id, { routeId: r.id, variant: v });
+    if (v.directionId !== '0' && v.directionId !== '1') errors.push(`${where}: directionId must be "0" or "1"`);
+    if (typeof v.name !== 'string' || !v.name.trim()) errors.push(`${where}: name required`);
+    else if (/[\r\n\t]/.test(v.name)) errors.push(`${where}: name must be one line`);
+    else if (v.name.trim().length > VARIANT_NAME_MAX) errors.push(`${where}: name longer than ${VARIANT_NAME_MAX} characters`);
+    if (!Array.isArray(v.stops)) {
+      errors.push(`${where}: stops must be an array`);
+      continue;
+    }
+    if (v.stops.length > VARIANT_STOPS_MAX) errors.push(`${where}: more than ${VARIANT_STOPS_MAX} stops`);
+    const seen = new Set<string>();
+    let passengers = 0;
+    v.stops.forEach((p, i) => {
+      if (!p || typeof p !== 'object' || typeof p.stopId !== 'string') {
+        errors.push(`${where}: stop #${i + 1} must be { stopId }`);
+        return;
+      }
+      if (!stopIds.has(p.stopId)) errors.push(`${where}: unknown stop ${p.stopId}`);
+      if (seen.has(p.stopId)) errors.push(`${where}: stop ${p.stopId} repeats (a chain visits a stop once)`);
+      seen.add(p.stopId);
+      if (p.mapOnly !== undefined && typeof p.mapOnly !== 'boolean') errors.push(`${where}: mapOnly must be boolean`);
+      if (!p.mapOnly) passengers++;
+    });
+    if (passengers < 2) errors.push(`${where}: needs at least 2 passenger stops`);
+    const first = v.stops[0];
+    const last = v.stops[v.stops.length - 1];
+    if ((first && first.mapOnly) || (last && last.mapOnly)) {
+      errors.push(`${where}: first and last points must be passenger stops`);
+    }
+  }
+}
 
 /** Перевірка цілісності перед записом у БД. Повертає список помилок (порожній — ок). */
 export function validateTransportDataset(data: unknown): { errors: string[]; dataset?: TransportDataset } {
@@ -101,6 +218,7 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
   }
 
   const routeIds = new Set<string>();
+  const variantById = new Map<string, { routeId: string; variant: TransportRouteVariantInput }>();
   for (const r of dataset.routes) {
     if (!r.id || typeof r.id !== 'string') errors.push(`route without id: ${JSON.stringify(r)}`);
     else if (routeIds.has(r.id)) errors.push(`duplicate route id ${r.id}`);
@@ -115,6 +233,7 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
         errors.push(`route ${r.id}: shortName longer than ${ROUTE_SHORT_NAME_MAX} characters`);
       }
     }
+    validateRouteVariants(r, stopIds, variantById, errors);
   }
 
   const rsKeys = new Set<string>();
@@ -157,6 +276,26 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
 
     const dir: 'there' | 'back' = t.directionId === '0' ? 'back' : 'there';
     const orderKey = dir === 'there' ? 'orderThere' : 'orderBack';
+
+    // Ланцюжок рейсу: варіант шляху або основний ланцюжок напрямку
+    let variant: TransportRouteVariantInput | null = null;
+    if (t.variantId != null && t.variantId !== '') {
+      const ref = typeof t.variantId === 'string' ? variantById.get(t.variantId) : undefined;
+      if (typeof t.variantId !== 'string') errors.push(`trip ${t.id}: variantId must be a string`);
+      else if (!ref) errors.push(`trip ${t.id}: unknown variant ${t.variantId}`);
+      else if (ref.routeId !== t.routeId) errors.push(`trip ${t.id}: variant ${t.variantId} belongs to route ${ref.routeId}`);
+      else if (ref.variant.directionId !== (dir === 'back' ? '0' : '1')) {
+        errors.push(`trip ${t.id}: variant ${t.variantId} is for the other direction`);
+      } else variant = ref.variant;
+    }
+    const chain = variant ? variant.stops.map((p) => p.stopId) : chainFor(t.routeId, dir);
+    const isPassenger = (stopId: string): boolean => {
+      if (variant) return variant.stops.some((p) => p.stopId === stopId && !p.mapOnly);
+      const rs = routeStopByKey.get(`${t.routeId}|${stopId}`);
+      return !!rs && (rs[orderKey] ?? -1) > 0 && !rs.mapOnly;
+    };
+    const chainName = variant ? `variant ${variant.id}` : `route ${t.routeId} (${dir})`;
+
     for (const field of ['startStopId', 'endStopId'] as const) {
       const stopId = t[field];
       if (stopId == null || stopId === '') continue;
@@ -164,18 +303,41 @@ export function validateTransportDataset(data: unknown): { errors: string[]; dat
         errors.push(`trip ${t.id}: ${field} must be a string`);
         continue;
       }
-      const rs = routeStopByKey.get(`${t.routeId}|${stopId}`);
-      const order = rs ? (rs[orderKey] ?? -1) : -1;
-      if (!rs || order <= 0 || rs.mapOnly) {
-        errors.push(`trip ${t.id}: ${field} ${stopId} is not a passenger stop of route ${t.routeId} (${dir})`);
-      }
+      if (!isPassenger(stopId)) errors.push(`trip ${t.id}: ${field} ${stopId} is not a passenger stop of ${chainName}`);
     }
-    const chain = chainFor(t.routeId, dir);
-    if (chain.length >= 2) {
-      const startIdx = t.startStopId ? chain.indexOf(t.startStopId) : 0;
-      const endIdx = t.endStopId ? chain.indexOf(t.endStopId) : chain.length - 1;
-      if (startIdx >= 0 && endIdx >= 0 && startIdx >= endIdx) {
-        errors.push(`trip ${t.id}: startStopId must precede endStopId`);
+    const startIdx = typeof t.startStopId === 'string' && t.startStopId ? chain.indexOf(t.startStopId) : 0;
+    const endIdx = typeof t.endStopId === 'string' && t.endStopId ? chain.indexOf(t.endStopId) : chain.length - 1;
+    if (chain.length >= 2 && startIdx >= 0 && endIdx >= 0 && startIdx >= endIdx) {
+      errors.push(`trip ${t.id}: startStopId must precede endStopId`);
+    }
+
+    const hasTimepoints = Array.isArray(t.timepoints) && t.timepoints.length > 0;
+    if (t.timepoints != null && !Array.isArray(t.timepoints)) errors.push(`trip ${t.id}: timepoints must be an array`);
+    else if (hasTimepoints) {
+      const tps = t.timepoints as TransportTripTimepointInput[];
+      const dep = typeof t.departureTime === 'string' ? parseClockMins(t.departureTime) : null;
+      if (tps.length > TRIP_TIMEPOINTS_MAX) errors.push(`trip ${t.id}: more than ${TRIP_TIMEPOINTS_MAX} timepoints`);
+      if (dep == null) errors.push(`trip ${t.id}: timepoints require departureTime`);
+      if (t.arrivalTime != null && t.arrivalTime !== '') errors.push(`trip ${t.id}: use timepoints or arrivalTime, not both`);
+      let prevIdx = startIdx;
+      let prevMins = dep;
+      for (const tp of tps) {
+        if (!tp || typeof tp !== 'object' || typeof tp.stopId !== 'string' || typeof tp.time !== 'string') {
+          errors.push(`trip ${t.id}: timepoint must be { stopId, time }`);
+          continue;
+        }
+        const mins = TIME_RE.test(tp.time) ? parseClockMins(tp.time) : null;
+        const idx = chain.indexOf(tp.stopId);
+        if (mins == null) errors.push(`trip ${t.id}: timepoint ${tp.stopId} bad time "${tp.time}"`);
+        if (!isPassenger(tp.stopId)) errors.push(`trip ${t.id}: timepoint ${tp.stopId} is not a passenger stop of ${chainName}`);
+        else if (idx <= prevIdx || idx > endIdx) {
+          errors.push(`trip ${t.id}: timepoint ${tp.stopId} must follow the previous one within the served stops`);
+        }
+        if (mins != null && prevMins != null && mins <= prevMins) {
+          errors.push(`trip ${t.id}: timepoint ${tp.stopId} must be later than the previous time`);
+        }
+        if (idx > prevIdx) prevIdx = idx;
+        if (mins != null) prevMins = mins;
       }
     }
 
@@ -213,6 +375,23 @@ function shortNameFor(r: TransportRouteInput, previous: Map<string, string>): st
   return typeof r.shortName === 'string' ? r.shortName.trim() : previous.get(r.id) ?? '';
 }
 
+/** Варіанти маршруту у формі для БД: лише відомі поля; порожньо — NULL. */
+function storedVariants(variants: TransportRouteVariantInput[] | null | undefined): Prisma.InputJsonValue | undefined {
+  if (!Array.isArray(variants) || !variants.length) return undefined;
+  return variants.map((v) => ({
+    id: v.id,
+    directionId: v.directionId,
+    name: v.name.trim(),
+    stops: v.stops.map((p) => (p.mapOnly ? { stopId: p.stopId, mapOnly: true } : { stopId: p.stopId })),
+  }));
+}
+
+/** Опорні часи рейсу у формі для БД; порожньо — NULL. */
+function storedTimepoints(tps: TransportTripTimepointInput[] | null | undefined): Prisma.InputJsonValue | undefined {
+  if (!Array.isArray(tps) || !tps.length) return undefined;
+  return tps.map((tp) => ({ stopId: tp.stopId, time: tp.time }));
+}
+
 /** Транзакційна заміна всього датасету. */
 export async function replaceTransportDataset(prisma: PrismaClient, dataset: TransportDataset): Promise<void> {
   const previousShortNames = dataset.routes.some((r) => typeof r.shortName !== 'string')
@@ -240,6 +419,7 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
         schedule: (r.schedule ?? undefined) as Prisma.InputJsonValue | undefined,
         unreliable: r.unreliable ?? false,
         shortName: shortNameFor(r, previousShortNames),
+        variants: storedVariants(r.variants),
       })),
     }),
     prisma.transportRouteStop.createMany({
@@ -265,6 +445,8 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
         startStopId: t.startStopId || null,
         endStopId: t.endStopId || null,
         arrivalTime: t.arrivalTime || null,
+        variantId: t.variantId || null,
+        timepoints: storedTimepoints(t.timepoints),
       })),
     }),
     prisma.transportSegment.createMany({
@@ -305,6 +487,7 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
       schedule: r.schedule ?? null,
       unreliable: r.unreliable,
       shortName: r.shortName ?? '',
+      variants: Array.isArray(r.variants) ? (r.variants as unknown as TransportRouteVariantInput[]) : [],
     })),
     routeStops: routeStops.map((rs) => ({
       routeId: rs.routeId,
@@ -326,6 +509,8 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
       startStopId: t.startStopId,
       endStopId: t.endStopId,
       arrivalTime: t.arrivalTime,
+      variantId: t.variantId ?? null,
+      timepoints: Array.isArray(t.timepoints) ? (t.timepoints as unknown as TransportTripTimepointInput[]) : null,
     })),
     segments: segments.map((seg) => ({
       routeId: seg.routeId,
@@ -334,7 +519,14 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
       seconds: seg.seconds,
     })),
     meta: (meta?.payload as Record<string, unknown>) ?? {},
+    revision: meta?.updatedAt ? new Date(meta.updatedAt).toISOString() : null,
   };
+}
+
+/** Мітка останнього запису датасету (див. TransportDataset.revision); null — датасету ще немає. */
+export async function currentTransportRevision(prisma: PrismaClient): Promise<string | null> {
+  const meta = await prisma.transportMeta.findUnique({ where: { id: 1 } });
+  return meta?.updatedAt ? new Date(meta.updatedAt).toISOString() : null;
 }
 
 const LEGACY_SERVICE_MAP: Record<string, string> = {

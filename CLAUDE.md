@@ -331,6 +331,22 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `recordTiming()` in `routeTiming.ts`, the admin grid through `computeTripTimes()`, GTFS through
   `backend/src/gtfs-stop-times.ts`. Headsign is display-only; the served stop range comes from
   start/end. A trip is never a "departure" at its own end stop on the stop board.
+- **Route variants and timepoints** (`Docs/route-variants-2026-10.md`; first user — №9's first trip via the station).
+  A route may carry named path variants (`TransportRoute.variants` JSON: `{ id, directionId, name, stops: [{ stopId,
+  mapOnly? }] }`); a trip on one sets `variantId` and runs that chain instead of its direction's main chain (no stop
+  twice in a chain — a loop is two trips linked by `blockId`). Segments stay shared per route. Every consumer picks the
+  trip's chain through one helper: `chainForRecord()` / `servedStopIds()` / `chainsServingPair()` in
+  `LocalTransportPage/routeVariants.ts` on the site, `resolveTripChain()` in `gtfs-stop-times.ts`, `segmentChains()` in
+  `transport-segments.ts`; the scheme, board chips, static stop pages and the autostation page count variant stops too,
+  stickers do not. `name` is the path in lower case («через вокзал») — the site prints «іншим шляхом: …». A `PUT` route
+  without the `variants` key keeps the stored ones (`fillOmittedRouteFields`), `[]` clears them. `TransportTrip.timepoints`
+  (`[{ stopId, time }]`, sheet times at later stops) stretch or squeeze the segments between anchors, after the last one
+  segments run as is; never together with `arrivalTime`. Edit both in `/admin/route-schedule` («Шлях», «Опорні часи»,
+  JSON «Варіанти шляху»); the map editor only lists variants.
+- **Lost-update guard:** `GET /transport/dataset` returns `revision` (`TransportMeta.updatedAt`, bumped by every PUT and
+  by «Перерахувати час»); the admin editors load it with `getTransportDataset({ fresh: true })` and pass it to
+  `putTransportDataset(dataset, baseRevision)` → 409 if the data changed meanwhile. Scripts that PUT without
+  `baseRevision` are not checked — close or reload admin tabs before a scripted write.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

@@ -3,7 +3,7 @@ import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'reac
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
 import { routeColor, routeColorStyle } from './routeColors';
-import { buildRouteLines, routeStopChain } from './routeGeometry';
+import { buildChainLine, buildRouteLines, routeStopChain } from './routeGeometry';
 import { LocalTransportMapOverlay } from './LocalTransportMapOverlay';
 import { PHONE_QUERY, useMediaQuery } from './useMediaQuery';
 import { routesAtStop } from './schemeStops';
@@ -11,7 +11,7 @@ import { SCHEME_NODES, type SchemeNode } from './scheme/malyn-scheme-nodes';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
-import type { SupplementRoute, TransportData, TransportRecord, RouteStopWithOrder } from './types';
+import type { RouteVariantVm, TransportRecord, RouteStopWithOrder } from './types';
 import { RouteMap } from './RouteMap';
 import type { StopsCatalog } from './stopCatalog';
 import {
@@ -26,7 +26,16 @@ import { VERIFIED_ROUTE_IDS, isVerifiedRoute, recordTiming, segSecForRoute } fro
 import { computeTripTiming, minutesAtStop, tripServesPair } from './dataset/tripTiming';
 import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
 import { findNearestTrip, findUpcomingTrips } from './nearestTrip';
-import { tripDestination } from './stopDepartures';
+import { buildRoutesFromData, tripDestination } from './stopDepartures';
+import {
+  chainForRecord,
+  chainsServingPair,
+  recordVariant,
+  routeChainSources,
+  servedStopIds,
+  variantChain,
+  type VariantsByRoute,
+} from './routeVariants';
 import { useTransportDataset } from './dataset/useTransportDataset';
 import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
@@ -128,56 +137,6 @@ function findNearestStopInList(
   return best;
 }
 
-function buildRoutes(data: TransportData): Array<{
-  id: string;
-  from: string | null;
-  to: string | null;
-  trips: TransportRecord[];
-  supplement?: SupplementRoute;
-}> {
-  const byRoute: Record<
-    string,
-    { from: string | null; to: string | null; trips: TransportRecord[]; supplement?: SupplementRoute }
-  > = {};
-
-  for (const r of data.records) {
-    const id = r.route_id;
-    if (!byRoute[id]) byRoute[id] = { from: null, to: null, trips: [] };
-    if (r.direction_id === '0') byRoute[id].from = r.trip_headsign;
-    else byRoute[id].to = r.trip_headsign;
-    byRoute[id].trips.push(r);
-  }
-
-  const supplementRoutes = data.supplement?.routes || {};
-  if (supplementRoutes['9'] && !byRoute['9']) {
-    byRoute['9'] = {
-      from: supplementRoutes['9'].from ?? null,
-      to: supplementRoutes['9'].to ?? null,
-      trips: [],
-      supplement: supplementRoutes['9'],
-    };
-  }
-
-  return Object.entries(byRoute)
-    .map(([id, v]) => {
-      const sup = supplementRoutes[id] || v.supplement;
-      return {
-        id,
-        from: (sup?.from ?? v.from) || null,
-        to: (sup?.to ?? v.to) || null,
-        trips: v.trips,
-        supplement: sup,
-      };
-    })
-    .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
-}
-
-function getStopNames(stops: string[] | RouteStopWithOrder[]): string[] {
-  if (!stops?.length) return [];
-  const first = stops[0];
-  return typeof first === 'string' ? (stops as string[]) : (stops as RouteStopWithOrder[]).map((s) => s.name);
-}
-
 /** Зупинки без map_only — для списку та вибору З/До (точки тільки для карти виключаємо) */
 function getRealStops(stops: RouteStopWithOrder[]): RouteStopWithOrder[] {
   return stops.filter((s) => !s.map_only);
@@ -194,37 +153,6 @@ function getStopKeysFromRouteStops(
     return (stops as string[]).map((name) => n2i.get(name) ?? name);
   }
   return getRealStops(stops as RouteStopWithOrder[]).map((s) => getStopKey(s));
-}
-
-/** order === -1 означає тимчасово недоступну зупинку */
-function isStopAvailableInDirection(stop: RouteStopWithOrder, dir: 'there' | 'back'): boolean {
-  const order = dir === 'there' ? stop.order_there : stop.order_back;
-  return typeof order === 'number' && order > 0;
-}
-
-function routeHasStop(
-  routeId: string,
-  stopKey: string,
-  route: { from: string | null; to: string | null },
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
-  catalog?: StopsCatalog
-): boolean {
-  const n2i = invertNameToId(catalog);
-  const fromKey = route.from ? n2i.get(route.from) ?? route.from : null;
-  const toKey = route.to ? n2i.get(route.to) ?? route.to : null;
-  if (fromKey === stopKey || toKey === stopKey) return true;
-  const routeStops = stopsByRoute?.[routeId];
-  if (!routeStops?.length) return false;
-  const first = routeStops[0];
-  if (typeof first === 'object' && 'order_there' in first) {
-    const stop = (routeStops as RouteStopWithOrder[]).find((s) => getStopKey(s) === stopKey);
-    if (!stop) return false;
-    return isStopAvailableInDirection(stop, 'there') || isStopAvailableInDirection(stop, 'back');
-  }
-  return getStopNames(routeStops).some((name) => {
-    const id = n2i.get(name);
-    return id === stopKey || name === stopKey;
-  });
 }
 
 function getFirstTripTime(trips: TransportRecord[]): number {
@@ -247,72 +175,67 @@ function formatWait(mins: number): string {
   return m > 0 ? `${h} год ${m} хв` : `${h} год`;
 }
 
-/** Визначити напрямок (there/back) за парою З→До з порядку зупинок */
+/**
+ * Напрямок пари З→До на маршруті: перший ланцюжок, що везе від «З» до «До» — основний «туди», «назад»,
+ * потім варіанти шляху (перший рейс №9: центр → вокзал).
+ */
 function getImpliedDirection(
   fromStop: string,
   toStop: string,
   stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
-  routeId?: string
+  routeId?: string,
+  variantsByRoute?: VariantsByRoute
 ): 'there' | 'back' | null {
-  if (!routeId || !stopsByRoute?.[routeId]) return null;
-  const routeStops = stopsByRoute[routeId];
-  if (!Array.isArray(routeStops) || routeStops.length === 0) return null;
-  const first = routeStops[0];
-  const withOrder: RouteStopWithOrder[] =
-    first && typeof first === 'object' && 'name' in first
-      ? (routeStops as RouteStopWithOrder[])
-      : (routeStops as string[]).map((name, i) => ({
-          name,
-          order_there: i + 1,
-          order_back: routeStops.length - i,
-          belongs_to: 'both' as const,
-        }));
-  const orderedThere = [...withOrder]
-    .filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0)
-    .sort((a, b) => a.order_there - b.order_there);
-  const orderedBack = [...withOrder]
-    .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
-    .sort((a, b) => a.order_back - b.order_back);
-  const fromOrderThere = orderedThere.find((s) => getStopKey(s) === fromStop)?.order_there;
-  const toOrderThere = orderedThere.find((s) => getStopKey(s) === toStop)?.order_there;
-  const fromOrderBack = orderedBack.find((s) => getStopKey(s) === fromStop)?.order_back;
-  const toOrderBack = orderedBack.find((s) => getStopKey(s) === toStop)?.order_back;
-  if (fromOrderThere != null && toOrderThere != null && fromOrderThere < toOrderThere) return 'there';
-  if (fromOrderBack != null && toOrderBack != null && fromOrderBack < toOrderBack) return 'back';
-  return null;
-}
-
-/** Зібрати id зупинок у порядку руху для маршруту та напрямку (з технічними точками map_only) */
-function getOrderedStopKeys(
-  routeId: string,
-  dir: 'there' | 'back',
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>
-): string[] {
-  return routeStopChain(stopsByRoute, routeId, dir);
-}
-
-/** Знайти baseTime (відправлення з початкової) рейсу, що проходить fromStop найближче до depFromStopMins */
-function findBaseTimeByDepartureFromStop(
-  trips: TransportRecord[],
-  depFromStopMins: number,
-  fromStop: string,
-  dir: 'there' | 'back',
-  stopsByRoute?: Record<string, string[] | RouteStopWithOrder[]>,
-  routeId?: string
-): number | null {
   if (!routeId) return null;
-  const chain = getOrderedStopKeys(routeId, dir, stopsByRoute);
-  if (chain.length < 2) return null;
-  const { dir0, dir1 } = groupTripsByDirection(trips);
-  const dirTrips = dir === 'there' ? dir1 : dir0;
-  let best: { base: number; diff: number } | null = null;
-  for (const t of dirTrips) {
-    const m = minutesAtStop(recordTiming(routeId, chain, t), fromStop);
+  return chainsServingPair(stopsByRoute, variantsByRoute, routeId, fromStop, toStop)[0]?.direction ?? null;
+}
+
+/** Чи має зупинка відправлення (є в ланцюжку й не кінцева) у напрямку — основним ланцюжком або варіантом шляху */
+function departsInDirection(
+  stopKey: string,
+  dir: 'there' | 'back',
+  stopsByRoute: Record<string, string[] | RouteStopWithOrder[]> | undefined,
+  variantsByRoute: VariantsByRoute | undefined,
+  routeId: string
+): boolean {
+  const chains = [
+    routeStopChain(stopsByRoute, routeId, dir, { markersOnly: true }),
+    ...(variantsByRoute?.[routeId] ?? []).filter((v) => v.direction === dir).map((v) => variantChain(v, { markersOnly: true })),
+  ];
+  return chains.some((c) => {
+    const i = c.indexOf(stopKey);
+    return i >= 0 && i < c.length - 1;
+  });
+}
+
+/**
+ * Рейс, що проходить «Звідки» (без неї — свою першу зупинку, як у стрічці відправлень) найближче до pinnedMins.
+ * Кожен рейс рахується своїм ланцюжком (варіант шляху — chainFor).
+ */
+function findTripAtTime(
+  trips: TransportRecord[],
+  pinnedMins: number,
+  fromStop: string,
+  routeId: string,
+  chainFor: (record: TransportRecord) => string[]
+): TransportRecord | null {
+  let best: { record: TransportRecord; diff: number } | null = null;
+  for (const t of trips) {
+    const timing = recordTiming(routeId, chainFor(t), t);
+    if (!timing?.stops.length) continue;
+    const m = minutesAtStop(timing, fromStop || timing.stops[0].stopId);
     if (m == null) continue;
-    const diff = Math.abs(m - depFromStopMins);
-    if (!best || diff < best.diff) best = { base: tripDepartureMinutes(t), diff };
+    const diff = Math.abs(m - pinnedMins);
+    if (!best || diff < best.diff) best = { record: t, diff };
   }
-  return best?.base ?? null;
+  return best?.record ?? null;
+}
+
+/** Позначки рейсів варіантів шляху в стрічці й таблиці: «*», «**», … у порядку появи варіанта */
+function variantMarks(variantIds: Array<string | undefined>): Map<string, string> {
+  const marks = new Map<string, string>();
+  for (const id of variantIds) if (id && !marks.has(id)) marks.set(id, '*'.repeat(marks.size + 1));
+  return marks;
 }
 
 /**
@@ -463,8 +386,13 @@ export const LocalTransportPage: React.FC = () => {
   const isMainPage = !routeId;
   const isDetailPage = Boolean(routeId);
 
-  const routes = useMemo(() => (data ? buildRoutes(data) : []), [data]);
-  const stopsByRoute = data?.supplement?.stops?.stops_by_route;
+  const routes = useMemo(() => (data ? buildRoutesFromData(data) : []), [data]);
+  const { stopsByRoute, variantsByRoute } = routeChainSources(data);
+  /** Ланцюжок рейсу (з технічними точками): варіант шляху або основний ланцюжок напрямку */
+  const chainOfTrip = useCallback(
+    (record: TransportRecord) => chainForRecord(stopsByRoute, variantsByRoute, record),
+    [stopsByRoute, variantsByRoute]
+  );
   /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті планера */
   const overviewLines = useMemo(
     () => (stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, VERIFIED_ROUTE_IDS) : []),
@@ -478,8 +406,8 @@ export const LocalTransportPage: React.FC = () => {
   );
   const stopsCatalog = useMemo(() => getStopsCatalog(data), [data]);
   const stops = useMemo(
-    () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog),
-    [routes, stopsByRoute, stopsCatalog]
+    () => buildSortedStopIds(routes, stopsByRoute, stopsCatalog, variantsByRoute),
+    [routes, stopsByRoute, stopsCatalog, variantsByRoute]
   );
 
   const effectiveSearchFrom = searchFrom ?? (fromPathDecoded || queryFrom);
@@ -572,16 +500,11 @@ export const LocalTransportPage: React.FC = () => {
     [committedPair, stopsCatalog]
   );
 
-  /** Прямі маршрути між двома зупинками (обидві на маршруті і в одному напрямку) */
+  /** Прямі маршрути між двома зупинками: «З» раніше за «До» в основному ланцюжку чи у варіанті шляху */
   const directRoutesBetween = useCallback(
     (from: string, to: string) =>
-      routes.filter((r) => {
-        const hasFrom = routeHasStop(r.id, from, r, stopsByRoute, stopsCatalog);
-        const hasTo = routeHasStop(r.id, to, r, stopsByRoute, stopsCatalog);
-        if (!hasFrom || !hasTo) return false;
-        return getImpliedDirection(from, to, stopsByRoute, r.id) != null;
-      }),
-    [routes, stopsByRoute, stopsCatalog]
+      routes.filter((r) => chainsServingPair(stopsByRoute, variantsByRoute, r.id, from, to).length > 0),
+    [routes, stopsByRoute, variantsByRoute]
   );
 
   const routesConnectingFromTo = useMemo(() => {
@@ -774,9 +697,12 @@ export const LocalTransportPage: React.FC = () => {
 
   // ---- Сторінка маршруту: URL — єдине джерело пари («Звідки»/«Куди»), напрямку й обраного рейсу ----
   const detailRouteStopIds = useMemo(() => {
-    if (!detailRoute || !stopsByRoute?.[detailRoute.id]) return [];
-    return getStopKeysFromRouteStops(stopsByRoute[detailRoute.id], stopsCatalog);
-  }, [detailRoute, stopsByRoute, stopsCatalog]);
+    if (!detailRoute) return [];
+    const main = stopsByRoute?.[detailRoute.id] ? getStopKeysFromRouteStops(stopsByRoute[detailRoute.id], stopsCatalog) : [];
+    // зупинки, які обслуговує лише варіант шляху (вокзал у першому рейсі №9) — посилання з їхнього табло
+    const onlyVariants = [...servedStopIds(undefined, variantsByRoute, detailRoute.id)].filter((id) => !main.includes(id));
+    return [...main, ...onlyVariants];
+  }, [detailRoute, stopsByRoute, variantsByRoute, stopsCatalog]);
   /** Пара з URL (`stop`/`to`), резолвнута в зупинки маршруту; «Куди» рахується лише разом зі «Звідки» */
   const detailPair = useMemo(() => {
     if (!detailRoute || !detailRouteStopIds.length) return { from: '', to: '' };
@@ -790,11 +716,14 @@ export const LocalTransportPage: React.FC = () => {
   }, [detailRoute, detailRouteStopIds, selectedStopFromUrl, toFromUrl, stopsCatalog]);
   const fromStop = detailPair.from;
   const toStop = detailPair.to;
-  /** Напрямок: `dir` з URL → випливає з пари → belongs_to «Звідки» → «туди» */
+  /**
+   * Напрямок: `dir` з URL → випливає з пари → belongs_to «Звідки» → для зупинки поза основним ланцюжком «туди» —
+   * напрямок, у якому з неї є відправлення (варіант шляху) → «туди»
+   */
   const stopsDirection: 'there' | 'back' = useMemo(() => {
     if (dirFromUrl === 'there' || dirFromUrl === 'back') return dirFromUrl;
     if (!detailRoute) return 'there';
-    if (fromStop && toStop) return getImpliedDirection(fromStop, toStop, stopsByRoute, detailRoute.id) ?? 'there';
+    if (fromStop && toStop) return getImpliedDirection(fromStop, toStop, stopsByRoute, detailRoute.id, variantsByRoute) ?? 'there';
     if (fromStop) {
       const rs = stopsByRoute?.[detailRoute.id];
       const first = Array.isArray(rs) ? rs[0] : null;
@@ -802,9 +731,14 @@ export const LocalTransportPage: React.FC = () => {
         const own = (rs as RouteStopWithOrder[]).find((s) => getStopKey(s) === fromStop);
         if (own?.belongs_to === 'back') return 'back';
       }
+      if (!routeStopChain(stopsByRoute, detailRoute.id, 'there', { markersOnly: true }).includes(fromStop)) {
+        for (const dir of ['there', 'back'] as const) {
+          if (departsInDirection(fromStop, dir, stopsByRoute, variantsByRoute, detailRoute.id)) return dir;
+        }
+      }
     }
     return 'there';
-  }, [dirFromUrl, detailRoute, fromStop, toStop, stopsByRoute]);
+  }, [dirFromUrl, detailRoute, fromStop, toStop, stopsByRoute, variantsByRoute]);
   /** Опорний час сторінки маршруту: `h` з URL (сьогодні — не раніше за зараз), інакше зараз за Києвом */
   const detailRefMins = useMemo(() => {
     const h = parseClockToMinutes(hourFromUrl);
@@ -819,31 +753,22 @@ export const LocalTransportPage: React.FC = () => {
    */
   const selectedTrip = useMemo(() => {
     if (!detailRoute || !detailRoute.trips.length) return null;
-    const chain = getOrderedStopKeys(detailRoute.id, stopsDirection, stopsByRoute);
+    const chain = routeStopChain(stopsByRoute, detailRoute.id, stopsDirection);
     const anchor = fromStop || chain[0] || '';
     const dirTrips = groupTripsByDirection(detailRoute.trips)[stopsDirection === 'there' ? 'dir1' : 'dir0'];
     const pinned = parseClockToMinutes(timeFromUrl);
     let record: TransportRecord | null = null;
-    if (pinned > 0 && anchor) {
-      const base = findBaseTimeByDepartureFromStop(
-        detailRoute.trips,
-        pinned,
-        anchor,
-        stopsDirection,
-        stopsByRoute,
-        detailRoute.id
-      );
-      record = base != null ? (dirTrips.find((t) => tripDepartureMinutes(t) === base) ?? null) : null;
-    }
+    if (pinned > 0) record = findTripAtTime(dirTrips, pinned, fromStop, detailRoute.id, chainOfTrip);
     if (!record) {
       const at =
-        anchor && chain.length >= 2
+        anchor && (chain.length >= 2 || fromStop)
           ? {
               routeId: detailRoute.id,
               chainKeys: {
-                there: getOrderedStopKeys(detailRoute.id, 'there', stopsByRoute),
-                back: getOrderedStopKeys(detailRoute.id, 'back', stopsByRoute),
+                there: routeStopChain(stopsByRoute, detailRoute.id, 'there'),
+                back: routeStopChain(stopsByRoute, detailRoute.id, 'back'),
               },
+              chainFor: chainOfTrip,
               fromStop: anchor,
               toStop: toStop || undefined,
             }
@@ -854,15 +779,19 @@ export const LocalTransportPage: React.FC = () => {
       record = nearest?.record ?? null;
     }
     return record ? { record, baseTime: tripDepartureMinutes(record), direction: stopsDirection } : null;
-  }, [detailRoute, stopsDirection, stopsByRoute, fromStop, toStop, timeFromUrl, detailRefMins]);
-  const selectedTripTime = selectedTrip?.baseTime ?? null;
-  const selectedTripDirection = selectedTrip?.direction ?? null;
-
-  /** Точки лінії маршруту на карті в поточному напрямку (з технічними map_only для поворотів) */
-  const detailMapStopNames = useMemo(
-    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection) : []),
-    [detailRoute, stopsByRoute, stopsDirection]
+  }, [detailRoute, stopsDirection, stopsByRoute, chainOfTrip, fromStop, toStop, timeFromUrl, detailRefMins]);
+  const selectedTripId = selectedTrip?.record.trip_id ?? null;
+  /** Варіант шляху обраного рейсу; null — рейс іде основним ланцюжком напрямку */
+  const selectedVariant: RouteVariantVm | null = useMemo(
+    () => (selectedTrip ? recordVariant(variantsByRoute, selectedTrip.record) : null),
+    [selectedTrip, variantsByRoute]
   );
+
+  /** Точки лінії на карті й таймлайні: ланцюжок обраного рейсу (варіант) або основний напрямку (з технічними map_only) */
+  const detailMapStopNames = useMemo(() => {
+    if (!detailRoute) return [];
+    return selectedVariant ? variantChain(selectedVariant) : routeStopChain(stopsByRoute, detailRoute.id, stopsDirection);
+  }, [detailRoute, selectedVariant, stopsByRoute, stopsDirection]);
 
   /** Fallback для карти: усі зупинки маршруту в поточному напрямку (щоб карта завжди мала що малювати) */
   const detailMapStopNamesFallback = useMemo(
@@ -872,17 +801,21 @@ export const LocalTransportPage: React.FC = () => {
 
   const mapStopNamesToShow = detailMapStopNames.length > 0 ? detailMapStopNames : detailMapStopNamesFallback;
 
-  /** Лінія обраного маршруту в її кольорі (поточний напрямок) */
-  const detailLine = useMemo(
-    () => (detailRoute && stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, [detailRoute.id], stopsDirection) : []),
-    [detailRoute, stopsCoords, stopsByRoute, stopsDirection]
-  );
+  /** Лінія обраного маршруту в її кольорі: поточний напрямок або варіант шляху обраного рейсу */
+  const detailLine = useMemo(() => {
+    if (!detailRoute || !stopsCoords) return [];
+    if (!selectedVariant) return buildRouteLines(stopsCoords, stopsByRoute, [detailRoute.id], stopsDirection);
+    const line = buildChainLine(stopsCoords, detailRoute.id, variantChain(selectedVariant));
+    return line ? [line] : [];
+  }, [detailRoute, stopsCoords, selectedVariant, stopsByRoute, stopsDirection]);
 
-  /** Тільки «реальні» зупинки для маркерів на карті (без map_only — технічні точки лише для поворотів лінії) */
-  const detailMapStopNamesForMarkers = useMemo(
-    () => (detailRoute ? routeStopChain(stopsByRoute, detailRoute.id, stopsDirection, { markersOnly: true }) : []),
-    [detailRoute, stopsByRoute, stopsDirection]
-  );
+  /** Тільки «реальні» зупинки для маркерів і таймлайну (без map_only — технічні точки лише для поворотів лінії) */
+  const detailMapStopNamesForMarkers = useMemo(() => {
+    if (!detailRoute) return [];
+    return selectedVariant
+      ? variantChain(selectedVariant, { markersOnly: true })
+      : routeStopChain(stopsByRoute, detailRoute.id, stopsDirection, { markersOnly: true });
+  }, [detailRoute, selectedVariant, stopsByRoute, stopsDirection]);
 
   // Не робимо auto-scroll до "Ви тут" — це викликало зміщення вліво при виборі маршруту та зміні напрямку
 
@@ -934,7 +867,8 @@ export const LocalTransportPage: React.FC = () => {
     if (!detailRoute) return;
     const from = next.from ?? fromStop;
     const to = next.to ?? toStop;
-    const dir = from && to ? (getImpliedDirection(from, to, stopsByRoute, detailRoute.id) ?? stopsDirection) : stopsDirection;
+    const dir =
+      from && to ? (getImpliedDirection(from, to, stopsByRoute, detailRoute.id, variantsByRoute) ?? stopsDirection) : stopsDirection;
     updateDetailUrl({ stop: from || undefined, to: to || undefined, dir, time: undefined });
   };
 
@@ -986,6 +920,17 @@ export const LocalTransportPage: React.FC = () => {
       updateDetailUrl({ dir: newDir, time: undefined });
       return;
     }
+    // Зворотний напрямок: «Куди» стає «Звідки» і навпаки; сама лише «Звідки» лишається «Звідки»
+    const fromRaw = toStop || fromStop;
+    const toRaw = toStop ? fromStop : '';
+    // Пара (чи «Звідки») вже їде в новому напрямку — основним ланцюжком або варіантом шляху: лишаємо як є
+    const keeps = toRaw
+      ? chainsServingPair(stopsByRoute, variantsByRoute, detailRoute.id, fromRaw, toRaw).some((c) => c.direction === newDir)
+      : departsInDirection(fromRaw, newDir, stopsByRoute, variantsByRoute, detailRoute.id);
+    if (keeps) {
+      updateDetailUrl({ stop: fromRaw, to: toRaw || undefined, dir: newDir, time: undefined });
+      return;
+    }
     const first = routeStops[0];
     const stopsWithOrder: RouteStopWithOrder[] =
       first && typeof first === 'object' && 'name' in first
@@ -1008,9 +953,6 @@ export const LocalTransportPage: React.FC = () => {
       const id = resolveStopIdInList(raw, list.map((s) => getStopKey(s)), stopsCatalog);
       return id && list.some((s) => getStopKey(s) === id) ? id : null;
     };
-    // Зворотний напрямок: «Куди» стає «Звідки» і навпаки; сама лише «Звідки» лишається «Звідки»
-    const fromRaw = toStop || fromStop;
-    const toRaw = toStop ? fromStop : '';
     const newFrom = inList(fromRaw, ordered) ?? findNearestStopInList(fromRaw, ordered, stopsCoords) ?? getStopKey(ordered[0]);
     const fromOrder = ordered.find((s) => getStopKey(s) === newFrom)?.[orderKey] ?? 0;
     const after = ordered.filter((s) => (s[orderKey] ?? 0) > fromOrder);
@@ -1041,7 +983,7 @@ export const LocalTransportPage: React.FC = () => {
     } catch {
       /* старі браузери без options */
     }
-  }, [isDetailPage, selectedTripTime, stopsDirection, fromStop, toStop]);
+  }, [isDetailPage, selectedTripId, stopsDirection, fromStop, toStop]);
 
   // Кнопки «Знайти» немає — видача жива, тож нова пара мʼяко прокручує до результатів.
   // Пара з адресного рядка при відкритті сторінки не прокручує: людина ще нічого не обирала.
@@ -1091,7 +1033,10 @@ export const LocalTransportPage: React.FC = () => {
   };
 
   const handleSelectRoute = (id: string) => {
-    const routeStopIds = stopsByRoute?.[id] ? getStopKeysFromRouteStops(stopsByRoute[id], stopsCatalog) : [];
+    const routeStopIds = [
+      ...(stopsByRoute?.[id] ? getStopKeysFromRouteStops(stopsByRoute[id], stopsCatalog) : []),
+      ...servedStopIds(undefined, variantsByRoute, id),
+    ];
     const fromResolved = committedPair
       ? committedPair.from
       : latestStopRef.current || effectiveStopFilter
@@ -1106,7 +1051,7 @@ export const LocalTransportPage: React.FC = () => {
     if (fromOnRoute && toOnRoute) {
       params.set('stop', fromOnRoute);
       params.set('to', toOnRoute);
-      const dir = getImpliedDirection(fromOnRoute, toOnRoute, stopsByRoute, id);
+      const dir = getImpliedDirection(fromOnRoute, toOnRoute, stopsByRoute, id, variantsByRoute);
       if (dir) params.set('dir', dir);
     }
     navigate(`/transport/route/${id}${params.toString() ? `?${params.toString()}` : ''}`);
@@ -1235,39 +1180,12 @@ export const LocalTransportPage: React.FC = () => {
             </header>
 
             {detailRoute.trips.length > 0 && (() => {
-              const routeStops = stopsByRoute?.[detailRoute.id];
-              let stopsWithOrder: RouteStopWithOrder[] | null = null;
-              if (Array.isArray(routeStops) && routeStops.length > 0) {
-                const first = routeStops[0];
-                if (first && typeof first === 'object' && 'name' in first) {
-                  stopsWithOrder = routeStops as RouteStopWithOrder[];
-                } else {
-                  const names = routeStops as unknown as string[];
-                  stopsWithOrder = names.map((name, i) => ({
-                    name,
-                    order_there: i + 1,
-                    order_back: names.length - i,
-                    belongs_to: 'both' as const,
-                  }));
-                }
-              }
-              const orderedStopsThere = stopsWithOrder
-                ? [...stopsWithOrder]
-                    .filter((s) => (s.belongs_to ?? 'both') !== 'back' && s.order_there > 0)
-                    .sort((a, b) => a.order_there - b.order_there)
-                : [];
-              const orderedStopsBack = stopsWithOrder
-                ? [...stopsWithOrder]
-                    .filter((s) => (s.belongs_to ?? 'both') !== 'there' && s.order_back > 0)
-                    .sort((a, b) => a.order_back - b.order_back)
-                : [];
               const routeId = detailRoute.id;
-              const orderedKeysThere = orderedStopsThere.map((s) => getStopKey(s));
-              const orderedKeysBack = orderedStopsBack.map((s) => getStopKey(s));
 
               /**
                * Рядок на рейс між обраними З/До (або початком/кінцем самого рейсу).
                * Рейси, що не обслуговують пару (скорочені, з іншої початкової), пропускаються.
+               * Кожен рейс рахується своїм ланцюжком: варіант шляху або основний ланцюжок напрямку.
                */
               type TableRow = {
                 dep: string;
@@ -1278,14 +1196,16 @@ export const LocalTransportPage: React.FC = () => {
                 /** Зупинка, на якій показано `dep` («Звідки» або перша зупинка рейсу) */
                 fromKey: string;
                 toKey: string;
+                /** Варіант шляху рейсу (немає — основний ланцюжок) */
+                variant: RouteVariantVm | null;
               };
               const buildTableTrips = (): TableRow[] | null => {
-                if (!stopsWithOrder) return null;
                 const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
                 const rows: TableRow[] = [];
-                const pushRows = (list: TransportRecord[], direction: 'there' | 'back', chain: string[]) => {
-                  if (chain.length < 2) return;
+                const pushRows = (list: TransportRecord[], direction: 'there' | 'back') => {
                   list.forEach((t) => {
+                    const chain = chainOfTrip(t);
+                    if (chain.length < 2) return;
                     const timing = recordTiming(routeId, chain, t);
                     if (!timing) return;
                     const fromKey = fromStop || timing.stops[0].stopId;
@@ -1302,11 +1222,12 @@ export const LocalTransportPage: React.FC = () => {
                       tripId: t.trip_id,
                       fromKey,
                       toKey,
+                      variant: recordVariant(variantsByRoute, t),
                     });
                   });
                 };
-                pushRows(dir1, 'there', orderedKeysThere);
-                pushRows(dir0, 'back', orderedKeysBack);
+                pushRows(dir1, 'there');
+                pushRows(dir0, 'back');
                 return rows.length ? rows.sort((a, b) => a.dep.localeCompare(b.dep)) : null;
               };
 
@@ -1333,6 +1254,20 @@ export const LocalTransportPage: React.FC = () => {
                 tableTrips && stopsDirection
                   ? tableTrips.filter((r) => r.direction === stopsDirection)
                   : tableTrips;
+              /** Рейси іншим шляхом (варіанти) позначені «*» у стрічці й таблиці; легенда — під стрічкою */
+              const marks = variantMarks((tableTripsInDirection ?? []).map((r) => r.variant?.id));
+              const legend = (tableTripsInDirection ?? []).filter(
+                (r, i, all) => r.variant && all.findIndex((x) => x.variant?.id === r.variant?.id) === i
+              );
+              const variantMark = (row: TableRow) =>
+                row.variant ? (
+                  <>
+                    <sup className="lt-variant-mark" aria-hidden>
+                      {marks.get(row.variant.id)}
+                    </sup>
+                    <span className="lt-visually-hidden">, іншим шляхом: {row.variant.name}</span>
+                  </>
+                ) : null;
 
               return (
                 <>
@@ -1356,17 +1291,20 @@ export const LocalTransportPage: React.FC = () => {
                     {tableTripsInDirection && tableTripsInDirection.length > 0 ? (
                       <div className="lt-departures" role="group" aria-label="Відправлення за день">
                         {tableTripsInDirection.map((row, i) => {
-                          const pressed = selectedTripTime === row.baseTime && selectedTripDirection === row.direction;
+                          const pressed = selectedTripId === row.tripId;
                           return (
                             <button
                               key={`${row.dep}-${row.arr}-${i}`}
                               type="button"
-                              className="lt-chip lt-departure-chip lt-long-press"
+                              className={`lt-chip lt-departure-chip lt-long-press ${row.variant ? 'lt-departure-chip--variant' : ''}`}
                               aria-pressed={pressed}
                               onClick={() => pickDeparture(row, 'strip')}
                               {...arrivalPress(row)}
                             >
-                              <span className="lt-departure-chip__dep">{row.dep}</span>
+                              <span className="lt-departure-chip__dep">
+                                {row.dep}
+                                {variantMark(row)}
+                              </span>
                               {fromStop && toStop ? <span className="lt-departure-chip__arr">→ {row.arr}</span> : null}
                             </button>
                           );
@@ -1375,6 +1313,18 @@ export const LocalTransportPage: React.FC = () => {
                     ) : (
                       <p className="lt-empty lt-empty--inline">У цьому напрямку між обраними зупинками рейсів немає.</p>
                     )}
+                    {legend.length > 0 ? (
+                      <ul className="lt-variant-legend" aria-label="Рейси іншим шляхом">
+                        {legend.map((row) => (
+                          <li key={row.variant!.id}>
+                            <span className="lt-variant-mark" aria-hidden>
+                              {marks.get(row.variant!.id)}
+                            </span>{' '}
+                            іншим шляхом: {row.variant!.name}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     {routeDayOffset === 0 && !isPrerendering() && tableTripsInDirection && tableTripsInDirection.length > 0 ? (
                       <p className="lt-arrival-tip">
                         Автобус приїхав не за розкладом або не приїхав? Утримайте його час — позначимо факт.
@@ -1420,8 +1370,7 @@ export const LocalTransportPage: React.FC = () => {
                           </thead>
                           <tbody>
                             {tableTripsInDirection.map((row, i) => {
-                              const isSelected =
-                                selectedTripTime === row.baseTime && selectedTripDirection === row.direction;
+                              const isSelected = selectedTripId === row.tripId;
                               return (
                                 <tr
                                   key={`${row.dep}-${row.arr}-${i}`}
@@ -1436,7 +1385,10 @@ export const LocalTransportPage: React.FC = () => {
                                     }
                                   }}
                                 >
-                                  <td className="lt-time-cell lt-time-cell--tablica">{row.dep}</td>
+                                  <td className="lt-time-cell lt-time-cell--tablica">
+                                    {row.dep}
+                                    {variantMark(row)}
+                                  </td>
                                   <td className="lt-time-cell lt-time-cell--tablica">{row.arr}</td>
                                 </tr>
                               );
@@ -1461,145 +1413,113 @@ export const LocalTransportPage: React.FC = () => {
                 label={`Відкрити схему маршрутів: маршрут №${routeNo(detailRoute.id)}`}
               />
             )}
-            {(() => {
-              const routeStops = stopsByRoute?.[detailRoute.id];
-              let stopsWithOrder: RouteStopWithOrder[] | null = null;
-              if (Array.isArray(routeStops) && routeStops.length > 0) {
-                const first = routeStops[0];
-                if (first && typeof first === 'object' && 'name' in first) {
-                  stopsWithOrder = routeStops as RouteStopWithOrder[];
-                } else {
-                  const names = routeStops as unknown as string[];
-                  stopsWithOrder = names.map((name, i) => ({
-                    name,
-                    order_there: i + 1,
-                    order_back: names.length - i,
-                    belongs_to: 'both' as const,
-                  }));
-                }
-              }
-              let mapStopNames: string[] = [];
-              if (stopsWithOrder) {
-                const isThere = stopsDirection === 'there';
-                const orderKey = isThere ? 'order_there' : 'order_back';
-                const allowed = [...stopsWithOrder].filter(
-                  (s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there')
-                );
-                const included = allowed
-                  .filter((s) => (s[orderKey] ?? 0) > 0)
-                  .sort((a, b) => (a[orderKey] ?? 0) - (b[orderKey] ?? 0));
-                mapStopNames = included.map((s) => getStopKey(s));
-              }
-              return stopsWithOrder && mapStopNames.length > 0 ? (
-                <section className="lt-map-stops" aria-labelledby="lt-stops-heading">
-                  <div className="lt-map-stops-inner">
-                    <div className="lt-stops">
-                      <div className="lt-stops-head">
-                        <h2 id="lt-stops-heading" className="lt-stops-heading">Зупинки</h2>
-                        {fromStop ? (
-                          <button
-                            type="button"
-                            className="lt-chip lt-chip--small"
-                            onClick={() => {
-                              gaTrackEvent('transport_timeline_pick', { route_id: detailRoute.id, action: 'reset' });
-                              updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection });
-                            }}
-                          >
-                            Скинути
-                          </button>
-                        ) : (
-                          <p className="lt-stops-hint">Торкніться зупинки: спершу «Звідки», потім «Куди»</p>
-                        )}
-                      </div>
-                      <div ref={timelineRef} className="lt-stops-timeline" style={routeColorStyle(detailRoute.id)}>
-                        {segmentStyle && (
-                          <div
-                            className="lt-stops-timeline-segment"
-                            style={{ top: segmentStyle.top, height: segmentStyle.height }}
-                          />
-                        )}
-                        {(() => {
-                          const isThere = stopsDirection === 'there';
-                          const filtered = [...stopsWithOrder]
-                            .filter((s) => (s.belongs_to ?? 'both') !== (isThere ? 'back' : 'there'))
-                            .filter((s) => (isThere ? s.order_there : s.order_back) > 0)
-                            .sort((a, b) => (isThere ? a.order_there - b.order_there : a.order_back - b.order_back));
-                          const listStops = getRealStops(filtered);
-                          const orderKey = isThere ? 'order_there' : 'order_back';
-                          const orderedKeysStops = filtered.map((s) => getStopKey(s));
-                          // Часи на зупинках — для обраного рейсу; без нього — перший рейс дня по всій лінії
-                          const timing = selectedTrip
-                            ? recordTiming(detailRoute.id, orderedKeysStops, selectedTrip.record)
-                            : computeTripTiming(orderedKeysStops, segSecForRoute(detailRoute.id), {
-                                departureMins: getFirstTripTime(detailRoute.trips),
-                              });
-                          const boardQuery = `?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`;
-                          return (
-                            <ul className="lt-stops-list">
-                              {listStops.map((s, idx) => {
-                                const key = getStopKey(s);
-                                const name = displayNameForStopKey(key, stopsCatalog);
-                                const order = s[orderKey];
-                                const arrivalMins = minutesAtStop(timing, key);
-                                const served = arrivalMins != null;
-                                const nextRealStop = listStops[idx + 1];
-                                const nextArrivalMins = nextRealStop ? minutesAtStop(timing, getStopKey(nextRealStop)) : null;
-                                const minsToNext =
-                                  arrivalMins != null && nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
-                                const isFrom = fromStop === key;
-                                const isTo = toStop === key;
-                                const pickTitle = isFrom
-                                  ? 'Скинути пару'
-                                  : isTo
-                                    ? 'Зняти «Куди»'
-                                    : !fromStop
-                                      ? 'Звідси'
-                                      : !toStop
-                                        ? 'Сюди'
-                                        : 'Звідси (нова пара)';
-                                return (
-                                  <li
-                                    key={`${isThere ? 'there' : 'back'}-${key}-${order}`}
-                                    ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
-                                    className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''} ${served ? '' : 'lt-stop-item--unserved'}`}
-                                    aria-label={served ? undefined : 'Цей рейс тут не зупиняється'}
-                                  >
-                                    <span className="lt-stop-time">{arrivalMins != null ? formatTime(arrivalMins) : '—'}</span>
-                                    <span className="lt-stop-content">
-                                      <button
-                                        type="button"
-                                        className="lt-stop-pick"
-                                        onClick={() => pickTimelineStop(key)}
-                                        aria-pressed={isFrom || isTo}
-                                        title={pickTitle}
-                                      >
-                                        {name}
-                                      </button>
-                                      {isFrom && <span className="lt-stop-badge lt-stop-badge--from">Звідки</span>}
-                                      {isTo && <span className="lt-stop-badge lt-stop-badge--to">Куди</span>}
-                                    </span>
-                                    <Link
-                                      className="lt-stop-board-link"
-                                      to={`/transport/stop/${encodeURIComponent(key)}${boardQuery}`}
-                                      aria-label={`Табло зупинки «${name}»`}
+            {detailMapStopNamesForMarkers.length > 0 ? (
+              <section className="lt-map-stops" aria-labelledby="lt-stops-heading">
+                <div className="lt-map-stops-inner">
+                  <div className="lt-stops">
+                    <div className="lt-stops-head">
+                      <h2 id="lt-stops-heading" className="lt-stops-heading">Зупинки</h2>
+                      {fromStop ? (
+                        <button
+                          type="button"
+                          className="lt-chip lt-chip--small"
+                          onClick={() => {
+                            gaTrackEvent('transport_timeline_pick', { route_id: detailRoute.id, action: 'reset' });
+                            updateDetailUrl({ stop: undefined, to: undefined, time: undefined, dir: stopsDirection });
+                          }}
+                        >
+                          Скинути
+                        </button>
+                      ) : (
+                        <p className="lt-stops-hint">Торкніться зупинки: спершу «Звідки», потім «Куди»</p>
+                      )}
+                    </div>
+                    {selectedVariant ? (
+                      <p className="lt-variant-note">
+                        Рейс {selectedTrip ? formatTime(selectedTrip.baseTime) : ''} іде іншим шляхом: {selectedVariant.name}
+                      </p>
+                    ) : null}
+                    <div ref={timelineRef} className="lt-stops-timeline" style={routeColorStyle(detailRoute.id)}>
+                      {segmentStyle && (
+                        <div
+                          className="lt-stops-timeline-segment"
+                          style={{ top: segmentStyle.top, height: segmentStyle.height }}
+                        />
+                      )}
+                      {(() => {
+                        // Ланцюжок обраного рейсу (варіант шляху або основний напрямку); у списку — без технічних точок
+                        const orderedKeysStops = detailMapStopNames;
+                        const listKeys = detailMapStopNamesForMarkers;
+                        // Часи на зупинках — для обраного рейсу; без нього — перший рейс дня по всій лінії
+                        const timing = selectedTrip
+                          ? recordTiming(detailRoute.id, orderedKeysStops, selectedTrip.record)
+                          : computeTripTiming(orderedKeysStops, segSecForRoute(detailRoute.id), {
+                              departureMins: getFirstTripTime(detailRoute.trips),
+                            });
+                        const boardQuery = `?d=${encodeURIComponent(dateFromUrl || formatDateUrl(new Date()))}&h=${encodeURIComponent(hourFromUrl || timeFromUrl || searchTime)}`;
+                        return (
+                          <ul className="lt-stops-list">
+                            {listKeys.map((key, idx) => {
+                              const name = displayNameForStopKey(key, stopsCatalog);
+                              const arrivalMins = minutesAtStop(timing, key);
+                              const served = arrivalMins != null;
+                              const nextKey = listKeys[idx + 1];
+                              const nextArrivalMins = nextKey ? minutesAtStop(timing, nextKey) : null;
+                              const minsToNext =
+                                arrivalMins != null && nextArrivalMins != null ? nextArrivalMins - arrivalMins : null;
+                              const isFrom = fromStop === key;
+                              const isTo = toStop === key;
+                              const pickTitle = isFrom
+                                ? 'Скинути пару'
+                                : isTo
+                                  ? 'Зняти «Куди»'
+                                  : !fromStop
+                                    ? 'Звідси'
+                                    : !toStop
+                                      ? 'Сюди'
+                                      : 'Звідси (нова пара)';
+                              return (
+                                <li
+                                  key={`${stopsDirection}-${selectedVariant?.id ?? 'main'}-${key}-${idx}`}
+                                  ref={isFrom ? youHereRef : isTo ? toStopRef : undefined}
+                                  className={`lt-stop-item ${isFrom ? 'lt-stop-item--from' : ''} ${isTo ? 'lt-stop-item--to' : ''} ${served ? '' : 'lt-stop-item--unserved'}`}
+                                  aria-label={served ? undefined : 'Цей рейс тут не зупиняється'}
+                                >
+                                  <span className="lt-stop-time">{arrivalMins != null ? formatTime(arrivalMins) : '—'}</span>
+                                  <span className="lt-stop-content">
+                                    <button
+                                      type="button"
+                                      className="lt-stop-pick"
+                                      onClick={() => pickTimelineStop(key)}
+                                      aria-pressed={isFrom || isTo}
+                                      title={pickTitle}
                                     >
-                                      Табло
-                                    </Link>
-                                    <span className="lt-stop-to-next">
-                                      {minsToNext != null ? formatWait(Math.max(1, Math.round(minsToNext))) : '—'}
-                                    </span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          );
-                        })()}
-                      </div>
+                                      {name}
+                                    </button>
+                                    {isFrom && <span className="lt-stop-badge lt-stop-badge--from">Звідки</span>}
+                                    {isTo && <span className="lt-stop-badge lt-stop-badge--to">Куди</span>}
+                                  </span>
+                                  <Link
+                                    className="lt-stop-board-link"
+                                    to={`/transport/stop/${encodeURIComponent(key)}${boardQuery}`}
+                                    aria-label={`Табло зупинки «${name}»`}
+                                  >
+                                    Табло
+                                  </Link>
+                                  <span className="lt-stop-to-next">
+                                    {minsToNext != null ? formatWait(Math.max(1, Math.round(minsToNext))) : '—'}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()}
                     </div>
                   </div>
-                </section>
-              ) : null;
-            })()}
+                </div>
+              </section>
+            ) : null}
           </div>
             <footer className="lt-footer">
               <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
@@ -1930,7 +1850,9 @@ export const LocalTransportPage: React.FC = () => {
                     // Табло найближчих відправлень: картки за часом очікування, а не за номером маршруту.
                     // Час на зупинці «Звідки» рахується для кожного рейсу окремо (скорочені рейси, стиснення).
                     const cards = routesConnectingFromTo.map((r) => {
-                      const dir = getImpliedDirection(fromId, toId, stopsByRoute, r.id) ?? 'there';
+                      // Напрямки ланцюжків, що везуть пару (основні й варіанти шляху); різні — рейси обох напрямків
+                      const dirs = [...new Set(chainsServingPair(stopsByRoute, variantsByRoute, r.id, fromId, toId).map((c) => c.direction))];
+                      const dir = dirs.length === 1 ? dirs[0] : undefined;
                       const upcoming = findUpcomingTrips(
                         r.trips,
                         searchMins,
@@ -1938,9 +1860,10 @@ export const LocalTransportPage: React.FC = () => {
                         {
                           routeId: r.id,
                           chainKeys: {
-                            there: getOrderedStopKeys(r.id, 'there', stopsByRoute),
-                            back: getOrderedStopKeys(r.id, 'back', stopsByRoute),
+                            there: routeStopChain(stopsByRoute, r.id, 'there'),
+                            back: routeStopChain(stopsByRoute, r.id, 'back'),
                           },
+                          chainFor: chainOfTrip,
                           fromStop: fromId,
                           toStop: toId,
                         },
@@ -1956,7 +1879,10 @@ export const LocalTransportPage: React.FC = () => {
                       const arrivalStr = nearest?.timeAtTo != null ? formatTime(nearest.timeAtTo) : null;
                       const durationMins =
                         nearest?.timeAtTo != null ? Math.max(0, Math.round(nearest.timeAtTo - nearest.timeAtFrom)) : null;
-                      const destination = nearest ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog) : toLabel;
+                      const nearestVariant = nearest ? recordVariant(variantsByRoute, nearest.record) : null;
+                      const destination = nearest
+                        ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog, nearestVariant)
+                        : toLabel;
                       const verified = isVerifiedRoute(r.id);
                       // Підпис під часом: відлік від поточного часу (не від часу пошуку) і лише для сьогодні;
                       // після останнього рейсу — чесно кажемо, що показано перший рейс наступного дня.
@@ -1985,6 +1911,7 @@ export const LocalTransportPage: React.FC = () => {
                         .join(' · ');
                       const ariaLabel = [
                         `Маршрут №${routeNo(r.id)} до ${destination}`,
+                        nearestVariant ? `іншим шляхом: ${nearestVariant.name}` : '',
                         `відправлення ${nextTimeStr}`,
                         arrivalStr ? `прибуття ${arrivalStr}` : '',
                         durationMins != null ? `${durationMins} хвилин` : '',
@@ -1995,7 +1922,7 @@ export const LocalTransportPage: React.FC = () => {
                         .join(', ');
                       return (
                         <button
-                          key={`${r.id}-${dir}`}
+                          key={`${r.id}-${dir ?? 'both'}`}
                           type="button"
                           className="lt-route-card"
                           onClick={() => {
@@ -2026,6 +1953,7 @@ export const LocalTransportPage: React.FC = () => {
                                 {durationMins != null ? ` · ${durationMins} хв` : ''}
                               </span>
                             ) : null}
+                            {nearestVariant ? <span className="lt-route-card-variant">іншим шляхом: {nearestVariant.name}</span> : null}
                             {laterLabel ? <span className="lt-route-card-next">далі {laterLabel}</span> : null}
                           </div>
                         </button>

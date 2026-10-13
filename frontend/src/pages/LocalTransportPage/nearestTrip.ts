@@ -12,6 +12,8 @@ import { groupTripsByDirection, tripDepartureMinutes } from './tripDeparture';
 export type NearestTripAt = {
   routeId: string;
   chainKeys: { there: string[]; back: string[] };
+  /** Ланцюжок конкретного рейсу (варіант шляху — chainForRecord); без нього — chainKeys за напрямком */
+  chainFor?: (record: TransportRecord) => string[];
   fromStop: string;
   toStop?: string;
 };
@@ -52,7 +54,7 @@ export function findUpcomingTrips(
         const base = tripDepartureMinutes(t);
         if (base <= 0) return null;
         if (!at) return { time: base, timeAtFrom: base, timeAtTo: null, record: t };
-        const timing = recordTiming(at.routeId, at.chainKeys[dir], t);
+        const timing = recordTiming(at.routeId, at.chainFor ? at.chainFor(t) : at.chainKeys[dir], t);
         if (at.toStop ? !tripServesPair(timing, at.fromStop, at.toStop) : minutesAtStop(timing, at.fromStop) == null) {
           return null;
         }

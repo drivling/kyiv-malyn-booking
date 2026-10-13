@@ -4,7 +4,7 @@
  * що й на публічній сторінці — див. ../LocalTransportPage/dataset/tripTiming.ts).
  */
 import type { TransportSegmentDto, TransportTripDto } from '@/api/transportDataset';
-import { computeTripTiming, minutesAtStop, type TripTiming } from '../LocalTransportPage/dataset/tripTiming';
+import { computeTripTiming, minutesAtStop, parseTimepoints, type TripTiming } from '../LocalTransportPage/dataset/tripTiming';
 
 export const FALLBACK_DEFAULT_SEGMENT_SEC = 120;
 
@@ -66,6 +66,7 @@ export function computeTripTimes(
       arrivalMins: parseClockToMinutes(trip.arrivalTime),
       startStopId: trip.startStopId || null,
       endStopId: trip.endStopId || null,
+      timepoints: parseTimepoints(trip.timepoints),
     }
   );
 }

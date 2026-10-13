@@ -280,6 +280,84 @@ describe('LocalTransportPage route page: the pair comes from the URL', () => {
   });
 });
 
+/**
+ * Маршрут №2 з варіантами шляху, як перше коло №9: туди Базар → Вокзал → Залізничний вокзал (06:45, опора 07:05),
+ * назад Залізничний вокзал → Лікарня → Вокзал → Базар (07:05, опора на Лікарні 07:15)
+ */
+const variantDataset = {
+  ...dataset,
+  stops: [...dataset.stops, { id: 'st_v', name: 'Залізничний вокзал', lat: 50.8, lng: 29.27 }],
+  routes: [
+    {
+      ...dataset.routes[0],
+      variants: [
+        { id: '2-v1', directionId: '1', name: 'через вокзал', stops: [{ stopId: 'st_a' }, { stopId: 'st_b' }, { stopId: 'st_v' }] },
+        {
+          id: '2-v2',
+          directionId: '0',
+          name: 'від вокзалу через Лікарню',
+          stops: [{ stopId: 'st_v' }, { stopId: 'st_c' }, { stopId: 'st_b' }, { stopId: 'st_a' }],
+        },
+      ],
+    },
+  ],
+  trips: [
+    ...dataset.trips,
+    {
+      id: 't6', routeId: '2', serviceId: 'everyday', headsign: '', directionId: '1', departureTime: '06:45:00', blockId: '2-first',
+      variantId: '2-v1', timepoints: [{ stopId: 'st_v', time: '07:05' }],
+    },
+    {
+      id: 't7', routeId: '2', serviceId: 'everyday', headsign: '', directionId: '0', departureTime: '07:05:00', blockId: '2-first',
+      variantId: '2-v2', timepoints: [{ stopId: 'st_c', time: '07:15' }],
+    },
+  ],
+};
+const timelineStops = () => Array.from(document.querySelectorAll('.lt-stop-item .lt-stop-pick')).map((b) => b.textContent);
+const timelineTimes = () => Array.from(document.querySelectorAll('.lt-stop-item .lt-stop-time')).map((b) => b.textContent);
+const stripChips = () => within(screen.getByRole('group', { name: 'Відправлення за день' })).getAllByRole('button');
+
+describe('LocalTransportPage route page: route variants', () => {
+  beforeEach(() => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(variantDataset)));
+  });
+
+  it('the board link from a stop only a variant serves picks that trip, and its chain drives the timeline', async () => {
+    await openRoute('/transport/route/2?stop=st_v&dir=back&time=07%3A05&d=01.03.26&h=07%3A00');
+    expect(timelineStops()).toEqual(['Залізничний вокзал', 'Лікарня', 'Вокзал', 'Базар']);
+    // Лікарня 07:15 — опорний час із листка, далі — за сегментами
+    expect(timelineTimes()).toEqual(['07:05', '07:15', '07:20', '07:24']);
+    expect(fromItem()).toHaveTextContent('Залізничний вокзал');
+    expect(screen.getByText('Рейс 07:05 іде іншим шляхом: від вокзалу через Лікарню')).toBeInTheDocument();
+    expect(stripChips().map((c) => c.textContent)).toEqual(['07:05*, іншим шляхом: від вокзалу через Лікарню']);
+    expect(stripChips()[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('list', { name: 'Рейси іншим шляхом' })).toHaveTextContent('* іншим шляхом: від вокзалу через Лікарню');
+  });
+
+  it('the nearest trip may run a variant; picking a main trip brings the main chain back', async () => {
+    const user = userEvent.setup();
+    await openRoute('/transport/route/2?d=01.03.26&h=06%3A30');
+    expect(timelineStops()).toEqual(['Базар', 'Вокзал', 'Залізничний вокзал']);
+    expect(stripChips().map((c) => c.textContent)).toEqual(['06:45*, іншим шляхом: через вокзал', '08:30', '09:40', '10:55']);
+    expect(stripChips()[0]).toHaveAttribute('aria-pressed', 'true');
+    await user.click(stripChips()[1]);
+    await waitFor(() => expect(location()).toContain('time=08%3A30'));
+    expect(timelineStops()).toEqual(['Базар', 'Вокзал', 'Лікарня']);
+    expect(stripChips()[1]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText(/іде іншим шляхом/)).toBeNull();
+  });
+
+  it('«Назад» keeps a pair that a variant of the other direction serves', async () => {
+    const user = userEvent.setup();
+    await openRoute('/transport/route/2?stop=st_a&to=st_v&d=01.03.26&h=06%3A00');
+    expect(selectedRow()).toHaveTextContent(/06:45.*07:05/);
+    await user.click(screen.getByRole('button', { name: 'Назад' }));
+    await waitFor(() => expect(location()).toBe('/transport/route/2?stop=st_v&to=st_a&d=01.03.26&h=06%3A00&dir=back'));
+    expect(selectedRow()).toHaveTextContent(/07:05.*07:24/);
+    expect(timelineStops()).toEqual(['Залізничний вокзал', 'Лікарня', 'Вокзал', 'Базар']);
+  });
+});
+
 describe('LocalTransportPage route page: analytics events', () => {
   it('timeline, departures strip, timetable toggle, direction and «Скинути» reach gtag with ids only', async () => {
     const user = userEvent.setup();

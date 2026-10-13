@@ -453,6 +453,55 @@ describe('LocalTransportPage planner: result card', () => {
   });
 });
 
+describe('LocalTransportPage planner: route variants', () => {
+  /** Перший рейс №2 іде іншим шляхом — до вокзалу (як перше коло №9); опора на вокзалі 07:05 */
+  const variantDataset = {
+    ...dataset,
+    stops: [...dataset.stops, { id: 'st_v', name: 'Залізничний вокзал', lat: 50.8, lng: 29.27 }],
+    routes: [
+      {
+        ...dataset.routes[0],
+        variants: [
+          { id: '2-v1', directionId: '1', name: 'через вокзал', stops: [{ stopId: 'st_a' }, { stopId: 'st_b' }, { stopId: 'st_v' }] },
+        ],
+      },
+    ],
+    trips: [
+      ...dataset.trips,
+      {
+        id: 't6', routeId: '2', serviceId: 'everyday', headsign: '', directionId: '1', departureTime: '06:45:00', blockId: null,
+        variantId: '2-v1', timepoints: [{ stopId: 'st_v', time: '07:05' }],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(variantDataset)));
+  });
+
+  it('a stop only a variant serves has a direct route; the card shows that trip, its end and the variant name', async () => {
+    const user = userEvent.setup();
+    renderPlanner('/transport/st_a/st_v?d=01.03.26&h=06%3A00');
+    await screen.findByText(/Прямі маршрути: Базар → Залізничний вокзал/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /Маршрут №2 до Залізничний вокзал/ });
+    expect(card).toHaveTextContent('06:45 → 07:05 · 20 хв');
+    expect(card).toHaveTextContent('іншим шляхом: через вокзал');
+    expect(card).not.toHaveTextContent('далі');
+    await user.click(card);
+    await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=06%3A00&stop=st_a&to=st_v&dir=there'));
+  });
+
+  it('a pair both chains serve lists the variant trip and the main ones by time', async () => {
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=06%3A00');
+    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /^Маршрут №2/ });
+    // до опори 07:05 сегменти розтягнуто: Вокзал о 06:58
+    expect(card).toHaveTextContent('06:45 → 06:58 · 13 хв');
+    expect(card).toHaveTextContent('→ Залізничний вокзал');
+    expect(card).toHaveTextContent('далі 08:30');
+  });
+});
+
 describe('LocalTransportPage planner: heading, geolocation, empty state', () => {
   it('h1, document.title and robots reflect the pair; results heading is an h2', async () => {
     await openPair();
