@@ -272,6 +272,7 @@ class Capture:
             phone=getattr(user, "phone", None),
             is_bot=bool(getattr(user, "bot", False)),
             is_me=int(user.id) == self.me_id or bool(getattr(user, "is_self", False)),
+            access_hash=getattr(user, "access_hash", None),
         )
 
     def _sender_html(self, sender: Any, sender_id: Optional[int]) -> str:

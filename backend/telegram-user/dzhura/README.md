@@ -40,6 +40,10 @@ Roadmap і принципи: `Docs/dzhura-roadmap.md`. Ручний чекліс
 
 Решта — ті самі, що в `lunch/README.md` (`DATABASE_URL`, `TELEGRAM_API_ID/HASH`, сесія).
 
+`DzhuraPerson.accessHash` (Telethon `User.access_hash`) зберігається разом із автором: за ним `send_message.py --user-id`
+пише авторам оголошень без username і номера (кеш сесії на Railway зникає при деплої). Джура сама нічого не пише —
+відправляє юзербот у бекенді, з добовим лімітом (`TELEGRAM_USER_DM_BY_ID*`).
+
 ## Тести (без мережі)
 
 ```bash

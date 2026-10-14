@@ -146,6 +146,16 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
   `fetch_telegram_messages.py`). The name may contain anything except newline/`|`; the parser anchors on
   `|@username:` (`telegram-parser.ts`). A username without a phone becomes a `Person` with a technical phone
   `380010000000+` (`findOrCreatePersonByTelegramUsername`).
+- Authors with neither a phone nor a `@username` (hidden in Telegram) are still reachable: the Dzhura capture keeps the
+  sender's numeric id and Telethon `access_hash` (`DzhuraPerson.accessHash`), the import creates a `Person` keyed by
+  `telegramUserId` with a technical phone (`findOrCreatePersonByTelegramUserId`), and `sendMessageViaUserAccount`
+  writes by id (`send_message.py --user-id … --access-hash …`) as the last free tier after bot → `@username`. One
+  short message (the listing confirmation with the bot subscribe link / a match notice), never a dialogue: once
+  the person presses `/start`, `getPersonByTelegram(userId, …)` finds that same Person and sets `telegramChatId`, so
+  everything else goes through the bot. Safety: `telegram-user-dm-guard.ts` (`TELEGRAM_USER_DM_BY_ID=0` switches it
+  off, `TELEGRAM_USER_DM_BY_ID_DAILY_CAP`, default 20 per Kyiv day, stops for the day on `PEER_FLOOD`) because the one
+  personal session also carries Dzhura and the lunch listener. Technical phones (`380010000000+`) never get paid SMS
+  (`sendPaidFallbackSms` → `technical_phone`) and are not revealed by `GET /viber-listings/:id/contact`.
 - `ViberListing.source` is only the coarse channel (`Viber1` / `telegram1`; also feeds the ingest hash). Where a
   Telegram listing came from is in `sourceChat` / `sourceTopicId` / `sourceMessageId` (first source wins on merge,
   filled only if empty); `serializeViberListing` adds `sourceUrl` (`telegram-source-link.ts`) for the admin list and

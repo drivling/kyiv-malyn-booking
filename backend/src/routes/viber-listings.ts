@@ -15,6 +15,7 @@ import { getCatalog } from '../catalog-cache';
 import { listingMatchesSearchOd } from '../poputky-od';
 import { PUBLIC_LISTING_SELECT, toPublicListing } from '../viber-listing-public';
 import { tripDayWhere } from '../trip-day';
+import { isTechnicalPlaceholderPhone } from '../telegram-contact';
 import { deactivateExpiredListings, isListingExpired, notExpiredWhere } from '../viber-listing-expiry';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
 import { createOrMergeViberListing } from '../viber-listing-merge';
@@ -89,7 +90,8 @@ export function createViberListingsRouter(deps: { prisma: PrismaClient }): Route
         where: { id },
         select: { phone: true, isActive: true, endsAt: true },
       });
-      if (!listing || !listing.isActive || !listing.phone?.trim() || isListingExpired(listing.endsAt)) {
+      // Технічний номер (автор без телефону й username) — не контакт: з ним зв'язується лише наша система
+      if (!listing || !listing.isActive || !listing.phone?.trim() || isTechnicalPlaceholderPhone(listing.phone) || isListingExpired(listing.endsAt)) {
         return res.status(404).json({ error: 'Контакт недоступний' });
       }
       return res.json({ contact: listing.phone.trim() });

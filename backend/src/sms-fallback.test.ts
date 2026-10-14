@@ -100,3 +100,12 @@ test('channelPromo: свій прапорець (smsChannelPromoEnabled)', async
   assert.equal(r.sent, true);
   assert.equal(fetchCalls, 1);
 });
+
+test('технічний номер (автор без телефону) → SMS не шлемо', async () => {
+  setNotificationSettingsCacheForTests(settings());
+  armFetch();
+  const r = await sendPaidFallbackSms(stubPrisma(), { ...ARGS, phone: '380010000005' });
+  assert.equal(r.sent, false);
+  assert.equal(r.reason, 'technical_phone');
+  assert.equal(fetchCalls, 0);
+});

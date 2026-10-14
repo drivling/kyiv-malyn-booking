@@ -161,19 +161,21 @@ class DzhuraDB:
         phone: Optional[str],
         is_bot: bool,
         is_me: bool,
+        access_hash: Optional[int] = None,
     ) -> int:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO "DzhuraPerson"
-                    ("tgUserId", "firstName", "lastName", username, phone, "isBot", "isMe",
+                    ("tgUserId", "firstName", "lastName", username, phone, "isBot", "isMe", "accessHash",
                      "lastSeenAt", "createdAt", "updatedAt")
-                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), NOW())
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
                 ON CONFLICT ("tgUserId") DO UPDATE SET
                     "firstName" = COALESCE(EXCLUDED."firstName", "DzhuraPerson"."firstName"),
                     "lastName" = COALESCE(EXCLUDED."lastName", "DzhuraPerson"."lastName"),
                     username = COALESCE(EXCLUDED.username, "DzhuraPerson".username),
                     phone = COALESCE(EXCLUDED.phone, "DzhuraPerson".phone),
+                    "accessHash" = COALESCE(EXCLUDED."accessHash", "DzhuraPerson"."accessHash"),
                     "isBot" = EXCLUDED."isBot",
                     "isMe" = EXCLUDED."isMe" OR "DzhuraPerson"."isMe",
                     "lastSeenAt" = NOW(),
@@ -187,6 +189,7 @@ class DzhuraDB:
                 (phone or None),
                 bool(is_bot),
                 bool(is_me),
+                int(access_hash) if access_hash is not None else None,
             )
         return int(row["id"])
 

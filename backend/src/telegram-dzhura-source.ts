@@ -35,6 +35,8 @@ export interface DzhuraFetchItem {
   messageId: number;
   /** "Ім'я|@user: текст" */
   line: string;
+  /** Числовий Telegram-id автора (зв'язок з автором без username і номера) */
+  senderTgId: string | null;
 }
 
 export interface DzhuraFetchResult {
@@ -112,7 +114,7 @@ export async function fetchGroupMessagesFromDzhura(
         },
         orderBy: { tgMessageId: 'asc' },
         take: TOPIC_BATCH_LIMIT,
-        include: { sender: { select: { firstName: true, lastName: true, username: true } } },
+        include: { sender: { select: { firstName: true, lastName: true, username: true, tgUserId: true } } },
       });
       if (rows.length === 0) continue;
 
@@ -123,7 +125,7 @@ export async function fetchGroupMessagesFromDzhura(
         if (!row.text.trim()) continue; // медіа без підпису
         const line = formatSenderLine(row.sender, row.text);
         lines.push(line, '---');
-        items.push({ chat: g.chat, topicId, messageId: id, line });
+        items.push({ chat: g.chat, topicId, messageId: id, line, senderTgId: row.sender ? String(row.sender.tgUserId) : null });
       }
       if (maxId > cursor) cursors.push({ chat: g.chat, topicId, lastMessageId: maxId });
     }

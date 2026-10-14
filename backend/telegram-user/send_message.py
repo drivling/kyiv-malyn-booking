@@ -7,6 +7,10 @@
   python3 send_message.py <phone>                    — відправка по номеру телефону
   python3 send_message.py --report-name <phone>     — як вище + вивід @username в stdout (JSON) для оновлення Person.telegramUsername
   python3 send_message.py --username <user>         — відправка по @username (без @)
+  python3 send_message.py --user-id <id> [--access-hash <hash>]
+                                                    — відправка по числовому id (автор без username/номера, якого
+                                                      ми бачили в групі); access_hash береться з DzhuraPerson,
+                                                      інакше — з кешу сесії. Код 1, якщо написати не можна.
 Текст повідомлення читається з stdin (UTF-8).
 
 Тільки пошук по номеру (без відправки):
@@ -231,8 +235,21 @@ async def main():
     if phone_arg == "--username" and len(sys.argv) >= 3:
         use_username = True
         username_arg = sys.argv[2].strip().lstrip("@")
-    elif phone_arg.startswith("--"):
-        print("Використання: send_message.py <phone> або send_message.py --username <user> або send_message.py --resolve <phone>", file=sys.stderr)
+    # Режим --user-id: відправка по числовому id (+ опційний --access-hash)
+    use_user_id = False
+    user_id_arg = 0
+    access_hash_arg = None
+    if phone_arg == "--user-id" and len(sys.argv) >= 3:
+        use_user_id = True
+        try:
+            user_id_arg = int(sys.argv[2].strip())
+            if len(sys.argv) >= 5 and sys.argv[3] == "--access-hash":
+                access_hash_arg = int(sys.argv[4].strip())
+        except ValueError:
+            print("Некоректний --user-id / --access-hash", file=sys.stderr)
+            sys.exit(2)
+    elif phone_arg.startswith("--") and not use_username:
+        print("Використання: send_message.py <phone> або send_message.py --username <user> або send_message.py --user-id <id> або send_message.py --resolve <phone>", file=sys.stderr)
         sys.exit(2)
 
     message = sys.stdin.read()
@@ -256,6 +273,32 @@ async def main():
 
         for attempt in range(max_retries):
             try:
+                if use_user_id:
+                    from telethon.tl.types import InputPeerUser
+
+                    if access_hash_arg is not None:
+                        peer = InputPeerUser(user_id_arg, access_hash_arg)
+                    else:
+                        try:
+                            peer = await client.get_input_entity(user_id_arg)  # лише з кешу сесії
+                        except ValueError:
+                            print("Користувача немає в кеші сесії (потрібен access_hash)", file=sys.stderr)
+                            sys.exit(1)
+                    try:
+                        await client.send_message(peer, message, parse_mode="html")
+                    except (
+                        tg_errors.UserPrivacyRestrictedError,
+                        tg_errors.UserIsBlockedError,
+                        tg_errors.InputUserDeactivatedError,
+                        tg_errors.PeerIdInvalidError,
+                    ) as e:
+                        print(f"Написати неможливо: {type(e).__name__}", file=sys.stderr)
+                        sys.exit(1)
+                    except tg_errors.PeerFloodError:
+                        print("PEER_FLOOD: Telegram обмежив розсилку з акаунта", file=sys.stderr)
+                        sys.stderr.flush()
+                        sys.exit(2)
+                    sys.exit(0)
                 if use_username:
                     if not username_arg:
                         print("Порожній username", file=sys.stderr)

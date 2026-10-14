@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendTripReminderVia = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendTripReminderVia = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUserId = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
 exports.setSpawnForTests = setSpawnForTests;
 exports.resetSpawnForTests = resetSpawnForTests;
 exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
@@ -49,6 +49,7 @@ exports.hasCyrillic = hasCyrillic;
 exports.getResolvedNameForPerson = getResolvedNameForPerson;
 exports.pickBestNameFromCandidates = pickBestNameFromCandidates;
 const telegram_source_link_1 = require("./telegram-source-link");
+const telegram_user_dm_guard_1 = require("./telegram-user-dm-guard");
 const telegram_dzhura_source_1 = require("./telegram-dzhura-source");
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const child_process_1 = require("child_process");
@@ -648,6 +649,7 @@ async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
         const person = await (0, exports.getPersonByPhone)(phone).catch(() => null);
         const ok = await sendMessageViaUserAccount(phone, messageHtml, {
             telegramUsername: person?.telegramUsername ?? null,
+            telegramUserId: person?.telegramUserId ?? null,
         }).catch(() => false);
         if (ok)
             return { sent: true, via: 'user' };
@@ -1080,6 +1082,28 @@ const findOrCreatePersonByTelegramUsername = async (username, options) => {
     };
 };
 exports.findOrCreatePersonByTelegramUsername = findOrCreatePersonByTelegramUsername;
+/**
+ * Знайти або створити Person за числовим Telegram-id (автор групи без username і номера).
+ * Новий Person отримує технічний номер (380010000000+). Коли людина потім натисне /start у боті,
+ * `getPersonByTelegram(userId, …)` знайде саме цей Person і допише telegramChatId — далі все йде через бота.
+ */
+const findOrCreatePersonByTelegramUserId = async (telegramUserId, options) => {
+    const userId = telegramUserId.trim();
+    if (!/^\d{3,20}$/.test(userId) || userId === '0')
+        throw new Error('Invalid telegram user id');
+    const fullName = options?.fullName != null && String(options.fullName).trim() !== '' ? String(options.fullName).trim() : null;
+    const existing = await tgPrisma.person.findFirst({ where: { telegramUserId: userId }, orderBy: { id: 'asc' } });
+    if (existing) {
+        if (fullName && !existing.fullName?.trim()) {
+            await tgPrisma.person.update({ where: { id: existing.id }, data: { fullName } });
+        }
+        return { id: existing.id, phoneNormalized: existing.phoneNormalized, fullName: existing.fullName ?? fullName };
+    }
+    const phoneNormalized = await getNextTechnicalPhoneNumber();
+    const person = await tgPrisma.person.create({ data: { phoneNormalized, fullName, telegramUserId: userId } });
+    return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName };
+};
+exports.findOrCreatePersonByTelegramUserId = findOrCreatePersonByTelegramUserId;
 /** Оновити Telegram у Person та у всіх бронюваннях з тим же номером (і привʼязати їх до Person). */
 async function updatePersonAndBookingsTelegram(personId, chatId, userId) {
     await tgPrisma.person.update({
@@ -1597,6 +1621,7 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
                 const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
                 sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
                     telegramUsername: person?.telegramUsername ?? null,
+                    telegramUserId: person?.telegramUserId ?? null,
                 });
                 if (sent) {
                     if (person) {
@@ -1913,7 +1938,7 @@ async function fetchTelegramGroupMessages(options) {
 }
 /** Person + контакт для ViberListing при імпорті з Telegram групи. */
 async function resolveTelegramImportPerson(params) {
-    const { parsed, tgUsername } = params;
+    const { parsed, tgUsername, tgUserId } = params;
     const nameFromDb = parsed.phone?.trim() ? await (0, exports.getNameByPhone)(parsed.phone) : null;
     // Лише те, що вже є (БД/текст). Пошук через бота, Telethon і Opendatabot — job
     // resolve_sender_name після імпорту (Фаза 5.2/5.4), а не spawn Python у циклі імпорту.
@@ -1935,6 +1960,12 @@ async function resolveTelegramImportPerson(params) {
             senderName: senderName?.trim() ? senderName : (person.fullName ?? parsed.senderName ?? null),
             listingPhone: (0, telegram_contact_1.formatTelegramUsernameForDisplay)(tgUsername),
         };
+    }
+    if (tgUserId?.trim()) {
+        // Ні номера, ні @username: Person за числовим id (технічний номер як контакт). Написати такій людині можна
+        // особистим акаунтом по id (sendMessageViaUserAccount), а після /start у боті вона підхопиться сама.
+        const person = await (0, exports.findOrCreatePersonByTelegramUserId)(tgUserId, { fullName: parsed.senderName ?? senderName ?? undefined });
+        return { person, senderName: senderName ?? person.fullName ?? parsed.senderName ?? null, listingPhone: person.phoneNormalized };
     }
     return { person: null, senderName, listingPhone: parsed.phone || '' };
 }
@@ -1990,7 +2021,10 @@ async function afterTelegramListingImported(listing) {
         }).catch((err) => console.error('Telegram user notify:', err));
     }
     // Спершу ім'я (job виконуються по id), потім перетини — щоб у розсилці був не «Водій»
-    if (!listing.senderName?.trim() && listing.phone?.trim() && !(0, telegram_contact_1.isTelegramUsernameContact)(listing.phone)) {
+    if (!listing.senderName?.trim() &&
+        listing.phone?.trim() &&
+        !(0, telegram_contact_1.isTelegramUsernameContact)(listing.phone) &&
+        !(0, telegram_contact_1.isTechnicalPlaceholderPhone)(listing.phone)) {
         await (0, notification_queue_1.enqueueResolveSenderName)(tgPrisma, listing.id, listing.phone);
     }
     const authorChatId = await getAuthorChatIdForListing(listing);
@@ -2066,7 +2100,7 @@ async function importTelegramGroupMessagesOnce() {
     for (let i = 0; i < parsedMessages.length; i++) {
         const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername, origin } = parsedMessages[i];
         try {
-            const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
+            const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername, tgUserId: origin.senderTgId });
             const { listing, isNew } = await createOrMergeViberListing({
                 rawMessage: rawTextItem,
                 source: 'telegram1',
@@ -2161,6 +2195,23 @@ async function sendMessageViaUserAccount(phone, message, options) {
             // Пауза перед спробою по телефону, щоб не перевищити rate limit
             await new Promise((r) => setTimeout(r, 10000));
         }
+        // Автор без username: пишемо за числовим id (його бачили в групі) — з предохранителем, бо це незнайомі люди
+        const userId = options?.telegramUserId?.trim();
+        if (userId && /^\d+$/.test(userId)) {
+            if (!telegram_user_dm_guard_1.idDmGuard.tryAcquire()) {
+                console.log(`ℹ️ Telegram user-sender: DM по id ${userId} пропущено (вимкнено, добовий ліміт або PEER_FLOOD)`);
+            }
+            else {
+                const accessHash = await getDzhuraAccessHash(userId);
+                if (await spawnSendMessage(userId, message, 'id', { accessHash })) {
+                    console.log(`ℹ️ Telegram user-sender: надіслано по id ${userId}`);
+                    return true;
+                }
+            }
+        }
+        // 380010000000+ — не телефон: шукати його в Telegram безглуздо
+        if ((0, telegram_contact_1.isTechnicalPlaceholderPhone)(phone))
+            return false;
         const sentByPhone = await spawnSendMessage(phone, message, false);
         if (sentByPhone)
             return true;
@@ -2170,7 +2221,22 @@ async function sendMessageViaUserAccount(phone, message, options) {
         return false;
     }, () => false);
 }
-function spawnSendMessage(value, message, isUsername) {
+/** access_hash автора, збережений Джурою (без нього писати за числовим id неможливо після рестарту сесії). */
+async function getDzhuraAccessHash(userId) {
+    try {
+        const row = await tgPrisma.dzhuraPerson.findUnique({
+            where: { tgUserId: BigInt(userId) },
+            select: { accessHash: true },
+        });
+        return row?.accessHash != null ? row.accessHash.toString() : null;
+    }
+    catch {
+        return null;
+    }
+}
+function spawnSendMessage(value, message, mode, extra) {
+    const isUsername = mode === true;
+    const byId = mode === 'id';
     const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
     const scriptDir = sessionPath ? path_1.default.dirname(sessionPath) : '';
     const scriptPath = path_1.default.join(scriptDir, 'send_message.py');
@@ -2179,7 +2245,11 @@ function spawnSendMessage(value, message, isUsername) {
     if (!sessionPath || !apiId || !apiHash)
         return Promise.resolve(false);
     const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
-    const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, '--report-name', value];
+    const args = byId
+        ? [scriptPath, '--user-id', value, ...(extra?.accessHash ? ['--access-hash', extra.accessHash] : [])]
+        : isUsername
+            ? [scriptPath, '--username', value]
+            : [scriptPath, '--report-name', value];
     return new Promise((resolve) => {
         const child = spawnChild(pythonCmd, args, {
             env: {
@@ -2208,7 +2278,7 @@ function spawnSendMessage(value, message, isUsername) {
         child.on('close', async (code) => {
             await stderrDone; // Дочекатись повного stderr (close може спрацювати раніше)
             if (code === 0) {
-                if (!isUsername && stdout.trim()) {
+                if (!isUsername && !byId && stdout.trim()) {
                     try {
                         const parsed = JSON.parse(stdout.trim());
                         if (parsed.phone && parsed.telegramUsername?.trim()) {
@@ -2222,13 +2292,19 @@ function spawnSendMessage(value, message, isUsername) {
                 resolve(true);
                 return;
             }
-            if (code === 1 && !isUsername) {
+            if (code === 1 && byId) {
+                console.log(`ℹ️ Telegram user-sender: по id ${value} написати не можна (код 1): ${stderr.trim().slice(0, 200)}`);
+            }
+            else if (code === 1 && !isUsername) {
                 console.log(`ℹ️ Telegram user-sender: по телефону ${value} не знайдено або номер приховано (код 1)`);
             }
             else if (code !== 1) {
                 console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
+                // Telegram обмежив розсилку з акаунта — до кінця доби за id більше не пишемо
+                if (/PEER_FLOOD/i.test(stderr))
+                    telegram_user_dm_guard_1.idDmGuard.trip();
                 const errorText = stderr.trim() || `(код ${code}, stderr порожній)`;
-                recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, errorText).catch((e) => console.error('❌ recordTelegramUserSendError:', e));
+                recordTelegramUserSendError(value, byId ? 'user_id' : isUsername ? 'username' : 'phone', code ?? 2, errorText).catch((e) => console.error('❌ recordTelegramUserSendError:', e));
             }
             resolve(false);
         });

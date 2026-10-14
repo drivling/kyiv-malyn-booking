@@ -1037,6 +1037,8 @@ model DzhuraPerson {
   phone      String?
   isBot      Boolean  @default(false)
   isMe       Boolean  @default(false)
+  /// Telethon User.access_hash: без нього написати людині за числовим id неможливо (кеш сесії зникає при деплої)
+  accessHash BigInt?
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

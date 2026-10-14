@@ -58,7 +58,7 @@ async function fetchGroupMessagesFromDzhura(prisma, groups, opts = {}) {
                 },
                 orderBy: { tgMessageId: 'asc' },
                 take: exports.TOPIC_BATCH_LIMIT,
-                include: { sender: { select: { firstName: true, lastName: true, username: true } } },
+                include: { sender: { select: { firstName: true, lastName: true, username: true, tgUserId: true } } },
             });
             if (rows.length === 0)
                 continue;
@@ -71,7 +71,7 @@ async function fetchGroupMessagesFromDzhura(prisma, groups, opts = {}) {
                     continue; // медіа без підпису
                 const line = formatSenderLine(row.sender, row.text);
                 lines.push(line, '---');
-                items.push({ chat: g.chat, topicId, messageId: id, line });
+                items.push({ chat: g.chat, topicId, messageId: id, line, senderTgId: row.sender ? String(row.sender.tgUserId) : null });
             }
             if (maxId > cursor)
                 cursors.push({ chat: g.chat, topicId, lastMessageId: maxId });
