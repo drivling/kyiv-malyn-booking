@@ -53,6 +53,9 @@ import type {
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
+
+/** Скільки чекати датасет транспорту, поки сторінка не перейде на локальну копію (Docs/transport-pwa-2026-10.md) */
+export const TRANSPORT_DATASET_TIMEOUT_MS = 15_000;
 class ApiClient {
   private baseUrl: string;
   private authToken: string | null = null;
@@ -86,8 +89,9 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = new Headers(options?.headers);
-    // За замовчуванням працюємо з JSON, але не ламаємо вже заданий Content-Type
-    if (!headers.has('Content-Type') && !(options?.body instanceof FormData)) {
+    // Тіло за замовчуванням JSON, але не ламаємо вже заданий Content-Type. Без тіла (GET) заголовка нема:
+    // на крос-доменному API він робив кожен GET «непростим» — зайвий preflight перед датасетом транспорту
+    if (options?.body != null && !headers.has('Content-Type') && !(options.body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
 
@@ -1077,10 +1081,12 @@ class ApiClient {
    * датасет і має бачити останній запис, інакше збереження відкотить чужі зміни (revision / 409).
    */
   async getTransportDataset(opts: { fresh?: boolean } = {}): Promise<TransportDataset> {
-    const dataset = await this.request<TransportDataset>(
-      '/transport/dataset',
-      opts.fresh ? { cache: 'no-store' } : undefined
-    );
+    // Таймаут: на «ніби є мережа» (lie-fi) запит інакше висить хвилинами, а сторінка має перейти на локальну копію
+    const signal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(TRANSPORT_DATASET_TIMEOUT_MS) : undefined;
+    const dataset = await this.request<TransportDataset>('/transport/dataset', {
+      ...(opts.fresh ? { cache: 'no-store' as const } : {}),
+      ...(signal ? { signal } : {}),
+    });
     // Номери маршрутів для показу («11/1») — для всіх, хто завантажує датасет (сайт, адмінка, стіна)
     configureRouteNames(dataset?.routes);
     return dataset;

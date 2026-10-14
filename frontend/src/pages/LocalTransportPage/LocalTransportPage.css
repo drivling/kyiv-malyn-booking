@@ -2815,3 +2815,12 @@
 .lt-error-retry {
   margin-top: 14px;
 }
+
+.lt-map-offline {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff4d6;
+  color: #5c4300;
+  font-size: var(--lt-fs-sm);
+}

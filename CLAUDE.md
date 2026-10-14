@@ -254,6 +254,18 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   references with the loaded one. New build + tab away ≥ 30 min + no `aria-modal` dialog / focused field →
   reload at once; otherwise the next page change is a full load. Never on `/admin*`; one try per build per
   session. Dev and prerender have no `/assets/index-*` script, so it is off there.
+- **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`): `/transport*` works offline and
+  installs as «Транспорт Малина» (`public/transport.webmanifest`, scope `/transport`, icons from `npm run pwa:icons`, PNGs
+  committed). Two layers. Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes
+  from the API (same `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by
+  `prerender-transport-stops.mjs`; `TransportStatusBar` tells the user («Без мережі…» / «Сервер не відповідає…»). Shell:
+  `sw/transport-sw.js` is a template, `scripts/build-sw.mjs` (after the prerenders) fills the precache list and `BUILD_ID`
+  (`scripts/precache.mjs`, hash of the list + content of non-hashed files, so a data-only deploy reaches installed apps);
+  cache-first shell/assets/fonts, `/transport*` navigations get `/index.html` from cache, the cross-origin API is never touched.
+  Registered only in production on the primary site from `/transport*` (`src/pwa/serviceWorker.ts`); a new build installs and
+  waits, `useFreshBuild` applies it via SKIP_WAITING under its usual rules or shows `UpdateBanner`. `serve-dist` sends
+  `no-cache` for the worker, manifest and snapshots (`cacheControlFor`) and 404s the worker/manifest on the secondary domain.
+  Never bump `BUILD_ID` by hand; never precache `/` (301) or the prerendered pages.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram

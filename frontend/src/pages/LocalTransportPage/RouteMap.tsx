@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useOnline } from '@/pwa/useOnline';
 import { MapContainer, TileLayer, Marker, Pane, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { resolveMapTiles } from './mapTiles';
 import L from 'leaflet';
@@ -147,6 +148,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   showStrip = false,
   resizeToken,
 }) => {
+  // Тайли OSM не кешуємо (політика OSM) — без мережі замість сірого поля чесна підказка
+  const online = useOnline();
   const [mounted, setMounted] = useState(false);
   const [selectedStop, setSelectedStop] = useState('');
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -220,6 +223,11 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         </div>
       )}
       <h3 className="lt-map-heading lt-visually-hidden">Карта маршруту</h3>
+      {!online && (
+        <p className="lt-map-offline" role="note">
+          Без мережі карта не завантажується — скористайтесь схемою маршрутів.
+        </p>
+      )}
       <div className={`lt-map-container${TILES.isDefault ? ' lt-map-container--osm' : ''}`}>
         <MapContainer center={center} zoom={DEFAULT_ZOOM} className="lt-map" scrollWheelZoom style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution={TILES.attribution} url={TILES.url} maxZoom={19} updateWhenIdle={false} keepBuffer={2} />
