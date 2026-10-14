@@ -1,7 +1,7 @@
 # Табло без мережі: транспорт Малина як PWA
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
-**Де зупинились:** фаза 2 закрита (шар даних); далі — фаза 3 (встановлення)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
+**Де зупинились:** фаза 3 закрита (встановлення); далі — фаза 4 (service worker)  
 **Created:** 2026-10-15 · **Гілка:** `feat/transport-pwa` (від `main` після #79)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -146,13 +146,13 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
 - [x] **2.8** MSW `GET /transport/dataset.json` → 404; тести хука, воріт, смужки; e2e без SW (`context.setOffline`)
 
 Фаза 3 — встановлення (Chrome ставить і без SW)
-- [ ] **3.1** `scripts/gen-pwa-icons.mjs` (Chromium із `@playwright/test`) → `public/icons/transport-192.png`,
+- [x] **3.1** `scripts/gen-pwa-icons.mjs` (Chromium із `@playwright/test`) → `public/icons/transport-192.png`,
   `transport-512.png`, `transport-maskable-512.png`, `apple-touch-icon-180.png`, `transport.svg`; `npm run pwa:icons`;
   PNG закомічені
-- [ ] **3.2** `public/transport.webmanifest`
-- [ ] **3.3** `index.html`: favicon, `<link rel="manifest">`, `apple-touch-icon`, `crossorigin` на Google Fonts
-- [ ] **3.4** `src/pwa/installPrompt.ts`, `src/pwa/InstallButton.tsx`, виклик у `main.tsx`, кнопка в `TransportStatusBar`
-- [ ] **3.5** GA4 `transport_pwa_install` + `Docs/transport-analytics.md`; тести
+- [x] **3.2** `public/transport.webmanifest`
+- [x] **3.3** `index.html`: favicon, `<link rel="manifest">`, `apple-touch-icon`, `crossorigin` на Google Fonts
+- [x] **3.4** `src/pwa/installPrompt.ts`, `src/pwa/InstallOffer.tsx`, виклик у `main.tsx`, пропозиція в `TransportStatusBar`
+- [x] **3.5** GA4 `transport_pwa_install` + `Docs/transport-analytics.md`; тести
 
 Фаза 4 — service worker і оновлення
 - [ ] **4.1** `sw/transport-sw.js` (install / activate / message / fetch за таблицею); eslint override для `sw/**`
@@ -212,3 +212,13 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
 - e2e «без бекенду» (`e2e/transport.spec.ts`): друга `page.route` на `/transport/dataset` з `abort('failed')` має
   пріоритет над моком `mockBackendApi` (Playwright перебирає маршрути від останнього). Локально e2e гнати через
   тимчасовий конфіг зі стабом `uqr` (пакет не встановлений у клоні власника).
+
+### Фаза 3 — встановлення (зроблено, 2026-10-15)
+
+- Пропозиція встановити живе **всередині** `TransportStatusBar` (`useInstallOffer()` → `'prompt' | 'ios-hint' | null`),
+  а не як `children`: дитина, що рендерить `null`, усе одно змусила б смужку показати порожню картку.
+  `role="status"` смужка має лише з повідомленням про стан даних.
+- Іконка намальована прямо в `scripts/gen-pwa-icons.mjs` (маршрутка спереду), растеризується Chromium із
+  `@playwright/test`; `public/icons/*.png` закомічені. Favicon — `icons/transport.svg` замість неіснуючого `/vite.svg`.
+- `<link rel="manifest">` у спільному `index.html`, тож він є на всіх сторінках, але scope `/transport` — Chrome
+  пропонує встановлення лише там. `crossorigin="anonymous"` на Google Fonts — щоб SW (фаза 4) бачив не-opaque відповідь.

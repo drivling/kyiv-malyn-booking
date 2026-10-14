@@ -9,6 +9,7 @@
     "prerender:spa": "node scripts/prerender-spa.mjs",
     "seo:smoke": "node scripts/seo-smoke.mjs",
     "preview": "node scripts/serve-dist.mjs",
+    "pwa:icons": "node scripts/gen-pwa-icons.mjs",
     "start": "npm run preview",
     "lint": "eslint . --ext ts,tsx,mjs --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
