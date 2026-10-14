@@ -4,6 +4,7 @@ import { usePageSeo } from '@/hooks';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { useTransportDataset } from './dataset/useTransportDataset';
+import { TransportStatusBar } from './TransportStatusBar';
 import { routeScheduleStats } from './schemeStats';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { SCHEME_COLOR_VARS } from './routeColors';
@@ -67,7 +68,7 @@ export function LocalTransportSchemePage() {
   const searchTime = searchParams.get('h') || '';
   const activeRoute = searchParams.get('route') || '';
   const hereStop = searchParams.get('stop') || '';
-  const { dataset } = useTransportDataset();
+  const { dataset, error, reload, source, online, dataAsOf } = useTransportDataset();
   const [zoomIdx, setZoomIdx] = useState(0);
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -216,6 +217,7 @@ export function LocalTransportSchemePage() {
           </header>
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
+          <TransportStatusBar online={online} source={source} dataAsOf={dataAsOf} error={error} onRetry={() => void reload()} />
 
           <div className="lts-toolbar">
             <div className="lts-chips" role="group" aria-label="Маршрути" data-active={activeRoute || undefined}>

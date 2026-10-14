@@ -508,3 +508,25 @@ test.describe('transport', () => {
     });
   });
 });
+
+test.describe('transport: без бекенду (Docs/transport-pwa-2026-10.md, фаза 2)', () => {
+  test.beforeEach(async ({ page }) => {
+    await dismissCookieNotice(page);
+    await mockBackendApi(page);
+  });
+
+  test('бекенд мовчить: табло відкривається зі збереженої копії і каже, що сервер не відповідає', async ({ page }) => {
+    await page.goto('/transport/stop/st_a?d=16.09.26&h=07%3A00');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
+    await expect(page.locator('.lt-status-bar')).toHaveCount(0);
+
+    // Копія вже в localStorage. Тепер API падає — як після збою бекенду при живому фронтенді.
+    await page.route((url) => /\/transport\/dataset$/.test(url.pathname), (route) => route.abort('failed'));
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Базар');
+    const bar = page.locator('.lt-status-bar');
+    await expect(bar).toContainText('Сервер не відповідає — показуємо збережений розклад');
+    await expect(bar.getByRole('button', { name: 'Оновити' })).toBeVisible();
+    await expect(page.locator('.lt-error')).toHaveCount(0);
+  });
+});

@@ -19,6 +19,7 @@ import { buildSchemeUrl } from './schemeMini';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from './dataset/useTransportDataset';
+import { TransportStatusBar } from './TransportStatusBar';
 import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { hiddenTransportRouteIds } from '@/api/transportDataset';
 // Плоский ESM, спільний із prerender-transport-stops.mjs (як site-hosts.mjs)
@@ -117,7 +118,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   // QR наклейки на зупинці → подія GA4 + лічильник в адмінці
   useStickerScan(searchParams.toString());
 
-  const { dataset, loading, error } = useTransportDataset();
+  const { dataset, loading, error, reload, source, online, dataAsOf } = useTransportDataset();
   const viewModel = useMemo(() => {
     if (!dataset) return null;
     const vm = datasetToLocalViewModel(dataset);
@@ -480,12 +481,16 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     );
   }
 
-  if (error || !data) {
+  // Помилка мережі з копією на руках — табло працює, про неї каже TransportStatusBar
+  if (!data) {
     return (
       <div className="lt-page lt-layout">
         <div className="lt-container">
           <div className="lt-error">
             <p>{error || 'Дані не завантажені'}</p>
+            <button type="button" className="lt-print-btn lt-error-retry" onClick={() => void reload()}>
+              Спробувати ще раз
+            </button>
           </div>
         </div>
       </div>
@@ -523,6 +528,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
           </header>
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={selectedStop || undefined} />
+          <TransportStatusBar online={online} source={source} dataAsOf={dataAsOf} error={error} onRetry={() => void reload()} />
 
           <div className="lt-search lt-stop-board-search">
             <div className="lt-from-to-block">

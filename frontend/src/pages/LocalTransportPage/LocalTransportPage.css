@@ -2766,3 +2766,52 @@
     padding-bottom: calc(max(var(--lt-panel-y), env(safe-area-inset-bottom)) + 10px);
   }
 }
+
+/* ========== Смужка стану даних (Docs/transport-pwa-2026-10.md): без мережі / сервер не відповідає ========== */
+.lt-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 var(--lt-panel-x) 14px;
+  width: calc(100% - 2 * var(--lt-panel-x));
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--lt-card);
+  box-shadow: var(--lt-elev-1);
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text);
+}
+
+.lt-status-bar--warn {
+  background: #fff4d6;
+  color: #5c4300;
+}
+
+.lt-status-bar-text {
+  flex: 1 1 200px;
+  margin: 0;
+}
+
+.lt-status-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--lt-radius-pill);
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lt-status-bar-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.lt-error-retry {
+  margin-top: 14px;
+}

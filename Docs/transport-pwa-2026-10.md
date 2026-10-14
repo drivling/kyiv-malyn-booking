@@ -1,7 +1,7 @@
 # Табло без мережі: транспорт Малина як PWA
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
-**Де зупинились:** фаза 1 закрита (serve-dist); далі — фаза 2 (шар даних)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
+**Де зупинились:** фаза 2 закрита (шар даних); далі — фаза 3 (встановлення)  
 **Created:** 2026-10-15 · **Гілка:** `feat/transport-pwa` (від `main` після #79)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -61,7 +61,7 @@ iOS. Тут його повторюємо під `/transport*`; відмінно
   fetchedAt}`, віддаємо миттєво) → **мережа** (`GET /transport/dataset`; стан міняємо лише якщо `revision` інша;
   успіх → перезаписуємо копію) → якщо копії нема і мережа не відповіла → **знімок збірки**
   `/transport/dataset.json` (пише `prerender-transport-stops.mjs` з того ж API, що й пререндер; SW його
-  precache-ить). Хук віддає `{ dataset, loading, error, reload, offline, source: 'network'|'local'|'snapshot',
+  precache-ить). Хук віддає `{ dataset, loading, error, reload, online, source: 'network'|'local'|'snapshot',
   dataAsOf }`.
 - Копія і знімок минають `apiClient` → `configureRouteNames(dataset.routes)` викликає хук, інакше «11/1» зламається.
 - `useSiteLocalTransport` пам'ятає відповідь у localStorage `site-local-transport:<cityCode>` — ворота не блокують
@@ -133,17 +133,17 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
 - [x] **1.3** Тести в `src/test/serve-dist-rules.test.ts`
 
 Фаза 2 — дані переживають відсутність мережі й бекенду (без SW)
-- [ ] **2.1** `useTransportDataset.ts`: `inflight = null` у `.catch`
-- [ ] **2.2** `dataset/datasetStore.ts`: `readStored`, `writeStored` (ліміт ~1.5 МБ, `QuotaExceededError` ковтаємо),
+- [x] **2.1** `useTransportDataset.ts`: `inflight = null` у `.catch`
+- [x] **2.2** `dataset/datasetStore.ts`: `readStored`, `writeStored` (ліміт ~1.5 МБ, `QuotaExceededError` ковтаємо),
   `fetchSnapshot` (`/transport/dataset.json`, `cache: 'no-cache'`, лише `res.ok` + content-type json — у dev і при
   SPA-fallback приходить HTML 200); усе no-op під `isPrerendering()`
-- [ ] **2.3** Хук: копія → мережа → знімок; `configureRouteNames`; `online` → `reload()`; `{ offline, source, dataAsOf }`
-- [ ] **2.4** `prerender-transport-stops.mjs` `loadTransportIndex()`: запис `dist/transport/dataset.json`
-- [ ] **2.5** `useSiteLocalTransport.ts`: пам'ять у localStorage per `cityCode`
-- [ ] **2.6** `TransportStatusBar.tsx` (+css): «Без мережі — розклад станом на …» / «Сервер не відповідає — показуємо
+- [x] **2.3** Хук: копія → мережа → знімок; `configureRouteNames`; `online` → `reload()`; `{ online, source, dataAsOf }`
+- [x] **2.4** `prerender-transport-stops.mjs` `loadTransportIndex()`: запис `dist/transport/dataset.json`
+- [x] **2.5** `useSiteLocalTransport.ts`: пам'ять у localStorage per `cityCode`
+- [x] **2.6** `TransportStatusBar.tsx` (+css): «Без мережі — розклад станом на …» / «Сервер не відповідає — показуємо
   збережений розклад станом на …» + «Оновити»; після `LocalTransportSubNav` у планері, маршруті, табло, схемі
-- [ ] **2.7** Планер і табло: `if (!data)` замість `if (error || !data)`; у `.lt-error` — «Спробувати ще раз»
-- [ ] **2.8** MSW `GET /transport/dataset.json` → 404; тести хука, воріт, смужки; e2e без SW (`context.setOffline`)
+- [x] **2.7** Планер і табло: `if (!data)` замість `if (error || !data)`; у `.lt-error` — «Спробувати ще раз»
+- [x] **2.8** MSW `GET /transport/dataset.json` → 404; тести хука, воріт, смужки; e2e без SW (`context.setOffline`)
 
 Фаза 3 — встановлення (Chrome ставить і без SW)
 - [ ] **3.1** `scripts/gen-pwa-icons.mjs` (Chromium із `@playwright/test`) → `public/icons/transport-192.png`,
@@ -197,3 +197,18 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
 автоматичного e2e з реальним SW (потрібен `npm run build` проти живого API + `serve-dist`; ручний smoke).
 
 ## Знахідки по фазах
+
+### Фаза 2 — шар даних (зроблено, 2026-10-15)
+
+- `useTransportDataset` тримає `cached: { dataset, source, fetchedAt }` на модуль; копія читається в ініціалізаторі
+  стану, тож перший рендер уже з даними. Та сама `revision` з мережі лишає **той самий об'єкт** датасету — інакше
+  `useMemo` планера перераховував би розклад на кожному візиті.
+- `reload()` більше не скидає кеш: екран тримає, що має, поки йде запит; `broadcastTransportDatasetInvalidate()`
+  (адмінка) скидає сам.
+- Знімок не пишеться в localStorage: це дані збірки, а не «що бачила людина»; копія з'явиться з першим успішним
+  запитом.
+- `fetchSnapshot` перевіряє content-type: і `vite dev`, і SPA-fallback serve-dist віддають на `/transport/dataset.json`
+  HTML зі статусом 200.
+- e2e «без бекенду» (`e2e/transport.spec.ts`): друга `page.route` на `/transport/dataset` з `abort('failed')` має
+  пріоритет над моком `mockBackendApi` (Playwright перебирає маршрути від останнього). Локально e2e гнати через
+  тимчасовий конфіг зі стабом `uqr` (пакет не встановлений у клоні власника).
