@@ -31,6 +31,8 @@ export const handlers = [
   }),
 
   http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(emptyDataset)),
+  // Знімок збірки /transport/dataset.json (same-origin; jsdom теж живе на localhost:3000) — у тестах його нема
+  http.get(`${TEST_API_URL}/transport/dataset.json`, () => new HttpResponse('Not found', { status: 404 })),
 
   /** Збереження з адмінського редактора: відповідь як у apiClient.putTransportDataset */
   http.put(`${TEST_API_URL}/transport/dataset`, async ({ request }) => {

@@ -1,0 +1,18 @@
+{
+  "id": "/transport",
+  "name": "Транспорт Малина",
+  "short_name": "Транспорт",
+  "description": "Міські маршрутки Малина: табло зупинок, розклад маршрутів і схема. Відкривається без мережі.",
+  "lang": "uk",
+  "start_url": "/transport",
+  "scope": "/transport",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#00aff5",
+  "theme_color": "#00aff5",
+  "icons": [
+    { "src": "/icons/transport-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/transport-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/transport-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

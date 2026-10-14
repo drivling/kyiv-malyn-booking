@@ -37,6 +37,7 @@ import {
   type VariantsByRoute,
 } from './routeVariants';
 import { useTransportDataset } from './dataset/useTransportDataset';
+import { TransportStatusBar } from './TransportStatusBar';
 import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { configureSegmentDurations } from './segmentDurations';
 import './LocalTransportPage.css';
@@ -275,7 +276,7 @@ export const LocalTransportPage: React.FC = () => {
   const dirFromUrl = rawDir.toLowerCase().startsWith('there') ? 'there' : rawDir.toLowerCase().startsWith('back') ? 'back' : rawDir;
   const dateFromUrl = searchParams.get('d') ?? '';
   const hourFromUrl = searchParams.get('h') ?? '';
-  const { dataset, loading, error } = useTransportDataset();
+  const { dataset, loading, error, reload, source, online, dataAsOf } = useTransportDataset();
   const viewModel = useMemo(() => {
     if (!dataset) return null;
     const vm = datasetToLocalViewModel(dataset);
@@ -1087,12 +1088,16 @@ export const LocalTransportPage: React.FC = () => {
     );
   }
 
-  if (error || !data) {
+  // Помилка мережі з копією на руках — сторінка працює, про неї каже TransportStatusBar
+  if (!data) {
     return (
       <div className="lt-page">
         <div className="lt-container">
           <div className="lt-error">
             <p>{error || 'Дані не завантажені'}</p>
+            <button type="button" className="lt-print-btn lt-error-retry" onClick={() => void reload()}>
+              Спробувати ще раз
+            </button>
           </div>
         </div>
       </div>
@@ -1126,6 +1131,7 @@ export const LocalTransportPage: React.FC = () => {
               searchTime={hourFromUrl || timeFromUrl || searchTime}
               fromStopId={selectedStopFromUrl || undefined}
             />
+            <TransportStatusBar online={online} source={source} dataAsOf={dataAsOf} error={error} onRetry={() => void reload()} />
 
             {/* Заголовок маршруту + перемикач напрямку */}
             <header className="lt-detail-header">
@@ -1573,6 +1579,7 @@ export const LocalTransportPage: React.FC = () => {
             </header>
 
             <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom || undefined} />
+            <TransportStatusBar online={online} source={source} dataAsOf={dataAsOf} error={error} onRetry={() => void reload()} />
 
             <div className="lt-search" ref={searchCardRef}>
               <div className="lt-from-to-block">

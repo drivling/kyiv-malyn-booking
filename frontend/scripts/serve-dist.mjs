@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GONE_HTML, isLegacyGonePath, isRetiredRoutePath, legacyRedirectLocation } from './serve-dist-rules.mjs';
+import { cacheControlFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,6 +35,8 @@ const MIME = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.map': 'application/json',
+  '.pdf': 'application/pdf',
+  '.webmanifest': 'application/manifest+json',
 };
 
 /** Exact pathname (no trailing slash except `/`) → Location path+optional hash */
@@ -100,12 +102,17 @@ function safeJoin(root, urlPath) {
   return full;
 }
 
+/** dist-relative URL path of a resolved file (`/transport/index.html`) — the key for cacheControlFor */
+function distPath(filePath) {
+  return `/${path.relative(dist, filePath).split(path.sep).join('/')}`;
+}
+
 function sendFile(res, filePath, extraHeaders = {}) {
   const ext = path.extname(filePath).toLowerCase();
   const type = MIME[ext] || 'application/octet-stream';
   res.writeHead(200, {
     'Content-Type': type,
-    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+    'Cache-Control': cacheControlFor(distPath(filePath)),
     ...extraHeaders,
   });
   fs.createReadStream(filePath).pipe(res);
@@ -169,6 +176,13 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    // Service worker і маніфест транспортного PWA — лише на головному домені (Docs/transport-pwa-2026-10.md)
+    if (isPrimaryOnlyFile(pathname)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', ...NOINDEX_HEADERS });
+      res.end(req.method === 'HEAD' ? undefined : 'Not found');
+      return;
+    }
+
     if (pathname === '/robots.txt') {
       res.writeHead(200, {
         'Content-Type': MIME['.txt'],
@@ -210,7 +224,8 @@ const server = http.createServer((req, res) => {
   if (resolved) {
     if (req.method === 'HEAD') {
       res.writeHead(200, {
-        'Content-Type': MIME[path.extname(resolved)] || 'application/octet-stream',
+        'Content-Type': MIME[path.extname(resolved).toLowerCase()] || 'application/octet-stream',
+        'Cache-Control': cacheControlFor(distPath(resolved)),
         ...extraHeaders,
       });
       res.end();

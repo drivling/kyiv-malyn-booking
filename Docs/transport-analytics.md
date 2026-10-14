@@ -34,6 +34,7 @@
 | `transport_sticker_return` | людина, що колись прийшла з QR-наклейки, знову на сайті після перерви ≥ 30 хв (`stickerReturn.ts`) | `stop`, `side` — перша наклейка людини, `via: reload \| tab \| direct` |
 | `transport_arrival_open` | довге натискання на чіп часу (сторінка маршруту) або картку табло — відкрито «Факт прибуття» | `route_id`, `source: route \| board` |
 | `transport_arrival_report` | позначку «автобус тут» / «автобуса не було» записано | `route_id`, `kind: arrived \| missed`, `source: route \| board` |
+| `transport_pwa_install` | «Встановити» у смужці стану транспорту — відповідь системного діалогу встановлення (`Docs/transport-pwa-2026-10.md`) | `result: accepted \| dismissed` |
 
 Перегляди сторінок — `page_view` з `GoogleAnalyticsTracker` (SPA-навігація), окремо від цієї таблиці.
 

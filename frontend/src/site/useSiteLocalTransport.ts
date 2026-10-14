@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { catalogCache } from '@/api/catalogCache';
 import type { TripPoint } from '@/types';
+import { isPrerendering } from '@/utils/prerender';
 import { getCurrentSite } from './siteConfig';
 
 // Один кеш TripPoint на весь SPA (той самий, що в головній і формах) — src/api/catalogCache.ts
@@ -21,6 +22,31 @@ function flagFor(points: TripPoint[], cityCode: string): boolean {
   return Boolean(point?.hasLocalTransport);
 }
 
+/**
+ * Остання відповідь API для міста — щоб ворота не показували «Завантаження...» без мережі чи на
+ * повільному з'єднанні (Docs/transport-pwa-2026-10.md, фаза 2). Під пререндером не пишемо й не читаємо.
+ */
+const STORAGE_PREFIX = 'site-local-transport:';
+
+export function readRememberedLocalTransport(cityCode: string): boolean | null {
+  if (isPrerendering()) return null;
+  try {
+    const v = localStorage.getItem(STORAGE_PREFIX + cityCode);
+    return v === '1' ? true : v === '0' ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberLocalTransport(cityCode: string, enabled: boolean): void {
+  if (isPrerendering()) return;
+  try {
+    localStorage.setItem(STORAGE_PREFIX + cityCode, enabled ? '1' : '0');
+  } catch {
+    /* без localStorage — просто не пам'ятаємо */
+  }
+}
+
 export interface SiteLocalTransport {
   /** true — рендеримо звичайні сторінки транспорту, false — заглушку «скоро» */
   enabled: boolean;
@@ -33,16 +59,18 @@ export function useSiteLocalTransport(): SiteLocalTransport {
   const fallback = site.isPrimary;
   const [state, setState] = useState<SiteLocalTransport>(() => {
     const cached = catalogCache.tripPoints.peek();
-    return cached
-      ? { enabled: flagFor(cached, site.cityCode), loading: false }
-      : { enabled: fallback, loading: true };
+    if (cached) return { enabled: flagFor(cached, site.cityCode), loading: false };
+    const remembered = readRememberedLocalTransport(site.cityCode);
+    return remembered === null ? { enabled: fallback, loading: true } : { enabled: remembered, loading: false };
   });
 
   useEffect(() => {
     let cancelled = false;
     fetchTripPoints()
       .then((points) => {
-        if (!cancelled) setState({ enabled: flagFor(points, site.cityCode), loading: false });
+        const enabled = flagFor(points, site.cityCode);
+        rememberLocalTransport(site.cityCode, enabled);
+        if (!cancelled) setState({ enabled, loading: false });
       })
       .catch(() => {
         if (!cancelled) setState({ enabled: fallback, loading: false });

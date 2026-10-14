@@ -87,6 +87,13 @@ export const CompanyLegalPage: React.FC = () => {
           </a>
         </nav>
 
+        {/* Принцип «спочатку офлайн» (Docs/transport-pwa-2026-10.md): межі чесно — лише розділ транспорту */}
+        <p className="company-legal-highlight__hint">
+          Розділ <a href="/transport">«Транспорт Малина»</a> працює без мережі: розклад і табло зупинок зберігаються у
+          вашому браузері, а сайт можна встановити на телефон як застосунок. Міжміські попутки й бронювання потребують
+          з'єднання.
+        </p>
+
         <div className="company-legal-highlight" aria-labelledby="company-legal-block-title">
           <div className="company-legal-highlight__head">
             <h2 id="company-legal-block-title" className="company-legal-highlight__title">

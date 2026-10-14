@@ -98,6 +98,18 @@ function compareRouteId(a, b) {
   return String(a).localeCompare(String(b));
 }
 
+/**
+ * Знімок датасету для сайту без бекенду (Docs/transport-pwa-2026-10.md): SPA бере його, коли локальної
+ * копії ще нема, а API не відповідає; service worker кладе його в precache. Фіксований URL, тому
+ * serve-dist віддає його з `no-cache`.
+ */
+function writeDatasetSnapshot(dataset) {
+  fs.mkdirSync(path.join(distDir, 'transport'), { recursive: true });
+  fs.writeFileSync(path.join(distDir, 'transport', 'dataset.json'), JSON.stringify(dataset), 'utf8');
+  if (!dataset.revision) console.warn('prerender-transport-stops: dataset snapshot has no revision (old backend?)');
+  console.log(`prerender-transport-stops: wrote transport/dataset.json (revision ${dataset.revision || '—'})`);
+}
+
 async function loadTransportIndex() {
   try {
     const res = await fetch(`${API_BASE}/transport/dataset`);
@@ -105,6 +117,7 @@ async function loadTransportIndex() {
       const dataset = await res.json();
       if (dataset && Array.isArray(dataset.stops)) {
         console.log('prerender-transport-stops: dataset from API');
+        writeDatasetSnapshot(dataset);
         return collectFromApiDataset(dataset);
       }
     } else {

@@ -46,6 +46,34 @@ export function isRetiredRoutePath(pathname, knownRouteIds) {
   return !known.has(id);
 }
 
+/**
+ * PWA files that exist only on the primary domain (Docs/transport-pwa-2026-10.md, phase 1):
+ * korosten.kiev.ua shows the «скоро» stub for /transport, and without this 404 Chrome would offer
+ * to install it as an app while a stale registration there could never die.
+ */
+export const PRIMARY_ONLY_FILES = ['/transport-sw.js', '/transport.webmanifest'];
+
+export function isPrimaryOnlyFile(pathname) {
+  return PRIMARY_ONLY_FILES.includes(pathname);
+}
+
+/** Revalidated on every request: the worker, the manifest and the per-deploy data snapshots (fixed URLs). */
+const NO_CACHE_FILES = new Set(['/transport-sw.js', '/transport.webmanifest', '/transport/dataset.json', '/transport/routes.json']);
+
+/**
+ * Cache-Control for a file under dist/ (`pathname` = its dist-relative path, e.g. `/transport/index.html`).
+ * Hashed Vite assets never change under their name; HTML and the no-cache files above must not be
+ * frozen in the HTTP cache (the service worker fetches them with `cache: 'reload'`); icons and the
+ * rest (robots, sitemap, poster) live a day or an hour — before phase 1 everything non-HTML was
+ * `immutable` for a year.
+ */
+export function cacheControlFor(pathname) {
+  if (/\.html$/i.test(pathname) || NO_CACHE_FILES.has(pathname)) return 'no-cache';
+  if (pathname.startsWith('/assets/')) return 'public, max-age=31536000, immutable';
+  if (pathname.startsWith('/icons/')) return 'public, max-age=86400';
+  return 'public, max-age=3600';
+}
+
 export const GONE_HTML =
   '<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>410 — сторінки більше немає</title>' +
   '<meta name="robots" content="noindex"></head><body><p>Цієї сторінки більше немає. ' +

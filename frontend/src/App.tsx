@@ -18,6 +18,8 @@ import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
 import { DomainGuard, LocalTransportGate, useFreshBuild, useHomeCityHandoff } from '@/site';
 import { useStickerReturn } from '@/pages/LocalTransportPage/stickerReturn';
+import { UpdateBanner } from '@/pwa/UpdateBanner';
+import { useTransportServiceWorker } from '@/pwa/useTransportServiceWorker';
 import './App.css';
 
 function App() {
@@ -50,6 +52,8 @@ function AppContent() {
   useHomeCityHandoff();
   // стара вкладка після деплою сама підтягує нову збірку (src/site/freshBuild.ts)
   useFreshBuild();
+  // service worker застосунку «Транспорт Малина» — лише на /transport* (src/pwa, Docs/transport-pwa-2026-10.md)
+  useTransportServiceWorker();
   // люди з QR-наклейок, що повертаються на сайт (stickerReturn.ts)
   useStickerReturn();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
@@ -119,6 +123,7 @@ function AppContent() {
       </main>
       {showPublicLegalFooter ? <PublicLegalFooter /> : null}
       {!pathname.startsWith('/admin') ? <CookieNotice /> : null}
+      <UpdateBanner />
     </div>
   );
 }
