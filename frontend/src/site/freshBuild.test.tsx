@@ -12,7 +12,10 @@ import {
   loadedBundle,
   safeToReload,
   useFreshBuild,
+  type BuildUpdater,
 } from './freshBuild';
+import { UpdateBanner } from '@/pwa/UpdateBanner';
+import { resetServiceWorkerForTests } from '@/pwa/serviceWorker';
 
 const OLD = '/assets/index-OLD111.js';
 const NEW = '/assets/index-NEW222.js';
@@ -26,6 +29,25 @@ function Probe({ fetchImpl, reload }: { fetchImpl: typeof fetch; reload: () => v
   useFreshBuild({ fetchImpl, reload, now: () => clock });
   nav = useNavigate();
   return null;
+}
+
+function ProbeSw({ updater, reload }: { updater: BuildUpdater; reload: () => void }) {
+  useFreshBuild({ fetchImpl: vi.fn() as unknown as typeof fetch, reload, now: () => clock, updater });
+  nav = useNavigate();
+  return null;
+}
+
+/** Сторінка під service worker: перевірка через reg.update(), застосування через SKIP_WAITING */
+function mountSw(path: string, found: string | null = 'sw:new1') {
+  const updater = { controlled: vi.fn(() => true), check: vi.fn(async () => found), apply: vi.fn(() => true) };
+  const reload = vi.fn();
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <ProbeSw updater={updater} reload={reload} />
+      <UpdateBanner />
+    </MemoryRouter>
+  );
+  return { updater, reload };
 }
 
 function mount(path: string, served = NEW) {
@@ -65,6 +87,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.querySelectorAll('[data-test="bundle"], [data-test="dialog"]').forEach((el) => el.remove());
+  resetServiceWorkerForTests();
 });
 
 describe('freshBuild helpers', () => {
@@ -151,5 +174,43 @@ describe('useFreshBuild', () => {
     expect(reload).toHaveBeenCalledTimes(1);
     act(() => nav('/transport'));
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('useFreshBuild під service worker (Docs/transport-pwa-2026-10.md, фаза 4)', () => {
+  it('довга відсутність: перевірка через воркер, застосування через SKIP_WAITING, без власного reload', async () => {
+    const { updater, reload } = mountSw('/transport/stop/st_a');
+    await away(STALE_HIDDEN_MS + 1);
+    expect(updater.check).toHaveBeenCalledTimes(1);
+    expect(updater.apply).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
+    expect(document.querySelector('.update-banner')).toBeNull();
+  });
+
+  it('коротка відсутність: банер «Доступна нова версія», наступний перехід застосовує', async () => {
+    const { updater, reload } = mountSw('/transport');
+    await away(CHECK_EVERY_MS + 1);
+    expect(updater.apply).not.toHaveBeenCalled();
+    expect(document.querySelector('.update-banner')).not.toBeNull();
+    act(() => nav('/transport/stop/st_a'));
+    expect(updater.apply).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('воркер не має що запускати (apply=false) — звичайне повне завантаження', async () => {
+    const { updater, reload } = mountSw('/transport');
+    updater.apply.mockReturnValue(false);
+    await away(STALE_HIDDEN_MS + 1);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('нової збірки нема — нічого', async () => {
+    const { updater, reload } = mountSw('/transport', null);
+    await away(STALE_HIDDEN_MS + 1);
+    expect(updater.check).toHaveBeenCalledTimes(1);
+    expect(updater.apply).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(document.querySelector('.update-banner')).toBeNull();
   });
 });

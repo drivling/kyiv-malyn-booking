@@ -14,6 +14,7 @@ module.exports = {
     'test-results',
     'playwright-report',
     'node_modules',
+    '.vite',
     '.eslintrc.cjs',
   ],
   parser: '@typescript-eslint/parser',
@@ -26,6 +27,12 @@ module.exports = {
     {
       files: ['*.test.ts', '*.test.tsx', 'e2e/**/*.ts', 'scripts/**/*.mjs'],
       rules: { '@typescript-eslint/no-explicit-any': 'off' },
+    },
+    {
+      // Шаблон service worker (Docs/transport-pwa-2026-10.md): класичний скрипт воркера, не модуль
+      files: ['sw/**/*.js'],
+      env: { serviceworker: true, browser: false, node: false },
+      parserOptions: { sourceType: 'script' },
     },
     {
       // Успадкований код: залежності хуків тут навмисно неповні (перерахунок ламає UX),

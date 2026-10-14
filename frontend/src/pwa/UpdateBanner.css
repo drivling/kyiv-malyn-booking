@@ -1,0 +1,40 @@
+/* Банер «Доступна нова версія» — над вмістом, під cookie-банером не ховається (той знизу на всю ширину) */
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #1f2a37;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.update-banner__text {
+  white-space: nowrap;
+}
+
+.update-banner__btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.update-banner__btn--primary {
+  background: #00aff5;
+  border-color: #00aff5;
+  color: #fff;
+}

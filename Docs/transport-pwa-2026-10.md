@@ -1,7 +1,7 @@
 # Табло без мережі: транспорт Малина як PWA
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
-**Де зупинились:** фаза 3 закрита (встановлення); далі — фаза 4 (service worker)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ✅ · Фаза 5 ⏳ · Фаза 6 ⏳  
+**Де зупинились:** фаза 4 закрита (service worker); далі — фаза 5 (шліфування)  
 **Created:** 2026-10-15 · **Гілка:** `feat/transport-pwa` (від `main` після #79)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -155,14 +155,14 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
 - [x] **3.5** GA4 `transport_pwa_install` + `Docs/transport-analytics.md`; тести
 
 Фаза 4 — service worker і оновлення
-- [ ] **4.1** `sw/transport-sw.js` (install / activate / message / fetch за таблицею); eslint override для `sw/**`
-- [ ] **4.2** `scripts/precache.mjs` (чиста) + `src/test/precache.test.ts`
-- [ ] **4.3** `scripts/build-sw.mjs` (не Vite-плагін: vitest `mergeConfig` і `prerender-spa` піднімають плагіни)
-- [ ] **4.4** `package.json` build: `build-sw.mjs` після `prerender-spa.mjs`, перед seo-smoke
-- [ ] **4.5** `src/pwa/serviceWorker.ts`, `src/pwa/useTransportServiceWorker.ts`
-- [ ] **4.6** `freshBuild.ts` + `opts.updater`; `src/pwa/UpdateBanner.tsx` в `App.tsx`
-- [ ] **4.7** Тести: serviceWorker (стаб `navigator.serviceWorker`), freshBuild з updater, UpdateBanner
-- [ ] **4.8** `Docs/transport-pwa-smoke.md`
+- [x] **4.1** `sw/transport-sw.js` (install / activate / message / fetch за таблицею); eslint override для `sw/**`
+- [x] **4.2** `scripts/precache.mjs` (чиста) + `src/test/precache.test.ts`
+- [x] **4.3** `scripts/build-sw.mjs` (не Vite-плагін: vitest `mergeConfig` і `prerender-spa` піднімають плагіни)
+- [x] **4.4** `package.json` build: `build-sw.mjs` після `prerender-spa.mjs`, перед seo-smoke
+- [x] **4.5** `src/pwa/serviceWorker.ts`, `src/pwa/useTransportServiceWorker.ts`
+- [x] **4.6** `freshBuild.ts` + `opts.updater`; `src/pwa/UpdateBanner.tsx` в `App.tsx`
+- [x] **4.7** Тести: serviceWorker (стаб `navigator.serviceWorker`), freshBuild з updater, UpdateBanner
+- [x] **4.8** `Docs/transport-pwa-smoke.md`
 
 Фаза 5 — шліфування
 - [ ] **5.1** Шрифти без мережі (self-host woff2 у `src/fonts` або `media="print" onload`)
@@ -222,3 +222,21 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
   `@playwright/test`; `public/icons/*.png` закомічені. Favicon — `icons/transport.svg` замість неіснуючого `/vite.svg`.
 - `<link rel="manifest">` у спільному `index.html`, тож він є на всіх сторінках, але scope `/transport` — Chrome
   пропонує встановлення лише там. `crossorigin="anonymous"` на Google Fonts — щоб SW (фаза 4) бачив не-opaque відповідь.
+
+### Фаза 4 — service worker і оновлення (зроблено, 2026-10-15)
+
+- Precache при install іде через `fetch(new Request(url, { cache: 'reload' }))` для нехешованих записів, а не
+  `cache.addAll`: `/index.html`, маніфест, іконки і `transport/dataset.json` мають сталі URL, і без `reload` воркер
+  поклав би в кеш те, що лежить у HTTP-кеші браузера з попереднього деплою.
+- `BUILD_ID` = sha256(список URL + вміст нехешованих файлів): у планшеті хешується лише список, але тут знімок даних
+  змінюється під сталим URL щодеплою, і без цього деплой «лише дані» не дійшов би до встановлених застосунків.
+- `GET_BUILD_ID` через MessageChannel — щоб freshBuild мав стабільний ключ `sw:<id>` для loop-guard у sessionStorage;
+  воркер старого шаблону (без відповіді) дає `sw:waiting`.
+- `useFreshBuild` отримав `opts.updater` і тримає політику; `doReload` через ref, бо ефект переходу між сторінками
+  не має залежати від opts. Коли нова збірка відома, але застосовувати зараз не можна — `setUpdateReady` → банер; раніше
+  це було мовчазне «на наступному переході».
+- `shouldRegisterServiceWorker` перевіряє `import.meta.env.PROD`: у `vite dev` (і в Playwright e2e) воркера нема —
+  реєстрація проти 404 зареєструвала б стару копію з попередньої збірки. Реальний SW перевіряється вручну:
+  `Docs/transport-pwa-smoke.md`.
+- Lint тепер і для `.js` (шаблон воркера в `sw/`); `.vite/` (кеш dev-сервера) в ignorePatterns, інакше eslint пішов би
+  в нього.
