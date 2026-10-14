@@ -13,7 +13,8 @@
   Application → Cache storage: один кеш `malin-transport-shell-<12 hex>` (старих нема), у ньому `/index.html`,
   `/assets/*`, `/transport.webmanifest`, `/icons/*`, `/transport/dataset.json`; після завантаження шрифтів —
   `malin-transport-fonts-v1`.
-- [ ] Network → **Offline**, перезавантажити `/transport`, `/transport/stop/st_0001`, `/transport/route/1`,
+- [ ] Network → **Offline**, перезавантажити `/transport`, `/transport/stop/st_0001`, `/transport/route/2` (№1 на сайті
+  прихований як `unreliable`),
   `/transport/scheme`: сторінки відкриваються, табло показує відправлення, зверху смужка «Без мережі — розклад
   станом на дд.мм.рррр». Карта (тайли OSM) порожня — очікувано.
 - [ ] Offline, адреса `/mizhgorodski` → звичайна помилка браузера (поза scope — очікувано).
@@ -36,7 +37,9 @@
 ## Вторинний домен і краулери
 
 - [ ] `https://korosten.kiev.ua/transport.webmanifest` і `/transport-sw.js` → 404; Application → Service workers порожній.
-- [ ] `curl -I https://malin.kiev.ua/transport-sw.js` → `cache-control: no-cache`, `content-type: text/javascript`;
+- [ ] `curl -I https://malin.kiev.ua/transport-sw.js` → `content-type: text/javascript`; `cache-control` з origin `no-cache`,
+  але на проді Cloudflare кешує `.js` за розширенням і переписує його на `max-age=14400` (Browser Cache TTL зони) — це
+  норма, браузер запитує скрипт воркера повз HTTP-кеш (файл відновлення, «Фаза 6», знахідка 1);
   `curl -I https://malin.kiev.ua/transport.webmanifest` → `application/manifest+json`, `no-cache`;
   `curl -I https://malin.kiev.ua/transport/dataset.json` → `application/json`, `no-cache`.
 - [ ] `curl -s https://malin.kiev.ua/transport/stop/st_0001 | grep -c lt-status-bar` → `0` (смужка не запечена в HTML).
