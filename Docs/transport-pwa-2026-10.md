@@ -1,7 +1,7 @@
 # Табло без мережі: транспорт Малина як PWA
 
-**Status:** Фаза 0 ✅ · Фаза 1 ⏳ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
-**Де зупинились:** фаза 0 закрита; далі — фаза 1 (serve-dist)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳ · Фаза 5 ⏳ · Фаза 6 ⏳  
+**Де зупинились:** фаза 1 закрита (serve-dist); далі — фаза 2 (шар даних)  
 **Created:** 2026-10-15 · **Гілка:** `feat/transport-pwa` (від `main` після #79)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -125,12 +125,12 @@ SW при install **не** кличе `skipWaiting` — новий білд ст
 - [x] **0.1** Цей файл
 
 Фаза 1 — serve-dist (без змін UI)
-- [ ] **1.1** `scripts/serve-dist-rules.mjs`: `cacheControlFor(pathname)` — `.html`, `/transport-sw.js`,
+- [x] **1.1** `scripts/serve-dist-rules.mjs`: `cacheControlFor(pathname)` — `.html`, `/transport-sw.js`,
   `/transport.webmanifest`, `/transport/dataset.json`, `/transport/routes.json` → `no-cache`; `/icons/` → день;
   `/assets/` → `immutable`; решта (robots, sitemap, постер — досі immutable на рік) → година; `isPrimaryOnlyFile`
-- [ ] **1.2** `scripts/serve-dist.mjs`: MIME `.webmanifest`, `.pdf`; `sendFile` через `cacheControlFor`; HEAD віддає той
+- [x] **1.2** `scripts/serve-dist.mjs`: MIME `.webmanifest`, `.pdf`; `sendFile` через `cacheControlFor`; HEAD віддає той
   самий `Cache-Control`; на вторинному домені 404 для `isPrimaryOnlyFile`
-- [ ] **1.3** Тести в `src/test/serve-dist-rules.test.ts`
+- [x] **1.3** Тести в `src/test/serve-dist-rules.test.ts`
 
 Фаза 2 — дані переживають відсутність мережі й бекенду (без SW)
 - [ ] **2.1** `useTransportDataset.ts`: `inflight = null` у `.catch`
