@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { TransportDataset } from '@/api/transportDataset';
+import { flushOutbox } from '@/pwa/outbox';
 import { useOnline } from '@/pwa/useOnline';
 import { configureRouteNames } from '@/utils/routeNames';
 import { fetchSnapshot, readStored, writeStored } from './datasetStore';
@@ -43,6 +44,8 @@ function adoptNetwork(fresh: TransportDataset): LoadedDataset {
   const prev = cached;
   const sameRevision = Boolean(prev?.dataset.revision) && prev?.dataset.revision === fresh.revision;
   cached = { dataset: sameRevision && prev ? prev.dataset : fresh, source: 'network', fetchedAt };
+  // API відповідає — час надіслати записи, що чекали на мережу (src/pwa/outbox.ts)
+  void flushOutbox();
   return cached;
 }
 

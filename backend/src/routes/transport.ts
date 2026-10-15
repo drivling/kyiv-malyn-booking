@@ -215,8 +215,10 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
 
   /**
    * Публічний: пасажир повідомляє факт прибуття рейсу на зупинку (src/arrival-reports.ts).
-   * Body: { kind: arrived|missed, routeId, tripId, direction, stopId, scheduledTime, source, minutesAgo?, waitedMin?, clientId? }.
-   * Невідомий рейс/зупинка — 404; час далеко від розкладу — 422; повтор за 10 хв — 200 { counted: false }.
+   * Body: { kind: arrived|missed, routeId, tripId, direction, stopId, scheduledTime, source, minutesAgo?, waitedMin?, clientId?,
+   *   occurredAt?, clientEventId? } — останні два шле outbox браузера (Docs/transport-offline-writes-2026-10.md).
+   * Невідомий рейс/зупинка — 404; час події далеко від розкладу або старший за тиждень — 422; повтор із тим самим
+   * clientId + clientEventId (запис уже є) або з того самого IP за 10 хв — 200 { counted: false }.
    */
   r.post('/transport/arrival-reports', async (req, res) => {
     const input = parseArrivalReport(req.body);
@@ -235,16 +237,36 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       }
       const built = buildArrivalRow(input, new Date());
       if ('error' in built) {
-        res.status(422).json({ error: 'Report time is too far from the schedule' });
+        res.status(422).json({
+          error: built.error === 'too_old' ? 'Report is too old' : 'Report time is too far from the schedule',
+        });
         return;
       }
       const { row } = built;
+      // Ідемпотентність для черги в браузері: той самий запис уже збережено — відповідаємо тим, що є
+      if (row.clientId && row.clientEventId) {
+        const stored = await prisma.transportArrivalReport.findFirst({
+          where: { clientId: row.clientId, clientEventId: row.clientEventId },
+          select: { actualTime: true, delayMin: true },
+        });
+        if (stored) {
+          res.json({ ok: true, counted: false, actualTime: stored.actualTime, delayMin: stored.delayMin });
+          return;
+        }
+      }
       const dedupeKey = `${clientKey(req.headers, req.ip)}|${row.tripId}|${row.stopId}|${row.serviceDate}|${row.kind}`;
       if (isRepeatArrival(dedupeKey)) {
         res.json({ ok: true, counted: false, actualTime: row.actualTime, delayMin: row.delayMin });
         return;
       }
-      await prisma.transportArrivalReport.create({ data: row });
+      try {
+        await prisma.transportArrivalReport.create({ data: row });
+      } catch (e) {
+        // Гонка двох вкладок з тим самим clientEventId — унікальний індекс (clientId, clientEventId)
+        if ((e as { code?: string })?.code !== 'P2002') throw e;
+        res.json({ ok: true, counted: false, actualTime: row.actualTime, delayMin: row.delayMin });
+        return;
+      }
       res.status(201).json({ ok: true, counted: true, actualTime: row.actualTime, delayMin: row.delayMin });
     } catch (e) {
       console.error('[POST /transport/arrival-reports]', e);

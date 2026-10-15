@@ -1,7 +1,8 @@
 /**
  * «Факт прибуття»: довге натискання на час рейсу (чіп стрічки відправлень на сторінці маршруту,
  * картка табло) → ArrivalReportSheet → POST /transport/arrival-reports. Київський час — фіксований
- * (фальшивий лише Date), датасет і POST — MSW, RouteMap замокано.
+ * (фальшивий лише Date), датасет і POST — MSW, RouteMap замокано. Без мережі або при 5xx звіт чекає в
+ * outbox (Docs/transport-offline-writes-2026-10.md, фаза 3); 4xx — помилка як досі.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render } from '@testing-library/react';
@@ -11,10 +12,11 @@ import { http, HttpResponse } from 'msw';
 import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
+import { flushOutbox, readOutbox } from '@/pwa/outbox';
 import { invalidateTransportDatasetCache } from './dataset/useTransportDataset';
 import { LocalTransportPage } from './LocalTransportPage';
 import { LocalTransportStopBoardPage } from './LocalTransportStopBoardPage';
-import { arrivalReportWindow, clockDiff, delayLabel, isReportableStopId, minsToHhmm } from './arrivalReport';
+import { arrivalReportWindow, clockDiff, delayLabel, isReportableStopId, minsToHhmm, queuedArrivalText } from './arrivalReport';
 import { LONG_PRESS_MS, useLongPress } from './useLongPress';
 
 vi.mock('./RouteMap', () => ({ RouteMap: () => <div data-testid="route-map" /> }));
@@ -107,6 +109,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   Reflect.deleteProperty(window, 'gtag');
+  Reflect.deleteProperty(navigator, 'onLine');
 });
 
 describe('arrivalReport helpers', () => {
@@ -209,8 +212,11 @@ describe('route page: long press on a departure chip', () => {
         scheduledTime: '08:30',
         source: 'route',
         minutesAgo: 0,
+        occurredAt: NOW.toISOString(),
+        clientEventId: expect.stringMatching(/^[A-Za-z0-9-]{8,64}$/),
       }),
     ]);
+    expect(readOutbox()).toEqual([]);
     expect(gtag).toHaveBeenCalledWith('event', 'transport_arrival_open', { route_id: '2', source: 'route' });
     expect(gtag).toHaveBeenCalledWith('event', 'transport_arrival_report', { route_id: '2', kind: 'arrived', source: 'route' });
     for (const call of gtag.mock.calls) expect(JSON.stringify(call[2] ?? {})).not.toMatch(/Базар|Вокзал|Лікарня/);
@@ -303,14 +309,72 @@ describe('stop board: long press on a departure card', () => {
     expect(posted).toHaveLength(1);
   });
 
-  it('a server error is shown and the sheet stays open', async () => {
+  it('a 4xx answer (too far) is shown as an error and is not queued', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${TEST_API_URL}/transport/arrival-reports`, () => HttpResponse.json({ error: 'Report time is too far from the schedule' }, { status: 422 }))
+    );
+    renderAt(`/transport/stop/st_a?d=${TODAY}&h=08%3A00`);
+    const card = await screen.findByRole('link', { name: /Маршрут 2, відправлення 08:30/ }, { timeout: 5000 });
+    fireEvent.contextMenu(card);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Автобус тут — зараз 08:33' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('далеко від поточного часу');
+    expect(readOutbox()).toEqual([]);
+  });
+});
+
+describe('arrival report without network (Docs/transport-offline-writes-2026-10.md, фаза 3)', () => {
+  it('offline: no POST, the sheet says the report will be sent later; after online the same clientEventId goes out', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    let online = false;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => online });
+    renderAt(`/transport/stop/st_a?d=${TODAY}&h=08%3A00`);
+    const card = await screen.findByRole('link', { name: /Маршрут 2, відправлення 08:30/ }, { timeout: 5000 });
+    fireEvent.contextMenu(card);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: '5 хв тому' }));
+    const status = await within(dialog).findByRole('status');
+    expect(status).toHaveTextContent('Запишемо: автобус приїхав о 08:28 — на 2 хв раніше.');
+    expect(status).toHaveTextContent('надішлемо, щойно вона зʼявиться');
+    expect(posted).toEqual([]);
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_arrival_report', { route_id: '2', kind: 'arrived', source: 'board' });
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_outbox', { kind: 'arrival-report', result: 'queued' });
+
+    const queued = readOutbox();
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toMatchObject({ kind: 'arrival-report', key: 'arrival:t1:st_a:2026-10-09:arrived' });
+    const body = queued[0].body as { occurredAt: string; clientEventId: string; minutesAgo: number };
+    expect(body.occurredAt).toBe(NOW.toISOString());
+    expect(body.minutesAgo).toBe(5);
+    expect(body.clientEventId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
+
+    online = true;
+    await flushOutbox();
+    expect(posted).toEqual([expect.objectContaining({ kind: 'arrived', minutesAgo: 5, occurredAt: NOW.toISOString(), clientEventId: body.clientEventId })]);
+    expect(readOutbox()).toEqual([]);
+  });
+
+  it('a 5xx answer queues the report instead of showing an error; «missed» text', async () => {
     const user = userEvent.setup();
     server.use(http.post(`${TEST_API_URL}/transport/arrival-reports`, () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
     renderAt(`/transport/stop/st_a?d=${TODAY}&h=08%3A00`);
     const card = await screen.findByRole('link', { name: /Маршрут 2, відправлення 08:30/ }, { timeout: 5000 });
     fireEvent.contextMenu(card);
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Автобус тут — зараз 08:33' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Не вдалося надіслати');
+    await user.click(within(dialog).getByRole('button', { name: 'Чекав(-ла), автобуса не було' }));
+    await user.click(within(dialog).getByRole('button', { name: '10 хв' }));
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Запишемо, що автобуса не було.');
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    expect(readOutbox()).toEqual([expect.objectContaining({ kind: 'arrival-report', key: 'arrival:t1:st_a:2026-10-09:missed' })]);
+  });
+
+  it('queuedArrivalText mirrors the server arithmetic', () => {
+    expect(queuedArrivalText('arrived', '08:30', 8 * 60 + 33, 0)).toBe('Запишемо: автобус приїхав о 08:33 — запізнення 3 хв.');
+    expect(queuedArrivalText('arrived', '08:30', 8 * 60 + 33, 3)).toBe('Запишемо: автобус приїхав о 08:30 — вчасно.');
+    expect(queuedArrivalText('arrived', '23:55', 5, 0)).toBe('Запишемо: автобус приїхав о 00:05 — запізнення 10 хв.');
+    expect(queuedArrivalText('missed', '08:30', 8 * 60 + 33, 0)).toBe('Запишемо, що автобуса не було.');
   });
 });

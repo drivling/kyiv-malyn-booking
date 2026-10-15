@@ -1,17 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient } from '@/api/client';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
-import type { ArrivalReportKind } from '@/types';
+import { newOutboxId, sendOrQueue } from '@/pwa/outbox';
+import type { ArrivalReportBody, ArrivalReportKind } from '@/types';
 import {
   ARRIVED_WINDOW_MIN,
   arrivalClientId,
   arrivalReportWindow,
   delayLabel,
   minsToHhmm,
+  queuedArrivalText,
   type ArrivalTarget,
 } from './arrivalReport';
-import { getKyivMinutesNow } from './kyivTime';
+import { getKyivDateString, getKyivMinutesNow } from './kyivTime';
 import { routeNo } from '@/utils/routeNames';
 import './ArrivalReportSheet.css';
 
@@ -30,12 +31,16 @@ type Phase =
   | { step: 'missed' }
   | { step: 'sending' }
   | { step: 'done'; text: string }
+  /** Без мережі (або сервер не відповів): запис чекає в outbox і піде сам */
+  | { step: 'queued'; text: string }
   | { step: 'error'; text: string };
 
 /**
  * Нижня панель «Факт прибуття» після довгого натискання на час рейсу: «Автобус тут» (зараз або
  * N хв тому) чи «Автобуса не було» (скільки чекали). Звіт іде в POST /transport/arrival-reports —
- * поки лише статистика для точніших графіків.
+ * поки лише статистика для точніших графіків. Без мережі або коли сервер не відповів — у чергу outbox
+ * (src/pwa/outbox.ts) із моментом натискання `occurredAt` і `clientEventId`, щоб повтор не став другим
+ * рядком (Docs/transport-offline-writes-2026-10.md).
  */
 export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }) => {
   const [phase, setPhase] = useState<Phase>({ step: 'choose' });
@@ -67,19 +72,29 @@ export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }
 
   const send = async (kind: ArrivalReportKind, extra: { minutesAgo?: number; waitedMin?: number }) => {
     setPhase({ step: 'sending' });
+    const clientId = arrivalClientId();
+    const body: ArrivalReportBody = {
+      kind,
+      routeId: target.routeId,
+      tripId: target.tripId,
+      direction: target.direction,
+      stopId: target.stopId,
+      scheduledTime: target.scheduledTime,
+      source: target.source,
+      ...extra,
+      ...(clientId ? { clientId } : {}),
+      occurredAt: new Date().toISOString(),
+      clientEventId: newOutboxId(),
+    };
+    const key = `arrival:${target.tripId}:${target.stopId}:${getKyivDateString()}:${kind}`;
     try {
-      const res = await apiClient.reportArrival({
-        kind,
-        routeId: target.routeId,
-        tripId: target.tripId,
-        direction: target.direction,
-        stopId: target.stopId,
-        scheduledTime: target.scheduledTime,
-        source: target.source,
-        ...extra,
-        ...(arrivalClientId() ? { clientId: arrivalClientId() as string } : {}),
-      });
+      const sent = await sendOrQueue('arrival-report', body, key);
       gaTrackEvent('transport_arrival_report', { route_id: target.routeId, kind, source: target.source });
+      if (sent.queued) {
+        setPhase({ step: 'queued', text: queuedArrivalText(kind, target.scheduledTime, getKyivMinutesNow(), extra.minutesAgo ?? 0) });
+        return;
+      }
+      const res = sent.result;
       const text =
         kind === 'arrived' && res.actualTime
           ? `Записали: автобус приїхав о ${res.actualTime}${res.delayMin !== null ? ` — ${delayLabel(res.delayMin)}` : ''}.`
@@ -87,11 +102,14 @@ export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }
       setPhase({ step: 'done', text });
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
+      const unavailable = (e as { outbox?: string } | null)?.outbox === 'unavailable';
       setPhase({
         step: 'error',
-        text: /too far/i.test(msg)
+        text: /too far|too old/i.test(msg)
           ? 'Цей рейс уже далеко від поточного часу — оберіть найближчий.'
-          : 'Не вдалося надіслати. Перевірте зʼєднання і спробуйте ще раз.',
+          : unavailable
+            ? 'Немає мережі, а зберегти запис у браузері не вдалося. Спробуйте, коли зʼявиться зв’язок.'
+            : 'Не вдалося надіслати. Перевірте зʼєднання і спробуйте ще раз.',
       });
     }
   };
@@ -131,11 +149,14 @@ export const ArrivalReportSheet: React.FC<Props> = ({ target, isToday, onClose }
           {target.destination ? <> · → {target.destination}</> : null}
         </p>
 
-        {phase.step === 'done' ? (
+        {phase.step === 'done' || phase.step === 'queued' ? (
           <div className="lt-arrival-done" role="status">
             <p>
               <strong>Дякуємо!</strong> {phase.text}
             </p>
+            {phase.step === 'queued' ? (
+              <p className="lt-arrival-hint">Зараз мережі немає — надішлемо, щойно вона зʼявиться.</p>
+            ) : null}
             <p className="lt-arrival-hint">Із таких позначок ми складемо точніший розклад.</p>
             <button type="button" className="lt-arrival-btn lt-arrival-btn--primary" onClick={onClose}>
               Готово

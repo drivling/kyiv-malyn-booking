@@ -8,6 +8,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
+import { flushOutbox, readOutbox } from '@/pwa/outbox';
+import { getKyivDateString } from './kyivTime';
 import { RETURN_GAP_MS, noteStickerVisit, rememberStickerOrigin, returnPage, useStickerReturn } from './stickerReturn';
 
 let posted: Array<Record<string, unknown>> = [];
@@ -43,6 +45,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   Reflect.deleteProperty(window, 'gtag');
+  Reflect.deleteProperty(navigator, 'onLine');
 });
 
 describe('sticker origin', () => {
@@ -101,5 +104,26 @@ describe('useStickerReturn', () => {
     visibility = 'visible';
     act(() => void document.dispatchEvent(new Event('visibilitychange')));
     await waitFor(() => expect(posted).toEqual([expect.objectContaining({ via: 'tab' })]));
+  });
+});
+
+describe('useStickerReturn без мережі (Docs/transport-offline-writes-2026-10.md)', () => {
+  it('повернення стає в чергу outbox (одна наклейка — один запис за добу) і йде, коли мережа є', async () => {
+    let online = false;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => online });
+    rememberStickerOrigin({ stopId: 'st_0015', side: 'a' }, T0 - 2 * 60 * 60 * 1000);
+    renderAt('/transport/stop/st_0015?utm_source=reload&utm_medium=qr&utm_campaign=st_0015-a');
+    await waitFor(() => expect(readOutbox()).toHaveLength(1));
+    expect(readOutbox()[0]).toMatchObject({
+      kind: 'sticker-return',
+      key: `return:st_0015-a:${getKyivDateString(new Date(T0))}`,
+      body: { stopId: 'st_0015', side: 'a', via: 'reload', page: 'transport' },
+    });
+    expect(posted).toEqual([]);
+
+    online = true;
+    await flushOutbox();
+    expect(posted).toEqual([expect.objectContaining({ stopId: 'st_0015', side: 'a', via: 'reload', page: 'transport' })]);
+    expect(readOutbox()).toEqual([]);
   });
 });

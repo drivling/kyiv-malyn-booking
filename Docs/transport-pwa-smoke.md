@@ -45,6 +45,26 @@ pre-commit. Headless Chromium (430×900, uk-UA, Europe/Kyiv) відкриває 
   головному екрані відкривається на `/transport` без адресного рядка; GA4 DebugView бачить `transport_pwa_install`.
 - [ ] Встановлений застосунок у режимі **Offline** (вимкнути Wi-Fi і мобільні дані) відкривається і показує табло.
 
+## Записи без мережі (етап 2, `Docs/transport-offline-writes-2026-10.md`)
+
+Все нижче — на телефоні або в Chrome DevTools → Network → **Offline** на табло `/transport/stop/st_0001`.
+
+- [ ] Offline, відкрити адресу наклейки `/transport/stop/st_0001?utm_source=sticker&utm_medium=qr&utm_campaign=st_0001-s`
+  (нова вкладка — скан рахується раз за сесію): смужка «Без мережі — розклад станом на … · 1 запис чекає на мережу»;
+  Application → Local Storage → `transport-outbox:v1` — один запис `sticker-scan` з ключем `scan:st_0001-s:<дата>`.
+  Перезавантажити ту саму вкладку офлайн — записів у черзі все одно один.
+- [ ] Offline, утримати картку відправлення → «Автобус тут — зараз HH:MM» → панель каже «Дякуємо! Запишемо: автобус
+  приїхав о HH:MM — … Зараз мережі немає — надішлемо, щойно вона зʼявиться»; у черзі другий запис `arrival-report`
+  з `occurredAt` і `clientEventId`; смужка — «2 записи чекають на мережу».
+- [ ] Online (зняти Offline): протягом секунд черга порожня, смужка зникає; `/admin/stickers` — відкриття `st_0001` +1,
+  `/admin/arrivals` — звіт із `actualTime` на момент натискання (а `createdAt` — коли дійшов).
+- [ ] Повтор: DevTools → Network → правий клік на POST `arrival-reports` → Replay XHR → відповідь 200
+  `{ counted: false }`, в адмінці рядок один.
+- [ ] Online, заблокувати лише `POST */transport/arrival-reports` (або `sticker-scans`) → дія на табло → запис у черзі,
+  смужка «1 запис чекає на мережу» з кнопкою «Надіслати»; зняти блок → «Надіслати» → черга порожня. 4xx (змінити
+  `scheduledTime` у Replay на далекий час) → панель показує помилку, в черзі нічого не з'являється.
+- [ ] GA4 DebugView: `transport_outbox` з `result: queued`, потім `sent`.
+
 ## Оновлення версії
 
 - [ ] Задеплоїти будь-яку зміну фронтенду. У відкритій вкладці `/transport`: згорнути браузер ≥ 30 хв (або DevTools →

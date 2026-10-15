@@ -73,5 +73,17 @@ export function delayLabel(delayMin: number): string {
   return `на ${-delayMin} хв раніше`;
 }
 
+/**
+ * Текст для запису, що чекає на мережу в outbox (Docs/transport-offline-writes-2026-10.md): час рахуємо тут
+ * так само, як сервер рахуватиме від `occurredAt` — `now − minutesAgo`, запізнення через clockDiff.
+ */
+export function queuedArrivalText(kind: 'arrived' | 'missed', scheduledTime: string, nowMins: number, minutesAgo: number): string {
+  if (kind !== 'arrived') return 'Запишемо, що автобуса не було.';
+  const actual = nowMins - minutesAgo;
+  const sched = hhmmToMins(scheduledTime);
+  const delay = sched === null ? null : clockDiff(actual, sched);
+  return `Запишемо: автобус приїхав о ${minsToHhmm(actual)}${delay !== null ? ` — ${delayLabel(delay)}` : ''}.`;
+}
+
 /** Анонімний id браузера — щоб в аналізі відсіяти дублі одного пристрою (src/analytics/visitorId.ts) */
 export { visitorId as arrivalClientId } from '@/analytics/visitorId';
