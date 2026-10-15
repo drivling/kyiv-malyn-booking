@@ -80,7 +80,7 @@ test('buildGtfsFeed: timed trips of visible routes only, stops without technical
   assert.ok(feedInfo[1].endsWith(',20240101,20271231,2026-10-14T18:03:11.000Z'));
   assert.ok(feedInfo[1].includes('https://malin.kiev.ua/transport/scheme#open-data'));
 
-  assert.ok(feed.files['LICENSE.txt'].includes(`License: ${OPEN_DATA_LICENSE.name} — ${OPEN_DATA_LICENSE.url}`));
+  assert.ok(feed.files['LICENSE.txt'].includes(`License: ${OPEN_DATA_LICENSE.name} (source-available) — ${OPEN_DATA_LICENSE.url}`));
   assert.ok(feed.files['LICENSE.txt'].includes('Feed version (dataset revision): 2026-10-14T18:03:11.000Z'));
   assert.ok(feed.files['agency.txt'].includes('malyn,Громадський транспорт міста Малина'));
   assert.equal(lines(feed.files['calendar.txt']).length, 3);
