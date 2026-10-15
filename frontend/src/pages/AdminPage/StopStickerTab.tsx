@@ -27,6 +27,7 @@ import { StickerStatsPanel } from './stopSticker/StickerStatsPanel';
 import { StickerStopList } from './stopSticker/StickerStopList';
 import './StopStickerTab.css';
 import { routeNo } from '@/utils/routeNames';
+import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
 
 /** Стрілка напрямку руху: ↑ повернута на кут (0° — схід) */
 function BearingArrow({ bearing }: { bearing: number }) {
@@ -248,7 +249,10 @@ export const StopStickerTab: React.FC = () => {
                     {lines.map((l) => (
                       <tr key={l.key}>
                         <td>
-                          <span className="sticker-tab-badge" style={{ background: l.color ?? '#1b1f2a' }}>
+                          <span
+                            className="sticker-tab-badge"
+                            style={{ background: l.color ?? '#1b1f2a', color: textColorOn(l.color ?? '#1b1f2a') }}
+                          >
                             {routeNo(l.routeId)}
                           </span>
                         </td>

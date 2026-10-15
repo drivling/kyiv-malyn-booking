@@ -56,6 +56,12 @@ describe('renderStickerSvg', () => {
     expect(svg).toContain('через Центр · Лікарня');
   });
 
+  it('номер на плашці читається на кольорі лінії: білий на синьому №5, чорний на бірюзовому №11', () => {
+    const svg = renderStickerSvg(spec());
+    expect(svg).toMatch(/<g data-route="5"><rect [^>]*fill="#1F6FD6"\/><text [^>]*fill="#ffffff">5</);
+    expect(svg).toMatch(/<g data-route="11"><rect [^>]*fill="#0E9AA7"\/><text [^>]*fill="#000000">11/);
+  });
+
   it('назва зупинки в кольорі лінії; без кольору — темна', () => {
     expect(renderStickerSvg(spec({ titleColor: '#1F6FD6' }))).toMatch(/<text class="sticker-title"[^>]* fill="#1F6FD6">з-д «Прожектор»</);
     expect(renderStickerSvg(spec())).toMatch(/<text class="sticker-title"[^>]* fill="#1b1f2a">/);

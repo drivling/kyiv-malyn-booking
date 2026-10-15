@@ -239,7 +239,9 @@ export function LocalTransportSchemePage() {
                   key={r.id}
                   type="button"
                   className={`lts-chip ${activeRoute === r.id ? 'lts-chip--active' : ''}`}
-                  style={{ '--lts-chip': `var(--lts-r${r.id})` } as React.CSSProperties}
+                  style={
+                    { '--lts-chip': `var(--lts-r${r.id})`, '--lts-chip-fg': `var(--lts-r${r.id}-fg)` } as React.CSSProperties
+                  }
                   aria-pressed={activeRoute === r.id}
                   aria-label={`Маршрут №${routeNo(r.id)}: ${r.from} — ${r.to}`}
                   onClick={() => toggleRoute(r.id)}
@@ -319,7 +321,11 @@ export function LocalTransportSchemePage() {
           {active && (
             <section className="lts-card" aria-labelledby="lts-card-title">
               <h2 id="lts-card-title" className="lts-card-title">
-                <span className="lts-card-num" style={{ background: `var(--lts-r${active.id})` }} aria-hidden>
+                <span
+                  className="lts-card-num"
+                  style={{ background: `var(--lts-r${active.id})`, color: `var(--lts-r${active.id}-fg)` }}
+                  aria-hidden
+                >
                   {routeNo(active.id)}
                 </span>
                 <span>

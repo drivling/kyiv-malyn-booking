@@ -124,7 +124,9 @@ describe('час і підписи', () => {
       'відкриття',
     ]);
     expect(textOn('#1b1f2a')).toBe('#ffffff');
-    expect(textOn('#ffd23f')).toBe('#10131a');
+    expect(textOn('#ffd23f')).toBe('#000000');
+    expect(textOn('#F08A1C')).toBe('#000000'); // №7: білий дав би лише 2.5:1
+    expect(textOn('#7E3FC2')).toBe('#ffffff'); // №8
     expect(wallUrl('https://malin.kiev.ua', 'ab cd')).toBe('https://malin.kiev.ua/admin/wall?key=ab%20cd');
   });
 });

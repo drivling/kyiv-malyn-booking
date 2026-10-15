@@ -52,6 +52,7 @@
   gap: 6px;
 }
 
+/* --lts-chip — колір лінії, --lts-chip-fg — колір номера на ньому (білий або чорний, з легенди схеми) */
 .lts-chip {
   --lts-chip: var(--lt-text-muted);
   min-width: 36px;
@@ -60,7 +61,7 @@
   border: 2px solid var(--lts-chip);
   border-radius: 999px;
   background: var(--lts-chip);
-  color: #fff;
+  color: var(--lts-chip-fg, #fff);
   font: inherit;
   font-size: var(--lt-fs-base);
   font-weight: 700;

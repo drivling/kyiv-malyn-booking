@@ -1,7 +1,8 @@
 /**
  * Легенда схеми маршрутів (/transport/scheme). ЗГЕНЕРОВАНО — не редагувати руками:
  *   python3 Docs/malyn-transit-scheme/build_scheme.py --site-dir frontend/src/pages/LocalTransportPage/scheme
- * Кольори звідси підставляються в CSS-змінні (--lts-r<id>, --lt-route-color) на сторінках транспорту.
+ * Кольори звідси підставляються в CSS-змінні (--lts-r<id>, --lts-r<id>-fg, --lt-route-color, --lt-route-fg)
+ * на сторінках транспорту.
  */
 export type SchemeRoute = {
   id: string;
@@ -12,6 +13,8 @@ export type SchemeRoute = {
   unconfirmed: boolean;
   /** Колір лінії (світла тема) — єдине джерело для схеми, планувальника й табло */
   color: string;
+  /** Колір номера на плашці кольору лінії: білий або чорний, що контрастніше (WCAG AA ≥ 4.5:1) */
+  fg: string;
 };
 
 export const SCHEME_ROUTES: SchemeRoute[] = [
@@ -21,7 +24,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Шевченка, 119",
     "via": "Приходька · Мазепи · Центр · Шевченка · Лікарня",
     "unconfirmed": false,
-    "color": "#D7263D"
+    "color": "#D7263D",
+    "fg": "#ffffff"
   },
   {
     "id": "3",
@@ -29,7 +33,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Лікарня · Центр · Грушевського · Малинівський круг · Огієнка (БАМ)",
     "unconfirmed": false,
-    "color": "#1B9E4B"
+    "color": "#1B9E4B",
+    "fg": "#000000"
   },
   {
     "id": "5",
@@ -37,7 +42,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Лікарня · Центр · з-д «Прожектор» · Малинівський круг · Огієнка",
     "unconfirmed": false,
-    "color": "#1F6FD6"
+    "color": "#1F6FD6",
+    "fg": "#ffffff"
   },
   {
     "id": "7",
@@ -45,7 +51,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Центр · С. Бандери · ПТЛ · Городище (14 ОМБ) · тимчасова схема",
     "unconfirmed": false,
-    "color": "#F08A1C"
+    "color": "#F08A1C",
+    "fg": "#000000"
   },
   {
     "id": "8",
@@ -53,7 +60,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Барміна · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема",
     "unconfirmed": false,
-    "color": "#7E3FC2"
+    "color": "#7E3FC2",
+    "fg": "#ffffff"
   },
   {
     "id": "9",
@@ -61,7 +69,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "вул. Олекси Тихого",
     "via": "Царське село · Малинівський круг · Малинівка · Юрівка · окремі рейси — Вокзал, Лікарня",
     "unconfirmed": false,
-    "color": "#E3368C"
+    "color": "#E3368C",
+    "fg": "#000000"
   },
   {
     "id": "10",
@@ -69,7 +78,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Шевченка · Центр · Автостанція · Укр. Повстанців · Мирутенка · Малинівський круг · Огієнка",
     "unconfirmed": false,
-    "color": "#C99700"
+    "color": "#C99700",
+    "fg": "#000000"
   },
   {
     "id": "11",
@@ -77,7 +87,8 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Приходька · Барміна · Мазепи · Центр · з-д «Прожектор» · Малинівський круг · Огієнка",
     "unconfirmed": false,
-    "color": "#0E9AA7"
+    "color": "#0E9AA7",
+    "fg": "#000000"
   },
   {
     "id": "12",
@@ -85,6 +96,7 @@ export const SCHEME_ROUTES: SchemeRoute[] = [
     "to": "Залізничний вокзал",
     "via": "Центр · Грушевського · Малинівський круг · Огієнка (БАМ)",
     "unconfirmed": false,
-    "color": "#8A5A2B"
+    "color": "#8A5A2B",
+    "fg": "#ffffff"
   }
 ];

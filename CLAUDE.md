@@ -352,6 +352,8 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `apiClient.getTransportDataset()`); static stop pages use `routeShortNames()` (`scripts/transport-stop-routes.mjs`);
   the scheme generator reads it from the dataset, so regenerate the scheme and poster after changing it. A `PUT` without
   the key keeps the stored value. Prefer `shortName` over renumbering when only the label changes.
+  A number on a line colour is never hard-coded white: it takes `fg` from the scheme legend (`--lt-route-fg`,
+  `--lts-r<id>-fg`) or `textColorOn()` (`routeColors.ts`) — white or black, whichever contrasts more (≥ 4.5:1).
 - Route lines on the map are straight lines between consecutive chain points; technical points (`mapOnly`
   route stops named «№<id> т.N») bend them along the roads (`Docs/route-geometry-5-2-2026-10.md`,
   `Docs/route-geometry-10-11-2026-10.md`, `Docs/route-geometry-8-2026-10.md`, `Docs/route-geometry-7-2026-10.md`,
