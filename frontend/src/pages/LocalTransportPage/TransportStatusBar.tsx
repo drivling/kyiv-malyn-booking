@@ -1,8 +1,9 @@
 /**
  * Смужка стану даних під міні-навігацією транспорту (Docs/transport-pwa-2026-10.md, фаза 2):
  * «Без мережі — розклад станом на …» або «Сервер не відповідає — показуємо збережений розклад …» з кнопкою
- * «Оновити». Тут же — пропозиція встановити застосунок (InstallOffer). Коли все гаразд і пропонувати нема
- * чого — нічого. Під пререндером не рендериться: у статичному HTML не має бути стану конкретного браузера.
+ * «Оновити». Під нею — картка «Встановіть «Транспорт Малина» на телефон» (InstallOffer), коли є що пропонувати.
+ * Коли все гаразд і пропонувати нема чого — нічого. Під пререндером не рендериться: у статичному HTML не має
+ * бути стану конкретного браузера.
  */
 import { InstallOffer } from '@/pwa/InstallOffer';
 import { useInstallOffer } from '@/pwa/installPrompt';
@@ -34,14 +35,18 @@ export function TransportStatusBar({ online, source, dataAsOf, error, onRetry }:
   }
   if (!message && !offer) return null;
   return (
-    <div className={`lt-status-bar${message ? ' lt-status-bar--warn' : ''}`} role={message ? 'status' : undefined}>
-      {message && <p className="lt-status-bar-text">{message}</p>}
-      {retry && (
-        <button type="button" className="lt-status-bar-btn" onClick={onRetry}>
-          Оновити
-        </button>
+    <>
+      {message && (
+        <div className="lt-status-bar lt-status-bar--warn" role="status">
+          <p className="lt-status-bar-text">{message}</p>
+          {retry && (
+            <button type="button" className="lt-status-bar-btn" onClick={onRetry}>
+              Оновити
+            </button>
+          )}
+        </div>
       )}
-      {offer && <InstallOffer kind={offer} compact={Boolean(message)} />}
-    </div>
+      {offer && <InstallOffer kind={offer} />}
+    </>
   );
 }
