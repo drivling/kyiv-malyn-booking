@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { API_BASE } from './api-base.mjs';
-import { setCanonical, setOg, stripRobots } from './html-head.mjs';
+import { PUBLISHER_ORG, setCanonical, setOg, stripRobots } from './html-head.mjs';
 import { publishableRouteIds } from './prerender-spa.mjs';
 import { relatedPagesForStop } from './stop-related-pages.mjs';
 import { STOP_HUB_FAQ, stopArticleDescription, stopFallbackDescription, stopPageTitle, stopRoutesFaq } from './stop-page-copy.mjs';
@@ -239,6 +239,7 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
           name: f.q,
           acceptedAnswer: { '@type': 'Answer', text: f.a },
         })),
+        publisher: PUBLISHER_ORG,
       },
     ],
   };

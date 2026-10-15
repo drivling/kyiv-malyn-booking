@@ -11,6 +11,9 @@ export const COMPANY_LEGAL_ADDRESS_UA =
   '11601, Україна, Житомирська обл., Коростенський р-н, м. Малин, вул. Володимирська, буд. 28А, кв. 12';
 export const COMPANY_EDR_INFO_URL = 'https://opendatabot.com/c/46288273';
 
+/** Сайт компанії-розробника; на нього ведуть рядок підвалу «Розробник — …» і llms.txt (SEO-план 4.6) */
+export const COMPANY_SITE_URL = 'https://technologies.llc/';
+
 /** Посада керівника згідно зі статутом (єдиний виконавчий орган — генеральний директор) */
 export const COMPANY_EXECUTIVE_OFFICIAL_TITLE = 'Генеральний директор';
 
@@ -31,6 +34,9 @@ export const COMPANY_FOOTER_PREFIX = 'Власник сайту та серві�
 
 /** Текст після клікабельної частини */
 export const COMPANY_FOOTER_SUFFIX = '.';
+
+/** Рядок підвалу «Розробник — ТОВ «Технології»»: клікабельна частина веде на COMPANY_SITE_URL */
+export const COMPANY_DEVELOPER_PREFIX = 'Розробник — ';
 
 export function companyFooterLinkLabel(): string {
   return `${companyEdrRecord.shortNameUa}, код ЄДРПОУ ${companyEdrRecord.edrpou}`;

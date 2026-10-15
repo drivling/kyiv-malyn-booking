@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom';
 import { SiteOwnerFooterLine } from '@/components/SiteOwnerFooterLine/SiteOwnerFooterLine';
 import {
+  COMPANY_DEVELOPER_PREFIX,
+  COMPANY_FOOTER_SUFFIX,
+  COMPANY_SHORT_NAME_UA,
+  COMPANY_SITE_URL,
+} from '@/legal/companyLegal';
+import {
   PRIVACY_POLICY_PAGE_LINK,
   REFERRAL_PROMO_PAGE_LINK,
   TERMS_PAGE_LINK,
@@ -33,6 +39,14 @@ export const PublicLegalFooter: React.FC = () => {
           paragraphClassName="public-legal-footer-line"
           linkClassName="public-legal-footer-link"
         />
+        {/* Той самий власник, інший сайт: звичайне посилання без nofollow (SEO-план 4.6) */}
+        <p className="public-legal-footer-line">
+          {COMPANY_DEVELOPER_PREFIX}
+          <a href={COMPANY_SITE_URL} className="public-legal-footer-link">
+            {COMPANY_SHORT_NAME_UA}
+          </a>
+          {COMPANY_FOOTER_SUFFIX}
+        </p>
       </div>
     </footer>
   );

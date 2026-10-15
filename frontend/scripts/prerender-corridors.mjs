@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { API_BASE, assertApiAlive } from './api-base.mjs';
-import { setCanonical, setOg, stripRobots } from './html-head.mjs';
+import { PUBLISHER_ORG, setCanonical, setOg, stripRobots } from './html-head.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDir = path.resolve(__dirname, '..');
@@ -204,6 +204,7 @@ export function buildPageHtml(shell, landing, rows, asOf, helpers) {
       {
         '@type': 'FAQPage',
         mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+        publisher: PUBLISHER_ORG,
       },
       ...(rows.length
         ? [

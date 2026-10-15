@@ -24,3 +24,15 @@ export function setOg(html, property, content) {
   const re = new RegExp(`<meta\\s+property="${property.replace(':', '\\:')}"[^>]*>`, 'i');
   return upsertHeadTag(html, re, `<meta property="${property}" content="${content}" />`);
 }
+
+/**
+ * Видавець для JSON-LD prerender-сторінок (коридори, стоп-сторінки): вони замінюють ld+json
+ * оболонки власним об'єктом, тож зв'язок із компанією-розробником додаємо тут. Той самий вузол,
+ * що `parentOrganization` в index.html та `COMPANY_SITE_URL` у src/legal/companyLegal.ts.
+ */
+export const PUBLISHER_ORG = {
+  '@type': 'Organization',
+  '@id': 'https://technologies.llc/#organization',
+  name: 'ТОВ «Технології»',
+  url: 'https://technologies.llc/',
+};
