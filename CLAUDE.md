@@ -254,7 +254,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   references with the loaded one. New build + tab away ≥ 30 min + no `aria-modal` dialog / focused field →
   reload at once; otherwise the next page change is a full load. Never on `/admin*`; one try per build per
   session. Dev and prerender have no `/assets/index-*` script, so it is off there.
-- **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`): `/transport*` works offline and
+- **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`; the real worker is checked only
+  by hand or with `npm run pwa:smoke` in `frontend/` against a deployed site — never in CI): `/transport*` works offline and
   installs as «Транспорт Малина» (`public/transport.webmanifest`, scope `/transport`, icons from `npm run pwa:icons`, PNGs
   committed). Two layers. Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes
   from the API (same `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by

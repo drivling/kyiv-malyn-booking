@@ -1,9 +1,30 @@
 # Транспорт Малина як PWA — ручна перевірка (smoke)
 
-Автоматичного e2e з реальним service worker нема: він потребує `npm run build` проти живого API і `serve-dist`
-(Playwright у CI ходить через `vite dev`, де воркера немає). Тому після деплою фази 4 (`Docs/transport-pwa-2026-10.md`)
-— цей чекліст на malin.kiev.ua, а локально — на `node scripts/serve-dist.mjs` поверх свіжого `dist/`
-(`http://localhost:4173` — localhost теж secure context).
+У CI e2e з реальним service worker нема: він потребує `npm run build` проти живого API і `serve-dist`
+(Playwright у CI ходить через `vite dev`, де воркера немає). Тому після деплою (`Docs/transport-pwa-2026-10.md`) —
+спочатку скрипт `npm run pwa:smoke` (розділ нижче), далі цей чекліст на malin.kiev.ua, а локально — на
+`node scripts/serve-dist.mjs` поверх свіжого `dist/` (`http://localhost:4173` — localhost теж secure context).
+
+## Скрипт `npm run pwa:smoke` (frontend, лише вручну)
+
+`frontend/scripts/pwa-smoke.mjs` — Playwright-скрипт з реальним воркером проти задеплоєного сайту; не в CI і не в
+pre-commit. Headless Chromium (430×900, uk-UA, Europe/Kyiv) відкриває базовий URL (за замовчуванням
+`https://malin.kiev.ua`; інший — аргументом: `npm run pwa:smoke -- http://localhost:4173`), сам качає
+`<base>/transport/dataset.json` і бере з нього перший не-`unreliable` маршрут та його першу зупинку. Покриває перші
+п'ять пунктів чекліста Chrome нижче: **онлайн** — воркер `activated` зі scope `/transport`, `BUILD_ID` відповідає, один
+кеш `malin-transport-shell-<id>` з оболонкою, усіма `/assets/*`, на які вона посилається, маніфестом, іконками і знімком,
+копія в localStorage, після перезавантаження сторінка під контролем; **офлайн** (`context.setOffline` + abort усіх
+запитів, і воркера теж) — `/transport`, табло, маршрут і схема відкриваються з воркера без жодного підресурсу з мережі,
+з даними і смужкою стану, а `/mizhgorodski` падає як у звичайній вкладці; **«бекенд упав»** (abort лише
+`GET …/transport/dataset`) — табло з копії зі смужкою «Сервер не відповідає…» і кнопкою «Оновити», а без копії — зі
+знімка збірки; **знову онлайн** — смужка зникає, копія пишеться знову. Підсумок — таблиця PASS/WARN/FAIL, код виходу 1
+при будь-якому FAIL (WARN — лише порада: кеш шрифтів, `cache-control` воркера після CDN). `PWA_SMOKE_SHOTS=<dir>`
+додатково пише скріншот кожної перевіреної сторінки.
+
+Застереження: під емуляцією Playwright `navigator.onLine` лишається `true`, тому навіть повністю офлайн сайт показує
+гілку «Сервер не відповідає…». Скрипт лише підміняє `navigator.onLine` (init script) і перевіряє, що текст смужки
+стає «Без мережі…»; справжнє визначення «мережі немає» — **тільки на телефоні** з вимкненим Wi-Fi і мобільними даними.
+Встановлення, оновлення версії, вторинний домен, iOS і Lighthouse лишаються ручними пунктами нижче.
 
 ## Chrome (Android або десктоп)
 
