@@ -4,6 +4,7 @@
 
 Сайт: https://malin.kiev.ua
 Бот Telegram: https://t.me/malin_kiev_ua_bot (@malin_kiev_ua_bot)
+Розробник: ТОВ «Технології» (ЄДРПОУ 46288273, Малин) — https://technologies.llc/
 
 ## Головне
 
