@@ -4,11 +4,16 @@ import type { PrismaClient } from '@prisma/client';
  * Факт прибуття міського автобуса від пасажирів (frontend: довге натискання на час рейсу на
  * /transport/route/:id і на картку табло /transport/stop/:id → ArrivalReportSheet).
  *
- * Поки лише збираємо статистику для точніших графіків: `arrived` — «автобус тут» (фактичний час
- * бере сервер за київським годинником мінус `minutesAgo`, а не телефон), `missed` — «чекав,
- * автобуса не було ні до, ні після». Рядок зберігає маршрут, напрямок, зупинку й час за розкладом
- * текстом, без FK: датасет замінюється цілком (replaceTransportDataset), а історія має лишитися.
- * IP у базу не пишеться — лише в пам'ять процесу для відсіву повторів (як у sticker-scans.ts).
+ * Поки лише збираємо статистику для точніших графіків: `arrived` — «автобус тут» (фактичний час —
+ * момент події `occurredAt` за київським годинником мінус `minutesAgo`; без `occurredAt` — «зараз»
+ * сервера), `missed` — «чекав, автобуса не було ні до, ні після». Рядок зберігає маршрут, напрямок,
+ * зупинку й час за розкладом текстом, без FK: датасет замінюється цілком (replaceTransportDataset), а
+ * історія має лишитися. IP у базу не пишеться — лише в пам'ять процесу для відсіву повторів (як у
+ * sticker-scans.ts).
+ *
+ * Записи без мережі (Docs/transport-offline-writes-2026-10.md): звіт може прийти з черги в браузері
+ * через години — тому вікна прийому рахуються від `occurredAt`, а повтор із тим самим
+ * `clientId + clientEventId` (запис дійшов, відповідь — ні) не створює другого рядка.
  */
 
 export const ARRIVAL_KINDS = ['arrived', 'missed'] as const;
@@ -24,6 +29,10 @@ export const MISSED_EARLY_MIN = 5;
 export const MISSED_LATE_MIN = 180;
 export const MAX_MINUTES_AGO = 30;
 export const MAX_WAITED_MIN = 180;
+/** `occurredAt` у майбутньому понад це — годинник телефона поспішає: беремо серверний «зараз» */
+export const MAX_CLOCK_AHEAD_MIN = 5;
+/** `occurredAt` старший за це — звіт із черги вже нікому не потрібен (outbox на клієнті живе 7 днів) */
+export const MAX_OCCURRED_AGE_DAYS = 7;
 
 const ID_RE = /^[A-Za-z0-9_.:-]{1,60}$/;
 const STOP_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -41,6 +50,10 @@ export type ArrivalReportInput = {
   minutesAgo: number;
   waitedMin: number | null;
   clientId: string | null;
+  /** Момент події за годинником клієнта; null — «зараз» сервера */
+  occurredAt: Date | null;
+  /** Id запису в outbox клієнта — ключ ідемпотентності разом із clientId */
+  clientEventId: string | null;
 };
 
 function intIn(v: unknown, min: number, max: number): number | null {
@@ -52,7 +65,8 @@ function intIn(v: unknown, min: number, max: number): number | null {
 /**
  * Body POST /transport/arrival-reports:
  * { kind, routeId, tripId, direction: there|back, stopId, scheduledTime: HH:MM, source: route|board,
- *   minutesAgo?: 0–30 (arrived), waitedMin?: 1–180 (missed), clientId? }
+ *   minutesAgo?: 0–30 (arrived), waitedMin?: 1–180 (missed), clientId?,
+ *   occurredAt?: ISO-момент події (невалідний — 400), clientEventId? (невалідний — як відсутній) }
  */
 export function parseArrivalReport(body: unknown): ArrivalReportInput | null {
   const b = (body ?? {}) as Record<string, unknown>;
@@ -65,6 +79,13 @@ export function parseArrivalReport(body: unknown): ArrivalReportInput | null {
   const scheduledTime = str('scheduledTime');
   const source = str('source');
   const clientId = str('clientId');
+  const clientEventId = str('clientEventId');
+  let occurredAt: Date | null = null;
+  if (b.occurredAt !== undefined && b.occurredAt !== null && b.occurredAt !== '') {
+    if (typeof b.occurredAt !== 'string') return null;
+    occurredAt = new Date(b.occurredAt);
+    if (Number.isNaN(occurredAt.getTime())) return null;
+  }
   if (!(ARRIVAL_KINDS as readonly string[]).includes(kind)) return null;
   if (!ID_RE.test(routeId) || !ID_RE.test(tripId) || !STOP_ID_RE.test(stopId)) return null;
   if (direction !== 'there' && direction !== 'back') return null;
@@ -85,6 +106,8 @@ export function parseArrivalReport(body: unknown): ArrivalReportInput | null {
     minutesAgo: minutesAgo ?? 0,
     waitedMin,
     clientId: CLIENT_ID_RE.test(clientId) ? clientId : null,
+    occurredAt,
+    clientEventId: CLIENT_ID_RE.test(clientEventId) ? clientEventId : null,
   };
 }
 
@@ -139,24 +162,39 @@ export type ArrivalReportRow = {
   waitedMin: number | null;
   source: ArrivalSource;
   clientId: string | null;
+  clientEventId: string | null;
 };
 
+export type ArrivalRowError = 'too_far' | 'too_old';
+
 /**
- * Звіт → рядок таблиці за київським часом сервера `now`. Дата рейсу — київська доба розкладу
- * (рейс о 23:55, про який повідомили о 00:05, належить учорашній добі). Поза вікном — null.
+ * Момент події: `occurredAt` клієнта, якщо він є і не з майбутнього (годинник телефона поспішає →
+ * серверний `now`); старший за MAX_OCCURRED_AGE_DAYS — null (звіт застарів).
  */
-export function buildArrivalRow(
-  input: ArrivalReportInput,
-  now: Date
-): { row: ArrivalReportRow } | { error: 'too_far' } {
-  const { date, mins } = kyivClock(now);
+export function resolveOccurredAt(occurredAt: Date | null, now: Date): Date | null {
+  if (!occurredAt) return now;
+  const t = occurredAt.getTime();
+  if (t > now.getTime() + MAX_CLOCK_AHEAD_MIN * 60 * 1000) return now;
+  if (now.getTime() - t > MAX_OCCURRED_AGE_DAYS * DAY_MS) return null;
+  return occurredAt;
+}
+
+/**
+ * Звіт → рядок таблиці за київським часом події (`occurredAt` клієнта або серверне `now`, див.
+ * resolveOccurredAt). Дата рейсу — київська доба розкладу (рейс о 23:55, про який повідомили о 00:05,
+ * належить учорашній добі). Поза вікном — too_far; подія старша за тиждень — too_old.
+ */
+export function buildArrivalRow(input: ArrivalReportInput, now: Date): { row: ArrivalReportRow } | { error: ArrivalRowError } {
+  const at = resolveOccurredAt(input.occurredAt, now);
+  if (!at) return { error: 'too_old' };
+  const { date, mins } = kyivClock(at);
   const scheduledMins = hhmmToMins(input.scheduledTime);
-  const at = input.kind === 'arrived' ? mins - input.minutesAgo : mins;
-  const delay = clockDiff(at, scheduledMins);
+  const actual = input.kind === 'arrived' ? mins - input.minutesAgo : mins;
+  const delay = clockDiff(actual, scheduledMins);
   if (input.kind === 'arrived' && Math.abs(delay) > ARRIVED_WINDOW_MIN) return { error: 'too_far' };
   if (input.kind === 'missed' && (delay < -MISSED_EARLY_MIN || delay > MISSED_LATE_MIN)) return { error: 'too_far' };
-  // На скільки діб зсунулась дата розкладу відносно «зараз» (північ між розкладом і фактом)
-  const dayShift = Math.round((at - delay - scheduledMins) / 1440);
+  // На скільки діб зсунулась дата розкладу відносно моменту події (північ між розкладом і фактом)
+  const dayShift = Math.round((actual - delay - scheduledMins) / 1440);
   return {
     row: {
       kind: input.kind,
@@ -166,11 +204,12 @@ export function buildArrivalRow(
       stopId: input.stopId,
       serviceDate: shiftDate(date, dayShift),
       scheduledTime: input.scheduledTime,
-      actualTime: input.kind === 'arrived' ? minsToHhmm(at) : null,
+      actualTime: input.kind === 'arrived' ? minsToHhmm(actual) : null,
       delayMin: input.kind === 'arrived' ? delay : null,
       waitedMin: input.kind === 'missed' ? input.waitedMin : null,
       source: input.source,
       clientId: input.clientId,
+      clientEventId: input.clientEventId,
     },
   };
 }
@@ -244,6 +283,7 @@ export async function arrivalReportStats(
     waitedMin: r.waitedMin,
     source: r.source as ArrivalSource,
     clientId: r.clientId,
+    clientEventId: r.clientEventId ?? null,
     createdAt: r.createdAt.toISOString(),
   }));
 

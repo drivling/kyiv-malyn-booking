@@ -1,7 +1,7 @@
 # Записи без мережі: outbox для табло транспорту
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** фази 0–1 закомічені й запушені (сесію перервав ліміт використання 2026-10-15); далі — фаза 2 (бекенд: `occurredAt` + `clientEventId`, міграція, `backend/dist`), потім 3 і 4; перед суїтами знову поставити стаби `compression` / `uqr` (див. «Фаза 0» у знахідках) — їх після сесії видалено  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳  
+**Де зупинились:** фази 0–2 закомічені; далі — фаза 3 («факт прибуття» через outbox), потім 4; перед суїтами потрібні стаби `compression` / `uqr` (див. «Фаза 0» у знахідках)  
 **Created:** 2026-10-15 · **Гілка:** `merenkoff/eloquent-lalande-e7938b` (від `main` після #86)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -86,15 +86,15 @@ sticker-return | arrival-report`. Не у воркері: API крос-доме�
   ліміт спроб, хук), доповнення в `stickerScan`/`stickerReturn` тестах (офлайн → у черзі → `online` → POST)
 
 Фаза 2 — бекенд: час події і ідемпотентність
-- [ ] **2.1** `prisma/schema.prisma`: `TransportArrivalReport.clientEventId String?`, `@@unique([clientId,
+- [x] **2.1** `prisma/schema.prisma`: `TransportArrivalReport.clientEventId String?`, `@@unique([clientId,
   clientEventId])`; міграція `20261015120000_arrival_report_client_event_id`
-- [ ] **2.2** `arrival-reports.ts`: `parseArrivalReport` читає `occurredAt` (ISO; невалідний → 400) і
+- [x] **2.2** `arrival-reports.ts`: `parseArrivalReport` читає `occurredAt` (ISO; невалідний → 400) і
   `clientEventId` (як `clientId`: невалідний → null); `buildArrivalRow` від `occurredAt` із запобіжниками
   (`MAX_CLOCK_AHEAD_MIN = 5`, `MAX_OCCURRED_AGE_DAYS = 7`, помилка `too_old`); рядок із `clientEventId`
-- [ ] **2.3** `routes/transport.ts`: пошук за `(clientId, clientEventId)` → 200 `{ counted: false }`; P2002 → те
+- [x] **2.3** `routes/transport.ts`: пошук за `(clientId, clientEventId)` → 200 `{ counted: false }`; P2002 → те
   саме; 422 для `too_old`
-- [ ] **2.4** Тести в `arrival-reports.test.ts`; `backend/dist` перезібрано (`npm run build`) і закомічено разом із src
-- [ ] **2.5** `frontend/src/types/index.ts`: `ArrivalReportBody.occurredAt?`, `clientEventId?`
+- [x] **2.4** Тести в `arrival-reports.test.ts`; `backend/dist` перезібрано (`npm run build`) і закомічено разом із src
+- [x] **2.5** `frontend/src/types/index.ts`: `ArrivalReportBody.occurredAt?`, `clientEventId?`
 
 Фаза 3 — «Факт прибуття» через outbox
 - [ ] **3.1** `ArrivalReportSheet.tsx`: тіло з `occurredAt` + `clientEventId`, `sendOrQueue` з ключем
@@ -144,3 +144,17 @@ sticker-return | arrival-report`. Не у воркері: API крос-доме�
 - `navigator.locks.request(…, { ifAvailable: true })` — у jsdom `locks` нема, тож тести йдуть без блокування;
   у браузері друга вкладка просто пропускає прохід.
 - Тести: `outbox.test.ts` (20 кейсів разом із доповненнями в `stickerScan` / `stickerReturn`), eslint і `tsc` чисті.
+
+### Фаза 2 — бекенд: час події і ідемпотентність (зроблено, 2026-10-15)
+
+- `resolveOccurredAt(occurredAt, now)` винесено окремо від `buildArrivalRow`: три правила (нема → `now`;
+  поспішає > 5 хв → `now`; старше 7 днів → null → `too_old`) видно в одному місці й тестуються без рядка.
+- `occurredAt` невалідний (не рядок, не дата) → `parseArrivalReport` повертає null → 400, як і решта тіла;
+  порожній / null — як відсутній. `clientEventId` поводиться як `clientId`: невалідний — null, не помилка.
+- Ідемпотентність: `findFirst` за `(clientId, clientEventId)` до IP-дедупу (повтор із черги може прийти з іншої
+  мережі через години) + `P2002` на `create` для гонки двох вкладок; без `clientId` ключа нема — старі клієнти
+  працюють як досі. Відповідь дублю — `actualTime` / `delayMin` зі збереженого рядка.
+- Міграція написана руками за зразком `booking_reminders` (`prisma migrate dev` потребує живої бази): колонка
+  `clientEventId TEXT` + унікальний індекс `(clientId, clientEventId)`; у Postgres NULL не конфліктує.
+- HTTP-тест іде за реальним часом із `occurredAt = now − 3 год` і розкладом, порахованим від нього: за серверним
+  часом такий звіт був би 422. `backend/dist`: змінились лише `arrival-reports.js` і `routes/transport.js`.
