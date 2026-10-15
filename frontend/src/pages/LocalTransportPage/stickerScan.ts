@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiClient } from '@/api/client';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { visitorId } from '@/analytics/visitorId';
+import { sendOrQueue } from '@/pwa/outbox';
 import type { StickerSide } from '@/types';
+import { getKyivDateString } from './kyivTime';
 import { rememberStickerOrigin } from './stickerReturn';
 
 /**
@@ -37,7 +38,8 @@ export const GA_SKIP_STATE = { gaSkip: true } as const;
 /**
  * Відкриття табло з наклейки: подія GA4 `transport_sticker_open` і запис у базу
  * (POST /transport/sticker-scans → лічильники в адмінці). Один раз за сесію браузера на наклейку —
- * перезавантаження й «назад» не рахуються; без sessionStorage повтори відсіює сервер.
+ * перезавантаження й «назад» не рахуються; без sessionStorage повтори відсіює сервер. Без мережі запис
+ * чекає в outbox (`src/pwa/outbox.ts`, ключ «наклейка + київська доба») і йде, щойно вона з'явиться.
  *
  * Потім мітку на адресі міняємо на `utm_source=reload` (toReloadMark): інакше вкладка, яку браузер
  * відновить завтра, знову прийде з `utm_source=sticker` і порахується як новий скан. Міняємо після
@@ -65,7 +67,8 @@ export function useStickerScan(search: string): void {
     if (!seen) {
       gaTrackEvent('transport_sticker_open', { stop: scan.stopId, side: scan.side });
       const clientId = visitorId();
-      void apiClient.trackStickerScan(clientId ? { ...scan, clientId } : scan).catch(() => undefined);
+      const key = `scan:${scan.stopId}-${scan.side}:${getKyivDateString()}`;
+      void sendOrQueue('sticker-scan', clientId ? { ...scan, clientId } : scan, key).catch(() => undefined);
     }
     // після ефектів батьків, тобто вже після page_view з міткою
     const strip = window.setTimeout(() => {

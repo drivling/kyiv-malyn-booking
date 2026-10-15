@@ -14,6 +14,16 @@ export function getKyivMinutesNow(): number {
   return h * 60 + m;
 }
 
+/** Київська дата YYYY-MM-DD моменту часу — ключі дедупу outbox (src/pwa/outbox.ts) */
+export function getKyivDateString(at: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Kyiv',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
+}
+
 export function getKyivCalendarDate(): { d: number; m: number; y: number } {
   const s = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Kyiv',

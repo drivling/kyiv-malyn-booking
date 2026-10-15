@@ -995,8 +995,13 @@ model TransportArrivalReport {
   source        String
   /// Анонімний id браузера (localStorage) — відсіяти дублі/спам в аналізі; не персональні дані
   clientId      String?
+  /// Id запису в outbox браузера (Docs/transport-offline-writes-2026-10.md): разом із clientId — ключ
+  /// ідемпотентності, бо звіт із черги може прийти повторно. NULL — клієнти без черги й старі рядки
+  clientEventId String?
+  /// Час отримання сервером; час події — serviceDate + actualTime (від occurredAt клієнта або серверного «зараз»)
   createdAt     DateTime @default(now())
 
+  @@unique([clientId, clientEventId])
   @@index([routeId, stopId, scheduledTime])
   @@index([serviceDate])
   @@index([createdAt])

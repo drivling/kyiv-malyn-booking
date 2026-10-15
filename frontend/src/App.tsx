@@ -18,6 +18,7 @@ import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
 import { DomainGuard, LocalTransportGate, useFreshBuild, useHomeCityHandoff } from '@/site';
 import { useStickerReturn } from '@/pages/LocalTransportPage/stickerReturn';
+import { useOutboxSync } from '@/pwa/outbox';
 import { UpdateBanner } from '@/pwa/UpdateBanner';
 import { useTransportServiceWorker } from '@/pwa/useTransportServiceWorker';
 import './App.css';
@@ -56,6 +57,8 @@ function AppContent() {
   useTransportServiceWorker();
   // люди з QR-наклейок, що повертаються на сайт (stickerReturn.ts)
   useStickerReturn();
+  // записи, що чекали на мережу (скани, повернення, факт прибуття) — src/pwa/outbox.ts
+  useOutboxSync();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
   // Віджет на стіну — як окремий застосунок: без меню сайту й адмінки

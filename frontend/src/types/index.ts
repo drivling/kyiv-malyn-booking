@@ -1062,12 +1062,16 @@ export interface ArrivalReportBody {
   /** missed: скільки хвилин людина чекала */
   waitedMin?: number;
   clientId?: string;
+  /** Момент натискання (ISO, годинник телефона) — звіт із outbox може прийти через години */
+  occurredAt?: string;
+  /** Id запису в outbox: повтор із тим самим id не створює другого рядка */
+  clientEventId?: string;
 }
 
 export interface ArrivalReportResult {
   ok: boolean;
   counted: boolean;
-  /** Фактичний київський час за годинником сервера; для missed — null */
+  /** Фактичний київський час (від occurredAt або годинника сервера); для missed — null */
   actualTime: string | null;
   delayMin: number | null;
 }
@@ -1088,6 +1092,8 @@ export interface ArrivalReportView {
   waitedMin: number | null;
   source: 'route' | 'board';
   clientId: string | null;
+  /** Id запису в outbox браузера; null — надіслано одразу або старий клієнт */
+  clientEventId?: string | null;
   createdAt: string;
 }
 
