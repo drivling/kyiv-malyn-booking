@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { cacheControlFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING } from '../../scripts/serve-dist-rules.mjs';
+import { cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: old Zubustik-site URLs (plan 1.10)', () => {
   it('301s booking-intent pages of the old site to the Kyiv corridor', () => {
@@ -56,6 +56,19 @@ describe('serve-dist rules: transport PWA files (Docs/transport-pwa-2026-10.md, 
     for (const p of ['/robots.txt', '/sitemap.xml', '/llms.txt', '/transport/scheme/malyn-transit-scheme-poster.pdf']) {
       expect(cacheControlFor(p), p).toBe('public, max-age=3600');
     }
+  });
+
+  it('tells the CDN to keep no copy of what the browser must revalidate (Cloudflare caches .js by extension)', () => {
+    expect(NO_CACHE_HEADERS).toEqual({ 'Cache-Control': 'no-cache', 'CDN-Cache-Control': 'no-store' });
+    for (const p of ['/transport-sw.js', '/transport.webmanifest', '/transport/dataset.json', '/transport/routes.json', '/index.html', '/transport/index.html']) {
+      expect(cacheHeadersFor(p), p).toEqual({ 'Cache-Control': 'no-cache', 'CDN-Cache-Control': 'no-store' });
+    }
+  });
+
+  it('leaves cacheable files to Cache-Control alone', () => {
+    expect(cacheHeadersFor('/assets/index-PzoziBg2.js')).toEqual({ 'Cache-Control': 'public, max-age=31536000, immutable' });
+    expect(cacheHeadersFor('/icons/transport-192.png')).toEqual({ 'Cache-Control': 'public, max-age=86400' });
+    expect(cacheHeadersFor('/robots.txt')).toEqual({ 'Cache-Control': 'public, max-age=3600' });
   });
 
   it('serves the worker and the manifest only on the primary domain', () => {

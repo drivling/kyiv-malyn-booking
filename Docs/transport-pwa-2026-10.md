@@ -321,6 +321,13 @@ revision `2026-10-14T13:17:49Z`, 360 зупинок, 11 маршрутів, 264 
    одразу — `BUILD_ID` з проду збігся зі списком precache поточного `index-DkCEuY6b.js`. Якщо хочеться, щоб заголовок
    відповідав чеклісту: Cloudflare → Caching → Cache Rules → `/transport-sw.js` → Bypass cache (або Browser TTL
    «Respect origin»). У smoke-чеклісті рядок про curl уточнено.
+   **Доповнення 2026-10-15.** Наслідки все ж були: `npm run pwa:smoke` зловив `cf-cache-status: HIT` і дві збірки
+   воркера одночасно (curl з edge — попередній `BUILD_ID`, браузер — новий). Для Cloudflare з увімкненим Origin Cache
+   Control (усі плани, крім Enterprise) `no-cache` означає «кешувати й перевіряти», а не «не кешувати». Тому serve-dist
+   тепер шле поряд `CDN-Cache-Control: no-store` (`NO_CACHE_HEADERS` / `cacheHeadersFor` у `serve-dist-rules.mjs`) для
+   всього, що має `no-cache`: цей заголовок CDN читає замість `Cache-Control`, `no-store` дає `cf-cache-status: BYPASS`,
+   і перекрити його може лише Cache Rule з Edge TTL «Override origin» (такого в зоні немає). Браузери заголовок
+   ігнорують. Перевірка після деплою — рядок про curl у `Docs/transport-pwa-smoke.md`.
 2. **`/transport/route/1` на проді — планер.** №1 позначений `unreliable` і схований, тож приклад у чеклісті був
    невдалим; замінено на `/transport/route/2`.
 3. **korosten.kiev.ua віддає `/transport/dataset.json` 200** — primary-only лише воркер і маніфест. Нешкідливо (знімок —
@@ -382,4 +389,5 @@ revision `2026-10-14T13:17:49Z`, 360 зупинок, 11 маршрутів, 264 
   попередню (смужка і банер — `role="status"`).
 - [ ] Після наступного деплою фронтенду — розділ «Оновлення версії» в `Docs/transport-pwa-smoke.md` (новий
   `malin-transport-shell-<id>`, старий видалено; банер при відкритій модалці; `/admin/*` не перезавантажується).
-- [ ] (опційно) Cloudflare Cache Rule для `/transport-sw.js`, якщо хочеться бачити `no-cache` у заголовку (знахідка 1).
+- [x] Знахідка 1 закрита з боку origin: `CDN-Cache-Control: no-store` у serve-dist (доповнення до знахідки 1). Cache Rule
+  у панелі Cloudflare потрібне лише якщо після деплою `curl -I …/transport-sw.js` і далі показує `HIT` / `EXPIRED`.
