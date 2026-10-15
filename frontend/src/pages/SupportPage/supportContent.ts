@@ -246,6 +246,7 @@ export const CITY_TRANSPORT_TOC: Array<{ id: string; label: string }> = [
   { id: 'city-how', label: 'Три способи користуватися' },
   { id: 'city-hubs', label: 'Зручні точки в місті' },
   { id: 'city-fare', label: 'Проїзд' },
+  { id: 'city-open-data', label: 'Дані відкриті' },
   { id: 'city-faq', label: 'Часті питання' },
 ];
 
