@@ -6,8 +6,8 @@ describe('InstallOffer: картка встановлення (Docs/transport-pw
   it('iPhone: іконка застосунку, навіщо, і три кроки з назвами кнопок Safari', () => {
     render(<InstallOffer kind="ios-hint" />);
     expect(screen.getByRole('region', { name: 'Встановлення застосунку' })).toBeInTheDocument();
-    expect(screen.getByText('Встановіть «Транспорт Малина» на телефон')).toBeInTheDocument();
-    expect(screen.getByRole('presentation')).toHaveAttribute('src', '/icons/transport-192.png'); // alt="" — декоративна
+    expect(screen.getByText('Встановіть «Як доїхати» на телефон')).toBeInTheDocument();
+    expect(screen.getByRole('presentation')).toHaveAttribute('src', '/icons/yak-doikhaty-192.png'); // alt="" — декоративна
     const steps = screen.getAllByRole('listitem');
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent('«Поділитися»');

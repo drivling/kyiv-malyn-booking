@@ -1,5 +1,5 @@
 /**
- * Картка «Встановіть «Транспорт Малина» на телефон» під міні-навігацією транспорту
+ * Картка «Встановіть «Як доїхати» на телефон» під міні-навігацією транспорту
  * (Docs/transport-pwa-2026-10.md, «Картка встановлення»). Люди не розуміли коротку смужку й не знаходили
  * «Поділитися → На Початковий екран» на iPhone — тому тут іконка застосунку, одне речення навіщо, і кроки
  * з намальованими іконками саме тих кнопок, які треба натиснути:
@@ -16,7 +16,7 @@ interface Props {
   kind: InstallOfferKind;
 }
 
-const APP_ICON = '/icons/transport-192.png';
+const APP_ICON = '/icons/yak-doikhaty-192.png';
 
 function Step({ no, icon, children }: { no: number; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -41,7 +41,7 @@ export function InstallOffer({ kind }: Props) {
       <div className="lt-install-head">
         <img className="lt-install-icon" src={APP_ICON} alt="" width="48" height="48" />
         <div className="lt-install-copy">
-          <p className="lt-install-title">Встановіть «Транспорт Малина» на телефон</p>
+          <p className="lt-install-title">Встановіть «Як доїхати» на телефон</p>
           <p className="lt-install-lead">
             Табло і розклад відкриваються без інтернету — одним дотиком з головного екрана, як звичайний застосунок.
           </p>
@@ -66,7 +66,7 @@ export function InstallOffer({ kind }: Props) {
             Прогорніть список і оберіть <b>«На Початковий екран»</b>
           </Step>
           <Step no={3} icon={<CheckIcon />}>
-            Натисніть <b>«Додати»</b> — іконка з маршруткою з'явиться поруч з іншими застосунками
+            Натисніть <b>«Додати»</b> — іконка зі схемою маршрутів з'явиться поруч з іншими застосунками
           </Step>
         </ol>
       )}

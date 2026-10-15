@@ -266,9 +266,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   session. Dev and prerender have no `/assets/index-*` script, so it is off there.
 - **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`; the real worker is checked only
   by hand or with `npm run pwa:smoke` in `frontend/` against a deployed site — never in CI): `/transport*` works offline and
-  installs as «Транспорт Малина» (`public/transport.webmanifest`, scope `/transport`, icons from `npm run pwa:icons`, PNGs
-  committed). Two layers. Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes
-  from the API (same `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by
+  installs as «Як доїхати» (`public/transport.webmanifest`, scope `/transport`; the menu entry and SEO titles stay «Транспорт
+  Малина»). The icon is a slice of the route scheme drawn by `npm run pwa:icons` from the scheme's colours, PNGs committed;
+  a new drawing gets new `icons/` file names, because browsers and Cloudflare keep `/icons/*` for a day. Two layers.
+  Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes from the API (same
+  `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by
   `prerender-transport-stops.mjs`; `TransportStatusBar` tells the user («Без мережі…» / «Сервер не відповідає…»). Shell:
   `sw/transport-sw.js` is a template, `scripts/build-sw.mjs` (after the prerenders) fills the precache list and `BUILD_ID`
   (`scripts/precache.mjs`, hash of the list + content of non-hashed files, so a data-only deploy reaches installed apps);

@@ -4,7 +4,7 @@
 /// <reference lib="webworker" />
 
 /**
- * Service worker застосунку «Транспорт Малина» (Docs/transport-pwa-2026-10.md, фаза 4). ШАБЛОН:
+ * Service worker застосунку «Як доїхати» (Docs/transport-pwa-2026-10.md, фаза 4). ШАБЛОН:
  * `scripts/build-sw.mjs` підставляє список precache і BUILD_ID (sha256 списку + вмісту нехешованих файлів)
  * і пише `dist/transport-sw.js`. Реєструється з `src/pwa/serviceWorker.ts` зі scope `/transport`, тож решта
  * сайту і адмінка на тому ж origin ніколи не під його контролем.
