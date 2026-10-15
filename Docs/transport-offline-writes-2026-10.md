@@ -1,7 +1,7 @@
 # Записи без мережі: outbox для табло транспорту
 
-**Status:** Фаза 0 ✅ · Фаза 1 ⏳ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** файл відновлення написано; далі — фаза 1 (outbox для наклейок)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
+**Де зупинились:** фази 0–1 закомічені й запушені (сесію перервав ліміт використання 2026-10-15); далі — фаза 2 (бекенд: `occurredAt` + `clientEventId`, міграція, `backend/dist`), потім 3 і 4; перед суїтами знову поставити стаби `compression` / `uqr` (див. «Фаза 0» у знахідках) — їх після сесії видалено  
 **Created:** 2026-10-15 · **Гілка:** `merenkoff/eloquent-lalande-e7938b` (від `main` після #86)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -76,13 +76,13 @@ sticker-return | arrival-report`. Не у воркері: API крос-доме�
 - [x] **0.1** Цей файл; рядок-посилання з таблиці етапів у `Docs/transport-pwa-2026-10.md`
 
 Фаза 1 — outbox для наклейок (лише фронтенд)
-- [ ] **1.1** `src/pwa/outbox.ts`: `enqueueOutbox`, `flushOutbox` (single-flight, `navigator.locks` де є),
+- [x] **1.1** `src/pwa/outbox.ts`: `enqueueOutbox`, `flushOutbox` (single-flight, `navigator.locks` де є),
   `sendOrQueue`, `isRetryableError`, `outboxPending` + `subscribeOutbox` + `useOutboxPending`, `useOutboxSync`;
   межі 50 / 7 днів / 10 спроб; дедуп за `key`; no-op під `isPrerendering()`
-- [ ] **1.2** `kyivTime.ts`: `getKyivDateString()` для ключів
-- [ ] **1.3** `stickerScan.ts`, `stickerReturn.ts` → `sendOrQueue`; `App.tsx` → `useOutboxSync()`;
+- [x] **1.2** `kyivTime.ts`: `getKyivDateString()` для ключів
+- [x] **1.3** `stickerScan.ts`, `stickerReturn.ts` → `sendOrQueue`; `App.tsx` → `useOutboxSync()`;
   `useTransportDataset.ts` → `flushOutbox()` після успішного датасету
-- [ ] **1.4** `src/pwa/outbox.test.ts` (черга, дедуп, межі, повтор на `online`, 4xx викидається, 5xx лишається,
+- [x] **1.4** `src/pwa/outbox.test.ts` (черга, дедуп, межі, повтор на `online`, 4xx викидається, 5xx лишається,
   ліміт спроб, хук), доповнення в `stickerScan`/`stickerReturn` тестах (офлайн → у черзі → `online` → POST)
 
 Фаза 2 — бекенд: час події і ідемпотентність
@@ -134,3 +134,13 @@ sticker-return | arrival-report`. Не у воркері: API крос-доме�
   посилання на основний чекаут. Базова лінія до змін: backend 67 файлів / 584 тести ✅, `tsc` чистий після
   `prisma generate` (клієнт у клоні був застарілий — `accessHash`), `dist` збігається з `src`; frontend 85 файлів,
   596 ✅ + 2 ❌ у `stickerSvg.test.ts` лише через стаб `uqr`.
+
+### Фаза 1 — outbox для наклейок (зроблено, 2026-10-15)
+
+- `useSyncExternalStore` для лічильника: `getSnapshot` — число, тож повторні виклики React не ламають; черга
+  перечитується з localStorage (≤ 50 коротких записів — дешево), зміни з інших вкладок — через подію `storage`.
+- `flushNow` після кожного запису перечитує чергу з localStorage (інша вкладка могла вже надіслати), а при
+  невдалому записі в localStorage виходить із циклу — інакше запис, який не вдається видалити, крутився б вічно.
+- `navigator.locks.request(…, { ifAvailable: true })` — у jsdom `locks` нема, тож тести йдуть без блокування;
+  у браузері друга вкладка просто пропускає прохід.
+- Тести: `outbox.test.ts` (20 кейсів разом із доповненнями в `stickerScan` / `stickerReturn`), eslint і `tsc` чисті.

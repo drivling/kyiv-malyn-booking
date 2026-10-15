@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { apiClient } from '@/api/client';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { visitorId } from '@/analytics/visitorId';
+import { sendOrQueue } from '@/pwa/outbox';
 import { isPrerendering } from '@/utils/prerender';
 import type { StickerReturnBody, StickerSide } from '@/types';
+import { getKyivDateString } from './kyivTime';
 
 /**
  * Люди, що прийшли з QR-наклейки й користуються сайтом далі. При скані (stickerScan.ts) браузер
@@ -15,6 +16,7 @@ import type { StickerReturnBody, StickerSide } from '@/types';
  *
  * via: reload — відновлена вкладка табло (адреса після скану має `utm_source=reload`),
  * tab — повернулись до вже відкритої вкладки, direct — відкрили сайт інакше.
+ * Без мережі запис чекає в outbox (`src/pwa/outbox.ts`): одна наклейка — один запис за київську добу.
  */
 
 const ORIGIN_KEY = 'sticker-origin';
@@ -71,9 +73,8 @@ function sendReturn(origin: Origin, via: StickerReturnBody['via'], pathname: str
   const clientId = visitorId();
   if (!clientId) return;
   gaTrackEvent('transport_sticker_return', { stop: origin.stopId, side: origin.side, via });
-  void apiClient
-    .trackStickerReturn({ stopId: origin.stopId, side: origin.side, clientId, via, page: returnPage(pathname) })
-    .catch(() => undefined);
+  const body: StickerReturnBody = { stopId: origin.stopId, side: origin.side, clientId, via, page: returnPage(pathname) };
+  void sendOrQueue('sticker-return', body, `return:${origin.stopId}-${origin.side}:${getKyivDateString()}`).catch(() => undefined);
 }
 
 /** У корені застосунку: повернення людини з наклейки — при відкритті сайту й при поверненні до вкладки */
