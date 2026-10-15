@@ -294,6 +294,39 @@
   font-weight: 600;
 }
 
+/* ---- «Дані відкриті»: GTFS / JSON з собою (Docs/transport-open-data-2026-10.md) */
+.lts-open-data {
+  margin: 18px var(--lt-panel-x) 0;
+  padding: 14px 16px;
+  border: 1px solid var(--lt-border);
+  border-radius: var(--lt-radius-sm);
+  background: var(--lt-bg-soft, #f6f9fa);
+  max-width: 72ch;
+}
+
+.lts-open-data-title {
+  margin: 0;
+  font-size: var(--lt-fs-base);
+  font-weight: 700;
+}
+
+.lts-open-data-text,
+.lts-open-data-meta {
+  margin: 6px 0 0;
+  font-size: var(--lt-fs-sm);
+  color: var(--lt-text-muted);
+  line-height: 1.5;
+}
+
+.lts-open-data-meta {
+  margin-top: 10px;
+}
+
+.lts-open-data-meta a {
+  color: var(--lt-accent);
+  font-weight: 600;
+}
+
 @media (max-width: 767px) {
   .lts-toolbar {
     gap: 8px 12px;
@@ -314,7 +347,8 @@
   .lts-toolbar,
   .lts-card-actions,
   .lts-hint,
-  .lts-poster {
+  .lts-poster,
+  .lts-open-data {
     display: none !important;
   }
   .lts-canvas {

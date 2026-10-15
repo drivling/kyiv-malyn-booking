@@ -1,7 +1,7 @@
 # Дані належать людині: відкритий GTFS і JSON транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 — лише план  
-**Де зупинились:** фази 0–1 закомічені; далі фаза 2 — блок «Дані відкриті» на `/transport/scheme`  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 — лише план  
+**Де зупинились:** фази 0–2 закомічені; далі фаза 3 — документація для людей, `/support/transport`, `llms.txt`  
 **Created:** 2026-10-16 · **Гілка:** `merenkoff/reverent-grothendieck-d7950b` (від `main` після #88)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -128,11 +128,11 @@ attachment; filename="malyn-gtfs.zip"` робить клік «Завантаж�
 - [x] **1.6** `backend/dist` перезібрано і закомічено разом із src; `CLAUDE.md` — абзац про GTFS-ендпоінт
 
 Фаза 2 — сторінка (фронтенд)
-- [ ] **2.1** `LocalTransportPage/openData.ts`: `OPEN_DATA_LICENSE`, `GTFS_FEED_URL`, `DATASET_JSON_URL`, `OPEN_DATA_DOC_URL`
-- [ ] **2.2** `LocalTransportSchemePage.tsx`: блок «Дані відкриті» (`#open-data`), кнопки, ліцензія, «станом на»;
+- [x] **2.1** `LocalTransportPage/openData.ts`: `OPEN_DATA_LICENSE`, `GTFS_FEED_URL`, `DATASET_JSON_URL`, `OPEN_DATA_DOC_URL`
+- [x] **2.2** `LocalTransportSchemePage.tsx`: блок «Дані відкриті» (`#open-data`), кнопки, ліцензія, «станом на»;
   CSS у `LocalTransportSchemePage.css`
-- [ ] **2.3** GA `transport_data_download` `{ format }` + рядок у `Docs/transport-analytics.md`
-- [ ] **2.4** Тести в `LocalTransportSchemePage.test.tsx` (href обох кнопок, ліцензія, «станом на» з revision, GA-подія)
+- [x] **2.3** GA `transport_data_download` `{ format }` + рядок у `Docs/transport-analytics.md`
+- [x] **2.4** Тести в `LocalTransportSchemePage.test.tsx` (href обох кнопок, ліцензія, «станом на» з revision, GA-подія)
 
 Фаза 3 — документація
 - [ ] **3.1** `Docs/transport-open-data.md` для людей: що за файли, як відкрити (OpenTripPlanner, gtfs-validator,
@@ -162,6 +162,22 @@ attachment; filename="malyn-gtfs.zip"` робить клік «Завантаж�
 _Заповнюється наприкінці цієї сесії._
 
 ## Знахідки по фазах
+
+### Фаза 2 — блок «Дані відкриті» (зроблено, 2026-10-16)
+
+- `openData.ts` — лише константи (URL, ліцензія, тип формату): eslint `react-refresh/only-export-components` не пускає
+  їх у файл сторінки. `GTFS_FEED_URL` з `API_URL` — у тестах це `http://localhost:3000` (`TEST_API_URL`).
+- Блок — `<section id="open-data" aria-labelledby>` → `role="region"` у тестах; `rel="license"` на посиланні ліцензії,
+  `download` лише на JSON (same-origin). Існуючий тест «Показати всі → жодного h2» звужено до заголовка картки, бо
+  тепер на сторінці завжди є h2 «Дані відкриті».
+- «станом на» — `formatDataAsOf(dataAsOf)` з хука, тобто жива `revision` (на проді 2026-10-16 показує 14.10.2026);
+  у jsdom-тесті датасет без `revision` дає час копії, тому тест на дату кладе `revision` у відповідь MSW і чистить
+  кеш хука до/після.
+- Перевірено в браузері на dev-сервері з прод-API (`VITE_API_URL=…railway.app`, тимчасовий запис у
+  `.claude/launch.json`, прибрано): блок під абзацом про плакат, кнопки, ліцензія, дата. Сам `gtfs.zip` на проді
+  з'явиться після деплою бекенду — до того кнопка GTFS на проді дає 404.
+- Тести: `LocalTransportSchemePage.test.tsx` +2 (посилання/ліцензія/дата, GA-подія); frontend 87 файлів: 623 ✅ + 2 ❌ у
+  `stickerSvg.test.ts` лише через стаб `uqr` (як в етапі 2); `tsc` і eslint чисті.
 
 ### Фаза 1 — публічний GTFS (зроблено, 2026-10-16)
 

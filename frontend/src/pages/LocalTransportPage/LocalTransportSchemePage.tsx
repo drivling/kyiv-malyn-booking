@@ -14,6 +14,8 @@ import './LocalTransportPage.css';
 import './scheme/scheme-svg.css';
 import './LocalTransportSchemePage.css';
 import { routeNo } from '@/utils/routeNames';
+import { formatDataAsOf } from './dataAsOf';
+import { DATASET_JSON_FILENAME, DATASET_JSON_URL, GTFS_FEED_URL, OPEN_DATA_DOC_URL, OPEN_DATA_LICENSE, type OpenDataFormat } from './openData';
 
 const SITE = 'https://malin.kiev.ua';
 /** Статика з frontend/public (генерується build_scheme.py --poster-dir; PDF — Chromium print, див. README) */
@@ -203,6 +205,9 @@ export function LocalTransportSchemePage() {
     }
   };
 
+  const dataAsOfText = formatDataAsOf(dataAsOf);
+  const onDataDownload = (format: OpenDataFormat) => gaTrackEvent('transport_data_download', { format });
+
   let metaLine = 'Розклад: дивіться сторінку маршруту';
   if (active?.unconfirmed) metaLine = 'Розклад уточнюється';
   else if (stats) metaLine = `${stats.tripsPerDirection} рейсів у кожен бік · ${stats.first}–${stats.last}`;
@@ -352,6 +357,37 @@ export function LocalTransportSchemePage() {
           <p className="lts-poster">
             Плакат для друку з QR-кодом: <a href={POSTER_PDF}>PDF</a> · <a href={POSTER_SVG}>SVG</a>
           </p>
+
+          {/* Дані належать людині (Docs/transport-open-data-2026-10.md): стабільні посилання, без стану браузера */}
+          <section id="open-data" className="lts-open-data" aria-labelledby="lts-open-data-title">
+            <h2 id="lts-open-data-title" className="lts-open-data-title">
+              Дані відкриті
+            </h2>
+            <p className="lts-open-data-text">
+              Зупинки, маршрути й розклад можна забрати з собою і відкрити в будь-якому застосунку — у стандартному
+              форматі GTFS або як JSON сайту.
+            </p>
+            <div className="lts-card-actions">
+              <a className="lts-btn lts-btn--primary" href={GTFS_FEED_URL} onClick={() => onDataDownload('gtfs')}>
+                Завантажити розклад (GTFS)
+              </a>
+              <a className="lts-btn" href={DATASET_JSON_URL} download={DATASET_JSON_FILENAME} onClick={() => onDataDownload('json')}>
+                Дані у JSON
+              </a>
+            </div>
+            <p className="lts-open-data-meta">
+              Ліцензія{' '}
+              <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
+                {OPEN_DATA_LICENSE.name}
+              </a>
+              {' — '}використовуйте вільно, вкажіть джерело «malin.kiev.ua»
+              {dataAsOfText && ` · станом на ${dataAsOfText}`}
+              {' · '}
+              <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
+                як відкрити
+              </a>
+            </p>
+          </section>
         </div>
       </div>
     </div>

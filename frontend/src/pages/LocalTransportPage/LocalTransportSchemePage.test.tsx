@@ -89,7 +89,8 @@ describe('LocalTransportSchemePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Показати всі' }));
     expect(container.querySelector('.lts-route--dim')).toBeNull();
-    expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+    // Картка маршруту зникла (h2 «Дані відкриті» внизу сторінки лишається)
+    expect(screen.queryByRole('heading', { level: 2, name: /Лісотехнікум/ })).toBeNull();
   });
 
   it('clicking a line inside the SVG toggles the same highlight', () => {
@@ -191,6 +192,53 @@ describe('LocalTransportSchemePage', () => {
     const hub = container.querySelector('.lts-stop[data-stop="st_0054"]') as Element;
     fireEvent.keyDown(hub, { key: 'Enter' });
     expect(await screen.findByText('Табло зупинки')).toBeInTheDocument();
+  });
+});
+
+describe('LocalTransportSchemePage: «Дані відкриті» (Docs/transport-open-data-2026-10.md)', () => {
+  it('links to the GTFS feed on the API and the JSON snapshot, names the license and the data revision', async () => {
+    invalidateTransportDatasetCache(); // інші тести закешували датасет без revision
+    try {
+      renderPage('/transport/scheme', { ...dataset, revision: '2026-10-14T18:03:11.000Z' } as typeof dataset);
+      const block = screen.getByRole('region', { name: 'Дані відкриті' });
+      expect(block).toHaveAttribute('id', 'open-data');
+      expect(within(block).getByRole('link', { name: 'Завантажити розклад (GTFS)' })).toHaveAttribute(
+        'href',
+        `${TEST_API_URL}/transport/gtfs.zip`
+      );
+      const json = within(block).getByRole('link', { name: 'Дані у JSON' });
+      expect(json).toHaveAttribute('href', '/transport/dataset.json');
+      expect(json).toHaveAttribute('download', 'malyn-transport-dataset.json');
+      expect(within(block).getByRole('link', { name: 'CC BY 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+      expect(within(block).getByRole('link', { name: 'як відкрити' })).toHaveAttribute(
+        'href',
+        'https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md'
+      );
+      expect(await within(block).findByText(/станом на 14\.10\.2026/)).toBeInTheDocument();
+    } finally {
+      invalidateTransportDatasetCache();
+    }
+  });
+
+  it('download clicks report transport_data_download with the format only', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      renderPage();
+      const block = screen.getByRole('region', { name: 'Дані відкриті' });
+      for (const [name, format] of [
+        ['Завантажити розклад (GTFS)', 'gtfs'],
+        ['Дані у JSON', 'json'],
+      ] as const) {
+        const link = within(block).getByRole('link', { name });
+        link.addEventListener('click', (e) => e.preventDefault()); // jsdom не вміє навігацію
+        fireEvent.click(link);
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_data_download', { format });
+      }
+      expect(gtag).toHaveBeenCalledTimes(2);
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
   });
 });
 
