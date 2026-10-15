@@ -3,8 +3,11 @@
  *
  * Chromium кидає `beforeinstallprompt` один раз і рано, а показати діалог можна лише пізніше, з жесту
  * людини — тому подію ловимо при старті (`main.tsx`) і тримаємо для кнопки «Встановити» у смужці
- * стану транспорту. iOS такої події не має — там підказка «Поділитися → На Початковий екран», яку можна
- * закрити (localStorage). У встановленому застосунку (standalone) пропозиції нема.
+ * стану транспорту. Подію НЕ глушимо (`preventDefault`): без цього Chrome на Android сам показує свій
+ * банер «Установите приложение «Транспорт Малина»» угорі сторінки — саме так, як хоче власник; кнопка в
+ * смужці лишається запасним шляхом, коли банер закрили (Chrome не повторює його ~3 місяці). iOS такої події
+ * не має — там підказка «Поділитися → На Початковий екран», яку можна закрити (localStorage). У встановленому
+ * застосунку (standalone) пропозиції нема.
  */
 import { useSyncExternalStore } from 'react';
 
@@ -38,7 +41,7 @@ export function captureInstallPrompt(): void {
   if (typeof window === 'undefined' || captured) return;
   captured = true;
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
+    // без preventDefault — рідний банер Chrome лишається; подію тримаємо для своєї кнопки
     deferred = e as BeforeInstallPromptEvent;
     notify();
   });

@@ -41,14 +41,15 @@ describe('installPrompt (Docs/transport-pwa-2026-10.md, фаза 3)', () => {
     expect(isStandalone()).toBe(false);
   });
 
-  it('ловить beforeinstallprompt, показує діалог з кнопки і забуває подію після відповіді', async () => {
+  it('ловить beforeinstallprompt без preventDefault, показує діалог з кнопки і забуває подію після відповіді', async () => {
     const { result } = renderHook(() => useInstallOffer());
     expect(result.current).toBeNull();
     let ev!: ReturnType<typeof fireBeforeInstallPrompt>;
     act(() => {
       ev = fireBeforeInstallPrompt('accepted');
     });
-    expect(ev.defaultPrevented).toBe(true);
+    // подію не глушимо: Chrome має показати свій банер «Установите приложение…», наша кнопка — запасна
+    expect(ev.defaultPrevented).toBe(false);
     expect(result.current).toBe('prompt');
 
     let outcome: string | null = null;
