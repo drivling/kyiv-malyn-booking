@@ -1,7 +1,7 @@
 # Записи без мережі: outbox для табло транспорту
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** фази 0–2 закомічені; далі — фаза 3 («факт прибуття» через outbox), потім 4; перед суїтами потрібні стаби `compression` / `uqr` (див. «Фаза 0» у знахідках)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳  
+**Де зупинились:** фази 0–3 закомічені; далі — фаза 4 (смужка стану, документація, smoke); перед суїтами потрібні стаби `compression` / `uqr` (див. «Фаза 0» у знахідках)  
 **Created:** 2026-10-15 · **Гілка:** `merenkoff/eloquent-lalande-e7938b` (від `main` після #86)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -97,10 +97,10 @@ sticker-return | arrival-report`. Не у воркері: API крос-доме�
 - [x] **2.5** `frontend/src/types/index.ts`: `ArrivalReportBody.occurredAt?`, `clientEventId?`
 
 Фаза 3 — «Факт прибуття» через outbox
-- [ ] **3.1** `ArrivalReportSheet.tsx`: тіло з `occurredAt` + `clientEventId`, `sendOrQueue` з ключем
+- [x] **3.1** `ArrivalReportSheet.tsx`: тіло з `occurredAt` + `clientEventId`, `sendOrQueue` з ключем
   `arrival:…`; стан `queued` з локально порахованим часом і текстом «Надішлемо, щойно з'явиться мережа»;
   4xx — помилка як досі (422 → «далеко від поточного часу»)
-- [ ] **3.2** `ArrivalReport.test.tsx`: офлайн → без POST, текст черги, запис у outbox з `occurredAt` /
+- [x] **3.2** `ArrivalReport.test.tsx`: офлайн → без POST, текст черги, запис у outbox з `occurredAt` /
   `clientEventId` → `online` → POST з тим самим `clientEventId` → черга порожня; 500 → у черзі; 422 → помилка,
   не в черзі
 
@@ -158,3 +158,15 @@ sticker-return | arrival-report`. Не у воркері: API крос-доме�
   `clientEventId TEXT` + унікальний індекс `(clientId, clientEventId)`; у Postgres NULL не конфліктує.
 - HTTP-тест іде за реальним часом із `occurredAt = now − 3 год` і розкладом, порахованим від нього: за серверним
   часом такий звіт був би 422. `backend/dist`: змінились лише `arrival-reports.js` і `routes/transport.js`.
+
+### Фаза 3 — «Факт прибуття» через outbox (зроблено, 2026-10-15)
+
+- `queuedArrivalText()` живе в `arrivalReport.ts` (чистий модуль), не в компоненті: eslint
+  `react-refresh/only-export-components` не пускає функції з файлу компонента. Рахує так само, як сервер від
+  `occurredAt` (`now − minutesAgo`, `clockDiff`), тож людина бачить той самий час і запізнення, що ляжуть у базу.
+- Стан `queued` рендериться тим самим блоком, що й `done` (`role="status"`, кнопка «Готово»), плюс рядок
+  «Зараз мережі немає — надішлемо, щойно вона зʼявиться»; `aria-modal` панель і далі блокує авто-reload
+  `freshBuild`, як і раніше.
+- 422 від сервера тепер два тексти (`too far` / `too old`) → одне повідомлення «далеко від поточного часу»;
+  помилка `outbox: 'unavailable'` (без localStorage) — окремий текст замість «перевірте зʼєднання».
+- Тест «a server error is shown» (500) замінено на «5xx → у черзі»; 4xx перевіряється на 422.
