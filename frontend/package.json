@@ -10,6 +10,7 @@
     "seo:smoke": "node scripts/seo-smoke.mjs",
     "preview": "node scripts/serve-dist.mjs",
     "pwa:icons": "node scripts/gen-pwa-icons.mjs",
+    "pwa:smoke": "node scripts/pwa-smoke.mjs",
     "start": "npm run preview",
     "lint": "eslint . --ext ts,tsx,mjs,js --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
