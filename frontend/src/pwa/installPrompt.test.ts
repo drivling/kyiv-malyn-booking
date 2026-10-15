@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import {
+  HINT_DISMISS_MS,
   captureInstallPrompt,
   dismissInstallHint,
   installOfferKind,
@@ -41,14 +42,15 @@ describe('installPrompt (Docs/transport-pwa-2026-10.md, фаза 3)', () => {
     expect(isStandalone()).toBe(false);
   });
 
-  it('ловить beforeinstallprompt, показує діалог з кнопки і забуває подію після відповіді', async () => {
+  it('ловить beforeinstallprompt без preventDefault, показує діалог з кнопки і забуває подію після відповіді', async () => {
     const { result } = renderHook(() => useInstallOffer());
     expect(result.current).toBeNull();
     let ev!: ReturnType<typeof fireBeforeInstallPrompt>;
     act(() => {
       ev = fireBeforeInstallPrompt('accepted');
     });
-    expect(ev.defaultPrevented).toBe(true);
+    // подію не глушимо: Chrome має показати свій банер «Установите приложение…», наша кнопка — запасна
+    expect(ev.defaultPrevented).toBe(false);
     expect(result.current).toBe('prompt');
 
     let outcome: string | null = null;
@@ -68,13 +70,35 @@ describe('installPrompt (Docs/transport-pwa-2026-10.md, фаза 3)', () => {
     expect(installOfferKind()).toBeNull();
   });
 
-  it('iOS: підказка, поки її не закрили', () => {
+  it('iPhone: кроки для Safari, поки картку не закрили; хрестик ховає на 30 днів', () => {
     setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1');
     const { result } = renderHook(() => useInstallOffer());
     expect(result.current).toBe('ios-hint');
     act(() => dismissInstallHint());
     expect(result.current).toBeNull();
-    expect(localStorage.getItem('transport-install-hint')).toBe('1');
+    expect(Number(localStorage.getItem('transport-install-hint'))).toBeGreaterThan(Date.now() - 5_000);
+  });
+
+  it('старе значення «1» першої підказки не ховає нову картку; давнє закриття теж минає', () => {
+    setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1');
+    localStorage.setItem('transport-install-hint', '1');
+    expect(installOfferKind()).toBe('ios-hint');
+    localStorage.setItem('transport-install-hint', String(Date.now() - HINT_DISMISS_MS - 1));
+    expect(installOfferKind()).toBe('ios-hint');
+    localStorage.setItem('transport-install-hint', String(Date.now()));
+    expect(installOfferKind()).toBeNull();
+  });
+
+  it('Android без події: кроки через меню Chrome; з подією — кнопка; закрита картка ховає і кнопку', () => {
+    setUserAgent('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36');
+    const { result } = renderHook(() => useInstallOffer());
+    expect(result.current).toBe('android-hint');
+    act(() => {
+      fireBeforeInstallPrompt();
+    });
+    expect(result.current).toBe('prompt');
+    act(() => dismissInstallHint());
+    expect(result.current).toBeNull();
   });
 
   it('у встановленому застосунку (standalone) пропозиції нема', () => {

@@ -3,8 +3,12 @@
  *
  * Chromium кидає `beforeinstallprompt` один раз і рано, а показати діалог можна лише пізніше, з жесту
  * людини — тому подію ловимо при старті (`main.tsx`) і тримаємо для кнопки «Встановити» у смужці
- * стану транспорту. iOS такої події не має — там підказка «Поділитися → На Початковий екран», яку можна
- * закрити (localStorage). У встановленому застосунку (standalone) пропозиції нема.
+ * стану транспорту. Подію НЕ глушимо (`preventDefault`): без цього Chrome на Android сам показує свій
+ * банер «Установите приложение «Транспорт Малина»» угорі сторінки — саме так, як хоче власник; кнопка в
+ * смужці лишається запасним шляхом, коли банер закрили (Chrome не повторює його ~3 місяці). iOS такої події
+ * не має — там підказка «Поділитися → На Початковий екран», яку можна закрити (localStorage). У встановленому
+ * застосунку (standalone) пропозиції нема. Android без події (банер закрили або ще зарано) отримує підказку
+ * «меню ⋮ → Додати на головний екран». Хрестик картки ховає її на 30 днів для всіх варіантів.
  */
 import { useSyncExternalStore } from 'react';
 
@@ -13,10 +17,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export type InstallOfferKind = 'prompt' | 'ios-hint';
+export type InstallOfferKind = 'prompt' | 'ios-hint' | 'android-hint';
 export type InstallOutcome = 'accepted' | 'dismissed';
 
 const HINT_DISMISSED_KEY = 'transport-install-hint';
+/** Скільки не показувати картку після хрестика */
+export const HINT_DISMISS_MS = 30 * 24 * 60 * 60 * 1000;
 
 let deferred: BeforeInstallPromptEvent | null = null;
 let captured = false;
@@ -38,7 +44,7 @@ export function captureInstallPrompt(): void {
   if (typeof window === 'undefined' || captured) return;
   captured = true;
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
+    // без preventDefault — рідний банер Chrome лишається; подію тримаємо для своєї кнопки
     deferred = e as BeforeInstallPromptEvent;
     notify();
   });
@@ -60,9 +66,16 @@ export function isIos(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
 
-function hintDismissed(): boolean {
+export function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
+/** Картку закрили менш ніж 30 днів тому. Старе значення '1' (перша версія підказки) — показуємо знову: дизайн новий */
+function hintDismissed(now: number = Date.now()): boolean {
   try {
-    return localStorage.getItem(HINT_DISMISSED_KEY) === '1';
+    const at = Number(localStorage.getItem(HINT_DISMISSED_KEY));
+    return Number.isFinite(at) && at > 1 && now - at < HINT_DISMISS_MS;
   } catch {
     return false;
   }
@@ -70,18 +83,19 @@ function hintDismissed(): boolean {
 
 export function dismissInstallHint(): void {
   try {
-    localStorage.setItem(HINT_DISMISSED_KEY, '1');
+    localStorage.setItem(HINT_DISMISSED_KEY, String(Date.now()));
   } catch {
-    /* без localStorage підказка повернеться наступного разу */
+    /* без localStorage картка повернеться наступного разу */
   }
   notify();
 }
 
-/** Що пропонувати: системний діалог, підказка для iOS або нічого */
+/** Що пропонувати: системний діалог (Chromium), кроки для iPhone, кроки для Android або нічого */
 export function installOfferKind(): InstallOfferKind | null {
-  if (isStandalone()) return null;
+  if (isStandalone() || hintDismissed()) return null;
   if (deferred) return 'prompt';
-  if (isIos() && !hintDismissed()) return 'ios-hint';
+  if (isIos()) return 'ios-hint';
+  if (isAndroid()) return 'android-hint';
   return null;
 }
 
