@@ -1,7 +1,7 @@
 # Дані належать людині: відкритий GTFS і JSON транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ⏳ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 — лише план  
-**Де зупинились:** фаза 0 закомічена; далі фаза 1 — публічний GTFS на бекенді  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 — лише план  
+**Де зупинились:** фази 0–1 закомічені; далі фаза 2 — блок «Дані відкриті» на `/transport/scheme`  
 **Created:** 2026-10-16 · **Гілка:** `merenkoff/reverent-grothendieck-d7950b` (від `main` після #88)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -116,16 +116,16 @@ attachment; filename="malyn-gtfs.zip"` робить клік «Завантаж�
 - [x] **0.1** Цей файл; рядок-посилання з таблиці етапів у `Docs/transport-pwa-2026-10.md`
 
 Фаза 1 — публічний GTFS (бекенд)
-- [ ] **1.1** `backend/src/zip.ts`: `buildZip(entries, { mtime })` — store/deflate, CRC-32, детермінований; тест
-- [ ] **1.2** `backend/src/gtfs-feed.ts`: `buildGtfsFeed(dataset, { revision })` — 8 `txt` + `LICENSE.txt`,
+- [x] **1.1** `backend/src/zip.ts`: `buildZip(entries, { mtime })` — store/deflate, CRC-32, детермінований; тест
+- [x] **1.2** `backend/src/gtfs-feed.ts`: `buildGtfsFeed(dataset, { revision })` — 8 `txt` + `LICENSE.txt`,
   `feed_version = revision`, `OPEN_DATA_LICENSE`, статистика; `unreliable` поза фідом; `zipGtfsFeed(files, revision)`
-- [ ] **1.3** `scripts/export-gtfs.ts` → обгортка над `buildGtfsFeed` (ті самі файли в `data/…/gtfs/`, zip без CLI)
-- [ ] **1.4** `routes/transport.ts`: `GET /transport/gtfs.zip`, `GET /transport/gtfs/:file`; кеш за `revision`;
+- [x] **1.3** `scripts/export-gtfs.ts` → обгортка над `buildGtfsFeed` (ті самі файли в `data/…/gtfs/`, zip без CLI)
+- [x] **1.4** `routes/transport.ts`: `GET /transport/gtfs.zip`, `GET /transport/gtfs/:file`; кеш за `revision`;
   `Cache-Control: public, max-age=300`, `ETag`, `Last-Modified`, `Content-Disposition`; порожня БД → 404
-- [ ] **1.5** Тести: `gtfs-feed.test.ts` (вміст, `unreliable`, `feed_version`, LICENSE), `zip.test.ts` (розпакування
+- [x] **1.5** Тести: `gtfs-feed.test.ts` (вміст, `unreliable`, `feed_version`, LICENSE), `zip.test.ts` (розпакування
   через `zlib.inflateRawSync` за заголовками), `transport-http.test.ts` (zip-відповідь, заголовки, 304, кеш за
   `revision`, 404 файлу/порожньої БД)
-- [ ] **1.6** `backend/dist` перезібрано і закомічено разом із src; `CLAUDE.md` — абзац про GTFS-ендпоінт
+- [x] **1.6** `backend/dist` перезібрано і закомічено разом із src; `CLAUDE.md` — абзац про GTFS-ендпоінт
 
 Фаза 2 — сторінка (фронтенд)
 - [ ] **2.1** `LocalTransportPage/openData.ts`: `OPEN_DATA_LICENSE`, `GTFS_FEED_URL`, `DATASET_JSON_URL`, `OPEN_DATA_DOC_URL`
@@ -162,6 +162,20 @@ attachment; filename="malyn-gtfs.zip"` робить клік «Завантаж�
 _Заповнюється наприкінці цієї сесії._
 
 ## Знахідки по фазах
+
+### Фаза 1 — публічний GTFS (зроблено, 2026-10-16)
+
+- `buildGtfsFeed` — перенесений один в один код старого скрипта мінус `fs`: таблиці повертаються рядками, статистика —
+  об'єктом; скрипт друкує те саме, що й раніше, плюс `feed_version`. Старий zip у `data/malyn-transport/gtfs/` не
+  перегенеровано (потрібна жива БД) — наступний `npm run export:gtfs` перепише його новим форматом.
+- `zip.ts`: deflate лише коли він справді коротший (порожній/дрібний файл — store), біт UTF-8 у прапорцях — кириличні
+  назви зупинок у `stops.txt` розпаковуються коректно; DOS-час з revision (роздільність 2 с, UTC-поля як є).
+- Провайдер кешу single-flight: паралельні перші запити ділять одну збірку (`building`), тест із `Promise.all`
+  перевіряє один `findMany`. На кожен запит один `findUnique` `TransportMeta` — дешевше за 150 КБ датасету.
+- `GET /transport/gtfs/:file` з `..%2Findex.js` → 404 (ім'я перевіряється за списком, не за файловою системою).
+- 304: Express сам порівнює `If-None-Match` з виставленим `ETag` у `res.send` — окремого коду нема (перевірено тестом).
+- Тести: `zip.test.ts` 3, `gtfs-feed.test.ts` 6, `transport-http.test.ts` +4; backend 69 файлів / 601 ✅, `tsc` чистий;
+  `dist`: `routes/transport.js`, `scripts/export-gtfs.js` змінені, `gtfs-feed.js`, `zip.js` нові.
 
 ### Фаза 0 (2026-10-16)
 

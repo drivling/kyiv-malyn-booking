@@ -1,10 +1,10 @@
 /**
- * Export Malyn city transport from PostgreSQL → GTFS Static feed.
+ * Export Malyn city transport from PostgreSQL → GTFS Static feed (files on disk).
  *
  * Output: data/malyn-transport/gtfs/  (txt + malyn-gtfs.zip)
  *
- * Only trips with departureTime are exported (honest feed).
- * stop_times are synthesized from ordered passenger stops + segment durations.
+ * Thin wrapper over src/gtfs-feed.ts — the same generator serves GET /transport/gtfs.zip
+ * (Docs/transport-open-data-2026-10.md). feed_version = dataset revision (TransportMeta.updatedAt).
  *
  * Usage (from backend/):
  *   npm run export:gtfs
@@ -12,245 +12,11 @@
 
 import fs from 'fs';
 import path from 'path';
-import { execFileSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
-import { loadTransportDataset, type TransportDataset, type TransportRouteStopInput } from '../local-transport';
-import { DEFAULT_SEC, buildTripStopTimes, toGtfsTime, type TripStopTimes } from '../gtfs-stop-times';
+import { loadTransportDataset } from '../local-transport';
+import { GTFS_FEED_FILES, GTFS_ZIP_FILENAME, buildGtfsFeed, zipGtfsFeed } from '../gtfs-feed';
 
 const outDir = path.join(__dirname, '..', '..', '..', 'data', 'malyn-transport', 'gtfs');
-
-const SERVICE_START_DATE = '20240101';
-const SERVICE_END_DATE = '20271231';
-
-const SERVICE_MAP: Record<string, string> = {
-  'пн-вт-ср-чт-пт-сб-нд': 'everyday',
-  everyday: 'everyday',
-  weekdays: 'weekdays',
-};
-
-function csvEscape(value: unknown): string {
-  const s = value == null ? '' : String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-function writeTable(filePath: string, headers: string[], rows: Record<string, unknown>[]) {
-  const lines = [headers.join(',')];
-  for (const row of rows) {
-    lines.push(headers.map((h) => csvEscape(row[h])).join(','));
-  }
-  fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
-}
-
-function exportGtfs(dataset: TransportDataset) {
-  const agency = (dataset.meta.agency as Record<string, string> | null) || {
-    agency_id: 'malyn',
-    agency_name: 'Громадський транспорт міста Малина',
-    agency_url: 'https://malyn-rada.gov.ua/',
-    agency_timezone: 'Europe/Kyiv',
-    agency_lang: 'uk',
-    agency_phone: '',
-  };
-  const defaultSec = Number(dataset.meta.defaultSec) || DEFAULT_SEC;
-
-  const stopById = new Map(dataset.stops.map((s) => [s.id, s]));
-  const routeById = new Map(dataset.routes.map((r) => [r.id, r]));
-  const routeStopsByRoute = new Map<string, TransportRouteStopInput[]>();
-  for (const rs of dataset.routeStops) {
-    if (!routeStopsByRoute.has(rs.routeId)) routeStopsByRoute.set(rs.routeId, []);
-    routeStopsByRoute.get(rs.routeId)!.push(rs);
-  }
-  const segments: Record<string, number> = {};
-  for (const seg of dataset.segments) {
-    segments[`${seg.routeId}|${seg.fromStopId}|${seg.toStopId}`] = seg.seconds;
-  }
-
-  fs.mkdirSync(outDir, { recursive: true });
-
-  writeTable(path.join(outDir, 'agency.txt'), ['agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_lang', 'agency_phone'], [
-    {
-      agency_id: agency.agency_id || 'malyn',
-      agency_name: agency.agency_name,
-      agency_url: agency.agency_url,
-      agency_timezone: agency.agency_timezone || 'Europe/Kyiv',
-      agency_lang: agency.agency_lang || 'uk',
-      agency_phone: agency.agency_phone || '',
-    },
-  ]);
-
-  writeTable(
-    path.join(outDir, 'calendar.txt'),
-    ['service_id', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date'],
-    [
-      {
-        service_id: 'everyday',
-        monday: 1,
-        tuesday: 1,
-        wednesday: 1,
-        thursday: 1,
-        friday: 1,
-        saturday: 1,
-        sunday: 1,
-        start_date: SERVICE_START_DATE,
-        end_date: SERVICE_END_DATE,
-      },
-      {
-        service_id: 'weekdays',
-        monday: 1,
-        tuesday: 1,
-        wednesday: 1,
-        thursday: 1,
-        friday: 1,
-        saturday: 0,
-        sunday: 0,
-        start_date: SERVICE_START_DATE,
-        end_date: SERVICE_END_DATE,
-      },
-    ]
-  );
-
-  const usedStopIds = new Set(stopById.keys());
-  // Ненадійні (приховані) маршрути у фід не потрапляють
-  const hiddenRouteIds = new Set(dataset.routes.filter((r) => r.unreliable).map((r) => r.id));
-  const timedTrips = dataset.trips.filter(
-    (t) => toGtfsTime(t.departureTime) && !hiddenRouteIds.has(t.routeId)
-  );
-  const routeIds = [...new Set(timedTrips.map((t) => t.routeId))].sort((a, b) => Number(a) - Number(b));
-
-  const routeRows = routeIds.map((routeId) => {
-    const meta = routeById.get(routeId);
-    const longName = [meta?.fromName, meta?.toName].filter(Boolean).join(' — ') || `Маршрут ${routeId}`;
-    return {
-      route_id: routeId,
-      agency_id: agency.agency_id || 'malyn',
-      route_short_name: meta?.shortName?.trim() || routeId,
-      route_long_name: longName,
-      route_type: 3,
-    };
-  });
-  writeTable(path.join(outDir, 'routes.txt'), ['route_id', 'agency_id', 'route_short_name', 'route_long_name', 'route_type'], routeRows);
-
-  const shapeRows: Record<string, unknown>[] = [];
-  const shapeIdByRouteDir = new Map<string, string>();
-
-  /** Shape на маршрут+напрямок+варіант+зріз: скорочені рейси й варіанти шляху отримують власну лінію. */
-  function ensureShape(routeId: string, built: TripStopTimes): string {
-    const { direction, variantId, chainKeys, startIndex, endIndex } = built;
-    const directionId = direction === 'there' ? 1 : 0;
-    const full = startIndex === 0 && endIndex === chainKeys.length - 1;
-    const cacheKey = `${routeId}|${direction}|${variantId ?? ''}|${startIndex}|${endIndex}`;
-    if (shapeIdByRouteDir.has(cacheKey)) return shapeIdByRouteDir.get(cacheKey)!;
-    const points = chainKeys
-      .slice(startIndex, endIndex + 1)
-      .map((stopId) => stopById.get(stopId))
-      .filter((s): s is NonNullable<typeof s> => !!s);
-    const base = variantId ? `shp_${routeId}_${directionId}_${variantId}` : `shp_${routeId}_${directionId}`;
-    const shapeId = points.length >= 2 ? (full ? base : `${base}_${startIndex}_${endIndex}`) : '';
-    if (shapeId) {
-      points.forEach((s, i) => {
-        shapeRows.push({
-          shape_id: shapeId,
-          shape_pt_lat: Number(s.lat).toFixed(6),
-          shape_pt_lon: Number(s.lng).toFixed(6),
-          shape_pt_sequence: i + 1,
-        });
-      });
-    }
-    shapeIdByRouteDir.set(cacheKey, shapeId);
-    return shapeId;
-  }
-
-  const tripRows: Record<string, unknown>[] = [];
-  const stopTimeRows: Record<string, unknown>[] = [];
-  let skippedNoStops = 0;
-  let compressedTrips = 0;
-  let partialTrips = 0;
-
-  for (const rec of timedTrips) {
-    const serviceId = SERVICE_MAP[rec.serviceId || ''] || 'everyday';
-    const routeStops = routeStopsByRoute.get(rec.routeId) || [];
-    const built = buildTripStopTimes(rec, routeStops, segments, defaultSec, usedStopIds, routeById.get(rec.routeId)?.variants ?? []);
-    if (!built) {
-      skippedNoStops++;
-      continue;
-    }
-    if (built.factor < 1) compressedTrips++;
-    if (built.startIndex > 0 || built.endIndex < built.chainKeys.length - 1) partialTrips++;
-
-    tripRows.push({
-      route_id: rec.routeId,
-      service_id: serviceId,
-      trip_id: rec.id,
-      trip_headsign: rec.headsign || '',
-      direction_id: built.direction === 'there' ? 1 : 0,
-      block_id: rec.blockId || '',
-      shape_id: ensureShape(rec.routeId, built),
-    });
-    stopTimeRows.push(...built.rows.map((row) => ({ ...row })));
-  }
-
-  writeTable(
-    path.join(outDir, 'trips.txt'),
-    ['route_id', 'service_id', 'trip_id', 'trip_headsign', 'direction_id', 'block_id', 'shape_id'],
-    tripRows
-  );
-  writeTable(path.join(outDir, 'shapes.txt'), ['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'], shapeRows);
-  writeTable(
-    path.join(outDir, 'stop_times.txt'),
-    ['trip_id', 'arrival_time', 'departure_time', 'stop_id', 'stop_sequence', 'timepoint'],
-    stopTimeRows
-  );
-
-  const referencedStopIds = new Set(stopTimeRows.map((r) => String(r.stop_id)));
-  const stopRows = [...referencedStopIds]
-    .map((stopId) => {
-      const s = stopById.get(stopId)!;
-      return {
-        stop_id: stopId,
-        stop_name: s.name || stopId,
-        stop_lat: Number(s.lat).toFixed(6),
-        stop_lon: Number(s.lng).toFixed(6),
-        location_type: 0,
-      };
-    })
-    .sort((a, b) => a.stop_id.localeCompare(b.stop_id));
-  writeTable(path.join(outDir, 'stops.txt'), ['stop_id', 'stop_name', 'stop_lat', 'stop_lon', 'location_type'], stopRows);
-
-  const today = new Date();
-  const feedVersion = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  writeTable(
-    path.join(outDir, 'feed_info.txt'),
-    ['feed_publisher_name', 'feed_publisher_url', 'feed_lang', 'feed_contact_email', 'feed_start_date', 'feed_end_date', 'feed_version'],
-    [
-      {
-        feed_publisher_name: 'Technologies LLC',
-        feed_publisher_url: 'https://malin.kiev.ua/',
-        feed_lang: 'uk',
-        feed_contact_email: 'mer.sergei@gmail.com',
-        feed_start_date: SERVICE_START_DATE,
-        feed_end_date: SERVICE_END_DATE,
-        feed_version: feedVersion,
-      },
-    ]
-  );
-
-  const zipPath = path.join(outDir, 'malyn-gtfs.zip');
-  if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
-  const files = ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt'];
-  execFileSync('zip', ['-q', '-j', zipPath, ...files.map((f) => path.join(outDir, f))], { cwd: outDir });
-
-  console.log(`GTFS written to ${outDir}`);
-  console.log(
-    `Routes: ${routeRows.length}, trips: ${tripRows.length}, stop_times: ${stopTimeRows.length}, stops: ${stopRows.length}, shapes: ${shapeIdByRouteDir.size} (${shapeRows.length} points)`
-  );
-  console.log(`Skipped trips (no passenger stops): ${skippedNoStops}`);
-  console.log(`Partial (start/end stop) trips: ${partialTrips}; trips compressed to arrivalTime: ${compressedTrips}`);
-  console.log(`Timed trips in DB: ${timedTrips.length}; plate-only trips omitted from feed.`);
-  if (hiddenRouteIds.size) {
-    console.log(`Hidden (unreliable) routes omitted from feed: ${[...hiddenRouteIds].join(', ')}`);
-  }
-  console.log(`Zip: ${zipPath}`);
-}
 
 async function main() {
   const prisma = new PrismaClient();
@@ -260,7 +26,20 @@ async function main() {
       console.error('Transport dataset is empty. Run: npm run seed:transport');
       process.exit(1);
     }
-    exportGtfs(dataset);
+    const feed = buildGtfsFeed(dataset);
+    fs.mkdirSync(outDir, { recursive: true });
+    for (const name of GTFS_FEED_FILES) fs.writeFileSync(path.join(outDir, name), feed.files[name], 'utf8');
+    const zipPath = path.join(outDir, GTFS_ZIP_FILENAME);
+    fs.writeFileSync(zipPath, zipGtfsFeed(feed));
+
+    const s = feed.stats;
+    console.log(`GTFS written to ${outDir} (feed_version ${feed.feedVersion})`);
+    console.log(`Routes: ${s.routes}, trips: ${s.trips}, stop_times: ${s.stopTimes}, stops: ${s.stops}, shapes: ${s.shapes} (${s.shapePoints} points)`);
+    console.log(`Skipped trips (no passenger stops): ${s.skippedNoStops}`);
+    console.log(`Partial (start/end stop) trips: ${s.partialTrips}; trips compressed to arrivalTime: ${s.compressedTrips}`);
+    console.log(`Timed trips in DB: ${s.timedTrips}; plate-only trips omitted from feed.`);
+    if (s.hiddenRouteIds.length) console.log(`Hidden (unreliable) routes omitted from feed: ${s.hiddenRouteIds.join(', ')}`);
+    console.log(`Zip: ${zipPath}`);
   } finally {
     await prisma.$disconnect();
   }

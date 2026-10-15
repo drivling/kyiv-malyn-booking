@@ -381,6 +381,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   by «Перерахувати час»); the admin editors load it with `getTransportDataset({ fresh: true })` and pass it to
   `putTransportDataset(dataset, baseRevision)` → 409 if the data changed meanwhile. Scripts that PUT without
   `baseRevision` are not checked — close or reload admin tabs before a scripted write.
+- **Open data** (`Docs/transport-open-data-2026-10.md`): `GET /transport/gtfs.zip` and `GET /transport/gtfs/<file>.txt`
+  serve the GTFS Static feed built by `backend/src/gtfs-feed.ts` (`buildGtfsFeed` — the same generator as
+  `npm run export:gtfs`, which is now a thin wrapper; `backend/src/zip.ts` writes the archive, no system `zip`).
+  `feed_version` = dataset `revision`; the router caches the feed in memory per revision
+  (`createGtfsFeedProvider`) and answers with `Cache-Control: public, max-age=300`, `ETag: "<revision>"` and
+  `Last-Modified`. `unreliable` routes are omitted; the data license (`OPEN_DATA_LICENSE`, CC BY 4.0 until the owner
+  decides otherwise) ships as `LICENSE.txt` inside the zip and is mirrored in `frontend/.../LocalTransportPage/openData.ts`.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

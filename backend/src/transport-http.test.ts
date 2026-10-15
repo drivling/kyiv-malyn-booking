@@ -307,3 +307,98 @@ test('PUT /transport/dataset: stale baseRevision → 409; current one or none �
     .expect(200);
   assert.equal(ok.body.revision, '2026-10-12T10:00:00.000Z');
 });
+
+// ---------- Відкритий GTFS (Docs/transport-open-data-2026-10.md, фаза 1) ----------
+
+/** supertest віддає бінарну відповідь як Buffer лише з власним парсером */
+const binaryParser = (res: NodeJS.ReadableStream, cb: (err: Error | null, data: Buffer) => void) => {
+  const chunks: Buffer[] = [];
+  res.on('data', (c: Buffer) => chunks.push(c));
+  res.on('end', () => cb(null, Buffer.concat(chunks)));
+};
+
+function setRevision(store: Store, iso: string) {
+  store.meta = { ...(store.meta as { id: number; payload: Record<string, unknown> }), updatedAt: new Date(iso) } as never;
+}
+
+test('GET /transport/gtfs.zip and /transport/gtfs/:file: 404 while the dataset is empty', async () => {
+  const app = appWithStore(emptyStore());
+  await request(app).get('/transport/gtfs.zip').expect(404);
+  await request(app).get('/transport/gtfs/feed_info.txt').expect(404);
+});
+
+test('GET /transport/gtfs.zip: zip attachment with cache headers, ETag = revision, 304 on If-None-Match', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+
+  const res = await request(app).get('/transport/gtfs.zip').buffer(true).parse(binaryParser).expect(200);
+  assert.equal(res.headers['content-type'], 'application/zip');
+  assert.equal(res.headers['content-disposition'], 'attachment; filename="malyn-gtfs.zip"');
+  assert.equal(res.headers['cache-control'], 'public, max-age=300');
+  assert.equal(res.headers['etag'], '"2026-10-12T10:00:00.000Z"');
+  assert.equal(res.headers['last-modified'], 'Mon, 12 Oct 2026 10:00:00 GMT');
+  const zip = res.body as Buffer;
+  assert.equal(zip.readUInt32LE(0), 0x04034b50);
+  const text = zip.toString('latin1');
+  for (const name of ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt', 'LICENSE.txt']) {
+    assert.ok(text.includes(name), name);
+  }
+
+  await request(app).get('/transport/gtfs.zip').set('If-None-Match', '"2026-10-12T10:00:00.000Z"').expect(304);
+  await request(app).get('/transport/gtfs.zip').set('If-None-Match', '"2026-10-11T10:00:00.000Z"').expect(200);
+});
+
+test('GET /transport/gtfs/:file: single feed file as text, feed_version = revision; unknown name → 404', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+
+  const info = await request(app).get('/transport/gtfs/feed_info.txt').expect(200);
+  assert.match(info.headers['content-type'], /^text\/plain; charset=utf-8/);
+  assert.equal(info.headers['etag'], '"2026-10-12T10:00:00.000Z"');
+  assert.equal(info.headers['cache-control'], 'public, max-age=300');
+  assert.ok(info.text.endsWith(',20240101,20271231,2026-10-12T10:00:00.000Z\n'), info.text);
+
+  const license = await request(app).get('/transport/gtfs/LICENSE.txt').expect(200);
+  assert.ok(license.text.includes('CC BY 4.0'));
+
+  const stops = await request(app).get('/transport/gtfs/stops.txt').expect(200);
+  assert.equal(stops.text, 'stop_id,stop_name,stop_lat,stop_lon,location_type\nst_0001,Барміна,50.771000,29.241000,0\nst_0002,Лікарня,50.772000,29.242000,0\n');
+
+  await request(app).get('/transport/gtfs/nope.txt').expect(404);
+  await request(app).get('/transport/gtfs/..%2Findex.js').expect(404);
+});
+
+test('GET /transport/gtfs.zip: cached per revision; a new revision rebuilds and drops unreliable routes', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+
+  const first = await request(app).get('/transport/gtfs/routes.txt').expect(200);
+  assert.equal(first.text, 'route_id,agency_id,route_short_name,route_long_name,route_type\n2,malyn,2,Фабрика — Лікарня,3\n');
+
+  // Та сама revision — кеш: зміна в сховищі без бампу revision не видна
+  const hidden = sampleDataset();
+  hidden.routes = [{ ...hidden.routes[0], unreliable: true }];
+  await request(app).put('/transport/dataset').set('Authorization', token).send(hidden).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+  const cached = await request(app).get('/transport/gtfs/routes.txt').expect(200);
+  assert.equal(cached.text, first.text);
+
+  // Нова revision — перезбірка: ненадійний маршрут і його рейси зникають із фіду
+  setRevision(store, '2026-10-13T10:00:00Z');
+  const rebuilt = await request(app).get('/transport/gtfs/routes.txt').expect(200);
+  assert.equal(rebuilt.headers['etag'], '"2026-10-13T10:00:00.000Z"');
+  assert.equal(rebuilt.text, 'route_id,agency_id,route_short_name,route_long_name,route_type\n');
+  const trips = await request(app).get('/transport/gtfs/trips.txt').expect(200);
+  assert.equal(trips.text, 'route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id\n');
+  const zip = await request(app).get('/transport/gtfs.zip').buffer(true).parse(binaryParser).expect(200);
+  assert.equal(zip.headers['etag'], '"2026-10-13T10:00:00.000Z"');
+});
