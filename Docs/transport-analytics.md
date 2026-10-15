@@ -35,8 +35,11 @@
 | `transport_arrival_open` | довге натискання на чіп часу (сторінка маршруту) або картку табло — відкрито «Факт прибуття» | `route_id`, `source: route \| board` |
 | `transport_arrival_report` | позначку «автобус тут» / «автобуса не було» записано | `route_id`, `kind: arrived \| missed`, `source: route \| board` |
 | `transport_pwa_install` | «Встановити» у смужці стану транспорту — відповідь системного діалогу встановлення (`Docs/transport-pwa-2026-10.md`) | `result: accepted \| dismissed` |
+| `transport_outbox` | запис із табло пройшов через чергу без мережі (`src/pwa/outbox.ts`, `Docs/transport-offline-writes-2026-10.md`): став у чергу, надіслано з черги, сервер відкинув (4xx), викинуто після 10 спроб | `kind: sticker-scan \| sticker-return \| arrival-report`, `result: queued \| sent \| rejected \| dropped` |
 
 Перегляди сторінок — `page_view` з `GoogleAnalyticsTracker` (SPA-навігація), окремо від цієї таблиці.
+`transport_sticker_open`, `transport_sticker_return` і `transport_arrival_report` фіксують дію людини в момент дії —
+і тоді, коли запис лише став у чергу без мережі; чи дійшов він до бази, видно з `transport_outbox`.
 
 Переходи з наклейок на зупинках (`/admin/stickers`, `Docs/stop-stickers.md`): QR веде на табло
 `/transport/stop/<id>?utm_source=sticker&utm_medium=qr&utm_campaign=<id>-<a|b|s>`, тож у звітах GA4

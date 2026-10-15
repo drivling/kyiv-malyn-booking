@@ -279,6 +279,15 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   caches `.js` by extension and held the worker at the edge for 4 h without it) and 404s the worker/manifest on the
   secondary domain.
   Never bump `BUILD_ID` by hand; never precache `/` (301) or the prerendered pages.
+- **Offline writes** (`Docs/transport-offline-writes-2026-10.md`): the three public POSTs from the board (sticker scans,
+  sticker returns, arrival reports) go through `sendOrQueue()` in `src/pwa/outbox.ts` — a localStorage queue
+  (`transport-outbox:v1`, ≤ 50 items / 7 days / 10 attempts, deduplicated per `key`: sticker or trip + Kyiv day) that
+  is flushed on page open, on `online`, when the tab becomes visible (`useOutboxSync` in `App.tsx`) and after a
+  successful dataset fetch. Network errors and 5xx queue, 4xx drop (`isRetryableError`); the worker never sees these
+  requests. Arrival reports carry `occurredAt` (time of the tap) and `clientEventId`: `POST /transport/arrival-reports`
+  computes the windows from `occurredAt` (clock ahead > 5 min → server time, older than 7 days → 422) and answers a
+  repeat of the same `clientId + clientEventId` with `{ counted: false }` (unique index). `TransportStatusBar` shows
+  «N записів чекають на мережу» from `useOutboxPending()`; GA event `transport_outbox`.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.
 - `src/hooks/` — shared data-fetching/state hooks (announce draft, rideshare requests, telegram
