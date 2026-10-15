@@ -38,7 +38,7 @@
 
 ## Відкриті дані (транспорт Малина)
 
-Ліцензія даних: CC BY 4.0 (вказуйте джерело «malin.kiev.ua»). Як відкрити: https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md
+Ліцензія даних: OwnNet Source License 1.1 (https://own-net.com/license.html) — людям, місту й бізнесу до 100 000 USD на рік вільно з атрибуцією «Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології» (own-net.com)», корпораціям і платним застосункам — за договором. Як відкрити: https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md
 
 - GTFS Static (зупинки, маршрути, рейси, лінії; feed_version = revision даних): https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip
 - Один файл фіду, напр. версія: https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs/feed_info.txt

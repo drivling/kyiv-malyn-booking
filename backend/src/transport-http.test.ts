@@ -365,7 +365,8 @@ test('GET /transport/gtfs/:file: single feed file as text, feed_version = revisi
   assert.ok(info.text.endsWith(',20240101,20271231,2026-10-12T10:00:00.000Z\n'), info.text);
 
   const license = await request(app).get('/transport/gtfs/LICENSE.txt').expect(200);
-  assert.ok(license.text.includes('CC BY 4.0'));
+  assert.ok(license.text.includes('OwnNet Source License 1.1'));
+  assert.ok(license.text.includes('ТОВ «Технології»'));
 
   const stops = await request(app).get('/transport/gtfs/stops.txt').expect(200);
   assert.equal(stops.text, 'stop_id,stop_name,stop_lat,stop_lon,location_type\nst_0001,Барміна,50.771000,29.241000,0\nst_0002,Лікарня,50.772000,29.242000,0\n');

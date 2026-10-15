@@ -386,7 +386,7 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `npm run export:gtfs`, which is now a thin wrapper; `backend/src/zip.ts` writes the archive, no system `zip`).
   `feed_version` = dataset `revision`; the router caches the feed in memory per revision
   (`createGtfsFeedProvider`) and answers with `Cache-Control: public, max-age=300`, `ETag: "<revision>"` and
-  `Last-Modified`. `unreliable` routes are omitted; the data license (`OPEN_DATA_LICENSE`, CC BY 4.0 until the owner
+  `Last-Modified`. `unreliable` routes are omitted; the data license (`OPEN_DATA_LICENSE`, OwnNet Source License 1.1 — the owner's decision, same as the code; it was CC BY 4.0 until the owner
   decides otherwise) ships as `LICENSE.txt` inside the zip and is mirrored in `frontend/.../LocalTransportPage/openData.ts`.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).

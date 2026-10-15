@@ -209,7 +209,7 @@ describe('LocalTransportSchemePage: «Дані відкриті» (Docs/transpor
       const json = within(block).getByRole('link', { name: 'Дані у JSON' });
       expect(json).toHaveAttribute('href', '/transport/dataset.json');
       expect(json).toHaveAttribute('download', 'malyn-transport-dataset.json');
-      expect(within(block).getByRole('link', { name: 'CC BY 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+      expect(within(block).getByRole('link', { name: 'OwnNet Source License 1.1' })).toHaveAttribute('href', 'https://own-net.com/license.html');
       expect(within(block).getByRole('link', { name: 'як відкрити' })).toHaveAttribute(
         'href',
         'https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md'

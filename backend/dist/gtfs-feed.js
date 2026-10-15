@@ -9,11 +9,16 @@ exports.createGtfsFeedProvider = createGtfsFeedProvider;
 const local_transport_1 = require("./local-transport");
 const gtfs_stop_times_1 = require("./gtfs-stop-times");
 const zip_1 = require("./zip");
-/** Ліцензія даних (рішення власника — Docs/transport-open-data-2026-10.md; дзеркало у frontend openData.ts) */
+/**
+ * Ліцензія даних — рішення власника 2026-10-16 (Docs/transport-open-data-2026-10.md): та сама OwnNet Source License 1.1,
+ * що й на код, ліцензіар подвійний — Сергій Меренков / ТОВ «Технології». Людям, місту й бізнесу до USD 100 000 на рік —
+ * вільно з атрибуцією і share-alike; корпораціям і платним застосункам — за договором. Дзеркало у frontend openData.ts.
+ */
 exports.OPEN_DATA_LICENSE = {
-    name: 'CC BY 4.0',
-    url: 'https://creativecommons.org/licenses/by/4.0/',
-    attribution: 'Дані: malin.kiev.ua',
+    name: 'OwnNet Source License 1.1',
+    url: 'https://own-net.com/license.html',
+    attribution: 'Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології» (own-net.com)',
+    licensor: 'Serhii Merenkov / LIMITED LIABILITY COMPANY "Technologies" (EDRPOU 46288273)',
 };
 exports.GTFS_ZIP_FILENAME = 'malyn-gtfs.zip';
 /** Файли фіду у фіксованому порядку (порядок у zip теж такий — детермінований архів) */
@@ -191,14 +196,21 @@ function buildGtfsFeed(dataset, options = {}) {
     const licenseTxt = [
         `Malyn city public transport — GTFS Static feed (${exports.GTFS_ZIP_FILENAME})`,
         '',
-        `License: ${exports.OPEN_DATA_LICENSE.name} — ${exports.OPEN_DATA_LICENSE.url}`,
+        `License: ${exports.OPEN_DATA_LICENSE.name} (source-available) — ${exports.OPEN_DATA_LICENSE.url}`,
+        `Licensor: ${exports.OPEN_DATA_LICENSE.licensor}`,
         `Attribution: ${exports.OPEN_DATA_LICENSE.attribution} (https://malin.kiev.ua/transport)`,
+        'Free for personal, educational and non-commercial use and for businesses under USD 100,000 annual revenue;',
+        'a modified database is a Derivative Work and stays under this License (share-alike). Commercial use above the',
+        'threshold, paid SaaS or resale needs a written agreement with the Licensor (mer.sergei@gmail.com).',
+        'No closed systems (remote kill switch, no documented export, surveillance) may be built on this data.',
         `Publisher: ${FEED_PUBLISHER.feed_publisher_name}, ${FEED_PUBLISHER.feed_publisher_url}`,
         `Contact: ${FEED_PUBLISHER.feed_contact_email}`,
         `Feed version (dataset revision): ${feedVersion}`,
         'Latest feed: https://malin.kiev.ua/transport/scheme#open-data',
         '',
-        'Ліцензія даних: ' + exports.OPEN_DATA_LICENSE.name + ' — використовуйте вільно, вказуйте джерело «' + exports.OPEN_DATA_LICENSE.attribution + '».',
+        'Ліцензія даних: ' + exports.OPEN_DATA_LICENSE.name + ' — людям, місту й бізнесу до 100 000 USD на рік вільно, похідна база',
+        'лишається під цією ж ліцензією, вказуйте джерело «' + exports.OPEN_DATA_LICENSE.attribution + '». Комерційне використання',
+        'понад поріг, платний SaaS чи перепродаж — за письмовим договором із ліцензіаром.',
         '',
     ].join('\n');
     return {
