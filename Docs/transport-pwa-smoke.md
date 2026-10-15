@@ -37,11 +37,15 @@
 ## Вторинний домен і краулери
 
 - [ ] `https://korosten.kiev.ua/transport.webmanifest` і `/transport-sw.js` → 404; Application → Service workers порожній.
-- [ ] `curl -I https://malin.kiev.ua/transport-sw.js` → `content-type: text/javascript`; `cache-control` з origin `no-cache`,
-  але на проді Cloudflare кешує `.js` за розширенням і переписує його на `max-age=14400` (Browser Cache TTL зони) — це
-  норма, браузер запитує скрипт воркера повз HTTP-кеш (файл відновлення, «Фаза 6», знахідка 1);
-  `curl -I https://malin.kiev.ua/transport.webmanifest` → `application/manifest+json`, `no-cache`;
-  `curl -I https://malin.kiev.ua/transport/dataset.json` → `application/json`, `no-cache`.
+- [ ] `curl -I https://malin.kiev.ua/transport-sw.js` → `content-type: text/javascript`; `cache-control: no-cache`,
+  `cdn-cache-control: no-store`, `cf-cache-status: DYNAMIC` або `BYPASS`, жодного `max-age`. Cloudflare кешує `.js` за
+  розширенням, і сам `no-cache` для нього означає «кешувати й перевіряти»: без `CDN-Cache-Control` (serve-dist,
+  `NO_CACHE_HEADERS`) воркер лежав на edge до 4 год після деплою з переписаним `max-age=14400` (Browser Cache TTL зони)
+  і `cf-cache-status: HIT` — встановлений застосунок тягнув попередню збірку (файл відновлення, «Фаза 6», знахідка 1).
+  Якщо тут знову `HIT` / `EXPIRED` / `MISS` — заголовок перекрите Cache Rule з Edge TTL «Override origin» у панелі
+  Cloudflare; тоді лікує правило «Bypass cache» для `/transport-sw.js`.
+  `curl -I https://malin.kiev.ua/transport.webmanifest` → `application/manifest+json`, `no-cache`, `cf-cache-status: DYNAMIC`;
+  `curl -I https://malin.kiev.ua/transport/dataset.json` → `application/json`, `no-cache`, `cf-cache-status: DYNAMIC`.
 - [ ] `curl -s https://malin.kiev.ua/transport/stop/st_0001 | grep -c lt-status-bar` → `0` (смужка не запечена в HTML).
 
 ## iOS Safari

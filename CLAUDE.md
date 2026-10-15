@@ -264,7 +264,9 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   cache-first shell/assets/fonts, `/transport*` navigations get `/index.html` from cache, the cross-origin API is never touched.
   Registered only in production on the primary site from `/transport*` (`src/pwa/serviceWorker.ts`); a new build installs and
   waits, `useFreshBuild` applies it via SKIP_WAITING under its usual rules or shows `UpdateBanner`. `serve-dist` sends
-  `no-cache` for the worker, manifest and snapshots (`cacheControlFor`) and 404s the worker/manifest on the secondary domain.
+  `no-cache` plus `CDN-Cache-Control: no-store` for HTML, the worker, manifest and snapshots (`cacheHeadersFor`; Cloudflare
+  caches `.js` by extension and held the worker at the edge for 4 h without it) and 404s the worker/manifest on the
+  secondary domain.
   Never bump `BUILD_ID` by hand; never precache `/` (301) or the prerendered pages.
 - `src/types/index.ts` — shared TypeScript types mirroring backend response shapes; keep in sync when
   backend routes/Prisma models change.

@@ -74,6 +74,24 @@ export function cacheControlFor(pathname) {
   return 'public, max-age=3600';
 }
 
+/**
+ * Headers for a response the browser must revalidate every time. `Cache-Control: no-cache` alone is not enough
+ * behind Cloudflare: with Origin Cache Control on (every non-Enterprise zone) it means «cache, then revalidate»,
+ * so a file Cloudflare caches by extension (`.js` — the worker; `.webmanifest` and `.json` are not on that list)
+ * sat at the edge with the zone's 4 h browser TTL written over our header (`cache-control: max-age=14400`,
+ * `cf-cache-status: HIT`), and an installed app could pull the previous worker for up to 4 h after a deploy
+ * (Docs/transport-pwa-smoke.md, «Вторинний домен і краулери»). `CDN-Cache-Control` (RFC 9213) is what the CDN
+ * reads instead of `Cache-Control`; `no-store` there makes Cloudflare skip its cache (`cf-cache-status: BYPASS`)
+ * and only a Cache Rule with an Edge TTL override would beat it. Browsers ignore the header.
+ */
+export const NO_CACHE_HEADERS = Object.freeze({ 'Cache-Control': 'no-cache', 'CDN-Cache-Control': 'no-store' });
+
+/** Cache headers for a file under dist/: `cacheControlFor` plus the CDN opt-out for the `no-cache` files. */
+export function cacheHeadersFor(pathname) {
+  const cacheControl = cacheControlFor(pathname);
+  return cacheControl === 'no-cache' ? { ...NO_CACHE_HEADERS } : { 'Cache-Control': cacheControl };
+}
+
 export const GONE_HTML =
   '<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>410 — сторінки більше немає</title>' +
   '<meta name="robots" content="noindex"></head><body><p>Цієї сторінки більше немає. ' +

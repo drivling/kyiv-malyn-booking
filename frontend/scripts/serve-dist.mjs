@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cacheControlFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation } from './serve-dist-rules.mjs';
+import { cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, NO_CACHE_HEADERS } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -102,7 +102,7 @@ function safeJoin(root, urlPath) {
   return full;
 }
 
-/** dist-relative URL path of a resolved file (`/transport/index.html`) — the key for cacheControlFor */
+/** dist-relative URL path of a resolved file (`/transport/index.html`) — the key for cacheHeadersFor */
 function distPath(filePath) {
   return `/${path.relative(dist, filePath).split(path.sep).join('/')}`;
 }
@@ -112,7 +112,7 @@ function sendFile(res, filePath, extraHeaders = {}) {
   const type = MIME[ext] || 'application/octet-stream';
   res.writeHead(200, {
     'Content-Type': type,
-    'Cache-Control': cacheControlFor(distPath(filePath)),
+    ...cacheHeadersFor(distPath(filePath)),
     ...extraHeaders,
   });
   fs.createReadStream(filePath).pipe(res);
@@ -178,7 +178,7 @@ const server = http.createServer((req, res) => {
 
     // Service worker і маніфест транспортного PWA — лише на головному домені (Docs/transport-pwa-2026-10.md)
     if (isPrimaryOnlyFile(pathname)) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', ...NOINDEX_HEADERS });
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NO_CACHE_HEADERS, ...NOINDEX_HEADERS });
       res.end(req.method === 'HEAD' ? undefined : 'Not found');
       return;
     }
@@ -225,7 +225,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'HEAD') {
       res.writeHead(200, {
         'Content-Type': MIME[path.extname(resolved).toLowerCase()] || 'application/octet-stream',
-        'Cache-Control': cacheControlFor(distPath(resolved)),
+        ...cacheHeadersFor(distPath(resolved)),
         ...extraHeaders,
       });
       res.end();
