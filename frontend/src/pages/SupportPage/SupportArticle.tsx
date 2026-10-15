@@ -868,7 +868,9 @@ function TransportArticle() {
             <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
               {OPEN_DATA_LICENSE.name}
             </a>
-            : використовуйте вільно, вкажіть джерело «malin.kiev.ua». Кнопки завантаження й дата даних — внизу{' '}
+            : вільно для людей, міста й бізнесу з доходом до 100 000 USD на рік, з атрибуцією{' '}
+            <em>{OPEN_DATA_LICENSE.attribution}</em>; більшим компаніям, платним сервісам на цих даних і перепродажу — за
+            письмовим договором. Кнопки завантаження й дата даних — внизу{' '}
             <Link to="/transport/scheme#open-data">схеми маршрутів</Link>.
           </p>
         </section>

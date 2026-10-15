@@ -19,7 +19,7 @@ import { buildZip } from './zip';
 export const OPEN_DATA_LICENSE = {
   name: 'OwnNet Source License 1.1',
   url: 'https://own-net.com/license.html',
-  attribution: 'Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології» (own-net.com)',
+  attribution: 'Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології» (technologies.llc)',
   licensor: 'Serhii Merenkov / LIMITED LIABILITY COMPANY "Technologies" (EDRPOU 46288273)',
 } as const;
 

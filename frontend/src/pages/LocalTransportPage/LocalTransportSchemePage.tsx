@@ -386,7 +386,8 @@ export function LocalTransportSchemePage() {
               <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
                 {OPEN_DATA_LICENSE.name}
               </a>
-              {' — '}використовуйте вільно, вкажіть джерело «malin.kiev.ua»
+              {' — '}вільно для людей, міста й бізнесу з доходом до 100 000 USD на рік, з посиланням на джерело; більшим
+              компаніям, платним сервісам і перепродажу — за договором
               {dataAsOfText && ` · станом на ${dataAsOfText}`}
               {' · '}
               <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
