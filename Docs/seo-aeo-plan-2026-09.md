@@ -124,7 +124,7 @@ CTR `/mizhgorodski/*` ≥ 5 %.
 | 4.3 | FB / Viber / Telegram — плейбук у розділі **E** нижче | FB-пости стоять на стор. 1 (§4, §6); власник веде сам |
 | 4.4 | Bing WMT + IndexNow (Bing/Yandex) з prerender-скрипта | ChatGPT Search / Copilot |
 | 4.5 | `llms.txt` — тримати в синхроні з реальним списком сторінок (3.1–3.5) | AEO |
-| 4.6 ✅ 2026-10-15 (гілка `org-link-technologies-llc`) | Звʼязати сайт із компанією-розробником technologies.llc: у JSON-LD оболонки (`frontend/index.html`) `Organization.sameAs` + `parentOrganization` → `https://technologies.llc/#organization`; рядок «Розробник — ТОВ «Технології»» у глобальному підвалі (`PublicLegalFooter`, константи в `legal/companyLegal.ts`); рядок «Розробник» у `llms.txt`. Коридори й стоп-сторінки мають власний JSON-LD без `Organization` — не чіпали. Дзеркальний пункт — 3.4 плану technologies.llc | перший лінк між сайтами одного власника; entity-сигнал (Organization `@id`) для Google/AEO |
+| 4.6 ✅ 2026-10-15 (гілка `org-link-technologies-llc`) | Звʼязати сайт із компанією-розробником technologies.llc: у JSON-LD оболонки (`frontend/index.html`) `Organization.sameAs` + `parentOrganization` → `https://technologies.llc/#organization`; рядок «Розробник — ТОВ «Технології»» у глобальному підвалі (`PublicLegalFooter`, константи в `legal/companyLegal.ts`); рядок «Розробник» у `llms.txt`. Коридори й стоп-сторінки (`prerender-corridors.mjs`, `prerender-transport-stops.mjs`) мають власний JSON-LD — з 2026-10-15 їхній вузол `FAQPage` несе `publisher` → той самий `@id` (константа `PUBLISHER_ORG` у `scripts/html-head.mjs`), тож усі статичні сторінки покриті. Дзеркальний пункт — 3.4 плану technologies.llc | перший лінк між сайтами одного власника; entity-сигнал (Organization `@id`) для Google/AEO |
 
 ---
 
