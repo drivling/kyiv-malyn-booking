@@ -134,6 +134,22 @@ describe('fetchGroupMessagesFromDzhura', () => {
   });
 });
 
+describe('senderTgId', () => {
+  it('віддає числовий id автора (навіть без username) — для зв\'язку з автором без контактів', async () => {
+    const { prisma } = fakePrisma({
+      chats: { Korosten_Kyiv: { id: 2, captureEnabled: true } },
+      messages: {
+        2: [
+          msg(1, 'Потрібно місце Коростень Київ о 8', null, NOW, { firstName: 'Анонім', lastName: null, username: null, tgUserId: BigInt(777000111) }),
+          msg(2, 'без автора', null, NOW, null),
+        ],
+      },
+    });
+    const r = await fetchGroupMessagesFromDzhura(prisma, [GROUPS[1]], { now: NOW });
+    expect(r.items.map((i) => i.senderTgId)).toEqual(['777000111', null]);
+  });
+});
+
 describe('saveCursors', () => {
   it('upsert по (chat, topicId)', async () => {
     const { prisma, upsert } = fakePrisma({});

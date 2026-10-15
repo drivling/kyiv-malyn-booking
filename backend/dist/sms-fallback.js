@@ -4,6 +4,7 @@ exports.matchTypePassesThreshold = matchTypePassesThreshold;
 exports.sendPaidFallbackSms = sendPaidFallbackSms;
 const notification_settings_1 = require("./notification-settings");
 const sms_turbosms_1 = require("./sms-turbosms");
+const telegram_contact_1 = require("./telegram-contact");
 /** Локальна копія normalizePhone (уникаємо circular import із telegram.ts). */
 function normalizePhone(phone) {
     let cleaned = (phone || '').replace(/\D/g, '');
@@ -53,6 +54,10 @@ async function sendPaidFallbackSms(prisma, args) {
     }
     if (!phoneNormalized || phoneNormalized.length < 11) {
         return { sent: false, via: 'none', reason: 'bad_phone' };
+    }
+    // 380010000000+ — внутрішній ідентифікатор людини без номера, а не телефон: платити за SMS на нього не можна
+    if ((0, telegram_contact_1.isTechnicalPlaceholderPhone)(phoneNormalized)) {
+        return { sent: false, via: 'none', reason: 'technical_phone' };
     }
     const person = await prisma.person
         .findUnique({ where: { phoneNormalized }, select: { smsOptOut: true, phoneBlockedAt: true } })

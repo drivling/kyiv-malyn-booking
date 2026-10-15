@@ -1,4 +1,5 @@
 import { buildTelegramMessageLink, describeListingOrigin } from './telegram-source-link';
+import { idDmGuard } from './telegram-user-dm-guard';
 import { fetchGroupMessagesFromDzhura, saveCursors } from './telegram-dzhura-source';
 import TelegramBot from 'node-telegram-bot-api';
 import { spawn as nodeSpawn } from 'child_process';
@@ -888,6 +889,7 @@ async function sendMatchMessageToPerson(
     const person = await getPersonByPhone(phone).catch(() => null);
     const ok = await sendMessageViaUserAccount(phone, messageHtml, {
       telegramUsername: person?.telegramUsername ?? null,
+      telegramUserId: person?.telegramUserId ?? null,
     }).catch(() => false);
     if (ok) return { sent: true, via: 'user' };
   }
@@ -1455,6 +1457,32 @@ export const findOrCreatePersonByTelegramUsername = async (
     fullName: person.fullName,
     telegramUsername: person.telegramUsername,
   };
+};
+
+/**
+ * Знайти або створити Person за числовим Telegram-id (автор групи без username і номера).
+ * Новий Person отримує технічний номер (380010000000+). Коли людина потім натисне /start у боті,
+ * `getPersonByTelegram(userId, …)` знайде саме цей Person і допише telegramChatId — далі все йде через бота.
+ */
+export const findOrCreatePersonByTelegramUserId = async (
+  telegramUserId: string,
+  options?: { fullName?: string | null }
+): Promise<{ id: number; phoneNormalized: string; fullName: string | null }> => {
+  const userId = telegramUserId.trim();
+  if (!/^\d{3,20}$/.test(userId) || userId === '0') throw new Error('Invalid telegram user id');
+  const fullName =
+    options?.fullName != null && String(options.fullName).trim() !== '' ? String(options.fullName).trim() : null;
+
+  const existing = await tgPrisma.person.findFirst({ where: { telegramUserId: userId }, orderBy: { id: 'asc' } });
+  if (existing) {
+    if (fullName && !existing.fullName?.trim()) {
+      await tgPrisma.person.update({ where: { id: existing.id }, data: { fullName } });
+    }
+    return { id: existing.id, phoneNormalized: existing.phoneNormalized, fullName: existing.fullName ?? fullName };
+  }
+  const phoneNormalized = await getNextTechnicalPhoneNumber();
+  const person = await tgPrisma.person.create({ data: { phoneNormalized, fullName, telegramUserId: userId } });
+  return { id: person.id, phoneNormalized: person.phoneNormalized, fullName: person.fullName };
 };
 
 /** Оновити Telegram у Person та у всіх бронюваннях з тим же номером (і привʼязати їх до Person). */
@@ -2086,6 +2114,7 @@ export const sendViberListingConfirmationToUser = async (
         const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
         sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
           telegramUsername: person?.telegramUsername ?? null,
+          telegramUserId: person?.telegramUserId ?? null,
         });
         if (sent) {
           if (person) {
@@ -2449,8 +2478,10 @@ export interface FetchAndImportResult {
 async function resolveTelegramImportPerson(params: {
   parsed: ParsedViberMessage;
   tgUsername?: string | null;
+  /** Числовий id автора з Джури — єдиний зв'язок, коли немає ні номера, ні @username */
+  tgUserId?: string | null;
 }): Promise<{ person: { id: number } | null; senderName: string | null; listingPhone: string }> {
-  const { parsed, tgUsername } = params;
+  const { parsed, tgUsername, tgUserId } = params;
   const nameFromDb = parsed.phone?.trim() ? await getNameByPhone(parsed.phone) : null;
   // Лише те, що вже є (БД/текст). Пошук через бота, Telethon і Opendatabot — job
   // resolve_sender_name після імпорту (Фаза 5.2/5.4), а не spawn Python у циклі імпорту.
@@ -2474,6 +2505,13 @@ async function resolveTelegramImportPerson(params: {
       senderName: senderName?.trim() ? senderName : (person.fullName ?? parsed.senderName ?? null),
       listingPhone: formatTelegramUsernameForDisplay(tgUsername),
     };
+  }
+
+  if (tgUserId?.trim()) {
+    // Ні номера, ні @username: Person за числовим id (технічний номер як контакт). Написати такій людині можна
+    // особистим акаунтом по id (sendMessageViaUserAccount), а після /start у боті вона підхопиться сама.
+    const person = await findOrCreatePersonByTelegramUserId(tgUserId, { fullName: parsed.senderName ?? senderName ?? undefined });
+    return { person, senderName: senderName ?? person.fullName ?? parsed.senderName ?? null, listingPhone: person.phoneNormalized };
   }
 
   return { person: null, senderName, listingPhone: parsed.phone || '' };
@@ -2546,7 +2584,12 @@ async function afterTelegramListingImported(listing: {
     }).catch((err) => console.error('Telegram user notify:', err));
   }
   // Спершу ім'я (job виконуються по id), потім перетини — щоб у розсилці був не «Водій»
-  if (!listing.senderName?.trim() && listing.phone?.trim() && !isTelegramUsernameContact(listing.phone)) {
+  if (
+    !listing.senderName?.trim() &&
+    listing.phone?.trim() &&
+    !isTelegramUsernameContact(listing.phone) &&
+    !isTechnicalPlaceholderPhone(listing.phone)
+  ) {
     await enqueueResolveSenderName(tgPrisma, listing.id, listing.phone);
   }
   const authorChatId = await getAuthorChatIdForListing(listing);
@@ -2633,7 +2676,7 @@ async function importTelegramGroupMessagesOnce(): Promise<FetchAndImportResult> 
   for (let i = 0; i < parsedMessages.length; i++) {
     const { parsed, rawMessage: rawTextItem, telegramUsername: tgUsername, origin } = parsedMessages[i];
     try {
-      const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername });
+      const { person, senderName, listingPhone } = await resolveTelegramImportPerson({ parsed, tgUsername, tgUserId: origin.senderTgId });
       const { listing, isNew } = await createOrMergeViberListing({
         rawMessage: rawTextItem,
         source: 'telegram1',
@@ -2723,7 +2766,7 @@ export async function resolveNameByPhoneFromOpendatabot(phone: string): Promise<
 export async function sendMessageViaUserAccount(
   phone: string,
   message: string,
-  options?: { telegramUsername?: string | null }
+  options?: { telegramUsername?: string | null; telegramUserId?: string | null }
 ): Promise<boolean> {
   const username = options?.telegramUsername?.trim().replace(/^@/, '');
   // Серіалізуємо разом із lunch.listener та іншими Telethon-скриптами: спільний
@@ -2739,6 +2782,21 @@ export async function sendMessageViaUserAccount(
       // Пауза перед спробою по телефону, щоб не перевищити rate limit
       await new Promise((r) => setTimeout(r, 10000));
     }
+    // Автор без username: пишемо за числовим id (його бачили в групі) — з предохранителем, бо це незнайомі люди
+    const userId = options?.telegramUserId?.trim();
+    if (userId && /^\d+$/.test(userId)) {
+      if (!idDmGuard.tryAcquire()) {
+        console.log(`ℹ️ Telegram user-sender: DM по id ${userId} пропущено (вимкнено, добовий ліміт або PEER_FLOOD)`);
+      } else {
+        const accessHash = await getDzhuraAccessHash(userId);
+        if (await spawnSendMessage(userId, message, 'id', { accessHash })) {
+          console.log(`ℹ️ Telegram user-sender: надіслано по id ${userId}`);
+          return true;
+        }
+      }
+    }
+    // 380010000000+ — не телефон: шукати його в Telegram безглуздо
+    if (isTechnicalPlaceholderPhone(phone)) return false;
     const sentByPhone = await spawnSendMessage(phone, message, false);
     if (sentByPhone) return true;
     if (username) {
@@ -2748,7 +2806,27 @@ export async function sendMessageViaUserAccount(
   }, () => false);
 }
 
-function spawnSendMessage(value: string, message: string, isUsername: boolean): Promise<boolean> {
+/** access_hash автора, збережений Джурою (без нього писати за числовим id неможливо після рестарту сесії). */
+async function getDzhuraAccessHash(userId: string): Promise<string | null> {
+  try {
+    const row = await tgPrisma.dzhuraPerson.findUnique({
+      where: { tgUserId: BigInt(userId) },
+      select: { accessHash: true },
+    });
+    return row?.accessHash != null ? row.accessHash.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function spawnSendMessage(
+  value: string,
+  message: string,
+  mode: boolean | 'id',
+  extra?: { accessHash?: string | null }
+): Promise<boolean> {
+  const isUsername = mode === true;
+  const byId = mode === 'id';
   const sessionPath = process.env.TELEGRAM_USER_SESSION_PATH?.trim();
   const scriptDir = sessionPath ? path.dirname(sessionPath) : '';
   const scriptPath = path.join(scriptDir, 'send_message.py');
@@ -2756,7 +2834,11 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
   const apiHash = process.env.TELEGRAM_API_HASH;
   if (!sessionPath || !apiId || !apiHash) return Promise.resolve(false);
   const pythonCmd = process.env.TELEGRAM_USER_PYTHON?.trim() || 'python3';
-  const args = isUsername ? [scriptPath, '--username', value] : [scriptPath, '--report-name', value];
+  const args = byId
+    ? [scriptPath, '--user-id', value, ...(extra?.accessHash ? ['--access-hash', extra.accessHash] : [])]
+    : isUsername
+      ? [scriptPath, '--username', value]
+      : [scriptPath, '--report-name', value];
   return new Promise((resolve) => {
     const child = spawnChild(pythonCmd, args, {
       env: {
@@ -2785,7 +2867,7 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
     child.on('close', async (code) => {
       await stderrDone; // Дочекатись повного stderr (close може спрацювати раніше)
       if (code === 0) {
-        if (!isUsername && stdout.trim()) {
+        if (!isUsername && !byId && stdout.trim()) {
           try {
             const parsed = JSON.parse(stdout.trim()) as { phone?: string; telegramUsername?: string };
             if (parsed.phone && parsed.telegramUsername?.trim()) {
@@ -2800,12 +2882,16 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
         resolve(true);
         return;
       }
-      if (code === 1 && !isUsername) {
+      if (code === 1 && byId) {
+        console.log(`ℹ️ Telegram user-sender: по id ${value} написати не можна (код 1): ${stderr.trim().slice(0, 200)}`);
+      } else if (code === 1 && !isUsername) {
         console.log(`ℹ️ Telegram user-sender: по телефону ${value} не знайдено або номер приховано (код 1)`);
       } else if (code !== 1) {
         console.error(`❌ Telegram user-sender помилка (код ${code}):`, stderr.slice(0, 500));
+        // Telegram обмежив розсилку з акаунта — до кінця доби за id більше не пишемо
+        if (/PEER_FLOOD/i.test(stderr)) idDmGuard.trip();
         const errorText = stderr.trim() || `(код ${code}, stderr порожній)`;
-        recordTelegramUserSendError(value, isUsername ? 'username' : 'phone', code ?? 2, errorText).catch((e) =>
+        recordTelegramUserSendError(value, byId ? 'user_id' : isUsername ? 'username' : 'phone', code ?? 2, errorText).catch((e) =>
           console.error('❌ recordTelegramUserSendError:', e)
         );
       }
@@ -2820,7 +2906,7 @@ function spawnSendMessage(value: string, message: string, isUsername: boolean): 
 
 async function recordTelegramUserSendError(
   contact: string,
-  contactType: 'phone' | 'username',
+  contactType: 'phone' | 'username' | 'user_id',
   errorCode: number,
   errorText: string
 ): Promise<void> {

@@ -49,6 +49,7 @@ const catalog_cache_1 = require("../catalog-cache");
 const poputky_od_1 = require("../poputky-od");
 const viber_listing_public_1 = require("../viber-listing-public");
 const trip_day_1 = require("../trip-day");
+const telegram_contact_1 = require("../telegram-contact");
 const viber_listing_expiry_1 = require("../viber-listing-expiry");
 const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
 const phone_block_1 = require("../phone-block");
@@ -118,7 +119,8 @@ function createViberListingsRouter(deps) {
                 where: { id },
                 select: { phone: true, isActive: true, endsAt: true },
             });
-            if (!listing || !listing.isActive || !listing.phone?.trim() || (0, viber_listing_expiry_1.isListingExpired)(listing.endsAt)) {
+            // Технічний номер (автор без телефону й username) — не контакт: з ним зв'язується лише наша система
+            if (!listing || !listing.isActive || !listing.phone?.trim() || (0, telegram_contact_1.isTechnicalPlaceholderPhone)(listing.phone) || (0, viber_listing_expiry_1.isListingExpired)(listing.endsAt)) {
                 return res.status(404).json({ error: 'Контакт недоступний' });
             }
             return res.json({ contact: listing.phone.trim() });

@@ -14,6 +14,7 @@ import {
   type SmsMatchTypeThreshold,
 } from './notification-settings';
 import { estimateSmsSegments, sendSms } from './sms-turbosms';
+import { isTechnicalPlaceholderPhone } from './telegram-contact';
 
 /** Локальна копія normalizePhone (уникаємо circular import із telegram.ts). */
 function normalizePhone(phone: string): string {
@@ -104,6 +105,10 @@ export async function sendPaidFallbackSms(
 
   if (!phoneNormalized || phoneNormalized.length < 11) {
     return { sent: false, via: 'none', reason: 'bad_phone' };
+  }
+  // 380010000000+ — внутрішній ідентифікатор людини без номера, а не телефон: платити за SMS на нього не можна
+  if (isTechnicalPlaceholderPhone(phoneNormalized)) {
+    return { sent: false, via: 'none', reason: 'technical_phone' };
   }
 
   const person = await prisma.person
