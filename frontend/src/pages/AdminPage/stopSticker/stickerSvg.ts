@@ -1,6 +1,7 @@
 import { encode } from 'uqr';
 import type { StickerLine, StickerNode } from './stickerModel';
 import { routeNo } from '@/utils/routeNames';
+import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
 
 /**
  * SVG наклейки на зупинку у стилі схеми маршрутів (Docs/malyn-transit-scheme/build_scheme.py,
@@ -119,13 +120,14 @@ function badgeWidth(no: string, h: number): number {
   return no.length <= 1 ? h * 1.35 : h * (1.75 + 0.6 * (no.length - 2));
 }
 
-/** Плашка номера, як на схемі: прямокутник у кольорі лінії, білий жирний номер */
+/** Плашка номера, як на схемі: прямокутник у кольорі лінії, жирний номер білим або чорним — що контрастніше */
 function badge(x: number, y: number, line: Pick<StickerLine, 'routeId' | 'color'>, h: number, width?: number): string {
   const no = routeNo(line.routeId); // номер для показу («11/1»); data-route — id
   const w = width ?? badgeWidth(no, h);
+  const bg = line.color ?? FG;
   return (
-    `<g data-route="${esc(line.routeId)}"><rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" rx="${r(h * 0.19)}" fill="${line.color ?? FG}"/>` +
-    txt(x + w / 2, y + h * 0.73, no, h * 0.68, { weight: 800, fill: '#ffffff', anchor: 'middle' }) +
+    `<g data-route="${esc(line.routeId)}"><rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" rx="${r(h * 0.19)}" fill="${bg}"/>` +
+    txt(x + w / 2, y + h * 0.73, no, h * 0.68, { weight: 800, fill: textColorOn(bg), anchor: 'middle' }) +
     '</g>'
   );
 }

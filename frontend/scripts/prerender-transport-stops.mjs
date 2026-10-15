@@ -174,16 +174,17 @@ function loadStopArticles() {
 /**
  * Кольори й порядок ліній зі згенерованої легенди схеми (src/pages/LocalTransportPage/scheme/
  * malyn-scheme-routes.ts). Файл — TypeScript, тому читаємо його текстом, як статті зупинок у
- * loadStopArticles: у кожному обʼєкті легенди "id" іде перед "color".
+ * loadStopArticles: у кожному обʼєкті легенди "id" іде перед "color", а за ним — "fg" (колір номера
+ * на плашці кольору лінії: білий або чорний, що контрастніше).
  */
 function loadSchemeLegend() {
   const file = path.resolve(__dirname, '../src/pages/LocalTransportPage/scheme/malyn-scheme-routes.ts');
   const legend = new Map();
   if (!fs.existsSync(file)) return legend;
   const src = fs.readFileSync(file, 'utf8');
-  const re = /"id":\s*"([^"]+)"[\s\S]*?"color":\s*"(#[0-9a-fA-F]{6})"/g;
+  const re = /"id":\s*"([^"]+)"[\s\S]*?"color":\s*"(#[0-9a-fA-F]{6})"(?:,\s*"fg":\s*"(#[0-9a-fA-F]{6})")?/g;
   let m;
-  while ((m = re.exec(src))) legend.set(m[1], { color: m[2], order: legend.size });
+  while ((m = re.exec(src))) legend.set(m[1], { color: m[2], fg: m[3] || '#ffffff', order: legend.size });
   return legend;
 }
 
@@ -203,8 +204,10 @@ function lineChipsHtml(routeIds, legend, no = (id) => String(id)) {
   return [...routeIds]
     .sort((a, b) => compareLineId(a, b, legend))
     .map((r) => {
-      const color = legend.get(String(r))?.color;
-      const paint = color ? `background:${color};color:#fff;border-color:${color}` : 'background:#fff;color:#054752;border-color:#dde3e6';
+      const line = legend.get(String(r));
+      const paint = line
+        ? `background:${line.color};color:${line.fg};border-color:${line.color}`
+        : 'background:#fff;color:#054752;border-color:#dde3e6';
       return `<a href="/transport/route/${encodeURIComponent(r)}" style="${chip};${paint}">№${escapeHtml(no(r))}</a>`;
     })
     .join('');

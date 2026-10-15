@@ -30,6 +30,7 @@ import {
   type SupportTopicId,
 } from './supportContent';
 import { CORRIDOR_LANDINGS, corridorPath } from '@/pages/MizhgorodskiPage/corridorLandings';
+import { DATASET_JSON_URL, GTFS_FEED_URL, OPEN_DATA_DOC_URL, OPEN_DATA_LICENSE } from '@/pages/LocalTransportPage/openData';
 
 function upsertJsonLd(id: string, data: object): () => void {
   let el = document.getElementById(id) as HTMLScriptElement | null;
@@ -840,6 +841,37 @@ function TransportArticle() {
             Якщо виконком змінить тариф окремим рішенням — орієнтуйтеся на офіційне повідомлення.
             <br />
             Ми підтягнемо цифру в інтерфейсі.
+          </p>
+        </section>
+
+        <section className="support-block" aria-labelledby="city-open-data">
+          <h2 id="city-open-data">Дані відкриті</h2>
+          <p>
+            Розклад, зупинки й лінії можна забрати з собою і відкрити в іншому застосунку — це ваші дані, не наші.
+          </p>
+          <ul className="support-list support-list--compact">
+            <li>
+              <a href={GTFS_FEED_URL}>GTFS</a> — стандартний формат розкладів (Google Maps, OpenTripPlanner, QGIS);
+            </li>
+            <li>
+              <a href={DATASET_JSON_URL}>JSON сайту</a> — повний датасет у форматі, яким живе сам сайт;
+            </li>
+            <li>
+              <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
+                як відкрити й що всередині
+              </a>{' '}
+              — інструкція для розробників.
+            </li>
+          </ul>
+          <p>
+            Ліцензія{' '}
+            <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
+              {OPEN_DATA_LICENSE.name}
+            </a>
+            : вільно для людей, міста й бізнесу з доходом до 100 000 USD на рік, з атрибуцією{' '}
+            <em>{OPEN_DATA_LICENSE.attribution}</em>; більшим компаніям, платним сервісам на цих даних і перепродажу — за
+            письмовим договором. Кнопки завантаження й дата даних — внизу{' '}
+            <Link to="/transport/scheme#open-data">схеми маршрутів</Link>.
           </p>
         </section>
 

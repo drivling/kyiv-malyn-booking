@@ -67,7 +67,7 @@ describe('TransportStatusBar: пропозиція встановити заст
     act(() => {
       window.dispatchEvent(ev);
     });
-    expect(screen.getByText('Встановіть «Транспорт Малина» на телефон')).toBeInTheDocument();
+    expect(screen.getByText('Встановіть «Як доїхати» на телефон')).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Встановити' }));

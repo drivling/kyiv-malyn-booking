@@ -20,6 +20,7 @@ import {
 } from '../sticker-scans';
 import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticker-wall';
 import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDays } from '../arrival-reports';
+import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
 
 export function createTransportRouter(deps: { prisma: PrismaClient; adminPassword?: string }): Router {
   const { prisma } = deps;
@@ -30,6 +31,14 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
   const isRepeatReturn = createScanDeduper(30 * 60 * 1000);
   // Той самий звіт про рейс із того самого клієнта за 10 хв — подвійне натискання, не новий факт
   const isRepeatArrival = createScanDeduper(10 * 60 * 1000);
+  const gtfs = createGtfsFeedProvider(prisma);
+
+  /** Заголовки відкритих даних: 5 хв у кешах, ETag = revision (Express сам відповідає 304 на If-None-Match) */
+  const openDataHeaders = (revision: string) => ({
+    'Cache-Control': 'public, max-age=300',
+    ETag: `"${revision}"`,
+    'Last-Modified': new Date(revision).toUTCString(),
+  });
 
   /** Публічний повний датасет міського транспорту (~150 КБ). */
   r.get('/transport/dataset', async (_req, res) => {
@@ -40,6 +49,50 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
     } catch (e) {
       console.error('[GET /transport/dataset]', e);
       res.status(500).json({ error: 'Failed to load transport dataset' });
+    }
+  });
+
+  /**
+   * Публічний GTFS Static фід (Docs/transport-open-data-2026-10.md): той самий генератор, що й `npm run export:gtfs`,
+   * кеш у пам'яті за revision; feed_version = revision; порожня БД — 404.
+   */
+  r.get('/transport/gtfs.zip', async (_req, res) => {
+    try {
+      const cached = await gtfs.get();
+      if (!cached) {
+        res.status(404).json({ error: 'Transport dataset is empty' });
+        return;
+      }
+      res.set({
+        ...openDataHeaders(cached.revision),
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${GTFS_ZIP_FILENAME}"`,
+      });
+      res.send(cached.zip);
+    } catch (e) {
+      console.error('[GET /transport/gtfs.zip]', e);
+      res.status(500).json({ error: 'Failed to build GTFS feed' });
+    }
+  });
+
+  /** Один файл фіду без zip (feed_info.txt — перевірити версію, stops.txt — curl); невідоме ім'я — 404 */
+  r.get('/transport/gtfs/:file', async (req, res) => {
+    const name = req.params.file;
+    if (!isGtfsFeedFile(name)) {
+      res.status(404).json({ error: 'Unknown GTFS file' });
+      return;
+    }
+    try {
+      const cached = await gtfs.get();
+      if (!cached) {
+        res.status(404).json({ error: 'Transport dataset is empty' });
+        return;
+      }
+      res.set({ ...openDataHeaders(cached.revision), 'Content-Type': 'text/plain; charset=utf-8' });
+      res.send(cached.feed.files[name]);
+    } catch (e) {
+      console.error('[GET /transport/gtfs/:file]', e);
+      res.status(500).json({ error: 'Failed to build GTFS feed' });
     }
   });
 

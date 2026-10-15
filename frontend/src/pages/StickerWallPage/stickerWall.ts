@@ -8,6 +8,7 @@ import type { StickerWallSnapshot } from '@/types';
 import { stickerStopCatalog } from '@/pages/AdminPage/stopSticker/scanStats';
 import { brightestLineColor, prettyStopName } from '@/pages/AdminPage/stopSticker/stickerModel';
 import { SCHEME_ROUTES } from '@/pages/LocalTransportPage/scheme/malyn-scheme-routes';
+import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
 
 /** Як часто віджет тягне знімок: скани поодинокі, 30 с — «одразу» для людини біля стіни */
 export const WALL_POLL_MS = 30_000;
@@ -215,18 +216,8 @@ export function isNightHour(now: Date): boolean {
   return h >= 23 || h < 6;
 }
 
-/** Чи читається білий текст на кольорі (відносна яскравість WCAG) */
-export function textOn(hex: string): '#ffffff' | '#10131a' {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
-  if (!m) return '#ffffff';
-  const lin = (v: number) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  const [r, g, b] = m.slice(1).map((x) => lin(parseInt(x, 16)));
-  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return l > 0.45 ? '#10131a' : '#ffffff';
-}
+/** Текст на кольорі лінії: білий або чорний, що контрастніше (як номери на плашках схеми, WCAG ≥ 4.5:1) */
+export const textOn = textColorOn;
 
 export type WallSettings = { sound: boolean; quietNights: boolean };
 export const DEFAULT_WALL_SETTINGS: WallSettings = { sound: true, quietNights: true };

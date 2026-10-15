@@ -266,9 +266,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   session. Dev and prerender have no `/assets/index-*` script, so it is off there.
 - **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`; the real worker is checked only
   by hand or with `npm run pwa:smoke` in `frontend/` against a deployed site — never in CI): `/transport*` works offline and
-  installs as «Транспорт Малина» (`public/transport.webmanifest`, scope `/transport`, icons from `npm run pwa:icons`, PNGs
-  committed). Two layers. Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes
-  from the API (same `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by
+  installs as «Як доїхати» (`public/transport.webmanifest`, scope `/transport`; the menu entry and SEO titles stay «Транспорт
+  Малина»). The icon is a slice of the route scheme drawn by `npm run pwa:icons` from the scheme's colours, PNGs committed;
+  a new drawing gets new `icons/` file names, because browsers and Cloudflare keep `/icons/*` for a day. Two layers.
+  Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes from the API (same
+  `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by
   `prerender-transport-stops.mjs`; `TransportStatusBar` tells the user («Без мережі…» / «Сервер не відповідає…»). Shell:
   `sw/transport-sw.js` is a template, `scripts/build-sw.mjs` (after the prerenders) fills the precache list and `BUILD_ID`
   (`scripts/precache.mjs`, hash of the list + content of non-hashed files, so a data-only deploy reaches installed apps);
@@ -350,6 +352,8 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `apiClient.getTransportDataset()`); static stop pages use `routeShortNames()` (`scripts/transport-stop-routes.mjs`);
   the scheme generator reads it from the dataset, so regenerate the scheme and poster after changing it. A `PUT` without
   the key keeps the stored value. Prefer `shortName` over renumbering when only the label changes.
+  A number on a line colour is never hard-coded white: it takes `fg` from the scheme legend (`--lt-route-fg`,
+  `--lts-r<id>-fg`) or `textColorOn()` (`routeColors.ts`) — white or black, whichever contrasts more (≥ 4.5:1).
 - Route lines on the map are straight lines between consecutive chain points; technical points (`mapOnly`
   route stops named «№<id> т.N») bend them along the roads (`Docs/route-geometry-5-2-2026-10.md`,
   `Docs/route-geometry-10-11-2026-10.md`, `Docs/route-geometry-8-2026-10.md`, `Docs/route-geometry-7-2026-10.md`,
@@ -381,6 +385,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   by «Перерахувати час»); the admin editors load it with `getTransportDataset({ fresh: true })` and pass it to
   `putTransportDataset(dataset, baseRevision)` → 409 if the data changed meanwhile. Scripts that PUT without
   `baseRevision` are not checked — close or reload admin tabs before a scripted write.
+- **Open data** (`Docs/transport-open-data-2026-10.md`): `GET /transport/gtfs.zip` and `GET /transport/gtfs/<file>.txt`
+  serve the GTFS Static feed built by `backend/src/gtfs-feed.ts` (`buildGtfsFeed` — the same generator as
+  `npm run export:gtfs`, which is now a thin wrapper; `backend/src/zip.ts` writes the archive, no system `zip`).
+  `feed_version` = dataset `revision`; the router caches the feed in memory per revision
+  (`createGtfsFeedProvider`) and answers with `Cache-Control: public, max-age=300`, `ETag: "<revision>"` and
+  `Last-Modified`. `unreliable` routes are omitted; the data license (`OPEN_DATA_LICENSE`, OwnNet Source License 1.1 — the owner's decision, same as the code; it was CC BY 4.0 until the owner
+  decides otherwise) ships as `LICENSE.txt` inside the zip and is mirrored in `frontend/.../LocalTransportPage/openData.ts`.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

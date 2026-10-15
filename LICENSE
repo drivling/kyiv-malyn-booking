@@ -1,3 +1,431 @@
-Merenkov Software License - Version 1.0 - January 27th, 2026
+OwnNet Source License 1.1
+(Source Available Edition)
+Version 1.1, August 2026
 
-Will be presented later. For now, this is my property.
+═══════════════════════════════════════════════════════════════════════════
+LICENSE PARAMETERS  (this distribution)
+═══════════════════════════════════════════════════════════════════════════
+
+  Project Name .......... malin.kiev.ua (site, backend, Telegram bot) and the
+                          Malyn public-transport database it publishes
+                          (GTFS feed, JSON dataset at malin.kiev.ua/transport)
+  Licensor .............. Serhii Merenkov / LIMITED LIABILITY COMPANY "Technologies"
+                          (ТОВ «Компанія Технології», EDRPOU 46288273, Malyn, Ukraine)
+  Copyright ............. Copyright (c) 2026 Serhii Merenkov /
+                          LIMITED LIABILITY COMPANY "Technologies"
+  Licensor Contact ...... mer.sergei@gmail.com
+  Project Website ....... https://own-net.com/
+  Revenue Threshold ..... USD $100,000
+  Attribution Line ...... "Based on malin.kiev.ua by Serhii Merenkov /
+                          Technologies LLC (technologies.llc)"; for the data:
+                          "Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології» (technologies.llc)"
+  Change Date ........... None (this License does not auto-convert)
+  Note .................. A modified copy of the transport database is a
+                          Derivative Work; the bare facts in it (times, stops)
+                          are not claimed.
+
+A reuser of this License fills in the parameters above for their own project.
+Wherever the terms below say "the Project", "the Licensor", "the Revenue
+Threshold", "the Attribution Line", or "the Change Date", they mean the values
+set in this block. The body of the License is otherwise project-neutral.
+
+═══════════════════════════════════════════════════════════════════════════
+
+NOTICE
+
+This is a Source Available license, not an Open Source license as defined by
+the Open Source Initiative (OSI), and not a Free Software license as defined
+by the Free Software Foundation. The source code is published for transparency,
+security audit, study, personal use, and community contribution. Commercial
+Use (as defined below) requires a separate written agreement with the Licensor.
+
+═══════════════════════════════════════════════════════════════════════════
+
+PREAMBLE
+
+The Project is published in the spirit of the Open Internet 4.0 movement. The
+Licensor believes that digital tools must respect user sovereignty: devices
+must work without continuous corporate permission, data must be portable, and
+software must be auditable, repairable, and forkable.
+
+The source is open for study, personal use, and community contribution.
+Commercial exploitation of the Project without the Licensor's knowledge and
+consent is not permitted. Building surveillance, lock-in, or remote-disablement
+products on top of the Project is not permitted by anyone.
+
+Full manifesto: https://own-net.com/
+
+═══════════════════════════════════════════════════════════════════════════
+
+1. DEFINITIONS
+
+1.1  "License" means this document, version 1.1 of the OwnNet Source License.
+
+1.2  "Project" means the software project identified in the LICENSE PARAMETERS
+     block, comprising its source code, compiled or generated artifacts,
+     configuration, documentation, and other files distributed under this
+     License by the Licensor.
+
+1.3  "Software" means the Project and any portion of it.
+
+1.4  "Licensor" means the copyright holder(s) identified in the LICENSE
+     PARAMETERS block, and their successors and permitted assigns.
+
+1.5  "Steward" means the Licensor, or the person or entity the Licensor
+     designates in writing to maintain the canonical Project. Revisions of
+     this License are published as set out in Section 11.8, not by the
+     Steward.
+
+1.6  "You" (or "Your") means the individual or legal entity exercising rights
+     under this License. For a legal entity, "You" includes all entities that
+     control, are controlled by, or are under common control with that entity.
+
+1.7  "Contribution" means any work of authorship, including modifications and
+     additions to the Software, that is intentionally submitted to the Steward
+     for inclusion in the Project by You or on Your behalf. "Submitted" means
+     any form of communication sent to the Steward or its designated channels
+     (including version-control systems, issue trackers, and mailing lists),
+     excluding communication conspicuously marked "Not a Contribution".
+
+1.8  "Contributor" means the Licensor and any person or entity whose
+     Contribution has been incorporated into the Software.
+
+1.9  "Derivative Work" means any work, in source or object form, that is based
+     upon the Software (or a portion of it) and constitutes a work of
+     authorship subject to copyright, such as a work created by modifying,
+     translating, adapting, or extending the Software, or by incorporating a
+     substantial portion of the Software.
+
+     The following do NOT, by themselves, create a Derivative Work:
+       (a) interacting with the Software solely through its unmodified public
+           interfaces (network protocols, IPC, command-line interface, or
+           published application programming interfaces);
+       (b) communicating with the Software over a network or between separate
+           operating-system processes;
+       (c) linking to, or being linked by, the Software's unmodified public
+           interfaces, whether statically or dynamically, where Your code is a
+           separate and independent work that does not itself embody a
+           substantial portion of the Software;
+       (d) bundling the Software with other independent works on a storage or
+           distribution medium ("mere aggregation").
+
+1.10 "Commercial Use" means any of the following:
+       (a) use of the Software or a Derivative Work by, or on behalf of, a
+           person or legal entity whose Annual Gross Revenue exceeds the
+           Revenue Threshold; or
+       (b) making the functionality of the Software or a Derivative Work
+           available to third parties as a hosted, managed, or software-as-a-
+           service offering for a fee; or
+       (c) selling, licensing, sublicensing, renting, or distributing the
+           Software or a Derivative Work, as a standalone product or as a
+           primary component of a product, in exchange for a fee.
+
+     For the avoidance of doubt, using the Software to operate Your own
+     business, including to sell goods or services that are not themselves the
+     Software's functionality (for example, running a shop's point of sale, or
+     a seller's own live-commerce operations), is NOT Commercial Use unless
+     paragraph (a) applies.
+
+1.11 "Annual Gross Revenue" means the total worldwide gross revenue of the
+     legal entity exercising rights under this License, aggregated with all
+     entities that control, are controlled by, or are under common control
+     with it, during the most recent completed twelve-month fiscal period.
+     For an individual, it means that individual's total gross income from all
+     trade or business activity over the same period.
+
+1.12 "Closed System" means a product, service, platform, or system that does
+     any of the following:
+       (a) implements a remote kill switch, or requires continuous third-party
+           server authorization, for the basic operation of a device or of
+           software the user already owns or has licensed, where that
+           authorization can be withheld or revoked without the user's
+           consent and without a documented, self-serviceable alternative;
+       (b) stores the user's own data exclusively in an undocumented
+           proprietary format, without providing a documented,
+           machine-readable export that the user can invoke at will;
+       (c) technically prevents the user from inspecting, modifying, or
+           replacing the software running on hardware the user owns;
+       (d) collects, monitors, or transmits the user's activity, usage
+           patterns, communications, or personal data without prior explicit,
+           informed, and independently revocable consent.
+
+     The following do NOT, by themselves, make a product a Closed System:
+     ordinary account authentication for a network service the user chooses to
+     use; good-faith use of third-party error reporting, crash analytics, or
+     product analytics for which a clear, effective opt-out is offered and
+     honored; security updates; and license-compliance checks that do not
+     disable software the user already lawfully runs.
+
+═══════════════════════════════════════════════════════════════════════════
+
+2. GRANT OF COPYRIGHT LICENSE
+
+Subject to the terms of this License, each Contributor grants You a perpetual
+(for the duration of the applicable copyright), worldwide, non-exclusive,
+no-charge, royalty-free, irrevocable-except-as-stated-in-Section 8 copyright
+license to:
+
+  1. use the Software for personal, educational, and non-commercial research
+     purposes without restriction;
+
+  2. use the Software for any purpose that is not Commercial Use;
+
+  3. reproduce and distribute verbatim copies of the Software together with
+     this License;
+
+  4. study and inspect the source for any purpose;
+
+  5. create and distribute Derivative Works, provided every condition in
+     Section 5 is met; and
+
+  6. sublicense the rights in paragraphs 1–5 to recipients of a copy or a
+     Derivative Work, without adding restrictions beyond those in this License.
+
+Commercial Use is not granted by this Section and requires a Commercial
+License under Section 7.
+
+═══════════════════════════════════════════════════════════════════════════
+
+3. GRANT OF PATENT LICENSE
+
+Subject to the terms of this License, each Contributor grants You a perpetual,
+worldwide, non-exclusive, no-charge, royalty-free (except that Commercial Use
+remains subject to Section 7) patent license to make, have made, use, offer to
+sell, sell, import, and otherwise transfer the Software, where such license
+applies only to those patent claims licensable by that Contributor that are
+necessarily infringed by their Contribution alone or by the combination of
+their Contribution with the Software to which it was submitted.
+
+If You institute patent litigation against any entity (including a
+cross-claim or counterclaim in a lawsuit) alleging that the Software or a
+Contribution embodied within it constitutes direct or contributory patent
+infringement, then every patent license granted to You under this License for
+that Software terminates as of the date such litigation is filed.
+
+═══════════════════════════════════════════════════════════════════════════
+
+4. GRANT OF RIGHTS — SUMMARY OF WHAT YOU MAY DO
+
+You may run, copy, study, modify, and share the Software and Derivative Works,
+for any non-Commercial purpose, for free, worldwide, forever, provided You
+follow Section 5. You may also use it in a business below the Revenue
+Threshold on the same terms. Anything that is Commercial Use needs a separate
+agreement (Section 7). Nobody — including Commercial licensees — may build a
+Closed System with it (Section 5.3).
+
+═══════════════════════════════════════════════════════════════════════════
+
+5. CONDITIONS
+
+5.1  ATTRIBUTION
+
+     Every copy and every Derivative Work You distribute must:
+       (a) retain this License file in full;
+       (b) retain all copyright, patent, trademark, and attribution notices
+           present in the Software, and retain the LICENSE PARAMETERS block;
+       (c) include the Attribution Line in at least one of the following that
+           applies to Your distribution: the README or top-level
+           documentation, the product's "About" or credits screen, or the
+           accompanying release notes; and
+       (d) carry prominent notices stating that You changed the files, if You
+           did, with a date.
+
+5.2  COMMERCIAL USE REQUIRES A LICENSE
+
+     Any Commercial Use requires a prior written Commercial License Agreement
+     from the Licensor (Section 7). Commercial Use without a valid Commercial
+     License Agreement is a material breach of this License and an infringement
+     of copyright.
+
+     Threshold transition: if You are using the Software in reliance on the
+     Revenue Threshold and Your Annual Gross Revenue later exceeds it, You have
+     ninety (90) days from the end of the fiscal period in which the Threshold
+     was exceeded to either obtain a Commercial License or cease all use that
+     has become Commercial Use. Use during that 90-day window is not a breach.
+
+5.3  NO CLOSED SYSTEMS
+
+     You may not use the Software or any Derivative Work, in whole or in part,
+     as a component of a Closed System. This condition applies to every
+     licensee regardless of revenue and regardless of whether the Closed
+     System is commercial, and it applies to Commercial licensees unless their
+     Commercial License Agreement waives it in writing.
+
+5.4  SHAREALIKE FOR DERIVATIVE WORKS
+
+     Any Derivative Work You distribute to a third party must be licensed, as a
+     whole, under this License (OwnNet Source License 1.1) or, at Your option,
+     a later numbered version published under Section 11.8. You may not offer
+     or impose terms on the Derivative Work that restrict the recipient's
+     rights under this License, and You may not apply technical measures that
+     do so.
+
+     Each Contributor retains copyright in their own Contributions. This
+     Section does not grant You the right to place a third party's
+     Contribution under a Commercial License; that requires Section 6 or that
+     party's separate written permission.
+
+5.5  NO MISREPRESENTATION
+
+     You may not use the name "OwnNet", the name of the Project, or the name
+     of any Contributor to endorse or promote a Derivative Work without prior
+     written consent. You may not represent the Software or any Derivative Work
+     as being licensed under an OSI-approved Open Source license or under a
+     license other than this one. This License does not grant permission to
+     use any Contributor's trade names, trademarks, or service marks, except
+     as required by Section 5.1.
+
+═══════════════════════════════════════════════════════════════════════════
+
+6. CONTRIBUTIONS
+
+6.1  Inbound license. Unless You conspicuously mark a submission "Not a
+     Contribution", You grant the Steward, with respect to Your Contribution:
+
+       (a) a perpetual, worldwide, non-exclusive, royalty-free, irrevocable
+           copyright license to use, reproduce, modify, prepare derivative
+           works of, publicly display, sublicense, and distribute Your
+           Contribution and such derivative works; and
+
+       (b) the patent license described in Section 3, granted to the Steward
+           and to all recipients of the Software; and
+
+       (c) the right to license and sublicense Your Contribution, and to
+           distribute it and Derivative Works containing it, under this
+           License, under a later version of this License, AND under separate
+           Commercial License Agreements on terms of the Steward's choosing.
+
+     You retain all right, title, and interest in Your Contribution and may
+     use it for any other purpose.
+
+6.2  Representation. You represent that each of Your Contributions is Your
+     original creation, or that You have sufficient rights to grant the
+     licenses in Section 6.1, and that Your Contribution does not knowingly
+     violate any third party's rights.
+
+6.3  No obligation. The Steward is not obliged to use, merge, or distribute any
+     Contribution.
+
+6.4  A separate signed Contributor License Agreement offered by the Steward, if
+     any, governs to the extent it conflicts with this Section.
+
+═══════════════════════════════════════════════════════════════════════════
+
+7. COMMERCIAL LICENSE
+
+Commercial Use requires a Commercial License Agreement from the Licensor. To
+request one, contact the Licensor at the address in the LICENSE PARAMETERS
+block. The Licensor may grant or decline at its sole discretion and may set
+terms including fees, field-of-use limits, attribution, support and service
+levels, an express waiver of Section 5.3, and an alternative governing law.
+
+═══════════════════════════════════════════════════════════════════════════
+
+8. TERMINATION
+
+8.1  Your rights under this License terminate automatically upon any breach of
+     its terms.
+
+8.2  Reinstatement. If the breach is curable, this is Your first breach as to
+     the Licensor, and You cure it within thirty (30) days after becoming
+     aware of it (whether You discover it or the Licensor notifies You), Your
+     rights are reinstated retroactively. If it is Your second or later breach,
+     Your rights are reinstated only if the Licensor grants reinstatement
+     expressly in writing.
+
+8.3  Patent termination under Section 3 is not subject to cure.
+
+8.4  Sections 1, 5.5, 8, 9, 10, and 11, and the disclaimers and limitations in
+     Sections 9 and 10, survive termination. Any sublicense or copy properly
+     distributed by You before termination remains in effect for its
+     recipients so long as they comply.
+
+═══════════════════════════════════════════════════════════════════════════
+
+9. DISCLAIMER OF WARRANTIES
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. YOU BEAR THE
+ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE.
+
+═══════════════════════════════════════════════════════════════════════════
+
+10. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL ANY
+CONTRIBUTOR BE LIABLE TO YOU FOR ANY CLAIM, OR FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES, OR FOR LOSS OF
+PROFITS, DATA, OR GOODWILL, WHETHER IN CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF OR OTHER DEALINGS IN THE
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+═══════════════════════════════════════════════════════════════════════════
+
+11. MISCELLANEOUS
+
+11.1 Severability. If any provision of this License is held unenforceable, it
+     is to be reformed only to the minimum extent necessary to make it
+     enforceable, and the remaining provisions stay in full effect.
+
+11.2 No waiver. A Contributor's failure to enforce any provision is not a
+     waiver of its right to do so later.
+
+11.3 Entire agreement. As to the Software, this License is the entire
+     agreement between You and the Contributors and supersedes any prior
+     understanding, except for a signed Commercial License Agreement or
+     Contributor License Agreement, which controls where it conflicts.
+
+11.4 No agency. This License does not create any partnership, joint venture,
+     agency, or employment relationship.
+
+11.5 Assignment. The Licensor may assign this License and its rights under it,
+     including in connection with a transfer of the Project. You may not assign
+     this License or Your rights under it without the Licensor's prior written
+     consent, except to a successor of substantially all of Your assets that
+     assumes Your obligations.
+
+11.6 Interpretation. Section headings are for convenience only. "Including"
+     means "including without limitation".
+
+11.7 Controlling language. This License is written in English. If it is
+     translated, the English text controls.
+
+11.8 License text and revisions. Everyone is permitted to copy and distribute
+     verbatim copies of this License document, and to apply it to their own
+     project by filling in the LICENSE PARAMETERS block as described under
+     "How to Apply This License to Your Own Project". The body of this License
+     may not be modified; a modified text may not be called the "OwnNet Source
+     License" or be presented as a version of it. Numbered revisions of this
+     License are published solely by its author, Serhii Merenkov / LIMITED
+     LIABILITY COMPANY "Technologies" (or their successors), at
+     https://own-net.com/; the Steward or Licensor of an individual project
+     may adopt a later revision but may not publish one.
+
+═══════════════════════════════════════════════════════════════════════════
+
+12. GOVERNING LAW
+
+This License is governed by the laws of Ukraine, without regard to its
+conflict-of-laws rules, and excluding the United Nations Convention on
+Contracts for the International Sale of Goods. A Commercial licensee may agree
+an alternative governing law and forum in its Commercial License Agreement.
+
+═══════════════════════════════════════════════════════════════════════════
+
+HOW TO APPLY THIS LICENSE TO YOUR OWN PROJECT
+
+  1. Copy this file into your project as LICENSE.
+  2. Fill in every field in the LICENSE PARAMETERS block.
+  3. Set the "Change Date" field to "None", or to a date on which this License
+     converts to a stated Open Source license for that release; if you use a
+     Change Date, add a "Change License" field naming the target license and a
+     sentence stating the conversion. (This template does not itself convert.)
+  4. Add a short header to each source file, or a NOTICE file, of the form:
+        <Project>  Copyright (c) <year> <holder>
+        Licensed under the OwnNet Source License 1.1. See LICENSE.
+        Commercial use requires a separate agreement: <contact>
+
+═══════════════════════════════════════════════════════════════════════════
+
+END OF OwnNet SOURCE LICENSE VERSION 1.1

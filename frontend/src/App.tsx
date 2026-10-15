@@ -53,7 +53,7 @@ function AppContent() {
   useHomeCityHandoff();
   // стара вкладка після деплою сама підтягує нову збірку (src/site/freshBuild.ts)
   useFreshBuild();
-  // service worker застосунку «Транспорт Малина» — лише на /transport* (src/pwa, Docs/transport-pwa-2026-10.md)
+  // service worker застосунку «Як доїхати» — лише на /transport* (src/pwa, Docs/transport-pwa-2026-10.md)
   useTransportServiceWorker();
   // люди з QR-наклейок, що повертаються на сайт (stickerReturn.ts)
   useStickerReturn();

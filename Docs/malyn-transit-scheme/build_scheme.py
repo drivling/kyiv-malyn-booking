@@ -378,6 +378,42 @@ def poster_assets_from(path, qr_url):
         raise SystemExit(f'--reuse-poster: у {path} немає рівно одного QR-коду для {host} і одного блоку шрифтів')
     return qrs[0], styles[0]
 
+# ---------------------------------------------------------------- номери на плашках: контраст
+# Колір номера на плашці кольору лінії — білий або чорний, що контрастніше (WCAG 2.x). Один із двох
+# на будь-якому кольорі дає щонайменше 4.58:1, тож норму AA для звичайного тексту (4.5:1) проходить
+# кожна лінія без винятків: кольори ліній не міняються, змінюється лише колір цифр.
+BADGE_INKS = ('#ffffff', '#000000')
+MIN_CONTRAST = 4.5
+
+
+def relative_luminance(hex_color):
+    def lin(v):
+        c = v / 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    h = hex_color.lstrip('#')
+    r, g, b = (lin(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    la, lb = sorted((relative_luminance(a), relative_luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def badge_fg(bg):
+    fg = max(BADGE_INKS, key=lambda ink: contrast(ink, bg))
+    if contrast(fg, bg) < MIN_CONTRAST:
+        raise SystemExit(f'номер на плашці {bg}: контраст {contrast(fg, bg):.2f} < {MIN_CONTRAST}')
+    return fg
+
+
+FG = {rid: (badge_fg(light), badge_fg(dark)) for rid, (light, dark) in COLORS.items()}  # як COLORS: світла / темна
+
+
+def fg_css_vars(theme):
+    """--r<id>-fg для сторінки index.html: theme 0 — світла тема, 1 — темна"""
+    return ' '.join(f'--r{rid}-fg: {FG[rid][theme]};' for rid in ROUTE_ORDER)
+
 # ---------------------------------------------------------------- SVG
 def esc(s):
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -404,7 +440,8 @@ def load_labels(ds):
             LABELS[r['id']] = no
 
 
-def badge(x, y, rid, col, align='start', h=16, extra=''):
+def badge(x, y, rid, col, ink, align='start', h=16, extra=''):
+    """ink(rid) — колір номера на плашці (FG: білий або чорний)"""
     label = route_label(rid)
     w = badge_width(label)
     if align == 'middle':
@@ -413,11 +450,11 @@ def badge(x, y, rid, col, align='start', h=16, extra=''):
         x = x - w
     return (f'<g class="lts-badge" data-route="{rid}"{extra}>'
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{w}" height="{h}" rx="4" fill="{col(rid)}"/>'
-            f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">{esc(label)}</text></g>')
+            f'<text x="{x + w / 2:.1f}" y="{y + h - 4.2:.1f}" text-anchor="middle" font-size="11.5" font-weight="700" fill="{ink(rid)}">{esc(label)}</text></g>')
 
-def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
+def badges_row(x, y, rids, col, ink, align='start', gap=4, per_row=4):
     if len(rids) > per_row:
-        return ''.join(badges_row(x, y + i * 20, rids[i * per_row:(i + 1) * per_row], col, align, gap, per_row)
+        return ''.join(badges_row(x, y + i * 20, rids[i * per_row:(i + 1) * per_row], col, ink, align, gap, per_row)
                        for i in range((len(rids) + per_row - 1) // per_row))
     ws = [badge_width(route_label(r)) for r in rids]
     total = sum(ws) + gap * (len(rids) - 1)
@@ -427,13 +464,14 @@ def badges_row(x, y, rids, col, align='start', gap=4, per_row=4):
         x = x - total
     parts = []
     for r, w in zip(rids, ws):
-        parts.append(badge(x, y, r, col, 'start'))
+        parts.append(badge(x, y, r, col, ink, 'start'))
         x += w + gap
     return ''.join(parts)
 
-def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text, font,
+def build_svg(stats, col, ink, bg, fg, muted, line_bg, water, water_fill, water_text, font,
               variant='page', standalone=False, qr_url=QR_URL_DEFAULT, fonts_dir='', reuse=None):
     """variant: page (заголовок + легенда) | poster (page + QR) | site (лише карта, data-атрибути).
+    col(rid) — колір лінії, ink(rid) — колір номера на плашці.
     reuse — (шлях QR-коду, блок <style>) з poster_assets_from замість segno і fonts_dir."""
     site = variant == 'site'
     W_, H_ = 1400, 1012
@@ -518,7 +556,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
         o.append(f'<text x="{t["lx"]}" y="{t["ly"]}" text-anchor="{t["anchor"]}" font-size="14" font-weight="700" fill="{fg}">{esc(t["name"])}</text>')
         if t.get('sub'):
             o.append(f'<text x="{t["lx"]}" y="{t["ly"] + 15}" text-anchor="{t["anchor"]}" font-size="11" fill="{muted}">{esc(t["sub"])}</text>')
-        o.append(badges_row(t['bx'], t['by'], t['routes'], col, t['balign']))
+        o.append(badges_row(t['bx'], t['by'], t['routes'], col, ink, t['balign']))
         o.append('</g>')
     # ---- вузли
     for h in HUBS:
@@ -530,7 +568,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
         if h['sub']:
             o.append(f'<text x="{h["lx"] + h.get("sub_dx", 0)}" y="{h["ly"] + 16}" text-anchor="{h["anchor"]}" font-size="11" fill="{muted}">{esc(h["sub"])}</text>')
         if h['term']:
-            o.append(badges_row(h['bx'], h['by'], h['term'], col, h['balign']))
+            o.append(badges_row(h['bx'], h['by'], h['term'], col, ink, h['balign']))
         o.append('</g>')
     # ---- легенда
     if not site:
@@ -550,7 +588,7 @@ def build_svg(stats, col, bg, fg, muted, line_bg, water, water_fill, water_text,
             a, b, via = LEGEND[rid]
             st = stats.get(rid)
             o.append(f'<g class="lts-legend-row" data-route="{rid}">')
-            o.append(badge(colx, y - 1, rid, col, 'start', h=20).replace('font-size="11.5"', 'font-size="13"').replace(f'y="{y - 1 + 20 - 4.2:.1f}"', f'y="{y + 14:.1f}"'))
+            o.append(badge(colx, y - 1, rid, col, ink, 'start', h=20).replace('font-size="11.5"', 'font-size="13"').replace(f'y="{y - 1 + 20 - 4.2:.1f}"', f'y="{y + 14:.1f}"'))
             tx = colx + col_tx[0 if i < 5 else 1]
             o.append(f'<text x="{tx}" y="{y + 14}" font-size="13.5" font-weight="700" fill="{fg}">{esc(a)} — {esc(b)}</text>')
             if rid in UNCONFIRMED:
@@ -571,17 +609,20 @@ HTML_TMPL = '''<title>Схема маршрутів Малина</title>
 :root {
   --bg: #f7f6f2; --panel: #ffffff; --fg: #1b1f2a; --muted: #5f6673; --rule: #d9dbe0; --line-bg: #ffffff;
   --r2: #D7263D; --r3: #1B9E4B; --r5: #1F6FD6; --r7: #F08A1C; --r8: #7E3FC2; --r9: #E3368C; --r10: #C99700; --r11: #0E9AA7; --r12: #8A5A2B;
+  __FG_LIGHT__
   --water: #9ccfe8; --water-fill: #cfe8f5; --water-text: #3d7fa3;
   --font: 'Golos Text', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
   --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r10: #F2C94C; --r11: #3BC9D6; --r12: #C9915A;
+  __FG_DARK__
   --water: #2f6a8a; --water-fill: #1f4559; --water-text: #7fb6d6;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
   --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r10: #F2C94C; --r11: #3BC9D6; --r12: #C9915A;
+  __FG_DARK__
   --water: #2f6a8a; --water-fill: #1f4559; --water-text: #7fb6d6;
   color-scheme: dark; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font); margin: 0; padding-block: 24px 48px; padding-inline: 16px; }
@@ -614,12 +655,12 @@ __SVG__
       <h2>Що взято з даних сайту</h2>
       <ul>
         <li>9 маршрутів, які показує malin.kiev.ua. Маршрут 1 на схему не потрапив.</li>
-        <li><span class="pill" style="background:var(--r10)">10</span> (колишній 6) намальований за списком зупинок data.gov.ua 2024 і OpenStreetMap: Шевченка, Центр, Автостанція, Укр. Повстанців, Мирутенка, Малинівський круг.</li>
+        <li><span class="pill" style="background:var(--r10);color:var(--r10-fg)">10</span> (колишній 6) намальований за списком зупинок data.gov.ua 2024 і OpenStreetMap: Шевченка, Центр, Автостанція, Укр. Повстанців, Мирутенка, Малинівський круг.</li>
         <li>Річка Ірша та Малинське водосховище показані схематично за контурами OpenStreetMap: міст на Мазепи між Кооперативним ринком і Мазепи, 3; Барміна, Чорновола й Приходька — на південному березі.</li>
-        <li><span class="pill" style="background:var(--r9)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
-        <li><span class="pill" style="background:var(--r11)">11/1</span> від світлофора на Мазепи спершу заїжджає на Барміна і повертається, далі йде через центр і з-д «Прожектор» до Вокзалу; назад — через Паперову фабрику до Барміна.</li>
-        <li><span class="pill" style="background:var(--r8)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
-        <li><span class="pill" style="background:var(--r7)">7</span> та <span class="pill" style="background:var(--r8)">8</span> ходять за тимчасовою схемою (жовтень 2023, ремонт вул. Городищанської).</li>
+        <li><span class="pill" style="background:var(--r9);color:var(--r9-fg)">9</span> більшість рейсів закінчується на вул. Олекси Тихого; відрізок до Вокзалу (пунктир) і ранковий рейс до Лікарні — окремі рейси за розкладом міськради.</li>
+        <li><span class="pill" style="background:var(--r11);color:var(--r11-fg)">11/1</span> від світлофора на Мазепи спершу заїжджає на Барміна і повертається, далі йде через центр і з-д «Прожектор» до Вокзалу; назад — через Паперову фабрику до Барміна.</li>
+        <li><span class="pill" style="background:var(--r8);color:var(--r8-fg)">8</span> офіційна назва «Базар — Вокзал», але послідовність зупинок у базі починається з Чорновола, 53 — так і намальовано.</li>
+        <li><span class="pill" style="background:var(--r7);color:var(--r7-fg)">7</span> та <span class="pill" style="background:var(--r8);color:var(--r8-fg)">8</span> ходять за тимчасовою схемою (жовтень 2023, ремонт вул. Городищанської).</li>
         <li>Кількість рейсів і час першого/останнього — з розкладів у базі (/transport/dataset).</li>
       </ul>
     </section>
@@ -630,7 +671,8 @@ __SVG__
 SITE_ROUTES_TS_HEAD = '''/**
  * Легенда схеми маршрутів (/transport/scheme). ЗГЕНЕРОВАНО — не редагувати руками:
  *   python3 Docs/malyn-transit-scheme/build_scheme.py --site-dir frontend/src/pages/LocalTransportPage/scheme
- * Кольори звідси підставляються в CSS-змінні (--lts-r<id>, --lt-route-color) на сторінках транспорту.
+ * Кольори звідси підставляються в CSS-змінні (--lts-r<id>, --lts-r<id>-fg, --lt-route-color, --lt-route-fg)
+ * на сторінках транспорту.
  */
 export type SchemeRoute = {
   id: string;
@@ -641,6 +683,8 @@ export type SchemeRoute = {
   unconfirmed: boolean;
   /** Колір лінії (світла тема) — єдине джерело для схеми, планувальника й табло */
   color: string;
+  /** Колір номера на плашці кольору лінії: білий або чорний, що контрастніше (WCAG AA ≥ 4.5:1) */
+  fg: string;
 };
 
 '''
@@ -685,28 +729,30 @@ def main():
     if not (args.out_dir or args.site_dir or args.poster_dir):
         args.out_dir = '.'
     stats = route_stats(ds)
-    light = dict(col=lambda r: COLORS[r][0], bg='#ffffff', fg='#1b1f2a', muted='#5f6673', line_bg='#ffffff',
-                 water='#9ccfe8', water_fill='#cfe8f5', water_text='#3d7fa3',
+    light = dict(col=lambda r: COLORS[r][0], ink=lambda r: FG[r][0], bg='#ffffff', fg='#1b1f2a', muted='#5f6673',
+                 line_bg='#ffffff', water='#9ccfe8', water_fill='#cfe8f5', water_text='#3d7fa3',
                  font="'Golos Text', 'Segoe UI', Roboto, Arial, sans-serif")
     if args.out_dir:
         os.makedirs(args.out_dir, exist_ok=True)
-        svg_html = build_svg(stats, col=lambda r: f'var(--r{r})', bg='var(--panel)', fg='var(--fg)', muted='var(--muted)',
-                             line_bg='var(--line-bg)', water='var(--water)', water_fill='var(--water-fill)',
-                             water_text='var(--water-text)', font='var(--font)')
+        svg_html = build_svg(stats, col=lambda r: f'var(--r{r})', ink=lambda r: f'var(--r{r}-fg)', bg='var(--panel)',
+                             fg='var(--fg)', muted='var(--muted)', line_bg='var(--line-bg)', water='var(--water)',
+                             water_fill='var(--water-fill)', water_text='var(--water-text)', font='var(--font)')
+        page = (HTML_TMPL.replace('__FG_LIGHT__', fg_css_vars(0)).replace('__FG_DARK__', fg_css_vars(1))
+                .replace('__SVG__', svg_html))
         with open(os.path.join(args.out_dir, 'index.html'), 'w', encoding='utf-8') as f:
-            f.write(HTML_TMPL.replace('__SVG__', svg_html))
+            f.write(page)
         with open(os.path.join(args.out_dir, 'malyn-transit-scheme.svg'), 'w', encoding='utf-8') as f:
             f.write('<?xml version="1.0" encoding="UTF-8"?>\n' + build_svg(stats, standalone=True, **light))
     if args.site_dir:
         os.makedirs(args.site_dir, exist_ok=True)
-        svg_site = build_svg(stats, col=lambda r: f'var(--lts-r{r})', bg='var(--lts-bg)', fg='var(--lts-fg)',
-                             muted='var(--lts-muted)', line_bg='var(--lts-bg)', water='var(--lts-water)',
-                             water_fill='var(--lts-water-fill)', water_text='var(--lts-water-text)',
-                             font='inherit', variant='site')
+        svg_site = build_svg(stats, col=lambda r: f'var(--lts-r{r})', ink=lambda r: f'var(--lts-r{r}-fg)',
+                             bg='var(--lts-bg)', fg='var(--lts-fg)', muted='var(--lts-muted)', line_bg='var(--lts-bg)',
+                             water='var(--lts-water)', water_fill='var(--lts-water-fill)',
+                             water_text='var(--lts-water-text)', font='inherit', variant='site')
         with open(os.path.join(args.site_dir, 'malyn-scheme.svg'), 'w', encoding='utf-8') as f:
             f.write(svg_site + '\n')
         rows = [dict(id=rid, **{'from': LEGEND[rid][0], 'to': LEGEND[rid][1]}, via=LEGEND[rid][2], unconfirmed=rid in UNCONFIRMED,
-                     color=COLORS[rid][0])
+                     color=COLORS[rid][0], fg=FG[rid][0])
                 for rid in ROUTE_ORDER]
         with open(os.path.join(args.site_dir, 'malyn-scheme-routes.ts'), 'w', encoding='utf-8') as f:
             f.write(SITE_ROUTES_TS_HEAD + 'export const SCHEME_ROUTES: SchemeRoute[] = '

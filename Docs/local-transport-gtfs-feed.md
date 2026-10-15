@@ -2,7 +2,17 @@
 
 How to build and validate a Google-compatible **GTFS Static** feed from PostgreSQL.
 
-## Build
+## Public feed (since stage 3, 2026-10)
+
+The same generator (`backend/src/gtfs-feed.ts`) serves the feed from the live database:
+
+- `GET https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip` — full feed, `Cache-Control: public, max-age=300`, `ETag: "<revision>"`;
+- `GET …/transport/gtfs/feed_info.txt` (or any other feed file) — one file as text, same headers.
+
+`feed_version` = dataset `revision` (`TransportMeta.updatedAt`, ISO). License and attribution: `LICENSE.txt`
+inside the zip. For people: `Docs/transport-open-data.md`; decisions: `Docs/transport-open-data-2026-10.md`.
+
+## Build (files on disk)
 
 ```bash
 # ensure DB is seeded
@@ -23,8 +33,12 @@ data/malyn-transport/gtfs/
   calendar.txt
   shapes.txt
   feed_info.txt
+  LICENSE.txt
   malyn-gtfs.zip
 ```
+
+The zip is written by `backend/src/zip.ts` (no system `zip` needed); file timestamps inside it equal the revision, so
+the same revision always gives the same bytes.
 
 Agency metadata lives in `TransportMeta.payload.agency` (seeded from `runtime/agency.json`).
 
@@ -38,7 +52,8 @@ Agency metadata lives in `TransportMeta.payload.agency` (seeded from `runtime/ag
 | Synthetic `stop_times` | First stop = departure; later = Σ segment seconds along full chain (incl. technical points); trip timepoints (sheet times) are exact and marked `timepoint=1` |
 | Route variants | A trip with `variantId` follows its variant chain (`Docs/route-variants-2026-10.md`) |
 | `shapes.txt` | One polyline per route+direction (and per variant: `shp_<route>_<dir>_<variant>`) from ordered points incl. `mapOnly`; trips carry `shape_id` |
-| `feed_info.txt` | Publisher, contact, validity dates (shared with `calendar.txt`), `feed_version` = export date |
+| `feed_info.txt` | Publisher, contact, validity dates (shared with `calendar.txt`), `feed_version` = dataset `revision` (export date only when the DB has no revision) |
+| `LICENSE.txt` | Data license (`OPEN_DATA_LICENSE` in `gtfs-feed.ts`), attribution, feed version |
 
 | Omitted | Why |
 | ------- | --- |
