@@ -1,13 +1,15 @@
 /**
  * Pure checks for the post-build SEO smoke (scripts/seo-smoke.mjs).
- * Kept dependency-free so vitest can import it without a DOM.
+ * Kept free of npm dependencies so vitest can import it without a DOM.
  *
  * Rules (Docs/seo-aeo-plan-2026-09.md 1.8, review §10):
  *  - every sitemap URL that is prerendered has its own <title>, one <h1>, a canonical equal to itself
  *  - no "? — ?" placeholders (D1), no raw route slugs like "Kyiv-Malyn" in visible text (D8)
  *  - no "will load in the app" fallback copy (D10)
  *  - JSON-LD present
+ *  - og:image is the link card of the page's section (scripts/og-images.mjs): /transport* — transport, rest — site
  */
+import { ogImageForPath, ogImageUrl } from './og-images.mjs';
 
 export const SITE_ORIGIN = 'https://malin.kiev.ua';
 
@@ -66,7 +68,9 @@ export function extractHead(html) {
   const canonical = canonicalTag ? attr(canonicalTag, 'href') : null;
   const h1s = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map((m) => decodeEntities(m[1].replace(/<[^>]+>/g, '')).trim());
   const jsonLdCount = (html.match(/<script[^>]+type=["']application\/ld\+json["']/gi) || []).length;
-  return { title, canonical, h1s, jsonLdCount };
+  const ogImageTag = html.match(/<meta[^>]+property=["']og:image["'][^>]*>/i)?.[0] ?? null;
+  const ogImage = ogImageTag ? attr(ogImageTag, 'content') : null;
+  return { title, canonical, h1s, jsonLdCount, ogImage };
 }
 
 /**
@@ -77,8 +81,9 @@ export function extractHead(html) {
 export function analyzeHtml(html, { url, shellTitle }) {
   const errors = [];
   const warnings = [];
-  const { title, canonical, h1s, jsonLdCount } = extractHead(html);
+  const { title, canonical, h1s, jsonLdCount, ogImage } = extractHead(html);
   const expectedCanonical = `${SITE_ORIGIN}${urlToPath(url)}`;
+  const expectedOgImage = ogImageUrl(ogImageForPath(urlToPath(url)));
 
   const text = visibleText(html);
   if (!title) errors.push('no <title>');
@@ -107,6 +112,9 @@ export function analyzeHtml(html, { url, shellTitle }) {
     const m = text.match(/.{0,30}\?\s*—\s*\?.{0,30}/);
     if (m) errors.push(`placeholder "? — ?" in text: "…${m[0]}…"`);
   }
+
+  if (!ogImage) errors.push('no og:image (link preview card)');
+  else if (ogImage !== expectedOgImage) errors.push(`og:image "${ogImage}" ≠ "${expectedOgImage}"`);
 
   if (jsonLdCount === 0) warnings.push('no JSON-LD');
   if (text.length < 300) warnings.push(`thin page: ${text.length} chars of visible text`);

@@ -2,6 +2,9 @@
 <html lang="uk">
   <head>
     <meta charset="UTF-8" />
+    <!-- Іконка сайту = іконка «Як доїхати» (scripts/gen-pwa-icons.mjs): SVG для сучасних браузерів, ICO 16/32/48 —
+         для Safari, пошуковиків і сервісів, що питають /favicon.ico навпростець -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/icons/yak-doikhaty.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#00aff5" />
@@ -18,6 +21,14 @@
     <meta property="og:description" content="Як доїхати до Малина: попутки та маршрутки. Живий пошук і бронювання на malin.kiev.ua." />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="uk_UA" />
+    <!-- Картка посилання для Telegram / LinkedIn / Facebook (scripts/og-images.mjs). Сторінки /transport* отримують
+         транспортну: usePageSeo у SPA, prerender-*.mjs у статичному HTML -->
+    <meta property="og:site_name" content="malin.kiev.ua" />
+    <meta property="og:image" content="https://malin.kiev.ua/og/yak-doikhaty-site.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Як доїхати — попутки, маршрутки й електрички: Малин, Київ, Житомир, Коростень" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- SPA-оболонка: індексуються лише пререндерені сторінки (scripts/prerender-*.mjs знімають цей тег) -->
     <meta name="robots" content="noindex,follow" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

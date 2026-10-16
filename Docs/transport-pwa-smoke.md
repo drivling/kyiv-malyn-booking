@@ -102,6 +102,16 @@ pre-commit. Headless Chromium (430×900, uk-UA, Europe/Kyiv) відкриває 
 - [ ] Ризик, про який треба пам'ятати: сайт, не доданий на екран, Safari може почистити (localStorage + кеш) після
   7 днів без відвідин.
 
+## Іконка сайту й картки посилань
+
+- [ ] Вкладка Chrome і Safari на будь-якій сторінці: favicon — іконка зі схемою; `https://malin.kiev.ua/favicon.ico`
+  віддає `image/x-icon`, не HTML.
+- [ ] Telegram: надіслати @WebpageBot адреси `https://malin.kiev.ua/` і `https://malin.kiev.ua/transport` (скидає кеш
+  прев'ю), потім вставити їх у будь-який чат — велика картка «Як доїхати» з лініями; у `/transport` підзаголовок «Міські
+  маршрутки Малина…», у головної — «Попутки, маршрутки й електрички…».
+- [ ] LinkedIn Post Inspector (`https://www.linkedin.com/post-inspector/`) для тих самих адрес: картинка 1200×630,
+  заголовок і опис сторінки.
+
 ## Lighthouse (десктоп Chrome, `/transport/stop/st_0001`)
 
 - [ ] PWA/Installable без зауважень; Accessibility не нижча, ніж до фази 4 (смужка `role="status"`, банер — також).
