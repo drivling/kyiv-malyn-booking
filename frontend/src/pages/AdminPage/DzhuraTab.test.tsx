@@ -266,6 +266,13 @@ describe('DzhuraTab', () => {
     useDefaultHandlers();
     const posted: unknown[] = [];
     let polls = 0;
+    // «done» віддаємо лише після того, як тест побачив проміжний прогрес. Опит іде кожні 10 мс, і коли цикл подій
+    // гальмує (pre-commit ганяє всі тести разом), обидва опити встигали до findByText — «переглянуто 120» вже зникав.
+    // Поки другий запит чекає, компонент нового не шле (опити послідовні), тож прогрес лишається на екрані.
+    let showDone!: () => void;
+    const progressSeen = new Promise<void>((resolve) => {
+      showDone = resolve;
+    });
     const jobBase: DzhuraJob = {
       id: 11,
       type: 'backfill',
@@ -283,9 +290,10 @@ describe('DzhuraTab', () => {
         posted.push(await request.json());
         return HttpResponse.json({ job: jobBase }, { status: 201 });
       }),
-      http.get(`${API}/jobs/11`, () => {
+      http.get(`${API}/jobs/11`, async () => {
         polls += 1;
         if (polls === 1) return HttpResponse.json({ ...jobBase, status: 'running', progress: { scanned: 120, stored: 118 } });
+        await progressSeen;
         return HttpResponse.json({ ...jobBase, status: 'done', result: { scanned: 250, stored: 240, updated: 10 } });
       }),
     );
@@ -302,7 +310,11 @@ describe('DzhuraTab', () => {
     await waitFor(() => expect(posted).toHaveLength(1));
     expect(posted[0]).toEqual({ type: 'backfill', chatId: 2, from: '2026-09-01', to: '2026-09-07' });
 
-    expect(await screen.findByText(/переглянуто 120, збережено 118/)).toBeInTheDocument();
+    try {
+      expect(await screen.findByText(/переглянуто 120, збережено 118/)).toBeInTheDocument();
+    } finally {
+      showDone(); // і при падінні — щоб запит не висів після тесту
+    }
     expect(await screen.findByText(/Готово: нових 240, оновлено 10/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Довантажити з Telegram' })).toBeEnabled();
   });
