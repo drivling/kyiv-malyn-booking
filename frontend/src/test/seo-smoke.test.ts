@@ -5,6 +5,8 @@ import { analyzeHtml, parseSitemap, urlToPath, visibleText } from '../../scripts
 import { resolveCorridorSchedules } from '../../scripts/prerender-corridors.mjs';
 
 const SHELL_TITLE = 'Попутки та маршрутки Малин ↔ Київ, Житомир, Коростень | malin.kiev.ua';
+const SITE_CARD = 'https://malin.kiev.ua/og/yak-doikhaty-site.png';
+const TRANSPORT_CARD = 'https://malin.kiev.ua/og/yak-doikhaty-transport.png';
 
 function page({
   title = 'Попутка та маршрутка Малин — Київ | malin.kiev.ua',
@@ -12,10 +14,12 @@ function page({
   h1 = 'Попутка та маршрутка Малин — Київ',
   body = '',
   jsonLd = true,
+  ogImage = SITE_CARD as string | null,
 } = {}) {
   const filler = 'Розклад маршруток Малин — Київ з бази бронювання malin.kiev.ua. '.repeat(8);
   return `<!doctype html><html><head><title>${title}</title>
 <link rel="canonical" href="${canonical}" />
+${ogImage ? `<meta property="og:image" content="${ogImage}" />\n<meta property="og:image:alt" content="Як доїхати" />` : ''}
 ${jsonLd ? '<script type="application/ld+json">{"@context":"https://schema.org"}</script>' : ''}
 </head><body><div id="root"><main><h1>${h1}</h1><p>${filler}</p>${body}
 <a href="/mizhgorodski?from=Kyiv&amp;to=Malyn&amp;type=bus">Шукати</a></main></div></body></html>`;
@@ -68,6 +72,19 @@ describe('seo-smoke-lib', () => {
     const html = page({ body: '<tr><td colspan="3">Розклад підвантажиться в додатку; відкрийте сторінку.</td></tr>' });
     const { errors } = analyzeHtml(html, { url: 'https://malin.kiev.ua/mizhgorodski/malyn-kyiv', shellTitle: SHELL_TITLE });
     expect(errors.join('\n')).toMatch(/fallback copy "підвантаж"/);
+  });
+
+  it('requires the link card of the page section: transport for /transport*, site card elsewhere', () => {
+    const missing = analyzeHtml(page({ ogImage: null }), { url: 'https://malin.kiev.ua/mizhgorodski/malyn-kyiv', shellTitle: SHELL_TITLE });
+    expect(missing.errors).toContain('no og:image (link preview card)');
+
+    const stop = (ogImage: string) =>
+      analyzeHtml(page({ canonical: 'https://malin.kiev.ua/transport/stop/st_0001', ogImage }), {
+        url: 'https://malin.kiev.ua/transport/stop/st_0001',
+        shellTitle: SHELL_TITLE,
+      }).errors;
+    expect(stop(TRANSPORT_CARD)).toEqual([]);
+    expect(stop(SITE_CARD).join('\n')).toMatch(/og:image ".*yak-doikhaty-site\.png" ≠ ".*yak-doikhaty-transport\.png"/);
   });
 
   it('visibleText drops head, scripts and tags', () => {

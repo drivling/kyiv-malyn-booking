@@ -268,7 +268,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   by hand or with `npm run pwa:smoke` in `frontend/` against a deployed site — never in CI): `/transport*` works offline and
   installs as «Як доїхати» (`public/transport.webmanifest`, scope `/transport`; the menu entry and SEO titles stay «Транспорт
   Малина»). The icon is a slice of the route scheme drawn by `npm run pwa:icons` from the scheme's colours, PNGs committed;
-  a new drawing gets new `icons/` file names, because browsers and Cloudflare keep `/icons/*` for a day. Two layers.
+  a new drawing gets new `icons/` file names, because browsers and Cloudflare keep `/icons/*` for a day. The same script
+  draws the site favicon `/favicon.ico` (16/32/48, next to the SVG) and the link-preview cards `public/og/*.png` (1200×630,
+  texts and file names in `scripts/og-images.mjs`, Golos Text from Google Fonts): `index.html` carries the site card,
+  `/transport*` pages get the transport card (`usePageSeo` → prerender-spa, `prerender-transport-stops.mjs`), and
+  `seo-smoke` fails a prerendered page whose `og:image` is missing or from the wrong section. Two layers.
   Data: `useTransportDataset` serves the localStorage copy (`transport-dataset:v1`) first, refreshes from the API (same
   `revision` → same object), and falls back to the build snapshot `dist/transport/dataset.json` written by
   `prerender-transport-stops.mjs`; `TransportStatusBar` tells the user («Без мережі…» / «Сервер не відповідає…»). Shell:

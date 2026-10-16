@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { OG_IMAGES } from './og-images.mjs';
 import { analyzeHtml, extractHead, parseSitemap, urlToPath } from './seo-smoke-lib.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +55,11 @@ function main() {
       console.warn(`  warn  ${urlPath}: ${w}`);
     }
     if (errors.length) failures.push({ urlPath, errors });
+  }
+
+  // Картки посилань і favicon, на які посилаються сторінки, мусять бути в білді (PNG закомічені в public/)
+  for (const file of [...Object.values(OG_IMAGES).map((i) => i.path), '/favicon.ico']) {
+    if (!fs.existsSync(path.join(distDir, file))) failures.push({ urlPath: file, errors: ['missing in dist — run npm run pwa:icons and commit public/'] });
   }
 
   for (const f of failures) for (const e of f.errors) console.error(`  ERROR ${f.urlPath}: ${e}`);
