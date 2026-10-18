@@ -12,6 +12,10 @@
 
 ## 1. Mobility Database (MobilityData)
 
+**Статус:** подано 2026-10-19 — PR <https://github.com/MobilityData/mobility-database-catalogs/pull/1751> (id 3546).
+На Apple Silicon перед `pip install -r requirements.txt` потрібні `brew install geos spatialindex`, а після —
+`pip install 'rtree>=1.3'`; id інструмента перевірити на колізію (`grep -rl '"mdb_source_id": <id>' catalogs/sources`).
+
 Файл: [`mobility-database/ua-malyn-malin-kiev-ua-gtfs.json`](mobility-database/ua-malyn-malin-kiev-ua-gtfs.json).
 `mdb_source_id` у ньому навмисно немає — номер дає каталог.
 
@@ -56,6 +60,8 @@ git checkout -b feat/malyn-gtfs && git add catalogs && git commit -m "feat: Add 
 наш JSON у теці лише як еталон полів.
 
 ## 2. Transitland Atlas
+
+**Статус:** подано 2026-10-19 — PR <https://github.com/transitland/transitland-atlas/pull/2260> (форк `drivling/transitland-atlas`, гілка `malyn-ukraine`).
 
 Файл: [`transitland/malin.kiev.ua.dmfr.json`](transitland/malin.kiev.ua.dmfr.json) — DMFR 0.5.1, Onestop ID
 фіду `f-u9hbc-malyn~city~transport` (geohash `u9hbc` — центр Малина), оператор `o-u9hbc-malyn~city~transport`,

@@ -1,7 +1,7 @@
 # Відкриті протоколи: GTFS у каталогах, OpenAPI, стабільні id, RSS та iCal транспорту Малина
 
 **Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ✅ (4.4 — лише план)  
-**Де зупинились:** фази 0–4 закомічені, суїти / lint / tsc зелені — далі PR, деплой бекенду й фронтенду, потім власник реєструє фід у каталогах (`Docs/open-protocols/README.md`); таблиця ревізій для справжнього журналу змін — «Що далі»  
+**Де зупинились:** етап злито (#91), таблиця ревізій — #92; фід подано в обидва каталоги 2026-10-19 (Mobility Database #1751, Transitland #2260) — чекаємо на рев'ю; далі лише «Що далі»  
 **Created:** 2026-10-18 · **Гілка:** `transport-open-protocols` (від `main` після #90)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -246,6 +246,14 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 - `openData.ts`: `OPENAPI_URL`, `DATASET_LIVE_URL` поруч із рештою адрес.
 
 ### Фаза 1 — каталоги GTFS і валідатор (зроблено, 2026-10-18)
+
+- **Mobility Database подано 2026-10-19:** PR <https://github.com/MobilityData/mobility-database-catalogs/pull/1751>
+  (`mdb_source_id` 3546; інструмент `add_gtfs_schedule_source` дав 3545, уже зайнятий — він рахує id як «кількість файлів
+  + 1», а в каталозі були видалення). Воркфлоу PR від нового контрибʼютора стоять у `action_required`, доки мейнтейнер не
+  натисне «Approve and run» — це не помилка. Локальне середовище інструмента на Apple Silicon: `brew install geos
+  spatialindex`, потім `pip install 'rtree>=1.3'` поверх `requirements.txt` (Rtree 0.9.7 не працює з libspatialindex 2.x).
+- **Transitland подано 2026-10-19:** PR <https://github.com/transitland/transitland-atlas/pull/2260> з форка
+  `drivling/transitland-atlas` (`feeds/malin.kiev.ua.dmfr.json` як у `Docs/open-protocols/transitland/`).
 
 - `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
   0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
