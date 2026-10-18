@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.KYIV_TZ = exports.CHANGES_RSS_URL = exports.SITE_URL = void 0;
+exports.KYIV_TZ = exports.REVISIONS_JSON_URL = exports.CHANGES_RSS_URL = exports.SITE_URL = void 0;
 exports.kyivDate = kyivDate;
 exports.buildChangesRss = buildChangesRss;
 exports.icsText = icsText;
@@ -8,50 +8,85 @@ exports.foldIcsLine = foldIcsLine;
 exports.buildRouteCalendar = buildRouteCalendar;
 /**
  * RSS «зміни розкладу» та iCal маршруту з того самого кешу, що й GTFS (Docs/transport-open-protocols-2026-10.md,
- * фаза 4). Історії ревізій у БД немає (лише TransportMeta.updatedAt), тому RSS має один запис — про поточну revision;
- * читач RSS зберігає прочитані записи сам, тож для підписника це журнал «коли мінявся розклад». iCal — подія на кожен
+ * фаза 4). RSS — запис на кожну ревізію журналу `TransportRevision` (Docs/transport-revisions-2026-10.md) з людським
+ * підсумком «що саме змінилось»; поки журнал порожній — один запис про поточну revision. iCal — подія на кожен
  * рейс маршруту з тижневим повтором за календарем сервісу, час у TZID=Europe/Kyiv з VTIMEZONE усередині.
  * Усе детерміновано для однієї revision (DTSTART — дата revision за Києвом), тож відповіді кешуються з її ETag.
  */
 const gtfs_feed_1 = require("./gtfs-feed");
+const transport_revisions_1 = require("./transport-revisions");
 exports.SITE_URL = 'https://malin.kiev.ua';
 exports.CHANGES_RSS_URL = `${exports.SITE_URL}/transport/changes.rss`;
+exports.REVISIONS_JSON_URL = `${exports.SITE_URL}/transport/revisions`;
 exports.KYIV_TZ = 'Europe/Kyiv';
 const xml = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-/** Дата за Києвом як { y, m, d } і «14.10.2026» */
+/** Дата й час за Києвом як { y, m, d, hh, mm }, «14.10.2026» і «13:17» */
 function kyivDate(at) {
-    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: exports.KYIV_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(at);
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: exports.KYIV_TZ,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(at);
     const get = (t) => Number(parts.find((p) => p.type === t)?.value);
     const y = get('year');
     const m = get('month');
     const d = get('day');
-    return { y, m, d, label: `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}` };
+    const hh = get('hour') % 24; // en-GB віддає «24» для півночі
+    const mm = get('minute');
+    const pad = (n) => String(n).padStart(2, '0');
+    return { y, m, d, hh, mm, label: `${pad(d)}.${pad(m)}.${y}`, time: `${pad(hh)}:${pad(mm)}` };
 }
 function revisionDate(feed, now) {
     const d = new Date(feed.feedVersion);
     return Number.isNaN(d.getTime()) ? now : d;
 }
-const plural = (n, one, few, many) => {
-    const mod10 = n % 10;
-    const mod100 = n % 100;
-    if (mod10 === 1 && mod100 !== 11)
-        return `${n} ${one}`;
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
-        return `${n} ${few}`;
-    return `${n} ${many}`;
-};
-/** RSS 2.0 з одним записом про поточну revision: що в фіді й де його взяти */
+const countsLine = (stats) => [(0, transport_revisions_1.plural)(stats.routes, 'маршрут', 'маршрути', 'маршрутів'), (0, transport_revisions_1.plural)(stats.trips, 'рейс', 'рейси', 'рейсів'), (0, transport_revisions_1.plural)(stats.stops, 'зупинка', 'зупинки', 'зупинок')].join(', ');
+const whereToGet = `GTFS: ${gtfs_feed_1.GTFS_FEED_CANONICAL_URL} (feed_version = revision), JSON: ${exports.SITE_URL}/transport/dataset.json, журнал: ${exports.REVISIONS_JSON_URL}, схема і кнопки: ${exports.SITE_URL}/transport/scheme#open-data.`;
+function rssItem(args) {
+    return [
+        '<item>',
+        `<title>${xml(args.title)}</title>`,
+        `<link>${exports.SITE_URL}/transport/scheme#open-data</link>`,
+        `<guid isPermaLink="false">malyn-transport-revision:${xml(args.revision)}</guid>`,
+        `<pubDate>${args.at.toUTCString()}</pubDate>`,
+        `<description>${xml(args.description)}</description>`,
+        '</item>',
+    ];
+}
+/** Один запис про поточну revision із кешу GTFS — поки журнал порожній (стара БД до міграції, порожня таблиця) */
+function feedOnlyItem(feed, at) {
+    const { label } = kyivDate(at);
+    const routesLine = feed.routes.map((r) => `№${r.shortName} ${r.longName}`).join('; ');
+    return rssItem({
+        revision: feed.feedVersion,
+        at,
+        title: `Розклад оновлено ${label}`,
+        description: `Версія даних (revision) ${feed.feedVersion}: ${countsLine(feed.stats)}. Маршрути у фіді: ${routesLine}. ${whereToGet}`,
+    });
+}
+function revisionItem(row, latest) {
+    const at = new Date(row.revision);
+    const { label, time } = kyivDate(at);
+    return rssItem({
+        revision: row.revision,
+        at,
+        title: `Розклад оновлено ${label} о ${time}`,
+        description: `${row.summary}. У фіді: ${countsLine(row.stats)}. Версія даних (revision) ${row.revision}.${latest ? ` ${whereToGet}` : ''}`,
+    });
+}
+/**
+ * RSS 2.0: запис на кожну ревізію журналу (новіші першими, скільки передали — роутер бере останні 50), з людським
+ * підсумком diff; без журналу — один запис про поточну revision фіду.
+ */
 function buildChangesRss(feed, options = {}) {
     const now = options.now ?? new Date();
     const at = revisionDate(feed, now);
-    const { label } = kyivDate(at);
-    const { stats } = feed;
-    const summary = [plural(stats.routes, 'маршрут', 'маршрути', 'маршрутів'), plural(stats.trips, 'рейс', 'рейси', 'рейсів'), plural(stats.stops, 'зупинка', 'зупинки', 'зупинок')].join(', ');
-    const routesLine = feed.routes.map((r) => `№${r.shortName} ${r.longName}`).join('; ');
-    const description = `Версія даних (revision) ${feed.feedVersion}: ${summary}. ` +
-        `Маршрути у фіді: ${routesLine}. ` +
-        `GTFS: ${gtfs_feed_1.GTFS_FEED_CANONICAL_URL} (feed_version = revision), JSON: ${exports.SITE_URL}/transport/dataset.json, ` +
-        `схема і кнопки: ${exports.SITE_URL}/transport/scheme#open-data.`;
+    const revisions = options.revisions ?? [];
+    const items = revisions.length ? revisions.flatMap((row, i) => revisionItem(row, i === 0)) : feedOnlyItem(feed, at);
     return [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
@@ -59,17 +94,11 @@ function buildChangesRss(feed, options = {}) {
         `<title>${xml('Транспорт Малина — зміни розкладу')}</title>`,
         `<link>${exports.SITE_URL}/transport/scheme</link>`,
         `<atom:link href="${exports.CHANGES_RSS_URL}" rel="self" type="application/rss+xml"/>`,
-        `<description>${xml('Один запис на кожну нову версію (revision) даних міського транспорту Малина: скільки маршрутів, рейсів і зупинок у відкритому GTFS-фіді та де його взяти. Що саме змінилось — поки не рахуємо.')}</description>`,
+        `<description>${xml('Запис на кожну нову версію (revision) даних міського транспорту Малина: що саме змінилось — зупинки, маршрути, рейси, час у дорозі, перенесення зупинок — скільки чого у відкритому GTFS-фіді та де його взяти.')}</description>`,
         '<language>uk</language>',
         `<lastBuildDate>${at.toUTCString()}</lastBuildDate>`,
         '<ttl>1440</ttl>',
-        '<item>',
-        `<title>${xml(`Розклад оновлено ${label}`)}</title>`,
-        `<link>${exports.SITE_URL}/transport/scheme#open-data</link>`,
-        `<guid isPermaLink="false">malyn-transport-revision:${xml(feed.feedVersion)}</guid>`,
-        `<pubDate>${at.toUTCString()}</pubDate>`,
-        `<description>${xml(description)}</description>`,
-        '</item>',
+        ...items,
         '</channel>',
         '</rss>',
         '',

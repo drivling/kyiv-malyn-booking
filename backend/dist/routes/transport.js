@@ -9,6 +9,7 @@ const require_admin_1 = require("../middleware/require-admin");
 const local_transport_1 = require("../local-transport");
 const stop_redirects_1 = require("../stop-redirects");
 const transport_feeds_1 = require("../transport-feeds");
+const transport_revisions_1 = require("../transport-revisions");
 const transport_segments_1 = require("../transport-segments");
 const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
@@ -87,9 +88,11 @@ function createTransportRouter(deps) {
         }
     });
     /**
-     * Публічний: RSS «зміни розкладу» — один запис про поточну revision (Docs/transport-open-protocols-2026-10.md,
-     * фаза 4; історії ревізій у БД немає). З кешу GTFS, ETag = revision.
+     * Публічний: RSS «зміни розкладу» — запис на кожну з останніх 50 ревізій журналу (Docs/transport-revisions-2026-10.md)
+     * з людським підсумком diff; порожній журнал — один запис про поточну revision з кешу GTFS. ETag = revision,
+     * тіло кешується в пам'яті на revision.
      */
+    let rssCache = null;
     r.get('/transport/changes.rss', async (_req, res) => {
         try {
             const cached = await gtfs.get();
@@ -97,12 +100,31 @@ function createTransportRouter(deps) {
                 res.status(404).json({ error: 'Transport dataset is empty' });
                 return;
             }
+            if (rssCache?.revision !== cached.revision) {
+                const revisions = await (0, transport_revisions_1.listTransportRevisions)(prisma);
+                rssCache = { revision: cached.revision, body: (0, transport_feeds_1.buildChangesRss)(cached.feed, { revisions }) };
+            }
             res.set({ ...openDataHeaders(cached.revision), 'Content-Type': 'application/rss+xml; charset=utf-8' });
-            res.send((0, transport_feeds_1.buildChangesRss)(cached.feed));
+            res.send(rssCache.body);
         }
         catch (e) {
             console.error('[GET /transport/changes.rss]', e);
             res.status(500).json({ error: 'Failed to build RSS' });
+        }
+    });
+    /**
+     * Публічний: журнал ревізій датасету як JSON — ті самі рядки, що в RSS (`?limit=` 1…200, типово 50, новіші першими).
+     * Порожній журнал — `{ revisions: [] }`; ETag = найновіша revision у відповіді.
+     */
+    r.get('/transport/revisions', async (req, res) => {
+        try {
+            const revisions = await (0, transport_revisions_1.listTransportRevisions)(prisma, (0, transport_revisions_1.parseRevisionsLimit)(req.query.limit));
+            res.set(revisions.length ? openDataHeaders(revisions[0].revision) : { 'Cache-Control': 'public, max-age=300' });
+            res.json({ revisions });
+        }
+        catch (e) {
+            console.error('[GET /transport/revisions]', e);
+            res.status(500).json({ error: 'Failed to load transport revisions' });
         }
     });
     /** Публічний: iCalendar маршруту — подія на кожен рейс із тижневим повтором; маршруту немає у фіді → 404 */
@@ -196,7 +218,9 @@ function createTransportRouter(deps) {
                 return;
             }
             const payload = { ...(meta.payload ?? {}), [stop_redirects_1.STOP_REDIRECTS_META_KEY]: redirects };
+            const previous = await (0, transport_revisions_1.snapshotTransportDataset)(prisma);
             await prisma.transportMeta.update({ where: { id: 1 }, data: { payload: payload } });
+            await (0, transport_revisions_1.recordTransportRevision)(prisma, { source: 'stop-redirects', previous });
             res.json({ ok: true, redirects, revision: await (0, local_transport_1.currentTransportRevision)(prisma) });
         }
         catch (e) {
@@ -229,7 +253,9 @@ function createTransportRouter(deps) {
                 res.status(400).json({ error: 'Invalid transport dataset', details: errors });
                 return;
             }
+            const previous = await (0, transport_revisions_1.snapshotTransportDataset)(prisma);
             await (0, local_transport_1.replaceTransportDataset)(prisma, dataset);
+            await (0, transport_revisions_1.recordTransportRevision)(prisma, { source: 'dataset', previous });
             res.json({
                 ok: true,
                 counts: {
@@ -258,7 +284,9 @@ function createTransportRouter(deps) {
             const routeId = typeof req.body?.routeId === 'string' && req.body.routeId.trim()
                 ? req.body.routeId.trim()
                 : null;
+            const previous = await (0, transport_revisions_1.snapshotTransportDataset)(prisma);
             const result = await (0, transport_segments_1.recalculateSegmentDurations)(prisma, { routeId });
+            await (0, transport_revisions_1.recordTransportRevision)(prisma, { source: 'recalculate', previous });
             res.json({ ok: true, ...result });
         }
         catch (e) {

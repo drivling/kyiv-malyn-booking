@@ -174,9 +174,11 @@ paths:
       operationId: getChangesRss
       summary: RSS «зміни розкладу»
       description: |
-        RSS 2.0 з одним записом про поточну версію даних (`revision`): дата за Києвом, скільки маршрутів, рейсів і
-        зупинок у фіді, посилання на GTFS. Історії версій на сервері немає — читач RSS накопичує записи сам, тож для
-        підписника це журнал «коли мінявся розклад». Канонічна адреса — `https://malin.kiev.ua/transport/changes.rss`.
+        RSS 2.0 — запис на кожну з останніх 50 версій даних (`revision`) з журналу ревізій: дата й час за Києвом,
+        людський підсумок «що саме змінилось» (зупинки додано / перейменовано / знято, маршрути, рейси додано / знято /
+        зсунуто, час у дорозі, перенесення зупинок), скільки маршрутів, рейсів і зупинок у фіді; у найновішому записі —
+        посилання на GTFS. `guid` = `malyn-transport-revision:<revision>`. Те саме машинно — `GET /transport/revisions`.
+        Канонічна адреса — `https://malin.kiev.ua/transport/changes.rss`.
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
@@ -196,6 +198,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /transport/revisions:
+    get:
+      tags: [transport]
+      operationId: getTransportRevisions
+      summary: Журнал ревізій датасету
+      description: |
+        Останні версії даних (`revision`), новіші першими, з лічильниками фіду на кожну (`stats`, як у GTFS) і
+        `diff` проти попередньої: зупинки додані / перейменовані / зняті, маршрути додані / зняті, рейси додані /
+        зняті / зсунуті (той самий `trip_id`, інший час відправлення), кількість перегонів зі зміненим часом у дорозі,
+        перенесення зупинок (`stopRedirects`). `diff: null` — перший рядок журналу, порівнювати не було з чим.
+        `summary` — той самий підсумок українською, що в RSS. Рядок пишеться після кожного запису датасету
+        (редактор, «Перерахувати час», редиректи зупинок, seed); журнал ніколи не блокує запис.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+          description: Скільки останніх ревізій повернути
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Журнал (порожній масив, поки рядків немає)
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revisions]
+                properties:
+                  revisions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TransportRevision'
+        '304':
+          description: Не змінився
+        '500':
+          $ref: '#/components/responses/ServerError'
 
   /transport/route/{id}/calendar.ics:
     get:
@@ -597,6 +639,128 @@ components:
       type: string
       pattern: '^\d{1,2}:\d{2}(:\d{2})?$'
       example: '07:10'
+
+    TransportRevision:
+      type: object
+      required: [revision, createdAt, source, stats, diff, summary]
+      properties:
+        revision:
+          type: string
+          format: date-time
+          description: ISO-час запису датасету — та сама `revision`, що в `GET /transport/dataset`, `feed_version` і `ETag`
+          example: '2026-10-14T13:17:49.327Z'
+        createdAt: { type: string, format: date-time, description: Коли рядок журналу записано (зазвичай за мить після revision) }
+        source:
+          type: string
+          enum: [initial, seed, dataset, recalculate, stop-redirects]
+          description: 'Звідки запис: `initial` — перший рядок при старті, `seed` — початковий набір, `dataset` — редактор (PUT датасету), `recalculate` — «Перерахувати час», `stop-redirects` — перенесення зупинок'
+        stats:
+          type: object
+          description: Лічильники фіду на цю ревізію (як у GTFS; `unreliable` маршрути не рахуються)
+          required: [routes, trips, stops, stopTimes]
+          properties:
+            routes: { type: integer }
+            trips: { type: integer }
+            stops: { type: integer }
+            stopTimes: { type: integer }
+            shapes: { type: integer }
+            shapePoints: { type: integer }
+            skippedNoStops: { type: integer }
+            compressedTrips: { type: integer }
+            partialTrips: { type: integer }
+            timedTrips: { type: integer }
+            hiddenRouteIds:
+              type: array
+              items: { $ref: '#/components/schemas/RouteId' }
+        diff:
+          oneOf:
+            - $ref: '#/components/schemas/TransportRevisionDiff'
+            - type: 'null'
+          description: Зміни проти попередньої ревізії; `null` — перший рядок журналу
+        summary:
+          type: string
+          description: Підсумок diff українською — те саме, що в описі запису RSS
+          example: 'Зсунуто 1 рейс: №2А 07:00 → 07:10 (2-01)'
+    TransportRevisionDiff:
+      type: object
+      required: [stops, routes, trips, segments, redirects]
+      properties:
+        stops:
+          type: object
+          required: [added, removed, renamed]
+          properties:
+            added: { type: array, items: { $ref: '#/components/schemas/RevisionStopRef' } }
+            removed: { type: array, items: { $ref: '#/components/schemas/RevisionStopRef' } }
+            renamed:
+              type: array
+              items:
+                type: object
+                required: [id, from, to]
+                properties:
+                  id: { $ref: '#/components/schemas/StopId' }
+                  from: { type: string }
+                  to: { type: string }
+        routes:
+          type: object
+          required: [added, removed]
+          properties:
+            added: { type: array, items: { $ref: '#/components/schemas/RevisionRouteRef' } }
+            removed: { type: array, items: { $ref: '#/components/schemas/RevisionRouteRef' } }
+        trips:
+          type: object
+          required: [added, removed, moved]
+          properties:
+            added: { type: array, items: { $ref: '#/components/schemas/RevisionTripRef' } }
+            removed: { type: array, items: { $ref: '#/components/schemas/RevisionTripRef' } }
+            moved:
+              type: array
+              description: Той самий `trip_id`, інший час відправлення
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/RevisionTripRef'
+                  - type: object
+                    required: [from, to]
+                    properties:
+                      from: { $ref: '#/components/schemas/ClockTime' }
+                      to: { $ref: '#/components/schemas/ClockTime' }
+        segments:
+          type: object
+          required: [changed]
+          properties:
+            changed: { type: integer, description: Перегони між сусідніми зупинками зі зміненим часом у дорозі (разом із новими та зниклими) }
+        redirects:
+          type: object
+          required: [added, removed]
+          properties:
+            added: { type: array, items: { $ref: '#/components/schemas/RevisionRedirectRef' } }
+            removed: { type: array, items: { $ref: '#/components/schemas/RevisionRedirectRef' } }
+    RevisionStopRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/StopId' }
+        name: { type: string }
+    RevisionRouteRef:
+      type: object
+      required: [id, no, name]
+      properties:
+        id: { $ref: '#/components/schemas/RouteId' }
+        no: { type: string, description: Номер для людей (`shortName` або id), example: '11/1' }
+        name: { type: string, description: '«Звідки — куди»', example: 'Фабрика — Вокзал' }
+    RevisionTripRef:
+      type: object
+      required: [id, routeId, routeNo, departureTime]
+      properties:
+        id: { type: string, description: '`trip_id` у GTFS', example: '2-01' }
+        routeId: { $ref: '#/components/schemas/RouteId' }
+        routeNo: { type: string, example: '2А' }
+        departureTime: { type: string, description: 'HH:MM; порожньо — рейс без часу', example: '07:10' }
+    RevisionRedirectRef:
+      type: object
+      required: [from, to]
+      properties:
+        from: { $ref: '#/components/schemas/StopId' }
+        to: { $ref: '#/components/schemas/StopId' }
 
     TransportDataset:
       type: object

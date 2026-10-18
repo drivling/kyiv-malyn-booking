@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { convertLegacyRuntime, replaceTransportDataset, validateTransportDataset } from '../local-transport';
+import { recordTransportRevision, snapshotTransportDataset } from '../transport-revisions';
 
 function resolveRuntimeDir(): string {
   const candidates = [
@@ -76,7 +77,10 @@ async function main() {
       process.exit(1);
     }
 
+    const previous = await snapshotTransportDataset(prisma);
     await replaceTransportDataset(prisma, dataset);
+    // Журнал ревізій: перший рядок без diff (порожня БД), повторний seed — з diff проти попереднього стану
+    await recordTransportRevision(prisma, { source: 'seed', previous });
     console.log(
       `[seed:transport] Seeded: ${dataset.stops.length} stops, ${dataset.routes.length} routes, ` +
         `${dataset.routeStops.length} routeStops, ${dataset.trips.length} trips, ` +

@@ -8,6 +8,7 @@ const telegram_session_lease_1 = require("./telegram-session-lease");
 const telegram_1 = require("./telegram");
 const telegram_dzhura_source_1 = require("./telegram-dzhura-source");
 const interval_job_1 = require("./interval-job");
+const transport_revisions_1 = require("./transport-revisions");
 const viber_listing_expiry_1 = require("./viber-listing-expiry");
 const viber_listing_archive_1 = require("./viber-listing-archive");
 const booking_reminders_1 = require("./booking-reminders");
@@ -25,6 +26,11 @@ function main() {
     let archiveJob = null;
     let reminderJob = null;
     const app = (0, create_app_1.createApp)({ prisma });
+    // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
+    void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
+        if (row)
+            console.log(`[transport-revisions] initial row ${row.revision}`);
+    });
     // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
     let lease = null;
     if (process.env.TELEGRAM_USER_SESSION_PATH?.trim() && process.env.TELEGRAM_API_ID?.trim() && process.env.DATABASE_URL) {

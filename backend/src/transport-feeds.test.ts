@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import type { TransportDataset } from './local-transport';
 import { buildGtfsFeed } from './gtfs-feed';
 import { buildChangesRss, buildRouteCalendar, foldIcsLine, icsText, kyivDate } from './transport-feeds';
+import type { TransportRevisionRecord } from './transport-revisions';
 
 function dataset(): TransportDataset {
   return {
@@ -43,6 +44,8 @@ function dataset(): TransportDataset {
 
 test('kyivDate uses the Kyiv calendar day', () => {
   assert.equal(kyivDate(new Date('2026-07-14T22:30:00Z')).label, '15.07.2026');
+  assert.equal(kyivDate(new Date('2026-07-14T22:30:00Z')).time, '01:30');
+  assert.equal(kyivDate(new Date('2026-01-14T22:00:00Z')).time, '00:00');
   assert.equal(kyivDate(new Date('2026-01-14T22:30:00Z')).label, '15.01.2026');
   assert.equal(kyivDate(new Date('2026-01-14T21:30:00Z')).label, '14.01.2026');
 });
@@ -61,6 +64,42 @@ test('buildChangesRss: one item per revision with counts, guid = revision, Kyiv 
   assert.equal((rss.match(/<item>/g) || []).length, 1);
   // Детерміновано для тієї самої revision
   assert.equal(buildChangesRss(feed, { now: new Date('2030-01-01') }), rss);
+});
+
+test('buildChangesRss: with a journal — one item per revision, newest first, summary + counters, links only in the latest', () => {
+  const feed = buildGtfsFeed(dataset());
+  const stats = { ...feed.stats };
+  const revisions: TransportRevisionRecord[] = [
+    {
+      revision: '2026-07-14T22:30:00.000Z',
+      createdAt: '2026-07-14T22:30:01.000Z',
+      source: 'dataset',
+      stats,
+      diff: null as never,
+      summary: 'Зсунуто 1 рейс: №2А 07:00 → 07:05 (2-01)',
+    },
+    {
+      revision: '2026-07-01T06:00:00.000Z',
+      createdAt: '2026-07-01T06:00:01.000Z',
+      source: 'initial',
+      stats: { ...stats, trips: 1 },
+      diff: null,
+      summary: 'Перша збережена версія даних — попереднього стану для порівняння немає',
+    },
+  ];
+  const rss = buildChangesRss(feed, { revisions });
+  assert.equal((rss.match(/<item>/g) || []).length, 2);
+  const first = rss.indexOf('malyn-transport-revision:2026-07-14T22:30:00.000Z');
+  const second = rss.indexOf('malyn-transport-revision:2026-07-01T06:00:00.000Z');
+  assert.ok(first > 0 && second > first, 'newest first');
+  assert.ok(rss.includes('<title>Розклад оновлено 15.07.2026 о 01:30</title>'), rss);
+  assert.ok(rss.includes('<title>Розклад оновлено 01.07.2026 о 09:00</title>'), rss);
+  assert.ok(rss.includes('Зсунуто 1 рейс: №2А 07:00 → 07:05 (2-01). У фіді: 1 маршрут, 2 рейси, 3 зупинки. Версія даних (revision) 2026-07-14T22:30:00.000Z. GTFS: https://malin.kiev.ua/transport/gtfs.zip'), rss);
+  assert.ok(rss.includes('Перша збережена версія даних — попереднього стану для порівняння немає. У фіді: 1 маршрут, 1 рейс, 3 зупинки. Версія даних (revision) 2026-07-01T06:00:00.000Z.</description>'), rss);
+  assert.ok(rss.includes('https://malin.kiev.ua/transport/revisions'));
+  assert.equal((rss.match(/gtfs\.zip/g) || []).length, 1, 'links only in the latest item');
+  // Порожній журнал → старий єдиний запис із фіду
+  assert.equal(buildChangesRss(feed, { revisions: [] }), buildChangesRss(feed));
 });
 
 test('buildRouteCalendar: VTIMEZONE, one VEVENT per trip with service RRULE, DTSTART on the revision day in Kyiv', () => {
