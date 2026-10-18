@@ -1,0 +1,29 @@
+{
+  "data_type": "gtfs",
+  "provider": "Malyn city public transport (community feed by malin.kiev.ua)",
+  "name": "Malyn (Zhytomyr Oblast, Ukraine) city buses — schedule, stops and shapes collected and verified on site by malin.kiev.ua; feed_version = dataset revision",
+  "feed_contact_email": "mer.sergei@gmail.com",
+  "location": {
+    "country_code": "UA",
+    "subdivision_name": "Zhytomyr Oblast",
+    "municipality": "Malyn",
+    "bounding_box": {
+      "minimum_latitude": 50.755915,
+      "maximum_latitude": 50.78502,
+      "minimum_longitude": 29.177424,
+      "maximum_longitude": 29.305429,
+      "extracted_on": "2026-10-18T15:00:00+00:00"
+    }
+  },
+  "urls": {
+    "direct_download": "https://malin.kiev.ua/transport/gtfs.zip",
+    "latest": "https://malin.kiev.ua/transport/gtfs.zip",
+    "authentication_type": 0,
+    "license": "https://own-net.com/license.html"
+  },
+  "features": [],
+  "status": "active",
+  "is_official": "False",
+  "is_producer_url_unstable": "False",
+  "is_seasonal": "False"
+}

@@ -10,8 +10,8 @@
 
 | Файл | Адреса | Що всередині |
 |---|---|---|
-| **GTFS** (zip) | `https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip` | зупинки з координатами, маршрути, рейси з часом на кожній зупинці, лінії маршрутів — стандарт, який читають Google Maps, OpenTripPlanner, Transitous, QGIS, десятки бібліотек |
-| один файл фіду | `…/transport/gtfs/feed_info.txt`, `…/transport/gtfs/stops.txt` тощо | той самий GTFS по одному файлу — зручно для `curl` і щоб перевірити версію без zip |
+| **GTFS** (zip) | `https://malin.kiev.ua/transport/gtfs.zip` (302 на бекенд — адреса стала, домен бекенду ні; `curl -L`) | зупинки з координатами, маршрути, рейси з часом на кожній зупинці, лінії маршрутів — стандарт, який читають Google Maps, OpenTripPlanner, Transitous, QGIS, десятки бібліотек |
+| один файл фіду | `https://malin.kiev.ua/transport/gtfs/feed_info.txt`, `…/transport/gtfs/stops.txt` тощо (теж 302) | той самий GTFS по одному файлу — зручно для `curl` і щоб перевірити версію без zip |
 | **JSON** сайту | `https://malin.kiev.ua/transport/dataset.json` | повний датасет у внутрішньому форматі сайту (`stops`, `routes`, `routeStops`, `trips`, `segments`, `meta`, `revision`) — знімок на момент збірки сайту |
 | JSON наживо | `https://kyiv-malyn-booking-production.up.railway.app/transport/dataset` | те саме, прямо з бази, завжди поточне |
 
@@ -31,7 +31,8 @@
 | `calendar.txt` | два календарі: `everyday` (щодня) і `weekdays` (пн–пт) |
 | `shapes.txt` | ламані ліній маршрутів (між зупинками, з технічними точками на поворотах) |
 | `feed_info.txt` | видавець, контакт, **`feed_version`** — версія даних |
-| `LICENSE.txt` | ліцензія й атрибуція |
+| `attributions.txt` | виробник фіду (стандартний файл атрибуції GTFS): malin.kiev.ua, посилання, email |
+| `LICENSE.txt` | ліцензія й атрибуція (не частина специфікації — валідатор каже `unknown_file`, це нормально) |
 
 У фіді **лише** маршрути з підтвердженим розкладом. Маршрути, де відомі тільки номери машин без часу, а також
 маршрути, позначені на сайті як ненадійні, у фід не потрапляють (на сайті їх теж не показуємо). Час між
@@ -47,7 +48,7 @@
 - Сервер віддає `ETag: "<revision>"` і `Last-Modified`. Щоб дізнатися, чи змінився розклад, не завантажуючи zip:
 
   ```bash
-  curl -sI https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip | grep -i etag
+  curl -sIL https://malin.kiev.ua/transport/gtfs.zip | grep -i etag
   ```
 
   або умовний запит з `If-None-Match` — відповідь `304`, якщо нічого не змінилось.
@@ -59,14 +60,18 @@
 **Швидко подивитися** — розпакуйте zip і відкрийте `stops.txt` чи `stop_times.txt` у LibreOffice / Google Sheets
 (кодування UTF-8, роздільник — кома).
 
-**Перевірити фід** офіційним валідатором MobilityData:
+**Перевірити фід** офіційним валідатором MobilityData (jar потребує Java 17; без Java — Docker):
 
 ```bash
-curl -sLo malyn-gtfs.zip https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip
-docker run --rm -v "$PWD:/work" ghcr.io/mobilitydata/gtfs-validator:latest -i /work/malyn-gtfs.zip -o /work/report
+curl -sLo malyn-gtfs.zip https://malin.kiev.ua/transport/gtfs.zip
+curl -sLo gtfs-validator.jar https://github.com/MobilityData/gtfs-validator/releases/download/v8.0.1/gtfs-validator-8.0.1-cli.jar
+java -jar gtfs-validator.jar -i malyn-gtfs.zip -o report -c ua
+# або: docker run --rm -v "$PWD:/work" ghcr.io/mobilitydata/gtfs-validator:latest -i /work/malyn-gtfs.zip -o /work/report -c ua
 ```
 
-Звіт — `report/report.html`. Відомі зауваження: `mixed_case_recommended_field` на скорочених назвах («ЗОШ», «ОМБ»).
+Звіт — `report/report.html` і `report/report.json`. Стан на 2026-10-18 (валідатор 8.0.1): **0 помилок**; попередження
+`mixed_case_recommended_field` на справжніх абревіатурах («14 ОМБ», «10 ОГШБ», «ЗОШ»); info `trip_headsign_matches_intermediate_stop`
+на кількох рейсах і `unknown_file` для `LICENSE.txt`.
 
 **Побудувати маршрути в OpenTripPlanner** (планувальник з пересадками, пішохідні ділянки — потрібна ще мапа
 OSM Малина, наприклад витяг із [Geofabrik](https://download.geofabrik.de/europe/ukraine.html) або
@@ -74,7 +79,7 @@ OSM Малина, наприклад витяг із [Geofabrik](https://downloa
 
 ```bash
 mkdir otp && cd otp
-curl -sLo malyn-gtfs.zip https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip
+curl -sLo malyn-gtfs.zip https://malin.kiev.ua/transport/gtfs.zip
 # покласти поруч malyn.osm.pbf
 curl -sLo otp.jar https://repo1.maven.org/maven2/org/opentripplanner/otp/2.5.0/otp-2.5.0-shaded.jar
 java -Xmx2G -jar otp.jar --build --serve .
@@ -85,7 +90,7 @@ java -Xmx2G -jar otp.jar --build --serve .
 
 ```python
 import pandas as pd, zipfile, io, requests
-z = zipfile.ZipFile(io.BytesIO(requests.get("https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip").content))
+z = zipfile.ZipFile(io.BytesIO(requests.get("https://malin.kiev.ua/transport/gtfs.zip").content))
 stops = pd.read_csv(z.open("stops.txt"))
 stop_times = pd.read_csv(z.open("stop_times.txt"))
 print(stop_times.merge(stops, on="stop_id").query("stop_name == 'Залізничний вокзал'").sort_values("departure_time").head())
@@ -124,6 +129,6 @@ print(stop_times.merge(stops, on="stop_id").query("stop_name == 'Залізни�
 ## Чого поки нема
 
 - GTFS-Realtime (де автобус зараз) — даних про рух нема; є лише відмітки пасажирів «Факт прибуття» на сайті.
-- Фіду в каталогах Mobility Database / Transitland і OpenAPI публічних ендпоінтів — етап 4 плану
-  (`transport-pwa-2026-10.md`, таблиця етапів).
+- Фід у каталогах Mobility Database / Transitland: файли для реєстрації готові
+  ([`open-protocols/README.md`](open-protocols/README.md)), подає власник; поки не зареєстровано.
 - Міжміських рейсів (Малин ↔ Київ, Житомир, Коростень) у GTFS — лише міський транспорт.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: old Zubustik-site URLs (plan 1.10)', () => {
   it('301s booking-intent pages of the old site to the Kyiv corridor', () => {
@@ -76,5 +76,19 @@ describe('serve-dist rules: transport PWA files (Docs/transport-pwa-2026-10.md, 
     expect(isPrimaryOnlyFile('/transport.webmanifest')).toBe(true);
     expect(isPrimaryOnlyFile('/transport')).toBe(false);
     expect(isPrimaryOnlyFile('/icons/transport-192.png')).toBe(false);
+  });
+});
+
+describe('serve-dist rules: canonical open-data addresses on our domain (Docs/transport-open-protocols-2026-10.md)', () => {
+  it('sends the feed, its single files, the OpenAPI document, the RSS and route calendars to the API', () => {
+    for (const p of ['/transport/gtfs.zip', '/transport/gtfs/feed_info.txt', '/transport/gtfs/stop_times.txt', '/transport/gtfs/LICENSE.txt', '/openapi.yaml', '/transport/changes.rss', '/transport/route/11/calendar.ics']) {
+      expect(apiRedirectPath(p), p).toBe(p);
+    }
+  });
+
+  it('leaves pages, snapshots and anything else to the static host', () => {
+    for (const p of ['/transport', '/transport/gtfs', '/transport/gtfs/', '/transport/gtfs/../index.js', '/transport/gtfs/stops.csv', '/transport/dataset.json', '/transport/routes.json', '/transport/route/11', '/transport/route/11/calendar.ics/x', '/openapi.json', '/']) {
+      expect(apiRedirectPath(p), p).toBeNull();
+    }
   });
 });

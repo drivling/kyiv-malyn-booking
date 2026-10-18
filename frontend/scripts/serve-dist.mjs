@@ -11,8 +11,9 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, NO_CACHE_HEADERS } from './serve-dist-rules.mjs';
+import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, NO_CACHE_HEADERS } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
+import { API_BASE } from './api-base.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(__dirname, '../dist');
@@ -218,6 +219,19 @@ const server = http.createServer((req, res) => {
     });
     res.end();
     return;
+  }
+
+  // Canonical open-data addresses on our domain → the API (Docs/transport-open-protocols-2026-10.md, phase 1).
+  // Before tryResolve/SPA fallback, else the zip would come back as index.html; CDN keeps no copy (.zip/.txt
+  // are extensions Cloudflare caches by default).
+  {
+    const { pathname, search } = splitUrl(urlPath);
+    const apiPath = apiRedirectPath(pathname);
+    if (apiPath) {
+      res.writeHead(302, { Location: `${API_BASE}${apiPath}${search}`, ...NO_CACHE_HEADERS, ...extraHeaders });
+      res.end();
+      return;
+    }
   }
 
   const resolved = tryResolve(urlPath === '/' ? '/index.html' : urlPath);

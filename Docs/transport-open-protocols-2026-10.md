@@ -1,7 +1,7 @@
 # Відкриті протоколи: GTFS у каталогах, OpenAPI, стабільні id, RSS та iCal транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ⏳ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** фаза 0 — цей файл; далі фаза 1 (валідатор уже прогнано на проді, див. «Знахідки», редирект з malin.kiev.ua і файли для каталогів)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
+**Де зупинились:** фази 0–1 закомічені; далі фаза 2 (OpenAPI 3.1, `GET /openapi.yaml`, `/support/api`)  
 **Created:** 2026-10-18 · **Гілка:** `transport-open-protocols` (від `main` після #90)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -141,13 +141,13 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 - [x] **0.1** Цей файл; рядок-посилання з таблиці етапів у `Docs/transport-pwa-2026-10.md`
 
 Фаза 1 — каталоги GTFS і валідатор
-- [ ] **1.1** Валідатор на фіді проду; результат і команда запуску — у «Знахідках» і в `transport-open-data.md`
-- [ ] **1.2** `gtfs-feed.ts`: `attributions.txt` у фіді; тест; `backend/dist` перезібрано
-- [ ] **1.3** `serve-dist.mjs`: 302 `/transport/gtfs.zip`, `/transport/gtfs/<file>.txt`, `/openapi.yaml` → `API_BASE`
+- [x] **1.1** Валідатор на фіді проду; результат і команда запуску — у «Знахідках» і в `transport-open-data.md`
+- [x] **1.2** `gtfs-feed.ts`: `attributions.txt` у фіді; тест; `backend/dist` перезібрано
+- [x] **1.3** `serve-dist.mjs`: 302 `/transport/gtfs.zip`, `/transport/gtfs/<file>.txt`, `/openapi.yaml` → `API_BASE`
   з `NO_CACHE_HEADERS`; чисте правило в `serve-dist-rules.mjs` + тест у `src/test/serve-dist-rules.test.ts`
-- [ ] **1.4** `Docs/open-protocols/`: JSON для Mobility Database, DMFR для Transitland, тексти PR/форми
+- [x] **1.4** `Docs/open-protocols/`: JSON для Mobility Database, DMFR для Transitland, тексти PR/форми
   (`README.md` з кроками для власника)
-- [ ] **1.5** Адреси на `malin.kiev.ua` у `openData.ts` (`GTFS_FEED_URL`), `transport-open-data.md`, `llms.txt`
+- [x] **1.5** Адреси на `malin.kiev.ua` у `openData.ts` (`GTFS_FEED_URL`), `transport-open-data.md`, `llms.txt`
 
 Фаза 2 — OpenAPI
 - [ ] **2.1** `backend/openapi/public.yaml` (OpenAPI 3.1, усі публічні ендпоінти, схеми відповідей)
@@ -192,6 +192,21 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
    у `backend/`, не руками.
 
 ## Знахідки по фазах
+
+### Фаза 1 — каталоги GTFS і валідатор (зроблено, 2026-10-18)
+
+- `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
+  0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
+- `serve-dist.mjs`: `apiRedirectPath()` у `serve-dist-rules.mjs` (чисте правило з тестами) → 302 на `API_BASE` з
+  `NO_CACHE_HEADERS` **до** `tryResolve`; перевірено на локальному `dist`: `/transport/gtfs.zip`, `/transport/gtfs/feed_info.txt`,
+  `/openapi.yaml` → 302 на Railway із query як є, `/transport/dataset.json` як і раніше 200. Правило вже знає адреси
+  фаз 2 і 4 (`/openapi.yaml`, `/transport/changes.rss`, `/transport/route/<id>/calendar.ics`) — до їх деплою на бекенді
+  редирект веде на 404 бекенду, що краще за SPA-оболонку.
+- Кнопка «Завантажити розклад (GTFS)» на сайті лишається на `API_URL` напряму (без зайвого стрибка); канонічна адреса
+  `malin.kiev.ua/...` — у документах, `llms.txt`, каталогах і `LICENSE.txt` (`GTFS_FEED_CANONICAL_URL` у `gtfs-feed.ts`).
+- `Docs/open-protocols/`: JSON для Mobility Database (форма або `add_gtfs_schedule_source`), DMFR для Transitland
+  (`f-u9hbc-malyn~city~transport`, Wikidata Малина `Q148997`), `README.md` із кроками й текстами для власника.
+  Реєструвати **після** деплою фронтенду цієї гілки (інакше адреса ще віддає SPA-оболонку).
 
 ### Фаза 0 (2026-10-18)
 

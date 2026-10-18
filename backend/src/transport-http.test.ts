@@ -343,7 +343,7 @@ test('GET /transport/gtfs.zip: zip attachment with cache headers, ETag = revisio
   const zip = res.body as Buffer;
   assert.equal(zip.readUInt32LE(0), 0x04034b50);
   const text = zip.toString('latin1');
-  for (const name of ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt', 'LICENSE.txt']) {
+  for (const name of ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt', 'attributions.txt', 'LICENSE.txt']) {
     assert.ok(text.includes(name), name);
   }
 

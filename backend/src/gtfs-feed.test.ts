@@ -82,6 +82,12 @@ test('buildGtfsFeed: timed trips of visible routes only, stops without technical
 
   assert.ok(feed.files['LICENSE.txt'].includes(`License: ${OPEN_DATA_LICENSE.name} (source-available) — ${OPEN_DATA_LICENSE.url}`));
   assert.ok(feed.files['LICENSE.txt'].includes('Feed version (dataset revision): 2026-10-14T18:03:11.000Z'));
+  assert.ok(feed.files['LICENSE.txt'].includes('Latest feed: https://malin.kiev.ua/transport/gtfs.zip'));
+  // Стандартна атрибуція виробника (GTFS attributions.txt) — один запис на весь фід
+  assert.deepEqual(lines(feed.files['attributions.txt']), [
+    'attribution_id,organization_name,is_producer,is_operator,is_authority,attribution_url,attribution_email',
+    'malin_kiev_ua,malin.kiev.ua — Serhii Merenkov / Technologies LLC,1,0,0,https://malin.kiev.ua/transport/scheme#open-data,mer.sergei@gmail.com',
+  ]);
   assert.ok(feed.files['agency.txt'].includes('malyn,Громадський транспорт міста Малина'));
   assert.equal(lines(feed.files['calendar.txt']).length, 3);
 

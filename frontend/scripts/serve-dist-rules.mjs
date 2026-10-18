@@ -92,6 +92,23 @@ export function cacheHeadersFor(pathname) {
   return cacheControl === 'no-cache' ? { ...NO_CACHE_HEADERS } : { 'Cache-Control': cacheControl };
 }
 
+/**
+ * Open-data and protocol files that live on the backend but have their canonical address on our domain
+ * (Docs/transport-open-protocols-2026-10.md, phase 1): the feed catalogs and the docs name
+ * `https://malin.kiev.ua/transport/gtfs.zip`, serve-dist answers 302 to the API. 302, not 301: the API host
+ * (Railway today) will move, and clients must not remember today's target for good. Not a proxy: the zip is
+ * already cached per revision with an ETag on the backend, and the static host stays dependency-free.
+ * The transport service worker never sees these: not navigations (a dot in the last segment), not in precache.
+ * @param {string} pathname
+ * @returns {string|null} path on the API host to redirect to (same path), or null
+ */
+export function apiRedirectPath(pathname) {
+  if (pathname === '/transport/gtfs.zip' || pathname === '/openapi.yaml' || pathname === '/transport/changes.rss') return pathname;
+  if (/^\/transport\/gtfs\/[A-Za-z_]+\.txt$/.test(pathname)) return pathname;
+  if (/^\/transport\/route\/[^/]+\/calendar\.ics$/.test(pathname)) return pathname;
+  return null;
+}
+
 export const GONE_HTML =
   '<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>410 — сторінки більше немає</title>' +
   '<meta name="robots" content="noindex"></head><body><p>Цієї сторінки більше немає. ' +
