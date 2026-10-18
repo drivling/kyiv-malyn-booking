@@ -398,7 +398,12 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   decides otherwise) ships as `LICENSE.txt` inside the zip and is mirrored in `frontend/.../LocalTransportPage/openData.ts`.
 - **Open protocols** (`Docs/transport-open-protocols-2026-10.md`): canonical addresses live on the site domain and
   `serve-dist.mjs` answers 302 to `API_BASE` (`apiRedirectPath` in `serve-dist-rules.mjs`: `/transport/gtfs.zip`,
-  `/transport/gtfs/<file>.txt`, `/openapi.yaml`, `/transport/changes.rss`, `/transport/route/<id>/calendar.ics`); the
+  `/transport/gtfs/<file>.txt`, `/openapi.yaml`, `/transport/changes.rss`, `/transport/route/<id>/calendar.ics`, and the
+  dot-less JSON endpoints `/transport/dataset`, `/transport/revisions`, `/transport/stops/<id>`, `/transport/stop-redirects`,
+  which `isTransportApiPath` in `sw/transport-sw.js` excludes from the worker's page rule — keep the two lists in sync;
+  `vite.config.ts` proxies the same paths in dev). Every link people see — docs, `llms.txt`, the site's buttons
+  (`LocalTransportPage/openData.ts`, relative paths) — uses the site domain, never the backend host; only the OpenAPI
+  `servers` entry, `scripts/api-base.mjs`, deploy docs and internal scripts name the Railway URL. The
   catalog files for Mobility Database / Transitland are in `Docs/open-protocols/` (the owner submits them). The public
   API is described in `backend/openapi/public.yaml` (served at `GET /openapi.yaml`, page `/support/api`); `openapi.test.ts`
   checks every yaml path against `getRegisteredRoutes` and every endpoint of its `PUBLIC_ENDPOINTS` list against the yaml —

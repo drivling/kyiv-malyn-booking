@@ -33,9 +33,23 @@ const SHELL_URL = '/index.html';
 const PRECACHE_SET = new Set(PRECACHE);
 const FONT_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
 
-/** Сторінка транспорту: `/transport` або `/transport/...` без розширення в останньому сегменті */
+/**
+ * JSON-ендпоінти API без крапки в шляху, що на домені сайту відповідають 302 на бекенд (`apiRedirectPath` у
+ * scripts/serve-dist-rules.mjs — списки тримати однаковими): навігація на них — не сторінка, оболонку не віддаємо.
+ */
+function isTransportApiPath(pathname) {
+  return (
+    pathname === '/transport/dataset' ||
+    pathname === '/transport/revisions' ||
+    pathname === '/transport/stop-redirects' ||
+    /^\/transport\/stops\/[^/]+$/.test(pathname)
+  );
+}
+
+/** Сторінка транспорту: `/transport` або `/transport/...` без розширення в останньому сегменті й не API */
 function isTransportPage(pathname) {
   if (pathname !== '/transport' && !pathname.startsWith('/transport/')) return false;
+  if (isTransportApiPath(pathname)) return false;
   const last = pathname.slice(pathname.lastIndexOf('/') + 1);
   return !/\.[a-z0-9]+$/i.test(last);
 }

@@ -35,6 +35,7 @@ import {
   CHANGES_RSS_URL,
   DATASET_JSON_URL,
   DATASET_LIVE_URL,
+  REVISIONS_JSON_URL,
   GTFS_FEED_URL,
   OPENAPI_URL,
   OPEN_DATA_DOC_URL,
@@ -1072,7 +1073,8 @@ function ApiArticle() {
               RSS змін розкладу
             </a>{' '}
             (<code>/transport/changes.rss</code>) — запис на кожну нову версію даних із підсумком, що саме змінилось; те саме
-            машинно — журнал ревізій <code>/transport/revisions</code> (JSON із <code>diff</code>); календар рейсів маршруту —{' '}
+            машинно — <a href={REVISIONS_JSON_URL}>журнал ревізій</a> (<code>/transport/revisions</code>, JSON із <code>diff</code>); календар
+            рейсів маршруту —{' '}
             <code>/transport/route/&lt;id&gt;/calendar.ics</code> (підписка за адресою, час у Europe/Kyiv);
           </li>
           <li>
