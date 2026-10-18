@@ -1,7 +1,7 @@
 # Відкриті протоколи: GTFS у каталогах, OpenAPI, стабільні id, RSS та iCal транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳  
-**Де зупинились:** фази 0–3 закомічені; далі фаза 4 (RSS ревізій, iCal маршруту)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ✅ (4.4 — лише план)  
+**Де зупинились:** фази 0–4 закомічені, суїти / lint / tsc зелені — далі PR, деплой бекенду й фронтенду, потім власник реєструє фід у каталогах (`Docs/open-protocols/README.md`); таблиця ревізій для справжнього журналу змін — «Що далі»  
 **Created:** 2026-10-18 · **Гілка:** `transport-open-protocols` (від `main` після #90)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -163,14 +163,26 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 - [x] **3.4** Сайт: редирект табло, `stop-redirects.json` з пререндера, 301 у `serve-dist.mjs`; тести
 
 Фаза 4 — RSS та iCal
-- [ ] **4.1** `backend/src/transport-feeds.ts`: `buildChangesRss(feed, revision)`, `buildRouteCalendar(feed, routeId)`; тести
-- [ ] **4.2** `GET /transport/changes.rss`, `GET /transport/route/:id/calendar.ics` у `routes/transport.ts`; yaml; `dist`
-- [ ] **4.3** Посилання на сайті (`/transport/scheme#open-data`, `/support/api`), `transport-open-data.md`, `llms.txt`
-- [ ] **4.4** «Що далі»: таблиця ревізій для справжнього журналу змін — лише план
+- [x] **4.1** `backend/src/transport-feeds.ts`: `buildChangesRss(feed, revision)`, `buildRouteCalendar(feed, routeId)`; тести
+- [x] **4.2** `GET /transport/changes.rss`, `GET /transport/route/:id/calendar.ics` у `routes/transport.ts`; yaml; `dist`
+- [x] **4.3** Посилання на сайті (`/transport/scheme#open-data`, `/support/api`), `transport-open-data.md`, `llms.txt`
+- [x] **4.4** «Що далі»: таблиця ревізій для справжнього журналу змін — лише план
 
 Фінал
 - [ ] **F.1** `npm test` (обидва пакети), `npm run lint`, `npm run typecheck`; `backend/dist` = `src`
 - [ ] **F.2** `gh pr view` стану гілки → push, compare-посилання; список дій для власника (каталоги, headsign-рейси)
+
+## Що далі (поза цим етапом)
+
+- **Таблиця ревізій** `TransportRevision(revision PK = TransportMeta.updatedAt, createdAt, stats JSON, diff JSON)`:
+  `replaceTransportDataset` і `PUT /admin/transport/stop-redirects` після запису рахують `stats` (як `GtfsFeedStats`) і
+  `diff` проти попередньої ревізії (зупинки додані/перейменовані/зняті, рейси додані/зняті/зсунуті за `trip_id` + час,
+  маршрути) і вставляють рядок; `GET /transport/changes.rss` віддає останні 50 рядків з людським підсумком diff, а
+  `GET /transport/revisions` — JSON для застосунків. Міграція + ~150 рядків; перший запис — з поточного стану без diff.
+- UI редиректів зупинок у редакторі карти: при видаленні зупинки — «перенести на…» → `PUT /admin/transport/stop-redirects`.
+- Посилання «У календар» на сторінці маршруту (`/transport/route/:id`) на `routeCalendarUrl(id)` — не робили, щоб не
+  чіпати розмітку сторінки в цьому етапі.
+- GTFS-Realtime немає і не буде, поки нема даних про рух; «Факт прибуття» — не RT.
 
 ## Пастки
 
@@ -192,6 +204,20 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
    у `backend/`, не руками.
 
 ## Знахідки по фазах
+
+### Фаза 4 — RSS та iCal (зроблено, 2026-10-18)
+
+- `GtfsFeed` отримав структурні `routes` і `trips` (зупинки з часом) поруч із файлами — iCal/RSS беруть їх з того самого
+  кешу за revision, не парсять `stop_times.txt` назад і не ходять у БД.
+- RSS: один `<item>`, `guid` = `malyn-transport-revision:<revision>`, заголовок із київською датою revision, у тексті —
+  лічильники й перелік маршрутів; детерміновано для однієї revision (перевірено тестом з іншим `now`).
+- iCal: `DTSTART` — дата revision за Києвом (не «сьогодні», інакше відповідь залежала б від моменту збірки кешу),
+  `RRULE` тижневий за сервісом, `VTIMEZONE Europe/Kyiv` з правилами EET/EEST, згортання рядків за **байтами** UTF-8
+  (кирилиця), екранування `,;\`; GTFS-час ≥ 24:00 переноситься на наступну добу. Тест на опис після згортання має
+  спочатку розгорнути рядки (`\r\n ` → порожньо) — на цьому впав перший прогін.
+- Маршрут, якого немає у фіді (прихований / без розкладу), → 404; обидві відповіді з `ETag` revision і 304.
+- На сайті: посилання «RSS змін розкладу» і «API» у блоці «Дані відкриті», рядки на `/support/api`, `llms.txt`, таблиця
+  адрес у `transport-open-data.md`. Посилання «У календар» на сторінці маршруту — «Що далі».
 
 ### Фаза 3 — стабільні id (зроблено, 2026-10-18)
 

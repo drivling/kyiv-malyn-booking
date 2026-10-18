@@ -32,6 +32,7 @@ import {
 } from './supportContent';
 import { CORRIDOR_LANDINGS, corridorPath } from '@/pages/MizhgorodskiPage/corridorLandings';
 import {
+  CHANGES_RSS_URL,
   DATASET_JSON_URL,
   DATASET_LIVE_URL,
   GTFS_FEED_URL,
@@ -1065,6 +1066,17 @@ function ApiArticle() {
             <a href={DATASET_LIVE_URL}>JSON наживо</a> (<code>/transport/dataset</code>) і{' '}
             <a href={DATASET_JSON_URL}>знімок збірки</a> (<code>/transport/dataset.json</code>) — повний датасет у форматі
             сайту: сегменти з тривалістю перегонів, варіанти шляху, опорні часи, тариф і контакти в <code>meta</code>;
+          </li>
+          <li>
+            <a href={CHANGES_RSS_URL} type="application/rss+xml">
+              RSS змін розкладу
+            </a>{' '}
+            (<code>/transport/changes.rss</code>) — запис на кожну нову версію даних; календар рейсів маршруту —{' '}
+            <code>/transport/route/&lt;id&gt;/calendar.ics</code> (підписка за адресою, час у Europe/Kyiv);
+          </li>
+          <li>
+            <code>GET /transport/stops/&lt;id&gt;</code> — зупинка за стабільним id (злита → 301 на чинну),{' '}
+            <code>/transport/stop-redirects</code> — уся мапа «старий id → чинний»;
           </li>
           <li>
             записи з табло — <code>POST /transport/sticker-scans</code>, <code>sticker-returns</code>,{' '}

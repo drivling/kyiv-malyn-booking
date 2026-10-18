@@ -15,7 +15,16 @@ import './scheme/scheme-svg.css';
 import './LocalTransportSchemePage.css';
 import { routeNo } from '@/utils/routeNames';
 import { formatDataAsOf } from './dataAsOf';
-import { DATASET_JSON_FILENAME, DATASET_JSON_URL, GTFS_FEED_URL, OPEN_DATA_DOC_URL, OPEN_DATA_LICENSE, type OpenDataFormat } from './openData';
+import {
+  CHANGES_RSS_URL,
+  DATASET_JSON_FILENAME,
+  DATASET_JSON_URL,
+  GTFS_FEED_URL,
+  OPENAPI_URL,
+  OPEN_DATA_DOC_URL,
+  OPEN_DATA_LICENSE,
+  type OpenDataFormat,
+} from './openData';
 
 const SITE = 'https://malin.kiev.ua';
 /** Статика з frontend/public (генерується build_scheme.py --poster-dir; PDF — Chromium print, див. README) */
@@ -393,6 +402,12 @@ export function LocalTransportSchemePage() {
               <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
                 як відкрити
               </a>
+              {' · '}
+              <a href={CHANGES_RSS_URL} type="application/rss+xml">
+                RSS змін розкладу
+              </a>
+              {' · '}
+              <a href={OPENAPI_URL}>API</a>
             </p>
           </section>
         </div>

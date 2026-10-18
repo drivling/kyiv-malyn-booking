@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const local_transport_1 = require("../local-transport");
 const stop_redirects_1 = require("../stop-redirects");
+const transport_feeds_1 = require("../transport-feeds");
 const transport_segments_1 = require("../transport-segments");
 const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
@@ -83,6 +84,50 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /transport/gtfs/:file]', e);
             res.status(500).json({ error: 'Failed to build GTFS feed' });
+        }
+    });
+    /**
+     * Публічний: RSS «зміни розкладу» — один запис про поточну revision (Docs/transport-open-protocols-2026-10.md,
+     * фаза 4; історії ревізій у БД немає). З кешу GTFS, ETag = revision.
+     */
+    r.get('/transport/changes.rss', async (_req, res) => {
+        try {
+            const cached = await gtfs.get();
+            if (!cached) {
+                res.status(404).json({ error: 'Transport dataset is empty' });
+                return;
+            }
+            res.set({ ...openDataHeaders(cached.revision), 'Content-Type': 'application/rss+xml; charset=utf-8' });
+            res.send((0, transport_feeds_1.buildChangesRss)(cached.feed));
+        }
+        catch (e) {
+            console.error('[GET /transport/changes.rss]', e);
+            res.status(500).json({ error: 'Failed to build RSS' });
+        }
+    });
+    /** Публічний: iCalendar маршруту — подія на кожен рейс із тижневим повтором; маршруту немає у фіді → 404 */
+    r.get('/transport/route/:id/calendar.ics', async (req, res) => {
+        try {
+            const cached = await gtfs.get();
+            if (!cached) {
+                res.status(404).json({ error: 'Transport dataset is empty' });
+                return;
+            }
+            const ics = (0, transport_feeds_1.buildRouteCalendar)(cached.feed, req.params.id);
+            if (!ics) {
+                res.status(404).json({ error: 'Unknown route or no timetable' });
+                return;
+            }
+            res.set({
+                ...openDataHeaders(cached.revision),
+                'Content-Type': 'text/calendar; charset=utf-8',
+                'Content-Disposition': `inline; filename="malyn-route-${encodeURIComponent(req.params.id)}.ics"`,
+            });
+            res.send(ics);
+        }
+        catch (e) {
+            console.error('[GET /transport/route/:id/calendar.ics]', e);
+            res.status(500).json({ error: 'Failed to build calendar' });
         }
     });
     /**

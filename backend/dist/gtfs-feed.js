@@ -159,6 +159,7 @@ function buildGtfsFeed(dataset, options = {}) {
     }
     const tripRows = [];
     const stopTimeRows = [];
+    const feedTrips = [];
     let skippedNoStops = 0;
     let compressedTrips = 0;
     let partialTrips = 0;
@@ -184,6 +185,19 @@ function buildGtfsFeed(dataset, options = {}) {
             shape_id: ensureShape(rec.routeId, built),
         });
         stopTimeRows.push(...built.rows.map((row) => ({ ...row })));
+        feedTrips.push({
+            id: rec.id,
+            routeId: rec.routeId,
+            serviceId,
+            headsign: rec.headsign || '',
+            directionId: built.direction === 'there' ? 1 : 0,
+            stops: built.rows.map((row) => ({
+                stopId: String(row.stop_id),
+                name: stopById.get(String(row.stop_id))?.name || String(row.stop_id),
+                arrival: String(row.arrival_time),
+                departure: String(row.departure_time),
+            })),
+        });
     }
     const referencedStopIds = new Set(stopTimeRows.map((r) => String(r.stop_id)));
     const stopRows = [...referencedStopIds]
@@ -247,6 +261,8 @@ function buildGtfsFeed(dataset, options = {}) {
             'attributions.txt': attributionsTxt,
             'LICENSE.txt': licenseTxt,
         },
+        routes: routeRows.map((r) => ({ id: String(r.route_id), shortName: String(r.route_short_name), longName: String(r.route_long_name) })),
+        trips: feedTrips,
         stats: {
             routes: routeRows.length,
             trips: tripRows.length,

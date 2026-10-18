@@ -168,6 +168,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /transport/changes.rss:
+    get:
+      tags: [transport]
+      operationId: getChangesRss
+      summary: RSS «зміни розкладу»
+      description: |
+        RSS 2.0 з одним записом про поточну версію даних (`revision`): дата за Києвом, скільки маршрутів, рейсів і
+        зупинок у фіді, посилання на GTFS. Історії версій на сервері немає — читач RSS накопичує записи сам, тож для
+        підписника це журнал «коли мінявся розклад». Канонічна адреса — `https://malin.kiev.ua/transport/changes.rss`.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: RSS
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/rss+xml:
+              schema: { type: string }
+        '304':
+          description: Не змінився
+        '404':
+          description: Датасет порожній
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transport/route/{id}/calendar.ics:
+    get:
+      tags: [transport]
+      operationId: getRouteCalendar
+      summary: iCalendar рейсів маршруту
+      description: |
+        Подія на кожен рейс маршруту з тижневим повтором за календарем сервісу (щодня / пн–пт), час у
+        `TZID=Europe/Kyiv` (VTIMEZONE усередині), опис — зупинки з часом. Підписуйтесь за адресою
+        (`https://malin.kiev.ua/transport/route/{id}/calendar.ics`): календар оновлюється разом із розкладом,
+        завантажений файл — ні. Маршрут без розкладу або прихований — 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/RouteId' }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: iCalendar
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            text/calendar:
+              schema: { type: string }
+        '304':
+          description: Не змінився
+        '404':
+          description: Невідомий маршрут, без розкладу або порожній датасет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /transport/stops/{id}:
     get:
       tags: [transport]

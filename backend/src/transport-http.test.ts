@@ -457,3 +457,28 @@ test('stop redirects: PUT /admin validates and bumps revision; GET /transport/st
   assert.equal(moved.headers['cache-control'], 'public, max-age=86400');
   await request(app).get('/transport/stops/st_0099').expect(404);
 });
+
+test('GET /transport/changes.rss and /transport/route/:id/calendar.ics come from the GTFS cache with ETag = revision', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  await request(app).get('/transport/changes.rss').expect(404);
+  await request(app).get('/transport/route/2/calendar.ics').expect(404);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+
+  const rss = await request(app).get('/transport/changes.rss').expect(200);
+  assert.match(rss.headers['content-type'], /^application\/rss\+xml; charset=utf-8/);
+  assert.equal(rss.headers['etag'], '"2026-10-12T10:00:00.000Z"');
+  assert.ok(rss.text.includes('<title>Розклад оновлено 12.10.2026</title>'));
+  assert.ok(rss.text.includes('1 маршрут, 1 рейс, 2 зупинки'));
+  await request(app).get('/transport/changes.rss').set('If-None-Match', '"2026-10-12T10:00:00.000Z"').expect(304);
+
+  const ics = await request(app).get('/transport/route/2/calendar.ics').expect(200);
+  assert.match(ics.headers['content-type'], /^text\/calendar; charset=utf-8/);
+  assert.equal(ics.headers['content-disposition'], 'inline; filename="malyn-route-2.ics"');
+  assert.equal(ics.headers['etag'], '"2026-10-12T10:00:00.000Z"');
+  assert.ok(ics.text.includes('UID:2-01@malin.kiev.ua'));
+  assert.ok(ics.text.includes('DTSTART;TZID=Europe/Kyiv:20261012T070000'));
+  await request(app).get('/transport/route/99/calendar.ics').expect(404);
+});
