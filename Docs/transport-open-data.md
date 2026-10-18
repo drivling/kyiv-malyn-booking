@@ -14,6 +14,8 @@
 | один файл фіду | `https://malin.kiev.ua/transport/gtfs/feed_info.txt`, `…/transport/gtfs/stops.txt` тощо (теж 302) | той самий GTFS по одному файлу — зручно для `curl` і щоб перевірити версію без zip |
 | **JSON** сайту | `https://malin.kiev.ua/transport/dataset.json` | повний датасет у внутрішньому форматі сайту (`stops`, `routes`, `routeStops`, `trips`, `segments`, `meta`, `revision`) — знімок на момент збірки сайту |
 | JSON наживо | `https://kyiv-malyn-booking-production.up.railway.app/transport/dataset` | те саме, прямо з бази, завжди поточне |
+| зупинка за id | `…/transport/stops/st_0019`, мапа злитих — `…/transport/stop-redirects` | назва, координати, маршрути; старий id → 301 на чинний («Що ми обіцяємо») |
+| **OpenAPI 3.1** | `https://malin.kiev.ua/openapi.yaml` | машинний опис усіх публічних ендпоінтів |
 
 Кнопки для цих файлів є внизу сторінки [схеми маршрутів](https://malin.kiev.ua/transport/scheme#open-data).
 
@@ -39,7 +41,42 @@
 зупинками, де немає офіційного листка, розрахований — тому `timepoint=0`.
 
 Ідентифікатори стабільні: `stop_id` і `route_id` ті самі, що в адресах сайту (`/transport/stop/st_0019`,
-`/transport/route/11`), і не змінюються між версіями без окремого рішення.
+`/transport/route/11`) — розділ «Що ми обіцяємо» нижче.
+
+## Що ми обіцяємо
+
+Контракт для застосунків, які будуються на цих даних (етап 4, [`transport-open-protocols-2026-10.md`](transport-open-protocols-2026-10.md)):
+
+| що | обіцянка |
+|---|---|
+| `stop_id` (`st_NNNN`) | не змінюється й **не перевикористовується**; перейменування зупинки id не змінює |
+| `route_id` («11») | не змінюється; номер, який бачать люди («11/1»), — окреме поле `shortName` / `route_short_name` |
+| злита або видалена зупинка | старий id лишається в мапі `meta.stopRedirects` датасету щонайменше рік; `GET /transport/stops/<старий>` відповідає 301 на чинний, `/transport/stop/<старий>` на сайті веде на чинне табло |
+| `revision` | ISO-час останньої зміни, монотонний; той самий у `GET /transport/dataset`, `feed_info.feed_version` і `ETag` |
+| `trip_id` | стабільний лише в межах однієї `revision` (рейси перенумеровуються при зміні розкладу) |
+| адреси | `https://malin.kiev.ua/transport/gtfs.zip`, `/transport/gtfs/<file>.txt`, `/transport/dataset.json`, `/openapi.yaml` на домені сайту не змінюються (відповідають 302 на поточний бекенд) |
+| формат | GTFS Static за специфікацією; JSON датасету — внутрішній, поля можуть додаватись, наявні не зникають без згадки тут |
+
+Як це перевірити:
+
+```bash
+curl -s https://kyiv-malyn-booking-production.up.railway.app/transport/stops/st_0019      # чинна зупинка → JSON з маршрутами
+curl -sI https://kyiv-malyn-booking-production.up.railway.app/transport/stops/st_0042     # злита → 301 Location: /transport/stops/<new>
+curl -s https://kyiv-malyn-booking-production.up.railway.app/transport/stop-redirects     # уся мапа { "старий": "чинний" }
+```
+
+Машинний опис усіх публічних ендпоінтів — OpenAPI 3.1: `https://malin.kiev.ua/openapi.yaml`
+(сторінка для розробників — [malin.kiev.ua/support/api](https://malin.kiev.ua/support/api)).
+
+Для адміністратора: злиття зупинки = видалити її в редакторі карти (її рейси перенести на чинну) і записати редирект
+окремим запитом — PUT датасету мапу не чіпає, а скриптовий PUT без ключа `stopRedirects` у `meta` її зітре:
+
+```bash
+TOKEN=$(curl -s -X POST https://kyiv-malyn-booking-production.up.railway.app/admin/login -H 'content-type: application/json' -d '{"password":"…"}' | jq -r .token)
+curl -s -X PUT https://kyiv-malyn-booking-production.up.railway.app/admin/transport/stop-redirects \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"redirects":{"st_0042":"st_0019"}}'        # мапа замінюється цілком; жива зупинка ключем або невідома ціль → 400
+```
 
 ## Версії й оновлення
 

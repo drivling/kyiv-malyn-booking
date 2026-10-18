@@ -111,6 +111,43 @@ function writeDatasetSnapshot(dataset) {
   console.log(`prerender-transport-stops: wrote transport/dataset.json (revision ${dataset.revision || '—'})`);
 }
 
+/**
+ * Редиректи зупинок (Docs/transport-open-protocols-2026-10.md, фаза 3): `meta.stopRedirects` → `dist/transport/
+ * stop-redirects.json` лише з коректними парами (старий id → жива зупинка; ланцюжки стиснуто) — serve-dist відповідає
+ * 301 на `/transport/stop/<старий>`. Те саме правило, що в `src/pages/LocalTransportPage/stopRedirects.ts`.
+ */
+export function sanitizeStopRedirects(meta, liveStopIds) {
+  const raw = meta?.stopRedirects;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const live = new Set(liveStopIds);
+  const out = {};
+  for (const key of Object.keys(raw)) {
+    if (!/^st_\d{1,8}$/.test(key) || live.has(key)) continue;
+    let current = raw[key];
+    const seen = new Set([key]);
+    for (let i = 0; i < 8; i++) {
+      if (typeof current !== 'string') break;
+      const next = current.trim();
+      if (live.has(next)) {
+        out[key] = next;
+        break;
+      }
+      if (seen.has(next) || !(next in raw)) break;
+      seen.add(next);
+      current = raw[next];
+    }
+  }
+  return out;
+}
+
+function writeStopRedirects(dataset) {
+  const redirects = sanitizeStopRedirects(dataset.meta, (dataset.stops || []).map((s) => s.id));
+  fs.mkdirSync(path.join(distDir, 'transport'), { recursive: true });
+  fs.writeFileSync(path.join(distDir, 'transport', 'stop-redirects.json'), JSON.stringify(redirects), 'utf8');
+  const n = Object.keys(redirects).length;
+  if (n) console.log(`prerender-transport-stops: wrote transport/stop-redirects.json (${n})`);
+}
+
 async function loadTransportIndex() {
   try {
     const res = await fetch(`${API_BASE}/transport/dataset`);
@@ -119,6 +156,7 @@ async function loadTransportIndex() {
       if (dataset && Array.isArray(dataset.stops)) {
         console.log('prerender-transport-stops: dataset from API');
         writeDatasetSnapshot(dataset);
+        writeStopRedirects(dataset);
         return collectFromApiDataset(dataset);
       }
     } else {

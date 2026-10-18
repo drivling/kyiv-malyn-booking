@@ -168,6 +168,65 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /transport/stops/{id}:
+    get:
+      tags: [transport]
+      operationId: getTransportStop
+      summary: Зупинка за стабільним id
+      description: |
+        Назва, координати і видимі маршрути зупинки. Старий id злитої або видаленої зупинки відповідає **301** на
+        чинний (`Location: /transport/stops/<new>`), невідомий — 404. Це і є контракт стабільних id
+        (Docs/transport-open-data.md, «Що ми обіцяємо»).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/StopId' }
+      responses:
+        '200':
+          description: Чинна зупинка
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StopInfo'
+        '301':
+          description: Зупинку злито — чинний id у `Location`
+          headers:
+            Location:
+              schema: { type: string, example: /transport/stops/st_0019 }
+        '404':
+          description: Невідомий id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/stop-redirects:
+    get:
+      tags: [transport]
+      operationId: getStopRedirects
+      summary: Мапа «старий id зупинки → чинний»
+      description: Злиті чи видалені зупинки; у GTFS і датасеті старого `stop_id` вже немає, тут видно, куди він веде. Порожній об'єкт — редиректів немає.
+      responses:
+        '200':
+          description: Мапа редиректів
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: '#/components/schemas/StopId' }
+                example: { st_0042: st_0019 }
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /transport/sticker-scans:
     post:
       tags: [transport-writes]
@@ -511,6 +570,18 @@ components:
         name: { type: string }
         lat: { type: number }
         lng: { type: number }
+    StopInfo:
+      type: object
+      required: [id, name, lat, lng, routeIds]
+      properties:
+        id: { $ref: '#/components/schemas/StopId' }
+        name: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        routeIds:
+          type: array
+          description: Видимі маршрути через зупинку (основний ланцюжок або варіант шляху), за номером
+          items: { $ref: '#/components/schemas/RouteId' }
     TransportRoute:
       type: object
       required: [id]

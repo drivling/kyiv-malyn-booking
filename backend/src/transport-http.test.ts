@@ -58,6 +58,12 @@ function createTransportPrismaStub(store: Store): PrismaClient {
       );
       return { count: data.length };
     },
+    update: async ({ where, data }: any) => {
+      if (key !== 'meta') throw new Error('update only for meta in stub');
+      if (store.meta?.id !== where.id) throw Object.assign(new Error('Record not found'), { code: 'P2025' });
+      store.meta = { ...store.meta, ...data, updatedAt: new Date() } as never;
+      return store.meta;
+    },
     upsert: async ({ where, create, update }: any) => {
       if (key !== 'meta') throw new Error('upsert only for meta in stub');
       if (store.meta?.id === where.id) {
@@ -402,4 +408,52 @@ test('GET /transport/gtfs.zip: cached per revision; a new revision rebuilds and 
   assert.equal(trips.text, 'route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id\n');
   const zip = await request(app).get('/transport/gtfs.zip').buffer(true).parse(binaryParser).expect(200);
   assert.equal(zip.headers['etag'], '"2026-10-13T10:00:00.000Z"');
+});
+
+test('stop redirects: PUT /admin validates and bumps revision; GET /transport/stops/:id answers 200 / 301 / 404', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/admin/transport/stop-redirects').send({ redirects: { st_0042: 'st_0001' } }).expect(401);
+  // Порожній датасет — нема куди писати
+  await request(app).put('/admin/transport/stop-redirects').set('Authorization', token).send({ redirects: { st_0042: 'st_0001' } }).expect(409);
+
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+  assert.deepEqual((await request(app).get('/transport/stop-redirects').expect(200)).body, {});
+
+  const bad = await request(app)
+    .put('/admin/transport/stop-redirects')
+    .set('Authorization', token)
+    .send({ redirects: { st_0042: 'st_0001', st_0001: 'st_0002', st_0050: 'st_0099' } })
+    .expect(400);
+  assert.deepEqual(bad.body.details, [
+    'st_0001: is a live stop, cannot redirect it',
+    'st_0050: target st_0099 is not a live stop (unknown, self or a cycle)',
+  ]);
+  await request(app).put('/admin/transport/stop-redirects').set('Authorization', token).send({ redirects: [] }).expect(400);
+
+  const ok = await request(app)
+    .put('/admin/transport/stop-redirects')
+    .set('Authorization', token)
+    .send({ redirects: { st_0042: 'st_0001', st_0043: 'st_0042' } })
+    .expect(200);
+  assert.deepEqual(ok.body.redirects, { st_0042: 'st_0001', st_0043: 'st_0001' });
+  assert.notEqual(ok.body.revision, '2026-10-12T10:00:00.000Z', 'revision bumped');
+  // Решта мети збереглась, редиректи поруч із нею; датасет віддає їх у meta
+  assert.equal((store.meta as any).payload.defaultSec, 120);
+  const ds = await request(app).get('/transport/dataset').expect(200);
+  assert.deepEqual(ds.body.meta.stopRedirects, { st_0042: 'st_0001', st_0043: 'st_0001' });
+
+  const map = await request(app).get('/transport/stop-redirects').expect(200);
+  assert.deepEqual(map.body, { st_0042: 'st_0001', st_0043: 'st_0001' });
+  assert.equal(map.headers['etag'], `"${ok.body.revision}"`);
+
+  const live = await request(app).get('/transport/stops/st_0001').expect(200);
+  assert.deepEqual(live.body, { id: 'st_0001', name: 'Барміна', lat: 50.771, lng: 29.241, routeIds: ['2'] });
+  assert.equal(live.headers['cache-control'], 'public, max-age=300');
+  const moved = await request(app).get('/transport/stops/st_0043').expect(301);
+  assert.equal(moved.headers['location'], '/transport/stops/st_0001');
+  assert.equal(moved.headers['cache-control'], 'public, max-age=86400');
+  await request(app).get('/transport/stops/st_0099').expect(404);
 });

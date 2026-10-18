@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, NO_CACHE_HEADERS } from './serve-dist-rules.mjs';
+import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, NO_CACHE_HEADERS, stopRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 import { API_BASE } from './api-base.mjs';
 
@@ -147,6 +147,19 @@ function loadKnownRouteIds() {
 }
 const KNOWN_ROUTE_IDS = loadKnownRouteIds();
 
+/** old stop id → live stop id (written by prerender-transport-stops from meta.stopRedirects); null → rule off */
+function loadStopRedirects() {
+  const p = path.join(dist, 'transport', 'stop-redirects.json');
+  if (!fs.existsSync(p)) return null;
+  try {
+    const map = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return map && typeof map === 'object' && !Array.isArray(map) ? map : null;
+  } catch {
+    return null;
+  }
+}
+const STOP_REDIRECTS = loadStopRedirects();
+
 function sendGone(res, extraHeaders = {}) {
   res.writeHead(410, { 'Content-Type': MIME['.html'], 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex', ...extraHeaders });
   res.end(GONE_HTML);
@@ -219,6 +232,17 @@ const server = http.createServer((req, res) => {
     });
     res.end();
     return;
+  }
+
+  // Merged/removed stops: /transport/stop/<old> → the live stop, for crawlers and bookmarks (the SPA does the same)
+  {
+    const { pathname, search } = splitUrl(urlPath);
+    const target = stopRedirectLocation(pathname, STOP_REDIRECTS);
+    if (target) {
+      res.writeHead(301, { Location: `${target}${search}`, 'Cache-Control': 'public, max-age=86400', ...extraHeaders });
+      res.end();
+      return;
+    }
   }
 
   // Canonical open-data addresses on our domain → the API (Docs/transport-open-protocols-2026-10.md, phase 1).

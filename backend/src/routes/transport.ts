@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { requireAdmin, resolveAdminPassword } from '../middleware/require-admin';
 import {
   currentTransportRevision,
@@ -8,6 +8,7 @@ import {
   replaceTransportDataset,
   validateTransportDataset,
 } from '../local-transport';
+import { lookupStop, parseStopRedirects, STOP_REDIRECTS_META_KEY, stopRedirectsOf } from '../stop-redirects';
 import { recalculateSegmentDurations } from '../transport-segments';
 import {
   clientKey,
@@ -93,6 +94,80 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
     } catch (e) {
       console.error('[GET /transport/gtfs/:file]', e);
       res.status(500).json({ error: 'Failed to build GTFS feed' });
+    }
+  });
+
+  /**
+   * Публічний: мапа «старий id зупинки → чинний» (Docs/transport-open-protocols-2026-10.md, фаза 3) — злиті чи
+   * видалені зупинки; споживачі GTFS/JSON читають її, бо в самому фіді старого stop_id більше немає.
+   */
+  r.get('/transport/stop-redirects', async (_req, res) => {
+    try {
+      const dataset = await loadTransportDataset(prisma);
+      res.set(dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' });
+      res.json(stopRedirectsOf(dataset));
+    } catch (e) {
+      console.error('[GET /transport/stop-redirects]', e);
+      res.status(500).json({ error: 'Failed to load stop redirects' });
+    }
+  });
+
+  /**
+   * Публічний: зупинка за стабільним id — назва, координати, видимі маршрути; старий id → 301 на чинний;
+   * невідомий → 404. Контракт id — Docs/transport-open-data.md «Що ми обіцяємо».
+   */
+  r.get('/transport/stops/:id', async (req, res) => {
+    try {
+      const dataset = await loadTransportDataset(prisma);
+      const found = lookupStop(dataset, req.params.id);
+      if (found.kind === 'redirect') {
+        res.set({ 'Cache-Control': 'public, max-age=86400' });
+        res.redirect(301, `/transport/stops/${encodeURIComponent(found.to)}`);
+        return;
+      }
+      if (found.kind === 'unknown') {
+        res.status(404).json({ error: 'Unknown stop' });
+        return;
+      }
+      res.set(dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' });
+      res.json(found.stop);
+    } catch (e) {
+      console.error('[GET /transport/stops/:id]', e);
+      res.status(500).json({ error: 'Failed to load stop' });
+    }
+  });
+
+  /**
+   * Адмін: замінити мапу редиректів зупинок цілком — body { redirects: { "st_0042": "st_0019" } }. Окремий ендпоінт,
+   * бо PUT датасету перезаписує meta тим, що редактор отримав у GET (скриптовий PUT без ключа стер би мапу).
+   * Сміття (жива зупинка як ключ, невідома ціль, цикл) — 400 із переліком; порожній датасет — 409. Бампає revision.
+   */
+  r.put('/admin/transport/stop-redirects', requireAdmin, async (req, res) => {
+    try {
+      const raw = (req.body as { redirects?: unknown } | null)?.redirects;
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        res.status(400).json({ error: 'Body must be { redirects: { oldStopId: newStopId } }' });
+        return;
+      }
+      const [stops, meta] = await Promise.all([
+        prisma.transportStop.findMany({ select: { id: true } }),
+        prisma.transportMeta.findUnique({ where: { id: 1 } }),
+      ]);
+      if (!meta) {
+        res.status(409).json({ error: 'Transport dataset is empty' });
+        return;
+      }
+      const { redirects, problems } = parseStopRedirects(raw, stops.map((s) => s.id));
+      if (problems.length) {
+        res.status(400).json({ error: 'Invalid stop redirects', details: problems });
+        return;
+      }
+      const payload = { ...((meta.payload as Record<string, unknown>) ?? {}), [STOP_REDIRECTS_META_KEY]: redirects };
+      await prisma.transportMeta.update({ where: { id: 1 }, data: { payload: payload as Prisma.InputJsonValue } });
+      res.json({ ok: true, redirects, revision: await currentTransportRevision(prisma) });
+    } catch (e) {
+      console.error('[PUT /admin/transport/stop-redirects]', e);
+      res.status(500).json({ error: 'Failed to save stop redirects' });
     }
   });
 

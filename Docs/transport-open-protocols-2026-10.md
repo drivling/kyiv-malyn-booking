@@ -1,7 +1,7 @@
 # Відкриті протоколи: GTFS у каталогах, OpenAPI, стабільні id, RSS та iCal транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** фази 0–2 закомічені; далі фаза 3 (контракт id, `meta.stopRedirects`, `GET /transport/stops/:id`)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳  
+**Де зупинились:** фази 0–3 закомічені; далі фаза 4 (RSS ревізій, iCal маршруту)  
 **Created:** 2026-10-18 · **Гілка:** `transport-open-protocols` (від `main` після #90)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -156,11 +156,11 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 - [x] **2.4** `/support/api`: тема `api` в `supportContent.ts`, стаття, `prerender-spa.mjs`, `sitemap.xml`, `llms.txt`
 
 Фаза 3 — стабільні id
-- [ ] **3.1** `transport-open-data.md`: розділ «Що ми обіцяємо»
-- [ ] **3.2** `backend/src/stop-redirects.ts` + валідація в `validateTransportDataset`; тест
-- [ ] **3.3** `GET /transport/stops/:id` (200 / 301 / 404), `GET /transport/stop-redirects`,
+- [x] **3.1** `transport-open-data.md`: розділ «Що ми обіцяємо»
+- [x] **3.2** `backend/src/stop-redirects.ts` + валідація в `validateTransportDataset`; тест
+- [x] **3.3** `GET /transport/stops/:id` (200 / 301 / 404), `GET /transport/stop-redirects`,
   `PUT /admin/transport/stop-redirects`; тести; yaml; `backend/dist`
-- [ ] **3.4** Сайт: редирект табло, `stop-redirects.json` з пререндера, 301 у `serve-dist.mjs`; тести
+- [x] **3.4** Сайт: редирект табло, `stop-redirects.json` з пререндера, 301 у `serve-dist.mjs`; тести
 
 Фаза 4 — RSS та iCal
 - [ ] **4.1** `backend/src/transport-feeds.ts`: `buildChangesRss(feed, revision)`, `buildRouteCalendar(feed, routeId)`; тести
@@ -192,6 +192,20 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
    у `backend/`, не руками.
 
 ## Знахідки по фазах
+
+### Фаза 3 — стабільні id (зроблено, 2026-10-18)
+
+- `stop-redirects.ts` (бекенд) і `stopRedirects.ts` (сайт) + копія правила в `prerender-transport-stops.mjs` — три місця
+  з однією логікою (ключ `st_\d+`, не жива зупинка, ціль жива, ланцюжок ≤ 8, цикл → відкинуто); тести на кожне.
+  Валідацію в `validateTransportDataset` не додавали: сміття в меті не блокує PUT датасету, а читачі санітизують самі.
+- `GET /transport/stops/:id` і `/transport/stop-redirects` вантажать весь датасет (`loadTransportDataset`), бо стаб у
+  `transport-http.test.ts` ігнорує `where` у `findMany`, а точкові запити заради рідкого ендпоінта не варті розширення
+  стаба; кеш 5 хв + `ETag`. Стаб отримав `transportMeta.update` (бампає `updatedAt`).
+- Табло: `Navigate replace` після всіх хуків (перед фінальним `return`), query зберігається — тест на це і на те, що
+  жива зупинка ключем не редиректиться. serve-dist 301 стоїть **перед** API-редиректом і `tryResolve`;
+  `stop-redirects.json` у `NO_CACHE_FILES`.
+- UI для редиректів в адмінці не робили — `PUT /admin/transport/stop-redirects` + рецепт `curl` у
+  `transport-open-data.md` (мапа замінюється цілком, 400 із переліком проблем).
 
 ### Фаза 2 — OpenAPI (зроблено, 2026-10-18)
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { apiRedirectPath, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: old Zubustik-site URLs (plan 1.10)', () => {
   it('301s booking-intent pages of the old site to the Kyiv corridor', () => {
@@ -44,7 +44,7 @@ describe('serve-dist rules: retired city routes (plan 1.5, rule D3)', () => {
 
 describe('serve-dist rules: transport PWA files (Docs/transport-pwa-2026-10.md, phase 1)', () => {
   it('revalidates HTML, the worker, the manifest and the per-deploy snapshots on every request', () => {
-    for (const p of ['/index.html', '/transport/index.html', '/transport/stop/st_0001/index.html', '/stop-signs/st_0001.html', '/transport-sw.js', '/transport.webmanifest', '/transport/dataset.json', '/transport/routes.json']) {
+    for (const p of ['/index.html', '/transport/index.html', '/transport/stop/st_0001/index.html', '/stop-signs/st_0001.html', '/transport-sw.js', '/transport.webmanifest', '/transport/dataset.json', '/transport/routes.json', '/transport/stop-redirects.json']) {
       expect(cacheControlFor(p), p).toBe('no-cache');
     }
   });
@@ -90,5 +90,20 @@ describe('serve-dist rules: canonical open-data addresses on our domain (Docs/tr
     for (const p of ['/transport', '/transport/gtfs', '/transport/gtfs/', '/transport/gtfs/../index.js', '/transport/gtfs/stops.csv', '/transport/dataset.json', '/transport/routes.json', '/transport/route/11', '/transport/route/11/calendar.ics/x', '/openapi.json', '/']) {
       expect(apiRedirectPath(p), p).toBeNull();
     }
+  });
+});
+
+describe('serve-dist rules: merged stops (meta.stopRedirects → dist/transport/stop-redirects.json)', () => {
+  const map = { st_0042: 'st_0019', 'st_0043': 'st_0043' };
+
+  it('301s an old stop id to the live one and keeps everything else', () => {
+    expect(stopRedirectLocation('/transport/stop/st_0042', map)).toBe('/transport/stop/st_0019');
+    expect(stopRedirectLocation('/transport/stop/st_0019', map)).toBeNull();
+    expect(stopRedirectLocation('/transport/stop/st_0043', map)).toBeNull();
+    expect(stopRedirectLocation('/transport/stop', map)).toBeNull();
+    expect(stopRedirectLocation('/transport/stop/st_0042/x', map)).toBeNull();
+    expect(stopRedirectLocation('/transport/route/st_0042', map)).toBeNull();
+    expect(stopRedirectLocation('/transport/stop/st_0042', null)).toBeNull();
+    expect(stopRedirectLocation('/transport/stop/constructor', map)).toBeNull();
   });
 });
