@@ -407,8 +407,18 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `LocalTransportPage/stopRedirects.ts` and `prerender-transport-stops.mjs`), written only through
   `PUT /admin/transport/stop-redirects` (a PUT of the dataset keeps whatever `meta` the editor loaded); `GET /transport/stops/:id`
   answers 301 for an old id, the board navigates to the live stop, serve-dist 301s from `dist/transport/stop-redirects.json`.
-  `GET /transport/changes.rss` (one item per `revision`, no history table) and `GET /transport/route/:id/calendar.ics`
-  (`backend/src/transport-feeds.ts`) are built from the cached GTFS feed (`GtfsFeed.routes` / `.trips`).
+  `GET /transport/changes.rss` and `GET /transport/route/:id/calendar.ics` (`backend/src/transport-feeds.ts`) are built from
+  the cached GTFS feed (`GtfsFeed.routes` / `.trips`).
+- **Revision journal** (`Docs/transport-revisions-2026-10.md`): `TransportRevision(revision = ISO TransportMeta.updatedAt,
+  source, stats, diff)` gets a row after every write that bumps the revision — `PUT /transport/dataset`,
+  `POST /admin/transport/recalculate-segments`, `PUT /admin/transport/stop-redirects`, the seed script — via
+  `snapshotTransportDataset()` **before** the write and `recordTransportRevision()` after it (`backend/src/transport-revisions.ts`;
+  `diffTransportDatasets` is pure: stops added / renamed / removed, routes added / removed, trips added / removed / moved by
+  `trip_id` + departure time, changed segment count, stop redirects). The journal never blocks the write (errors only
+  logged); `index.ts` writes the first row from the current state when the table is empty. `GET /transport/revisions`
+  (JSON, `?limit=`, newest first) and `GET /transport/changes.rss` (one item per row, Ukrainian `summary`, falls back to one
+  feed-only item while the table is empty) read it; the RSS body is cached per revision. A new write path must call both
+  helpers.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

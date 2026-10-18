@@ -174,11 +174,8 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 
 ## Що далі (поза цим етапом)
 
-- **Таблиця ревізій** `TransportRevision(revision PK = TransportMeta.updatedAt, createdAt, stats JSON, diff JSON)`:
-  `replaceTransportDataset` і `PUT /admin/transport/stop-redirects` після запису рахують `stats` (як `GtfsFeedStats`) і
-  `diff` проти попередньої ревізії (зупинки додані/перейменовані/зняті, рейси додані/зняті/зсунуті за `trip_id` + час,
-  маршрути) і вставляють рядок; `GET /transport/changes.rss` віддає останні 50 рядків з людським підсумком diff, а
-  `GET /transport/revisions` — JSON для застосунків. Міграція + ~150 рядків; перший запис — з поточного стану без diff.
+- ~~**Таблиця ревізій** `TransportRevision`~~ — зроблено окремим етапом: [`transport-revisions-2026-10.md`](transport-revisions-2026-10.md)
+  (`GET /transport/revisions`, RSS із підсумком diff).
 - UI редиректів зупинок у редакторі карти: при видаленні зупинки — «перенести на…» → `PUT /admin/transport/stop-redirects`.
 - Посилання «У календар» на сторінці маршруту (`/transport/route/:id`) на `routeCalendarUrl(id)` — не робили, щоб не
   чіпати розмітку сторінки в цьому етапі.
