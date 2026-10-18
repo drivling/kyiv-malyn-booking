@@ -202,11 +202,11 @@ describe('LocalTransportSchemePage: «Дані відкриті» (Docs/transpor
       renderPage('/transport/scheme', { ...dataset, revision: '2026-10-14T18:03:11.000Z' } as typeof dataset);
       const block = screen.getByRole('region', { name: 'Дані відкриті' });
       expect(block).toHaveAttribute('id', 'open-data');
-      expect(within(block).getByRole('link', { name: 'RSS змін розкладу' })).toHaveAttribute('href', `${TEST_API_URL}/transport/changes.rss`);
-      expect(within(block).getByRole('link', { name: 'API' })).toHaveAttribute('href', `${TEST_API_URL}/openapi.yaml`);
+      expect(within(block).getByRole('link', { name: 'RSS змін розкладу' })).toHaveAttribute('href', '/transport/changes.rss');
+      expect(within(block).getByRole('link', { name: 'API' })).toHaveAttribute('href', '/openapi.yaml');
       expect(within(block).getByRole('link', { name: 'Завантажити розклад (GTFS)' })).toHaveAttribute(
         'href',
-        `${TEST_API_URL}/transport/gtfs.zip`
+        '/transport/gtfs.zip'
       );
       const json = within(block).getByRole('link', { name: 'Дані у JSON' });
       expect(json).toHaveAttribute('href', '/transport/dataset.json');

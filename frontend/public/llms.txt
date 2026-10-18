@@ -44,8 +44,9 @@
 - Один файл фіду, напр. версія: https://malin.kiev.ua/transport/gtfs/feed_info.txt
 - Повний датасет сайту у JSON (знімок збірки): https://malin.kiev.ua/transport/dataset.json
 - Кнопки й дата даних на сайті: https://malin.kiev.ua/transport/scheme#open-data
-- RSS «зміни розкладу» (запис на кожну версію даних): https://malin.kiev.ua/transport/changes.rss · iCal рейсів маршруту: https://malin.kiev.ua/transport/route/<id>/calendar.ics
-- Зупинка за стабільним id (злита → 301 на чинну): https://kyiv-malyn-booking-production.up.railway.app/transport/stops/st_0019
+- RSS «зміни розкладу» (запис на кожну версію даних із підсумком, що змінилось): https://malin.kiev.ua/transport/changes.rss · iCal рейсів маршруту: https://malin.kiev.ua/transport/route/<id>/calendar.ics
+- Повний датасет наживо (JSON з бази, завжди поточний): https://malin.kiev.ua/transport/dataset · журнал ревізій (що саме змінилось, diff): https://malin.kiev.ua/transport/revisions
+- Зупинка за стабільним id (злита → 301 на чинну): https://malin.kiev.ua/transport/stops/st_0019 · мапа злитих: https://malin.kiev.ua/transport/stop-redirects
 - OpenAPI 3.1 публічного API (датасет, GTFS, попутки, записи з табло): https://malin.kiev.ua/openapi.yaml — сторінка для розробників https://malin.kiev.ua/support/api
 
 ## Файли для пошуку / ШІ

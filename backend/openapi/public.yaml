@@ -13,6 +13,8 @@ info:
     перевикористовуються; `revision` датасету (ISO-час останньої зміни) — та сама в `GET /transport/dataset`,
     у `feed_info.feed_version` GTFS і в `ETag` відповідей. Цей документ оновлюється разом із бекендом
     (`GET /openapi.yaml`). Канонічні адреси на домені сайту — `https://malin.kiev.ua/transport/gtfs.zip`,
+    `…/transport/gtfs/<file>.txt`, `…/transport/dataset`, `…/transport/revisions`, `…/transport/changes.rss`,
+    `…/transport/route/<id>/calendar.ics`, `…/transport/stops/<id>`, `…/transport/stop-redirects`,
     `https://malin.kiev.ua/openapi.yaml` — відповідають 302 на сервер нижче.
 
     **Увічливість.** Усі відповіді читання кешуються (`Cache-Control`); для GTFS і датасету перевіряйте зміни умовним

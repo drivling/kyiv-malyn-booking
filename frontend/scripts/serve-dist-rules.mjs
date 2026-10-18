@@ -98,16 +98,29 @@ export function cacheHeadersFor(pathname) {
  * `https://malin.kiev.ua/transport/gtfs.zip`, serve-dist answers 302 to the API. 302, not 301: the API host
  * (Railway today) will move, and clients must not remember today's target for good. Not a proxy: the zip is
  * already cached per revision with an ETag on the backend, and the static host stays dependency-free.
- * The transport service worker never sees these: not navigations (a dot in the last segment), not in precache.
+ * The transport service worker never sees the dotted ones (not navigations, not in precache); the dot-less JSON
+ * endpoints (`/transport/dataset`, `/transport/revisions`, `/transport/stops/<id>`, `/transport/stop-redirects`)
+ * are excluded from its page rule by name (`isTransportApiPath` in sw/transport-sw.js — keep both lists in sync).
+ * `/transport/dataset.json` and `/transport/stop-redirects.json` stay static: build snapshots, not the live API.
  * @param {string} pathname
  * @returns {string|null} path on the API host to redirect to (same path), or null
  */
 export function apiRedirectPath(pathname) {
-  if (pathname === '/transport/gtfs.zip' || pathname === '/openapi.yaml' || pathname === '/transport/changes.rss') return pathname;
+  if (API_EXACT_PATHS.has(pathname)) return pathname;
   if (/^\/transport\/gtfs\/[A-Za-z_]+\.txt$/.test(pathname)) return pathname;
   if (/^\/transport\/route\/[^/]+\/calendar\.ics$/.test(pathname)) return pathname;
+  if (/^\/transport\/stops\/[^/]+$/.test(pathname)) return pathname;
   return null;
 }
+
+const API_EXACT_PATHS = new Set([
+  '/transport/gtfs.zip',
+  '/openapi.yaml',
+  '/transport/changes.rss',
+  '/transport/dataset',
+  '/transport/revisions',
+  '/transport/stop-redirects',
+]);
 
 const STOP_PATH_RE = /^\/transport\/stop\/([^/]+)$/;
 

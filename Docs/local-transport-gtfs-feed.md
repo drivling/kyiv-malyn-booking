@@ -6,7 +6,7 @@ How to build and validate a Google-compatible **GTFS Static** feed from PostgreS
 
 The same generator (`backend/src/gtfs-feed.ts`) serves the feed from the live database:
 
-- `GET https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip` — full feed, `Cache-Control: public, max-age=300`, `ETag: "<revision>"`;
+- `GET https://malin.kiev.ua/transport/gtfs.zip` (302 to the backend, `curl -L`) — full feed, `Cache-Control: public, max-age=300`, `ETag: "<revision>"`;
 - `GET …/transport/gtfs/feed_info.txt` (or any other feed file) — one file as text, same headers.
 
 `feed_version` = dataset `revision` (`TransportMeta.updatedAt`, ISO). License and attribution: `LICENSE.txt`

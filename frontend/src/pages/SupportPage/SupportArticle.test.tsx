@@ -5,7 +5,6 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { render, screen, within } from '@testing-library/react';
-import { TEST_API_URL } from '@/test/msw/handlers';
 import { SupportArticle } from './SupportArticle';
 import { SupportLayout } from './SupportLayout';
 import { SUPPORT_TOPICS, isSupportTopicId } from './supportContent';
@@ -35,10 +34,11 @@ describe('/support/api', () => {
   it('links the OpenAPI document, the GTFS feed and the live dataset on the API host', () => {
     renderTopic('/support/api');
     const article = screen.getByRole('article');
-    expect(within(article).getByRole('link', { name: 'openapi.yaml' }).getAttribute('href')).toBe(`${TEST_API_URL}/openapi.yaml`);
-    expect(within(article).getByRole('link', { name: 'GTFS Static' }).getAttribute('href')).toBe(`${TEST_API_URL}/transport/gtfs.zip`);
-    expect(within(article).getByRole('link', { name: 'JSON наживо' }).getAttribute('href')).toBe(`${TEST_API_URL}/transport/dataset`);
+    expect(within(article).getByRole('link', { name: 'openapi.yaml' }).getAttribute('href')).toBe('/openapi.yaml');
+    expect(within(article).getByRole('link', { name: 'GTFS Static' }).getAttribute('href')).toBe('/transport/gtfs.zip');
+    expect(within(article).getByRole('link', { name: 'JSON наживо' }).getAttribute('href')).toBe('/transport/dataset');
     expect(within(article).getByRole('link', { name: 'знімок збірки' }).getAttribute('href')).toBe('/transport/dataset.json');
+    expect(within(article).getByRole('link', { name: 'журнал ревізій' }).getAttribute('href')).toBe('/transport/revisions');
     expect(within(article).getByRole('link', { name: 'OwnNet Source License 1.1' }).getAttribute('rel')).toContain('license');
   });
 

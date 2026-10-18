@@ -97,6 +97,16 @@ diff порожній («Перераховано час у дорозі…», �
 - [ ] **F.2** push, compare-посилання; після деплою — перевірити `GET /transport/revisions` на проді (один рядок
   `initial`), потім зберегти щось в адмінці й подивитись RSS
 
+### Дотичне — посилання на відкриті дані лише на домені сайту (2026-10-18)
+
+Публічні посилання на бекенд (`kyiv-malyn-booking-production.up.railway.app/transport/dataset` тощо) замінено на
+`malin.kiev.ua`: `apiRedirectPath` отримав `/transport/dataset`, `/transport/revisions`, `/transport/stops/<id>`,
+`/transport/stop-redirects` (302 на бекенд); бо ці шляхи без крапки, service worker виключає їх із правила «сторінка»
+(`isTransportApiPath`), інакше навігація у вкладці під воркером отримала б оболонку замість JSON; `vite.config.ts`
+проксіює ті самі шляхи в dev. Кнопки сайту (`openData.ts`) — відносні шляхи, працюють на обох доменах. Домен бекенду
+лишився там, де він і є сервером: `servers` в OpenAPI, `scripts/api-base.mjs`, деплой-доки, внутрішні скрипти
+(`build_scheme.py`, `audit-2026-10/scripts/common.py`) і нотатки геометрії маршрутів.
+
 ## Пастки
 
 1. `stats.stops` рахує лише зупинки, що є на маршрутах (як GTFS): нова зупинка без маршруту видна в `diff.stops.added`,

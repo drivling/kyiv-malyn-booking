@@ -28,6 +28,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      // Канонічні адреси відкритих даних (apiRedirectPath у scripts/serve-dist-rules.mjs): у проді serve-dist
+      // відповідає 302 на бекенд, у dev — той самий шлях на локальний бекенд, щоб кнопки на сайті працювали
+      ...Object.fromEntries(
+        ['/transport/gtfs.zip', '/transport/gtfs/', '/openapi.yaml', '/transport/changes.rss', '/transport/dataset', '/transport/revisions', '/transport/stops/', '/transport/stop-redirects', '^/transport/route/[^/]+/calendar\\.ics$'].map(
+          (key) => [key, { target: 'http://localhost:3000', changeOrigin: true }]
+        )
+      ),
     },
   },
   preview: {

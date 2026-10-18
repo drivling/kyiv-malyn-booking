@@ -81,13 +81,13 @@ describe('serve-dist rules: transport PWA files (Docs/transport-pwa-2026-10.md, 
 
 describe('serve-dist rules: canonical open-data addresses on our domain (Docs/transport-open-protocols-2026-10.md)', () => {
   it('sends the feed, its single files, the OpenAPI document, the RSS and route calendars to the API', () => {
-    for (const p of ['/transport/gtfs.zip', '/transport/gtfs/feed_info.txt', '/transport/gtfs/stop_times.txt', '/transport/gtfs/LICENSE.txt', '/openapi.yaml', '/transport/changes.rss', '/transport/route/11/calendar.ics']) {
+    for (const p of ['/transport/gtfs.zip', '/transport/gtfs/feed_info.txt', '/transport/gtfs/stop_times.txt', '/transport/gtfs/LICENSE.txt', '/openapi.yaml', '/transport/changes.rss', '/transport/route/11/calendar.ics', '/transport/dataset', '/transport/revisions', '/transport/stops/st_0019', '/transport/stop-redirects']) {
       expect(apiRedirectPath(p), p).toBe(p);
     }
   });
 
   it('leaves pages, snapshots and anything else to the static host', () => {
-    for (const p of ['/transport', '/transport/gtfs', '/transport/gtfs/', '/transport/gtfs/../index.js', '/transport/gtfs/stops.csv', '/transport/dataset.json', '/transport/routes.json', '/transport/route/11', '/transport/route/11/calendar.ics/x', '/openapi.json', '/']) {
+    for (const p of ['/transport', '/transport/gtfs', '/transport/gtfs/', '/transport/gtfs/../index.js', '/transport/gtfs/stops.csv', '/transport/dataset.json', '/transport/stop-redirects.json', '/transport/routes.json', '/transport/route/11', '/transport/route/11/calendar.ics/x', '/transport/stop/st_0019', '/transport/stops', '/transport/stops/st_0019/x', '/transport/datasets', '/openapi.json', '/']) {
       expect(apiRedirectPath(p), p).toBeNull();
     }
   });
