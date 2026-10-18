@@ -61,6 +61,8 @@ git checkout -b feat/malyn-gtfs && git add catalogs && git commit -m "feat: Add 
 
 ## 2. Transitland Atlas
 
+**Статус:** подано 2026-10-19 — PR <https://github.com/transitland/transitland-atlas/pull/2260> (форк `drivling/transitland-atlas`, гілка `malyn-ukraine`).
+
 Файл: [`transitland/malin.kiev.ua.dmfr.json`](transitland/malin.kiev.ua.dmfr.json) — DMFR 0.5.1, Onestop ID
 фіду `f-u9hbc-malyn~city~transport` (geohash `u9hbc` — центр Малина), оператор `o-u9hbc-malyn~city~transport`,
 `gtfs_agency_id = malyn` як в `agency.txt`.
