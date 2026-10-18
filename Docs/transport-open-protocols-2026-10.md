@@ -247,6 +247,12 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 
 ### Фаза 1 — каталоги GTFS і валідатор (зроблено, 2026-10-18)
 
+- **Mobility Database подано 2026-10-19:** PR <https://github.com/MobilityData/mobility-database-catalogs/pull/1751>
+  (`mdb_source_id` 3546; інструмент `add_gtfs_schedule_source` дав 3545, уже зайнятий — він рахує id як «кількість файлів
+  + 1», а в каталозі були видалення). Воркфлоу PR від нового контрибʼютора стоять у `action_required`, доки мейнтейнер не
+  натисне «Approve and run» — це не помилка. Локальне середовище інструмента на Apple Silicon: `brew install geos
+  spatialindex`, потім `pip install 'rtree>=1.3'` поверх `requirements.txt` (Rtree 0.9.7 не працює з libspatialindex 2.x).
+
 - `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
   0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
 - `serve-dist.mjs`: `apiRedirectPath()` у `serve-dist-rules.mjs` (чисте правило з тестами) → 302 на `API_BASE` з
