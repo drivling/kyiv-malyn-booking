@@ -130,6 +130,12 @@
         <priority>0.7</priority>
     </url>
     <url>
+        <loc>https://malin.kiev.ua/support/api</loc>
+        <lastmod>2026-10-18</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    <url>
         <loc>https://malin.kiev.ua/support/referral</loc>
         <lastmod>2026-08-07</lastmod>
         <changefreq>monthly</changefreq>

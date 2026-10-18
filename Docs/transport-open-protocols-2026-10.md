@@ -1,7 +1,7 @@
 # Відкриті протоколи: GTFS у каталогах, OpenAPI, стабільні id, RSS та iCal транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** фази 0–1 закомічені; далі фаза 2 (OpenAPI 3.1, `GET /openapi.yaml`, `/support/api`)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳  
+**Де зупинились:** фази 0–2 закомічені; далі фаза 3 (контракт id, `meta.stopRedirects`, `GET /transport/stops/:id`)  
 **Created:** 2026-10-18 · **Гілка:** `transport-open-protocols` (від `main` після #90)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -150,10 +150,10 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
 - [x] **1.5** Адреси на `malin.kiev.ua` у `openData.ts` (`GTFS_FEED_URL`), `transport-open-data.md`, `llms.txt`
 
 Фаза 2 — OpenAPI
-- [ ] **2.1** `backend/openapi/public.yaml` (OpenAPI 3.1, усі публічні ендпоінти, схеми відповідей)
-- [ ] **2.2** `GET /openapi.yaml` у `public-routes.ts`; `backend/dist`
-- [ ] **2.3** `openapi.test.ts`: валідність + звірка шляхів з `getRegisteredRoutes` в обидва боки (devDependency `yaml`)
-- [ ] **2.4** `/support/api`: тема `api` в `supportContent.ts`, стаття, `prerender-spa.mjs`, `sitemap.xml`, `llms.txt`
+- [x] **2.1** `backend/openapi/public.yaml` (OpenAPI 3.1, усі публічні ендпоінти, схеми відповідей)
+- [x] **2.2** `GET /openapi.yaml` у `public-routes.ts`; `backend/dist`
+- [x] **2.3** `openapi.test.ts`: валідність + звірка шляхів з `getRegisteredRoutes` в обидва боки (devDependency `yaml`)
+- [x] **2.4** `/support/api`: тема `api` в `supportContent.ts`, стаття, `prerender-spa.mjs`, `sitemap.xml`, `llms.txt`
 
 Фаза 3 — стабільні id
 - [ ] **3.1** `transport-open-data.md`: розділ «Що ми обіцяємо»
@@ -192,6 +192,21 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
    у `backend/`, не руками.
 
 ## Знахідки по фазах
+
+### Фаза 2 — OpenAPI (зроблено, 2026-10-18)
+
+- `getRegisteredRoutes` губив префікс монтування (`app.use('/poputky', r)` → `GET /search`): Express 4 тримає його лише
+  в `layer.regexp` (`/^\/poputky\/?(?=\/|$)/i`) — тепер префікс відновлюється з regexp (`mountPath`), логи роутів теж
+  стали правдивими. Пастка 3 підтвердилась.
+- YAML: будь-який рядок із `: ` або `{` усередині (`Content-Disposition: attachment`, `{ counted: false }`) треба брати в
+  лапки — парсер `yaml` (eemeli) інакше бачить вкладений мапінг; у тесті цього не видно, тож перевіряти `node -e parse`
+  після кожної правки.
+- `yaml@2` — devDependency бекенду лише для тесту; продакшн віддає файл як текст (`fs.readFileSync`, один раз, кеш 1 год),
+  `.dockerignore` бекенду `openapi/` не виключає.
+- `/support/api` — тема `api` між «Сайт» і «Приведи друга» (хаб, бічна навігація, чипи й prev/next підхоплюють її з
+  `SUPPORT_TOPICS`), стаття з TOC `API_TOC`, `<pre>` отримав стиль у `SupportPage.css`; у `prerender-spa.mjs` і
+  `sitemap.xml` додано шлях. Перший тест на статтю довідки в репо — `SupportArticle.test.tsx`.
+- `openData.ts`: `OPENAPI_URL`, `DATASET_LIVE_URL` поруч із рештою адрес.
 
 ### Фаза 1 — каталоги GTFS і валідатор (зроблено, 2026-10-18)
 

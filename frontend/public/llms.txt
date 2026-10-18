@@ -44,6 +44,7 @@
 - Один файл фіду, напр. версія: https://malin.kiev.ua/transport/gtfs/feed_info.txt
 - Повний датасет сайту у JSON (знімок збірки): https://malin.kiev.ua/transport/dataset.json
 - Кнопки й дата даних на сайті: https://malin.kiev.ua/transport/scheme#open-data
+- OpenAPI 3.1 публічного API (датасет, GTFS, попутки, записи з табло): https://malin.kiev.ua/openapi.yaml — сторінка для розробників https://malin.kiev.ua/support/api
 
 ## Файли для пошуку / ШІ
 

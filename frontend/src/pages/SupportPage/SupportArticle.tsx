@@ -25,12 +25,20 @@ import {
   PRICES_TOC,
   CITY_TRANSPORT_FAQ,
   CITY_TRANSPORT_TOC,
+  API_TOC,
   isSupportTopicId,
   supportTopicPath,
   type SupportTopicId,
 } from './supportContent';
 import { CORRIDOR_LANDINGS, corridorPath } from '@/pages/MizhgorodskiPage/corridorLandings';
-import { DATASET_JSON_URL, GTFS_FEED_URL, OPEN_DATA_DOC_URL, OPEN_DATA_LICENSE } from '@/pages/LocalTransportPage/openData';
+import {
+  DATASET_JSON_URL,
+  DATASET_LIVE_URL,
+  GTFS_FEED_URL,
+  OPENAPI_URL,
+  OPEN_DATA_DOC_URL,
+  OPEN_DATA_LICENSE,
+} from '@/pages/LocalTransportPage/openData';
 
 function upsertJsonLd(id: string, data: object): () => void {
   let el = document.getElementById(id) as HTMLScriptElement | null;
@@ -139,6 +147,11 @@ const META: Record<SupportTopicId, { title: string; description: string }> = {
   referral: {
     title: `Приведи друга | Допомога | ${SITE_PUBLIC_DOMAIN}`,
     description: 'Акція «Приведи друга»: /invite, бонуси, фото /confirmride, виплати.',
+  },
+  api: {
+    title: `API та відкриті дані для розробників | ${SITE_PUBLIC_DOMAIN}`,
+    description:
+      'Публічне API malin.kiev.ua: OpenAPI 3.1, GTFS і JSON транспорту Малина, попутки, стабільні id зупинок і маршрутів, ліцензія даних.',
   },
   faq: {
     title: `Часті питання | Допомога | ${SITE_PUBLIC_DOMAIN}`,
@@ -1018,6 +1031,103 @@ function FaqArticle() {
   );
 }
 
+/** Для розробників: що є в публічному API і де його машинний опис (Docs/transport-open-protocols-2026-10.md) */
+function ApiArticle() {
+  return (
+    <ArticleChrome topicId="api" toc={API_TOC}>
+      <p className="support-lead">
+        Усе, що сайт читає сам, можна читати і без сайту: датасет і GTFS міського транспорту Малина, попутки, пункти
+        міжміських поїздок. Без ключів і реєстрації; машинний опис — OpenAPI 3.1.
+      </p>
+
+      <section className="support-block" aria-labelledby="api-openapi">
+        <h2 id="api-openapi">OpenAPI</h2>
+        <p>
+          <a href={OPENAPI_URL}>openapi.yaml</a> — опис усіх публічних ендпоінтів зі схемами запитів і відповідей.
+          Канонічна адреса <code>https://{SITE_PUBLIC_DOMAIN}/openapi.yaml</code> перенаправляє на поточний сервер
+          бекенду, тож зберігайте саме її. Відкрити можна в будь-якому переглядачі OpenAPI (Swagger Editor, Redoc,
+          Stoplight) або згенерувати клієнт.
+        </p>
+        <pre>
+          <code>{`curl -sL https://${SITE_PUBLIC_DOMAIN}/openapi.yaml | head -20`}</code>
+        </pre>
+      </section>
+
+      <section className="support-block" aria-labelledby="api-transport">
+        <h2 id="api-transport">Транспорт Малина</h2>
+        <ul className="support-list support-list--compact">
+          <li>
+            <a href={GTFS_FEED_URL}>GTFS Static</a> (<code>/transport/gtfs.zip</code>) — зупинки, маршрути, рейси з часом
+            на кожній зупинці, лінії; <code>feed_version</code> = <code>revision</code> датасету, <code>ETag</code> той
+            самий — зміну розкладу видно умовним запитом без завантаження;
+          </li>
+          <li>
+            <a href={DATASET_LIVE_URL}>JSON наживо</a> (<code>/transport/dataset</code>) і{' '}
+            <a href={DATASET_JSON_URL}>знімок збірки</a> (<code>/transport/dataset.json</code>) — повний датасет у форматі
+            сайту: сегменти з тривалістю перегонів, варіанти шляху, опорні часи, тариф і контакти в <code>meta</code>;
+          </li>
+          <li>
+            записи з табло — <code>POST /transport/sticker-scans</code>, <code>sticker-returns</code>,{' '}
+            <code>arrival-reports</code>: анонімні, сервер дедуплікує; описані в OpenAPI разом із вікнами й кодами відповідей.
+          </li>
+        </ul>
+        <pre>
+          <code>{`curl -sIL https://${SITE_PUBLIC_DOMAIN}/transport/gtfs.zip | grep -i etag
+curl -sL https://${SITE_PUBLIC_DOMAIN}/transport/gtfs/feed_info.txt`}</code>
+        </pre>
+      </section>
+
+      <section className="support-block" aria-labelledby="api-ids">
+        <h2 id="api-ids">Що ми обіцяємо: стабільні id</h2>
+        <ul className="support-list support-list--compact">
+          <li>
+            id зупинки <code>st_NNNN</code> і номер маршруту (<code>route_id</code>) не змінюються й не
+            перевикористовуються — ті самі в адресах сайту (<code>/transport/stop/st_0019</code>,{' '}
+            <code>/transport/route/11</code>), у JSON і в GTFS;
+          </li>
+          <li>перейменування зупинки не змінює id; номер, який бачать люди («11/1»), — окреме поле <code>shortName</code>;</li>
+          <li>
+            злита або видалена зупинка лишає запис «старий id → чинний» у <code>meta.stopRedirects</code> датасету
+            щонайменше рік;
+          </li>
+          <li>
+            <code>revision</code> — ISO-час останньої зміни, монотонний, той самий у датасеті, GTFS і <code>ETag</code>;
+            id рейсів (<code>trip_id</code>) стабільні лише в межах однієї <code>revision</code>.
+          </li>
+        </ul>
+      </section>
+
+      <section className="support-block" aria-labelledby="api-poputky">
+        <h2 id="api-poputky">Попутки й міжміські</h2>
+        <p>
+          <code>GET /trip-points</code> — міста; <code>GET /viber-listings</code> і{' '}
+          <code>GET /viber-listings/search?date=&amp;fromCode=&amp;toCode=</code> — активні оголошення без контактів;{' '}
+          <code>GET /poputky/search?from=&amp;to=&amp;date=</code> — попутки, розклад маршруток і вільні місця одним
+          запитом. Контакт автора — лише окремим запитом по кліку, як і на сайті; персональні дані в API не віддаються.
+        </p>
+      </section>
+
+      <section className="support-block" aria-labelledby="api-license">
+        <h2 id="api-license">Ліцензія й увічливість</h2>
+        <p>
+          Дані — під{' '}
+          <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
+            {OPEN_DATA_LICENSE.name}
+          </a>
+          : вільно для людей, міста й бізнесу з доходом до 100 000 USD на рік, з атрибуцією{' '}
+          <em>{OPEN_DATA_LICENSE.attribution}</em>; більшим компаніям і платним сервісам — за договором. Перевіряйте
+          зміни умовним запитом (<code>If-None-Match</code>) не частіше ніж раз на 5 хвилин, для розкладу досить разу на
+          добу. Детальніше —{' '}
+          <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
+            відкриті дані транспорту Малина
+          </a>
+          ; помилки в даних і питання — <Link to={supportTopicPath('contact')}>контакти</Link>.
+        </p>
+      </section>
+    </ArticleChrome>
+  );
+}
+
 function ContactArticle() {
   return (
     <ArticleChrome topicId="contact">
@@ -1084,6 +1194,8 @@ export function SupportArticle() {
       return <BotArticle />;
     case 'site':
       return <SiteArticle />;
+    case 'api':
+      return <ApiArticle />;
     case 'referral':
       return <ReferralArticle />;
     case 'faq':
