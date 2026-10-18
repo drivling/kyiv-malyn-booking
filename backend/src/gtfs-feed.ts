@@ -25,6 +25,12 @@ export const OPEN_DATA_LICENSE = {
 
 export const GTFS_ZIP_FILENAME = 'malyn-gtfs.zip';
 
+/**
+ * Канонічна адреса фіду для каталогів і документів (Docs/transport-open-protocols-2026-10.md, фаза 1): на нашому
+ * домені, serve-dist відповідає 302 на бекенд. Домен бекенду (Railway) зміниться — ця адреса ні.
+ */
+export const GTFS_FEED_CANONICAL_URL = 'https://malin.kiev.ua/transport/gtfs.zip';
+
 /** Файли фіду у фіксованому порядку (порядок у zip теж такий — детермінований архів) */
 export const GTFS_FEED_FILES = [
   'agency.txt',
@@ -35,6 +41,7 @@ export const GTFS_FEED_FILES = [
   'calendar.txt',
   'feed_info.txt',
   'shapes.txt',
+  'attributions.txt',
   'LICENSE.txt',
 ] as const;
 export type GtfsFeedFile = (typeof GTFS_FEED_FILES)[number];
@@ -75,11 +82,30 @@ export interface GtfsFeedStats {
   hiddenRouteIds: string[];
 }
 
+/** Рейс фіду у структурному вигляді — для iCal/RSS (transport-feeds.ts), щоб не парсити stop_times.txt назад */
+export interface GtfsFeedTrip {
+  id: string;
+  routeId: string;
+  serviceId: string;
+  headsign: string;
+  directionId: 0 | 1;
+  stops: Array<{ stopId: string; name: string; arrival: string; departure: string }>;
+}
+
+export interface GtfsFeedRoute {
+  id: string;
+  shortName: string;
+  longName: string;
+}
+
 export interface GtfsFeed {
   files: Record<GtfsFeedFile, string>;
   /** feed_info.feed_version: revision датасету (ISO) або дата збірки, коли revision нема */
   feedVersion: string;
   stats: GtfsFeedStats;
+  /** Те саме, що в routes.txt / trips.txt + stop_times.txt, але структурно (порядок як у файлах) */
+  routes: GtfsFeedRoute[];
+  trips: GtfsFeedTrip[];
 }
 
 function csvEscape(value: unknown): string {
@@ -194,6 +220,7 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
 
   const tripRows: Record<string, unknown>[] = [];
   const stopTimeRows: Record<string, unknown>[] = [];
+  const feedTrips: GtfsFeedTrip[] = [];
   let skippedNoStops = 0;
   let compressedTrips = 0;
   let partialTrips = 0;
@@ -219,6 +246,19 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
       shape_id: ensureShape(rec.routeId, built),
     });
     stopTimeRows.push(...built.rows.map((row) => ({ ...row })));
+    feedTrips.push({
+      id: rec.id,
+      routeId: rec.routeId,
+      serviceId,
+      headsign: rec.headsign || '',
+      directionId: built.direction === 'there' ? 1 : 0,
+      stops: built.rows.map((row) => ({
+        stopId: String(row.stop_id),
+        name: stopById.get(String(row.stop_id))?.name || String(row.stop_id),
+        arrival: String(row.arrival_time),
+        departure: String(row.departure_time),
+      })),
+    });
   }
 
   const referencedStopIds = new Set(stopTimeRows.map((r) => String(r.stop_id)));
@@ -240,6 +280,23 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
     [{ ...FEED_PUBLISHER, feed_start_date: SERVICE_START_DATE, feed_end_date: SERVICE_END_DATE, feed_version: feedVersion }]
   );
 
+  // Стандартний файл атрибуції (GTFS attributions.txt): валідатор і споживачі (OTP, Transitland) його знають,
+  // на відміну від LICENSE.txt. Один виробник на весь фід (без agency_id/route_id/trip_id — тоді «весь датасет»).
+  const attributionsTxt = table(
+    ['attribution_id', 'organization_name', 'is_producer', 'is_operator', 'is_authority', 'attribution_url', 'attribution_email'],
+    [
+      {
+        attribution_id: 'malin_kiev_ua',
+        organization_name: 'malin.kiev.ua — Serhii Merenkov / Technologies LLC',
+        is_producer: 1,
+        is_operator: 0,
+        is_authority: 0,
+        attribution_url: 'https://malin.kiev.ua/transport/scheme#open-data',
+        attribution_email: FEED_PUBLISHER.feed_contact_email,
+      },
+    ]
+  );
+
   const licenseTxt = [
     `Malyn city public transport — GTFS Static feed (${GTFS_ZIP_FILENAME})`,
     '',
@@ -253,7 +310,8 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
     `Publisher: ${FEED_PUBLISHER.feed_publisher_name}, ${FEED_PUBLISHER.feed_publisher_url}`,
     `Contact: ${FEED_PUBLISHER.feed_contact_email}`,
     `Feed version (dataset revision): ${feedVersion}`,
-    'Latest feed: https://malin.kiev.ua/transport/scheme#open-data',
+    `Latest feed: ${GTFS_FEED_CANONICAL_URL} (see also https://malin.kiev.ua/transport/scheme#open-data)`,
+    'Producer attribution record: attributions.txt',
     '',
     'Ліцензія даних: ' + OPEN_DATA_LICENSE.name + ' — людям, місту й бізнесу до 100 000 USD на рік вільно, похідна база',
     'лишається під цією ж ліцензією, вказуйте джерело «' + OPEN_DATA_LICENSE.attribution + '». Комерційне використання',
@@ -272,8 +330,11 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
       'calendar.txt': calendarTxt,
       'feed_info.txt': feedInfoTxt,
       'shapes.txt': table(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'], shapeRows),
+      'attributions.txt': attributionsTxt,
       'LICENSE.txt': licenseTxt,
     },
+    routes: routeRows.map((r) => ({ id: String(r.route_id), shortName: String(r.route_short_name), longName: String(r.route_long_name) })),
+    trips: feedTrips,
     stats: {
       routes: routeRows.length,
       trips: tripRows.length,

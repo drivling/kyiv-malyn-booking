@@ -122,10 +122,20 @@ function getRegisteredRoutes(app) {
     try {
         const router = app._router;
         const stack = router?.stack ?? [];
+        // Express 4 не зберігає шлях монтування роутера (`app.use('/poputky', r)`) — лише regexp виду
+        // /^\/poputky\/?(?=\/|$)/i; відновлюємо префікс із нього, інакше `/poputky/search` виглядав би як `/search`
+        function mountPath(layer) {
+            if (layer.route?.path)
+                return layer.route.path;
+            if (typeof layer.path === 'string')
+                return layer.path;
+            const m = /^\^\\\/(.*?)\\\/\?\(\?=\\\/\|\$\)$/.exec(layer.regexp?.source ?? '');
+            return m ? '/' + m[1].replace(/\\\//g, '/') : '';
+        }
         function walk(layer, prefix = '') {
             if (!layer)
                 return;
-            const path = (prefix + (layer.route?.path ?? layer.path ?? '')).replace(/\/\//g, '/') || '/';
+            const path = (prefix + mountPath(layer)).replace(/\/\//g, '/') || '/';
             if (layer.route) {
                 const methods = Object.keys(layer.route.methods).filter((m) => layer.route.methods[m]);
                 methods.forEach((m) => routes.push(`${m.toUpperCase()} ${path}`));

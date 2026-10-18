@@ -40,6 +40,7 @@ const STATIC_ROUTES = [
   '/support/transport',
   '/support/bot',
   '/support/site',
+  '/support/api',
   '/support/referral',
   '/support/faq',
   '/support/contact',

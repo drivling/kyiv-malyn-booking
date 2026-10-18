@@ -58,6 +58,12 @@ function createTransportPrismaStub(store: Store): PrismaClient {
       );
       return { count: data.length };
     },
+    update: async ({ where, data }: any) => {
+      if (key !== 'meta') throw new Error('update only for meta in stub');
+      if (store.meta?.id !== where.id) throw Object.assign(new Error('Record not found'), { code: 'P2025' });
+      store.meta = { ...store.meta, ...data, updatedAt: new Date() } as never;
+      return store.meta;
+    },
     upsert: async ({ where, create, update }: any) => {
       if (key !== 'meta') throw new Error('upsert only for meta in stub');
       if (store.meta?.id === where.id) {
@@ -343,7 +349,7 @@ test('GET /transport/gtfs.zip: zip attachment with cache headers, ETag = revisio
   const zip = res.body as Buffer;
   assert.equal(zip.readUInt32LE(0), 0x04034b50);
   const text = zip.toString('latin1');
-  for (const name of ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt', 'LICENSE.txt']) {
+  for (const name of ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt', 'calendar.txt', 'feed_info.txt', 'shapes.txt', 'attributions.txt', 'LICENSE.txt']) {
     assert.ok(text.includes(name), name);
   }
 
@@ -402,4 +408,77 @@ test('GET /transport/gtfs.zip: cached per revision; a new revision rebuilds and 
   assert.equal(trips.text, 'route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id\n');
   const zip = await request(app).get('/transport/gtfs.zip').buffer(true).parse(binaryParser).expect(200);
   assert.equal(zip.headers['etag'], '"2026-10-13T10:00:00.000Z"');
+});
+
+test('stop redirects: PUT /admin validates and bumps revision; GET /transport/stops/:id answers 200 / 301 / 404', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const token = await adminToken(app);
+  await request(app).put('/admin/transport/stop-redirects').send({ redirects: { st_0042: 'st_0001' } }).expect(401);
+  // Порожній датасет — нема куди писати
+  await request(app).put('/admin/transport/stop-redirects').set('Authorization', token).send({ redirects: { st_0042: 'st_0001' } }).expect(409);
+
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+  assert.deepEqual((await request(app).get('/transport/stop-redirects').expect(200)).body, {});
+
+  const bad = await request(app)
+    .put('/admin/transport/stop-redirects')
+    .set('Authorization', token)
+    .send({ redirects: { st_0042: 'st_0001', st_0001: 'st_0002', st_0050: 'st_0099' } })
+    .expect(400);
+  assert.deepEqual(bad.body.details, [
+    'st_0001: is a live stop, cannot redirect it',
+    'st_0050: target st_0099 is not a live stop (unknown, self or a cycle)',
+  ]);
+  await request(app).put('/admin/transport/stop-redirects').set('Authorization', token).send({ redirects: [] }).expect(400);
+
+  const ok = await request(app)
+    .put('/admin/transport/stop-redirects')
+    .set('Authorization', token)
+    .send({ redirects: { st_0042: 'st_0001', st_0043: 'st_0042' } })
+    .expect(200);
+  assert.deepEqual(ok.body.redirects, { st_0042: 'st_0001', st_0043: 'st_0001' });
+  assert.notEqual(ok.body.revision, '2026-10-12T10:00:00.000Z', 'revision bumped');
+  // Решта мети збереглась, редиректи поруч із нею; датасет віддає їх у meta
+  assert.equal((store.meta as any).payload.defaultSec, 120);
+  const ds = await request(app).get('/transport/dataset').expect(200);
+  assert.deepEqual(ds.body.meta.stopRedirects, { st_0042: 'st_0001', st_0043: 'st_0001' });
+
+  const map = await request(app).get('/transport/stop-redirects').expect(200);
+  assert.deepEqual(map.body, { st_0042: 'st_0001', st_0043: 'st_0001' });
+  assert.equal(map.headers['etag'], `"${ok.body.revision}"`);
+
+  const live = await request(app).get('/transport/stops/st_0001').expect(200);
+  assert.deepEqual(live.body, { id: 'st_0001', name: 'Барміна', lat: 50.771, lng: 29.241, routeIds: ['2'] });
+  assert.equal(live.headers['cache-control'], 'public, max-age=300');
+  const moved = await request(app).get('/transport/stops/st_0043').expect(301);
+  assert.equal(moved.headers['location'], '/transport/stops/st_0001');
+  assert.equal(moved.headers['cache-control'], 'public, max-age=86400');
+  await request(app).get('/transport/stops/st_0099').expect(404);
+});
+
+test('GET /transport/changes.rss and /transport/route/:id/calendar.ics come from the GTFS cache with ETag = revision', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  await request(app).get('/transport/changes.rss').expect(404);
+  await request(app).get('/transport/route/2/calendar.ics').expect(404);
+  const token = await adminToken(app);
+  await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  setRevision(store, '2026-10-12T10:00:00Z');
+
+  const rss = await request(app).get('/transport/changes.rss').expect(200);
+  assert.match(rss.headers['content-type'], /^application\/rss\+xml; charset=utf-8/);
+  assert.equal(rss.headers['etag'], '"2026-10-12T10:00:00.000Z"');
+  assert.ok(rss.text.includes('<title>Розклад оновлено 12.10.2026</title>'));
+  assert.ok(rss.text.includes('1 маршрут, 1 рейс, 2 зупинки'));
+  await request(app).get('/transport/changes.rss').set('If-None-Match', '"2026-10-12T10:00:00.000Z"').expect(304);
+
+  const ics = await request(app).get('/transport/route/2/calendar.ics').expect(200);
+  assert.match(ics.headers['content-type'], /^text\/calendar; charset=utf-8/);
+  assert.equal(ics.headers['content-disposition'], 'inline; filename="malyn-route-2.ics"');
+  assert.equal(ics.headers['etag'], '"2026-10-12T10:00:00.000Z"');
+  assert.ok(ics.text.includes('UID:2-01@malin.kiev.ua'));
+  assert.ok(ics.text.includes('DTSTART;TZID=Europe/Kyiv:20261012T070000'));
+  await request(app).get('/transport/route/99/calendar.ics').expect(404);
 });

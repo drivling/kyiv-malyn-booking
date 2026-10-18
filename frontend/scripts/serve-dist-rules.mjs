@@ -58,7 +58,7 @@ export function isPrimaryOnlyFile(pathname) {
 }
 
 /** Revalidated on every request: the worker, the manifest and the per-deploy data snapshots (fixed URLs). */
-const NO_CACHE_FILES = new Set(['/transport-sw.js', '/transport.webmanifest', '/transport/dataset.json', '/transport/routes.json']);
+const NO_CACHE_FILES = new Set(['/transport-sw.js', '/transport.webmanifest', '/transport/dataset.json', '/transport/routes.json', '/transport/stop-redirects.json']);
 
 /**
  * Cache-Control for a file under dist/ (`pathname` = its dist-relative path, e.g. `/transport/index.html`).
@@ -90,6 +90,47 @@ export const NO_CACHE_HEADERS = Object.freeze({ 'Cache-Control': 'no-cache', 'CD
 export function cacheHeadersFor(pathname) {
   const cacheControl = cacheControlFor(pathname);
   return cacheControl === 'no-cache' ? { ...NO_CACHE_HEADERS } : { 'Cache-Control': cacheControl };
+}
+
+/**
+ * Open-data and protocol files that live on the backend but have their canonical address on our domain
+ * (Docs/transport-open-protocols-2026-10.md, phase 1): the feed catalogs and the docs name
+ * `https://malin.kiev.ua/transport/gtfs.zip`, serve-dist answers 302 to the API. 302, not 301: the API host
+ * (Railway today) will move, and clients must not remember today's target for good. Not a proxy: the zip is
+ * already cached per revision with an ETag on the backend, and the static host stays dependency-free.
+ * The transport service worker never sees these: not navigations (a dot in the last segment), not in precache.
+ * @param {string} pathname
+ * @returns {string|null} path on the API host to redirect to (same path), or null
+ */
+export function apiRedirectPath(pathname) {
+  if (pathname === '/transport/gtfs.zip' || pathname === '/openapi.yaml' || pathname === '/transport/changes.rss') return pathname;
+  if (/^\/transport\/gtfs\/[A-Za-z_]+\.txt$/.test(pathname)) return pathname;
+  if (/^\/transport\/route\/[^/]+\/calendar\.ics$/.test(pathname)) return pathname;
+  return null;
+}
+
+const STOP_PATH_RE = /^\/transport\/stop\/([^/]+)$/;
+
+/**
+ * 301 for /transport/stop/{oldId} when the dataset says the stop was merged into another one
+ * (Docs/transport-open-protocols-2026-10.md, phase 3; map from dist/transport/stop-redirects.json written by
+ * prerender-transport-stops). null = no redirect (unknown id, live stop, no map).
+ * @param {string} pathname
+ * @param {Record<string,string>|null} redirects
+ * @returns {string|null} new pathname
+ */
+export function stopRedirectLocation(pathname, redirects) {
+  if (!redirects) return null;
+  const m = STOP_PATH_RE.exec(pathname);
+  if (!m) return null;
+  let id;
+  try {
+    id = decodeURIComponent(m[1]);
+  } catch {
+    id = m[1];
+  }
+  const target = Object.prototype.hasOwnProperty.call(redirects, id) ? redirects[id] : null;
+  return typeof target === 'string' && target && target !== id ? `/transport/stop/${encodeURIComponent(target)}` : null;
 }
 
 export const GONE_HTML =

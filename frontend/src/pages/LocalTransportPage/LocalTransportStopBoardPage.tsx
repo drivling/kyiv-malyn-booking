@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { stopRedirectTarget } from './stopRedirects';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
@@ -201,6 +202,12 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     const id = resolveStopIdInList(decodedSlug, stops, stopsCatalog);
     return id && stops.includes(id) ? id : '';
   }, [decodedSlug, stops, stopsCatalog]);
+
+  /** Старий id злитої/видаленої зупинки з `meta.stopRedirects` → чинна (Navigate replace нижче) */
+  const redirectedStopId = useMemo(
+    () => (decodedSlug && !matchedStopId && dataset ? stopRedirectTarget(dataset.meta, decodedSlug, stops) : null),
+    [decodedSlug, matchedStopId, dataset, stops]
+  );
 
   /** Обрана зупинка — це зупинка з URL (джерело істини); порожній slug → табло без зупинки. */
   const selectedStop = matchedStopId;
@@ -495,6 +502,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (redirectedStopId) {
+    const search = searchParams.toString();
+    return <Navigate to={`/transport/stop/${encodeURIComponent(redirectedStopId)}${search ? `?${search}` : ''}`} replace />;
   }
 
   return (

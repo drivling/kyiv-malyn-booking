@@ -416,3 +416,27 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
     }
   });
 });
+
+describe('редиректи зупинок (meta.stopRedirects, Docs/transport-open-protocols-2026-10.md)', () => {
+  it('старий id злитої зупинки веде на чинну з тим самим query, replace', async () => {
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({ ...dataset, meta: { ...dataset.meta, stopRedirects: { st_0042: 'st_c', st_a: 'st_b' } } })
+      )
+    );
+    renderBoard('/transport/stop/st_0042?d=01.03.26&h=07%3A00');
+    await waitFor(() => expect(location()).toBe('/transport/stop/st_c?d=01.03.26&h=07%3A00'));
+    expect(h1().textContent).toContain('Лікарня');
+  });
+
+  it('жива зупинка не редиректиться, навіть якщо хтось вписав її ключем', async () => {
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, () =>
+        HttpResponse.json({ ...dataset, meta: { ...dataset.meta, stopRedirects: { st_a: 'st_b' } } })
+      )
+    );
+    renderBoard(BOARD_URL);
+    await waitFor(() => expect(h1().textContent).toContain('Базар'));
+    expect(location()).toBe(BOARD_URL);
+  });
+});

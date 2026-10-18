@@ -40,10 +40,13 @@
 
 Ліцензія даних: OwnNet Source License 1.1 (https://own-net.com/license.html) — людям, місту й бізнесу до 100 000 USD на рік вільно з атрибуцією «Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології» (technologies.llc)», корпораціям і платним застосункам — за договором. Як відкрити: https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md
 
-- GTFS Static (зупинки, маршрути, рейси, лінії; feed_version = revision даних): https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs.zip
-- Один файл фіду, напр. версія: https://kyiv-malyn-booking-production.up.railway.app/transport/gtfs/feed_info.txt
+- GTFS Static (зупинки, маршрути, рейси, лінії; feed_version = revision даних): https://malin.kiev.ua/transport/gtfs.zip (302 на бекенд)
+- Один файл фіду, напр. версія: https://malin.kiev.ua/transport/gtfs/feed_info.txt
 - Повний датасет сайту у JSON (знімок збірки): https://malin.kiev.ua/transport/dataset.json
 - Кнопки й дата даних на сайті: https://malin.kiev.ua/transport/scheme#open-data
+- RSS «зміни розкладу» (запис на кожну версію даних): https://malin.kiev.ua/transport/changes.rss · iCal рейсів маршруту: https://malin.kiev.ua/transport/route/<id>/calendar.ics
+- Зупинка за стабільним id (злита → 301 на чинну): https://kyiv-malyn-booking-production.up.railway.app/transport/stops/st_0019
+- OpenAPI 3.1 публічного API (датасет, GTFS, попутки, записи з табло): https://malin.kiev.ua/openapi.yaml — сторінка для розробників https://malin.kiev.ua/support/api
 
 ## Файли для пошуку / ШІ
 

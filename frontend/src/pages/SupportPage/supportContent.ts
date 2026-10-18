@@ -8,6 +8,7 @@ export type SupportTopicId =
   | 'transport'
   | 'bot'
   | 'site'
+  | 'api'
   | 'referral'
   | 'faq'
   | 'contact';
@@ -58,6 +59,12 @@ export const SUPPORT_TOPICS: SupportTopic[] = [
     blurb: 'Попутки, маршрутки, транспорт Малина',
   },
   {
+    id: 'api',
+    title: 'API та відкриті дані для розробників',
+    shortTitle: 'API',
+    blurb: 'OpenAPI, GTFS, JSON датасету, стабільні id',
+  },
+  {
     id: 'referral',
     title: 'Приведи друга',
     shortTitle: 'Акція',
@@ -104,6 +111,7 @@ export const LEGACY_HASH_TO_TOPIC: Record<string, SupportTopicId> = {
   'bot-referral': 'referral',
   'bot-confirm': 'bot',
   site: 'site',
+  api: 'api',
   faq: 'faq',
   contact: 'contact',
 };
@@ -248,6 +256,14 @@ export const CITY_TRANSPORT_TOC: Array<{ id: string; label: string }> = [
   { id: 'city-fare', label: 'Проїзд' },
   { id: 'city-open-data', label: 'Дані відкриті' },
   { id: 'city-faq', label: 'Часті питання' },
+];
+
+export const API_TOC: Array<{ id: string; label: string }> = [
+  { id: 'api-openapi', label: 'OpenAPI' },
+  { id: 'api-transport', label: 'Транспорт Малина' },
+  { id: 'api-ids', label: 'Стабільні id' },
+  { id: 'api-poputky', label: 'Попутки й міжміські' },
+  { id: 'api-license', label: 'Ліцензія й увічливість' },
 ];
 
 export const FAQ_PLAIN: Array<{ q: string; aText: string }> = [

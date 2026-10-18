@@ -1,0 +1,859 @@
+openapi: 3.1.0
+info:
+  title: malin.kiev.ua — публічне API
+  version: '2026-10-18'
+  summary: Відкриті дані транспорту Малина, попутки й розклади міжміських маршруток — те, що сайт malin.kiev.ua читає сам.
+  description: |
+    Публічні ендпоінти бекенду malin.kiev.ua (Docs/transport-open-protocols-2026-10.md, етап 4 «Відкриті протоколи»).
+    Описано **лише** те, що доступне без авторизації: читання датасету й GTFS міського транспорту Малина, три записи
+    з табло (QR-наклейки, факт прибуття), публічні попутки та пункти міжміських поїздок. Адмінські ендпоінти
+    (`/admin/*`, `PUT /transport/dataset`) і кабінет користувача тут навмисно відсутні.
+
+    **Стабільність.** Ідентифікатори зупинок (`st_NNNN`) і маршрутів (`route_id`) не змінюються й не
+    перевикористовуються; `revision` датасету (ISO-час останньої зміни) — та сама в `GET /transport/dataset`,
+    у `feed_info.feed_version` GTFS і в `ETag` відповідей. Цей документ оновлюється разом із бекендом
+    (`GET /openapi.yaml`). Канонічні адреси на домені сайту — `https://malin.kiev.ua/transport/gtfs.zip`,
+    `https://malin.kiev.ua/openapi.yaml` — відповідають 302 на сервер нижче.
+
+    **Увічливість.** Усі відповіді читання кешуються (`Cache-Control`); для GTFS і датасету перевіряйте зміни умовним
+    запитом `If-None-Match` раз на добу, не частіше ніж раз на 5 хв. Записи (POST) призначені для табло сайту: вони
+    не потребують ключа, але дедуплікуються сервером і не повертають персональних даних.
+  contact:
+    name: malin.kiev.ua — Сергій Меренков / ТОВ «Технології»
+    email: mer.sergei@gmail.com
+    url: https://malin.kiev.ua/support/contact
+  license:
+    name: OwnNet Source License 1.1
+    url: https://own-net.com/license.html
+externalDocs:
+  description: Відкриті дані транспорту Малина — що за файли, як відкрити, ліцензія
+  url: https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md
+servers:
+  - url: https://kyiv-malyn-booking-production.up.railway.app
+    description: Бекенд (Railway). Домен може змінитися — канонічні адреси на malin.kiev.ua лишаться.
+tags:
+  - name: service
+    description: Стан сервісу
+  - name: transport
+    description: Міський транспорт Малина — відкриті дані (датасет, GTFS)
+  - name: transport-writes
+    description: Записи з табло транспорту — анонімні, дедупліковані сервером
+  - name: poputky
+    description: Попутки та пункти міжміських поїздок (публічні DTO без контактів)
+
+paths:
+  /health:
+    get:
+      tags: [service]
+      operationId: getHealth
+      summary: Стан бекенду
+      description: 'Відповідає `{"status":"ok"}` разом із версією коду й ідентифікатором деплою. Без кешу.'
+      responses:
+        '200':
+          description: Сервіс живий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /openapi.yaml:
+    get:
+      tags: [service]
+      operationId: getOpenApi
+      summary: Цей документ
+      description: 'OpenAPI 3.1 публічного API як YAML; канонічна адреса — `https://malin.kiev.ua/openapi.yaml` (302 сюди). Кеш 1 год.'
+      responses:
+        '200':
+          description: Документ
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /transport/dataset:
+    get:
+      tags: [transport]
+      operationId: getTransportDataset
+      summary: Повний датасет міського транспорту (JSON сайту)
+      description: |
+        Зупинки, маршрути, прив'язка зупинок до маршрутів, рейси, тривалості перегонів і мета (тариф, контакти,
+        центр мапи) — у внутрішньому форматі, яким живе сам сайт. Поле `revision` — ISO-час останньої зміни в
+        адмінці. Формат внутрішній і може змінюватись разом із сайтом; для сторонніх застосунків надійніший GTFS.
+        Знімок на момент збірки сайту є також на `https://malin.kiev.ua/transport/dataset.json`.
+      responses:
+        '200':
+          description: Поточний датасет
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'public, max-age=300' }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportDataset'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/gtfs.zip:
+    get:
+      tags: [transport]
+      operationId: getGtfsFeed
+      summary: GTFS Static фід міського транспорту Малина
+      description: |
+        Zip із `agency.txt`, `stops.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, `calendar.txt`, `shapes.txt`,
+        `feed_info.txt`, `attributions.txt` і `LICENSE.txt`. `feed_version` = `revision` датасету; `ETag` — та сама
+        `revision` у лапках, тому зміну розкладу видно умовним запитом без завантаження. Лише маршрути з
+        підтвердженим розкладом; маршрути, позначені ненадійними, у фід не потрапляють. Канонічна адреса —
+        `https://malin.kiev.ua/transport/gtfs.zip` (302 сюди). Ліцензія даних — OwnNet Source License 1.1.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: 'Архів фіду (`Content-Disposition: attachment; filename="malyn-gtfs.zip"`)'
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+            Last-Modified:
+              schema: { type: string }
+            Cache-Control:
+              schema: { type: string, example: 'public, max-age=300' }
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Фід не змінився з часу `If-None-Match`
+        '404':
+          description: Датасет порожній (база ще не наповнена)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/gtfs/{file}:
+    get:
+      tags: [transport]
+      operationId: getGtfsFile
+      summary: Один файл GTFS-фіду як текст
+      description: Той самий фід по одному файлу — зручно перевірити версію (`feed_info.txt`) або забрати `stops.txt` без zip.
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [agency.txt, stops.txt, routes.txt, trips.txt, stop_times.txt, calendar.txt, feed_info.txt, shapes.txt, attributions.txt, LICENSE.txt]
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Вміст файлу (CSV, UTF-8)
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                feed_publisher_name,feed_publisher_url,feed_lang,feed_contact_email,feed_contact_url,feed_start_date,feed_end_date,feed_version
+                Technologies LLC,https://malin.kiev.ua/,uk,mer.sergei@gmail.com,https://malin.kiev.ua/transport/scheme#open-data,20240101,20271231,2026-10-14T13:17:49.327Z
+        '304':
+          description: Не змінився
+        '404':
+          description: Невідоме ім'я файлу або порожній датасет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transport/changes.rss:
+    get:
+      tags: [transport]
+      operationId: getChangesRss
+      summary: RSS «зміни розкладу»
+      description: |
+        RSS 2.0 з одним записом про поточну версію даних (`revision`): дата за Києвом, скільки маршрутів, рейсів і
+        зупинок у фіді, посилання на GTFS. Історії версій на сервері немає — читач RSS накопичує записи сам, тож для
+        підписника це журнал «коли мінявся розклад». Канонічна адреса — `https://malin.kiev.ua/transport/changes.rss`.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: RSS
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/rss+xml:
+              schema: { type: string }
+        '304':
+          description: Не змінився
+        '404':
+          description: Датасет порожній
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transport/route/{id}/calendar.ics:
+    get:
+      tags: [transport]
+      operationId: getRouteCalendar
+      summary: iCalendar рейсів маршруту
+      description: |
+        Подія на кожен рейс маршруту з тижневим повтором за календарем сервісу (щодня / пн–пт), час у
+        `TZID=Europe/Kyiv` (VTIMEZONE усередині), опис — зупинки з часом. Підписуйтесь за адресою
+        (`https://malin.kiev.ua/transport/route/{id}/calendar.ics`): календар оновлюється разом із розкладом,
+        завантажений файл — ні. Маршрут без розкладу або прихований — 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/RouteId' }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: iCalendar
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            text/calendar:
+              schema: { type: string }
+        '304':
+          description: Не змінився
+        '404':
+          description: Невідомий маршрут, без розкладу або порожній датасет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transport/stops/{id}:
+    get:
+      tags: [transport]
+      operationId: getTransportStop
+      summary: Зупинка за стабільним id
+      description: |
+        Назва, координати і видимі маршрути зупинки. Старий id злитої або видаленої зупинки відповідає **301** на
+        чинний (`Location: /transport/stops/<new>`), невідомий — 404. Це і є контракт стабільних id
+        (Docs/transport-open-data.md, «Що ми обіцяємо»).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/StopId' }
+      responses:
+        '200':
+          description: Чинна зупинка
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StopInfo'
+        '301':
+          description: Зупинку злито — чинний id у `Location`
+          headers:
+            Location:
+              schema: { type: string, example: /transport/stops/st_0019 }
+        '404':
+          description: Невідомий id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/stop-redirects:
+    get:
+      tags: [transport]
+      operationId: getStopRedirects
+      summary: Мапа «старий id зупинки → чинний»
+      description: Злиті чи видалені зупинки; у GTFS і датасеті старого `stop_id` вже немає, тут видно, куди він веде. Порожній об'єкт — редиректів немає.
+      responses:
+        '200':
+          description: Мапа редиректів
+          headers:
+            ETag:
+              $ref: '#/components/headers/RevisionETag'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: '#/components/schemas/StopId' }
+                example: { st_0042: st_0019 }
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/sticker-scans:
+    post:
+      tags: [transport-writes]
+      operationId: postStickerScan
+      summary: Відкриття табло з QR-наклейки на зупинці
+      description: |
+        Сайт пише це раз за сесію, коли табло відкрито з `utm_source=sticker`. Без IP і персональних даних.
+        Повтор від того самого клієнта за 2 хв — `200 { counted: false }`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StickerScan'
+      responses:
+        '201':
+          description: Зараховано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WriteResult'
+        '200':
+          description: Повтор — не зараховано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WriteResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Невідома зупинка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/sticker-returns:
+    post:
+      tags: [transport-writes]
+      operationId: postStickerReturn
+      summary: Людина з QR-наклейки знову відкрила сайт
+      description: 'Повернення людини, яка колись прийшла з наклейки (анонімний id браузера). Повтор того самого id за 30 хв — `200 { counted: false }`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StickerReturn'
+      responses:
+        '201':
+          description: Зараховано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WriteResult'
+        '200':
+          description: Повтор — не зараховано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WriteResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /transport/arrival-reports:
+    post:
+      tags: [transport-writes]
+      operationId: postArrivalReport
+      summary: Факт прибуття рейсу на зупинку («автобус тут» / «автобуса не було»)
+      description: |
+        Пасажир повідомляє, що рейс прийшов (зараз або N хв тому) або не прийшов (і скільки чекав). Вікна: ±90 хв
+        від розкладу для `arrived`, −5…+180 хв для `missed`. `occurredAt` — момент натискання за годинником клієнта
+        (черга без мережі): годинник, що поспішає понад 5 хв, замінюється серверним часом; подія, старша за 7 днів, — 422.
+        Повтор того самого `clientId + clientEventId` — `200 { counted: false }` з уже збереженими значеннями.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArrivalReport'
+      responses:
+        '201':
+          description: Зараховано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArrivalReportResult'
+        '200':
+          description: Повтор — не зараховано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArrivalReportResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Невідомий рейс або зупинка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Час події далеко від розкладу або подія старша за 7 днів
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /trip-points:
+    get:
+      tags: [poputky]
+      operationId: getTripPoints
+      summary: Пункти міжміських поїздок (міста)
+      description: Довідник міст для попуток і маршруток. Параметри звужують до тих, що показуються у виборі «звідки / куди» або беруть участь у попутках.
+      parameters:
+        - name: appearInFromTo
+          in: query
+          schema: { type: string, enum: ['true', '1'] }
+          description: Лише пункти для селектів «звідки / куди»
+        - name: appearInPoputky
+          in: query
+          schema: { type: string, enum: ['true', '1'] }
+          description: Лише пункти, що беруть участь у попутках
+      responses:
+        '200':
+          description: Список пунктів у порядку `sortOrder`
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TripPoint'
+
+  /viber-listings:
+    get:
+      tags: [poputky]
+      operationId: getViberListings
+      summary: Активні оголошення попуток від сьогодні
+      description: Публічний DTO без телефонів і сирого тексту; контакт — окремим запитом по кліку.
+      responses:
+        '200':
+          description: Оголошення за датою
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicListing'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /viber-listings/search:
+    get:
+      tags: [poputky]
+      operationId: searchViberListings
+      summary: Оголошення попуток на дату між двома пунктами
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: fromCode
+          in: query
+          schema: { type: string, example: Kyiv }
+          description: Код пункту відправлення (`TripPoint.code`); разом із `toCode`
+        - name: toCode
+          in: query
+          schema: { type: string, example: Malyn }
+        - name: route
+          in: query
+          schema: { type: string, example: Kyiv-Malyn }
+          description: Старий спосіб — слаг маршруту замість пари кодів
+      responses:
+        '200':
+          description: Оголошення, що підходять до пари пунктів (порожній масив, якщо пункт невідомий)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicListing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /viber-listings/{id}/contact:
+    get:
+      tags: [poputky]
+      operationId: getListingContact
+      summary: Контакт автора активного оголошення
+      description: Телефон або `@username` — лише для активних, ще не минулих оголошень; авторам без контакту — 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Контакт
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contact]
+                properties:
+                  contact: { type: string, example: '@driver' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Контакт недоступний
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /poputky/search:
+    get:
+      tags: [poputky]
+      operationId: searchPoputky
+      summary: Попутки + розклад маршруток + вільні місця одним запитом
+      description: Те, що показує міжміське табло сайту. Кеш 20 с. Невідома пара пунктів — порожній результат, не помилка.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, example: Kyiv }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, example: Malyn }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Результат пошуку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoputkySearchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      schema: { type: string, example: '"2026-10-14T13:17:49.327Z"' }
+      description: Попередній `ETag` — відповідь 304, якщо `revision` не змінилась
+  headers:
+    RevisionETag:
+      description: '`"<revision>"` — ISO-час останньої зміни датасету'
+      schema: { type: string, example: '"2026-10-14T13:17:49.327Z"' }
+  responses:
+    BadRequest:
+      description: Невалідний запит
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: Помилка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: ok }
+        version: { type: integer }
+        viber: { type: boolean }
+        codeVersion: { type: string }
+        deploymentId: { type: [string, 'null'] }
+        cwd: { type: string }
+
+    StopId:
+      type: string
+      pattern: '^st_\d{4}$'
+      description: 'Стабільний id зупинки — той самий, що в `/transport/stop/{id}` на сайті та `stop_id` у GTFS'
+      example: st_0019
+    RouteId:
+      type: string
+      description: Внутрішній номер маршруту («11»); номер, який бачать люди, — `shortName` / `route_short_name` («11/1»)
+      example: '11'
+    ClockTime:
+      type: string
+      pattern: '^\d{1,2}:\d{2}(:\d{2})?$'
+      example: '07:10'
+
+    TransportDataset:
+      type: object
+      required: [stops, routes, routeStops, trips, segments, meta]
+      properties:
+        stops:
+          type: array
+          items: { $ref: '#/components/schemas/TransportStop' }
+        routes:
+          type: array
+          items: { $ref: '#/components/schemas/TransportRoute' }
+        routeStops:
+          type: array
+          items: { $ref: '#/components/schemas/TransportRouteStop' }
+        trips:
+          type: array
+          items: { $ref: '#/components/schemas/TransportTrip' }
+        segments:
+          type: array
+          items: { $ref: '#/components/schemas/TransportSegment' }
+        meta:
+          type: object
+          description: 'center мапи, defaultSec, fare, contacts, news, sources, agency, description, stopRedirects'
+          additionalProperties: true
+        revision:
+          type: [string, 'null']
+          format: date-time
+          description: ISO-час останньої зміни датасету; той самий у `feed_version` і `ETag`
+    TransportStop:
+      type: object
+      required: [id, name, lat, lng]
+      properties:
+        id: { $ref: '#/components/schemas/StopId' }
+        name: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+    StopInfo:
+      type: object
+      required: [id, name, lat, lng, routeIds]
+      properties:
+        id: { $ref: '#/components/schemas/StopId' }
+        name: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        routeIds:
+          type: array
+          description: Видимі маршрути через зупинку (основний ланцюжок або варіант шляху), за номером
+          items: { $ref: '#/components/schemas/RouteId' }
+    TransportRoute:
+      type: object
+      required: [id]
+      properties:
+        id: { $ref: '#/components/schemas/RouteId' }
+        fromName: { type: string, description: Назва кінцевої «туди» (рядковий ключ — назва зупинки) }
+        toName: { type: string }
+        shortName: { type: string, description: 'Номер для показу; порожньо — id' }
+        scheme: { type: string }
+        note: { type: string }
+        sourceUrl: { type: string }
+        schedule: { description: Сирий розклад з листка (будь-який JSON) }
+        unreliable: { type: boolean, description: 'Ненадійний — на сайті й у GTFS прихований' }
+        variants:
+          type: array
+          description: Варіанти шляху (Docs/route-variants-2026-10.md)
+          items:
+            type: object
+            required: [id, directionId, name, stops]
+            properties:
+              id: { type: string }
+              directionId: { type: string, enum: ['0', '1'] }
+              name: { type: string }
+              stops:
+                type: array
+                items:
+                  type: object
+                  required: [stopId]
+                  properties:
+                    stopId: { $ref: '#/components/schemas/StopId' }
+                    mapOnly: { type: boolean }
+    TransportRouteStop:
+      type: object
+      required: [routeId, stopId]
+      properties:
+        routeId: { $ref: '#/components/schemas/RouteId' }
+        stopId: { $ref: '#/components/schemas/StopId' }
+        orderThere: { type: integer, description: 'Порядок у напрямку «туди» (directionId 1); 0/−1 — не обслуговується' }
+        orderBack: { type: integer }
+        mapOnly: { type: boolean, description: Технічна точка лінії — не зупинка }
+    TransportTrip:
+      type: object
+      required: [id, routeId]
+      properties:
+        id: { type: string, example: '11-03', description: Стабільний лише в межах однієї revision }
+        routeId: { $ref: '#/components/schemas/RouteId' }
+        serviceId: { type: string, enum: [everyday, weekdays] }
+        headsign: { type: string }
+        directionId: { type: string, enum: ['0', '1'], description: '1 — туди, 0 — назад' }
+        departureTime:
+          oneOf:
+            - $ref: '#/components/schemas/ClockTime'
+            - type: 'null'
+        blockId: { type: [string, 'null'] }
+        wheelchairAccessible: { type: string }
+        bikesAllowed: { type: string }
+        startStopId: { type: [string, 'null'] }
+        endStopId: { type: [string, 'null'] }
+        arrivalTime: { type: [string, 'null'] }
+        variantId: { type: [string, 'null'] }
+        timepoints:
+          type: [array, 'null']
+          items:
+            type: object
+            required: [stopId, time]
+            properties:
+              stopId: { $ref: '#/components/schemas/StopId' }
+              time: { $ref: '#/components/schemas/ClockTime' }
+    TransportSegment:
+      type: object
+      required: [routeId, fromStopId, toStopId, seconds]
+      properties:
+        routeId: { $ref: '#/components/schemas/RouteId' }
+        fromStopId: { $ref: '#/components/schemas/StopId' }
+        toStopId: { $ref: '#/components/schemas/StopId' }
+        seconds: { type: integer }
+
+    StickerSide:
+      type: string
+      enum: [a, b, s]
+      description: 'Бік дороги на наклейці: a | b, або s — одна наклейка з обома боками'
+    ClientId:
+      type: string
+      pattern: '^[A-Za-z0-9-]{8,64}$'
+      description: Анонімний id браузера (UUID із localStorage), не персональні дані
+    StickerScan:
+      type: object
+      required: [stopId, side]
+      properties:
+        stopId: { $ref: '#/components/schemas/StopId' }
+        side: { $ref: '#/components/schemas/StickerSide' }
+        clientId: { $ref: '#/components/schemas/ClientId' }
+    StickerReturn:
+      type: object
+      required: [stopId, side, clientId, via]
+      properties:
+        stopId: { $ref: '#/components/schemas/StopId' }
+        side: { $ref: '#/components/schemas/StickerSide' }
+        clientId: { $ref: '#/components/schemas/ClientId' }
+        via:
+          type: string
+          enum: [reload, tab, direct]
+          description: 'reload — відновлена вкладка табло; tab — повернулись до відкритої вкладки; direct — відкрили сайт інакше'
+        page: { type: string, pattern: '^[a-z0-9-]{1,30}$', description: Перший сегмент шляху сторінки }
+    WriteResult:
+      type: object
+      required: [ok, counted]
+      properties:
+        ok: { type: boolean }
+        counted: { type: boolean, description: 'false — повтор, не зараховано' }
+    ArrivalReport:
+      type: object
+      required: [kind, routeId, tripId, direction, stopId, scheduledTime, source]
+      properties:
+        kind: { type: string, enum: [arrived, missed] }
+        routeId: { $ref: '#/components/schemas/RouteId' }
+        tripId: { type: string, example: '11-03' }
+        direction: { type: string, enum: [there, back] }
+        stopId: { $ref: '#/components/schemas/StopId' }
+        scheduledTime: { type: string, pattern: '^([01]\d|2[0-3]):([0-5]\d)$', example: '07:10' }
+        source: { type: string, enum: [route, board], description: Звідки натиснули — сторінка маршруту чи табло зупинки }
+        minutesAgo: { type: integer, minimum: 0, maximum: 30, description: 'arrived: автобус був N хв тому' }
+        waitedMin: { type: integer, minimum: 1, maximum: 180, description: 'missed: скільки чекали' }
+        clientId: { $ref: '#/components/schemas/ClientId' }
+        occurredAt: { type: string, format: date-time, description: Момент події за годинником клієнта }
+        clientEventId: { $ref: '#/components/schemas/ClientId' }
+    ArrivalReportResult:
+      allOf:
+        - $ref: '#/components/schemas/WriteResult'
+        - type: object
+          properties:
+            actualTime: { type: [string, 'null'], example: '07:14', description: 'arrived: фактичний час за Києвом' }
+            delayMin: { type: [integer, 'null'], description: 'arrived: запізнення у хвилинах (від''ємне — раніше)' }
+
+    TripPoint:
+      type: object
+      required: [id, code, nameUk]
+      properties:
+        id: { type: integer }
+        code: { type: string, example: Malyn }
+        nameUk: { type: string, example: Малин }
+        requiredOnTrip: { type: boolean }
+        appearInFromTo: { type: boolean }
+        appearInPoputky: { type: boolean }
+        hasLocalTransport: { type: boolean, description: Чи є в місті розклад міського транспорту на сайті }
+        quickDirectPointIds: { type: array, items: { type: integer } }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PublicListing:
+      type: object
+      description: Оголошення попутки без контактів і сирого тексту
+      required: [id, listingType, route, date, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        source: { type: string, description: 'Канал: Viber1, telegram1, …' }
+        senderName: { type: [string, 'null'] }
+        listingType: { type: string, enum: [driver, passenger] }
+        route: { type: string, example: Kyiv-Malyn }
+        tripRouteId: { type: [integer, 'null'] }
+        fromPointId: { type: [integer, 'null'] }
+        toPointId: { type: [integer, 'null'] }
+        date: { type: string, format: date-time }
+        departureTime: { type: [string, 'null'], example: '18:30' }
+        seats: { type: [integer, 'null'] }
+        notes: { type: [string, 'null'] }
+        priceUah: { type: [integer, 'null'] }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PoputkyAvailability:
+      type: object
+      required: [scheduleId, maxSeats, bookedSeats, availableSeats, isAvailable]
+      properties:
+        scheduleId: { type: integer }
+        maxSeats: { type: integer }
+        bookedSeats: { type: integer }
+        availableSeats: { type: integer }
+        isAvailable: { type: boolean }
+        vehicleType: { type: string }
+        ticketPurchaseUrl: { type: [string, 'null'] }
+    PoputkySearchResult:
+      type: object
+      required: [from, to, date, listings, schedules, availability]
+      properties:
+        from:
+          oneOf:
+            - $ref: '#/components/schemas/PointRef'
+            - type: 'null'
+        to:
+          oneOf:
+            - $ref: '#/components/schemas/PointRef'
+            - type: 'null'
+        date: { type: string, format: date }
+        listings:
+          type: array
+          items: { $ref: '#/components/schemas/PublicListing' }
+        schedules:
+          type: array
+          description: 'Рейси маршруток на цей напрямок (форма як у `GET /schedules/{route}`)'
+          items: { type: object, additionalProperties: true }
+        availability:
+          type: object
+          description: Вільні місця за `scheduleId`
+          additionalProperties: { $ref: '#/components/schemas/PoputkyAvailability' }
+    PointRef:
+      type: object
+      required: [id, code, nameUk]
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        nameUk: { type: string }

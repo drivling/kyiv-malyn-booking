@@ -7,6 +7,8 @@ exports.createTransportRouter = createTransportRouter;
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const local_transport_1 = require("../local-transport");
+const stop_redirects_1 = require("../stop-redirects");
+const transport_feeds_1 = require("../transport-feeds");
 const transport_segments_1 = require("../transport-segments");
 const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
@@ -82,6 +84,124 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /transport/gtfs/:file]', e);
             res.status(500).json({ error: 'Failed to build GTFS feed' });
+        }
+    });
+    /**
+     * Публічний: RSS «зміни розкладу» — один запис про поточну revision (Docs/transport-open-protocols-2026-10.md,
+     * фаза 4; історії ревізій у БД немає). З кешу GTFS, ETag = revision.
+     */
+    r.get('/transport/changes.rss', async (_req, res) => {
+        try {
+            const cached = await gtfs.get();
+            if (!cached) {
+                res.status(404).json({ error: 'Transport dataset is empty' });
+                return;
+            }
+            res.set({ ...openDataHeaders(cached.revision), 'Content-Type': 'application/rss+xml; charset=utf-8' });
+            res.send((0, transport_feeds_1.buildChangesRss)(cached.feed));
+        }
+        catch (e) {
+            console.error('[GET /transport/changes.rss]', e);
+            res.status(500).json({ error: 'Failed to build RSS' });
+        }
+    });
+    /** Публічний: iCalendar маршруту — подія на кожен рейс із тижневим повтором; маршруту немає у фіді → 404 */
+    r.get('/transport/route/:id/calendar.ics', async (req, res) => {
+        try {
+            const cached = await gtfs.get();
+            if (!cached) {
+                res.status(404).json({ error: 'Transport dataset is empty' });
+                return;
+            }
+            const ics = (0, transport_feeds_1.buildRouteCalendar)(cached.feed, req.params.id);
+            if (!ics) {
+                res.status(404).json({ error: 'Unknown route or no timetable' });
+                return;
+            }
+            res.set({
+                ...openDataHeaders(cached.revision),
+                'Content-Type': 'text/calendar; charset=utf-8',
+                'Content-Disposition': `inline; filename="malyn-route-${encodeURIComponent(req.params.id)}.ics"`,
+            });
+            res.send(ics);
+        }
+        catch (e) {
+            console.error('[GET /transport/route/:id/calendar.ics]', e);
+            res.status(500).json({ error: 'Failed to build calendar' });
+        }
+    });
+    /**
+     * Публічний: мапа «старий id зупинки → чинний» (Docs/transport-open-protocols-2026-10.md, фаза 3) — злиті чи
+     * видалені зупинки; споживачі GTFS/JSON читають її, бо в самому фіді старого stop_id більше немає.
+     */
+    r.get('/transport/stop-redirects', async (_req, res) => {
+        try {
+            const dataset = await (0, local_transport_1.loadTransportDataset)(prisma);
+            res.set(dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' });
+            res.json((0, stop_redirects_1.stopRedirectsOf)(dataset));
+        }
+        catch (e) {
+            console.error('[GET /transport/stop-redirects]', e);
+            res.status(500).json({ error: 'Failed to load stop redirects' });
+        }
+    });
+    /**
+     * Публічний: зупинка за стабільним id — назва, координати, видимі маршрути; старий id → 301 на чинний;
+     * невідомий → 404. Контракт id — Docs/transport-open-data.md «Що ми обіцяємо».
+     */
+    r.get('/transport/stops/:id', async (req, res) => {
+        try {
+            const dataset = await (0, local_transport_1.loadTransportDataset)(prisma);
+            const found = (0, stop_redirects_1.lookupStop)(dataset, req.params.id);
+            if (found.kind === 'redirect') {
+                res.set({ 'Cache-Control': 'public, max-age=86400' });
+                res.redirect(301, `/transport/stops/${encodeURIComponent(found.to)}`);
+                return;
+            }
+            if (found.kind === 'unknown') {
+                res.status(404).json({ error: 'Unknown stop' });
+                return;
+            }
+            res.set(dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' });
+            res.json(found.stop);
+        }
+        catch (e) {
+            console.error('[GET /transport/stops/:id]', e);
+            res.status(500).json({ error: 'Failed to load stop' });
+        }
+    });
+    /**
+     * Адмін: замінити мапу редиректів зупинок цілком — body { redirects: { "st_0042": "st_0019" } }. Окремий ендпоінт,
+     * бо PUT датасету перезаписує meta тим, що редактор отримав у GET (скриптовий PUT без ключа стер би мапу).
+     * Сміття (жива зупинка як ключ, невідома ціль, цикл) — 400 із переліком; порожній датасет — 409. Бампає revision.
+     */
+    r.put('/admin/transport/stop-redirects', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const raw = req.body?.redirects;
+            if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+                res.status(400).json({ error: 'Body must be { redirects: { oldStopId: newStopId } }' });
+                return;
+            }
+            const [stops, meta] = await Promise.all([
+                prisma.transportStop.findMany({ select: { id: true } }),
+                prisma.transportMeta.findUnique({ where: { id: 1 } }),
+            ]);
+            if (!meta) {
+                res.status(409).json({ error: 'Transport dataset is empty' });
+                return;
+            }
+            const { redirects, problems } = (0, stop_redirects_1.parseStopRedirects)(raw, stops.map((s) => s.id));
+            if (problems.length) {
+                res.status(400).json({ error: 'Invalid stop redirects', details: problems });
+                return;
+            }
+            const payload = { ...(meta.payload ?? {}), [stop_redirects_1.STOP_REDIRECTS_META_KEY]: redirects };
+            await prisma.transportMeta.update({ where: { id: 1 }, data: { payload: payload } });
+            res.json({ ok: true, redirects, revision: await (0, local_transport_1.currentTransportRevision)(prisma) });
+        }
+        catch (e) {
+            console.error('[PUT /admin/transport/stop-redirects]', e);
+            res.status(500).json({ error: 'Failed to save stop redirects' });
         }
     });
     /**

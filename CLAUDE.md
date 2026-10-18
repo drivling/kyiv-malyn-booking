@@ -396,6 +396,19 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   (`createGtfsFeedProvider`) and answers with `Cache-Control: public, max-age=300`, `ETag: "<revision>"` and
   `Last-Modified`. `unreliable` routes are omitted; the data license (`OPEN_DATA_LICENSE`, OwnNet Source License 1.1 — the owner's decision, same as the code; it was CC BY 4.0 until the owner
   decides otherwise) ships as `LICENSE.txt` inside the zip and is mirrored in `frontend/.../LocalTransportPage/openData.ts`.
+- **Open protocols** (`Docs/transport-open-protocols-2026-10.md`): canonical addresses live on the site domain and
+  `serve-dist.mjs` answers 302 to `API_BASE` (`apiRedirectPath` in `serve-dist-rules.mjs`: `/transport/gtfs.zip`,
+  `/transport/gtfs/<file>.txt`, `/openapi.yaml`, `/transport/changes.rss`, `/transport/route/<id>/calendar.ics`); the
+  catalog files for Mobility Database / Transitland are in `Docs/open-protocols/` (the owner submits them). The public
+  API is described in `backend/openapi/public.yaml` (served at `GET /openapi.yaml`, page `/support/api`); `openapi.test.ts`
+  checks every yaml path against `getRegisteredRoutes` and every endpoint of its `PUBLIC_ENDPOINTS` list against the yaml —
+  a new public endpoint goes into both. Stable-id contract (`Docs/transport-open-data.md`, «Що ми обіцяємо»): merged or
+  removed stops are listed in `TransportMeta.payload.stopRedirects` (`backend/src/stop-redirects.ts`, mirrored in
+  `LocalTransportPage/stopRedirects.ts` and `prerender-transport-stops.mjs`), written only through
+  `PUT /admin/transport/stop-redirects` (a PUT of the dataset keeps whatever `meta` the editor loaded); `GET /transport/stops/:id`
+  answers 301 for an old id, the board navigates to the live stop, serve-dist 301s from `dist/transport/stop-redirects.json`.
+  `GET /transport/changes.rss` (one item per `revision`, no history table) and `GET /transport/route/:id/calendar.ics`
+  (`backend/src/transport-feeds.ts`) are built from the cached GTFS feed (`GtfsFeed.routes` / `.trips`).
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via
