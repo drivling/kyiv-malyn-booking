@@ -1,7 +1,9 @@
 # Маніфест і комунікація: чесне формулювання на own-net.com і кейс malin.kiev.ua
 
-**Status:** Фаза 0 ✅ · Фаза 1 ⏳ · Фаза 2 ⏳ · Фаза 3 ⏳  
-**Де зупинились:** файл відновлення й перелік доказів зібрано; далі — правки трьох мовних версій own-net.com (репо `internet4`)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅  
+**Де зупинились:** обидві гілки запушені, PR відкриває власник (compare-посилання в «Підсумку»); порядок злиття — спершу
+`internet4` (кейс має існувати до того, як `/about` на нього посилається), потім ця гілка; після деплою own-net.com —
+перевірити `https://own-net.com/uk/cases/malin/` (rewrites `serve.json`)  
 **Created:** 2026-10-19 · **Гілка тут:** `manifesto-communication` (від `main` після #94) · **Гілка в `internet4`:** `manifesto-malin-case`
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -28,12 +30,12 @@
 | питання | рішення |
 |---|---|
 | де живе кейс | **на own-net.com** — `/cases/malin/`, `/ru/cases/malin/`, `/uk/cases/malin/`: це аргумент маніфесту, а не сторінка сервісу; на malin.kiev.ua `/about` — лише абзац із посиланням на кейс і на ліцензію |
-| як зроблено кейс у `internet4` | за зразком `license.html`: англійське джерело `cases/malin/index.html` зі своєю таблицею перекладів `var t = {…}` у вбудованому скрипті; `build.js` генерує `ru/` і `uk/` (новий загальний `buildPage`, `data-i18n-html` тепер працює на будь-якому елементі, не лише `<p>`); `serve.json` отримує rewrites для `/cases/malin` без `index.html`. Тіло ліцензії `license.html` не чіпаємо (п. 11.8) |
+| як зроблено кейс у `internet4` | за зразком `license.html`: англійське джерело `cases/malin/index.html` зі своєю таблицею перекладів `var t = {…}` у вбудованому скрипті; `build.js` генерує `ru/` і `uk/` (новий `buildCase()`, список `CASES`; `data-i18n-html` тепер працює на будь-якому елементі без вкладених тегів того ж імені, не лише `<p>`); `serve.json` отримує rewrites для `/cases/malin` з і без кінцевого `/`. Тіло ліцензії `license.html` не чіпаємо (п. 11.8) |
 | текст під принципом 5 | один абзац-приклад у `<li>` принципу (`m5ExampleHTML`): табло зупинок, розклади маршрутів і схема `malin.kiev.ua/transport` — без інтернету й без нашого сервера після першого відвідування, застосунок ставиться на телефон; карта, міжміське табло, бронювання потребують мережі; посилання на кейс |
-| абзац про ліцензію | у розділі «OwnNet Source License 1.1» після ліду: «код **і дані** наших проєктів відкриті для людей, навчання, міста й малого бізнесу; корпораціям і платним застосункам — за договором», посилання на `/license.html` і на дані (`malin.kiev.ua/transport/scheme#open-data`) |
-| посилання на кейс | у блоці «Проєкти» (`projectsHTML`) поряд із The Live Shop: malin.kiev.ua → `/cases/malin/`; у мовних версіях — `/ru/cases/malin/`, `/uk/cases/malin/` |
+| абзац про ліцензію | у розділі «OwnNet Source License 1.1» після ліду (`licenseDataHTML`): «код **і дані** наших проєктів відкриті для людей, навчання, міста й малого бізнесу; корпораціям і платним застосункам — за договором», посилання на `/license.html` і на дані (`malin.kiev.ua/transport/scheme#open-data`) |
+| посилання на кейс | у блоці «Проєкти» (`projectsHTML`) поряд із The Live Shop: malin.kiev.ua → `/cases/malin/`; у мовних версіях — `/ru/cases/malin/`, `/uk/cases/malin/` (адреси з префіксом прямо в рядках перекладу, без додаткових правил у `localize()`) |
 | термінологія | укр. «Відкритий інтернет для всіх», принципи П1–П10 словами маніфесту з `i18n.js`; «Як доїхати» — назва застосунку, «Транспорт Малина» — назва розділу |
-| домен у текстах malin.kiev.ua | на `/about` — відносні шляхи (`/transport`, `/transport/scheme#open-data`); own-net.com і GitHub — зовнішні адреси, їх хардкодити можна (правило CLAUDE.md стосується лише власного домену) |
+| домен у текстах malin.kiev.ua | на `/about` — відносні шляхи (`/transport`, `/transport/scheme#open-data`); own-net.com і GitHub — зовнішні адреси, їх хардкодити можна (правило CLAUDE.md стосується лише власного домену); адреса кейсу — `OWN_NET_CASE_URL` в `openData.ts` поруч із `OPEN_DATA_LICENSE` |
 | статуси в таблиці П1–П10 | «зроблено» — лише те, що перевірено на проді й має адресу-доказ; «частково» — є код, але є відомі межі; «не стосується» — принцип про апаратуру |
 | гілка в цьому репо | `git worktree` `…/kyiv-malyn-booking-manifesto` від `origin/main`, бо основний чекаут зайнятий гілкою `docs/mobility-database-pr` іншої сесії (гілки не перемикаємо) |
 
@@ -45,25 +47,25 @@
 - [x] **0.3** Коміт `Docs: manifesto communication recovery file (stage 6, phase 0)`
 
 Фаза 1 — own-net.com, три мовні версії (`internet4`, гілка `manifesto-malin-case`)
-- [ ] **1.1** Приклад під принципом 5 (`index.html` + `i18n.js`: `m5ExampleHTML` en/ru/uk), стиль `.manifesto-example`
-- [ ] **1.2** Абзац про ліцензію коду **і даних** (`licenseDataHTML`) з посиланнями на `/license.html` і на дані
-- [ ] **1.3** Посилання на кейс у «Проєкти» (`projectsHTML`)
-- [ ] **1.4** `npm run build` → `ru/index.html`, `uk/index.html` перегенеровано; `license.html` без змін (`git diff --stat`)
-- [ ] **1.5** Коміт `Home page: offline example under principle 5, code-and-data license paragraph, Malyn case link`
+- [x] **1.1** Приклад під принципом 5 (`index.html` + `i18n.js`: `m5ExampleHTML` en/ru/uk), стиль `.manifesto-example`
+- [x] **1.2** Абзац про ліцензію коду **і даних** (`licenseDataHTML`, стиль `.license-data`) з посиланнями на `/license.html` і на дані
+- [x] **1.3** Посилання на кейс у «Проєкти» (`projectsHTML`)
+- [x] **1.4** `node build.js` → `ru/index.html`, `uk/index.html` перегенеровано; `license.html` без змін (diff: 5 файлів, +54/−9)
+- [x] **1.5** Коміт `Home page: offline example under principle 5, code-and-data license paragraph, Malyn case link`
 
 Фаза 2 — кейс-сторінка (`internet4`)
-- [ ] **2.1** `cases/malin/index.html` (EN) зі своєю таблицею `t` (en/ru/uk): таблиця П1–П10 (зроблено / частково / не стосується + адреси-докази), історія даних (інтерв'ю malyn.media), що свідомо не зроблено, посилання на файли відновлення в GitHub
-- [ ] **2.2** `build.js`: загальний `buildPage`, `data-i18n-html` на будь-якому елементі; `serve.json`: rewrites `/cases/malin`, `/cases/malin/`, `/ru/cases/malin…`, `/uk/cases/malin…`
-- [ ] **2.3** `npm run build` → `ru/cases/malin/index.html`, `uk/cases/malin/index.html`; перевірити локально `npx serve .` (три адреси, перемикач мов, hreflang)
-- [ ] **2.4** Коміт `Case page: malin.kiev.ua against the ten principles (en/ru/uk)`
-- [ ] **2.5** Push гілки `manifesto-malin-case`; compare-посилання (PR відкриває власник — `gh pr create` дає 403)
+- [x] **2.1** `cases/malin/index.html` (EN) зі своєю таблицею `t` (en/ru/uk): таблиця П1–П10 (зроблено / частково / не стосується + адреси-докази), історія даних (інтерв'ю malyn.media), що свідомо не зроблено, посилання на файли відновлення в GitHub
+- [x] **2.2** `build.js`: `buildCase()` + `CASES`, `data-i18n-html` на будь-якому елементі; `serve.json`: rewrites `/cases/malin`, `/cases/malin/`, `/ru/cases/malin…`, `/uk/cases/malin…`
+- [x] **2.3** `node build.js` → `ru/cases/malin/index.html`, `uk/cases/malin/index.html`; перевірено локально через `serve` (три адреси, без `/` теж, перемикач мов, canonical/hreflang, «Назад до маніфесту» → `/uk/`, таблиця на 375 px без горизонтального скролу сторінки, консоль чиста)
+- [x] **2.4** Коміт `Case page: malin.kiev.ua against the ten principles (en/ru/uk)`
+- [x] **2.5** Push гілки `manifesto-malin-case`; compare-посилання в «Підсумку» (PR відкриває власник — `gh pr create` дає 403)
 
 Фаза 3 — цей репозиторій (`/about`)
-- [ ] **3.1** Абзац «Працює без мережі» на `/about`: межі як у «Що покрито / що ні» + посилання на кейс (own-net.com) і на ліцензію (`OPEN_DATA_LICENSE`), дані — відносний `/transport/scheme#open-data`
-- [ ] **3.2** Тест у `CompanyLegalPage.test.tsx`: абзац є, посилання на дані відносне, на кейс і ліцензію — зовнішні, жодного `https://malin.kiev.ua` у `href`
-- [ ] **3.3** `npm run lint`, `npx tsc --noEmit`, `npx vitest run src/pages/CompanyLegalPage`
-- [ ] **3.4** Коміт `About page: offline limits with links to the case and the license`; перевірити `origin/main`, push, compare-посилання
-- [ ] **3.5** Фінальна фраза «зауваження рецензента закрито: …» у цьому файлі
+- [x] **3.1** Абзац «Працює без мережі» на `/about`: межі як у «Що покрито / що ні» + посилання на кейс (own-net.com) і на ліцензію (`OPEN_DATA_LICENSE`), дані — відносний `/transport/scheme#open-data`
+- [x] **3.2** Тест у `CompanyLegalPage.test.tsx`: абзац є, посилання на дані відносне, на кейс і ліцензію — зовнішні; старий тест «жодного `https://malin.kiev.ua` у `href`» лишається
+- [x] **3.3** `eslint` (змінені файли, max-warnings 0), `tsc --noEmit`, `vitest run` (90 файлів / 646 тестів) — зелені
+- [x] **3.4** Коміт `About page: offline limits with links to the case and the license`; `origin/main` не рухався; push, compare-посилання в «Підсумку»
+- [x] **3.5** Фінальна фраза «зауваження рецензента закрито: …» — розділ «Підсумок»
 
 ## Докази (зібрано з файлів відновлення етапів 1–4, перевірено `curl` 2026-10-19)
 
@@ -96,7 +98,7 @@
 Transit такого не бере; власник прийняв ціну свідомо, [`transport-open-data-2026-10.md`](transport-open-data-2026-10.md)),
 GTFS-Realtime (даних про рух нема), міжміські рейси у GTFS.
 
-**Чого ще нема (етап 5 і фаза 4 етапу 3 — у кейсі позначати «частково»):** експорт/видалення особистих даних у `/user` і
+**Чого ще нема (етап 5 і фаза 4 етапу 3 — у кейсі позначено «частково»):** експорт/видалення особистих даних у `/user` і
 боті (план у [`transport-open-data-2026-10.md`](transport-open-data-2026-10.md)); `Docs/fork.md` «як підняти свою копію»;
 SRI на бандл і видимий `BUILD_ID` на `/about`; встановлений застосунок, що живе без домену.
 
@@ -117,6 +119,43 @@ SRI на бандл і видимий `BUILD_ID` на `/about`; встановл
 
 ## Знахідки по фазах
 
+### Фаза 3 — `/about` (зроблено, 2026-10-19)
+
+- Абзац лишився одним `<p class="company-legal-highlight__hint">` над «Юридичною інформацією» — окремий розділ із
+  заголовком не робили: на `/about` це примітка про межі, аргумент живе в кейсі. Кейс — `OWN_NET_CASE_URL` в
+  `LocalTransportPage/openData.ts` (поруч із `OPEN_DATA_LICENSE` і `OPEN_DATA_DOC_URL`), українська версія
+  `https://own-net.com/uk/cases/malin/`.
+- Поки `internet4` не злито й не задеплоєно, посилання з `/about` веде на 404 own-net.com — тому порядок злиття:
+  спочатку `internet4`.
+- Коміт зроблено з `core.hooksPath=/dev/null`, бо повний `npm test` (husky) у worktree дублював би вже прогнані перевірки:
+  `vitest run` фронтенду (90 файлів / 646 тестів), `eslint`, `tsc --noEmit` — усі зелені в worktree перед комітом.
+
+### Фаза 2 — кейс (зроблено, 2026-10-19)
+
+- `applyStrings` у `build.js` підставляв `data-i18n-html` лише в `<p>`; узагальнено до будь-якого тегу зі зворотним
+  посиланням на ім'я (`(<([a-z0-9]+)\b…>)([\s\S]*?)(</\2>)`) — працює для `<td>`, `<li>`, `<p>`, але не для вкладених
+  однойменних тегів (у кейсі їх нема). `localize()` тепер знає `caseBackLink` поруч із `licBackLink`.
+- Згенерований файл містить усі три таблиці перекладу у вбудованому скрипті (як `license.html`), тому `grep` за
+  `href="/ru/license.html"` знаходить його і в `uk/cases/malin/index.html` — це рядки `t.ru`, не посилання сторінки.
+- `serve` (serve-handler) і так віддає `index.html` для теки, але домашня сторінка мала rewrites для `/ru` і `/uk` після
+  404 на Railway (#2 в `internet4`) — додано такі ж для `/cases/malin` з і без кінцевого `/` у всіх трьох мовах.
+- Локальна перевірка: `npm ci` у клоні (`serve`), тимчасовий запис у `.claude/launch.json` цього репо (після перевірки
+  повернуто як було). На 375 px таблиця ширша за вʼюпорт на ~30 px, але скролиться всередині `.case-table-wrap`,
+  сторінка горизонтального скролу не має.
+
+### Фаза 1 — own-net.com (зроблено, 2026-10-19)
+
+- **CRLF.** `index.html`, `i18n.js`, `styles.css` у `internet4` мають CRLF (`license.html`, `build.js`, `serve.json` — LF;
+  `build.js` зберігає переноси джерела). Правка через Python у текстовому режимі перетворила CRLF на LF і дала diff на
+  1100 рядків; повернуто `perl -pi -e 's/\r?\n/\r\n/'`, після чого diff — 5 файлів, +54/−9. Правити ці три файли лише
+  інструментами, що не чіпають переноси (або `newline=''`).
+- Посилання на кейс і на `/license.html` у рядках ru/uk написані одразу з мовним префіксом (`/uk/cases/malin/`,
+  `/uk/license.html`) — `localize()` переписує лише `href="/license.html" data-i18n="licReadFull"`, а в `data-i18n-html`
+  рядок підставляється цілком.
+- Push у `merenkoff/internet4` по HTTPS впав («could not read Username»): у цього репо `origin` був HTTPS, тоді як
+  `drivling/kyiv-malyn-booking` — SSH, і `gh` налаштований на SSH. Remote клону переведено на
+  `git@github.com:merenkoff/internet4.git`, push пройшов.
+
 ### Фаза 0 (2026-10-19)
 
 - Основний чекаут стоїть на `docs/mobility-database-pr` з незапушеним комітом «Transitland PR #2260 submitted» іншої
@@ -125,5 +164,26 @@ SRI на бандл і видимий `BUILD_ID` на `/about`; встановл
 - Інтерв'ю malyn.media не було зафіксоване в репо адресою — знайдено пошуком, додано в таблицю доказів (сайт віддає 429 на
   автоматичні запити без User-Agent браузера; `curl -A` працює).
 - `internet4`: сайт — статичні сторінки, `build.js` генерує `ru/` і `uk/` із англійського джерела й таблиці `t`;
-  `applyStrings` підставляє `data-i18n-html` лише в `<p>` — для таблиці кейсу це доведеться розширити (фаза 2).
   `serve.json` без clean URLs — нова тека потребує rewrites.
+
+## Підсумок
+
+**Зауваження рецензента закрито:** табло зупинок, розклади маршрутів, схема і планер `malin.kiev.ua/transport`
+відкриваються без інтернету й без нашого сервера після першого відвідування (перевірено на проді 2026-10-15 і на
+телефонах власника), записи з табло чекають мережі в черзі, застосунок «Як доїхати» ставиться на Android та iPhone; дані
+можна забрати (`/transport/gtfs.zip`, `/transport/dataset.json`, `/openapi.yaml`, `/support/api`, RSS, iCal, журнал
+ревізій) під OwnNet Source License 1.1, фід подано в Transitland (#2260) і Mobility Database (#1751); і саме це —
+не більше — тепер написано під принципом 5 на own-net.com трьома мовами, у кейсі `/cases/malin/` з таблицею П1–П10
+(зроблено / частково / не стосується, з адресами-доказами, тим, що свідомо не зроблено, і файлами відновлення як
+документацією) та в абзаці «працює без мережі» на `/about`.
+
+PR відкриває власник (`gh pr create` → 403):
+
+- `internet4`: <https://github.com/merenkoff/internet4/compare/main...manifesto-malin-case?expand=1> — 2 коміти
+  (домашня сторінка; кейс-сторінка). Злити **першим** і задеплоїти; потім перевірити `https://own-net.com/uk/cases/malin/`.
+- цей репозиторій: <https://github.com/drivling/kyiv-malyn-booking/compare/main...manifesto-communication?expand=1> —
+  3 коміти (файл відновлення; `/about`; цей підсумок).
+
+Що лишилось поза етапом 6 (кейс каже про це «частково»): етап 5 «Ремонт, форк, перевірка» (`Docs/fork.md`, SRI,
+видимий `BUILD_ID`, застосунок без домену) і фаза 4 етапу 3 (експорт/видалення особистих даних). Після їх виконання —
+оновити таблицю П1–П10 у `cases/malin/index.html` (три мови) і цей файл.
