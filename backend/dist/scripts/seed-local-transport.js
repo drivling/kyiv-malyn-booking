@@ -20,6 +20,7 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const client_1 = require("@prisma/client");
 const local_transport_1 = require("../local-transport");
+const transport_revisions_1 = require("../transport-revisions");
 function resolveRuntimeDir() {
     const candidates = [
         // dist/scripts → ../../seed-data/...  (= backend/seed-data/...)
@@ -73,7 +74,10 @@ async function main() {
                 console.error(`  - ${e}`);
             process.exit(1);
         }
+        const previous = await (0, transport_revisions_1.snapshotTransportDataset)(prisma);
         await (0, local_transport_1.replaceTransportDataset)(prisma, dataset);
+        // Журнал ревізій: перший рядок без diff (порожня БД), повторний seed — з diff проти попереднього стану
+        await (0, transport_revisions_1.recordTransportRevision)(prisma, { source: 'seed', previous });
         console.log(`[seed:transport] Seeded: ${dataset.stops.length} stops, ${dataset.routes.length} routes, ` +
             `${dataset.routeStops.length} routeStops, ${dataset.trips.length} trips, ` +
             `${dataset.segments.length} segments.`);

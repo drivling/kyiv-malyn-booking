@@ -10,6 +10,7 @@ import {
 } from '../local-transport';
 import { lookupStop, parseStopRedirects, STOP_REDIRECTS_META_KEY, stopRedirectsOf } from '../stop-redirects';
 import { buildChangesRss, buildRouteCalendar } from '../transport-feeds';
+import { listTransportRevisions, parseRevisionsLimit, recordTransportRevision, snapshotTransportDataset } from '../transport-revisions';
 import { recalculateSegmentDurations } from '../transport-segments';
 import {
   clientKey,
@@ -99,9 +100,11 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
   });
 
   /**
-   * Публічний: RSS «зміни розкладу» — один запис про поточну revision (Docs/transport-open-protocols-2026-10.md,
-   * фаза 4; історії ревізій у БД немає). З кешу GTFS, ETag = revision.
+   * Публічний: RSS «зміни розкладу» — запис на кожну з останніх 50 ревізій журналу (Docs/transport-revisions-2026-10.md)
+   * з людським підсумком diff; порожній журнал — один запис про поточну revision з кешу GTFS. ETag = revision,
+   * тіло кешується в пам'яті на revision.
    */
+  let rssCache: { revision: string; body: string } | null = null;
   r.get('/transport/changes.rss', async (_req, res) => {
     try {
       const cached = await gtfs.get();
@@ -109,11 +112,30 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         res.status(404).json({ error: 'Transport dataset is empty' });
         return;
       }
+      if (rssCache?.revision !== cached.revision) {
+        const revisions = await listTransportRevisions(prisma);
+        rssCache = { revision: cached.revision, body: buildChangesRss(cached.feed, { revisions }) };
+      }
       res.set({ ...openDataHeaders(cached.revision), 'Content-Type': 'application/rss+xml; charset=utf-8' });
-      res.send(buildChangesRss(cached.feed));
+      res.send(rssCache.body);
     } catch (e) {
       console.error('[GET /transport/changes.rss]', e);
       res.status(500).json({ error: 'Failed to build RSS' });
+    }
+  });
+
+  /**
+   * Публічний: журнал ревізій датасету як JSON — ті самі рядки, що в RSS (`?limit=` 1…200, типово 50, новіші першими).
+   * Порожній журнал — `{ revisions: [] }`; ETag = найновіша revision у відповіді.
+   */
+  r.get('/transport/revisions', async (req, res) => {
+    try {
+      const revisions = await listTransportRevisions(prisma, parseRevisionsLimit(req.query.limit));
+      res.set(revisions.length ? openDataHeaders(revisions[0].revision) : { 'Cache-Control': 'public, max-age=300' });
+      res.json({ revisions });
+    } catch (e) {
+      console.error('[GET /transport/revisions]', e);
+      res.status(500).json({ error: 'Failed to load transport revisions' });
     }
   });
 
@@ -208,7 +230,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         return;
       }
       const payload = { ...((meta.payload as Record<string, unknown>) ?? {}), [STOP_REDIRECTS_META_KEY]: redirects };
+      const previous = await snapshotTransportDataset(prisma);
       await prisma.transportMeta.update({ where: { id: 1 }, data: { payload: payload as Prisma.InputJsonValue } });
+      await recordTransportRevision(prisma, { source: 'stop-redirects', previous });
       res.json({ ok: true, redirects, revision: await currentTransportRevision(prisma) });
     } catch (e) {
       console.error('[PUT /admin/transport/stop-redirects]', e);
@@ -241,7 +265,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         res.status(400).json({ error: 'Invalid transport dataset', details: errors });
         return;
       }
+      const previous = await snapshotTransportDataset(prisma);
       await replaceTransportDataset(prisma, dataset);
+      await recordTransportRevision(prisma, { source: 'dataset', previous });
       res.json({
         ok: true,
         counts: {
@@ -271,7 +297,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         typeof req.body?.routeId === 'string' && req.body.routeId.trim()
           ? req.body.routeId.trim()
           : null;
+      const previous = await snapshotTransportDataset(prisma);
       const result = await recalculateSegmentDurations(prisma, { routeId });
+      await recordTransportRevision(prisma, { source: 'recalculate', previous });
       res.json({ ok: true, ...result });
     } catch (e) {
       console.error('[POST /admin/transport/recalculate-segments]', e);

@@ -15,7 +15,8 @@
 | **JSON** сайту | `https://malin.kiev.ua/transport/dataset.json` | повний датасет у внутрішньому форматі сайту (`stops`, `routes`, `routeStops`, `trips`, `segments`, `meta`, `revision`) — знімок на момент збірки сайту |
 | JSON наживо | `https://kyiv-malyn-booking-production.up.railway.app/transport/dataset` | те саме, прямо з бази, завжди поточне |
 | зупинка за id | `…/transport/stops/st_0019`, мапа злитих — `…/transport/stop-redirects` | назва, координати, маршрути; старий id → 301 на чинний («Що ми обіцяємо») |
-| **RSS** змін розкладу | `https://malin.kiev.ua/transport/changes.rss` | запис на кожну нову версію даних (дата, скільки маршрутів/рейсів/зупинок, посилання на GTFS); підпишіться — і побачите, коли мінявся розклад |
+| **RSS** змін розкладу | `https://malin.kiev.ua/transport/changes.rss` | запис на кожну з останніх 50 версій даних: дата й час, **що саме змінилось** (зупинки додано / перейменовано / знято, маршрути, рейси додано / знято / зсунуто, час у дорозі, перенесення зупинок), скільки маршрутів/рейсів/зупинок у фіді; підпишіться — і побачите, коли й як мінявся розклад |
+| журнал ревізій (JSON) | `https://kyiv-malyn-booking-production.up.railway.app/transport/revisions` (`?limit=` 1…200, типово 50) | ті самі записи машинно: `revision`, `source` (редактор / перерахунок часу / перенесення зупинок / seed), `stats` як у GTFS, `diff` з id зупинок, маршрутів і рейсів (`trip_id`, час «було → стало»), `summary` українською; `diff: null` — перший рядок журналу |
 | **iCal** маршруту | `https://malin.kiev.ua/transport/route/<id>/calendar.ics` | подія на кожен рейс із тижневим повтором, час Europe/Kyiv; додавайте **за адресою** (Google Calendar «за URL», Apple «Підписка»), не файлом — тоді оновлюється разом із розкладом |
 | **OpenAPI 3.1** | `https://malin.kiev.ua/openapi.yaml` | машинний опис усіх публічних ендпоінтів |
 
@@ -166,9 +167,6 @@ print(stop_times.merge(stops, on="stop_id").query("stop_name == 'Залізни�
 або `mer.sergei@gmail.com` (контакт у `feed_info.txt`).
 
 ## Чого поки нема
-
-- Журналу «що саме змінилось» між версіями: RSS каже лише **коли** й скільки чого у фіді, бо сервер не зберігає
-  попередні версії датасету (потрібна таблиця ревізій — план у `transport-open-protocols-2026-10.md`, «Що далі»).
 
 - GTFS-Realtime (де автобус зараз) — даних про рух нема; є лише відмітки пасажирів «Факт прибуття» на сайті.
 - Фід у каталогах Mobility Database / Transitland: файли для реєстрації готові

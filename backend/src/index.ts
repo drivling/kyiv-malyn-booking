@@ -14,6 +14,7 @@ import {
 import { fetchAndImportTelegramGroupMessages, sendAdminAlertHtml } from './telegram';
 import { startTelegramImportScheduler, type TelegramImportScheduler } from './telegram-dzhura-source';
 import { startIntervalJob, type IntervalJob } from './interval-job';
+import { ensureInitialTransportRevision } from './transport-revisions';
 import { deactivateExpiredListings } from './viber-listing-expiry';
 import { archiveOldListings } from './viber-listing-archive';
 import { defaultReminderDeps, runDueBookingReminders } from './booking-reminders';
@@ -29,6 +30,10 @@ function main(): void {
   let archiveJob: IntervalJob | null = null;
   let reminderJob: IntervalJob | null = null;
   const app = createApp({ prisma });
+  // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
+  void ensureInitialTransportRevision(prisma).then((row) => {
+    if (row) console.log(`[transport-revisions] initial row ${row.revision}`);
+  });
 
   // Одна Telethon-сесія — один процес: новий контейнер чекає, поки старий звільнить оренду
   let lease: TelegramSessionLease | null = null;

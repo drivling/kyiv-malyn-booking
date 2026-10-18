@@ -17,13 +17,20 @@ type Store = {
   trips: any[];
   segments: any[];
   meta: { id: number; payload: Record<string, unknown> } | null;
+  revisions: any[];
 };
 
 function emptyStore(): Store {
-  return { stops: [], routes: [], routeStops: [], trips: [], segments: [], meta: null };
+  return { stops: [], routes: [], routeStops: [], trips: [], segments: [], meta: null, revisions: [] };
 }
 
 function createTransportPrismaStub(store: Store): PrismaClient {
+  // @updatedAt у Postgres щоразу інший; у тесті два записи можуть лягти в одну мілісекунду — тягнемо час уперед
+  let lastUpdatedAt = 0;
+  const nextUpdatedAt = () => {
+    lastUpdatedAt = Math.max(Date.now(), lastUpdatedAt + 1);
+    return new Date(lastUpdatedAt);
+  };
   const orderBy = (rows: any[], order?: any) => {
     if (!order) return [...rows];
     const keys = Array.isArray(order) ? order : [order];
@@ -39,7 +46,7 @@ function createTransportPrismaStub(store: Store): PrismaClient {
     });
   };
 
-  const model = (key: keyof Store) => ({
+  const model = (key: Exclude<keyof Store, 'revisions'>) => ({
     findMany: async ({ orderBy: ob }: any = {}) => orderBy(store[key] as any[], ob),
     findUnique: async ({ where }: any) => {
       if (key === 'meta') return store.meta?.id === where.id ? store.meta : null;
@@ -61,15 +68,15 @@ function createTransportPrismaStub(store: Store): PrismaClient {
     update: async ({ where, data }: any) => {
       if (key !== 'meta') throw new Error('update only for meta in stub');
       if (store.meta?.id !== where.id) throw Object.assign(new Error('Record not found'), { code: 'P2025' });
-      store.meta = { ...store.meta, ...data, updatedAt: new Date() } as never;
+      store.meta = { ...store.meta, ...data, updatedAt: nextUpdatedAt() } as never;
       return store.meta;
     },
     upsert: async ({ where, create, update }: any) => {
       if (key !== 'meta') throw new Error('upsert only for meta in stub');
       if (store.meta?.id === where.id) {
-        store.meta = { ...store.meta, ...update };
+        store.meta = { ...store.meta, ...update, updatedAt: nextUpdatedAt() } as never;
       } else {
-        store.meta = { id: create.id ?? 1, payload: create.payload };
+        store.meta = { id: create.id ?? 1, payload: create.payload, updatedAt: nextUpdatedAt() } as never;
       }
       return store.meta;
     },
@@ -82,6 +89,18 @@ function createTransportPrismaStub(store: Store): PrismaClient {
     transportTrip: model('trips'),
     transportSegment: model('segments'),
     transportMeta: model('meta'),
+    // Журнал ревізій (transport-revisions.ts): upsert без update, findMany з take
+    transportRevision: {
+      count: async () => store.revisions.length,
+      findMany: async ({ orderBy: ob, take }: any = {}) => orderBy(store.revisions, ob).slice(0, take ?? undefined),
+      upsert: async ({ where, create }: any) => {
+        const found = store.revisions.find((r) => r.revision === where.revision);
+        if (found) return found;
+        const row = { createdAt: new Date(), ...create, diff: create.diff ?? null };
+        store.revisions.push(row);
+        return row;
+      },
+    },
     $transaction: async (ops: Promise<unknown>[] | ((tx: any) => Promise<unknown>)) => {
       if (typeof ops === 'function') return ops(stub);
       return Promise.all(ops);
@@ -311,7 +330,8 @@ test('PUT /transport/dataset: stale baseRevision → 409; current one or none �
     .set('Authorization', token)
     .send({ ...sampleDataset(), baseRevision: get.body.revision, revision: 'ignored' })
     .expect(200);
-  assert.equal(ok.body.revision, '2026-10-12T10:00:00.000Z');
+  // Запис бампає @updatedAt (у стабі — як у Postgres), тож revision нова
+  assert.ok(ok.body.revision && ok.body.revision !== '2026-10-12T10:00:00.000Z', ok.body.revision);
 });
 
 // ---------- Відкритий GTFS (Docs/transport-open-data-2026-10.md, фаза 1) ----------
@@ -467,12 +487,24 @@ test('GET /transport/changes.rss and /transport/route/:id/calendar.ics come from
   await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
   setRevision(store, '2026-10-12T10:00:00Z');
 
+  // Журнал має рядок про PUT (інша revision, ніж підставлена нижче) → RSS іде з журналу
+  assert.equal(store.revisions.length, 1);
   const rss = await request(app).get('/transport/changes.rss').expect(200);
   assert.match(rss.headers['content-type'], /^application\/rss\+xml; charset=utf-8/);
   assert.equal(rss.headers['etag'], '"2026-10-12T10:00:00.000Z"');
-  assert.ok(rss.text.includes('<title>Розклад оновлено 12.10.2026</title>'));
-  assert.ok(rss.text.includes('1 маршрут, 1 рейс, 2 зупинки'));
+  assert.ok(rss.text.includes(`malyn-transport-revision:${store.revisions[0].revision}`), rss.text);
+  assert.ok(rss.text.includes('Перша збережена версія даних'), rss.text);
+  assert.ok(rss.text.includes('У фіді: 1 маршрут, 1 рейс, 2 зупинки'), rss.text);
   await request(app).get('/transport/changes.rss').set('If-None-Match', '"2026-10-12T10:00:00.000Z"').expect(304);
+
+  // Порожній журнал (БД до міграції) → один запис про поточну revision з фіду
+  store.revisions = [];
+  setRevision(store, '2026-10-12T11:00:00Z');
+  const fallback = await request(app).get('/transport/changes.rss').expect(200);
+  assert.ok(fallback.text.includes('<title>Розклад оновлено 12.10.2026</title>'), fallback.text);
+  assert.ok(fallback.text.includes('1 маршрут, 1 рейс, 2 зупинки'));
+  assert.equal((fallback.text.match(/<item>/g) || []).length, 1);
+  setRevision(store, '2026-10-12T10:00:00Z');
 
   const ics = await request(app).get('/transport/route/2/calendar.ics').expect(200);
   assert.match(ics.headers['content-type'], /^text\/calendar; charset=utf-8/);
@@ -481,4 +513,90 @@ test('GET /transport/changes.rss and /transport/route/:id/calendar.ics come from
   assert.ok(ics.text.includes('UID:2-01@malin.kiev.ua'));
   assert.ok(ics.text.includes('DTSTART;TZID=Europe/Kyiv:20261012T070000'));
   await request(app).get('/transport/route/99/calendar.ics').expect(404);
+});
+
+test('Revision journal: PUT dataset, stop redirects and GET /transport/revisions / changes.rss carry the diff', async () => {
+  const store = emptyStore();
+  const app = appWithStore(store);
+  const empty = await request(app).get('/transport/revisions').expect(200);
+  assert.deepEqual(empty.body, { revisions: [] });
+  assert.equal(empty.headers['cache-control'], 'public, max-age=300');
+  assert.ok(!/^"\d{4}-/.test(empty.headers['etag'] ?? ''), 'no revision ETag while the journal is empty');
+
+  const token = await adminToken(app);
+  const first = await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  assert.equal(store.revisions.length, 1);
+  assert.equal(store.revisions[0].revision, first.body.revision);
+  assert.equal(store.revisions[0].source, 'dataset');
+  assert.equal(store.revisions[0].diff, null, 'first row: nothing to compare with');
+
+  // Другий PUT: рейс зсунуто, зупинку додано
+  const next = sampleDataset();
+  next.trips[0].departureTime = '07:15:00';
+  next.stops.push({ id: 'st_0003', name: 'Ринок', lat: 50.773, lng: 29.243 });
+  const second = await request(app).put('/transport/dataset').set('Authorization', token).send(next).expect(200);
+  assert.equal(store.revisions.length, 2);
+  assert.notEqual(second.body.revision, first.body.revision);
+
+  // Редиректи: третій рядок
+  const redirected = await request(app)
+    .put('/admin/transport/stop-redirects')
+    .set('Authorization', token)
+    .send({ redirects: { st_0042: 'st_0001' } })
+    .expect(200);
+  assert.equal(store.revisions.length, 3);
+
+  const list = await request(app).get('/transport/revisions').expect(200);
+  assert.equal(list.headers['etag'], `"${redirected.body.revision}"`);
+  assert.equal(list.headers['cache-control'], 'public, max-age=300');
+  const rows = list.body.revisions as any[];
+  assert.deepEqual(
+    rows.map((r) => [r.revision, r.source]),
+    [
+      [redirected.body.revision, 'stop-redirects'],
+      [second.body.revision, 'dataset'],
+      [first.body.revision, 'dataset'],
+    ]
+  );
+  assert.equal(rows[0].summary, '1 зупинку перенесено: st_0042 → st_0001');
+  assert.deepEqual(rows[0].diff.redirects.added, [{ from: 'st_0042', to: 'st_0001' }]);
+  assert.equal(rows[1].summary, 'Додано 1 зупинку: «Ринок» (st_0003); зсунуто 1 рейс: №2 07:00 → 07:15 (2-01)');
+  assert.deepEqual(rows[1].diff.trips.moved, [{ id: '2-01', routeId: '2', routeNo: '2', departureTime: '07:15', from: '07:00', to: '07:15' }]);
+  // stats — як у GTFS: нова зупинка ще не на маршруті, тож у фіді її нема
+  assert.equal(rows[1].stats.stops, 2);
+  assert.deepEqual(rows[1].diff.stops.added, [{ id: 'st_0003', name: 'Ринок' }]);
+  assert.equal(rows[2].diff, null);
+  assert.match(rows[2].summary, /^Перша збережена версія/);
+  assert.equal(rows[2].stats.stops, 2);
+  assert.ok(rows.every((r) => typeof r.createdAt === 'string' && !Number.isNaN(Date.parse(r.createdAt))));
+
+  const limited = await request(app).get('/transport/revisions?limit=2').expect(200);
+  assert.equal(limited.body.revisions.length, 2);
+
+  const rss = await request(app).get('/transport/changes.rss').expect(200);
+  assert.equal((rss.text.match(/<item>/g) || []).length, 3);
+  assert.ok(rss.text.includes('зсунуто 1 рейс: №2 07:00 → 07:15 (2-01). У фіді: 1 маршрут, 1 рейс, 2 зупинки.'), rss.text);
+  assert.ok(rss.text.includes('1 зупинку перенесено: st_0042 → st_0001'), rss.text);
+  assert.equal(rss.headers['etag'], `"${redirected.body.revision}"`);
+});
+
+test('Revision journal never blocks the write: a failing TransportRevision.upsert is logged, PUT still answers 200', async () => {
+  const store = emptyStore();
+  const prisma = createTransportPrismaStub(store);
+  (prisma as any).transportRevision.upsert = async () => {
+    throw new Error('relation "TransportRevision" does not exist');
+  };
+  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const token = await adminToken(app);
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => errors.push(args);
+  try {
+    await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(store.stops.length, 2);
+  assert.equal(store.revisions.length, 0);
+  assert.equal(errors.length, 1);
 });

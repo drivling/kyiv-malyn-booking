@@ -25,6 +25,7 @@ const PUBLIC_ENDPOINTS = [
   'GET /transport/gtfs.zip',
   'GET /transport/gtfs/:file',
   'GET /transport/changes.rss',
+  'GET /transport/revisions',
   'GET /transport/route/:id/calendar.ics',
   'GET /transport/stops/:id',
   'GET /transport/stop-redirects',

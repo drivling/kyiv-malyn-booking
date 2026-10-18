@@ -1071,7 +1071,8 @@ function ApiArticle() {
             <a href={CHANGES_RSS_URL} type="application/rss+xml">
               RSS змін розкладу
             </a>{' '}
-            (<code>/transport/changes.rss</code>) — запис на кожну нову версію даних; календар рейсів маршруту —{' '}
+            (<code>/transport/changes.rss</code>) — запис на кожну нову версію даних із підсумком, що саме змінилось; те саме
+            машинно — журнал ревізій <code>/transport/revisions</code> (JSON із <code>diff</code>); календар рейсів маршруту —{' '}
             <code>/transport/route/&lt;id&gt;/calendar.ics</code> (підписка за адресою, час у Europe/Kyiv);
           </li>
           <li>

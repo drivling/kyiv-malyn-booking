@@ -913,6 +913,23 @@ model TransportMeta {
   updatedAt DateTime @updatedAt
 }
 
+/// Журнал ревізій датасету міського транспорту (Docs/transport-revisions-2026-10.md): рядок на кожен запис, що
+/// бампає TransportMeta.updatedAt — PUT датасету, «Перерахувати час», редиректи зупинок, seed. Пише
+/// src/transport-revisions.ts (recordTransportRevision) після запису; перший рядок — без diff.
+model TransportRevision {
+  /// ISO TransportMeta.updatedAt після запису — та сама revision, що в GET /transport/dataset і ETag
+  revision  String   @id
+  createdAt DateTime @default(now())
+  /// Звідки запис: initial | seed | dataset | recalculate | stop-redirects
+  source    String
+  /// Лічильники фіду на цю ревізію — як GtfsFeedStats (gtfs-feed.ts)
+  stats     Json
+  /// Що змінилось проти попереднього рядка (TransportRevisionDiff); null — перший рядок, попереднього стану не було
+  diff      Json?
+
+  @@index([createdAt])
+}
+
 /// Відкриття табло з QR-наклейки на зупинці (/admin/stickers, Docs/stop-stickers.md). Пише
 /// фронтенд при першому за сесію відкритті табло з utm_source=sticker. Без IP і персональних даних.
 model StickerScan {

@@ -18,7 +18,7 @@ export const OPENAPI_URL = `${API_URL}/openapi.yaml`;
 /** Живий датасет із бекенду (revision завжди поточна) — на відміну від знімка збірки DATASET_JSON_URL */
 export const DATASET_LIVE_URL = `${API_URL}/transport/dataset`;
 
-/** RSS «зміни розкладу» — один запис на revision (етап 4, фаза 4); канонічна адреса /transport/changes.rss на сайті */
+/** RSS «зміни розкладу» — запис на кожну revision журналу з підсумком diff (Docs/transport-revisions-2026-10.md); канонічна адреса /transport/changes.rss на сайті */
 export const CHANGES_RSS_URL = `${API_URL}/transport/changes.rss`;
 /** iCalendar рейсів маршруту (подія на рейс, тижневий повтор, Europe/Kyiv) */
 export const routeCalendarUrl = (routeId: string): string => `${API_URL}/transport/route/${encodeURIComponent(routeId)}/calendar.ics`;
