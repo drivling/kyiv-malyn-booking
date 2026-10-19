@@ -69,6 +69,39 @@ describe('UserPage: підпис Telegram Login', () => {
   });
 });
 
+describe('UserPage: особисті дії з підписом', () => {
+  const BOOKING = { id: 7, route: 'Kyiv-Malyn', date: '2026-11-01', departureTime: '08:00', seats: 1, name: 'Іван', phone: '380671234567', scheduleId: null, createdAt: '2026-10-20T00:00:00.000Z' };
+
+  it('«Скасувати» бронювання шле DELETE /bookings/:id/by-user із заголовком X-Telegram-Login і без telegramUserId у тілі', async () => {
+    let seen: { header: string | null; body: string } | null = null;
+    server.use(
+      http.get(`${TEST_API_URL}/user/profile`, () => HttpResponse.json({ ...PROFILE, bookings: [BOOKING] })),
+      http.delete(`${TEST_API_URL}/bookings/7/by-user`, async ({ request }) => {
+        seen = { header: request.headers.get('X-Telegram-Login'), body: await request.text() };
+        return HttpResponse.json({ success: true, message: 'Бронювання скасовано' });
+      }),
+    );
+    renderPage();
+    // оголошень у профілі нема, тож єдина кнопка «Скасувати» — у бронювання
+    fireEvent.click(await screen.findByRole('button', { name: 'Скасувати' }));
+    await waitFor(() => expect(seen).not.toBeNull());
+    expect(seen!.header).toBe(encodeTelegramLogin(USER));
+    expect(seen!.body).not.toContain('telegramUserId');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Скасувати' })).not.toBeInTheDocument());
+  });
+
+  it('401 на скасуванні → запрошення увійти знову, як і на профілі', async () => {
+    server.use(
+      http.get(`${TEST_API_URL}/user/profile`, () => HttpResponse.json({ ...PROFILE, bookings: [BOOKING] })),
+      http.delete(`${TEST_API_URL}/bookings/7/by-user`, () => HttpResponse.json({ error: 'Сесія застаріла', reason: 'expired' }, { status: 401 })),
+    );
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Скасувати' }));
+    expect(await screen.findByText(/Сесія входу через Telegram застаріла/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Увійти через Telegram' })).toHaveAttribute('href', '/login');
+  });
+});
+
 describe('UserPage: «Мої дані»', () => {
   it('«Завантажити мої дані» тягне /user/export з підписом і зберігає файл з ім\'ям із Content-Disposition', async () => {
     let header: string | null = null;

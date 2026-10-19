@@ -52,7 +52,7 @@ export const UserPage: React.FC = () => {
   const [savingListing, setSavingListing] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [deactivatingId, setDeactivatingId] = useState<number | null>(null);
-  /** 401 від /user/*: підпис Telegram Login прострочений або його нема — треба увійти ще раз */
+  /** 401 від /user/* і особистих дій (скасувати, редагувати): підпис Telegram Login прострочений або його нема — увійти ще раз */
   const [authStale, setAuthStale] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'deleting' | 'done'>('idle');
@@ -106,12 +106,13 @@ export const UserPage: React.FC = () => {
     if (!telegramUserId) return;
     setCancellingId(booking.id);
     try {
-      await apiClient.cancelBookingByUser(booking.id, telegramUserId);
+      await apiClient.cancelBookingByUser(booking.id);
       setProfile((prev) =>
         prev ? { ...prev, bookings: prev.bookings.filter((b) => b.id !== booking.id) } : prev
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не вдалося скасувати бронювання');
+      if (isTelegramLoginRejected(e)) setAuthStale(true);
+      else setError(e instanceof Error ? e.message : 'Не вдалося скасувати бронювання');
     } finally {
       setCancellingId(null);
     }
@@ -141,7 +142,7 @@ export const UserPage: React.FC = () => {
         notes: editForm.notes.trim() || null,
         priceUah: editForm.priceUah ? parseInt(editForm.priceUah, 10) : null,
       };
-      const updated = await apiClient.updateViberListingByUser(editListing.id, telegramUserId, payload);
+      const updated = await apiClient.updateViberListingByUser(editListing.id, payload);
       setProfile((prev) => {
         if (!prev) return prev;
         const replace = (list: ViberListing[]) =>
@@ -154,7 +155,8 @@ export const UserPage: React.FC = () => {
       });
       setEditListing(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не вдалося зберегти зміни');
+      if (isTelegramLoginRejected(e)) setAuthStale(true);
+      else setError(e instanceof Error ? e.message : 'Не вдалося зберегти зміни');
     } finally {
       setSavingListing(false);
     }
@@ -202,7 +204,7 @@ export const UserPage: React.FC = () => {
     if (!telegramUserId) return;
     setDeactivatingId(listing.id);
     try {
-      await apiClient.deactivateViberListingByUser(listing.id, telegramUserId);
+      await apiClient.deactivateViberListingByUser(listing.id);
       setProfile((prev) =>
         prev
           ? {
@@ -213,7 +215,8 @@ export const UserPage: React.FC = () => {
           : prev
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не вдалося скасувати оголошення');
+      if (isTelegramLoginRejected(e)) setAuthStale(true);
+      else setError(e instanceof Error ? e.message : 'Не вдалося скасувати оголошення');
     } finally {
       setDeactivatingId(null);
     }

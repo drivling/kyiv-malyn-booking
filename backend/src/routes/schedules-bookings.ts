@@ -13,6 +13,7 @@ import { getSupportPhoneForRoute } from '../support-phone-route';
 import { isValidScheduleDepartureTime, SCHEDULE_DEPARTURE_TIME_INVALID_MESSAGE } from '../validation/schedule-departure-time';
 import { validateBookingPhoneInput } from '../validation/booking-phone';
 import { requireAdmin } from '../middleware/require-admin';
+import { requireTelegramLogin, telegramLoginFromRes } from '../telegram-login-auth';
 import { getCatalogPoints } from '../catalog-cache';
 import { scheduleInclude } from '../schedule-include';
 import { PHONE_BLOCKED_MESSAGE, isPhoneBlocked, recordBlockedAttempt } from '../phone-block';
@@ -266,8 +267,12 @@ async function resolveScheduleTripFields(
   return { ok: true, data, route };
 }
 
-export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): Router {
-  const { prisma } = deps;
+export function createSchedulesBookingsRouter(deps: {
+  prisma: PrismaClient;
+  /** Ключ перевірки підпису Telegram Login для `DELETE /bookings/:id/by-user` (telegram-login-auth.ts) */
+  telegramBotToken?: string | null;
+}): Router {
+  const { prisma, telegramBotToken = null } = deps;
   const r = express.Router();
 
   r.get('/schedules', async (req, res) => {
@@ -890,13 +895,10 @@ export function createSchedulesBookingsRouter(deps: { prisma: PrismaClient }): R
     }
   });
 
-  r.delete('/bookings/:id/by-user', async (req, res) => {
+  // Хто скасовує — лише з підписаного заголовка X-Telegram-Login; telegramUserId у тілі ігноруємо
+  r.delete('/bookings/:id/by-user', requireTelegramLogin({ botToken: telegramBotToken }), async (req, res) => {
     const { id } = req.params;
-    const { telegramUserId } = req.body;
-
-    if (!telegramUserId) {
-      return res.status(400).json({ error: 'telegramUserId is required' });
-    }
+    const { id: telegramUserId } = telegramLoginFromRes(res);
 
     try {
       const booking = await prisma.booking.findUnique({
