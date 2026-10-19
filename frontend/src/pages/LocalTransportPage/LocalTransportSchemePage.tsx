@@ -5,6 +5,7 @@ import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { useTransportDataset } from './dataset/useTransportDataset';
 import { TransportStatusBar } from './TransportStatusBar';
+import { TransportPrefsPanel } from './TransportPrefsPanel';
 import { routeScheduleStats } from './schemeStats';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { SCHEME_COLOR_VARS } from './routeColors';
@@ -409,6 +410,8 @@ export function LocalTransportSchemePage() {
               {' · '}
               <a href={OPENAPI_URL}>API</a>
             </p>
+            {/* Фаза 4.3: особисті налаштування розділу — файлом, без сервера (transportPrefs.ts) */}
+            <TransportPrefsPanel stopNames={dataset ? dataset.stops.map((st) => st.name) : []} />
           </section>
         </div>
       </div>
