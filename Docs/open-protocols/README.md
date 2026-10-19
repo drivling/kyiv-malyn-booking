@@ -116,7 +116,7 @@ d = json.load(open('/tmp/ds.json')); d['baseRevision'] = d.pop('revision')
 d['meta']['agency']['agency_url'] = 'https://malin.kiev.ua/transport'
 json.dump(d, open('/tmp/ds-put.json', 'w'), ensure_ascii=False)
 EOF2
-curl -s -X PUT $API/transport/dataset -H "Authorization: Bearer $VIBER_ADMIN_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/ds-put.json
+curl -s -X PUT $API/transport/dataset -H "Authorization: $VIBER_ADMIN_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/ds-put.json
 curl -s $API/transport/gtfs/agency.txt   # має містити https://malin.kiev.ua/transport
 ```
 
