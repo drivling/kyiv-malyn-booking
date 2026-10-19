@@ -19,6 +19,7 @@ const schedules_bookings_1 = require("./routes/schedules-bookings");
 const trip_points_1 = require("./routes/trip-points");
 const trip_routes_1 = require("./routes/trip-routes");
 const user_profile_1 = require("./routes/user-profile");
+const telegram_1 = require("./telegram");
 const viber_listings_user_1 = require("./routes/viber-listings-user");
 const telegram_routes_1 = require("./routes/telegram-routes");
 const rideshare_1 = require("./routes/rideshare");
@@ -96,7 +97,11 @@ function createApp(deps) {
     app.use((0, schedules_bookings_1.createSchedulesBookingsRouter)({ prisma }));
     app.use((0, trip_points_1.createTripPointsRouter)({ prisma }));
     app.use((0, trip_routes_1.createTripRoutesRouter)({ prisma }));
-    app.use((0, user_profile_1.createUserProfileRouter)({ prisma }));
+    app.use((0, user_profile_1.createUserProfileRouter)({
+        prisma,
+        telegramBotToken: deps.telegramBotToken ?? process.env.TELEGRAM_BOT_TOKEN ?? null,
+        notifyAdmin: telegram_1.sendAdminAlertHtml,
+    }));
     app.use((0, viber_listings_user_1.createViberListingsUserRouter)({ prisma }));
     app.use((0, telegram_routes_1.createTelegramRoutesRouter)({ prisma }));
     app.use((0, rideshare_1.createRideshareRouter)({ prisma }));

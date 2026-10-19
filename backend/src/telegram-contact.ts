@@ -18,11 +18,17 @@ export function isTelegramUsernameContact(value: string | null | undefined): boo
   return TELEGRAM_USERNAME_RE.test(value.trim());
 }
 
-/** Placeholder phones allocated for username-only contacts (380010000000, 380010000001, …). */
+/** Technical phone of a person who erased their account (person-erase.ts): 380 + zero-padded Person id. */
+export const ERASED_PHONE_PREFIX = '380000';
+
+/**
+ * Placeholder phones: username-only contacts (380010000000, 380010000001, …) and erased accounts
+ * (380000000042). Never SMS-addressed, never revealed as a contact.
+ */
 export function isTechnicalPlaceholderPhone(phone: string | null | undefined): boolean {
   if (!phone?.trim()) return false;
   const digits = phone.replace(/\D/g, '');
-  return digits.startsWith('3800100') && digits.length === 12;
+  return digits.length === 12 && (digits.startsWith('3800100') || digits.startsWith(ERASED_PHONE_PREFIX));
 }
 
 /** Public t.me profile link (https://t.me/username, without @). */

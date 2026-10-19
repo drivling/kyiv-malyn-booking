@@ -49,6 +49,11 @@
 - Зупинка за стабільним id (злита → 301 на чинну): https://malin.kiev.ua/transport/stops/st_0019 · мапа злитих: https://malin.kiev.ua/transport/stop-redirects
 - OpenAPI 3.1 публічного API (датасет, GTFS, попутки, записи з табло): https://malin.kiev.ua/openapi.yaml — сторінка для розробників https://malin.kiev.ua/support/api
 
+## Ваші дані (особисті)
+
+- Забрати все, що сайт і бот знають про вас, одним файлом JSON, або видалити акаунт: https://malin.kiev.ua/user (вхід через Telegram) — кнопки «Завантажити мої дані» і «Видалити акаунт»; у Telegram-боті — команди /mydata і /deleteme. Що зберігається і що стирається: https://malin.kiev.ua/about#privacy-policy
+- Часті зупинки планера транспорту зберігаються лише у браузері — зберегти у файл, відновити або стерти: https://malin.kiev.ua/transport/scheme#open-data («Налаштування на цьому пристрої»)
+
 ## Файли для пошуку / ШІ
 
 - Sitemap: https://malin.kiev.ua/sitemap.xml

@@ -1,4 +1,5 @@
 import { API_URL } from '@/utils/constants';
+import { telegramLoginHeaders } from '@/utils/telegramLogin';
 import { configureRouteNames } from '@/utils/routeNames';
 import type {
   Schedule,
@@ -50,6 +51,7 @@ import type {
   ArrivalReportResult,
   ArrivalReportDays,
   ArrivalReportStats,
+  DeleteAccountResponse,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
 
@@ -683,15 +685,44 @@ class ApiClient {
     });
   }
 
-  // Профіль користувача (Telegram)
-  async getUserProfile(telegramUserId: string): Promise<UserProfile> {
-    return this.request<UserProfile>(`/user/profile?telegramUserId=${encodeURIComponent(telegramUserId)}`);
+  // Профіль користувача (Telegram). Хто ця людина — з підписаного заголовка X-Telegram-Login
+  // (utils/telegramLogin.ts), а не з telegramUserId: 401 означає «увійдіть через Telegram ще раз».
+  async getUserProfile(): Promise<UserProfile> {
+    return this.request<UserProfile>('/user/profile', { headers: telegramLoginHeaders() });
   }
 
-  async updateProfileName(telegramUserId: string, fullName: string | null): Promise<{ success: boolean; fullName: string | null }> {
+  async updateProfileName(fullName: string | null): Promise<{ success: boolean; fullName: string | null }> {
     return this.request<{ success: boolean; fullName: string | null }>('/user/profile/name', {
       method: 'PUT',
-      body: JSON.stringify({ telegramUserId, fullName }),
+      headers: telegramLoginHeaders(),
+      body: JSON.stringify({ fullName }),
+    });
+  }
+
+  /** «Завантажити мої дані» — файл JSON (Docs/transport-open-data-2026-10.md, фаза 4.1) */
+  async exportUserData(): Promise<{ blob: Blob; filename: string }> {
+    const response = await fetch(`${this.baseUrl}/user/export`, { headers: telegramLoginHeaders() });
+    if (!response.ok) {
+      let message = `Помилка ${response.status}`;
+      try {
+        const body = (await response.json()) as { error?: string };
+        if (body.error) message = body.error;
+      } catch {
+        /* не JSON */
+      }
+      throw Object.assign(new Error(message), { status: response.status });
+    }
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const filename = /filename="([^"]+)"/.exec(disposition)?.[1] || 'malin-kiev-ua-my-data.json';
+    return { blob: await response.blob(), filename };
+  }
+
+  /** «Видалити акаунт» — знеособлення на бекенді (person-erase.ts); підтвердження — на сторінці */
+  async deleteUserAccount(): Promise<DeleteAccountResponse> {
+    return this.request<DeleteAccountResponse>('/user', {
+      method: 'DELETE',
+      headers: telegramLoginHeaders(),
+      body: JSON.stringify({ confirm: true }),
     });
   }
 

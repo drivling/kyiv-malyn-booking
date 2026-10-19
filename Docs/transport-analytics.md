@@ -36,6 +36,7 @@
 | `transport_arrival_report` | позначку «автобус тут» / «автобуса не було» записано | `route_id`, `kind: arrived \| missed`, `source: route \| board` |
 | `transport_pwa_install` | «Встановити» у смужці стану транспорту — відповідь системного діалогу встановлення (`Docs/transport-pwa-2026-10.md`) | `result: accepted \| dismissed` |
 | `transport_data_download` | «Завантажити розклад (GTFS)» / «Дані у JSON» у блоці «Дані відкриті» на `/transport/scheme` (`Docs/transport-open-data-2026-10.md`) | `format: gtfs \| json` |
+| `transport_prefs` | «Налаштування на цьому пристрої» у тому самому блоці (`transportPrefs.ts`, фаза 4.3): файл збережено, відновлено з файлу, очищено дані на пристрої | `action: export \| import \| clear`, `count` (частих зупинок у файлі / прибраних ключів) |
 | `transport_outbox` | запис із табло пройшов через чергу без мережі (`src/pwa/outbox.ts`, `Docs/transport-offline-writes-2026-10.md`): став у чергу, надіслано з черги, сервер відкинув (4xx), викинуто після 10 спроб | `kind: sticker-scan \| sticker-return \| arrival-report`, `result: queued \| sent \| rejected \| dropped` |
 
 Перегляди сторінок — `page_view` з `GoogleAnalyticsTracker` (SPA-навігація), окремо від цієї таблиці.

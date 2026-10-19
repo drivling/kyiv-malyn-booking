@@ -244,6 +244,63 @@ describe('LocalTransportSchemePage: «Дані відкриті» (Docs/transpor
   });
 });
 
+describe('LocalTransportSchemePage: «Налаштування на цьому пристрої» (фаза 4.3)', () => {
+  it('saves frequent stops to a JSON file, restores only known stop names from a file, clears device data', async () => {
+    localStorage.setItem('lt.frequentToStops', JSON.stringify(['Лікарня']));
+    localStorage.setItem('arrival-report-client', 'abc');
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    const blobs: Blob[] = [];
+    const createObjectURL = vi.fn((b: Blob) => {
+      blobs.push(b);
+      return 'blob:prefs';
+    });
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    const downloads: string[] = [];
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      downloads.push(this.download);
+    };
+    try {
+      renderPage();
+      const block = screen.getByRole('region', { name: 'Дані відкриті' });
+      const panel = within(block).getByRole('group', { name: 'Налаштування на цьому пристрої' });
+      expect(panel).toHaveTextContent('зараз 1');
+
+      fireEvent.click(within(panel).getByRole('button', { name: 'Зберегти налаштування у файл' }));
+      expect(downloads).toEqual(['malin-transport-prefs.json']);
+      expect(JSON.parse(await blobs[0].text())).toMatchObject({ version: 1, frequentToStops: ['Лікарня'] });
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_prefs', { action: 'export', count: 1 });
+      expect(within(panel).getByRole('status')).toHaveTextContent('Збережено 1 частих зупинок');
+
+      // Відновлення: «Поліклініка» є в датасеті, «Стара назва» — ні
+      const file = new File([JSON.stringify({ version: 1, frequentToStops: ['Поліклініка', 'Стара назва'] })], 'malin-transport-prefs.json', { type: 'application/json' });
+      fireEvent.change(within(panel).getByLabelText('Файл налаштувань транспорту'), { target: { files: [file] } });
+      await waitFor(() => expect(within(panel).getByRole('status')).toHaveTextContent('Відновлено: 2 частих зупинок (Поліклініка, Лікарня). Пропущено невідомих зупинок: 1.'));
+      expect(JSON.parse(localStorage.getItem('lt.frequentToStops')!)).toEqual(['Поліклініка', 'Лікарня']);
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_prefs', { action: 'import', count: 1 });
+
+      // Зіпсований файл → помилка, список не змінився
+      fireEvent.change(within(panel).getByLabelText('Файл налаштувань транспорту'), { target: { files: [new File(['{'], 'x.json')] } });
+      await waitFor(() => expect(within(panel).getByRole('alert')).toHaveTextContent('не вдалося прочитати JSON'));
+      expect(JSON.parse(localStorage.getItem('lt.frequentToStops')!)).toEqual(['Поліклініка', 'Лікарня']);
+
+      // Очистити: підтвердження → ключі зникли
+      fireEvent.click(within(panel).getByRole('button', { name: 'Очистити мої дані на цьому пристрої' }));
+      fireEvent.click(within(panel).getByRole('button', { name: 'Так, очистити' }));
+      await waitFor(() => expect(within(panel).getByRole('status')).toHaveTextContent(/Очищено: записів у браузері — \d+/));
+      expect(localStorage.getItem('lt.frequentToStops')).toBeNull();
+      expect(localStorage.getItem('arrival-report-client')).toBeNull();
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_prefs', expect.objectContaining({ action: 'clear' }));
+    } finally {
+      HTMLAnchorElement.prototype.click = origClick;
+      Reflect.deleteProperty(window, 'gtag');
+      localStorage.clear();
+    }
+  });
+});
+
 describe('LocalTransportSchemePage: analytics events', () => {
   it('a route chip reports transport_scheme_route on and off', async () => {
     const gtag = vi.fn();

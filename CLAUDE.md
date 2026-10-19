@@ -454,6 +454,21 @@ notifications — is derived from them. Keep the two maps in sync.
 
 ## Cross-cutting notes
 
+- **Personal data belongs to the person** (`Docs/transport-open-data-2026-10.md`, phase 4). `/user/*` identifies the
+  person only from the `X-Telegram-Login` header — the Telegram Login Widget answer as base64url JSON, verified by
+  `backend/src/telegram-login-auth.ts` (HMAC-SHA256 with sha256(`TELEGRAM_BOT_TOKEN`), `auth_date` ≤ 24 h; 401 with
+  `reason`, 503 when the server has no token — never a silent pass; `createApp({ telegramBotToken })` in tests). The
+  frontend builds the header in `src/utils/telegramLogin.ts` from `userState.getTelegramUser()`; a 401 on `/user` means
+  «log in again». A bare `telegramUserId` in query/body is never trusted on `/user/*` (the older `…/by-user` listing and
+  booking endpoints still are — convert them with the same guard when touched). `GET /user/export` and the bot's `/mydata`
+  share `collectPersonData()` (`person-data-export.ts`: no other person's phone, no `telegramChatId`/`accessHash`);
+  `DELETE /user { confirm: true }` and `/deleteme` share `erasePerson()` (`person-erase.ts`: anonymise, never delete the
+  Person row, never block the phone — unlike the admin archive in `person-archive.ts`; future bookings deleted, past ones
+  anonymised, listings deactivated, referral rewards kept, Dzhura messages emptied with `deletedAt`). The technical phone of
+  an erased person is `380000` + zero-padded id; `isTechnicalPlaceholderPhone` covers it. Device-only transport settings
+  (`lt.frequentToStops`) are exported/restored/cleared as a file by `LocalTransportPage/transportPrefs.ts`
+  (`TransportPrefsPanel` in the open-data block) — no server involved.
+
 - Git commit messages must be written in English (project convention, from `.cursor/rules`).
 - «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now**: the online flow (site modal, bot
   `/book`) still writes the booking and keeps the old «технічний режим» warnings. Warn **only where people
