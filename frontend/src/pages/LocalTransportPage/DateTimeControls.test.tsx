@@ -80,4 +80,33 @@ describe('DateTimeControls: custom date chip', () => {
     await user.click(toggle);
     expect(gtag).toHaveBeenCalledTimes(1);
   });
+
+  it('planner: «Прибути до» switches the time to an arrival time and reports transport_arrive_by', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    const onArriveChange = vi.fn();
+    const { rerender } = render(
+      <DateTimeControls date="01.03.26" time="09:00" page="planner" onChange={vi.fn()} arrive={false} onArriveChange={onArriveChange} />
+    );
+    const chip = screen.getByRole('button', { name: 'Прибути до' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '01.03.26 о 09:00' })).toBeInTheDocument();
+
+    await user.click(chip);
+    expect(onArriveChange).toHaveBeenLastCalledWith(true);
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_arrive_by', { on: true });
+
+    rerender(<DateTimeControls date="01.03.26" time="09:00" page="planner" onChange={vi.fn()} arrive onArriveChange={onArriveChange} />);
+    expect(screen.getByRole('button', { name: 'Прибути до' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '01.03.26 до 09:00' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Прибути до' }));
+    expect(onArriveChange).toHaveBeenLastCalledWith(false);
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_arrive_by', { on: false });
+  });
+
+  it('the board and the route page have no arrival chip', () => {
+    render(<DateTimeControls date="01.03.26" time="09:00" page="board" onChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Прибути до' })).not.toBeInTheDocument();
+  });
 });

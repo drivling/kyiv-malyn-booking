@@ -16,6 +16,9 @@ interface DateTimeControlsProps extends DateTimeValue {
   idPrefix?: string;
   /** Для події `transport_date_chip` */
   page: 'planner' | 'board' | 'route';
+  /** Лише планувальник: час — це прибуття («Прибути до»), а не відправлення. Без onArriveChange чіпа немає. */
+  arrive?: boolean;
+  onArriveChange?: (arrive: boolean) => void;
 }
 
 /**
@@ -28,6 +31,8 @@ export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
   onChange,
   idPrefix = 'lt-search',
   page,
+  arrive = false,
+  onArriveChange,
 }) => {
   const [open, setOpen] = useState(false);
   const dayLabel =
@@ -69,8 +74,21 @@ export const DateTimeControls: React.FC<DateTimeControlsProps> = ({
             setOpen(!open);
           }}
         >
-          {dayLabel} о {time || '—'}
+          {dayLabel} {arrive ? 'до' : 'о'} {time || '—'}
         </button>
+        {onArriveChange && (
+          <button
+            type="button"
+            className="lt-chip"
+            aria-pressed={arrive}
+            onClick={() => {
+              gaTrackEvent('transport_arrive_by', { on: !arrive });
+              onArriveChange(!arrive);
+            }}
+          >
+            Прибути до
+          </button>
+        )}
       </div>
       {open && (
         <div className="lt-datetime-row" id={panelId}>

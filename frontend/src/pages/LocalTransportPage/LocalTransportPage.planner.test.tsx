@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { act } from 'react';
 import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
@@ -14,7 +15,13 @@ import { dateUrlToIso, todayDateUrl, tomorrowDateUrl } from './dateUrl';
 import { LocalTransportPage } from './LocalTransportPage';
 import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 
-vi.mock('./RouteMap', () => ({ RouteMap: () => <div data-testid="route-map" /> }));
+const mapProbe = vi.hoisted(() => ({ props: null as null | Record<string, any> }));
+vi.mock('./RouteMap', () => ({
+  RouteMap: (props: Record<string, any>) => {
+    mapProbe.props = props;
+    return <div data-testid="route-map" />;
+  },
+}));
 
 const dataset = {
   stops: [
@@ -485,6 +492,138 @@ describe('LocalTransportPage planner: result card', () => {
       expect(card.getAttribute('aria-label')).toContain('через 12 хв');
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('LocalTransportPage planner: arrive by', () => {
+  beforeEach(() => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
+  });
+
+  it('?a=1 lists the trips that arrive by the time, the latest departures first in the list end', async () => {
+    const user = userEvent.setup();
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=09%3A00&a=1');
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getByRole('button', { name: 'Прибути до' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '01.03.26 до 09:00' })).toBeInTheDocument();
+    // встигають до 09:00: №3 08:10 → 08:15 і №2 08:30 → 08:34; 09:40 і 10:55 — пізніше
+    expect(screen.getAllByRole('button', { name: /^Маршрут №/ }).map((c) => c.textContent?.slice(0, 5))).toEqual(['08:10', '08:30']);
+    expect(screen.queryByRole('button', { name: 'Показати раніші' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Показати пізніші' }));
+    expect(screen.getAllByRole('button', { name: /^Маршрут №/ }).map((c) => c.textContent?.slice(0, 5))).toEqual(['08:10', '08:30', '09:40', '10:55']);
+  });
+
+  it('the chip toggles the mode and the URL follows with a=1', async () => {
+    const user = userEvent.setup();
+    await openPair();
+    const chip = screen.getByRole('button', { name: 'Прибути до' });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    await user.click(chip);
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(location()).toBe('/transport/st_a/st_b?d=16.09.26&h=09%3A12&a=1'), { timeout: 3000 });
+    await user.click(chip);
+    await waitFor(() => expect(location()).toBe(PAIR_URL), { timeout: 3000 });
+  });
+
+  it('when nothing arrives in time the earliest later trips are shown with a note', async () => {
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00&a=1');
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getByText('Встигнути до 08:00 не вдасться — найближчі поїздки, що прибувають пізніше')).toHaveAttribute('role', 'status');
+    expect(screen.getAllByRole('button', { name: /^Маршрут №/ }).map((c) => c.textContent?.slice(0, 5))).toEqual(['08:10', '08:30', '09:40', '10:55']);
+  });
+});
+
+describe('LocalTransportPage planner: points instead of stops', () => {
+  const POINT_FROM = 'pt:50.77010,29.24010'; // ~13 м від «Базару»
+
+  it('geolocation offers «Звідси — моє місцезнаходження»; the journey starts with a short walk and GA gets no coordinates', async () => {
+    const user = userEvent.setup();
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: vi.fn((ok: PositionCallback) => ok({ coords: { latitude: 50.7701, longitude: 29.2401 } } as unknown as GeolocationPosition)) },
+    });
+    try {
+      renderPlanner('/transport?d=01.03.26&h=08%3A00');
+      await screen.findByRole('combobox', { name: 'Звідки' }, { timeout: 5000 });
+      await user.click(screen.getByRole('button', { name: 'Знайти найближчі зупинки за геолокацією' }));
+      await user.click(await screen.findByRole('button', { name: 'Звідси — моє місцезнаходження' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_point_pick', { slot: 'from', source: 'geo' });
+      expect(screen.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Моє місцезнаходження');
+
+      const to = screen.getByRole('combobox', { name: 'Куди' });
+      await user.click(to);
+      await user.keyboard('Вок');
+      await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
+      expect(await screen.findByText(/Маршрути: Моє місцезнаходження → Вокзал/)).toBeInTheDocument();
+      await waitFor(() => expect(location()).toBe('/transport/me%3A50.77010%2C29.24010/st_b?d=01.03.26&h=08%3A00'), { timeout: 3000 });
+
+      // 20 м пішки (13 м по прямій × 1,5) = 1 хв; №2 о 08:30 з Базару, Вокзал о 08:34
+      const card = await screen.findByRole('button', { name: /Маршрут №2 до Лікарня/ });
+      expect(card).toHaveTextContent('08:29 → 08:34 · 5 хв · пішки 20 м');
+      await waitFor(() =>
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', {
+          from: 'geo',
+          to: 'st_b',
+          direct_routes: 1,
+          journeys: 1,
+          best_transfers: 0,
+        })
+      );
+      for (const call of gtag.mock.calls) expect(JSON.stringify(call[2] ?? {})).not.toMatch(/50\.77|29\.24/);
+
+      await user.click(card);
+      const steps = document.querySelector('.lt-journey-steps') as HTMLElement;
+      expect(within(steps).getByText('Моє місцезнаходження → Базар')).toBeInTheDocument();
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+      Reflect.deleteProperty(navigator, 'geolocation');
+    }
+  });
+
+  it('a point in the URL opens the pair; the field and the title show a friendly name, not coordinates', async () => {
+    renderPlanner(`/transport/${encodeURIComponent(POINT_FROM)}/st_b?d=01.03.26&h=08%3A00`);
+    await screen.findByText(/Маршрути: Точка на карті → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Точка на карті');
+    expect(screen.getByRole('heading', { level: 1, name: 'Точка на карті → Вокзал' })).toBeInTheDocument();
+    // табло зупинки для точки немає: вкладка не підставляє координати
+    const nav = screen.getByRole('navigation', { name: 'Режим розкладу' });
+    expect(within(nav).getByRole('link', { name: 'Зупинка (табло)' }).getAttribute('href')).not.toMatch(/pt|50\.77/);
+  });
+
+  it('a point picked on the map becomes «Куди»; the map gets the point and the opened journey', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      await openPair();
+      // карта малює першу поїздку, поки жодну не розгорнули
+      await waitFor(() => expect(mapProbe.props?.journey?.legs).toHaveLength(1));
+      expect(mapProbe.props?.journey.legs[0]).toMatchObject({ kind: 'transit', routeId: '2' });
+      expect(mapProbe.props?.highlightRouteIds).toEqual(['2']);
+
+      act(() => mapProbe.props?.onPickPoint('to', 50.7801, 29.2501));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_point_pick', { slot: 'to', source: 'map' });
+      expect(await screen.findByText(/Маршрути: Базар → Точка на карті/)).toBeInTheDocument();
+      await waitFor(() => expect(mapProbe.props?.toPoint).toEqual([50.7801, 29.2501]));
+      expect(mapProbe.props?.toStopName).toBeUndefined();
+      expect(mapProbe.props?.toPointLabel).toBe('Точка на карті');
+      await waitFor(() => expect(location()).toBe('/transport/st_a/pt%3A50.78010%2C29.25010?d=16.09.26&h=09%3A12'), { timeout: 3000 });
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+
+  it('a point far from every stop has no journeys: the no-trips state, coordinates stay out of GA', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    try {
+      renderPlanner('/transport/st_a/pt%3A48.00000%2C30.00000?d=01.03.26&h=08%3A00');
+      await screen.findByText(/Не знайшли поїздок/, {}, { timeout: 5000 });
+      await waitFor(() => expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'point' }));
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
     }
   });
 });

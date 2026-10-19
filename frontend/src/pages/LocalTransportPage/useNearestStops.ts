@@ -32,6 +32,8 @@ export function useNearestStops(
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [nearestStops, setNearestStops] = useState<NearestStop[] | null>(null);
+  /** Де людина (ще й як «Моє місцезнаходження» для пошуку від точки); null, поки геолокацію не отримано */
+  const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   // Відповідь геолокації може прийти після unmount — не чіпаємо стан розмонтованого компонента
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useNearestStops(
   const findNearest = useCallback(() => {
     setGeoError('');
     setNearestStops(null);
+    setPosition(null);
     setGeoLoading(true);
     if (!navigator.geolocation) {
       setGeoError('Геолокація не підтримується браузером');
@@ -68,6 +71,7 @@ export function useNearestStops(
           .sort((a, b) => a.distance - b.distance)
           .slice(0, limit);
         setNearestStops(withDistance);
+        setPosition({ lat: latitude, lng: longitude });
         setGeoLoading(false);
         gaTrackEvent('transport_geo', { result: 'ok', page });
       },
@@ -87,7 +91,10 @@ export function useNearestStops(
     );
   }, [stopsCoords, page, limit]);
 
-  const clear = useCallback(() => setNearestStops(null), []);
+  const clear = useCallback(() => {
+    setNearestStops(null);
+    setPosition(null);
+  }, []);
 
-  return { geoLoading, geoError, nearestStops, findNearest, clear };
+  return { geoLoading, geoError, nearestStops, position, findNearest, clear };
 }

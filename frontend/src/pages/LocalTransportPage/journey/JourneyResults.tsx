@@ -9,6 +9,7 @@ import { routeNo } from '@/utils/routeNames';
 import { routeColorStyle } from '../routeColors';
 import { isVerifiedRoute } from '../routeTiming';
 import { formatClock, formatWait, stopsLabel, transfersLabel } from './format';
+import { journeyKey } from './journeyKey';
 import { legAlternatives } from './plan';
 import type { DirectWalk, Journey, Leg, Place, Timetable, TransitLeg, WalkLeg } from './types';
 import './JourneyResults.css';
@@ -21,8 +22,10 @@ export interface JourneyResultsProps {
   hiddenLater: number;
   /** Київський «зараз» у хвилинах від півночі — лише коли день пошуку сьогодні, інакше null */
   nowMins: number | null;
-  /** Сьогодні поїздок більше немає: це перші поїздки наступного дня */
+  /** Сьогодні поїздок більше немає: це перші поїздки наступного дня (підпис «наступного дня» на картках) */
   nextDay: boolean;
+  /** Пояснення над списком («Сьогодні рейсів пізніше немає…», «Встигнути до … не вдасться…») */
+  notice: string | null;
   directWalk: DirectWalk | null;
   placeName: (place: Place) => string;
   /** Куди їде рейс (табличка / кінцева) */
@@ -32,14 +35,12 @@ export interface JourneyResultsProps {
   onOpenRoute: (leg: TransitLeg) => void;
   onShowEarlier: () => void;
   onShowLater: () => void;
+  /** Розгорнута картка (або null) — сторінка малює її на карті */
+  onSelect?: (journey: Journey | null) => void;
 }
 
 const isTransit = (leg: Leg): leg is TransitLeg => leg.kind === 'transit';
 const isWalk = (leg: Leg): leg is WalkLeg => leg.kind === 'walk';
-
-function journeyKey(j: Journey): string {
-  return `${j.departMins}-${j.arriveMins}-${j.legs.filter(isTransit).map((l) => l.tripId).join('+')}`;
-}
 
 function RouteChip({ routeId }: { routeId: string }) {
   const verified = isVerifiedRoute(routeId);
@@ -54,7 +55,7 @@ function RouteChip({ routeId }: { routeId: string }) {
   );
 }
 
-interface CardProps extends Omit<JourneyResultsProps, 'items' | 'hiddenEarlier' | 'hiddenLater' | 'directWalk' | 'onShowEarlier' | 'onShowLater'> {
+interface CardProps extends Omit<JourneyResultsProps, 'items' | 'hiddenEarlier' | 'hiddenLater' | 'directWalk' | 'notice' | 'onShowEarlier' | 'onShowLater' | 'onSelect'> {
   journey: Journey;
   open: boolean;
   onToggle: () => void;
@@ -222,15 +223,14 @@ function RideStep({
 }
 
 export const JourneyResults: React.FC<JourneyResultsProps> = (props) => {
-  const { items, hiddenEarlier, hiddenLater, directWalk, onShowEarlier, onShowLater, ...card } = props;
-  const { nextDay } = card;
+  const { items, hiddenEarlier, hiddenLater, directWalk, notice, onShowEarlier, onShowLater, onSelect, ...card } = props;
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   return (
     <div className="lt-journeys">
-      {nextDay && (
+      {notice && (
         <p className="lt-journeys-note" role="status">
-          Сьогодні рейсів пізніше немає · перші поїздки наступного дня
+          {notice}
         </p>
       )}
       {directWalk && (
@@ -259,6 +259,7 @@ export const JourneyResults: React.FC<JourneyResultsProps> = (props) => {
                   gaTrackEvent('transport_journey_open', { transfers: journey.transfers, legs: journey.legs.length });
                 }
                 setOpenKey(open ? null : key);
+                onSelect?.(open ? null : journey);
               }}
             />
           );

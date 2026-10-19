@@ -51,6 +51,10 @@ import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
 import { buildTimetable, journeyWindow, planDay, serviceDayForDate, type Place, type TransitLeg } from './journey';
 import { JourneyResults } from './journey/JourneyResults';
+import { endpointFromKey, endpointGaValue, isPointKey, parsePointKey, pointKey, pointLabel } from './journey/endpointKey';
+import { journeyKey } from './journey/journeyKey';
+import { journeyToMap } from './journey/mapData';
+import type { Journey } from './journey';
 import { ArrivalReportSheet } from './ArrivalReportSheet';
 import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
@@ -87,10 +91,11 @@ function GeoIcon() {
 }
 
 /** URL планувальника для пари зупинок з датою/часом — єдине місце, де він збирається. */
-function buildPlannerUrl(from: string, to: string, date: string, time: string): string {
+function buildPlannerUrl(from: string, to: string, date: string, time: string, arrive = false): string {
   const params = new URLSearchParams();
   if (date) params.set('d', date);
   if (time) params.set('h', time);
+  if (arrive) params.set('a', '1');
   const qs = params.toString();
   return `/transport/${encodeURIComponent(from)}/${encodeURIComponent(to)}${qs ? `?${qs}` : ''}`;
 }
@@ -278,6 +283,7 @@ export const LocalTransportPage: React.FC = () => {
   const dirFromUrl = rawDir.toLowerCase().startsWith('there') ? 'there' : rawDir.toLowerCase().startsWith('back') ? 'back' : rawDir;
   const dateFromUrl = searchParams.get('d') ?? '';
   const hourFromUrl = searchParams.get('h') ?? '';
+  const arriveFromUrl = searchParams.get('a') === '1';
   const { dataset, loading, error, reload, source, online, dataAsOf } = useTransportDataset();
   const viewModel = useMemo(() => {
     if (!dataset) return null;
@@ -303,6 +309,8 @@ export const LocalTransportPage: React.FC = () => {
   const [committedPair, setCommittedPair] = useState<{ from: string; to: string } | null>(null);
   const [searchDate, setSearchDate] = useState<string>(() => todayDateUrl());
   const [searchTime, setSearchTime] = useState<string>(() => nowClock());
+  /** Режим «Прибути до»: час пошуку — прибуття, а не відправлення (?a=1) */
+  const [arriveBy, setArriveBy] = useState<boolean>(() => searchParams.get('a') === '1');
   const youHereRef = useRef<HTMLLIElement | null>(null);
   const toStopRef = useRef<HTMLLIElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -311,6 +319,7 @@ export const LocalTransportPage: React.FC = () => {
     geoLoading,
     geoError,
     nearestStops,
+    position: geoPosition,
     findNearest: handleFindNearest,
     clear: clearNearestStops,
   } = useNearestStops(stopsCoords, { page: 'planner' });
@@ -415,14 +424,18 @@ export const LocalTransportPage: React.FC = () => {
 
   const effectiveSearchFrom = searchFrom ?? (fromPathDecoded || queryFrom);
   const effectiveSearchTo = searchTo ?? (toPathDecoded || queryTo);
-  const resolvedFrom = useMemo(
-    () => resolveStopIdInList(effectiveSearchFrom, stops, stopsCatalog),
-    [effectiveSearchFrom, stops, stopsCatalog]
+  /** «Звідки/Куди»: зупинка за текстом/id або точка (me:/pt: — геолокація чи клік на карті) як є */
+  const resolveEndpointKey = useCallback(
+    (raw: string) => (isPointKey(raw) ? raw.trim() : resolveStopIdInList(raw, stops, stopsCatalog)),
+    [stops, stopsCatalog]
   );
-  const resolvedTo = useMemo(
-    () => resolveStopIdInList(effectiveSearchTo, stops, stopsCatalog),
-    [effectiveSearchTo, stops, stopsCatalog]
+  /** Назва кінця для людей: зупинка з каталогу або «Моє місцезнаходження» / «Точка на карті» */
+  const endpointName = useCallback(
+    (key: string) => pointLabel(key) ?? displayNameForStopKey(key, stopsCatalog),
+    [stopsCatalog]
   );
+  const resolvedFrom = useMemo(() => resolveEndpointKey(effectiveSearchFrom), [effectiveSearchFrom, resolveEndpointKey]);
+  const resolvedTo = useMemo(() => resolveEndpointKey(effectiveSearchTo), [effectiveSearchTo, resolveEndpointKey]);
   const pairIsSame = Boolean(resolvedFrom && resolvedTo && resolvedFrom === resolvedTo);
   const hasResolvedPair = Boolean(resolvedFrom && resolvedTo) && !pairIsSame;
 
@@ -453,12 +466,13 @@ export const LocalTransportPage: React.FC = () => {
     const same =
       currentPath === `/transport/${resolvedFrom}/${resolvedTo}` &&
       current.get('d') === searchDate &&
-      current.get('h') === searchTime;
+      current.get('h') === searchTime &&
+      (current.get('a') === '1') === arriveBy;
     if (same) return;
-    const target = buildPlannerUrl(resolvedFrom, resolvedTo, searchDate, searchTime);
+    const target = buildPlannerUrl(resolvedFrom, resolvedTo, searchDate, searchTime, arriveBy);
     const timer = window.setTimeout(() => navigate(target, { replace: true }), 300);
     return () => window.clearTimeout(timer);
-  }, [isMainPage, hasResolvedPair, resolvedFrom, resolvedTo, searchDate, searchTime, location.pathname, location.search, navigate]);
+  }, [isMainPage, hasResolvedPair, resolvedFrom, resolvedTo, searchDate, searchTime, arriveBy, location.pathname, location.search, navigate]);
 
   // Лише одна зупинка резолвнута і URL без path-пари (напр. прийшли з табло як /transport?from=…):
   // тримаємо ?from= / ?to= актуальними, щоб адресний рядок не рекламував стару зупинку.
@@ -496,11 +510,11 @@ export const LocalTransportPage: React.FC = () => {
     () =>
       committedPair
         ? {
-            from: displayNameForStopKey(committedPair.from, stopsCatalog),
-            to: displayNameForStopKey(committedPair.to, stopsCatalog),
+            from: endpointName(committedPair.from),
+            to: endpointName(committedPair.to),
           }
         : null,
-    [committedPair, stopsCatalog]
+    [committedPair, endpointName]
   );
 
   /** Тип дня руху за датою пошуку (будні / вихідні): calendar сайту знає лише everyday і weekdays */
@@ -529,47 +543,89 @@ export const LocalTransportPage: React.FC = () => {
   const dayPlan = useMemo(
     () =>
       timetable && committedPair
-        ? planDay(timetable, { kind: 'stop', stopId: committedPair.from }, { kind: 'stop', stopId: committedPair.to })
+        ? planDay(timetable, endpointFromKey(committedPair.from), endpointFromKey(committedPair.to))
         : null,
     [timetable, committedPair]
   );
   /** Скільки поїздок показано до/після моменту пошуку; «Показати раніші/пізніші» збільшують */
-  const [journeyCounts, setJourneyCounts] = useState({ before: 0, after: 5 });
+  const journeyDefaults = arriveBy ? { before: 5, after: 0 } : { before: 0, after: 5 };
+  const [journeyCounts, setJourneyCounts] = useState(journeyDefaults);
   useEffect(() => {
-    setJourneyCounts({ before: 0, after: 5 });
-  }, [committedPair, searchDate, searchTime]);
+    setJourneyCounts(arriveBy ? { before: 5, after: 0 } : { before: 0, after: 5 });
+  }, [committedPair, searchDate, searchTime, arriveBy]);
   const journeyView = useMemo(() => {
     if (!timetable || !dayPlan || !committedPair) return null;
-    const today = journeyWindow(dayPlan.journeys, { mode: 'depart', mins: searchMins, ...journeyCounts });
-    if (today.items.length > 0) return { ...today, timetable, directWalk: dayPlan.directWalk, nextDay: false };
+    const mode = arriveBy ? 'arrive' : 'depart';
+    const base = { timetable, directWalk: dayPlan.directWalk };
+    const today = journeyWindow(dayPlan.journeys, { mode, mins: searchMins, ...journeyCounts });
+    if (today.items.length > 0) return { ...today, ...base, nextDay: false, notice: null as string | null };
+    if (arriveBy) {
+      // До вказаного часу не встигнути — показуємо найраніші поїздки, що прибувають пізніше
+      const late = journeyWindow(dayPlan.journeys, { mode, mins: searchMins, before: 0, after: Math.max(5, journeyCounts.after) });
+      return {
+        ...late,
+        ...base,
+        nextDay: false,
+        notice: late.items.length > 0 ? `Встигнути до ${searchTime} не вдасться — найближчі поїздки, що прибувають пізніше` : null,
+      };
+    }
     // Сьогодні поїздок більше немає — показуємо перші наступного дня
     const nextTimetable = buildTimetable({ routes, stopsByRoute, variantsByRoute, coords: stopsCoords, serviceDay: nextServiceDay });
-    const nextPlan = planDay(
-      nextTimetable,
-      { kind: 'stop', stopId: committedPair.from },
-      { kind: 'stop', stopId: committedPair.to }
-    );
+    const nextPlan = planDay(nextTimetable, endpointFromKey(committedPair.from), endpointFromKey(committedPair.to));
     const tomorrow = journeyWindow(nextPlan.journeys, { mode: 'depart', mins: 0, before: 0, after: journeyCounts.after });
+    const nextDay = tomorrow.items.length > 0;
     return {
       ...tomorrow,
       timetable: nextTimetable,
       directWalk: dayPlan.directWalk,
-      nextDay: tomorrow.items.length > 0,
+      nextDay,
+      notice: nextDay ? 'Сьогодні рейсів пізніше немає · перші поїздки наступного дня' : null,
     };
-  }, [timetable, dayPlan, committedPair, searchMins, journeyCounts, routes, stopsByRoute, variantsByRoute, stopsCoords, nextServiceDay]);
-  /** Лінії показаних поїздок — підсвічуються на карті */
+  }, [timetable, dayPlan, committedPair, arriveBy, searchMins, searchTime, journeyCounts, routes, stopsByRoute, variantsByRoute, stopsCoords, nextServiceDay]);
+  /** Розгорнута картка поїздки (або перша) — її малюємо на карті */
+  const [openJourney, setOpenJourney] = useState<Journey | null>(null);
+  useEffect(() => {
+    setOpenJourney(null);
+  }, [committedPair]);
+  const activeJourney = useMemo(() => {
+    const items = journeyView?.items ?? [];
+    const key = openJourney ? journeyKey(openJourney) : null;
+    return items.find((j) => journeyKey(j) === key) ?? items[0] ?? null;
+  }, [journeyView, openJourney]);
+  /** Лінії активної поїздки — яскраві на карті, решта притьмарені */
   const journeyRouteIds = useMemo(
-    () => [...new Set((journeyView?.items ?? []).flatMap((j) => j.legs.flatMap((l) => (l.kind === 'transit' ? [l.routeId] : []))))],
-    [journeyView]
+    () => [...new Set((activeJourney?.legs ?? []).flatMap((l) => (l.kind === 'transit' ? [l.routeId] : [])))],
+    [activeJourney]
   );
   const tripIndex = useMemo(() => {
     const index = new Map<string, { trip: TransportRecord; route: RouteBundle }>();
     for (const route of routes) for (const trip of route.trips) index.set(trip.trip_id, { trip, route });
     return index;
   }, [routes]);
+  const mapJourney = useMemo(
+    () =>
+      activeJourney && stopsCoords
+        ? journeyToMap(activeJourney, {
+            coords: stopsCoords,
+            chainOf: (leg) => {
+              const hit = tripIndex.get(leg.tripId);
+              return hit ? chainForRecord(stopsByRoute, variantsByRoute, hit.trip) : [];
+            },
+          })
+        : null,
+    [activeJourney, stopsCoords, tripIndex, stopsByRoute, variantsByRoute]
+  );
   const placeLabel = useCallback(
-    (place: Place) => ('stopId' in place ? displayNameForStopKey(place.stopId, stopsCatalog) : 'Точка на карті'),
-    [stopsCatalog]
+    (place: Place) => {
+      if ('stopId' in place) return displayNameForStopKey(place.stopId, stopsCatalog);
+      // кінець-точка: підпис за ключем, що збігається за координатами; інакше — загальний
+      const key = [resolvedFrom, resolvedTo].find((k) => {
+        const p = parsePointKey(k);
+        return p && Math.abs(p.lat - place.lat) < 1e-4 && Math.abs(p.lng - place.lng) < 1e-4;
+      });
+      return (key && pointLabel(key)) || 'Точка на карті';
+    },
+    [stopsCatalog, resolvedFrom, resolvedTo]
   );
   const journeyDestination = useCallback(
     (leg: TransitLeg) => {
@@ -597,34 +653,36 @@ export const LocalTransportPage: React.FC = () => {
     );
     const bestTransfers = dayPlan.journeys.reduce((min, j) => Math.min(min, j.transfers), Infinity);
     gaTrackEvent('transport_search', {
-      from: committedPair.from,
-      to: committedPair.to,
+      from: endpointGaValue(committedPair.from),
+      to: endpointGaValue(committedPair.to),
       direct_routes: direct.size,
       journeys: dayPlan.journeys.length,
       best_transfers: Number.isFinite(bestTransfers) ? bestTransfers : -1,
     });
     if (dayPlan.journeys.length === 0) {
-      gaTrackEvent('transport_no_route', { from: committedPair.from, to: committedPair.to });
+      gaTrackEvent('transport_no_route', { from: endpointGaValue(committedPair.from), to: endpointGaValue(committedPair.to) });
     }
   }, [isMainPage, committedPair, dayPlan]);
 
   useEffect(() => {
     if (!isMainPage || !stops.length) return;
     if (fromPathDecoded || toPathDecoded) {
-      const fromMatch = fromPathDecoded ? resolveStopIdInList(fromPathDecoded, stops, stopsCatalog) : '';
-      const toMatch = toPathDecoded ? resolveStopIdInList(toPathDecoded, stops, stopsCatalog) : '';
+      const fromMatch = fromPathDecoded ? resolveEndpointKey(fromPathDecoded) : '';
+      const toMatch = toPathDecoded ? resolveEndpointKey(toPathDecoded) : '';
       setSearchFrom(fromMatch);
       setSearchTo(toMatch);
     } else if (queryFrom || queryTo) {
-      setSearchFrom(queryFrom ? resolveStopIdInList(queryFrom, stops, stopsCatalog) : '');
-      setSearchTo(queryTo ? resolveStopIdInList(queryTo, stops, stopsCatalog) : '');
+      setSearchFrom(queryFrom ? resolveEndpointKey(queryFrom) : '');
+      setSearchTo(queryTo ? resolveEndpointKey(queryTo) : '');
     }
     if (dateFromUrl) {
       const parsed = parseDateUrl(dateFromUrl);
       if (parsed) setSearchDate(formatDateUrl(parsed));
     }
     if (hourFromUrl) setSearchTime(hourFromUrl);
-  }, [isMainPage, fromPathDecoded, toPathDecoded, queryFrom, queryTo, dateFromUrl, hourFromUrl, stops.length, stops, stopsCatalog]);
+    // адресний рядок із датою/часом уже синхронізований зі станом, тож ?a= відображає режим
+    if (dateFromUrl || hourFromUrl) setArriveBy(arriveFromUrl);
+  }, [isMainPage, fromPathDecoded, toPathDecoded, queryFrom, queryTo, dateFromUrl, hourFromUrl, arriveFromUrl, stops.length, stops, resolveEndpointKey]);
 
   const effectiveStopFilter = stopFilter || selectedStopFromUrl;
 
@@ -1652,7 +1710,7 @@ export const LocalTransportPage: React.FC = () => {
               <p className="lt-subtitle">{pairNames ? 'Як доїхати · Малин' : 'Малин · місцевий транспорт'}</p>
             </header>
 
-            <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom || undefined} />
+            <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom && !isPointKey(resolvedFrom) ? resolvedFrom : undefined} />
             <TransportStatusBar online={online} source={source} dataAsOf={dataAsOf} error={error} onRetry={() => void reload()} />
 
             <div className="lt-search" ref={searchCardRef}>
@@ -1668,6 +1726,7 @@ export const LocalTransportPage: React.FC = () => {
                       label=""
                       options={[
                         { value: '', label: '— Зупинка —' },
+                        ...(isPointKey(effectiveSearchFrom) ? [{ value: effectiveSearchFrom, label: endpointName(effectiveSearchFrom) }] : []),
                         ...stops.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
                       ]}
                       value={effectiveSearchFrom}
@@ -1723,6 +1782,7 @@ export const LocalTransportPage: React.FC = () => {
                       label=""
                       options={[
                         { value: '', label: '— Зупинка —' },
+                        ...(isPointKey(effectiveSearchTo) ? [{ value: effectiveSearchTo, label: endpointName(effectiveSearchTo) }] : []),
                         ...stops.map((s) => ({ value: s, label: displayNameForStopKey(s, stopsCatalog) })),
                       ]}
                       value={effectiveSearchTo}
@@ -1750,6 +1810,8 @@ export const LocalTransportPage: React.FC = () => {
                     date={searchDate}
                     time={searchTime}
                     page="planner"
+                    arrive={arriveBy}
+                    onArriveChange={setArriveBy}
                     onChange={({ date, time }) => {
                       setSearchDate(date);
                       setSearchTime(time);
@@ -1770,6 +1832,23 @@ export const LocalTransportPage: React.FC = () => {
                     <div className="lt-nearest">
                       <p className="lt-nearest-title">Найближчі зупинки:</p>
                       <ul className="lt-nearest-list">
+                        {geoPosition && (
+                          <li className="lt-nearest-item-row">
+                            <button
+                              type="button"
+                              className="lt-nearest-item"
+                              onClick={() => {
+                                gaTrackEvent('transport_point_pick', { slot: 'from', source: 'geo' });
+                                latestStopRef.current = '';
+                                setSearchFrom(pointKey('me', geoPosition.lat, geoPosition.lng));
+                                clearNearestStops();
+                                window.setTimeout(() => searchToInputRef.current?.focus(), 0);
+                              }}
+                            >
+                              Звідси — моє місцезнаходження
+                            </button>
+                          </li>
+                        )}
                         {nearestStops.map(({ name, distance }) => (
                           <li key={name} className="lt-nearest-item-row">
                             <button
@@ -1874,8 +1953,7 @@ export const LocalTransportPage: React.FC = () => {
               ) : (
                 <>
                   <h2 className="lt-routes-heading" id="lt-results-heading">
-                    Маршрути: {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
-                    {displayNameForStopKey(committedPair.to, stopsCatalog)}
+                    Маршрути: {endpointName(committedPair.from)} → {endpointName(committedPair.to)}
                   </h2>
                   <JourneyResults
                     timetable={journeyView.timetable}
@@ -1884,6 +1962,7 @@ export const LocalTransportPage: React.FC = () => {
                     hiddenLater={journeyView.hiddenLater}
                     nowMins={travelDayOffset === 0 ? kyivNowMins : null}
                     nextDay={journeyView.nextDay}
+                    notice={journeyView.notice}
                     directWalk={journeyView.directWalk}
                     placeName={placeLabel}
                     destinationOf={journeyDestination}
@@ -1891,6 +1970,7 @@ export const LocalTransportPage: React.FC = () => {
                     onOpenRoute={(leg) => handleSelectRoute(leg.routeId, { from: leg.boardStopId, to: leg.alightStopId })}
                     onShowEarlier={() => setJourneyCounts((c) => ({ ...c, before: c.before + 5 }))}
                     onShowLater={() => setJourneyCounts((c) => ({ ...c, after: c.after + 5 }))}
+                    onSelect={setOpenJourney}
                   />
                 </>
               )}
@@ -1955,8 +2035,23 @@ export const LocalTransportPage: React.FC = () => {
             const mapProps = {
               stopNames: stops,
               markerStopNames: stops,
-              fromStopName: resolvedFrom || undefined,
-              toStopName: resolvedTo || undefined,
+              fromStopName: resolvedFrom && !isPointKey(resolvedFrom) ? resolvedFrom : undefined,
+              toStopName: resolvedTo && !isPointKey(resolvedTo) ? resolvedTo : undefined,
+              fromPoint: ((p) => (p ? ([p.lat, p.lng] as [number, number]) : null))(parsePointKey(resolvedFrom)),
+              toPoint: ((p) => (p ? ([p.lat, p.lng] as [number, number]) : null))(parsePointKey(resolvedTo)),
+              fromPointLabel: pointLabel(resolvedFrom) ?? undefined,
+              toPointLabel: pointLabel(resolvedTo) ?? undefined,
+              journey: mapJourney,
+              onPickPoint: (slot: 'from' | 'to', lat: number, lng: number) => {
+                gaTrackEvent('transport_point_pick', { slot, source: 'map' });
+                const key = pointKey('pt', lat, lng);
+                if (slot === 'from') {
+                  latestStopRef.current = '';
+                  setSearchFrom(key);
+                } else {
+                  setSearchTo(key);
+                }
+              },
               resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
               routeLines: overviewLines,
               highlightRouteIds: committedPair ? journeyRouteIds : [],
@@ -1983,7 +2078,7 @@ export const LocalTransportPage: React.FC = () => {
               frequentToStops,
               coordsData: mapCoordsData,
             };
-            const subtitle = `Звідки: ${resolvedFrom ? displayNameForStopKey(resolvedFrom, stopsCatalog) : '—'} · Куди: ${resolvedTo ? displayNameForStopKey(resolvedTo, stopsCatalog) : '—'}`;
+            const subtitle = `Звідки: ${resolvedFrom ? endpointName(resolvedFrom) : '—'} · Куди: ${resolvedTo ? endpointName(resolvedTo) : '—'}`;
             return isPhone ? (
               <LocalTransportMapOverlay open={mapOpen} onClose={closeMap} subtitle={subtitle}>
                 <RouteMap {...mapProps} resizeToken={mapResizeToken} />

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOnline } from '@/pwa/useOnline';
-import { MapContainer, TileLayer, Marker, Pane, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { CircleMarker, MapContainer, TileLayer, Marker, Pane, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { resolveMapTiles } from './mapTiles';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { pickBoundsStops, type LatLng, type RouteLine } from './routeGeometry';
-import { routeColorStyle } from './routeColors';
+import { routeColor, routeColorStyle } from './routeColors';
+import type { MapJourney } from './journey/mapData';
 import { routeNo } from '@/utils/routeNames';
 
 export interface RouteMapCoordsData {
@@ -45,6 +46,15 @@ export interface RouteMapProps {
   showStrip?: boolean;
   /** Зміна значення → invalidateSize (карта зʼявилась у overlay після display:none) */
   resizeToken?: number;
+  /** «Звідки» / «Куди» не зупинка, а точка (геолокація, клік на карті) */
+  fromPoint?: LatLng | null;
+  toPoint?: LatLng | null;
+  fromPointLabel?: string;
+  toPointLabel?: string;
+  /** Клік по порожньому місцю карти відкриває картку «Звідси / Сюди» для цієї точки */
+  onPickPoint?: (slot: 'from' | 'to', lat: number, lng: number) => void;
+  /** Обрана поїздка: кольорові ділянки рейсів, пішки — пунктиром; карта підганяється під неї */
+  journey?: MapJourney | null;
 }
 
 /** Центр Малина — поки координати не завантажились */
@@ -105,6 +115,27 @@ function MapResize({ token }: { token?: number }) {
   return null;
 }
 
+/** Підганяє карту під ділянки обраної поїздки (ключ — геометрія, а не посилання на об'єкт) */
+function JourneyFit({ journey }: { journey: MapJourney }) {
+  const map = useMap();
+  const key = JSON.stringify(journey.legs.map((l) => l.positions));
+  useEffect(() => {
+    const all = (JSON.parse(key) as LatLng[][]).flat();
+    if (all.length < 1) return;
+    const fit = () => map.fitBounds(all, { padding: [50, 50], maxZoom: 16 });
+    fit();
+    const t = window.setTimeout(fit, 300);
+    return () => window.clearTimeout(t);
+  }, [map, key]);
+  return null;
+}
+
+/** Клік по карті → точка (маркери зупинок не пропускають клік далі) */
+function MapClick({ onClick }: { onClick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: (e) => onClick(e.latlng.lat, e.latlng.lng) });
+  return null;
+}
+
 function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
   const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) });
   useEffect(() => {
@@ -127,6 +158,7 @@ const ICON_STOP = createNodeIcon('#708c91', 9, 2);
 const ICON_NODE = createNodeIcon('#054752', 15, 3);
 const ICON_FROM = createNodeIcon('#0fa573', 19, 3);
 const ICON_TO = createNodeIcon('#00aff5', 19, 3);
+const ICON_PICK = createNodeIcon('#054752', 15, 3);
 
 export const RouteMap: React.FC<RouteMapProps> = ({
   coordsData = null,
@@ -147,11 +179,19 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   boardHref,
   showStrip = false,
   resizeToken,
+  fromPoint = null,
+  toPoint = null,
+  fromPointLabel = 'Точка на карті',
+  toPointLabel = 'Точка на карті',
+  onPickPoint,
+  journey = null,
 }) => {
   // Тайли OSM не кешуємо (політика OSM) — без мережі замість сірого поля чесна підказка
   const online = useOnline();
   const [mounted, setMounted] = useState(false);
   const [selectedStop, setSelectedStop] = useState('');
+  /** Точка, на яку клікнули: картка «Звідси / Сюди» */
+  const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -162,17 +202,19 @@ export const RouteMap: React.FC<RouteMapProps> = ({
   }, []);
 
   useEffect(() => {
-    if (selectedStop) closeRef.current?.focus();
-  }, [selectedStop]);
+    if (selectedStop || pickedPoint) closeRef.current?.focus();
+  }, [selectedStop, pickedPoint]);
 
   useEffect(() => {
-    if (!selectedStop) return;
+    if (!selectedStop && !pickedPoint) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedStop('');
+      if (e.key !== 'Escape') return;
+      setSelectedStop('');
+      setPickedPoint(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [selectedStop]);
+  }, [selectedStop, pickedPoint]);
 
   const center = coordsData?.center ?? MALYN_CENTER;
   const stops = useMemo(() => coordsData?.stops ?? {}, [coordsData]);
@@ -192,10 +234,19 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     singleLine && fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx
       ? chain.slice(Math.min(fromIdx, toIdx), Math.max(fromIdx, toIdx) + 1).map((n) => stops[n])
       : [];
-  const bounds = pickBoundsStops({ chain, stops, fromStopName, toStopName, hasLine: Boolean(singleLine) });
+  // Точка замість зупинки — під псевдо-ключем, щоб межі карти й підписи працювали однаково
+  const allStops = useMemo(
+    () => ({ ...stops, ...(fromPoint ? { __from: fromPoint } : {}), ...(toPoint ? { __to: toPoint } : {}) }),
+    [stops, fromPoint, toPoint]
+  );
+  const effFrom = fromPoint ? '__from' : fromStopName;
+  const effTo = toPoint ? '__to' : toStopName;
+  const bounds = pickBoundsStops({ chain, stops: allStops, fromStopName: effFrom, toStopName: effTo, hasLine: Boolean(singleLine) });
+  const fromShown = fromPoint ? fromPointLabel : fromStopName ? resolveStopLabel(fromStopName) : '';
+  const toShown = toPoint ? toPointLabel : toStopName ? resolveStopLabel(toStopName) : '';
 
-  const hasBoth = Boolean(fromStopName && toStopName);
-  const hint = fromStopName && !toStopName ? 'Обрано «Звідки». Тепер виберіть «Куди».' : toStopName && !fromStopName ? 'Обрано «Куди». Тепер виберіть «Звідки».' : '';
+  const hasBoth = Boolean(effFrom && effTo);
+  const hint = effFrom && !effTo ? 'Обрано «Звідки». Тепер виберіть «Куди».' : effTo && !effFrom ? 'Обрано «Куди». Тепер виберіть «Звідки».' : '';
   const frequent = frequentToStops.filter((n) => n && n !== fromStopName && n !== toStopName && n !== selectedStop).slice(0, 3);
   const selectedLines = selectedStop && routesAtStop ? routesAtStop(selectedStop) : [];
 
@@ -210,14 +261,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     <div className="lt-map-wrapper">
       {showStrip && (
         <div className="lt-map-strip" aria-label="Обрані зупинки">
-          <span className={`lt-chip lt-chip--static ${fromStopName ? 'lt-chip--origin' : ''}`}>
-            Звідки: {fromStopName ? resolveStopLabel(fromStopName) : '—'}
+          <span className={`lt-chip lt-chip--static ${effFrom ? 'lt-chip--origin' : ''}`}>
+            Звідки: {fromShown || '—'}
           </span>
           <button type="button" className="lt-icon-btn" onClick={onSwapStops} disabled={!hasBoth} title="Поміняти місцями" aria-label="Поміняти місцями Звідки та Куди">
             ⇅
           </button>
-          <span className={`lt-chip lt-chip--static ${toStopName ? 'lt-chip--destination' : ''}`}>
-            Куди: {toStopName ? resolveStopLabel(toStopName) : '—'}
+          <span className={`lt-chip lt-chip--static ${effTo ? 'lt-chip--destination' : ''}`}>
+            Куди: {toShown || '—'}
           </span>
           {hint && <span className="lt-map-strip__hint">{hint}</span>}
         </div>
@@ -233,12 +284,27 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           <TileLayer attribution={TILES.attribution} url={TILES.url} maxZoom={19} updateWhenIdle={false} keepBuffer={2} />
           <ZoomWatcher onZoom={setZoom} />
           <MapResize token={resizeToken} />
-          {bounds.names.length > 0 && <MapBounds stopNames={bounds.names} stops={stops} padding={bounds.padding} resizeToken={resizeToken} />}
+          {onPickPoint && (
+            <MapClick
+              onClick={(lat, lng) => {
+                setSelectedStop('');
+                setPickedPoint([lat, lng]);
+              }}
+            />
+          )}
+          {journey && journey.legs.length > 0 ? (
+            <JourneyFit journey={journey} />
+          ) : (
+            bounds.names.length > 0 && <MapBounds stopNames={bounds.names} stops={allStops} padding={bounds.padding} resizeToken={resizeToken} />
+          )}
           {/* Порядок шарів задають pane-и, а не порядок монтування: притьмарені лінії → біла підкладка → яскраві → відрізок З→До */}
           <Pane name="lt-lines-dim" style={{ zIndex: 402 }} />
           <Pane name="lt-lines-casing" style={{ zIndex: 404 }} />
           <Pane name="lt-lines" style={{ zIndex: 406 }} />
           <Pane name="lt-segment" style={{ zIndex: 408 }} />
+          <Pane name="lt-journey-casing" style={{ zIndex: 410 }} />
+          <Pane name="lt-journey" style={{ zIndex: 411 }} />
+          <Pane name="lt-journey-walk" style={{ zIndex: 412 }} />
           {routeLines.map((line) =>
             highlight.has(line.routeId) ? (
               <Polyline
@@ -258,6 +324,52 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           {segment.length >= 2 && singleLine && (
             <Polyline pane="lt-segment" positions={segment} pathOptions={{ color: singleLine.color, weight: 7, opacity: 1 }} interactive={false} />
           )}
+          {journey?.legs.map((leg, i) =>
+            leg.kind === 'transit' ? (
+              <React.Fragment key={`journey-${i}`}>
+                <Polyline pane="lt-journey-casing" positions={leg.positions} pathOptions={{ color: '#fff', weight: 11, opacity: 0.95 }} interactive={false} />
+                <Polyline
+                  pane="lt-journey"
+                  positions={leg.positions}
+                  pathOptions={{ color: (leg.routeId && routeColor(leg.routeId)) || '#054752', weight: 6, opacity: 1 }}
+                  interactive={false}
+                />
+              </React.Fragment>
+            ) : (
+              <Polyline
+                key={`journey-${i}`}
+                pane="lt-journey-walk"
+                positions={leg.positions}
+                pathOptions={{ color: '#054752', weight: 4, opacity: 0.85, dashArray: '2 8', lineCap: 'round' }}
+                interactive={false}
+              />
+            )
+          )}
+          {journey?.nodes.map((p, i) => (
+            <CircleMarker
+              key={`journey-node-${i}`}
+              center={p}
+              radius={6}
+              pane="lt-journey-walk"
+              pathOptions={{ color: '#054752', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
+              interactive={false}
+            />
+          ))}
+          {fromPoint && (
+            <Marker position={fromPoint} icon={ICON_FROM} zIndexOffset={400}>
+              <Tooltip direction="top" offset={[0, -10]} className="lt-map-label">
+                {fromPointLabel}
+              </Tooltip>
+            </Marker>
+          )}
+          {toPoint && (
+            <Marker position={toPoint} icon={ICON_TO} zIndexOffset={400}>
+              <Tooltip direction="top" offset={[0, -10]} className="lt-map-label">
+                {toPointLabel}
+              </Tooltip>
+            </Marker>
+          )}
+          {pickedPoint && <Marker position={pickedPoint} icon={ICON_PICK} zIndexOffset={450} />}
           {markerNames.map((n) => {
             const isFrom = n === fromStopName;
             const isTo = n === toStopName;
@@ -272,7 +384,10 @@ export const RouteMap: React.FC<RouteMapProps> = ({
                 eventHandlers={{
                   click: () => {
                     if (onStopMarkerClick) onStopMarkerClick(n);
-                    else setSelectedStop(n);
+                    else {
+                      setPickedPoint(null);
+                      setSelectedStop(n);
+                    }
                   },
                 }}
               >
@@ -289,6 +404,38 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             );
           })}
         </MapContainer>
+        {pickedPoint && onPickPoint && (
+          <div className="lt-map-card" role="dialog" aria-label="Точка на карті">
+            <div className="lt-map-card__head">
+              <strong className="lt-map-card__title">Точка на карті</strong>
+              <button ref={closeRef} type="button" className="lt-icon-btn" onClick={() => setPickedPoint(null)} aria-label="Закрити">
+                ✕
+              </button>
+            </div>
+            <div className="lt-map-card__actions">
+              <button
+                type="button"
+                className="lt-btn lt-btn--origin"
+                onClick={() => {
+                  onPickPoint('from', pickedPoint[0], pickedPoint[1]);
+                  setPickedPoint(null);
+                }}
+              >
+                Звідси
+              </button>
+              <button
+                type="button"
+                className="lt-btn lt-btn--destination"
+                onClick={() => {
+                  onPickPoint('to', pickedPoint[0], pickedPoint[1]);
+                  setPickedPoint(null);
+                }}
+              >
+                Сюди
+              </button>
+            </div>
+          </div>
+        )}
         {selectedStop && (
           <div className="lt-map-card" role="dialog" aria-label={`Зупинка ${resolveStopLabel(selectedStop)}`}>
             <div className="lt-map-card__head">
