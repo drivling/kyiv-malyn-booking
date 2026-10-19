@@ -77,4 +77,16 @@ describe('/about на різних доменах', () => {
       OWN_NET_CASE_URL,
     );
   });
+
+  test('рядок «що саме у вас відкрито»: збірка, воркер, дані, адреси для звірки — відносні', () => {
+    const { container } = renderOn('malin.kiev.ua');
+    const stamp = screen.getByTestId('build-stamp');
+    expect(stamp.id).toBe('build');
+    expect(stamp.textContent).toContain('збірка');
+    expect(stamp.textContent).toContain('service worker');
+    expect(stamp.textContent).toContain('BUILD_ID');
+    expect(container.querySelector('#build a[href="/transport-sw.js"]')).not.toBeNull();
+    expect(container.querySelector('#build a[href="/transport/revisions"]')).not.toBeNull();
+    expect(stamp.innerHTML).not.toMatch(/https?:\/\//);
+  });
 });

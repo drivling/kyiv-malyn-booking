@@ -285,6 +285,16 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   caches `.js` by extension and held the worker at the edge for 4 h without it) and 404s the worker/manifest on the
   secondary domain.
   Never bump `BUILD_ID` by hand; never precache `/` (301) or the prerendered pages.
+- **Verifiable build** (`Docs/transport-verifiable-build-2026-10.md`): `scripts/sri.mjs` runs right after `vite build` and
+  before the prerenders and puts `integrity="sha384-…" crossorigin="anonymous"` on the entry script and stylesheet of
+  `dist/index.html` (pure `addIntegrity()`, test `src/test/sri.test.ts`); the prerenders copy that head, the worker
+  precaches the same bytes, so SRI and cache-first do not conflict. `/about#build` (`src/pwa/BuildStamp.tsx`,
+  `useBuildInfo`) shows the loaded bundle hash, the active worker's `BUILD_ID` (`GET_BUILD_ID`) and the revision of the
+  dataset copy in the browser, with relative links to check them (`/transport-sw.js`, page source, `/transport/revisions`);
+  nothing is rendered under prerender. An installed app keeps opening `/transport*` from the precache when the domain
+  itself does not answer (smoke section «Без домену»); no updates, API, map or pages outside the scope then. By the
+  owner's decision there is no `Docs/fork.md` or any «run your own copy» guide: the license does not forbid forking, the
+  repository is public, and that is all.
 - **Offline writes** (`Docs/transport-offline-writes-2026-10.md`): the three public POSTs from the board (sticker scans,
   sticker returns, arrival reports) go through `sendOrQueue()` in `src/pwa/outbox.ts` — a localStorage queue
   (`transport-outbox:v1`, ≤ 50 items / 7 days / 10 attempts, deduplicated per `key`: sticker or trip + Kyiv day) that

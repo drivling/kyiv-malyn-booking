@@ -23,6 +23,7 @@ import {
 } from '@/legal/sitePublic';
 import { primaryUrl, SITE_DOMAINS } from '@/site/siteConfig';
 import { OPEN_DATA_LICENSE, OWN_NET_CASE_URL } from '@/pages/LocalTransportPage/openData';
+import { BuildStamp } from '@/pwa/BuildStamp';
 import { usePageSeo } from '@/hooks/usePageSeo';
 import './privacyPolicyContent.css';
 import './CompanyLegalPage.css';
@@ -106,6 +107,8 @@ export const CompanyLegalPage: React.FC = () => {
           </a>
           .
         </p>
+        {/* П7 «перевірювана архітектура» (Docs/transport-verifiable-build-2026-10.md): збірка, воркер, дані — і як звірити */}
+        <BuildStamp />
 
         <div className="company-legal-highlight" aria-labelledby="company-legal-block-title">
           <div className="company-legal-highlight__head">
