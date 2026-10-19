@@ -1,7 +1,7 @@
 # Ремонт, форк, перевірка: SRI, видимий BUILD_ID і застосунок без домену
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** SRI закомічено й перевірено збіркою та smoke; далі — фаза 2 (видимий `BUILD_ID` на `/about`)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ⏳ · Фаза 4 ⏳  
+**Де зупинились:** `/about#build` закомічено; далі — фаза 3 (розділ «Без домену» у smoke, перевірка вже зроблена локально)  
 **Created:** 2026-10-20 · **Гілка тут:** `transport-verifiable-build` (від `main` після #97) · **Гілка в `internet4`:** `verifiable-build-case`
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -32,7 +32,7 @@
 | де рахувати SRI | окремий крок `scripts/sri.mjs` одразу після `vite build` і **до** пререндерів: `prerender-corridors`, `prerender-transport-stops` і `prerender-spa` копіюють `<head>` оболонки `dist/index.html`, тож `integrity` потрапляє і в статичні сторінки; `build-sw.mjs` іде ще пізніше і precache-ить ту саму оболонку |
 | що саме підписуємо | `<script type="module" src="/assets/index-*.js">` і `<link rel="stylesheet" href="/assets/index-*.css">` — єдина точка входу без code splitting; картинки Leaflet і шрифти не підписуються (SRI є лише для script/link). `sha384`, `crossorigin="anonymous"` явно (Vite ставить голий `crossorigin`) |
 | SRI і service worker | не заважають один одному: воркер віддає з кешу ті самі байти, що й сервер, тож хеш збігається; перевірку робить браузер на будь-якій відповіді з `type: basic`. `freshBuild.ts` (`BUNDLE_RE` по `src`) і `assertShellCovered` (`src|href`) атрибут `integrity` не бачать |
-| видимий `BUILD_ID` | один рядок на `/about` у блоці «працює без мережі»: збірка (хеш бандла з `loadedBundle()`), service worker (`BUILD_ID` через `GET_BUILD_ID` → `buildIdOf`, лише коли є реєстрація), дані станом на `revision` (`useTransportDataset().dataAsOf`). Під пререндером не рендериться (`isPrerendering()`), домен не хардкодиться; поруч — як звірити |
+| видимий `BUILD_ID` | один рядок на `/about#build` одразу під абзацом «працює без мережі» (`src/pwa/BuildStamp.tsx`, `useBuildInfo` у `src/pwa/buildInfo.ts`): збірка (хеш бандла з `loadedBundle()`), service worker (`navigator.serviceWorker.getRegistration('/transport')` → `buildIdOf(active)` через `GET_BUILD_ID`), дані — **ревізія локальної копії** `transport-dataset:v1`, а не `useTransportDataset().dataAsOf`: той хук качає датасет (265 КБ) з мережі, а `/about` не має робити цього заради рядка, і звіряти людина хоче те, що лежить у її браузері, з `/transport/revisions`. Під пререндером не рендериться (`isPrerendering()`), домен не хардкодиться, поруч — як звірити (`/transport-sw.js`, джерело сторінки, журнал ревізій) |
 | «застосунок без домену» | перевіряємо фактом, а не обіцянкою: `serve-dist` зупинений = DNS не відповідає з погляду застосунку; результат і межі (що НЕ працює без домену) — розділ «Без домену» у `transport-pwa-smoke.md`; код правимо лише якщо щось справді заважає |
 | гілка в цьому репо | `git worktree` `…/kyiv-malyn-booking-stage5` від `origin/main` (основний чекаут зайнятий іншою сесією; гілки не перемикаємо); `node_modules` — symlink на основний чекаут |
 
@@ -50,10 +50,10 @@
 - [x] **1.5** Коміт `Subresource integrity for the site bundle`
 
 Фаза 2 — видимий `BUILD_ID` на `/about`
-- [ ] **2.1** `src/pwa/buildInfo.ts`: `useBuildInfo()` → `{ bundle, swBuildId, dataAsOf }` (реєстрація воркера читається через `navigator.serviceWorker.getRegistration('/transport')`, id — `buildIdOf(active)`)
-- [ ] **2.2** Рядок у блоці «працює без мережі» на `/about` + речення «як звірити» (відносні адреси `/transport-sw.js`, джерело сторінки); не рендериться під пререндером
-- [ ] **2.3** Тести: `buildInfo.test.tsx` (без воркера → лише збірка й дані; з воркером → id), `CompanyLegalPage.test.tsx` (рядок є, доменів нема)
-- [ ] **2.4** Коміт `Visible build id, worker id and data revision on /about`
+- [x] **2.1** `src/pwa/buildInfo.ts`: `useBuildInfo()` → `{ bundle, worker, dataAsOf }` (`activeWorkerBuildId` через `getRegistration('/transport')` → `buildIdOf(active)`; `storedDataAsOf` з локальної копії), `src/pwa/BuildStamp.tsx`
+- [x] **2.2** Рядок у блоці «працює без мережі» на `/about` + речення «як звірити» (відносні адреси `/transport-sw.js`, джерело сторінки); не рендериться під пререндером
+- [x] **2.3** Тести: `buildInfo.test.tsx` (хеш, воркер/без воркера, копія/без копії, пререндер → нічого, відносні адреси), `CompanyLegalPage.test.tsx` (рядок `#build` є, абсолютних адрес нема)
+- [x] **2.4** Коміт `Visible build id, worker id and data revision on /about`
 
 Фаза 3 — застосунок живе без домену
 - [ ] **3.1** Локальна перевірка: `npm run build` → `serve-dist` → перший візит `/transport` (воркер activated) → **зупинити serve-dist** → відкрити `/transport/stop/<id>`, `/transport/route/<id>`, `/transport/scheme`: сторінки з precache, дані з копії/знімка, смужка стану; `/mizhgorodski` і `/about` — помилка браузера (поза scope)
@@ -69,6 +69,14 @@
 - [ ] **4.5** `gh pr view` → push обох гілок → два compare-посилання в «Підсумку»
 
 ## Знахідки
+
+### Фаза 2 — видимий BUILD_ID (2026-10-20)
+
+- Значення в `<code>` без форматування дат: ревізія — ISO як у `/transport/revisions`, щоб звіряти очима, а не
+  перераховувати часові пояси. `worker === undefined` поки відповідь не прийшла («перевіряємо…»), `null` — чесний підпис
+  «не встановлено (з’являється після відкриття /transport)»: на `/about` воркер є лише в тих, хто вже відкривав табло.
+- `react-refresh/only-export-components` (`max-warnings 0`): хелпери `workerLabel`/`BUILD_STAMP_ID` живуть у
+  `buildInfo.ts`, компонент — єдиний експорт `BuildStamp.tsx`.
 
 ### Фаза 1 — SRI (2026-10-20)
 
