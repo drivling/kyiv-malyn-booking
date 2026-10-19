@@ -93,6 +93,57 @@ geohash. Після мерджу фід з'явиться на `https://www.tran
 `"type": "mobility-database", "mdb-id": "mdb-3615"` — це один PR у `public-transport/transitous`, форк
 `drivling/transitous` уже є.
 
+## 3а. Атрибуція в планувальниках — щоб бачили нас, а не міськраду
+
+Що показує Transitous (перевірено 2026-10-19) і звідки це береться:
+
+| де | поле | значення до → після |
+|---|---|---|
+| кнопка під рейсом у деталях маршруту | `agency_name` → посилання `agency_url` | «Громадський транспорт міста Малина» → `malyn-rada.gov.ua` → **`https://malin.kiev.ua/transport`** |
+| transitous.org/sources, «published by» | `feed_info.feed_publisher_name` | «Technologies LLC» → **«malin.kiev.ua (Technologies LLC)»** |
+| transitous.org/sources, «under copyright of» | `attributions.txt` | «malin.kiev.ua — Serhii Merenkov / Technologies LLC» (уже так) |
+| transitous.org/sources, рядок атрибуції | `license.attribution-text` у їхньому `feeds/ua.json` | «community feed by malin.kiev.ua» → наша офіційна атрибуція (PR, див. нижче) |
+
+`feed_publisher_name` і запасний `agency_url` — у коді (`backend/src/gtfs-feed.ts`); **чинний `agency_url` живе в
+`meta.agency` у базі**, його міняє адмін одним запитом (PUT усього датасету з `baseRevision`, як редактори):
+
+```bash
+API=https://kyiv-malyn-booking-production.up.railway.app
+curl -s $API/transport/dataset > /tmp/ds.json
+python3 - <<'EOF2'
+import json
+d = json.load(open('/tmp/ds.json')); d['baseRevision'] = d.pop('revision')
+d['meta']['agency']['agency_url'] = 'https://malin.kiev.ua/transport'
+json.dump(d, open('/tmp/ds-put.json', 'w'), ensure_ascii=False)
+EOF2
+curl -s -X PUT $API/transport/dataset -H "Authorization: Bearer $VIBER_ADMIN_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/ds-put.json
+curl -s $API/transport/gtfs/agency.txt   # має містити https://malin.kiev.ua/transport
+```
+
+Transitous підхопить нову `agency_url` при нічному імпорті.
+
+## 3б. Transitous — PR на запис через Mobility Database (робить власник **руками**)
+
+Мейнтейнер додав фід як `http`-джерело; його ж правило — «use mobility database where possible», тож правильний запис
+посилається на `mdb-3615` і несе нашу атрибуцію. **Увага:** `AI_POLICY.md` Transitous забороняє коміти з LLM-інструментів
+і LLM-тексти в PR — правку, коміт і опис PR власник робить сам, тут лише факти. У `feeds/ua.json` замінити блок `malyn` на:
+
+```json
+        {
+            "name": "malyn",
+            "type": "mobility-database",
+            "mdb-id": "mdb-3615",
+            "license": {
+                "url": "https://own-net.com/license.html",
+                "attribution-text": "Дані: malin.kiev.ua — Сергій Меренков / ТОВ «Технології»"
+            }
+        }
+```
+
+Факти для опису PR (своїми словами, англійською): запис у Mobility Database `mdb-3615` злито 2026-10-19 (#1751), прямий
+URL той самий, ліцензія OwnNet Source License 1.1 з обов'язковою атрибуцією, фід валідний (0 помилок у gtfs-validator 8.0.1).
+Форк — `drivling/transitous`, гілка від `main`; у шаблоні PR поставити галочку про AI policy чесно.
+
 ## 4. Після реєстрації
 
 - Записати дати подачі/мерджу в «Знахідки» `transport-open-protocols-2026-10.md` і в «Чого поки нема» →

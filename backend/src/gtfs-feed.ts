@@ -59,8 +59,12 @@ const SERVICE_MAP: Record<string, string> = {
   weekdays: 'weekdays',
 };
 
+/**
+ * Видавець фіду — те, що споживачі показують як «published by» (Transitous /sources, Transitland). Сайт — перший,
+ * бо саме його мають бачити люди; юрособа — в дужках (Docs/transport-open-protocols-2026-10.md, «Атрибуція»).
+ */
 const FEED_PUBLISHER = {
-  feed_publisher_name: 'Technologies LLC',
+  feed_publisher_name: 'malin.kiev.ua (Technologies LLC)',
   feed_publisher_url: 'https://malin.kiev.ua/',
   feed_lang: 'uk',
   feed_contact_email: 'mer.sergei@gmail.com',
@@ -134,7 +138,9 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
   const agency = (dataset.meta.agency as Record<string, string> | null) || {
     agency_id: 'malyn',
     agency_name: 'Громадський транспорт міста Малина',
-    agency_url: 'https://malyn-rada.gov.ua/',
+    // Планувальники (Transitous, KDE Itinerary) показують agency_name кнопкою з agency_url під кожним рейсом —
+    // вона має вести на наш розклад, а не на сайт міськради. У БД (meta.agency) те саме значення.
+    agency_url: 'https://malin.kiev.ua/transport',
     agency_timezone: 'Europe/Kyiv',
     agency_lang: 'uk',
     agency_phone: '',

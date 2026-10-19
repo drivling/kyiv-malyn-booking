@@ -266,6 +266,12 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
   рейсами №7, №3+№8 — перший реальний сторонній споживач відкритих даних (П6, П9 закриті фактом).
 - Transitland: гілка форку відставала від upstream на 5 комітів, і «validate» червонів через чужі фіди в diff; після
   `git rebase upstream/main` + `--force-with-lease` перевірки лише на нашому файлі.
+- **Атрибуція у планувальнику (2026-10-19):** під рейсом Transitous показує `agency_name` кнопкою з `agency_url` —
+  вела на міськраду. Рішення власника «щоб бачили нас»: `agency_url` → `https://malin.kiev.ua/transport` (у БД — PUT
+  датасету адміном, рецепт у `open-protocols/README.md` 3а; у коді — запасне значення), `feed_publisher_name` →
+  «malin.kiev.ua (Technologies LLC)». Назву агенції не чіпаємо — це поле оператора. Запис у Transitous переводимо на
+  `mdb-3615` з нашою атрибуцією, але **PR робить власник руками**: `AI_POLICY.md` Transitous забороняє коміти й тексти
+  від LLM-інструментів (README 3б).
 
 - `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
   0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
