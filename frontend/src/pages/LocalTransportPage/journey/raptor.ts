@@ -79,8 +79,10 @@ export function searchAtDeparture(p: SearchParams): Journey[] {
     for (const [s, base] of bases) {
       for (const fp of tt.footpaths[s]) {
         const arr = base + fp.minutes;
-        if (arr < best[fp.to]) {
-          best[fp.to] = arr;
+        // Піший хід від старту (раунд 0) не відсікає рейсові прибуття: «дійти пішки» — не поїздка, і поїздка на ту саму
+        // зупинку лишається варіантом (інакше зникали б пересадки до кінця, куди швидше дійти пішки)
+        if (arr < (k === 0 ? tau[0][fp.to] : best[fp.to])) {
+          if (k > 0) best[fp.to] = arr;
           tau[k][fp.to] = arr;
           kind[k][fp.to] = FOOT;
           parent[k][fp.to] = { kind: 'foot', from: s, depMins: base, meters: fp.meters };
@@ -95,8 +97,7 @@ export function searchAtDeparture(p: SearchParams): Journey[] {
   let marked: number[] = [];
   for (const offset of sources) {
     const arr = p.departMins + offset.minutes;
-    if (arr < best[offset.stop]) {
-      best[offset.stop] = arr;
+    if (arr < tau[0][offset.stop]) {
       tau[0][offset.stop] = arr;
       vtau[0][offset.stop] = arr;
       kind[0][offset.stop] = SOURCE;

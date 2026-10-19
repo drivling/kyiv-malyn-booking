@@ -163,6 +163,23 @@ describe('planDay: точки замість зупинок', () => {
   });
 });
 
+describe('planDay: поїздка, повільніша за прогулянку', () => {
+  it('не відсікається міткою «дійшли пішки» з нульового раунду — окремо є directWalk', () => {
+    // Y1 і Z — 445 м одна від одної, але початок O за 2 хв ходьби від Z і за 6 хв від Y1, а кінець T — за 1 хв від Z.
+    const tt = assembleTimetable({
+      stops: [
+        { id: 'Y1', lat: 50.0, lng: 29 },
+        { id: 'Z', lat: 50.004, lng: 29 },
+      ],
+      patterns: [{ routeId: 'X', direction: 'there', variantId: null, stops: [0, 1], trips: [trip('x1', 485, 487)] }],
+      options: { ...OPTS, maxTransferWalkM: 50 },
+    });
+    const plan = planDay(tt, { kind: 'point', lat: 50.003, lng: 29 }, { kind: 'point', lat: 50.0041, lng: 29 });
+    expect(summary(plan.journeys)).toEqual([[479, 488, 0]]); // ходьба до Y1 6 хв, рейс 485→487, з Z до T 1 хв
+    expect(plan.directWalk).toEqual({ meters: 122, minutes: 3 });
+  });
+});
+
 describe('planDay: піший маршрут напряму', () => {
   it('близькі кінці — пропонуємо пішки', () => {
     // A–B = 1112 м = 19 хв ≤ 20
