@@ -20,7 +20,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { server } from '@/test/msw/server';
-import { haversineDistance } from '../nearbyAlternatives';
+import { haversineDistance } from '../geo';
 import { DEFAULT_JOURNEY_OPTIONS, type JourneyOptions } from './options';
 import { planDay } from './plan';
 import { assembleTimetable } from './timetable';

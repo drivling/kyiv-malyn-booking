@@ -25,8 +25,8 @@ import {
 import { VERIFIED_ROUTE_IDS, isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
 import { computeTripTiming, minutesAtStop, tripServesPair } from './dataset/tripTiming';
 import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
-import { findNearestTrip, findUpcomingTrips } from './nearestTrip';
-import { buildRoutesFromData, tripDestination } from './stopDepartures';
+import { findNearestTrip } from './nearestTrip';
+import { buildRoutesFromData, tripDestination, type RouteBundle } from './stopDepartures';
 import {
   chainForRecord,
   chainsServingPair,
@@ -46,9 +46,11 @@ import { routeLine, routeTitle } from './routeLabel';
 import { formatDateUrl, nowClock, parseDateUrl, todayDateUrl } from './dateUrl';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
-import { findNearbyAlternatives, haversineDistance } from './nearbyAlternatives';
+import { haversineDistance } from './geo';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
+import { buildTimetable, journeyWindow, planDay, serviceDayForDate, type Place, type TransitLeg } from './journey';
+import { JourneyResults } from './journey/JourneyResults';
 import { ArrivalReportSheet } from './ArrivalReportSheet';
 import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
@@ -501,40 +503,110 @@ export const LocalTransportPage: React.FC = () => {
     [committedPair, stopsCatalog]
   );
 
-  /** Прямі маршрути між двома зупинками: «З» раніше за «До» в основному ланцюжку чи у варіанті шляху */
-  const directRoutesBetween = useCallback(
-    (from: string, to: string) =>
-      routes.filter((r) => chainsServingPair(stopsByRoute, variantsByRoute, r.id, from, to).length > 0),
-    [routes, stopsByRoute, variantsByRoute]
+  /** Тип дня руху за датою пошуку (будні / вихідні): calendar сайту знає лише everyday і weekdays */
+  const serviceDay = useMemo(() => {
+    const d = parseDateUrl(searchDate);
+    return d ? serviceDayForDate(d) : 'weekday';
+  }, [searchDate]);
+  const nextServiceDay = useMemo(() => {
+    const d = parseDateUrl(searchDate);
+    if (!d) return 'weekday' as const;
+    d.setDate(d.getDate() + 1);
+    return serviceDayForDate(d);
+  }, [searchDate]);
+  const searchMins = useMemo(() => {
+    const [h, m] = searchTime.split(':').map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
+  }, [searchTime]);
+  const hasCommittedPair = committedPair != null;
+  /** Розклад під дату пошуку для пошуку з пересадками (journey/); будується лише коли є пара, після configureSegmentDurations */
+  const timetable = useMemo(
+    () =>
+      hasCommittedPair ? buildTimetable({ routes, stopsByRoute, variantsByRoute, coords: stopsCoords, serviceDay }) : null,
+    [hasCommittedPair, routes, stopsByRoute, variantsByRoute, stopsCoords, serviceDay]
+  );
+  /** Усі недоміновані поїздки дня між парою (прямі й з пересадками) */
+  const dayPlan = useMemo(
+    () =>
+      timetable && committedPair
+        ? planDay(timetable, { kind: 'stop', stopId: committedPair.from }, { kind: 'stop', stopId: committedPair.to })
+        : null,
+    [timetable, committedPair]
+  );
+  /** Скільки поїздок показано до/після моменту пошуку; «Показати раніші/пізніші» збільшують */
+  const [journeyCounts, setJourneyCounts] = useState({ before: 0, after: 5 });
+  useEffect(() => {
+    setJourneyCounts({ before: 0, after: 5 });
+  }, [committedPair, searchDate, searchTime]);
+  const journeyView = useMemo(() => {
+    if (!timetable || !dayPlan || !committedPair) return null;
+    const today = journeyWindow(dayPlan.journeys, { mode: 'depart', mins: searchMins, ...journeyCounts });
+    if (today.items.length > 0) return { ...today, timetable, directWalk: dayPlan.directWalk, nextDay: false };
+    // Сьогодні поїздок більше немає — показуємо перші наступного дня
+    const nextTimetable = buildTimetable({ routes, stopsByRoute, variantsByRoute, coords: stopsCoords, serviceDay: nextServiceDay });
+    const nextPlan = planDay(
+      nextTimetable,
+      { kind: 'stop', stopId: committedPair.from },
+      { kind: 'stop', stopId: committedPair.to }
+    );
+    const tomorrow = journeyWindow(nextPlan.journeys, { mode: 'depart', mins: 0, before: 0, after: journeyCounts.after });
+    return {
+      ...tomorrow,
+      timetable: nextTimetable,
+      directWalk: dayPlan.directWalk,
+      nextDay: tomorrow.items.length > 0,
+    };
+  }, [timetable, dayPlan, committedPair, searchMins, journeyCounts, routes, stopsByRoute, variantsByRoute, stopsCoords, nextServiceDay]);
+  /** Лінії показаних поїздок — підсвічуються на карті */
+  const journeyRouteIds = useMemo(
+    () => [...new Set((journeyView?.items ?? []).flatMap((j) => j.legs.flatMap((l) => (l.kind === 'transit' ? [l.routeId] : []))))],
+    [journeyView]
+  );
+  const tripIndex = useMemo(() => {
+    const index = new Map<string, { trip: TransportRecord; route: RouteBundle }>();
+    for (const route of routes) for (const trip of route.trips) index.set(trip.trip_id, { trip, route });
+    return index;
+  }, [routes]);
+  const placeLabel = useCallback(
+    (place: Place) => ('stopId' in place ? displayNameForStopKey(place.stopId, stopsCatalog) : 'Точка на карті'),
+    [stopsCatalog]
+  );
+  const journeyDestination = useCallback(
+    (leg: TransitLeg) => {
+      const hit = tripIndex.get(leg.tripId);
+      return hit
+        ? tripDestination(hit.trip, leg.direction, hit.route, stopsCatalog, recordVariant(variantsByRoute, hit.trip))
+        : displayNameForStopKey(leg.alightStopId, stopsCatalog);
+    },
+    [tripIndex, stopsCatalog, variantsByRoute]
+  );
+  const journeyVariantName = useCallback(
+    (leg: TransitLeg) => {
+      const hit = tripIndex.get(leg.tripId);
+      return hit ? (recordVariant(variantsByRoute, hit.trip)?.name ?? null) : null;
+    },
+    [tripIndex, variantsByRoute]
   );
 
-  const routesConnectingFromTo = useMemo(() => {
-    if (!committedPair || !stops.length) return [];
-    return directRoutesBetween(committedPair.from, committedPair.to);
-  }, [directRoutesBetween, stops, committedPair]);
-
-  /** «Немає прямого маршруту»: сусідні зупинки (до 400 м), між якими прямий маршрут є */
-  const nearbyAlternatives = useMemo(() => {
-    if (!committedPair || routesConnectingFromTo.length > 0 || !stopsCoords) return [];
-    return findNearbyAlternatives({
+  // Аналітика: кожна резолвнута пара — один «пошук»; порожня видача — окрема подія.
+  // Без PII: лише id зупинок і лічильники.
+  useEffect(() => {
+    if (!isMainPage || !committedPair || !dayPlan) return;
+    const direct = new Set(
+      dayPlan.journeys.filter((j) => j.transfers === 0).flatMap((j) => j.legs.flatMap((l) => (l.kind === 'transit' ? [l.routeId] : [])))
+    );
+    const bestTransfers = dayPlan.journeys.reduce((min, j) => Math.min(min, j.transfers), Infinity);
+    gaTrackEvent('transport_search', {
       from: committedPair.from,
       to: committedPair.to,
-      stopIds: stops,
-      coords: stopsCoords,
-      directRouteIds: (a, b) => directRoutesBetween(a, b).map((r) => r.id),
+      direct_routes: direct.size,
+      journeys: dayPlan.journeys.length,
+      best_transfers: Number.isFinite(bestTransfers) ? bestTransfers : -1,
     });
-  }, [committedPair, routesConnectingFromTo, stopsCoords, stops, directRoutesBetween]);
-
-  // Аналітика: кожна резолвнута пара — один «пошук»; порожня видача — окрема подія.
-  // Без PII: лише id зупинок і кількість прямих маршрутів.
-  useEffect(() => {
-    if (!isMainPage || !committedPair) return;
-    const params = { from: committedPair.from, to: committedPair.to, direct_routes: routesConnectingFromTo.length };
-    gaTrackEvent('transport_search', params);
-    if (routesConnectingFromTo.length === 0) {
-      gaTrackEvent('transport_no_route', { from: params.from, to: params.to, nearby: nearbyAlternatives.length });
+    if (dayPlan.journeys.length === 0) {
+      gaTrackEvent('transport_no_route', { from: committedPair.from, to: committedPair.to });
     }
-  }, [isMainPage, committedPair, routesConnectingFromTo, nearbyAlternatives]);
+  }, [isMainPage, committedPair, dayPlan]);
 
   useEffect(() => {
     if (!isMainPage || !stops.length) return;
@@ -1033,17 +1105,19 @@ export const LocalTransportPage: React.FC = () => {
     setStopFilter(stopId);
   };
 
-  const handleSelectRoute = (id: string) => {
+  const handleSelectRoute = (id: string, legPair?: { from: string; to: string }) => {
     const routeStopIds = [
       ...(stopsByRoute?.[id] ? getStopKeysFromRouteStops(stopsByRoute[id], stopsCatalog) : []),
       ...servedStopIds(undefined, variantsByRoute, id),
     ];
-    const fromResolved = committedPair
+    const fromResolved = legPair
+      ? legPair.from
+      : committedPair
       ? committedPair.from
       : latestStopRef.current || effectiveStopFilter
         ? resolveStopIdInList(latestStopRef.current || effectiveStopFilter, stops, stopsCatalog)
         : '';
-    const toResolved = committedPair ? committedPair.to : '';
+    const toResolved = legPair ? legPair.to : committedPair ? committedPair.to : '';
     const fromOnRoute = fromResolved && routeStopIds.includes(fromResolved) ? fromResolved : null;
     const toOnRoute = toResolved && routeStopIds.includes(toResolved) ? toResolved : null;
     const params = new URLSearchParams();
@@ -1786,51 +1860,9 @@ export const LocalTransportPage: React.FC = () => {
                     />
                   </div>
                 )
-              ) : routesConnectingFromTo.length === 0 ? (
+              ) : !journeyView ? null : journeyView.items.length === 0 ? (
                 <div className="lt-no-routes" role="status">
-                  <p>Між цими зупинками немає прямого маршруту.</p>
-                  {nearbyAlternatives.length > 0 && (
-                    <div className="lt-nearby">
-                      <p className="lt-nearby-title">Поруч є зупинки з прямим маршрутом:</p>
-                      <ul className="lt-nearby-list">
-                        {nearbyAlternatives.map((alt) => {
-                          const walkFrom =
-                            alt.changed === 'from'
-                              ? displayNameForStopKey(committedPair.from, stopsCatalog)
-                              : alt.changed === 'to'
-                                ? displayNameForStopKey(committedPair.to, stopsCatalog)
-                                : null;
-                          const walk = walkFrom ? `${alt.walkMeters} м від «${walkFrom}»` : `${alt.walkMeters} м пішки разом`;
-                          return (
-                            <li key={`${alt.from}-${alt.to}`}>
-                              <button
-                                type="button"
-                                className="lt-nearby-item"
-                                onClick={() => {
-                                  gaTrackEvent('transport_nearby_pick', {
-                                    from: alt.from,
-                                    to: alt.to,
-                                    changed: alt.changed,
-                                    walk_m: alt.walkMeters,
-                                  });
-                                  // Стан → автосинхронізація URL → нова видача
-                                  setSearchFrom(alt.from);
-                                  setSearchTo(alt.to);
-                                }}
-                              >
-                                <span className="lt-nearby-pair">
-                                  {displayNameForStopKey(alt.from, stopsCatalog)} → {displayNameForStopKey(alt.to, stopsCatalog)}
-                                </span>
-                                <span className="lt-nearby-meta">
-                                  {walk} · {alt.routeIds.map((id) => `№${routeNo(id)}`).join(', ')}
-                                </span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
+                  <p>Не знайшли поїздок між цими зупинками.</p>
                   <p className="lt-no-routes-hint">
                     Спробуйте інші зупинки на карті або відкрийте{' '}
                     <Link to={`/transport/stop?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`}>
@@ -1842,131 +1874,24 @@ export const LocalTransportPage: React.FC = () => {
               ) : (
                 <>
                   <h2 className="lt-routes-heading" id="lt-results-heading">
-                    Прямі маршрути: {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
+                    Маршрути: {displayNameForStopKey(committedPair.from, stopsCatalog)} →{' '}
                     {displayNameForStopKey(committedPair.to, stopsCatalog)}
                   </h2>
-                  {(() => {
-                    const fromId = committedPair.from;
-                    const toId = committedPair.to;
-                    const toLabel = displayNameForStopKey(toId, stopsCatalog);
-                    const searchMins = (() => {
-                      const [h, m] = searchTime.split(':').map(Number);
-                      return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : getKyivMinutesNow();
-                    })();
-                    const DAY = 24 * 60;
-                    // Табло найближчих відправлень: картки за часом очікування, а не за номером маршруту.
-                    // Час на зупинці «Звідки» рахується для кожного рейсу окремо (скорочені рейси, стиснення).
-                    const cards = routesConnectingFromTo.map((r) => {
-                      // Напрямки ланцюжків, що везуть пару (основні й варіанти шляху); різні — рейси обох напрямків
-                      const dirs = [...new Set(chainsServingPair(stopsByRoute, variantsByRoute, r.id, fromId, toId).map((c) => c.direction))];
-                      const dir = dirs.length === 1 ? dirs[0] : undefined;
-                      const upcoming = findUpcomingTrips(
-                        r.trips,
-                        searchMins,
-                        dir,
-                        {
-                          routeId: r.id,
-                          chainKeys: {
-                            there: routeStopChain(stopsByRoute, r.id, 'there'),
-                            back: routeStopChain(stopsByRoute, r.id, 'back'),
-                          },
-                          chainFor: chainOfTrip,
-                          fromStop: fromId,
-                          toStop: toId,
-                        },
-                        3
-                      );
-                      const nearest = upcoming[0] ?? null;
-                      const dist = nearest ? (nearest.timeAtFrom - searchMins + DAY) % DAY : Infinity;
-                      return { r, dir, upcoming, nearest, dist };
-                    });
-                    cards.sort((a, b) => a.dist - b.dist);
-                    return cards.map(({ r, dir, upcoming, nearest }) => {
-                      const nextTimeStr = nearest ? formatTime(nearest.timeAtFrom) : '—';
-                      const arrivalStr = nearest?.timeAtTo != null ? formatTime(nearest.timeAtTo) : null;
-                      const durationMins =
-                        nearest?.timeAtTo != null ? Math.max(0, Math.round(nearest.timeAtTo - nearest.timeAtFrom)) : null;
-                      const nearestVariant = nearest ? recordVariant(variantsByRoute, nearest.record) : null;
-                      const destination = nearest
-                        ? tripDestination(nearest.record, nearest.direction, r, stopsCatalog, nearestVariant)
-                        : toLabel;
-                      const verified = isVerifiedRoute(r.id);
-                      // Підпис під часом: відлік від поточного часу (не від часу пошуку) і лише для сьогодні;
-                      // після останнього рейсу — чесно кажемо, що показано перший рейс наступного дня.
-                      let timeLabel = 'відправлення';
-                      let timeLabelMod = '';
-                      if (nearest?.wrapped) {
-                        timeLabel = 'рейсів пізніше немає · перший наступного дня';
-                        timeLabelMod = 'lt-route-card-time-label--wrapped';
-                      } else if (nearest && travelDayOffset === 0) {
-                        const delta = Math.round(nearest.timeAtFrom - kyivNowMins);
-                        if (delta >= 0) {
-                          timeLabel = `через ${formatWait(delta)}`;
-                          timeLabelMod = 'lt-route-card-time-label--soon';
-                        } else {
-                          timeLabel = 'вже вирушив';
-                        }
-                      }
-                      // «далі 09:40 · 10:55» — наступні рейси лінії; перший рейс із початку дня підписано «завтра»
-                      // (коли й найближчий уже «наступного дня», усі далі теж — без повторного «завтра»).
-                      const later = upcoming.slice(1);
-                      const laterLabel = later
-                        .map((t, i) => {
-                          const firstWrapped = t.wrapped && !nearest?.wrapped && (i === 0 || !later[i - 1].wrapped);
-                          return `${firstWrapped ? 'завтра ' : ''}${formatTime(t.timeAtFrom)}`;
-                        })
-                        .join(' · ');
-                      const ariaLabel = [
-                        `Маршрут №${routeNo(r.id)} до ${destination}`,
-                        nearestVariant ? `іншим шляхом: ${nearestVariant.name}` : '',
-                        `відправлення ${nextTimeStr}`,
-                        arrivalStr ? `прибуття ${arrivalStr}` : '',
-                        durationMins != null ? `${durationMins} хвилин` : '',
-                        timeLabel !== 'відправлення' ? timeLabel : '',
-                        laterLabel ? `далі ${laterLabel}` : '',
-                      ]
-                        .filter(Boolean)
-                        .join(', ');
-                      return (
-                        <button
-                          key={`${r.id}-${dir ?? 'both'}`}
-                          type="button"
-                          className="lt-route-card"
-                          onClick={() => {
-                            gaTrackEvent('transport_route_card_click', { route_id: r.id });
-                            handleSelectRoute(r.id);
-                          }}
-                          aria-label={ariaLabel}
-                        >
-                          <div className="lt-route-card-time">
-                            <span className="lt-route-card-time-value">{nextTimeStr}</span>
-                            <span className={`lt-route-card-time-label ${timeLabelMod}`}>{timeLabel}</span>
-                          </div>
-                          <div className="lt-route-card-main">
-                            <span
-                              className={`lt-route-num lt-route-num--card ${verified ? 'lt-route-num--verified' : 'lt-route-num--unverified'}`}
-                              style={routeColorStyle(r.id)}
-                              title={verified ? 'Час між зупинками — з виміряних даних' : 'Час орієнтовний'}
-                            >
-                              №{routeNo(r.id)}
-                            </span>
-                            <span className="lt-route-destination">
-                              <span aria-hidden>→ </span>
-                              {destination}
-                            </span>
-                            {arrivalStr ? (
-                              <span className="lt-route-card-times">
-                                {nextTimeStr} → {arrivalStr}
-                                {durationMins != null ? ` · ${durationMins} хв` : ''}
-                              </span>
-                            ) : null}
-                            {nearestVariant ? <span className="lt-route-card-variant">іншим шляхом: {nearestVariant.name}</span> : null}
-                            {laterLabel ? <span className="lt-route-card-next">далі {laterLabel}</span> : null}
-                          </div>
-                        </button>
-                      );
-                    });
-                  })()}
+                  <JourneyResults
+                    timetable={journeyView.timetable}
+                    items={journeyView.items}
+                    hiddenEarlier={journeyView.hiddenEarlier}
+                    hiddenLater={journeyView.hiddenLater}
+                    nowMins={travelDayOffset === 0 ? kyivNowMins : null}
+                    nextDay={journeyView.nextDay}
+                    directWalk={journeyView.directWalk}
+                    placeName={placeLabel}
+                    destinationOf={journeyDestination}
+                    variantNameOf={journeyVariantName}
+                    onOpenRoute={(leg) => handleSelectRoute(leg.routeId, { from: leg.boardStopId, to: leg.alightStopId })}
+                    onShowEarlier={() => setJourneyCounts((c) => ({ ...c, before: c.before + 5 }))}
+                    onShowLater={() => setJourneyCounts((c) => ({ ...c, after: c.after + 5 }))}
+                  />
                 </>
               )}
             </div>
@@ -2034,7 +1959,7 @@ export const LocalTransportPage: React.FC = () => {
               toStopName: resolvedTo || undefined,
               resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
               routeLines: overviewLines,
-              highlightRouteIds: committedPair ? routesConnectingFromTo.map((r) => r.id) : [],
+              highlightRouteIds: committedPair ? journeyRouteIds : [],
               nodeStopIds: NODE_STOP_IDS,
               routesAtStop: linesAtStop,
               boardHref: boardHrefFor,

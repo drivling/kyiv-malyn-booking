@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
-import { haversineDistance } from './nearbyAlternatives';
+import { haversineDistance } from './geo';
 
 export interface NearestStop {
   /** Ключ зупинки (id) — як у `coords.stops` */

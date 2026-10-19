@@ -87,6 +87,45 @@ const sortedDataset = {
   segments: [...dataset.segments, { routeId: '3', fromStopId: 'st_a', toStopId: 'st_b', seconds: 300 }],
 };
 
+/** №3 лежить далеко від №2 (≥ 10 км): ні прямого, ні з пересадкою зі st_a до st_d не доїхати */
+const disconnectedDataset = {
+  ...dataset,
+  stops: [...dataset.stops, { id: 'st_d', name: 'Парк', lat: 50.9, lng: 29.4 }, { id: 'st_e', name: 'Ліс', lat: 50.91, lng: 29.41 }],
+  routes: [
+    ...dataset.routes,
+    { id: '3', fromName: 'Парк', toName: 'Ліс', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+  ],
+  routeStops: [
+    ...dataset.routeStops,
+    { routeId: '3', stopId: 'st_d', orderThere: 1, orderBack: 2, mapOnly: false },
+    { routeId: '3', stopId: 'st_e', orderThere: 2, orderBack: 1, mapOnly: false },
+  ],
+  trips: [
+    ...dataset.trips,
+    { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Ліс', directionId: '1', departureTime: '10:00:00', blockId: null },
+  ],
+};
+
+/** №3 їде від Лікарні (кінцева №2) до Парку: з Базару в Парк — лише з пересадкою на Лікарні */
+const transferDataset = {
+  ...dataset,
+  stops: [...dataset.stops, { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 }],
+  routes: [
+    ...dataset.routes,
+    { id: '3', fromName: 'Лікарня', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+  ],
+  routeStops: [
+    ...dataset.routeStops,
+    { routeId: '3', stopId: 'st_c', orderThere: 1, orderBack: 2, mapOnly: false },
+    { routeId: '3', stopId: 'st_d', orderThere: 2, orderBack: 1, mapOnly: false },
+  ],
+  trips: [
+    ...dataset.trips,
+    { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Парк', directionId: '1', departureTime: '08:45:00', blockId: null },
+  ],
+  segments: [...dataset.segments, { routeId: '3', fromStopId: 'st_c', toStopId: 'st_d', seconds: 300 }],
+};
+
 const PAIR_URL = '/transport/st_a/st_b?d=16.09.26&h=09%3A12';
 const location = () => screen.getByTestId('location').textContent ?? '';
 
@@ -111,7 +150,7 @@ beforeEach(() => {
 
 async function openPair() {
   renderPlanner(PAIR_URL);
-  const heading = await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+  const heading = await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
   const from = screen.getByRole('combobox', { name: 'Звідки' });
   const to = screen.getByRole('combobox', { name: 'Куди' });
   expect(from).toHaveValue('Базар');
@@ -123,16 +162,16 @@ describe('LocalTransportPage planner: form state', () => {
   it('shows connecting routes for the pair from the URL; labels are wired to the inputs', async () => {
     await openPair();
     expect(screen.getByText('№2')).toBeInTheDocument();
-    expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Не знайшли поїздок/)).not.toBeInTheDocument();
   });
 
-  it('typing in «З» keeps the last results and shows a hint instead of «немає прямого маршруту»', async () => {
+  it('typing in «З» keeps the last results and shows a hint instead of «Не знайшли поїздок»', async () => {
     const user = userEvent.setup();
     const { from } = await openPair();
     await user.tripleClick(from);
     await user.keyboard('Ба');
     expect(from).toHaveValue('Ба');
-    expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Не знайшли поїздок/)).not.toBeInTheDocument();
     expect(screen.getByText('Оберіть зупинку зі списку.')).toHaveAttribute('role', 'status');
     expect(screen.getByText('№2')).toBeInTheDocument();
     expect(location()).toBe(PAIR_URL);
@@ -162,7 +201,7 @@ describe('LocalTransportPage planner: form state', () => {
     expect(screen.queryByText('№2')).not.toBeInTheDocument();
   });
 
-  it('same stop in both fields shows a dedicated hint, not «немає прямого маршруту»', async () => {
+  it('same stop in both fields shows a dedicated hint, not «Не знайшли поїздок»', async () => {
     const user = userEvent.setup();
     const { from } = await openPair();
     await user.tripleClick(from);
@@ -170,102 +209,91 @@ describe('LocalTransportPage planner: form state', () => {
     await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
     expect(from).toHaveValue('Вокзал');
     expect(screen.getByText(/однакові/)).toHaveAttribute('role', 'status');
-    expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Не знайшли поїздок/)).not.toBeInTheDocument();
   });
 
-  it('a pair without a direct route shows the no-route state once both stops are resolved', async () => {
-    // st_d лежить лише на маршруті №3 (st_c ↔ st_d): обидві зупинки резолвляться, спільного маршруту нема.
-    server.use(
-      http.get(`${TEST_API_URL}/transport/dataset`, () =>
-        HttpResponse.json({
-          ...dataset,
-          stops: [...dataset.stops, { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 }],
-          routes: [
-            ...dataset.routes,
-            { id: '3', fromName: 'Лікарня', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
-          ],
-          routeStops: [
-            ...dataset.routeStops,
-            { routeId: '3', stopId: 'st_c', orderThere: 1, orderBack: 2, mapOnly: false },
-            { routeId: '3', stopId: 'st_d', orderThere: 2, orderBack: 1, mapOnly: false },
-          ],
-          trips: [
-            ...dataset.trips,
-            { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Парк', directionId: '1', departureTime: '10:00:00', blockId: null },
-          ],
-        })
-      )
-    );
+  it('a pair no route connects shows the no-trips state once both stops are resolved', async () => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(disconnectedDataset)));
     renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
-    expect(await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/Не знайшли поїздок/, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'табло зупинки' })).toBeInTheDocument();
   });
 });
 
-describe('LocalTransportPage planner: nearby alternatives when there is no direct route', () => {
-  // st_e «Ринок» стоїть за ~20 м від st_a «Базар» і лежить на маршруті №3 разом зі st_d «Парк».
-  const withNearby = {
-    ...dataset,
-    stops: [
-      ...dataset.stops,
-      { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 },
-      { id: 'st_e', name: 'Ринок', lat: 50.77015, lng: 29.24012 },
-    ],
-    routes: [
-      ...dataset.routes,
-      { id: '3', fromName: 'Ринок', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
-    ],
-    routeStops: [
-      ...dataset.routeStops,
-      { routeId: '3', stopId: 'st_e', orderThere: 1, orderBack: 3, mapOnly: false },
-      { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 2, mapOnly: false },
-      { routeId: '3', stopId: 'st_d', orderThere: 3, orderBack: 1, mapOnly: false },
-    ],
-    trips: [
-      ...dataset.trips,
-      { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Парк', directionId: '1', departureTime: '10:00:00', blockId: null },
-    ],
-  };
-
-  it('suggests the neighbouring stop with a direct route and applies it on click', async () => {
+describe('LocalTransportPage planner: transfers', () => {
+  it('finds a journey with a transfer when no single route connects the pair', async () => {
     const user = userEvent.setup();
-    const gtag = vi.fn();
-    window.gtag = gtag;
-    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(withNearby)));
-    try {
-      renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
-      await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
-      expect(screen.getByText('Поруч є зупинки з прямим маршрутом:')).toBeInTheDocument();
-      const suggestion = screen.getByRole('button', { name: /Ринок → Парк/ });
-      expect(suggestion).toHaveTextContent(/\d+ м від «Базар» · №3/);
-      await waitFor(() =>
-        expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d', nearby: 1 })
-      );
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(transferDataset)));
+    renderPlanner('/transport/st_a/st_d?d=01.03.26&h=08%3A00');
+    await screen.findByText(/Маршрути: Базар → Парк/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /^Маршрути №2, №3/ });
+    expect(card).toHaveTextContent('08:30 → 08:50 · 20 хв · 1 пересадка');
+    expect(card.getAttribute('aria-label')).toContain('1 пересадка');
+    expect(screen.queryByText(/Не знайшли поїздок/)).not.toBeInTheDocument();
 
-      await user.click(suggestion);
-      expect(gtag).toHaveBeenCalledWith('event', 'transport_nearby_pick', expect.objectContaining({ from: 'st_e', to: 'st_d', changed: 'from' }));
-      await waitFor(() => expect(location()).toBe('/transport/st_e/st_d?d=16.09.26&h=09%3A12'), { timeout: 3000 });
-      expect(screen.getByRole('combobox', { name: 'Звідки' })).toHaveValue('Ринок');
-      expect(await screen.findByText(/Прямі маршрути: Ринок → Парк/)).toBeInTheDocument();
-      expect(screen.queryByText(/немає прямого маршруту/)).not.toBeInTheDocument();
-    } finally {
-      Reflect.deleteProperty(window, 'gtag');
-    }
+    await user.click(card);
+    expect(card).toHaveAttribute('aria-expanded', 'true');
+    const steps = document.querySelector('.lt-journey-steps') as HTMLElement;
+    expect(within(steps).getByText(/Очікування 6 хв/)).toBeInTheDocument(); // Лікарня: приїзд 08:39, №3 о 08:45
+    expect(within(steps).getByText(/08:30 Базар → 08:39 Лікарня/)).toBeInTheDocument();
+    expect(within(steps).getByText(/08:45 Лікарня → 08:50 Парк/)).toBeInTheDocument();
   });
 
-  it('without a neighbour that helps, the no-route state has no suggestions block', async () => {
-    // Той самий датасет, але «Ринок» за 3 км від «Базар» — поза радіусом пошуку.
-    server.use(
-      http.get(`${TEST_API_URL}/transport/dataset`, () =>
-        HttpResponse.json({
-          ...withNearby,
-          stops: withNearby.stops.map((s) => (s.id === 'st_e' ? { ...s, lat: 50.8, lng: 29.2 } : s)),
-        })
-      )
-    );
+  it('a neighbouring stop 20 m away is reached on foot: the journey starts with a short walk', async () => {
+    const user = userEvent.setup();
+    // st_e «Ринок» за ~20 м від st_a «Базар» і лежить на №3 разом з st_c та st_d «Парк».
+    const withNearby = {
+      ...dataset,
+      stops: [
+        ...dataset.stops,
+        { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 },
+        { id: 'st_e', name: 'Ринок', lat: 50.77015, lng: 29.24012 },
+      ],
+      routes: [
+        ...dataset.routes,
+        { id: '3', fromName: 'Ринок', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
+      ],
+      routeStops: [
+        ...dataset.routeStops,
+        { routeId: '3', stopId: 'st_e', orderThere: 1, orderBack: 3, mapOnly: false },
+        { routeId: '3', stopId: 'st_c', orderThere: 2, orderBack: 2, mapOnly: false },
+        { routeId: '3', stopId: 'st_d', orderThere: 3, orderBack: 1, mapOnly: false },
+      ],
+      trips: [
+        ...dataset.trips,
+        { id: 't3', routeId: '3', serviceId: 'everyday', headsign: 'Парк', directionId: '1', departureTime: '10:00:00', blockId: null },
+      ],
+    };
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(withNearby)));
     renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
-    await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
-    expect(screen.queryByText('Поруч є зупинки з прямим маршрутом:')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'табло зупинки' })).toBeInTheDocument();
+    await screen.findByText(/Маршрути: Базар → Парк/, {}, { timeout: 5000 });
+    const card = screen.getByRole('button', { name: /Маршрут №3 до Парк/ });
+    // пішки Базар → Ринок 2 хв (нижня межа пересадки), рейс №3 о 10:00, Парк о 10:04; пересадки немає — лише прогулянка
+    expect(card).toHaveTextContent('09:58 → 10:04 · 6 хв · пішки');
+    expect(card).not.toHaveTextContent('пересадка');
+    await user.click(card);
+    const steps = document.querySelector('.lt-journey-steps') as HTMLElement;
+    expect(within(steps).getByText(/Пішки \d+ м · 2 хв/)).toBeInTheDocument();
+    expect(within(steps).getByText('Базар → Ринок')).toBeInTheDocument();
+  });
+
+  it('a trip that runs on weekdays only is not offered on Sunday: the first trips of Monday are shown with a note', async () => {
+    const weekdaysOnly = { ...dataset, trips: dataset.trips.map((t) => ({ ...t, serviceId: 'weekdays' })) };
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(weekdaysOnly)));
+    // 01.03.26 — неділя: сьогодні рейсів немає, наступний день (пн) їздить
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getByText(/перші поїздки наступного дня/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Маршрут №2 до Лікарня/ })).toHaveTextContent('08:30');
+  });
+
+  it('…and on a Monday the same trip is offered with no next-day note', async () => {
+    const weekdaysOnly = { ...dataset, trips: dataset.trips.map((t) => ({ ...t, serviceId: 'weekdays' })) };
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(weekdaysOnly)));
+    renderPlanner('/transport/st_a/st_b?d=02.03.26&h=08%3A00'); // понеділок
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.queryByText(/перші поїздки наступного дня/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Маршрут №2 до Лікарня/ })).toHaveTextContent('08:30');
   });
 });
 
@@ -282,7 +310,7 @@ describe('LocalTransportPage planner: URL follows the form', () => {
     await user.keyboard('Вок');
     await user.click(await screen.findByRole('option', { name: 'Вокзал' }));
     await waitFor(() => expect(location()).toBe('/transport/st_a/st_b?d=16.09.26&h=09%3A12'), { timeout: 3000 });
-    expect(await screen.findByText(/Прямі маршрути: Базар → Вокзал/)).toBeInTheDocument();
+    expect(await screen.findByText(/Маршрути: Базар → Вокзал/)).toBeInTheDocument();
   });
 
   it('⇅ swaps the pair and the URL follows', async () => {
@@ -292,7 +320,7 @@ describe('LocalTransportPage planner: URL follows the form', () => {
     await waitFor(() => expect(location()).toBe('/transport/st_b/st_a?d=16.09.26&h=09%3A12'), { timeout: 3000 });
     expect(from).toHaveValue('Вокзал');
     expect(to).toHaveValue('Базар');
-    expect(screen.getByText(/Прямі маршрути: Вокзал → Базар/)).toBeInTheDocument();
+    expect(screen.getByText(/Маршрути: Вокзал → Базар/)).toBeInTheDocument();
   });
 
   it('the stop board tab carries the chosen «З» stop', async () => {
@@ -339,7 +367,7 @@ describe('LocalTransportPage planner: date and time', () => {
   it('«Завтра» sets tomorrow and the URL follows', async () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     expect(screen.getByRole('button', { name: '01.03.26 о 09:12' })).toBeInTheDocument();
     const tomorrow = tomorrowDateUrl();
     const chip = screen.getByRole('button', { name: 'Завтра' });
@@ -354,7 +382,7 @@ describe('LocalTransportPage planner: date and time', () => {
   it('«Зараз» resets to today and the current time', async () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const chip = screen.getByRole('button', { name: 'Зараз' });
     expect(chip).toHaveAttribute('aria-pressed', 'false');
     await user.click(chip);
@@ -368,7 +396,7 @@ describe('LocalTransportPage planner: date and time', () => {
   it('the «date о time» chip toggles the native fields; «Зараз» / «Завтра» are always in the row', async () => {
     const user = userEvent.setup();
     renderPlanner(FAR_URL);
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const row = screen.getByRole('group', { name: 'Дата і час' });
     expect(within(row).getByRole('button', { name: 'Зараз' })).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: 'Завтра' })).toBeInTheDocument();
@@ -388,7 +416,7 @@ describe('LocalTransportPage planner: date and time', () => {
 describe('LocalTransportPage planner: result card', () => {
   it('shows departure → arrival · duration and the trip destination, without jargon', async () => {
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const card = screen.getByRole('button', { name: /Маршрут №2 до Лікарня/ });
     expect(card).toHaveTextContent('08:30');
     expect(card).toHaveTextContent('08:30 → 08:34 · 4 хв'); // сегмент Базар → Вокзал = 240 с
@@ -402,40 +430,48 @@ describe('LocalTransportPage planner: result card', () => {
   it('cards are sorted by waiting time and list the next departures («далі …»)', async () => {
     server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=08%3A00');
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const cards = screen.getAllByRole('button', { name: /^Маршрут №/ });
-    // №3 о 08:10 — раніше за №2 о 08:30, хоч номер більший
-    expect(cards.map((c) => c.getAttribute('aria-label')?.slice(0, 10))).toEqual(['Маршрут №3', 'Маршрут №2']);
+    // за відправленням: №3 о 08:10 — раніше за №2 о 08:30, хоч номер більший; далі ще два рейси №2
+    expect(cards.map((c) => c.getAttribute('aria-label')?.slice(0, 10))).toEqual(['Маршрут №3', 'Маршрут №2', 'Маршрут №2', 'Маршрут №2']);
+    expect(cards.map((c) => c.textContent?.slice(0, 5))).toEqual(['08:10', '08:30', '09:40', '10:55']);
     expect(cards[1]).toHaveTextContent('далі 09:40 · 10:55');
     expect(cards[1].getAttribute('aria-label')).toContain('далі 09:40 · 10:55');
     expect(cards[0]).not.toHaveTextContent('далі');
+    expect(cards[3]).not.toHaveTextContent('далі');
   });
 
-  it('after the last trip of the day the next departures are not prefixed with «завтра» twice', async () => {
+  it('after the last trip of the day the first trips of the next day are shown with one note, not a label on every card', async () => {
     server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
-    const card = screen.getByRole('button', { name: /^Маршрут №2/ });
-    expect(card).toHaveTextContent('перший наступного дня');
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getByText(/Сьогодні рейсів пізніше немає · перші поїздки наступного дня/)).toHaveAttribute('role', 'status');
+    const card = screen.getByRole('button', { name: /^Маршрут №2 до Лікарня, відправлення 08:30/ });
+    expect(card).toHaveTextContent('наступного дня');
     expect(card).toHaveTextContent('далі 09:40 · 10:55');
     expect(card).not.toHaveTextContent('завтра');
   });
 
-  it('a next-day trip in the «далі» row is labelled «завтра» once', async () => {
+  it('when only one trip is left today it is shown alone, without «далі»', async () => {
     server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=10%3A00');
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
     const card = screen.getByRole('button', { name: /^Маршрут №2/ });
     expect(card).toHaveTextContent('10:55');
-    expect(card).toHaveTextContent('далі завтра 08:30 · 09:40');
+    expect(card).not.toHaveTextContent('далі');
+    expect(screen.queryByText(/перші поїздки наступного дня/)).not.toBeInTheDocument();
   });
 
-  it('after the last trip of the day the card says the first trip is next day', async () => {
-    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
-    const card = screen.getByRole('button', { name: /Маршрут №2/ });
-    expect(card).toHaveTextContent('08:30');
-    expect(card).toHaveTextContent('перший наступного дня');
+  it('earlier and later trips are behind «Показати раніші» / «Показати пізніші»', async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(sortedDataset)));
+    renderPlanner('/transport/st_a/st_b?d=01.03.26&h=09%3A00');
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    expect(screen.getAllByRole('button', { name: /^Маршрут №/ }).map((c) => c.textContent?.slice(0, 5))).toEqual(['09:40', '10:55']);
+    expect(screen.queryByRole('button', { name: 'Показати пізніші' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Показати раніші' }));
+    expect(screen.getAllByRole('button', { name: /^Маршрут №/ }).map((c) => c.textContent?.slice(0, 5))).toEqual(['08:10', '08:30', '09:40', '10:55']);
+    expect(screen.queryByRole('button', { name: 'Показати раніші' })).not.toBeInTheDocument();
   });
 
   it('for today the label is a countdown from the current Kyiv time', async () => {
@@ -443,7 +479,7 @@ describe('LocalTransportPage planner: result card', () => {
     vi.setSystemTime(new Date('2026-09-16T05:18:00Z')); // 08:18 за Києвом
     try {
       renderPlanner('/transport/st_a/st_b?d=16.09.26&h=08%3A00');
-      await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+      await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
       const card = screen.getByRole('button', { name: /Маршрут №2/ });
       expect(card).toHaveTextContent('через 12 хв');
       expect(card.getAttribute('aria-label')).toContain('через 12 хв');
@@ -482,23 +518,27 @@ describe('LocalTransportPage planner: route variants', () => {
   it('a stop only a variant serves has a direct route; the card shows that trip, its end and the variant name', async () => {
     const user = userEvent.setup();
     renderPlanner('/transport/st_a/st_v?d=01.03.26&h=06%3A00');
-    await screen.findByText(/Прямі маршрути: Базар → Залізничний вокзал/, {}, { timeout: 5000 });
+    await screen.findByText(/Маршрути: Базар → Залізничний вокзал/, {}, { timeout: 5000 });
     const card = screen.getByRole('button', { name: /Маршрут №2 до Залізничний вокзал/ });
     expect(card).toHaveTextContent('06:45 → 07:05 · 20 хв');
     expect(card).toHaveTextContent('іншим шляхом: через вокзал');
     expect(card).not.toHaveTextContent('далі');
+    // картка розгортається; перехід на розклад маршруту — кнопка в таймлайні (з посадкою й висадкою цього участка)
     await user.click(card);
+    await user.click(screen.getByRole('button', { name: 'Розклад маршруту №2' }));
     await waitFor(() => expect(location()).toBe('/transport/route/2?d=01.03.26&h=06%3A00&stop=st_a&to=st_v&dir=there'));
   });
 
   it('a pair both chains serve lists the variant trip and the main ones by time', async () => {
     renderPlanner('/transport/st_a/st_b?d=01.03.26&h=06%3A00');
-    await screen.findByText(/Прямі маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
-    const card = screen.getByRole('button', { name: /^Маршрут №2/ });
+    await screen.findByText(/Маршрути: Базар → Вокзал/, {}, { timeout: 5000 });
+    const [variantCard, mainCard] = screen.getAllByRole('button', { name: /^Маршрут №2/ });
     // до опори 07:05 сегменти розтягнуто: Вокзал о 06:58
-    expect(card).toHaveTextContent('06:45 → 06:58 · 13 хв');
-    expect(card).toHaveTextContent('→ Залізничний вокзал');
-    expect(card).toHaveTextContent('далі 08:30');
+    expect(variantCard).toHaveTextContent('06:45 → 06:58 · 13 хв');
+    expect(variantCard).toHaveTextContent('→ Залізничний вокзал');
+    expect(variantCard).toHaveTextContent('іншим шляхом: через вокзал');
+    expect(mainCard).toHaveTextContent('08:30 → 08:34 · 4 хв');
+    expect(mainCard).toHaveTextContent('→ Лікарня');
   });
 });
 
@@ -511,7 +551,7 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
       expect(document.title).toMatch(/^Базар → Вокзал — як доїхати у Малині/);
       expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, follow');
     });
-    expect(screen.getByRole('heading', { level: 2, name: /Прямі маршрути: Базар → Вокзал/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /Маршрути: Базар → Вокзал/ })).toBeInTheDocument();
   });
 
   it('without a pair: h1 «Як доїхати», hub title, empty state; on a phone «Відкрити карту» opens the full-screen map', async () => {
@@ -580,7 +620,7 @@ describe('LocalTransportPage planner: heading, geolocation, empty state', () => 
     await user.keyboard('Ба');
     await user.click(await screen.findByRole('option', { name: 'Базар' }));
     await waitFor(() => expect(location()).toBe('/transport/st_a/st_0019?d=16.09.26&h=09%3A12'), { timeout: 3000 });
-    expect(screen.getByText(/Прямі маршрути: Базар → Залізничний вокзал/)).toBeInTheDocument();
+    expect(screen.getByText(/Маршрути: Базар → Залізничний вокзал/)).toBeInTheDocument();
     expect(screen.queryByText('Куди їдете?')).toBeNull();
   });
 
@@ -640,21 +680,35 @@ describe('LocalTransportPage planner: analytics events', () => {
     try {
       await openPair();
       await waitFor(() =>
-        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_a', to: 'st_b', direct_routes: 1 })
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', {
+          from: 'st_a',
+          to: 'st_b',
+          direct_routes: 1,
+          journeys: 1,
+          best_transfers: 0,
+        })
       );
       expect(gtag).not.toHaveBeenCalledWith('event', 'transport_no_route', expect.anything());
 
       await user.click(screen.getByRole('button', { name: 'Поміняти місцями' }));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_swap', { source: 'form' });
       await waitFor(() =>
-        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_b', to: 'st_a', direct_routes: 1 })
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', {
+          from: 'st_b',
+          to: 'st_a',
+          direct_routes: 1,
+          journeys: 1,
+          best_transfers: 0,
+        })
       );
 
       await user.click(screen.getByRole('button', { name: 'Завтра' }));
       expect(gtag).toHaveBeenCalledWith('event', 'transport_date_chip', { chip: 'tomorrow', page: 'planner' });
 
       await user.click(screen.getByRole('button', { name: /Маршрут №2/ }));
-      expect(gtag).toHaveBeenCalledWith('event', 'transport_route_card_click', { route_id: '2' });
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_journey_open', { transfers: 0, legs: 1 });
+      await user.click(screen.getByRole('button', { name: 'Розклад маршруту №2' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_journey_leg_click', { route_id: '2' });
 
       // Жодного параметра з назвами зупинок чи чимось особистим — лише id.
       for (const call of gtag.mock.calls) {
@@ -665,33 +719,43 @@ describe('LocalTransportPage planner: analytics events', () => {
     }
   });
 
-  it('a pair without a direct route also sends transport_no_route', async () => {
+  it('a pair no route connects also sends transport_no_route', async () => {
     const gtag = vi.fn();
     window.gtag = gtag;
-    server.use(
-      http.get(`${TEST_API_URL}/transport/dataset`, () =>
-        HttpResponse.json({
-          ...dataset,
-          stops: [...dataset.stops, { id: 'st_d', name: 'Парк', lat: 50.8, lng: 29.27 }],
-          routes: [
-            ...dataset.routes,
-            { id: '3', fromName: 'Лікарня', toName: 'Парк', scheme: 'city', note: '', sourceUrl: '', schedule: null },
-          ],
-          routeStops: [
-            ...dataset.routeStops,
-            { routeId: '3', stopId: 'st_c', orderThere: 1, orderBack: 2, mapOnly: false },
-            { routeId: '3', stopId: 'st_d', orderThere: 2, orderBack: 1, mapOnly: false },
-          ],
-        })
-      )
-    );
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(disconnectedDataset)));
     try {
       renderPlanner('/transport/st_a/st_d?d=16.09.26&h=09%3A12');
-      await screen.findByText(/немає прямого маршруту/, {}, { timeout: 5000 });
+      await screen.findByText(/Не знайшли поїздок/, {}, { timeout: 5000 });
+      await waitFor(() => expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d' }));
+      expect(gtag).toHaveBeenCalledWith('event', 'transport_search', {
+        from: 'st_a',
+        to: 'st_d',
+        direct_routes: 0,
+        journeys: 0,
+        best_transfers: -1,
+      });
+    } finally {
+      Reflect.deleteProperty(window, 'gtag');
+    }
+  });
+
+  it('a transfer journey is reported with its transfer count and no stop names', async () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(transferDataset)));
+    try {
+      renderPlanner('/transport/st_a/st_d?d=01.03.26&h=08%3A00');
+      await screen.findByText(/Маршрути: Базар → Парк/, {}, { timeout: 5000 });
       await waitFor(() =>
-        expect(gtag).toHaveBeenCalledWith('event', 'transport_no_route', { from: 'st_a', to: 'st_d', nearby: 0 })
+        expect(gtag).toHaveBeenCalledWith('event', 'transport_search', {
+          from: 'st_a',
+          to: 'st_d',
+          direct_routes: 0,
+          journeys: 1,
+          best_transfers: 1,
+        })
       );
-      expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_a', to: 'st_d', direct_routes: 0 });
+      for (const call of gtag.mock.calls) expect(JSON.stringify(call[2] ?? {})).not.toMatch(/Базар|Парк|Лікарня/);
     } finally {
       Reflect.deleteProperty(window, 'gtag');
     }

@@ -2,7 +2,7 @@
  * Збірка Timetable з готових патернів: індекси «зупинка → патерни» і піші переходи між близькими зупинками.
  * Спільна для сайту (buildTimetable.ts, з датасету) і для звірки з Transitous (з GTFS stop_times).
  */
-import { haversineDistance } from '../nearbyAlternatives';
+import { haversineDistance } from '../geo';
 import { DEFAULT_JOURNEY_OPTIONS, type JourneyOptions } from './options';
 import type { Footpath, Pattern, Timetable, TimetableStop } from './types';
 

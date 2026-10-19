@@ -4,7 +4,7 @@
  * У мережі з ~250 рейсів це одиниці мілісекунд, тому «відправлення о…» і «прибуття о…» — просто різні зрізи
  * одного й того самого списку, без окремого зворотного пошуку.
  */
-import { haversineDistance } from '../nearbyAlternatives';
+import { haversineDistance } from '../geo';
 import { searchAtDeparture, type Offset } from './raptor';
 import { walkMetersForDistance, walkMinutesForDistance } from './timetable';
 import type {
