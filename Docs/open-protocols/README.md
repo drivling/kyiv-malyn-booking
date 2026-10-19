@@ -124,6 +124,9 @@ Transitous підхопить нову `agency_url` при нічному імп
 
 ## 3б. Transitous — PR на запис через Mobility Database (робить власник **руками**)
 
+**Статус:** подано власником 2026-10-19 — PR <https://github.com/public-transport/transitous/pull/2610> (`mdb-3615`,
+атрибуція «Data: malin.kiev.ua — Serhii Merenkov / Technologies LLC»).
+
 Мейнтейнер додав фід як `http`-джерело; його ж правило — «use mobility database where possible», тож правильний запис
 посилається на `mdb-3615` і несе нашу атрибуцію. **Увага:** `AI_POLICY.md` Transitous забороняє коміти з LLM-інструментів
 і LLM-тексти в PR — правку, коміт і опис PR власник робить сам, тут лише факти. У `feeds/ua.json` замінити блок `malyn` на:
