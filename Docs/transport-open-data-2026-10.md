@@ -1,7 +1,7 @@
 # Дані належать людині: відкритий GTFS і JSON транспорту Малина
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 📝 план  
-**Де зупинились:** фази 0–3 закомічені, ліцензію власник обрав (OwnNet 1.1, таблиця нижче) — далі PR, деплой бекенду (ендпоінт) і фронтенду (блок, `llms.txt`); фаза 4 — план нижче, код у наступній сесії  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ✅ (2026-10-20)  
+**Де зупинились:** фази 0–3 злиті в `main`; фаза 4 «особисті дані» — гілка `personal-data-phase4` (від `main` після #97), 4 коміти, PR відкриває власник; після деплою — перевірити з телефона пункти «Мої дані» в `Docs/transport-pwa-smoke.md`  
 **Created:** 2026-10-16 · **Гілка:** `merenkoff/reverent-grothendieck-d7950b` (від `main` після #88)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -140,8 +140,28 @@ attachment; filename="malyn-gtfs.zip"` робить клік «Завантаж�
 - [x] **3.2** `/support/transport`: короткий розділ «Дані відкриті» (TOC `city-open-data`) з посиланнями
 - [x] **3.3** `frontend/public/llms.txt`: рядки про GTFS і JSON
 
-Фаза 4 — особисті дані (лише план, код — наступна сесія)
-- [x] **4.1** Обсяг описано в розділі «Фаза 4 — план» нижче (код — наступна сесія; перша передумова — перевірка підпису Telegram Login на `/user/*`)
+Фаза 4 — особисті дані (зроблено 2026-10-20, гілка `personal-data-phase4`; план — розділ «Фаза 4 — план» нижче)
+- [x] **4.0** Файл відновлення дописано; worktree від `main` (#97), `node_modules` — символьні посилання на основний чекаут
+- [x] **4.1-auth** `backend/src/telegram-login-auth.ts`: перевірка підпису віджета (HMAC-SHA256, ключ sha256(`TELEGRAM_BOT_TOKEN`),
+  `auth_date` ≤ 1 доба) із заголовка `X-Telegram-Login` (base64url JSON відповіді віджета); `requireTelegramLogin` на всіх
+  `/user/*` — 401 `{ reason: missing | malformed | invalid | expired }`, 503 без токена; `createApp({ telegramBotToken })`;
+  фронтенд: `utils/telegramLogin.ts` шле заголовок з `userState.getTelegramUser()`, `/user` на 401 просить увійти знову
+- [x] **4.1** `person-data-export.ts` `collectPersonData(prisma, { telegramUserId })` → `GET /user/export`
+  (`Content-Disposition: attachment; filename="malin-kiev-ua-my-data-<дата>.json"`) і `/mydata` у боті (`sendDocument`);
+  кнопка «Завантажити мої дані» в розділі «Мої дані» на `/user`
+- [x] **4.2** `person-erase.ts` `erasePerson(prisma, { telegramUserId, now })` у транзакції → `DELETE /user { confirm: true }`
+  і `/deleteme` з inline-підтвердженням у боті; на `/user` — «Видалити акаунт» з підтвердженням; власнику — повідомлення в
+  адмін-чат; політика на `/about` («Строки зберігання», «Ваші права») описує, що саме стирається
+- [x] **4.3** `LocalTransportPage/transportPrefs.ts` + `TransportPrefsPanel.tsx` у блоці «Дані відкриті» на `/transport/scheme`:
+  «Зберегти налаштування у файл» (`malin-transport-prefs.json`, `{ version: 1, site, exportedAt, frequentToStops }`),
+  «Відновити з файлу» (лише назви зупинок із датасету, імпортоване наперед, ≤ 5), «Очистити мої дані на цьому пристрої»
+  (ключі транспорту + кеші `malin-transport-*`); GA `transport_prefs { action, count }`
+- [x] **4.4** Тести: backend `telegram-login-auth`, `person-data-export`, `person-erase`, `user-profile-http`, `telegram-mydata`;
+  frontend `telegramLogin`, `UserPage`, `transportPrefs`, `LocalTransportSchemePage` (+1), `CompanyLegalPage` (+1)
+- [x] **4.5** Документація: `Docs/transport-open-data.md` «Ваші дані», `llms.txt`, `CLAUDE.md`, `Docs/transport-pwa-smoke.md`
+  «Мої дані (з телефона)», `Docs/manifesto-communication-2026-10.md` (П4 → зроблено), `backend/dist` перезібрано
+- [x] **4.6** Кейс на own-net.com: рядок П4 у `cases/malin/index.html` → «done» з адресами-доказами у трьох мовах (гілка
+  `case-malin-p4-done` в `merenkoff/internet4`), `/about` згадує експорт і видалення
 
 ## Пастки
 
@@ -222,6 +242,63 @@ person)` (чиста функція, тест на стабі).
 4.3 `/user` + політика → 4.4 часті зупинки. Кожна — окремий коміт; бекенд → `dist` разом із src.
 
 ## Знахідки по фазах
+
+### Фаза 4 — особисті дані (зроблено, 2026-10-20)
+
+- **Авторизація — лише за підписом віджета.** Старий `GET /user/profile?telegramUserId=` і `PUT /user/profile/name`
+  з `telegramUserId` у тілі тепер 401: ідентичність береться з `X-Telegram-Login` (відповідь віджета цілком; наш `phone`
+  у рядок перевірки не входить — підписані лише `id, first_name, last_name, username, photo_url, auth_date`). Підпис
+  живе добу, як радить документація віджета: сторінка `/user` на 401 показує «увійдіть ще раз» з посиланням на `/login`.
+  Вхід «за телефоном» (`LoginPage.handlePhoneLogin`, `id: 0, hash: ''`) ніколи не мав справжнього профілю — тепер він чесно
+  отримує 401 замість порожнього профілю. **Не переведено** на підпис (поза `/user/*`, окремий слід): `DELETE
+  /bookings/:id/by-user`, `PATCH /viber-listings/:id/by-user`, `…/deactivate/by-user`, `POST /rideshare/...FromSite` — вони
+  досі вірять `telegramUserId` з тіла; фронтенд уже тримає підпис, тож перевести їх — той самий `requireTelegramLogin`.
+- `vitest.setup.ts` стирає `TELEGRAM_BOT_TOKEN` до імпортів, тому HTTP-тести передають `createApp({ telegramBotToken })`;
+  у проді токен той самий, що й у бота. Без токена `/user/*` відповідає 503, а не пропускає без перевірки (локально без
+  бота профіль не відкриється — це свідомо).
+- **Експорт** — один збирач `collectPersonData` для сайту й бота: Person без `telegramChatId`/`accessHash`, бронювання
+  за `personId` **або** `telegramUserId` (старі рядки), ім'я водія без телефону, запрошення без контакту друга, нарахування
+  другові — лише кількість, Дзюра — лише власні повідомлення (`DzhuraPerson.tgUserId = telegramUserId`), обіди — замовлення
+  й платежі, SMS — привід і статус. `null`, коли нема жодного рядка → 404 «експортувати нічого».
+- **Видалення ≠ адмінська архівація** (`person-archive.ts`): знімка не лишаємо, номер **не** забороняємо (людина
+  може повернутися — буде новий Person), рядки з FK не видаляємо, а знеособлюємо. Технічний телефон стертого —
+  `380000` + id з нулями (`technicalPhoneForErased`), `isTechnicalPlaceholderPhone` тепер знає обидва діапазони
+  (`3800100…` username-only і `380000…`), тож платних SMS і видачі контакту на нього не буде. Майбутні бронювання —
+  `deleteMany` (як `/cancel`; нагадування каскадом), минулі — ім'я/телефон/telegram знеособлено. Нарахування «Приведи
+  друга» не зникають (гаманець): свої — без `payoutNote`, невиплачені другові — `flagged` для перевірки адміном, як в
+  архівації; про це сказано в підтвердженні. `Booking` не має статусу `cancelled` — план уточнено: видаляємо.
+- Дзюра: `DzhuraMessage.text = ''`, `rawJson`/`editHistoryJson` → `Prisma.DbNull`, `deletedAt = now` (окремого прапора
+  `deletedByAuthor` нема — міграції уникнули); `DzhuraPerson` лишається (ключ `tgUserId` для нових повідомлень), ім'я й
+  телефон → null. **Пастка:** `db.py` пише `ON CONFLICT … DO UPDATE SET text = EXCLUDED.text` — повний backfill
+  (`fullFetch`) старої історії повернув би текст; gap-fill після пауз читає лише від `lastCapturedTgMessageId`, тож
+  у звичайному режимі стерте не повертається.
+- Бот: `/mydata` і `/deleteme` — модульні `handleMyDataCommand` / `handleDeleteMeCommand` / `handleDeleteMeCallback`
+  (експортовані, тести на `setTelegramBotForTests` + `setTelegramPrismaForTests`), inline-кнопки `deleteme_confirm` /
+  `deleteme_cancel`, після натискання клавіатура знімається (`editMessageReplyMarkup`). Додано в `CLIENT_BOT_COMMANDS` і
+  `/help`; у reply-меню не додавали (меню — дії щодня, видалення — ні).
+- Файл налаштувань транспорту: особисте в localStorage — лише `lt.frequentToStops`; «Очистити» стирає і анонімний
+  `arrival-report-client`, `sticker-origin`, кеш датасету/черги, `site-local-transport:*` і кеші воркера
+  `malin-transport-*`, але не `user_state`. Імпорт звіряє назви з датасетом (перейменовані зупинки пропускаються з
+  підрахунком). Панель — у блоці «Дані відкриті» (`role="group"`), а не на планері: `LocalTransportPage.tsx` на 2000 рядків
+  чіпати не стали, ключ той самий.
+- `/about#privacy-policy` — саме такий id у `PRIVACY_SECTION_ID` (не `#privacy`); посилання на профіль відносне (`/user`),
+  політика каже «якщо входу через Telegram у вас нема — пошта», резервні копії Railway — «до 30 днів».
+- Перевірки: backend 78 файлів / 656 ✅ + 1 skipped, `tsc` чистий, `dist` перезібрано (змінені `create-app.js`,
+  `routes/user-profile.js`, `telegram-contact.js`, `telegram.js`; нові `person-data-export.js`, `person-erase.js`,
+  `telegram-login-auth.js`); frontend 93 файли / 660 ✅, eslint і `tsc` чисті. У браузері не перевірялося: Telegram Login
+  Widget прив'язаний до домену бота, тож `/user` локально не відкрити — пункти для телефона в `Docs/transport-pwa-smoke.md`.
+
+### Підсумок сесії (2026-10-20, фаза 4)
+
+- Гілки: `personal-data-phase4` у `drivling/kyiv-malyn-booking` (4 коміти: бекенд + dist; `/user` і політика; файл
+  налаштувань; документація) —
+  <https://github.com/drivling/kyiv-malyn-booking/compare/main...personal-data-phase4?expand=1>;
+  `case-malin-p4-done` у `merenkoff/internet4` (рядок П4 → «зроблено», три мови) —
+  <https://github.com/merenkoff/internet4/compare/main...case-malin-p4-done?expand=1>. PR відкриває власник (`gh` дає 403).
+- Свідомо не зроблено: підпис на `…/by-user` і `rideshare …FromSite` (поза `/user/*`, окремий коміт за потреби); експорт
+  для людей без входу через Telegram (телефон не підтверджений — план 4.5); видалення з резервних копій (у політиці «до 30
+  днів»); прапор `deletedByAuthor` у `DzhuraMessage` (замість нього `deletedAt`, без міграції); кнопки «Мої дані» в
+  reply-меню бота (лише команди й `/help`).
 
 ### Фаза 3 — документація (зроблено, 2026-10-16)
 
