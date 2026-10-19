@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
+import { isTelegramLoginRejected } from '@/utils/telegramLogin';
 import { Alert } from '@/components/Alert';
 import type { UserProfile, ViberListing, Booking, TelegramScenariosResponse } from '@/types';
 import { formatPhoneDisplay } from '@/utils/constants';
@@ -51,6 +52,11 @@ export const UserPage: React.FC = () => {
   const [savingListing, setSavingListing] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [deactivatingId, setDeactivatingId] = useState<number | null>(null);
+  /** 401 від /user/*: підпис Telegram Login прострочений або його нема — треба увійти ще раз */
+  const [authStale, setAuthStale] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'deleting' | 'done'>('idle');
+  const [deleteSummary, setDeleteSummary] = useState('');
 
   useEffect(() => {
     if (!isTelegramUser) return;
@@ -59,7 +65,7 @@ export const UserPage: React.FC = () => {
       setError('');
       try {
         const [data, scenarioData] = await Promise.all([
-          apiClient.getUserProfile(telegramUserId),
+          apiClient.getUserProfile(),
           apiClient.getTelegramScenarios().catch(() => null),
         ]);
         setProfile(data);
@@ -69,7 +75,8 @@ export const UserPage: React.FC = () => {
           setScenarios(scenarioData);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Не вдалося завантажити профіль');
+        if (isTelegramLoginRejected(e)) setAuthStale(true);
+        else setError(e instanceof Error ? e.message : 'Не вдалося завантажити профіль');
       } finally {
         setLoading(false);
       }
@@ -83,7 +90,7 @@ export const UserPage: React.FC = () => {
     if (!telegramUserId) return;
     setSavingName(true);
     try {
-      await apiClient.updateProfileName(telegramUserId, nameValue.trim() || null);
+      await apiClient.updateProfileName(nameValue.trim() || null);
       setProfile((prev) =>
         prev && prev.person ? { ...prev, person: { ...prev.person, fullName: nameValue.trim() || null } } : prev
       );
@@ -153,6 +160,44 @@ export const UserPage: React.FC = () => {
     }
   };
 
+  /** «Завантажити мої дані» — файл з бекенду через тимчасове посилання (Blob) */
+  const handleExport = async () => {
+    setExporting(true);
+    setError('');
+    try {
+      const { blob, filename } = await apiClient.exportUserData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      if (isTelegramLoginRejected(e)) setAuthStale(true);
+      else setError(e instanceof Error ? e.message : 'Не вдалося завантажити дані');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /** «Видалити акаунт» після підтвердження: бекенд знеособлює, сесія на пристрої завершується */
+  const handleDelete = async () => {
+    setDeleteStep('deleting');
+    setError('');
+    try {
+      const result = await apiClient.deleteUserAccount();
+      setDeleteSummary(result.summary);
+      userState.logout();
+      setDeleteStep('done');
+    } catch (e) {
+      setDeleteStep('confirm');
+      if (isTelegramLoginRejected(e)) setAuthStale(true);
+      else setError(e instanceof Error ? e.message : 'Не вдалося видалити акаунт');
+    }
+  };
+
   const handleDeactivateListing = async (listing: ViberListing) => {
     if (!telegramUserId) return;
     setDeactivatingId(listing.id);
@@ -179,6 +224,40 @@ export const UserPage: React.FC = () => {
       <div className="user-page">
         <div className="user-page-inner">
           <div className="user-page-loading">Завантаження профілю...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (deleteStep === 'done') {
+    return (
+      <div className="user-page">
+        <div className="user-page-inner">
+          <section className="user-section user-section--data" aria-labelledby="user-deleted-title">
+            <h2 id="user-deleted-title" className="user-section-title">Акаунт видалено</h2>
+            <p className="user-data-text">
+              Ваше ім'я, телефон і Telegram прибрано з бази{deleteSummary ? `: ${deleteSummary}` : ''}. Бот більше не
+              писатиме вам. Якщо захочете повернутися — увійдіть знову і поділіться номером у боті.
+            </p>
+            <div className="user-section-cta">
+              <Link to="/" className="user-btn user-btn-primary">На головну</Link>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  if (authStale) {
+    return (
+      <div className="user-page">
+        <div className="user-page-inner">
+          <div className="alert-wrapper">
+            <Alert variant="error">
+              Сесія входу через Telegram застаріла або не підтверджена — увійдіть ще раз, щоб бачити профіль,
+              завантажити чи видалити свої дані. <Link to="/login">Увійти через Telegram</Link>
+            </Alert>
+          </div>
         </div>
       </div>
     );
@@ -379,6 +458,48 @@ export const UserPage: React.FC = () => {
               Нова попутка
             </a>
           </div>
+        </section>
+
+        {/* «Дані належать людині» (Docs/transport-open-data-2026-10.md, фаза 4): забрати все файлом або видалити.
+            Те саме в боті — /mydata і /deleteme. Політика конфіденційності на /about пояснює, що саме стирається. */}
+        <section className="user-section user-section--data" aria-labelledby="user-data-title">
+          <div className="user-section-head">
+            <h2 id="user-data-title" className="user-section-title">Мої дані</h2>
+          </div>
+          <p className="user-data-text">
+            Усе, що сайт і бот знають про вас, можна забрати одним файлом (JSON) або видалити. Так само в боті:
+            команди /mydata і /deleteme. Що саме зберігається і що стирається — у{' '}
+            <a href="/about#privacy-policy">політиці конфіденційності</a>.
+          </p>
+          <div className="user-data-actions">
+            <button type="button" className="user-btn user-btn-primary" onClick={handleExport} disabled={exporting}>
+              {exporting ? 'Готуємо файл...' : 'Завантажити мої дані'}
+            </button>
+            {deleteStep === 'idle' && (
+              <button type="button" className="user-btn user-btn-danger" onClick={() => setDeleteStep('confirm')}>
+                Видалити акаунт
+              </button>
+            )}
+          </div>
+          {(deleteStep === 'confirm' || deleteStep === 'deleting') && (
+            <div className="user-data-confirm" role="group" aria-labelledby="user-delete-title">
+              <h3 id="user-delete-title" className="user-data-confirm-title">Видалити акаунт?</h3>
+              <p className="user-data-text">
+                Ми приберемо ваше ім'я, телефон і Telegram з бази: майбутні бронювання скасуємо, оголошення попуток
+                знімемо, минулі поїздки лишаться знеособленими для статистики, нарахування «Приведи друга» — в обліку.
+                Бот перестане вам писати. Повернутися можна буде заново через бот. Спершу можете забрати свої дані
+                файлом.
+              </p>
+              <div className="user-data-actions">
+                <button type="button" className="user-btn user-btn-danger" onClick={handleDelete} disabled={deleteStep === 'deleting'}>
+                  {deleteStep === 'deleting' ? 'Видаляємо...' : 'Так, видалити акаунт'}
+                </button>
+                <button type="button" className="user-btn user-btn-ghost" onClick={() => setDeleteStep('idle')} disabled={deleteStep === 'deleting'}>
+                  Ні, залишити
+                </button>
+              </div>
+            </div>
+          )}
         </section>
         </div>
       </div>

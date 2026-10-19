@@ -494,6 +494,15 @@ export interface UserProfile {
   driverListings: ViberListing[];
 }
 
+/** Відповідь DELETE /user (backend/src/person-erase.ts) */
+export interface DeleteAccountResponse {
+  success: boolean;
+  erasedAt: string;
+  counts: Record<string, number | boolean>;
+  /** Підсумок людині українською («скасовано майбутніх бронювань: 2; …») */
+  summary: string;
+}
+
 /** Адмін: реферальна програма */
 /** hold — чекає схвалення фото; approved — у черзі виплат; pending — легасі до введення hold */
 export type ReferralRewardStatus = 'hold' | 'pending' | 'approved' | 'paid' | 'flagged';
