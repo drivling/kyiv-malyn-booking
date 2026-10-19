@@ -27,16 +27,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "local-transport-jakdojade-smoke.md",
+                "file": "stop-stickers.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "local-transport-jakdojade-smoke"
+              "title": "stop-stickers"
+            }
+          },
+          {
+            "id": "89218b385a7953bd",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Технологии ТОВ лого.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Технологии ТОВ лого"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -61,7 +75,7 @@
                 "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
-              "title": "Файловий менеджер"
+              "title": "Файловый менеджер"
             }
           },
           {
@@ -191,35 +205,44 @@
   },
   "left-ribbon": {
     "hiddenItems": {
-      "switcher:Відкрити провідник файлів": false,
-      "canvas:Створити нове полотно": false,
-      "daily-notes:Сьогоднішня нотатка": false,
-      "templates:Вставити шаблон": false,
-      "command-palette:Відкрити меню команд": false,
-      "bases:Створити нову базу": false,
+      "switcher:Меню быстрого перехода": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false,
       "graph:Граф": false
     }
   },
-  "active": "97f8429fafac3151",
+  "active": "89218b385a7953bd",
   "lastOpenFiles": [
+    "transport-offline-writes-2026-10.md",
+    "stop-stickers.md",
+    "Технологии ТОВ лого.md",
+    "stickers-facebook-post-2.md",
+    "seo-aeo-review-2026-09.md",
+    "seo-aeo-plan-2026-09.md",
+    "route-variants-2026-10.md",
+    "poputky-od-city-scale-smoke.md",
+    "local-transport-gtfs-feed.md",
+    "dzhura-roadmap.md",
+    "На будущее.md",
+    "TESTING.md",
+    "local-transport-jakdojade-smoke.md",
     "seo-stop-articles-plan.md",
     "seo-aeo-malyn-smoke.md",
     "seo-aeo-malyn-plan.md",
     "local-transport-jakdojade-rebuild-result.md",
-    "local-transport-jakdojade-smoke.md",
     "referral-program-terms.md",
     "Schema_telegram.svg",
     "telegram-inline-bot-plan.md",
     "telegram-bot-user-guide.md",
-    "На будущее.md",
-    "local-transport-gtfs-feed.md",
     "local-transport-jakdojade-rebuild-plan.md",
     "local-transport-db-refactoring-result.md",
     "local-transport-db-refactoring-plan.md",
     "local-transport-gtfs-refactoring-plan.md",
     "local-transport-gtfs-refactoring-result.md",
     "referral-facebook-post.md",
-    "referral-program-fix-plan.md",
     "facebook-preview-assets/fb-story-bg.png",
     "facebook-preview-assets/fb-ride-start.png",
     "facebook-preview-assets/fb-ride-arrive.png",
