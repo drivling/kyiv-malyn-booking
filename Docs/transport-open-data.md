@@ -78,7 +78,7 @@ API живе лише на бекенді (на домені сайту реди
 ```bash
 TOKEN=$(curl -s -X POST https://kyiv-malyn-booking-production.up.railway.app/admin/login -H 'content-type: application/json' -d '{"password":"…"}' | jq -r .token)
 curl -s -X PUT https://kyiv-malyn-booking-production.up.railway.app/admin/transport/stop-redirects \
-  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -H "authorization: $TOKEN" -H 'content-type: application/json' \
   -d '{"redirects":{"st_0042":"st_0019"}}'        # мапа замінюється цілком; жива зупинка ключем або невідома ціль → 400
 ```
 
