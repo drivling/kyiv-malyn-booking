@@ -1,7 +1,7 @@
 # Ремонт, форк, перевірка: SRI, видимий BUILD_ID і застосунок без домену
 
-**Status:** Фаза 0 ✅ · Фаза 1 ⏳ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
-**Де зупинились:** файл відновлення написано; далі — фаза 1 (SRI на бандл)  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ⏳ · Фаза 3 ⏳ · Фаза 4 ⏳  
+**Де зупинились:** SRI закомічено й перевірено збіркою та smoke; далі — фаза 2 (видимий `BUILD_ID` на `/about`)  
 **Created:** 2026-10-20 · **Гілка тут:** `transport-verifiable-build` (від `main` після #97) · **Гілка в `internet4`:** `verifiable-build-case`
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -40,14 +40,14 @@
 
 Фаза 0 — файл відновлення
 - [x] **0.1** Цей файл: рішення власника (без `fork.md`), межі, чекліст
-- [ ] **0.2** Коміт `Docs: verifiable build recovery file (stage 5, phase 0)`
+- [x] **0.2** Коміт `Docs: verifiable build recovery file (stage 5, phase 0)`
 
 Фаза 1 — SRI на бандл сайту
-- [ ] **1.1** `frontend/scripts/sri.mjs`: чиста функція `addIntegrity(html, readAsset)` (+ `sriOf(buffer)`), CLI-обгортка над `dist/index.html`; помилка, якщо в оболонці немає жодного `/assets/index-*` або файл не знайдено
-- [ ] **1.2** `package.json` `build`: крок після `vite build`, до пререндерів
-- [ ] **1.3** Юніт-тест `src/test/sri.test.ts` (як `precache.test.ts`): два теги, `sha384-…` від вмісту, `crossorigin="anonymous"`, ідемпотентність, чужі теги не чіпає
-- [ ] **1.4** Перевірка, що нічого не зламалось: `freshBuild.test.tsx` з тегом з `integrity`, `shellAssetRefs` той самий; повний `npm run build` з прод-API; `seo-smoke` зелений; `npm run pwa:smoke -- http://localhost:4173` поверх `serve-dist` — воркер віддає підписані файли
-- [ ] **1.5** Коміт `Subresource integrity for the site bundle`
+- [x] **1.1** `frontend/scripts/sri.mjs`: чиста функція `addIntegrity(html, readAsset)` (+ `sriOf(buffer)`), CLI-обгортка над `dist/index.html`; помилка, якщо в оболонці немає жодного `/assets/index-*` або файл не знайдено
+- [x] **1.2** `package.json` `build`: крок після `vite build`, до пререндерів
+- [x] **1.3** Юніт-тест `src/test/sri.test.ts` (як `precache.test.ts`): два теги, `sha384-…` від вмісту, `crossorigin="anonymous"`, ідемпотентність, чужі теги не чіпає
+- [x] **1.4** Перевірка, що нічого не зламалось: `sri.test.ts` проганяє підписану оболонку через `bundleInHtml`/`loadedBundle`/`shellAssetRefs`; повний `npm run build` з прод-API; `seo-smoke` зелений; `npm run pwa:smoke -- http://localhost:4173` поверх `serve-dist` — воркер віддає підписані файли
+- [x] **1.5** Коміт `Subresource integrity for the site bundle`
 
 Фаза 2 — видимий `BUILD_ID` на `/about`
 - [ ] **2.1** `src/pwa/buildInfo.ts`: `useBuildInfo()` → `{ bundle, swBuildId, dataAsOf }` (реєстрація воркера читається через `navigator.serviceWorker.getRegistration('/transport')`, id — `buildIdOf(active)`)
@@ -70,7 +70,19 @@
 
 ## Знахідки
 
-(заповнюється по фазах)
+### Фаза 1 — SRI (2026-10-20)
+
+- Vite сам ставить голий `crossorigin` на точку входу і таблицю стилів; `scripts/sri.mjs` знімає його й ставить
+  `integrity="sha384-…" crossorigin="anonymous"` (атрибути після `src`/`href`, щоб `grep -o '<script type="module"[^>]*>'`
+  читався з першого погляду). Підписано рівно два теги; favicon, preconnect, Google Fonts і gtag — без змін.
+- Пререндер справді копіює head: після повної збірки `integrity` є в `dist/transport/index.html`, `dist/about/index.html`,
+  `dist/mizhgorodski/malyn-kyiv/index.html`, `dist/transport/stop/st_0001/index.html`. `seo-smoke`: 133 URL, 0 помилок.
+- Перевірка руками збігається з атрибутом: `openssl dgst -sha384 -binary dist/assets/index-<hash>.js | base64`.
+- `npm run pwa:smoke -- http://localhost:4173` поверх `serve-dist` із підписаною збіркою: воркер `activated`, кеш
+  `malin-transport-shell-<id>` з обома підписаними assets, офлайн усі чотири сторінки «served by the worker, no
+  subresource from the network», жодної помилки SRI в консолі. 4 FAIL у кроках «онлайн» — лише тому, що локальна збірка
+  без `VITE_API_URL` не має бекенду (копія не пишеться, смужка «Сервер не відповідає»); до SRI не стосується — фінальний
+  прогін зі збіркою на прод-API в «Підсумку».
 
 ## Чого свідомо немає в етапі 5
 
