@@ -29,8 +29,8 @@ Public `/transport*` again uses the full **LocalTransport** planner / RouteMap /
 
 ## Intentionally not done
 
-- Arrival-mode («прибуття о»)
-- Transfers, live GPS, embed widget
+- Live GPS, embed widget
+- (Arrival-mode and transfers were added later — `Docs/transport-journey-planner-2026-10.md`)
 - Pixel-perfect Jakdojade measurements / wtk-red `#E30613`
 
 ## Key paths
