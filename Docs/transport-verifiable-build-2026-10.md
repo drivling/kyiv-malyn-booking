@@ -1,7 +1,7 @@
 # Ремонт, форк, перевірка: SRI, видимий BUILD_ID і застосунок без домену
 
-**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ⏳  
-**Де зупинились:** «Без домену» перевірено й описано; далі — фаза 4 (CLAUDE.md, таблиця етапів, кейс own-net.com) і фінальний прогін збірки на прод-API  
+**Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ✅  
+**Де зупинились:** обидві гілки запушені, PR відкриває власник (compare-посилання в «Підсумку»); порядок злиття — спершу цей репозиторій (деплой робить `/about#build` і SRI справжніми), потім `internet4` (П7 «зроблено» посилається на живу адресу); після деплою — `curl -s https://malin.kiev.ua/transport-sw.js | grep BUILD_ID` проти `/about#build`  
 **Created:** 2026-10-20 · **Гілка тут:** `transport-verifiable-build` (від `main` після #97) · **Гілка в `internet4`:** `verifiable-build-case`
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -62,13 +62,29 @@
 - [x] **3.4** Коміт `Docs: installed app without the domain (smoke section)`
 
 Фаза 4 — документація і кейс
-- [ ] **4.1** CLAUDE.md «Transport PWA»: абзац про SRI (`scripts/sri.mjs` після `vite build`), `BUILD_ID` на `/about`, «без домену»
-- [ ] **4.2** `transport-pwa-2026-10.md`: таблиця етапів — етап 5 ✅ з посиланням на цей файл і реальним обсягом
-- [ ] **4.3** `internet4` (`~/Projects/internet4`, worktree `…/internet4-stage5`, гілка `verifiable-build-case` від `main`): рядки П1, П7, П8 кейсу трьома мовами з адресами-доказами; `node build.js` → `ru/`, `uk/`
-- [ ] **4.4** Коміти: тут `Docs: stage 5 in CLAUDE.md and the PWA stage table`; в `internet4` `Case page: verifiable build, fork stance, app without the domain`
-- [ ] **4.5** `gh pr view` → push обох гілок → два compare-посилання в «Підсумку»
+- [x] **4.1** CLAUDE.md «Transport PWA»: абзац про SRI (`scripts/sri.mjs` після `vite build`), `BUILD_ID` на `/about`, «без домену»
+- [x] **4.2** `transport-pwa-2026-10.md`: таблиця етапів — етап 5 ✅ з посиланням на цей файл і реальним обсягом
+- [x] **4.3** `internet4` (`~/Projects/internet4`, worktree `…/internet4-stage5`, гілка `verifiable-build-case` від `main`): рядки П1, П7, П8 кейсу трьома мовами з адресами-доказами; `node build.js` → `ru/`, `uk/`
+- [x] **4.4** Коміти: тут `Docs: stage 5 in CLAUDE.md and the PWA stage table` (+ `Show the waiting worker build on /about` після перевірки в браузері); в `internet4` `Case page: verifiable build, fork stance, app without the domain`
+- [x] **4.5** `gh pr view` → push обох гілок → два compare-посилання в «Підсумку»
 
 ## Знахідки
+
+### Фаза 4 — документація, кейс і фінальний прогін (2026-10-20)
+
+- Фінальна збірка з `VITE_API_URL=<прод API>`: `sri: /assets/index-BffwGsi_.js sha384-XT+HVOb…`, воркер `fbb8b07172ae`,
+  `seo-smoke` 133/133; `npm run pwa:smoke -- http://localhost:4173` — **35 PASS, 0 WARN, 0 FAIL** (копія пишеться,
+  смужка мовчить онлайн, офлайн усі сторінки з воркера). Скрипт «без домену» на тій самій збірці: усі `/transport*`
+  з precache, `fromNetwork: []`, і **без смужки** — бекенд на Railway живий, дані свіжі; смужка з'являється лише коли
+  зник і він (перший прогін без `VITE_API_URL`). Обидва випадки описані в smoke.
+- `/about#build` у вбудованому браузері: «збірка BffwGsi_, service worker 30dedadb560d, дані ще не збережені» — воркер
+  показав **старий** id, бо профіль браузера вже мав реєстрацію з попередньої збірки, а нова лише встановилась і чекає
+  (воркер не кличе `skipWaiting`). Це правда про те, хто віддає сторінки, але людина з `curl` побачила б розбіжність —
+  тому поруч тепер «нова збірка <id> уже встановлена й чекає» (`workerBuildIds` → `{ active, waiting }`).
+- `frontend/scripts/data/corridor-schedules.snapshot.json` після кожної збірки оновлюється з живого API — не комітимо
+  (він змінюється лише свідомими комітами про розклад), повернуто `git checkout`.
+- `internet4`: `build.js` читає таблицю `t` через `new Function` — апостроф в англійському рядку (`browser's`) треба
+  екранувати (`\'`) у `t`, у самій комірці HTML — ні. `cases/malin/index.html` і згенеровані `ru/`, `uk/` — LF.
 
 ### Фаза 3 — без домену (2026-10-20)
 
@@ -110,6 +126,23 @@
   subresource from the network», жодної помилки SRI в консолі. 4 FAIL у кроках «онлайн» — лише тому, що локальна збірка
   без `VITE_API_URL` не має бекенду (копія не пишеться, смужка «Сервер не відповідає»); до SRI не стосується — фінальний
   прогін зі збіркою на прод-API в «Підсумку».
+
+## Підсумок
+
+- Гілка тут: `transport-verifiable-build` (від `main` d1f10b3 = #97), 6 комітів:
+  https://github.com/drivling/kyiv-malyn-booking/compare/main...transport-verifiable-build?expand=1
+- Гілка в `internet4`: `verifiable-build-case` (від `main` dae281e = #3), 1 коміт:
+  https://github.com/merenkoff/internet4/compare/main...verifiable-build-case?expand=1
+- Порядок злиття: спершу цей репозиторій і деплой, потім `internet4`. Після деплою власник звіряє: `/about#build`
+  проти `curl -s https://malin.kiev.ua/transport-sw.js | grep BUILD_ID`, `integrity` у `view-source:https://malin.kiev.ua/`
+  проти `openssl dgst -sha384 -binary` файлу з `/assets/`, ревізію проти `/transport/revisions`; і один раз — сценарій
+  «Без домену» зі smoke (`/etc/hosts`).
+- Перевірки: backend 73 файли / 629 тестів, frontend 92 файли / 658 тестів, eslint і tsc обох пакетів чисті,
+  `npm run build` фронтенду з SRI на прод-API зелений, `pwa:smoke` 35/35.
+- Робочі копії: `~/Projects/kyiv-malyn-booking-stage5` і `~/Projects/internet4-stage5` (`git worktree`), після злиття —
+  `git worktree remove` в обох репозиторіях.
+- Паралельна сесія (фаза 4 етапу 3) теж править `/about` і кейс own-net.com (рядок П4): конфлікти при злитті можливі,
+  але локальні — тут на `/about` один імпорт і два рядки, у кейсі — рядки П1/П7/П8 і п'ятий пункт «не зробили».
 
 ## Чого свідомо немає в етапі 5
 
