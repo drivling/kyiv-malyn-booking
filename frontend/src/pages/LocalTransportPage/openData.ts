@@ -36,4 +36,7 @@ export const DATASET_JSON_FILENAME = 'malyn-transport-dataset.json';
 /** Як відкрити файли, ліцензія, атрибуція — для людей; репозиторій публічний */
 export const OPEN_DATA_DOC_URL = 'https://github.com/drivling/kyiv-malyn-booking/blob/main/Docs/transport-open-data.md';
 
+/** Кейс «malin.kiev.ua за маніфестом own-net» (що зроблено по кожному принципу, що ні) — Docs/manifesto-communication-2026-10.md */
+export const OWN_NET_CASE_URL = 'https://own-net.com/uk/cases/malin/';
+
 export type OpenDataFormat = 'gtfs' | 'json';
