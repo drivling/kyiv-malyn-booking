@@ -83,7 +83,17 @@ git checkout -b malyn-ukraine && git add feeds/malin.kiev.ua.dmfr.json && git co
 CI репозиторію перевіряє схему DMFR; якщо лінтер попросить інший формат Onestop ID — міняти лише суфікс після
 geohash. Після мерджу фід з'явиться на `https://www.transit.land/feeds/f-u9hbc-malyn~city~transport` за добу.
 
-## 3. Після реєстрації
+## 3. Transitous — уже є, PR не потрібен
+
+Мейнтейнер Transitous (Jonah Brüchert) сам додав фід у `feeds/ua.json` 2026-10-18 (`ua: Add Malyn`, тип `http`,
+`https://malin.kiev.ua/transport/gtfs.zip`, ліцензія own-net.com з атрибуцією). Перевірено 2026-10-19 через
+`api.transitous.org/api/v1/plan`: зупинки Малина геокодуються (`ua-malyn_st_0019` «Залізничний вокзал»), планувальник
+будує маршрути рейсами №3, №7, №8 перевізника «Громадський транспорт міста Малина» — тобто пасажир може перевірити
+наші маршрути на <https://transitous.org> (і в KDE Itinerary). Якщо колись знадобиться перевести запис на
+`"type": "mobility-database", "mdb-id": "mdb-3615"` — це один PR у `public-transport/transitous`, форк
+`drivling/transitous` уже є.
+
+## 4. Після реєстрації
 
 - Записати дати подачі/мерджу в «Знахідки» `transport-open-protocols-2026-10.md` і в «Чого поки нема» →
   «Де зареєстровано» в [`../transport-open-data.md`](../transport-open-data.md).

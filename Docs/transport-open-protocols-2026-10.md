@@ -261,6 +261,11 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
   оператора після `associated_feeds`, `gtfs_agency_id` перед `feed_onestop_id`, без `license_spdx_identifier`) —
   застосовано у форку й у `Docs/open-protocols/transitland/malin.kiev.ua.dmfr.json`; «probe» уже підтвердив фід
   (1 agency, 9 routes, 98 stops). Чекає на approve воркфлоу «Validate» і мердж.
+- **Transitous уже маршрутизує Малин** (перевірено 2026-10-19): мейнтейнер додав фід у `feeds/ua.json` ще 2026-10-18
+  (тип `http`, наш URL, ліцензія з атрибуцією); `api.transitous.org/api/v1/plan` між «10 ОГШБ» і «14 ОМБ» дає 5 варіантів
+  рейсами №7, №3+№8 — перший реальний сторонній споживач відкритих даних (П6, П9 закриті фактом).
+- Transitland: гілка форку відставала від upstream на 5 комітів, і «validate» червонів через чужі фіди в diff; після
+  `git rebase upstream/main` + `--force-with-lease` перевірки лише на нашому файлі.
 
 - `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
   0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
