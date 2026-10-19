@@ -3,16 +3,23 @@ import type { PrismaClient } from '@prisma/client';
 import { getPersonByTelegram, sendRideShareRequestToDriver } from '../telegram';
 import { createOrMergeViberListing } from '../viber-listing-merge';
 import { PHONE_BLOCKED_MESSAGE, isPhoneBlockedError } from '../phone-block';
+import { requireTelegramLogin, telegramLoginFromRes } from '../telegram-login-auth';
 
-export function createRideshareRouter(deps: { prisma: PrismaClient }): Router {
-  const { prisma } = deps;
+export function createRideshareRouter(deps: {
+  prisma: PrismaClient;
+  /** Ключ перевірки підпису Telegram Login (telegram-login-auth.ts) — пасажир лише з заголовка */
+  telegramBotToken?: string | null;
+}): Router {
+  const { prisma, telegramBotToken = null } = deps;
   const r = express.Router();
 
-  r.post('/rideshare/request', async (req, res) => {
-    const { driverListingId, telegramUserId } = req.body as { driverListingId?: number; telegramUserId?: string };
+  // Запит на попутку з сайту: хто пасажир — з підписаного X-Telegram-Login, telegramUserId у тілі ігноруємо
+  r.post('/rideshare/request', requireTelegramLogin({ botToken: telegramBotToken }), async (req, res) => {
+    const { driverListingId } = req.body as { driverListingId?: number };
+    const { id: telegramUserId } = telegramLoginFromRes(res);
 
-    if (!driverListingId || !telegramUserId) {
-      return res.status(400).json({ error: 'driverListingId and telegramUserId are required' });
+    if (!driverListingId) {
+      return res.status(400).json({ error: 'driverListingId is required' });
     }
 
     try {

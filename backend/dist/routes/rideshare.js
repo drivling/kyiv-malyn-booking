@@ -8,13 +8,16 @@ const express_1 = __importDefault(require("express"));
 const telegram_1 = require("../telegram");
 const viber_listing_merge_1 = require("../viber-listing-merge");
 const phone_block_1 = require("../phone-block");
+const telegram_login_auth_1 = require("../telegram-login-auth");
 function createRideshareRouter(deps) {
-    const { prisma } = deps;
+    const { prisma, telegramBotToken = null } = deps;
     const r = express_1.default.Router();
-    r.post('/rideshare/request', async (req, res) => {
-        const { driverListingId, telegramUserId } = req.body;
-        if (!driverListingId || !telegramUserId) {
-            return res.status(400).json({ error: 'driverListingId and telegramUserId are required' });
+    // Запит на попутку з сайту: хто пасажир — з підписаного X-Telegram-Login, telegramUserId у тілі ігноруємо
+    r.post('/rideshare/request', (0, telegram_login_auth_1.requireTelegramLogin)({ botToken: telegramBotToken }), async (req, res) => {
+        const { driverListingId } = req.body;
+        const { id: telegramUserId } = (0, telegram_login_auth_1.telegramLoginFromRes)(res);
+        if (!driverListingId) {
+            return res.status(400).json({ error: 'driverListingId is required' });
         }
         try {
             const driverListing = await prisma.viberListing.findUnique({ where: { id: Number(driverListingId) } });

@@ -250,9 +250,14 @@ person)` (чиста функція, тест на стабі).
   у рядок перевірки не входить — підписані лише `id, first_name, last_name, username, photo_url, auth_date`). Підпис
   живе добу, як радить документація віджета: сторінка `/user` на 401 показує «увійдіть ще раз» з посиланням на `/login`.
   Вхід «за телефоном» (`LoginPage.handlePhoneLogin`, `id: 0, hash: ''`) ніколи не мав справжнього профілю — тепер він чесно
-  отримує 401 замість порожнього профілю. **Не переведено** на підпис (поза `/user/*`, окремий слід): `DELETE
-  /bookings/:id/by-user`, `PATCH /viber-listings/:id/by-user`, `…/deactivate/by-user`, `POST /rideshare/...FromSite` — вони
-  досі вірять `telegramUserId` з тіла; фронтенд уже тримає підпис, тож перевести їх — той самий `requireTelegramLogin`.
+  отримує 401 замість порожнього профілю. Решту особистих маршрутів поза `/user/*` — `DELETE /bookings/:id/by-user`,
+  `PATCH /viber-listings/:id/by-user`, `…/deactivate/by-user`, `POST /rideshare/request` (сайт, `createRideShareRequestFromSite`)
+  — переведено на той самий `requireTelegramLogin` окремим слідом (гілка `user-auth-signed-login`, 2026-10-20):
+  `telegramUserId` у тілі ігнорується, власник/пасажир — лише з `X-Telegram-Login`; `createApp` роздає один
+  `telegramBotToken` усім чотирьом роутерам. Фронтенд: ті чотири методи `apiClient` шлють `telegramLoginHeaders()` без
+  id у тілі, `/user` на 401 показує те саме «увійдіть ще раз» для скасування/редагування, дошка `/mizhgorodski` — текст
+  `RIDESHARE_LOGIN_STALE_MESSAGE` у `useRideShareRequest`. Тести: `backend/src/person-scoped-telegram-login-http.test.ts`,
+  `frontend/src/hooks/useRideShareRequest.test.tsx`, `UserPage.test.tsx`. Слід закрито.
 - `vitest.setup.ts` стирає `TELEGRAM_BOT_TOKEN` до імпортів, тому HTTP-тести передають `createApp({ telegramBotToken })`;
   у проді токен той самий, що й у бота. Без токена `/user/*` відповідає 503, а не пропускає без перевірки (локально без
   бота профіль не відкриється — це свідомо).
@@ -295,7 +300,7 @@ person)` (чиста функція, тест на стабі).
   <https://github.com/drivling/kyiv-malyn-booking/compare/main...personal-data-phase4?expand=1>;
   `case-malin-p4-done` у `merenkoff/internet4` (рядок П4 → «зроблено», три мови) —
   <https://github.com/merenkoff/internet4/compare/main...case-malin-p4-done?expand=1>. PR відкриває власник (`gh` дає 403).
-- Свідомо не зроблено: підпис на `…/by-user` і `rideshare …FromSite` (поза `/user/*`, окремий коміт за потреби); експорт
+- Свідомо не зроблено (у цій гілці; підпис на `…/by-user` і `rideshare …FromSite` дороблено слідом — див. «Знахідки»): експорт
   для людей без входу через Telegram (телефон не підтверджений — план 4.5); видалення з резервних копій (у політиці «до 30
   днів»); прапор `deletedByAuthor` у `DzhuraMessage` (замість нього `deletedAt`, без міграції); кнопки «Мої дані» в
   reply-меню бота (лише команди й `/help`).

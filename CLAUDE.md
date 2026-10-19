@@ -459,8 +459,9 @@ notifications — is derived from them. Keep the two maps in sync.
   `backend/src/telegram-login-auth.ts` (HMAC-SHA256 with sha256(`TELEGRAM_BOT_TOKEN`), `auth_date` ≤ 24 h; 401 with
   `reason`, 503 when the server has no token — never a silent pass; `createApp({ telegramBotToken })` in tests). The
   frontend builds the header in `src/utils/telegramLogin.ts` from `userState.getTelegramUser()`; a 401 on `/user` means
-  «log in again». A bare `telegramUserId` in query/body is never trusted on `/user/*` (the older `…/by-user` listing and
-  booking endpoints still are — convert them with the same guard when touched). `GET /user/export` and the bot's `/mydata`
+  «log in again». A bare `telegramUserId` in query/body is never trusted: the same guard protects `DELETE /bookings/:id/by-user`,
+  `PATCH /viber-listings/:id/(deactivate/)by-user` and `POST /rideshare/request` (`createApp` hands one `telegramBotToken` to
+  every router; the matching `apiClient` methods send `telegramLoginHeaders()` and take no id). `GET /user/export` and the bot's `/mydata`
   share `collectPersonData()` (`person-data-export.ts`: no other person's phone, no `telegramChatId`/`accessHash`);
   `DELETE /user { confirm: true }` and `/deleteme` share `erasePerson()` (`person-erase.ts`: anonymise, never delete the
   Person row, never block the phone — unlike the admin archive in `person-archive.ts`; future bookings deleted, past ones
