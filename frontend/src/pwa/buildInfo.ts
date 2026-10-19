@@ -19,6 +19,8 @@ export interface BuildInfo {
   bundle: string | null;
   /** BUILD_ID активного воркера; null — воркера нема (людина не була на /transport, інший домен, dev); undefined — ще питаємо */
   worker: string | null | undefined;
+  /** BUILD_ID нової збірки, що встановилась і чекає (воркер не кличе skipWaiting); null — не чекає */
+  waiting: string | null;
   /** Ревізія локальної копії даних (ISO) або час її збереження; null — копії нема */
   dataAsOf: string | null;
 }
@@ -39,14 +41,18 @@ export function bundleHashOf(src: string | null): string | null {
   return BUNDLE_HASH_RE.exec(src ?? '')?.[1] ?? null;
 }
 
-/** BUILD_ID активного воркера транспорту з будь-якої сторінки origin; null — реєстрації чи активного воркера нема */
-export async function activeWorkerBuildId(
+/**
+ * BUILD_ID активного воркера транспорту (і того, що чекає) з будь-якої сторінки origin; active null — реєстрації чи
+ * активного воркера нема. Показуємо саме активний: це він віддає сторінки; `curl …/transport-sw.js` після деплою
+ * покаже новий id, поки той лише чекає (`Docs/transport-pwa-2026-10.md`, фаза 4) — тому waiting теж на виду.
+ */
+export async function workerBuildIds(
   sw: Pick<ServiceWorkerLike, 'getRegistration'> | null = serviceWorkerSupported() ? navigator.serviceWorker : null
-): Promise<string | null> {
-  if (!sw) return null;
+): Promise<{ active: string | null; waiting: string | null }> {
+  if (!sw) return { active: null, waiting: null };
   const reg = await sw.getRegistration(SW_SCOPE).catch(() => undefined);
-  const worker = reg?.active;
-  return worker ? buildIdOf(worker) : null;
+  const [active, waiting] = await Promise.all([reg?.active ? buildIdOf(reg.active) : null, reg?.waiting ? buildIdOf(reg.waiting) : null]);
+  return { active, waiting };
 }
 
 /** Мітка локальної копії датасету — та сама, що показує смужка стану без мережі */
@@ -58,18 +64,18 @@ export function storedDataAsOf(): string | null {
 
 export function useBuildInfo(deps: { sw?: Pick<ServiceWorkerLike, 'getRegistration'> | null } = {}): BuildInfo {
   const prerender = isPrerendering();
-  const [worker, setWorker] = useState<string | null | undefined>(undefined);
+  const [ids, setIds] = useState<{ active: string | null | undefined; waiting: string | null }>({ active: undefined, waiting: null });
   const sw = deps.sw;
   useEffect(() => {
     if (prerender) return;
     let alive = true;
-    void activeWorkerBuildId(sw === undefined ? undefined : sw).then((id) => {
-      if (alive) setWorker(id);
+    void workerBuildIds(sw === undefined ? undefined : sw).then((next) => {
+      if (alive) setIds(next);
     });
     return () => {
       alive = false;
     };
   }, [prerender, sw]);
-  if (prerender) return { bundle: null, worker: null, dataAsOf: null };
-  return { bundle: bundleHashOf(loadedBundle()), worker, dataAsOf: storedDataAsOf() };
+  if (prerender) return { bundle: null, worker: null, waiting: null, dataAsOf: null };
+  return { bundle: bundleHashOf(loadedBundle()), worker: ids.active, waiting: ids.waiting, dataAsOf: storedDataAsOf() };
 }

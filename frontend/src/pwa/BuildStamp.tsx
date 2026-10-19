@@ -13,7 +13,14 @@ export function BuildStamp({ sw }: { sw?: Pick<ServiceWorkerLike, 'getRegistrati
   return (
     <p className="company-legal-highlight__hint" id={BUILD_STAMP_ID} data-testid="build-stamp">
       Що саме у вас відкрито: збірка <code>{info.bundle ?? 'dev-сервер'}</code>, service worker «Як доїхати»{' '}
-      <code>{workerLabel(info.worker)}</code>, дані <code>{info.dataAsOf ?? 'копії ще нема'}</code>. Це можна звірити без
+      <code>{workerLabel(info.worker)}</code>
+      {info.waiting ? (
+        <>
+          {' '}
+          (нова збірка <code>{info.waiting}</code> уже встановлена й чекає)
+        </>
+      ) : null}
+      , дані <code>{info.dataAsOf ?? 'ще не збережені'}</code>. Це можна звірити без
       нас: <code>integrity</code> скрипта й стилів — у джерелі цієї сторінки (той самий файл лежить у <code>/assets/</code>),{' '}
       <code>BUILD_ID</code> — у <a href="/transport-sw.js">/transport-sw.js</a>, ревізія даних — у{' '}
       <a href="/transport/revisions">журналі ревізій</a>.
