@@ -22,6 +22,7 @@ import {
   TERMS_SECTION_ID,
 } from '@/legal/sitePublic';
 import { primaryUrl, SITE_DOMAINS } from '@/site/siteConfig';
+import { OPEN_DATA_LICENSE, OWN_NET_CASE_URL } from '@/pages/LocalTransportPage/openData';
 import { usePageSeo } from '@/hooks/usePageSeo';
 import './privacyPolicyContent.css';
 import './CompanyLegalPage.css';
@@ -87,11 +88,23 @@ export const CompanyLegalPage: React.FC = () => {
           </a>
         </nav>
 
-        {/* Принцип «спочатку офлайн» (Docs/transport-pwa-2026-10.md): межі чесно — лише розділ транспорту */}
+        {/* Принцип «спочатку офлайн» (Docs/transport-pwa-2026-10.md «Що покрито / що ні»,
+            Docs/manifesto-communication-2026-10.md): межі чесно — лише розділ транспорту; дані — відносним шляхом,
+            кейс і ліцензія — зовнішні адреси own-net.com */}
         <p className="company-legal-highlight__hint">
-          Розділ <a href="/transport">«Транспорт Малина»</a> працює без мережі: розклад і табло зупинок зберігаються у
-          вашому браузері, а сам розділ можна встановити на телефон як застосунок «Як доїхати». Міжміські попутки й
-          бронювання потребують з'єднання.
+          Розділ <a href="/transport">«Транспорт Малина»</a> працює без мережі: табло зупинок, розклади маршрутів, схема
+          і планер відкриваються без інтернету й без нашого сервера після першого відвідування, а сам розділ можна
+          встановити на телефон як застосунок «Як доїхати». Карта, міжміське табло, бронювання й найперше відкриття
+          потребують з'єднання. Розклад можна забрати з собою (<a href="/transport/scheme#open-data">GTFS і JSON</a>):
+          код і дані відкриті за{' '}
+          <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
+            {OPEN_DATA_LICENSE.name}
+          </a>
+          , а що саме зроблено за маніфестом own-net і що ще ні — у{' '}
+          <a href={OWN_NET_CASE_URL} rel="noopener" target="_blank">
+            кейсі на own-net.com
+          </a>
+          .
         </p>
 
         <div className="company-legal-highlight" aria-labelledby="company-legal-block-title">

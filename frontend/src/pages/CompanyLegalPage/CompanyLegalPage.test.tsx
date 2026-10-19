@@ -2,6 +2,7 @@ import { describe, expect, test, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CompanyLegalPage } from './CompanyLegalPage';
+import { OPEN_DATA_LICENSE, OWN_NET_CASE_URL } from '@/pages/LocalTransportPage/openData';
 
 function renderOn(hostname: string) {
   vi.spyOn(window, 'location', 'get').mockReturnValue({
@@ -60,5 +61,20 @@ describe('/about на різних доменах', () => {
       (a.getAttribute('href') || '').startsWith('https://malin.kiev.ua'),
     );
     expect(crossDomain).toHaveLength(0);
+  });
+
+  test('абзац «працює без мережі»: дані — відносно, кейс і ліцензія — на own-net.com', () => {
+    const { container } = renderOn('korosten.kiev.ua');
+    const paragraph = screen.getByText(/працює без мережі/).closest('p');
+    expect(paragraph?.textContent).toContain('табло зупинок, розклади маршрутів, схема і планер');
+    expect(paragraph?.textContent).toContain('потребують з\'єднання');
+    const links = Array.from(container.querySelectorAll('a'));
+    expect(links.find((a) => a.textContent === 'GTFS і JSON')?.getAttribute('href')).toBe('/transport/scheme#open-data');
+    expect(links.find((a) => a.textContent === OPEN_DATA_LICENSE.name)?.getAttribute('href')).toBe(
+      OPEN_DATA_LICENSE.url,
+    );
+    expect(links.find((a) => a.textContent?.includes('кейсі на own-net.com'))?.getAttribute('href')).toBe(
+      OWN_NET_CASE_URL,
+    );
   });
 });
