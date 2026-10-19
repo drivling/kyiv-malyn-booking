@@ -28,7 +28,7 @@
 
 | Файл | Зміст |
 |---|---|
-| `agency.txt` | перевізник: «Громадський транспорт міста Малина», часовий пояс `Europe/Kyiv` |
+| `agency.txt` | перевізник: «Громадський транспорт міста Малина», `agency_url` — наш розклад `https://malin.kiev.ua/transport` (планувальники показують його кнопкою під рейсом), часовий пояс `Europe/Kyiv` |
 | `stops.txt` | зупинки: `stop_id` (`st_0019`), назва, широта/довгота |
 | `routes.txt` | маршрути: `route_id` — внутрішній номер («11»), `route_short_name` — номер, який бачать люди («11/1», «5А»), `route_long_name` — кінцеві |
 | `trips.txt` | рейси: маршрут, напрямок (`direction_id` 1 — «туди», 0 — «назад»), календар, `shape_id` |
@@ -170,6 +170,7 @@ print(stop_times.merge(stops, on="stop_id").query("stop_name == 'Залізни�
 ## Чого поки нема
 
 - GTFS-Realtime (де автобус зараз) — даних про рух нема; є лише відмітки пасажирів «Факт прибуття» на сайті.
-- Фід у каталогах Mobility Database / Transitland: файли для реєстрації готові
-  ([`open-protocols/README.md`](open-protocols/README.md)), подає власник; поки не зареєстровано.
+- Фід уже є в [Mobility Database](https://mobilitydatabase.org/feeds/mdb-3615) (`mdb-3615`) і в маршрутизаторі
+  [Transitous](https://transitous.org) (наберіть дві зупинки Малина — побачите наші рейси); запис у Transitland на
+  розгляді ([`open-protocols/README.md`](open-protocols/README.md)).
 - Міжміських рейсів (Малин ↔ Київ, Житомир, Коростень) у GTFS — лише міський транспорт.

@@ -1,7 +1,7 @@
 # Відкриті протоколи: GTFS у каталогах, OpenAPI, стабільні id, RSS та iCal транспорту Малина
 
 **Status:** Фаза 0 ✅ · Фаза 1 ✅ · Фаза 2 ✅ · Фаза 3 ✅ · Фаза 4 ✅ (4.4 — лише план)  
-**Де зупинились:** етап злито (#91), таблиця ревізій — #92; фід подано в обидва каталоги 2026-10-19 (Mobility Database #1751, Transitland #2260) — чекаємо на рев'ю; далі лише «Що далі»  
+**Де зупинились:** етап злито (#91), таблиця ревізій — #92; фід у Mobility Database (#1751 злито, id 3615), Transitland #2260 чекає на мердж; далі лише «Що далі»  
 **Created:** 2026-10-18 · **Гілка:** `transport-open-protocols` (від `main` після #90)
 
 Файл відновлення: нова сесія читає його згори і продовжує з першого незакритого пункту. Одна фаза → один
@@ -252,8 +252,26 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
   + 1», а в каталозі були видалення). Воркфлоу PR від нового контрибʼютора стоять у `action_required`, доки мейнтейнер не
   натисне «Approve and run» — це не помилка. Локальне середовище інструмента на Apple Silicon: `brew install geos
   spatialindex`, потім `pip install 'rtree>=1.3'` поверх `requirements.txt` (Rtree 0.9.7 не працює з libspatialindex 2.x).
+- **Mobility Database злито 2026-10-19 (того ж дня):** мейнтейнери перенумерували на **`mdb_source_id` 3615**
+  (`…-malinkievua-gtfs-3615.json`); `latest` → `https://storage.googleapis.com/storage/v1/b/mdb-latest/o/ua-zhytomyr-oblast-malyn-city-public-transport-community-feed-by-malinkievua-gtfs-3615.zip?alt=media`
+  (наповнюється їхнім cron-ом). Червона перевірка «Validate and download» на PR — їхня інфраструктура (`pip install GDAL
+  --global-option` більше не існує в pip 26), не наш фід; злито з approve попри неї.
 - **Transitland подано 2026-10-19:** PR <https://github.com/transitland/transitland-atlas/pull/2260> з форка
-  `drivling/transitland-atlas` (`feeds/malin.kiev.ua.dmfr.json` як у `Docs/open-protocols/transitland/`).
+  `drivling/transitland-atlas`. Бот «DMFR Format Check» попросив канонічний формат (`languages` у стовпчик, `tags`
+  оператора після `associated_feeds`, `gtfs_agency_id` перед `feed_onestop_id`, без `license_spdx_identifier`) —
+  застосовано у форку й у `Docs/open-protocols/transitland/malin.kiev.ua.dmfr.json`; «probe» уже підтвердив фід
+  (1 agency, 9 routes, 98 stops). Чекає на approve воркфлоу «Validate» і мердж.
+- **Transitous уже маршрутизує Малин** (перевірено 2026-10-19): мейнтейнер додав фід у `feeds/ua.json` ще 2026-10-18
+  (тип `http`, наш URL, ліцензія з атрибуцією); `api.transitous.org/api/v1/plan` між «10 ОГШБ» і «14 ОМБ» дає 5 варіантів
+  рейсами №7, №3+№8 — перший реальний сторонній споживач відкритих даних (П6, П9 закриті фактом).
+- Transitland: гілка форку відставала від upstream на 5 комітів, і «validate» червонів через чужі фіди в diff; після
+  `git rebase upstream/main` + `--force-with-lease` перевірки лише на нашому файлі.
+- **Атрибуція у планувальнику (2026-10-19):** під рейсом Transitous показує `agency_name` кнопкою з `agency_url` —
+  вела на міськраду. Рішення власника «щоб бачили нас»: `agency_url` → `https://malin.kiev.ua/transport` (у БД — PUT
+  датасету адміном, рецепт у `open-protocols/README.md` 3а; у коді — запасне значення), `feed_publisher_name` →
+  «malin.kiev.ua (Technologies LLC)». Назву агенції не чіпаємо — це поле оператора. Запис у Transitous переводимо на
+  `mdb-3615` з нашою атрибуцією, але **PR робить власник руками**: `AI_POLICY.md` Transitous забороняє коміти й тексти
+  від LLM-інструментів (README 3б).
 
 - `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
   0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
