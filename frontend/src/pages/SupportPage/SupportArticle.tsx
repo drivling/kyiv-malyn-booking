@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { FaqAnswerText } from '@/components/FaqAnswerText';
 import { SiteContactBlock } from '@/components/SiteContactBlock/SiteContactBlock';
+import { CityFareChip } from './CityFareChip';
 import { usePageSeo } from '@/hooks';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import {
@@ -845,17 +846,11 @@ function TransportArticle() {
 
         <section className="support-block" aria-labelledby="city-fare">
           <h2 id="city-fare">Проїзд</h2>
-          <div className="support-fare-chip" aria-label="Тариф 20 гривень">
-            <span className="support-fare-chip__label">Тариф у сервісі</span>
-            <span className="support-fare-chip__amount">
-              20<span aria-hidden>₴</span>
-            </span>
-            <span className="support-fare-chip__meta">за поїздку · біля № лінії</span>
-          </div>
+          <CityFareChip />
           <p>
             Якщо виконком змінить тариф окремим рішенням — орієнтуйтеся на офіційне повідомлення.
             <br />
-            Ми підтягнемо цифру в інтерфейсі.
+            Цифра тут і в застосунку — з даних міста, оновлюється разом із ними.
           </p>
         </section>
 
