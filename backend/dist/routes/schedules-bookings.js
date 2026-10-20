@@ -10,6 +10,7 @@ const support_phone_route_1 = require("../support-phone-route");
 const schedule_departure_time_1 = require("../validation/schedule-departure-time");
 const booking_phone_1 = require("../validation/booking-phone");
 const require_admin_1 = require("../middleware/require-admin");
+const telegram_login_auth_1 = require("../telegram-login-auth");
 const catalog_cache_1 = require("../catalog-cache");
 const schedule_include_1 = require("../schedule-include");
 const phone_block_1 = require("../phone-block");
@@ -216,7 +217,7 @@ async function resolveScheduleTripFields(prisma, body, existing) {
     return { ok: true, data, route };
 }
 function createSchedulesBookingsRouter(deps) {
-    const { prisma } = deps;
+    const { prisma, telegramBotToken = null } = deps;
     const r = express_1.default.Router();
     r.get('/schedules', async (req, res) => {
         const { route, vehicleType, date, fromCode, toCode } = req.query;
@@ -780,12 +781,10 @@ function createSchedulesBookingsRouter(deps) {
             res.status(500).json({ error: 'Failed to find booking' });
         }
     });
-    r.delete('/bookings/:id/by-user', async (req, res) => {
+    // Хто скасовує — лише з підписаного заголовка X-Telegram-Login; telegramUserId у тілі ігноруємо
+    r.delete('/bookings/:id/by-user', (0, telegram_login_auth_1.requireTelegramLogin)({ botToken: telegramBotToken }), async (req, res) => {
         const { id } = req.params;
-        const { telegramUserId } = req.body;
-        if (!telegramUserId) {
-            return res.status(400).json({ error: 'telegramUserId is required' });
-        }
+        const { id: telegramUserId } = (0, telegram_login_auth_1.telegramLoginFromRes)(res);
         try {
             const booking = await prisma.booking.findUnique({
                 where: { id: Number(id) },

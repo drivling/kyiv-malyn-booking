@@ -264,6 +264,16 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   references with the loaded one. New build + tab away ≥ 30 min + no `aria-modal` dialog / focused field →
   reload at once; otherwise the next page change is a full load. Never on `/admin*`; one try per build per
   session. Dev and prerender have no `/assets/index-*` script, so it is off there.
+- **Journey planner with transfers** (`Docs/transport-journey-planner-2026-10.md`): `/transport` plans trips in the browser
+  (offline-first, no backend endpoint) with a round-based RAPTOR in `src/pages/LocalTransportPage/journey/`. One list of
+  journeys (direct + transfers) replaces the old per-route cards: `buildTimetable` (from the dataset via `chainForRecord` +
+  `recordTiming`, passenger stops only, `serviceId` filter — call it **after** `configureSegmentDurations`), `planDay` (whole-day
+  profile + Pareto over departure/arrival/transfers), `journeyWindow` (depart-at / arrive-by slice), `legAlternatives` (next trips
+  of a leg). Walking between stops closer than 400 m is straight-line × `detourFactor` (all numbers in `journey/options.ts`,
+  calibrated against Transitous). «Звідки/Куди» may be a point — `me:lat,lng` (geolocation) / `pt:lat,lng` (map click), kept in
+  the same `/transport/:from/:to` URL, never sent to GA4 (`endpointGaValue`); `?a=1` is arrive-by. A walk from the start never
+  prunes vehicle arrivals (regression test in `engine.test.ts`). `transitous.oracle.test.ts` (manual, `TRANSITOUS_ORACLE=1`, not in
+  CI) compares earliest arrival/transfers with api.transitous.org on the committed GTFS.
 - **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`; the real worker is checked only
   by hand or with `npm run pwa:smoke` in `frontend/` against a deployed site — never in CI): `/transport*` works offline and
   installs as «Як доїхати» (`public/transport.webmanifest`, scope `/transport`; the menu entry and SEO titles stay «Транспорт
@@ -285,6 +295,16 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   caches `.js` by extension and held the worker at the edge for 4 h without it) and 404s the worker/manifest on the
   secondary domain.
   Never bump `BUILD_ID` by hand; never precache `/` (301) or the prerendered pages.
+- **Verifiable build** (`Docs/transport-verifiable-build-2026-10.md`): `scripts/sri.mjs` runs right after `vite build` and
+  before the prerenders and puts `integrity="sha384-…" crossorigin="anonymous"` on the entry script and stylesheet of
+  `dist/index.html` (pure `addIntegrity()`, test `src/test/sri.test.ts`); the prerenders copy that head, the worker
+  precaches the same bytes, so SRI and cache-first do not conflict. `/about#build` (`src/pwa/BuildStamp.tsx`,
+  `useBuildInfo`) shows the loaded bundle hash, the active worker's `BUILD_ID` (`GET_BUILD_ID`) and the revision of the
+  dataset copy in the browser, with relative links to check them (`/transport-sw.js`, page source, `/transport/revisions`);
+  nothing is rendered under prerender. An installed app keeps opening `/transport*` from the precache when the domain
+  itself does not answer (smoke section «Без домену»); no updates, API, map or pages outside the scope then. By the
+  owner's decision there is no `Docs/fork.md` or any «run your own copy» guide: the license does not forbid forking, the
+  repository is public, and that is all.
 - **Offline writes** (`Docs/transport-offline-writes-2026-10.md`): the three public POSTs from the board (sticker scans,
   sticker returns, arrival reports) go through `sendOrQueue()` in `src/pwa/outbox.ts` — a localStorage queue
   (`transport-outbox:v1`, ≤ 50 items / 7 days / 10 attempts, deduplicated per `key`: sticker or trip + Kyiv day) that
@@ -443,6 +463,22 @@ home-city pinning, noindex, the transport stub, the legal wording on `/about` an
 notifications — is derived from them. Keep the two maps in sync.
 
 ## Cross-cutting notes
+
+- **Personal data belongs to the person** (`Docs/transport-open-data-2026-10.md`, phase 4). `/user/*` identifies the
+  person only from the `X-Telegram-Login` header — the Telegram Login Widget answer as base64url JSON, verified by
+  `backend/src/telegram-login-auth.ts` (HMAC-SHA256 with sha256(`TELEGRAM_BOT_TOKEN`), `auth_date` ≤ 24 h; 401 with
+  `reason`, 503 when the server has no token — never a silent pass; `createApp({ telegramBotToken })` in tests). The
+  frontend builds the header in `src/utils/telegramLogin.ts` from `userState.getTelegramUser()`; a 401 on `/user` means
+  «log in again». A bare `telegramUserId` in query/body is never trusted: the same guard protects `DELETE /bookings/:id/by-user`,
+  `PATCH /viber-listings/:id/(deactivate/)by-user` and `POST /rideshare/request` (`createApp` hands one `telegramBotToken` to
+  every router; the matching `apiClient` methods send `telegramLoginHeaders()` and take no id). `GET /user/export` and the bot's `/mydata`
+  share `collectPersonData()` (`person-data-export.ts`: no other person's phone, no `telegramChatId`/`accessHash`);
+  `DELETE /user { confirm: true }` and `/deleteme` share `erasePerson()` (`person-erase.ts`: anonymise, never delete the
+  Person row, never block the phone — unlike the admin archive in `person-archive.ts`; future bookings deleted, past ones
+  anonymised, listings deactivated, referral rewards kept, Dzhura messages emptied with `deletedAt`). The technical phone of
+  an erased person is `380000` + zero-padded id; `isTechnicalPlaceholderPhone` covers it. Device-only transport settings
+  (`lt.frequentToStops`) are exported/restored/cleared as a file by `LocalTransportPage/transportPrefs.ts`
+  (`TransportPrefsPanel` in the open-data block) — no server involved.
 
 - Git commit messages must be written in English (project convention, from `.cursor/rules`).
 - «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now**: the online flow (site modal, bot

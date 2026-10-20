@@ -4,6 +4,7 @@ import { getPersonByTelegram, isTelegramEnabled } from '../telegram';
 import { getViberListingEndDateTime, serializeViberListing } from '../index-helpers';
 import { enqueueListingMatch } from '../notification-queue';
 import { dedupeViberListingsAfterUpdate } from '../viber-listing-dedupe-after-update';
+import { requireTelegramLogin, telegramLoginFromRes } from '../telegram-login-auth';
 
 async function getViberListingForUser(prisma: PrismaClient, listingId: number, telegramUserId: string) {
   const person = await getPersonByTelegram(telegramUserId, '');
@@ -14,18 +15,22 @@ async function getViberListingForUser(prisma: PrismaClient, listingId: number, t
   return listing;
 }
 
-export function createViberListingsUserRouter(deps: { prisma: PrismaClient }): Router {
-  const { prisma } = deps;
+export function createViberListingsUserRouter(deps: {
+  prisma: PrismaClient;
+  /** Ключ перевірки підпису Telegram Login (telegram-login-auth.ts) — власника беремо лише з заголовка */
+  telegramBotToken?: string | null;
+}): Router {
+  const { prisma, telegramBotToken = null } = deps;
   const r = express.Router();
+  const requireLogin = requireTelegramLogin({ botToken: telegramBotToken });
 
-  r.patch('/viber-listings/:id/by-user', async (req, res) => {
+  r.patch('/viber-listings/:id/by-user', requireLogin, async (req, res) => {
     const id = Number(req.params.id);
-    const { telegramUserId, ...body } = req.body as Record<string, unknown>;
-    if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
-      return res.status(400).json({ error: 'telegramUserId is required' });
-    }
+    const { id: telegramUserId } = telegramLoginFromRes(res);
+    // telegramUserId у тілі більше не читаємо — хто редагує, каже підпис
+    const { telegramUserId: _ignored, ...body } = req.body as Record<string, unknown>;
     try {
-      const listing = await getViberListingForUser(prisma, id, telegramUserId.trim());
+      const listing = await getViberListingForUser(prisma, id, telegramUserId);
       if (!listing) {
         return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
       }
@@ -68,14 +73,11 @@ export function createViberListingsUserRouter(deps: { prisma: PrismaClient }): R
     }
   });
 
-  r.patch('/viber-listings/:id/deactivate/by-user', async (req, res) => {
+  r.patch('/viber-listings/:id/deactivate/by-user', requireLogin, async (req, res) => {
     const id = Number(req.params.id);
-    const { telegramUserId } = req.body as { telegramUserId?: string };
-    if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
-      return res.status(400).json({ error: 'telegramUserId is required' });
-    }
+    const { id: telegramUserId } = telegramLoginFromRes(res);
     try {
-      const listing = await getViberListingForUser(prisma, id, telegramUserId.trim());
+      const listing = await getViberListingForUser(prisma, id, telegramUserId);
       if (!listing) {
         return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
       }

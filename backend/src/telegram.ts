@@ -79,6 +79,8 @@ import { handleTelegramBotBlockedFromOutboundSend } from './revoke-telegram-bot'
 import { isTelegramBotBlockedByUserError } from './telegram-bot-blocked';
 import { sendPaidFallbackSms } from './sms-fallback';
 import { displayName, firstNameOnly } from './person-name';
+import { collectPersonData, personDataExportFileName } from './person-data-export';
+import { describeEraseResult, erasePerson } from './person-erase';
 import { siteDomainForRoute, siteForRoute, siteUrl, siteUrlForRoute } from './site-domains';
 import { isPastRideDate } from './index-helpers';
 import {
@@ -3455,6 +3457,8 @@ const CLIENT_BOT_COMMANDS: { command: string; description: string }[] = [
   { command: 'poputky', description: 'Перегляд попуток' },
   { command: 'invite', description: 'Приведи друга' },
   { command: 'confirmride', description: 'Підтвердити поїздку (фото)' },
+  { command: 'mydata', description: 'Завантажити мої дані файлом' },
+  { command: 'deleteme', description: 'Видалити мій акаунт' },
 ];
 
 /** Адмін-команди — лише в scope chat для TELEGRAM_ADMIN_CHAT_ID (не видно іншим). */
@@ -3908,6 +3912,91 @@ async function sendSharePhoneOnly(chatId: string): Promise<void> {
     parse_mode: 'HTML',
     reply_markup: getSharePhoneKeyboard(),
   });
+}
+
+export const DELETE_ME_CONFIRM_CALLBACK = 'deleteme_confirm';
+export const DELETE_ME_CANCEL_CALLBACK = 'deleteme_cancel';
+
+/**
+ * /mydata — «Дані належать людині» (Docs/transport-open-data-2026-10.md, фаза 4.1): той самий JSON, що й
+ * `GET /user/export`, документом у чат. Ключ — Telegram user id того, хто пише (підпис не потрібен: це сам бот).
+ */
+export async function handleMyDataCommand(chatId: string, userId: string): Promise<void> {
+  if (!userId || userId === '0') return;
+  try {
+    const now = new Date();
+    const data = await collectPersonData(tgPrisma, { telegramUserId: userId, now });
+    if (!data) {
+      await bot?.sendMessage(chatId, 'ℹ️ Про вас у нас немає жодного запису — експортувати нічого. Поділіться номером, щоб користуватися ботом: /start');
+      return;
+    }
+    const file = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
+    await bot?.sendDocument(
+      chatId,
+      file,
+      {
+        caption:
+          '📦 Усе, що сайт і бот знають про вас, одним файлом (JSON). Чужі дані (телефон водія, контакт друга) у файл не входять.\n' +
+          'Видалити акаунт — /deleteme. Політика конфіденційності: https://malin.kiev.ua/about#privacy-policy',
+      },
+      { filename: personDataExportFileName(now), contentType: 'application/json' },
+    );
+  } catch (error) {
+    console.error('❌ /mydata:', error);
+    await bot?.sendMessage(chatId, '❌ Не вдалося зібрати дані. Спробуйте пізніше або напишіть нам: https://malin.kiev.ua/support/contact');
+  }
+}
+
+/** /deleteme — питання з двома кнопками; саме видалення — у `handleDeleteMeCallback` після підтвердження */
+export async function handleDeleteMeCommand(chatId: string, userId: string): Promise<void> {
+  if (!userId || userId === '0') return;
+  await bot?.sendMessage(
+    chatId,
+    '🗑 <b>Видалити акаунт?</b>\n\n' +
+      'Ми приберемо ваше ім\'я, телефон і Telegram з бази: майбутні бронювання скасуємо, оголошення попуток знімемо, ' +
+      'минулі поїздки лишаться знеособленими для статистики, нарахування «Приведи друга» — в обліку. ' +
+      'Бот перестане вам писати. Повернутися можна буде заново через /start.\n\n' +
+      'Спершу можете забрати свої дані файлом: /mydata',
+    {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ Так, видалити', callback_data: DELETE_ME_CONFIRM_CALLBACK },
+            { text: '✖️ Ні, залишити', callback_data: DELETE_ME_CANCEL_CALLBACK },
+          ],
+        ],
+      },
+    },
+  );
+}
+
+/** Натискання кнопки з /deleteme. Повертає true, якщо callback був наш. */
+export async function handleDeleteMeCallback(chatId: string, userId: string, data: string): Promise<boolean> {
+  if (data !== DELETE_ME_CONFIRM_CALLBACK && data !== DELETE_ME_CANCEL_CALLBACK) return false;
+  if (data === DELETE_ME_CANCEL_CALLBACK) {
+    await bot?.sendMessage(chatId, 'Добре, нічого не видаляємо. Головне меню: /start');
+    return true;
+  }
+  if (!userId || userId === '0') return true;
+  try {
+    const result = await erasePerson(tgPrisma, { telegramUserId: userId, now: new Date() });
+    if (!result) {
+      await bot?.sendMessage(chatId, 'ℹ️ Про вас у нас немає жодного запису — видаляти нічого.');
+      return true;
+    }
+    const summary = describeEraseResult(result);
+    await bot?.sendMessage(
+      chatId,
+      `✅ <b>Акаунт видалено.</b> ${summary}.\n\nБот більше не писатиме вам. Якщо захочете повернутися — /start і номер телефону заново.`,
+      { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } },
+    );
+    await sendAdminAlertHtml(`🧹 <b>Людина видалила акаунт</b> (бот): Person #${result.personId ?? '—'}, tg ${userId}.\n${summary}`);
+  } catch (error) {
+    console.error('❌ /deleteme:', error);
+    await bot?.sendMessage(chatId, '❌ Не вдалося видалити акаунт. Спробуйте пізніше або напишіть нам: https://malin.kiev.ua/support/contact');
+  }
+  return true;
 }
 
 /**
@@ -4684,6 +4773,10 @@ function setupBotCommands() {
 /start - головне меню
 /help - показати цю довідку
 /allrides - показати всі активні попутки
+
+🔐 <b>Мої дані:</b>
+/mydata - завантажити все, що ми знаємо про вас, одним файлом
+/deleteme - видалити акаунт (бронювання на майбутнє й оголошення знімаються)
 
 💬 <b>У групі (inline):</b>
 Наберіть @${telegramBotUsername} у чаті — зʼявляться карточки: запросити друга, попутки сьогодні, допомога, бронювання. Або кнопка «Поділитися попутками» в /allrides.
@@ -5828,6 +5921,14 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
     await startRideProofFlow(bot, tgPrisma, chatId, person.id);
   });
 
+  // Фаза 4 «Дані належать людині»: мої дані файлом і видалення акаунта (person-data-export.ts, person-erase.ts)
+  bot.onText(/^\/mydata(?:@\w+)?$/i, async (msg) => {
+    await handleMyDataCommand(msg.chat.id.toString(), msg.from?.id.toString() || '');
+  });
+  bot.onText(/^\/deleteme(?:@\w+)?$/i, async (msg) => {
+    await handleDeleteMeCommand(msg.chat.id.toString(), msg.from?.id.toString() || '');
+  });
+
   // Адмін: короткий звіт по реферальній програмі (чит / pending / фото)
   bot.onText(/^\/referralreport(?:@\w+)?$/i, async (msg) => {
     await runAdminReferralReport(msg.chat.id.toString());
@@ -5868,6 +5969,14 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
     }
 
     try {
+      // ---------- /deleteme: підтвердження або відмова ----------
+      if (data === DELETE_ME_CONFIRM_CALLBACK || data === DELETE_ME_CANCEL_CALLBACK) {
+        await bot?.answerCallbackQuery(query.id).catch(() => {});
+        if (messageId) await bot?.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId }).catch(() => {});
+        await handleDeleteMeCallback(chatId, userId, data);
+        return;
+      }
+
       // ---------- Реферальна програма / підтвердження поїздки ----------
       if (
         data.startsWith('referral_') ||

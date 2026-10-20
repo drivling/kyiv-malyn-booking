@@ -528,3 +528,35 @@
     padding: 14px 16px;
   }
 }
+
+/* «Мої дані» — експорт і видалення (Docs/transport-open-data-2026-10.md, фаза 4) */
+.user-section--data {
+  grid-column: 1 / -1;
+}
+.user-data-text {
+  margin: 0 0 12px;
+  color: var(--text-secondary, #4b5563);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.user-data-text a {
+  color: inherit;
+  text-decoration: underline;
+}
+.user-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.user-data-confirm {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  background: #fef2f2;
+}
+.user-data-confirm-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  color: #991b1b;
+}

@@ -63,6 +63,20 @@ describe('/about на різних доменах', () => {
     expect(crossDomain).toHaveLength(0);
   });
 
+  test('політика: свої дані можна забрати файлом і видалити самому — на /user і в боті, пошта лишається запасним шляхом', () => {
+    const { container } = renderOn('malin.kiev.ua');
+    const rights = container.querySelector('#privacy-rights')?.parentElement;
+    expect(rights?.textContent).toContain('«Завантажити мої дані»');
+    expect(rights?.textContent).toContain('/mydata');
+    expect(rights?.textContent).toContain('/deleteme');
+    const profileLinks = Array.from(rights?.querySelectorAll('a') ?? []).filter((a) => a.getAttribute('href') === '/user');
+    expect(profileLinks.length).toBeGreaterThan(0);
+    expect(rights?.textContent).toContain('якщо входу через Telegram у вас нема');
+    const retention = container.querySelector('#privacy-retention')?.parentElement;
+    expect(retention?.textContent).toContain('стираються одразу');
+    expect(retention?.textContent).toContain('до 30 днів');
+  });
+
   test('абзац «працює без мережі»: дані — відносно, кейс і ліцензія — на own-net.com', () => {
     const { container } = renderOn('korosten.kiev.ua');
     const paragraph = screen.getByText(/працює без мережі/).closest('p');
@@ -76,5 +90,17 @@ describe('/about на різних доменах', () => {
     expect(links.find((a) => a.textContent?.includes('кейсі на own-net.com'))?.getAttribute('href')).toBe(
       OWN_NET_CASE_URL,
     );
+  });
+
+  test('рядок «що саме у вас відкрито»: збірка, воркер, дані, адреси для звірки — відносні', () => {
+    const { container } = renderOn('malin.kiev.ua');
+    const stamp = screen.getByTestId('build-stamp');
+    expect(stamp.id).toBe('build');
+    expect(stamp.textContent).toContain('збірка');
+    expect(stamp.textContent).toContain('service worker');
+    expect(stamp.textContent).toContain('BUILD_ID');
+    expect(container.querySelector('#build a[href="/transport-sw.js"]')).not.toBeNull();
+    expect(container.querySelector('#build a[href="/transport/revisions"]')).not.toBeNull();
+    expect(stamp.innerHTML).not.toMatch(/https?:\/\//);
   });
 });

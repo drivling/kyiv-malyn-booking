@@ -9,6 +9,7 @@ const telegram_1 = require("../telegram");
 const index_helpers_1 = require("../index-helpers");
 const notification_queue_1 = require("../notification-queue");
 const viber_listing_dedupe_after_update_1 = require("../viber-listing-dedupe-after-update");
+const telegram_login_auth_1 = require("../telegram-login-auth");
 async function getViberListingForUser(prisma, listingId, telegramUserId) {
     const person = await (0, telegram_1.getPersonByTelegram)(telegramUserId, '');
     if (!person)
@@ -19,16 +20,16 @@ async function getViberListingForUser(prisma, listingId, telegramUserId) {
     return listing;
 }
 function createViberListingsUserRouter(deps) {
-    const { prisma } = deps;
+    const { prisma, telegramBotToken = null } = deps;
     const r = express_1.default.Router();
-    r.patch('/viber-listings/:id/by-user', async (req, res) => {
+    const requireLogin = (0, telegram_login_auth_1.requireTelegramLogin)({ botToken: telegramBotToken });
+    r.patch('/viber-listings/:id/by-user', requireLogin, async (req, res) => {
         const id = Number(req.params.id);
-        const { telegramUserId, ...body } = req.body;
-        if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
-            return res.status(400).json({ error: 'telegramUserId is required' });
-        }
+        const { id: telegramUserId } = (0, telegram_login_auth_1.telegramLoginFromRes)(res);
+        // telegramUserId у тілі більше не читаємо — хто редагує, каже підпис
+        const { telegramUserId: _ignored, ...body } = req.body;
         try {
-            const listing = await getViberListingForUser(prisma, id, telegramUserId.trim());
+            const listing = await getViberListingForUser(prisma, id, telegramUserId);
             if (!listing) {
                 return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
             }
@@ -72,14 +73,11 @@ function createViberListingsUserRouter(deps) {
             res.status(500).json({ error: 'Failed to update listing' });
         }
     });
-    r.patch('/viber-listings/:id/deactivate/by-user', async (req, res) => {
+    r.patch('/viber-listings/:id/deactivate/by-user', requireLogin, async (req, res) => {
         const id = Number(req.params.id);
-        const { telegramUserId } = req.body;
-        if (!telegramUserId || typeof telegramUserId !== 'string' || !telegramUserId.trim()) {
-            return res.status(400).json({ error: 'telegramUserId is required' });
-        }
+        const { id: telegramUserId } = (0, telegram_login_auth_1.telegramLoginFromRes)(res);
         try {
-            const listing = await getViberListingForUser(prisma, id, telegramUserId.trim());
+            const listing = await getViberListingForUser(prisma, id, telegramUserId);
             if (!listing) {
                 return res.status(404).json({ error: 'Оголошення не знайдено або це не ваше оголошення' });
             }

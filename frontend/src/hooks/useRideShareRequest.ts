@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { ViberListing } from '@/types';
 import { userState } from '@/utils/userState';
+import { isTelegramLoginRejected } from '@/utils/telegramLogin';
 
 export type RideShareStatusData = {
   listing: ViberListing;
@@ -10,6 +11,10 @@ export type RideShareStatusData = {
   /** Контакт водія з /viber-listings/:id/contact (у публічному DTO телефону немає); null — не вдалося */
   contact: string | null;
 };
+
+/** 401 від POST /rideshare/request: підпис Telegram Login прострочений або його нема (як на /user) */
+export const RIDESHARE_LOGIN_STALE_MESSAGE =
+  'Сесія входу через Telegram застаріла або не підтверджена — увійдіть ще раз, щоб бронювати місце у водія.';
 
 type Options = {
   listings: ViberListing[];
@@ -53,10 +58,8 @@ export function useRideShareRequest({ listings, onNeedLogin }: Options) {
     setRequestError('');
     setRequestingListingId(driverListingId);
     try {
-      const result = await apiClient.createRideShareRequestFromSite(
-        driverListingId,
-        telegramUser.id.toString()
-      );
+      // Хто пасажир — бекенд бере з підписаного заголовка X-Telegram-Login, id у тілі не шлемо
+      const result = await apiClient.createRideShareRequestFromSite(driverListingId);
       const selectedListing = listings.find((item) => item.id === driverListingId) || null;
       if (selectedListing) {
         // Телефон потрібен лише коли водій не в Telegram — тоді показуємо «Зателефонувати»
@@ -71,7 +74,9 @@ export function useRideShareRequest({ listings, onNeedLogin }: Options) {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Не вдалося створити запит на попутку';
-      if (message.includes('Ви вже надсилали запит')) {
+      if (isTelegramLoginRejected(err)) {
+        setRequestError(RIDESHARE_LOGIN_STALE_MESSAGE);
+      } else if (message.includes('Ви вже надсилали запит')) {
         const listing = listings.find((item) => item.id === driverListingId) || null;
         if (listing) {
           setAlreadyRequestedContact(await fetchContact(driverListingId));

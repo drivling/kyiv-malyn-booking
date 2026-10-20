@@ -363,3 +363,40 @@
     padding: 0;
   }
 }
+
+/* Налаштування на пристрої (фаза 4.3) — під блоком «Дані відкриті» */
+.lts-prefs {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--lt-border, #d6d3d1);
+}
+.lts-prefs-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.lts-prefs-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lts-btn--quiet {
+  background: transparent;
+  box-shadow: none;
+}
+.lts-prefs-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.lts-prefs-status {
+  color: #166534;
+}
+.lts-prefs-error {
+  color: #991b1b;
+}

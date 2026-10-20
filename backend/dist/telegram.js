@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatIdByPhone = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendTripReminderVia = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUserId = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
+exports.getChatIdByPhone = exports.DELETE_ME_CANCEL_CALLBACK = exports.DELETE_ME_CONFIRM_CALLBACK = exports.isTelegramEnabled = exports.sendReferralInvitePromo = exports.sendInactivityReminder = exports.sendTripReminderToday = exports.sendTripReminder = exports.sendTripReminderVia = exports.sendBookingConfirmationToCustomer = exports.sendRideShareRequestToDriver = exports.sendViberListingConfirmationToUser = exports.sendViberListingNotificationToAdmin = exports.sendBookingNotificationToAdmin = exports.getTelegramRouteName = exports.formatTelegramDate = exports.getPhoneByTelegramUser = exports.getNameByPhone = exports.findOrCreatePersonByTelegramUserId = exports.findOrCreatePersonByTelegramUsername = exports.getPersonByTelegramUsername = exports.findOrCreatePersonByPhone = exports.getDriverFutureBookingsForMybookings = exports.getPersonByTelegram = exports.getPersonByPhone = exports.normalizePhone = exports.BEHAVIOR_PROMO_SCENARIO_PROFILES = exports.BEHAVIOR_PROMO_SCENARIO_LABELS = void 0;
 exports.setSpawnForTests = setSpawnForTests;
 exports.resetSpawnForTests = resetSpawnForTests;
 exports.setTelegramPrismaForTests = setTelegramPrismaForTests;
@@ -41,6 +41,9 @@ exports.buildInactivityReminderSms = buildInactivityReminderSms;
 exports.buildInactivityReminderMessage = buildInactivityReminderMessage;
 exports.sendTelegramHtmlToChat = sendTelegramHtmlToChat;
 exports.fetchTelegramFileById = fetchTelegramFileById;
+exports.handleMyDataCommand = handleMyDataCommand;
+exports.handleDeleteMeCommand = handleDeleteMeCommand;
+exports.handleDeleteMeCallback = handleDeleteMeCallback;
 exports.setTelegramBotForTests = setTelegramBotForTests;
 exports.resetTelegramBotForTests = resetTelegramBotForTests;
 exports.executeBookViberRideShare = executeBookViberRideShare;
@@ -110,6 +113,8 @@ const revoke_telegram_bot_1 = require("./revoke-telegram-bot");
 const telegram_bot_blocked_1 = require("./telegram-bot-blocked");
 const sms_fallback_1 = require("./sms-fallback");
 const person_name_1 = require("./person-name");
+const person_data_export_1 = require("./person-data-export");
+const person_erase_1 = require("./person-erase");
 const site_domains_1 = require("./site-domains");
 const index_helpers_1 = require("./index-helpers");
 const telegram_contact_1 = require("./telegram-contact");
@@ -2764,6 +2769,8 @@ const CLIENT_BOT_COMMANDS = [
     { command: 'poputky', description: 'Перегляд попуток' },
     { command: 'invite', description: 'Приведи друга' },
     { command: 'confirmride', description: 'Підтвердити поїздку (фото)' },
+    { command: 'mydata', description: 'Завантажити мої дані файлом' },
+    { command: 'deleteme', description: 'Видалити мій акаунт' },
 ];
 /** Адмін-команди — лише в scope chat для TELEGRAM_ADMIN_CHAT_ID (не видно іншим). */
 const ADMIN_EXTRA_BOT_COMMANDS = [
@@ -3191,6 +3198,79 @@ async function sendSharePhoneOnly(chatId) {
         parse_mode: 'HTML',
         reply_markup: getSharePhoneKeyboard(),
     });
+}
+exports.DELETE_ME_CONFIRM_CALLBACK = 'deleteme_confirm';
+exports.DELETE_ME_CANCEL_CALLBACK = 'deleteme_cancel';
+/**
+ * /mydata — «Дані належать людині» (Docs/transport-open-data-2026-10.md, фаза 4.1): той самий JSON, що й
+ * `GET /user/export`, документом у чат. Ключ — Telegram user id того, хто пише (підпис не потрібен: це сам бот).
+ */
+async function handleMyDataCommand(chatId, userId) {
+    if (!userId || userId === '0')
+        return;
+    try {
+        const now = new Date();
+        const data = await (0, person_data_export_1.collectPersonData)(tgPrisma, { telegramUserId: userId, now });
+        if (!data) {
+            await bot?.sendMessage(chatId, 'ℹ️ Про вас у нас немає жодного запису — експортувати нічого. Поділіться номером, щоб користуватися ботом: /start');
+            return;
+        }
+        const file = Buffer.from(JSON.stringify(data, null, 2), 'utf8');
+        await bot?.sendDocument(chatId, file, {
+            caption: '📦 Усе, що сайт і бот знають про вас, одним файлом (JSON). Чужі дані (телефон водія, контакт друга) у файл не входять.\n' +
+                'Видалити акаунт — /deleteme. Політика конфіденційності: https://malin.kiev.ua/about#privacy-policy',
+        }, { filename: (0, person_data_export_1.personDataExportFileName)(now), contentType: 'application/json' });
+    }
+    catch (error) {
+        console.error('❌ /mydata:', error);
+        await bot?.sendMessage(chatId, '❌ Не вдалося зібрати дані. Спробуйте пізніше або напишіть нам: https://malin.kiev.ua/support/contact');
+    }
+}
+/** /deleteme — питання з двома кнопками; саме видалення — у `handleDeleteMeCallback` після підтвердження */
+async function handleDeleteMeCommand(chatId, userId) {
+    if (!userId || userId === '0')
+        return;
+    await bot?.sendMessage(chatId, '🗑 <b>Видалити акаунт?</b>\n\n' +
+        'Ми приберемо ваше ім\'я, телефон і Telegram з бази: майбутні бронювання скасуємо, оголошення попуток знімемо, ' +
+        'минулі поїздки лишаться знеособленими для статистики, нарахування «Приведи друга» — в обліку. ' +
+        'Бот перестане вам писати. Повернутися можна буде заново через /start.\n\n' +
+        'Спершу можете забрати свої дані файлом: /mydata', {
+        parse_mode: 'HTML',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '✅ Так, видалити', callback_data: exports.DELETE_ME_CONFIRM_CALLBACK },
+                    { text: '✖️ Ні, залишити', callback_data: exports.DELETE_ME_CANCEL_CALLBACK },
+                ],
+            ],
+        },
+    });
+}
+/** Натискання кнопки з /deleteme. Повертає true, якщо callback був наш. */
+async function handleDeleteMeCallback(chatId, userId, data) {
+    if (data !== exports.DELETE_ME_CONFIRM_CALLBACK && data !== exports.DELETE_ME_CANCEL_CALLBACK)
+        return false;
+    if (data === exports.DELETE_ME_CANCEL_CALLBACK) {
+        await bot?.sendMessage(chatId, 'Добре, нічого не видаляємо. Головне меню: /start');
+        return true;
+    }
+    if (!userId || userId === '0')
+        return true;
+    try {
+        const result = await (0, person_erase_1.erasePerson)(tgPrisma, { telegramUserId: userId, now: new Date() });
+        if (!result) {
+            await bot?.sendMessage(chatId, 'ℹ️ Про вас у нас немає жодного запису — видаляти нічого.');
+            return true;
+        }
+        const summary = (0, person_erase_1.describeEraseResult)(result);
+        await bot?.sendMessage(chatId, `✅ <b>Акаунт видалено.</b> ${summary}.\n\nБот більше не писатиме вам. Якщо захочете повернутися — /start і номер телефону заново.`, { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+        await sendAdminAlertHtml(`🧹 <b>Людина видалила акаунт</b> (бот): Person #${result.personId ?? '—'}, tg ${userId}.\n${summary}`);
+    }
+    catch (error) {
+        console.error('❌ /deleteme:', error);
+        await bot?.sendMessage(chatId, '❌ Не вдалося видалити акаунт. Спробуйте пізніше або напишіть нам: https://malin.kiev.ua/support/contact');
+    }
+    return true;
 }
 /**
  * Налаштування обробників команд бота
@@ -3879,6 +3959,10 @@ function setupBotCommands() {
 /start - головне меню
 /help - показати цю довідку
 /allrides - показати всі активні попутки
+
+🔐 <b>Мої дані:</b>
+/mydata - завантажити все, що ми знаємо про вас, одним файлом
+/deleteme - видалити акаунт (бронювання на майбутнє й оголошення знімаються)
 
 💬 <b>У групі (inline):</b>
 Наберіть @${telegramBotUsername} у чаті — зʼявляться карточки: запросити друга, попутки сьогодні, допомога, бронювання. Або кнопка «Поділитися попутками» в /allrides.
@@ -4926,6 +5010,13 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
         }
         await (0, telegram_referral_1.startRideProofFlow)(bot, tgPrisma, chatId, person.id);
     });
+    // Фаза 4 «Дані належать людині»: мої дані файлом і видалення акаунта (person-data-export.ts, person-erase.ts)
+    bot.onText(/^\/mydata(?:@\w+)?$/i, async (msg) => {
+        await handleMyDataCommand(msg.chat.id.toString(), msg.from?.id.toString() || '');
+    });
+    bot.onText(/^\/deleteme(?:@\w+)?$/i, async (msg) => {
+        await handleDeleteMeCommand(msg.chat.id.toString(), msg.from?.id.toString() || '');
+    });
     // Адмін: короткий звіт по реферальній програмі (чит / pending / фото)
     bot.onText(/^\/referralreport(?:@\w+)?$/i, async (msg) => {
         await runAdminReferralReport(msg.chat.id.toString());
@@ -4963,6 +5054,14 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
             }
         }
         try {
+            // ---------- /deleteme: підтвердження або відмова ----------
+            if (data === exports.DELETE_ME_CONFIRM_CALLBACK || data === exports.DELETE_ME_CANCEL_CALLBACK) {
+                await bot?.answerCallbackQuery(query.id).catch(() => { });
+                if (messageId)
+                    await bot?.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId }).catch(() => { });
+                await handleDeleteMeCallback(chatId, userId, data);
+                return;
+            }
             // ---------- Реферальна програма / підтвердження поїздки ----------
             if (data.startsWith('referral_') ||
                 data.startsWith('rideproof_')) {

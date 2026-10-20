@@ -19,6 +19,7 @@ const schedules_bookings_1 = require("./routes/schedules-bookings");
 const trip_points_1 = require("./routes/trip-points");
 const trip_routes_1 = require("./routes/trip-routes");
 const user_profile_1 = require("./routes/user-profile");
+const telegram_1 = require("./telegram");
 const viber_listings_user_1 = require("./routes/viber-listings-user");
 const telegram_routes_1 = require("./routes/telegram-routes");
 const rideshare_1 = require("./routes/rideshare");
@@ -93,13 +94,19 @@ function createApp(deps) {
     app.use((0, public_routes_1.createPublicRoutesRouter)({ codeVersion: exports.CODE_VERSION }));
     app.use((0, admin_session_1.createAdminSessionRouter)({ adminPassword: ADMIN_PASSWORD }));
     app.use((0, admin_maintenance_1.createAdminMaintenanceRouter)({ prisma }));
-    app.use((0, schedules_bookings_1.createSchedulesBookingsRouter)({ prisma }));
+    // Один ключ підпису Telegram Login для всіх особистих маршрутів
+    const telegramBotToken = deps.telegramBotToken ?? process.env.TELEGRAM_BOT_TOKEN ?? null;
+    app.use((0, schedules_bookings_1.createSchedulesBookingsRouter)({ prisma, telegramBotToken }));
     app.use((0, trip_points_1.createTripPointsRouter)({ prisma }));
     app.use((0, trip_routes_1.createTripRoutesRouter)({ prisma }));
-    app.use((0, user_profile_1.createUserProfileRouter)({ prisma }));
-    app.use((0, viber_listings_user_1.createViberListingsUserRouter)({ prisma }));
+    app.use((0, user_profile_1.createUserProfileRouter)({
+        prisma,
+        telegramBotToken,
+        notifyAdmin: telegram_1.sendAdminAlertHtml,
+    }));
+    app.use((0, viber_listings_user_1.createViberListingsUserRouter)({ prisma, telegramBotToken }));
     app.use((0, telegram_routes_1.createTelegramRoutesRouter)({ prisma }));
-    app.use((0, rideshare_1.createRideshareRouter)({ prisma }));
+    app.use((0, rideshare_1.createRideshareRouter)({ prisma, telegramBotToken }));
     app.use((0, viber_listings_1.createViberListingsRouter)({ prisma }));
     app.use((0, admin_persons_1.createAdminPersonsRouter)({ prisma }));
     app.use((0, admin_messaging_1.createAdminMessagingRouter)({ prisma }));

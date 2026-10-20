@@ -12,6 +12,7 @@ import { createSchedulesBookingsRouter } from './routes/schedules-bookings';
 import { createTripPointsRouter } from './routes/trip-points';
 import { createTripRoutesRouter } from './routes/trip-routes';
 import { createUserProfileRouter } from './routes/user-profile';
+import { sendAdminAlertHtml } from './telegram';
 import { createViberListingsUserRouter } from './routes/viber-listings-user';
 import { createTelegramRoutesRouter } from './routes/telegram-routes';
 import { createRideshareRouter } from './routes/rideshare';
@@ -32,6 +33,13 @@ export type CreateAppDeps = {
   prisma: PrismaClient;
   /** Якщо не задано — `process.env.ADMIN_PASSWORD` або dev-fallback */
   adminPassword?: string;
+  /**
+   * Ключ перевірки підпису Telegram Login на `/user/*` і на решті особистих маршрутів
+   * (`DELETE /bookings/:id/by-user`, `PATCH /viber-listings/:id/(deactivate/)by-user`, `POST /rideshare/request`;
+   * telegram-login-auth.ts). Якщо не задано — `process.env.TELEGRAM_BOT_TOKEN`; без токена ці маршрути
+   * відповідають 503, а не пропускають без перевірки.
+   */
+  telegramBotToken?: string | null;
 };
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -97,14 +105,23 @@ setAdminPassword(app, ADMIN_PASSWORD);
 app.use(createPublicRoutesRouter({ codeVersion: CODE_VERSION }));
 app.use(createAdminSessionRouter({ adminPassword: ADMIN_PASSWORD }));
 app.use(createAdminMaintenanceRouter({ prisma }));
-app.use(createSchedulesBookingsRouter({ prisma }));
+// Один ключ підпису Telegram Login для всіх особистих маршрутів
+const telegramBotToken = deps.telegramBotToken ?? process.env.TELEGRAM_BOT_TOKEN ?? null;
+
+app.use(createSchedulesBookingsRouter({ prisma, telegramBotToken }));
 app.use(createTripPointsRouter({ prisma }));
 app.use(createTripRoutesRouter({ prisma }));
 
-app.use(createUserProfileRouter({ prisma }));
-app.use(createViberListingsUserRouter({ prisma }));
+app.use(
+  createUserProfileRouter({
+    prisma,
+    telegramBotToken,
+    notifyAdmin: sendAdminAlertHtml,
+  }),
+);
+app.use(createViberListingsUserRouter({ prisma, telegramBotToken }));
 app.use(createTelegramRoutesRouter({ prisma }));
-app.use(createRideshareRouter({ prisma }));
+app.use(createRideshareRouter({ prisma, telegramBotToken }));
 app.use(createViberListingsRouter({ prisma }));
 app.use(createAdminPersonsRouter({ prisma }));
 app.use(createAdminMessagingRouter({ prisma }));

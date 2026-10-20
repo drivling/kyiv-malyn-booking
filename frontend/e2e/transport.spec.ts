@@ -164,14 +164,14 @@ test.describe('transport', () => {
 
     // Без «Знайти»: адресний рядок оновився сам.
     await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?d=16\.09\.26&h=09(%3A|:)12$/);
-    await expect(page.getByText(/Прямі маршрути: Базар → Вокзал/)).toBeVisible();
+    await expect(page.getByText(/Маршрути: Базар → Вокзал/)).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Базар → Вокзал');
     await expect(page).toHaveTitle(/^Базар → Вокзал — як доїхати у Малині/);
 
-    // Набір тексту у «З» не дає хибного «немає прямого маршруту», результати лишаються.
+    // Набір тексту у «З» не дає хибного «Не знайшли поїздок», результати лишаються.
     await from.fill('Ба');
     await expect(page.getByText(/Оберіть зупинку зі списку/)).toBeVisible();
-    await expect(page.getByText(/немає прямого маршруту/)).toHaveCount(0);
+    await expect(page.getByText(/Не знайшли поїздок/)).toHaveCount(0);
     await expect(page).toHaveURL(/\/transport\/st_a\/st_b\?/);
     await page.getByRole('option', { name: 'Базар' }).click();
 
@@ -211,18 +211,29 @@ test.describe('transport', () => {
     await expect(card).not.toContainText(/лінія|перевірено/);
 
     await page.goto('/transport/st_a/st_b?d=01.03.26&h=23%3A50');
-    await expect(page.getByRole('button', { name: /Маршрут №2/ })).toContainText('перший наступного дня');
+    await expect(page.getByText(/перші поїздки наступного дня/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Маршрут №2/ })).toContainText('08:30');
   });
 
-  test('no direct route: suggests the neighbouring stop with a direct route', async ({ page }) => {
+  test('a neighbouring stop is reached on foot: the journey starts with a short walk', async ({ page }) => {
     await page.goto('/transport/st_a/st_d?d=01.03.26&h=09%3A12');
-    await expect(page.getByText(/немає прямого маршруту/)).toBeVisible();
-    const suggestion = page.getByRole('button', { name: /Ринок → Парк/ });
-    await expect(suggestion).toContainText(/\d+ м від «Базар» · №3/);
-    await suggestion.click();
-    await expect(page).toHaveURL(/\/transport\/st_e\/st_d\?/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ринок → Парк');
-    await expect(page.getByRole('button', { name: /Маршрут №3 до Парк/ })).toBeVisible();
+    const card = page.getByRole('button', { name: /Маршрут №3 до Парк/ });
+    // Ринок за ~20 м від Базару: 2 хв пішки (нижня межа пересадки), №3 о 10:00 → Парк о 10:17
+    await expect(card).toContainText('09:58 → 10:17 · 19 хв');
+    await expect(card).toContainText(/пішки \d+ м/);
+    await card.click();
+    await expect(page.getByText('Базар → Ринок')).toBeVisible();
+  });
+
+  test('transfer with a walk: Вокзал → Парк goes back on №2 to Базар, walks to Ринок and takes №3; the later departure wins', async ({ page }) => {
+    await page.goto('/transport/st_b/st_d?d=01.03.26&h=08%3A00');
+    // Те саме прибуття 10:17, що й через Лікарню (08:34), але вирушити можна на 31 хв пізніше — тож Парето лишає цей варіант.
+    const card = page.getByRole('button', { name: /^Маршрути №2, №3/ });
+    await expect(card).toContainText('09:05 → 10:17 · 72 хв · 1 пересадка · пішки 28 м');
+    await card.click();
+    await expect(page.getByText('Пішки 28 м · 2 хв')).toBeVisible();
+    await expect(page.getByText('Базар → Ринок')).toBeVisible();
+    await expect(page.getByText('Очікування 49 хв')).toBeVisible();
   });
 
   test('stop board: typing keeps the URL; pick → planner hand-off; route «Назад» returns to the board', async ({ page }) => {

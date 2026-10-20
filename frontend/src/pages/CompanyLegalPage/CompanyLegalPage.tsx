@@ -23,6 +23,7 @@ import {
 } from '@/legal/sitePublic';
 import { primaryUrl, SITE_DOMAINS } from '@/site/siteConfig';
 import { OPEN_DATA_LICENSE, OWN_NET_CASE_URL } from '@/pages/LocalTransportPage/openData';
+import { BuildStamp } from '@/pwa/BuildStamp';
 import { usePageSeo } from '@/hooks/usePageSeo';
 import './privacyPolicyContent.css';
 import './CompanyLegalPage.css';
@@ -95,8 +96,9 @@ export const CompanyLegalPage: React.FC = () => {
           Розділ <a href="/transport">«Транспорт Малина»</a> працює без мережі: табло зупинок, розклади маршрутів, схема
           і планер відкриваються без інтернету й без нашого сервера після першого відвідування, а сам розділ можна
           встановити на телефон як застосунок «Як доїхати». Карта, міжміське табло, бронювання й найперше відкриття
-          потребують з'єднання. Розклад можна забрати з собою (<a href="/transport/scheme#open-data">GTFS і JSON</a>):
-          код і дані відкриті за{' '}
+          потребують з'єднання. Розклад можна забрати з собою (<a href="/transport/scheme#open-data">GTFS і JSON</a>),
+          а все, що ми знаємо про вас, — одним файлом або видалити на <a href="/user">сторінці профілю</a> чи в боті
+          (/mydata, /deleteme): код і дані відкриті за{' '}
           <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
             {OPEN_DATA_LICENSE.name}
           </a>
@@ -106,6 +108,8 @@ export const CompanyLegalPage: React.FC = () => {
           </a>
           .
         </p>
+        {/* П7 «перевірювана архітектура» (Docs/transport-verifiable-build-2026-10.md): збірка, воркер, дані — і як звірити */}
+        <BuildStamp />
 
         <div className="company-legal-highlight" aria-labelledby="company-legal-block-title">
           <div className="company-legal-highlight__head">
@@ -499,7 +503,12 @@ export const CompanyLegalPage: React.FC = () => {
           <section className="privacy-policy-section" aria-labelledby="privacy-retention">
             <h2 id="privacy-retention">Строки зберігання</h2>
             <ul className="privacy-policy-list">
-              <li>дані акаунта та оголошень — протягом користування сервісом і до 3 років після видалення;</li>
+              <li>
+                дані акаунта та оголошень — протягом користування сервісом. Коли ви видаляєте акаунт самі (сторінка
+                профілю або команда /deleteme у боті), ім'я, телефон і Telegram стираються одразу, майбутні бронювання й
+                оголошення знімаються, минулі поїздки лишаються без прив'язки до вас — для статистики; нарахування
+                акції «Приведи друга» лишаються в обліку. Резервні копії бази хостинг-провайдера живуть до 30 днів;
+              </li>
               <li>звернення до підтримки — до 3 років;</li>
               <li>технічні журнали безпеки — до 12 місяців;</li>
               <li>cookie — до строку дії конкретного cookie або до його видалення користувачем.</li>
@@ -520,12 +529,25 @@ export const CompanyLegalPage: React.FC = () => {
             <p>Ви можете:</p>
             <ul className="privacy-policy-list">
               <li>дізнатися, чи обробляємо ми ваші персональні дані та в якому обсязі;</li>
-              <li>вимагати виправлення неточних даних;</li>
-              <li>в певних випадках — вимагати видалення або обмеження обробки;</li>
+              <li>
+                забрати все, що ми знаємо про вас, одним файлом (JSON) — самі, без листа: кнопка «Завантажити мої
+                дані» на <a href="/user" className="privacy-policy-link">сторінці профілю</a> після входу через Telegram
+                або команда /mydata у боті;
+              </li>
+              <li>вимагати виправлення неточних даних (ім'я можна змінити на сторінці профілю);</li>
+              <li>
+                видалити акаунт — там само («Видалити акаунт») або командою /deleteme у боті; що саме стирається —
+                у розділі «Строки зберігання» вище;
+              </li>
+              <li>в певних випадках — вимагати обмеження обробки;</li>
               <li>відкликати згоду на обробку, якщо обробка ґрунтується на згоді.</li>
             </ul>
             <p>
-              Щоб надіслати запит, напишіть на{' '}
+              Часті зупинки планера транспорту зберігаються лише у вашому браузері — їх можна забрати файлом або
+              стерти в блоці «Дані відкриті» на <a href="/transport/scheme#open-data" className="privacy-policy-link">схемі маршрутів</a>.
+            </p>
+            <p>
+              Для решти запитів — або якщо входу через Telegram у вас нема — напишіть на{' '}
               <a href={`mailto:${c.email}`} className="privacy-policy-link">
                 {c.email}
               </a>
