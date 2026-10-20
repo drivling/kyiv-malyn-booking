@@ -252,9 +252,15 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
   if (!mounted) return null;
 
+  // Обрана поїздка малюється власним шаром (товсто, поверх); повні лінії її маршрутів лишаються лише фоном —
+  // тонкими й блідими, щоб було видно, куди автобус їде до і після нашої ділянки, і це не збивало з толку.
+  const journeyActive = Boolean(journey && journey.legs.length > 0);
   const lineStyle = (line: RouteLine) => {
     if (highlight.size === 0) return { color: line.color, weight: 3, opacity: 0.55 };
-    return highlight.has(line.routeId) ? { color: line.color, weight: 5, opacity: 1 } : { color: line.color, weight: 3, opacity: 0.2 };
+    if (highlight.has(line.routeId)) {
+      return journeyActive ? { color: line.color, weight: 3, opacity: 0.4 } : { color: line.color, weight: 5, opacity: 1 };
+    }
+    return { color: line.color, weight: 3, opacity: journeyActive ? 0.15 : 0.2 };
   };
 
   return (
@@ -306,7 +312,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
           <Pane name="lt-journey" style={{ zIndex: 411 }} />
           <Pane name="lt-journey-walk" style={{ zIndex: 412 }} />
           {routeLines.map((line) =>
-            highlight.has(line.routeId) ? (
+            highlight.has(line.routeId) && !journeyActive ? (
               <Polyline
                 key={`${line.routeId}-casing`}
                 pane="lt-lines-casing"

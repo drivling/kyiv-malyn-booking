@@ -22,6 +22,8 @@ vi.mock('react-leaflet', async () => {
         data-testid="polyline"
         data-pane={p.pane}
         data-color={p.pathOptions?.color}
+        data-weight={p.pathOptions?.weight}
+        data-opacity={p.pathOptions?.opacity}
         data-dash={p.pathOptions?.dashArray ?? ''}
         data-points={JSON.stringify(p.positions)}
       />
@@ -145,6 +147,36 @@ describe('RouteMap: the opened journey', () => {
     const walk = lines.find((l) => l.getAttribute('data-pane') === 'lt-journey-walk')!;
     expect(walk.getAttribute('data-dash')).not.toBe('');
     expect(screen.getAllByTestId('node')).toHaveLength(2);
+  });
+
+  const routeLine = { routeId: '2', color, positions: [[50.76, 29.23], [50.77, 29.24], [50.78, 29.25], [50.79, 29.26]] as [number, number][] };
+  const polylinesIn = (pane: string) => screen.queryAllByTestId('polyline').filter((l) => l.getAttribute('data-pane') === pane);
+
+  it('with a journey the full line of its route stays only as a thin faint background; the ridden part is thick', () => {
+    render(<RouteMap {...base} routeLines={[routeLine]} highlightRouteIds={['2']} journey={journey} />);
+    const [background] = polylinesIn('lt-lines');
+    expect(background.getAttribute('data-weight')).toBe('3');
+    expect(Number(background.getAttribute('data-opacity'))).toBeLessThan(0.5);
+    expect(polylinesIn('lt-lines-casing')).toHaveLength(0); // білої підкладки під фоном немає
+    const ride = polylinesIn('lt-journey')[0];
+    expect(ride.getAttribute('data-weight')).toBe('6');
+    expect(ride.getAttribute('data-opacity')).toBe('1');
+  });
+
+  it('other routes are fainter than the background of the journey routes', () => {
+    const other = { routeId: '3', color: '#00aa00', positions: [[50.76, 29.2], [50.77, 29.21]] as [number, number][] };
+    render(<RouteMap {...base} routeLines={[routeLine, other]} highlightRouteIds={['2']} journey={journey} />);
+    const bg = polylinesIn('lt-lines')[0];
+    const dim = polylinesIn('lt-lines-dim')[0];
+    expect(Number(dim.getAttribute('data-opacity'))).toBeLessThan(Number(bg.getAttribute('data-opacity')));
+  });
+
+  it('without a journey a highlighted route keeps the bold style with a white casing (route page, no pair)', () => {
+    render(<RouteMap {...base} routeLines={[routeLine]} highlightRouteIds={['2']} />);
+    const [line] = polylinesIn('lt-lines');
+    expect(line.getAttribute('data-weight')).toBe('5');
+    expect(line.getAttribute('data-opacity')).toBe('1');
+    expect(polylinesIn('lt-lines-casing')).toHaveLength(1);
   });
 
   it('no journey — no journey layers', () => {
