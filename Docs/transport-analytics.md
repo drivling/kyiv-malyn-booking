@@ -8,12 +8,14 @@
 
 | Подія | Коли | Параметри |
 |---|---|---|
-| `transport_search` | планер: пара «Звідки → Куди» визначилась (поле, URL, карта, вузол, ⇅) | `from`, `to`, `direct_routes` |
-| `transport_no_route` | та сама пара без прямого маршруту | `from`, `to`, `nearby` |
+| `transport_search` | планер: пара «Звідки → Куди» визначилась (поле, URL, карта, вузол, ⇅) | `from`, `to` — id зупинки або `geo` / `point` (координати не йдуть), `direct_routes` (скільки ліній возить без пересадки), `journeys` (скільки поїздок за день), `best_transfers` (мінімум пересадок, `-1` — поїздок немає) |
+| `transport_no_route` | та сама пара без жодної поїздки (ні прямої, ні з пересадкою) | `from`, `to` (як у `transport_search`) |
 | `transport_swap` | ⇅ у формі планера / на смужці карти | `source: form \| map` |
 | `transport_date_chip` | чіпи дати: «Зараз», «Завтра», розгортання «DD.MM.YY о HH:MM» | `chip: now \| tomorrow \| custom`, `page: planner \| route \| board` |
-| `transport_route_card_click` | картка маршруту у видачі планера | `route_id` |
-| `transport_nearby_pick` | підказка сусідньої зупинки без прямого маршруту | `from`, `to`, `changed`, `walk_m` |
+| `transport_journey_open` | розгорнуто картку поїздки у видачі планера (`journey/JourneyResults.tsx`) | `transfers`, `legs` |
+| `transport_journey_leg_click` | «Розклад маршруту №…» у розгорнутій картці поїздки | `route_id` |
+| `transport_arrive_by` | чіп «Прибути до» (час пошуку — прибуття) | `on` |
+| `transport_point_pick` | точка замість зупинки: «Звідси — моє місцезнаходження» після геолокації або клік по карті | `slot: from \| to`, `source: geo \| map` |
 | `transport_geo` | результат геолокації («Поруч зі мною») | `result: ok \| denied \| error \| unsupported`, `page` |
 | `transport_nearest_pick` | вибір зупинки зі списку найближчих (планер → «Звідки», табло → відкрити табло) | `page`, `stop`, `distance_m` |
 | `transport_quick_node` | чіп вузла схеми у швидкому старті планера | `node_id`, `kind: hub \| terminal`, `slot: from \| to` |

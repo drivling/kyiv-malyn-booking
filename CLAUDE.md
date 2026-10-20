@@ -264,6 +264,16 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   references with the loaded one. New build + tab away ≥ 30 min + no `aria-modal` dialog / focused field →
   reload at once; otherwise the next page change is a full load. Never on `/admin*`; one try per build per
   session. Dev and prerender have no `/assets/index-*` script, so it is off there.
+- **Journey planner with transfers** (`Docs/transport-journey-planner-2026-10.md`): `/transport` plans trips in the browser
+  (offline-first, no backend endpoint) with a round-based RAPTOR in `src/pages/LocalTransportPage/journey/`. One list of
+  journeys (direct + transfers) replaces the old per-route cards: `buildTimetable` (from the dataset via `chainForRecord` +
+  `recordTiming`, passenger stops only, `serviceId` filter — call it **after** `configureSegmentDurations`), `planDay` (whole-day
+  profile + Pareto over departure/arrival/transfers), `journeyWindow` (depart-at / arrive-by slice), `legAlternatives` (next trips
+  of a leg). Walking between stops closer than 400 m is straight-line × `detourFactor` (all numbers in `journey/options.ts`,
+  calibrated against Transitous). «Звідки/Куди» may be a point — `me:lat,lng` (geolocation) / `pt:lat,lng` (map click), kept in
+  the same `/transport/:from/:to` URL, never sent to GA4 (`endpointGaValue`); `?a=1` is arrive-by. A walk from the start never
+  prunes vehicle arrivals (regression test in `engine.test.ts`). `transitous.oracle.test.ts` (manual, `TRANSITOUS_ORACLE=1`, not in
+  CI) compares earliest arrival/transfers with api.transitous.org on the committed GTFS.
 - **Transport PWA** (`Docs/transport-pwa-2026-10.md`, smoke `Docs/transport-pwa-smoke.md`; the real worker is checked only
   by hand or with `npm run pwa:smoke` in `frontend/` against a deployed site — never in CI): `/transport*` works offline and
   installs as «Як доїхати» (`public/transport.webmanifest`, scope `/transport`; the menu entry and SEO titles stay «Транспорт
