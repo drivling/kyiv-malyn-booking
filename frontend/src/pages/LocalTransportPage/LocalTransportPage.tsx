@@ -1282,9 +1282,14 @@ export const LocalTransportPage: React.FC = () => {
                   </span>
                 </h1>
                 {fareAmount != null && (
-                  <span className="lt-chip lt-chip--static lt-fare-chip" aria-label={`Проїзд ${fareAmount} гривень`}>
-                    <span className="lt-fare-chip__label">проїзд</span>
-                    {fareAmount} ₴
+                  <span className="lt-fare-chip" aria-label={`Проїзд ${fareAmount} гривень`}>
+                    <span className="lt-fare-chip__label">Проїзд</span>
+                    <span className="lt-fare-chip__amount">
+                      {fareAmount}
+                      <span className="lt-fare-chip__currency" aria-hidden>
+                        ₴
+                      </span>
+                    </span>
                   </span>
                 )}
               </div>
