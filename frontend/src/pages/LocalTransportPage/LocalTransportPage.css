@@ -266,21 +266,45 @@
   font-size: var(--lt-fs-md);
 }
 
-/* Чіп «проїзд 20 ₴» — статичний, у мові чіпів */
+/* Плашка «Проїзд 25₴» у шапці маршруту — той самий темний градієнт, що й «Тариф у сервісі» в довідці
+   (.support-fare-chip); сума з датасету (meta.fare). До #52 це була .lt-fare--header — повернуто як є */
 .lt-fare-chip {
   flex-shrink: 0;
   align-self: center;
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
-  font-variant-numeric: tabular-nums;
+  gap: 7px;
+  padding: 6px 11px 6px 10px;
+  border-radius: var(--lt-radius-sm);
   white-space: nowrap;
+  line-height: 1;
+  background: linear-gradient(145deg, #0c4a52 0%, #054752 55%, #033a42 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(5, 71, 82, 0.2);
 }
 
 .lt-fare-chip__label {
   font-size: var(--lt-fs-xs);
-  font-weight: 500;
-  color: var(--lt-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.lt-fare-chip__amount {
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.lt-fare-chip__currency {
+  margin-left: 1px;
+  font-size: var(--lt-fs-md);
+  font-weight: 700;
+  color: #5ee4b5;
 }
 
 .lt-detail .lt-detail-header-actions {
