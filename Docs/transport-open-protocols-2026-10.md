@@ -273,7 +273,8 @@ OwnNet 1.1. Роздача: `GET /openapi.yaml` у `routes/public-routes.ts` (ч
   `mdb-3615` з нашою атрибуцією, але **PR робить власник руками**: `AI_POLICY.md` Transitous забороняє коміти й тексти
   від LLM-інструментів (README 3б).
 - Transitous PR власника: <https://github.com/public-transport/transitous/pull/2610> (2026-10-19) — запис `mdb-3615`
-  з атрибуцією замість `http`-джерела мейнтейнера. Атрибуційні правки коду й документів злито в #96.
+  з атрибуцією замість `http`-джерела мейнтейнера — **злито 2026-10-20**. Атрибуційні правки коду й документів злито в #96;
+  `agency_url` у базі переведено на `https://malin.kiev.ua/transport` 2026-10-19 (revision `2026-10-19T19:48:17.407Z`).
 
 - `attributions.txt` у фіді (один запис виробника `malin_kiev_ua`) — валідатор прийняв мовчки (той самий звіт:
   0 помилок, `mixed_case` ×6, 2 info); `LICENSE.txt` згадує канонічну адресу й `attributions.txt`.
