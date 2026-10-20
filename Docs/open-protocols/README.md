@@ -124,11 +124,11 @@ Transitous підхопить нову `agency_url` при нічному імп
 
 ## 3б. Transitous — PR на запис через Mobility Database (робить власник **руками**)
 
-**Статус:** подано власником 2026-10-19 — PR <https://github.com/public-transport/transitous/pull/2610> (`mdb-3615`,
+**Статус:** **злито 2026-10-20** — PR <https://github.com/public-transport/transitous/pull/2610> (`mdb-3615`,
 атрибуція «Data: malin.kiev.ua — Serhii Merenkov / Technologies LLC»). CI Transitous (`test-import`) впав з «Did not
 find requested id mdb-3615 in Mobility Database»: їхній `src/mobilitydatabase.py` читає експорт
 `https://files.mobilitydatabase.org/feeds_v2.csv`, а той відстає від каталогу (на 2026-10-19 — до `mdb-3520`). Це не
-помилка PR: коли експорт підтягне 3615, перезапуск CI пройде; до того запис `http` мейнтейнера працює.
+помилка PR: мейнтейнер злив попри червоний `test-import` («Thanks!»); імпорт на проді запрацює, щойно експорт підтягне 3615.
 
 Мейнтейнер додав фід як `http`-джерело; його ж правило — «use mobility database where possible», тож правильний запис
 посилається на `mdb-3615` і несе нашу атрибуцію. **Увага:** `AI_POLICY.md` Transitous забороняє коміти з LLM-інструментів
