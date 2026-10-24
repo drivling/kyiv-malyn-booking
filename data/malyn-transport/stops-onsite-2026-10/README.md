@@ -17,3 +17,19 @@ python3 data/malyn-transport/stops-onsite-2026-10/scripts/fix_st0062.py --apply 
 
 Відкат — PUT бекапу `db-…-before-st0062.json`, як у `Docs/transport-stops-fix-2026-10.md` («Відкат»).
 Стаття зупинки (`frontend/src/content/stops/st_0062.ts`) і статична сторінка оновлюються деплоєм фронтенду.
+
+## Перейменування за наклейками
+
+| Дата | Зупинка | Було | Стало |
+|---|---|---|---|
+| 2026-10-24 | `st_0020` | ЗОШ 3 | Малинський ліцей №3 |
+| 2026-10-24 | `st_0023` | ЗОШ 3 (навпроти) | Малинський ліцей №3 (навпроти) |
+
+Школа тепер Малинський ліцей №3, так написано й на наклейках з обох боків дороги. Скрипт, як і редактор карти,
+міняє також точні збіги в кінцевих маршрутів і headsign рейсів (на 2026-10-24 таких немає). Статті зупинок
+(`frontend/src/content/stops/st_0020.ts`, `st_0023.ts`) мають ті самі назви.
+
+```bash
+python3 data/malyn-transport/stops-onsite-2026-10/scripts/rename_lyceum3.py           # кандидат + валідатор
+python3 data/malyn-transport/stops-onsite-2026-10/scripts/rename_lyceum3.py --apply   # бекап, PUT, перевірка
+```
