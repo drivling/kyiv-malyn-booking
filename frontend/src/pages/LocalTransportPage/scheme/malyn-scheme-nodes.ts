@@ -80,12 +80,11 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_0094",
+    "id": "st_0007",
     "kind": "terminal",
-    "name": "Чорновола, 53",
+    "name": "Барміна",
     "stopIds": [
-      "st_0094",
-      "st_0093"
+      "st_0007"
     ]
   },
   {
@@ -199,13 +198,12 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_0007",
+    "id": "st_0094",
     "kind": "waypoint",
-    "name": "Барміна",
+    "name": "Чорновола, 53",
     "stopIds": [
-      "st_0007",
-      "st_0092",
-      "st_0091"
+      "st_0094",
+      "st_0093"
     ]
   }
 ];
