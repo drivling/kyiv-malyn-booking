@@ -42,8 +42,8 @@
 <path d="M280.0,375.0 L560.0,375.0 L560.0,340.0 L520.0,300.0 L520.0,230.0 L830.0,230.0 L900.0,300.0 L1080.0,300.0 L1180.0,400.0" stroke="#C99700" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="11">
-<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,540.0 L560.0,500.0 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#ffffff" stroke-width="9.5"/>
-<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,540.0 L560.0,500.0 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#0E9AA7" stroke-width="7"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,540.0 L620.0,600.0 L560.0,540.0 L560.0,500.0 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#ffffff" stroke-width="9.5"/>
+<path d="M340.0,545.0 L522.1,545.0 L560.0,507.1 L560.0,540.0 L620.0,600.0 L560.0,540.0 L560.0,500.0 L560.0,421.2 L626.2,355.0 L826.2,355.0 L866.2,315.0 L900.0,315.0 L910.0,320.0 L1071.7,320.0 L1165.9,414.1" stroke="#0E9AA7" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="12">
 <path d="M280.0,395.0 L557.9,395.0 L616.5,336.5 L657.9,295.0 L860.0,295.0 L900.0,295.0 L910.0,290.0 L1084.1,290.0 L1187.1,392.9" stroke="#ffffff" stroke-width="9.5"/>
@@ -110,10 +110,10 @@
 <line x1="440.0" y1="535.0" x2="440.0" y2="545.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
 <text x="440" y="522" text-anchor="middle" font-size="11.5" fill="#5f6673">Приходька</text>
 </g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_0007" data-stops="st_0007 st_0092 st_0091">
+<g class="lts-stop lts-stop--waypoint" data-stop="st_0094" data-stops="st_0094 st_0093">
 <line x1="560.0" y1="540.0" x2="570.0" y2="540.0" stroke="#1b1f2a" stroke-width="11" stroke-linecap="round"/>
 <line x1="560.0" y1="540.0" x2="570.0" y2="540.0" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
-<text x="584" y="544" text-anchor="start" font-size="11.5" fill="#5f6673">Барміна</text>
+<text x="584" y="544" text-anchor="start" font-size="11.5" fill="#5f6673">Чорновола, 53</text>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_0038" data-stops="st_0038">
 <circle cx="110.0" cy="400.0" r="9" fill="#ffffff" stroke="#1B9E4B" stroke-width="3.5"/>
@@ -132,9 +132,9 @@
 <text x="340" y="585" text-anchor="middle" font-size="11" fill="#5f6673">Вайдманн</text>
 <g class="lts-badge" data-route="2"><rect x="306.0" y="594.0" width="22" height="16" rx="4" fill="#D7263D"/><text x="317.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">2</text></g><g class="lts-badge" data-route="11"><rect x="332.0" y="594.0" width="42" height="16" rx="4" fill="#0E9AA7"/><text x="353.0" y="605.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#000000">11/1</text></g>
 </g>
-<g class="lts-stop lts-stop--terminal" data-stop="st_0094" data-stops="st_0094 st_0093">
+<g class="lts-stop lts-stop--terminal" data-stop="st_0007" data-stops="st_0007">
 <circle cx="627.1" cy="592.9" r="9" fill="#ffffff" stroke="#7E3FC2" stroke-width="3.5"/>
-<text x="604" y="624" text-anchor="end" font-size="14" font-weight="700" fill="#1b1f2a">Чорновола, 53</text>
+<text x="604" y="624" text-anchor="end" font-size="14" font-weight="700" fill="#1b1f2a">Барміна</text>
 <g class="lts-badge" data-route="8"><rect x="582.0" y="632.0" width="22" height="16" rx="4" fill="#7E3FC2"/><text x="593.0" y="643.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">8</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_0009" data-stops="st_0009">
@@ -195,9 +195,9 @@
 </g>
 <g class="lts-legend-row" data-route="8">
 <g class="lts-badge" data-route="8"><rect x="60.0" y="941.0" width="22" height="20" rx="4" fill="#7E3FC2"/><text x="71.0" y="956.0" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">8</text></g>
-<text x="98" y="956" font-size="13.5" font-weight="700" fill="#1b1f2a">Чорновола, 53 — Залізничний вокзал</text>
+<text x="98" y="956" font-size="13.5" font-weight="700" fill="#1b1f2a">Барміна — Залізничний вокзал</text>
 <text x="682" y="956" text-anchor="end" font-size="11.5" fill="#5f6673" font-variant-numeric="tabular-nums">13–14 рейс. · 6:30–18:15</text>
-<text x="98" y="971" font-size="10.5" fill="#5f6673">Барміна · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема</text>
+<text x="98" y="971" font-size="10.5" fill="#5f6673">Чорновола · Мазепи · Базар · С. Бандери · ПТЛ · вул. Миру · тимчасова схема</text>
 </g>
 <g class="lts-legend-row" data-route="9">
 <g class="lts-badge" data-route="9"><rect x="720.0" y="789.0" width="22" height="20" rx="4" fill="#E3368C"/><text x="731.0" y="804.0" text-anchor="middle" font-size="13" font-weight="700" fill="#000000">9</text></g>
