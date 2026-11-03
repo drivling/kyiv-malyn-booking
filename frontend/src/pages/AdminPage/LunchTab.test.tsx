@@ -1,6 +1,7 @@
 /**
  * Вкладка «Столова»: розбір окремої людини (панель «Писали в групі» з Джури), звіт про пропущені
- * повідомлення, прибирання замовлення, підсвітка синонімів, що лежать на кількох стравах.
+ * повідомлення, прибирання замовлення, підсвітка синонімів, що лежать на кількох стравах,
+ * «Оплатив» і правка нашої відповіді в групі.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
@@ -183,7 +184,7 @@ describe('LunchTab · розбір окремої людини', () => {
     const user = userEvent.setup();
     render(<LunchTab />);
     const panel = await peoplePanel();
-    await user.click(within(panel).getByRole('checkbox', { name: /Написати людині підтвердження/ }));
+    await user.click(within(panel).getByRole('checkbox', { name: /Підтвердження в групі/ }));
     await user.click(within(panel).getByRole('button', { name: 'Розібрати' }));
     await screen.findByText(/Аліна: розібрано/);
     expect(bodies).toEqual([{ tgUserId: '111', notify: false }]);
@@ -287,5 +288,79 @@ describe('LunchTab · розбір окремої людини', () => {
     const conflicts = container.querySelectorAll('.lunch-syn-chip--conflict');
     expect(conflicts).toHaveLength(2);
     expect(container.querySelectorAll('.lunch-syn-chip')).toHaveLength(3);
+  });
+});
+
+describe('LunchTab · наша відповідь у групі', () => {
+  it('«Оплатив» шле participantId і каже, що «✅ Оплатив» дописується правкою відповіді', async () => {
+    useHandlers();
+    const bodies: unknown[] = [];
+    server.use(
+      http.post(`${API}/pay`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({
+          ok: true,
+          payment: { amountUah: 45, ordered: 45, paid: 45, debt: 0 },
+          summary: summaryWith([{ ...order, paidUah: 45, debtUah: 0 }]),
+          telegramQueued: true,
+          telegramError: null,
+          hasReply: true,
+        });
+      })
+    );
+    const user = userEvent.setup();
+    render(<LunchTab />);
+
+    await user.click(within(await orderRow('Діана')).getByRole('button', { name: 'Оплатив' }));
+
+    expect(bodies).toEqual([{ participantId: 50 }]);
+    expect(await screen.findByText(/«✅ Оплатив» у відповіді в групі поставлено в чергу на правку/)).toBeInTheDocument();
+  });
+
+  it('«Оплатив» без нашої відповіді в групі — так і каже', async () => {
+    useHandlers();
+    server.use(
+      http.post(`${API}/pay`, () =>
+        HttpResponse.json({
+          ok: true,
+          payment: { amountUah: 45, ordered: 45, paid: 45, debt: 0 },
+          summary: summaryWith([{ ...order, paidUah: 45, debtUah: 0 }]),
+          telegramQueued: false,
+          telegramError: null,
+          hasReply: false,
+        })
+      )
+    );
+    const user = userEvent.setup();
+    render(<LunchTab />);
+    await user.click(within(await orderRow('Діана')).getByRole('button', { name: 'Оплатив' }));
+    expect(await screen.findByText(/нашої відповіді в групі немає/)).toBeInTheDocument();
+  });
+
+  it('звіт «Розібрати»: попередню відповідь правимо, а не пишемо нову', async () => {
+    useHandlers();
+    server.use(
+      http.post(`${API}/reparse-person`, () =>
+        HttpResponse.json({
+          ok: true,
+          reparse: {
+            scanned: 1,
+            orders: 1,
+            payments: 0,
+            skipped: 0,
+            notified: true,
+            notifiedEdit: true,
+            person: { tgUserId: '111', name: 'Аліна' },
+            details: [],
+          },
+          summary: summaryWith([order]),
+        })
+      )
+    );
+    const user = userEvent.setup();
+    render(<LunchTab />);
+    await user.click(within(await peoplePanel()).getByRole('button', { name: 'Розібрати' }));
+    const report = await screen.findByRole('region', { name: 'Звіт розбору' });
+    expect(within(report).getByText(/нашу відповідь у групі поставлено в чергу на правку/)).toBeInTheDocument();
   });
 });

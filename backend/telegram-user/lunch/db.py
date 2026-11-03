@@ -487,6 +487,19 @@ class LunchDB:
             )
             return int(val) if val is not None else None
 
+    async def get_order_reply_message_id(self, day_id: int, participant_id: int) -> Optional[int]:
+        """Наша відповідь у групі на замовлення людини за день (навіть прибраного — його можна оживити)."""
+        async with self.pool.acquire() as conn:
+            val = await conn.fetchval(
+                """
+                SELECT "replyMessageId" FROM "LunchOrder"
+                WHERE "dayId" = $1 AND "participantId" = $2
+                """,
+                day_id,
+                participant_id,
+            )
+            return int(val) if val is not None else None
+
     async def set_order_reply_message_id(self, order_id: int, reply_message_id: int) -> None:
         async with self.pool.acquire() as conn:
             await conn.execute(

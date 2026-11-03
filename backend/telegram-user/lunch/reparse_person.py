@@ -7,6 +7,8 @@
 
 Джерело повідомлень: Telegram (актуальний текст) і база «Джури» (DzhuraMessage — те, що слухач
 уже зберіг; рятує, коли Telegram недоступний або історія не дійшла до початку дня).
+
+Підтвердження в групі: якщо ми вже відповідали людині на замовлення — правимо ту відповідь, нову не пишемо.
 """
 
 from __future__ import annotations
@@ -182,6 +184,8 @@ async def reparse_person(
         "replaced": False,
         "placeholder": False,
         "notified": False,
+        # підтвердження — правка нашої попередньої відповіді (а не нова)
+        "notifiedEdit": False,
     }
 
     ctx = DayContext()
@@ -224,6 +228,7 @@ async def reparse_person(
 
     pid = await db.upsert_participant(uid, name, f"@{src.username}" if src.username else None)
     had_order = await db.has_active_order(day_row.id, pid)
+    confirm_for: Optional[tuple[PersonMessage, Any]] = None
 
     if orders:
         # останнє розпізнане повідомлення виграє (як у живому режимі: upsert за людиною)
@@ -251,23 +256,7 @@ async def reparse_person(
             f"не розпізнано: {result.unmatched_text}" if result.unmatched else "",
         )
         if notify:
-            tray_price = await db.get_tray_price()
-            trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
-            await db.enqueue_outbound(
-                format_order_confirm(
-                    name,
-                    result.lines,
-                    grand,
-                    result.unmatched,
-                    tray_count=trays,
-                    tray_price_uah=tray_price,
-                    tray_total_uah=tray_sum,
-                    unavailable=result.unavailable,
-                    ambiguous=result.ambiguous,
-                ),
-                reply_to_message_id=pm.id,
-            )
-            extra["notified"] = True
+            confirm_for = (pm, result)  # підтвердження — після оплат, щоб у ньому вже був «✅ Оплатив»
     elif no_match and not had_order:
         # Нічого не збіглось і замовлення в людини ще немає: лишаємо видимий «порожній» рядок
         # з усім, що вона писала, — адмін відкриє «Редагувати», вибере страви (або «Прибрати»).
@@ -303,4 +292,34 @@ async def reparse_person(
         stats.payments += 1
         stats.note(pm.id, name, pm.text, "payment")
 
+    if confirm_for is not None:
+        extra["notifiedEdit"] = await _confirm_in_group(db, day_row.id, pid, name, *confirm_for)
+        extra["notified"] = True
     return {**stats.as_dict(), **extra}
+
+
+async def _confirm_in_group(db: LunchDB, day_id: int, pid: int, name: str, pm: PersonMessage, result: Any) -> bool:
+    """Наша відповідь на замовлення після розбору. Якщо ми вже відповідали цій людині сьогодні — правимо ту
+    відповідь (як ручна правка в адмінці), а не пишемо нову; якщо її видалили, слухач сам відповість наново.
+    True — поставили правку, False — нову відповідь."""
+    tray_price = await db.get_tray_price()
+    trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
+    _ordered, paid, _debt = await db.participant_balance(day_id, pid)
+    text = format_order_confirm(
+        name,
+        result.lines,
+        grand,
+        result.unmatched,
+        tray_count=trays,
+        tray_price_uah=tray_price,
+        tray_total_uah=tray_sum,
+        unavailable=result.unavailable,
+        ambiguous=result.ambiguous,
+        paid_uah=paid,
+    )
+    reply_id = await db.get_order_reply_message_id(day_id, pid)
+    if reply_id:
+        await db.enqueue_outbound(text, kind="edit", telegram_message_id=reply_id)
+        return True
+    await db.enqueue_outbound(text, reply_to_message_id=pm.id)
+    return False

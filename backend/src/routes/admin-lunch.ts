@@ -11,6 +11,7 @@ import {
   getLunchHistory,
   LUNCH_HISTORY_MAX_DAYS,
   getLunchSettings,
+  lunchOrderConfirmFromDb,
   moveLunchDishSynonym,
   parseLunchMenuPayload,
   recordLunchPayment,
@@ -287,7 +288,10 @@ export function createAdminLunchRouter(deps: {
     }
   });
 
-  /** Позначити оплату (за замовч. — весь борг учасника) */
+  /**
+   * Позначити оплату (за замовч. — весь борг учасника) і дописати «✅ Оплатив» у нашу відповідь на
+   * замовлення в групі — правкою, як при ручному редагуванні (нової відповіді не пишемо).
+   */
   r.post('/admin/lunch/pay', requireAdmin, async (req, res) => {
     try {
       const participantId = Number(req.body?.participantId);
@@ -305,8 +309,29 @@ export function createAdminLunchRouter(deps: {
         amountUah,
         rawText: 'admin',
       });
+
+      // Оплата вже записана: збій правки в групі не робить її помилкою, лише повідомляємо
+      let telegramQueued = false;
+      let telegramError: string | null = null;
+      let hasReply = false;
+      try {
+        const confirm = await lunchOrderConfirmFromDb(prisma, pay.orderId);
+        hasReply = Boolean(confirm.replyMessageId);
+        if (confirm.replyMessageId) {
+          const result = await postTextToLunchGroup(prisma, confirm.confirmText, {
+            kind: 'edit',
+            telegramMessageId: confirm.replyMessageId,
+          });
+          telegramQueued = result.queued;
+          if (!result.ok) telegramError = result.error || 'Не вдалося підправити відповідь у групі';
+        }
+      } catch (e) {
+        console.error('[admin/lunch/pay] reply edit', e);
+        telegramError = e instanceof Error ? e.message : 'Не вдалося підправити відповідь у групі';
+      }
+
       const summary = await getLunchDaySummary(prisma);
-      res.json({ ok: true, payment: pay, summary });
+      res.json({ ok: true, payment: pay, summary, telegramQueued, telegramError, hasReply });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Помилка оплати';
       console.error('[admin/lunch/pay]', e);

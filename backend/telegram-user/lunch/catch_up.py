@@ -88,6 +88,7 @@ async def resolve_incomplete_orders(db: LunchDB, day_id: int, menu, *, notify: b
         stats["resolved" if fully else "partial"] += 1
         if notify and (o["reply_message_id"] or o["source_message_id"]):
             tray_price = await db.get_tray_price()
+            _ordered, paid, _debt = await db.participant_balance(day_id, o["participant_id"])
             text = format_order_confirm(
                 o["display_name"],
                 [l for l in new_lines if not l.unavailable],
@@ -98,6 +99,7 @@ async def resolve_incomplete_orders(db: LunchDB, day_id: int, menu, *, notify: b
                 tray_total_uah=tray_sum,
                 unavailable=[l.raw_name for l in new_lines if l.unavailable],
                 ambiguous=result.ambiguous if not fully else None,
+                paid_uah=paid,
             )
             if o["reply_message_id"]:
                 await db.enqueue_outbound(text, kind="edit", telegram_message_id=o["reply_message_id"])
