@@ -49,6 +49,7 @@ from lunch.order_reply import (  # noqa: E402
     PersonalOrderAction,
     decide_personal_order_action,
     ocr_enabled,
+    refresh_order_reply,
 )
 from lunch.util import load_dotenv  # noqa: E402
 
@@ -78,6 +79,11 @@ def _edit_target_gone(exc: Exception) -> bool:
     )
 
 
+def _edit_not_modified(exc: Exception) -> bool:
+    """Правимо тим самим текстом (напр. «Розібрати» нічого не змінив) — Telegram відмовляє, але це успіх."""
+    return type(exc).__name__ == "MessageNotModifiedError" or "not modified" in str(exc)
+
+
 async def edit_or_reply(client, entity, db: LunchDB, row: dict):
     """Підправити нашу відповідь у групі. Якщо її вже немає (видалили) — написати нову відповідь на
     повідомлення людини й запам'ятати її id, замість нескінченних ретраїв edit.
@@ -87,6 +93,8 @@ async def edit_or_reply(client, entity, db: LunchDB, row: dict):
         await client.edit_message(entity, mid, row["text"])
         return None
     except Exception as e:  # noqa: BLE001
+        if _edit_not_modified(e):
+            return None
         if not _edit_target_gone(e):
             raise
         source = await db.find_order_source_by_reply_id(mid)
@@ -431,6 +439,8 @@ async def run() -> None:
             await db.add_payment(day.id, pid, pay.amount_uah, text, source_message_id=msg.id)
             ordered, paid, debt = await db.participant_balance(day.id, pid)
             await reply(event, format_payment_reply(name, pay.amount_uah, ordered, paid, debt))
+            # і «✅ Оплатив» у нашій відповіді на замовлення — як кнопка «Оплатив» в адмінці
+            await refresh_order_reply(db, day.id, pid)
             return
 
         # --- замовлення ---
@@ -500,6 +510,7 @@ async def run() -> None:
         # людина в адмінці (ручна правка замовлення / картка страви).
         tray_price = await db.get_tray_price()
         trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
+        _ordered, paid, _debt = await db.participant_balance(day.id, pid)
         confirm = format_order_confirm(
             name,
             result.lines,
@@ -510,6 +521,7 @@ async def run() -> None:
             tray_total_uah=tray_sum,
             unavailable=result.unavailable,
             ambiguous=result.ambiguous,
+            paid_uah=paid,
         )
         reply_id = await reply(event, confirm)
         if reply_id:

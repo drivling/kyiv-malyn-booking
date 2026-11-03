@@ -936,10 +936,14 @@ class ApiClient {
     return this.request(`/admin/lunch/orders/${orderId}`, { method: 'DELETE' });
   }
 
+  /** Оплата + «✅ Оплатив» у нашій відповіді в групі (правка, як при ручному редагуванні). */
   async payLunchDebt(participantId: number, amountUah?: number): Promise<{
     ok: boolean;
     payment: { amountUah: number; ordered: number; paid: number; debt: number };
     summary: LunchDaySummary;
+    telegramQueued?: boolean;
+    telegramError?: string | null;
+    hasReply?: boolean;
   }> {
     return this.request('/admin/lunch/pay', {
       method: 'POST',

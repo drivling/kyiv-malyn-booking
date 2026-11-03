@@ -258,7 +258,10 @@ function createAdminLunchRouter(deps) {
             res.status(msg === 'Замовлення не знайдено' ? 404 : 400).json({ error: msg });
         }
     });
-    /** Позначити оплату (за замовч. — весь борг учасника) */
+    /**
+     * Позначити оплату (за замовч. — весь борг учасника) і дописати «✅ Оплатив» у нашу відповідь на
+     * замовлення в групі — правкою, як при ручному редагуванні (нової відповіді не пишемо).
+     */
     r.post('/admin/lunch/pay', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const participantId = Number(req.body?.participantId);
@@ -275,8 +278,29 @@ function createAdminLunchRouter(deps) {
                 amountUah,
                 rawText: 'admin',
             });
+            // Оплата вже записана: збій правки в групі не робить її помилкою, лише повідомляємо
+            let telegramQueued = false;
+            let telegramError = null;
+            let hasReply = false;
+            try {
+                const confirm = await (0, lunch_1.lunchOrderConfirmFromDb)(prisma, pay.orderId);
+                hasReply = Boolean(confirm.replyMessageId);
+                if (confirm.replyMessageId) {
+                    const result = await (0, lunch_telegram_1.postTextToLunchGroup)(prisma, confirm.confirmText, {
+                        kind: 'edit',
+                        telegramMessageId: confirm.replyMessageId,
+                    });
+                    telegramQueued = result.queued;
+                    if (!result.ok)
+                        telegramError = result.error || 'Не вдалося підправити відповідь у групі';
+                }
+            }
+            catch (e) {
+                console.error('[admin/lunch/pay] reply edit', e);
+                telegramError = e instanceof Error ? e.message : 'Не вдалося підправити відповідь у групі';
+            }
             const summary = await (0, lunch_1.getLunchDaySummary)(prisma);
-            res.json({ ok: true, payment: pay, summary });
+            res.json({ ok: true, payment: pay, summary, telegramQueued, telegramError, hasReply });
         }
         catch (e) {
             const msg = e instanceof Error ? e.message : 'Помилка оплати';

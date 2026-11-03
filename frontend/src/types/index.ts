@@ -796,6 +796,8 @@ export interface LunchReparseReport {
   replaced?: boolean;
   placeholder?: boolean;
   notified?: boolean;
+  /** підтвердження — правка нашої попередньої відповіді в групі, а не нова */
+  notifiedEdit?: boolean;
 }
 
 export interface LunchPersonMessage {
