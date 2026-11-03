@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from .db import LunchDB, today_kyiv
 from .formatters import format_order_confirm
+from .order_reply import refresh_order_reply
 from .reparse_day import (
     SKIP_REASONS,
     DayContext,
@@ -295,6 +296,9 @@ async def reparse_person(
     if confirm_for is not None:
         extra["notifiedEdit"] = await _confirm_in_group(db, day_row.id, pid, name, *confirm_for)
         extra["notified"] = True
+    elif notify and stats.payments and await refresh_order_reply(db, day_row.id, pid):
+        # знайшлись лише оплати — «✅ Оплатив» у нашій відповіді на наявне замовлення
+        extra["notified"] = extra["notifiedEdit"] = True
     return {**stats.as_dict(), **extra}
 
 

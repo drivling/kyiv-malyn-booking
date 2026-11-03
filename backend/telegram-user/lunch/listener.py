@@ -49,6 +49,7 @@ from lunch.order_reply import (  # noqa: E402
     PersonalOrderAction,
     decide_personal_order_action,
     ocr_enabled,
+    refresh_order_reply,
 )
 from lunch.util import load_dotenv  # noqa: E402
 
@@ -438,6 +439,8 @@ async def run() -> None:
             await db.add_payment(day.id, pid, pay.amount_uah, text, source_message_id=msg.id)
             ordered, paid, debt = await db.participant_balance(day.id, pid)
             await reply(event, format_payment_reply(name, pay.amount_uah, ordered, paid, debt))
+            # і «✅ Оплатив» у нашій відповіді на замовлення — як кнопка «Оплатив» в адмінці
+            await refresh_order_reply(db, day.id, pid)
             return
 
         # --- замовлення ---

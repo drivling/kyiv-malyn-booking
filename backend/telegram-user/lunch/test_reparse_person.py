@@ -186,6 +186,24 @@ class FakeDB:
     async def get_order_reply_message_id(self, day_id, pid):
         return self.orders.get(pid, {}).get("reply")
 
+    async def get_order_for_reply(self, day_id, pid):
+        o = self.orders.get(pid)
+        if not o or pid in self.cancelled:
+            return None
+        return {
+            "reply_message_id": o.get("reply"),
+            "display_name": o.get("name", "Людина"),
+            "total_uah": o["total"],
+            "tray_count": o.get("trays", 0),
+            "tray_total_uah": o.get("trays", 0) * 5,
+            "unmatched_text": o["unmatched"],
+            "lines": [
+                {"menuItemName": l.raw_name, "qty": l.qty, "unitPriceUah": l.unit_price_uah,
+                 "lineTotalUah": l.line_total_uah, "unavailable": l.unavailable}
+                for l in o.get("lines_in", [])
+            ],
+        }
+
     async def set_payee_card(self, day_id, card):
         self.cards.append(card)
 
@@ -913,6 +931,60 @@ def test_catch_up_edit_keeps_paid_mark():
     assert "Разом: 90 грн\n✅ Оплатив" in db.outbound[-1]["text"]
 
 
+# ---------- «оплатив …» у чаті: ✅ у нашій відповіді на замовлення ----------
+
+
+def _order_with_reply(db, reply=900):
+    pid = run(db.upsert_participant(str(UID), "Аліна"))
+    run(db.upsert_order(1, pid, "Пюре", 45, [OrderLineInput(1, "Пюре", 1, 40, 40)], source_message_id=11))
+    db.orders[pid].update(reply=reply, name="Аліна")
+    return pid
+
+
+def test_refresh_order_reply_marks_paid_in_our_reply():
+    from lunch.order_reply import refresh_order_reply
+
+    db = FakeDB()
+    pid = _order_with_reply(db)
+    run(db.add_payment(1, pid, 45, "оплатив 45"))
+    assert run(refresh_order_reply(db, 1, pid)) is True
+    assert db.outbound == [{
+        "text": "Аліна, заказ:\n• Пюре — 40 грн (40/шт)\nЛотки: 1 × 5 = 5 грн\nРазом: 45 грн\n✅ Оплатив",
+        "reply_to": None, "kind": "edit", "edit_id": 900,
+    }]
+
+
+def test_refresh_order_reply_does_nothing_without_order_or_reply():
+    from lunch.order_reply import refresh_order_reply
+
+    db = FakeDB()
+    pid = run(db.upsert_participant(str(UID), "Аліна"))
+    assert run(refresh_order_reply(db, 1, pid)) is False  # замовлення немає (оплатив наперед)
+    pid = _order_with_reply(db, reply=None)
+    assert run(refresh_order_reply(db, 1, pid)) is False  # ми ще не відповідали
+    assert db.outbound == []
+
+
+def test_catch_up_payment_from_chat_marks_paid_in_our_reply():
+    db = FakeDB()
+    pid = _order_with_reply(db)
+    client = FakeClient([FakeMsg(12, "оплатив 45", _today_at(10, 38))])
+    out = run(catch_up_today(client, object(), db, now=_now_at(10, 40)))
+    assert out["payments"] == 1
+    assert db.outbound[-1]["kind"] == "edit" and db.outbound[-1]["edit_id"] == 900
+    assert db.outbound[-1]["text"].endswith("Разом: 45 грн\n✅ Оплатив")
+
+
+def test_person_reparse_with_only_a_payment_marks_paid_in_our_reply():
+    db = FakeDB()
+    pid = _order_with_reply(db)
+    client = FakeClient([FakeMsg(12, "оплатив 45", _today_at(10, 38))])
+    out = run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert out["payments"] == 1 and out["notifiedEdit"] is True
+    assert db.orders[pid]["lines"] == ["Пюре"]  # замовлення не чіпали
+    assert db.outbound[-1]["kind"] == "edit" and "✅ Оплатив" in db.outbound[-1]["text"]
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -963,6 +1035,10 @@ def main():
         test_person_reparse_counts_payment_found_in_the_same_pass,
         test_paid_line_variants,
         test_catch_up_edit_keeps_paid_mark,
+        test_refresh_order_reply_marks_paid_in_our_reply,
+        test_refresh_order_reply_does_nothing_without_order_or_reply,
+        test_catch_up_payment_from_chat_marks_paid_in_our_reply,
+        test_person_reparse_with_only_a_payment_marks_paid_in_our_reply,
     ]
     failed = 0
     for t in tests:

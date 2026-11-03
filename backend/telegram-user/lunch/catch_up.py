@@ -25,6 +25,7 @@ from typing import Any, Optional
 
 from .db import LunchDB, today_kyiv
 from .formatters import format_order_confirm
+from .order_reply import refresh_order_reply
 from .parse_order import parse_order
 from .parse_summary import parse_day_summary, parse_numbered_summary
 from .reparse_day import DayContext, is_system_echo, kyiv_day_bounds, plan_text_message
@@ -218,6 +219,8 @@ async def catch_up_today(
             pid = await db.upsert_participant(uid, _display_name(sender), f"@{username}" if username else None)
             await db.add_payment(day.id, pid, plan.payment.amount_uah, text, source_message_id=int(msg.id))
             stats["payments"] += 1
+            if notify:
+                await refresh_order_reply(db, day.id, pid)
             continue
 
         if plan.kind != "order" or plan.result is None:
@@ -243,6 +246,7 @@ async def catch_up_today(
         if notify:
             tray_price = await db.get_tray_price()
             trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
+            _ordered, paid, _debt = await db.participant_balance(day.id, pid)
             await db.enqueue_outbound(
                 format_order_confirm(
                     name,
@@ -254,6 +258,7 @@ async def catch_up_today(
                     tray_total_uah=tray_sum,
                     unavailable=result.unavailable,
                     ambiguous=result.ambiguous,
+                    paid_uah=paid,
                 ),
                 reply_to_message_id=int(msg.id),
             )
