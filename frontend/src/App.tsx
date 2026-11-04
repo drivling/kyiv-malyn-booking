@@ -74,7 +74,8 @@ function AppContent() {
           <Route path="/" element={<MizhgorodskiPage />} />
           <Route path="/mizhgorodski" element={<MizhgorodskiPage />} />
           <Route path="/mizhgorodski/:corridorSlug" element={<CorridorLandingPage />} />
-          <Route path="/poputky" element={<Navigate to="/mizhgorodski" replace />} />
+          {/* Дзеркало 301 зі scripts/serve-dist-rules.mjs (EXACT_REDIRECTS): фільтр «Попутки» вибраний одразу */}
+          <Route path="/poputky" element={<Navigate to="/mizhgorodski?type=carpool" replace />} />
           <Route path="/booking" element={<Navigate to="/mizhgorodski" replace />} />
           <Route path="/zubastyk" element={<ZubastykPage />} />
           <Route path="/zubustik" element={<Navigate to="/zubastyk" replace />} />

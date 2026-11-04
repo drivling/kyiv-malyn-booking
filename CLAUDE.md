@@ -217,8 +217,12 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   - `SupportPage` → `/support` — help centre (`SupportHub` + `SupportArticle`).
 
   Plus non-menu routes: `AdminPage` (`/admin/:tab?`), `StickerWallPage` (`/admin/wall`),
-  `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` and `/poputky` redirect to `/mizhgorodski`;
-  the old BookingPage and PoputkyPage components were removed in #38 (recover them from git history
+  `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` redirects to `/mizhgorodski` and `/poputky` to
+  `/mizhgorodski?type=carpool` (the «Попутки» tab already chosen; the page's canonical stays `/mizhgorodski`). The 301s are
+  one table, `EXACT_REDIRECTS` in `frontend/scripts/serve-dist-rules.mjs` (pure, tested in `serve-dist-rules.test.ts`;
+  the visitor's own query is merged into a target that has one), mirrored by `<Navigate>` in `App.tsx`; keep the two in
+  step. Browsers and the CDN keep a 301 for a day (`max-age=86400`), so a changed target reaches repeat visitors with a delay.
+  The old BookingPage and PoputkyPage components were removed in #38 (recover them from git history
   if a booking page is ever needed again).
 - `src/api/client.ts` — single typed API client wrapping all backend calls; add new endpoints here
   rather than calling `fetch` ad hoc from components. `API_URL` comes from `VITE_API_URL`
