@@ -3,8 +3,8 @@ import { test } from 'vitest';
 import { defaultSchedulePriceUah, parseOptionalPriceUah } from './schedule-price';
 
 test('defaultSchedulePriceUah: Irpin/Bucha corridors', () => {
-  assert.equal(defaultSchedulePriceUah('Kyiv-Malyn-Irpin'), 280);
-  assert.equal(defaultSchedulePriceUah('Malyn-Kyiv-Bucha'), 280);
+  assert.equal(defaultSchedulePriceUah('Kyiv-Malyn-Irpin'), 310);
+  assert.equal(defaultSchedulePriceUah('Malyn-Kyiv-Bucha'), 310);
   assert.equal(defaultSchedulePriceUah('Malyn-Zhytomyr'), null);
   assert.equal(defaultSchedulePriceUah('Zhytomyr-Malyn'), null);
 });

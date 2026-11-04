@@ -480,6 +480,16 @@ notifications — is derived from them. Keep the two maps in sync.
   (`lt.frequentToStops`) are exported/restored/cleared as a file by `LocalTransportPage/transportPrefs.ts`
   (`TransportPrefsPanel` in the open-data block) — no server involved.
 
+- **Kyiv ↔ Malyn marshrutka fare** (310 грн one way, both directions, since 4 Nov 2026; was 280, round trip 620 instead of
+  560 — the carrier via ІнфоМалин). The number lives in four places, change them together: `Schedule.priceUah` in the DB
+  (a data migration — touch only `vehicleType = 'marshrutka'` rows still at the old price, because elektrichka rows
+  share the route names and manual prices must survive; see `20261104100000_kyiv_malyn_marshrutka_fare_310`), the default
+  for new schedules `KYIV_MALYN_MARSHRUTKA_FARE_UAH` in `backend/src/schedule-price.ts`, the prose constant
+  `frontend/src/utils/fares.ts` (FAQ, `/support/prices`, corridor landings, admin form default; `fares.test.ts` fails if the
+  two constants differ) and the committed prerender fallback `frontend/scripts/data/corridor-schedules.snapshot.json`.
+  Timetable tables and static pages read the price from the live API at build time, so **redeploy the frontend after the
+  backend migration has run**. A local `npm run build` rewrites that snapshot from the live API (prices, `fetchedAt`) —
+  check `git diff` before committing.
 - Git commit messages must be written in English (project convention, from `.cursor/rules`).
 - «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now**: the online flow (site modal, bot
   `/book`) still writes the booking and keeps the old «технічний режим» warnings. Warn **only where people
