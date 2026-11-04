@@ -1,6 +1,47 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, permanentRedirectLocation, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
+
+describe('serve-dist rules: 301 for retired public URLs', () => {
+  it('/poputky lands on the intercity board with the «Попутки» filter chosen', () => {
+    expect(permanentRedirectLocation('/poputky')).toBe('/mizhgorodski?type=carpool');
+    expect(permanentRedirectLocation('/poputky/')).toBe('/mizhgorodski?type=carpool');
+  });
+
+  it('keeps the visitor’s own parameters next to type=carpool, and lets them override it', () => {
+    expect(permanentRedirectLocation('/poputky?utm_source=fb&utm_campaign=x')).toBe('/mizhgorodski?type=carpool&utm_source=fb&utm_campaign=x');
+    expect(permanentRedirectLocation('/poputky?from=Malyn&to=Kyiv&date=2026-12-01')).toBe('/mizhgorodski?type=carpool&from=Malyn&to=Kyiv&date=2026-12-01');
+    expect(permanentRedirectLocation('/poputky?type=bus')).toBe('/mizhgorodski?type=bus');
+    // one `?` only: never `?type=carpool?utm=…`
+    expect(permanentRedirectLocation('/poputky?utm_source=fb').match(/\?/g)).toHaveLength(1);
+  });
+
+  it('does not touch the other exact redirects', () => {
+    expect(permanentRedirectLocation('/')).toBe('/mizhgorodski');
+    expect(permanentRedirectLocation('/booking')).toBe('/mizhgorodski');
+    expect(permanentRedirectLocation('/booking?from=Kyiv')).toBe('/mizhgorodski?from=Kyiv');
+    expect(permanentRedirectLocation('/help?x=1')).toBe('/support?x=1');
+    expect(permanentRedirectLocation('/privacy')).toBe('/about#privacy-policy');
+    expect(permanentRedirectLocation('/privacy?a=1')).toBe('/about?a=1#privacy-policy');
+    expect(permanentRedirectLocation('/localtransport/stop/st_0001?d=1')).toBe('/transport/stop/st_0001?d=1');
+    expect(permanentRedirectLocation('/index.php')).toBe(LEGACY_LANDING);
+  });
+
+  it('never redirects the pages that exist, or the API-looking subpaths', () => {
+    for (const p of ['/mizhgorodski', '/mizhgorodski?type=carpool', '/poputky/search', '/poputkyx', '/transport', '/zubastyk']) {
+      expect(permanentRedirectLocation(p), p).toBeNull();
+    }
+  });
+
+  it('splitUrl / withSearch building blocks', () => {
+    expect(splitUrl('/poputky/?a=1')).toEqual({ pathname: '/poputky', search: '?a=1' });
+    expect(splitUrl('/')).toEqual({ pathname: '/', search: '' });
+    expect(withSearch('/a', '')).toBe('/a');
+    expect(withSearch('/a', '?x=1')).toBe('/a?x=1');
+    expect(withSearch('/a?t=1', '?x=1&x=2')).toBe('/a?t=1&x=1&x=2');
+    expect(withSearch('/a?t=1#frag', '?t=2')).toBe('/a?t=2#frag');
+  });
+});
 
 describe('serve-dist rules: old Zubustik-site URLs (plan 1.10)', () => {
   it('301s booking-intent pages of the old site to the Kyiv corridor', () => {

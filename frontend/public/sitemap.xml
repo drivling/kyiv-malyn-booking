@@ -167,7 +167,7 @@
       Не індексуємо в sitemap:
       /login, /user, /admin, /help (→ /support),
       /privacy і /privacy-policy (→ /about#privacy-policy),
-      /poputky і /booking (→ /mizhgorodski після I2),
+      /poputky (→ /mizhgorodski?type=carpool) і /booking (→ /mizhgorodski),
       динамічні /transport/route/*, /transport/stop/* —
       додаються в dist/sitemap.xml на build (prerender-transport-stops).
     -->
