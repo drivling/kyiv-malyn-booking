@@ -440,6 +440,18 @@ def load_labels(ds):
             LABELS[r['id']] = no
 
 
+# Проїзд у шапці схеми й плаката — fare з датасету (TransportMeta, meta.fare.amount), а не число в коді: після зміни
+# тарифу в датасеті достатньо перегенерувати схему. Без датасету (немає мережі) — остання відома ціна:
+# 25 грн з 21.10.2026 (було 20).
+FARE_FALLBACK_UAH = 25
+FARE = {'amount': FARE_FALLBACK_UAH}
+
+
+def load_fare(ds):
+    amount = (((ds or {}).get('meta') or {}).get('fare') or {}).get('amount')
+    FARE['amount'] = int(amount) if isinstance(amount, (int, float)) and amount > 0 else FARE_FALLBACK_UAH
+
+
 def badge(x, y, rid, col, ink, align='start', h=16, extra=''):
     """ink(rid) — колір номера на плашці (FG: білий або чорний)"""
     label = route_label(rid)
@@ -492,7 +504,7 @@ def build_svg(stats, col, ink, bg, fg, muted, line_bg, water, water_fill, water_
     if not site:
         o.append(f'<text x="60" y="92" font-size="44" font-weight="800" letter-spacing="2" fill="{fg}">МАЛИН</text>')
         o.append(f'<text x="60" y="120" font-size="17" font-weight="600" fill="{fg}">Схема міських автобусних маршрутів</text>')
-        o.append(f'<text x="60" y="142" font-size="12" fill="{muted}">9 маршрутів · проїзд 20 ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>')
+        o.append(f'<text x="60" y="142" font-size="12" fill="{muted}">9 маршрутів · проїзд {FARE["amount"]} ₴ · схема не в масштабі · показано кінцеві, центральні та вузлові зупинки</text>')
     # компас
     cx, cy = (1340, 212) if site else ((1120, 84) if variant == 'poster' else (1340, 78))
     o.append(f'<g transform="translate({cx},{cy})" fill="{muted}" stroke="{muted}">'
@@ -723,6 +735,7 @@ def main():
     args = ap.parse_args()
     ds = load_dataset(args.dataset)
     load_labels(ds)
+    load_fare(ds)
     if args.suggest_node_stops:
         suggest_node_stops(ds)
         return
