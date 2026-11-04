@@ -8,6 +8,7 @@ import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
 import type { Booking, Schedule, ScheduleFormData, AdminViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatPhoneDisplay } from '@/utils/constants';
+import { KYIV_MALYN_FARE_UAH } from '@/utils/fares';
 import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { StopStickerTab } from './StopStickerTab';
@@ -111,7 +112,7 @@ export const AdminPage: React.FC = () => {
     departureTime: '',
     maxSeats: 20,
     supportPhone: '',
-    priceUah: 280,
+    priceUah: KYIV_MALYN_FARE_UAH,
     startPointId: undefined,
     endPointId: undefined,
     viaPointIds: [],
@@ -970,7 +971,7 @@ export const AdminPage: React.FC = () => {
     departureTime: '',
     maxSeats: 20,
     supportPhone: '',
-    priceUah: 280,
+    priceUah: KYIV_MALYN_FARE_UAH,
     startPointId: tripPoints.find((p) => p.code === 'Kyiv')?.id,
     endPointId: tripPoints.find((p) => p.code === 'Malyn')?.id,
     viaPointIds: tripPoints.find((p) => p.code === 'Irpin') ? [tripPoints.find((p) => p.code === 'Irpin')!.id] : [],
@@ -3680,7 +3681,7 @@ export const AdminPage: React.FC = () => {
                             type="number"
                             min={0}
                             max={9999}
-                            placeholder="280"
+                            placeholder={String(KYIV_MALYN_FARE_UAH)}
                             value={scheduleForm.priceUah ?? ''}
                             onChange={(e) =>
                               setScheduleForm({
