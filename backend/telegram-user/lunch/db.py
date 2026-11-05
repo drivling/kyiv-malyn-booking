@@ -487,6 +487,21 @@ class LunchDB:
             )
             return int(val) if val is not None else None
 
+    async def day_order_texts(self, day_id: int, *, exclude_telegram_user_id: str) -> list[str]:
+        """Тексти сьогоднішніх замовлень інших людей — звірити з ними нумерований підсумок оператора."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT o."rawText" FROM "LunchOrder" o
+                JOIN "LunchParticipant" p ON p.id = o."participantId"
+                WHERE o."dayId" = $1 AND o.status = 'active' AND p."telegramUserId" <> $2
+                ORDER BY o.id
+                """,
+                day_id,
+                exclude_telegram_user_id,
+            )
+            return [r["rawText"] for r in rows if r["rawText"]]
+
     async def get_order_reply_message_id(self, day_id: int, participant_id: int) -> Optional[int]:
         """Наша відповідь у групі на замовлення людини за день (навіть прибраного — його можна оживити)."""
         async with self.pool.acquire() as conn:

@@ -183,6 +183,10 @@ class FakeDB:
         paid = sum(p["amount"] for p in self.payments if p["pid"] == pid)
         return ordered, paid, ordered - paid
 
+    async def day_order_texts(self, day_id, *, exclude_telegram_user_id):
+        own = self.participants.get(str(exclude_telegram_user_id), {}).get("id")
+        return [o["raw"] for pid, o in self.orders.items() if pid != own and pid not in self.cancelled and o["raw"]]
+
     async def get_order_reply_message_id(self, day_id, pid):
         return self.orders.get(pid, {}).get("reply")
 
@@ -985,6 +989,96 @@ def test_person_reparse_with_only_a_payment_marks_paid_in_our_reply():
     assert db.outbound[-1]["kind"] == "edit" and "✅ Оплатив" in db.outbound[-1]["text"]
 
 
+# ---------- 2026-11-05: підсумок оператора з порожніми пунктами, «Розібрати» на самому операторі ----------
+
+# Як сьогоднішній: свої страви оператор пише першим пунктом, далі люди, 5–8 — порожні місця на виріст
+SUMMARY_2026_11_05 = (
+    "1. Пюре\nФиле куриное с помидором\nСирники\n\n2.Пюре\nБиток Київський\n\n"
+    "3.Каша пшона с грибами\nКапуста молода\nФиле З помідором\n\n4.Сметана\n\n5.\n\n6.\n\n7.\n\n8."
+)
+OPERATOR_UID = 465
+
+
+def _seed_people_orders(db, texts):
+    for i, t in enumerate(texts):
+        pid = run(db.upsert_participant(str(900 + i), f"Людина{i}"))
+        run(db.upsert_order(1, pid, t, 50, [OrderLineInput(36, "Пюре", 1, 45, 45, dish_id=36)], source_message_id=500 + i))
+
+
+def _operator_client():
+    return FakeClient([
+        FakeMsg(112481, "", _today_at(11, 20), sender_id=OPERATOR_UID, photo=True, sender_name="Святослав"),
+        FakeMsg(112494, SUMMARY_2026_11_05, _today_at(11, 32), sender_id=OPERATOR_UID, sender_name="Святослав"),
+        FakeMsg(112495, "", _today_at(11, 33), sender_id=OPERATOR_UID, photo=True, sender_name="Святослав"),
+    ])
+
+
+def _menu_with_smetana():
+    return _summary_menu() + [MenuItemRow(54, 1, "Сметана", normalize_dish_name("Сметана"), 25, dish_id=54)]
+
+
+def test_empty_placeholder_entries_are_ignored_and_reformatted_entries_still_match():
+    from lunch.summary_owner import pick_author_entry
+
+    entries = parse_numbered_summary(SUMMARY_2026_11_05)
+    assert len(entries) == 8 and entries[4:] == ["", "", "", ""]
+    # люди писали в один рядок, оператор переписав рядками — це ті самі замовлення
+    people = ["Пюре Биток Київський", "Каша пшона с грибами Капуста молода Филе З помідором", "Сметана"]
+    assert pick_author_entry(entries, people, _menu_with_smetana()) == (0, "")
+
+
+def test_first_entry_goes_to_author_on_explicit_action_even_with_another_unexplained():
+    from lunch.summary_owner import pick_author_entry
+
+    entries = parse_numbered_summary(SUMMARY_2026_11_05)
+    people = ["Пюре\nБиток Київський", "Сметана"]  # третю людину не знайшли
+    menu = _menu_with_smetana()
+    idx, reason = pick_author_entry(entries, people, menu)
+    assert idx is None and "2 пунктів" in reason  # фоновий дозбір лишається суворим
+    assert pick_author_entry(entries, people, menu, first_is_author=True) == (0, "")
+    # але не коли підсумок майже ні з чим не збігається
+    idx, reason = pick_author_entry(entries, ["Сметана"], menu, first_is_author=True)
+    assert idx is None and "майже не збігається" in reason
+
+
+def test_person_reparse_of_the_operator_takes_his_own_entry_from_the_summary():
+    """Регрес 2026-11-05: «Розібрати» на Святославі — orders=0, бо його страви лише в підсумку."""
+    db = FakeDB(menu=_menu_with_smetana())
+    _seed_people_orders(db, ["Пюре\nБиток Київський", "Каша пшона с грибами\nКапуста молода\nФиле З помідором", "Сметана"])
+    out = run(reparse_person(_operator_client(), object(), db, group_id=GROUP, tg_user_id=OPERATOR_UID))
+    assert out["orders"] == 1 and not out["errors"]
+    sv = db.participants[str(OPERATOR_UID)]["id"]
+    assert sorted(db.orders[sv]["lines"]) == sorted(["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"])
+    assert db.orders[sv]["source"] == 112494
+    assert any("свій пункт нумерованого підсумку" in d["reason"] for d in out["details"])
+    assert db.outbound[-1]["reply_to"] == 112494 and "Святослав, заказ:" in db.outbound[-1]["text"]
+
+
+def test_person_reparse_of_the_operator_when_his_entry_is_someone_elses():
+    db = FakeDB(menu=_menu_with_smetana())
+    # перший пункт збігається із замовленням людини, інших нічиїх немає — операторові нічого не приписуємо
+    _seed_people_orders(db, [
+        "Пюре\nФиле куриное с помидором\nСирники", "Пюре\nБиток Київський",
+        "Каша пшона с грибами\nКапуста молода\nФиле З помідором", "Сметана",
+    ])
+    out = run(reparse_person(_operator_client(), object(), db, group_id=GROUP, tg_user_id=OPERATOR_UID))
+    assert out["orders"] == 0 and str(OPERATOR_UID) not in db.participants
+    assert any(d["text"] == "[підсумок списком]" for d in out["details"])
+
+
+def test_day_reparse_attributes_first_entry_with_empty_placeholders():
+    db = FakeDB(menu=_menu_with_smetana())
+    msgs = [
+        FakeMsg(112482, "Пюре Биток Київський", _today_at(11, 21), sender_id=201, sender_name="Лера"),
+        FakeMsg(112486, "Каша пшона с грибами\nКапуста молода\nФиле З помідором", _today_at(11, 22), sender_id=202),
+        FakeMsg(112491, "Сметана", _today_at(11, 30), sender_id=203, sender_name="Evgeniia"),
+        FakeMsg(112494, SUMMARY_2026_11_05, _today_at(11, 32), sender_id=OPERATOR_UID, sender_name="Святослав"),
+    ]
+    run(reparse_day_with_client(FakeClient(msgs), object(), db))
+    sv = db.participants[str(OPERATOR_UID)]["id"]
+    assert sorted(db.orders[sv]["lines"]) == sorted(["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"])
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -1039,6 +1133,11 @@ def main():
         test_refresh_order_reply_does_nothing_without_order_or_reply,
         test_catch_up_payment_from_chat_marks_paid_in_our_reply,
         test_person_reparse_with_only_a_payment_marks_paid_in_our_reply,
+        test_empty_placeholder_entries_are_ignored_and_reformatted_entries_still_match,
+        test_first_entry_goes_to_author_on_explicit_action_even_with_another_unexplained,
+        test_person_reparse_of_the_operator_takes_his_own_entry_from_the_summary,
+        test_person_reparse_of_the_operator_when_his_entry_is_someone_elses,
+        test_day_reparse_attributes_first_entry_with_empty_placeholders,
     ]
     failed = 0
     for t in tests:

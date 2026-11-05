@@ -20,6 +20,8 @@ from typing import Any, Optional
 from .db import LunchDB, today_kyiv
 from .formatters import format_order_confirm
 from .order_reply import refresh_order_reply
+from .parse_summary import parse_numbered_summary
+from .summary_owner import parse_author_entry, pick_author_entry
 from .reparse_day import (
     SKIP_REASONS,
     DayContext,
@@ -195,6 +197,8 @@ async def reparse_person(
     orders: list[tuple[PersonMessage, Any]] = []
     no_match: list[tuple[PersonMessage, Any]] = []
     payments: list[tuple[PersonMessage, Any]] = []
+    # нумерований підсумок цієї людини (оператор): свої страви він пише в нього, а не окремим повідомленням
+    summary_msg: Optional[tuple[PersonMessage, list[str]]] = None
     for pm in src.messages:
         stats.scanned += 1
         if not pm.text:
@@ -210,7 +214,10 @@ async def reparse_person(
             allow_orders_when_closed=True,  # адмін просить явно — навіть якщо день уже закрито
             is_own=pm.outgoing,
         )
-        if plan.kind == "order":
+        numbered = parse_numbered_summary(pm.text) if plan.kind != "order" else []
+        if numbered:
+            summary_msg = (pm, numbered)  # остання версія підсумку виграє
+        elif plan.kind == "order":
             orders.append((pm, plan))
         elif plan.kind == "no_match":
             no_match.append((pm, plan))
@@ -223,7 +230,24 @@ async def reparse_person(
             stats.skipped += 1
             stats.note(pm.id, name, pm.text, "skipped", plan.reason)
 
-    if not orders and not payments and not no_match:
+    own_entry: Optional[tuple[PersonMessage, str, Any]] = None
+    if summary_msg is not None:
+        spm, entries = summary_msg
+        if orders:
+            reason = "нумерований підсумок — свої страви людина написала окремим повідомленням"
+        else:
+            # з ким звіряти — сьогоднішні замовлення інших людей у БД
+            others = await db.day_order_texts(day_row.id, exclude_telegram_user_id=uid)
+            idx, reason = pick_author_entry(entries, others, menu, first_is_author=True)
+            if idx is not None:
+                result, reason = parse_author_entry(entries[idx], menu)
+                if result is not None:
+                    own_entry = (spm, entries[idx], result)
+        if own_entry is None:
+            stats.skipped += 1
+            stats.note(spm.id, name, "[підсумок списком]", "skipped", reason)
+
+    if not orders and not payments and not no_match and own_entry is None:
         stats.errors.append("У цієї людини за день не знайдено повідомлень, схожих на замовлення чи оплату")
         return {**stats.as_dict(), **extra}
 
@@ -258,6 +282,27 @@ async def reparse_person(
         )
         if notify:
             confirm_for = (pm, result)  # підтвердження — після оплат, щоб у ньому вже був «✅ Оплатив»
+    elif own_entry is not None:
+        spm, text, result = own_entry
+        extra["replaced"] = had_order
+        for pm, plan in no_match:
+            stats.skipped += 1
+            stats.note(pm.id, name, pm.text, "skipped", plan.reason)
+        await db.upsert_order(
+            day_row.id,
+            pid,
+            text,
+            result.total_uah,
+            result.lines,
+            source_message_id=spm.id,
+            unmatched_text=None,
+        )
+        stats.orders += 1
+        stats.note(
+            spm.id, name, text, "order", "свій пункт нумерованого підсумку (перший пункт без повідомлення людини)"
+        )
+        if notify:
+            confirm_for = (spm, result)
     elif no_match and not had_order:
         # Нічого не збіглось і замовлення в людини ще немає: лишаємо видимий «порожній» рядок
         # з усім, що вона писала, — адмін відкриє «Редагувати», вибере страви (або «Прибрати»).

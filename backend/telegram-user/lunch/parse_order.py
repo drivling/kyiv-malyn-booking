@@ -106,6 +106,18 @@ def _overlap(ta: set[str], tb: set[str]) -> tuple[int, float]:
     return hits, weight
 
 
+def _names_head(word: str, name: str, name_words: set[str]) -> bool:
+    """Одне значуще слово запиту називає страву, якщо воно є в назві дослівно, збігається основою з її
+    головним словом або є коротшою (базовою) формою слова назви: «шуба» → «під шубою», «фета» → «з фетою».
+    Довше слово, що лише починається так само, — це інша страва: «сирники» ≠ «Салат «Крабово-сирний»»."""
+    if any(_fold(word) == _fold(t) for t in name_words):
+        return True
+    head = next((t for t in name.split() if len(t) > 1 and t not in GENERIC_TOKENS), None)
+    if head is not None and _token_match_weight(word, head) > 0:
+        return True
+    return any(len(_fold(word)) <= len(_fold(t)) and _token_match_weight(word, t) > 0 for t in name_words)
+
+
 def _similarity(a: str, b: str) -> float:
     """Score 0..1: containment + overlap токенів, але лише за значущими словами.
 
@@ -133,6 +145,8 @@ def _similarity(a: str, b: str) -> float:
         return 0.0
     if shared_distinct is not None:
         if shared_distinct < math.ceil(0.6 * min(len(da), len(db))):
+            return _NO_MATCH_SCORE
+        if len(da) == 1 and not _names_head(next(iter(da)), b, db):
             return _NO_MATCH_SCORE
         # У кожної назви є своє значуще слово, якого немає в іншій, і спільного менше 3/4 запиту —
         # це інший варіант страви: «філе курки з помідором» ≠ «Філе курки «Пікантне»».
