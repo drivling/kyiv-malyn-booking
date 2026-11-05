@@ -524,6 +524,7 @@ async def reparse_day_with_client(
                 sender_username=last["username"],
                 source_message_id=last["msg_id"],
                 notify=False,  # розбір дня мовчки, як і решта
+                first_is_author=True,  # явна дія адміна: свої страви оператор пише першим пунктом
             )
             if info["status"] == "created":
                 stats.orders += 1
