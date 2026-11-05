@@ -33,10 +33,10 @@ npx prisma migrate deploy
 | `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` | my.telegram.org |
 | `TELEGRAM_USER_SESSION_PATH` | шлях до сесії (без `.session`), напр. `.../session_telegram_user` |
 | `TELEGRAM_USER_SESSION_BASE64` | на Railway: сесія з `auth_session.py --export`; backend пише її у файл під час старту ([../README.md](../README.md)) |
-| `OPENAI_API_KEY` | для OCR меню з фото (опційно; інакше імпорт через адмінку) |
+| `ANTHROPIC_API_KEY` | для OCR меню з фото через Claude (опційно; інакше імпорт через адмінку). Кредити API входять у план Max: claude.ai → Settings → Billing → «API credits» → привʼязати організацію Console, там створити ключ |
 | `LUNCH_GROUP_ID` | `-5427750954` |
 | `LUNCH_OPERATOR_IDS` | опційно: Telegram user id операторів через кому (`!close` / `!open`) |
-| `LUNCH_OCR_MODEL` | опційно, за замовч. `gpt-4o-mini` |
+| `LUNCH_OCR_MODEL` | опційно, лише `claude-*`; за замовч. `claude-opus-5-5` (старе `gpt-…` ігнорується) |
 | `LUNCH_LISTENER_ENABLED` | `1` (default) — автозапуск з Node; `0` — вимкнути |
 | `DZHURA_ENABLED` | `1` (default) — у цьому ж процесі працює «Джура» (читання обраних чатів у базу, `/admin/dzhura`); `0` — вимкнути. Див. [../dzhura/README.md](../dzhura/README.md) |
 
@@ -66,7 +66,7 @@ python3 -m lunch.listener
 
 | Команда / текст | Дія |
 |-----------------|-----|
-| фото меню | OCR → меню (лише якщо є `OPENAI_API_KEY`; інакше **мовчки** ігнорує — меми ок) |
+| фото меню | OCR (Claude) → меню, **доливається** в наявне меню дня (два фото, меню з адмінки не стираються); чек, мем, список замовлень — «не меню», мовчки. Лише якщо є `ANTHROPIC_API_KEY`; інакше фото **мовчки** ігнорує |
 | `Пюре \| Котлети…` | замовлення, reply з сумою; якщо **нічого** не розпізнано — мовчить (є в логах і в «Писали в групі» адмінки); якщо кілька страв підходять однаково — питає «це А чи Б?» |
 | день `closed` + розпізнаний заказ | «Прийом замовлень закрито.» (без matched страв — мовчить) |
 | підсумок з цитатами `> Імʼя:` (Святослав) | парсинг усіх замовлень, дозаказ без імені якщо є зайве, **закриття дня** |

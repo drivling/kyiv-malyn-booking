@@ -11,7 +11,14 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from lunch.db import MenuItemRow, OrderLineInput
-from lunch.ocr_menu import parse_menu_items_payload
+from lunch.ocr_menu import (
+    DEFAULT_OCR_MODEL,
+    menu_items_from_ocr,
+    merge_menu_items,
+    ocr_menu_from_image_bytes,
+    ocr_model_name,
+    parse_menu_items_payload,
+)
 from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
 from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
 from lunch.parse_payment import looks_like_card_number, parse_payment
@@ -715,6 +722,95 @@ def test_mega_counts_distinct_dishes_not_portions():
     )
 
 
+# ---------- OCR меню з фото через Claude ----------
+
+_MENU_JSON = {"is_menu": True, "items": [{"name": n, "price": p} for n, p in [
+    ("Пюре", 45), ("Гречка", 35), ("Котлети курячі", 70), ("Салат «Грецький»", 50), ("Борщ червоний", 90), ("Хліб", 3),
+]]}
+
+
+class _FakeClaude:
+    """Підміна AsyncAnthropic: запамʼятовує запит і повертає заданий текст."""
+
+    def __init__(self, payload, stop_reason="end_turn"):
+        import json as _json
+        from types import SimpleNamespace
+
+        outer = self
+
+        class _Messages:
+            async def create(self, **kw):
+                outer.request = kw
+                text = payload if isinstance(payload, str) else _json.dumps(payload, ensure_ascii=False)
+                return SimpleNamespace(stop_reason=stop_reason, content=[SimpleNamespace(type="text", text=text)])
+
+        self.beta = SimpleNamespace(messages=_Messages())
+        self.request = None
+
+
+def _run(coro):
+    import asyncio
+
+    return asyncio.run(coro)
+
+
+def test_ocr_request_uses_claude_with_schema_image_and_known_names():
+    fake = _FakeClaude(_MENU_JSON)
+    items, raw = _run(ocr_menu_from_image_bytes(b"\xff\xd8jpeg", known_names=["Пюре", "Котлети курячі"], client=fake))
+    assert items[0] == ("Пюре", 45) and len(items) == 6 and raw["is_menu"] is True
+    req = fake.request
+    assert req["model"] == DEFAULT_OCR_MODEL == "claude-opus-5-5"
+    assert req["fallbacks"] == "default" and req["betas"] == ["server-side-fallback-2026-07-01"]
+    assert req["output_config"]["format"]["type"] == "json_schema"
+    assert req["output_config"]["format"]["schema"]["required"] == ["is_menu", "items"]
+    assert "temperature" not in req  # Opus 5.5 не приймає параметрів семплювання
+    image, text = req["messages"][0]["content"]
+    assert image["source"]["media_type"] == "image/jpeg" and image["source"]["data"] == "/9hqcGVn"
+    assert "Котлети курячі" in text["text"]
+
+
+def test_ocr_ignores_photos_that_are_not_a_menu():
+    """Чек оплати, мем, кілька цін — меню дня не чіпаємо."""
+    items, raw = _run(ocr_menu_from_image_bytes(b"x", client=_FakeClaude({"is_menu": False, "items": []})))
+    assert items == [] and raw["is_menu"] is False
+    receipt = {"is_menu": True, "items": [{"name": "Переказ", "price": 190}, {"name": "Комісія", "price": 2}]}
+    assert _run(ocr_menu_from_image_bytes(b"x", client=_FakeClaude(receipt)))[0] == []
+    assert menu_items_from_ocr({"items": _MENU_JSON["items"]}) == []  # без is_menu — теж ні
+
+
+def test_ocr_refusal_and_oversized_photo_raise():
+    cases = ((_FakeClaude({}, stop_reason="refusal"), b"x"), (_FakeClaude(_MENU_JSON), b"x" * (5 * 1024 * 1024 + 1)))
+    for fake, data in cases:
+        try:
+            _run(ocr_menu_from_image_bytes(data, client=fake))
+        except RuntimeError:
+            continue
+        raise AssertionError("мало кинути RuntimeError")
+
+
+def test_ocr_model_name_ignores_old_openai_setting():
+    import os
+
+    old = os.environ.get("LUNCH_OCR_MODEL")
+    try:
+        os.environ["LUNCH_OCR_MODEL"] = "gpt-4o-mini"
+        assert ocr_model_name() == "claude-opus-5-5"
+        os.environ["LUNCH_OCR_MODEL"] = "claude-haiku-5-5"
+        assert ocr_model_name() == "claude-haiku-5-5"
+    finally:
+        if old is None:
+            os.environ.pop("LUNCH_OCR_MODEL", None)
+        else:
+            os.environ["LUNCH_OCR_MODEL"] = old
+
+
+def test_menu_from_photo_is_merged_into_the_days_menu():
+    """Друге фото меню чи меню з адмінки не стирається: доливаємо, ціна — з нового фото."""
+    existing = [("Пюре", 45), ("Салат «Олів’є»", 50)]
+    merged = merge_menu_items(existing, [("пюре", 48), ("Гречка", 35)])
+    assert merged == [("Пюре", 48), ("Салат «Олів’є»", 50), ("Гречка", 35)]
+
+
 def main():
     tests = [
         test_normalize,
@@ -763,6 +859,11 @@ def main():
         test_short_synonym_does_not_swallow_longer_dish,
         test_ru_cooking_words,
         test_mega_counts_distinct_dishes_not_portions,
+        test_ocr_request_uses_claude_with_schema_image_and_known_names,
+        test_ocr_ignores_photos_that_are_not_a_menu,
+        test_ocr_refusal_and_oversized_photo_raise,
+        test_ocr_model_name_ignores_old_openai_setting,
+        test_menu_from_photo_is_merged_into_the_days_menu,
     ]
     failed = 0
     for t in tests:
