@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Завантажити останнє фото меню з групи і прогнати OCR (потрібен OPENAI_API_KEY)."""
+"""Завантажити останнє фото меню з групи і прогнати OCR (потрібен ANTHROPIC_API_KEY)."""
 
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ GROUP_ID = int(os.environ.get("LUNCH_GROUP_ID", "-5427750954"))
 async def main() -> None:
     from telethon import TelegramClient
 
-    if not (os.environ.get("OPENAI_API_KEY") or "").strip():
-        print("OPENAI_API_KEY не встановлено — OCR пропущено", file=sys.stderr)
+    if not (os.environ.get("ANTHROPIC_API_KEY") or "").strip():
+        print("ANTHROPIC_API_KEY не встановлено — OCR пропущено", file=sys.stderr)
         sys.exit(2)
 
     session = (os.environ.get("TELEGRAM_USER_SESSION_PATH") or "").strip() or str(
@@ -59,7 +59,7 @@ async def main() -> None:
     print("items:")
     for name, price in items:
         print(f"  {price:4d}  {name}")
-    print("raw keys:", list(raw.keys()) if isinstance(raw, dict) else type(raw))
+    print("is_menu:", raw.get("is_menu") if isinstance(raw, dict) else None)
     await client.disconnect()
     sys.exit(0 if items else 1)
 
