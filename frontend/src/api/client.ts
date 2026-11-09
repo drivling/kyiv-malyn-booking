@@ -51,6 +51,7 @@ import type {
   ArrivalReportResult,
   ArrivalReportDays,
   ArrivalReportStats,
+  WatchedSource,
   DeleteAccountResponse,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
@@ -1163,6 +1164,21 @@ class ApiClient {
   /** Адмін: видалити хибний звіт */
   async deleteArrivalReport(id: number): Promise<{ ok: boolean }> {
     return this.request(`/admin/transport/arrival-reports/${id}`, { method: 'DELETE' });
+  }
+
+  /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
+  async getWatchedSources(): Promise<{ sources: WatchedSource[] }> {
+    return this.request('/admin/transport/sources');
+  }
+
+  /** Адмін: перевірити джерела зараз — те саме, що робить таймер на сервері */
+  async checkWatchedSources(): Promise<{ sources: WatchedSource[] }> {
+    return this.request('/admin/transport/sources/check', { method: 'POST' });
+  }
+
+  /** Адмін: «Переглянуто» — зміну джерела враховано */
+  async acknowledgeWatchedSource(key: string): Promise<{ sources: WatchedSource[] }> {
+    return this.request(`/admin/transport/sources/${encodeURIComponent(key)}/ack`, { method: 'POST' });
   }
 
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */

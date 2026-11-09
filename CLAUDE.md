@@ -136,6 +136,7 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 | Deactivate expired poputky listings + expire pending `RideShareRequest` | `VIBER_CLEANUP_INTERVAL_MIN` (5) | `viber-listing-expiry.ts` |
 | Archive old listings (`ViberRideEvent` import, delete inactive > 90 d) | `VIBER_ARCHIVE_INTERVAL_MIN` (1440) | `viber-listing-archive.ts` |
 | Trip reminders: 20:00 day before, 08:00, one pre-departure (2 h / 30 min) | `BOOKING_REMINDERS_INTERVAL_MIN` (1) | `booking-reminders.ts` |
+| Watch external timetable sources (Korosten council page, data.gov.ua sets) → admin-chat alert on change | `TRANSPORT_SOURCE_WATCH_INTERVAL_MIN` (360) | `transport-source-watch.ts` |
 
 - A listing is visible until `endsAt + 1 h`. `endsAt` = trip day + end of `departureTime` **in Kyiv time** stored as
   UTC (`getListingEndsAt`; Railway runs TZ=UTC). Public reads (`/viber-listings`, `/search`, `/:id/contact`,
@@ -448,6 +449,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   (JSON, `?limit=`, newest first) and `GET /transport/changes.rss` (one item per row, Ukrainian `summary`, falls back to one
   feed-only item while the table is empty) read it; the RSS body is cached per revision. A new write path must call both
   helpers.
+- **Korosten city transport** is being added in phases — master plan and recovery file
+  `Docs/korosten-transport-2026-11.md` (read it first; its «Готовність до ввімкнення» table says what the Korosten
+  `hasLocalTransport` checkbox would show today). Sources and their licences: `data/korosten-transport/SOURCES.md`.
+  Source watch (phase 1): `WATCHED_SOURCES` in `backend/src/transport-source-watch.ts` — one GET per source per tick,
+  fingerprint = content (table text / file dates), first run is a baseline, one admin-chat alert per change
+  (conditional `updateMany` on the old fingerprint), a page without tables is a failure, not a change. Admin block on
+  `/admin/route-schedule` (`SourceWatchPanel`), endpoints `/admin/transport/sources*`.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

@@ -3,6 +3,7 @@ import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
 import { apiClient } from '@/api/client';
+import { SourceWatchPanel } from './SourceWatchPanel';
 import { datasetSaveErrorMessage, type TransportDataset, type TransportRouteDto, type TransportTripDto } from '@/api/transportDataset';
 import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import {
@@ -435,6 +436,7 @@ export const ScheduleEditorTab: React.FC = () => {
 
   return (
     <div className="tab-content schedule-editor-tab">
+      <SourceWatchPanel />
       <div className="schedule-editor-controls">
         <div className="schedule-editor-select">
           <Select

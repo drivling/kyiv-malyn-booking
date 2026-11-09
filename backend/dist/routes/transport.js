@@ -15,8 +15,16 @@ const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
 const arrival_reports_1 = require("../arrival-reports");
 const gtfs_feed_1 = require("../gtfs-feed");
+const transport_source_watch_1 = require("../transport-source-watch");
 function createTransportRouter(deps) {
     const { prisma } = deps;
+    const sourceWatchDeps = {
+        fetchText: transport_source_watch_1.fetchSourceText,
+        notify: async () => false,
+        now: () => new Date(),
+        sources: transport_source_watch_1.WATCHED_SOURCES,
+        ...deps.sourceWatch,
+    };
     const adminPassword = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
     const r = express_1.default.Router();
     const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
@@ -357,6 +365,42 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /admin/transport/sticker-scans]', e);
             res.status(500).json({ error: 'Failed to load sticker scans' });
+        }
+    });
+    /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
+    r.get('/admin/transport/sources', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            res.json({ sources: await (0, transport_source_watch_1.listWatchedSources)(prisma, sourceWatchDeps.sources) });
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/sources]', e);
+            res.status(500).json({ error: 'Failed to load watched sources' });
+        }
+    });
+    /** Адмін: перевірити джерела зараз (те саме, що робить таймер; сповіщення про зміну — не більше одного) */
+    r.post('/admin/transport/sources/check', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            const results = await (0, transport_source_watch_1.runSourceWatch)(prisma, sourceWatchDeps);
+            res.json({ results, sources: await (0, transport_source_watch_1.listWatchedSources)(prisma, sourceWatchDeps.sources) });
+        }
+        catch (e) {
+            console.error('[POST /admin/transport/sources/check]', e);
+            res.status(500).json({ error: 'Failed to check watched sources' });
+        }
+    });
+    /** Адмін: «Переглянуто» — зміну джерела враховано */
+    r.post('/admin/transport/sources/:key/ack', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const key = String(req.params.key);
+            if (!sourceWatchDeps.sources.some((s) => s.key === key) || !(await (0, transport_source_watch_1.acknowledgeWatchedSource)(prisma, key, sourceWatchDeps.now()))) {
+                res.status(404).json({ error: 'Unknown source' });
+                return;
+            }
+            res.json({ ok: true, sources: await (0, transport_source_watch_1.listWatchedSources)(prisma, sourceWatchDeps.sources) });
+        }
+        catch (e) {
+            console.error('[POST /admin/transport/sources/:key/ack]', e);
+            res.status(500).json({ error: 'Failed to acknowledge source' });
         }
     });
     /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні (лише читання знімка) */

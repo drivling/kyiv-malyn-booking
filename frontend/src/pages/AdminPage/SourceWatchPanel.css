@@ -1,0 +1,67 @@
+.source-watch {
+  border: 1px solid var(--pb-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.source-watch-summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.source-watch-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.source-watch-badge--changed {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.source-watch-badge--failing {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.source-watch-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.source-watch-table th,
+.source-watch-table td {
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid var(--pb-border, #e5e7eb);
+}
+
+.source-watch-row--changed td {
+  background: #fffbeb;
+}
+
+.source-watch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.source-watch-hint,
+.source-watch-error {
+  font-size: 13px;
+  color: var(--pb-text-muted, #6b7280);
+}
+
+.source-watch-error {
+  color: var(--pb-error, #b91c1c);
+}

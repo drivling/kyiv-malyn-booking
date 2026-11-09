@@ -24,9 +24,29 @@ import {
 import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticker-wall';
 import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDays } from '../arrival-reports';
 import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
+import {
+  WATCHED_SOURCES,
+  acknowledgeWatchedSource,
+  fetchSourceText,
+  listWatchedSources,
+  runSourceWatch,
+  type SourceWatchDeps,
+} from '../transport-source-watch';
 
-export function createTransportRouter(deps: { prisma: PrismaClient; adminPassword?: string }): Router {
+export function createTransportRouter(deps: {
+  prisma: PrismaClient;
+  adminPassword?: string;
+  /** Стеження за джерелами розкладу: куди слати сповіщення і чим ходити в мережу (тести підміняють) */
+  sourceWatch?: Partial<SourceWatchDeps>;
+}): Router {
   const { prisma } = deps;
+  const sourceWatchDeps: SourceWatchDeps = {
+    fetchText: fetchSourceText,
+    notify: async () => false,
+    now: () => new Date(),
+    sources: WATCHED_SOURCES,
+    ...deps.sourceWatch,
+  };
   const adminPassword = resolveAdminPassword(deps.adminPassword);
   const r = express.Router();
   const isRepeatScan = createScanDeduper();
@@ -369,6 +389,42 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
     } catch (e) {
       console.error('[GET /admin/transport/sticker-scans]', e);
       res.status(500).json({ error: 'Failed to load sticker scans' });
+    }
+  });
+
+  /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
+  r.get('/admin/transport/sources', requireAdmin, async (_req, res) => {
+    try {
+      res.json({ sources: await listWatchedSources(prisma, sourceWatchDeps.sources) });
+    } catch (e) {
+      console.error('[GET /admin/transport/sources]', e);
+      res.status(500).json({ error: 'Failed to load watched sources' });
+    }
+  });
+
+  /** Адмін: перевірити джерела зараз (те саме, що робить таймер; сповіщення про зміну — не більше одного) */
+  r.post('/admin/transport/sources/check', requireAdmin, async (_req, res) => {
+    try {
+      const results = await runSourceWatch(prisma, sourceWatchDeps);
+      res.json({ results, sources: await listWatchedSources(prisma, sourceWatchDeps.sources) });
+    } catch (e) {
+      console.error('[POST /admin/transport/sources/check]', e);
+      res.status(500).json({ error: 'Failed to check watched sources' });
+    }
+  });
+
+  /** Адмін: «Переглянуто» — зміну джерела враховано */
+  r.post('/admin/transport/sources/:key/ack', requireAdmin, async (req, res) => {
+    try {
+      const key = String(req.params.key);
+      if (!sourceWatchDeps.sources.some((s) => s.key === key) || !(await acknowledgeWatchedSource(prisma, key, sourceWatchDeps.now()))) {
+        res.status(404).json({ error: 'Unknown source' });
+        return;
+      }
+      res.json({ ok: true, sources: await listWatchedSources(prisma, sourceWatchDeps.sources) });
+    } catch (e) {
+      console.error('[POST /admin/transport/sources/:key/ack]', e);
+      res.status(500).json({ error: 'Failed to acknowledge source' });
     }
   });
 
