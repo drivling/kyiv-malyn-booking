@@ -1108,6 +1108,27 @@ export interface ArrivalReportView {
   createdAt: string;
 }
 
+/** Зовнішнє джерело розкладу, за яким стежить бекенд (GET /admin/transport/sources) */
+export interface WatchedSource {
+  key: string;
+  kind: 'html-tables' | 'ckan';
+  cityCode: string;
+  label: string;
+  url: string;
+  /** Дата зміни за даними самого джерела */
+  modified: string | null;
+  lastCheckedAt: string | null;
+  lastChangedAt: string | null;
+  acknowledgedAt: string | null;
+  /** Є зміна, яку ще не позначено переглянутою */
+  pending: boolean;
+  /** Що змінилось востаннє: номери маршрутів або файли набору */
+  changed: string[];
+  parts: number;
+  failCount: number;
+  lastError: string | null;
+}
+
 /** GET /admin/transport/arrival-reports — зведення по рейсах на зупинках і останні звіти */
 export interface ArrivalReportStats {
   days: ArrivalReportDays;

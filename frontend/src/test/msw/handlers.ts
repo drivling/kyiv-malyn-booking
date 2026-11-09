@@ -31,6 +31,8 @@ export const handlers = [
   }),
 
   http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(emptyDataset)),
+  // Блок «Джерела розкладу» в редакторі графіка: за замовчуванням джерел немає
+  http.get(`${TEST_API_URL}/admin/transport/sources`, () => HttpResponse.json({ sources: [] })),
   // Знімок збірки /transport/dataset.json (same-origin; jsdom теж живе на localhost:3000) — у тестах його нема
   http.get(`${TEST_API_URL}/transport/dataset.json`, () => new HttpResponse('Not found', { status: 404 })),
 

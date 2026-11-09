@@ -930,6 +930,26 @@ model TransportRevision {
   @@index([createdAt])
 }
 
+/// Стеження за зовнішніми джерелами розкладу (Docs/korosten-transport-2026-11.md, фаза 1): сторінка ради,
+/// набори data.gov.ua. Перелік джерел — у коді (WATCHED_SOURCES, src/transport-source-watch.ts); рядок зберігає
+/// останній побачений відбиток вмісту. Зміна відбитка → сповіщення власнику в адмін-чат.
+model WatchedSource {
+  key            String    @id
+  /// Відбиток вмісту (sha256 частин); null — джерело ще жодного разу не відповіло
+  fingerprint    String?
+  /// { parts: { назва частини: хеш }, modified: дата зміни за даними джерела, changed: що змінилось востаннє }
+  details        Json?
+  lastCheckedAt  DateTime?
+  lastChangedAt  DateTime?
+  /// Власник натиснув «Переглянуто» після останньої зміни
+  acknowledgedAt DateTime?
+  /// Невдалі перевірки поспіль
+  failCount      Int       @default(0)
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
 /// Відкриття табло з QR-наклейки на зупинці (/admin/stickers, Docs/stop-stickers.md). Пише
 /// фронтенд при першому за сесію відкритті табло з utm_source=sticker. Без IP і персональних даних.
 model StickerScan {

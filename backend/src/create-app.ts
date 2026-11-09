@@ -25,6 +25,7 @@ import { createAdminLunchRouter } from './routes/admin-lunch';
 import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
+import type { SourceWatchDeps } from './transport-source-watch';
 import { requestTiming } from './middleware/request-timing';
 import { materializeTelegramUserSession } from './telegram-user-session';
 import { resolveAdminPassword, setAdminPassword } from './middleware/require-admin';
@@ -40,6 +41,8 @@ export type CreateAppDeps = {
    * відповідають 503, а не пропускають без перевірки.
    */
   telegramBotToken?: string | null;
+  /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
+  sourceWatch?: Partial<SourceWatchDeps>;
 };
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -130,7 +133,13 @@ app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
-app.use(createTransportRouter({ prisma, adminPassword: ADMIN_PASSWORD }));
+app.use(
+  createTransportRouter({
+    prisma,
+    adminPassword: ADMIN_PASSWORD,
+    sourceWatch: { notify: sendAdminAlertHtml, ...deps.sourceWatch },
+  }),
+);
 
 // Глобальний обробник помилок — завжди повертаємо JSON
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
