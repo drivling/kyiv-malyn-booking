@@ -455,7 +455,11 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   Source watch (phase 1): `WATCHED_SOURCES` in `backend/src/transport-source-watch.ts` — one GET per source per tick,
   fingerprint = content (table text / file dates), first run is a baseline, one admin-chat alert per change
   (conditional `updateMany` on the old fingerprint), a page without tables is a failure, not a change. Admin block on
-  `/admin/route-schedule` (`SourceWatchPanel`), endpoints `/admin/transport/sources*`.
+  `/admin/route-schedule` (`SourceWatchPanel`), endpoints `/admin/transport/sources*`. The council page is parsed by
+  the pure `backend/src/korosten-source-parser.ts` (routes, runs per «Графік», breaks, `*` footnote read from its
+  text, italics = other path), so alerts list the changed runs; the committed source snapshot and `timetable.json`
+  live in `data/korosten-transport/source/` (`npm run korosten:snapshot` in `backend/`, a test keeps the two in step).
+  Never change how `snapshotHtmlTables` hashes a table — a new fingerprint would alert on every source at deploy.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

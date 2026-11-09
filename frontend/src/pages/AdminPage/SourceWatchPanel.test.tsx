@@ -38,7 +38,12 @@ describe('SourceWatchPanel', () => {
   });
 
   it('показує зміну з переліком маршрутів; «Переглянуто» знімає позначку', async () => {
-    const changed = source({ pending: true, lastChangedAt: '2026-11-09T09:00:00.000Z', changed: ['№2', '№6'] });
+    const changed = source({
+      pending: true,
+      lastChangedAt: '2026-11-09T09:00:00.000Z',
+      changed: ['№2', '№6'],
+      changeLines: ['№6: − 07:00–07:25 Цегельний завод → Станція Житомирська', '№6: + 07:05–07:30 Цегельний завод → Станція Житомирська'],
+    });
     let acked = '';
     server.use(
       http.get(SOURCES_URL, () => HttpResponse.json({ sources: [changed, source({ key: 'korosten-stops', label: 'Коростень: зупинки (data.gov.ua)' })] })),
@@ -51,6 +56,7 @@ describe('SourceWatchPanel', () => {
 
     expect(await screen.findByText('змінилось: 1')).toBeInTheDocument();
     expect(screen.getByText(/№2, №6/)).toBeInTheDocument();
+    expect(screen.getByText('№6: + 07:05–07:30 Цегельний завод → Станція Житомирська')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Коростень: розклад автобусів на сайті ради' })).toHaveAttribute('href', 'https://example.org/rozklad');
     expect(screen.getAllByText('13.07.2026, 13:44')).toHaveLength(2);
 

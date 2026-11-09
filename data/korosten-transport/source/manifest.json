@@ -1,0 +1,41 @@
+{
+  "fetchedAt": "2026-11-09T23:41:00.098Z",
+  "files": [
+    {
+      "file": "rada-timetable.html",
+      "source": "https://korosten-rada.gov.ua/miska-rada/upravlinnya-ta-viddily/upravlinnya-ekonomiky/viddil-misczevogo-ekonomichnogo-rozvytku/transport/miskyj-transport/rozklad-ruhu-miskogo-transportu-rozklad-ruhu-avtobusiv-na-period-vijskovogo-stanu/",
+      "sha256": "2647577c9dbede442495b76a0e75e7813530928c5773bb23a76c2a645429bae9",
+      "modified": "2026-07-13T10:44:39+00:00"
+    },
+    {
+      "file": "timetable.json",
+      "source": "korosten-source-parser.ts ← rada-timetable.html",
+      "sha256": "b6d3d5e49c3330482fdd350b46b58cf081719aa3a632daed8d234c4b02e1c5a6",
+      "modified": "2026-07-13T10:44:39+00:00"
+    },
+    {
+      "file": "agency.csv",
+      "source": "https://data.gov.ua/dataset/aa684f4a-1545-4cd0-afd6-61d70939f31f/resource/5c0fb3cd-9601-4cff-aac8-b5638a1063fc/download/agency.csv",
+      "sha256": "dad8fa65f9afbf2f7f58e331dcaa3a8a652d3ba1ceebb2c0400398ce934dba39",
+      "modified": "2026-07-17T10:53:39.902900"
+    },
+    {
+      "file": "routes.csv",
+      "source": "https://data.gov.ua/dataset/aa684f4a-1545-4cd0-afd6-61d70939f31f/resource/384e1409-fe93-47c9-947a-f7ab065027ac/download/routes.csv",
+      "sha256": "2f51d406a8d0ec57ffcced475413bba2777845e629392d91118b6e2017cdda4c",
+      "modified": "2026-07-17T10:47:56.615449"
+    },
+    {
+      "file": "stops.csv",
+      "source": "https://data.gov.ua/dataset/c8bfaca6-97d6-451a-9dbc-68d2b745ddd3/resource/57bee2d5-f508-4e78-b592-e9abebe6ad2c/download/stops.csv",
+      "sha256": "535dd2aad01ca209c7ed95352a311f8f0694c3b8c8cb93e3340ad4c656be48bb",
+      "modified": "2026-07-17T11:26:14.951742"
+    },
+    {
+      "file": "trips.csv",
+      "source": "https://data.gov.ua/dataset/9b85050b-175b-4e51-a149-a6cb1fcb815e/resource/283efa0b-04fc-4de6-9718-2930c2555988/download/trips.csv",
+      "sha256": "123c4098a5100c5fef0895119924586995e371fff3eb1e588a12b2eca3c755a6",
+      "modified": "2026-07-17T08:03:59.986366"
+    }
+  ]
+}

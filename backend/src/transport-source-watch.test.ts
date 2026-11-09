@@ -4,6 +4,8 @@
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
@@ -12,6 +14,7 @@ import {
   SOURCE_FAIL_ALERT_AFTER,
   acknowledgeWatchedSource,
   changedParts,
+  describeChanges,
   listWatchedSources,
   normalizeHtmlText,
   runSourceWatch,
@@ -235,6 +238,49 @@ test('runSourceWatch: джерело, що не відповіло з першо
   h.bodies['https://example.org/p'] = page(R1, R6);
   assert.equal((await runSourceWatch(prisma, h.deps))[0].status, 'baseline');
   assert.equal(h.sent.length, 0);
+});
+
+test('джерело з парсером: сповіщення називає змінені рейси; перше порівняння після появи парсера — лише номер маршруту', async () => {
+  const fixture = fs.readFileSync(path.resolve(__dirname, '../../data/korosten-transport/source/rada-timetable.html'), 'utf8');
+  const parsed: WatchedSourceDef = { ...HTML_SOURCE, parser: 'korosten-timetable' };
+  const { prisma, rows } = stubPrisma();
+  const h = harness({ 'https://example.org/p': fixture }, [parsed]);
+  await runSourceWatch(prisma, h.deps);
+  assert.equal(Object.keys((rows.get('page')?.details as { items: Record<string, string[]> }).items).length, 9);
+
+  // Рада зсунула останній рейс №8 на п'ять хвилин
+  const lastRun = '<td><span>18-00</span></td>\n<td><span>18-30</span></td>';
+  const at = fixture.lastIndexOf(lastRun);
+  assert.ok(at > 0);
+  h.bodies['https://example.org/p'] = fixture.slice(0, at) + lastRun.replace('18-00', '18-05').replace('18-30', '18-35') + fixture.slice(at + lastRun.length);
+  assert.notEqual(h.bodies['https://example.org/p'], fixture);
+  const [result] = await runSourceWatch(prisma, h.deps);
+  assert.deepEqual(result.changed, ['№8']);
+  assert.match(h.sent[0], /№8: − 18:00–18:30 Романа Шухевича → Бровар/);
+  assert.match(h.sent[0], /№8: \+ 18:05–18:35 Романа Шухевича → Бровар/);
+  assert.deepEqual((await listWatchedSources(prisma, [parsed]))[0].changeLines, [
+    '№8: − 18:00–18:30 Романа Шухевича → Бровар',
+    '№8: + 18:05–18:35 Романа Шухевича → Бровар',
+  ]);
+
+  // Рядок, записаний до появи парсера (фаза 1): рядків рейсів у базі ще нема
+  const old = stubPrisma();
+  const h2 = harness({ 'https://example.org/p': fixture }, [HTML_SOURCE]);
+  await runSourceWatch(old.prisma, h2.deps);
+  h2.deps.sources = [parsed];
+  h2.bodies['https://example.org/p'] = h.bodies['https://example.org/p'] as string;
+  const [first] = await runSourceWatch(old.prisma, h2.deps);
+  assert.deepEqual(first.changed, ['№8']);
+  assert.doesNotMatch(h2.sent[0], /18:05/);
+});
+
+test('describeChanges: довгий перелік обрізається, частини без попередніх рядків пропускаються', () => {
+  const before = { a: Array.from({ length: 12 }, (_, i) => `рейс ${i}`), b: ['x'] };
+  const after = { a: [], b: ['x'], c: ['новий'] };
+  const lines = describeChanges(before, after);
+  assert.equal(lines.length, 9);
+  assert.equal(lines[8], 'a: … ще 4');
+  assert.deepEqual(describeChanges(undefined, after), []);
 });
 
 test('acknowledgeWatchedSource: «Переглянуто» знімає позначку, нова зміна повертає її', async () => {

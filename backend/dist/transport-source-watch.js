@@ -6,6 +6,7 @@ exports.snapshotHtmlTables = snapshotHtmlTables;
 exports.snapshotCkanPackage = snapshotCkanPackage;
 exports.changedParts = changedParts;
 exports.takeSnapshot = takeSnapshot;
+exports.describeChanges = describeChanges;
 exports.fetchSourceText = fetchSourceText;
 exports.runSourceWatch = runSourceWatch;
 exports.listWatchedSources = listWatchedSources;
@@ -19,6 +20,7 @@ exports.acknowledgeWatchedSource = acknowledgeWatchedSource;
  * стан. Відбиток — це вміст, а не дата зміни сторінки: пересохранення без правок сповіщення не дає.
  */
 const node_crypto_1 = require("node:crypto");
+const korosten_source_parser_1 = require("./korosten-source-parser");
 const CKAN = 'https://data.gov.ua/api/3/action/package_show?id=';
 const ckanSource = (key, id, label) => ({
     key,
@@ -38,6 +40,7 @@ exports.WATCHED_SOURCES = [
         label: 'Коростень: розклад автобусів на сайті ради',
         url: KOROSTEN_TIMETABLE_URL,
         fetchUrl: KOROSTEN_TIMETABLE_URL,
+        parser: 'korosten-timetable',
     },
     ckanSource('korosten-routes', 'd8a2158e-5ee4-48cf-a2b7-1532336ce563', 'Коростень: перевізники й маршрути (data.gov.ua)'),
     ckanSource('korosten-stops', 'c8bfaca6-97d6-451a-9dbc-68d2b745ddd3', 'Коростень: зупинки (data.gov.ua)'),
@@ -130,7 +133,43 @@ function changedParts(prev, next) {
     return out;
 }
 function takeSnapshot(def, body) {
-    return def.kind === 'ckan' ? snapshotCkanPackage(body) : snapshotHtmlTables(body);
+    if (def.kind === 'ckan')
+        return snapshotCkanPackage(body);
+    const snap = snapshotHtmlTables(body);
+    if (def.parser === 'korosten-timetable') {
+        try {
+            snap.items = (0, korosten_source_parser_1.timetableItems)((0, korosten_source_parser_1.parseKorostenTimetable)(body));
+        }
+        catch {
+            // Верстку змінили так, що парсер не впорався: стеження лишається на хешах таблиць
+        }
+    }
+    return snap;
+}
+const CHANGE_LINES_PER_PART = 8;
+/**
+ * Що саме змінилось у частинах: «№6: − 07:00–07:25 …» / «№6: + 07:05–07:30 …». Частини без рядків
+ * (не було парсера або це перше порівняння після його появи) пропускаються — їх називає changedParts.
+ */
+function describeChanges(prev, next) {
+    if (!prev || !next)
+        return [];
+    const out = [];
+    for (const part of Object.keys(next)) {
+        const before = prev[part];
+        if (!before)
+            continue;
+        const after = next[part];
+        const removed = before.filter((line) => !after.includes(line)).map((line) => `− ${line}`);
+        const added = after.filter((line) => !before.includes(line)).map((line) => `+ ${line}`);
+        const lines = [...removed, ...added];
+        if (!lines.length)
+            continue;
+        lines.slice(0, CHANGE_LINES_PER_PART).forEach((line) => out.push(`${part}: ${line}`));
+        if (lines.length > CHANGE_LINES_PER_PART)
+            out.push(`${part}: … ще ${lines.length - CHANGE_LINES_PER_PART}`);
+    }
+    return out;
 }
 /** Один звичайний GET із загальним User-Agent; не-200 — помилка */
 async function fetchSourceText(url) {
@@ -144,9 +183,10 @@ async function fetchSourceText(url) {
     return res.text();
 }
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-function changeAlertHtml(def, changed) {
+function changeAlertHtml(def, changed, lines = []) {
     return (`🚌 <b>Джерело розкладу змінилось</b>\n${esc(def.label)}\n` +
         (changed.length ? `Змінилось: ${esc(changed.join(', '))}\n` : '') +
+        (lines.length ? `${esc(lines.join('\n')).slice(0, 2500)}\n` : '') +
         `<a href="${esc(def.url)}">Відкрити джерело</a>\n` +
         `Після перевірки — «Переглянуто»: ${ADMIN_PAGE_URL}`);
 }
@@ -195,7 +235,7 @@ async function runSourceWatch(prisma, deps) {
         }
         const ok = { lastCheckedAt: now, failCount: 0, lastError: null };
         if (!row || row.fingerprint == null) {
-            const details = { parts: snap.parts, modified: snap.modified };
+            const details = { parts: snap.parts, modified: snap.modified, items: snap.items };
             await prisma.watchedSource.upsert({
                 where: { key: def.key },
                 create: { key: def.key, fingerprint: snap.fingerprint, details, ...ok },
@@ -208,23 +248,24 @@ async function runSourceWatch(prisma, deps) {
         if (row.fingerprint === snap.fingerprint) {
             await prisma.watchedSource.update({
                 where: { key: def.key },
-                data: { ...ok, details: { ...prev, parts: snap.parts, modified: snap.modified } },
+                data: { ...ok, details: { ...prev, parts: snap.parts, modified: snap.modified, items: snap.items ?? prev.items } },
             });
             results.push({ key: def.key, status: 'unchanged' });
             continue;
         }
         const changed = changedParts(prev.parts ?? {}, snap.parts);
+        const changeLines = describeChanges(prev.items, snap.items);
         const claim = await prisma.watchedSource.updateMany({
             where: { key: def.key, fingerprint: row.fingerprint },
             data: {
                 ...ok,
                 fingerprint: snap.fingerprint,
-                details: { parts: snap.parts, modified: snap.modified, changed },
+                details: { parts: snap.parts, modified: snap.modified, changed, changeLines, items: snap.items },
                 lastChangedAt: now,
                 acknowledgedAt: null,
             },
         });
-        const notified = claim.count === 1 ? Boolean(await deps.notify(changeAlertHtml(def, changed))) : false;
+        const notified = claim.count === 1 ? Boolean(await deps.notify(changeAlertHtml(def, changed, changeLines))) : false;
         results.push({ key: def.key, status: 'changed', changed, notified });
     }
     return results;
@@ -250,6 +291,7 @@ async function listWatchedSources(prisma, sources = exports.WATCHED_SOURCES) {
             acknowledgedAt: ackAt?.toISOString() ?? null,
             pending: Boolean(changedAt && (!ackAt || ackAt < changedAt)),
             changed: Array.isArray(details.changed) ? details.changed : [],
+            changeLines: Array.isArray(details.changeLines) ? details.changeLines : [],
             parts: Object.keys(details.parts ?? {}).length,
             failCount: row?.failCount ?? 0,
             lastError: row?.lastError ?? null,

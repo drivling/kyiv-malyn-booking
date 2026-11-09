@@ -1124,6 +1124,8 @@ export interface WatchedSource {
   pending: boolean;
   /** Що змінилось востаннє: номери маршрутів або файли набору */
   changed: string[];
+  /** Докладно, якщо джерело розбирається парсером: «№6: − 07:00–07:25 …», «№6: + 07:05–07:30 …» */
+  changeLines?: string[];
   parts: number;
   failCount: number;
   lastError: string | null;
