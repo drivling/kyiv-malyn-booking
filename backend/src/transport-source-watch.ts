@@ -8,6 +8,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { parseKorostenTimetable, timetableItems } from './korosten-source-parser';
 
 export type WatchedSourceKind = 'html-tables' | 'ckan';
 
@@ -21,6 +22,8 @@ export interface WatchedSourceDef {
   url: string;
   /** Що запитує бекенд (для html-tables — та сама сторінка) */
   fetchUrl: string;
+  /** Парсер вмісту: дає рядки рейсів кожної частини, щоб сповіщення називало змінені рейси */
+  parser?: 'korosten-timetable';
 }
 
 const CKAN = 'https://data.gov.ua/api/3/action/package_show?id=';
@@ -45,6 +48,7 @@ export const WATCHED_SOURCES: WatchedSourceDef[] = [
     label: 'Коростень: розклад автобусів на сайті ради',
     url: KOROSTEN_TIMETABLE_URL,
     fetchUrl: KOROSTEN_TIMETABLE_URL,
+    parser: 'korosten-timetable',
   },
   ckanSource('korosten-routes', 'd8a2158e-5ee4-48cf-a2b7-1532336ce563', 'Коростень: перевізники й маршрути (data.gov.ua)'),
   ckanSource('korosten-stops', 'c8bfaca6-97d6-451a-9dbc-68d2b745ddd3', 'Коростень: зупинки (data.gov.ua)'),
@@ -63,6 +67,8 @@ export interface SourceSnapshot {
   parts: Record<string, string>;
   /** Дата зміни за даними самого джерела (для показу; у відбиток не входить) */
   modified: string | null;
+  /** Назва частини → рядки її вмісту (рейси маршруту); у відбиток не входить, лише для опису зміни */
+  items?: Record<string, string[]>;
 }
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16);
@@ -153,7 +159,42 @@ export function changedParts(prev: Record<string, string>, next: Record<string, 
 }
 
 export function takeSnapshot(def: WatchedSourceDef, body: string): SourceSnapshot {
-  return def.kind === 'ckan' ? snapshotCkanPackage(body) : snapshotHtmlTables(body);
+  if (def.kind === 'ckan') return snapshotCkanPackage(body);
+  const snap = snapshotHtmlTables(body);
+  if (def.parser === 'korosten-timetable') {
+    try {
+      snap.items = timetableItems(parseKorostenTimetable(body));
+    } catch {
+      // Верстку змінили так, що парсер не впорався: стеження лишається на хешах таблиць
+    }
+  }
+  return snap;
+}
+
+const CHANGE_LINES_PER_PART = 8;
+
+/**
+ * Що саме змінилось у частинах: «№6: − 07:00–07:25 …» / «№6: + 07:05–07:30 …». Частини без рядків
+ * (не було парсера або це перше порівняння після його появи) пропускаються — їх називає changedParts.
+ */
+export function describeChanges(
+  prev: Record<string, string[]> | undefined,
+  next: Record<string, string[]> | undefined,
+): string[] {
+  if (!prev || !next) return [];
+  const out: string[] = [];
+  for (const part of Object.keys(next)) {
+    const before = prev[part];
+    if (!before) continue;
+    const after = next[part];
+    const removed = before.filter((line) => !after.includes(line)).map((line) => `− ${line}`);
+    const added = after.filter((line) => !before.includes(line)).map((line) => `+ ${line}`);
+    const lines = [...removed, ...added];
+    if (!lines.length) continue;
+    lines.slice(0, CHANGE_LINES_PER_PART).forEach((line) => out.push(`${part}: ${line}`));
+    if (lines.length > CHANGE_LINES_PER_PART) out.push(`${part}: … ще ${lines.length - CHANGE_LINES_PER_PART}`);
+  }
+  return out;
 }
 
 export interface SourceWatchDeps {
@@ -176,10 +217,11 @@ export async function fetchSourceText(url: string): Promise<string> {
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function changeAlertHtml(def: WatchedSourceDef, changed: string[]): string {
+function changeAlertHtml(def: WatchedSourceDef, changed: string[], lines: string[] = []): string {
   return (
     `🚌 <b>Джерело розкладу змінилось</b>\n${esc(def.label)}\n` +
     (changed.length ? `Змінилось: ${esc(changed.join(', '))}\n` : '') +
+    (lines.length ? `${esc(lines.join('\n')).slice(0, 2500)}\n` : '') +
     `<a href="${esc(def.url)}">Відкрити джерело</a>\n` +
     `Після перевірки — «Переглянуто»: ${ADMIN_PAGE_URL}`
   );
@@ -192,7 +234,13 @@ function failAlertHtml(def: WatchedSourceDef, error: string): string {
   );
 }
 
-type Details = { parts?: Record<string, string>; modified?: string | null; changed?: string[] };
+type Details = {
+  parts?: Record<string, string>;
+  modified?: string | null;
+  changed?: string[];
+  changeLines?: string[];
+  items?: Record<string, string[]>;
+};
 const detailsOf = (value: unknown): Details => (value && typeof value === 'object' ? (value as Details) : {});
 
 export type SourceCheckStatus = 'baseline' | 'unchanged' | 'changed' | 'error';
@@ -243,7 +291,7 @@ export async function runSourceWatch(prisma: PrismaClient, deps: SourceWatchDeps
 
     const ok = { lastCheckedAt: now, failCount: 0, lastError: null };
     if (!row || row.fingerprint == null) {
-      const details = { parts: snap.parts, modified: snap.modified } as Prisma.InputJsonValue;
+      const details = { parts: snap.parts, modified: snap.modified, items: snap.items } as Prisma.InputJsonValue;
       await prisma.watchedSource.upsert({
         where: { key: def.key },
         create: { key: def.key, fingerprint: snap.fingerprint, details, ...ok },
@@ -257,24 +305,25 @@ export async function runSourceWatch(prisma: PrismaClient, deps: SourceWatchDeps
     if (row.fingerprint === snap.fingerprint) {
       await prisma.watchedSource.update({
         where: { key: def.key },
-        data: { ...ok, details: { ...prev, parts: snap.parts, modified: snap.modified } as Prisma.InputJsonValue },
+        data: { ...ok, details: { ...prev, parts: snap.parts, modified: snap.modified, items: snap.items ?? prev.items } as Prisma.InputJsonValue },
       });
       results.push({ key: def.key, status: 'unchanged' });
       continue;
     }
 
     const changed = changedParts(prev.parts ?? {}, snap.parts);
+    const changeLines = describeChanges(prev.items, snap.items);
     const claim = await prisma.watchedSource.updateMany({
       where: { key: def.key, fingerprint: row.fingerprint },
       data: {
         ...ok,
         fingerprint: snap.fingerprint,
-        details: { parts: snap.parts, modified: snap.modified, changed } as Prisma.InputJsonValue,
+        details: { parts: snap.parts, modified: snap.modified, changed, changeLines, items: snap.items } as Prisma.InputJsonValue,
         lastChangedAt: now,
         acknowledgedAt: null,
       },
     });
-    const notified = claim.count === 1 ? Boolean(await deps.notify(changeAlertHtml(def, changed))) : false;
+    const notified = claim.count === 1 ? Boolean(await deps.notify(changeAlertHtml(def, changed, changeLines))) : false;
     results.push({ key: def.key, status: 'changed', changed, notified });
   }
   return results;
@@ -295,6 +344,8 @@ export interface WatchedSourceView {
   pending: boolean;
   /** Що змінилось востаннє */
   changed: string[];
+  /** Докладно, якщо джерело має парсер: «№6: − 07:00–07:25 …», «№6: + 07:05–07:30 …» */
+  changeLines: string[];
   parts: number;
   failCount: number;
   lastError: string | null;
@@ -321,6 +372,7 @@ export async function listWatchedSources(prisma: PrismaClient, sources: WatchedS
       acknowledgedAt: ackAt?.toISOString() ?? null,
       pending: Boolean(changedAt && (!ackAt || ackAt < changedAt)),
       changed: Array.isArray(details.changed) ? details.changed : [],
+      changeLines: Array.isArray(details.changeLines) ? details.changeLines : [],
       parts: Object.keys(details.parts ?? {}).length,
       failCount: row?.failCount ?? 0,
       lastError: row?.lastError ?? null,

@@ -87,6 +87,11 @@ export const SourceWatchPanel: React.FC = () => {
                     : s.lastCheckedAt
                       ? 'без змін'
                       : 'ще не перевірялось'}
+                {s.pending && s.failCount === 0 && (s.changeLines?.length ?? 0) > 0 && (
+                  <ul className="source-watch-lines">
+                    {s.changeLines?.map((line) => <li key={line}>{line}</li>)}
+                  </ul>
+                )}
               </td>
               <td>
                 {s.pending && (
