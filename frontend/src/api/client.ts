@@ -1,6 +1,8 @@
 import { API_URL } from '@/utils/constants';
 import { telegramLoginHeaders } from '@/utils/telegramLogin';
 import { configureRouteNames } from '@/utils/routeNames';
+import { configureRouteColors } from '@/pages/LocalTransportPage/routeColors';
+import { DEFAULT_TRANSPORT_CITY, cityQuery } from '@/site/transportCity';
 import type {
   Schedule,
   Booking,
@@ -1120,20 +1122,22 @@ class ApiClient {
    * Датасет міського транспорту. fresh — повз HTTP-кеш браузера (GET кешується на 5 хв): адмінка редагує
    * датасет і має бачити останній запис, інакше збереження відкотить чужі зміни (revision / 409).
    */
-  async getTransportDataset(opts: { fresh?: boolean } = {}): Promise<TransportDataset> {
+  async getTransportDataset(opts: { fresh?: boolean; city?: string } = {}): Promise<TransportDataset> {
+    const city = opts.city ?? DEFAULT_TRANSPORT_CITY;
     // Таймаут: на «ніби є мережа» (lie-fi) запит інакше висить хвилинами, а сторінка має перейти на локальну копію
     const signal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(TRANSPORT_DATASET_TIMEOUT_MS) : undefined;
-    const dataset = await this.request<TransportDataset>('/transport/dataset', {
+    const dataset = await this.request<TransportDataset>(`/transport/dataset${cityQuery(city)}`, {
       ...(opts.fresh ? { cache: 'no-store' as const } : {}),
       ...(signal ? { signal } : {}),
     });
     // Номери маршрутів для показу («11/1») — для всіх, хто завантажує датасет (сайт, адмінка, стіна)
-    configureRouteNames(dataset?.routes);
+    configureRouteNames(dataset?.routes, city);
+    configureRouteColors(dataset?.meta, city);
     return dataset;
   }
 
   /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
-  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string }): Promise<{ ok: boolean; counted: boolean }> {
+  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string; city?: string }): Promise<{ ok: boolean; counted: boolean }> {
     return this.request('/transport/sticker-scans', {
       method: 'POST',
       body: JSON.stringify(scan),

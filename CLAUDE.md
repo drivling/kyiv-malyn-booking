@@ -487,6 +487,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   to make a change pass); a city whose `hasLocalTransport` is off answers 404 to the public and `private, no-store` to
   the admin token. Until M2 (composite keys) dataset writes for another city answer 409 and its open data 404. Write
   transport tests on `transport-test-store.ts`, which honours `where`; do not run `prisma format`.
+- **Transport city on the frontend** (`frontend/src/site/transportCity.ts`): the site's `cityCode` picks the dataset.
+  `useTransportDataset(city = siteTransportCity())` keeps a cache and a localStorage copy per city (Malyn keeps the
+  historic key `transport-dataset:v1`, others add `:<city>`; the build snapshot is Malyn-only), `apiClient` adds
+  `?city=` only for a non-default city, and `routeNo()` / `routeColor()` read per-city registries switched by the
+  loader. A Malyn page outside `/transport` must ask for Malyn explicitly (`useTransportDataset(DEFAULT_TRANSPORT_CITY)`).
+  Stop articles, the scheme legend colours and legacy stop names belong to Malyn (`transportProfile`); another city's
+  line colours come from `dataset.meta.routeColors`. `sendOrQueue` stamps `city` on writes from a non-default site.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via

@@ -3,10 +3,12 @@
  * табло й наклейки), а не з тексту статті: цифру змінює власник одним записом датасету, і довідка підтягує її сама.
  * Поки даних нема (перший рендер, мережа) — чип без числа не малюємо, лише речення про джерело.
  */
+import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useTransportDataset } from '@/pages/LocalTransportPage/dataset/useTransportDataset';
 
 export function CityFareChip() {
-  const { dataset } = useTransportDataset();
+  // Тариф міських маршруток Малина (довідка поки одна на всі сайти)
+  const { dataset } = useTransportDataset(DEFAULT_TRANSPORT_CITY);
   const fare = (dataset?.meta?.fare ?? null) as { amount?: unknown; note?: unknown } | null;
   const amount = typeof fare?.amount === 'number' ? fare.amount : null;
   const note = typeof fare?.note === 'string' && fare.note.trim() ? fare.note : null;

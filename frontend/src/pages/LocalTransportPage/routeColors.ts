@@ -7,11 +7,49 @@ import { SCHEME_ROUTES, type SchemeRoute } from './scheme/malyn-scheme-routes';
  * (Docs/malyn-transit-scheme/build_scheme.py, COLORS і FG); маршрути поза схемою кольору не мають,
  * і CSS бере запасний акцент сайту через var(--lt-route-color, …).
  */
-const ROUTE_BY_ID: ReadonlyMap<string, SchemeRoute> = new Map(SCHEME_ROUTES.map((r) => [r.id, r]));
+const SCHEME_BY_ID: ReadonlyMap<string, RouteColor> = new Map(SCHEME_ROUTES.map((r: SchemeRoute) => [r.id, { color: r.color, fg: r.fg }]));
 
-/** HEX-колір лінії або null для маршруту, якого немає на схемі */
+type RouteColor = { color: string; fg: string };
+const DEFAULT_CITY = 'Malyn';
+/** Кольори з датасету (meta.routeColors) — для міст без намальованої схеми; по містах, як і номери маршрутів */
+const datasetColorsByCity = new Map<string, ReadonlyMap<string, RouteColor>>();
+let currentCity = DEFAULT_CITY;
+
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Запам'ятати кольори ліній із датасету: meta.routeColors = { "<id маршруту>": { color: "#rrggbb", fg? } }.
+ * Викликає apiClient.getTransportDataset() і завантажувач (копія, знімок). Малин бере кольори з легенди схеми,
+ * а meta.routeColors — лише для маршрутів, яких на схемі нема.
+ */
+export function configureRouteColors(meta: unknown, city: string = DEFAULT_CITY): void {
+  const raw = (meta as { routeColors?: unknown } | null | undefined)?.routeColors;
+  const next = new Map<string, RouteColor>();
+  if (raw && typeof raw === 'object') {
+    for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+      const v = (typeof value === 'string' ? { color: value } : value) as { color?: unknown; fg?: unknown } | null;
+      if (!v || typeof v.color !== 'string' || !HEX_RE.test(v.color)) continue;
+      const fg = typeof v.fg === 'string' && HEX_RE.test(v.fg) ? v.fg : textColorOn(v.color);
+      next.set(id, { color: v.color, fg });
+    }
+  }
+  datasetColorsByCity.set(city, next);
+  currentCity = city;
+}
+
+/** Місто, чиї кольори віддають routeColor / routeColorStyle (сторінка показує датасет цього міста) */
+export function setRouteColorsCity(city: string): void {
+  currentCity = city || DEFAULT_CITY;
+}
+
+function lookup(routeId: string): RouteColor | undefined {
+  const fromScheme = currentCity === DEFAULT_CITY ? SCHEME_BY_ID.get(routeId) : undefined;
+  return fromScheme ?? datasetColorsByCity.get(currentCity)?.get(routeId);
+}
+
+/** HEX-колір лінії або null для маршруту без кольору (нема ні на схемі, ні в датасеті) */
 export function routeColor(routeId: string): string | null {
-  return ROUTE_BY_ID.get(routeId)?.color ?? null;
+  return lookup(routeId)?.color ?? null;
 }
 
 /**
@@ -20,7 +58,7 @@ export function routeColor(routeId: string): string | null {
  * працюють запасні значення в CSS.
  */
 export function routeColorStyle(routeId: string): CSSProperties | undefined {
-  const route = ROUTE_BY_ID.get(routeId);
+  const route = lookup(routeId);
   if (!route) return undefined;
   return { '--lt-route-color': route.color, '--lt-route-fg': route.fg } as CSSProperties;
 }
