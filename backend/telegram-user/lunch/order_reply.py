@@ -19,9 +19,9 @@ class PersonalOrderAction(str, Enum):
     ACCEPT = "accept"  # записати і підтвердити
 
 
-def ocr_enabled(openai_api_key: str | None) -> bool:
-    """Чи можна OCR меню з фото (інакше на фото взагалі не відповідаємо)."""
-    return bool((openai_api_key or "").strip())
+def ocr_enabled(api_key: str | None) -> bool:
+    """Чи можна OCR меню з фото (ANTHROPIC_API_KEY; інакше на фото взагалі не відповідаємо)."""
+    return bool((api_key or "").strip())
 
 
 def decide_personal_order_action(

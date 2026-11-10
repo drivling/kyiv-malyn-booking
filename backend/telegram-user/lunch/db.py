@@ -191,6 +191,15 @@ class LunchDB:
             )
             return 5
 
+    async def catalog_dish_names(self, limit: int = 300) -> list[str]:
+        """Назви страв каталогу, свіжіші першими — підказка OCR, щоб страви з фото лягали на наявні."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT name FROM "LunchDish" ORDER BY "updatedAt" DESC, id DESC LIMIT $1""",
+                limit,
+            )
+            return [r["name"] for r in rows]
+
     async def _find_or_create_dish(self, conn: asyncpg.Connection, name: str, price: int) -> dict[str, Any]:
         nn = normalize_dish_name(name)
         row = await conn.fetchrow(
