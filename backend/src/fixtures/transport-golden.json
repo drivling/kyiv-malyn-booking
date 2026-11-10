@@ -1,0 +1,67 @@
+{
+  "/transport/dataset": {
+    "status": 200,
+    "sha256": "646b23da54402e28267c1158aa8ba259caaf8e05b62a7e32c34cbd88c6046831",
+    "bytes": 123889
+  },
+  "/transport/gtfs/agency.txt": {
+    "status": 200,
+    "sha256": "d347096929aacae48b301beb5a72682d8cd0046adc4db4aba48090ffe20f6190",
+    "bytes": 189
+  },
+  "/transport/gtfs/stops.txt": {
+    "status": 200,
+    "sha256": "08eba199af7eb74d0c29fc63149188956774fd3ad799c5cf7574eb555c13feee",
+    "bytes": 5314
+  },
+  "/transport/gtfs/routes.txt": {
+    "status": 200,
+    "sha256": "df69e6edb2c114884ba70a122a641207e7dd8f67cb782b67be02918eb5f815c3",
+    "bytes": 775
+  },
+  "/transport/gtfs/trips.txt": {
+    "status": 200,
+    "sha256": "90348a8dbdc7341649e58f8059f1acbf6a248ed2d1987d64292b07f2119a2329",
+    "bytes": 10852
+  },
+  "/transport/gtfs/stop_times.txt": {
+    "status": 200,
+    "sha256": "0e9c80031ae13f471e6c5932636c672cb542b387613de28437cadfaa4d8c3fd7",
+    "bytes": 118049
+  },
+  "/transport/gtfs/calendar.txt": {
+    "status": 200,
+    "sha256": "dc666bdd9b01c9af348ecd29194d0f6494e88d84a30a8e829d717ba0d7e2a9cb",
+    "bytes": 170
+  },
+  "/transport/gtfs/feed_info.txt": {
+    "status": 200,
+    "sha256": "b70d312b3ac300f70537854b7617eb7aa294636e1448872f6443bcbf82a437ba",
+    "bytes": 300
+  },
+  "/transport/changes.rss": {
+    "status": 200,
+    "sha256": "903d06a4751c8641efe0d4261c09701c2d6469389e987bca282c34d543e970e0",
+    "bytes": 1621
+  },
+  "/transport/revisions": {
+    "status": 200,
+    "sha256": "4c8c0ee1839e2ad6e62014876ad4c41ab07e84d06d593e88479483eb92d20236",
+    "bytes": 402
+  },
+  "/transport/route/2/calendar.ics": {
+    "status": 200,
+    "sha256": "0ac127c230138ea1ba09eae2876a4709203681e2ef7748d4a0abafd0b3f3f155",
+    "bytes": 28260
+  },
+  "/transport/stop-redirects": {
+    "status": 200,
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "bytes": 2
+  },
+  "/transport/stops/st_0001": {
+    "status": 200,
+    "sha256": "8e49e26c62c0bf0ff3c36d70eb95b4759b189ac112f995029f97b344680145d9",
+    "bytes": 134
+  }
+}
