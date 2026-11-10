@@ -198,7 +198,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   New Telethon call sites must go through `withTelegramUserSessionExclusive` or
   `awaitTelegramSession()`.
 - OCR of the menu photo the operator posts in the lunch group, via Claude (`ANTHROPIC_API_KEY`, `LUNCH_OCR_MODEL`, default
-  `claude-opus-5-5`; `lunch/ocr_menu.py`) in the Python lunch listener. Every photo is checked, but only one the model
+  `claude-opus-5-5`; `ANTHROPIC_WORKSPACE_ID` only for an organization-level key not bound to a workspace;
+  `lunch/ocr_menu.py`) in the Python lunch listener. Every photo is checked, but only one the model
   marks as a menu with ≥ 5 priced dishes is used, and it is merged into the day's menu, never replacing it.
 - The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and

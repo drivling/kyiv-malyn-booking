@@ -5,7 +5,8 @@
 (structured outputs), без розбору довільного тексту.
 
 Ключ — `ANTHROPIC_API_KEY` (кредити API, що входять у план Max, або куплені). Модель — `LUNCH_OCR_MODEL`
-(лише `claude-*`), за замовчуванням Claude Opus 5.5.
+(лише `claude-*`), за замовчуванням Claude Opus 5.5. Ключ, не привʼязаний до одного воркспейсу (створений
+на рівні організації), API приймає лише з ID воркспейсу — тоді `ANTHROPIC_WORKSPACE_ID` (`wrkspc_…`).
 """
 
 from __future__ import annotations
@@ -103,6 +104,13 @@ def ocr_model_name(model: Optional[str] = None) -> str:
     return name if name.startswith("claude-") else DEFAULT_OCR_MODEL
 
 
+def anthropic_client_headers() -> dict[str, str]:
+    """Заголовок воркспейсу для ключа, не привʼязаного до воркспейсу (інакше 400 «must include the
+    anthropic-workspace-id header»). Ключ із конкретного воркспейсу його не потребує."""
+    workspace = (os.environ.get("ANTHROPIC_WORKSPACE_ID") or "").strip()
+    return {"anthropic-workspace-id": workspace} if workspace else {}
+
+
 def _user_text(known_names: Sequence[str]) -> str:
     names = [n.strip() for n in known_names if n and n.strip()][:MAX_KNOWN_NAMES]
     if not names:
@@ -131,7 +139,7 @@ async def ocr_menu_from_image_bytes(
         key = (api_key or os.environ.get("ANTHROPIC_API_KEY") or "").strip()
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY не встановлено")
-        client = AsyncAnthropic(api_key=key)
+        client = AsyncAnthropic(api_key=key, default_headers=anthropic_client_headers())
 
     resp = await client.beta.messages.create(
         model=ocr_model_name(model),

@@ -34,6 +34,7 @@ npx prisma migrate deploy
 | `TELEGRAM_USER_SESSION_PATH` | шлях до сесії (без `.session`), напр. `.../session_telegram_user` |
 | `TELEGRAM_USER_SESSION_BASE64` | на Railway: сесія з `auth_session.py --export`; backend пише її у файл під час старту ([../README.md](../README.md)) |
 | `ANTHROPIC_API_KEY` | для OCR меню з фото через Claude (опційно; інакше імпорт через адмінку). Кредити API входять у план Max: claude.ai → Settings → Billing → «API credits» → привʼязати організацію Console, там створити ключ |
+| `ANTHROPIC_WORKSPACE_ID` | лише якщо ключ створено на рівні організації, а не у воркспейсі (400 «must include the anthropic-workspace-id header»): ID воркспейсу `wrkspc_…` з Console → Settings → Workspaces |
 | `LUNCH_GROUP_ID` | `-5427750954` |
 | `LUNCH_OPERATOR_IDS` | опційно: Telegram user id операторів через кому (`!close` / `!open`) |
 | `LUNCH_OCR_MODEL` | опційно, лише `claude-*`; за замовч. `claude-opus-5-5` (старе `gpt-…` ігнорується) |
