@@ -17,6 +17,9 @@ type ChatRow = {
   isLunchGroup: boolean;
   captureEnabled: boolean;
   relayToSaved: boolean;
+  autoReplyEnabled: boolean;
+  autoReplyDelaySec: number;
+  autoReplyNote: string | null;
   lastMessageAt: Date | null;
   lastCapturedAt: Date | null;
   dialogSyncedAt: Date | null;
@@ -35,6 +38,9 @@ function makeStub() {
       isLunchGroup: true,
       captureEnabled: true,
       relayToSaved: false,
+      autoReplyEnabled: false,
+      autoReplyDelaySec: 80,
+      autoReplyNote: null,
       lastMessageAt: new Date('2026-09-25T09:00:00Z'),
       lastCapturedAt: new Date('2026-09-25T09:00:01Z'),
       dialogSyncedAt: new Date('2026-09-25T08:00:00Z'),
@@ -50,6 +56,27 @@ function makeStub() {
       isLunchGroup: false,
       captureEnabled: false,
       relayToSaved: false,
+      autoReplyEnabled: false,
+      autoReplyDelaySec: 80,
+      autoReplyNote: null,
+      lastMessageAt: null,
+      lastCapturedAt: null,
+      dialogSyncedAt: null,
+      _count: { messages: 0 },
+    },
+    {
+      id: 3,
+      tgChatId: 777n,
+      kind: 'private',
+      title: 'Оля',
+      username: null,
+      membersCount: null,
+      isLunchGroup: false,
+      captureEnabled: false,
+      relayToSaved: false,
+      autoReplyEnabled: false,
+      autoReplyDelaySec: 80,
+      autoReplyNote: null,
       lastMessageAt: null,
       lastCapturedAt: null,
       dialogSyncedAt: null,
@@ -120,6 +147,7 @@ function makeStub() {
           sentAt: new Date('2026-09-25T08:00:00Z'),
           sender: { id: 2, tgUserId: 200n, firstName: 'Костя', lastName: null, username: null, phone: null, isMe: false },
           isOutgoing: false,
+          isAutoReply: false,
           text: 'hi',
           mediaKind: null,
           replyToTgMessageId: 70n,
@@ -226,9 +254,70 @@ describe('/admin/dzhura', () => {
       .expect(200);
     expect(on.body).toMatchObject({ id: 2, captureEnabled: true, relayToSaved: true });
     await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ captureEnabled: false }).expect(200);
-    expect(updates[1].data).toEqual({ captureEnabled: false, relayToSaved: false });
+    expect(updates[1].data).toEqual({ captureEnabled: false, relayToSaved: false, autoReplyEnabled: false });
     await request(a).patch('/admin/dzhura/chats/2').set(auth).send({}).expect(400);
     await request(a).patch('/admin/dzhura/chats/99').set(auth).send({ relayToSaved: true }).expect(404);
+  });
+
+  test('PATCH автовідповідь: лише особистий чат із «Читати»; секунди й підказка', async () => {
+    const { prisma, updates } = makeStub();
+    const a = app(prisma);
+    const list = await request(a).get('/admin/dzhura/chats?kind=all').set(auth).expect(200);
+    expect(list.body[2]).toMatchObject({ id: 3, autoReplyEnabled: false, autoReplyDelaySec: 80, autoReplyNote: null });
+
+    // група — ні; особистий без «Читати» — ні
+    const group = await request(a).patch('/admin/dzhura/chats/1').set(auth).send({ autoReplyEnabled: true }).expect(400);
+    expect(group.body.error).toMatch(/особистих/);
+    const noCapture = await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ autoReplyEnabled: true }).expect(400);
+    expect(noCapture.body.error).toMatch(/Читати/);
+
+    const on = await request(a)
+      .patch('/admin/dzhura/chats/3')
+      .set(auth)
+      .send({ captureEnabled: true, autoReplyEnabled: true, autoReplyDelaySec: 120, autoReplyNote: '  подруга, жартуємо  ' })
+      .expect(200);
+    expect(on.body).toMatchObject({
+      captureEnabled: true,
+      autoReplyEnabled: true,
+      autoReplyDelaySec: 120,
+      autoReplyNote: 'подруга, жартуємо',
+    });
+
+    for (const bad of [4, 3601, 80.5, '80']) {
+      await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ autoReplyDelaySec: bad }).expect(400);
+    }
+    await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ autoReplyNote: 'x'.repeat(2001) }).expect(400);
+    const cleared = await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ autoReplyNote: '' }).expect(200);
+    expect(cleared.body.autoReplyNote).toBeNull();
+
+    // без «Читати» відповідати нема з чого: галочка знімається разом із читанням, секунди лишаються
+    const off = await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ captureEnabled: false }).expect(200);
+    expect(off.body).toMatchObject({ captureEnabled: false, autoReplyEnabled: false, autoReplyDelaySec: 120 });
+    expect(updates.at(-1)?.data).toEqual({ captureEnabled: false, relayToSaved: false, autoReplyEnabled: false });
+  });
+
+  test('POST jobs autoreply_preview: особистий чат із «Читати» і ключем Claude', async () => {
+    const { prisma, chats } = makeStub();
+    const a = app(prisma);
+    const prevKey = process.env.ANTHROPIC_API_KEY;
+    const send = (chatId: number) => request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'autoreply_preview', chatId });
+    try {
+      process.env.ANTHROPIC_API_KEY = 'sk-test';
+      expect((await send(1).expect(400)).body.error).toMatch(/особистих/);
+      expect((await send(3).expect(400)).body.error).toMatch(/Читати/);
+      chats[2].captureEnabled = true;
+      const ok = await send(3).expect(201);
+      expect(ok.body.job).toMatchObject({ type: 'autoreply_preview', status: 'pending', params: { chatId: 3 } });
+      expect((await request(a).get('/admin/dzhura/status').set(auth).expect(200)).body.autoReplyAvailable).toBe(true);
+
+      delete process.env.ANTHROPIC_API_KEY;
+      expect((await send(3).expect(400)).body.error).toMatch(/ANTHROPIC_API_KEY/);
+      expect((await request(a).get('/admin/dzhura/status').set(auth).expect(200)).body.autoReplyAvailable).toBe(false);
+      await send(99).expect(404);
+    } finally {
+      if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = prevKey;
+    }
   });
 
   test('POST jobs: sync_dialogs і backfill з валідацією', async () => {

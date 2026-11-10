@@ -854,10 +854,23 @@ export interface DzhuraChatRow {
   isLunchGroup: boolean;
   captureEnabled: boolean;
   relayToSaved: boolean;
+  /** «Автовідповідь» (лише особисті чати): не відповіли за autoReplyDelaySec секунд — відповідає Claude */
+  autoReplyEnabled: boolean;
+  autoReplyDelaySec: number;
+  autoReplyNote: string | null;
   lastMessageAt: string | null;
   lastCapturedAt: string | null;
   dialogSyncedAt: string | null;
   messagesCount: number;
+}
+
+/** PATCH /admin/dzhura/chats/:id */
+export interface DzhuraChatPatch {
+  captureEnabled?: boolean;
+  relayToSaved?: boolean;
+  autoReplyEnabled?: boolean;
+  autoReplyDelaySec?: number;
+  autoReplyNote?: string | null;
 }
 
 /** Черга дублів у «Обране» */
@@ -874,6 +887,8 @@ export interface DzhuraStatus {
   dialogsSyncedAt: string | null;
   meTgUserId: string | null;
   queue: DzhuraQueueStats;
+  /** чи є в бекенда ключ Claude (без нього автовідповідь не працює) */
+  autoReplyAvailable: boolean;
 }
 
 /** Рядок збереженого повідомлення для перегляду в адмінці */
@@ -883,6 +898,8 @@ export interface DzhuraMessageRow {
   sentAt: string;
   sender: { tgUserId: string; name: string; username: string | null } | null;
   isOutgoing: boolean;
+  /** вихідне повідомлення написала автовідповідь, а не власник */
+  isAutoReply: boolean;
   text: string;
   mediaKind: string | null;
   replyToTgMessageId: string | null;
@@ -898,7 +915,7 @@ export interface DzhuraMessagesPage {
   nextBeforeId: number | null;
 }
 
-export type DzhuraJobType = 'sync_dialogs' | 'backfill';
+export type DzhuraJobType = 'sync_dialogs' | 'backfill' | 'autoreply_preview';
 export type DzhuraJobStatus = 'pending' | 'running' | 'done' | 'failed';
 
 export interface DzhuraJob {
@@ -916,7 +933,8 @@ export interface DzhuraJob {
 
 export type DzhuraJobRequest =
   | { type: 'sync_dialogs' }
-  | { type: 'backfill'; chatId: number; from: string; to: string };
+  | { type: 'backfill'; chatId: number; from: string; to: string }
+  | { type: 'autoreply_preview'; chatId: number };
 
 export type SmsMatchTypeThreshold = 'exact' | 'exact_approximate' | 'all';
 

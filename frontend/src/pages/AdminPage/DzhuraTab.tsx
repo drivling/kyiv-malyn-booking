@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/Button';
-import type { DzhuraChatRow, DzhuraJob, DzhuraMessageRow, DzhuraStatus } from '@/types';
+import type { DzhuraChatPatch, DzhuraChatRow, DzhuraJob, DzhuraMessageRow, DzhuraStatus } from '@/types';
 import './DzhuraTab.css';
 
 /**
  * «Джура» · фаза 0 — які чати читає userbot, дата останнього повідомлення,
  * експорт історії за період у JSON, довантаження історії з Telegram.
  * Слухач ніколи не ставить «прочитано» і не пише в ці чати — лише дублює у «Обране» власника.
+ * Єдиний виняток — особистий чат із галочкою «Автовідповідь»: власник не відповів за N секунд →
+ * відповідає Claude його стилем («прочитано» і «друкує…» — лише перед такою відповіддю).
  */
 
 const KIND_LABEL: Record<string, string> = {
@@ -22,6 +24,9 @@ const DEFAULT_POLL_MS = 1500;
 const STATUS_REFRESH_MS = 30_000;
 const MESSAGES_PAGE = 50;
 const SHOW_PRIVATE_KEY = 'dzhura.showPrivate';
+const AUTO_REPLY_DELAY_MIN = 5;
+const AUTO_REPLY_DELAY_MAX = 3600;
+const AUTO_REPLY_NOTE_MAX = 2000;
 
 const MEDIA_LABEL: Record<string, string> = {
   photo: 'фото',
@@ -120,6 +125,18 @@ function jobProgressText(job: DzhuraJob | undefined): string | null {
   return null;
 }
 
+/** Результат задачі autoreply_preview: що Джура відповіла б зараз (у чат нічого не пішло). */
+function previewView(job: DzhuraJob | undefined): { tone: string; lines: string[]; reason: string } | null {
+  if (!job) return null;
+  if (job.status === 'pending' || job.status === 'running') return { tone: job.status, lines: [], reason: 'Джура думає…' };
+  if (job.status === 'failed') return { tone: 'failed', lines: [], reason: `Не вдалося: ${job.errorText || 'помилка слухача'}` };
+  const r = (job.result ?? {}) as { action?: unknown; messages?: unknown; reason?: unknown };
+  const lines = Array.isArray(r.messages) ? r.messages.filter((m): m is string => typeof m === 'string') : [];
+  const reason = typeof r.reason === 'string' ? r.reason : '';
+  if (r.action === 'reply' && lines.length) return { tone: 'done', lines, reason };
+  return { tone: 'done', lines: [], reason: `Промовчала б${reason ? `: ${reason}` : ''}` };
+}
+
 type Props = {
   /** Інтервал опитування задач (тести передають маленький) */
   pollIntervalMs?: number;
@@ -141,6 +158,11 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
   const [chatQuery, setChatQuery] = useState('');
   const [messagesPanel, setMessagesPanel] = useState<MessagesPanel | null>(null);
   const [retryingQueue, setRetryingQueue] = useState(false);
+  /** незбережені значення поля «секунд» і підказки, поки користувач їх редагує */
+  const [delayDrafts, setDelayDrafts] = useState<Record<number, string>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+  const [autoPanelChatId, setAutoPanelChatId] = useState<number | null>(null);
+  const [previewJobs, setPreviewJobs] = useState<Record<number, DzhuraJob>>({});
   const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   useEffect(() => {
@@ -267,7 +289,7 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
     }
   };
 
-  const toggleFlag = async (chat: DzhuraChatRow, patch: { captureEnabled?: boolean; relayToSaved?: boolean }) => {
+  const toggleFlag = async (chat: DzhuraChatRow, patch: DzhuraChatPatch): Promise<boolean> => {
     setError(null);
     setSuccess(null);
     setSavingId(chat.id);
@@ -276,11 +298,50 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
     try {
       const updated = await apiClient.updateDzhuraChat(chat.id, patch);
       setChats((rows) => rows.map((r) => (r.id === chat.id ? updated : r)));
+      return true;
     } catch (e) {
       setChats(prev);
       setError(errorMessage(e));
+      return false;
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const dropDraft = (set: React.Dispatch<React.SetStateAction<Record<number, string>>>, chatId: number) =>
+    set((m) => Object.fromEntries(Object.entries(m).filter(([id]) => Number(id) !== chatId)));
+
+  /** Поле «секунд» зберігається, коли з нього виходять (blur / Enter). */
+  const commitDelay = async (chat: DzhuraChatRow) => {
+    const raw = delayDrafts[chat.id];
+    if (raw === undefined) return;
+    dropDraft(setDelayDrafts, chat.id);
+    const sec = Number(raw.trim());
+    if (!Number.isInteger(sec) || sec < AUTO_REPLY_DELAY_MIN || sec > AUTO_REPLY_DELAY_MAX) {
+      setSuccess(null);
+      setError(`Затримка автовідповіді — ціле число секунд від ${AUTO_REPLY_DELAY_MIN} до ${AUTO_REPLY_DELAY_MAX}`);
+      return;
+    }
+    if (sec !== chat.autoReplyDelaySec) await toggleFlag(chat, { autoReplyDelaySec: sec });
+  };
+
+  const saveNote = async (chat: DzhuraChatRow) => {
+    const note = (noteDrafts[chat.id] ?? '').trim();
+    if (await toggleFlag(chat, { autoReplyNote: note || null })) {
+      dropDraft(setNoteDrafts, chat.id);
+      setSuccess('Підказку збережено');
+    }
+  };
+
+  const handlePreview = async (chat: DzhuraChatRow) => {
+    setError(null);
+    setSuccess(null);
+    try {
+      const { job } = await apiClient.createDzhuraJob({ type: 'autoreply_preview', chatId: chat.id });
+      setPreviewJobs((m) => ({ ...m, [chat.id]: job }));
+      watchJob(job.id, (j) => setPreviewJobs((m) => ({ ...m, [chat.id]: j })));
+    } catch (e) {
+      setError(errorMessage(e));
     }
   };
 
@@ -411,8 +472,16 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
       <Alert variant="info">
         Слухач ніколи не ставить «прочитано» і нічого не пише в ці чати — колеги не бачать, що повідомлення
         прочитано. Дубль іде лише у ваше «Обране» (Saved Messages). Медіа не пересилаються, зберігаємо тільки
-        текст і тип вкладення.
+        текст і тип вкладення. Єдиний виняток — особисті чати з галочкою «Автовідповідь»: там Джура відповідає
+        замість вас, якщо ви мовчите довше вказаного часу.
       </Alert>
+
+      {status && !status.autoReplyAvailable && chats.some((c) => c.autoReplyEnabled) && (
+        <Alert variant="error">
+          Автовідповідь увімкнена, але не працюватиме: у бекенда немає ключа Claude (ANTHROPIC_API_KEY) або
+          стоїть DZHURA_AUTOREPLY_ENABLED=0.
+        </Alert>
+      )}
 
       {error && <Alert variant="error">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
@@ -421,6 +490,8 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
         <h3 className="dzhura-card__title">Чати</h3>
         <p className="dzhura-card__hint">
           «Читати» — зберігати в базу. «В Обране» — дублювати чужі повідомлення й реакції у Saved Messages.
+          «Автовідповідь» (лише особисті чати) — якщо ви не відповіли за вказану кількість секунд, відповідає
+          Джура вашим стилем.
           Група обідів читається завжди (лунч-бот працює на тих самих повідомленнях). Особисті чати, які вже
           читаються, показані завжди; решту вмикає перемикач.
         </p>
@@ -455,6 +526,7 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                   <th>Чат</th>
                   <th>Читати</th>
                   <th>В Обране</th>
+                  <th>Автовідповідь</th>
                   <th>Останнє повідомлення</th>
                   <th>Збережено</th>
                   <th>Дії</th>
@@ -467,6 +539,12 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                   const jobBusy = job && (job.status === 'pending' || job.status === 'running');
                   const historyOpen = historyChatId === chat.id;
                   const messagesOpen = messagesPanel !== null && messagesPanel.chatId === chat.id;
+                  const autoOpen = autoPanelChatId === chat.id;
+                  const noteValue = noteDrafts[chat.id] ?? chat.autoReplyNote ?? '';
+                  const noteChanged = noteValue.trim() !== (chat.autoReplyNote ?? '');
+                  const previewJob = previewJobs[chat.id];
+                  const previewBusy = previewJob && (previewJob.status === 'pending' || previewJob.status === 'running');
+                  const preview = previewView(previewJob);
                   return (
                     <React.Fragment key={chat.id}>
                       <tr className={chat.captureEnabled ? 'dzhura-row--active' : undefined}>
@@ -504,6 +582,49 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                             />
                           </label>
                         </td>
+                        <td>
+                          {chat.kind === 'private' ? (
+                            <div className="dzhura-auto">
+                              <label
+                                className="dzhura-check"
+                                title={
+                                  !chat.captureEnabled
+                                    ? 'Спершу ввімкніть «Читати»'
+                                    : 'Не відповіли за вказаний час — відповість Джура вашим стилем'
+                                }
+                              >
+                                <input
+                                  type="checkbox"
+                                  aria-label={`Автовідповідь: ${chat.title}`}
+                                  checked={chat.autoReplyEnabled}
+                                  disabled={!chat.captureEnabled || saving}
+                                  onChange={(e) => void toggleFlag(chat, { autoReplyEnabled: e.target.checked })}
+                                />
+                              </label>
+                              <input
+                                type="number"
+                                className="dzhura-input dzhura-auto__sec"
+                                aria-label={`Секунд до автовідповіді: ${chat.title}`}
+                                title="Скільки секунд чекати на вашу відповідь"
+                                min={AUTO_REPLY_DELAY_MIN}
+                                max={AUTO_REPLY_DELAY_MAX}
+                                step={1}
+                                value={delayDrafts[chat.id] ?? String(chat.autoReplyDelaySec)}
+                                disabled={saving}
+                                onChange={(e) => setDelayDrafts((m) => ({ ...m, [chat.id]: e.target.value }))}
+                                onBlur={() => void commitDelay(chat)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                              />
+                              <span className="dzhura-muted">с</span>
+                            </div>
+                          ) : (
+                            <span className="dzhura-muted" title="Автовідповідь — лише в особистих чатах">
+                              —
+                            </span>
+                          )}
+                        </td>
                         <td className="dzhura-nowrap">{formatDateTime(chat.lastMessageAt)}</td>
                         <td className="dzhura-nowrap">
                           {chat.messagesCount}
@@ -531,12 +652,22 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                             >
                               Історія…
                             </Button>
+                            {chat.kind === 'private' && (
+                              <Button
+                                variant="secondary"
+                                aria-expanded={autoOpen}
+                                aria-label={`Налаштування автовідповіді: ${chat.title}`}
+                                onClick={() => setAutoPanelChatId(autoOpen ? null : chat.id)}
+                              >
+                                Автовідповідь…
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
                       {messagesOpen && messagesPanel && (
                         <tr className="dzhura-messages-row">
-                          <td colSpan={6}>
+                          <td colSpan={7}>
                             <form
                               className="dzhura-messages__search"
                               onSubmit={(e) => {
@@ -570,7 +701,9 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                                     className={`dzhura-msg${m.isOutgoing ? ' dzhura-msg--out' : ''}${m.deletedAt ? ' dzhura-msg--deleted' : ''}`}
                                   >
                                     <span className="dzhura-msg__time">{formatDateTime(m.sentAt)}</span>
-                                    <span className="dzhura-msg__sender">{m.isOutgoing ? 'ви' : m.sender?.name ?? '—'}</span>
+                                    <span className="dzhura-msg__sender">
+                                      {m.isOutgoing ? (m.isAutoReply ? '🤖 Джура за вас' : 'ви') : m.sender?.name ?? '—'}
+                                    </span>
                                     <span className="dzhura-msg__text">
                                       {m.mediaKind && (
                                         <span className="dzhura-badge">{MEDIA_LABEL[m.mediaKind] ?? m.mediaKind}</span>
@@ -598,9 +731,67 @@ export const DzhuraTab: React.FC<Props> = ({ pollIntervalMs = DEFAULT_POLL_MS })
                           </td>
                         </tr>
                       )}
+                      {autoOpen && (
+                        <tr className="dzhura-history-row">
+                          <td colSpan={7}>
+                            <div className="dzhura-auto-panel">
+                              <label className="dzhura-field">
+                                <span>Підказка про цей чат (необов'язково)</span>
+                                <textarea
+                                  className="dzhura-input dzhura-auto-panel__note"
+                                  rows={3}
+                                  maxLength={AUTO_REPLY_NOTE_MAX}
+                                  aria-label={`Підказка для автовідповіді: ${chat.title}`}
+                                  placeholder="Хто це і як ви спілкуєтесь, чого не обіцяти. Напр.: університетська подруга, жартуємо; про гроші й зустрічі не домовлятись"
+                                  value={noteValue}
+                                  onChange={(e) => setNoteDrafts((m) => ({ ...m, [chat.id]: e.target.value }))}
+                                />
+                              </label>
+                              <div className="dzhura-actions dzhura-actions--tight">
+                                <Button variant="primary" onClick={() => void saveNote(chat)} disabled={saving || !noteChanged}>
+                                  Зберегти підказку
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => void handlePreview(chat)}
+                                  disabled={Boolean(previewBusy) || !chat.captureEnabled}
+                                  title={
+                                    chat.captureEnabled
+                                      ? 'Лише покаже відповідь тут — у чат нічого не піде'
+                                      : 'Спершу ввімкніть «Читати»'
+                                  }
+                                >
+                                  {previewBusy ? 'Джура думає…' : 'Що відповіла б зараз?'}
+                                </Button>
+                              </div>
+                              {preview && (
+                                <div className={`dzhura-job dzhura-job--${preview.tone}`} role="status" aria-live="polite">
+                                  {preview.lines.length > 0 && (
+                                    <ul className="dzhura-auto-panel__preview" aria-label={`Пробна відповідь: ${chat.title}`}>
+                                      {preview.lines.map((line, i) => (
+                                        <li key={i}>{line}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  {preview.reason && <span>{preview.reason}</span>}
+                                </div>
+                              )}
+                              <p className="dzhura-muted dzhura-history__hint">
+                                Співрозмовник написав → Джура чекає вказану кількість секунд від його останнього
+                                повідомлення. Відповіли самі — вона мовчить, а ваша відповідь стає прикладом стилю.
+                                Не відповіли — ставить «прочитано», «друкує» і надсилає 1–3 повідомлення вашою мовою
+                                і манерою; звіт про кожну відповідь іде у ваше «Обране». Стиль бере з останніх 120
+                                збережених повідомлень цього чату — якщо їх мало, довантажте історію. Не обіцяє грошей
+                                і зустрічей, не вигадує фактів; на пряме «ти бот?» і на повідомлення лише з фото чи
+                                голосовим мовчить — відповісте ви.
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {historyOpen && (
                         <tr className="dzhura-history-row">
-                          <td colSpan={6}>
+                          <td colSpan={7}>
                             <div className="dzhura-history">
                               <label className="dzhura-field">
                                 <span>Від</span>

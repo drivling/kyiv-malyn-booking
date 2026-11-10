@@ -11,6 +11,8 @@
   * ніколи не викликати SetTypingRequest / UpdateStatusRequest;
   * жодного send_message у watched-чат — єдиний вихід у Telegram: LunchOutboundMessage
     (target='saved' → «Обране» власника).
+Єдиний виняток з усіх трьох — автовідповідь (`responder.py`): особистий чат, де власник сам поставив
+галочку «Автовідповідь». Тут вона лише отримує подію про нове повідомлення.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from telethon.tl.types import (
 )
 
 from dzhura.db import DzhuraDB
+from dzhura.responder import AutoResponder
 from dzhura.relay import (
     chat_label,
     clip_raw_json,
@@ -102,6 +105,7 @@ class Capture:
         self.watched: dict[int, dict[str, Any]] = {}
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_MAX)
         self.dropped = 0
+        self.responder: Optional[AutoResponder] = None
 
     # ---------------- Telethon handlers (дешеві) ----------------
 
@@ -121,6 +125,9 @@ class Capture:
             if not self._is_watched(chat_id):
                 return
             self._put({"kind": "new", "chat_id": chat_id, "msg": event.message})
+            if self.responder is not None:
+                # Після _put: до спрацювання таймера writer уже запише це повідомлення в базу.
+                self.responder.on_message(self.watched[chat_id], event.message)
         except Exception as e:  # noqa: BLE001
             log(f"on_new_message: {e}", err=True)
 
@@ -496,10 +503,15 @@ class Capture:
                             result = await sync_dialogs(self.client, self.db, self.me_id)
                         elif job["type"] == "backfill":
                             result = await backfill(self, job)
+                        elif job["type"] == "autoreply_preview":
+                            if self.responder is None:
+                                raise RuntimeError("автовідповідь не підключена")
+                            result = await self.responder.preview(int(job["params"]["chatId"]))
                         else:
                             raise ValueError(f"unknown job type: {job['type']}")
                         await self.db.complete_job(job["id"], result)
-                        log(f"job done id={job['id']} {result}")
+                        shown = {"action": result.get("action")} if job["type"] == "autoreply_preview" else result
+                        log(f"job done id={job['id']} {shown}")
                     except asyncio.CancelledError:
                         await self.db.fail_job(job["id"], "listener stopped")
                         raise
@@ -526,6 +538,7 @@ def attach(
     """
     db = DzhuraDB(pool)
     cap = Capture(client, db, int(me.id), int(lunch_group_id), lunch_group_title)
+    cap.responder = AutoResponder(client, db, cap, owner_name=getattr(me, "first_name", None))
     client.add_event_handler(cap.on_new_message, events.NewMessage())
     client.add_event_handler(cap.on_edited, events.MessageEdited())
     client.add_event_handler(cap.on_raw_reactions, events.Raw(types=[UpdateMessageReactions]))
@@ -534,5 +547,8 @@ def attach(
         client.flood_sleep_threshold = 300
     except Exception:  # noqa: BLE001
         pass
-    log(f"attached me={me.id} lunch_group={lunch_group_id}")
+    log(
+        f"attached me={me.id} lunch_group={lunch_group_id} "
+        f"autoreply={'on' if cap.responder.available else 'off (немає ANTHROPIC_API_KEY або DZHURA_AUTOREPLY_ENABLED=0)'}"
+    )
     return [cap.writer(), cap.maintenance_loop(), cap.job_loop()]

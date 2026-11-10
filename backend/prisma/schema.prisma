@@ -1063,6 +1063,11 @@ model DzhuraChat {
   captureEnabled          Boolean   @default(false)
   /// «В Обране»: дублювати чужі повідомлення й реакції у Saved Messages власника
   relayToSaved            Boolean   @default(false)
+  /// «Автовідповідь» (лише особисті чати): якщо власник не відповів за autoReplyDelaySec — відповідає Claude його стилем
+  autoReplyEnabled        Boolean   @default(false)
+  autoReplyDelaySec       Int       @default(80)
+  /// підказка власника про цей чат для автовідповіді (хто це, тон, чого не обіцяти)
+  autoReplyNote           String?   @db.Text
   lastMessageAt           DateTime?
   lastCapturedAt          DateTime?
   /// для gap-fill після пауз слухача: iter_messages(min_id=…)
@@ -1102,6 +1107,8 @@ model DzhuraMessage {
   tgMessageId        BigInt
   senderPersonId     Int?
   isOutgoing         Boolean   @default(false)
+  /// вихідне повідомлення написала автовідповідь, а не власник (у «навчання» стилю не йде)
+  isAutoReply        Boolean   @default(false)
   /// '' для медіа без підпису
   text               String    @db.Text
   /// photo | video | video_note | voice | audio | sticker | gif | document | contact | geo | poll | other
@@ -1151,10 +1158,10 @@ model DzhuraReaction {
   @@index([messageId, removedAt])
 }
 
-/// Задачі для слухача з адмінки: sync_dialogs | backfill {chatId, from, to}
+/// Задачі для слухача з адмінки: sync_dialogs | backfill {chatId, from, to} | autoreply_preview {chatId}
 model DzhuraJob {
   id           Int       @id @default(autoincrement())
-  /// sync_dialogs | backfill
+  /// sync_dialogs | backfill | autoreply_preview
   type         String
   paramsJson   Json?
   /// pending | running | done | failed

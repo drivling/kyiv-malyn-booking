@@ -1037,7 +1037,7 @@ class ApiClient {
 
   async updateDzhuraChat(
     id: number,
-    patch: { captureEnabled?: boolean; relayToSaved?: boolean },
+    patch: import('@/types').DzhuraChatPatch,
   ): Promise<import('@/types').DzhuraChatRow> {
     return this.request(`/admin/dzhura/chats/${id}`, {
       method: 'PATCH',
