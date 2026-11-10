@@ -6,7 +6,7 @@ Telethon-слухач групи «Обіди для НЕ бідних».
   python3 -m lunch.listener
 
 Env: DATABASE_URL, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_USER_SESSION_PATH,
-     ANTHROPIC_API_KEY (OCR меню з фото), LUNCH_GROUP_ID (default -5427750954), LUNCH_OPERATOR_IDS (comma),
+     ANTHROPIC_API_KEY (OCR меню з фото; ANTHROPIC_WORKSPACE_ID — для ключа без воркспейсу), LUNCH_GROUP_ID (default -5427750954), LUNCH_OPERATOR_IDS (comma),
      DZHURA_ENABLED (default 1 — «Джура» читає обрані чати в базу в цьому ж процесі, див. dzhura/)
 """
 

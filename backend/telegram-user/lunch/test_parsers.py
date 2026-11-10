@@ -13,6 +13,7 @@ if str(_ROOT) not in sys.path:
 from lunch.db import MenuItemRow, OrderLineInput
 from lunch.ocr_menu import (
     DEFAULT_OCR_MODEL,
+    anthropic_client_headers,
     menu_items_from_ocr,
     merge_menu_items,
     ocr_menu_from_image_bytes,
@@ -788,6 +789,29 @@ def test_ocr_refusal_and_oversized_photo_raise():
         raise AssertionError("мало кинути RuntimeError")
 
 
+def test_ocr_workspace_header_for_org_level_key():
+    """Ключ без воркспейсу → API вимагає anthropic-workspace-id (400 у проді 2026-11-10)."""
+    import os
+
+    old = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+    try:
+        os.environ.pop("ANTHROPIC_WORKSPACE_ID", None)
+        assert anthropic_client_headers() == {}
+        os.environ["ANTHROPIC_WORKSPACE_ID"] = " wrkspc_01Test "
+        assert anthropic_client_headers() == {"anthropic-workspace-id": "wrkspc_01Test"}
+        try:
+            from anthropic import AsyncAnthropic
+        except ImportError:
+            return
+        client = AsyncAnthropic(api_key="sk-test", default_headers=anthropic_client_headers())
+        assert client.default_headers["anthropic-workspace-id"] == "wrkspc_01Test"
+    finally:
+        if old is None:
+            os.environ.pop("ANTHROPIC_WORKSPACE_ID", None)
+        else:
+            os.environ["ANTHROPIC_WORKSPACE_ID"] = old
+
+
 def test_ocr_model_name_ignores_old_openai_setting():
     import os
 
@@ -862,6 +886,7 @@ def main():
         test_ocr_request_uses_claude_with_schema_image_and_known_names,
         test_ocr_ignores_photos_that_are_not_a_menu,
         test_ocr_refusal_and_oversized_photo_raise,
+        test_ocr_workspace_header_for_org_level_key,
         test_ocr_model_name_ignores_old_openai_setting,
         test_menu_from_photo_is_merged_into_the_days_menu,
     ]
