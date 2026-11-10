@@ -16,6 +16,7 @@ import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import type { ArrivalReportBody, ArrivalReportResult, StickerReturnBody, StickerSide } from '@/types';
 import { isPrerendering } from '@/utils/prerender';
 import { isOnline } from './useOnline';
+import { cityField, isDefaultTransportCity, siteTransportCity } from '@/site/transportCity';
 
 export const OUTBOX_KEY = 'transport-outbox:v1';
 export const OUTBOX_MAX_ITEMS = 50;
@@ -24,9 +25,9 @@ export const OUTBOX_MAX_ATTEMPTS = 10;
 const LOCK_NAME = 'transport-outbox';
 
 export type OutboxBodies = {
-  'sticker-scan': { stopId: string; side: StickerSide; clientId?: string };
-  'sticker-return': StickerReturnBody;
-  'arrival-report': ArrivalReportBody;
+  'sticker-scan': { stopId: string; side: StickerSide; clientId?: string; city?: string };
+  'sticker-return': StickerReturnBody & { city?: string };
+  'arrival-report': ArrivalReportBody & { city?: string };
 };
 export type OutboxKind = keyof OutboxBodies;
 export type OutboxResults = {
@@ -165,7 +166,12 @@ export type SendOrQueueResult<K extends OutboxKind> = { queued: true } | { queue
  * Надіслати зараз або поставити в чергу: без мережі — одразу в чергу; з мережею — спроба, і в чергу лише
  * при повторюваній помилці. 4xx прокидається викликачу; без localStorage кидає помилку «не вдалося зберегти».
  */
-export async function sendOrQueue<K extends OutboxKind>(kind: K, body: OutboxBodies[K], key: string): Promise<SendOrQueueResult<K>> {
+export async function sendOrQueue<K extends OutboxKind>(kind: K, rawBody: OutboxBodies[K], rawKey: string): Promise<SendOrQueueResult<K>> {
+  // Запис належить місту поточного сайту: не-Малин іде з полем city і власним ключем дедупу.
+  // Записи, що вже лежать у черзі без city, — малинські, так вони й надсилаються.
+  const city = siteTransportCity();
+  const body = { ...rawBody, ...cityField(city) } as OutboxBodies[K];
+  const key = isDefaultTransportCity(city) ? rawKey : `${city}:${rawKey}`;
   const queue = (): SendOrQueueResult<K> => {
     if (!enqueueOutbox(kind, body, key)) throw Object.assign(new Error('Не вдалося зберегти запис'), { outbox: 'unavailable' });
     return { queued: true };

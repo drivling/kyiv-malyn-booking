@@ -1,3 +1,4 @@
+import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
@@ -83,7 +84,8 @@ export function AvtostantsiyaPage() {
     };
   }, []);
 
-  const { dataset } = useTransportDataset();
+  // Сторінка про автостанцію Малина — датасет Малина на будь-якому домені
+  const { dataset } = useTransportDataset(DEFAULT_TRANSPORT_CITY);
   const groups: BoardGroup[] = useMemo(() => groupDepartures(all), [all]);
   const arrivals = useMemo(() => arrivalsFromZhytomyr(all), [all]);
   const cityRoutes = useMemo(() => cityRoutesAtAutostation(dataset), [dataset]);
