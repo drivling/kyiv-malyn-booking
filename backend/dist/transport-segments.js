@@ -9,6 +9,7 @@ exports.segmentChains = segmentChains;
 exports.mergeChainSeconds = mergeChainSeconds;
 exports.chainSegmentSeconds = chainSegmentSeconds;
 exports.recalculateSegmentDurations = recalculateSegmentDurations;
+const transport_city_code_1 = require("./transport-city-code");
 const local_transport_1 = require("./local-transport");
 exports.VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '10', '11', '12'];
 const DEFAULT_SEC = 120;
@@ -130,7 +131,8 @@ async function fetchOsrmRoute(lon1, lat1, lon2, lat2) {
     }
 }
 async function recalculateSegmentDurations(prisma, options = {}) {
-    const dataset = await (0, local_transport_1.loadTransportDataset)(prisma);
+    const cityCode = options.cityCode ?? transport_city_code_1.DEFAULT_TRANSPORT_CITY;
+    const dataset = await (0, local_transport_1.loadTransportDataset)(prisma, cityCode);
     if (dataset.stops.length === 0) {
         throw new Error('Transport dataset is empty');
     }
@@ -151,7 +153,8 @@ async function recalculateSegmentDurations(prisma, options = {}) {
         routesToProcess = [routeFilter];
     }
     else {
-        routesToProcess = exports.VERIFIED_ROUTE_IDS.filter((id) => routesInDb.includes(id));
+        // Перелік перевірених маршрутів — малинський; в іншому місті перераховуємо всі маршрути датасету
+        routesToProcess = cityCode === transport_city_code_1.DEFAULT_TRANSPORT_CITY ? exports.VERIFIED_ROUTE_IDS.filter((id) => routesInDb.includes(id)) : routesInDb;
     }
     if (routesToProcess.length === 0) {
         throw new Error(`Немає маршрутів для обробки. Перевірені: ${exports.VERIFIED_ROUTE_IDS.join(', ')}`);
@@ -198,16 +201,16 @@ async function recalculateSegmentDurations(prisma, options = {}) {
     const segmentsKept = dataset.segments.filter((s) => !routesToProcess.includes(s.routeId)).length;
     const created = [...newSegments.entries()].map(([key, seconds]) => {
         const [routeId, fromStopId, toStopId] = key.split('|');
-        return { routeId, fromStopId, toStopId, seconds };
+        return { cityCode, routeId, fromStopId, toStopId, seconds };
     });
     const defaultSec = Number(dataset.meta.defaultSec) || DEFAULT_SEC;
     const metaPayload = { ...dataset.meta, defaultSec };
     await prisma.$transaction([
-        prisma.transportSegment.deleteMany({ where: { routeId: { in: routesToProcess } } }),
+        prisma.transportSegment.deleteMany({ where: { cityCode, routeId: { in: routesToProcess } } }),
         prisma.transportSegment.createMany({ data: created }),
         prisma.transportMeta.upsert({
-            where: { id: 1 },
-            create: { id: 1, payload: metaPayload },
+            where: { cityCode },
+            create: { cityCode, payload: metaPayload },
             update: { payload: metaPayload },
         }),
     ]);

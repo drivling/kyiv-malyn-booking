@@ -17,6 +17,7 @@ import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { convertLegacyRuntime, replaceTransportDataset, validateTransportDataset } from '../local-transport';
 import { recordTransportRevision, snapshotTransportDataset } from '../transport-revisions';
+import { DEFAULT_TRANSPORT_CITY } from '../transport-city-code';
 
 function resolveRuntimeDir(): string {
   const candidates = [
@@ -46,7 +47,8 @@ async function main() {
 
   try {
     if (ifEmpty) {
-      const count = await prisma.transportStop.count();
+      // Лише Малин: зупинки іншого міста не роблять малинський датасет «непорожнім»
+      const count = await prisma.transportStop.count({ where: { cityCode: DEFAULT_TRANSPORT_CITY } });
       if (count > 0) {
         console.log(`[seed:transport] skip — already have ${count} stops (--if-empty)`);
         return;

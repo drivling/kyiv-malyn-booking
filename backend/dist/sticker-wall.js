@@ -4,6 +4,7 @@ exports.stickerWallKey = stickerWallKey;
 exports.isStickerWallKey = isStickerWallKey;
 exports.stickerWallSnapshot = stickerWallSnapshot;
 const crypto_1 = require("crypto");
+const transport_city_code_1 = require("./transport-city-code");
 const sticker_scans_1 = require("./sticker-scans");
 /**
  * Віджет «Відкриття з QR» на стіну (`/admin/wall?key=…`): телефон у горизонтальному положенні
@@ -34,10 +35,11 @@ function kyivMinuteOfDay(d) {
 }
 async function stickerWallSnapshot(prisma, opts = {}) {
     const now = opts.now ?? new Date();
+    const cityCode = opts.cityCode ?? transport_city_code_1.DEFAULT_TRANSPORT_CITY;
     const after = opts.after && Number.isFinite(opts.after) && opts.after > 0 ? Math.floor(opts.after) : 0;
     // Сканів небагато — 90 днів читаємо сирими рядками й розкладаємо по київських добах тут
     const rows = await prisma.stickerScan.findMany({
-        where: { createdAt: { gte: new Date(now.getTime() - (BEST_DAY_WINDOW + 1) * DAY_MS) } },
+        where: { cityCode, createdAt: { gte: new Date(now.getTime() - (BEST_DAY_WINDOW + 1) * DAY_MS) } },
         select: { id: true, stopId: true, side: true, createdAt: true },
         orderBy: { id: 'asc' },
     });

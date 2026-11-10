@@ -809,6 +809,8 @@ model LunchAdminJob {
 
 /// Зупинка (GTFS stop). id — стабільний ключ st_XXXX
 model TransportStop {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id        String   @id // st_0001
   name      String
   lat       Float
@@ -816,10 +818,13 @@ model TransportStop {
   updatedAt DateTime @updatedAt
 
   routeStops TransportRouteStop[]
+  @@index([cityCode])
 }
 
 /// Маршрут (GTFS route). id — номер маршруту ("2", "11")
 model TransportRoute {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id        String   @id
   fromName  String   @default("")
   toName    String   @default("")
@@ -841,10 +846,13 @@ model TransportRoute {
   routeStops TransportRouteStop[]
   trips      TransportTrip[]
   segments   TransportSegment[]
+  @@index([cityCode])
 }
 
 /// Зупинка в межах маршруту: порядок «туди»/«назад», технічні точки для карти
 model TransportRouteStop {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id         Int     @id @default(autoincrement())
   routeId    String
   stopId     String
@@ -860,10 +868,13 @@ model TransportRouteStop {
 
   @@unique([routeId, stopId])
   @@index([stopId])
+  @@index([cityCode])
 }
 
 /// Рейс (GTFS trip). id — trip_id ("2-01")
 model TransportTrip {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id                   String  @id
   routeId              String
   /// Ключ календаря ("everyday" | "weekdays" | легасі-рядок)
@@ -891,10 +902,13 @@ model TransportTrip {
   route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
   @@index([routeId])
+  @@index([cityCode])
 }
 
 /// Тривалість перегону між сусідніми зупинками маршруту (секунди)
 model TransportSegment {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id         Int    @id @default(autoincrement())
   routeId    String
   fromStopId String
@@ -904,10 +918,13 @@ model TransportSegment {
   route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
   @@unique([routeId, fromStopId, toStopId])
+  @@index([cityCode])
 }
 
 /// Singleton-мета датасету: fare, contacts, news, sources, agency, центр карти, defaultSec
 model TransportMeta {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @unique @default("Malyn")
   id        Int      @id @default(1)
   payload   Json
   updatedAt DateTime @updatedAt
@@ -917,6 +934,8 @@ model TransportMeta {
 /// бампає TransportMeta.updatedAt — PUT датасету, «Перерахувати час», редиректи зупинок, seed. Пише
 /// src/transport-revisions.ts (recordTransportRevision) після запису; перший рядок — без diff.
 model TransportRevision {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   /// ISO TransportMeta.updatedAt після запису — та сама revision, що в GET /transport/dataset і ETag
   revision  String   @id
   createdAt DateTime @default(now())
@@ -928,6 +947,7 @@ model TransportRevision {
   diff      Json?
 
   @@index([createdAt])
+  @@index([cityCode, createdAt])
 }
 
 /// Стеження за зовнішніми джерелами розкладу (Docs/korosten-transport-2026-11.md, фаза 1): сторінка ради,
@@ -953,6 +973,8 @@ model WatchedSource {
 /// Відкриття табло з QR-наклейки на зупинці (/admin/stickers, Docs/stop-stickers.md). Пише
 /// фронтенд при першому за сесію відкритті табло з utm_source=sticker. Без IP і персональних даних.
 model StickerScan {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id        Int      @id @default(autoincrement())
   /// TransportStop.id; без FK — історія сканів лишається, навіть якщо зупинку видалять із датасету
   stopId    String
@@ -966,6 +988,7 @@ model StickerScan {
   @@index([stopId, side])
   @@index([createdAt])
   @@index([clientId])
+  @@index([cityCode, createdAt])
 }
 
 /// Людина, яка колись прийшла з QR-наклейки, знову відкрила сайт (frontend stickerReturn.ts): раз за
@@ -973,6 +996,8 @@ model StickerScan {
 /// via: reload — відновлена вкладка з `utm_source=reload` (адреса табло після скану), tab — повернулась
 /// до вже відкритої вкладки, direct — відкрила сайт інакше.
 model StickerReturn {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id        Int      @id @default(autoincrement())
   stopId    String
   side      String
@@ -986,11 +1011,14 @@ model StickerReturn {
   @@index([stopId, side])
   @@index([clientId])
   @@index([createdAt])
+  @@index([cityCode, createdAt])
 }
 
 /// Друк або завантаження SVG наклейки в адмінці (/admin/stickers): статистика відрізняє «наклейки
 /// немає» від «наклейка є, але її не сканують». Пише адмінка, по рядку на кожну наклейку аркуша.
 model StickerPrint {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id        Int      @id @default(autoincrement())
   /// TransportStop.id (без FK, як у StickerScan)
   stopId    String
@@ -1001,6 +1029,7 @@ model StickerPrint {
   createdAt DateTime @default(now())
 
   @@index([stopId, side])
+  @@index([cityCode])
 }
 
 /// Факт прибуття міського автобуса від пасажира: довге натискання на час рейсу на сторінці маршруту
@@ -1008,6 +1037,8 @@ model StickerPrint {
 /// графіків. Пов'язаний із TransportTrip/TransportStop за id, але без FK: датасет замінюється цілком,
 /// а історія звітів має лишитися (маршрут, напрямок, зупинка й час за розкладом збережені текстом).
 model TransportArrivalReport {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode  String   @default("Malyn")
   id            Int      @id @default(autoincrement())
   /// arrived — «автобус тут»; missed — «чекав, автобуса не було ні до, ні після»
   kind          String
@@ -1042,6 +1073,7 @@ model TransportArrivalReport {
   @@index([routeId, stopId, scheduledTime])
   @@index([serviceDate])
   @@index([createdAt])
+  @@index([cityCode, createdAt])
 }
 
 // ---------------------------------------------------------------------------

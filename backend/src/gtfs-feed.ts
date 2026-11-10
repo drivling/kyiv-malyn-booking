@@ -7,6 +7,7 @@
  * у фід не потрапляють; stop_times синтезуються із сегментів (gtfs-stop-times.ts).
  */
 import type { PrismaClient } from '@prisma/client';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 import { currentTransportRevision, loadTransportDataset, type TransportDataset, type TransportRouteStopInput } from './local-transport';
 import { DEFAULT_SEC, buildTripStopTimes, toGtfsTime, type TripStopTimes } from './gtfs-stop-times';
 import { buildZip } from './zip';
@@ -377,17 +378,20 @@ export interface CachedGtfsFeed {
  * Фід для HTTP: один `TransportMeta.findUnique` на запит (revision), повна збірка лише коли revision змінилась.
  * null — датасету ще нема (порожня БД).
  */
-export function createGtfsFeedProvider(prisma: PrismaClient): { get(): Promise<CachedGtfsFeed | null> } {
+export function createGtfsFeedProvider(
+  prisma: PrismaClient,
+  cityCode: string = DEFAULT_TRANSPORT_CITY,
+): { get(): Promise<CachedGtfsFeed | null> } {
   let cache: CachedGtfsFeed | null = null;
   let building: Promise<CachedGtfsFeed> | null = null;
   return {
     async get() {
-      const revision = await currentTransportRevision(prisma);
+      const revision = await currentTransportRevision(prisma, cityCode);
       if (!revision) return null;
       if (cache?.revision === revision) return cache;
       if (!building) {
         building = (async () => {
-          const dataset = await loadTransportDataset(prisma);
+          const dataset = await loadTransportDataset(prisma, cityCode);
           const feed = buildGtfsFeed(dataset, { revision });
           cache = { revision, feed, zip: zipGtfsFeed(feed) };
           return cache;

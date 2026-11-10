@@ -4,6 +4,7 @@
  */
 
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 import {
   loadTransportDataset,
   type TransportRouteStopInput,
@@ -27,6 +28,8 @@ const MIN_SPAN_SEC = 30;
 export type RecalculateSegmentsOptions = {
   /** Один маршрут; якщо не задано — усі verified, що є в БД */
   routeId?: string | null;
+  /** Місто датасету; без нього — Малин */
+  cityCode?: string;
 };
 
 export type RecalculateSegmentsResult = {
@@ -169,7 +172,8 @@ export async function recalculateSegmentDurations(
   prisma: PrismaClient,
   options: RecalculateSegmentsOptions = {}
 ): Promise<RecalculateSegmentsResult> {
-  const dataset = await loadTransportDataset(prisma);
+  const cityCode = options.cityCode ?? DEFAULT_TRANSPORT_CITY;
+  const dataset = await loadTransportDataset(prisma, cityCode);
   if (dataset.stops.length === 0) {
     throw new Error('Transport dataset is empty');
   }
@@ -190,7 +194,8 @@ export async function recalculateSegmentDurations(
     }
     routesToProcess = [routeFilter];
   } else {
-    routesToProcess = VERIFIED_ROUTE_IDS.filter((id) => routesInDb.includes(id));
+    // Перелік перевірених маршрутів — малинський; в іншому місті перераховуємо всі маршрути датасету
+    routesToProcess = cityCode === DEFAULT_TRANSPORT_CITY ? VERIFIED_ROUTE_IDS.filter((id) => routesInDb.includes(id)) : routesInDb;
   }
 
   if (routesToProcess.length === 0) {
@@ -241,18 +246,18 @@ export async function recalculateSegmentDurations(
   const segmentsKept = dataset.segments.filter((s) => !routesToProcess.includes(s.routeId)).length;
   const created = [...newSegments.entries()].map(([key, seconds]) => {
     const [routeId, fromStopId, toStopId] = key.split('|');
-    return { routeId, fromStopId, toStopId, seconds };
+    return { cityCode, routeId, fromStopId, toStopId, seconds };
   });
 
   const defaultSec = Number(dataset.meta.defaultSec) || DEFAULT_SEC;
   const metaPayload = { ...dataset.meta, defaultSec } as Prisma.InputJsonValue;
 
   await prisma.$transaction([
-    prisma.transportSegment.deleteMany({ where: { routeId: { in: routesToProcess } } }),
+    prisma.transportSegment.deleteMany({ where: { cityCode, routeId: { in: routesToProcess } } }),
     prisma.transportSegment.createMany({ data: created }),
     prisma.transportMeta.upsert({
-      where: { id: 1 },
-      create: { id: 1, payload: metaPayload },
+      where: { cityCode },
+      create: { cityCode, payload: metaPayload },
       update: { payload: metaPayload },
     }),
   ]);

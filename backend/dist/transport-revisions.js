@@ -13,6 +13,7 @@ exports.listTransportRevisions = listTransportRevisions;
 exports.parseRevisionsLimit = parseRevisionsLimit;
 const gtfs_feed_1 = require("./gtfs-feed");
 const local_transport_1 = require("./local-transport");
+const transport_city_code_1 = require("./transport-city-code");
 const stop_redirects_1 = require("./stop-redirects");
 exports.TRANSPORT_REVISIONS_DEFAULT_LIMIT = 50;
 exports.TRANSPORT_REVISIONS_MAX_LIMIT = 200;
@@ -191,9 +192,9 @@ function toRecord(row) {
  * Датасет до запису — для diff. null, коли датасету ще нема (порожня БД) або його не вдалося прочитати:
  * журнал не має зірвати сам запис.
  */
-async function snapshotTransportDataset(prisma) {
+async function snapshotTransportDataset(prisma, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
     try {
-        const ds = await (0, local_transport_1.loadTransportDataset)(prisma);
+        const ds = await (0, local_transport_1.loadTransportDataset)(prisma, cityCode);
         return ds.revision ? ds : null;
     }
     catch (e) {
@@ -207,8 +208,9 @@ async function snapshotTransportDataset(prisma) {
  * Помилки лише в лог; повертає запис або null.
  */
 async function recordTransportRevision(prisma, options) {
+    const cityCode = options.cityCode ?? transport_city_code_1.DEFAULT_TRANSPORT_CITY;
     try {
-        const current = await (0, local_transport_1.loadTransportDataset)(prisma);
+        const current = await (0, local_transport_1.loadTransportDataset)(prisma, cityCode);
         if (!current.revision)
             return null;
         if (options.previous?.revision === current.revision)
@@ -218,6 +220,7 @@ async function recordTransportRevision(prisma, options) {
         const row = await prisma.transportRevision.upsert({
             where: { revision: current.revision },
             create: {
+                cityCode,
                 revision: current.revision,
                 source: options.source,
                 stats: stats,
@@ -233,21 +236,21 @@ async function recordTransportRevision(prisma, options) {
     }
 }
 /** При старті: журнал порожній, а датасет є → перший рядок із поточного стану без diff */
-async function ensureInitialTransportRevision(prisma) {
+async function ensureInitialTransportRevision(prisma, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
     try {
-        if ((await prisma.transportRevision.count()) > 0)
+        if ((await prisma.transportRevision.count({ where: { cityCode } })) > 0)
             return null;
     }
     catch (e) {
         console.error('[transport-revisions] count failed', e);
         return null;
     }
-    return recordTransportRevision(prisma, { source: 'initial', previous: null });
+    return recordTransportRevision(prisma, { source: 'initial', previous: null, cityCode });
 }
 /** Останні рядки журналу, новіші першими (revision — ISO, тож сортується як час) */
-async function listTransportRevisions(prisma, limit = exports.TRANSPORT_REVISIONS_DEFAULT_LIMIT) {
+async function listTransportRevisions(prisma, limit = exports.TRANSPORT_REVISIONS_DEFAULT_LIMIT, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
     const take = Math.min(Math.max(1, Math.floor(limit)), exports.TRANSPORT_REVISIONS_MAX_LIMIT);
-    const rows = await prisma.transportRevision.findMany({ orderBy: { revision: 'desc' }, take });
+    const rows = await prisma.transportRevision.findMany({ where: { cityCode }, orderBy: { revision: 'desc' }, take });
     return rows.map(toRecord);
 }
 /** ?limit= з запиту → число в межах 1…200, типово 50 */

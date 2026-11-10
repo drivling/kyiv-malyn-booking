@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 
 /**
  * Відкриття табло з QR-наклейок на зупинках (frontend: /admin/stickers, Docs/stop-stickers.md).
@@ -158,24 +159,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export async function stickerScanStats(
   prisma: PrismaClient,
-  opts: { days?: StatsDays; now?: Date } = {}
+  opts: { days?: StatsDays; now?: Date; cityCode?: string } = {}
 ): Promise<StickerScanStatsResult> {
   const now = opts.now ?? new Date();
+  const cityCode = opts.cityCode ?? DEFAULT_TRANSPORT_CITY;
   const days = opts.days ?? 30;
   const since = (n: number) => new Date(now.getTime() - n * DAY_MS);
   const [all, week, month, windowRows, prints, idScans, returns] = await Promise.all([
-    prisma.stickerScan.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
-    prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(7) } }, _count: { _all: true } }),
-    prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { createdAt: { gte: since(30) } }, _count: { _all: true } }),
+    prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { cityCode }, _count: { _all: true }, _max: { createdAt: true } }),
+    prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { cityCode, createdAt: { gte: since(7) } }, _count: { _all: true } }),
+    prisma.stickerScan.groupBy({ by: ['stopId', 'side'], where: { cityCode, createdAt: { gte: since(30) } }, _count: { _all: true } }),
     // «Сьогодні»: київська доба триває до 25 год (перехід на зимовий час) — беремо 2 доби й
     // відсікаємо за київською датою нижче
     prisma.stickerScan.findMany({
-      where: { createdAt: { gte: since(Math.max(days, 2)) } },
+      where: { cityCode, createdAt: { gte: since(Math.max(days, 2)) } },
       select: { stopId: true, side: true, createdAt: true },
     }),
-    prisma.stickerPrint.groupBy({ by: ['stopId', 'side'], _count: { _all: true }, _max: { createdAt: true } }),
-    prisma.stickerScan.findMany({ where: { clientId: { not: null } }, select: { stopId: true, side: true, clientId: true } }),
-    prisma.stickerReturn.findMany({ select: { stopId: true, side: true, clientId: true, via: true, createdAt: true } }),
+    prisma.stickerPrint.groupBy({ by: ['stopId', 'side'], where: { cityCode }, _count: { _all: true }, _max: { createdAt: true } }),
+    prisma.stickerScan.findMany({ where: { cityCode, clientId: { not: null } }, select: { stopId: true, side: true, clientId: true } }),
+    prisma.stickerReturn.findMany({ where: { cityCode }, select: { stopId: true, side: true, clientId: true, via: true, createdAt: true } }),
   ]);
   const key = (r: { stopId: string; side: string }) => `${r.stopId}|${r.side}`;
   const weekBy = new Map(week.map((r) => [key(r), r._count._all]));
