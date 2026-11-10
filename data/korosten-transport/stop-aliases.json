@@ -1,0 +1,1028 @@
+{
+  "stops": {
+    "\"Ощадбанк\"": {
+      "uid": "z-004",
+      "official": "Зупинка на вимогу “Ощадбанк”",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:71",
+        "project-2025:72"
+      ]
+    },
+    "44-магазин": {
+      "uid": "z-068",
+      "official": "Магазин №44",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:81"
+      ]
+    },
+    "Автобусний парк": {
+      "uid": "z-080",
+      "official": "Автобусний парк",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "АЗС": {
+      "uid": "z-086",
+      "official": "Зупинка на вимогу «АЗС»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Аптека": {
+      "uid": "z-057",
+      "official": "Зупинка на вимогу «Аптека» (Золота Бочка)",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Білокоровицьке шосе": {
+      "uid": "z-048",
+      "official": "Білокоровицьке Шосе",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "rada:№5"
+      ]
+    },
+    "Білокоровицьке Шосе": {
+      "uid": "z-048",
+      "official": "Білокоровицьке Шосе",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Бровар": {
+      "uid": "z-076",
+      "official": "Бровар",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:81",
+        "project-2025:82",
+        "rada:№8"
+      ]
+    },
+    "Верас трейд": {
+      "uid": "z-062",
+      "official": "Зупинка на вимогу «Верас Трейд»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Ветлікарня": {
+      "uid": "z-007",
+      "official": "Ветлікарня",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Вул. В. Стуса": {
+      "uid": "z-005",
+      "official": "В. Стуса (Сакко і Ванцетті)",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:71",
+        "project-2025:72"
+      ]
+    },
+    "вул. В. Стуса (Сакко і Ванцетті)": {
+      "uid": "z-005",
+      "official": "В. Стуса (Сакко і Ванцетті)",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Вул. Ватутіна (вул. М. Стельмаха)": {
+      "uid": "z-027",
+      "official": "Вул. М. Стельмаха",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "вул. Генерала Кульчицького (Магазин вул. Фрунзе)": {
+      "uid": "z-022",
+      "official": "Магазин вул. Фрунзе",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Вул. Київська": {
+      "uid": "z-044",
+      "official": "Вул. Київська",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:41",
+        "project-2025:42"
+      ]
+    },
+    "вул. Курчатова": {
+      "uid": "z-026",
+      "official": "Зупинка на вимогу «вул.Соколовських Отаманів (Курчатова)»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "вул. М. Стельмаха (Ватутіна)": {
+      "uid": "z-027",
+      "official": "Вул. М. Стельмаха",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "вул. Маяковського": {
+      "uid": "z-052",
+      "official": "Зупинка на вимогу «Вул. Бандери Степана (Маяковського)»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:62"
+      ]
+    },
+    "Вул. Маяковського": {
+      "uid": "z-052",
+      "official": "Зупинка на вимогу «Вул. Бандери Степана (Маяковського)»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61"
+      ]
+    },
+    "вул. Проліскова": {
+      "uid": "z-036",
+      "official": "Вул. Проліскова",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Вул. Шартрищанська": {
+      "uid": "z-039",
+      "official": "Вул. Шатрищанська",
+      "how": "hint",
+      "confirm": false,
+      "sources": [
+        "project-2025:42"
+      ]
+    },
+    "Вул. Шатрищанська": {
+      "uid": "z-039",
+      "official": "Вул. Шатрищанська",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:41"
+      ]
+    },
+    "Вул. Шевченка №117": {
+      "uid": "z-053",
+      "official": "Вул. Шевченка (Кірова). 117",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Вул.1–го травня": {
+      "uid": "z-074",
+      "official": "Вул. 1-го травня",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:81",
+        "project-2025:82"
+      ]
+    },
+    "вул.Саченка": {
+      "uid": "z-034",
+      "official": "Зупинка на вимогу «Місток»",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Гастроном": {
+      "uid": "z-021",
+      "official": "Гастроном",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Граніт": {
+      "uid": "z-082",
+      "official": "Граніт",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Гуртожиток": {
+      "uid": "z-045",
+      "official": "Зупинка на вимогу «Гуртожиток»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Дитячий садок №2": {
+      "uid": "z-019",
+      "official": "Зупинка на вимогу «Дитсадок №2»",
+      "how": "hint",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Діагностичний центр": {
+      "uid": "z-043",
+      "official": "Діагностичний центр",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:41"
+      ]
+    },
+    "Дім правосуддя": {
+      "uid": "z-038",
+      "official": "Дім правосуддя",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:41",
+        "project-2025:42",
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "ДОК": {
+      "uid": "z-046",
+      "official": "Зупинка на вимогу «ДОК»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "ДУ": {
+      "uid": "z-083",
+      "official": "ДУ",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Завод \"Жовтнева кузня\"": {
+      "uid": "z-017",
+      "official": "Завод «Жовтнева кузня»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Завод \"ЗБШ\"": {
+      "uid": "z-051",
+      "official": "Завод ЗБШ",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Завод \"Хіммаш\"": {
+      "uid": "z-020",
+      "official": "Завод «Хіммаш»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Завод «Жовтнева кузня»": {
+      "uid": "z-017",
+      "official": "Завод «Жовтнева кузня»",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "Завод «Хіммаш»": {
+      "uid": "z-020",
+      "official": "Завод «Хіммаш»",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "Заготзерно": {
+      "uid": "z-081",
+      "official": "Заготзерно",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Залізничний вокзал": {
+      "uid": "z-001",
+      "official": "Залізничний вокзал",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:21",
+        "project-2025:22",
+        "project-2025:31",
+        "project-2025:32",
+        "project-2025:41",
+        "project-2025:42",
+        "project-2025:51",
+        "project-2025:52",
+        "project-2025:61",
+        "project-2025:62",
+        "project-2025:71",
+        "project-2025:72",
+        "project-2025:81",
+        "project-2025:82",
+        "rada:№1",
+        "rada:№2",
+        "rada:№2-Б",
+        "rada:№3",
+        "rada:№4",
+        "rada:№5",
+        "rada:№7",
+        "rada:№8"
+      ]
+    },
+    "Залізничний шляхопровід": {
+      "uid": "z-032",
+      "official": "Зупинка на вимогу «Залізничний шляхопровід»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Кафе «Ялинка»": {
+      "uid": "z-040",
+      "official": "Зупинка на вимогу «Ялинка»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:41",
+        "project-2025:42"
+      ]
+    },
+    "КВК №71": {
+      "uid": "z-047",
+      "official": "КВК №71",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Київська": {
+      "uid": "z-044",
+      "official": "Вул. Київська",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "rada:№4"
+      ]
+    },
+    "Київська 1": {
+      "uid": "z-042",
+      "official": "Зупинка на вимогу «Київська. 1-А»",
+      "how": "hint",
+      "confirm": false,
+      "sources": [
+        "project-2025:41"
+      ]
+    },
+    "Ковельський парк": {
+      "uid": "z-054",
+      "official": "Ковельський парк",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Коростень-Подільський": {
+      "uid": "z-031",
+      "official": "Коростень- Подільський",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Лісозахист": {
+      "uid": "z-024",
+      "official": "Зупинка на вимогу «Лісозахист»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Магазин": {
+      "uid": "z-075",
+      "official": "Магазин",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:81",
+        "project-2025:82"
+      ]
+    },
+    "Магазин \"Наташа\"": {
+      "uid": "z-029",
+      "official": "Магазин «Наташа»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Магазин «Наташа»": {
+      "uid": "z-029",
+      "official": "Магазин «Наташа»",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "Магазин 44": {
+      "uid": "z-068",
+      "official": "Магазин №44",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:71",
+        "project-2025:72"
+      ]
+    },
+    "Магазин вул. Фрунзе (вул. Генерала Кульчицького)": {
+      "uid": "z-022",
+      "official": "Магазин вул. Фрунзе",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "Магазин №44": {
+      "uid": "z-068",
+      "official": "Магазин №44",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:82"
+      ]
+    },
+    "Мирний/щебзавод": {
+      "uid": "z-013",
+      "official": "Селище Мирне",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12"
+      ]
+    },
+    "Міська лікарня": {
+      "uid": "z-079",
+      "official": "Міськлікарня",
+      "how": "hint",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Міське кладовище": {
+      "uid": "z-050",
+      "official": "Зупинка на вимогу «Міське кладовище»",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Міський центральний ринок": {
+      "uid": "z-002",
+      "official": "Міський центральний ринок",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:21",
+        "project-2025:22",
+        "project-2025:31",
+        "project-2025:32",
+        "project-2025:41",
+        "project-2025:42",
+        "project-2025:51",
+        "project-2025:52",
+        "project-2025:61",
+        "project-2025:62",
+        "project-2025:71",
+        "project-2025:72",
+        "project-2025:81",
+        "project-2025:82"
+      ]
+    },
+    "На вимогу": {
+      "uid": "z-014",
+      "official": "Зупинка на вимогу",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12"
+      ]
+    },
+    "Ощадбанк": {
+      "uid": "z-004",
+      "official": "Зупинка на вимогу “Ощадбанк”",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12"
+      ]
+    },
+    "Парк Древлянський": {
+      "uid": "z-016",
+      "official": "Парк «Древлянський» (Ім. Островського)",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22",
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Пашини": {
+      "uid": "z-087",
+      "official": "Пашини",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22",
+        "rada:№2",
+        "rada:№2-Б"
+      ]
+    },
+    "ПМК": {
+      "uid": "z-063",
+      "official": "Зупинка на вимогу «ПМК»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Поліклініка": {
+      "uid": "z-085",
+      "official": "Районна поліклініка",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Поліське водосховище": {
+      "uid": "z-015",
+      "official": "Поліське водосховище",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "rada:№1"
+      ]
+    },
+    "Пошта": {
+      "uid": "z-088",
+      "official": "Відділення Нової пошти №1",
+      "how": "hint",
+      "confirm": true,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "ПП \"Ельфа\"": {
+      "uid": "z-025",
+      "official": "Фабрика «Ельфа»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "ПП «Ельфа»": {
+      "uid": "z-025",
+      "official": "Фабрика «Ельфа»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "пров. Залізничний": {
+      "uid": "z-030",
+      "official": "Провулок Залізничний",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Пров. Залізничний": {
+      "uid": "z-030",
+      "official": "Провулок Залізничний",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:32"
+      ]
+    },
+    "Прорізна №33": {
+      "uid": "z-023",
+      "official": "Прорізна №33",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Районна лікарня": {
+      "uid": "z-073",
+      "official": "Районна лікарня (залізнична)",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:81",
+        "project-2025:82"
+      ]
+    },
+    "Романа Шухевича": {
+      "uid": "z-069",
+      "official": "Романа Шухевича (Гастелло)",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:71",
+        "project-2025:72",
+        "project-2025:81",
+        "project-2025:82",
+        "rada:№2",
+        "rada:№2-Б",
+        "rada:№7",
+        "rada:№8"
+      ]
+    },
+    "Селище ДОК": {
+      "uid": "z-008",
+      "official": "Селище ДОК",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Стадіон \"Локомотив\"": {
+      "uid": "z-055",
+      "official": "Стадіон «Локомотив»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Станція Житомирська": {
+      "uid": "z-049",
+      "official": "Станція Житомирська",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62",
+        "rada:№6"
+      ]
+    },
+    "Трубосталь": {
+      "uid": "z-041",
+      "official": "Трубосталь",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:41",
+        "project-2025:42"
+      ]
+    },
+    "Фарфоровий завод": {
+      "uid": "z-018",
+      "official": "Фарфоровий завод",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Хімік": {
+      "uid": "z-009",
+      "official": "Хімік",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Цегельний завод": {
+      "uid": "z-061",
+      "official": "Цегельний завод",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62",
+        "rada:№6"
+      ]
+    },
+    "Центр міста": {
+      "uid": "z-003",
+      "official": "Центр міста",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52",
+        "project-2025:71",
+        "project-2025:72"
+      ]
+    },
+    "Церква": {
+      "uid": "z-033",
+      "official": "Церква",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31"
+      ]
+    },
+    "Черемушки": {
+      "uid": "z-006",
+      "official": "Черемушки",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52",
+        "project-2025:71",
+        "project-2025:72"
+      ]
+    },
+    "Чигирі": {
+      "uid": "z-035",
+      "official": "Чигирі",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32",
+        "rada:№3"
+      ]
+    },
+    "Чолівський переїзд": {
+      "uid": "z-010",
+      "official": "Чолівський переїзд",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12",
+        "project-2025:51",
+        "project-2025:52"
+      ]
+    },
+    "Швейна фабрика": {
+      "uid": "z-037",
+      "official": "Швейна фабрика",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:41",
+        "project-2025:42",
+        "project-2025:61",
+        "project-2025:62",
+        "project-2025:81",
+        "project-2025:82"
+      ]
+    },
+    "Школа №1": {
+      "uid": "z-064",
+      "official": "Школа №1",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:81",
+        "project-2025:82"
+      ]
+    },
+    "Школа №13": {
+      "uid": "z-011",
+      "official": "Школа №13",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12"
+      ]
+    },
+    "Школа №5": {
+      "uid": "z-084",
+      "official": "Школа №5",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:21",
+        "project-2025:22"
+      ]
+    },
+    "Школа №8": {
+      "uid": "z-028",
+      "official": "Школа №8",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:31",
+        "project-2025:32"
+      ]
+    },
+    "Школа №9": {
+      "uid": "z-056",
+      "official": "Школа №9",
+      "how": "exact",
+      "confirm": false,
+      "sources": [
+        "project-2025:61",
+        "project-2025:62"
+      ]
+    },
+    "Шляхзалізобетон": {
+      "uid": "z-012",
+      "official": "Зупинка на вимогу «Шляхзалізобетон»",
+      "how": "normalized",
+      "confirm": false,
+      "sources": [
+        "project-2025:11",
+        "project-2025:12"
+      ]
+    }
+  },
+  "newStops": [
+    {
+      "name": "Грозине",
+      "tempId": "z-101",
+      "sources": [
+        "rada:№4"
+      ]
+    },
+    {
+      "name": "Дачі УТОС",
+      "tempId": "z-102",
+      "sources": [
+        "rada:№8"
+      ]
+    },
+    {
+      "name": "Коростень-Грозине",
+      "tempId": "z-103",
+      "sources": [
+        "rada:№4"
+      ]
+    },
+    {
+      "name": "Міськвиконком",
+      "tempId": "z-104",
+      "sources": [
+        "project-2025:22",
+        "project-2025:32"
+      ]
+    },
+    {
+      "name": "Сади",
+      "tempId": "z-105",
+      "sources": [
+        "rada:№8"
+      ]
+    }
+  ],
+  "unresolved": [],
+  "unusedOfficial": [
+    "z-058",
+    "z-059",
+    "z-060",
+    "z-065",
+    "z-066",
+    "z-067",
+    "z-070",
+    "z-071",
+    "z-072",
+    "z-077",
+    "z-078",
+    "z-089",
+    "z-090",
+    "z-091"
+  ]
+}

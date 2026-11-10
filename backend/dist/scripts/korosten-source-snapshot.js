@@ -13,12 +13,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * npm run korosten:snapshot                 — завантажити все заново (по одному запиту на файл)
  * npm run korosten:snapshot -- --page <f>   — сторінку ради взяти зі збереженого HTML-файлу
  * npm run korosten:snapshot -- --no-csv     — лише сторінка ради
+ * npm run korosten:snapshot -- --project    — без мережі: проєкт власника 2025 року (project-2025/html) →
+ *                                             project-2025/chains.json, stop-aliases.json, project-2025/REPORT.md
  */
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const node_crypto_1 = require("node:crypto");
 const korosten_source_parser_1 = require("../korosten-source-parser");
 const transport_source_watch_1 = require("../transport-source-watch");
+const korosten_project_files_1 = require("../korosten-project-files");
 const OUT_DIR = node_path_1.default.resolve(__dirname, '../../../data/korosten-transport/source');
 const sha256 = (data) => (0, node_crypto_1.createHash)('sha256').update(data).digest('hex');
 const arg = (name) => {
@@ -26,6 +29,14 @@ const arg = (name) => {
     return i >= 0 ? process.argv[i + 1] : undefined;
 };
 async function main() {
+    if (process.argv.includes('--project')) {
+        const root = node_path_1.default.resolve(OUT_DIR, '..');
+        for (const [file, content] of Object.entries((0, korosten_project_files_1.buildKorostenProjectFiles)(root))) {
+            node_fs_1.default.writeFileSync(node_path_1.default.join(root, file), content);
+            console.log(`${file}: ${content.length} chars`);
+        }
+        return;
+    }
     node_fs_1.default.mkdirSync(OUT_DIR, { recursive: true });
     const files = [];
     const page = transport_source_watch_1.WATCHED_SOURCES.find((s) => s.key === 'korosten-rada-timetable');

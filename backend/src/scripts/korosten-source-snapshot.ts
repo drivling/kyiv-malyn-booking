@@ -8,12 +8,15 @@
  * npm run korosten:snapshot                 — завантажити все заново (по одному запиту на файл)
  * npm run korosten:snapshot -- --page <f>   — сторінку ради взяти зі збереженого HTML-файлу
  * npm run korosten:snapshot -- --no-csv     — лише сторінка ради
+ * npm run korosten:snapshot -- --project    — без мережі: проєкт власника 2025 року (project-2025/html) →
+ *                                             project-2025/chains.json, stop-aliases.json, project-2025/REPORT.md
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { extractTimetableFragment, parseKorostenTimetable } from '../korosten-source-parser';
 import { WATCHED_SOURCES, fetchSourceText } from '../transport-source-watch';
+import { buildKorostenProjectFiles } from '../korosten-project-files';
 
 const OUT_DIR = path.resolve(__dirname, '../../../data/korosten-transport/source');
 const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex');
@@ -25,6 +28,14 @@ const arg = (name: string): string | undefined => {
 type ManifestFile = { file: string; source: string; sha256: string; modified: string | null };
 
 async function main(): Promise<void> {
+  if (process.argv.includes('--project')) {
+    const root = path.resolve(OUT_DIR, '..');
+    for (const [file, content] of Object.entries(buildKorostenProjectFiles(root))) {
+      fs.writeFileSync(path.join(root, file), content);
+      console.log(`${file}: ${content.length} chars`);
+    }
+    return;
+  }
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const files: ManifestFile[] = [];
   const page = WATCHED_SOURCES.find((s) => s.key === 'korosten-rada-timetable');
