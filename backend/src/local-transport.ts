@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 import { parseClockMins } from './trip-timing';
 
 /**
@@ -128,14 +129,14 @@ const TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
  * Маршрут без ключа variants (або з null) отримує збережені варіанти з БД — до валідації, бо рейси такого клієнта
  * (вкладка карти, старий бандл адмінки) лишаються з variantId. Мутує data. Порожній масив — стерти варіанти.
  */
-export async function fillOmittedRouteFields(prisma: PrismaClient, data: unknown): Promise<void> {
+export async function fillOmittedRouteFields(prisma: PrismaClient, data: unknown, cityCode: string = DEFAULT_TRANSPORT_CITY): Promise<void> {
   const routes = (data as Partial<TransportDataset> | null)?.routes;
   if (!Array.isArray(routes)) return;
   const omitted = routes.filter(
     (r): r is TransportRouteInput => !!r && typeof r === 'object' && (r.variants === undefined || r.variants === null)
   );
   if (!omitted.length) return;
-  const rows = await prisma.transportRoute.findMany({ select: { id: true, variants: true } });
+  const rows = await prisma.transportRoute.findMany({ where: { cityCode }, select: { id: true, variants: true } });
   const previous = new Map(rows.map((r) => [r.id, r.variants]));
   for (const r of omitted) {
     const stored = previous.get(r.id);
@@ -392,24 +393,30 @@ function storedTimepoints(tps: TransportTripTimepointInput[] | null | undefined)
   return tps.map((tp) => ({ stopId: tp.stopId, time: tp.time }));
 }
 
-/** Транзакційна заміна всього датасету. */
-export async function replaceTransportDataset(prisma: PrismaClient, dataset: TransportDataset): Promise<void> {
+/** Транзакційна заміна всього датасету одного міста; рядки інших міст не зачіпаються. */
+export async function replaceTransportDataset(
+  prisma: PrismaClient,
+  dataset: TransportDataset,
+  cityCode: string = DEFAULT_TRANSPORT_CITY,
+): Promise<void> {
+  const where = { cityCode };
   const previousShortNames = dataset.routes.some((r) => typeof r.shortName !== 'string')
     ? new Map(
-        (await prisma.transportRoute.findMany({ select: { id: true, shortName: true } })).map((r) => [r.id, r.shortName ?? ''])
+        (await prisma.transportRoute.findMany({ where, select: { id: true, shortName: true } })).map((r) => [r.id, r.shortName ?? ''])
       )
     : new Map<string, string>();
   await prisma.$transaction([
-    prisma.transportSegment.deleteMany(),
-    prisma.transportTrip.deleteMany(),
-    prisma.transportRouteStop.deleteMany(),
-    prisma.transportRoute.deleteMany(),
-    prisma.transportStop.deleteMany(),
+    prisma.transportSegment.deleteMany({ where }),
+    prisma.transportTrip.deleteMany({ where }),
+    prisma.transportRouteStop.deleteMany({ where }),
+    prisma.transportRoute.deleteMany({ where }),
+    prisma.transportStop.deleteMany({ where }),
     prisma.transportStop.createMany({
-      data: dataset.stops.map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng })),
+      data: dataset.stops.map((s) => ({ cityCode, id: s.id, name: s.name, lat: s.lat, lng: s.lng })),
     }),
     prisma.transportRoute.createMany({
       data: dataset.routes.map((r) => ({
+        cityCode,
         id: r.id,
         fromName: r.fromName ?? '',
         toName: r.toName ?? '',
@@ -424,6 +431,7 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
     }),
     prisma.transportRouteStop.createMany({
       data: dataset.routeStops.map((rs) => ({
+        cityCode,
         routeId: rs.routeId,
         stopId: rs.stopId,
         orderThere: rs.orderThere ?? -1,
@@ -433,6 +441,7 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
     }),
     prisma.transportTrip.createMany({
       data: dataset.trips.map((t) => ({
+        cityCode,
         id: t.id,
         routeId: t.routeId,
         serviceId: t.serviceId ?? 'everyday',
@@ -451,6 +460,7 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
     }),
     prisma.transportSegment.createMany({
       data: dataset.segments.map((seg) => ({
+        cityCode,
         routeId: seg.routeId,
         fromStopId: seg.fromStopId,
         toStopId: seg.toStopId,
@@ -458,22 +468,23 @@ export async function replaceTransportDataset(prisma: PrismaClient, dataset: Tra
       })),
     }),
     prisma.transportMeta.upsert({
-      where: { id: 1 },
-      create: { id: 1, payload: dataset.meta as Prisma.InputJsonValue },
+      where,
+      create: { cityCode, payload: dataset.meta as Prisma.InputJsonValue },
       update: { payload: dataset.meta as Prisma.InputJsonValue },
     }),
   ]);
 }
 
-/** Повний датасет із БД у контрактній формі. */
-export async function loadTransportDataset(prisma: PrismaClient): Promise<TransportDataset> {
+/** Повний датасет одного міста з БД у контрактній формі. */
+export async function loadTransportDataset(prisma: PrismaClient, cityCode: string = DEFAULT_TRANSPORT_CITY): Promise<TransportDataset> {
+  const where = { cityCode };
   const [stops, routes, routeStops, trips, segments, meta] = await Promise.all([
-    prisma.transportStop.findMany({ orderBy: { id: 'asc' } }),
-    prisma.transportRoute.findMany({ orderBy: { id: 'asc' } }),
-    prisma.transportRouteStop.findMany({ orderBy: [{ routeId: 'asc' }, { orderThere: 'asc' }] }),
-    prisma.transportTrip.findMany({ orderBy: { id: 'asc' } }),
-    prisma.transportSegment.findMany({ orderBy: { id: 'asc' } }),
-    prisma.transportMeta.findUnique({ where: { id: 1 } }),
+    prisma.transportStop.findMany({ where, orderBy: { id: 'asc' } }),
+    prisma.transportRoute.findMany({ where, orderBy: { id: 'asc' } }),
+    prisma.transportRouteStop.findMany({ where, orderBy: [{ routeId: 'asc' }, { orderThere: 'asc' }] }),
+    prisma.transportTrip.findMany({ where, orderBy: { id: 'asc' } }),
+    prisma.transportSegment.findMany({ where, orderBy: { id: 'asc' } }),
+    prisma.transportMeta.findUnique({ where }),
   ]);
   return {
     stops: stops.map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng })),
@@ -524,8 +535,8 @@ export async function loadTransportDataset(prisma: PrismaClient): Promise<Transp
 }
 
 /** Мітка останнього запису датасету (див. TransportDataset.revision); null — датасету ще немає. */
-export async function currentTransportRevision(prisma: PrismaClient): Promise<string | null> {
-  const meta = await prisma.transportMeta.findUnique({ where: { id: 1 } });
+export async function currentTransportRevision(prisma: PrismaClient, cityCode: string = DEFAULT_TRANSPORT_CITY): Promise<string | null> {
+  const meta = await prisma.transportMeta.findUnique({ where: { cityCode } });
   return meta?.updatedAt ? new Date(meta.updatedAt).toISOString() : null;
 }
 

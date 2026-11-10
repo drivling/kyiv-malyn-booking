@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { PrismaClient } from '@prisma/client';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 import { kyivDayHour } from './sticker-scans';
 
 /**
@@ -66,13 +67,14 @@ function kyivMinuteOfDay(d: Date): number {
 
 export async function stickerWallSnapshot(
   prisma: PrismaClient,
-  opts: { now?: Date; after?: number } = {}
+  opts: { now?: Date; after?: number; cityCode?: string } = {}
 ): Promise<StickerWallSnapshot> {
   const now = opts.now ?? new Date();
+  const cityCode = opts.cityCode ?? DEFAULT_TRANSPORT_CITY;
   const after = opts.after && Number.isFinite(opts.after) && opts.after > 0 ? Math.floor(opts.after) : 0;
   // Сканів небагато — 90 днів читаємо сирими рядками й розкладаємо по київських добах тут
   const rows = await prisma.stickerScan.findMany({
-    where: { createdAt: { gte: new Date(now.getTime() - (BEST_DAY_WINDOW + 1) * DAY_MS) } },
+    where: { cityCode, createdAt: { gte: new Date(now.getTime() - (BEST_DAY_WINDOW + 1) * DAY_MS) } },
     select: { id: true, stopId: true, side: true, createdAt: true },
     orderBy: { id: 'asc' },
   });

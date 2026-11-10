@@ -6,6 +6,7 @@ exports.gtfsFeedVersion = gtfsFeedVersion;
 exports.buildGtfsFeed = buildGtfsFeed;
 exports.zipGtfsFeed = zipGtfsFeed;
 exports.createGtfsFeedProvider = createGtfsFeedProvider;
+const transport_city_code_1 = require("./transport-city-code");
 const local_transport_1 = require("./local-transport");
 const gtfs_stop_times_1 = require("./gtfs-stop-times");
 const zip_1 = require("./zip");
@@ -294,19 +295,19 @@ function zipGtfsFeed(feed, now = new Date()) {
  * Фід для HTTP: один `TransportMeta.findUnique` на запит (revision), повна збірка лише коли revision змінилась.
  * null — датасету ще нема (порожня БД).
  */
-function createGtfsFeedProvider(prisma) {
+function createGtfsFeedProvider(prisma, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
     let cache = null;
     let building = null;
     return {
         async get() {
-            const revision = await (0, local_transport_1.currentTransportRevision)(prisma);
+            const revision = await (0, local_transport_1.currentTransportRevision)(prisma, cityCode);
             if (!revision)
                 return null;
             if (cache?.revision === revision)
                 return cache;
             if (!building) {
                 building = (async () => {
-                    const dataset = await (0, local_transport_1.loadTransportDataset)(prisma);
+                    const dataset = await (0, local_transport_1.loadTransportDataset)(prisma, cityCode);
                     const feed = buildGtfsFeed(dataset, { revision });
                     cache = { revision, feed, zip: zipGtfsFeed(feed) };
                     return cache;

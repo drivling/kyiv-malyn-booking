@@ -10,6 +10,7 @@ exports.resolveOccurredAt = resolveOccurredAt;
 exports.buildArrivalRow = buildArrivalRow;
 exports.parseReportDays = parseReportDays;
 exports.arrivalReportStats = arrivalReportStats;
+const transport_city_code_1 = require("./transport-city-code");
 /**
  * Факт прибуття міського автобуса від пасажирів (frontend: довге натискання на час рейсу на
  * /transport/route/:id і на картку табло /transport/stop/:id → ArrivalReportSheet).
@@ -201,9 +202,10 @@ const RECENT_LIMIT = 200;
 async function arrivalReportStats(prisma, opts = {}) {
     const now = opts.now ?? new Date();
     const days = opts.days ?? 30;
+    const cityCode = opts.cityCode ?? transport_city_code_1.DEFAULT_TRANSPORT_CITY;
     const where = days === 1
-        ? { serviceDate: { gte: kyivClock(now).date } }
-        : { createdAt: { gte: new Date(now.getTime() - days * DAY_MS) } };
+        ? { cityCode, serviceDate: { gte: kyivClock(now).date } }
+        : { cityCode, createdAt: { gte: new Date(now.getTime() - days * DAY_MS) } };
     const rows = await prisma.transportArrivalReport.findMany({ where, orderBy: { id: 'desc' } });
     const views = rows.map((r) => ({
         id: r.id,

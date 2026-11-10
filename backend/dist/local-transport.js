@@ -7,6 +7,7 @@ exports.replaceTransportDataset = replaceTransportDataset;
 exports.loadTransportDataset = loadTransportDataset;
 exports.currentTransportRevision = currentTransportRevision;
 exports.convertLegacyRuntime = convertLegacyRuntime;
+const transport_city_code_1 = require("./transport-city-code");
 const trip_timing_1 = require("./trip-timing");
 /** Найдовший номер маршруту для показу (символів) */
 exports.ROUTE_SHORT_NAME_MAX = 16;
@@ -19,14 +20,14 @@ const TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
  * Маршрут без ключа variants (або з null) отримує збережені варіанти з БД — до валідації, бо рейси такого клієнта
  * (вкладка карти, старий бандл адмінки) лишаються з variantId. Мутує data. Порожній масив — стерти варіанти.
  */
-async function fillOmittedRouteFields(prisma, data) {
+async function fillOmittedRouteFields(prisma, data, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
     const routes = data?.routes;
     if (!Array.isArray(routes))
         return;
     const omitted = routes.filter((r) => !!r && typeof r === 'object' && (r.variants === undefined || r.variants === null));
     if (!omitted.length)
         return;
-    const rows = await prisma.transportRoute.findMany({ select: { id: true, variants: true } });
+    const rows = await prisma.transportRoute.findMany({ where: { cityCode }, select: { id: true, variants: true } });
     const previous = new Map(rows.map((r) => [r.id, r.variants]));
     for (const r of omitted) {
         const stored = previous.get(r.id);
@@ -318,22 +319,24 @@ function storedTimepoints(tps) {
         return undefined;
     return tps.map((tp) => ({ stopId: tp.stopId, time: tp.time }));
 }
-/** Транзакційна заміна всього датасету. */
-async function replaceTransportDataset(prisma, dataset) {
+/** Транзакційна заміна всього датасету одного міста; рядки інших міст не зачіпаються. */
+async function replaceTransportDataset(prisma, dataset, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
+    const where = { cityCode };
     const previousShortNames = dataset.routes.some((r) => typeof r.shortName !== 'string')
-        ? new Map((await prisma.transportRoute.findMany({ select: { id: true, shortName: true } })).map((r) => [r.id, r.shortName ?? '']))
+        ? new Map((await prisma.transportRoute.findMany({ where, select: { id: true, shortName: true } })).map((r) => [r.id, r.shortName ?? '']))
         : new Map();
     await prisma.$transaction([
-        prisma.transportSegment.deleteMany(),
-        prisma.transportTrip.deleteMany(),
-        prisma.transportRouteStop.deleteMany(),
-        prisma.transportRoute.deleteMany(),
-        prisma.transportStop.deleteMany(),
+        prisma.transportSegment.deleteMany({ where }),
+        prisma.transportTrip.deleteMany({ where }),
+        prisma.transportRouteStop.deleteMany({ where }),
+        prisma.transportRoute.deleteMany({ where }),
+        prisma.transportStop.deleteMany({ where }),
         prisma.transportStop.createMany({
-            data: dataset.stops.map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng })),
+            data: dataset.stops.map((s) => ({ cityCode, id: s.id, name: s.name, lat: s.lat, lng: s.lng })),
         }),
         prisma.transportRoute.createMany({
             data: dataset.routes.map((r) => ({
+                cityCode,
                 id: r.id,
                 fromName: r.fromName ?? '',
                 toName: r.toName ?? '',
@@ -348,6 +351,7 @@ async function replaceTransportDataset(prisma, dataset) {
         }),
         prisma.transportRouteStop.createMany({
             data: dataset.routeStops.map((rs) => ({
+                cityCode,
                 routeId: rs.routeId,
                 stopId: rs.stopId,
                 orderThere: rs.orderThere ?? -1,
@@ -357,6 +361,7 @@ async function replaceTransportDataset(prisma, dataset) {
         }),
         prisma.transportTrip.createMany({
             data: dataset.trips.map((t) => ({
+                cityCode,
                 id: t.id,
                 routeId: t.routeId,
                 serviceId: t.serviceId ?? 'everyday',
@@ -375,6 +380,7 @@ async function replaceTransportDataset(prisma, dataset) {
         }),
         prisma.transportSegment.createMany({
             data: dataset.segments.map((seg) => ({
+                cityCode,
                 routeId: seg.routeId,
                 fromStopId: seg.fromStopId,
                 toStopId: seg.toStopId,
@@ -382,21 +388,22 @@ async function replaceTransportDataset(prisma, dataset) {
             })),
         }),
         prisma.transportMeta.upsert({
-            where: { id: 1 },
-            create: { id: 1, payload: dataset.meta },
+            where,
+            create: { cityCode, payload: dataset.meta },
             update: { payload: dataset.meta },
         }),
     ]);
 }
-/** Повний датасет із БД у контрактній формі. */
-async function loadTransportDataset(prisma) {
+/** Повний датасет одного міста з БД у контрактній формі. */
+async function loadTransportDataset(prisma, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
+    const where = { cityCode };
     const [stops, routes, routeStops, trips, segments, meta] = await Promise.all([
-        prisma.transportStop.findMany({ orderBy: { id: 'asc' } }),
-        prisma.transportRoute.findMany({ orderBy: { id: 'asc' } }),
-        prisma.transportRouteStop.findMany({ orderBy: [{ routeId: 'asc' }, { orderThere: 'asc' }] }),
-        prisma.transportTrip.findMany({ orderBy: { id: 'asc' } }),
-        prisma.transportSegment.findMany({ orderBy: { id: 'asc' } }),
-        prisma.transportMeta.findUnique({ where: { id: 1 } }),
+        prisma.transportStop.findMany({ where, orderBy: { id: 'asc' } }),
+        prisma.transportRoute.findMany({ where, orderBy: { id: 'asc' } }),
+        prisma.transportRouteStop.findMany({ where, orderBy: [{ routeId: 'asc' }, { orderThere: 'asc' }] }),
+        prisma.transportTrip.findMany({ where, orderBy: { id: 'asc' } }),
+        prisma.transportSegment.findMany({ where, orderBy: { id: 'asc' } }),
+        prisma.transportMeta.findUnique({ where }),
     ]);
     return {
         stops: stops.map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng })),
@@ -446,8 +453,8 @@ async function loadTransportDataset(prisma) {
     };
 }
 /** Мітка останнього запису датасету (див. TransportDataset.revision); null — датасету ще немає. */
-async function currentTransportRevision(prisma) {
-    const meta = await prisma.transportMeta.findUnique({ where: { id: 1 } });
+async function currentTransportRevision(prisma, cityCode = transport_city_code_1.DEFAULT_TRANSPORT_CITY) {
+    const meta = await prisma.transportMeta.findUnique({ where: { cityCode } });
     return meta?.updatedAt ? new Date(meta.updatedAt).toISOString() : null;
 }
 const LEGACY_SERVICE_MAP = {
