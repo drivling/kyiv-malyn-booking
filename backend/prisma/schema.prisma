@@ -811,21 +811,21 @@ model LunchAdminJob {
 model TransportStop {
   /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
   cityCode  String   @default("Malyn")
-  id        String   @id // st_0001
+  id        String // st_0001; ключ — (cityCode, id)
   name      String
   lat       Float
   lng       Float
   updatedAt DateTime @updatedAt
 
   routeStops TransportRouteStop[]
-  @@index([cityCode])
+  @@id([cityCode, id])
 }
 
 /// Маршрут (GTFS route). id — номер маршруту ("2", "11")
 model TransportRoute {
   /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
   cityCode  String   @default("Malyn")
-  id        String   @id
+  id        String
   fromName  String   @default("")
   toName    String   @default("")
   scheme    String   @default("") @db.Text
@@ -846,7 +846,7 @@ model TransportRoute {
   routeStops TransportRouteStop[]
   trips      TransportTrip[]
   segments   TransportSegment[]
-  @@index([cityCode])
+  @@id([cityCode, id])
 }
 
 /// Зупинка в межах маршруту: порядок «туди»/«назад», технічні точки для карти
@@ -863,19 +863,18 @@ model TransportRouteStop {
   /// Технічна точка лише для малювання лінії маршруту (не пасажирська)
   mapOnly    Boolean @default(false)
 
-  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  stop  TransportStop  @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  route TransportRoute @relation(fields: [cityCode, routeId], references: [cityCode, id], onDelete: Cascade)
+  stop  TransportStop  @relation(fields: [cityCode, stopId], references: [cityCode, id], onDelete: Cascade)
 
-  @@unique([routeId, stopId])
-  @@index([stopId])
-  @@index([cityCode])
+  @@unique([cityCode, routeId, stopId])
+  @@index([cityCode, stopId])
 }
 
 /// Рейс (GTFS trip). id — trip_id ("2-01")
 model TransportTrip {
   /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
   cityCode  String   @default("Malyn")
-  id                   String  @id
+  id                   String
   routeId              String
   /// Ключ календаря ("everyday" | "weekdays" | легасі-рядок)
   serviceId            String  @default("everyday")
@@ -899,10 +898,10 @@ model TransportTrip {
   /// Опорні часи з листка: [{ stopId, time: "HH:MM:SS" }] — точний час на зупинках; з ними arrivalTime порожній
   timepoints           Json?
 
-  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  route TransportRoute @relation(fields: [cityCode, routeId], references: [cityCode, id], onDelete: Cascade)
 
-  @@index([routeId])
-  @@index([cityCode])
+  @@index([cityCode, routeId])
+  @@id([cityCode, id])
 }
 
 /// Тривалість перегону між сусідніми зупинками маршруту (секунди)
@@ -915,17 +914,16 @@ model TransportSegment {
   toStopId   String
   seconds    Int
 
-  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  route TransportRoute @relation(fields: [cityCode, routeId], references: [cityCode, id], onDelete: Cascade)
 
-  @@unique([routeId, fromStopId, toStopId])
-  @@index([cityCode])
+  @@unique([cityCode, routeId, fromStopId, toStopId])
 }
 
 /// Singleton-мета датасету: fare, contacts, news, sources, agency, центр карти, defaultSec
 model TransportMeta {
   /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
   cityCode  String   @unique @default("Malyn")
-  id        Int      @id @default(1)
+  id        Int      @id @default(autoincrement())
   payload   Json
   updatedAt DateTime @updatedAt
 }
@@ -937,7 +935,7 @@ model TransportRevision {
   /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
   cityCode  String   @default("Malyn")
   /// ISO TransportMeta.updatedAt після запису — та сама revision, що в GET /transport/dataset і ETag
-  revision  String   @id
+  revision  String
   createdAt DateTime @default(now())
   /// Звідки запис: initial | seed | dataset | recalculate | stop-redirects
   source    String
@@ -948,6 +946,7 @@ model TransportRevision {
 
   @@index([createdAt])
   @@index([cityCode, createdAt])
+  @@id([cityCode, revision])
 }
 
 /// Стеження за зовнішніми джерелами розкладу (Docs/korosten-transport-2026-11.md, фаза 1): сторінка ради,

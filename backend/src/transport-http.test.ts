@@ -52,7 +52,8 @@ function createTransportPrismaStub(store: Store): PrismaClient {
     findMany: async ({ orderBy: ob }: any = {}) => orderBy(store[key] as any[], ob),
     findUnique: async ({ where }: any) => {
       if (key === 'meta') return isMeta(where) ? store.meta : null;
-      return (store[key] as any[]).find((r) => r.id === where.id) ?? null;
+      const id = where.cityCode_id?.id ?? where.id;
+      return (store[key] as any[]).find((r) => r.id === id) ?? null;
     },
     deleteMany: async () => {
       (store as any)[key] = key === 'meta' ? null : [];
@@ -96,7 +97,7 @@ function createTransportPrismaStub(store: Store): PrismaClient {
       count: async () => store.revisions.length,
       findMany: async ({ orderBy: ob, take }: any = {}) => orderBy(store.revisions, ob).slice(0, take ?? undefined),
       upsert: async ({ where, create }: any) => {
-        const found = store.revisions.find((r) => r.revision === where.revision);
+        const found = store.revisions.find((r) => r.revision === where.cityCode_revision.revision);
         if (found) return found;
         const row = { createdAt: new Date(), ...create, diff: create.diff ?? null };
         store.revisions.push(row);

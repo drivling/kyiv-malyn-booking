@@ -187,7 +187,7 @@ function stub(state: { dataset: TransportDataset }, rows: any[]): PrismaClient {
       count: async () => rows.length,
       findMany: async ({ take }: any) => [...rows].sort((a, b) => (a.revision < b.revision ? 1 : -1)).slice(0, take),
       upsert: async ({ where, create }: any) => {
-        const found = rows.find((r) => r.revision === where.revision);
+        const found = rows.find((r) => r.revision === where.cityCode_revision.revision);
         if (found) return found;
         const row = { createdAt: new Date('2026-10-12T10:00:01Z'), ...create, diff: create.diff ?? null };
         rows.push(row);

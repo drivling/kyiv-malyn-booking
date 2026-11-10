@@ -485,8 +485,11 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   three public POSTs) through `parseTransportCity` / `resolveTransportCity` (`backend/src/transport-city.ts`): no
   parameter = Malyn, byte-identical (`transport-golden.test.ts` pins sha256 of its responses — never update that file
   to make a change pass); a city whose `hasLocalTransport` is off answers 404 to the public and `private, no-store` to
-  the admin token. Until M2 (composite keys) dataset writes for another city answer 409 and its open data 404. Write
-  transport tests on `transport-test-store.ts`, which honours `where`; do not run `prisma format`.
+  the admin token. Keys are composite with the city (`@@id([cityCode, id])` on stops, routes and trips, composite FKs,
+  `TransportRevision` keyed by `(cityCode, revision)`, one `TransportMeta` row per city), so two cities may share ids:
+  look rows up with `cityCode_id`, and write another city's dataset with `PUT /transport/dataset?city=<code>` (admin
+  only, its own `baseRevision`). Another city's open data (GTFS, RSS, revisions, calendar) still answers 404. Write
+  transport tests on `transport-test-store.ts`, which honours `where` and unique keys; do not run `prisma format`.
 - **Transport city on the frontend** (`frontend/src/site/transportCity.ts`): the site's `cityCode` picks the dataset.
   `useTransportDataset(city = siteTransportCity())` keeps a cache and a localStorage copy per city (Malyn keeps the
   historic key `transport-dataset:v1`, others add `:<city>`; the build snapshot is Malyn-only), `apiClient` adds

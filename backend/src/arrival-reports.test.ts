@@ -165,10 +165,11 @@ function makeApp(initial: Stored[] = [], opts: { createThrows?: { code: string }
   let createThrows = opts.createThrows;
   const prisma = {
     transportTrip: {
-      findUnique: async ({ where }: { where: { id: string } }) => (where.id === 't5_back_1' ? { routeId: '5' } : null),
+      findUnique: async ({ where }: { where: { cityCode_id: { id: string } } }) => (where.cityCode_id.id === 't5_back_1' ? { routeId: '5' } : null),
     },
     transportStop: {
-      findUnique: async ({ where }: { where: { id: string } }) => (where.id === 'st_0015' ? { id: where.id } : null),
+      findUnique: async ({ where }: { where: { cityCode_id: { id: string } } }) =>
+        where.cityCode_id.id === 'st_0015' ? { id: where.cityCode_id.id } : null,
     },
     transportArrivalReport: {
       create: async ({ data }: { data: ArrivalReportRow }) => {

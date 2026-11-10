@@ -1,7 +1,8 @@
 /**
- * Tenancy M1 (Docs/transport-tenancy-2026-11.md): кожен запит до транспортних таблиць обмежений містом;
- * рядки іншого міста не впливають на Малин і не зачіпаються його записами; ?city= відкриває неопубліковане
- * місто лише адміну; запис датасету й відкриті дані іншого міста поки закриті.
+ * Tenancy (Docs/transport-tenancy-2026-11.md): кожен запит до транспортних таблиць обмежений містом; рядки
+ * іншого міста не впливають на Малин і не зачіпаються його записами; ?city= відкриває неопубліковане місто
+ * лише адміну. M2: ключі складені з містом — два міста можуть мати однакові id, адмін пише датасет кожного
+ * окремо; відкриті дані іншого міста поки закриті.
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
@@ -73,6 +74,8 @@ async function setup(opts: { korosten?: boolean; korostenPublished?: boolean } =
 function scoped(call: StoreCall): boolean {
   const args = call.args as { where?: StoreRow; data?: StoreRow | StoreRow[]; create?: StoreRow };
   if (typeof args.where?.cityCode === 'string') return true;
+  // складений ключ: { cityCode_id: { cityCode, id } }, { cityCode_revision: { cityCode, revision } }
+  if (Object.values(args.where ?? {}).some((v) => v && typeof v === 'object' && typeof (v as StoreRow).cityCode === 'string')) return true;
   if (call.method === 'create') return typeof (args.data as StoreRow)?.cityCode === 'string';
   if (call.method === 'createMany') return (args.data as StoreRow[]).every((row) => typeof row.cityCode === 'string');
   if (call.method === 'upsert') return typeof args.create?.cityCode === 'string';
@@ -165,7 +168,7 @@ test('рядки іншого міста не видно в Малині й не
   await request(withKorosten.app).post('/transport/sticker-scans').send({ stopId: 'st_1001', side: 'a' }).expect(404);
 });
 
-test('?city=: неопубліковане місто бачить лише адмін; запис датасету й відкриті дані закриті', async () => {
+test('?city=: неопубліковане місто бачить лише адмін; відкриті дані іншого міста закриті', async () => {
   const { app } = await setup({ korosten: true });
   await request(app).get('/transport/dataset?city=Korosten').expect(404);
   await request(app).get('/transport/stops/st_1001?city=Korosten').expect(404);
@@ -189,11 +192,10 @@ test('?city=: неопубліковане місто бачить лише ад
   for (const path of ['/transport/gtfs.zip', '/transport/gtfs/stops.txt', '/transport/changes.rss', '/transport/revisions', '/transport/route/k1/calendar.ics']) {
     await request(app).get(`${path}?city=Korosten`).set(auth).expect(404);
   }
-  const put = await request(app).put('/transport/dataset?city=Korosten').set(auth).send(malynDataset()).expect(409);
-  assert.equal(put.body.error, 'city_writes_disabled');
-  await request(app).put('/admin/transport/stop-redirects?city=Korosten').set(auth).send({ redirects: {} }).expect(409);
-  await request(app).post('/admin/transport/recalculate-segments?city=Korosten').set(auth).send({}).expect(409);
+  // запис датасету — лише адмін і лише відоме місто
+  await request(app).put('/transport/dataset?city=Korosten').send(malynDataset()).expect(401);
   await request(app).put('/transport/dataset?city=Atlantis').set(auth).send(malynDataset()).expect(404);
+  await request(app).put('/admin/transport/stop-redirects?city=Atlantis').set(auth).send({ redirects: {} }).expect(404);
 
   // Наклейка Коростеня до публікації — 404, адмінська статистика міста — доступна
   await request(app).post('/transport/sticker-scans').send({ stopId: 'st_1001', side: 'a', city: 'Korosten' }).expect(404);
@@ -220,7 +222,69 @@ test('опубліковане місто (TripPoint.hasLocalTransport): чит�
     .send({ kind: 'arrived', routeId: 'k1', tripId: 'k1-01', direction: 'there', stopId: 'st_1001', scheduledTime: hhmm(now), source: 'route', city: 'Korosten' })
     .expect(201);
   assert.equal(store.tables.transportArrivalReport.filter((row) => row.cityCode === 'Korosten').length, 2);
-  // відкриті дані й запис датасету все одно закриті до окремих фаз
+  // відкриті дані все одно закриті до окремої фази
   await request(app).get('/transport/gtfs.zip?city=Korosten').expect(404);
-  await request(app).put('/transport/dataset?city=Korosten').set(auth).send(malynDataset()).expect(409);
+});
+
+test('M2: два міста з однаковими id — запис, читання, журнал і редиректи кожного окремо', async () => {
+  const { app, store } = await setup();
+  const malynBefore = (await request(app).get('/transport/dataset').expect(200)).body;
+
+  // Коростень отримує ті самі id, що й Малин: маршрут «2», зупинки st_0001 / st_0002, рейс 2-01
+  const korosten = malynDataset();
+  korosten.stops[0].name = 'Залізничний вокзал';
+  korosten.trips[0].departureTime = '06:20:00';
+  const put = await request(app).put('/transport/dataset?city=Korosten').set(auth).send(korosten).expect(200);
+  assert.equal(put.body.counts.stops, 2);
+
+  const k1 = (await request(app).get('/transport/dataset?city=Korosten').set(auth).expect(200)).body;
+  assert.equal(k1.stops[0].name, 'Залізничний вокзал');
+  assert.equal(k1.trips[0].departureTime, '06:20:00');
+  assert.equal(k1.revision, put.body.revision);
+  // Малин той самий, разом із revision
+  assert.deepEqual((await request(app).get('/transport/dataset').expect(200)).body, malynBefore);
+  assert.equal(store.tables.transportStop.filter((row) => row.id === 'st_0001').length, 2);
+  assert.deepEqual(store.tables.transportMeta.map((row) => [row.cityCode, row.id]).sort(), [['Korosten', 2], ['Malyn', 1]]);
+
+  // захист від втрачених оновлень — у кожного міста своя revision
+  await request(app).put('/transport/dataset?city=Korosten').set(auth).send({ ...korosten, baseRevision: malynBefore.revision }).expect(409);
+  await request(app).put('/transport/dataset?city=Korosten').set(auth).send({ ...korosten, baseRevision: k1.revision }).expect(200);
+
+  // редиректи зупинок — у меті свого міста
+  await request(app).put('/admin/transport/stop-redirects?city=Korosten').set(auth).send({ redirects: { st_0099: 'st_0001' } }).expect(200);
+  assert.deepEqual((await request(app).get('/transport/stop-redirects?city=Korosten').set(auth).expect(200)).body, { st_0099: 'st_0001' });
+  assert.deepEqual((await request(app).get('/transport/stop-redirects').expect(200)).body, {});
+  const moved = await request(app).get('/transport/stops/st_0099?city=Korosten').set(auth).expect(301);
+  assert.equal(moved.headers.location, '/transport/stops/st_0001?city=Korosten');
+
+  // журнал ревізій: рядки Коростеня не потрапляють у публічний журнал Малина
+  const journal = (await request(app).get('/transport/revisions').expect(200)).body.revisions;
+  assert.equal(journal.length, 1);
+  assert.equal(store.tables.transportRevision.filter((row) => row.cityCode === 'Korosten').length, 3);
+
+  // заміна датасету Малина не чіпає Коростень, і навпаки — порожній датасет Коростеня не чіпає Малин
+  const next = malynDataset();
+  next.stops.push({ id: 'st_0003', name: 'Лікарня', lat: 50.78, lng: 29.26 });
+  await request(app).put('/transport/dataset').set(auth).send(next).expect(200);
+  assert.equal((await request(app).get('/transport/dataset?city=Korosten').set(auth).expect(200)).body.stops.length, 2);
+  await request(app)
+    .put('/transport/dataset?city=Korosten')
+    .set(auth)
+    .send({ stops: [], routes: [], routeStops: [], trips: [], segments: [], meta: {} })
+    .expect(200);
+  assert.equal((await request(app).get('/transport/dataset').expect(200)).body.stops.length, 3);
+  assert.equal(store.tables.transportStop.filter((row) => row.cityCode === 'Korosten').length, 0);
+
+  // публічно Коростень закритий, поки прапорець вимкнений
+  await request(app).get('/transport/dataset?city=Korosten').expect(404);
+});
+
+test('тестове сховище тримає ключі як база: дубль (cityCode, id) — P2002', async () => {
+  const store = createTransportTestStore();
+  await store.prisma.transportStop.create({ data: { cityCode: 'Malyn', id: 'st_0001', name: 'А', lat: 1, lng: 2 } });
+  await store.prisma.transportStop.create({ data: { cityCode: 'Korosten', id: 'st_0001', name: 'Б', lat: 1, lng: 2 } });
+  await assert.rejects(
+    () => store.prisma.transportStop.create({ data: { cityCode: 'Malyn', id: 'st_0001', name: 'В', lat: 1, lng: 2 } }),
+    (e: { code?: string }) => e.code === 'P2002',
+  );
 });

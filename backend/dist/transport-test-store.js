@@ -21,6 +21,16 @@ const OTHER_MODELS = ['tripPoint', 'watchedSource'];
 const AUTO_ID = new Set(['transportRouteStop', 'transportSegment', 'stickerScan', 'stickerReturn', 'stickerPrint', 'transportArrivalReport', 'tripPoint']);
 /** Значення за замовчуванням із схеми (колонки з DEFAULT) */
 const DEFAULTS = Object.fromEntries(exports.TRANSPORT_MODELS.map((m) => [m, { cityCode: 'Malyn' }]));
+/** Унікальні ключі таблиць — як у схемі після tenancy M2: тест має падати там, де впала б база (P2002) */
+const UNIQUE_KEYS = {
+    transportStop: [['cityCode', 'id']],
+    transportRoute: [['cityCode', 'id']],
+    transportTrip: [['cityCode', 'id']],
+    transportRouteStop: [['cityCode', 'routeId', 'stopId']],
+    transportSegment: [['cityCode', 'routeId', 'fromStopId', 'toStopId']],
+    transportMeta: [['cityCode'], ['id']],
+    transportRevision: [['cityCode', 'revision']],
+};
 const cmp = (a, b) => {
     const x = a instanceof Date ? a.getTime() : a;
     const y = b instanceof Date ? b.getTime() : b;
@@ -95,7 +105,12 @@ function createTransportTestStore(initial = {}) {
             if (AUTO_ID.has(name) && row.id === undefined)
                 row.id = nextId[name]++;
             if (name === 'transportMeta' && row.id === undefined)
-                row.id = 1;
+                row.id = 1 + Math.max(0, ...tables[name].map((r) => Number(r.id) || 0));
+            for (const key of UNIQUE_KEYS[name] ?? []) {
+                if (tables[name].some((other) => key.every((field) => other[field] === row[field]))) {
+                    throw Object.assign(new Error(`Unique constraint failed on ${name} (${key.join(', ')})`), { code: 'P2002' });
+                }
+            }
             if (row.createdAt === undefined)
                 row.createdAt = clock();
             row.updatedAt = clock();
