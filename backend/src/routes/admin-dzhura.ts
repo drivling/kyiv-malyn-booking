@@ -64,7 +64,7 @@ export function createAdminDzhuraRouter(deps: { prisma: PrismaClient; listenerWa
     }
   });
 
-  /** Прапорці «Читати» / «В Обране» */
+  /** Прапорці «Читати» / «В Обране» / «Автовідповідь» (+ затримка в секундах і підказка на чат) */
   r.patch('/admin/dzhura/chats/:id', requireAdmin, async (req, res) => {
     try {
       const id = parseId(req.params.id);
@@ -109,7 +109,7 @@ export function createAdminDzhuraRouter(deps: { prisma: PrismaClient; listenerWa
     }
   });
 
-  /** Задача для слухача: {type:'sync_dialogs'} | {type:'backfill', chatId, from, to} */
+  /** Задача для слухача: {type:'sync_dialogs'} | {type:'backfill', chatId, from, to} | {type:'autoreply_preview', chatId} */
   r.post('/admin/dzhura/jobs', requireAdmin, async (req, res) => {
     try {
       const job = await createJob(prisma, parseJobRequest(req.body));

@@ -15,7 +15,12 @@ export const DZHURA_KYIV_TZ = 'Europe/Kyiv';
 export const DZHURA_GROUP_KINDS = ['group', 'supergroup'] as const;
 
 export type DzhuraChatKind = 'group' | 'supergroup' | 'private' | 'channel';
-export type DzhuraJobType = 'sync_dialogs' | 'backfill';
+export type DzhuraJobType = 'sync_dialogs' | 'backfill' | 'autoreply_preview';
+/** Автовідповідь: затримка в секундах (за замовчуванням 80) і довжина підказки на чат */
+export const DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = 80;
+export const DZHURA_AUTOREPLY_DELAY_MIN_SEC = 5;
+export const DZHURA_AUTOREPLY_DELAY_MAX_SEC = 3600;
+export const DZHURA_AUTOREPLY_NOTE_MAX_LEN = 2000;
 
 export class DzhuraHttpError extends Error {
   constructor(public status: number, message: string) {
@@ -117,6 +122,10 @@ export interface DzhuraChatDto {
   isLunchGroup: boolean;
   captureEnabled: boolean;
   relayToSaved: boolean;
+  /** «Автовідповідь»: не відповів за autoReplyDelaySec секунд — відповідає Claude (лише особисті чати) */
+  autoReplyEnabled: boolean;
+  autoReplyDelaySec: number;
+  autoReplyNote: string | null;
   lastMessageAt: string | null;
   lastCapturedAt: string | null;
   dialogSyncedAt: string | null;
@@ -136,6 +145,9 @@ export function serializeChat(row: ChatRowWithCount): DzhuraChatDto {
     isLunchGroup: row.isLunchGroup,
     captureEnabled: row.captureEnabled,
     relayToSaved: row.relayToSaved,
+    autoReplyEnabled: row.autoReplyEnabled,
+    autoReplyDelaySec: row.autoReplyDelaySec,
+    autoReplyNote: row.autoReplyNote,
     lastMessageAt: row.lastMessageAt ? row.lastMessageAt.toISOString() : null,
     lastCapturedAt: row.lastCapturedAt ? row.lastCapturedAt.toISOString() : null,
     dialogSyncedAt: row.dialogSyncedAt ? row.dialogSyncedAt.toISOString() : null,
@@ -180,6 +192,14 @@ export interface DzhuraStatusDto {
   dialogsSyncedAt: string | null;
   meTgUserId: string | null;
   queue: DzhuraQueueStats;
+  /** чи є в бекенда ключ Claude: без нього галочка «Автовідповідь» нічого не робить */
+  autoReplyAvailable: boolean;
+}
+
+/** Слухач отримує env бекенда, тож ключ тут = ключ там; DZHURA_AUTOREPLY_ENABLED=0 вимикає все. */
+export function isAutoReplyAvailable(env: NodeJS.ProcessEnv = process.env): boolean {
+  const off = ['0', 'false', 'no', 'off'].includes((env.DZHURA_AUTOREPLY_ENABLED ?? '1').trim().toLowerCase());
+  return !off && Boolean((env.ANTHROPIC_API_KEY ?? '').trim());
 }
 
 export const DZHURA_QUEUE_RETRY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -220,6 +240,7 @@ export async function getStatus(
     dialogsSyncedAt: state?.dialogsSyncedAt ? state.dialogsSyncedAt.toISOString() : null,
     meTgUserId: state?.meTgUserId != null ? state.meTgUserId.toString() : null,
     queue,
+    autoReplyAvailable: isAutoReplyAvailable(),
   };
 }
 
@@ -268,6 +289,8 @@ export interface DzhuraMessageDto {
   sentAt: string;
   sender: { tgUserId: string; name: string; username: string | null } | null;
   isOutgoing: boolean;
+  /** вихідне повідомлення написала автовідповідь, а не власник */
+  isAutoReply: boolean;
   text: string;
   mediaKind: string | null;
   replyToTgMessageId: string | null;
@@ -320,6 +343,7 @@ export async function listMessages(prisma: PrismaClient, chatId: number, mq: Dzh
       ? { tgUserId: m.sender.tgUserId.toString(), name: personDisplayName(m.sender), username: m.sender.username }
       : null,
     isOutgoing: m.isOutgoing,
+    isAutoReply: m.isAutoReply,
     text: m.text,
     mediaKind: m.mediaKind,
     replyToTgMessageId: m.replyToTgMessageId != null ? m.replyToTgMessageId.toString() : null,
@@ -349,6 +373,10 @@ function asCounts(v: unknown): Record<string, number> | null {
 export interface DzhuraChatPatch {
   captureEnabled?: boolean;
   relayToSaved?: boolean;
+  autoReplyEnabled?: boolean;
+  autoReplyDelaySec?: number;
+  /** null або порожній рядок — прибрати підказку */
+  autoReplyNote?: string | null;
 }
 
 export function parseChatPatch(body: unknown): DzhuraChatPatch {
@@ -362,7 +390,36 @@ export function parseChatPatch(body: unknown): DzhuraChatPatch {
     if (typeof b.relayToSaved !== 'boolean') throw new DzhuraHttpError(400, 'relayToSaved має бути boolean');
     patch.relayToSaved = b.relayToSaved;
   }
-  if (!('captureEnabled' in patch) && !('relayToSaved' in patch)) {
+  if ('autoReplyEnabled' in b) {
+    if (typeof b.autoReplyEnabled !== 'boolean') throw new DzhuraHttpError(400, 'autoReplyEnabled має бути boolean');
+    patch.autoReplyEnabled = b.autoReplyEnabled;
+  }
+  if ('autoReplyDelaySec' in b) {
+    const sec = b.autoReplyDelaySec;
+    if (
+      typeof sec !== 'number' ||
+      !Number.isInteger(sec) ||
+      sec < DZHURA_AUTOREPLY_DELAY_MIN_SEC ||
+      sec > DZHURA_AUTOREPLY_DELAY_MAX_SEC
+    ) {
+      throw new DzhuraHttpError(
+        400,
+        `Затримка автовідповіді — ціле число секунд від ${DZHURA_AUTOREPLY_DELAY_MIN_SEC} до ${DZHURA_AUTOREPLY_DELAY_MAX_SEC}`,
+      );
+    }
+    patch.autoReplyDelaySec = sec;
+  }
+  if ('autoReplyNote' in b) {
+    if (b.autoReplyNote !== null && typeof b.autoReplyNote !== 'string') {
+      throw new DzhuraHttpError(400, 'autoReplyNote має бути рядком або null');
+    }
+    const note = (b.autoReplyNote ?? '').trim();
+    if (note.length > DZHURA_AUTOREPLY_NOTE_MAX_LEN) {
+      throw new DzhuraHttpError(400, `Підказка задовга (до ${DZHURA_AUTOREPLY_NOTE_MAX_LEN} символів)`);
+    }
+    patch.autoReplyNote = note || null;
+  }
+  if (Object.keys(patch).length === 0) {
     throw new DzhuraHttpError(400, 'Нема що змінювати');
   }
   return patch;
@@ -377,9 +434,19 @@ export async function updateChatFlags(prisma: PrismaClient, chatId: number, patc
   const data: Prisma.DzhuraChatUpdateInput = {};
   if (patch.captureEnabled !== undefined) data.captureEnabled = patch.captureEnabled;
   if (patch.relayToSaved !== undefined) data.relayToSaved = patch.relayToSaved;
-  // Без читання нема куди дублювати.
+  if (patch.autoReplyEnabled === true && existing.kind !== 'private') {
+    throw new DzhuraHttpError(400, 'Автовідповідь працює лише в особистих чатах');
+  }
+  if (patch.autoReplyEnabled !== undefined) data.autoReplyEnabled = patch.autoReplyEnabled;
+  if (patch.autoReplyDelaySec !== undefined) data.autoReplyDelaySec = patch.autoReplyDelaySec;
+  if (patch.autoReplyNote !== undefined) data.autoReplyNote = patch.autoReplyNote;
+  // Без читання нема куди дублювати і нема з чого відповідати (контекст і стиль беруться зі збереженого).
   const nextCapture = patch.captureEnabled ?? existing.captureEnabled;
-  if (!nextCapture) data.relayToSaved = false;
+  if (!nextCapture) {
+    if (patch.autoReplyEnabled === true) throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+    data.relayToSaved = false;
+    data.autoReplyEnabled = false;
+  }
   const row = await prisma.dzhuraChat.update({
     where: { id: chatId },
     data,
@@ -424,7 +491,9 @@ export function serializeJob(row: JobRow): DzhuraJobDto {
 
 export type DzhuraJobRequest =
   | { type: 'sync_dialogs' }
-  | { type: 'backfill'; chatId: number; from: string; to: string };
+  | { type: 'backfill'; chatId: number; from: string; to: string }
+  /** «Що відповіла б Джура зараз?» — модель відповідає в результат задачі, у чат нічого не йде */
+  | { type: 'autoreply_preview'; chatId: number };
 
 export function parseJobRequest(body: unknown): DzhuraJobRequest {
   const b = (body ?? {}) as Record<string, unknown>;
@@ -435,16 +504,30 @@ export function parseJobRequest(body: unknown): DzhuraJobRequest {
     const { from, to } = validateDateRange(b.from, b.to);
     return { type: 'backfill', chatId, from, to };
   }
+  if (b.type === 'autoreply_preview') {
+    const chatId = Number(b.chatId);
+    if (!Number.isInteger(chatId) || chatId <= 0) throw new DzhuraHttpError(400, 'Потрібен chatId');
+    return { type: 'autoreply_preview', chatId };
+  }
   throw new DzhuraHttpError(400, 'Невідомий тип задачі');
 }
 
 export async function createJob(prisma: PrismaClient, req: DzhuraJobRequest): Promise<DzhuraJobDto> {
-  if (req.type === 'backfill') {
+  if (req.type === 'backfill' || req.type === 'autoreply_preview') {
     const chat = await prisma.dzhuraChat.findUnique({ where: { id: req.chatId } });
     if (!chat) throw new DzhuraHttpError(404, 'Чат не знайдено');
+    if (req.type === 'autoreply_preview') {
+      if (chat.kind !== 'private') throw new DzhuraHttpError(400, 'Автовідповідь працює лише в особистих чатах');
+      if (!chat.captureEnabled) throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+      if (!isAutoReplyAvailable()) throw new DzhuraHttpError(400, 'У бекенда немає ANTHROPIC_API_KEY');
+    }
   }
   const params: Prisma.InputJsonValue | undefined =
-    req.type === 'backfill' ? { chatId: req.chatId, from: req.from, to: req.to } : undefined;
+    req.type === 'backfill'
+      ? { chatId: req.chatId, from: req.from, to: req.to }
+      : req.type === 'autoreply_preview'
+        ? { chatId: req.chatId }
+        : undefined;
 
   const active = await prisma.dzhuraJob.findFirst({
     where: { type: req.type, status: { in: ['pending', 'running'] } },
@@ -498,6 +581,8 @@ export interface DzhuraExportPayload {
     sentAt: string;
     sender: { tgUserId: string; name: string; username: string | null; phone: string | null } | null;
     isOutgoing: boolean;
+    /** вихідне повідомлення написала автовідповідь, а не власник */
+    isAutoReply: boolean;
     text: string;
     mediaKind: string | null;
     replyToTgMessageId: string | null;
@@ -579,6 +664,7 @@ export async function buildChatExport(
           }
         : null,
       isOutgoing: m.isOutgoing,
+      isAutoReply: m.isAutoReply,
       text: m.text,
       mediaKind: m.mediaKind,
       replyToTgMessageId: m.replyToTgMessageId != null ? m.replyToTgMessageId.toString() : null,

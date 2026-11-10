@@ -1,6 +1,7 @@
 /**
  * Вкладка «Джура»: список чатів і статус слухача, прапорці «Читати»/«В Обране», backfill із
- * прогресом задачі, експорт JSON (Blob + ім'я файлу з Content-Disposition), помилки.
+ * прогресом задачі, експорт JSON (Blob + ім'я файлу з Content-Disposition), помилки;
+ * «Автовідповідь» в особистих чатах: галочка, секунди, підказка і пробна відповідь.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
@@ -23,6 +24,9 @@ const lunchChat: DzhuraChatRow = {
   isLunchGroup: true,
   captureEnabled: true,
   relayToSaved: false,
+  autoReplyEnabled: false,
+  autoReplyDelaySec: 80,
+  autoReplyNote: null,
   lastMessageAt: '2026-09-25T09:00:00.000Z',
   lastCapturedAt: '2026-09-25T09:00:01.000Z',
   dialogSyncedAt: '2026-09-25T08:00:00.000Z',
@@ -39,6 +43,9 @@ const adminChat: DzhuraChatRow = {
   isLunchGroup: false,
   captureEnabled: true,
   relayToSaved: false,
+  autoReplyEnabled: false,
+  autoReplyDelaySec: 80,
+  autoReplyNote: null,
   lastMessageAt: '2026-09-24T18:30:00.000Z',
   lastCapturedAt: null,
   dialogSyncedAt: null,
@@ -85,6 +92,7 @@ const freshStatus: DzhuraStatus = {
   dialogsSyncedAt: '2026-09-25T08:00:00.000Z',
   meTgUserId: '438099',
   queue: { pending: 0, retrying: 0, failed24h: 0 },
+  autoReplyAvailable: true,
 };
 
 function useDefaultHandlers(
@@ -153,6 +161,7 @@ describe('DzhuraTab', () => {
       sentAt: '2026-09-25T09:30:00.000Z',
       sender: { tgUserId: '200', name: 'Костя', username: 'kostya' },
       isOutgoing: false,
+      isAutoReply: false,
       text,
       mediaKind: null,
       replyToTgMessageId: null,
@@ -247,6 +256,142 @@ describe('DzhuraTab', () => {
     await waitFor(() => expect(patches).toHaveLength(2));
     expect(patches[1]).toEqual({ id: '3', body: { captureEnabled: true } });
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'В Обране: Друга група' })).toBeEnabled());
+  });
+
+  it('автовідповідь: галочка й секунди лише в особистих чатах, PATCH на галочку і на вихід із поля', async () => {
+    useDefaultHandlers();
+    const patches: Array<{ id: string; body: unknown }> = [];
+    let current = { ...privateCaptured };
+    server.use(
+      http.patch(`${API}/chats/:id`, async ({ params, request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        patches.push({ id: String(params.id), body });
+        current = { ...current, ...body };
+        return HttpResponse.json(current);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<DzhuraTab pollIntervalMs={10} />);
+    await screen.findByText('Оля Петренко');
+
+    // у груп третьої галочки немає; в особистому чаті без «Читати» вона заблокована
+    expect(screen.queryByRole('checkbox', { name: 'Автовідповідь: Admin' })).toBeNull();
+    await user.click(screen.getByRole('checkbox', { name: /Показати особисті чати/ }));
+    expect(screen.getByRole('checkbox', { name: 'Автовідповідь: Костя Іванов' })).toBeDisabled();
+
+    const seconds = screen.getByRole('spinbutton', { name: 'Секунд до автовідповіді: Оля Петренко' });
+    expect(seconds).toHaveValue(80); // за замовчуванням
+
+    await user.click(screen.getByRole('checkbox', { name: 'Автовідповідь: Оля Петренко' }));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toEqual({ id: '5', body: { autoReplyEnabled: true } });
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Автовідповідь: Оля Петренко' })).toBeChecked());
+
+    await user.clear(seconds);
+    await user.type(seconds, '120');
+    expect(patches).toHaveLength(1); // поки друкуємо — нічого не шлемо
+    await user.tab();
+    await waitFor(() => expect(patches).toHaveLength(2));
+    expect(patches[1]).toEqual({ id: '5', body: { autoReplyDelaySec: 120 } });
+    await waitFor(() => expect(seconds).toHaveValue(120));
+
+    // некоректне значення: помилка, запиту немає, поле повертається до збереженого
+    await user.clear(seconds);
+    await user.type(seconds, '2');
+    await user.tab();
+    expect(await screen.findByText(/ціле число секунд від 5 до 3600/)).toBeInTheDocument();
+    expect(patches).toHaveLength(2);
+    expect(seconds).toHaveValue(120);
+  });
+
+  it('автовідповідь: підказка і пробна відповідь, яка нічого не надсилає', async () => {
+    useDefaultHandlers();
+    const patches: unknown[] = [];
+    const posted: unknown[] = [];
+    const jobBase: DzhuraJob = {
+      id: 21,
+      type: 'autoreply_preview',
+      status: 'pending',
+      params: { chatId: 5 },
+      progress: null,
+      result: null,
+      errorText: null,
+      createdAt: '2026-11-10T10:00:00.000Z',
+      startedAt: null,
+      finishedAt: null,
+    };
+    let result: Record<string, unknown> = { action: 'reply', messages: ['на неделе наберу', 'наверное'], reason: 'без обіцянок' };
+    server.use(
+      http.patch(`${API}/chats/:id`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        patches.push(body);
+        return HttpResponse.json({ ...privateCaptured, ...body });
+      }),
+      http.post(`${API}/jobs`, async ({ request }) => {
+        posted.push(await request.json());
+        return HttpResponse.json({ job: jobBase }, { status: 201 });
+      }),
+      http.get(`${API}/jobs/21`, () => HttpResponse.json({ ...jobBase, status: 'done', result })),
+    );
+    const user = userEvent.setup();
+    render(<DzhuraTab pollIntervalMs={10} />);
+    await screen.findByText('Оля Петренко');
+
+    await user.click(screen.getByRole('button', { name: 'Налаштування автовідповіді: Оля Петренко' }));
+    const save = screen.getByRole('button', { name: 'Зберегти підказку' });
+    expect(save).toBeDisabled();
+    await user.type(screen.getByRole('textbox', { name: 'Підказка для автовідповіді: Оля Петренко' }), ' подруга, жартуємо ');
+    await user.click(save);
+    await waitFor(() => expect(patches).toEqual([{ autoReplyNote: 'подруга, жартуємо' }]));
+    expect(await screen.findByText('Підказку збережено')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Що відповіла б зараз?' }));
+    await waitFor(() => expect(posted).toEqual([{ type: 'autoreply_preview', chatId: 5 }]));
+    const list = await screen.findByRole('list', { name: 'Пробна відповідь: Оля Петренко' });
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['на неделе наберу', 'наверное']);
+    expect(screen.getByText('без обіцянок')).toBeInTheDocument();
+
+    result = { action: 'skip', messages: [], reason: 'питає, чи це бот' };
+    await user.click(screen.getByRole('button', { name: 'Що відповіла б зараз?' }));
+    expect(await screen.findByText('Промовчала б: питає, чи це бот')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Пробна відповідь: Оля Петренко' })).toBeNull();
+  });
+
+  it('автовідповідь без ключа Claude: попередження; репліки Джури в перегляді позначені', async () => {
+    useDefaultHandlers(
+      [lunchChat, { ...privateCaptured, autoReplyEnabled: true }],
+      { ...freshStatus, autoReplyAvailable: false },
+    );
+    server.use(
+      http.get(`${API}/chats/5/messages`, () =>
+        HttpResponse.json({
+          messages: [
+            {
+              id: 2,
+              tgMessageId: '2',
+              sentAt: '2026-11-10T09:31:00.000Z',
+              sender: null,
+              isOutgoing: true,
+              isAutoReply: true,
+              text: 'гляну позже',
+              mediaKind: null,
+              replyToTgMessageId: null,
+              editedAt: null,
+              deletedAt: null,
+              source: 'live',
+              reactions: [],
+              reactionsCounts: null,
+            } satisfies DzhuraMessageRow,
+          ],
+          nextBeforeId: null,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<DzhuraTab pollIntervalMs={10} />);
+    expect(await screen.findByText(/не працюватиме: у бекенда немає ключа Claude/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Повідомлення: Оля Петренко' }));
+    expect(await screen.findByText('🤖 Джура за вас')).toBeInTheDocument();
   });
 
   it('відкат прапорця і червоний алерт, коли PATCH падає', async () => {

@@ -123,6 +123,16 @@ of `dist` in a commit.
   into a captured chat. The only Telegram output is the shared `LunchOutboundMessage` queue, whose
   `target` column routes rows to the lunch group (`lunch`, markdown) or the owner's Saved Messages
   (`saved`, HTML).
+  **One deliberate exception — auto-reply** (`dzhura/responder.py` + `autoreply.py`, experiment): a *private* chat with
+  `DzhuraChat.autoReplyEnabled` gets an answer written by Claude in the owner's style when the owner has not replied
+  within `autoReplyDelaySec` (default 80, per chat; timer from the last incoming message, cancelled by any reply of
+  the owner). Only there, and only at that moment, the listener marks the chat read, shows «typing» and sends 1–3
+  messages directly; they are stored with `DzhuraMessage.isAutoReply` and reported to Saved Messages. Style comes from
+  the last 120 stored messages of that chat (the owner's own replies are the examples) plus the optional
+  `autoReplyNote`; the prompt forbids invented facts, promises of money/meetings and claiming to be human (a sincere
+  «are you a bot?» → silence, the owner answers). `DzhuraJob` type `autoreply_preview` runs the same request without
+  sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
+  `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
 ### In-process scheduled jobs (no external cron)
 

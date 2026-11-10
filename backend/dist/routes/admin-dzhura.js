@@ -48,7 +48,7 @@ function createAdminDzhuraRouter(deps) {
             sendError(res, 'GET /admin/dzhura/chats', e);
         }
     });
-    /** Прапорці «Читати» / «В Обране» */
+    /** Прапорці «Читати» / «В Обране» / «Автовідповідь» (+ затримка в секундах і підказка на чат) */
     r.patch('/admin/dzhura/chats/:id', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const id = parseId(req.params.id);
@@ -93,7 +93,7 @@ function createAdminDzhuraRouter(deps) {
             sendError(res, 'GET /admin/dzhura/chats/:id/export', e);
         }
     });
-    /** Задача для слухача: {type:'sync_dialogs'} | {type:'backfill', chatId, from, to} */
+    /** Задача для слухача: {type:'sync_dialogs'} | {type:'backfill', chatId, from, to} | {type:'autoreply_preview', chatId} */
     r.post('/admin/dzhura/jobs', require_admin_1.requireAdmin, async (req, res) => {
         try {
             const job = await (0, dzhura_1.createJob)(prisma, (0, dzhura_1.parseJobRequest)(req.body));
