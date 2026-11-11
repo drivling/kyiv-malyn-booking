@@ -77,20 +77,20 @@ describe('buildCitySwitchUrl', () => {
   test('зберігає шлях і query, додає city=', () => {
     stubLocation('https://malin.kiev.ua/mizhgorodski');
     const url = buildCitySwitchUrl(SITES.malyn, 'Korosten', '/mizhgorodski', '?from=Kyiv&to=Malyn');
-    expect(url).toBe('https://korosten.kiev.ua/mizhgorodski?from=Kyiv&to=Malyn&city=Korosten');
+    expect(url).toBe('https://korosten.kiev.ua/mizhgorodski?from=Kyiv&to=Malyn&homeCity=Korosten');
   });
 
   test('повернення з коростенського домену веде на головний', () => {
     stubLocation('https://korosten.kiev.ua/transport');
     expect(buildCitySwitchUrl(SITES.korosten, 'Malyn', '/transport', '')).toBe(
-      'https://malin.kiev.ua/transport?city=Malyn',
+      'https://malin.kiev.ua/transport?homeCity=Malyn',
     );
   });
 
   test('локально ходить між localhost і korosten.localhost з тим самим портом', () => {
     stubLocation('http://localhost:5173/mizhgorodski');
     expect(buildCitySwitchUrl(SITES.malyn, 'Korosten', '/mizhgorodski', '')).toBe(
-      'http://korosten.localhost:5173/mizhgorodski?city=Korosten',
+      'http://korosten.localhost:5173/mizhgorodski?homeCity=Korosten',
     );
   });
 });

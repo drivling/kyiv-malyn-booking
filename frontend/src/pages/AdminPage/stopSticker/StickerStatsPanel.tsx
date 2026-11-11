@@ -23,6 +23,7 @@ export function StickerStatsPanel({
   onDays,
   stop,
   onReload,
+  city,
 }: {
   stats: StickerScanStats | null;
   error: string;
@@ -31,6 +32,8 @@ export function StickerStatsPanel({
   /** Обрана зупинка — можна звузити статистику до неї */
   stop: { id: string; name: string } | null;
   onReload: () => void;
+  /** Місто наклейок — віджет на стіну показує його відкриття */
+  city?: string;
 }) {
   const [onlyStop, setOnlyStop] = useState(false);
   const [byHours, setByHours] = useState(false);
@@ -79,7 +82,7 @@ export function StickerStatsPanel({
           📺 Віджет на стіну
         </Button>
       </div>
-      {wallOpen && <WallLinkDialog onClose={() => setWallOpen(false)} />}
+      {wallOpen && <WallLinkDialog city={city} onClose={() => setWallOpen(false)} />}
       {error && <p className="sticker-tab-status--error">{error}</p>}
       {totals && (
         <dl className="sticker-stats-tiles" aria-label={`Підсумки: ${scopeName}`}>

@@ -3,6 +3,7 @@ import { Button } from '@/components/Button';
 import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
 import { apiClient } from '@/api/client';
+import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { SourceWatchPanel } from './SourceWatchPanel';
 import { datasetSaveErrorMessage, type TransportDataset, type TransportRouteDto, type TransportTripDto } from '@/api/transportDataset';
 import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
@@ -63,7 +64,8 @@ function scheduleToText(schedule: unknown): string {
   return schedule == null ? '' : JSON.stringify(schedule, null, 2);
 }
 
-export const ScheduleEditorTab: React.FC = () => {
+/** city — місто датасету (перемикач над вкладками, фаза 6 плану Коростеня); без нього — Малин */
+export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
   const [baseDataset, setBaseDataset] = useState<TransportDataset | null>(null);
   const [routes, setRoutes] = useState<TransportRouteDto[]>([]);
   const [trips, setTrips] = useState<TransportTripDto[]>([]);
@@ -95,7 +97,7 @@ export const ScheduleEditorTab: React.FC = () => {
     setStatusMsg('');
     try {
       // Повз HTTP-кеш: revision має бути свіжою, інакше перше ж збереження отримає 409
-      const dataset = await apiClient.getTransportDataset({ fresh: true });
+      const dataset = await apiClient.getTransportDataset({ fresh: true, city });
       setBaseDataset(dataset);
       setRoutes(dataset.routes);
       setTrips(dataset.trips);
@@ -116,7 +118,7 @@ export const ScheduleEditorTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [city]);
 
   useEffect(() => {
     void loadFromDb();
@@ -150,7 +152,7 @@ export const ScheduleEditorTab: React.FC = () => {
     setStatusMsg('');
     try {
       const merged: TransportDataset = { ...baseDataset, routes, trips };
-      const result = await apiClient.putTransportDataset(merged, baseDataset.revision);
+      const result = await apiClient.putTransportDataset(merged, baseDataset.revision, city);
       setBaseDataset({ ...merged, revision: result.revision ?? null });
       broadcastTransportDatasetInvalidate();
       const variantsNote = result.counts.variants ? `, ${result.counts.variants} варіантів шляху` : '';
@@ -160,7 +162,7 @@ export const ScheduleEditorTab: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [baseDataset, routes, trips, scheduleHasErrors]);
+  }, [baseDataset, routes, trips, scheduleHasErrors, city]);
 
   const routeOptions = useMemo(() => {
     return [...routes]

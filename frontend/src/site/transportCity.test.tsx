@@ -60,7 +60,7 @@ describe('місто сайту', () => {
   it('профіль: у Малина схема, статті й старі назви зупинок; в іншого міста — ні', () => {
     expect(transportProfile('Malyn')).toMatchObject({ hasScheme: true, hasStopArticles: true, center: [50.768, 29.242] });
     expect(transportProfile('Malyn').legacyStopNames).toContain('Малинівка');
-    expect(transportProfile('Korosten')).toEqual({ cityCode: 'Korosten', center: null, hasScheme: false, hasStopArticles: false, legacyStopNames: [] });
+    expect(transportProfile('Korosten')).toEqual({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: false, hasStopArticles: false, legacyStopNames: [] });
   });
 });
 

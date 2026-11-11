@@ -36,7 +36,7 @@ npm run dev:frontend   # http://localhost:5173
 |---|---|
 | Сайт Малина | <http://localhost:5173/mizhgorodski> |
 | Сайт Коростеня | <http://korosten.localhost:5173/mizhgorodski> — рідне місто пінниться доменом |
-| Перехід між доменами | у «Рідне місто» вибрати Коростень → редирект на `korosten.localhost` з тим самим шляхом, кука `malin_home_city` записується на новому домені, `?city=` зникає з адреси |
+| Перехід між доменами | у «Рідне місто» вибрати Коростень → редирект на `korosten.localhost` з тим самим шляхом, кука `malin_home_city` записується на новому домені, `?homeCity=` зникає з адреси |
 | Заглушка транспорту | <http://korosten.localhost:5173/transport> → «Транспорт Коростеня — скоро» |
 | Прапорець з адмінки | `/admin/routes` → «Редагувати» місто → галочка «Є локальний транспорт» → `/transport` відповідно стає планувальником або заглушкою |
 | Редирект адмінки | <http://korosten.localhost:5173/admin> → `localhost:5173/admin` (у проді — на `malin.kiev.ua`) |

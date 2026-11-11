@@ -217,7 +217,7 @@
 
 | Поведінка | Де реалізовано |
 |---|---|
-| Зміна «Рідне місто» на Коростень → перехід на `korosten.kiev.ua` з тим самим шляхом і query (місто їде в `?city=`, бо куки між доменами не ходять) | `siteConfig.buildCitySwitchUrl` + `MizhgorodskiPage` |
+| Зміна «Рідне місто» на Коростень → перехід на `korosten.kiev.ua` з тим самим шляхом і query (місто їде в `?homeCity=`, бо куки між доменами не ходять) | `siteConfig.buildCitySwitchUrl` + `MizhgorodskiPage` |
 | Домен пінить рідне місто (на `korosten.kiev.ua` це завжди Коростень); вибір іншого міста повертає на `malin.kiev.ua` | `MizhgorodskiPage`, `useHomeCityHandoff` |
 | `/admin`, `/login`, `/user` → 301 на `malin.kiev.ua` (віджет Telegram Login прив'язаний до одного домену бота) | `serve-dist.mjs` (сервер) + `DomainGuard` (SPA-навігація) |
 | `korosten.kiev.ua` поки не індексується: `X-Robots-Tag: noindex`, `robots.txt` = `Disallow: /`, `sitemap.xml` = 404; canonical усіх сторінок ведуть на `malin.kiev.ua` | `serve-dist.mjs` |

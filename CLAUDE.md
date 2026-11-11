@@ -372,7 +372,7 @@ The domain map lives in `frontend/scripts/site-hosts.mjs` (plain ESM — importe
 host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`).
 
 - Switching «Рідне місто» to a city that owns a domain navigates to that domain with the same path
-  and query (`?city=<code>` carries the choice; cookies do not cross domains) — `buildCitySwitchUrl`
+  and query (`?homeCity=<code>` carries the choice; cookies do not cross domains) — `buildCitySwitchUrl`
   + `useHomeCityHandoff`. A secondary domain pins its own home city.
 - `/admin`, `/login`, `/user` exist only on the primary domain: 301 in `serve-dist.mjs` for the first
   hit, `DomainGuard` for SPA navigation (the Telegram Login widget is bound to one bot domain).
@@ -491,6 +491,10 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   only, its own `baseRevision`). Another city's open data (GTFS, RSS, revisions, calendar) still answers 404. Write
   transport tests on `transport-test-store.ts`, which honours `where` and unique keys; do not run `prisma format`.
 - **Transport city on the frontend** (`frontend/src/site/transportCity.ts`): the site's `cityCode` picks the dataset.
+  The admin transport tabs (map editor, schedule, stickers, arrivals, `/admin/wall`) edit the city in `?city=<code>`
+  (`useAdminTransportCity` + `TransportCityBar`; the same key as the backend's `?city=`), stickers then point at that
+  city's domain. `/transport?city=<code>` is an admin-only preview of a city whose gate is still off
+  (`transportPreviewCity()`: admin token in localStorage, sticky in sessionStorage, banner with «Вийти з перегляду»).
   `useTransportDataset(city = siteTransportCity())` keeps a cache and a localStorage copy per city (Malyn keeps the
   historic key `transport-dataset:v1`, others add `:<city>`; the build snapshot is Malyn-only), `apiClient` adds
   `?city=` only for a non-default city, and `routeNo()` / `routeColor()` read per-city registries switched by the

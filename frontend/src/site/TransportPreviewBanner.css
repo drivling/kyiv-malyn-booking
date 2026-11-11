@@ -1,0 +1,22 @@
+.lt-preview-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background: #fef3c7;
+  color: #78350f;
+  border-bottom: 1px solid #b45309;
+  font-size: 14px;
+}
+
+.lt-preview-banner-exit {
+  padding: 4px 12px;
+  border: 1px solid #b45309;
+  border-radius: 6px;
+  background: #fff;
+  color: #78350f;
+  font: inherit;
+  cursor: pointer;
+}

@@ -40,7 +40,7 @@ export const ACTIVE_SITES: SiteConfig[] = ACTIVE as SiteConfig[];
 export const SITE_DOMAINS: string[] = ACTIVE_DOMAINS;
 
 /** Параметр, яким рідне місто переїжджає між доменами (куки не ходять між доменами) */
-export const CITY_HANDOFF_PARAM = 'city';
+export const CITY_HANDOFF_PARAM = 'homeCity';
 /** Дебаг-override для локальної розробки: ?site=korosten */
 const SITE_OVERRIDE_PARAM = 'site';
 

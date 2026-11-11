@@ -13,6 +13,8 @@ import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
 import { StopStickerTab } from './StopStickerTab';
 import { ArrivalReportsTab } from './ArrivalReportsTab';
+import { TransportCityBar } from './TransportCityBar';
+import { transportCitySearch, useAdminTransportCity } from './useAdminTransportCity';
 import { ReferralTab } from './ReferralTab';
 import { LunchTab } from './LunchTab';
 import { DzhuraTab } from './DzhuraTab';
@@ -24,6 +26,9 @@ import './AdminPage.css';
 type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'stickers' | 'arrivals' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'notifications';
 
 const DEFAULT_TAB: Tab = 'bookings';
+
+/** Вкладки міського транспорту — над ними перемикач міста (фаза 6 плану Коростеня) */
+const TRANSPORT_TABS: ReadonlySet<Tab> = new Set<Tab>(['mapEditor', 'scheduleEditor', 'stickers', 'arrivals']);
 
 const TAB_SLUGS: Record<Tab, string> = {
   bookings: 'bookings',
@@ -63,11 +68,14 @@ export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { tab: tabSlug } = useParams<{ tab?: string }>();
   const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
+  // Місто транспортних вкладок (?city=); між ними переходить разом із вкладкою
+  const { city: transportCity, setCity: setTransportCity } = useAdminTransportCity();
   const setActiveTab = useCallback(
     (tab: Tab) => {
-      navigate(tab === DEFAULT_TAB ? '/admin' : `/admin/${TAB_SLUGS[tab]}`);
+      const path = tab === DEFAULT_TAB ? '/admin' : `/admin/${TAB_SLUGS[tab]}`;
+      navigate(TRANSPORT_TABS.has(tab) ? `${path}${transportCitySearch(transportCity)}` : path);
     },
-    [navigate]
+    [navigate, transportCity]
   );
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -3073,10 +3081,12 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'personArchive' && <PersonArchiveTab />}
 
-        {activeTab === 'mapEditor' && <MapEditorTab />}
-        {activeTab === 'scheduleEditor' && <ScheduleEditorTab />}
-        {activeTab === 'stickers' && <StopStickerTab />}
-        {activeTab === 'arrivals' && <ArrivalReportsTab />}
+        {TRANSPORT_TABS.has(activeTab) && <TransportCityBar city={transportCity} onChange={setTransportCity} />}
+        {/* key — місто: інше місто монтує вкладку наново, без залишків стану попереднього */}
+        {activeTab === 'mapEditor' && <MapEditorTab key={transportCity} city={transportCity} />}
+        {activeTab === 'scheduleEditor' && <ScheduleEditorTab key={transportCity} city={transportCity} />}
+        {activeTab === 'stickers' && <StopStickerTab key={transportCity} city={transportCity} />}
+        {activeTab === 'arrivals' && <ArrivalReportsTab key={transportCity} city={transportCity} />}
 
         {activeTab === 'referrals' && <ReferralTab />}
 

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
+import { siteForCityCode } from '@/site/siteConfig';
+import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import type { TransportDataset } from '@/api/transportDataset';
 import type { StickerScanStats, StickerSide, StickerStatsDays } from '@/types';
 import { Button } from '@/components/Button';
@@ -49,7 +51,10 @@ const SIDE_LABEL: Record<StickerAssign, string> = { a: 'Бік 1', b: 'Бік 2'
  * назва, лінії з напрямком, QR на табло. Датасет часто описує обидва боки дороги однією
  * зупинкою, тому лінії розкладаються на два боки за напрямком руху, а адмін може їх перекинути.
  */
-export const StopStickerTab: React.FC = () => {
+/** city — місто датасету (перемикач над вкладками, фаза 6 плану Коростеня); без нього — Малин */
+export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
+  // QR і підписи наклейки ведуть на сайт міста зупинки
+  const domain = siteForCityCode(city).domain;
   const [searchParams, setSearchParams] = useSearchParams();
   const stopId = searchParams.get('stop') ?? '';
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
@@ -71,7 +76,7 @@ export const StopStickerTab: React.FC = () => {
   useEffect(() => {
     let alive = true;
     apiClient
-      .getTransportDataset()
+      .getTransportDataset({ city })
       .then((d) => {
         if (alive) setDataset(d);
       })
@@ -84,15 +89,15 @@ export const StopStickerTab: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [city]);
 
   const loadScans = useCallback(() => {
     setScansError('');
     apiClient
-      .getStickerScanStats(days)
+      .getStickerScanStats(days, city)
       .then(setScans)
       .catch((err) => setScansError(err instanceof Error ? err.message : 'Не вдалося завантажити відкриття наклейок'));
-  }, [days]);
+  }, [days, city]);
   useEffect(() => loadScans(), [loadScans]);
 
   // усі зупинки, з яких відправляються лінії, + лічильники відкриттів і друку
@@ -157,9 +162,10 @@ export const StopStickerTab: React.FC = () => {
             size,
             fare: fareOf(dataset),
             titleColor,
+            domain,
           })
         : [],
-    [stop, title, lines, assign, headings, layout, showOpposite, size, dataset, titleColor]
+    [stop, title, lines, assign, headings, layout, showOpposite, size, dataset, titleColor, domain]
   );
   const previews = useMemo(() => sheets.map((s) => ({ ...s, svg: renderStickerSvg(s.spec) })), [sheets]);
   const hasB = lines.some((l) => assign[l.key] === 'b');
@@ -171,7 +177,7 @@ export const StopStickerTab: React.FC = () => {
   const recordPrint = (sides: StickerSide[]) => {
     if (!stop || !sides.length) return;
     apiClient
-      .recordStickerPrint({ stopId: stop.id, sides, size })
+      .recordStickerPrint({ stopId: stop.id, sides, size }, city)
       .then(loadScans)
       .catch(() => undefined);
   };
@@ -194,6 +200,7 @@ export const StopStickerTab: React.FC = () => {
         onDays={setDays}
         stop={stop ? { id: stop.id, name: prettyStopName(stop.name) } : null}
         onReload={loadScans}
+        city={city}
       />
 
       <div className="sticker-tab-body">
