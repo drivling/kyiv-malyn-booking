@@ -218,7 +218,7 @@ async function recordTransportRevision(prisma, options) {
         const diff = options.previous ? diffTransportDatasets(options.previous, current) : null;
         const stats = transportRevisionStats(current);
         const row = await prisma.transportRevision.upsert({
-            where: { revision: current.revision },
+            where: { cityCode_revision: { cityCode, revision: current.revision } },
             create: {
                 cityCode,
                 revision: current.revision,

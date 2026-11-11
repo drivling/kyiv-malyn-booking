@@ -86,17 +86,10 @@ export function createTransportRouter(deps: {
     return cityCode;
   };
   /**
-   * Запис датасету: поки первинні ключі спільні для всіх міст (id маршруту «1» може бути лише один), писати
-   * можна тільки в Малин; інше місто — 409 до зміни ключів (tenancy M2).
+   * Запис датасету (лише адмін): будь-яке відоме місто — ключі таблиць складені з містом (tenancy M2), тож
+   * датасет одного міста не зачіпає інше. Публікацію міста вмикає окремо TripPoint.hasLocalTransport.
    */
-  const writableCity = (res: Response, raw: unknown): string | null => {
-    const cityCode = adminCity(res, raw);
-    if (cityCode && cityCode !== DEFAULT_TRANSPORT_CITY) {
-      res.status(409).json({ error: 'city_writes_disabled', message: 'Transport dataset of this city is read-only until tenancy M2' });
-      return null;
-    }
-    return cityCode;
-  };
+  const writableCity = adminCity;
   /** Кеш відповіді: неопубліковане місто бачить лише адмін — такі відповіді не кешуються */
   const cacheFor = (city: TransportCityAccess, publicHeaders: Record<string, string>): Record<string, string> =>
     city.adminOnly ? { 'Cache-Control': 'private, no-store' } : publicHeaders;
@@ -398,7 +391,7 @@ export function createTransportRouter(deps: {
       const city = await cityFor(req, res, req.body?.city);
       if (!city) return;
       const { cityCode } = city;
-      const stop = await prisma.transportStop.findUnique({ where: { id: scan.stopId, cityCode }, select: { id: true } });
+      const stop = await prisma.transportStop.findUnique({ where: { cityCode_id: { cityCode, id: scan.stopId } }, select: { id: true } });
       if (!stop) {
         res.status(404).json({ error: 'Unknown stop' });
         return;
@@ -555,8 +548,8 @@ export function createTransportRouter(deps: {
       if (!city) return;
       const { cityCode } = city;
       const [trip, stop] = await Promise.all([
-        prisma.transportTrip.findUnique({ where: { id: input.tripId, cityCode }, select: { routeId: true } }),
-        prisma.transportStop.findUnique({ where: { id: input.stopId, cityCode }, select: { id: true } }),
+        prisma.transportTrip.findUnique({ where: { cityCode_id: { cityCode, id: input.tripId } }, select: { routeId: true } }),
+        prisma.transportStop.findUnique({ where: { cityCode_id: { cityCode, id: input.stopId } }, select: { id: true } }),
       ]);
       if (!trip || trip.routeId !== input.routeId || !stop) {
         res.status(404).json({ error: 'Unknown trip or stop' });

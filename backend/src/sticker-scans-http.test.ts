@@ -46,7 +46,8 @@ function makeApp(initial: Scan[] = [], initialPrints: Print[] = [], initialRetur
   };
   const prisma = {
     transportStop: {
-      findUnique: async ({ where }: { where: { id: string } }) => (['st_0015', 'st_0019'].includes(where.id) ? { id: where.id } : null),
+      findUnique: async ({ where }: { where: { cityCode_id: { id: string } } }) =>
+        ['st_0015', 'st_0019'].includes(where.cityCode_id.id) ? { id: where.cityCode_id.id } : null,
     },
     stickerScan: {
       create: async ({ data }: { data: { stopId: string; side: string; clientId?: string | null } }) => {
