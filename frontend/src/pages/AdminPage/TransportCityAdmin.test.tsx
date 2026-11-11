@@ -1,5 +1,5 @@
 /**
- * Фаза 6 плану Коростеня: перемикач міста над транспортними вкладками адмінки (?transportCity=), вкладки
+ * Фаза 6 плану Коростеня: перемикач міста над транспортними вкладками адмінки (?city=), вкладки
  * пишуть і читають датасет обраного міста, адмінські запити клієнта несуть місто, наклейки ведуть на домен міста.
  * Для Малина — ті самі адреси й тіла, що й раніше.
  */
@@ -59,7 +59,7 @@ describe('перемикач міста в адмінці', () => {
     expect(screen.getByTestId('city').textContent).toBe('Malyn');
     expect(screen.getByRole('combobox')).toHaveValue('Malyn');
     expect(screen.queryByText(/Редагуєте:/)).toBeNull();
-    renderAt('/admin/route-schedule?transportCity=Atlantis');
+    renderAt('/admin/route-schedule?city=Atlantis');
     expect(screen.getAllByTestId('city')[1].textContent).toBe('Malyn');
   });
 
@@ -67,16 +67,16 @@ describe('перемикач міста в адмінці', () => {
     const user = userEvent.setup();
     renderAt('/admin/stickers?stop=st_0015');
     await user.selectOptions(screen.getByRole('combobox'), 'Korosten');
-    expect(screen.getByTestId('location').textContent).toBe('/admin/stickers?transportCity=Korosten');
+    expect(screen.getByTestId('location').textContent).toBe('/admin/stickers?city=Korosten');
     expect(screen.getByText('Редагуєте: КОРОСТЕНЬ')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Переглянути сторінки міста/ })).toHaveAttribute('href', '/transport?transportCity=Korosten');
+    expect(screen.getByRole('link', { name: /Переглянути сторінки міста/ })).toHaveAttribute('href', '/transport?city=Korosten');
     await user.selectOptions(screen.getByRole('combobox'), 'Malyn');
     expect(screen.getByTestId('location').textContent).toBe('/admin/stickers');
   });
 
   it('перехід між вкладками зберігає місто', () => {
     expect(transportCitySearch('Malyn')).toBe('');
-    expect(transportCitySearch('Korosten')).toBe('?transportCity=Korosten');
+    expect(transportCitySearch('Korosten')).toBe('?city=Korosten');
   });
 });
 
@@ -162,6 +162,6 @@ describe('наклейки й віджет на стіну', () => {
 
   it('посилання на стіну несе місто, у Малина — як було', () => {
     expect(wallUrl('https://malin.kiev.ua', 'abc')).toBe('https://malin.kiev.ua/admin/wall?key=abc');
-    expect(wallUrl('https://malin.kiev.ua', 'abc', 'Korosten')).toBe('https://malin.kiev.ua/admin/wall?key=abc&transportCity=Korosten');
+    expect(wallUrl('https://malin.kiev.ua', 'abc', 'Korosten')).toBe('https://malin.kiev.ua/admin/wall?key=abc&city=Korosten');
   });
 });

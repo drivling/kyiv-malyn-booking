@@ -7,6 +7,7 @@ vi.mock('./useSiteLocalTransport', () => ({ useSiteLocalTransport: () => useSite
 
 import { LocalTransportGate } from './LocalTransportGate';
 import { siteTransportCity, transportPreviewCity } from './transportCity';
+import { useHomeCityHandoff } from './homeCityHandoff';
 
 function renderGate() {
   return render(
@@ -45,7 +46,7 @@ describe('LocalTransportGate', () => {
     expect(screen.getByText('Завантаження...')).toBeTruthy();
   });
 
-  describe('перегляд міста адміном до запуску (?transportCity=)', () => {
+  describe('перегляд міста адміном до запуску (?city=)', () => {
     const at = (search: string) => window.history.replaceState({}, '', `/transport${search}`);
     afterEach(() => {
       localStorage.removeItem('adminToken');
@@ -56,7 +57,7 @@ describe('LocalTransportGate', () => {
 
     test('без адмін-токена параметр нічого не змінює — заглушка «скоро»', () => {
       useSiteLocalTransport.mockReturnValue({ enabled: false, loading: false });
-      at('?transportCity=Korosten');
+      at('?city=Korosten');
       expect(transportPreviewCity()).toBeNull();
       expect(siteTransportCity()).toBe('Malyn');
       renderGate();
@@ -66,7 +67,7 @@ describe('LocalTransportGate', () => {
     test('з адмін-токеном: сторінка зі смугою перегляду, місто липке в межах вкладки, вихід чистить', () => {
       useSiteLocalTransport.mockReturnValue({ enabled: false, loading: false });
       localStorage.setItem('adminToken', 'token');
-      at('?transportCity=korosten');
+      at('?city=korosten');
       expect(siteTransportCity()).toBe('Korosten');
       renderGate();
       expect(screen.getByText('Планувальник З → До')).toBeTruthy();
@@ -85,11 +86,24 @@ describe('LocalTransportGate', () => {
       expect(siteTransportCity()).toBe('Malyn');
     });
 
+    test("передача рідного міста (?homeCity=) не з'їдає ?city= перегляду", () => {
+      localStorage.setItem('adminToken', 'token');
+      at('?city=Korosten');
+      function Handoff() {
+        useHomeCityHandoff();
+        return null;
+      }
+      render(<Handoff />);
+      expect(window.location.search).toBe('?city=Korosten');
+      expect(document.cookie).not.toContain('Korosten');
+      expect(transportPreviewCity()).toBe('Korosten');
+    });
+
     test('місто сайту чи невідоме місто — не перегляд', () => {
       localStorage.setItem('adminToken', 'token');
-      at('?transportCity=Malyn');
+      at('?city=Malyn');
       expect(transportPreviewCity()).toBeNull();
-      at('?transportCity=Atlantis');
+      at('?city=Atlantis');
       expect(transportPreviewCity()).toBeNull();
     });
   });

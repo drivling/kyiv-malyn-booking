@@ -68,7 +68,7 @@ export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { tab: tabSlug } = useParams<{ tab?: string }>();
   const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
-  // Місто транспортних вкладок (?transportCity=); між ними переходить разом із вкладкою
+  // Місто транспортних вкладок (?city=); між ними переходить разом із вкладкою
   const { city: transportCity, setCity: setTransportCity } = useAdminTransportCity();
   const setActiveTab = useCallback(
     (tab: Tab) => {

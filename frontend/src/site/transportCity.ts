@@ -9,10 +9,11 @@ import { SITES, getCurrentSite } from './siteConfig';
 export const DEFAULT_TRANSPORT_CITY = 'Malyn';
 
 /**
- * Параметр міста транспорту: в адмінці — яке місто редагуємо (/admin/route-schedule?transportCity=Korosten),
- * на /transport — перегляд сторінок міста адміном до запуску. Не `city`: той з'їдає перемикання рідного міста.
+ * Параметр міста транспорту: в адмінці — яке місто редагуємо (/admin/route-schedule?city=Korosten),
+ * на /transport — перегляд сторінок міста адміном до запуску. Той самий ключ, що в API;
+ * рідне місто між доменами їде в `?homeCity=` (CITY_HANDOFF_PARAM).
  */
-export const TRANSPORT_CITY_PARAM = 'transportCity';
+export const TRANSPORT_CITY_PARAM = 'city';
 const PREVIEW_STORAGE_KEY = 'transport-preview-city';
 /** Той самий ключ, під яким apiClient тримає адмін-токен */
 const ADMIN_TOKEN_KEY = 'adminToken';
@@ -51,7 +52,7 @@ function storedPreview(): string | null {
 
 /**
  * Місто, чиї сторінки транспорту адмін переглядає до запуску (null — перегляду нема). Береться з
- * ?transportCity= в адресі, далі тримається в sessionStorage цієї вкладки, тож переходи всередині
+ * ?city= в адресі, далі тримається в sessionStorage цієї вкладки, тож переходи всередині
  * /transport* його не гублять. Без адмін-токена в браузері й під пререндером — завжди null: відвідувачу
  * параметр нічого не змінює, а бекенд і так віддає неопубліковане місто лише з токеном.
  */

@@ -52,7 +52,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   });
   const [params, setParams] = useSearchParams();
   const urlKey = params.get('key');
-  // Місто наклейок (?transportCity=, як у адмінці); без нього — Малин
+  // Місто наклейок (?city=, як у адмінці); без нього — Малин
   const city = canonicalTransportCity(params.get(TRANSPORT_CITY_PARAM)) ?? DEFAULT_TRANSPORT_CITY;
   const [key, setKey] = useState<string | null>(() => urlKey || storedWallKey());
   const [keyProblem, setKeyProblem] = useState('');
