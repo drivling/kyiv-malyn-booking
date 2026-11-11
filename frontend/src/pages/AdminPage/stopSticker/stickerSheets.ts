@@ -19,22 +19,23 @@ export type StickerSheet = {
 };
 
 /**
- * QR — завжди на головний домен (не localhost, навіть якщо наклейку друкують з dev-сервера):
+ * QR — на домен міста зупинки (Малин — головний, Коростень — korosten.kiev.ua), не localhost, навіть якщо
+ * наклейку друкують з dev-сервера:
  * табло зупинки, яке показує найближчі відправлення. Мітки: GA4 бачить переходи як
  * `sticker / qr`, кампанія — конкретна наклейка (`st_0015-a`); табло з тією самою міткою пише
  * відкриття в базу (stickerScan.ts → POST /transport/sticker-scans), адмінка рахує популярність.
  */
-export function stickerQrUrl(stopId: string, side: StickerSide): string {
+export function stickerQrUrl(stopId: string, side: StickerSide, domain: string = PRIMARY_SITE.domain): string {
   const campaign = encodeURIComponent(`${stopId}-${side}`);
-  return `https://${PRIMARY_SITE.domain}/transport/stop/${encodeURIComponent(stopId)}?utm_source=sticker&utm_medium=qr&utm_campaign=${campaign}`;
+  return `https://${domain}/transport/stop/${encodeURIComponent(stopId)}?utm_source=sticker&utm_medium=qr&utm_campaign=${campaign}`;
 }
 
-export function stickerQrCaption(stopId: string): string {
-  return `${PRIMARY_SITE.domain}/transport/stop/${stopId}`;
+export function stickerQrCaption(stopId: string, domain: string = PRIMARY_SITE.domain): string {
+  return `${domain}/transport/stop/${stopId}`;
 }
 
-export function stickerFooter(fare: number | null): string {
-  const parts = [fare ? `Проїзд ${fare} ₴` : '', `Схема маршрутів і розклад: ${PRIMARY_SITE.domain}/transport`];
+export function stickerFooter(fare: number | null, domain: string = PRIMARY_SITE.domain): string {
+  const parts = [fare ? `Проїзд ${fare} ₴` : '', `Схема маршрутів і розклад: ${domain}/transport`];
   return parts.filter(Boolean).join(' · ');
 }
 
@@ -55,6 +56,8 @@ export type StickerSheetsInput = {
   fare: number | null;
   /** Колір назви зупинки; порожній — темний */
   titleColor?: string;
+  /** Домен сайту міста для QR і підписів; без нього — головний */
+  domain?: string;
 };
 
 /**
@@ -68,8 +71,8 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
   const b = side('b');
   const common = {
     title: input.title.trim() || input.stopId,
-    qrCaption: stickerQrCaption(input.stopId),
-    footer: stickerFooter(input.fare),
+    qrCaption: stickerQrCaption(input.stopId, input.domain),
+    footer: stickerFooter(input.fare, input.domain),
     size: input.size,
     titleColor: input.titleColor || undefined,
   };
@@ -91,7 +94,7 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
       {
         key: 's',
         label: 'Одна наклейка — обидва боки',
-        spec: { ...common, qrUrl: stickerQrUrl(input.stopId, 's'), sections, opposite: [] },
+        spec: { ...common, qrUrl: stickerQrUrl(input.stopId, 's', input.domain), sections, opposite: [] },
       },
     ];
   }
@@ -107,7 +110,7 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
       label: `Бік ${k === 'a' ? 1 : 2}${heading ? ` · напрямок: ${heading}` : ''}`,
       spec: {
         ...common,
-        qrUrl: stickerQrUrl(input.stopId, k),
+        qrUrl: stickerQrUrl(input.stopId, k, input.domain),
         sections: [{ heading, lines: own }],
         opposite: input.showOpposite ? other : [],
       },

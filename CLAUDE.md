@@ -491,6 +491,10 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   only, its own `baseRevision`). Another city's open data (GTFS, RSS, revisions, calendar) still answers 404. Write
   transport tests on `transport-test-store.ts`, which honours `where` and unique keys; do not run `prisma format`.
 - **Transport city on the frontend** (`frontend/src/site/transportCity.ts`): the site's `cityCode` picks the dataset.
+  The admin transport tabs (map editor, schedule, stickers, arrivals, `/admin/wall`) edit the city in `?transportCity=<code>`
+  (`useAdminTransportCity` + `TransportCityBar`; not `?city=`, which `useHomeCityHandoff` takes); stickers then point at that
+  city's domain. `/transport?transportCity=<code>` is an admin-only preview of a city whose gate is still off
+  (`transportPreviewCity()`: admin token in localStorage, sticky in sessionStorage, banner with «Вийти з перегляду»).
   `useTransportDataset(city = siteTransportCity())` keeps a cache and a localStorage copy per city (Malyn keeps the
   historic key `transport-dataset:v1`, others add `:<city>`; the build snapshot is Malyn-only), `apiClient` adds
   `?city=` only for a non-default city, and `routeNo()` / `routeColor()` read per-city registries switched by the

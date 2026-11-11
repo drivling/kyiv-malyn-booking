@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { DEFAULT_TRANSPORT_CITY, TRANSPORT_CITY_PARAM, canonicalTransportCity, isDefaultTransportCity } from '@/site/transportCity';
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import type { TransportDataset } from '@/api/transportDataset';
@@ -51,6 +52,8 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   });
   const [params, setParams] = useSearchParams();
   const urlKey = params.get('key');
+  // Місто наклейок (?transportCity=, як у адмінці); без нього — Малин
+  const city = canonicalTransportCity(params.get(TRANSPORT_CITY_PARAM)) ?? DEFAULT_TRANSPORT_CITY;
   const [key, setKey] = useState<string | null>(() => urlKey || storedWallKey());
   const [keyProblem, setKeyProblem] = useState('');
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
@@ -91,20 +94,20 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         if (cancelled) return;
         storeWallKey(k);
         setKey(k);
-        setParams({ key: k }, { replace: true });
+        setParams(isDefaultTransportCity(city) ? { key: k } : { key: k, [TRANSPORT_CITY_PARAM]: city }, { replace: true });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [key, setParams]);
+  }, [key, setParams, city]);
 
   // Назви й кольори ліній — з публічного датасету; оновлюємо раз на годину
   useEffect(() => {
     let cancelled = false;
     const load = () =>
       apiClient
-        .getTransportDataset()
+        .getTransportDataset({ city })
         .then((d) => !cancelled && setDataset(d))
         .catch(() => {});
     void load();
@@ -113,12 +116,12 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
       cancelled = true;
       window.clearInterval(t);
     };
-  }, []);
+  }, [city]);
 
   const poll = useCallback(async () => {
     if (!key) return;
     try {
-      const snap = await apiClient.getStickerWall(key, cursor.current ?? 0);
+      const snap = await apiClient.getStickerWall(key, cursor.current ?? 0, city);
       setOffline(false);
       setKeyProblem('');
       const fresh = cursor.current === null || day.current !== snap.day;
@@ -135,7 +138,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         setKeyProblem('Посилання застаріло — відкрийте нове в адмінці («Наклейки зупинок» → «Віджет на стіну»).');
       } else setOffline(true);
     }
-  }, [key]);
+  }, [key, city]);
 
   useEffect(() => {
     if (!key) return;

@@ -8,7 +8,7 @@ import { qrPath } from './stickerSvg';
  * «Віджет на стіну»: посилання з ключем лише на читання сьогоднішніх відкриттів — QR для телефона
  * (відсканувати й відкрити), «Відкрити тут» і «Скопіювати». Телефону не потрібна адмін-сесія.
  */
-export function WallLinkDialog({ onClose }: { onClose: () => void }) {
+export function WallLinkDialog({ onClose, city }: { onClose: () => void; city?: string }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -18,7 +18,7 @@ export function WallLinkDialog({ onClose }: { onClose: () => void }) {
     let cancelled = false;
     apiClient
       .getStickerWallKey()
-      .then(({ key }) => !cancelled && setUrl(wallUrl(window.location.origin, key)))
+      .then(({ key }) => !cancelled && setUrl(wallUrl(window.location.origin, key, city)))
       .catch((e: Error) => !cancelled && setError(e.message || 'Не вдалося отримати посилання'));
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -27,7 +27,7 @@ export function WallLinkDialog({ onClose }: { onClose: () => void }) {
       cancelled = true;
       window.removeEventListener('keydown', onKey);
     };
-  }, [onClose]);
+  }, [onClose, city]);
 
   const qr = url ? qrPath(url, 4, 4, 92) : null;
   const copy = async () => {

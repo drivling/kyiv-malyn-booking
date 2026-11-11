@@ -2,7 +2,7 @@ import { API_URL } from '@/utils/constants';
 import { telegramLoginHeaders } from '@/utils/telegramLogin';
 import { configureRouteNames } from '@/utils/routeNames';
 import { configureRouteColors } from '@/pages/LocalTransportPage/routeColors';
-import { DEFAULT_TRANSPORT_CITY, cityQuery } from '@/site/transportCity';
+import { DEFAULT_TRANSPORT_CITY, cityField, cityQuery } from '@/site/transportCity';
 import type {
   Schedule,
   Booking,
@@ -1161,13 +1161,13 @@ class ApiClient {
   }
 
   /** Адмін: звіти про факт прибуття — зведення по рейсах на зупинках і останні звіти за `days` */
-  async getArrivalReports(days: ArrivalReportDays = 30): Promise<ArrivalReportStats> {
-    return this.request(`/admin/transport/arrival-reports?days=${days}`);
+  async getArrivalReports(days: ArrivalReportDays = 30, city?: string): Promise<ArrivalReportStats> {
+    return this.request(`/admin/transport/arrival-reports?days=${days}${cityQuery(city, '&')}`);
   }
 
   /** Адмін: видалити хибний звіт */
-  async deleteArrivalReport(id: number): Promise<{ ok: boolean }> {
-    return this.request(`/admin/transport/arrival-reports/${id}`, { method: 'DELETE' });
+  async deleteArrivalReport(id: number, city?: string): Promise<{ ok: boolean }> {
+    return this.request(`/admin/transport/arrival-reports/${id}${cityQuery(city)}`, { method: 'DELETE' });
   }
 
   /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
@@ -1186,13 +1186,13 @@ class ApiClient {
   }
 
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */
-  async getStickerScanStats(days: StickerStatsDays = 30): Promise<StickerScanStats> {
-    return this.request(`/admin/transport/sticker-scans?days=${days}`);
+  async getStickerScanStats(days: StickerStatsDays = 30, city?: string): Promise<StickerScanStats> {
+    return this.request(`/admin/transport/sticker-scans?days=${days}${cityQuery(city, '&')}`);
   }
 
   /** Віджет на стіну: сьогоднішні відкриття з QR + нові скани з id > after (доступ за ключем посилання) */
-  async getStickerWall(key: string, after = 0): Promise<StickerWallSnapshot> {
-    return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}`);
+  async getStickerWall(key: string, after = 0, city?: string): Promise<StickerWallSnapshot> {
+    return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}${cityQuery(city, '&')}`);
   }
 
   /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні */
@@ -1201,10 +1201,13 @@ class ApiClient {
   }
 
   /** Адмін: друк або SVG наклейок зупинки — для статистики («наклейка є») */
-  async recordStickerPrint(print: { stopId: string; sides: StickerSide[]; size: 'A5' | 'A4' }): Promise<{ ok: boolean; count: number }> {
+  async recordStickerPrint(
+    print: { stopId: string; sides: StickerSide[]; size: 'A5' | 'A4' },
+    city?: string
+  ): Promise<{ ok: boolean; count: number }> {
     return this.request('/admin/transport/sticker-prints', {
       method: 'POST',
-      body: JSON.stringify(print),
+      body: JSON.stringify({ ...print, ...cityField(city) }),
     });
   }
 
@@ -1213,7 +1216,7 @@ class ApiClient {
    * відтоді змінився (інша вкладка, перерахунок часу, скрипт), сервер відповідає 409 і нічого не пише.
    * Без baseRevision перевірки немає (скрипти).
    */
-  async putTransportDataset(dataset: TransportDataset, baseRevision?: string | null): Promise<{
+  async putTransportDataset(dataset: TransportDataset, baseRevision?: string | null, city?: string): Promise<{
     ok: boolean;
     counts: {
       stops: number;
@@ -1230,13 +1233,13 @@ class ApiClient {
     const body: Record<string, unknown> = { ...dataset };
     delete body.revision;
     if (baseRevision) body.baseRevision = baseRevision;
-    return this.request('/transport/dataset', {
+    return this.request(`/transport/dataset${cityQuery(city)}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     });
   }
 
-  async recalculateTransportSegments(routeId?: string): Promise<{
+  async recalculateTransportSegments(routeId?: string, city?: string): Promise<{
     ok: boolean;
     routes: string[];
     segmentsWritten: number;
@@ -1245,7 +1248,7 @@ class ApiClient {
     osrmFailed: number;
     corrections: string[];
   }> {
-    return this.request('/admin/transport/recalculate-segments', {
+    return this.request(`/admin/transport/recalculate-segments${cityQuery(city)}`, {
       method: 'POST',
       body: JSON.stringify(routeId ? { routeId } : {}),
     });

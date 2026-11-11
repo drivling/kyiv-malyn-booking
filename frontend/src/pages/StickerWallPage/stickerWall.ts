@@ -9,6 +9,7 @@ import { stickerStopCatalog } from '@/pages/AdminPage/stopSticker/scanStats';
 import { brightestLineColor, prettyStopName } from '@/pages/AdminPage/stopSticker/stickerModel';
 import { SCHEME_ROUTES } from '@/pages/LocalTransportPage/scheme/malyn-scheme-routes';
 import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
+import { TRANSPORT_CITY_PARAM, isDefaultTransportCity } from '@/site/transportCity';
 
 /** Як часто віджет тягне знімок: скани поодинокі, 30 с — «одразу» для людини біля стіни */
 export const WALL_POLL_MS = 30_000;
@@ -258,6 +259,7 @@ export function storeWallKey(key: string): void {
 }
 
 /** Посилання на віджет для QR в адмінці */
-export function wallUrl(origin: string, key: string): string {
-  return `${origin}/admin/wall?key=${encodeURIComponent(key)}`;
+export function wallUrl(origin: string, key: string, city?: string): string {
+  const forCity = isDefaultTransportCity(city) ? '' : `&${TRANSPORT_CITY_PARAM}=${encodeURIComponent(city as string)}`;
+  return `${origin}/admin/wall?key=${encodeURIComponent(key)}${forCity}`;
 }

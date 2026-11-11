@@ -188,7 +188,7 @@ export function publicTransportDataset(dataset: TransportDataset): TransportData
   };
 }
 
-export function datasetToEditor(dataset: TransportDataset): {
+export function datasetToEditor(dataset: TransportDataset, fallbackCenter: [number, number] = [50.768, 29.242]): {
   transport: EditorTransportData;
   coords: EditorCoordsData;
 } {
@@ -245,7 +245,7 @@ export function datasetToEditor(dataset: TransportDataset): {
     }));
   }
 
-  const center = (dataset.meta.center as [number, number] | null) ?? [50.768, 29.242];
+  const center = (dataset.meta.center as [number, number] | null) ?? fallbackCenter;
 
   return {
     transport: {
