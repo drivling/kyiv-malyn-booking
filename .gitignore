@@ -62,3 +62,8 @@ data/malyn-transport/validation/
 # TELEGRAM_USER_SESSION_BASE64 (auth_session.py --export), ніколи в git.
 backend/telegram-user/*.session
 backend/telegram-user/*.session-journal
+
+# Координати Google для Коростеня — лише локально (умови Google, репозиторій публічний)
+data/korosten-transport/google/*.local.json
+data/korosten-transport/dataset/*.local.json
+data/korosten-transport/dataset/*.local.md

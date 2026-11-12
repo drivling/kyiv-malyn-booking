@@ -16,6 +16,7 @@ import { useOnline } from '@/pwa/useOnline';
 import { configureRouteNames, setRouteNamesCity } from '@/utils/routeNames';
 import { isDefaultTransportCity, siteTransportCity } from '@/site/transportCity';
 import { configureRouteColors, setRouteColorsCity } from '../routeColors';
+import { setVerifiedRoutesCity } from '../routeTiming';
 import { fetchSnapshot, readStored, writeStored } from './datasetStore';
 
 export type DatasetSource = 'network' | 'local' | 'snapshot';
@@ -110,6 +111,7 @@ export function useTransportDataset(city: string = siteTransportCity()) {
   // routeNo() у цій сторінці має читати номери саме цього міста
   setRouteNamesCity(city);
   setRouteColorsCity(city);
+  setVerifiedRoutesCity(city);
   const [loaded, setLoaded] = useState<LoadedDataset | null>(() => fromLocalCopy(city));
   const [loading, setLoading] = useState(() => !cachedByCity.has(city));
   const [error, setError] = useState('');

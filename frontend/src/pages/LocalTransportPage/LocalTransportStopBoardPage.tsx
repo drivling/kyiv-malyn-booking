@@ -9,7 +9,7 @@ import { buildRoutesFromData, buildStopDepartures, formatMinsClock } from './sto
 import { buildSortedStopIds, displayNameForStopKey, getStopsCatalog, resolveStopIdInList } from './stopCatalog';
 import { routeChainSources } from './routeVariants';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
-import { VERIFIED_ROUTE_IDS, isVerifiedRoute } from './routeTiming';
+import { isVerifiedRoute, verifiedRouteIds } from './routeTiming';
 import { buildRouteLines } from './routeGeometry';
 import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
@@ -461,7 +461,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   );
   /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті табло */
   const overviewLines = useMemo(
-    () => (viewModel ? buildRouteLines(viewModel.coords.stops, viewModel.data.supplement?.stops?.stops_by_route, VERIFIED_ROUTE_IDS) : []),
+    () => {
+      const byRoute = viewModel?.data.supplement?.stops?.stops_by_route;
+      return viewModel ? buildRouteLines(viewModel.coords.stops, byRoute, verifiedRouteIds(Object.keys(byRoute ?? {}))) : [];
+    },
     [viewModel]
   );
 

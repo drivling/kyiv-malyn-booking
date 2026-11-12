@@ -61,13 +61,19 @@
 
 ## 3. Координати
 
-- **OpenStreetMap** (ODbL) — чернетка через Overpass: `highway=bus_stop` / `public_transport=platform` у межах
-  50.90–50.99 пн. ш., 28.58–28.72 сх. д. З хмарної сесії `overpass-api.de` недоступний — запускати локально.
-- **Google Maps** — у місті показує громадський транспорт. Офіційні API (Routes TRANSIT, Places) з ключем
-  власника — фаза 8; вебсторінку не парсимо.
+- **OpenStreetMap** (© учасники OpenStreetMap, ODbL 1.0) — чернетка координат (фаза 8): `highway=bus_stop` /
+  `public_transport=platform` у межах 50.88–51.02 пн. ш., 28.50–28.75 сх. д. через Overpass (з хмарної сесії
+  `overpass-api.de` недоступний, дзеркало `maps.mail.ru/osm/tools/overpass` — так) і маршрути (`relation/<id>/full.json`
+  основного API OSM; є №1, 7, 8). Знімок — [`osm/snapshot.json`](osm/snapshot.json). Середини вулиць із переліку ради —
+  Nominatim (той самий ODbL), [`osm/streets.json`](osm/streets.json). Похідні координати в датасеті Коростеня — під
+  ODbL; питання до власника про відкриті дані — у мастер-плані.
+- **Google Maps Platform** — лише перевірка (Places Text Search, Routes TRANSIT) з ключем власника:
+  `google/check.json` тримає `place_id` і відстань, координат Google не зберігаємо (умови платформи). Вебсторінку
+  maps.google.com не парсимо.
 - **GPS автобусів** (п. 1) — пізніше як підказка, де автобуси реально зупиняються.
 
-Знімок цих джерел у репозиторії — [`source/`](source/README.md).
+Знімок цих джерел у репозиторії — [`source/`](source/README.md). Чернетка датасету з усіх джерел —
+[`dataset/`](dataset/REPORT.md) (`npm run korosten:dataset`, правила — `Docs/korosten-transport-data-2026-11.md`).
 
 ## 4. Порядок зупинок і час між ними
 
