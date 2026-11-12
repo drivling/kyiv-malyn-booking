@@ -508,6 +508,10 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   historic key `transport-dataset:v1`, others add `:<city>`; the build snapshot is Malyn-only), `apiClient` adds
   `?city=` only for a non-default city, and `routeNo()` / `routeColor()` read per-city registries switched by the
   loader. A Malyn page outside `/transport` must ask for Malyn explicitly (`useTransportDataset(DEFAULT_TRANSPORT_CITY)`).
+  `transportProfile(city)` also carries the city's name in three cases (`site-hosts.mjs` `cityNameUk*`), its domain, `hasOpenData`,
+  quick «Куди їдете?» chips and the footer source: every text, FAQ, JSON-LD, title and canonical on `/transport*` comes from it
+  (Malyn strings stay byte-identical — the prerender must not change); a city without a scheme hides the «Схема» tab, scheme minis
+  and `/transport/scheme` (→ `/transport`), and orders board lines by number, not by the Malyn legend.
   Stop articles, the scheme legend colours and legacy stop names belong to Malyn (`transportProfile`); another city's
   line colours come from `dataset.meta.routeColors`. `sendOrQueue` stamps `city` on writes from a non-default site.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`

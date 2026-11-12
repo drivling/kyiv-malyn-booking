@@ -47,6 +47,26 @@ describe('NavBar', () => {
     expect(nav.className).toContain('app-nav--bbc');
   });
 
+  it('«Транспорт <міста>»: Малин на головному сайті, Коростень — на його сайті й у перегляді адміна', () => {
+    const city = () => screen.getByRole('link', { name: /^Транспорт/ }).querySelector('.nav-link-city')?.textContent?.trim();
+    try {
+      renderNav();
+      expect(city()).toBe('Малина');
+      document.body.innerHTML = '';
+      window.history.replaceState({}, '', '/?site=korosten');
+      renderNav();
+      expect(city()).toBe('Коростеня');
+      document.body.innerHTML = '';
+      window.history.replaceState({}, '', '/transport?city=Korosten');
+      localStorage.setItem('adminToken', 'token');
+      renderNav();
+      expect(city()).toBe('Коростеня');
+    } finally {
+      window.history.replaceState({}, '', '/');
+      sessionStorage.clear();
+    }
+  });
+
   it('telegram user: profile chip named by phone, «Вийти» clears the state and goes to /mizhgorodski', async () => {
     const user = userEvent.setup();
     userState.loginTelegram({ id: 1, first_name: 'Олена', auth_date: 1, hash: 'h' }, '+380671234567');

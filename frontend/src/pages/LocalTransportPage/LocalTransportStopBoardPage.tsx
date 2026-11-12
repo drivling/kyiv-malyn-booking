@@ -25,7 +25,7 @@ import { datasetToLocalViewModel } from './dataset/datasetAdapter';
 import { hiddenTransportRouteIds } from '@/api/transportDataset';
 // Плоский ESM, спільний із prerender-transport-stops.mjs (як site-hosts.mjs)
 import { relatedPagesForStop } from '../../../scripts/stop-related-pages.mjs';
-import { STOP_HUB_FAQ, stopFallbackDescription, stopPageTitle, stopRoutesFaq } from '../../../scripts/stop-page-copy.mjs';
+import { stopFallbackDescription, stopHubFaq, stopPageTitle, stopRoutesFaq } from '../../../scripts/stop-page-copy.mjs';
 import { configureSegmentDurations } from './segmentDurations';
 import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
@@ -37,6 +37,7 @@ import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
 import { isPrerendering } from '@/utils/prerender';
 import { routeNo } from '@/utils/routeNames';
+import { transportProfile } from '@/site/transportCity';
 import './LocalTransportPage.css';
 
 /**
@@ -53,10 +54,11 @@ function schemeMiniNote(node: { name: string; size: number; stops: string[] } | 
   return lines ? `Ваша зупинка позначена на схемі, підсвічено її лінії: ${lines}.` : 'Ваша зупинка позначена на схемі.';
 }
 
-/** Порядок ліній як у легенді схеми; маршрути поза схемою — за номером у кінці */
+/** Порядок ліній як у легенді схеми; маршрути поза схемою — за номером у кінці (місто без схеми — лише за номером) */
 const SCHEME_ORDER = new Map(SCHEME_ROUTES.map((r, i) => [r.id, i]));
-function compareLineIds(a: string, b: string): number {
-  return (SCHEME_ORDER.get(a) ?? 999) - (SCHEME_ORDER.get(b) ?? 999) || Number(a) - Number(b);
+const NO_ORDER = new Map<string, number>();
+function lineComparator(order: Map<string, number>): (a: string, b: string) => number {
+  return (a, b) => (order.get(a) ?? 999) - (order.get(b) ?? 999) || a.localeCompare(b, 'uk', { numeric: true });
 }
 
 /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
@@ -120,6 +122,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   useStickerScan(searchParams.toString());
 
   const { dataset, loading, error, reload, source, online, dataAsOf } = useTransportDataset();
+  // назви міста, домен, схема — з профілю міста цієї сторінки (у перегляді адміна — міста перегляду)
+  const profile = useMemo(() => transportProfile(), []);
+  const copyCity = useMemo(() => ({ genitive: profile.nameGenitive, locative: profile.nameLocative, domain: profile.domain }), [profile]);
+  const hubFaq = useMemo(() => stopHubFaq(copyCity), [copyCity]);
+  const compareLineIds = useMemo(() => lineComparator(profile.hasScheme ? SCHEME_ORDER : NO_ORDER), [profile]);
   const viewModel = useMemo(() => {
     if (!dataset) return null;
     const vm = datasetToLocalViewModel(dataset);
@@ -258,7 +265,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   /** Усі маршрути з відправленнями на зупинці за день — чіпи-фільтри під заголовком */
   const lineIdsAtStop = useMemo(
     () => [...new Set(departures.map((r) => r.routeId))].sort(compareLineIds),
-    [departures]
+    [departures, compareLineIds]
   );
   /** Фільтр за лінією з `?line=` (лише коли така лінія справді проходить через зупинку) */
   const lineFilter = lineIdsAtStop.includes(lineParam) ? lineParam : '';
@@ -288,22 +295,22 @@ export const LocalTransportStopBoardPage: React.FC = () => {
         .slice(0, 8)
         .map((d) => `${formatMinsClock(Math.round(d.departureMins))} №${routeNo(d.routeId)}`);
       const faq = [
-        stopRoutesFaq(selectedStopTitle, routeIds.map(routeNo), selectedStop),
+        stopRoutesFaq(selectedStopTitle, routeIds.map(routeNo), selectedStop, copyCity),
         {
           q: `О котрій найближчі рейси з «${selectedStopTitle}»?`,
           a: sample.length
             ? `Приклади з розкладу: ${sample.join('; ')}. Повний список — на сторінці табло.`
             : 'Оберіть дату й час на сторінці табло, щоб побачити відправлення.',
         },
-        ...STOP_HUB_FAQ.slice(1),
+        ...hubFaq.slice(1),
       ];
       // Тексти — з номерами для показу («11/1»), а не з id
       const description = stopArticle
         ? stopArticlePlainText({ ...stopArticle, routeIds: stopArticle.routeIds?.map(routeNo) })
-        : stopFallbackDescription(selectedStopTitle, routeIds.map(routeNo));
+        : stopFallbackDescription(selectedStopTitle, routeIds.map(routeNo), copyCity);
       return {
-        title: stopPageTitle(selectedStopTitle),
-        canonicalUrl: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
+        title: stopPageTitle(selectedStopTitle, copyCity),
+        canonicalUrl: `${profile.siteUrl}/transport/stop/${encodeURIComponent(selectedStop)}`,
         description,
         jsonLdId: `transport-stop-jsonld-${selectedStop}`,
         jsonLd: {
@@ -315,14 +322,14 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                 {
                   '@type': 'ListItem',
                   position: 1,
-                  name: 'Транспорт Малина',
-                  item: 'https://malin.kiev.ua/transport',
+                  name: `Транспорт ${profile.nameGenitive}`,
+                  item: `${profile.siteUrl}/transport`,
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: selectedStopTitle,
-                  item: `https://malin.kiev.ua/transport/stop/${encodeURIComponent(selectedStop)}`,
+                  item: `${profile.siteUrl}/transport/stop/${encodeURIComponent(selectedStop)}`,
                 },
               ],
             },
@@ -358,22 +365,21 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     }
 
     return {
-      title: 'Табло зупинок Малина — розклад відправлень | malin.kiev.ua',
-      canonicalUrl: 'https://malin.kiev.ua/transport/stop',
-      description:
-        'Розклад з будь-якої зупинки міського транспорту Малина: наступні маршрутки в усіх напрямках. Оберіть зупинку на malin.kiev.ua/transport/stop.',
+      title: `Табло зупинок ${profile.nameGenitive} — розклад відправлень | ${profile.domain}`,
+      canonicalUrl: `${profile.siteUrl}/transport/stop`,
+      description: `Розклад з будь-якої зупинки міського транспорту ${profile.nameGenitive}: наступні маршрутки в усіх напрямках. Оберіть зупинку на ${profile.domain}/transport/stop.`,
       jsonLdId: 'transport-stop-hub-jsonld',
       jsonLd: {
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
-        mainEntity: STOP_HUB_FAQ.map((item) => ({
+        mainEntity: hubFaq.map((item) => ({
           '@type': 'Question',
           name: item.q,
           acceptedAnswer: { '@type': 'Answer', text: item.a },
         })),
       },
     };
-  }, [selectedStop, selectedStopTitle, departures, stopArticle]);
+  }, [selectedStop, selectedStopTitle, departures, stopArticle, profile, copyCity, hubFaq]);
 
   usePageSeo(stopSeo);
 
@@ -521,7 +527,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               {selectedStopTitle ? `Зупинка «${selectedStopTitle}»` : 'Табло зупинок'}
             </h1>
             <p className="lt-subtitle">
-              {selectedStopTitle ? 'Малин · розклад відправлень' : 'Малин · місцевий транспорт'}
+              {selectedStopTitle ? `${profile.name} · розклад відправлень` : `${profile.name} · місцевий транспорт`}
             </p>
             {selectedStop && lineIdsAtStop.length > 0 && (
               <div className="lt-line-chips" role="group" aria-label="Маршрути через зупинку">
@@ -562,7 +568,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                     value={stopInput ?? selectedStop}
                     onChange={handleStopChange}
                     onClear={handleStopClear}
-                    placeholder="Наприклад Малинівка"
+                    placeholder={profile.hasScheme ? 'Наприклад Малинівка' : stops[0] ? `Наприклад ${displayNameForStopKey(stops[0], stopsCatalog)}` : 'Назва зупинки'}
                     emptyMessage="Зупинок не знайдено"
                     clearable
                   />
@@ -734,7 +740,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             </section>
           )}
 
-          {selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
+          {profile.hasScheme && selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
             <LocalTransportSchemeMini
               source="board"
               routeIds={schemeRouteIds}
@@ -829,10 +835,10 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             <dl className="lt-aeo-faq">
               {(selectedStopTitle
                 ? [
-                    stopRoutesFaq(selectedStopTitle, [...new Set(departures.map((d) => routeNo(d.routeId)))], selectedStop),
-                    STOP_HUB_FAQ[1],
+                    stopRoutesFaq(selectedStopTitle, [...new Set(departures.map((d) => routeNo(d.routeId)))], selectedStop, copyCity),
+                    hubFaq[1],
                   ]
-                : STOP_HUB_FAQ
+                : hubFaq
               ).map((item) => (
                 <div key={item.q} className="lt-aeo-faq__item">
                   <dt>{item.q}</dt>
@@ -856,15 +862,23 @@ export const LocalTransportStopBoardPage: React.FC = () => {
           </section>
 
           <footer className="lt-footer">
-            <a
-              href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              data.gov.ua
-            </a>
-            {' · '}
-            <a href="tel:+380687771590">(068) 77-71-590</a>
+            {profile.hasOpenData ? (
+              <>
+                <a
+                  href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  data.gov.ua
+                </a>
+                {' · '}
+                <a href="tel:+380687771590">(068) 77-71-590</a>
+              </>
+            ) : profile.sourceLink ? (
+              <a href={profile.sourceLink.href} target="_blank" rel="noopener noreferrer">
+                {profile.sourceLink.label}
+              </a>
+            ) : null}
           </footer>
         </div>
         <div className="lt-map-column">

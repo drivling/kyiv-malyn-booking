@@ -20,6 +20,8 @@ export const SITES = {
     cityNameUk: 'Малин',
     /** Родовий відмінок для заголовків: «Транспорт Малина» */
     cityNameUkGenitive: 'Малина',
+    /** Місцевий відмінок: «у Малині» */
+    cityNameUkLocative: 'Малині',
     /** Головний сайт: адмінка, Telegram-логін, індексація в пошуку */
     isPrimary: true,
     /** Домен підключено і він обслуговує трафік */
@@ -31,6 +33,7 @@ export const SITES = {
     cityCode: 'Korosten',
     cityNameUk: 'Коростень',
     cityNameUkGenitive: 'Коростеня',
+    cityNameUkLocative: 'Коростені',
     isPrimary: false,
     active: true,
   },
@@ -40,6 +43,7 @@ export const SITES = {
     cityCode: 'Zhytomyr',
     cityNameUk: 'Житомир',
     cityNameUkGenitive: 'Житомира',
+    cityNameUkLocative: 'Житомирі',
     isPrimary: false,
     // Домен ще не куплено/не підключено: Житомир поки живе на головному сайті.
     active: false,
