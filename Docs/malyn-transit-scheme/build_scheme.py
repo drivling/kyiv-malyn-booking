@@ -621,7 +621,7 @@ def build_svg(stats, col, ink, bg, fg, muted, line_bg, water, water_fill, water_
         if h['sub']:
             o.append(f'<text x="{h["lx"] + h.get("sub_dx", 0)}" y="{h["ly"] + 16}" text-anchor="{h["anchor"]}" font-size="11" fill="{muted}">{esc(h["sub"])}</text>')
         if h['term']:
-            o.append(badges_row(h['bx'], h['by'], h['term'], col, ink, h['balign']))
+            o.append(badges_row(h['bx'], h['by'], h['term'], col, ink, h['balign'], per_row=h.get('per_row', 4)))
         o.append('</g>')
     # ---- легенда
     if not site:

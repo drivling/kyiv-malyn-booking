@@ -127,30 +127,30 @@ DASHED = {
 }
 
 HUBS = [
-    dict(key='VOK', stop='st_1001', name='Залізничний вокзал', sub='', r=48, lx=620, ly=356, anchor='middle',
-         term=['1', '2', '3', '4', '5', '7'], bx=620, by=364, balign='middle'),
-    dict(key='RYN', stop='st_1002', name='Міський ринок', sub='', r=48, lx=830, ly=618, anchor='start', term=[], bx=0, by=0, balign='start'),
-    dict(key='CEN', stop='st_1003', name='Центр міста', sub='', r=24, lx=590, ly=736, anchor='end', term=[], bx=0, by=0, balign='end'),
-    dict(key='PARK', stop='st_1016', name='Парк', sub='«Древлянський»', r=24, lx=954, ly=530, anchor='end', term=[], bx=0, by=0, balign='end'),
-    dict(key='SHV', stop='st_1037', name='Швейна фабрика', sub='', r=22, lx=866, ly=654, anchor='start', term=[], bx=0, by=0, balign='start'),
-    dict(key='CHE', stop='st_1006', name='Черемушки', sub='', r=22, lx=514, ly=812, anchor='end', term=[], bx=0, by=0, balign='end'),
-    dict(key='SHU', stop='st_1069', name='Романа Шухевича', sub='Гастелло', r=22, lx=390, ly=618, anchor='end',
-         term=['2b', '7'], bx=390, by=642, balign='end'),
+    dict(key='VOK', stop='st_1001', name='Залізничний вокзал', sub='', r=48, lx=620, ly=358, anchor='middle',
+         term=['1', '2', '3', '4', '5', '7'], bx=620, by=366, balign='middle', per_row=6),
+    dict(key='RYN', stop='st_1002', name='Міський ринок', sub='', r=48, lx=784, ly=520, anchor='start', term=[], bx=0, by=0, balign='start'),
+    dict(key='CEN', stop='st_1003', name='Центр міста', sub='', r=24, lx=590, ly=712, anchor='end', term=[], bx=0, by=0, balign='end'),
+    dict(key='PARK', stop='st_1016', name='Парк', sub='«Древлянський»', r=24, lx=980, ly=624, anchor='middle', term=[], bx=0, by=0, balign='end'),
+    dict(key='SHV', stop='st_1037', name='Швейна фабрика', sub='', r=22, lx=866, ly=662, anchor='start', term=[], bx=0, by=0, balign='start'),
+    dict(key='CHE', stop='st_1006', name='Черемушки', sub='', r=22, lx=506, ly=806, anchor='end', term=[], bx=0, by=0, balign='end'),
+    dict(key='SHU', stop='st_1069', name='Романа Шухевича', sub='', r=22, lx=412, ly=604, anchor='end',
+         term=['2b', '7'], bx=392, by=612, balign='end'),
 ]
 TERMS = [
     dict(key='POL', stop='st_1015', name='Поліське водосховище', sub='', lx=200, ly=1124, anchor='end', routes=['1'], bx=200, by=1132, balign='end', end_of='1'),
-    dict(key='BK', stop='st_1048', name='Білокоровицьке шосе', sub='', lx=220, ly=780, anchor='middle', routes=['5'], bx=236, by=794, balign='start', end_of='5'),
+    dict(key='BK', stop='st_1048', name='Білокоровицьке шосе', sub='', lx=220, ly=780, anchor='middle', routes=['5'], bx=202, by=812, balign='end', end_of='5'),
     dict(key='PASH', stop='st_1087', name='Пашини', sub='', lx=1006, ly=186, anchor='start', routes=['2', '2b'], bx=1006, by=194, balign='start'),
-    dict(key='PROL', stop='st_1036', name='Вул. Проліскова', sub='', lx=180, ly=180, anchor='middle', routes=['3'], bx=180, by=216, balign='middle'),
+    dict(key='PROL', stop='st_1036', name='Вул. Проліскова', sub='', lx=164, ly=205, anchor='end', routes=['3'], bx=180, by=216, balign='middle'),
     dict(key='KYIV', stop='st_1044', name='Вул. Київська', sub='', lx=1300, ly=756, anchor='middle', routes=['4'], bx=1300, by=764, balign='middle'),
-    dict(key='ZH', stop='st_1049', name='Станція Житомирська', sub='', lx=300, ly=476, anchor='middle', routes=['6'], bx=300, by=484, balign='middle', end_of='6'),
+    dict(key='ZH', stop='st_1049', name='Станція Житомирська', sub='', lx=306, ly=486, anchor='middle', routes=['6'], bx=306, by=494, balign='middle', end_of='6'),
     dict(key='CEG', stop='st_1061', name='Цегельний завод', sub='', lx=1120, ly=1076, anchor='middle', routes=['6'], bx=1120, by=1084, balign='middle'),
-    dict(key='BRO', stop='st_1076', name='Бровар', sub='', lx=866, ly=946, anchor='start', routes=['8'], bx=866, by=954, balign='start', end_of='8'),
+    dict(key='BRO', stop='st_1076', name='Бровар', sub='', lx=866, ly=946, anchor='start', routes=['8'], bx=922, by=933, balign='start', end_of='8'),
     dict(key='MAG', stop='st_1068', name='Магазин №44', sub='', lx=456, ly=760, anchor='end', routes=['8'], bx=0, by=0, balign='end', badges=False),
     # кінцеві окремих рейсів (пунктир)
-    dict(key='HROZ', stop='st_1101', name='Грозине', sub='', lx=1360, ly=640, anchor='middle', routes=['4'], bx=1360, by=674, balign='middle'),
-    dict(key='SADY', stop='st_1105', name='Сади', sub='сезонно', lx=780, ly=1032, anchor='middle', routes=['8'], bx=780, by=1050, balign='middle'),
-    dict(key='UTOS', stop='st_1102', name='Дачі УТОС', sub='окремі рейси', lx=910, ly=1032, anchor='middle', routes=['8'], bx=910, by=1050, balign='middle'),
+    dict(key='HROZ', stop='st_1101', name='Грозине', sub='', lx=1360, ly=640, anchor='middle', routes=['4'], bx=1378, by=652, balign='start'),
+    dict(key='SADY', stop='st_1105', name='Сади', sub='сезонно', lx=780, ly=1032, anchor='middle', routes=['8'], bx=780, by=1056, balign='middle'),
+    dict(key='UTOS', stop='st_1102', name='Дачі УТОС', sub='окремі рейси', lx=910, ly=1032, anchor='middle', routes=['8'], bx=910, by=1056, balign='middle'),
 ]
 
 WAYPOINTS = [
@@ -165,41 +165,41 @@ WAYPOINTS = [
     dict(cor='R3L', seg=1, t=0.5, stop='st_1033', name='Церква', lx=340, ly=264, anchor='middle'),
     dict(cor='R3E', seg=0, t=0.0, stop='st_1035', name='Чигирі', lx=260, ly=186, anchor='middle'),
     dict(cor='CHC', seg=0, t=0.5, stop='st_1005', name='В. Стуса', lx=598, ly=776, anchor='start'),
-    dict(cor='CC2', seg=0, t=0.5, stop='st_1007', name='Ветлікарня', lx=446, ly=876, anchor='end'),
-    dict(cor='CC2', seg=0, t=1.0, stop='st_1010', name='Чолівський переїзд', lx=330, ly=948, anchor='end'),
-    dict(cor='R1',  seg=0, t=0.4, stop='st_1011', name='Школа №13', lx=304, ly=1034, anchor='end'),
-    dict(cor='R5',  seg=0, t=0.5, stop='st_1047', name='КВК №71', lx=288, ly=884, anchor='end'),
+    dict(cor='CC2', seg=0, t=0.5, stop='st_1007', name='Ветлікарня', lx=440, ly=872, anchor='end'),
+    dict(cor='CC2', seg=0, t=1.0, stop='st_1010', name='Чолівський переїзд', lx=312, ly=966, anchor='end'),
+    dict(cor='R1',  seg=0, t=0.58, stop='st_1011', name='Школа №13', lx=274, ly=1052, anchor='end'),
+    dict(cor='R5',  seg=0, t=0.5, stop='st_1047', name='КВК №71', lx=280, ly=884, anchor='end'),
     dict(cor='RG',  seg=0, t=0.25, stop='st_1064', name='Школа №1', lx=540, ly=490, anchor='end'),
     dict(cor='RG',  seg=0, t=0.6, stop='st_1073', name='Районна лікарня', lx=468, ly=566, anchor='end'),
-    dict(cor='W6',  seg=0, t=0.3, stop='st_1053', name='Шевченка, 117', lx=396, ly=464, anchor='middle'),
-    dict(cor='W6',  seg=0, t=0.66, stop='st_1055', name='Стадіон «Локомотив»', lx=506, ly=464, anchor='middle'),
-    dict(cor='B8',  seg=0, t=0.6, stop='st_1074', name='Вул. 1-го Травня', lx=824, ly=832, anchor='end'),
-    dict(cor='DPC', seg=0, t=1.0, stop='st_1038', name='Дім правосуддя', lx=962, ly=830, anchor='end'),
+    dict(cor='W6',  seg=0, t=0.25, stop='st_1053', name='Шевченка, 117', lx=376, ly=464, anchor='middle'),
+    dict(cor='W6',  seg=0, t=0.62, stop='st_1055', name='Стадіон «Локомотив»', lx=496, ly=464, anchor='middle'),
+    dict(cor='B8',  seg=0, t=0.45, stop='st_1074', name='Вул. 1-го Травня', lx=824, ly=791, anchor='end'),
+    dict(cor='DPC', seg=0, t=1.0, stop='st_1038', name='Дім правосуддя', lx=962, ly=822, anchor='end'),
     dict(cor='R4',  seg=1, t=1.0, stop='st_1041', name='Трубосталь', lx=1220, ly=624, anchor='middle'),
     dict(cor='R6E', seg=0, t=1.0, stop='st_1057', name='Аптека', lx=1080, ly=876, anchor='start'),
     dict(cor='R6E', seg=2, t=0.5, stop='st_1063', name='ПМК', lx=1140, ly=994, anchor='start'),
     dict(cor='R6S', seg=0, t=0.5, stop='st_1060', name='Вул. Південна', lx=1044, ly=934, anchor='end'),
-    dict(cor='R7F', seg=1, t=0.3, stop='st_1072', name='СМП 650', lx=590, ly=544, anchor='end'),
-    dict(cor='R7F', seg=1, t=0.65, stop='st_1071', name='вул. Франка', lx=590, ly=624, anchor='end'),
+    dict(cor='R7F', seg=1, t=0.3, stop='st_1072', name='СМП 650', lx=608, ly=562, anchor='start'),
+    dict(cor='R7F', seg=1, t=0.65, stop='st_1071', name='вул. Франка', lx=608, ly=628, anchor='start'),
 ]
 NODE_STOPS = {}
 
 # вода: Поліське водосховище (розширення Ужа біля кінцевої №1), річка Уж — уздовж ліній 1/5/7, через місто на північний схід
 RESERVOIR = [(150, 1150), (204, 1140), (266, 1142), (312, 1158), (272, 1178), (200, 1182), (154, 1172)]
-RIVER = [(60, 1196), (130, 1164), (210, 1160), (300, 1160), (370, 1110), (730, 750), (930, 750), (1310, 370), (1390, 290)]
-WATER_LABELS = [dict(text='р. Уж', x=1230, y=440, anchor='middle'),
-                dict(text='р. Уж', x=560, y=946, anchor='middle')]
+RIVER = [(60, 1196), (130, 1164), (210, 1160), (300, 1160), (370, 1110), (720, 760), (940, 760), (1320, 380), (1390, 310)]
+WATER_LABELS = [dict(text='р. Уж', x=1284, y=474, anchor='middle'),
+                dict(text='р. Уж', x=588, y=950, anchor='middle')]
 
 # залізниця: вісь захід — схід через вокзал, на південь (Житомир, через Чолівку: переїзд №1 і №5) і на північ
 # (Овруч, Коростень-Подільський: шляхопровід №3)
 RAILWAYS = [
     [(30, 416), (220, 416), (860, 416), (1264, 820), (1390, 820)],
-    [(220, 416), (220, 560), (340, 680), (340, 1240)],
+    [(220, 416), (220, 600), (320, 700), (320, 1240)],
     [(220, 416), (220, 300), (340, 180), (340, 168)],
 ]
 RAIL_LABELS = [
     dict(text='на Київ', x=1388, y=812, anchor='end'),
-    dict(text='на Житомир', x=350, y=1236, anchor='start'),
+    dict(text='на Житомир', x=330, y=1236, anchor='start'),
     dict(text='на Овруч', x=350, y=178, anchor='start'),
     dict(text='на Звягель', x=34, y=408, anchor='start'),
 ]

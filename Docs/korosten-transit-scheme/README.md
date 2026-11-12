@@ -50,5 +50,6 @@ python3 build_scheme.py --city ../korosten-transit-scheme/korosten_scheme.py --o
 PDF плаката — той самий SVG, надрукований браузером (A2 landscape, правило `@page` у стилі SVG), напр. Chromium
 `--print-to-pdf` або Playwright `page.pdf({ preferCSSPageSize: true })`.
 
-Перевірити на око: відкрити `korosten-transit-scheme.svg` (або PNG-рендер) — підписи не налазять на лінії, кінцеві з
-плашками номерів. Після зміни складу маршрутів (новий номер, інший шлях) правити `ROUTES`, `C` і `LEGEND` тут, а не SVG.
+Перевірка накладань: `node Docs/malyn-transit-scheme/check_overlaps.cjs Docs/korosten-transit-scheme/korosten-transit-scheme.svg 1240`
+— перелічує підписи й плашки номерів, що лягають на лінії, залізницю, річку, маркери зупинок або одне на одне
+(2026-11-12: 0; на плакаті лише два рядки підпису під QR-кодом, як у Малина). Потім — на око, PNG-рендер у 2×. Після зміни складу маршрутів (новий номер, інший шлях) правити `ROUTES`, `C` і `LEGEND` тут, а не SVG.
