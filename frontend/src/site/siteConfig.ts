@@ -27,6 +27,8 @@ export interface SiteConfig {
   cityNameUk: string;
   /** Родовий відмінок: «Транспорт Малина» */
   cityNameUkGenitive: string;
+  /** Місцевий відмінок: «у Малині» */
+  cityNameUkLocative: string;
   isPrimary: boolean;
   /** Домен підключено і він обслуговує трафік (неактивні міста живуть на головному сайті) */
   active: boolean;

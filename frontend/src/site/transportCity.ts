@@ -4,7 +4,7 @@
  * адреси запитів лишаються такими, як були; інше місто йде з ?city=<TripPoint.code>.
  */
 import { isPrerendering } from '@/utils/prerender';
-import { SITES, getCurrentSite } from './siteConfig';
+import { SITES, getCurrentSite, siteForCityCode } from './siteConfig';
 
 export const DEFAULT_TRANSPORT_CITY = 'Malyn';
 
@@ -106,8 +106,32 @@ export function cityField(city: string | null | undefined): { city?: string } {
   return isDefaultTransportCity(city) ? {} : { city: city as string };
 }
 
+/** Чіп «Куди їдете?»: вузол з однією чи кількома зупинками датасету (головна перша) */
+export interface TransportQuickNode {
+  id: string;
+  kind: 'hub' | 'terminal';
+  name: string;
+  stopIds: string[];
+}
+
 export interface TransportProfile {
   cityCode: string;
+  /** «Малин» — у підзаголовках («Малин · місцевий транспорт») */
+  name: string;
+  /** «Малина» — «Транспорт Малина», «Маршрути Малина» */
+  nameGenitive: string;
+  /** «Малині» — «як доїхати у Малині» */
+  nameLocative: string;
+  /** Домен сайту міста (canonical, тексти «на malin.kiev.ua/transport») */
+  domain: string;
+  /** https://<домен> */
+  siteUrl: string;
+  /** Відкриті дані (GTFS, RSS, ICS) — поки лише Малин; в іншого міста блок посилань на фід ховаємо */
+  hasOpenData: boolean;
+  /** Чіпи «Куди їдете?» для міста без схеми (у Малина вони з вузлів схеми); [] — лише «Поруч зі мною» */
+  quickNodes: readonly TransportQuickNode[];
+  /** Джерело розкладу в підвалі сторінок міста без відкритих даних; null — нема */
+  sourceLink: { href: string; label: string } | null;
   /** Центр карти, поки датасет не дав свого (meta.center) */
   center: [number, number] | null;
   /** Є намальована схема маршрутів (сторінка /transport/scheme, кольори ліній з її легенди) */
@@ -118,8 +142,24 @@ export interface TransportProfile {
   legacyStopNames: readonly string[];
 }
 
+function names(city: string): Pick<TransportProfile, 'name' | 'nameGenitive' | 'nameLocative' | 'domain' | 'siteUrl'> {
+  const site = Object.values(SITES).find((s) => s.cityCode === city);
+  const domain = siteForCityCode(city).domain;
+  return {
+    name: site?.cityNameUk ?? city,
+    nameGenitive: site?.cityNameUkGenitive ?? city,
+    nameLocative: site?.cityNameUkLocative ?? city,
+    domain,
+    siteUrl: `https://${domain}`,
+  };
+}
+
 const MALYN_PROFILE: TransportProfile = {
   cityCode: DEFAULT_TRANSPORT_CITY,
+  ...names(DEFAULT_TRANSPORT_CITY),
+  hasOpenData: true,
+  quickNodes: [],
+  sourceLink: null,
   center: [50.768, 29.242],
   hasScheme: true,
   hasStopArticles: true,
@@ -131,8 +171,38 @@ const CITY_CENTERS: Record<string, [number, number]> = {
   Korosten: [50.9506, 28.6384],
 };
 
-/** Що в транспорті прив'язане до конкретного міста. Тексти й SEO міста — окрема фаза. */
+/** Звідки розклад міста (підвал сторінок транспорту) */
+const CITY_SOURCES: Record<string, { href: string; label: string }> = {
+  Korosten: {
+    href: 'https://korosten-rada.gov.ua/miska-rada/upravlinnya-ta-viddily/upravlinnya-ekonomiky/viddil-misczevogo-ekonomichnogo-rozvytku/transport/miskyj-transport/rozklad-ruhu-miskogo-transportu-rozklad-ruhu-avtobusiv-na-period-vijskovogo-stanu/',
+    label: 'Розклад: Коростенська міська рада',
+  },
+};
+
+/** Чіпи «Куди їдете?» міст без схеми: головні точки міста (id зупинок датасету міста) */
+const CITY_QUICK_NODES: Record<string, readonly TransportQuickNode[]> = {
+  Korosten: [
+    { id: 'st_1001', kind: 'hub', name: 'Залізничний вокзал', stopIds: ['st_1001'] },
+    { id: 'st_1002', kind: 'hub', name: 'Міський ринок', stopIds: ['st_1002'] },
+    { id: 'st_1003', kind: 'hub', name: 'Центр міста', stopIds: ['st_1003'] },
+    { id: 'st_1079', kind: 'hub', name: 'Міська лікарня', stopIds: ['st_1079'] },
+    { id: 'st_1073', kind: 'hub', name: 'Районна лікарня', stopIds: ['st_1073'] },
+    { id: 'st_1015', kind: 'terminal', name: 'Поліське водосховище', stopIds: ['st_1015'] },
+  ],
+};
+
+/** Що в транспорті прив'язане до конкретного міста: назви, домен, схема, статті зупинок, відкриті дані */
 export function transportProfile(city: string = siteTransportCity()): TransportProfile {
   if (isDefaultTransportCity(city)) return MALYN_PROFILE;
-  return { cityCode: city, center: CITY_CENTERS[city] ?? null, hasScheme: false, hasStopArticles: false, legacyStopNames: [] };
+  return {
+    cityCode: city,
+    ...names(city),
+    hasOpenData: false,
+    quickNodes: CITY_QUICK_NODES[city] ?? [],
+    sourceLink: CITY_SOURCES[city] ?? null,
+    center: CITY_CENTERS[city] ?? null,
+    hasScheme: false,
+    hasStopArticles: false,
+    legacyStopNames: [],
+  };
 }

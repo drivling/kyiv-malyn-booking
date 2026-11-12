@@ -60,6 +60,7 @@ import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
 import { isPrerendering } from '@/utils/prerender';
 import { routeNo } from '@/utils/routeNames';
+import { isDefaultTransportCity, transportProfile, type TransportProfile } from '@/site/transportCity';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
@@ -100,25 +101,50 @@ function buildPlannerUrl(from: string, to: string, date: string, time: string, a
   return `/transport/${encodeURIComponent(from)}/${encodeURIComponent(to)}${qs ? `?${qs}` : ''}`;
 }
 
-/** AEO FAQ for city transit hub (pattern: Korosten/Zvyagel official + local news pages) */
-const TRANSPORT_HUB_FAQ: Array<{ q: string; a: string }> = [
-  {
-    q: 'Як доїхати міським транспортом у Малині?',
-    a: 'Відкрийте malin.kiev.ua/transport і оберіть зупинки «Звідки» і «Куди» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.',
-  },
-  {
-    q: 'Де подивитися розклад маршруток Малина?',
-    a: 'На сторінці маршруту (/transport/route/…) — таблиця відправлень і список зупинок. На головній /transport — планер і перелік ліній.',
-  },
-  {
-    q: 'Які маршрути є в Малині?',
-    a: 'Актуальний список ліній з кінцевими зупинками — у блоці «Маршрути Малина» на цій сторінці. Дані з тієї ж бази, що й карта та табло зупинок.',
-  },
-  {
-    q: 'Чим відрізняється від міжміських маршруток?',
-    a: 'Тут — місцевий транспорт Малина (зупинки в місті). Міжміські попутки й маршрутки Київ / Житомир / Коростень — на /mizhgorodski.',
-  },
-];
+/**
+ * AEO FAQ for city transit hub (pattern: Korosten/Zvyagel official + local news pages). Назви міста й домен — з
+ * профілю транспорту (Docs/korosten-transport-2026-11.md, фаза 10а); для Малина тексти дослівно ті самі.
+ */
+function transportHubFaq(p: TransportProfile): Array<{ q: string; a: string }> {
+  const others = ['Київ', 'Житомир', 'Коростень', 'Малин'].filter((n) => n !== p.name).slice(0, 3).join(' / ');
+  return [
+    {
+      q: `Як доїхати міським транспортом у ${p.nameLocative}?`,
+      a: `Відкрийте ${p.domain}/transport і оберіть зупинки «Звідки» і «Куди» (у формі або на карті) — прямі маршрути з найближчим відправленням, прибуттям і тривалістю з’являться одразу.`,
+    },
+    {
+      q: `Де подивитися розклад маршруток ${p.nameGenitive}?`,
+      a: 'На сторінці маршруту (/transport/route/…) — таблиця відправлень і список зупинок. На головній /transport — планер і перелік ліній.',
+    },
+    {
+      q: `Які маршрути є в ${p.nameLocative}?`,
+      a: `Актуальний список ліній з кінцевими зупинками — у блоці «Маршрути ${p.nameGenitive}» на цій сторінці. Дані з тієї ж бази, що й карта та табло зупинок.`,
+    },
+    {
+      q: 'Чим відрізняється від міжміських маршруток?',
+      a: `Тут — місцевий транспорт ${p.nameGenitive} (зупинки в місті). Міжміські попутки й маршрутки ${others} — на /mizhgorodski.`,
+    },
+  ];
+}
+
+/** Підвал сторінок транспорту: у Малина — набір data.gov.ua і телефон, в іншого міста — джерело розкладу */
+function TransportFooter({ profile }: { profile: TransportProfile }) {
+  return (
+    <footer className="lt-footer">
+      {profile.hasOpenData ? (
+        <>
+          <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
+          {' · '}
+          <a href="tel:+380687771590">(068) 77-71-590</a>
+        </>
+      ) : profile.sourceLink ? (
+        <a href={profile.sourceLink.href} target="_blank" rel="noopener noreferrer">
+          {profile.sourceLink.label}
+        </a>
+      ) : null}
+    </footer>
+  );
+}
 
 /** Зі списку зупинок повертає id найближчої до targetKey за координатами (або першу з списку) */
 function findNearestStopInList(
@@ -285,6 +311,9 @@ export const LocalTransportPage: React.FC = () => {
   const hourFromUrl = searchParams.get('h') ?? '';
   const arriveFromUrl = searchParams.get('a') === '1';
   const { dataset, loading, error, reload, source, online, dataAsOf } = useTransportDataset();
+  // назви міста, домен, схема, відкриті дані — з профілю міста цієї сторінки (у перегляді адміна — міста перегляду)
+  const profile = useMemo(() => transportProfile(), []);
+  const hubFaq = useMemo(() => transportHubFaq(profile), [profile]);
   const viewModel = useMemo(() => {
     if (!dataset) return null;
     const vm = datasetToLocalViewModel(dataset);
@@ -706,21 +735,21 @@ export const LocalTransportPage: React.FC = () => {
           : '';
       const faq = [
         {
-          q: `Який розклад маршруту №${routeNo(detailRoute.id)} у Малині?`,
+          q: `Який розклад маршруту №${routeNo(detailRoute.id)} у ${profile.nameLocative}?`,
           a:
             first && last
-              ? `На malin.kiev.ua/transport/route/${detailRoute.id}: рейси з ${first} до ${last}. Повний список зупинок і табло — на сторінці маршруту.`
-              : `Відкрийте malin.kiev.ua/transport/route/${detailRoute.id} — таблиця відправлень і список зупинок.`,
+              ? `На ${profile.domain}/transport/route/${detailRoute.id}: рейси з ${first} до ${last}. Повний список зупинок і табло — на сторінці маршруту.`
+              : `Відкрийте ${profile.domain}/transport/route/${detailRoute.id} — таблиця відправлень і список зупинок.`,
         },
         {
           q: `Куди їде маршрутка №${routeNo(detailRoute.id)}?`,
-          a: `${path ? `Лінія ${path}. ` : ''}Планер «Звідки → Куди» і карта: malin.kiev.ua/transport.`,
+          a: `${path ? `Лінія ${path}. ` : ''}Планер «Звідки → Куди» і карта: ${profile.domain}/transport.`,
         },
       ];
       return {
-        title: `Маршрут ${routeTitle(detailRoute)} | Транспорт Малина | malin.kiev.ua`,
-        canonicalUrl: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
-        description: `Розклад і зупинки маршруту №${routeNo(detailRoute.id)}${path ? ` (${path})` : ''} у Малині.${tripHint}`,
+        title: `Маршрут ${routeTitle(detailRoute)} | Транспорт ${profile.nameGenitive} | ${profile.domain}`,
+        canonicalUrl: `${profile.siteUrl}/transport/route/${encodeURIComponent(detailRoute.id)}`,
+        description: `Розклад і зупинки маршруту №${routeNo(detailRoute.id)}${path ? ` (${path})` : ''} у ${profile.nameLocative}.${tripHint}`,
         jsonLdId: `transport-route-jsonld-${detailRoute.id}`,
         jsonLd: {
           '@context': 'https://schema.org',
@@ -731,14 +760,14 @@ export const LocalTransportPage: React.FC = () => {
                 {
                   '@type': 'ListItem',
                   position: 1,
-                  name: 'Транспорт Малина',
-                  item: 'https://malin.kiev.ua/transport',
+                  name: `Транспорт ${profile.nameGenitive}`,
+                  item: `${profile.siteUrl}/transport`,
                 },
                 {
                   '@type': 'ListItem',
                   position: 2,
                   name: routeTitle(detailRoute),
-                  item: `https://malin.kiev.ua/transport/route/${encodeURIComponent(detailRoute.id)}`,
+                  item: `${profile.siteUrl}/transport/route/${encodeURIComponent(detailRoute.id)}`,
                 },
               ],
             },
@@ -773,32 +802,31 @@ export const LocalTransportPage: React.FC = () => {
     const unknownRoute = isDetailPage && !detailRoute && routeCount > 0;
     return {
       title: pairNames
-        ? `${pairNames.from} → ${pairNames.to} — як доїхати у Малині | malin.kiev.ua`
-        : 'Транспорт Малина — розклад маршруток і як доїхати | malin.kiev.ua',
-      canonicalUrl: 'https://malin.kiev.ua/transport',
+        ? `${pairNames.from} → ${pairNames.to} — як доїхати у ${profile.nameLocative} | ${profile.domain}`
+        : `Транспорт ${profile.nameGenitive} — розклад маршруток і як доїхати | ${profile.domain}`,
+      canonicalUrl: `${profile.siteUrl}/transport`,
       // /transport/route/<невідомий або прихований id> показує планер — не індексуємо як дубль хаба.
       // /transport/:from/:to — SPA-only варіанти з canonical на хаб (SEO-план 1.3), теж noindex.
       ...(unknownRoute || pairNames ? { robots: 'noindex, follow' } : {}),
       description: pairNames
-        ? `Прямі маршрути міського транспорту Малина від зупинки ${pairNames.from} до ${pairNames.to}: найближче відправлення, прибуття і тривалість. Планер на malin.kiev.ua/transport.`
+        ? `Прямі маршрути міського транспорту ${profile.nameGenitive} від зупинки ${pairNames.from} до ${pairNames.to}: найближче відправлення, прибуття і тривалість. Планер на ${profile.domain}/transport.`
         : routeCount > 0
-          ? `Міський транспорт Малина: ${routeCount} маршрутів, планер «Звідки → Куди», карта й табло зупинок. Актуальний розклад на malin.kiev.ua/transport.`
-          : 'Міський транспорт Малина: планер «Звідки → Куди», карта, розклад маршрутів і табло зупинок на malin.kiev.ua/transport.',
+          ? `Міський транспорт ${profile.nameGenitive}: ${routeCount} маршрутів, планер «Звідки → Куди», карта й табло зупинок. Актуальний розклад на ${profile.domain}/transport.`
+          : `Міський транспорт ${profile.nameGenitive}: планер «Звідки → Куди», карта, розклад маршрутів і табло зупинок на ${profile.domain}/transport.`,
       jsonLdId: 'transport-hub-jsonld',
       jsonLd: {
         '@context': 'https://schema.org',
         '@graph': [
           {
             '@type': 'WebPage',
-            name: 'Транспорт Малина',
-            url: 'https://malin.kiev.ua/transport',
-            description:
-              'Місцеві маршрутки Малина: як доїхати між зупинками, розклад і карта.',
+            name: `Транспорт ${profile.nameGenitive}`,
+            url: `${profile.siteUrl}/transport`,
+            description: `Місцеві маршрутки ${profile.nameGenitive}: як доїхати між зупинками, розклад і карта.`,
             inLanguage: 'uk-UA',
           },
           {
             '@type': 'FAQPage',
-            mainEntity: TRANSPORT_HUB_FAQ.map((item) => ({
+            mainEntity: hubFaq.map((item) => ({
               '@type': 'Question',
               name: item.q,
               acceptedAnswer: { '@type': 'Answer', text: item.a },
@@ -808,13 +836,13 @@ export const LocalTransportPage: React.FC = () => {
             ? [
                 {
                   '@type': 'ItemList',
-                  name: 'Маршрути міського транспорту Малина',
+                  name: `Маршрути міського транспорту ${profile.nameGenitive}`,
                   numberOfItems: routeCount,
                   itemListElement: routes.map((r, i) => ({
                     '@type': 'ListItem',
                     position: i + 1,
                     name: routeTitle(r),
-                    url: `https://malin.kiev.ua/transport/route/${encodeURIComponent(r.id)}`,
+                    url: `${profile.siteUrl}/transport/route/${encodeURIComponent(r.id)}`,
                   })),
                 },
               ]
@@ -822,7 +850,7 @@ export const LocalTransportPage: React.FC = () => {
         ],
       },
     };
-  }, [isDetailPage, detailRoute, routes, pairNames]);
+  }, [isDetailPage, detailRoute, routes, pairNames, profile, hubFaq]);
 
   usePageSeo(transportSeo);
 
@@ -1146,10 +1174,10 @@ export const LocalTransportPage: React.FC = () => {
   /** Чіпи швидкого старту: вузол схеми → перша його зупинка, що є в датасеті */
   const quickNodes = useMemo(
     () =>
-      QUICK_NODES.map((node) => ({ node, stopId: node.stopIds.find((id) => stops.includes(id)) })).filter(
+      (profile.hasScheme ? QUICK_NODES : (profile.quickNodes as SchemeNode[])).map((node) => ({ node, stopId: node.stopIds.find((id) => stops.includes(id)) })).filter(
         (q): q is { node: SchemeNode; stopId: string } => Boolean(q.stopId)
       ),
-    [stops]
+    [stops, profile]
   );
   /** Чіп вузла ставить «Куди», а якщо «Куди» вже є — «Звідки» (ті самі сетери, що й поля) */
   const pickQuickNode = (node: SchemeNode, stopId: string) => {
@@ -1254,7 +1282,7 @@ export const LocalTransportPage: React.FC = () => {
               <div className="lt-header-title-wrap">
                 {/* Декоративний заголовок: єдиний h1 сторінки маршруту — назва лінії нижче */}
                 <p className="lt-title">Як доїхати</p>
-                <p className="lt-subtitle">Маршрут №{routeNo(detailRoute.id)} · Малин</p>
+                <p className="lt-subtitle">Маршрут №{routeNo(detailRoute.id)} · {profile.name}</p>
               </div>
             </header>
 
@@ -1544,7 +1572,7 @@ export const LocalTransportPage: React.FC = () => {
                 </>
               );
             })()}
-            {routeColor(detailRoute.id) && (
+            {profile.hasScheme && routeColor(detailRoute.id) && (
               <LocalTransportSchemeMini
                 source="route"
                 routeIds={[detailRoute.id]}
@@ -1664,11 +1692,7 @@ export const LocalTransportPage: React.FC = () => {
               </section>
             ) : null}
           </div>
-            <footer className="lt-footer">
-              <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
-              {' · '}
-              <a href="tel:+380687771590">(068) 77-71-590</a>
-            </footer>
+            <TransportFooter profile={profile} />
           </div>
             {(() => {
               const mapProps = {
@@ -1712,7 +1736,7 @@ export const LocalTransportPage: React.FC = () => {
           <>
             <header className="lt-header">
               <h1 className="lt-title">{pairNames ? `${pairNames.from} → ${pairNames.to}` : 'Як доїхати'}</h1>
-              <p className="lt-subtitle">{pairNames ? 'Як доїхати · Малин' : 'Малин · місцевий транспорт'}</p>
+              <p className="lt-subtitle">{pairNames ? `Як доїхати · ${profile.name}` : `${profile.name} · місцевий транспорт`}</p>
             </header>
 
             <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} fromStopId={resolvedFrom && !isPointKey(resolvedFrom) ? resolvedFrom : undefined} />
@@ -1934,14 +1958,16 @@ export const LocalTransportPage: React.FC = () => {
                     <button type="button" className="lt-empty-map-btn" onClick={() => openMap('planner', false)}>
                       Відкрити карту
                     </button>
-                    <LocalTransportSchemeMini
-                      showAll
-                      routeIds={[]}
-                      href={buildSchemeUrl({ date: searchDate, time: searchTime })}
-                      label="Відкрити схему маршрутів"
-                      title="Уся схема"
-                      source="planner"
-                    />
+                    {profile.hasScheme && (
+                      <LocalTransportSchemeMini
+                        showAll
+                        routeIds={[]}
+                        href={buildSchemeUrl({ date: searchDate, time: searchTime })}
+                        label="Відкрити схему маршрутів"
+                        title="Уся схема"
+                        source="planner"
+                      />
+                    )}
                   </div>
                 )
               ) : !journeyView ? null : journeyView.items.length === 0 ? (
@@ -1982,7 +2008,7 @@ export const LocalTransportPage: React.FC = () => {
             </div>
             <section className="lt-aeo" aria-labelledby="lt-aeo-routes">
               <h2 id="lt-aeo-routes" className="lt-aeo-title">
-                Маршрути Малина
+                Маршрути {profile.nameGenitive}
               </h2>
               <p className="lt-aeo-lead">
                 Актуальний список міських ліній: розклад, зупинки й карта. Оберіть номер або скористайтеся
@@ -2002,7 +2028,7 @@ export const LocalTransportPage: React.FC = () => {
                         </span>
                         <span className="lt-aeo-route-text">
                           {routeLine(r) ? <span className="lt-aeo-route-line">{routeLine(r)}</span> : null}
-                          {SCHEME_VIA[r.id] ? <span className="lt-aeo-route-via">{SCHEME_VIA[r.id]}</span> : null}
+                          {profile.hasScheme && SCHEME_VIA[r.id] ? <span className="lt-aeo-route-via">{SCHEME_VIA[r.id]}</span> : null}
                         </span>
                       </Link>
                     </li>
@@ -2015,25 +2041,27 @@ export const LocalTransportPage: React.FC = () => {
                 Часті питання
               </h2>
               <dl className="lt-aeo-faq">
-                {TRANSPORT_HUB_FAQ.map((item) => (
+                {hubFaq.map((item) => (
                   <div key={item.q} className="lt-aeo-faq__item">
                     <dt>{item.q}</dt>
                     <dd>{item.a}</dd>
                   </div>
                 ))}
               </dl>
-              <p className="lt-aeo-more">
-                Гід:{' '}
-                <Link to="/support/transport">як їздити міським транспортом у Малині</Link>. Міжміські —{' '}
-                <Link to="/mizhgorodski">/mizhgorodski</Link> ·{' '}
-                <Link to="/support/travel">як доїхати до Малина</Link>.
-              </p>
+              {isDefaultTransportCity(profile.cityCode) ? (
+                <p className="lt-aeo-more">
+                  Гід:{' '}
+                  <Link to="/support/transport">як їздити міським транспортом у Малині</Link>. Міжміські —{' '}
+                  <Link to="/mizhgorodski">/mizhgorodski</Link> ·{' '}
+                  <Link to="/support/travel">як доїхати до Малина</Link>.
+                </p>
+              ) : (
+                <p className="lt-aeo-more">
+                  Міжміські — <Link to="/mizhgorodski">/mizhgorodski</Link>.
+                </p>
+              )}
             </section>
-            <footer className="lt-footer">
-              <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
-              {' · '}
-              <a href="tel:+380687771590">(068) 77-71-590</a>
-            </footer>
+            <TransportFooter profile={profile} />
           </>
           </div>
           {(() => {

@@ -60,7 +60,22 @@ describe('місто сайту', () => {
   it('профіль: у Малина схема, статті й старі назви зупинок; в іншого міста — ні', () => {
     expect(transportProfile('Malyn')).toMatchObject({ hasScheme: true, hasStopArticles: true, center: [50.768, 29.242] });
     expect(transportProfile('Malyn').legacyStopNames).toContain('Малинівка');
-    expect(transportProfile('Korosten')).toEqual({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: false, hasStopArticles: false, legacyStopNames: [] });
+    expect(transportProfile('Korosten')).toMatchObject({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: false, hasStopArticles: false, legacyStopNames: [] });
+  });
+
+  it('профіль: назви міста у відмінках, домен, відкриті дані, чіпи', () => {
+    expect(transportProfile('Malyn')).toMatchObject({
+      name: 'Малин',
+      nameGenitive: 'Малина',
+      nameLocative: 'Малині',
+      domain: 'malin.kiev.ua',
+      siteUrl: 'https://malin.kiev.ua',
+      hasOpenData: true,
+      quickNodes: [],
+    });
+    const k = transportProfile('Korosten');
+    expect(k).toMatchObject({ name: 'Коростень', nameGenitive: 'Коростеня', nameLocative: 'Коростені', domain: 'korosten.kiev.ua', siteUrl: 'https://korosten.kiev.ua', hasOpenData: false });
+    expect(k.quickNodes.map((n) => n.stopIds[0])).toEqual(['st_1001', 'st_1002', 'st_1003', 'st_1079', 'st_1073', 'st_1015']);
   });
 });
 

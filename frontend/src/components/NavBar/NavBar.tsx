@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { SUPPORT_PATH } from '@/pages/SupportPage';
-import { getCurrentSite } from '@/site';
+import { transportProfile } from '@/site/transportCity';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
 import './NavBar.css';
@@ -74,7 +74,7 @@ export function NavBar() {
           Міжміські
         </Link>
         <Link to="/transport" className="nav-link">
-          Транспорт<span className="nav-link-city"> {getCurrentSite().cityNameUkGenitive}</span>
+          Транспорт<span className="nav-link-city"> {transportProfile().nameGenitive}</span>
         </Link>
         <Link to={COMPANY_LEGAL_PATH} className="nav-link">
           Про нас
