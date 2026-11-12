@@ -18,6 +18,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * npm run korosten:dataset -- --google-coords — ще й dataset/korosten-dataset.local.json (поза git): приблизні точки
  *                                             замінено точками з google/coords.local.json (тимчасово, до перевірки
  *                                             на місці); з --apply / --dry-run пишеться саме вона
+ * npm run korosten:dataset -- --fetch-google --only-missing — пошук Google лише для зупинок, яких нема в check.json
+ * npm run korosten:dataset -- --google-hops [--google-coords] [--refresh] — перевірка кожної трійки сусідніх зупинок
+ *                                             через Routes TRANSIT; продовжує з місця зупинки, --refresh — заново
  * npm run korosten:dataset -- --apply       — записати чернетку в базу: GET → бекап → PUT ?city=Korosten з
  *                                             baseRevision → GET і порівняння. Токен — ADMIN_TOKEN або VIBER_ADMIN_TOKEN.
  *                                             Без --apply показує лише, що зміниться.
@@ -28,6 +31,8 @@ const node_path_1 = __importDefault(require("node:path"));
 const local_transport_1 = require("../local-transport");
 const korosten_osm_1 = require("../korosten-osm");
 const korosten_stop_aliases_1 = require("../korosten-stop-aliases");
+const korosten_dataset_1 = require("../korosten-dataset");
+const korosten_google_1 = require("../korosten-google");
 const korosten_dataset_files_1 = require("../korosten-dataset-files");
 const ROOT = node_path_1.default.resolve(__dirname, '../../../data/korosten-transport');
 const CITY = 'Korosten';
@@ -114,17 +119,60 @@ async function fetchStreets() {
     }
     write(korosten_dataset_files_1.OSM_STREETS_FILE, `${JSON.stringify({ _license: '© OpenStreetMap contributors, ODbL 1.0 (Nominatim)', fetchedAt: new Date().toISOString(), streets }, null, 2)}\n`);
 }
-async function fetchGoogle(dataset) {
+function readLocalJson(file) {
+    const full = node_path_1.default.join(ROOT, file);
+    return node_fs_1.default.existsSync(full) ? JSON.parse(node_fs_1.default.readFileSync(full, 'utf8')) : null;
+}
+/** Ключ Google: справжній — з оточення; у хмарній сесії — будь-який, проксі підставить свій (NODE_USE_ENV_PROXY=1) */
+function googleKey() {
     const key = process.env.GOOGLE_MAPS_API_KEY ?? '';
     if (!key)
         throw new Error('GOOGLE_MAPS_API_KEY is not set');
+    return key;
+}
+async function computeTransit(key, from, to, when, fieldMask) {
+    return (await getJson('https://routes.googleapis.com/directions/v2:computeRoutes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fieldMask },
+        body: JSON.stringify({
+            origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
+            destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
+            travelMode: 'TRANSIT',
+            computeAlternativeRoutes: true,
+            departureTime: when.toISOString(),
+            languageCode: 'uk',
+        }),
+    }));
+}
+/** Найближчий будній день (від завтра), hh:mm за Києвом → момент UTC */
+function nextWeekdayKyiv(minutes) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    while ([0, 6].includes(d.getUTCDay()))
+        d.setUTCDate(d.getUTCDate() + 1);
+    const ymd = d.toISOString().slice(0, 10);
+    const probe = new Date(`${ymd}T12:00:00Z`);
+    const offset = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Kyiv', timeZoneName: 'shortOffset' })
+        .formatToParts(probe)
+        .find((p) => p.type === 'timeZoneName')?.value.match(/GMT([+-]\d+)/)?.[1];
+    const hours = Number(offset ?? '2');
+    return new Date(Date.UTC(Number(ymd.slice(0, 4)), Number(ymd.slice(5, 7)) - 1, Number(ymd.slice(8, 10)), 0, minutes - hours * 60));
+}
+async function fetchGoogle(dataset, onlyMissing) {
+    const key = googleKey();
     const b = korosten_osm_1.KOROSTEN_BBOX;
     const headers = { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key };
-    const check = { checkedAt: new Date().toISOString(), stops: {} };
+    const prevCheck = onlyMissing ? readLocalJson(korosten_dataset_files_1.GOOGLE_CHECK_FILE) : null;
+    const prevCoords = onlyMissing ? readLocalJson(korosten_dataset_files_1.GOOGLE_COORDS_FILE) : null;
+    const check = { checkedAt: prevCheck?.checkedAt ?? new Date().toISOString(), stops: { ...(prevCheck?.stops ?? {}) }, transit: prevCheck?.transit };
     // Координати Google — лише в локальний файл поза git (репозиторій публічний, умови Google забороняють їх
     // публікувати); власник бере їх тимчасово, до перевірки зупинок на місці
-    const coords = { fetchedAt: check.checkedAt, stops: {} };
+    const coords = { fetchedAt: prevCoords?.fetchedAt ?? check.checkedAt, stops: { ...(prevCoords?.stops ?? {}) } };
+    let asked = 0;
     for (const s of dataset.stops) {
+        if (onlyMissing && check.stops[s.id])
+            continue;
+        asked++;
         const body = {
             textQuery: `${s.name.replace(/\s*\(на вимогу\)$/, '')}, зупинка, Коростень`,
             languageCode: 'uk',
@@ -149,41 +197,102 @@ async function fetchGoogle(dataset) {
         };
         await sleep(200);
     }
-    // Routes API TRANSIT між кінцевими кожного маршруту: які лінії Google пропонує (лише номери, без геометрії)
-    const stopById = new Map(dataset.stops.map((s) => [s.id, s]));
-    // найближчий будній день, 09:00 за Києвом (07:00 UTC взимку) — щоб розклад точно діяв
-    const when = new Date();
-    when.setUTCDate(when.getUTCDate() + 1);
-    while ([0, 6].includes(when.getUTCDay()))
-        when.setUTCDate(when.getUTCDate() + 1);
-    when.setUTCHours(7, 0, 0, 0);
-    check.transit = [];
-    for (const r of dataset.routes) {
-        const chain = dataset.routeStops.filter((x) => x.routeId === r.id && x.orderThere > 0).sort((a, b) => a.orderThere - b.orderThere);
-        const from = stopById.get(chain[0]?.stopId ?? '');
-        const to = stopById.get(chain[chain.length - 1]?.stopId ?? '');
-        if (!from || !to)
-            continue;
-        const res = (await getJson('https://routes.googleapis.com/directions/v2:computeRoutes', {
-            method: 'POST',
-            headers: { ...headers, 'X-Goog-FieldMask': 'routes.legs.steps.transitDetails.transitLine.nameShort,routes.legs.steps.transitDetails.transitLine.name' },
-            body: JSON.stringify({
-                origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
-                destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
-                travelMode: 'TRANSIT',
-                computeAlternativeRoutes: true,
-                departureTime: when.toISOString(),
-                languageCode: 'uk',
-            }),
-        }));
-        const lines = [
-            ...new Set((res.routes ?? []).flatMap((x) => (x.legs ?? []).flatMap((l) => (l.steps ?? []).map((st) => st.transitDetails?.transitLine?.nameShort ?? st.transitDetails?.transitLine?.name ?? '').filter(Boolean)))),
-        ].sort((a, b) => a.localeCompare(b, 'uk', { numeric: true }));
-        check.transit.push({ routeId: r.id, from: from.id, to: to.id, lines });
-        await sleep(200);
+    console.log(`Places: ${asked} запитів`);
+    if (!onlyMissing || !check.transit) {
+        // Routes API TRANSIT між кінцевими кожного маршруту: які лінії Google пропонує (лише номери, без геометрії)
+        const stopById = new Map(dataset.stops.map((s) => [s.id, s]));
+        check.transit = [];
+        for (const r of dataset.routes) {
+            const chain = dataset.routeStops.filter((x) => x.routeId === r.id && x.orderThere > 0).sort((a, b) => a.orderThere - b.orderThere);
+            const from = stopById.get(chain[0]?.stopId ?? '');
+            const to = stopById.get(chain[chain.length - 1]?.stopId ?? '');
+            if (!from || !to)
+                continue;
+            const res = await computeTransit(key, from, to, nextWeekdayKyiv(9 * 60), 'routes.legs.steps.transitDetails.transitLine.nameShort,routes.legs.steps.transitDetails.transitLine.name');
+            const lines = [
+                ...new Set((res.routes ?? []).flatMap((x) => (x.legs ?? []).flatMap((l) => (l.steps ?? []).map((st) => st.transitDetails?.transitLine?.nameShort ?? st.transitDetails?.transitLine?.name ?? '').filter(Boolean)))),
+            ].sort((a, b) => a.localeCompare(b, 'uk', { numeric: true }));
+            check.transit.push({ routeId: r.id, from: from.id, to: to.id, lines });
+            await sleep(200);
+        }
     }
     write(korosten_dataset_files_1.GOOGLE_CHECK_FILE, `${JSON.stringify(check, null, 2)}\n`);
     write(korosten_dataset_files_1.GOOGLE_COORDS_FILE, `${JSON.stringify(coords, null, 2)}\n`);
+}
+/**
+ * Перевірка кожного прогону через Google (--google-hops): трійки сусідніх зупинок A → B → C усіх ланцюжків, Routes
+ * TRANSIT від A до C у будній день о часі, коли наш маршрут там їде. Повна відповідь (з координатами Google) — у
+ * google/hops.local.json (поза git, з продовженням з місця, де зупинились); висновки без координат Google —
+ * google/hops.json (у git, для звіту).
+ */
+async function googleHops(dataset, refresh) {
+    const key = googleKey();
+    const raw = refresh ? {} : readLocalJson(korosten_dataset_files_1.GOOGLE_HOPS_LOCAL_FILE) ?? {};
+    const stopById = new Map(dataset.stops.map((s) => [s.id, s]));
+    const chains = (0, korosten_google_1.datasetChains)(dataset);
+    const triples = (0, korosten_google_1.hopTriples)(chains);
+    const seg = new Map(dataset.segments.map((x) => [`${x.routeId}|${x.fromStopId}|${x.toStopId}`, x.seconds]));
+    /** Коли наш маршрут проходить зупинку A: перший рейс ланцюжка від 07:00 (інакше перший) + сегменти до A */
+    const minutesAt = (t) => {
+        const r = t.routes[0];
+        const ch = chains.find((c) => c.routeId === r.routeId && c.variantId === r.variantId && c.stopIds.join('>').includes(t.b ? `${t.a}>${t.b}>${t.c}` : `${t.a}>${t.c}`));
+        const deps = dataset.trips
+            .filter((x) => x.routeId === ch.routeId && x.directionId === ch.directionId && (x.variantId ?? null) === ch.variantId)
+            .map((x) => Number(x.departureTime.slice(0, 2)) * 60 + Number(x.departureTime.slice(3, 5)))
+            .sort((a, b) => a - b);
+        const dep = deps.find((m) => m >= 7 * 60) ?? deps[0] ?? 9 * 60;
+        let sec = 0;
+        for (let i = 0; i + 1 < ch.stopIds.length && ch.stopIds[i] !== t.a; i++) {
+            sec += seg.get(`${ch.routeId}|${ch.stopIds[i]}|${ch.stopIds[i + 1]}`) ?? dataset.meta.defaultSec;
+        }
+        return dep + Math.floor(sec / 60) - 5;
+    };
+    let asked = 0;
+    for (const t of triples) {
+        if (raw[t.key])
+            continue;
+        const a = stopById.get(t.a);
+        const c = stopById.get(t.c);
+        const when = nextWeekdayKyiv(minutesAt(t));
+        let res;
+        try {
+            res = await computeTransit(key, a, c, when, 'routes.legs.steps.travelMode,routes.legs.steps.polyline,routes.legs.steps.transitDetails');
+        }
+        catch (e) {
+            console.error(`зупинились на ${t.key}: ${e instanceof Error ? e.message : e} — повторний запуск продовжить`);
+            break;
+        }
+        const toLatLng = (p) => p?.location?.latLng ? { lat: p.location.latLng.latitude, lng: p.location.latLng.longitude } : null;
+        raw[t.key] = {
+            fetchedAt: new Date().toISOString(),
+            departure: when.toISOString(),
+            steps: (res.routes ?? []).map((r) => (r.legs ?? []).flatMap((l) => l.steps ?? []).filter((st) => st.travelMode === 'TRANSIT' && st.transitDetails).map((st) => ({
+                line: st.transitDetails?.transitLine?.nameShort ?? st.transitDetails?.transitLine?.name ?? '',
+                stopCount: st.transitDetails?.stopCount ?? null,
+                departure: toLatLng(st.transitDetails?.stopDetails?.departureStop),
+                arrival: toLatLng(st.transitDetails?.stopDetails?.arrivalStop),
+                polyline: st.polyline?.encodedPolyline ? (0, korosten_google_1.decodePolyline)(st.polyline.encodedPolyline) : [],
+            }))),
+        };
+        asked++;
+        if (asked % 20 === 0) {
+            write(korosten_dataset_files_1.GOOGLE_HOPS_LOCAL_FILE, `${JSON.stringify(raw)}\n`);
+            console.log(`… ${asked} запитів`);
+        }
+        await sleep(150);
+    }
+    write(korosten_dataset_files_1.GOOGLE_HOPS_LOCAL_FILE, `${JSON.stringify(raw)}\n`);
+    console.log(`Routes: ${asked} нових запитів, трійок ${triples.length}, перевірено ${triples.filter((t) => raw[t.key]).length}`);
+    const verdicts = [];
+    for (const t of triples) {
+        const r = raw[t.key];
+        if (!r)
+            continue;
+        const at = (id) => (id ? { lat: stopById.get(id).lat, lng: stopById.get(id).lng } : null);
+        verdicts.push((0, korosten_google_1.hopVerdict)(t, { a: at(t.a), b: at(t.b), c: at(t.c) }, r.steps));
+    }
+    const file = { checkedAt: new Date().toISOString(), verdicts: verdicts.map(({ ours, ...rest }) => ({ ...rest, oursHash: (0, korosten_dataset_1.coordsHash)(ours) })) };
+    write(korosten_dataset_files_1.GOOGLE_HOPS_FILE, `${JSON.stringify(file, null, 2)}\n`);
 }
 /**
  * Координати Google за place_id з google/check.json (Place Details — окрема від пошуку квота): коли пошук уже
@@ -281,16 +390,18 @@ async function main() {
         await fetchStreets();
     if (has('--fetch-google-coords'))
         await fetchGoogleCoords();
-    let { files, result } = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT);
-    if (has('--fetch-google')) {
-        await fetchGoogle(result.dataset);
-        ({ files, result } = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT));
-    }
+    if (has('--fetch-google'))
+        await fetchGoogle((0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT).result.dataset, has('--only-missing'));
+    const withGoogle = has('--google-coords');
+    // прогони перевіряємо на тій версії, що піде в базу: з точками Google, якщо її просили
+    if (has('--google-hops'))
+        await googleHops((0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT, { withGoogleCoords: withGoogle }).result.dataset, has('--refresh'));
     const check = (d, label) => {
         const { errors } = (0, local_transport_1.validateTransportDataset)(JSON.parse(JSON.stringify(d)));
         if (errors.length)
             throw new Error(`${label} не проходить валідацію PUT:\n${errors.join('\n')}`);
     };
+    const { files, result } = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT);
     check(result.dataset, 'чернетка');
     for (const [file, content] of Object.entries(files))
         write(file, content);
@@ -298,7 +409,7 @@ async function main() {
     console.log(`${korosten_dataset_files_1.DATASET_FILE}: зупинок ${d.stops.length}, маршрутів ${d.routes.length}, рейсів ${d.trips.length}, сегментів ${d.segments.length}`);
     // --google-coords: та сама чернетка, але приблизні точки замінено точками Google — лише локально, поза git
     let target = d;
-    if (has('--google-coords')) {
+    if (withGoogle) {
         const local = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT, { withGoogleCoords: true });
         check(local.result.dataset, 'чернетка з Google');
         write(korosten_dataset_files_1.LOCAL_DATASET_FILE, local.files[korosten_dataset_files_1.DATASET_FILE]);

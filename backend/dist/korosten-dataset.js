@@ -1,10 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.coordsHash = coordsHash;
 exports.korostenStopId = korostenStopId;
 exports.cleanStopName = cleanStopName;
 exports.buildKorostenDataset = buildKorostenDataset;
 exports.suspiciousHops = suspiciousHops;
 const korosten_osm_1 = require("./korosten-osm");
+const korosten_google_1 = require("./korosten-google");
+/** Короткий відбиток наших координат трійки — щоб звіт бачив, що перевірка робилась на інших точках */
+function coordsHash(points) {
+    const text = points.map(([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join(';');
+    let h = 5381;
+    for (let i = 0; i < text.length; i++)
+        h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+    return h.toString(16);
+}
 // ---------- допоміжне ----------
 /** z-001 → st_1001, z-101 → st_1101 */
 function korostenStopId(uid) {
@@ -124,11 +134,11 @@ function buildKorostenDataset(input) {
     for (const r of config.routes) {
         const there = r.thereParts ? join(r.thereParts) : fullDirection(r.there ?? '');
         const back = r.backParts ? join(r.backParts) : fullDirection(r.back ?? '');
-        chains.push({ routeId: r.id, key: 'main-1', directionId: '1', variantId: null, italic: false, stops: there });
-        chains.push({ routeId: r.id, key: 'main-0', directionId: '0', variantId: null, italic: false, stops: back });
+        chains.push({ routeId: r.id, key: 'main-1', directionId: '1', variantId: null, italic: false, note: null, stops: there });
+        chains.push({ routeId: r.id, key: 'main-0', directionId: '0', variantId: null, italic: false, note: null, stops: back });
     }
     for (const v of config.variants) {
-        chains.push({ routeId: v.route, key: v.id, directionId: v.directionId, variantId: v.id, italic: v.when?.italic === true, stops: join(v.parts) });
+        chains.push({ routeId: v.route, key: v.id, directionId: v.directionId, variantId: v.id, italic: v.when?.italic === true, note: v.when?.note ?? null, stops: join(v.parts) });
     }
     for (const c of chains) {
         const seen = new Set();
@@ -155,6 +165,12 @@ function buildKorostenDataset(input) {
             coords.set(uid, { lat: m.lat, lng: m.lng });
             coordSource[uid] = 'osm';
         }
+    }
+    for (const [uid, p] of Object.entries(config.coordOverrides ?? {})) {
+        if (!usedUids.includes(uid) || coords.has(uid))
+            continue;
+        coords.set(uid, { lat: round7(p.lat), lng: round7(p.lng) });
+        coordSource[uid] = 'manual';
     }
     // Google (лише локальна версія): замість приблизної точки, якщо вона узгоджена з сусідами по ланцюжку, чиї точки
     // вже відомі (OSM або прийняті раніше точки Google): до кожного такого сусіда — не далі, ніж автобус проїде за
@@ -411,19 +427,21 @@ function buildKorostenDataset(input) {
         }
         const routeChains = chains.filter((c) => c.routeId === cfg.id);
         for (const run of route.runs) {
-            const from = nameToUid.get(run.from);
-            const to = nameToUid.get(run.to);
-            const via = run.via.map((v) => nameToUid.get(v));
+            const same = (uid) => (uid ? config.sameStop?.[uid] ?? uid : uid);
+            const from = same(nameToUid.get(run.from));
+            const to = same(nameToUid.get(run.to));
+            const via = run.via.map((v) => same(nameToUid.get(v)));
             if (!from || !to || via.some((v) => !v)) {
                 deferred.push({ route: route.number, run, reason: 'назва зупинки без відповідника в stop-aliases.json' });
                 continue;
             }
-            if (run.note) {
+            const noteFits = (c) => (c.note ? Boolean(run.note?.includes(c.note)) : !run.note);
+            if (run.note && !routeChains.some((c) => c.note && noteFits(c))) {
                 deferred.push({ route: route.number, run, reason: `інший шлях («${run.note}») — шляху ще нема, фаза 9` });
                 continue;
             }
             const viaUids = via;
-            const candidates = routeChains.filter((c) => c.italic === run.italic && serves(c, from, to, viaUids));
+            const candidates = routeChains.filter((c) => c.italic === run.italic && noteFits(c) && serves(c, from, to, viaUids));
             const main = candidates.filter((c) => !c.variantId);
             const pick = main[0] ?? candidates.find((c) => c.stops[0].uid === from || c.stops[c.stops.length - 1].uid === to) ?? candidates[0];
             if (!pick) {
@@ -505,7 +523,8 @@ function buildKorostenDataset(input) {
         const list = tripsByRoute.get(c.routeId) ?? [];
         list.push({
             routeId: c.routeId,
-            serviceId: a.run.days,
+            // «через вул.Франка крім суботи та неділі» — примітка в рядку, не зірочка: теж лише будні
+            serviceId: a.run.note && /крім суботи та неділі/i.test(a.run.note) ? 'weekdays' : a.run.days,
             headsign: stopName(endUid),
             directionId: c.directionId,
             departureTime: hhmmss(minutesOf(a.run.departure)),
@@ -564,6 +583,7 @@ function buildKorostenDataset(input) {
 }
 const SOURCE_LABEL = {
     osm: 'OSM',
+    manual: 'ручна (dataset-config)',
     google: 'Google (тимчасово)',
     street: 'середина вулиці',
     between: 'між сусідами',
@@ -585,7 +605,7 @@ function buildReport(r) {
     lines.push(`- Зупинок: ${dataset.stops.length}; маршрутів: ${dataset.routes.length}; варіантів шляху: ${dataset.routes.reduce((n, x) => n + x.variants.length, 0)}.`);
     lines.push(`- Рейсів: ${dataset.trips.length} (будні: ${dataset.trips.filter((t) => t.serviceId === 'weekdays').length}); відкладено: ${r.deferred.length}.`);
     lines.push(`- Сегментів: ${dataset.segments.length}.`);
-    lines.push(`- Координати: OSM — ${bySource('osm').length}${input.googleCoords ? `, Google (тимчасово, до перевірки на місці) — ${bySource('google').length}` : ''}, середина вулиці — ${bySource('street').length}, між сусідами — ${bySource('between').length}, ` +
+    lines.push(`- Координати: OSM — ${bySource('osm').length}, ручні — ${bySource('manual').length}${input.googleCoords ? `, Google (тимчасово, до перевірки на місці) — ${bySource('google').length}` : ''}, середина вулиці — ${bySource('street').length}, між сусідами — ${bySource('between').length}, ` +
         `продовження лінії — ${bySource('extrapolated').length}.`);
     lines.push(`- Знімок OSM: ${input.osm ? input.osm.fetchedAt : 'нема (`--fetch-osm`)'}; перевірка Google: ${input.google ? input.google.checkedAt : 'не запускалась (`--fetch-google`)'}.`);
     lines.push('');
@@ -678,6 +698,8 @@ function buildReport(r) {
         }
         lines.push('');
     }
+    if (input.googleHops)
+        lines.push(...hopsSection(input.googleHops, dataset));
     lines.push('## Рейси, яких у чернетці нема');
     lines.push('');
     if (!r.deferred.length)
@@ -767,6 +789,63 @@ function buildReport(r) {
     lines.push('Є в переліку ради, але в жодному ланцюжку: ' + (input.aliases.unusedOfficial.filter((u) => !r.usedUids.includes(u)).map((u) => `${u} ${cleanStopName(input.official.find((s) => s.uid === u)?.label ?? u)}`).join('; ') || 'нема') + '.');
     lines.push('');
     return `${lines.join('\n')}`;
+}
+const HOP_STATUS_LABEL = {
+    ok: 'збігається',
+    'other-line': 'Google пропонує інші лінії',
+    'stop-count': 'інша кількість перегонів (Google не має нашої середньої зупинки або має свою)',
+    'off-route': 'точка зупинки не на трасі Google',
+    cut: 'пряма зрізає поворот (потрібні технічні точки)',
+    'no-transit': 'Google не пропонує транспорт (близько — радить пішки, або не знає зупинок)',
+};
+/** Розділ звіту «Перевірка прогонів через Google» — лише ті висновки, що зроблені на теперішніх точках */
+function hopsSection(hops, dataset) {
+    const stops = new Map(dataset.stops.map((s) => [s.id, s]));
+    const name = (id) => stops.get(id)?.name ?? id;
+    const current = hops.verdicts.filter((v) => {
+        const ids = v.key.split('>');
+        if (!ids.every((id) => stops.has(id)))
+            return false;
+        return coordsHash(ids.map((id) => [stops.get(id)?.lat ?? 0, stops.get(id)?.lng ?? 0])) === v.oursHash;
+    });
+    const out = ['## Перевірка прогонів через Google', ''];
+    out.push(`Routes API (громадський транспорт), ${hops.checkedAt.slice(0, 10)}: для кожної трійки сусідніх зупинок A → B → C — шлях від A до C у будній день, ` +
+        `коли наш маршрут там їде. «Збігається» — Google пропонує наш маршрут, між A і C рівно одна зупинка, наші точки не далі ${korosten_google_1.OFF_ROUTE_M} м ` +
+        `від траси Google, а прямі між ними відходять від неї не більше ${korosten_google_1.CUT_M} м. Координат Google тут нема — лише висновки.`);
+    out.push('');
+    const stale = hops.verdicts.length - current.length;
+    const counts = new Map();
+    for (const v of current)
+        counts.set(v.status, (counts.get(v.status) ?? 0) + 1);
+    const checked = new Set(hops.verdicts.map((v) => v.key));
+    const unchecked = (0, korosten_google_1.hopTriples)((0, korosten_google_1.datasetChains)(dataset)).filter((t) => !checked.has(t.key)).length;
+    const rerun = [];
+    if (stale)
+        rerun.push(`${stale} — на інших точках`);
+    if (unchecked)
+        rerun.push(`${unchecked} ще не перевірено (квота Google на день)`);
+    out.push(`Трійок перевірено: ${current.length}${rerun.length ? `; ${rerun.join(', ')} — перезапустити \`--google-hops\`` : ''}.`);
+    for (const [status, n] of [...counts.entries()].sort((a, b) => b[1] - a[1]))
+        out.push(`- ${HOP_STATUS_LABEL[status]}: ${n}`);
+    out.push('');
+    const bad = current.filter((v) => v.status !== 'ok');
+    if (bad.length) {
+        out.push('| Маршрути | Зупинки | Що не так | Google |');
+        out.push('|---|---|---|---|');
+        const order = ['no-transit', 'other-line', 'stop-count', 'off-route', 'cut'];
+        for (const v of [...bad].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status) || a.routes.join().localeCompare(b.routes.join(), 'uk', { numeric: true }))) {
+            const detail = v.status === 'stop-count'
+                ? `перегонів: Google ${v.stopCount}, у нас ${v.expected}`
+                : v.status === 'off-route'
+                    ? `від траси: ${[v.aOffM, v.bOffM, v.cOffM].map((x) => (x === null ? '—' : `${x} м`)).join(' / ')}`
+                    : v.status === 'cut'
+                        ? `пряма відходить на ${v.cutM} м`
+                        : '';
+            out.push(`| ${cell(v.routes.map((r) => `№${r}`).join(', '))} | ${cell(v.key.split('>').map(name).join(' → '))} | ${cell(HOP_STATUS_LABEL[v.status] + (detail ? ` (${detail})` : ''))} | ${cell(v.googleLines.join(', ') || '—')} |`);
+        }
+        out.push('');
+    }
+    return out;
 }
 const SUSPICIOUS_KMH = 45;
 /** Перегони основних ланцюжків, де автобус мав би їхати швидше SUSPICIOUS_KMH */
