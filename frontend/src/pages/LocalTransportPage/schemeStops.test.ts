@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
+import { schemeFor } from './scheme/registry';
 import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
 
 const dataset = {
@@ -111,5 +112,36 @@ describe('scheme nodes', () => {
     const vokzal = schemeNodeForStop('st_0019')!;
     expect(vokzal.stopIds).toEqual(['st_0019']);
     expect(routesAtNode(dataset, vokzal)).toEqual(routesAtStop(dataset, 'st_0019'));
+  });
+});
+
+describe('scheme per city (Docs/korosten-scheme-2026-11.md)', () => {
+  const korosten = {
+    routes: [{ id: '8' }, { id: '1' }, { id: '2b' }, { id: '10' }],
+    routeStops: [
+      { routeId: '8', stopId: 'st_1001', orderThere: 1, orderBack: 2 },
+      { routeId: '1', stopId: 'st_1001', orderThere: 1, orderBack: 3 },
+      { routeId: '2b', stopId: 'st_1001', orderThere: 3, orderBack: 1 },
+      { routeId: '10', stopId: 'st_1001', orderThere: 1, orderBack: 1 },
+    ],
+  } as unknown as Parameters<typeof routesAtStop>[0];
+
+  it('Коростень: лінії через зупинку в порядку легенди Коростеня (раніше №1 і №2-Б губились у малинській легенді)', () => {
+    expect(routesAtStop(korosten, 'st_1001', schemeFor('Korosten'))).toEqual(['1', '2b', '8']);
+    expect(schemeNodeForStop('st_1001', schemeFor('Korosten'))?.name).toBe('Залізничний вокзал');
+    expect(schemeNodeForStop('st_0019', schemeFor('Korosten'))).toBeNull();
+  });
+
+  it('місто без схеми: усі лінії за номером', () => {
+    expect(routesAtStop(korosten, 'st_1001', null)).toEqual(['1', '2b', '8', '10']);
+    expect(schemeNodeForStop('st_1001', null)).toBeNull();
+  });
+
+  it('реєстр: viewBox і плакат з файлів генератора', () => {
+    expect(schemeFor('Malyn')?.viewBox).toEqual({ x: 0, y: 176, w: 1400, h: 566 });
+    expect(schemeFor('Korosten')?.viewBox).toEqual({ x: 0, y: 160, w: 1400, h: 970 });
+    expect(schemeFor('Korosten')?.routes.map((r) => r.id)).toEqual(['1', '2', '2b', '3', '4', '5', '6', '7', '8']);
+    expect(schemeFor('Korosten')?.poster.pdf).toBe('/transport/scheme/korosten-transit-scheme-poster.pdf');
+    expect(schemeFor('Zhytomyr')).toBeNull();
   });
 });

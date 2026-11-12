@@ -57,10 +57,11 @@ describe('місто сайту', () => {
     expect([cityQuery('Korosten'), cityQuery('Korosten', '&'), cityField('Korosten')]).toEqual(['?city=Korosten', '&city=Korosten', { city: 'Korosten' }]);
   });
 
-  it('профіль: у Малина схема, статті й старі назви зупинок; в іншого міста — ні', () => {
+  it('профіль: у Малина схема, статті й старі назви зупинок; у Коростеня — лише схема (фаза 12); у міста без схеми — нічого', () => {
     expect(transportProfile('Malyn')).toMatchObject({ hasScheme: true, hasStopArticles: true, center: [50.768, 29.242] });
     expect(transportProfile('Malyn').legacyStopNames).toContain('Малинівка');
-    expect(transportProfile('Korosten')).toMatchObject({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: false, hasStopArticles: false, legacyStopNames: [] });
+    expect(transportProfile('Korosten')).toMatchObject({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: true, hasStopArticles: false, legacyStopNames: [] });
+    expect(transportProfile('Zhytomyr')).toMatchObject({ hasScheme: false, hasStopArticles: false });
   });
 
   it('профіль: назви міста у відмінках, домен, відкриті дані, чіпи', () => {
@@ -150,10 +151,16 @@ describe('номери, кольори й статті по містах', () =>
     expect(routeNo('11')).toBe('11/1');
   });
 
-  it('кольори: Малин — з легенди схеми; інше місто — з meta.routeColors, номер контрастний', () => {
+  it('кольори: місто зі схемою — з її легенди; без схеми — з meta.routeColors, номер контрастний', () => {
     const malynColor = routeColor('2');
     expect(malynColor).toMatch(/^#[0-9a-f]{6}$/i);
-    configureRouteColors({ routeColors: { '2': { color: '#A8A0D4' }, '4': '#242860', bad: { color: 'red' } } }, 'Korosten');
+    // Коростень: легенда схеми (кольори 2019 року) важливіша за meta.routeColors
+    configureRouteColors({ routeColors: { '2': { color: '#000001' }, '99': '#123456' } }, 'Korosten');
+    expect(routeColor('2')).toBe('#7440A4');
+    expect(routeColorStyle('3')).toEqual({ '--lt-route-color': '#A8A0D4', '--lt-route-fg': '#000000' });
+    expect(routeColor('99')).toBe('#123456');
+    // місто без схеми — лише meta.routeColors
+    configureRouteColors({ routeColors: { '2': { color: '#A8A0D4' }, '4': '#242860', bad: { color: 'red' } } }, 'Zhytomyr');
     expect(routeColor('2')).toBe('#A8A0D4');
     expect(routeColorStyle('2')).toEqual({ '--lt-route-color': '#A8A0D4', '--lt-route-fg': '#000000' });
     expect(routeColorStyle('4')).toEqual({ '--lt-route-color': '#242860', '--lt-route-fg': '#ffffff' });

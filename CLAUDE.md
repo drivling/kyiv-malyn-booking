@@ -501,6 +501,13 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   look rows up with `cityCode_id`, and write another city's dataset with `PUT /transport/dataset?city=<code>` (admin
   only, its own `baseRevision`). Another city's open data (GTFS, RSS, revisions, calendar) still answers 404. Write
   transport tests on `transport-test-store.ts`, which honours `where` and unique keys; do not run `prisma format`.
+- **Scheme per city** (`Docs/korosten-scheme-2026-11.md`): one generator `Docs/malyn-transit-scheme/build_scheme.py`; another
+  city passes `--city <geometry file>` (Korosten: `Docs/korosten-transit-scheme/korosten_scheme.py`, executed in the generator's
+  namespace; Malyn's output must stay byte-identical without it). The site picks a city's SVG / legend / nodes / poster from
+  `LocalTransportPage/scheme/registry.ts` (`schemeFor(city)`); `schemeStops`, `schemeMini`, `routeColors` (legend colours win over
+  `meta.routeColors`), the sticker model and the wall palette take the scheme of the city whose dataset is loaded
+  (`currentScheme()`), pages pass `schemeFor(profile.cityCode)` explicitly. Tests that mock a legend mock the registry (the setup
+  imports it first).
 - **Transport city on the frontend** (`frontend/src/site/transportCity.ts`): the site's `cityCode` picks the dataset.
   The admin transport tabs (map editor, schedule, stickers, arrivals, `/admin/wall`) edit the city in `?city=<code>`
   (`useAdminTransportCity` + `TransportCityBar`; the same key as the backend's `?city=`), stickers then point at that

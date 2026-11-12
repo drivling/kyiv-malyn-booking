@@ -1,0 +1,438 @@
+<title>Схема маршрутів Коростеня</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one wide schematic (scrolls sideways on phones) over a short notes column. */
+:root {
+  --bg: #f7f6f2; --panel: #ffffff; --fg: #1b1f2a; --muted: #5f6673; --rule: #d9dbe0; --line-bg: #ffffff;
+  --r2: #D7263D; --r3: #1B9E4B; --r5: #1F6FD6; --r7: #F08A1C; --r8: #7E3FC2; --r9: #E3368C; --r10: #C99700; --r11: #0E9AA7; --r12: #8A5A2B;
+  --r1-fg: #ffffff; --r2-fg: #ffffff; --r2b-fg: #000000; --r3-fg: #000000; --r4-fg: #ffffff; --r5-fg: #000000; --r6-fg: #000000; --r7-fg: #000000; --r8-fg: #000000;
+  --water: #9ccfe8; --water-fill: #cfe8f5; --water-text: #3d7fa3;
+  --font: 'Golos Text', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
+  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r10: #F2C94C; --r11: #3BC9D6; --r12: #C9915A;
+  --r1-fg: #000000; --r2-fg: #000000; --r2b-fg: #000000; --r3-fg: #000000; --r4-fg: #ffffff; --r5-fg: #000000; --r6-fg: #000000; --r7-fg: #000000; --r8-fg: #000000;
+  --water: #2f6a8a; --water-fill: #1f4559; --water-text: #7fb6d6;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15181f; --panel: #1d2129; --fg: #eef0f4; --muted: #a2a9b6; --rule: #343a46; --line-bg: #1d2129;
+  --r2: #FF5F73; --r3: #3FCB70; --r5: #64A6FF; --r7: #FFAD4D; --r8: #B388F0; --r9: #FF74B8; --r10: #F2C94C; --r11: #3BC9D6; --r12: #C9915A;
+  --r1-fg: #000000; --r2-fg: #000000; --r2b-fg: #000000; --r3-fg: #000000; --r4-fg: #ffffff; --r5-fg: #000000; --r6-fg: #000000; --r7-fg: #000000; --r8-fg: #000000;
+  --water: #2f6a8a; --water-fill: #1f4559; --water-text: #7fb6d6;
+  color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); margin: 0; padding-block: 24px 48px; padding-inline: 16px; }
+.wrap { max-width: 1440px; margin: 0 auto; display: grid; gap: 24px; }
+.map { background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; overflow-x: auto; padding: 8px; }
+.map svg { min-width: 1100px; width: 100%; }
+.notes { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.notes section { min-width: 0; }
+h2 { font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; font-weight: 700; }
+p, li { font-size: 15px; line-height: 1.5; max-width: 62ch; margin: 0; }
+ul { padding-left: 18px; margin: 0; display: grid; gap: 6px; }
+.pill { display: inline-block; min-width: 20px; padding: 0 5px; border-radius: 4px; color: #fff; font-weight: 700; font-size: 12px; line-height: 18px; text-align: center; vertical-align: 1px; }
+@media (prefers-reduced-motion: no-preference) { .map { scroll-behavior: smooth; } }
+</style>
+<div class="wrap">
+  <div class="map">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1400" style="max-width:100%;height:auto;display:block" role="img" aria-label="Схема міських автобусних маршрутів Коростеня: 9 ліній, кінцеві та пересадкові зупинки" font-family="var(--font)" color="var(--fg)">
+<text x="60" y="92" font-size="44" font-weight="800" letter-spacing="2" fill="var(--fg)">КОРОСТЕНЬ</text>
+<text x="60" y="120" font-size="17" font-weight="600" fill="var(--fg)">Схема міських автобусних маршрутів</text>
+<text x="60" y="142" font-size="12" fill="var(--muted)">9 маршрутів · схема не в масштабі · показано кінцеві, вузлові й деякі проміжні зупинки · пунктир — окремі рейси іншим шляхом</text>
+<g transform="translate(1340,78)" fill="var(--muted)" stroke="var(--muted)"><line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/><text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>
+<g class="lts-water"><path d="M300.0,1070.0 L380.0,1058.0 L450.0,1064.0 L500.0,1086.0 L452.0,1108.0 L360.0,1112.0 L306.0,1096.0 Z" fill="var(--water-fill)" stroke="var(--water)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M470.0,1070.0 L720.0,820.0 L1060.0,820.0 L1100.0,780.0 L1100.0,540.0 L1390.0,540.0" fill="none" stroke="var(--water)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1270" y="530" text-anchor="middle" font-size="11" font-style="italic" fill="var(--water-text)">р. Уж</text>
+<text x="600" y="944" text-anchor="middle" font-size="11" font-style="italic" fill="var(--water-text)">р. Уж</text>
+</g>
+<g class="lts-routes" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<g class="lts-route" data-route="1">
+<path d="M625.9,434.1 L770.0,578.3 L770.0,684.1 L647.1,807.1 L636.5,810.6 L543.5,903.5 L532.9,907.1 L400.0,1040.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M625.9,434.1 L770.0,578.3 L770.0,684.1 L647.1,807.1 L636.5,810.6 L543.5,903.5 L532.9,907.1 L400.0,1040.0" stroke="var(--r1)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="2">
+<path d="M661.2,398.8 L802.4,540.0 L935.0,540.0 L935.0,220.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M661.2,398.8 L802.4,540.0 L935.0,540.0 L935.0,220.0" stroke="var(--r2)" stroke-width="7"/>
+<path d="M632.9,412.9 L430.0,615.9 L430.0,800.0" stroke="var(--r2)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+<g class="lts-route" data-route="2b">
+<path d="M945.0,220.0 L945.0,550.0 L798.3,550.0 L654.1,405.9 L440.0,620.0 L440.0,800.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M945.0,220.0 L945.0,550.0 L798.3,550.0 L654.1,405.9 L440.0,620.0 L440.0,800.0" stroke="var(--r2b)" stroke-width="7"/>
+<path d="M945.0,220.0 L945.0,550.0 L798.3,550.0 L654.1,405.9 L440.0,620.0 L440.0,800.0" stroke="var(--line-bg)" stroke-width="2"/>
+</g>
+<g class="lts-route" data-route="3">
+<path d="M668.3,391.7 L806.6,530.0 L930.0,530.0 L860.0,460.0 L860.0,320.0 L520.0,320.0 L460.0,260.0 L460.0,200.0 L380.0,200.0 L340.0,240.0 L260.0,240.0 L220.0,200.0 L140.0,200.0 L220.0,200.0 L380.0,200.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M668.3,391.7 L806.6,530.0 L930.0,530.0 L860.0,460.0 L860.0,320.0 L520.0,320.0 L460.0,260.0 L460.0,200.0 L380.0,200.0 L340.0,240.0 L260.0,240.0 L220.0,200.0 L140.0,200.0 L220.0,200.0 L380.0,200.0" stroke="var(--r3)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="4">
+<path d="M647.1,412.9 L767.1,532.9 L887.1,652.9 L890.6,663.5 L983.5,756.5 L1080.0,660.0 L1160.0,660.0 L1260.0,660.0 L1260.0,760.0 L1160.0,660.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M647.1,412.9 L767.1,532.9 L887.1,652.9 L890.6,663.5 L983.5,756.5 L1080.0,660.0 L1160.0,660.0 L1260.0,660.0 L1260.0,760.0 L1160.0,660.0" stroke="var(--r4)" stroke-width="7"/>
+<path d="M1260.0,760.0 L1260.0,860.0" stroke="var(--r4)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+<g class="lts-route" data-route="5">
+<path d="M618.8,441.2 L760.0,582.4 L760.0,680.0 L640.0,800.0 L629.4,803.5 L532.9,900.0 L280.0,900.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M618.8,441.2 L760.0,582.4 L760.0,680.0 L640.0,800.0 L629.4,803.5 L532.9,900.0 L280.0,900.0" stroke="var(--r5)" stroke-width="7"/>
+</g>
+<g class="lts-route" data-route="6">
+<path d="M220.0,540.0 L340.0,420.0 L640.0,420.0 L760.0,540.0 L880.0,660.0 L883.5,670.6 L976.5,763.5 L987.1,767.1 L1060.0,840.0 L1120.0,900.0 L1120.0,1000.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M220.0,540.0 L340.0,420.0 L640.0,420.0 L760.0,540.0 L880.0,660.0 L883.5,670.6 L976.5,763.5 L987.1,767.1 L1060.0,840.0 L1120.0,900.0 L1120.0,1000.0" stroke="var(--r6)" stroke-width="7"/>
+<path d="M1060.0,840.0 L1060.0,940.0 L1120.0,1000.0" stroke="var(--r6)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+<g class="lts-route" data-route="7">
+<path d="M611.7,448.3 L750.0,586.6 L750.0,675.9 L620.9,805.0 L540.0,805.0 L440.0,805.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M611.7,448.3 L750.0,586.6 L750.0,675.9 L620.9,805.0 L540.0,805.0 L440.0,805.0" stroke="var(--r7)" stroke-width="7"/>
+<path d="M760.0,680.0 L820.0,680.0 L820.0,390.0 L670.0,390.0 L640.0,420.0" stroke="var(--r7)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+<g class="lts-route" data-route="8">
+<path d="M540.0,795.0 L450.0,795.0 L450.0,624.1 L640.0,434.1 L752.9,547.1 L880.0,674.1 L880.0,900.0" stroke="var(--line-bg)" stroke-width="9.5"/>
+<path d="M540.0,795.0 L450.0,795.0 L450.0,624.1 L640.0,434.1 L752.9,547.1 L880.0,674.1 L880.0,900.0" stroke="var(--r8)" stroke-width="7"/>
+<path d="M880.0,900.0 L820.0,960.0" stroke="var(--r8)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M880.0,900.0 L940.0,960.0" stroke="var(--r8)" stroke-width="5.5" stroke-dasharray="8 9"/>
+</g>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1104" data-stops="st_1104">
+<line x1="850.0" y1="550.0" x2="850.0" y2="530.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="850.0" y1="550.0" x2="850.0" y2="530.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="850" y="572" text-anchor="start" font-size="11.5" fill="var(--muted)">Міськвиконком</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1079" data-stops="st_1079">
+<line x1="945.0" y1="482.4" x2="935.0" y2="482.4" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="945.0" y1="482.4" x2="935.0" y2="482.4" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="962" y="490" text-anchor="start" font-size="11.5" fill="var(--muted)">Міськлікарня</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1082" data-stops="st_1082">
+<line x1="945.0" y1="405.6" x2="935.0" y2="405.6" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="945.0" y1="405.6" x2="935.0" y2="405.6" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="962" y="414" text-anchor="start" font-size="11.5" fill="var(--muted)">Граніт</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1083" data-stops="st_1083">
+<line x1="945.0" y1="348.0" x2="935.0" y2="348.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="945.0" y1="348.0" x2="935.0" y2="348.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="962" y="356" text-anchor="start" font-size="11.5" fill="var(--muted)">ДУ</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1085" data-stops="st_1085">
+<line x1="945.0" y1="284.0" x2="935.0" y2="284.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="945.0" y1="284.0" x2="935.0" y2="284.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="962" y="292" text-anchor="start" font-size="11.5" fill="var(--muted)">Районна поліклініка</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1020" data-stops="st_1020">
+<line x1="860.0" y1="376.0" x2="860.0" y2="376.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="860.0" y1="376.0" x2="860.0" y2="376.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="874" y="380" text-anchor="start" font-size="11.5" fill="var(--muted)">Хіммаш</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1021" data-stops="st_1021">
+<line x1="826.0" y1="320.0" x2="826.0" y2="320.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="826.0" y1="320.0" x2="826.0" y2="320.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="830" y="306" text-anchor="middle" font-size="11.5" fill="var(--muted)">Гастроном</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1023" data-stops="st_1023">
+<line x1="717.2" y1="320.0" x2="717.2" y2="320.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="717.2" y1="320.0" x2="717.2" y2="320.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="729" y="306" text-anchor="middle" font-size="11.5" fill="var(--muted)">Прорізна, 33</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1025" data-stops="st_1025">
+<line x1="605.0" y1="320.0" x2="605.0" y2="320.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="605.0" y1="320.0" x2="605.0" y2="320.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="610" y="306" text-anchor="middle" font-size="11.5" fill="var(--muted)">Фабрика «Ельфа»</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1027" data-stops="st_1027">
+<line x1="490.0" y1="290.0" x2="490.0" y2="290.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="490.0" y1="290.0" x2="490.0" y2="290.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="508" y="290" text-anchor="start" font-size="11.5" fill="var(--muted)">Вул. Стельмаха</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1031" data-stops="st_1031">
+<line x1="460.0" y1="200.0" x2="460.0" y2="200.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="460.0" y1="200.0" x2="460.0" y2="200.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="480" y="190" text-anchor="start" font-size="11.5" fill="var(--muted)">Коростень-Подільський</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1033" data-stops="st_1033">
+<line x1="300.0" y1="240.0" x2="300.0" y2="240.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="300.0" y1="240.0" x2="300.0" y2="240.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="300" y="264" text-anchor="middle" font-size="11.5" fill="var(--muted)">Церква</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1035" data-stops="st_1035">
+<line x1="220.0" y1="200.0" x2="220.0" y2="200.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="220.0" y1="200.0" x2="220.0" y2="200.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="220" y="186" text-anchor="middle" font-size="11.5" fill="var(--muted)">Чигирі</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1005" data-stops="st_1005">
+<line x1="692.9" y1="732.9" x2="707.1" y2="747.1" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="692.9" y1="732.9" x2="707.1" y2="747.1" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="722" y="764" text-anchor="start" font-size="11.5" fill="var(--muted)">В. Стуса</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1007" data-stops="st_1007">
+<line x1="591.5" y1="841.5" x2="598.5" y2="848.5" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="591.5" y1="841.5" x2="598.5" y2="848.5" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="612" y="858" text-anchor="start" font-size="11.5" fill="var(--muted)">Ветлікарня</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1010" data-stops="st_1010">
+<line x1="536.5" y1="896.5" x2="543.5" y2="903.5" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="536.5" y1="896.5" x2="543.5" y2="903.5" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="526" y="882" text-anchor="end" font-size="11.5" fill="var(--muted)">Чолівський переїзд</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1011" data-stops="st_1011">
+<line x1="491.0" y1="949.0" x2="491.0" y2="949.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="491.0" y1="949.0" x2="491.0" y2="949.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="478" y="956" text-anchor="end" font-size="11.5" fill="var(--muted)">Школа №13</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1013" data-stops="st_1013">
+<line x1="442.0" y1="998.0" x2="442.0" y2="998.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="442.0" y1="998.0" x2="442.0" y2="998.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="430" y="1004" text-anchor="end" font-size="11.5" fill="var(--muted)">Селище Мирне</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1047" data-stops="st_1047">
+<line x1="410.0" y1="900.0" x2="410.0" y2="900.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="410.0" y1="900.0" x2="410.0" y2="900.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="410" y="926" text-anchor="middle" font-size="11.5" fill="var(--muted)">КВК №71</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1064" data-stops="st_1064">
+<line x1="552.9" y1="492.9" x2="567.1" y2="507.1" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="552.9" y1="492.9" x2="567.1" y2="507.1" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="540" y="496" text-anchor="end" font-size="11.5" fill="var(--muted)">Школа №1</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1073" data-stops="st_1073">
+<line x1="430.0" y1="674.0" x2="450.0" y2="674.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="430.0" y1="674.0" x2="450.0" y2="674.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="412" y="678" text-anchor="end" font-size="11.5" fill="var(--muted)">Районна лікарня</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1053" data-stops="st_1053">
+<line x1="406.0" y1="420.0" x2="406.0" y2="420.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="406.0" y1="420.0" x2="406.0" y2="420.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="406" y="446" text-anchor="middle" font-size="11.5" fill="var(--muted)">Шевченка, 117</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1055" data-stops="st_1055">
+<line x1="514.0" y1="420.0" x2="514.0" y2="420.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="514.0" y1="420.0" x2="514.0" y2="420.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="514" y="446" text-anchor="middle" font-size="11.5" fill="var(--muted)">Стадіон «Локомотив»</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1051" data-stops="st_1051">
+<line x1="280.0" y1="480.0" x2="280.0" y2="480.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="280.0" y1="480.0" x2="280.0" y2="480.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="266" y="470" text-anchor="end" font-size="11.5" fill="var(--muted)">Завод ЗБШ</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1074" data-stops="st_1074">
+<line x1="880.0" y1="780.0" x2="880.0" y2="780.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="880.0" y1="780.0" x2="880.0" y2="780.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="868" y="784" text-anchor="end" font-size="11.5" fill="var(--muted)">Вул. 1-го Травня</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1038" data-stops="st_1038">
+<line x1="976.5" y1="763.5" x2="983.5" y2="756.5" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="976.5" y1="763.5" x2="983.5" y2="756.5" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1004" y="766" text-anchor="start" font-size="11.5" fill="var(--muted)">Дім правосуддя</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1041" data-stops="st_1041">
+<line x1="1160.0" y1="660.0" x2="1160.0" y2="660.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1160.0" y1="660.0" x2="1160.0" y2="660.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1172" y="646" text-anchor="start" font-size="11.5" fill="var(--muted)">Трубосталь</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1043" data-stops="st_1043">
+<line x1="1260.0" y1="710.0" x2="1260.0" y2="710.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1260.0" y1="710.0" x2="1260.0" y2="710.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1272" y="714" text-anchor="start" font-size="11.5" fill="var(--muted)">Діагностичний центр</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1057" data-stops="st_1057">
+<line x1="1060.0" y1="840.0" x2="1060.0" y2="840.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1060.0" y1="840.0" x2="1060.0" y2="840.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1082" y="836" text-anchor="start" font-size="11.5" fill="var(--muted)">Аптека</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1063" data-stops="st_1063">
+<line x1="1090.0" y1="870.0" x2="1090.0" y2="870.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1090.0" y1="870.0" x2="1090.0" y2="870.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1144" y="954" text-anchor="start" font-size="11.5" fill="var(--muted)">ПМК</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1060" data-stops="st_1060">
+<line x1="1060.0" y1="895.0" x2="1060.0" y2="895.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1060.0" y1="895.0" x2="1060.0" y2="895.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="1044" y="900" text-anchor="end" font-size="11.5" fill="var(--muted)">Вул. Південна</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1071" data-stops="st_1071">
+<line x1="799.0" y1="680.0" x2="799.0" y2="680.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="799.0" y1="680.0" x2="799.0" y2="680.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="802" y="718" text-anchor="middle" font-size="11.5" fill="var(--muted)">Вул. І. Франка</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1072" data-stops="st_1072">
+<line x1="752.5" y1="390.0" x2="752.5" y2="390.0" stroke="var(--fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="752.5" y1="390.0" x2="752.5" y2="390.0" stroke="var(--panel)" stroke-width="7" stroke-linecap="round"/>
+<text x="745" y="378" text-anchor="middle" font-size="11.5" fill="var(--muted)">СМП 650</text>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1015" data-stops="st_1015">
+<circle cx="400.0" cy="1040.0" r="9" fill="var(--panel)" stroke="var(--r1)" stroke-width="3.5"/>
+<text x="380" y="1036" text-anchor="end" font-size="14" font-weight="700" fill="var(--fg)">Поліське водосховище</text>
+<g class="lts-badge" data-route="1"><rect x="358.0" y="1044.0" width="22" height="16" rx="4" fill="var(--r1)"/><text x="369.0" y="1055.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r1-fg)">1</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1048" data-stops="st_1048">
+<circle cx="280.0" cy="900.0" r="9" fill="var(--panel)" stroke="var(--r5)" stroke-width="3.5"/>
+<text x="270" y="936" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Білокоровицьке шосе</text>
+<g class="lts-badge" data-route="5"><rect x="259.0" y="944.0" width="22" height="16" rx="4" fill="var(--r5)"/><text x="270.0" y="955.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r5-fg)">5</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1087" data-stops="st_1087">
+<circle cx="940.0" cy="220.0" r="9" fill="var(--panel)" stroke="var(--fg)" stroke-width="3.5"/>
+<text x="972" y="214" text-anchor="start" font-size="14" font-weight="700" fill="var(--fg)">Пашини</text>
+<g class="lts-badge" data-route="2"><rect x="972.0" y="222.0" width="22" height="16" rx="4" fill="var(--r2)"/><text x="983.0" y="233.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r2-fg)">2</text></g><g class="lts-badge" data-route="2b"><rect x="998.0" y="222.0" width="35" height="16" rx="4" fill="var(--r2b)"/><text x="1015.5" y="233.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r2b-fg)">2-Б</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1036" data-stops="st_1036">
+<circle cx="140.0" cy="200.0" r="9" fill="var(--panel)" stroke="var(--r3)" stroke-width="3.5"/>
+<text x="140" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Вул. Проліскова</text>
+<g class="lts-badge" data-route="3"><rect x="129.0" y="216.0" width="22" height="16" rx="4" fill="var(--r3)"/><text x="140.0" y="227.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r3-fg)">3</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1044" data-stops="st_1044">
+<circle cx="1260.0" cy="760.0" r="9" fill="var(--panel)" stroke="var(--r4)" stroke-width="3.5"/>
+<text x="1284" y="766" text-anchor="start" font-size="14" font-weight="700" fill="var(--fg)">Вул. Київська</text>
+<g class="lts-badge" data-route="4"><rect x="1284.0" y="774.0" width="22" height="16" rx="4" fill="var(--r4)"/><text x="1295.0" y="785.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r4-fg)">4</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1049" data-stops="st_1049">
+<circle cx="220.0" cy="540.0" r="9" fill="var(--panel)" stroke="var(--r6)" stroke-width="3.5"/>
+<text x="220" y="576" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Станція Житомирська</text>
+<g class="lts-badge" data-route="6"><rect x="209.0" y="584.0" width="22" height="16" rx="4" fill="var(--r6)"/><text x="220.0" y="595.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r6-fg)">6</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1061" data-stops="st_1061">
+<circle cx="1120.0" cy="1000.0" r="9" fill="var(--panel)" stroke="var(--r6)" stroke-width="3.5"/>
+<text x="1120" y="1036" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Цегельний завод</text>
+<g class="lts-badge" data-route="6"><rect x="1109.0" y="1044.0" width="22" height="16" rx="4" fill="var(--r6)"/><text x="1120.0" y="1055.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r6-fg)">6</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1076" data-stops="st_1076">
+<circle cx="880.0" cy="900.0" r="9" fill="var(--panel)" stroke="var(--r8)" stroke-width="3.5"/>
+<text x="860" y="904" text-anchor="end" font-size="14" font-weight="700" fill="var(--fg)">Бровар</text>
+<g class="lts-badge" data-route="8"><rect x="838.0" y="912.0" width="22" height="16" rx="4" fill="var(--r8)"/><text x="849.0" y="923.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r8-fg)">8</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1068" data-stops="st_1068">
+<circle cx="540.0" cy="800.0" r="9" fill="var(--panel)" stroke="var(--r8)" stroke-width="3.5"/>
+<text x="540" y="776" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Магазин №44</text>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1101" data-stops="st_1101">
+<circle cx="1260.0" cy="860.0" r="9" fill="var(--panel)" stroke="var(--r4)" stroke-width="3.5"/>
+<text x="1284" y="866" text-anchor="start" font-size="14" font-weight="700" fill="var(--fg)">Грозине</text>
+<text x="1284" y="881" text-anchor="start" font-size="11" fill="var(--muted)">окремі рейси</text>
+<g class="lts-badge" data-route="4"><rect x="1284.0" y="890.0" width="22" height="16" rx="4" fill="var(--r4)"/><text x="1295.0" y="901.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r4-fg)">4</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1105" data-stops="st_1105">
+<circle cx="820.0" cy="960.0" r="9" fill="var(--panel)" stroke="var(--r8)" stroke-width="3.5"/>
+<text x="820" y="992" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Сади</text>
+<text x="820" y="1007" text-anchor="middle" font-size="11" fill="var(--muted)">сезонно</text>
+<g class="lts-badge" data-route="8"><rect x="809.0" y="1010.0" width="22" height="16" rx="4" fill="var(--r8)"/><text x="820.0" y="1021.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r8-fg)">8</text></g>
+</g>
+<g class="lts-stop lts-stop--terminal" data-stop="st_1102" data-stops="st_1102">
+<circle cx="940.0" cy="960.0" r="9" fill="var(--panel)" stroke="var(--r8)" stroke-width="3.5"/>
+<text x="950" y="992" text-anchor="middle" font-size="14" font-weight="700" fill="var(--fg)">Дачі УТОС</text>
+<text x="950" y="1007" text-anchor="middle" font-size="11" fill="var(--muted)">окремі рейси</text>
+<g class="lts-badge" data-route="8"><rect x="939.0" y="1010.0" width="22" height="16" rx="4" fill="var(--r8)"/><text x="950.0" y="1021.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r8-fg)">8</text></g>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1001" data-stops="st_1001">
+<circle cx="640" cy="420" r="48" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="640" cy="420" r="40" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="600" y="352" text-anchor="end" font-size="16" font-weight="800" fill="var(--fg)">Залізничний вокзал</text>
+<g class="lts-badge" data-route="1"><rect x="500.0" y="360.0" width="22" height="16" rx="4" fill="var(--r1)"/><text x="511.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r1-fg)">1</text></g><g class="lts-badge" data-route="2"><rect x="526.0" y="360.0" width="22" height="16" rx="4" fill="var(--r2)"/><text x="537.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r2-fg)">2</text></g><g class="lts-badge" data-route="3"><rect x="552.0" y="360.0" width="22" height="16" rx="4" fill="var(--r3)"/><text x="563.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r3-fg)">3</text></g><g class="lts-badge" data-route="4"><rect x="578.0" y="360.0" width="22" height="16" rx="4" fill="var(--r4)"/><text x="589.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r4-fg)">4</text></g><g class="lts-badge" data-route="5"><rect x="552.0" y="380.0" width="22" height="16" rx="4" fill="var(--r5)"/><text x="563.0" y="391.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r5-fg)">5</text></g><g class="lts-badge" data-route="7"><rect x="578.0" y="380.0" width="22" height="16" rx="4" fill="var(--r7)"/><text x="589.0" y="391.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r7-fg)">7</text></g>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1002" data-stops="st_1002">
+<circle cx="760" cy="540" r="48" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="760" cy="540" r="40" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="708" y="616" text-anchor="end" font-size="16" font-weight="800" fill="var(--fg)">Міський ринок</text>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1003" data-stops="st_1003">
+<circle cx="760" cy="680" r="24" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="760" cy="680" r="16" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="726" y="690" text-anchor="end" font-size="16" font-weight="800" fill="var(--fg)">Центр міста</text>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1016" data-stops="st_1016">
+<circle cx="940" cy="540" r="24" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="940" cy="540" r="16" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="972" y="580" text-anchor="start" font-size="16" font-weight="800" fill="var(--fg)">Парк «Древлянський»</text>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1037" data-stops="st_1037">
+<circle cx="880" cy="660" r="22" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="880" cy="660" r="14" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="906" y="652" text-anchor="start" font-size="16" font-weight="800" fill="var(--fg)">Швейна фабрика</text>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1006" data-stops="st_1006">
+<circle cx="640" cy="800" r="22" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="640" cy="800" r="14" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="670" y="838" text-anchor="start" font-size="16" font-weight="800" fill="var(--fg)">Черемушки</text>
+</g>
+<g class="lts-stop lts-stop--hub" data-stop="st_1069" data-stops="st_1069">
+<circle cx="440" cy="800" r="22" fill="var(--panel)" stroke="var(--fg)" stroke-width="4"/>
+<circle cx="440" cy="800" r="14" fill="none" stroke="var(--fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="406" y="796" text-anchor="end" font-size="16" font-weight="800" fill="var(--fg)">Романа Шухевича</text>
+<text x="406" y="812" text-anchor="end" font-size="11" fill="var(--muted)">Гастелло</text>
+<g class="lts-badge" data-route="2b"><rect x="345.0" y="820.0" width="35" height="16" rx="4" fill="var(--r2b)"/><text x="362.5" y="831.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r2b-fg)">2-Б</text></g><g class="lts-badge" data-route="7"><rect x="384.0" y="820.0" width="22" height="16" rx="4" fill="var(--r7)"/><text x="395.0" y="831.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--r7-fg)">7</text></g>
+</g>
+<line x1="60" y1="1138" x2="1340" y2="1138" stroke="var(--muted)" stroke-width="1" opacity="0.5"/>
+<text x="60" y="1130" font-size="11" font-weight="700" letter-spacing="1.5" fill="var(--muted)">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>
+<g transform="translate(1000,1126)" font-size="11" fill="var(--muted)"><circle cx="6" cy="0" r="7" fill="var(--panel)" stroke="var(--fg)" stroke-width="2.5"/><text x="20" y="4">пересадковий вузол</text><circle cx="150" cy="0" r="5.5" fill="var(--panel)" stroke="var(--fg)" stroke-width="2.5"/><text x="162" y="4">кінцева</text><line x1="228" y1="0" x2="262" y2="0" stroke="var(--fg)" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>
+<g class="lts-legend-row" data-route="1">
+<g class="lts-badge" data-route="1"><rect x="60.0" y="1159.0" width="22" height="20" rx="4" fill="var(--r1)"/><text x="71.0" y="1174.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r1-fg)">1</text></g>
+<text x="105" y="1174" font-size="13.5" font-weight="700" fill="var(--fg)">Залізничний вокзал — Поліське водосховище</text>
+<text x="682" y="1174" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">22 рейс. · 6:20–21:00</text>
+<text x="105" y="1189" font-size="10.5" fill="var(--muted)">Ринок · Центр · Черемушки · Чолівський переїзд · Школа №13 · Селище Мирне</text>
+</g>
+<g class="lts-legend-row" data-route="2">
+<g class="lts-badge" data-route="2"><rect x="60.0" y="1197.0" width="22" height="20" rx="4" fill="var(--r2)"/><text x="71.0" y="1212.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r2-fg)">2</text></g>
+<text x="105" y="1212" font-size="13.5" font-weight="700" fill="var(--fg)">Залізничний вокзал — Пашини</text>
+<text x="682" y="1212" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">24 рейс. · 6:30–20:10</text>
+<text x="105" y="1227" font-size="10.5" fill="var(--muted)">Ринок · Парк «Древлянський» · Міськлікарня · ДУ · Районна поліклініка · окремі рейси — до Шухевича</text>
+</g>
+<g class="lts-legend-row" data-route="2b">
+<g class="lts-badge" data-route="2b"><rect x="60.0" y="1235.0" width="35" height="20" rx="4" fill="var(--r2b)"/><text x="77.5" y="1250.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r2b-fg)">2-Б</text></g>
+<text x="105" y="1250" font-size="13.5" font-weight="700" fill="var(--fg)">Пашини — Романа Шухевича (Гастелло)</text>
+<text x="682" y="1250" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">1–2 рейс. · 6:55–7:55</text>
+<text x="105" y="1265" font-size="10.5" fill="var(--muted)">Районна поліклініка · Парк «Древлянський» · Ринок · Вокзал · Школа №1 · Районна лікарня</text>
+</g>
+<g class="lts-legend-row" data-route="3">
+<g class="lts-badge" data-route="3"><rect x="60.0" y="1273.0" width="22" height="20" rx="4" fill="var(--r3)"/><text x="71.0" y="1288.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r3-fg)">3</text></g>
+<text x="105" y="1288" font-size="13.5" font-weight="700" fill="var(--fg)">Залізничний вокзал — Вул. Проліскова</text>
+<text x="682" y="1288" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">17–19 рейс. · 6:10–20:40</text>
+<text x="105" y="1303" font-size="10.5" fill="var(--muted)">Парк «Древлянський» · Хіммаш · Гастроном · Ельфа · Коростень-Подільський · Чигирі</text>
+</g>
+<g class="lts-legend-row" data-route="4">
+<g class="lts-badge" data-route="4"><rect x="60.0" y="1311.0" width="22" height="20" rx="4" fill="var(--r4)"/><text x="71.0" y="1326.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r4-fg)">4</text></g>
+<text x="105" y="1326" font-size="13.5" font-weight="700" fill="var(--fg)">Залізничний вокзал — Вул. Київська</text>
+<text x="682" y="1326" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">32–35 рейс. · 6:10–20:20</text>
+<text x="105" y="1341" font-size="10.5" fill="var(--muted)">Ринок · Швейна фабрика · Дім правосуддя · Трубосталь · окремі рейси — Грозине</text>
+</g>
+<g class="lts-legend-row" data-route="5">
+<g class="lts-badge" data-route="5"><rect x="720.0" y="1159.0" width="22" height="20" rx="4" fill="var(--r5)"/><text x="731.0" y="1174.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r5-fg)">5</text></g>
+<text x="758" y="1174" font-size="13.5" font-weight="700" fill="var(--fg)">Залізничний вокзал — Білокоровицьке шосе</text>
+<text x="1342" y="1174" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">14 рейс. · 6:15–19:30</text>
+<text x="758" y="1189" font-size="10.5" fill="var(--muted)">Ринок · Центр · Черемушки · Чолівський переїзд · КВК №71</text>
+</g>
+<g class="lts-legend-row" data-route="6">
+<g class="lts-badge" data-route="6"><rect x="720.0" y="1197.0" width="22" height="20" rx="4" fill="var(--r6)"/><text x="731.0" y="1212.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r6-fg)">6</text></g>
+<text x="758" y="1212" font-size="13.5" font-weight="700" fill="var(--fg)">Станція Житомирська — Цегельний завод</text>
+<text x="1342" y="1212" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">23 рейс. · 6:30–20:00</text>
+<text x="758" y="1227" font-size="10.5" fill="var(--muted)">Шевченка, 117 · Вокзал · Ринок · Дім правосуддя · Аптека · окремі рейси — по Південній</text>
+</g>
+<g class="lts-legend-row" data-route="7">
+<g class="lts-badge" data-route="7"><rect x="720.0" y="1235.0" width="22" height="20" rx="4" fill="var(--r7)"/><text x="731.0" y="1250.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r7-fg)">7</text></g>
+<text x="758" y="1250" font-size="13.5" font-weight="700" fill="var(--fg)">Залізничний вокзал — Романа Шухевича (Гастелло)</text>
+<text x="1342" y="1250" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">19 рейс. · 6:47–20:20</text>
+<text x="758" y="1265" font-size="10.5" fill="var(--muted)">Ринок · Центр · Черемушки · Магазин №44 · окремі рейси — через Франка</text>
+</g>
+<g class="lts-legend-row" data-route="8">
+<g class="lts-badge" data-route="8"><rect x="720.0" y="1273.0" width="22" height="20" rx="4" fill="var(--r8)"/><text x="731.0" y="1288.0" text-anchor="middle" font-size="13" font-weight="700" fill="var(--r8-fg)">8</text></g>
+<text x="758" y="1288" font-size="13.5" font-weight="700" fill="var(--fg)">Магазин №44 — Бровар</text>
+<text x="1342" y="1288" text-anchor="end" font-size="11.5" fill="var(--muted)" font-variant-numeric="tabular-nums">10–12 рейс. · 7:00–18:00</text>
+<text x="758" y="1303" font-size="10.5" fill="var(--muted)">Шухевича · Районна лікарня · Вокзал · Ринок · 1-го Травня · окремі рейси — Сади, Дачі УТОС</text>
+</g>
+<text x="60" y="1384" font-size="10" fill="var(--muted)">Дані: розклад руху Коростенської міської ради · korosten.kiev.ua/transport · листопад 2026 · за схемою власника сайту 2019 року</text>
+</svg>
+  </div>
+  <div class="notes">
+    <section>
+      <h2>Як читати</h2>
+      <ul>
+        <li>Великі кільця — вузли, де сходяться кілька маршрутів: вокзал і ринок (пучок усіх ліній між ними), Центр, Парк «Древлянський», Швейна фабрика, Черемушки, Шухевича.</li>
+        <li>Номери в кольорових плашках біля зупинки — маршрути, для яких ця зупинка кінцева.</li>
+        <li>Пунктир — окремі рейси іншим шляхом: №2 через вокзал до Шухевича, №4 до Грозиного, №6 по Південній, №7 через Франка, №8 до Садів і Дач УТОС.</li>
+        <li>Дрібні сірі підписи — деякі проміжні зупинки, не повний перелік. Схема не в масштабі.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Звідки дані</h2>
+      <ul>
+        <li>Склад маршрутів і рейси — розклад руху Коростенської міської ради (листопад 2026); порядок зупинок — проєкт власника сайту 2025 року.</li>
+        <li>Вигляд і кольори — авторська схема власника сайту 2019 року; лінії 6А, 6Б, 7А, 12, 14 зі схеми 2019 прибрано — у розкладі їх нема.</li>
+        <li>Кількість рейсів і час першого/останнього — з бази сайту (/transport/dataset?city=Korosten).</li>
+      </ul>
+    </section>
+  </div>
+</div>

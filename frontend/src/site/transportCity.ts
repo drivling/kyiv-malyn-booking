@@ -128,13 +128,19 @@ export interface TransportProfile {
   siteUrl: string;
   /** Відкриті дані (GTFS, RSS, ICS) — поки лише Малин; в іншого міста блок посилань на фід ховаємо */
   hasOpenData: boolean;
-  /** Чіпи «Куди їдете?» для міста без схеми (у Малина вони з вузлів схеми); [] — лише «Поруч зі мною» */
+  /**
+   * Чіпи «Куди їдете?»: вибрані головні точки міста; [] — вузли й кінцеві схеми (Малин), а в міста без
+   * схеми — лише «Поруч зі мною»
+   */
   quickNodes: readonly TransportQuickNode[];
   /** Джерело розкладу в підвалі сторінок міста без відкритих даних; null — нема */
   sourceLink: { href: string; label: string } | null;
   /** Центр карти, поки датасет не дав свого (meta.center) */
   center: [number, number] | null;
-  /** Є намальована схема маршрутів (сторінка /transport/scheme, кольори ліній з її легенди) */
+  /**
+   * Є намальована схема маршрутів (сторінка /transport/scheme, міні-схеми, кольори ліній з її легенди);
+   * сама схема — LocalTransportPage/scheme/registry.ts, тут лише прапорець, щоб профіль не тягнув SVG
+   */
   hasScheme: boolean;
   /** Є статті зупинок у src/content/stops */
   hasStopArticles: boolean;
@@ -171,6 +177,9 @@ const CITY_CENTERS: Record<string, [number, number]> = {
   Korosten: [50.9506, 28.6384],
 };
 
+/** Міста, крім Малина, зі схемою маршрутів (LocalTransportPage/scheme/registry.ts; Docs/korosten-scheme-2026-11.md) */
+const CITIES_WITH_SCHEME = new Set(['Korosten']);
+
 /** Звідки розклад міста (підвал сторінок транспорту) */
 const CITY_SOURCES: Record<string, { href: string; label: string }> = {
   Korosten: {
@@ -179,7 +188,7 @@ const CITY_SOURCES: Record<string, { href: string; label: string }> = {
   },
 };
 
-/** Чіпи «Куди їдете?» міст без схеми: головні точки міста (id зупинок датасету міста) */
+/** Чіпи «Куди їдете?»: головні точки міста (id зупинок датасету міста) */
 const CITY_QUICK_NODES: Record<string, readonly TransportQuickNode[]> = {
   Korosten: [
     { id: 'st_1001', kind: 'hub', name: 'Залізничний вокзал', stopIds: ['st_1001'] },
@@ -201,7 +210,7 @@ export function transportProfile(city: string = siteTransportCity()): TransportP
     quickNodes: CITY_QUICK_NODES[city] ?? [],
     sourceLink: CITY_SOURCES[city] ?? null,
     center: CITY_CENTERS[city] ?? null,
-    hasScheme: false,
+    hasScheme: CITIES_WITH_SCHEME.has(city),
     hasStopArticles: false,
     legacyStopNames: [],
   };

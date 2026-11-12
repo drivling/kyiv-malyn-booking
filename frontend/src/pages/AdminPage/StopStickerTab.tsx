@@ -55,6 +55,7 @@ const SIDE_LABEL: Record<StickerAssign, string> = { a: 'Бік 1', b: 'Бік 2'
 export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
   // QR і підписи наклейки ведуть на сайт міста зупинки
   const domain = siteForCityCode(city).domain;
+  const cityLabel = siteForCityCode(city).cityNameUk.toLocaleUpperCase('uk');
   const [searchParams, setSearchParams] = useSearchParams();
   const stopId = searchParams.get('stop') ?? '';
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
@@ -163,9 +164,10 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
             fare: fareOf(dataset),
             titleColor,
             domain,
+            cityLabel,
           })
         : [],
-    [stop, title, lines, assign, headings, layout, showOpposite, size, dataset, titleColor, domain]
+    [stop, title, lines, assign, headings, layout, showOpposite, size, dataset, titleColor, domain, cityLabel]
   );
   const previews = useMemo(() => sheets.map((s) => ({ ...s, svg: renderStickerSvg(s.spec) })), [sheets]);
   const hasB = lines.some((l) => assign[l.key] === 'b');

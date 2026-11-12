@@ -7,8 +7,7 @@ import type { TransportDataset } from '@/api/transportDataset';
 import type { StickerWallSnapshot } from '@/types';
 import { stickerStopCatalog } from '@/pages/AdminPage/stopSticker/scanStats';
 import { brightestLineColor, prettyStopName } from '@/pages/AdminPage/stopSticker/stickerModel';
-import { SCHEME_ROUTES } from '@/pages/LocalTransportPage/scheme/malyn-scheme-routes';
-import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
+import { currentScheme, textColorOn } from '@/pages/LocalTransportPage/routeColors';
 import { TRANSPORT_CITY_PARAM, isDefaultTransportCity } from '@/site/transportCity';
 
 /** Як часто віджет тягне знімок: скани поодинокі, 30 с — «одразу» для людини біля стіни */
@@ -18,8 +17,13 @@ export const CELEBRATION_MS = 7_000;
 /** Автоперемикання вкладок «Топ дня» / «Зараз ростуть» */
 export const TAB_ROTATE_MS = 20_000;
 
-/** Палітра ліній схеми — для смуги, конфеті й зупинок без кольору */
-export const SCHEME_PALETTE: string[] = SCHEME_ROUTES.map((r) => r.color);
+/**
+ * Палітра ліній схеми міста стіни (місто датасету, який завантажила стіна) — для смуги, конфеті й зупинок
+ * без кольору; місто без схеми — порожня, тоді діє запасний колір
+ */
+export function schemePalette(): string[] {
+  return (currentScheme()?.routes ?? []).map((r) => r.color);
+}
 const FALLBACK_COLOR = '#2a78d6';
 
 export type WallLine = { routeId: string; color: string | null };
@@ -165,7 +169,7 @@ export function buildCelebrations(snapshot: StickerWallSnapshot, stops: WallStop
       stopId: null,
       name: `Ще +${added} на ${rest.length} ${plural(rest.length, ['зупинці', 'зупинках', 'зупинках'])}`,
       lines: [],
-      color: SCHEME_PALETTE[0] ?? FALLBACK_COLOR,
+      color: schemePalette()[0] ?? FALLBACK_COLOR,
       added,
       stopToday: 0,
       rank: 0,
