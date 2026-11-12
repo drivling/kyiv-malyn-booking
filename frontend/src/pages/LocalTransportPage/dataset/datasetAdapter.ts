@@ -3,6 +3,7 @@
  * (TransportData + coords + segments lookup for Local helpers).
  */
 
+import { siteTransportCity, transportProfile } from '@/site/transportCity';
 import type { TransportDataset } from '@/api/transportDataset';
 import { datasetToEditor, publicTransportDataset } from '@/api/transportDataset';
 import type { Supplement, TransportData, TransportRecord } from '../types';
@@ -71,9 +72,10 @@ export function getDurationFromStartSec(
  * Публічна view-model: ненадійні (приховані) маршрути відфільтровано тут, тому всі
  * сторінки сайту (планер, маршрут, табло, карта, SEO/JSON-LD) їх не бачать.
  */
-export function datasetToLocalViewModel(fullDataset: TransportDataset): LocalTransportViewModel {
+export function datasetToLocalViewModel(fullDataset: TransportDataset, city: string = siteTransportCity()): LocalTransportViewModel {
   const dataset = publicTransportDataset(fullDataset);
-  const { transport, coords } = datasetToEditor(dataset);
+  // центр карти — з профілю міста датасету (для Малина той самий, що й був), а не завжди Малина
+  const { transport, coords } = datasetToEditor(dataset, transportProfile(city).center ?? undefined);
   const records = (transport.records || []) as TransportRecord[];
   const supplement = transport.supplement as Supplement | undefined;
 

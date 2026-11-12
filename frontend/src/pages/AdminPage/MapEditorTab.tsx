@@ -20,6 +20,7 @@ import { getStopArticle } from '@/content/stops';
 import { DEFAULT_TRANSPORT_CITY, transportProfile } from '@/site/transportCity';
 import { routeNo, routeNoWithId } from '@/utils/routeNames';
 import { StopsPanel } from './MapEditorStopsPanel';
+import { DatasetImportButton } from './DatasetImportButton';
 import {
   applyStopRenamesToDataset,
   buildStopRenameMap,
@@ -800,6 +801,15 @@ export const MapEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANS
             <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving || recalculating}>
               Завантажити з бази
             </Button>
+            <DatasetImportButton
+              city={city}
+              current={baseDataset}
+              disabled={loading || saving || recalculating || isDirty}
+              onImported={(message) => {
+                void loadFromDb().then(() => setStatusMsg(message));
+              }}
+              onError={setActionError}
+            />
             <Button
               type="button"
               onClick={handleRecalculateSegments}

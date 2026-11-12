@@ -22,7 +22,7 @@ import {
   invertNameToId,
   resolveStopIdInList,
 } from './stopCatalog';
-import { VERIFIED_ROUTE_IDS, isVerifiedRoute, recordTiming, segSecForRoute } from './routeTiming';
+import { isVerifiedRoute, recordTiming, segSecForRoute, verifiedRouteIds } from './routeTiming';
 import { computeTripTiming, minutesAtStop, tripServesPair } from './dataset/tripTiming';
 import { tripDepartureMinutes, groupTripsByDirection, parseClockToMinutes } from './tripDeparture';
 import { findNearestTrip } from './nearestTrip';
@@ -407,7 +407,7 @@ export const LocalTransportPage: React.FC = () => {
   );
   /** Полілінії всіх перевірених маршрутів у кольорах схеми — огляд міста на карті планера */
   const overviewLines = useMemo(
-    () => (stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, VERIFIED_ROUTE_IDS) : []),
+    () => (stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, verifiedRouteIds(Object.keys(stopsByRoute ?? {}))) : []),
     [stopsCoords, stopsByRoute]
   );
   const linesAtStop = useCallback((stopId: string) => (dataset ? routesAtStop(dataset, stopId) : []), [dataset]);
