@@ -139,7 +139,7 @@ describe('scheme per city (Docs/korosten-scheme-2026-11.md)', () => {
 
   it('реєстр: viewBox і плакат з файлів генератора', () => {
     expect(schemeFor('Malyn')?.viewBox).toEqual({ x: 0, y: 176, w: 1400, h: 566 });
-    expect(schemeFor('Korosten')?.viewBox).toEqual({ x: 0, y: 160, w: 1400, h: 970 });
+    expect(schemeFor('Korosten')?.viewBox).toEqual({ x: 0, y: 130, w: 1400, h: 1090 });
     expect(schemeFor('Korosten')?.routes.map((r) => r.id)).toEqual(['1', '2', '2b', '3', '4', '5', '6', '7', '8']);
     expect(schemeFor('Korosten')?.poster.pdf).toBe('/transport/scheme/korosten-transit-scheme-poster.pdf');
     expect(schemeFor('Zhytomyr')).toBeNull();

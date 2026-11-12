@@ -44,6 +44,9 @@ CITY = dict(
 )
 # лінії з білою смугою посередині (окремий маршрут, близький кольором до сусіда в пучку)
 STRIPED = set()
+# залізниця під лініями (орієнтир): полілінії з точок або ключів N; підписи станцій. У Малина — нема.
+RAILWAYS = []
+RAIL_LABELS = []
 
 # ---------------------------------------------------------------- маршрути
 ROUTE_ORDER = ['2', '3', '5', '7', '8', '9', '10', '11', '12']
@@ -547,6 +550,17 @@ def build_svg(stats, col, ink, bg, fg, muted, line_bg, water, water_fill, water_
     for wl in WATER_LABELS:
         o.append(f'<text x="{wl["x"]}" y="{wl["y"]}" text-anchor="{wl["anchor"]}" font-size="11" font-style="italic" fill="{water_text}">{esc(wl["text"])}</text>')
     o.append('</g>')
+    # ---- залізниця (під лініями): сіра смуга зі шпалами
+    if RAILWAYS:
+        o.append('<g class="lts-rail" fill="none" stroke-linejoin="round">')
+        for rail in RAILWAYS:
+            pts = [N[p] if isinstance(p, str) else p for p in rail]
+            o.append(f'<path d="{path_d(pts)}" stroke="{muted}" stroke-width="5" opacity="0.55"/>')
+            o.append(f'<path d="{path_d(pts)}" stroke="{bg}" stroke-width="2.2" stroke-dasharray="6 6"/>')
+        for rl in RAIL_LABELS:
+            o.append(f'<text x="{rl["x"]}" y="{rl["y"]}" text-anchor="{rl.get("anchor", "start")}" font-size="10.5" '
+                     f'font-style="italic" fill="{muted}" stroke="none">{esc(rl["text"])}</text>')
+        o.append('</g>')
     # ---- лінії: кожен маршрут — група (підкладка-обводка + колір + пунктир)
     paths = {rid: route_path(rid, cors) for rid, cors in ROUTES.items()}
     # пунктир: один шлях (список коридорів) або кілька окремих (список списків)
@@ -615,10 +629,13 @@ def build_svg(stats, col, ink, bg, fg, muted, line_bg, water, water_fill, water_
         split = CITY['legend_split']
         o.append(f'<line x1="60" y1="{y0 - 22}" x2="1340" y2="{y0 - 22}" stroke="{muted}" stroke-width="1" opacity="0.5"/>')
         o.append(f'<text x="60" y="{y0 - 30}" font-size="11" font-weight="700" letter-spacing="1.5" fill="{muted}">МАРШРУТИ · РЕЙСИ В КОЖЕН БІК НА ДЕНЬ · ПЕРШИЙ–ОСТАННІЙ</text>')
-        o.append(f'<g transform="translate(1000,{y0 - 34})" font-size="11" fill="{muted}">'
+        o.append(f'<g transform="translate({880 if RAILWAYS else 1000},{y0 - 34})" font-size="11" fill="{muted}">'
                  f'<circle cx="6" cy="0" r="7" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="20" y="4">пересадковий вузол</text>'
                  f'<circle cx="150" cy="0" r="5.5" fill="{bg}" stroke="{fg}" stroke-width="2.5"/><text x="162" y="4">кінцева</text>'
-                 f'<line x1="228" y1="0" x2="262" y2="0" stroke="{fg}" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text></g>')
+                 f'<line x1="228" y1="0" x2="262" y2="0" stroke="{fg}" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/><text x="270" y="4">окремі рейси</text>'
+                 + (f'<line x1="368" y1="0" x2="402" y2="0" stroke="{muted}" stroke-width="5" opacity="0.55"/>'
+                    f'<line x1="368" y1="0" x2="402" y2="0" stroke="{bg}" stroke-width="2.2" stroke-dasharray="6 6"/><text x="410" y="4">залізниця</text>'
+                    if RAILWAYS else '') + '</g>')
         row_h = 38
         # Текст легенди — одною колонкою після найширшої плашки колонки (номери на кшталт «11/1» ширші)
         col_tx = [max(38, max(badge_width(route_label(r)) for r in part) + 10) for part in (ROUTE_ORDER[:split], ROUTE_ORDER[split:])]

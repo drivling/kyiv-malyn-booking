@@ -1,318 +1,300 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 160 1400 970" style="max-width:100%;height:auto;display:block" class="lts-svg" role="img" aria-label="Схема міських автобусних маршрутів Коростеня: 9 ліній, кінцеві та пересадкові зупинки" font-family="inherit" color="var(--lts-fg)">
-<g transform="translate(1340,200)" fill="var(--lts-muted)" stroke="var(--lts-muted)"><line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/><text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>
-<g class="lts-water"><path d="M300.0,1070.0 L380.0,1058.0 L450.0,1064.0 L500.0,1086.0 L452.0,1108.0 L360.0,1112.0 L306.0,1096.0 Z" fill="var(--lts-water-fill)" stroke="var(--lts-water)" stroke-width="2" stroke-linejoin="round"/>
-<path d="M470.0,1070.0 L720.0,820.0 L1060.0,820.0 L1100.0,780.0 L1100.0,540.0 L1390.0,540.0" fill="none" stroke="var(--lts-water)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="1270" y="530" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">р. Уж</text>
-<text x="600" y="944" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">р. Уж</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 130 1400 1090" style="max-width:100%;height:auto;display:block" class="lts-svg" role="img" aria-label="Схема міських автобусних маршрутів Коростеня: 9 ліній, кінцеві та пересадкові зупинки" font-family="inherit" color="var(--lts-fg)">
+<g transform="translate(1340,170)" fill="var(--lts-muted)" stroke="var(--lts-muted)"><line x1="0" y1="14" x2="0" y2="-10" stroke-width="2"/><polygon points="-5,-6 0,-16 5,-6" stroke="none"/><text x="0" y="30" text-anchor="middle" font-size="11" stroke="none" font-weight="600">Пн</text></g>
+<g class="lts-water"><path d="M150.0,1150.0 L204.0,1140.0 L266.0,1142.0 L312.0,1158.0 L272.0,1178.0 L200.0,1182.0 L154.0,1172.0 Z" fill="var(--lts-water-fill)" stroke="var(--lts-water)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M60.0,1196.0 L130.0,1164.0 L210.0,1160.0 L300.0,1160.0 L370.0,1110.0 L730.0,750.0 L930.0,750.0 L1310.0,370.0 L1390.0,290.0" fill="none" stroke="var(--lts-water)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1230" y="440" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">р. Уж</text>
+<text x="560" y="946" text-anchor="middle" font-size="11" font-style="italic" fill="var(--lts-water-text)">р. Уж</text>
+</g>
+<g class="lts-rail" fill="none" stroke-linejoin="round">
+<path d="M30.0,416.0 L220.0,416.0 L860.0,416.0 L1264.0,820.0 L1390.0,820.0" stroke="var(--lts-muted)" stroke-width="5" opacity="0.55"/>
+<path d="M30.0,416.0 L220.0,416.0 L860.0,416.0 L1264.0,820.0 L1390.0,820.0" stroke="var(--lts-bg)" stroke-width="2.2" stroke-dasharray="6 6"/>
+<path d="M220.0,416.0 L220.0,560.0 L340.0,680.0 L340.0,1240.0" stroke="var(--lts-muted)" stroke-width="5" opacity="0.55"/>
+<path d="M220.0,416.0 L220.0,560.0 L340.0,680.0 L340.0,1240.0" stroke="var(--lts-bg)" stroke-width="2.2" stroke-dasharray="6 6"/>
+<path d="M220.0,416.0 L220.0,300.0 L340.0,180.0 L340.0,168.0" stroke="var(--lts-muted)" stroke-width="5" opacity="0.55"/>
+<path d="M220.0,416.0 L220.0,300.0 L340.0,180.0 L340.0,168.0" stroke="var(--lts-bg)" stroke-width="2.2" stroke-dasharray="6 6"/>
+<text x="1388" y="812" text-anchor="end" font-size="10.5" font-style="italic" fill="var(--lts-muted)" stroke="none">на Київ</text>
+<text x="350" y="1236" text-anchor="start" font-size="10.5" font-style="italic" fill="var(--lts-muted)" stroke="none">на Житомир</text>
+<text x="350" y="178" text-anchor="start" font-size="10.5" font-style="italic" fill="var(--lts-muted)" stroke="none">на Овруч</text>
+<text x="34" y="408" text-anchor="start" font-size="10.5" font-style="italic" fill="var(--lts-muted)" stroke="none">на Звягель</text>
 </g>
 <g class="lts-routes" fill="none" stroke-linecap="round" stroke-linejoin="round">
 <g class="lts-route" data-route="1" role="button" tabindex="0" aria-label="Маршрут №1: Залізничний вокзал — Поліське водосховище">
-<path d="M625.9,434.1 L770.0,578.3 L770.0,684.1 L647.1,807.1 L636.5,810.6 L543.5,903.5 L532.9,907.1 L400.0,1040.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M625.9,434.1 L770.0,578.3 L770.0,684.1 L647.1,807.1 L636.5,810.6 L543.5,903.5 L532.9,907.1 L400.0,1040.0" stroke="var(--lts-r1)" stroke-width="7"/>
+<path d="M605.9,454.1 L752.9,601.2 L627.1,727.1 L547.1,807.1 L536.5,810.6 L383.5,963.5 L372.9,967.1 L220.0,1120.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M605.9,454.1 L752.9,601.2 L627.1,727.1 L547.1,807.1 L536.5,810.6 L383.5,963.5 L372.9,967.1 L220.0,1120.0" stroke="var(--lts-r1)" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="2" role="button" tabindex="0" aria-label="Маршрут №2: Залізничний вокзал — Пашини">
-<path d="M661.2,398.8 L802.4,540.0 L935.0,540.0 L935.0,220.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M661.2,398.8 L802.4,540.0 L935.0,540.0 L935.0,220.0" stroke="var(--lts-r2)" stroke-width="7"/>
-<path d="M632.9,412.9 L430.0,615.9 L430.0,800.0" stroke="var(--lts-r2)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M641.2,418.8 L802.4,580.0 L980.0,580.0 L980.0,360.0 L975.0,350.0 L975.0,180.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M641.2,418.8 L802.4,580.0 L980.0,580.0 L980.0,360.0 L975.0,350.0 L975.0,180.0" stroke="var(--lts-r2)" stroke-width="7"/>
+<path d="M612.9,432.9 L392.9,652.9" stroke="var(--lts-r2)" stroke-width="5.5" stroke-dasharray="8 9"/>
 </g>
 <g class="lts-route" data-route="2b" role="button" tabindex="0" aria-label="Маршрут №2-Б: Пашини — Романа Шухевича (Гастелло)">
-<path d="M945.0,220.0 L945.0,550.0 L798.3,550.0 L654.1,405.9 L440.0,620.0 L440.0,800.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M945.0,220.0 L945.0,550.0 L798.3,550.0 L654.1,405.9 L440.0,620.0 L440.0,800.0" stroke="var(--lts-r2b)" stroke-width="7"/>
-<path d="M945.0,220.0 L945.0,550.0 L798.3,550.0 L654.1,405.9 L440.0,620.0 L440.0,800.0" stroke="var(--lts-bg)" stroke-width="2"/>
+<path d="M985.0,180.0 L985.0,360.0 L990.0,370.0 L990.0,590.0 L798.3,590.0 L634.1,425.9 L400.0,660.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M985.0,180.0 L985.0,360.0 L990.0,370.0 L990.0,590.0 L798.3,590.0 L634.1,425.9 L400.0,660.0" stroke="var(--lts-r2b)" stroke-width="7"/>
+<path d="M985.0,180.0 L985.0,360.0 L990.0,370.0 L990.0,590.0 L798.3,590.0 L634.1,425.9 L400.0,660.0" stroke="var(--lts-bg)" stroke-width="2"/>
 </g>
 <g class="lts-route" data-route="3" role="button" tabindex="0" aria-label="Маршрут №3: Залізничний вокзал — Вул. Проліскова">
-<path d="M668.3,391.7 L806.6,530.0 L930.0,530.0 L860.0,460.0 L860.0,320.0 L520.0,320.0 L460.0,260.0 L460.0,200.0 L380.0,200.0 L340.0,240.0 L260.0,240.0 L220.0,200.0 L140.0,200.0 L220.0,200.0 L380.0,200.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M668.3,391.7 L806.6,530.0 L930.0,530.0 L860.0,460.0 L860.0,320.0 L520.0,320.0 L460.0,260.0 L460.0,200.0 L380.0,200.0 L340.0,240.0 L260.0,240.0 L220.0,200.0 L140.0,200.0 L220.0,200.0 L380.0,200.0" stroke="var(--lts-r3)" stroke-width="7"/>
+<path d="M648.3,411.7 L806.6,570.0 L970.0,570.0 L970.0,350.0 L940.0,320.0 L520.0,320.0 L480.0,280.0 L480.0,200.0 L420.0,200.0 L380.0,240.0 L300.0,240.0 L260.0,200.0 L180.0,200.0 L260.0,200.0 L420.0,200.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M648.3,411.7 L806.6,570.0 L970.0,570.0 L970.0,350.0 L940.0,320.0 L520.0,320.0 L480.0,280.0 L480.0,200.0 L420.0,200.0 L380.0,240.0 L300.0,240.0 L260.0,200.0 L180.0,200.0 L260.0,200.0 L420.0,200.0" stroke="var(--lts-r3)" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="4" role="button" tabindex="0" aria-label="Маршрут №4: Залізничний вокзал — Вул. Київська">
-<path d="M647.1,412.9 L767.1,532.9 L887.1,652.9 L890.6,663.5 L983.5,756.5 L1080.0,660.0 L1160.0,660.0 L1260.0,660.0 L1260.0,760.0 L1160.0,660.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M647.1,412.9 L767.1,532.9 L887.1,652.9 L890.6,663.5 L983.5,756.5 L1080.0,660.0 L1160.0,660.0 L1260.0,660.0 L1260.0,760.0 L1160.0,660.0" stroke="var(--lts-r4)" stroke-width="7"/>
-<path d="M1260.0,760.0 L1260.0,860.0" stroke="var(--lts-r4)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M627.1,432.9 L767.1,572.9 L847.1,652.9 L850.6,663.5 L983.5,796.5 L1140.0,640.0 L1220.0,640.0 L1300.0,640.0 L1300.0,720.0 L1220.0,640.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M627.1,432.9 L767.1,572.9 L847.1,652.9 L850.6,663.5 L983.5,796.5 L1140.0,640.0 L1220.0,640.0 L1300.0,640.0 L1300.0,720.0 L1220.0,640.0" stroke="var(--lts-r4)" stroke-width="7"/>
+<path d="M1300.0,720.0 L1360.0,660.0" stroke="var(--lts-r4)" stroke-width="5.5" stroke-dasharray="8 9"/>
 </g>
 <g class="lts-route" data-route="5" role="button" tabindex="0" aria-label="Маршрут №5: Залізничний вокзал — Білокоровицьке шосе">
-<path d="M618.8,441.2 L760.0,582.4 L760.0,680.0 L640.0,800.0 L629.4,803.5 L532.9,900.0 L280.0,900.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M618.8,441.2 L760.0,582.4 L760.0,680.0 L640.0,800.0 L629.4,803.5 L532.9,900.0 L280.0,900.0" stroke="var(--lts-r5)" stroke-width="7"/>
+<path d="M598.8,461.2 L738.8,601.2 L620.0,720.0 L540.0,800.0 L529.4,803.5 L376.5,956.5 L220.0,800.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M598.8,461.2 L738.8,601.2 L620.0,720.0 L540.0,800.0 L529.4,803.5 L376.5,956.5 L220.0,800.0" stroke="var(--lts-r5)" stroke-width="7"/>
 </g>
 <g class="lts-route" data-route="6" role="button" tabindex="0" aria-label="Маршрут №6: Станція Житомирська — Цегельний завод">
-<path d="M220.0,540.0 L340.0,420.0 L640.0,420.0 L760.0,540.0 L880.0,660.0 L883.5,670.6 L976.5,763.5 L987.1,767.1 L1060.0,840.0 L1120.0,900.0 L1120.0,1000.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M220.0,540.0 L340.0,420.0 L640.0,420.0 L760.0,540.0 L880.0,660.0 L883.5,670.6 L976.5,763.5 L987.1,767.1 L1060.0,840.0 L1120.0,900.0 L1120.0,1000.0" stroke="var(--lts-r6)" stroke-width="7"/>
-<path d="M1060.0,840.0 L1060.0,940.0 L1120.0,1000.0" stroke="var(--lts-r6)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M300.0,440.0 L620.0,440.0 L760.0,580.0 L840.0,660.0 L843.5,670.6 L976.5,803.5 L987.1,807.1 L1060.0,880.0 L1120.0,940.0 L1120.0,1040.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M300.0,440.0 L620.0,440.0 L760.0,580.0 L840.0,660.0 L843.5,670.6 L976.5,803.5 L987.1,807.1 L1060.0,880.0 L1120.0,940.0 L1120.0,1040.0" stroke="var(--lts-r6)" stroke-width="7"/>
+<path d="M1060.0,880.0 L1060.0,980.0 L1120.0,1040.0" stroke="var(--lts-r6)" stroke-width="5.5" stroke-dasharray="8 9"/>
 </g>
 <g class="lts-route" data-route="7" role="button" tabindex="0" aria-label="Маршрут №7: Залізничний вокзал — Романа Шухевича (Гастелло)">
-<path d="M611.7,448.3 L750.0,586.6 L750.0,675.9 L620.9,805.0 L540.0,805.0 L440.0,805.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M611.7,448.3 L750.0,586.6 L750.0,675.9 L620.9,805.0 L540.0,805.0 L440.0,805.0" stroke="var(--lts-r7)" stroke-width="7"/>
-<path d="M760.0,680.0 L820.0,680.0 L820.0,390.0 L670.0,390.0 L640.0,420.0" stroke="var(--lts-r7)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M591.7,468.3 L724.6,601.2 L612.9,712.9 L536.5,789.4 L473.5,726.5 L403.5,656.5" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M591.7,468.3 L724.6,601.2 L612.9,712.9 L536.5,789.4 L473.5,726.5 L403.5,656.5" stroke="var(--lts-r7)" stroke-width="7"/>
+<path d="M620.0,440.0 L600.0,470.0 L600.0,700.0 L620.0,720.0" stroke="var(--lts-r7)" stroke-width="5.5" stroke-dasharray="8 9"/>
 </g>
 <g class="lts-route" data-route="8" role="button" tabindex="0" aria-label="Маршрут №8: Магазин №44 — Бровар">
-<path d="M540.0,795.0 L450.0,795.0 L450.0,624.1 L640.0,434.1 L752.9,547.1 L880.0,674.1 L880.0,900.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
-<path d="M540.0,795.0 L450.0,795.0 L450.0,624.1 L640.0,434.1 L752.9,547.1 L880.0,674.1 L880.0,900.0" stroke="var(--lts-r8)" stroke-width="7"/>
-<path d="M880.0,900.0 L820.0,960.0" stroke="var(--lts-r8)" stroke-width="5.5" stroke-dasharray="8 9"/>
-<path d="M880.0,900.0 L940.0,960.0" stroke="var(--lts-r8)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M466.5,733.5 L403.5,670.6 L620.0,454.1 L752.9,587.1 L840.0,674.1 L840.0,940.0" stroke="var(--lts-bg)" stroke-width="9.5"/>
+<path d="M466.5,733.5 L403.5,670.6 L620.0,454.1 L752.9,587.1 L840.0,674.1 L840.0,940.0" stroke="var(--lts-r8)" stroke-width="7"/>
+<path d="M840.0,940.0 L780.0,1000.0" stroke="var(--lts-r8)" stroke-width="5.5" stroke-dasharray="8 9"/>
+<path d="M840.0,940.0 L900.0,1000.0" stroke="var(--lts-r8)" stroke-width="5.5" stroke-dasharray="8 9"/>
 </g>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1104" data-stops="st_1104" role="link" tabindex="0" aria-label="Зупинка Міськвиконком: табло">
-<line x1="850.0" y1="550.0" x2="850.0" y2="530.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="850.0" y1="550.0" x2="850.0" y2="530.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="850" y="572" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Міськвиконком</text>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1079" data-stops="st_1079" role="link" tabindex="0" aria-label="Зупинка Міськлікарня: табло">
-<line x1="945.0" y1="482.4" x2="935.0" y2="482.4" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="945.0" y1="482.4" x2="935.0" y2="482.4" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="962" y="490" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Міськлікарня</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1082" data-stops="st_1082" role="link" tabindex="0" aria-label="Зупинка Граніт: табло">
-<line x1="945.0" y1="405.6" x2="935.0" y2="405.6" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="945.0" y1="405.6" x2="935.0" y2="405.6" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="962" y="414" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Граніт</text>
+<line x1="985.0" y1="306.0" x2="975.0" y2="306.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="985.0" y1="306.0" x2="975.0" y2="306.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1002" y="310" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Граніт</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1083" data-stops="st_1083" role="link" tabindex="0" aria-label="Зупинка ДУ: табло">
-<line x1="945.0" y1="348.0" x2="935.0" y2="348.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="945.0" y1="348.0" x2="935.0" y2="348.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="962" y="356" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">ДУ</text>
+<line x1="985.0" y1="266.4" x2="975.0" y2="266.4" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="985.0" y1="266.4" x2="975.0" y2="266.4" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1002" y="270" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">ДУ</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1085" data-stops="st_1085" role="link" tabindex="0" aria-label="Зупинка Районна поліклініка: табло">
-<line x1="945.0" y1="284.0" x2="935.0" y2="284.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="945.0" y1="284.0" x2="935.0" y2="284.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="962" y="292" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Районна поліклініка</text>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1020" data-stops="st_1020" role="link" tabindex="0" aria-label="Зупинка Хіммаш: табло">
-<line x1="860.0" y1="376.0" x2="860.0" y2="376.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="860.0" y1="376.0" x2="860.0" y2="376.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="874" y="380" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Хіммаш</text>
+<line x1="985.0" y1="225.0" x2="975.0" y2="225.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="985.0" y1="225.0" x2="975.0" y2="225.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1002" y="230" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Районна поліклініка</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1021" data-stops="st_1021" role="link" tabindex="0" aria-label="Зупинка Гастроном: табло">
-<line x1="826.0" y1="320.0" x2="826.0" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="826.0" y1="320.0" x2="826.0" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="830" y="306" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Гастроном</text>
+<line x1="906.4" y1="320.0" x2="906.4" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="906.4" y1="320.0" x2="906.4" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="900" y="306" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Гастроном</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1023" data-stops="st_1023" role="link" tabindex="0" aria-label="Зупинка Прорізна, 33: табло">
-<line x1="717.2" y1="320.0" x2="717.2" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="717.2" y1="320.0" x2="717.2" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="729" y="306" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Прорізна, 33</text>
+<line x1="751.0" y1="320.0" x2="751.0" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="751.0" y1="320.0" x2="751.0" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="751" y="306" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Прорізна, 33</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1025" data-stops="st_1025" role="link" tabindex="0" aria-label="Зупинка Фабрика «Ельфа»: табло">
-<line x1="605.0" y1="320.0" x2="605.0" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="605.0" y1="320.0" x2="605.0" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="610" y="306" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Фабрика «Ельфа»</text>
+<line x1="604.0" y1="320.0" x2="604.0" y2="320.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="604.0" y1="320.0" x2="604.0" y2="320.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="604" y="306" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Фабрика «Ельфа»</text>
 </g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1027" data-stops="st_1027" role="link" tabindex="0" aria-label="Зупинка Вул. Стельмаха: табло">
-<line x1="490.0" y1="290.0" x2="490.0" y2="290.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="490.0" y1="290.0" x2="490.0" y2="290.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="508" y="290" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Вул. Стельмаха</text>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1028" data-stops="st_1028" role="link" tabindex="0" aria-label="Зупинка Школа №8: табло">
+<line x1="480.0" y1="240.0" x2="480.0" y2="240.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="480.0" y1="240.0" x2="480.0" y2="240.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="494" y="244" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Школа №8</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1031" data-stops="st_1031" role="link" tabindex="0" aria-label="Зупинка Коростень-Подільський: табло">
-<line x1="460.0" y1="200.0" x2="460.0" y2="200.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="460.0" y1="200.0" x2="460.0" y2="200.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="480" y="190" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Коростень-Подільський</text>
+<line x1="480.0" y1="200.0" x2="480.0" y2="200.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="480.0" y1="200.0" x2="480.0" y2="200.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="500" y="190" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Коростень-Подільський</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1033" data-stops="st_1033" role="link" tabindex="0" aria-label="Зупинка Церква: табло">
-<line x1="300.0" y1="240.0" x2="300.0" y2="240.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="300.0" y1="240.0" x2="300.0" y2="240.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="300" y="264" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Церква</text>
+<line x1="340.0" y1="240.0" x2="340.0" y2="240.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="340.0" y1="240.0" x2="340.0" y2="240.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="340" y="264" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Церква</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1035" data-stops="st_1035" role="link" tabindex="0" aria-label="Зупинка Чигирі: табло">
-<line x1="220.0" y1="200.0" x2="220.0" y2="200.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="220.0" y1="200.0" x2="220.0" y2="200.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="220" y="186" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Чигирі</text>
+<line x1="260.0" y1="200.0" x2="260.0" y2="200.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="260.0" y1="200.0" x2="260.0" y2="200.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="260" y="186" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Чигирі</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1005" data-stops="st_1005" role="link" tabindex="0" aria-label="Зупинка В. Стуса: табло">
-<line x1="692.9" y1="732.9" x2="707.1" y2="747.1" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="692.9" y1="732.9" x2="707.1" y2="747.1" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="722" y="764" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">В. Стуса</text>
+<line x1="572.9" y1="752.9" x2="587.1" y2="767.1" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="572.9" y1="752.9" x2="587.1" y2="767.1" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="598" y="776" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">В. Стуса</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1007" data-stops="st_1007" role="link" tabindex="0" aria-label="Зупинка Ветлікарня: табло">
-<line x1="591.5" y1="841.5" x2="598.5" y2="848.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="591.5" y1="841.5" x2="598.5" y2="848.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="612" y="858" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Ветлікарня</text>
+<line x1="456.5" y1="876.5" x2="463.5" y2="883.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="456.5" y1="876.5" x2="463.5" y2="883.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="446" y="876" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Ветлікарня</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1010" data-stops="st_1010" role="link" tabindex="0" aria-label="Зупинка Чолівський переїзд: табло">
-<line x1="536.5" y1="896.5" x2="543.5" y2="903.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="536.5" y1="896.5" x2="543.5" y2="903.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="526" y="882" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Чолівський переїзд</text>
+<line x1="376.5" y1="956.5" x2="383.5" y2="963.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="376.5" y1="956.5" x2="383.5" y2="963.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="330" y="948" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Чолівський переїзд</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1011" data-stops="st_1011" role="link" tabindex="0" aria-label="Зупинка Школа №13: табло">
-<line x1="491.0" y1="949.0" x2="491.0" y2="949.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="491.0" y1="949.0" x2="491.0" y2="949.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="478" y="956" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Школа №13</text>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1013" data-stops="st_1013" role="link" tabindex="0" aria-label="Зупинка Селище Мирне: табло">
-<line x1="442.0" y1="998.0" x2="442.0" y2="998.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="442.0" y1="998.0" x2="442.0" y2="998.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="430" y="1004" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Селище Мирне</text>
+<line x1="316.0" y1="1024.0" x2="316.0" y2="1024.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="316.0" y1="1024.0" x2="316.0" y2="1024.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="304" y="1034" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Школа №13</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1047" data-stops="st_1047" role="link" tabindex="0" aria-label="Зупинка КВК №71: табло">
-<line x1="410.0" y1="900.0" x2="410.0" y2="900.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="410.0" y1="900.0" x2="410.0" y2="900.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="410" y="926" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">КВК №71</text>
+<line x1="300.0" y1="880.0" x2="300.0" y2="880.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="300.0" y1="880.0" x2="300.0" y2="880.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="288" y="884" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">КВК №71</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1064" data-stops="st_1064" role="link" tabindex="0" aria-label="Зупинка Школа №1: табло">
-<line x1="552.9" y1="492.9" x2="567.1" y2="507.1" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="552.9" y1="492.9" x2="567.1" y2="507.1" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="540" y="496" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Школа №1</text>
+<line x1="557.9" y1="487.9" x2="572.1" y2="502.1" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="557.9" y1="487.9" x2="572.1" y2="502.1" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="540" y="490" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Школа №1</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1073" data-stops="st_1073" role="link" tabindex="0" aria-label="Зупинка Районна лікарня: табло">
-<line x1="430.0" y1="674.0" x2="450.0" y2="674.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="430.0" y1="674.0" x2="450.0" y2="674.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="412" y="678" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Районна лікарня</text>
+<line x1="480.9" y1="564.9" x2="495.1" y2="579.1" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="480.9" y1="564.9" x2="495.1" y2="579.1" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="468" y="566" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Районна лікарня</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1053" data-stops="st_1053" role="link" tabindex="0" aria-label="Зупинка Шевченка, 117: табло">
-<line x1="406.0" y1="420.0" x2="406.0" y2="420.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="406.0" y1="420.0" x2="406.0" y2="420.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="406" y="446" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Шевченка, 117</text>
+<line x1="396.0" y1="440.0" x2="396.0" y2="440.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="396.0" y1="440.0" x2="396.0" y2="440.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="396" y="464" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Шевченка, 117</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1055" data-stops="st_1055" role="link" tabindex="0" aria-label="Зупинка Стадіон «Локомотив»: табло">
-<line x1="514.0" y1="420.0" x2="514.0" y2="420.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="514.0" y1="420.0" x2="514.0" y2="420.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="514" y="446" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Стадіон «Локомотив»</text>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1051" data-stops="st_1051" role="link" tabindex="0" aria-label="Зупинка Завод ЗБШ: табло">
-<line x1="280.0" y1="480.0" x2="280.0" y2="480.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="280.0" y1="480.0" x2="280.0" y2="480.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="266" y="470" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Завод ЗБШ</text>
+<line x1="511.2" y1="440.0" x2="511.2" y2="440.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="511.2" y1="440.0" x2="511.2" y2="440.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="506" y="464" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Стадіон «Локомотив»</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1074" data-stops="st_1074" role="link" tabindex="0" aria-label="Зупинка Вул. 1-го Травня: табло">
-<line x1="880.0" y1="780.0" x2="880.0" y2="780.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="880.0" y1="780.0" x2="880.0" y2="780.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="868" y="784" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Вул. 1-го Травня</text>
+<line x1="840.0" y1="828.0" x2="840.0" y2="828.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="840.0" y1="828.0" x2="840.0" y2="828.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="824" y="832" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Вул. 1-го Травня</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1038" data-stops="st_1038" role="link" tabindex="0" aria-label="Зупинка Дім правосуддя: табло">
-<line x1="976.5" y1="763.5" x2="983.5" y2="756.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="976.5" y1="763.5" x2="983.5" y2="756.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="1004" y="766" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Дім правосуддя</text>
+<line x1="976.5" y1="803.5" x2="983.5" y2="796.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="976.5" y1="803.5" x2="983.5" y2="796.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="962" y="830" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Дім правосуддя</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1041" data-stops="st_1041" role="link" tabindex="0" aria-label="Зупинка Трубосталь: табло">
-<line x1="1160.0" y1="660.0" x2="1160.0" y2="660.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="1160.0" y1="660.0" x2="1160.0" y2="660.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="1172" y="646" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Трубосталь</text>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1043" data-stops="st_1043" role="link" tabindex="0" aria-label="Зупинка Діагностичний центр: табло">
-<line x1="1260.0" y1="710.0" x2="1260.0" y2="710.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="1260.0" y1="710.0" x2="1260.0" y2="710.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="1272" y="714" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Діагностичний центр</text>
+<line x1="1220.0" y1="640.0" x2="1220.0" y2="640.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1220.0" y1="640.0" x2="1220.0" y2="640.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1220" y="624" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Трубосталь</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1057" data-stops="st_1057" role="link" tabindex="0" aria-label="Зупинка Аптека: табло">
-<line x1="1060.0" y1="840.0" x2="1060.0" y2="840.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="1060.0" y1="840.0" x2="1060.0" y2="840.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="1082" y="836" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Аптека</text>
+<line x1="1060.0" y1="880.0" x2="1060.0" y2="880.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1060.0" y1="880.0" x2="1060.0" y2="880.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1080" y="876" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">Аптека</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1063" data-stops="st_1063" role="link" tabindex="0" aria-label="Зупинка ПМК: табло">
-<line x1="1090.0" y1="870.0" x2="1090.0" y2="870.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="1090.0" y1="870.0" x2="1090.0" y2="870.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="1144" y="954" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">ПМК</text>
+<line x1="1120.0" y1="990.0" x2="1120.0" y2="990.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1120.0" y1="990.0" x2="1120.0" y2="990.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1140" y="994" text-anchor="start" font-size="11.5" fill="var(--lts-muted)">ПМК</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1060" data-stops="st_1060" role="link" tabindex="0" aria-label="Зупинка Вул. Південна: табло">
-<line x1="1060.0" y1="895.0" x2="1060.0" y2="895.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="1060.0" y1="895.0" x2="1060.0" y2="895.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="1044" y="900" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Вул. Південна</text>
-</g>
-<g class="lts-stop lts-stop--waypoint" data-stop="st_1071" data-stops="st_1071" role="link" tabindex="0" aria-label="Зупинка Вул. І. Франка: табло">
-<line x1="799.0" y1="680.0" x2="799.0" y2="680.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="799.0" y1="680.0" x2="799.0" y2="680.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="802" y="718" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">Вул. І. Франка</text>
+<line x1="1060.0" y1="930.0" x2="1060.0" y2="930.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="1060.0" y1="930.0" x2="1060.0" y2="930.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="1044" y="934" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">Вул. Південна</text>
 </g>
 <g class="lts-stop lts-stop--waypoint" data-stop="st_1072" data-stops="st_1072" role="link" tabindex="0" aria-label="Зупинка СМП 650: табло">
-<line x1="752.5" y1="390.0" x2="752.5" y2="390.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
-<line x1="752.5" y1="390.0" x2="752.5" y2="390.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
-<text x="745" y="378" text-anchor="middle" font-size="11.5" fill="var(--lts-muted)">СМП 650</text>
+<line x1="600.0" y1="539.0" x2="600.0" y2="539.0" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="600.0" y1="539.0" x2="600.0" y2="539.0" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="590" y="544" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">СМП 650</text>
+</g>
+<g class="lts-stop lts-stop--waypoint" data-stop="st_1071" data-stops="st_1071" role="link" tabindex="0" aria-label="Зупинка вул. Франка: табло">
+<line x1="600.0" y1="619.5" x2="600.0" y2="619.5" stroke="var(--lts-fg)" stroke-width="11" stroke-linecap="round"/>
+<line x1="600.0" y1="619.5" x2="600.0" y2="619.5" stroke="var(--lts-bg)" stroke-width="7" stroke-linecap="round"/>
+<text x="590" y="624" text-anchor="end" font-size="11.5" fill="var(--lts-muted)">вул. Франка</text>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1015" data-stops="st_1015" role="link" tabindex="0" aria-label="Зупинка Поліське водосховище: табло">
-<circle cx="400.0" cy="1040.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r1)" stroke-width="3.5"/>
-<text x="380" y="1036" text-anchor="end" font-size="14" font-weight="700" fill="var(--lts-fg)">Поліське водосховище</text>
-<g class="lts-badge" data-route="1"><rect x="358.0" y="1044.0" width="22" height="16" rx="4" fill="var(--lts-r1)"/><text x="369.0" y="1055.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r1-fg)">1</text></g>
+<circle cx="220.0" cy="1120.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r1)" stroke-width="3.5"/>
+<text x="200" y="1124" text-anchor="end" font-size="14" font-weight="700" fill="var(--lts-fg)">Поліське водосховище</text>
+<g class="lts-badge" data-route="1"><rect x="178.0" y="1132.0" width="22" height="16" rx="4" fill="var(--lts-r1)"/><text x="189.0" y="1143.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r1-fg)">1</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1048" data-stops="st_1048" role="link" tabindex="0" aria-label="Зупинка Білокоровицьке шосе: табло">
-<circle cx="280.0" cy="900.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r5)" stroke-width="3.5"/>
-<text x="270" y="936" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Білокоровицьке шосе</text>
-<g class="lts-badge" data-route="5"><rect x="259.0" y="944.0" width="22" height="16" rx="4" fill="var(--lts-r5)"/><text x="270.0" y="955.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r5-fg)">5</text></g>
+<circle cx="220.0" cy="800.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r5)" stroke-width="3.5"/>
+<text x="220" y="780" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Білокоровицьке шосе</text>
+<g class="lts-badge" data-route="5"><rect x="236.0" y="794.0" width="22" height="16" rx="4" fill="var(--lts-r5)"/><text x="247.0" y="805.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r5-fg)">5</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1087" data-stops="st_1087" role="link" tabindex="0" aria-label="Зупинка Пашини: табло">
-<circle cx="940.0" cy="220.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="3.5"/>
-<text x="972" y="214" text-anchor="start" font-size="14" font-weight="700" fill="var(--lts-fg)">Пашини</text>
-<g class="lts-badge" data-route="2"><rect x="972.0" y="222.0" width="22" height="16" rx="4" fill="var(--lts-r2)"/><text x="983.0" y="233.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2-fg)">2</text></g><g class="lts-badge" data-route="2b"><rect x="998.0" y="222.0" width="35" height="16" rx="4" fill="var(--lts-r2b)"/><text x="1015.5" y="233.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2b-fg)">2-Б</text></g>
+<circle cx="980.0" cy="180.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="3.5"/>
+<text x="1006" y="186" text-anchor="start" font-size="14" font-weight="700" fill="var(--lts-fg)">Пашини</text>
+<g class="lts-badge" data-route="2"><rect x="1006.0" y="194.0" width="22" height="16" rx="4" fill="var(--lts-r2)"/><text x="1017.0" y="205.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2-fg)">2</text></g><g class="lts-badge" data-route="2b"><rect x="1032.0" y="194.0" width="35" height="16" rx="4" fill="var(--lts-r2b)"/><text x="1049.5" y="205.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2b-fg)">2-Б</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1036" data-stops="st_1036" role="link" tabindex="0" aria-label="Зупинка Вул. Проліскова: табло">
-<circle cx="140.0" cy="200.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r3)" stroke-width="3.5"/>
-<text x="140" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Вул. Проліскова</text>
-<g class="lts-badge" data-route="3"><rect x="129.0" y="216.0" width="22" height="16" rx="4" fill="var(--lts-r3)"/><text x="140.0" y="227.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r3-fg)">3</text></g>
+<circle cx="180.0" cy="200.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r3)" stroke-width="3.5"/>
+<text x="180" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Вул. Проліскова</text>
+<g class="lts-badge" data-route="3"><rect x="169.0" y="216.0" width="22" height="16" rx="4" fill="var(--lts-r3)"/><text x="180.0" y="227.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r3-fg)">3</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1044" data-stops="st_1044" role="link" tabindex="0" aria-label="Зупинка Вул. Київська: табло">
-<circle cx="1260.0" cy="760.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r4)" stroke-width="3.5"/>
-<text x="1284" y="766" text-anchor="start" font-size="14" font-weight="700" fill="var(--lts-fg)">Вул. Київська</text>
-<g class="lts-badge" data-route="4"><rect x="1284.0" y="774.0" width="22" height="16" rx="4" fill="var(--lts-r4)"/><text x="1295.0" y="785.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r4-fg)">4</text></g>
+<circle cx="1300.0" cy="720.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r4)" stroke-width="3.5"/>
+<text x="1300" y="756" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Вул. Київська</text>
+<g class="lts-badge" data-route="4"><rect x="1289.0" y="764.0" width="22" height="16" rx="4" fill="var(--lts-r4)"/><text x="1300.0" y="775.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r4-fg)">4</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1049" data-stops="st_1049" role="link" tabindex="0" aria-label="Зупинка Станція Житомирська: табло">
-<circle cx="220.0" cy="540.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r6)" stroke-width="3.5"/>
-<text x="220" y="576" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Станція Житомирська</text>
-<g class="lts-badge" data-route="6"><rect x="209.0" y="584.0" width="22" height="16" rx="4" fill="var(--lts-r6)"/><text x="220.0" y="595.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r6-fg)">6</text></g>
+<circle cx="300.0" cy="440.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r6)" stroke-width="3.5"/>
+<text x="300" y="476" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Станція Житомирська</text>
+<g class="lts-badge" data-route="6"><rect x="289.0" y="484.0" width="22" height="16" rx="4" fill="var(--lts-r6)"/><text x="300.0" y="495.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r6-fg)">6</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1061" data-stops="st_1061" role="link" tabindex="0" aria-label="Зупинка Цегельний завод: табло">
-<circle cx="1120.0" cy="1000.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r6)" stroke-width="3.5"/>
-<text x="1120" y="1036" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Цегельний завод</text>
-<g class="lts-badge" data-route="6"><rect x="1109.0" y="1044.0" width="22" height="16" rx="4" fill="var(--lts-r6)"/><text x="1120.0" y="1055.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r6-fg)">6</text></g>
+<circle cx="1120.0" cy="1040.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r6)" stroke-width="3.5"/>
+<text x="1120" y="1076" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Цегельний завод</text>
+<g class="lts-badge" data-route="6"><rect x="1109.0" y="1084.0" width="22" height="16" rx="4" fill="var(--lts-r6)"/><text x="1120.0" y="1095.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r6-fg)">6</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1076" data-stops="st_1076" role="link" tabindex="0" aria-label="Зупинка Бровар: табло">
-<circle cx="880.0" cy="900.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
-<text x="860" y="904" text-anchor="end" font-size="14" font-weight="700" fill="var(--lts-fg)">Бровар</text>
-<g class="lts-badge" data-route="8"><rect x="838.0" y="912.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="849.0" y="923.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r8-fg)">8</text></g>
+<circle cx="840.0" cy="940.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
+<text x="866" y="946" text-anchor="start" font-size="14" font-weight="700" fill="var(--lts-fg)">Бровар</text>
+<g class="lts-badge" data-route="8"><rect x="866.0" y="954.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="877.0" y="965.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r8-fg)">8</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1068" data-stops="st_1068" role="link" tabindex="0" aria-label="Зупинка Магазин №44: табло">
-<circle cx="540.0" cy="800.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
-<text x="540" y="776" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Магазин №44</text>
+<circle cx="470.0" cy="730.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
+<text x="456" y="760" text-anchor="end" font-size="14" font-weight="700" fill="var(--lts-fg)">Магазин №44</text>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1101" data-stops="st_1101" role="link" tabindex="0" aria-label="Зупинка Грозине: табло">
-<circle cx="1260.0" cy="860.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r4)" stroke-width="3.5"/>
-<text x="1284" y="866" text-anchor="start" font-size="14" font-weight="700" fill="var(--lts-fg)">Грозине</text>
-<text x="1284" y="881" text-anchor="start" font-size="11" fill="var(--lts-muted)">окремі рейси</text>
-<g class="lts-badge" data-route="4"><rect x="1284.0" y="890.0" width="22" height="16" rx="4" fill="var(--lts-r4)"/><text x="1295.0" y="901.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r4-fg)">4</text></g>
+<circle cx="1360.0" cy="660.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r4)" stroke-width="3.5"/>
+<text x="1360" y="640" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Грозине</text>
+<g class="lts-badge" data-route="4"><rect x="1349.0" y="674.0" width="22" height="16" rx="4" fill="var(--lts-r4)"/><text x="1360.0" y="685.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r4-fg)">4</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1105" data-stops="st_1105" role="link" tabindex="0" aria-label="Зупинка Сади: табло">
-<circle cx="820.0" cy="960.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
-<text x="820" y="992" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Сади</text>
-<text x="820" y="1007" text-anchor="middle" font-size="11" fill="var(--lts-muted)">сезонно</text>
-<g class="lts-badge" data-route="8"><rect x="809.0" y="1010.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="820.0" y="1021.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r8-fg)">8</text></g>
+<circle cx="780.0" cy="1000.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
+<text x="780" y="1032" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Сади</text>
+<text x="780" y="1047" text-anchor="middle" font-size="11" fill="var(--lts-muted)">сезонно</text>
+<g class="lts-badge" data-route="8"><rect x="769.0" y="1050.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="780.0" y="1061.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r8-fg)">8</text></g>
 </g>
 <g class="lts-stop lts-stop--terminal" data-stop="st_1102" data-stops="st_1102" role="link" tabindex="0" aria-label="Зупинка Дачі УТОС: табло">
-<circle cx="940.0" cy="960.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
-<text x="950" y="992" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Дачі УТОС</text>
-<text x="950" y="1007" text-anchor="middle" font-size="11" fill="var(--lts-muted)">окремі рейси</text>
-<g class="lts-badge" data-route="8"><rect x="939.0" y="1010.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="950.0" y="1021.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r8-fg)">8</text></g>
+<circle cx="900.0" cy="1000.0" r="9" fill="var(--lts-bg)" stroke="var(--lts-r8)" stroke-width="3.5"/>
+<text x="910" y="1032" text-anchor="middle" font-size="14" font-weight="700" fill="var(--lts-fg)">Дачі УТОС</text>
+<text x="910" y="1047" text-anchor="middle" font-size="11" fill="var(--lts-muted)">окремі рейси</text>
+<g class="lts-badge" data-route="8"><rect x="899.0" y="1050.0" width="22" height="16" rx="4" fill="var(--lts-r8)"/><text x="910.0" y="1061.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r8-fg)">8</text></g>
 </g>
 <g class="lts-stop lts-stop--hub" data-stop="st_1001" data-stops="st_1001" role="link" tabindex="0" aria-label="Зупинка Залізничний вокзал: табло">
-<circle cx="640" cy="420" r="48" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="640" cy="420" r="40" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="600" y="352" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Залізничний вокзал</text>
-<g class="lts-badge" data-route="1"><rect x="500.0" y="360.0" width="22" height="16" rx="4" fill="var(--lts-r1)"/><text x="511.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r1-fg)">1</text></g><g class="lts-badge" data-route="2"><rect x="526.0" y="360.0" width="22" height="16" rx="4" fill="var(--lts-r2)"/><text x="537.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2-fg)">2</text></g><g class="lts-badge" data-route="3"><rect x="552.0" y="360.0" width="22" height="16" rx="4" fill="var(--lts-r3)"/><text x="563.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r3-fg)">3</text></g><g class="lts-badge" data-route="4"><rect x="578.0" y="360.0" width="22" height="16" rx="4" fill="var(--lts-r4)"/><text x="589.0" y="371.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r4-fg)">4</text></g><g class="lts-badge" data-route="5"><rect x="552.0" y="380.0" width="22" height="16" rx="4" fill="var(--lts-r5)"/><text x="563.0" y="391.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r5-fg)">5</text></g><g class="lts-badge" data-route="7"><rect x="578.0" y="380.0" width="22" height="16" rx="4" fill="var(--lts-r7)"/><text x="589.0" y="391.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r7-fg)">7</text></g>
+<circle cx="620" cy="440" r="48" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="620" cy="440" r="40" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="620" y="356" text-anchor="middle" font-size="16" font-weight="800" fill="var(--lts-fg)">Залізничний вокзал</text>
+<g class="lts-badge" data-route="1"><rect x="570.0" y="364.0" width="22" height="16" rx="4" fill="var(--lts-r1)"/><text x="581.0" y="375.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r1-fg)">1</text></g><g class="lts-badge" data-route="2"><rect x="596.0" y="364.0" width="22" height="16" rx="4" fill="var(--lts-r2)"/><text x="607.0" y="375.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2-fg)">2</text></g><g class="lts-badge" data-route="3"><rect x="622.0" y="364.0" width="22" height="16" rx="4" fill="var(--lts-r3)"/><text x="633.0" y="375.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r3-fg)">3</text></g><g class="lts-badge" data-route="4"><rect x="648.0" y="364.0" width="22" height="16" rx="4" fill="var(--lts-r4)"/><text x="659.0" y="375.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r4-fg)">4</text></g><g class="lts-badge" data-route="5"><rect x="596.0" y="384.0" width="22" height="16" rx="4" fill="var(--lts-r5)"/><text x="607.0" y="395.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r5-fg)">5</text></g><g class="lts-badge" data-route="7"><rect x="622.0" y="384.0" width="22" height="16" rx="4" fill="var(--lts-r7)"/><text x="633.0" y="395.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r7-fg)">7</text></g>
 </g>
 <g class="lts-stop lts-stop--hub" data-stop="st_1002" data-stops="st_1002" role="link" tabindex="0" aria-label="Зупинка Міський ринок: табло">
-<circle cx="760" cy="540" r="48" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="760" cy="540" r="40" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="708" y="616" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Міський ринок</text>
+<circle cx="760" cy="580" r="48" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="760" cy="580" r="40" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="830" y="618" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Міський ринок</text>
 </g>
 <g class="lts-stop lts-stop--hub" data-stop="st_1003" data-stops="st_1003" role="link" tabindex="0" aria-label="Зупинка Центр міста: табло">
-<circle cx="760" cy="680" r="24" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="760" cy="680" r="16" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="726" y="690" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Центр міста</text>
+<circle cx="620" cy="720" r="24" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="620" cy="720" r="16" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="590" y="736" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Центр міста</text>
 </g>
-<g class="lts-stop lts-stop--hub" data-stop="st_1016" data-stops="st_1016" role="link" tabindex="0" aria-label="Зупинка Парк «Древлянський»: табло">
-<circle cx="940" cy="540" r="24" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="940" cy="540" r="16" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="972" y="580" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Парк «Древлянський»</text>
+<g class="lts-stop lts-stop--hub" data-stop="st_1016" data-stops="st_1016" role="link" tabindex="0" aria-label="Зупинка Парк: табло">
+<circle cx="980" cy="580" r="24" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="980" cy="580" r="16" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="954" y="530" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Парк</text>
+<text x="954" y="546" text-anchor="end" font-size="11" fill="var(--lts-muted)">«Древлянський»</text>
 </g>
 <g class="lts-stop lts-stop--hub" data-stop="st_1037" data-stops="st_1037" role="link" tabindex="0" aria-label="Зупинка Швейна фабрика: табло">
-<circle cx="880" cy="660" r="22" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="880" cy="660" r="14" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="906" y="652" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Швейна фабрика</text>
+<circle cx="840" cy="660" r="22" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="840" cy="660" r="14" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="866" y="654" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Швейна фабрика</text>
 </g>
 <g class="lts-stop lts-stop--hub" data-stop="st_1006" data-stops="st_1006" role="link" tabindex="0" aria-label="Зупинка Черемушки: табло">
-<circle cx="640" cy="800" r="22" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="640" cy="800" r="14" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="670" y="838" text-anchor="start" font-size="16" font-weight="800" fill="var(--lts-fg)">Черемушки</text>
+<circle cx="540" cy="800" r="22" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="540" cy="800" r="14" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="514" y="812" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Черемушки</text>
 </g>
 <g class="lts-stop lts-stop--hub" data-stop="st_1069" data-stops="st_1069" role="link" tabindex="0" aria-label="Зупинка Романа Шухевича: табло">
-<circle cx="440" cy="800" r="22" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
-<circle cx="440" cy="800" r="14" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
-<text x="406" y="796" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Романа Шухевича</text>
-<text x="406" y="812" text-anchor="end" font-size="11" fill="var(--lts-muted)">Гастелло</text>
-<g class="lts-badge" data-route="2b"><rect x="345.0" y="820.0" width="35" height="16" rx="4" fill="var(--lts-r2b)"/><text x="362.5" y="831.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2b-fg)">2-Б</text></g><g class="lts-badge" data-route="7"><rect x="384.0" y="820.0" width="22" height="16" rx="4" fill="var(--lts-r7)"/><text x="395.0" y="831.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r7-fg)">7</text></g>
+<circle cx="400" cy="660" r="22" fill="var(--lts-bg)" stroke="var(--lts-fg)" stroke-width="4"/>
+<circle cx="400" cy="660" r="14" fill="none" stroke="var(--lts-fg)" stroke-width="1.5" opacity="0.35"/>
+<text x="390" y="618" text-anchor="end" font-size="16" font-weight="800" fill="var(--lts-fg)">Романа Шухевича</text>
+<text x="390" y="634" text-anchor="end" font-size="11" fill="var(--lts-muted)">Гастелло</text>
+<g class="lts-badge" data-route="2b"><rect x="329.0" y="642.0" width="35" height="16" rx="4" fill="var(--lts-r2b)"/><text x="346.5" y="653.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r2b-fg)">2-Б</text></g><g class="lts-badge" data-route="7"><rect x="368.0" y="642.0" width="22" height="16" rx="4" fill="var(--lts-r7)"/><text x="379.0" y="653.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--lts-r7-fg)">7</text></g>
 </g>
 </svg>

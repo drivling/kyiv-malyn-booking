@@ -43,7 +43,7 @@ export const SCHEME_NODES: SchemeNode[] = [
   {
     "id": "st_1016",
     "kind": "hub",
-    "name": "Парк «Древлянський»",
+    "name": "Парк",
     "stopIds": [
       "st_1016"
     ]
@@ -169,22 +169,6 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_1104",
-    "kind": "waypoint",
-    "name": "Міськвиконком",
-    "stopIds": [
-      "st_1104"
-    ]
-  },
-  {
-    "id": "st_1079",
-    "kind": "waypoint",
-    "name": "Міськлікарня",
-    "stopIds": [
-      "st_1079"
-    ]
-  },
-  {
     "id": "st_1082",
     "kind": "waypoint",
     "name": "Граніт",
@@ -206,14 +190,6 @@ export const SCHEME_NODES: SchemeNode[] = [
     "name": "Районна поліклініка",
     "stopIds": [
       "st_1085"
-    ]
-  },
-  {
-    "id": "st_1020",
-    "kind": "waypoint",
-    "name": "Хіммаш",
-    "stopIds": [
-      "st_1020"
     ]
   },
   {
@@ -241,11 +217,11 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_1027",
+    "id": "st_1028",
     "kind": "waypoint",
-    "name": "Вул. Стельмаха",
+    "name": "Школа №8",
     "stopIds": [
-      "st_1027"
+      "st_1028"
     ]
   },
   {
@@ -305,14 +281,6 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_1013",
-    "kind": "waypoint",
-    "name": "Селище Мирне",
-    "stopIds": [
-      "st_1013"
-    ]
-  },
-  {
     "id": "st_1047",
     "kind": "waypoint",
     "name": "КВК №71",
@@ -353,14 +321,6 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_1051",
-    "kind": "waypoint",
-    "name": "Завод ЗБШ",
-    "stopIds": [
-      "st_1051"
-    ]
-  },
-  {
     "id": "st_1074",
     "kind": "waypoint",
     "name": "Вул. 1-го Травня",
@@ -382,14 +342,6 @@ export const SCHEME_NODES: SchemeNode[] = [
     "name": "Трубосталь",
     "stopIds": [
       "st_1041"
-    ]
-  },
-  {
-    "id": "st_1043",
-    "kind": "waypoint",
-    "name": "Діагностичний центр",
-    "stopIds": [
-      "st_1043"
     ]
   },
   {
@@ -417,19 +369,19 @@ export const SCHEME_NODES: SchemeNode[] = [
     ]
   },
   {
-    "id": "st_1071",
-    "kind": "waypoint",
-    "name": "Вул. І. Франка",
-    "stopIds": [
-      "st_1071"
-    ]
-  },
-  {
     "id": "st_1072",
     "kind": "waypoint",
     "name": "СМП 650",
     "stopIds": [
       "st_1072"
+    ]
+  },
+  {
+    "id": "st_1071",
+    "kind": "waypoint",
+    "name": "вул. Франка",
+    "stopIds": [
+      "st_1071"
     ]
   }
 ];
