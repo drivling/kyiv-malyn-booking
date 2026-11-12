@@ -177,3 +177,33 @@ test('OSM: розбір відповіді Overpass і маршруту з API',
   );
   assert.deepEqual(route, { id: 'relation/7', ref: '1', from: 'А', to: 'Б', platforms: [stop('node/1', 'А', 50.1, 28.1), stop('node/3', 'Б', 50.2, 28.2)] });
 });
+
+test('координати Google: лише в локальній версії і лише узгоджені з сусідами по ланцюжку', () => {
+  // закомічена чернетка Google не бере ніколи, навіть коли локальний файл є
+  assert.equal(loadKorostenDatasetInput(ROOT).googleCoords, null);
+  assert.ok(!Object.values(result.coordSource).includes('google'));
+  assert.ok(!files['dataset/korosten-dataset.json'].includes('"google"'));
+
+  const input = loadKorostenDatasetInput(ROOT);
+  const at = (id: string) => dataset.stops.find((s) => s.id === id) as { lat: number; lng: number };
+  const centre = at('st_1003');
+  const stusa = at('st_1005');
+  assert.notEqual(result.coordSource['z-004'], 'osm', 'Ощадбанк — між двома точками OSM, сама не з OSM');
+  const local = buildKorostenDataset({
+    ...input,
+    googleCoords: {
+      fetchedAt: '2026-11-12T00:00:00.000Z',
+      stops: {
+        // між Центром міста і В. Стуса — правдоподібно
+        st_1004: { lat: (centre.lat + stusa.lat) / 2, lng: (centre.lng + stusa.lng) / 2, placeId: 'p1', name: 'Ощадбанк' },
+        // однойменна зупинка за 5 км — ні
+        st_1083: { lat: 50.99, lng: 28.72, placeId: 'p2', name: 'ДУ' },
+      },
+    },
+  });
+  assert.equal(local.coordSource['z-004'], 'google');
+  assert.notEqual(local.coordSource['z-083'], 'google');
+  assert.match(local.report, /Google \(тимчасово, до перевірки на місці\) — 1/);
+  assert.match(local.report, /st_1083 ДУ: до найдальшого відомого сусіда \d+ м/);
+  assert.deepEqual(validateTransportDataset(JSON.parse(JSON.stringify(local.dataset))).errors, []);
+});

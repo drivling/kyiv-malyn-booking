@@ -1,0 +1,836 @@
+{
+  "checkedAt": "2026-11-12T01:23:06.649Z",
+  "stops": {
+    "st_1001": {
+      "ours": [
+        50.956595,
+        28.6342028
+      ],
+      "placeId": "ChIJNfCk1gfbK0cRf6b8n89caSM",
+      "name": "Залізничний вокзал",
+      "distanceM": 12
+    },
+    "st_1002": {
+      "ours": [
+        50.9515737,
+        28.6378273
+      ],
+      "placeId": "ChIJu4XY7Q7bK0cR4VMKlYD_p2c",
+      "name": "Міський Центральний ринок",
+      "distanceM": 18
+    },
+    "st_1003": {
+      "ours": [
+        50.9468876,
+        28.6380535
+      ],
+      "placeId": "ChIJS_JMeQ3bK0cRHcw-GT4h9dk",
+      "name": "Центр міста",
+      "distanceM": 44
+    },
+    "st_1004": {
+      "ours": [
+        50.9426188,
+        28.6274709
+      ],
+      "placeId": null,
+      "name": null,
+      "distanceM": null
+    },
+    "st_1005": {
+      "ours": [
+        50.9437584,
+        28.6301239
+      ],
+      "placeId": "ChIJLbxcAXPbK0cRSRf-R44kf5w",
+      "name": "вул. Василя Стуса",
+      "distanceM": 31
+    },
+    "st_1006": {
+      "ours": [
+        50.9408574,
+        28.62308
+      ],
+      "placeId": "ChIJA17ONXHbK0cRkY49QWq75Ys",
+      "name": "Черемушки",
+      "distanceM": 25
+    },
+    "st_1007": {
+      "ours": [
+        50.9381733,
+        28.6164154
+      ],
+      "placeId": "ChIJk27F33nbK0cR-iRgZzWuffM",
+      "name": "Ветлікарня",
+      "distanceM": 27
+    },
+    "st_1008": {
+      "ours": [
+        50.9357292,
+        28.6101465
+      ],
+      "placeId": "ChIJn0Zw6HjbK0cRdRzVZbXJpQo",
+      "name": "селище ДОК",
+      "distanceM": 31
+    },
+    "st_1009": {
+      "ours": [
+        50.9334452,
+        28.604278
+      ],
+      "placeId": "ChIJLybdfX_bK0cRSU-rEyhxvC8",
+      "name": "Хімік",
+      "distanceM": 20
+    },
+    "st_1010": {
+      "ours": [
+        50.9304748,
+        28.5964466
+      ],
+      "placeId": "ChIJ5WgVBn_cK0cR4DQiMW_TjlQ",
+      "name": "Чолівський переїзд",
+      "distanceM": 55
+    },
+    "st_1011": {
+      "ours": [
+        50.9241179,
+        28.5805601
+      ],
+      "placeId": "ChIJOQV_xWTcK0cRTOx2VDuZ6Js",
+      "name": "Школа №13",
+      "distanceM": 57
+    },
+    "st_1012": {
+      "ours": [
+        50.9207902,
+        28.5722697
+      ],
+      "placeId": "ChIJhRwUDmbcK0cR0FT-BlibsXk",
+      "name": "Шляхзалізобетон",
+      "distanceM": 52
+    },
+    "st_1013": {
+      "ours": [
+        50.9186362,
+        28.5670168
+      ],
+      "placeId": "ChIJKfvQE2jcK0cR5FDBgkO01uE",
+      "name": "селище Мирне",
+      "distanceM": 7
+    },
+    "st_1014": {
+      "ours": [
+        50.9097552,
+        28.5492848
+      ],
+      "placeId": "ChIJKXzftEjcK0cRNaHX8tFviOQ",
+      "name": "На вимогу",
+      "distanceM": 18
+    },
+    "st_1015": {
+      "ours": [
+        50.9069042,
+        28.5454097
+      ],
+      "placeId": "ChIJNeGRS0ncK0cRw8rSgzHS3N8",
+      "name": "Поліське водосховище",
+      "distanceM": 53
+    },
+    "st_1016": {
+      "ours": [
+        50.9501724,
+        28.6467652
+      ],
+      "placeId": "ChIJS2T-8xDbK0cRmvDPitAxc1I",
+      "name": "Парк Древлянський",
+      "distanceM": 133
+    },
+    "st_1017": {
+      "ours": [
+        50.9589883,
+        28.6328432
+      ],
+      "placeId": "ChIJS9t6mhrbK0cRWMVLtDL24uo",
+      "name": "Завод \"Жовтнева кузня\"",
+      "distanceM": 1300
+    },
+    "st_1018": {
+      "ours": [
+        50.9597979,
+        28.6338325
+      ],
+      "placeId": "ChIJf9fGWwTbK0cRUzOYAxv2WoY",
+      "name": "Фарфоровий завод",
+      "distanceM": 813
+    },
+    "st_1019": {
+      "ours": [
+        50.9606074,
+        28.6348218
+      ],
+      "placeId": "ChIJzTtZfBjaK0cR9TdziDBApGE",
+      "name": "Центр",
+      "distanceM": 4296
+    },
+    "st_1020": {
+      "ours": [
+        50.961417,
+        28.6358112
+      ],
+      "placeId": "ChIJ86RtYwDbK0cR5_LKGYQ5-8g",
+      "name": "Завод \"Хіммаш\"",
+      "distanceM": 362
+    },
+    "st_1021": {
+      "ours": [
+        50.9630361,
+        28.6377898
+      ],
+      "placeId": "ChIJtYrJYarbK0cRuEby4CsIL3o",
+      "name": "Гастроном",
+      "distanceM": 147
+    },
+    "st_1022": {
+      "ours": [
+        50.9638327,
+        28.6314786
+      ],
+      "placeId": "ChIJ5wkXC3bbK0cRIjC9jXfK5xA",
+      "name": "Магазин №44",
+      "distanceM": 2463
+    },
+    "st_1023": {
+      "ours": [
+        50.9646293,
+        28.6251674
+      ],
+      "placeId": "ChIJUSKHKazbK0cRdmeBhII7_4w",
+      "name": "Прорізна №33",
+      "distanceM": 14
+    },
+    "st_1024": {
+      "ours": [
+        50.9689447,
+        28.6239896
+      ],
+      "placeId": "ChIJ1Q9x1bPbK0cRLoHnhAGEY9E",
+      "name": "Лісозахист",
+      "distanceM": 550
+    },
+    "st_1025": {
+      "ours": [
+        50.9732602,
+        28.6228119
+      ],
+      "placeId": "ChIJI5HffbPbK0cRB2RpEd6ijPY",
+      "name": "ТОВ \"Ельфа\"",
+      "distanceM": 583
+    },
+    "st_1026": {
+      "ours": [
+        50.9775756,
+        28.6216341
+      ],
+      "placeId": "ChIJ_0Z2M0vaK0cRWGTmFaoO5Ls",
+      "name": "вул. Курчатова",
+      "distanceM": 670
+    },
+    "st_1027": {
+      "ours": [
+        50.9818911,
+        28.6204564
+      ],
+      "placeId": "ChIJayHEXkraK0cRw2okA1jG_mU",
+      "name": "вул. Михайла Стельмаха",
+      "distanceM": 767
+    },
+    "st_1028": {
+      "ours": [
+        50.9862065,
+        28.6192786
+      ],
+      "placeId": "ChIJwcjqqDfaK0cRIswKiXPcyKw",
+      "name": "Школа №8",
+      "distanceM": 560
+    },
+    "st_1029": {
+      "ours": [
+        50.9870392,
+        28.6179028
+      ],
+      "placeId": "ChIJtcUUGznaK0cRrghnVPj1TYc",
+      "name": "Магазин \"Наташа\"",
+      "distanceM": 126
+    },
+    "st_1030": {
+      "ours": [
+        50.9878719,
+        28.6165269
+      ],
+      "placeId": "ChIJY7Q65D7aK0cRZEF9vZHE_tQ",
+      "name": "пров. Залізничний",
+      "distanceM": 477
+    },
+    "st_1031": {
+      "ours": [
+        50.9887046,
+        28.6151511
+      ],
+      "placeId": "ChIJIYO6uhXaK0cRHvHEPVCp4Tk",
+      "name": "Коростень-Подільський",
+      "distanceM": 1062
+    },
+    "st_1032": {
+      "ours": [
+        50.989121,
+        28.6144631
+      ],
+      "placeId": "ChIJCRCE5z7aK0cRRJEA6Pk2Hc4",
+      "name": "пров. Залізничний",
+      "distanceM": 554
+    },
+    "st_1033": {
+      "ours": [
+        50.9895373,
+        28.6137752
+      ],
+      "placeId": "ChIJ3at1VDvaK0cRF4gcyaTqScI",
+      "name": "Церква",
+      "distanceM": 242
+    },
+    "st_1034": {
+      "ours": [
+        50.9977843,
+        28.6011984
+      ],
+      "placeId": "ChIJX3WOeSPaK0cR8n0Uqc_Xj70",
+      "name": "Місток",
+      "distanceM": 771
+    },
+    "st_1035": {
+      "ours": [
+        51.0060312,
+        28.5886215
+      ],
+      "placeId": "ChIJsXFMwhfaK0cRGhe-B4lVkhY",
+      "name": "м/н Чигирі",
+      "distanceM": 2395
+    },
+    "st_1036": {
+      "ours": [
+        51.0021618,
+        28.6004935
+      ],
+      "placeId": "ChIJT8tp2w7bK0cRs3e99wqYRj8",
+      "name": "Korosten Bus Station",
+      "distanceM": 6107
+    },
+    "st_1037": {
+      "ours": [
+        50.9473398,
+        28.6428744
+      ],
+      "placeId": "ChIJJ_p3OxLbK0cRejsUmr-p9zI",
+      "name": "Швейна фабрика",
+      "distanceM": 34
+    },
+    "st_1038": {
+      "ours": [
+        50.9443037,
+        28.6513793
+      ],
+      "placeId": "ChIJvZ9KuRXbK0cRUk_7O3BdbPk",
+      "name": "Дім правосуддя",
+      "distanceM": 41
+    },
+    "st_1039": {
+      "ours": [
+        50.947263,
+        28.6606725
+      ],
+      "placeId": "ChIJMYTQEj3bK0cRIcZveEptnq8",
+      "name": "вул. Шартрищанська",
+      "distanceM": 12
+    },
+    "st_1040": {
+      "ours": [
+        50.9491328,
+        28.666466
+      ],
+      "placeId": "ChIJaz-9IiPbK0cRZKRvf6h3VkY",
+      "name": "Кафе \"Ялинка\"",
+      "distanceM": 12
+    },
+    "st_1041": {
+      "ours": [
+        50.9480082,
+        28.6624063
+      ],
+      "placeId": null,
+      "name": null,
+      "distanceM": null
+    },
+    "st_1042": {
+      "ours": [
+        50.945393,
+        28.6661649
+      ],
+      "placeId": "ChIJq4XgrCTbK0cR3D8yS0z7uIo",
+      "name": "вул. Київська",
+      "distanceM": 268
+    },
+    "st_1043": {
+      "ours": [
+        50.9460447,
+        28.667623
+      ],
+      "placeId": "ChIJzTtZfBjaK0cR9TdziDBApGE",
+      "name": "Центр",
+      "distanceM": 6816
+    },
+    "st_1044": {
+      "ours": [
+        50.9466963,
+        28.6690811
+      ],
+      "placeId": "ChIJq4XgrCTbK0cR3D8yS0z7uIo",
+      "name": "вул. Київська",
+      "distanceM": 54
+    },
+    "st_1045": {
+      "ours": [
+        50.9389793,
+        28.5890349
+      ],
+      "placeId": "ChIJ9YAy6YfbK0cR96kK9ddMJew",
+      "name": "Гуртожиток",
+      "distanceM": 396
+    },
+    "st_1046": {
+      "ours": [
+        50.9474837,
+        28.5816231
+      ],
+      "placeId": "ChIJn3839IjbK0cRGhSZk5854u0",
+      "name": "ДОК",
+      "distanceM": 1140
+    },
+    "st_1047": {
+      "ours": [
+        50.9498486,
+        28.5795621
+      ],
+      "placeId": "ChIJ1eBEs47bK0cRUPgRpVc4fvU",
+      "name": "КВК №71",
+      "distanceM": 1077
+    },
+    "st_1048": {
+      "ours": [
+        50.9522135,
+        28.5775011
+      ],
+      "placeId": "ChIJt1rxUYzbK0cRkOF4XWdlTu0",
+      "name": "ш. Білокоровицьке (Петушки)",
+      "distanceM": 1013
+    },
+    "st_1049": {
+      "ours": [
+        50.959823,
+        28.5934147
+      ],
+      "placeId": "ChIJT8tp2w7bK0cRs3e99wqYRj8",
+      "name": "Korosten Bus Station",
+      "distanceM": 3147
+    },
+    "st_1050": {
+      "ours": [
+        50.9613195,
+        28.5962742
+      ],
+      "placeId": "ChIJO2vWIL_bK0cRh6-fHBLIqeQ",
+      "name": "Міське кладовище",
+      "distanceM": 319
+    },
+    "st_1051": {
+      "ours": [
+        50.9628159,
+        28.5991337
+      ],
+      "placeId": "ChIJhcvDf7jbK0cRLdBH4fQGSlw",
+      "name": "Завод \"ЗБШ\"",
+      "distanceM": 19
+    },
+    "st_1052": {
+      "ours": [
+        50.9580303,
+        28.6191652
+      ],
+      "placeId": "ChIJT06aMbrbK0cRtOh9j9vsScI",
+      "name": "вул. Маяковського",
+      "distanceM": 870
+    },
+    "st_1053": {
+      "ours": [
+        50.9587076,
+        28.6202222
+      ],
+      "placeId": "ChIJqdmxYbrbK0cRKvUjtazRWbE",
+      "name": "вул. Шевченко №117",
+      "distanceM": 697
+    },
+    "st_1054": {
+      "ours": [
+        50.9594745,
+        28.6171814
+      ],
+      "placeId": "ChIJo3KwFKXbK0cRWeBQtfnR20k",
+      "name": "Ковельский парк",
+      "distanceM": 11
+    },
+    "st_1055": {
+      "ours": [
+        50.958654,
+        28.6205139
+      ],
+      "placeId": "ChIJ3Zj36KXbK0cRnNuCF49QSws",
+      "name": "Стадіон \"Локомотив\"",
+      "distanceM": 59
+    },
+    "st_1056": {
+      "ours": [
+        50.9572317,
+        28.6264309
+      ],
+      "placeId": "ChIJZZZ0yafbK0cRc93tKWfOajE",
+      "name": "Школа №9",
+      "distanceM": 26
+    },
+    "st_1057": {
+      "ours": [
+        50.9385119,
+        28.6638018
+      ],
+      "placeId": null,
+      "name": null,
+      "distanceM": null
+    },
+    "st_1058": {
+      "ours": [
+        50.9371735,
+        28.6525468
+      ],
+      "placeId": "ChIJRSltbmPaK0cRhFLx9bQGEg0",
+      "name": "м/н Пашини",
+      "distanceM": 6157
+    },
+    "st_1059": {
+      "ours": [
+        50.9309142,
+        28.6568473
+      ],
+      "placeId": null,
+      "name": null,
+      "distanceM": null
+    },
+    "st_1060": {
+      "ours": [
+        50.9749873,
+        28.5911094
+      ],
+      "placeId": "ChIJT8tp2w7bK0cRs3e99wqYRj8",
+      "name": "Korosten Bus Station",
+      "distanceM": 4076
+    },
+    "st_1061": {
+      "ours": [
+        50.9308894,
+        28.6613822
+      ],
+      "placeId": "ChIJL4kJQ0_bK0cR8hgDAhl3qdU",
+      "name": "Цегельний завод",
+      "distanceM": 31
+    },
+    "st_1062": {
+      "ours": [
+        50.9335349,
+        28.662222
+      ],
+      "placeId": "ChIJjWD21EfbK0cRpqCfWnTqboU",
+      "name": "Верас трейд",
+      "distanceM": 129
+    },
+    "st_1063": {
+      "ours": [
+        50.9351939,
+        28.6627486
+      ],
+      "placeId": "ChIJDy2TaTjbK0cRzlLLGH3ooqA",
+      "name": "ПМК",
+      "distanceM": 355
+    },
+    "st_1064": {
+      "ours": [
+        50.9528135,
+        28.6245275
+      ],
+      "placeId": "ChIJbVdMt6DbK0cR_5q70_DTuRM",
+      "name": "Школа №1",
+      "distanceM": 36
+    },
+    "st_1068": {
+      "ours": [
+        50.9433166,
+        28.6180088
+      ],
+      "placeId": "ChIJ5wkXC3bbK0cRIjC9jXfK5xA",
+      "name": "Магазин №44",
+      "distanceM": 19
+    },
+    "st_1069": {
+      "ours": [
+        50.9457193,
+        28.6104887
+      ],
+      "placeId": "ChIJ60ONAmDaK0cRaNdMje-nM8s",
+      "name": "Районна поліклініка",
+      "distanceM": 5505
+    },
+    "st_1073": {
+      "ours": [
+        50.9497485,
+        28.6172535
+      ],
+      "placeId": "ChIJzVA1ZZ_bK0cRlDnjsbcLvF8",
+      "name": "Залізнична лікарня",
+      "distanceM": 108
+    },
+    "st_1074": {
+      "ours": [
+        50.944764,
+        28.6462996
+      ],
+      "placeId": "ChIJzaABfxTbK0cRYTzwpTjoq_U",
+      "name": "вул. ім. 1-го Травня",
+      "distanceM": 4
+    },
+    "st_1075": {
+      "ours": [
+        50.9389214,
+        28.6363834
+      ],
+      "placeId": "ChIJAfwldXbbK0cR_zzqMqTe0iU",
+      "name": "Магазин №44",
+      "distanceM": 1379
+    },
+    "st_1076": {
+      "ours": [
+        50.9352674,
+        28.6298474
+      ],
+      "placeId": "ChIJecolhG_bK0cR9H10aeOyFXA",
+      "name": "Бровар",
+      "distanceM": 15
+    },
+    "st_1079": {
+      "ours": [
+        50.954576,
+        28.6527379
+      ],
+      "placeId": "ChIJ9fnzrhvbK0cR3_3uoDuYx88",
+      "name": "Міська лікарня",
+      "distanceM": 16
+    },
+    "st_1080": {
+      "ours": [
+        50.9613933,
+        28.6566742
+      ],
+      "placeId": "ChIJXU_9WB3bK0cRogcslOqt79w",
+      "name": "Автобусний парк",
+      "distanceM": 13
+    },
+    "st_1081": {
+      "ours": [
+        50.96501,
+        28.6588197
+      ],
+      "placeId": "ChIJT4ODzPzaK0cRW3mGKV857sI",
+      "name": "Заготзерно",
+      "distanceM": 11
+    },
+    "st_1082": {
+      "ours": [
+        50.967632,
+        28.6595785
+      ],
+      "placeId": "ChIJu_sBa_vaK0cRacosdQtt5DY",
+      "name": "Граніт",
+      "distanceM": 28
+    },
+    "st_1083": {
+      "ours": [
+        50.9630636,
+        28.6577098
+      ],
+      "placeId": "ChIJn0Zw6HjbK0cRdRzVZbXJpQo",
+      "name": "селище ДОК",
+      "distanceM": 4483
+    },
+    "st_1084": {
+      "ours": [
+        50.9770054,
+        28.6610792
+      ],
+      "placeId": "ChIJHyBKuvbaK0cRC4whB1SpJu0",
+      "name": "Школа №5",
+      "distanceM": 49
+    },
+    "st_1085": {
+      "ours": [
+        50.9835745,
+        28.6605449
+      ],
+      "placeId": "ChIJ60ONAmDaK0cRaNdMje-nM8s",
+      "name": "Районна поліклініка",
+      "distanceM": 34
+    },
+    "st_1086": {
+      "ours": [
+        50.9885603,
+        28.6602835
+      ],
+      "placeId": "ChIJsQo6C2HaK0cRNGRucehNxgQ",
+      "name": "АЗС",
+      "distanceM": 98
+    },
+    "st_1087": {
+      "ours": [
+        50.9922448,
+        28.662128
+      ],
+      "placeId": "ChIJRSltbmPaK0cRhFLx9bQGEg0",
+      "name": "м/н Пашини",
+      "distanceM": 3
+    },
+    "st_1088": {
+      "ours": [
+        50.98029,
+        28.6608121
+      ],
+      "placeId": null,
+      "name": null,
+      "distanceM": null
+    },
+    "st_1102": {
+      "ours": [
+        50.9334769,
+        28.6266447
+      ],
+      "placeId": "ChIJRSltbmPaK0cRhFLx9bQGEg0",
+      "name": "м/н Пашини",
+      "distanceM": 6988
+    },
+    "st_1104": {
+      "ours": [
+        50.948483,
+        28.6414318
+      ],
+      "placeId": "ChIJi2p1AxLbK0cRJOdXILCtpro",
+      "name": "Міськвиконком",
+      "distanceM": 7
+    },
+    "st_1105": {
+      "ours": [
+        50.933261,
+        28.6265023
+      ],
+      "placeId": "ChIJfXlpGWXbK0cRHPbTDRURNs4",
+      "name": "Колективні сади",
+      "distanceM": 7
+    }
+  },
+  "transit": [
+    {
+      "routeId": "1",
+      "from": "st_1001",
+      "to": "st_1015",
+      "lines": [
+        "1"
+      ]
+    },
+    {
+      "routeId": "2",
+      "from": "st_1001",
+      "to": "st_1087",
+      "lines": [
+        "2",
+        "2Б"
+      ]
+    },
+    {
+      "routeId": "2b",
+      "from": "st_1087",
+      "to": "st_1069",
+      "lines": [
+        "2",
+        "2Б",
+        "7",
+        "8"
+      ]
+    },
+    {
+      "routeId": "3",
+      "from": "st_1001",
+      "to": "st_1036",
+      "lines": [
+        "3"
+      ]
+    },
+    {
+      "routeId": "4",
+      "from": "st_1001",
+      "to": "st_1044",
+      "lines": [
+        "4",
+        "6"
+      ]
+    },
+    {
+      "routeId": "5",
+      "from": "st_1001",
+      "to": "st_1048",
+      "lines": [
+        "5",
+        "6",
+        "6501"
+      ]
+    },
+    {
+      "routeId": "6",
+      "from": "st_1049",
+      "to": "st_1061",
+      "lines": [
+        "6"
+      ]
+    },
+    {
+      "routeId": "7",
+      "from": "st_1001",
+      "to": "st_1069",
+      "lines": [
+        "2Б",
+        "7",
+        "8"
+      ]
+    },
+    {
+      "routeId": "8",
+      "from": "st_1068",
+      "to": "st_1076",
+      "lines": [
+        "7",
+        "8"
+      ]
+    }
+  ]
+}

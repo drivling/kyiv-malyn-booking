@@ -13,6 +13,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * npm run korosten:dataset -- --fetch-streets — лише середини вулиць (Nominatim)
  * npm run korosten:dataset -- --fetch-google — перевірка точок через Google Places (google/check.json: place_id і
  *                                             відстань, без координат Google); ключ — GOOGLE_MAPS_API_KEY
+ * npm run korosten:dataset -- --fetch-google-coords — координати Google за place_id з check.json (Place Details)
+ *                                             у google/coords.local.json (поза git)
+ * npm run korosten:dataset -- --google-coords — ще й dataset/korosten-dataset.local.json (поза git): приблизні точки
+ *                                             замінено точками з google/coords.local.json (тимчасово, до перевірки
+ *                                             на місці); з --apply / --dry-run пишеться саме вона
  * npm run korosten:dataset -- --apply       — записати чернетку в базу: GET → бекап → PUT ?city=Korosten з
  *                                             baseRevision → GET і порівняння. Токен — ADMIN_TOKEN або VIBER_ADMIN_TOKEN.
  *                                             Без --apply показує лише, що зміниться.
@@ -116,6 +121,9 @@ async function fetchGoogle(dataset) {
     const b = korosten_osm_1.KOROSTEN_BBOX;
     const headers = { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key };
     const check = { checkedAt: new Date().toISOString(), stops: {} };
+    // Координати Google — лише в локальний файл поза git (репозиторій публічний, умови Google забороняють їх
+    // публікувати); власник бере їх тимчасово, до перевірки зупинок на місці
+    const coords = { fetchedAt: check.checkedAt, stops: {} };
     for (const s of dataset.stops) {
         const body = {
             textQuery: `${s.name.replace(/\s*\(на вимогу\)$/, '')}, зупинка, Коростень`,
@@ -130,7 +138,9 @@ async function fetchGoogle(dataset) {
             headers: { ...headers, 'X-Goog-FieldMask': 'places.id,places.displayName,places.location' },
         }));
         const p = res.places?.[0];
-        // координати Google лише для відстані — у файл не пишемо
+        if (p?.location)
+            coords.stops[s.id] = { lat: p.location.latitude, lng: p.location.longitude, placeId: p.id, name: p.displayName?.text ?? null };
+        // у check.json — лише відстань і place_id
         check.stops[s.id] = {
             ours: [s.lat, s.lng],
             placeId: p?.id ?? null,
@@ -139,9 +149,21 @@ async function fetchGoogle(dataset) {
         };
         await sleep(200);
     }
-    const from = dataset.stops.find((s) => s.id === 'st_1001');
-    const to = dataset.stops.find((s) => s.id === 'st_1015');
-    if (from && to) {
+    // Routes API TRANSIT між кінцевими кожного маршруту: які лінії Google пропонує (лише номери, без геометрії)
+    const stopById = new Map(dataset.stops.map((s) => [s.id, s]));
+    // найближчий будній день, 09:00 за Києвом (07:00 UTC взимку) — щоб розклад точно діяв
+    const when = new Date();
+    when.setUTCDate(when.getUTCDate() + 1);
+    while ([0, 6].includes(when.getUTCDay()))
+        when.setUTCDate(when.getUTCDate() + 1);
+    when.setUTCHours(7, 0, 0, 0);
+    check.transit = [];
+    for (const r of dataset.routes) {
+        const chain = dataset.routeStops.filter((x) => x.routeId === r.id && x.orderThere > 0).sort((a, b) => a.orderThere - b.orderThere);
+        const from = stopById.get(chain[0]?.stopId ?? '');
+        const to = stopById.get(chain[chain.length - 1]?.stopId ?? '');
+        if (!from || !to)
+            continue;
         const res = (await getJson('https://routes.googleapis.com/directions/v2:computeRoutes', {
             method: 'POST',
             headers: { ...headers, 'X-Goog-FieldMask': 'routes.legs.steps.transitDetails.transitLine.nameShort,routes.legs.steps.transitDetails.transitLine.name' },
@@ -149,20 +171,41 @@ async function fetchGoogle(dataset) {
                 origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
                 destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
                 travelMode: 'TRANSIT',
+                computeAlternativeRoutes: true,
+                departureTime: when.toISOString(),
                 languageCode: 'uk',
             }),
         }));
         const lines = [
-            ...new Set((res.routes ?? []).flatMap((r) => (r.legs ?? []).flatMap((l) => (l.steps ?? []).map((st) => st.transitDetails?.transitLine?.nameShort ?? st.transitDetails?.transitLine?.name ?? '').filter(Boolean)))),
-        ].sort();
-        check.transit = {
-            from: from.id,
-            to: to.id,
-            lines,
-            note: lines.length ? `${from.name} → ${to.name}: лінії ${lines.join(', ')}` : `${from.name} → ${to.name}: міського транспорту Google не знає`,
-        };
+            ...new Set((res.routes ?? []).flatMap((x) => (x.legs ?? []).flatMap((l) => (l.steps ?? []).map((st) => st.transitDetails?.transitLine?.nameShort ?? st.transitDetails?.transitLine?.name ?? '').filter(Boolean)))),
+        ].sort((a, b) => a.localeCompare(b, 'uk', { numeric: true }));
+        check.transit.push({ routeId: r.id, from: from.id, to: to.id, lines });
+        await sleep(200);
     }
     write(korosten_dataset_files_1.GOOGLE_CHECK_FILE, `${JSON.stringify(check, null, 2)}\n`);
+    write(korosten_dataset_files_1.GOOGLE_COORDS_FILE, `${JSON.stringify(coords, null, 2)}\n`);
+}
+/**
+ * Координати Google за place_id з google/check.json (Place Details — окрема від пошуку квота): коли пошук уже
+ * зроблено, а координат у локальному файлі нема. Пишеться лише google/coords.local.json (поза git).
+ */
+async function fetchGoogleCoords() {
+    const key = process.env.GOOGLE_MAPS_API_KEY ?? '';
+    if (!key)
+        throw new Error('GOOGLE_MAPS_API_KEY is not set');
+    const check = JSON.parse(node_fs_1.default.readFileSync(node_path_1.default.join(ROOT, korosten_dataset_files_1.GOOGLE_CHECK_FILE), 'utf8'));
+    const coords = { fetchedAt: new Date().toISOString(), stops: {} };
+    for (const [stopId, c] of Object.entries(check.stops).sort((a, b) => a[0].localeCompare(b[0]))) {
+        if (!c.placeId)
+            continue;
+        const p = (await getJson(`https://places.googleapis.com/v1/places/${encodeURIComponent(c.placeId)}?languageCode=uk`, {
+            headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'id,displayName,location' },
+        }));
+        if (p.location)
+            coords.stops[stopId] = { lat: p.location.latitude, lng: p.location.longitude, placeId: p.id, name: p.displayName?.text ?? null };
+        await sleep(150);
+    }
+    write(korosten_dataset_files_1.GOOGLE_COORDS_FILE, `${JSON.stringify(coords, null, 2)}\n`);
 }
 function apiBase() {
     if (process.env.API_BASE)
@@ -236,20 +279,34 @@ async function main() {
         await fetchOsm();
     if (has('--fetch-osm') || has('--fetch-streets'))
         await fetchStreets();
+    if (has('--fetch-google-coords'))
+        await fetchGoogleCoords();
     let { files, result } = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT);
     if (has('--fetch-google')) {
         await fetchGoogle(result.dataset);
         ({ files, result } = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT));
     }
-    const { errors } = (0, local_transport_1.validateTransportDataset)(JSON.parse(JSON.stringify(result.dataset)));
-    if (errors.length)
-        throw new Error(`чернетка не проходить валідацію PUT:\n${errors.join('\n')}`);
+    const check = (d, label) => {
+        const { errors } = (0, local_transport_1.validateTransportDataset)(JSON.parse(JSON.stringify(d)));
+        if (errors.length)
+            throw new Error(`${label} не проходить валідацію PUT:\n${errors.join('\n')}`);
+    };
+    check(result.dataset, 'чернетка');
     for (const [file, content] of Object.entries(files))
         write(file, content);
     const d = result.dataset;
     console.log(`${korosten_dataset_files_1.DATASET_FILE}: зупинок ${d.stops.length}, маршрутів ${d.routes.length}, рейсів ${d.trips.length}, сегментів ${d.segments.length}`);
+    // --google-coords: та сама чернетка, але приблизні точки замінено точками Google — лише локально, поза git
+    let target = d;
+    if (has('--google-coords')) {
+        const local = (0, korosten_dataset_files_1.buildKorostenDatasetFiles)(ROOT, { withGoogleCoords: true });
+        check(local.result.dataset, 'чернетка з Google');
+        write(korosten_dataset_files_1.LOCAL_DATASET_FILE, local.files[korosten_dataset_files_1.DATASET_FILE]);
+        write(korosten_dataset_files_1.LOCAL_REPORT_FILE, local.files[korosten_dataset_files_1.REPORT_FILE]);
+        target = local.result.dataset;
+    }
     if (has('--apply') || has('--dry-run'))
-        await apply(d, !has('--apply'));
+        await apply(target, !has('--apply'));
 }
 main().catch((e) => {
     console.error(e instanceof Error ? e.message : e);

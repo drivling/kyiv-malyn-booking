@@ -62,7 +62,17 @@ export interface StreetPoint {
 export interface GoogleCheck {
   checkedAt: string;
   stops: Record<string, { ours: [number, number]; placeId: string | null; name: string | null; distanceM: number | null }>;
-  transit?: { from: string; to: string; lines: string[]; note: string };
+  /** Routes API TRANSIT між кінцевими основного напрямку «туди»: які лінії пропонує Google */
+  transit?: Array<{ routeId: string; from: string; to: string; lines: string[] }>;
+}
+
+/**
+ * Координати Google (google/coords.local.json, поза git): власник бере їх тимчасово для приблизних точок, до
+ * перевірки зупинок на місці. Ключ — id зупинки (st_10NN).
+ */
+export interface GoogleCoords {
+  fetchedAt: string;
+  stops: Record<string, { lat: number; lng: number; placeId: string; name: string | null }>;
 }
 
 export interface RouteCsvRow {
@@ -82,6 +92,8 @@ export interface KorostenDatasetInput {
   /** Назва вулиці зі stops.csv → середня точка (Nominatim); null — не знайдено */
   streets: Record<string, StreetPoint | null> | null;
   google: GoogleCheck | null;
+  /** Лише в локальній версії (--google-coords); закомічена чернетка — завжди null */
+  googleCoords?: GoogleCoords | null;
 }
 
 // ---------- вихід (формат PUT /transport/dataset) ----------
@@ -142,7 +154,7 @@ export interface KorostenDataset {
   meta: { defaultSec: number; routeColors: Record<string, string>; source: string };
 }
 
-export type CoordSource = 'osm' | 'street' | 'between' | 'extrapolated';
+export type CoordSource = 'osm' | 'google' | 'street' | 'between' | 'extrapolated';
 
 export interface KorostenDatasetResult {
   dataset: KorostenDataset;
@@ -208,6 +220,12 @@ interface Chain {
   italic: boolean;
   stops: ChainStop[];
 }
+
+/** Точка Google приймається, якщо до кожного відомого сусіда не далі max(1 км, 15 м/с × час між ними) по прямій */
+const GOOGLE_NEAR_MIN_M = 1000;
+const GOOGLE_NEAR_MPS = 15;
+/** Скільки сусідніх узгоджених точок Google приймаються без якоря з OSM */
+const GOOGLE_RUN_MIN = 3;
 
 /** Мінімальний сегмент, як у «Перерахувати час» */
 const MIN_SEGMENT_SEC = 30;
@@ -308,6 +326,97 @@ export function buildKorostenDataset(input: KorostenDatasetInput): KorostenDatas
       coordSource[uid] = 'osm';
     }
   }
+  // Google (лише локальна версія): замість приблизної точки, якщо вона узгоджена з сусідами по ланцюжку, чиї точки
+  // вже відомі (OSM або прийняті раніше точки Google): до кожного такого сусіда — не далі, ніж автобус проїде за
+  // хвилини між ними. Інакше Google, найпевніше, знайшов однойменну зупинку деінде. Ідемо від точок OSM хвилями.
+  const googleRejected: Array<{ uid: string; meters: number | null }> = [];
+  if (input.googleCoords) {
+    const candidates = new Map<string, StreetPoint>();
+    for (const uid of usedUids) {
+      const g = coords.has(uid) ? null : input.googleCoords.stops[korostenStopId(uid)];
+      if (g) candidates.set(uid, { lat: g.lat, lng: g.lng });
+    }
+    const verdict = (uid: string, g: StreetPoint): { known: number; worst: number | null; ok: boolean } => {
+      let known = 0;
+      let worst: number | null = null;
+      let ok = true;
+      for (const c of chains) {
+        const i = c.stops.findIndex((x) => x.uid === uid);
+        if (i < 0) continue;
+        for (const j of [i - 1, i + 1]) {
+          const n = c.stops[j];
+          const p = n ? coords.get(n.uid) : undefined;
+          if (!n || !p) continue;
+          known++;
+          const a = c.stops[Math.min(i, j)].minute;
+          const b = c.stops[Math.max(i, j)].minute;
+          const seconds = a !== null && b !== null ? Math.max(60, (b - a) * 60) : config.defaultSec;
+          const meters = distanceM(g, p);
+          if (worst === null || meters > worst) worst = Math.round(meters);
+          if (meters > Math.max(GOOGLE_NEAR_MIN_M, GOOGLE_NEAR_MPS * seconds)) ok = false;
+        }
+      }
+      return { known, worst, ok };
+    };
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [uid, g] of candidates) {
+        const v = verdict(uid, g);
+        if (!v.known || !v.ok) continue;
+        coords.set(uid, { lat: round7(g.lat), lng: round7(g.lng) });
+        coordSource[uid] = 'google';
+        candidates.delete(uid);
+        changed = true;
+      }
+    }
+    // другий крок: три й більше сусідніх по ланцюжку точок Google, узгоджених між собою за тим самим правилом, —
+    // випадково однойменні зупинки деінде так не вишикуються; після них ще хвиля від прийнятих
+    const fits = (c: Chain, i: number, j: number): boolean => {
+      const a = c.stops[Math.min(i, j)].minute;
+      const b = c.stops[Math.max(i, j)].minute;
+      const seconds = a !== null && b !== null ? Math.max(60, (b - a) * 60) : config.defaultSec;
+      const p = candidates.get(c.stops[i].uid) as StreetPoint;
+      const q = candidates.get(c.stops[j].uid) as StreetPoint;
+      return distanceM(p, q) <= Math.max(GOOGLE_NEAR_MIN_M, GOOGLE_NEAR_MPS * seconds);
+    };
+    for (const c of chains) {
+      let run: number[] = [];
+      const flush = (): void => {
+        if (run.length >= GOOGLE_RUN_MIN) {
+          for (const k of run) {
+            const uid = c.stops[k].uid;
+            const g = candidates.get(uid);
+            if (!g || coords.has(uid)) continue;
+            coords.set(uid, { lat: round7(g.lat), lng: round7(g.lng) });
+            coordSource[uid] = 'google';
+          }
+        }
+        run = [];
+      };
+      c.stops.forEach((st, k) => {
+        if (!candidates.has(st.uid)) return flush();
+        if (run.length && !fits(c, run[run.length - 1], k)) flush();
+        run.push(k);
+      });
+      flush();
+    }
+    for (const uid of [...candidates.keys()]) if (coords.has(uid)) candidates.delete(uid);
+    changed = true;
+    while (changed) {
+      changed = false;
+      for (const [uid, g] of candidates) {
+        const v = verdict(uid, g);
+        if (!v.known || !v.ok) continue;
+        coords.set(uid, { lat: round7(g.lat), lng: round7(g.lng) });
+        coordSource[uid] = 'google';
+        candidates.delete(uid);
+        changed = true;
+      }
+    }
+    for (const [uid, g] of candidates) googleRejected.push({ uid, meters: verdict(uid, g).worst });
+  }
+
   // середина вулиці: Nominatim дає одну точку на вулицю, тож якщо на ній кілька зупинок, точку отримує середня з
   // них за порядком у першому ланцюжку, де вони трапляються, а решта стає між сусідами (інакше — купа в одній точці)
   const streetOf = (uid: string): string => (officialByUid.get(uid)?.street ?? '').trim();
@@ -598,6 +707,7 @@ export function buildKorostenDataset(input: KorostenDatasetInput): KorostenDatas
     coordSource,
     coordFor,
     osmAmbiguous: osm?.ambiguous ?? [],
+    googleRejected,
     osmOutliers: [...(osm?.matches.entries() ?? [])].filter(([, m]) => m.outliers.length).map(([uid, m]) => ({ uid, outliers: m.outliers })),
     chains,
     deferred,
@@ -617,6 +727,7 @@ interface ReportInput {
   coordSource: Record<string, CoordSource>;
   coordFor: (uid: string) => StreetPoint;
   osmAmbiguous: Array<{ osmId: string; name: string; uids: string[] }>;
+  googleRejected: Array<{ uid: string; meters: number | null }>;
   osmOutliers: Array<{ uid: string; outliers: string[] }>;
   chains: Chain[];
   deferred: Array<{ route: string; run: SourceRun; reason: string }>;
@@ -627,6 +738,7 @@ interface ReportInput {
 
 const SOURCE_LABEL: Record<CoordSource, string> = {
   osm: 'OSM',
+  google: 'Google (тимчасово)',
   street: 'середина вулиці',
   between: 'між сусідами',
   extrapolated: 'продовження лінії',
@@ -650,7 +762,7 @@ function buildReport(r: ReportInput): string {
   lines.push(`- Рейсів: ${dataset.trips.length} (будні: ${dataset.trips.filter((t) => t.serviceId === 'weekdays').length}); відкладено: ${r.deferred.length}.`);
   lines.push(`- Сегментів: ${dataset.segments.length}.`);
   lines.push(
-    `- Координати: OSM — ${bySource('osm').length}, середина вулиці — ${bySource('street').length}, між сусідами — ${bySource('between').length}, ` +
+    `- Координати: OSM — ${bySource('osm').length}${input.googleCoords ? `, Google (тимчасово, до перевірки на місці) — ${bySource('google').length}` : ''}, середина вулиці — ${bySource('street').length}, між сусідами — ${bySource('between').length}, ` +
       `продовження лінії — ${bySource('extrapolated').length}.`,
   );
   lines.push(`- Знімок OSM: ${input.osm ? input.osm.fetchedAt : 'нема (`--fetch-osm`)'}; перевірка Google: ${input.google ? input.google.checkedAt : 'не запускалась (`--fetch-google`)'}.`);
@@ -678,6 +790,10 @@ function buildReport(r: ReportInput): string {
   lines.push('');
   lines.push('Усі точки не з OSM — приблизні. Поправити в «Редакторі карти» (місто Коростень), фаза 9.');
   lines.push('');
+  if (input.googleCoords) {
+    lines.push(`Локальна версія з точками Google (${input.googleCoords.fetchedAt}): у git не йде, відкритими даними не публікується; після перевірки на місці точки Google замінюються власними.`);
+    lines.push('');
+  }
   lines.push('| Зупинка | Назва | Звідки точка | Вулиця (рада) |');
   lines.push('|---|---|---|---|');
   const officialByUid = new Map(input.official.map((s) => [s.uid, s] as const));
@@ -692,6 +808,14 @@ function buildReport(r: ReportInput): string {
     lines.push('Здебільшого — одна з двох точок поставлена наугад (середина вулиці, продовження лінії).');
     lines.push('');
     for (const h of fast) lines.push(`- ${routeLabel(dataset, h.routeId)}: ${h.from} → ${h.to} — ${h.meters} м за ${h.seconds} с (${h.kmh} км/год)`);
+    lines.push('');
+  }
+  if (r.googleRejected.length) {
+    lines.push('### Google: точки, яких не взяли');
+    lines.push('');
+    lines.push(`Далі max(${GOOGLE_NEAR_MIN_M} м, ${GOOGLE_NEAR_MPS} м/с × хвилини між зупинками) від сусіда з відомою точкою або без жодного такого сусіда — Google, найпевніше, знайшов однойменну зупинку деінде.`);
+    lines.push('');
+    for (const g of r.googleRejected) lines.push(`- ${korostenStopId(g.uid)} ${r.stopName(g.uid)}: ${g.meters === null ? 'сусідів з відомою точкою нема' : `до найдальшого відомого сусіда ${g.meters} м`}`);
     lines.push('');
   }
   if (r.osmOutliers.length || r.osmAmbiguous.length) {
@@ -717,7 +841,16 @@ function buildReport(r: ReportInput): string {
       const note = g.placeId ? (stale ? 'застаріло — перезапустити' : 'далеко') : 'Google не знайшов';
       lines.push(`| ${s.id} | ${cell(s.name)} | ${g.distanceM ?? '—'} | ${note} |`);
     }
-    if (input.google.transit) lines.push('', `Routes API (транспорт): ${input.google.transit.note}`);
+    if (input.google.transit?.length) {
+      const name = new Map(dataset.stops.map((x) => [x.id, x.name] as const));
+      lines.push('', '### Routes API (громадський транспорт) між кінцевими', '');
+      lines.push('Буднього ранку, з альтернативами. Номер лінії Google — як у Google Maps, не обов\'язково наш маршрут.', '');
+      lines.push('| Маршрут | Від → до | Лінії Google |');
+      lines.push('|---|---|---|');
+      for (const t of input.google.transit) {
+        lines.push(`| ${routeLabel(dataset, t.routeId)} | ${cell(`${name.get(t.from) ?? t.from} → ${name.get(t.to) ?? t.to}`)} | ${t.lines.join(', ') || '—'} |`);
+      }
+    }
     lines.push('');
   }
 
@@ -779,9 +912,15 @@ function buildReport(r: ReportInput): string {
       const seq = route.platforms.map((p) => osmToUid.get(p.id) ?? null);
       const known = seq.filter((x): x is string => !!x);
       const routeId = input.config.routes.find((x) => x.id === route.ref)?.id;
+      // основний напрямок, у якому найбільше спільних із маршрутом OSM зупинок ідуть у тому ж порядку
+      const score = (c: Chain): number => {
+        const idx = known.map((u) => c.stops.findIndex((s) => s.uid === u)).filter((i) => i >= 0);
+        return idx.filter((i, k) => k > 0 && i > idx[k - 1]).length;
+      };
       const chain = r.chains
         .filter((c) => c.routeId === routeId && !c.variantId)
-        .find((c) => known.length && c.stops.some((s) => s.uid === known[0]) && c.stops.findIndex((s) => s.uid === known[0]) < c.stops.findIndex((s) => s.uid === known[known.length - 1]));
+        .sort((a, b) => score(b) - score(a))
+        .find((c) => score(c) > 0);
       const ours = chain ? chain.stops.map((s) => s.uid) : [];
       const notOurs = known.filter((u) => !ours.includes(u));
       const notOsm = ours.filter((u) => !known.includes(u));

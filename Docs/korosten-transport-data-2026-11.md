@@ -16,6 +16,8 @@ npm run korosten:dataset                    # джерела → dataset/koroste
 npm run korosten:dataset -- --fetch-osm     # + знімок OSM (зупинки, маршрути) і вулиць (Nominatim), далі генерація
 npm run korosten:dataset -- --fetch-streets # лише вулиці
 npm run korosten:dataset -- --fetch-google  # + перевірка через Google (потрібен GOOGLE_MAPS_API_KEY)
+npm run korosten:dataset -- --fetch-google-coords  # координати Google за place_id (Place Details) → google/coords.local.json
+npm run korosten:dataset -- --google-coords # + dataset/korosten-dataset.local.json і REPORT.local.md з точками Google (поза git)
 npm run korosten:dataset -- --dry-run       # порівняти з базою (ADMIN_TOKEN / VIBER_ADMIN_TOKEN), нічого не писати
 npm run korosten:dataset -- --apply         # GET → бекап у ~/korosten-backups → PUT ?city=Korosten з baseRevision → GET і звірка
 ```
@@ -60,15 +62,23 @@ npm run korosten:dataset -- --apply         # GET → бекап у ~/korosten-b
 Без жодної точки генератор зупиняється з помилкою, а не вигадує. Звіт перелічує всі точки не з OSM і «підозрілі
 перегони» (швидше 45 км/год) — це список для фази 9.
 
-**Google** — лише перевірка (`--fetch-google`, Places API Text Search з `includedType: bus_stop` у межах міста і
-пробний Routes API TRANSIT). За умовами Google Maps Platform координати Google не зберігаємо і не публікуємо (наш
-датасет іде у відкритий GTFS): у `google/check.json` — `place_id`, назва, відстань від нашої точки й наша точка на
-момент перевірки. Звіт позначає точки далі 150 м від Google і застарілі перевірки.
+**Google** (`--fetch-google`: Places API Text Search з `includedType: bus_stop` у межах міста; Routes API TRANSIT між
+кінцевими кожного маршруту). У репозиторій (`google/check.json`) — лише `place_id`, назва, відстань від нашої точки й
+номери ліній, які пропонує Google: координати Google в публічний репозиторій не кладемо (умови Google Maps Platform).
 
-Ключ: Places API читає його із заголовка `X-Goog-Api-Key`. Захищена форма сесії вміє лише `Authorization: Bearer`,
-тож ключ власник додає в налаштуваннях середовища (Network secrets → хост `places.googleapis.com` і
-`routes.googleapis.com`, заголовок `X-Goog-Api-Key`) і запускає з `GOOGLE_MAPS_API_KEY=via-proxy` — проксі підставить
-справжній; або локально з власним ключем у змінній.
+**Координати Google тимчасово** (рішення власника 2026-11-12: відкриті формати Коростеня поки не публікуються, зупинки
+власник об'їде сам): `--fetch-google-coords` бере їх за `place_id` у `google/coords.local.json`, `--google-coords` збирає
+`dataset/korosten-dataset.local.json` + `REPORT.local.md` — усе в `.gitignore`. Цю версію імпортують кнопкою в адмінці
+або `--google-coords --apply`. Точка Google замінює лише приблизну (не OSM) і лише якщо узгоджена з сусідами по
+ланцюжку: до кожного сусіда з відомою точкою не далі max(1 км, 15 м/с × хвилини між ними); ідемо хвилями від точок OSM,
+далі приймаються ланцюжки з ≥ 3 сусідніх узгоджених точок Google без якоря. Решта — у звіті «Google: точки, яких не
+взяли» (однойменні зупинки деінде). Після об'їзду точки Google замінюються власними в «Редакторі карти».
+
+Ключ: Places API читає його із заголовка `X-Goog-Api-Key`, захищена форма сесії вміє лише `Authorization: Bearer` —
+ключ лежить у налаштуваннях середовища (Network secrets → `places.googleapis.com`, `routes.googleapis.com`, заголовок
+`X-Goog-Api-Key`). Запуск у хмарі: `NODE_USE_ENV_PROXY=1 GOOGLE_MAPS_API_KEY=via-proxy npm run korosten:dataset -- …`
+(вбудований `fetch` Node без `NODE_USE_ENV_PROXY` іде повз проксі, і ключ не підставляється). Квота пошуку — на день
+(два прогони по 83 запити її вичерпали), Place Details — окрема.
 
 ### Рейси
 
@@ -95,6 +105,10 @@ npm run korosten:dataset -- --apply         # GET → бекап у ~/korosten-b
   маршрутів Малина (`VERIFIED_ROUTE_IDS`) давав маршрутам Коростеня з іншими номерами по 2 хв на перегін і ховав їхні
   лінії → `isVerifiedRoute` / `verifiedRouteIds()` вважають усі маршрути іншого міста перевіреними
   (`setVerifiedRoutesCity`, перемикає `useTransportDataset`).
+
+- Google (2026-11-12): Routes TRANSIT знає лінії 1–8 і 2Б Коростеня. Places знайшов 78 із 83 зупинок, але частина —
+  однойменні зупинки в інших місцях (ДУ, Дитсадок №2, Проліскова, Діагностичний центр — за 4–7 км). У локальній версії
+  з Google: OSM — 43, Google — 24, середина вулиці — 11, між сусідами — 4, продовження лінії — 1.
 
 ## Фаза 9 (руками) — зі звіту
 
