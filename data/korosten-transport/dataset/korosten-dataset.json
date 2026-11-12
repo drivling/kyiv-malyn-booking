@@ -397,6 +397,18 @@
       "lng": 28.6104887
     },
     {
+      "id": "st_1071",
+      "name": "Вул. І. Франка",
+      "lat": 50.9501234,
+      "lng": 28.6367699
+    },
+    {
+      "id": "st_1072",
+      "name": "СМП 650",
+      "lat": 50.9533592,
+      "lng": 28.6354864
+    },
+    {
       "id": "st_1073",
       "name": "Районна лікарня (залізнична)",
       "lat": 50.9497485,
@@ -479,6 +491,12 @@
       "name": "Відділення Нової пошти №1",
       "lat": 50.98029,
       "lng": 28.6608121
+    },
+    {
+      "id": "st_1101",
+      "name": "Грозине",
+      "lat": 50.966511,
+      "lng": 28.7441187
     },
     {
       "id": "st_1102",
@@ -672,7 +690,122 @@
       "schedule": null,
       "unreliable": false,
       "shortName": "",
-      "variants": []
+      "variants": [
+        {
+          "id": "4-hrozyne-1",
+          "directionId": "1",
+          "name": "до Грозиного",
+          "stops": [
+            {
+              "stopId": "st_1001"
+            },
+            {
+              "stopId": "st_1002"
+            },
+            {
+              "stopId": "st_1037"
+            },
+            {
+              "stopId": "st_1038"
+            },
+            {
+              "stopId": "st_1039"
+            },
+            {
+              "stopId": "st_1040"
+            },
+            {
+              "stopId": "st_1041"
+            },
+            {
+              "stopId": "st_1042"
+            },
+            {
+              "stopId": "st_1043"
+            },
+            {
+              "stopId": "st_1044"
+            },
+            {
+              "stopId": "st_1101"
+            }
+          ]
+        },
+        {
+          "id": "4-hrozyne-0",
+          "directionId": "0",
+          "name": "від Грозиного",
+          "stops": [
+            {
+              "stopId": "st_1101"
+            },
+            {
+              "stopId": "st_1044"
+            },
+            {
+              "stopId": "st_1041"
+            },
+            {
+              "stopId": "st_1040"
+            },
+            {
+              "stopId": "st_1039"
+            },
+            {
+              "stopId": "st_1038"
+            },
+            {
+              "stopId": "st_1037"
+            },
+            {
+              "stopId": "st_1002"
+            },
+            {
+              "stopId": "st_1001"
+            }
+          ]
+        },
+        {
+          "id": "4-hrozyne-kyivska-1",
+          "directionId": "1",
+          "name": "через Грозине",
+          "stops": [
+            {
+              "stopId": "st_1001"
+            },
+            {
+              "stopId": "st_1002"
+            },
+            {
+              "stopId": "st_1037"
+            },
+            {
+              "stopId": "st_1038"
+            },
+            {
+              "stopId": "st_1039"
+            },
+            {
+              "stopId": "st_1040"
+            },
+            {
+              "stopId": "st_1041"
+            },
+            {
+              "stopId": "st_1042"
+            },
+            {
+              "stopId": "st_1043"
+            },
+            {
+              "stopId": "st_1101"
+            },
+            {
+              "stopId": "st_1044"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "5",
@@ -767,7 +900,42 @@
       "schedule": null,
       "unreliable": false,
       "shortName": "",
-      "variants": []
+      "variants": [
+        {
+          "id": "7-franka-0",
+          "directionId": "0",
+          "name": "через вул. Франка",
+          "stops": [
+            {
+              "stopId": "st_1069"
+            },
+            {
+              "stopId": "st_1068"
+            },
+            {
+              "stopId": "st_1006"
+            },
+            {
+              "stopId": "st_1005"
+            },
+            {
+              "stopId": "st_1004"
+            },
+            {
+              "stopId": "st_1003"
+            },
+            {
+              "stopId": "st_1071"
+            },
+            {
+              "stopId": "st_1072"
+            },
+            {
+              "stopId": "st_1001"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "8",
@@ -4113,6 +4281,22 @@
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
       "directionId": "1",
+      "departureTime": "11:20:00",
+      "blockId": "4-g2",
+      "wheelchairAccessible": "",
+      "bikesAllowed": "",
+      "startStopId": null,
+      "endStopId": null,
+      "arrivalTime": null,
+      "variantId": "4-hrozyne-kyivska-1",
+      "timepoints": null
+    },
+    {
+      "id": "4-113",
+      "routeId": "4",
+      "serviceId": "everyday",
+      "headsign": "Вул. Київська",
+      "directionId": "1",
       "departureTime": "11:50:00",
       "blockId": "4-g1",
       "wheelchairAccessible": "",
@@ -4124,7 +4308,7 @@
       "timepoints": null
     },
     {
-      "id": "4-113",
+      "id": "4-114",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4140,7 +4324,7 @@
       "timepoints": null
     },
     {
-      "id": "4-114",
+      "id": "4-115",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4156,7 +4340,7 @@
       "timepoints": null
     },
     {
-      "id": "4-115",
+      "id": "4-116",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4172,7 +4356,7 @@
       "timepoints": null
     },
     {
-      "id": "4-116",
+      "id": "4-117",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4188,7 +4372,7 @@
       "timepoints": null
     },
     {
-      "id": "4-117",
+      "id": "4-118",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4204,7 +4388,7 @@
       "timepoints": null
     },
     {
-      "id": "4-118",
+      "id": "4-119",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4220,7 +4404,7 @@
       "timepoints": null
     },
     {
-      "id": "4-119",
+      "id": "4-120",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4236,7 +4420,7 @@
       "timepoints": null
     },
     {
-      "id": "4-120",
+      "id": "4-121",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4252,7 +4436,7 @@
       "timepoints": null
     },
     {
-      "id": "4-121",
+      "id": "4-122",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4268,7 +4452,7 @@
       "timepoints": null
     },
     {
-      "id": "4-122",
+      "id": "4-123",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4284,7 +4468,7 @@
       "timepoints": null
     },
     {
-      "id": "4-123",
+      "id": "4-124",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4300,7 +4484,7 @@
       "timepoints": null
     },
     {
-      "id": "4-124",
+      "id": "4-125",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4316,7 +4500,7 @@
       "timepoints": null
     },
     {
-      "id": "4-125",
+      "id": "4-126",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4332,7 +4516,7 @@
       "timepoints": null
     },
     {
-      "id": "4-126",
+      "id": "4-127",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4348,7 +4532,7 @@
       "timepoints": null
     },
     {
-      "id": "4-127",
+      "id": "4-128",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4364,7 +4548,23 @@
       "timepoints": null
     },
     {
-      "id": "4-128",
+      "id": "4-129",
+      "routeId": "4",
+      "serviceId": "everyday",
+      "headsign": "Грозине",
+      "directionId": "1",
+      "departureTime": "18:10:00",
+      "blockId": "4-g2",
+      "wheelchairAccessible": "",
+      "bikesAllowed": "",
+      "startStopId": null,
+      "endStopId": null,
+      "arrivalTime": null,
+      "variantId": "4-hrozyne-1",
+      "timepoints": null
+    },
+    {
+      "id": "4-130",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4380,7 +4580,7 @@
       "timepoints": null
     },
     {
-      "id": "4-129",
+      "id": "4-131",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4396,7 +4596,7 @@
       "timepoints": null
     },
     {
-      "id": "4-130",
+      "id": "4-132",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Вул. Київська",
@@ -4415,6 +4615,22 @@
       "id": "4-201",
       "routeId": "4",
       "serviceId": "everyday",
+      "headsign": "Вул. Київська",
+      "directionId": "0",
+      "departureTime": "06:10:00",
+      "blockId": "4-g2",
+      "wheelchairAccessible": "",
+      "bikesAllowed": "",
+      "startStopId": null,
+      "endStopId": "st_1044",
+      "arrivalTime": "06:50:00",
+      "variantId": "4-hrozyne-0",
+      "timepoints": null
+    },
+    {
+      "id": "4-202",
+      "routeId": "4",
+      "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
       "directionId": "0",
       "departureTime": "06:30:00",
@@ -4428,7 +4644,7 @@
       "timepoints": null
     },
     {
-      "id": "4-202",
+      "id": "4-203",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4444,7 +4660,7 @@
       "timepoints": null
     },
     {
-      "id": "4-203",
+      "id": "4-204",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4460,7 +4676,7 @@
       "timepoints": null
     },
     {
-      "id": "4-204",
+      "id": "4-205",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4476,7 +4692,7 @@
       "timepoints": null
     },
     {
-      "id": "4-205",
+      "id": "4-206",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4492,7 +4708,7 @@
       "timepoints": null
     },
     {
-      "id": "4-206",
+      "id": "4-207",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4508,7 +4724,7 @@
       "timepoints": null
     },
     {
-      "id": "4-207",
+      "id": "4-208",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4524,7 +4740,7 @@
       "timepoints": null
     },
     {
-      "id": "4-208",
+      "id": "4-209",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4540,7 +4756,7 @@
       "timepoints": null
     },
     {
-      "id": "4-209",
+      "id": "4-210",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4556,7 +4772,7 @@
       "timepoints": null
     },
     {
-      "id": "4-210",
+      "id": "4-211",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4572,7 +4788,7 @@
       "timepoints": null
     },
     {
-      "id": "4-211",
+      "id": "4-212",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4588,7 +4804,7 @@
       "timepoints": null
     },
     {
-      "id": "4-212",
+      "id": "4-213",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4604,7 +4820,7 @@
       "timepoints": null
     },
     {
-      "id": "4-213",
+      "id": "4-214",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4620,7 +4836,7 @@
       "timepoints": null
     },
     {
-      "id": "4-214",
+      "id": "4-215",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4636,7 +4852,7 @@
       "timepoints": null
     },
     {
-      "id": "4-215",
+      "id": "4-216",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4652,7 +4868,7 @@
       "timepoints": null
     },
     {
-      "id": "4-216",
+      "id": "4-217",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4668,7 +4884,7 @@
       "timepoints": null
     },
     {
-      "id": "4-217",
+      "id": "4-218",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4684,7 +4900,7 @@
       "timepoints": null
     },
     {
-      "id": "4-218",
+      "id": "4-219",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4700,7 +4916,7 @@
       "timepoints": null
     },
     {
-      "id": "4-219",
+      "id": "4-220",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4716,7 +4932,7 @@
       "timepoints": null
     },
     {
-      "id": "4-220",
+      "id": "4-221",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4732,7 +4948,7 @@
       "timepoints": null
     },
     {
-      "id": "4-221",
+      "id": "4-222",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4748,7 +4964,7 @@
       "timepoints": null
     },
     {
-      "id": "4-222",
+      "id": "4-223",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4764,7 +4980,7 @@
       "timepoints": null
     },
     {
-      "id": "4-223",
+      "id": "4-224",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4780,7 +4996,7 @@
       "timepoints": null
     },
     {
-      "id": "4-224",
+      "id": "4-225",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4796,7 +5012,7 @@
       "timepoints": null
     },
     {
-      "id": "4-225",
+      "id": "4-226",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4812,7 +5028,7 @@
       "timepoints": null
     },
     {
-      "id": "4-226",
+      "id": "4-227",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4828,7 +5044,7 @@
       "timepoints": null
     },
     {
-      "id": "4-227",
+      "id": "4-228",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4844,7 +5060,7 @@
       "timepoints": null
     },
     {
-      "id": "4-228",
+      "id": "4-229",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4860,7 +5076,7 @@
       "timepoints": null
     },
     {
-      "id": "4-229",
+      "id": "4-230",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4876,7 +5092,7 @@
       "timepoints": null
     },
     {
-      "id": "4-230",
+      "id": "4-231",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4892,7 +5108,23 @@
       "timepoints": null
     },
     {
-      "id": "4-231",
+      "id": "4-232",
+      "routeId": "4",
+      "serviceId": "everyday",
+      "headsign": "Залізничний вокзал",
+      "directionId": "0",
+      "departureTime": "18:35:00",
+      "blockId": "4-g2",
+      "wheelchairAccessible": "",
+      "bikesAllowed": "",
+      "startStopId": null,
+      "endStopId": null,
+      "arrivalTime": null,
+      "variantId": "4-hrozyne-0",
+      "timepoints": null
+    },
+    {
+      "id": "4-233",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4908,7 +5140,7 @@
       "timepoints": null
     },
     {
-      "id": "4-232",
+      "id": "4-234",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -4924,7 +5156,7 @@
       "timepoints": null
     },
     {
-      "id": "4-233",
+      "id": "4-235",
       "routeId": "4",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6446,6 +6678,22 @@
     {
       "id": "7-202",
       "routeId": "7",
+      "serviceId": "weekdays",
+      "headsign": "Залізничний вокзал",
+      "directionId": "0",
+      "departureTime": "07:35:00",
+      "blockId": "7-g1",
+      "wheelchairAccessible": "",
+      "bikesAllowed": "",
+      "startStopId": null,
+      "endStopId": null,
+      "arrivalTime": "07:51:00",
+      "variantId": "7-franka-0",
+      "timepoints": null
+    },
+    {
+      "id": "7-203",
+      "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
       "directionId": "0",
@@ -6460,7 +6708,23 @@
       "timepoints": null
     },
     {
-      "id": "7-203",
+      "id": "7-204",
+      "routeId": "7",
+      "serviceId": "weekdays",
+      "headsign": "Залізничний вокзал",
+      "directionId": "0",
+      "departureTime": "08:39:00",
+      "blockId": "7-g1",
+      "wheelchairAccessible": "",
+      "bikesAllowed": "",
+      "startStopId": null,
+      "endStopId": null,
+      "arrivalTime": "09:05:00",
+      "variantId": "7-franka-0",
+      "timepoints": null
+    },
+    {
+      "id": "7-205",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6476,7 +6740,7 @@
       "timepoints": null
     },
     {
-      "id": "7-204",
+      "id": "7-206",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6492,7 +6756,7 @@
       "timepoints": null
     },
     {
-      "id": "7-205",
+      "id": "7-207",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6508,7 +6772,7 @@
       "timepoints": null
     },
     {
-      "id": "7-206",
+      "id": "7-208",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6524,7 +6788,7 @@
       "timepoints": null
     },
     {
-      "id": "7-207",
+      "id": "7-209",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6540,7 +6804,7 @@
       "timepoints": null
     },
     {
-      "id": "7-208",
+      "id": "7-210",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6556,7 +6820,7 @@
       "timepoints": null
     },
     {
-      "id": "7-209",
+      "id": "7-211",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6572,7 +6836,7 @@
       "timepoints": null
     },
     {
-      "id": "7-210",
+      "id": "7-212",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6588,7 +6852,7 @@
       "timepoints": null
     },
     {
-      "id": "7-211",
+      "id": "7-213",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6604,7 +6868,7 @@
       "timepoints": null
     },
     {
-      "id": "7-212",
+      "id": "7-214",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6620,7 +6884,7 @@
       "timepoints": null
     },
     {
-      "id": "7-213",
+      "id": "7-215",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6636,7 +6900,7 @@
       "timepoints": null
     },
     {
-      "id": "7-214",
+      "id": "7-216",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6652,7 +6916,7 @@
       "timepoints": null
     },
     {
-      "id": "7-215",
+      "id": "7-217",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6668,7 +6932,7 @@
       "timepoints": null
     },
     {
-      "id": "7-216",
+      "id": "7-218",
       "routeId": "7",
       "serviceId": "everyday",
       "headsign": "Залізничний вокзал",
@@ -6684,7 +6948,7 @@
       "timepoints": null
     },
     {
-      "id": "7-217",
+      "id": "7-219",
       "routeId": "7",
       "serviceId": "weekdays",
       "headsign": "Залізничний вокзал",
@@ -7943,9 +8207,27 @@
     },
     {
       "routeId": "4",
+      "fromStopId": "st_1043",
+      "toStopId": "st_1101",
+      "seconds": 300
+    },
+    {
+      "routeId": "4",
       "fromStopId": "st_1044",
       "toStopId": "st_1041",
       "seconds": 180
+    },
+    {
+      "routeId": "4",
+      "fromStopId": "st_1044",
+      "toStopId": "st_1101",
+      "seconds": 420
+    },
+    {
+      "routeId": "4",
+      "fromStopId": "st_1101",
+      "toStopId": "st_1044",
+      "seconds": 540
     },
     {
       "routeId": "5",
@@ -8327,6 +8609,12 @@
     },
     {
       "routeId": "7",
+      "fromStopId": "st_1003",
+      "toStopId": "st_1071",
+      "seconds": 180
+    },
+    {
+      "routeId": "7",
       "fromStopId": "st_1004",
       "toStopId": "st_1003",
       "seconds": 120
@@ -8377,6 +8665,18 @@
       "routeId": "7",
       "fromStopId": "st_1069",
       "toStopId": "st_1068",
+      "seconds": 180
+    },
+    {
+      "routeId": "7",
+      "fromStopId": "st_1071",
+      "toStopId": "st_1072",
+      "seconds": 180
+    },
+    {
+      "routeId": "7",
+      "fromStopId": "st_1072",
+      "toStopId": "st_1001",
       "seconds": 180
     },
     {

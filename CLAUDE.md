@@ -483,7 +483,9 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `osm/` (`--fetch-osm`) and the manual decisions in `dataset-config.json` (№2-Б, path variants, colours, OSM hints); a test
   keeps the committed draft equal to the generator. `--apply` writes it with `?city=Korosten` + `baseRevision` (backup,
   verify after PUT); the map editor has «Імпорт датасету з файлу…» for a non-default city. Google is a checker only
-  (`place_id` + distance, never Google coordinates). The draft replaces the city's whole dataset — after manual edits the DB
+  (`place_id` + distance, never Google coordinates in git; the owner's temporary Google points live only in gitignored
+  `*.local.json`). `--google-hops` checks every A → B → C triple of every chain with Routes TRANSIT (`korosten-google.ts`;
+  committed `google/hops.json` keeps verdicts + a hash of our coordinates, no Google geometry; resumable across the daily quota). The draft replaces the city's whole dataset — after manual edits the DB
   is the source. On the site, `VERIFIED_ROUTE_IDS` is a Malyn list: `isVerifiedRoute` / `verifiedRouteIds()` treat every route
   of another city as verified (`setVerifiedRoutesCity`, switched by `useTransportDataset`), and the map centre comes from the
   city's profile.

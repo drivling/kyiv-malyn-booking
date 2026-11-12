@@ -747,6 +747,33 @@
       "placeId": "ChIJfXlpGWXbK0cRHPbTDRURNs4",
       "name": "Колективні сади",
       "distanceM": 7
+    },
+    "st_1071": {
+      "ours": [
+        50.9501234,
+        28.6367699
+      ],
+      "placeId": "ChIJzTtZfBjaK0cR9TdziDBApGE",
+      "name": "Центр",
+      "distanceM": 5440
+    },
+    "st_1072": {
+      "ours": [
+        50.9533592,
+        28.6354864
+      ],
+      "placeId": "ChIJRSltbmPaK0cRhFLx9bQGEg0",
+      "name": "м/н Пашини",
+      "distanceM": 4706
+    },
+    "st_1101": {
+      "ours": [
+        50.966511,
+        28.7441187
+      ],
+      "placeId": "ChIJT8tp2w7bK0cRs3e99wqYRj8",
+      "name": "Korosten Bus Station",
+      "distanceM": 7692
     }
   },
   "transit": [

@@ -12,6 +12,7 @@ import {
   buildKorostenDataset,
   type GoogleCheck,
   type GoogleCoords,
+  type GoogleHops,
   type KorostenDatasetConfig,
   type KorostenDatasetInput,
   type KorostenDatasetResult,
@@ -26,6 +27,9 @@ export const OSM_STREETS_FILE = 'osm/streets.json';
 export const GOOGLE_CHECK_FILE = 'google/check.json';
 /** Координати Google — лише локально (.gitignore): тимчасова заміна приблизних точок, у git не потрапляють */
 export const GOOGLE_COORDS_FILE = 'google/coords.local.json';
+/** Висновки перевірки прогонів через Google (у git) і повні відповіді Google (лише локально) */
+export const GOOGLE_HOPS_FILE = 'google/hops.json';
+export const GOOGLE_HOPS_LOCAL_FILE = 'google/hops.local.json';
 export const LOCAL_DATASET_FILE = 'dataset/korosten-dataset.local.json';
 export const LOCAL_REPORT_FILE = 'dataset/REPORT.local.md';
 export const CONFIG_FILE = 'dataset-config.json';
@@ -58,6 +62,7 @@ export function loadKorostenDatasetInput(root: string, opts: { withGoogleCoords?
     google: readJson<GoogleCheck>(path.join(root, GOOGLE_CHECK_FILE)),
     // закомічена чернетка Google-координат не бере ніколи — лише локальна версія на прохання власника
     googleCoords: opts.withGoogleCoords ? readJson<GoogleCoords>(path.join(root, GOOGLE_COORDS_FILE)) : null,
+    googleHops: readJson<GoogleHops>(path.join(root, GOOGLE_HOPS_FILE)),
   };
 }
 

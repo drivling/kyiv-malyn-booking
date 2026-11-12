@@ -97,11 +97,37 @@ test('рейси іншим шляхом: курсив №6 → по Півде�
   for (const t of trip((x) => x.variantId === '8-sady-1')) assert.equal(t.headsign, 'Сади');
 });
 
-test('відкладені рейси: Грозине (№4) і через Франка (№7) — не в чернетці, а в звіті', () => {
-  assert.equal(trip((t) => t.routeId === '4').length, 63);
-  assert.equal(trip((t) => t.routeId === '7').length, 36);
-  assert.match(report, /\| №4 \| 2 \| 06:10 \| Коростень-Грозине – Київська \|/);
-  assert.match(report, /\| №7 \| 1 \| 07:35 \|.*Франка/);
+test('рейси іншим шляхом з фази 9: №4 через Грозине і №7 через вул. Франка — у чернетці, відкладених нема', () => {
+  assert.match(report, /## Рейси, яких у чернетці нема\n\nНема\./);
+  const franka = trip((t) => t.variantId === '7-franka-0');
+  assert.deepEqual(franka.map((t) => t.departureTime), ['07:35:00', '08:39:00']);
+  assert.ok(franka.every((t) => t.serviceId === 'weekdays' && t.directionId === '0' && t.headsign === 'Залізничний вокзал'), '«крім суботи та неділі» → будні');
+  const variantStops = (id: string) => dataset.routes.flatMap((r) => r.variants).find((v) => v.id === id)?.stops.map((s) => s.stopId);
+  assert.deepEqual(variantStops('7-franka-0')?.slice(-4), ['st_1003', 'st_1071', 'st_1072', 'st_1001']);
+  // «Коростень-Грозине – Київська» (06:10) — назва напрямку (sameStop → Грозине): від Грозиного до кінцевої «Вул. Київська»
+  assert.deepEqual(
+    trip((t) => t.variantId === '4-hrozyne-0').map((t) => [t.departureTime, t.endStopId, t.headsign]),
+    [['06:10:00', 'st_1044', 'Вул. Київська'], ['18:35:00', null, 'Залізничний вокзал']],
+  );
+  assert.deepEqual(trip((t) => t.variantId === '4-hrozyne-kyivska-1').map((t) => t.departureTime), ['11:20:00']);
+  assert.deepEqual(trip((t) => t.variantId === '4-hrozyne-1').map((t) => [t.departureTime, t.headsign]), [['18:10:00', 'Грозине']]);
+  assert.equal(trip((t) => t.routeId === '4').length, 67);
+  assert.equal(trip((t) => t.routeId === '7').length, 38);
+  assert.equal(dataset.trips.length, 332);
+  // Грозине — справжня зупинка OSM, не центр села
+  assert.equal(result.coordSource['z-101'], 'osm');
+});
+
+test('ручна точка з dataset-config (coordOverrides) — лише для зупинки без точки OSM', () => {
+  const input = loadKorostenDatasetInput(ROOT);
+  const withOverride = buildKorostenDataset({
+    ...input,
+    config: { ...input.config, coordOverrides: { 'z-101': { lat: 50.95, lng: 28.72 }, 'z-072': { lat: 50.953, lng: 28.636 } } },
+  });
+  assert.equal(withOverride.coordSource['z-101'], 'osm', 'OSM важливіша за ручну');
+  assert.equal(withOverride.coordSource['z-072'], 'manual');
+  assert.deepEqual(withOverride.dataset.stops.find((s) => s.id === 'st_1072'), { id: 'st_1072', name: 'СМП 650', lat: 50.953, lng: 28.636 });
+  assert.match(withOverride.report, /ручні — 1/);
 });
 
 test('arrivalTime лише там, де рада дає інший час у дорозі', () => {

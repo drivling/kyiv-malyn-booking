@@ -1,0 +1,2009 @@
+{
+  "checkedAt": "2026-11-12T18:53:29.913Z",
+  "verdicts": [
+    {
+      "key": "st_1001>st_1002>st_1003",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5",
+        "7"
+      ],
+      "googleLines": [
+        "1",
+        "4",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 11,
+      "bOffM": 4,
+      "cOffM": 38,
+      "cutM": 165,
+      "status": "cut",
+      "oursHash": "dc1179e"
+    },
+    {
+      "key": "st_1002>st_1003>st_1004",
+      "expected": 2,
+      "routes": [
+        "1",
+        "7"
+      ],
+      "googleLines": [
+        "1",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 4,
+      "bOffM": 7,
+      "cOffM": 194,
+      "cutM": 194,
+      "status": "off-route",
+      "oursHash": "2545645f"
+    },
+    {
+      "key": "st_1003>st_1004>st_1005",
+      "expected": 2,
+      "routes": [
+        "1",
+        "7"
+      ],
+      "googleLines": [
+        "1",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 7,
+      "bOffM": 194,
+      "cOffM": 6,
+      "cutM": 194,
+      "status": "stop-count",
+      "oursHash": "3b592833"
+    },
+    {
+      "key": "st_1004>st_1005>st_1006",
+      "expected": 2,
+      "routes": [
+        "1",
+        "7"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "fd3502"
+    },
+    {
+      "key": "st_1005>st_1006>st_1007",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 30,
+      "bOffM": 8,
+      "cOffM": 7,
+      "cutM": 30,
+      "status": "ok",
+      "oursHash": "c9069e9e"
+    },
+    {
+      "key": "st_1006>st_1007>st_1008",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 25,
+      "bOffM": 6,
+      "cOffM": 0,
+      "cutM": 25,
+      "status": "ok",
+      "oursHash": "7896a57f"
+    },
+    {
+      "key": "st_1007>st_1008>st_1009",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 13,
+      "bOffM": 0,
+      "cOffM": 1,
+      "cutM": 13,
+      "status": "ok",
+      "oursHash": "f0c35a02"
+    },
+    {
+      "key": "st_1008>st_1009>st_1010",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 27,
+      "bOffM": 1,
+      "cOffM": 5,
+      "cutM": 27,
+      "status": "ok",
+      "oursHash": "e5ea1fcb"
+    },
+    {
+      "key": "st_1009>st_1010>st_1011",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 12,
+      "bOffM": 5,
+      "cOffM": 2,
+      "cutM": 12,
+      "status": "ok",
+      "oursHash": "e56a1ee7"
+    },
+    {
+      "key": "st_1010>st_1011>st_1012",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 53,
+      "bOffM": 2,
+      "cOffM": 0,
+      "cutM": 53,
+      "status": "ok",
+      "oursHash": "a54a8882"
+    },
+    {
+      "key": "st_1011>st_1012>st_1013",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 55,
+      "bOffM": 0,
+      "cOffM": 3,
+      "cutM": 55,
+      "status": "ok",
+      "oursHash": "443362be"
+    },
+    {
+      "key": "st_1012>st_1013>st_1014",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 29,
+      "bOffM": 2,
+      "cOffM": 0,
+      "cutM": 81,
+      "status": "ok",
+      "oursHash": "66d42a91"
+    },
+    {
+      "key": "st_1013>st_1014>st_1015",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 35,
+      "bOffM": 0,
+      "cOffM": 3,
+      "cutM": 81,
+      "status": "ok",
+      "oursHash": "fb7cf74e"
+    },
+    {
+      "key": "st_1015>st_1014>st_1013",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 51,
+      "bOffM": 0,
+      "cOffM": 1,
+      "cutM": 81,
+      "status": "ok",
+      "oursHash": "e2611b4e"
+    },
+    {
+      "key": "st_1014>st_1013>st_1012",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 16,
+      "bOffM": 3,
+      "cOffM": 1,
+      "cutM": 81,
+      "status": "ok",
+      "oursHash": "143f8491"
+    },
+    {
+      "key": "st_1013>st_1012>st_1011",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 1,
+      "bOffM": 0,
+      "cOffM": 2,
+      "cutM": 3,
+      "status": "ok",
+      "oursHash": "39ab4be"
+    },
+    {
+      "key": "st_1012>st_1011>st_1010",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 50,
+      "bOffM": 2,
+      "cOffM": 5,
+      "cutM": 50,
+      "status": "ok",
+      "oursHash": "2494f782"
+    },
+    {
+      "key": "st_1011>st_1010>st_1009",
+      "expected": 2,
+      "routes": [
+        "1"
+      ],
+      "googleLines": [
+        "1"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 56,
+      "bOffM": 5,
+      "cOffM": 1,
+      "cutM": 56,
+      "status": "ok",
+      "oursHash": "b48460e7"
+    },
+    {
+      "key": "st_1010>st_1009>st_1008",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 27,
+      "bOffM": 2,
+      "cOffM": 1,
+      "cutM": 27,
+      "status": "ok",
+      "oursHash": "7c4c51cb"
+    },
+    {
+      "key": "st_1009>st_1008>st_1007",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 15,
+      "bOffM": 0,
+      "cOffM": 6,
+      "cutM": 15,
+      "status": "ok",
+      "oursHash": "d27c4f02"
+    },
+    {
+      "key": "st_1008>st_1007>st_1006",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 29,
+      "bOffM": 6,
+      "cOffM": 8,
+      "cutM": 29,
+      "status": "ok",
+      "oursHash": "2457ba7f"
+    },
+    {
+      "key": "st_1007>st_1006>st_1005",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5"
+      ],
+      "googleLines": [
+        "1",
+        "5",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 21,
+      "bOffM": 8,
+      "cOffM": 7,
+      "cutM": 21,
+      "status": "ok",
+      "oursHash": "4579c89e"
+    },
+    {
+      "key": "st_1006>st_1005>st_1004",
+      "expected": 2,
+      "routes": [
+        "1",
+        "7",
+        "7 (7-franka-0)"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "f347d702"
+    },
+    {
+      "key": "st_1005>st_1004>st_1003",
+      "expected": 2,
+      "routes": [
+        "1",
+        "7",
+        "7 (7-franka-0)"
+      ],
+      "googleLines": [
+        "1",
+        "5",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 51,
+      "bOffM": 275,
+      "cOffM": 40,
+      "cutM": 275,
+      "status": "stop-count",
+      "oursHash": "7a2b8333"
+    },
+    {
+      "key": "st_1004>st_1003>st_1002",
+      "expected": 2,
+      "routes": [
+        "1",
+        "7"
+      ],
+      "googleLines": [
+        "1",
+        "2Б",
+        "5",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 3,
+      "aOffM": 275,
+      "bOffM": 7,
+      "cOffM": 344,
+      "cutM": 378,
+      "status": "stop-count",
+      "oursHash": "b44ca65f"
+    },
+    {
+      "key": "st_1003>st_1002>st_1001",
+      "expected": 2,
+      "routes": [
+        "1",
+        "5",
+        "7"
+      ],
+      "googleLines": [
+        "1",
+        "2",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 7,
+      "bOffM": 4,
+      "cOffM": 12,
+      "cutM": 165,
+      "status": "cut",
+      "oursHash": "f06d539e"
+    },
+    {
+      "key": "st_1001>st_1002>st_1016",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б",
+        "3"
+      ],
+      "googleLines": [
+        "3",
+        "6",
+        "7",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 11,
+      "bOffM": 4,
+      "cOffM": 8,
+      "cutM": 217,
+      "status": "cut",
+      "oursHash": "d0df69d3"
+    },
+    {
+      "key": "st_1002>st_1016>st_1079",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б",
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 4,
+      "bOffM": 8,
+      "cOffM": 3,
+      "cutM": 217,
+      "status": "cut",
+      "oursHash": "138b12fd"
+    },
+    {
+      "key": "st_1016>st_1079>st_1080",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 131,
+      "bOffM": 3,
+      "cOffM": 4,
+      "cutM": 131,
+      "status": "off-route",
+      "oursHash": "421c307e"
+    },
+    {
+      "key": "st_1079>st_1080>st_1081",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 7,
+      "bOffM": 5,
+      "cOffM": 3,
+      "cutM": 8,
+      "status": "ok",
+      "oursHash": "34d6716"
+    },
+    {
+      "key": "st_1080>st_1081>st_1082",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 5,
+      "bOffM": 2,
+      "cOffM": 30,
+      "cutM": 30,
+      "status": "ok",
+      "oursHash": "8be4c7dc"
+    },
+    {
+      "key": "st_1081>st_1082>st_1083",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "f5827211"
+    },
+    {
+      "key": "st_1082>st_1083>st_1084",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 3,
+      "bOffM": 496,
+      "cOffM": 1,
+      "cutM": 496,
+      "status": "off-route",
+      "oursHash": "a493dbf8"
+    },
+    {
+      "key": "st_1083>st_1084>st_1088",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 5,
+      "aOffM": 0,
+      "bOffM": 1,
+      "cOffM": 128,
+      "cutM": 128,
+      "status": "stop-count",
+      "oursHash": "a5eed962"
+    },
+    {
+      "key": "st_1084>st_1088>st_1085",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 31,
+      "bOffM": 63,
+      "cOffM": 3,
+      "cutM": 69,
+      "status": "ok",
+      "oursHash": "4f3c60cb"
+    },
+    {
+      "key": "st_1088>st_1085>st_1086",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 63,
+      "bOffM": 3,
+      "cOffM": 1,
+      "cutM": 69,
+      "status": "ok",
+      "oursHash": "a99cf9ef"
+    },
+    {
+      "key": "st_1085>st_1086>st_1087",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-1)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 32,
+      "bOffM": 1,
+      "cOffM": 3,
+      "cutM": 69,
+      "status": "ok",
+      "oursHash": "ce603474"
+    },
+    {
+      "key": "st_1087>st_1086>st_1085",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 3,
+      "bOffM": 0,
+      "cOffM": 2,
+      "cutM": 68,
+      "status": "ok",
+      "oursHash": "5649c174"
+    },
+    {
+      "key": "st_1086>st_1085>st_1088",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 97,
+      "bOffM": 3,
+      "cOffM": 63,
+      "cutM": 97,
+      "status": "off-route",
+      "oursHash": "4e0ecbef"
+    },
+    {
+      "key": "st_1085>st_1088>st_1084",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 39,
+      "bOffM": 63,
+      "cOffM": 1,
+      "cutM": 69,
+      "status": "ok",
+      "oursHash": "c5f7fecb"
+    },
+    {
+      "key": "st_1088>st_1084>st_1083",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 5,
+      "aOffM": 126,
+      "bOffM": 1,
+      "cOffM": 1,
+      "cutM": 126,
+      "status": "stop-count",
+      "oursHash": "cc469a62"
+    },
+    {
+      "key": "st_1084>st_1083>st_1082",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 48,
+      "bOffM": 546,
+      "cOffM": 25,
+      "cutM": 546,
+      "status": "off-route",
+      "oursHash": "8fbdabf8"
+    },
+    {
+      "key": "st_1083>st_1082>st_1081",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "b750a611"
+    },
+    {
+      "key": "st_1082>st_1081>st_1080",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 3,
+      "bOffM": 2,
+      "cOffM": 9,
+      "cutM": 18,
+      "status": "ok",
+      "oursHash": "85ec8fdc"
+    },
+    {
+      "key": "st_1081>st_1080>st_1079",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 5,
+      "bOffM": 5,
+      "cOffM": 3,
+      "cutM": 8,
+      "status": "ok",
+      "oursHash": "157a6216"
+    },
+    {
+      "key": "st_1080>st_1079>st_1016",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 5,
+      "bOffM": 2,
+      "cOffM": 122,
+      "cutM": 122,
+      "status": "off-route",
+      "oursHash": "e6a3637e"
+    },
+    {
+      "key": "st_1079>st_1016>st_1104",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б"
+      ],
+      "googleLines": [
+        "2",
+        "2Б"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 13,
+      "bOffM": 8,
+      "cOffM": 7,
+      "cutM": 58,
+      "status": "ok",
+      "oursHash": "5cc61395"
+    },
+    {
+      "key": "st_1016>st_1104>st_1002",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б",
+        "3"
+      ],
+      "googleLines": [
+        "2Б",
+        "3",
+        "4",
+        "6",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 8,
+      "bOffM": 39,
+      "cOffM": 4,
+      "cutM": 40,
+      "status": "ok",
+      "oursHash": "37558b32"
+    },
+    {
+      "key": "st_1104>st_1002>st_1001",
+      "expected": 2,
+      "routes": [
+        "2",
+        "2 (2-shukhevycha-0)",
+        "2-Б",
+        "3"
+      ],
+      "googleLines": [
+        "2",
+        "2Б",
+        "3",
+        "6",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 7,
+      "bOffM": 4,
+      "cOffM": 12,
+      "cutM": 140,
+      "status": "ok",
+      "oursHash": "134fd831"
+    },
+    {
+      "key": "st_1002>st_1001>st_1064",
+      "expected": 2,
+      "routes": [
+        "2 (2-shukhevycha-0)",
+        "2-Б",
+        "8",
+        "8 (8-sady-0)",
+        "8 (8-utos-0)"
+      ],
+      "googleLines": [
+        "2",
+        "2Б",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 10,
+      "bOffM": 10,
+      "cOffM": 2,
+      "cutM": 140,
+      "status": "ok",
+      "oursHash": "1719cb4f"
+    },
+    {
+      "key": "st_1001>st_1064>st_1073",
+      "expected": 2,
+      "routes": [
+        "2 (2-shukhevycha-0)",
+        "2-Б",
+        "8",
+        "8 (8-sady-0)",
+        "8 (8-utos-0)"
+      ],
+      "googleLines": [
+        "2Б",
+        "7",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 11,
+      "bOffM": 2,
+      "cOffM": 5,
+      "cutM": 28,
+      "status": "ok",
+      "oursHash": "79950dd1"
+    },
+    {
+      "key": "st_1064>st_1073>st_1069",
+      "expected": 2,
+      "routes": [
+        "2 (2-shukhevycha-0)",
+        "2-Б",
+        "8",
+        "8 (8-sady-0)",
+        "8 (8-utos-0)"
+      ],
+      "googleLines": [
+        "2Б",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 36,
+      "bOffM": 5,
+      "cOffM": 1,
+      "cutM": 86,
+      "status": "ok",
+      "oursHash": "27f00977"
+    },
+    {
+      "key": "st_1069>st_1073>st_1064",
+      "expected": 2,
+      "routes": [
+        "2 (2-shukhevycha-1)",
+        "2-Б",
+        "8",
+        "8 (8-sady-1)",
+        "8 (8-utos-1)"
+      ],
+      "googleLines": [
+        "2Б",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 1,
+      "bOffM": 5,
+      "cOffM": 3,
+      "cutM": 86,
+      "status": "ok",
+      "oursHash": "c21e0677"
+    },
+    {
+      "key": "st_1073>st_1064>st_1001",
+      "expected": 2,
+      "routes": [
+        "2 (2-shukhevycha-1)",
+        "2-Б",
+        "8",
+        "8 (8-sady-1)",
+        "8 (8-utos-1)"
+      ],
+      "googleLines": [
+        "2Б",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 5,
+      "bOffM": 2,
+      "cOffM": 12,
+      "cutM": 73,
+      "status": "ok",
+      "oursHash": "aea5aad1"
+    },
+    {
+      "key": "st_1064>st_1001>st_1002",
+      "expected": 2,
+      "routes": [
+        "2 (2-shukhevycha-1)",
+        "2-Б",
+        "8",
+        "8 (8-sady-1)",
+        "8 (8-utos-1)"
+      ],
+      "googleLines": [
+        "2Б",
+        "6",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 55,
+      "bOffM": 10,
+      "cOffM": 10,
+      "cutM": 140,
+      "status": "ok",
+      "oursHash": "2f52f94f"
+    },
+    {
+      "key": "st_1002>st_1016>st_1017",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "2",
+        "2Б",
+        "3",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 4,
+      "bOffM": 8,
+      "cOffM": 0,
+      "cutM": 217,
+      "status": "cut",
+      "oursHash": "799044db"
+    },
+    {
+      "key": "st_1016>st_1017>st_1018",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 131,
+      "bOffM": 8,
+      "cOffM": 42,
+      "cutM": 131,
+      "status": "off-route",
+      "oursHash": "e612ccd9"
+    },
+    {
+      "key": "st_1017>st_1018>st_1019",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 0,
+      "bOffM": 42,
+      "cOffM": 244,
+      "cutM": 244,
+      "status": "stop-count",
+      "oursHash": "e5f70807"
+    },
+    {
+      "key": "st_1018>st_1019>st_1020",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 8,
+      "bOffM": 42,
+      "cOffM": 73,
+      "cutM": 73,
+      "status": "stop-count",
+      "oursHash": "59cce795"
+    },
+    {
+      "key": "st_1019>st_1020>st_1021",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 227,
+      "bOffM": 77,
+      "cOffM": 135,
+      "cutM": 227,
+      "status": "off-route",
+      "oursHash": "86b359b2"
+    },
+    {
+      "key": "st_1020>st_1021>st_1022",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 4,
+      "aOffM": 77,
+      "bOffM": 135,
+      "cOffM": 4,
+      "cutM": 135,
+      "status": "stop-count",
+      "oursHash": "6cb4c1c9"
+    },
+    {
+      "key": "st_1021>st_1022>st_1023",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 139,
+      "bOffM": 4,
+      "cOffM": 6,
+      "cutM": 139,
+      "status": "off-route",
+      "oursHash": "50221992"
+    },
+    {
+      "key": "st_1022>st_1023>st_1024",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 23,
+      "bOffM": 33,
+      "cOffM": 0,
+      "cutM": 33,
+      "status": "stop-count",
+      "oursHash": "b4d2ed4f"
+    },
+    {
+      "key": "st_1023>st_1024>st_1025",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 33,
+      "bOffM": 5,
+      "cOffM": 7,
+      "cutM": 33,
+      "status": "ok",
+      "oursHash": "44559c0d"
+    },
+    {
+      "key": "st_1024>st_1025>st_1026",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 7,
+      "cOffM": 6,
+      "cutM": 18,
+      "status": "ok",
+      "oursHash": "26e8714c"
+    },
+    {
+      "key": "st_1025>st_1026>st_1027",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 9,
+      "bOffM": 7,
+      "cOffM": 6,
+      "cutM": 9,
+      "status": "ok",
+      "oursHash": "509e0b53"
+    },
+    {
+      "key": "st_1026>st_1027>st_1028",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 46,
+      "bOffM": 6,
+      "cOffM": 0,
+      "cutM": 46,
+      "status": "ok",
+      "oursHash": "14aaee78"
+    },
+    {
+      "key": "st_1027>st_1028>st_1029",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 9,
+      "bOffM": 6,
+      "cOffM": 25,
+      "cutM": 36,
+      "status": "ok",
+      "oursHash": "ab6c01e4"
+    },
+    {
+      "key": "st_1028>st_1029>st_1030",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 7,
+      "cOffM": 0,
+      "cutM": 36,
+      "status": "ok",
+      "oursHash": "c6356e2c"
+    },
+    {
+      "key": "st_1029>st_1030>st_1031",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 7,
+      "bOffM": 5,
+      "cOffM": 18,
+      "cutM": 18,
+      "status": "ok",
+      "oursHash": "7cb9de5f"
+    },
+    {
+      "key": "st_1030>st_1031>st_1032",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "dd2f503c"
+    },
+    {
+      "key": "st_1031>st_1032>st_1033",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 10,
+      "bOffM": 254,
+      "cOffM": 0,
+      "cutM": 254,
+      "status": "stop-count",
+      "oursHash": "f6e461ee"
+    },
+    {
+      "key": "st_1032>st_1033>st_1034",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 3,
+      "aOffM": 41,
+      "bOffM": 2,
+      "cOffM": 0,
+      "cutM": 145,
+      "status": "stop-count",
+      "oursHash": "bd9ac6f9"
+    },
+    {
+      "key": "st_1033>st_1034>st_1035",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 5,
+      "cOffM": 1968,
+      "cutM": 1968,
+      "status": "off-route",
+      "oursHash": "c8dccfe2"
+    },
+    {
+      "key": "st_1034>st_1035>st_1036",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 0,
+      "bOffM": 1968,
+      "cOffM": 1045,
+      "cutM": 1968,
+      "status": "stop-count",
+      "oursHash": "7feecdeb"
+    },
+    {
+      "key": "st_1036>st_1035>st_1032",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 1459,
+      "bOffM": 2394,
+      "cOffM": 0,
+      "cutM": 2394,
+      "status": "off-route",
+      "oursHash": "bc6f9a6b"
+    },
+    {
+      "key": "st_1035>st_1032>st_1031",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "d463c81e"
+    },
+    {
+      "key": "st_1032>st_1031>st_1030",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "eddd3c"
+    },
+    {
+      "key": "st_1031>st_1030>st_1029",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 4,
+      "cOffM": 0,
+      "cutM": 7,
+      "status": "ok",
+      "oursHash": "78b5585f"
+    },
+    {
+      "key": "st_1030>st_1029>st_1028",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 41,
+      "bOffM": 7,
+      "cOffM": 7,
+      "cutM": 41,
+      "status": "ok",
+      "oursHash": "dacab72c"
+    },
+    {
+      "key": "st_1029>st_1028>st_1027",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 6,
+      "cOffM": 1,
+      "cutM": 36,
+      "status": "ok",
+      "oursHash": "d8b635e4"
+    },
+    {
+      "key": "st_1028>st_1027>st_1026",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 7,
+      "bOffM": 7,
+      "cOffM": 0,
+      "cutM": 7,
+      "status": "ok",
+      "oursHash": "3686b578"
+    },
+    {
+      "key": "st_1027>st_1026>st_1025",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 1,
+      "bOffM": 7,
+      "cOffM": 0,
+      "cutM": 8,
+      "status": "ok",
+      "oursHash": "af709553"
+    },
+    {
+      "key": "st_1026>st_1025>st_1024",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 7,
+      "cOffM": 27,
+      "cutM": 27,
+      "status": "ok",
+      "oursHash": "7ab43c4c"
+    },
+    {
+      "key": "st_1025>st_1024>st_1023",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 5,
+      "cOffM": 0,
+      "cutM": 18,
+      "status": "ok",
+      "oursHash": "aef0450d"
+    },
+    {
+      "key": "st_1024>st_1023>st_1022",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 5,
+      "bOffM": 0,
+      "cOffM": 4,
+      "cutM": 5,
+      "status": "stop-count",
+      "oursHash": "47285a4f"
+    },
+    {
+      "key": "st_1023>st_1022>st_1021",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 10,
+      "cOffM": 131,
+      "cutM": 131,
+      "status": "off-route",
+      "oursHash": "ee5ffa92"
+    },
+    {
+      "key": "st_1022>st_1021>st_1020",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 4,
+      "aOffM": 10,
+      "bOffM": 134,
+      "cOffM": 68,
+      "cutM": 134,
+      "status": "stop-count",
+      "oursHash": "7419b1c9"
+    },
+    {
+      "key": "st_1021>st_1020>st_1019",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 131,
+      "bOffM": 68,
+      "cOffM": 192,
+      "cutM": 192,
+      "status": "off-route",
+      "oursHash": "be56e8b2"
+    },
+    {
+      "key": "st_1020>st_1019>st_1018",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 68,
+      "bOffM": 42,
+      "cOffM": 0,
+      "cutM": 68,
+      "status": "stop-count",
+      "oursHash": "411aac95"
+    },
+    {
+      "key": "st_1019>st_1018>st_1017",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 201,
+      "bOffM": 0,
+      "cOffM": 8,
+      "cutM": 201,
+      "status": "stop-count",
+      "oursHash": "cfa29b07"
+    },
+    {
+      "key": "st_1018>st_1017>st_1016",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 0,
+      "bOffM": 8,
+      "cOffM": 122,
+      "cutM": 122,
+      "status": "off-route",
+      "oursHash": "fa46e0d9"
+    },
+    {
+      "key": "st_1017>st_1016>st_1104",
+      "expected": 2,
+      "routes": [
+        "3"
+      ],
+      "googleLines": [
+        "2",
+        "2Б",
+        "3"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 55,
+      "bOffM": 8,
+      "cOffM": 7,
+      "cutM": 110,
+      "status": "ok",
+      "oursHash": "38ae3b73"
+    },
+    {
+      "key": "st_1001>st_1002>st_1037",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)",
+        "6",
+        "6 (6-pivdenna)",
+        "8",
+        "8 (8-sady-1)",
+        "8 (8-utos-1)"
+      ],
+      "googleLines": [
+        "2Б",
+        "4",
+        "6",
+        "7",
+        "8"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 33,
+      "bOffM": 4,
+      "cOffM": 2,
+      "cutM": 140,
+      "status": "ok",
+      "oursHash": "cd81f2b3"
+    },
+    {
+      "key": "st_1002>st_1037>st_1038",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)",
+        "6",
+        "6 (6-pivdenna)"
+      ],
+      "googleLines": [
+        "4",
+        "6",
+        "7"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 4,
+      "bOffM": 2,
+      "cOffM": 1,
+      "cutM": 44,
+      "status": "ok",
+      "oursHash": "c235b611"
+    },
+    {
+      "key": "st_1037>st_1038>st_1039",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)"
+      ],
+      "googleLines": [
+        "4"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 14,
+      "bOffM": 1,
+      "cOffM": 3,
+      "cutM": 152,
+      "status": "cut",
+      "oursHash": "1d12106c"
+    },
+    {
+      "key": "st_1038>st_1039>st_1040",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)"
+      ],
+      "googleLines": [
+        "4"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 44,
+      "bOffM": 4,
+      "cOffM": 7,
+      "cutM": 152,
+      "status": "cut",
+      "oursHash": "1c906f71"
+    },
+    {
+      "key": "st_1039>st_1040>st_1041",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "b014d4af"
+    },
+    {
+      "key": "st_1040>st_1041>st_1042",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "ec7de2f3"
+    },
+    {
+      "key": "st_1041>st_1042>st_1043",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)",
+        "4 (4-hrozyne-kyivska-1)"
+      ],
+      "googleLines": [
+        "4"
+      ],
+      "ourLine": true,
+      "stopCount": 2,
+      "aOffM": 3,
+      "bOffM": 246,
+      "cOffM": 122,
+      "cutM": 268,
+      "status": "off-route",
+      "oursHash": "57a51fce"
+    },
+    {
+      "key": "st_1042>st_1043>st_1044",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-1)"
+      ],
+      "googleLines": [],
+      "ourLine": false,
+      "stopCount": null,
+      "aOffM": null,
+      "bOffM": null,
+      "cOffM": null,
+      "cutM": null,
+      "status": "no-transit",
+      "oursHash": "beeca79f"
+    },
+    {
+      "key": "st_1044>st_1041>st_1040",
+      "expected": 2,
+      "routes": [
+        "4",
+        "4 (4-hrozyne-0)"
+      ],
+      "googleLines": [
+        "4"
+      ],
+      "ourLine": true,
+      "stopCount": 1,
+      "aOffM": 54,
+      "bOffM": 324,
+      "cOffM": 18,
+      "cutM": 324,
+      "status": "stop-count",
+      "oursHash": "67cf6cfa"
+    }
+  ]
+}

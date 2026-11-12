@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CONFIG_FILE = exports.LOCAL_REPORT_FILE = exports.LOCAL_DATASET_FILE = exports.GOOGLE_COORDS_FILE = exports.GOOGLE_CHECK_FILE = exports.OSM_STREETS_FILE = exports.OSM_SNAPSHOT_FILE = exports.REPORT_FILE = exports.DATASET_FILE = void 0;
+exports.CONFIG_FILE = exports.LOCAL_REPORT_FILE = exports.LOCAL_DATASET_FILE = exports.GOOGLE_HOPS_LOCAL_FILE = exports.GOOGLE_HOPS_FILE = exports.GOOGLE_COORDS_FILE = exports.GOOGLE_CHECK_FILE = exports.OSM_STREETS_FILE = exports.OSM_SNAPSHOT_FILE = exports.REPORT_FILE = exports.DATASET_FILE = void 0;
 exports.parseRoutesCsv = parseRoutesCsv;
 exports.loadKorostenDatasetInput = loadKorostenDatasetInput;
 exports.buildKorostenDatasetFiles = buildKorostenDatasetFiles;
@@ -24,6 +24,9 @@ exports.OSM_STREETS_FILE = 'osm/streets.json';
 exports.GOOGLE_CHECK_FILE = 'google/check.json';
 /** Координати Google — лише локально (.gitignore): тимчасова заміна приблизних точок, у git не потрапляють */
 exports.GOOGLE_COORDS_FILE = 'google/coords.local.json';
+/** Висновки перевірки прогонів через Google (у git) і повні відповіді Google (лише локально) */
+exports.GOOGLE_HOPS_FILE = 'google/hops.json';
+exports.GOOGLE_HOPS_LOCAL_FILE = 'google/hops.local.json';
 exports.LOCAL_DATASET_FILE = 'dataset/korosten-dataset.local.json';
 exports.LOCAL_REPORT_FILE = 'dataset/REPORT.local.md';
 exports.CONFIG_FILE = 'dataset-config.json';
@@ -53,6 +56,7 @@ function loadKorostenDatasetInput(root, opts = {}) {
         google: readJson(node_path_1.default.join(root, exports.GOOGLE_CHECK_FILE)),
         // закомічена чернетка Google-координат не бере ніколи — лише локальна версія на прохання власника
         googleCoords: opts.withGoogleCoords ? readJson(node_path_1.default.join(root, exports.GOOGLE_COORDS_FILE)) : null,
+        googleHops: readJson(node_path_1.default.join(root, exports.GOOGLE_HOPS_FILE)),
     };
 }
 function buildKorostenDatasetFiles(root, opts = {}) {
