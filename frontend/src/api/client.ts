@@ -1,6 +1,7 @@
 import { API_URL } from '@/utils/constants';
 import { telegramLoginHeaders } from '@/utils/telegramLogin';
 import { configureRouteNames } from '@/utils/routeNames';
+import { purgeStaleAdminTokens, readAdminToken, writeAdminToken } from '@/utils/adminTokenStorage';
 import { configureRouteColors } from '@/pages/LocalTransportPage/routeColors';
 import { DEFAULT_TRANSPORT_CITY, cityField, cityQuery } from '@/site/transportCity';
 import type {
@@ -69,20 +70,18 @@ class ApiClient {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    // Завантажуємо токен з localStorage при ініціалізації
+    // Завантажуємо токен з localStorage при ініціалізації; токени під старими назвами ключа
+    // стираються — так усі браузери виходять з адмінки без зміни пароля (utils/adminTokenStorage.ts)
     if (typeof window !== 'undefined') {
-      this.authToken = localStorage.getItem('adminToken');
+      purgeStaleAdminTokens();
+      this.authToken = readAdminToken();
     }
   }
 
   setAuthToken(token: string | null) {
     this.authToken = token;
     if (typeof window !== 'undefined') {
-      if (token) {
-        localStorage.setItem('adminToken', token);
-      } else {
-        localStorage.removeItem('adminToken');
-      }
+      writeAdminToken(token);
     }
   }
 

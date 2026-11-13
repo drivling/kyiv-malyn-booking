@@ -99,6 +99,10 @@ of `dist` in a commit.
   so changing the password means updating them too (`RAILWAY_CRON_REMINDERS.md`, step 2). The old cron-job.org
   jobs are gone — see "In-process scheduled jobs" below. Backend tests take
   the header from `adminAuthToken(<test password>)` — never hardcode a token.
+  The server cannot revoke one device's session (every device holds the same token). To log every browser out
+  without changing the password or the token, rename `ADMIN_TOKEN_STORAGE_KEY` in
+  `frontend/src/utils/adminTokenStorage.ts`: the next page load wipes tokens stored under older names
+  (`purgeStaleAdminTokens`). A copied token stays valid; only a password change revokes it.
 - Large standalone domain modules at `src/` top level, each usually paired with its own `*.test.ts`:
   `telegram.ts` (very large — bot commands, notifications, DI hooks), `referral.ts`, `viber-parser.ts`,
   `lunch.ts` / `lunch-listener.ts` / `lunch-reparse.ts` / `lunch-telegram.ts`, `local-transport.ts`,

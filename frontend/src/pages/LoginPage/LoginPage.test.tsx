@@ -5,6 +5,7 @@ import { renderWithProviders, screen, waitFor } from '@/test/utils';
 import { LoginPage } from '@/pages/LoginPage/LoginPage';
 import { apiClient } from '@/api/client';
 import { userState } from '@/utils/userState';
+import { ADMIN_TOKEN_STORAGE_KEY } from '@/utils/adminTokenStorage';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 
@@ -28,7 +29,7 @@ describe('LoginPage admin auth', () => {
       expect(apiClient.getAuthToken()).toBe('admin-authenticated');
     });
     expect(userState.isAdmin()).toBe(true);
-    expect(localStorage.getItem('adminToken')).toBe('admin-authenticated');
+    expect(localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)).toBe('admin-authenticated');
     expect(replace).toHaveBeenCalledWith('/admin');
 
     Object.defineProperty(window, 'location', { configurable: true, value: loc });

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { apiClient } from '@/api/client';
+import { ADMIN_TOKEN_STORAGE_KEY } from '@/utils/adminTokenStorage';
 import { server } from '@/test/msw/server';
 import { http, HttpResponse } from 'msw';
 import { TEST_API_URL } from '@/test/msw/handlers';
@@ -34,8 +35,8 @@ describe('apiClient admin auth', () => {
 
   it('setAuthToken mirrors localStorage adminToken', () => {
     apiClient.setAuthToken('admin-authenticated');
-    expect(localStorage.getItem('adminToken')).toBe('admin-authenticated');
+    expect(localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)).toBe('admin-authenticated');
     apiClient.setAuthToken(null);
-    expect(localStorage.getItem('adminToken')).toBeNull();
+    expect(localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)).toBeNull();
   });
 });
