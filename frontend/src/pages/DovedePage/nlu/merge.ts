@@ -3,7 +3,7 @@
  * (POST /admin/dovede/understand). Місцевий упевнений → відповідаємо одразу, Claude лише перевіряє; інакше
  * чекаємо Claude. Сервер уже відкинув id, яких немає в словнику; тут — ще одна перевірка тим самим словником.
  */
-import { placeById } from './gazetteer';
+import { resolvePlace } from './places';
 import type { LocalParse, TripIntent } from './types';
 
 /** Чи два розбори ведуть до тієї самої відповіді (те саме правило, що `intentsAgree` на сервері) */
@@ -31,8 +31,8 @@ export function localIsSure(parse: LocalParse): boolean {
 /** Розбір Claude придатний, якщо всі його місця є в нашому словнику (інакше це не наш контракт) */
 export function usableAiIntent(ai: TripIntent | null | undefined): ai is TripIntent {
   if (!ai || typeof ai !== 'object' || !ai.when) return false;
-  if (ai.from && !placeById(ai.from.id)) return false;
-  if (ai.to && !placeById(ai.to.id)) return false;
+  if (ai.from && !resolvePlace(ai.from.id)) return false;
+  if (ai.to && !resolvePlace(ai.to.id)) return false;
   return Array.isArray(ai.modes) && Array.isArray(ai.unknown);
 }
 

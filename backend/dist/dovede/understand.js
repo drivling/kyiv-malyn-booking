@@ -17,6 +17,7 @@ exports.understandFromEnv = understandFromEnv;
 const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const intent_1 = require("./intent");
 const prompt_1 = require("./prompt");
+const stopPlaces_1 = require("./stopPlaces");
 exports.DEFAULT_DOVEDE_MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 const MAX_TOKENS = 4000;
@@ -45,8 +46,16 @@ function usageOf(u) {
 function createUnderstand(deps) {
     const model = dovedeModelName(deps.model);
     const clock = deps.clock ?? Date.now;
-    const system = (0, prompt_1.buildSystemPrompt)();
-    return async (text, now) => {
+    // Промпт будується один раз на список зупинок: той самий масив — той самий рядок, кеш Claude не збивається
+    let built = null;
+    const promptFor = (stops) => {
+        if (!built || built.stops !== stops) {
+            built = { stops, system: (0, prompt_1.buildSystemPrompt)(stops ?? []), stopIds: new Set((0, stopPlaces_1.buildStopPlaces)(stops ?? []).map((e) => e.place.id)) };
+        }
+        return built;
+    };
+    return async (text, now, stops) => {
+        const { system, stopIds } = promptFor(stops);
         const started = clock();
         const base = { model, promptVersion: prompt_1.PROMPT_VERSION };
         const fail = (failure, message, usage) => ({
@@ -78,7 +87,7 @@ function createUnderstand(deps) {
             const raw = block && block.type === 'text' ? block.text : '';
             let intent;
             try {
-                intent = (0, intent_1.validateIntent)(JSON.parse(raw));
+                intent = (0, intent_1.validateIntent)(JSON.parse(raw), stopIds);
             }
             catch (e) {
                 const why = e instanceof intent_1.IntentShapeError ? e.message : 'відповідь — не JSON';

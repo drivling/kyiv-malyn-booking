@@ -1,5 +1,6 @@
 import { addDays } from '../nlu/parseLocal';
-import { placeById, placeLabel } from '../nlu/gazetteer';
+import { placeLabel } from '../nlu/gazetteer';
+import { resolvePlace } from '../nlu/places';
 import type { KyivNow, PlaceRef, TripIntent } from '../nlu/types';
 
 const DOW = ['неділю', 'понеділок', 'вівторок', 'середу', 'четвер', 'пʼятницю', 'суботу'];
@@ -44,6 +45,6 @@ export function modeLabel(modes: TripIntent['modes']): { text: string; guessed: 
 
 export function placeRefLabel(ref: PlaceRef | null): string | null {
   if (!ref) return null;
-  const p = placeById(ref.id);
+  const p = resolvePlace(ref.id);
   return p ? placeLabel(p) : ref.text;
 }

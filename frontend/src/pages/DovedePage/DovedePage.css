@@ -31,7 +31,7 @@
   margin: 0 auto;
   padding: 12px 16px 56px;
   font-family: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.5;
   color: var(--dv-ink);
 }
@@ -109,19 +109,95 @@
   border-color: var(--dv-accent);
   box-shadow: 0 0 0 4px var(--dv-accent-soft), var(--dv-shadow);
 }
-.dv-field textarea {
+/* Поле й шар підсвічування під ним: однакові шрифт, відступи й перенос — слова лягають одне на одне */
+.dv-input {
+  position: relative;
   flex: 1;
   min-width: 0;
-  resize: none;
+  display: grid;
+}
+.dv-input textarea,
+.dv-mirror {
+  grid-area: 1 / 1;
+  margin: 0;
   border: 0;
-  outline: none;
-  background: transparent;
   font-size: 19px;
   line-height: 1.45;
   padding: 8px 10px;
   min-height: 56px;
   max-height: 40vh;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  box-sizing: border-box;
+  letter-spacing: normal;
+}
+.dv-input textarea {
+  position: relative;
+  resize: none;
+  outline: none;
+  background: transparent;
   overflow-y: auto;
+  width: 100%;
+}
+.dv-mirror {
+  color: transparent;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.dv-hl {
+  color: transparent;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px transparent;
+}
+.dv-hl--from {
+  background: var(--dv-from-soft);
+}
+.dv-hl--to {
+  background: var(--dv-to-soft);
+}
+.dv-hl--when {
+  background: var(--dv-when-soft);
+}
+.dv-hl--mode {
+  background: var(--dv-mode-soft);
+}
+.dv-hl--unknown {
+  background: var(--dv-bad-soft);
+}
+
+.dv-suggest-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dv-suggest-list:empty {
+  display: none;
+}
+.dv-suggest-item {
+  min-height: 44px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--dv-line);
+  background: var(--dv-surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dv-suggest-item.is-active {
+  border-color: var(--dv-accent);
+  background: var(--dv-accent-soft);
+}
+.dv-suggest-hint {
+  font-size: 13px;
+  color: var(--dv-muted);
+}
+@media (hover: none) {
+  .dv-suggest-hint {
+    display: none;
+  }
 }
 .dv-field textarea::placeholder {
   color: var(--dv-muted);
@@ -156,6 +232,8 @@
   align-items: center;
   min-height: 32px;
   padding: 3px 12px;
+  line-height: 1.3;
+  text-align: left;
   border-radius: 999px;
   border: 1.5px solid transparent;
   font-weight: 600;
@@ -212,7 +290,7 @@
   gap: 8px;
 }
 .dv-chip {
-  min-height: 44px;
+  min-height: 48px;
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid var(--dv-line);
@@ -493,7 +571,7 @@
   padding-top: 14px;
 }
 .dv-btn {
-  min-height: 44px;
+  min-height: 48px;
   padding: 8px 16px;
   border-radius: 12px;
   border: 1.5px solid var(--dv-line);
@@ -644,4 +722,165 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+}
+
+/* Слот рядка «Розумію…» як кнопка: ціль для пальця 44 px, хоч сама «пігулка» нижча */
+button.dv-slot {
+  min-height: 44px;
+  cursor: pointer;
+}
+button.dv-slot:hover {
+  border-color: currentColor;
+}
+button.dv-slot::after {
+  content: '▾';
+  margin-left: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Правка слота: панель знизу на телефоні, вікно по центру на широкому екрані */
+.dv-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(5, 71, 82, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.dv-sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--dv-surface);
+  color: var(--dv-ink);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 32px rgba(5, 71, 82, 0.25);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.dv-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 8px;
+}
+.dv-sheet__head h2 {
+  margin: 0;
+  font-size: 21px;
+}
+.dv-sheet__close {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--dv-surface-2);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.dv-sheet__body {
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: grid;
+  gap: 14px;
+}
+.dv-sheet__body h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dv-muted);
+  font-weight: 600;
+}
+.dv-sheet__list {
+  display: grid;
+  gap: 8px;
+}
+.dv-sheet__opt {
+  display: grid;
+  text-align: left;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: var(--dv-r-sm);
+  border: 1.5px solid var(--dv-line);
+  background: var(--dv-surface);
+  cursor: pointer;
+}
+.dv-sheet__opt:hover {
+  border-color: var(--dv-accent);
+}
+.dv-sheet__opt.is-current {
+  border-color: var(--dv-ink);
+  background: var(--dv-surface-2);
+}
+.dv-sheet__opt-title {
+  font-weight: 600;
+}
+.dv-sheet__opt-sub {
+  font-size: 15px;
+  color: var(--dv-muted);
+}
+@media (min-width: 700px) {
+  .dv-sheet-backdrop {
+    align-items: center;
+  }
+  .dv-sheet {
+    border-radius: 20px;
+  }
+}
+
+/* Міні-смуга часу у згорнутих варіантах: одна шкала на всі, транспорт кольором, пішки пунктиром */
+.dv-alt {
+  grid-template-areas: 'text time' 'strip strip';
+  row-gap: 10px;
+}
+.dv-alt > span:first-child {
+  grid-area: text;
+}
+.dv-alt > .dv-choice__time {
+  grid-area: time;
+}
+.dv-strip {
+  grid-area: strip;
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--dv-surface-2);
+}
+.dv-strip__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: var(--dv-ink);
+}
+.dv-strip__seg--marshrutka {
+  background: var(--dv-marsh);
+}
+.dv-strip__seg--elektrichka {
+  background: var(--dv-train);
+}
+.dv-strip__seg--bus {
+  background: var(--lt-route-color, var(--dv-ink));
+}
+.dv-strip__seg--walk {
+  background: repeating-linear-gradient(to right, var(--dv-walk) 0 4px, transparent 4px 8px);
+}
+.dv-strip-scale {
+  display: flex;
+  justify-content: space-between;
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--dv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Поле має власне кільце фокуса (.dv-field:focus-within) — друге, навколо самого textarea, зайве */
+.dv-page .dv-input textarea:focus-visible {
+  outline: none;
 }

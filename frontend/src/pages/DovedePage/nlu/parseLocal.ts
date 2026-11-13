@@ -4,6 +4,8 @@
  */
 import { CITY_LABEL, findPlaceByToken, type GazetteerPlace, placeById } from './gazetteer';
 import { tokenize, type Token } from './normalize';
+import { resolvePlace } from './places';
+import { matchStopPlace, type StopPlace } from './stopPlaces';
 import type { KyivNow, LocalParse, ParseSpan, PlaceRef, TripIntent, TripMode, TripWhen } from './types';
 
 const FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
@@ -71,7 +73,8 @@ function prepBefore(toks: Token[], i: number): Token | null {
   return null;
 }
 
-export function parseLocal(text: string, now: KyivNow): LocalParse {
+/** `stops` — зупинки з розкладу міста (`buildStopPlaces`): «Поворот на Коновальця», «Чорновола 36»… */
+export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []): LocalParse {
   const toks = tokenize(text);
   const spans: ParseSpan[] = [];
   const hits: PlaceHit[] = [];
@@ -105,6 +108,20 @@ export function parseLocal(text: string, now: KyivNow): LocalParse {
     const prev = toks[i - 1];
     const next = toks[i + 1];
     const n = t.n;
+
+    // Назва зупинки з розкладу — кілька слів, тому раніше за час («до 14 ОМБ») і за прийменники («поворот на…»)
+    const stop = stops.length ? matchStopPlace(stops, toks, i) : null;
+    if (stop) {
+      const lastTok = toks[stop.end];
+      const whole: Token = { raw: text.slice(t.start, lastTok.end), n, start: t.start, end: lastTok.end };
+      const hit: PlaceHit = { place: stop.entry.place, token: whole, spanStart: t.start, role: null };
+      hits.push(hit);
+      const prep = prepBefore(toks, i);
+      if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', hit.place, hit); }
+      else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', hit.place, hit); }
+      i = stop.end;
+      continue;
+    }
 
     // Час: «18:00», «о 7», «до 9 ранку», «після 18», «о 7 вечора»
     const hourByPrep = /^\d{1,2}$/.test(n) && prev && HOUR_PREPS.has(prev.n);
@@ -177,6 +194,12 @@ export function parseLocal(text: string, now: KyivNow): LocalParse {
         hit.role = lastRole;
         continue;
       }
+      // «вокзал у Києві» без прийменника перед місцем: «у Києві» уточнює щойно назване, а не задає «куди»
+      const before = hits[hits.length - 2];
+      if (isLocative && before && before.role === null && !before.place.isCity && before.place.city === place.city) {
+        hits.pop();
+        continue;
+      }
       const prep = prepBefore(toks, i);
       if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', place, hit); continue; }
       if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', place, hit); continue; }
@@ -195,11 +218,23 @@ export function parseLocal(text: string, now: KyivNow): LocalParse {
   }
 
   // Місця без прийменника: «Київ Малин» — перше звідки, друге куди; одне — куди
-  const pending = hits.filter((h) => h.role === null);
-  pending.forEach((h, idx) => {
-    if (pending.length >= 2 && idx === 0 && !st.from) { st.from = h.place; h.role = 'from'; return; }
-    if (!st.to) { st.to = h.place; h.role = 'to'; return; }
-    if (!st.from) { st.from = h.place; h.role = 'from'; }
+  // Сусідні «місто + місце в ньому» («вокзал у Києві», «Малин вокзал») — одне місце, конкретніше
+  const pending: PlaceHit[][] = [];
+  for (const h of hits.filter((x) => x.role === null)) {
+    const last = pending[pending.length - 1];
+    const head = last?.find((x) => !x.place.isCity) ?? last?.[0];
+    if (last && head && head.place.city === h.place.city && head.place.isCity !== h.place.isCity) last.push(h);
+    else pending.push([h]);
+  }
+  pending.forEach((group, idx) => {
+    const place = (group.find((x) => !x.place.isCity) ?? group[0]).place;
+    const give = (role: 'from' | 'to') => {
+      st[role] = place;
+      group.forEach((x) => { x.role = role; });
+    };
+    if (pending.length >= 2 && idx === 0 && !st.from) { give('from'); return; }
+    if (!st.to) { give('to'); return; }
+    if (!st.from) give('from');
   });
   for (const h of hits) if (h.role) spans.push({ start: h.spanStart, end: h.token.end, kind: h.role });
   if (unknownRole === 'from' && st.from) unknownRole = null;
@@ -273,7 +308,7 @@ export function partEndMins(part: TripWhen['part']): number | null {
 
 /** «Київ · Святошин» для id зі словника */
 export function placeIdLabel(id: string): string {
-  const p = placeById(id);
+  const p = resolvePlace(id);
   if (!p) return id;
   return p.isCity ? p.label : `${CITY_LABEL[p.city]} · ${p.label}`;
 }

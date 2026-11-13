@@ -4,6 +4,7 @@
  *
  *   DOVEDE_EVAL=1 ANTHROPIC_API_KEY=… npx vitest run src/dovede/eval.test.ts
  *   DOVEDE_EVAL=1 DOVEDE_EVAL_SCOPE=all DOVEDE_MODEL=claude-haiku-5-5 …   # усі питання, інша модель
+ *   DOVEDE_EVAL_STOPS=dataset.json …                                       # із зупинками міста (GET /transport/dataset)
  *   DOVEDE_EVAL_REPORT=/tmp/dovede-eval.txt …                              # звіт ще й у файл
  *
  * Критерії фази: ≥ 90% слотів на питаннях `scope: "mvp"`, медіана < 3 с, з другого виклику кеш читається.
@@ -56,6 +57,10 @@ test.skipIf(!ENABLED)(
   'еталони через Claude: ≥ 90% слотів, медіана < 3 с, кеш читається',
   async () => {
     const understand = understandFromEnv();
+    // DOVEDE_EVAL_STOPS=<файл з відповіддю GET /transport/dataset> — прогін із зупинками міста, як на сервері
+    const stops = process.env.DOVEDE_EVAL_STOPS
+      ? (JSON.parse(fs.readFileSync(process.env.DOVEDE_EVAL_STOPS, 'utf8')) as { stops: Array<{ id: string; name: string }> }).stops.map((x) => ({ id: x.id, name: x.name }))
+      : undefined;
     assert.ok(understand, 'потрібен ANTHROPIC_API_KEY');
     const all = (JSON.parse(fs.readFileSync(GOLDEN, 'utf8')) as { cases: GoldenCase[] }).cases;
     const cases = process.env.DOVEDE_EVAL_SCOPE === 'all' ? all : all.filter((c) => c.scope === 'mvp');
@@ -66,7 +71,7 @@ test.skipIf(!ENABLED)(
     const results: UnderstandResult[] = [];
     // послідовно: перший виклик пише кеш промпту, решта мають його читати
     for (const c of cases) {
-      const r = await understand(c.text, NOW);
+      const r = await understand(c.text, NOW, stops);
       results.push(r);
       if (!r.ok) {
         const slots = gradeIntent({ intent: 'other', from: null, to: null, when: { day: '', kind: 'any' }, modes: [], unknown: [], confidence: 'low' }, c.expect).total;

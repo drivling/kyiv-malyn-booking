@@ -15,6 +15,7 @@ import { routeNo } from '@/utils/routeNames';
 import { anchorFor, type AnchorStop, type IntercityMode } from '../data/anchors';
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroHint } from '../data/kyiv';
 import { placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
+import { resolvePlace } from '../nlu/places';
 import { addDays, partEndMins, partStartMins } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
 import { intercityTrips, type IntercityTrip } from './intercity';
@@ -40,8 +41,8 @@ const CENTRE = placeById('malyn.tsentr')!;
 export function classify(intent: TripIntent): TripShape {
   // «коли їде маршрутка Малин — Київ завтра» (schedule) — та сама відповідь, що й «як доїхати»: історії з часом
   if (intent.intent !== 'trip' && intent.intent !== 'schedule') return { kind: 'not_trip', intent: intent.intent };
-  const from = intent.from ? placeById(intent.from.id) ?? null : null;
-  const to = intent.to ? placeById(intent.to.id) ?? null : null;
+  const from = intent.from ? resolvePlace(intent.from.id) ?? null : null;
+  const to = intent.to ? resolvePlace(intent.to.id) ?? null : null;
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };
   if (!to) return { kind: 'ask_to' };
   if (intent.modes.length === 1 && intent.modes[0] === 'poputka') return { kind: 'poputka_soon' };
