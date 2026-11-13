@@ -911,3 +911,159 @@ button.dv-slot::after {
 .dv-route .dv-btn {
   justify-self: start;
 }
+
+/* ── «Під кат»: після відповіді рядок «Розумію…» згортається в один рядок-підсумок ── */
+.dv-cut {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.34s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.24s ease;
+}
+.dv-cut__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.dv-cut.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+/* згорнуті слоти не мають ловити фокус і кліки; visibility перемикається після згортання */
+.dv-cut.is-collapsed .dv-cut__inner {
+  visibility: hidden;
+  transition: visibility 0s 0.34s;
+}
+.dv-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 1px solid var(--dv-line);
+  border-radius: 14px;
+  background: var(--dv-surface);
+  color: var(--dv-ink);
+  text-align: left;
+  cursor: pointer;
+  animation: dv-in 0.36s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dv-summary.is-open {
+  width: auto;
+  margin-left: auto;
+  border-color: transparent;
+  background: transparent;
+  min-height: 44px;
+  animation: none;
+}
+.dv-summary:hover {
+  border-color: var(--dv-accent);
+}
+.dv-summary__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.dv-summary__act {
+  flex: none;
+  font-size: 14px;
+  color: var(--dv-accent-ink);
+}
+.dv-summary__chev {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--dv-accent-ink);
+  border-bottom: 2px solid var(--dv-accent-ink);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.3s ease;
+}
+.dv-summary.is-open .dv-summary__chev {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+/* ── Відповідь зʼявляється блок за блоком: спершу головне речення, далі лінія маршруту «малюється» згори вниз ── */
+@keyframes dv-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dv-rail {
+  from {
+    transform: translateX(-50%) scaleY(0);
+  }
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+@keyframes dv-dot {
+  from {
+    transform: translateX(-50%) scale(0);
+  }
+  to {
+    transform: translateX(-50%) scale(1);
+  }
+}
+.dv-out--in > * {
+  animation: dv-in 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--dv-i, 0) * 80ms);
+}
+.dv-out--in > :nth-child(2) { --dv-i: 1; }
+.dv-out--in > :nth-child(3) { --dv-i: 2; }
+.dv-out--in > :nth-child(4) { --dv-i: 4; }
+.dv-out--in > :nth-child(5) { --dv-i: 5; }
+.dv-out--in > :nth-child(n + 6) { --dv-i: 6; }
+/* сама історія не «виїжджає» цілою — її кроки йдуть по одному */
+.dv-out--in > .dv-story {
+  animation: none;
+}
+.dv-out--in .dv-story > li {
+  animation: dv-in 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(160ms + var(--dv-s, 0) * 110ms);
+}
+.dv-out--in .dv-story > li:nth-child(2) { --dv-s: 1; }
+.dv-out--in .dv-story > li:nth-child(3) { --dv-s: 2; }
+.dv-out--in .dv-story > li:nth-child(4) { --dv-s: 3; }
+.dv-out--in .dv-story > li:nth-child(5) { --dv-s: 4; }
+.dv-out--in .dv-story > li:nth-child(6) { --dv-s: 5; }
+.dv-out--in .dv-story > li:nth-child(n + 7) { --dv-s: 6; }
+.dv-out--in .dv-leg__rail::before {
+  transform-origin: top center;
+  animation: dv-rail 0.5s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+  animation-delay: calc(240ms + var(--dv-s, 0) * 110ms);
+}
+.dv-out--in .dv-leg__rail::after {
+  animation: dv-dot 0.3s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  animation-delay: calc(200ms + var(--dv-s, 0) * 110ms);
+}
+/* картки вибору й інші варіанти — теж по одній */
+.dv-out--in .dv-choices > *,
+.dv-out--in .dv-alts > * {
+  animation: dv-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dv-out--in .dv-choices > :nth-child(2) { animation-delay: 90ms; }
+.dv-out--in .dv-choices > :nth-child(3) { animation-delay: 180ms; }
+.dv-out--in .dv-choices > :nth-child(n + 4) { animation-delay: 270ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-cut,
+  .dv-cut.is-collapsed .dv-cut__inner,
+  .dv-summary__chev {
+    transition: none;
+  }
+  .dv-summary,
+  .dv-out--in > *,
+  .dv-out--in .dv-story > li,
+  .dv-out--in .dv-leg__rail::before,
+  .dv-out--in .dv-leg__rail::after,
+  .dv-out--in .dv-choices > *,
+  .dv-out--in .dv-alts > * {
+    animation: none;
+  }
+}
