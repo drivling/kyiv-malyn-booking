@@ -2,13 +2,14 @@
  * Адмін-API «Доведе» (Docs/dovede-roadmap.md, фаза 2): POST /admin/dovede/understand — текст питання →
  * TripIntent від Claude. Таємність сторінки тримає саме цей requireAdmin. Будь-яка причина, з якої ШІ не
  * відповів (вимкнено, немає ключа, денний ліміт, збій API), повертається з `fallback: 'local'`: сторінка
- * тоді відповідає з місцевого розбору, людина помилки не бачить.
+ * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань.
  */
 import express, { type Router } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../middleware/require-admin';
 import { kyivClock } from '../arrival-reports';
-import { aiCallsToday, dovedeDailyCap, isDovedeEnabled } from '../dovede/guard';
+import { aiCallsToday, dovedeDailyCap, isDovedeEnabled, kyivDayStart } from '../dovede/guard';
+import { DOVEDE_LOG_ROWS, DOVEDE_LOG_SCAN, parseLogDays, summarizeQueries, toLogItem, type DovedeLogFlag } from '../dovede/log';
 import { IntentShapeError, validateIntent, type TripIntent } from '../dovede/intent';
 import { understandFromEnv, type UnderstandFn } from '../dovede/understand';
 import type { RouteLike } from '../dovede/prompt';
@@ -156,6 +157,45 @@ export function createAdminDovedeRouter(deps: {
     } catch (e) {
       console.error('❌ POST /admin/dovede/understand:', e);
       res.status(503).json({ fallback: 'local', reason: 'api_error' });
+    }
+  });
+
+  /**
+   * Журнал питань: зведення за період (1 = сьогодні від київської півночі, 7 / 30 / 90 днів) і останні рядки.
+   * `only=problems` лишає в таблиці лише питання з позначками (збій, розбіжність, невпізнані слова, без місця).
+   */
+  r.get('/admin/dovede/queries', requireAdmin, async (req, res) => {
+    try {
+      const days = parseLogDays(req.query.days);
+      const at = clock();
+      const today = kyivDayStart(at);
+      const since = new Date(today.getTime() - (days - 1) * 24 * 60 * 60_000);
+      const [rows, callsToday] = await Promise.all([
+        prisma.dovedeQuery.findMany({ where: { createdAt: { gte: since } }, orderBy: { id: 'desc' }, take: DOVEDE_LOG_SCAN }),
+        aiCallsToday(prisma, at),
+      ]);
+      const flag = typeof req.query.only === 'string' ? req.query.only : '';
+      const items = rows.map(toLogItem).filter((it) => {
+        if (!flag) return true;
+        if (flag === 'problems') return it.flags.length > 0;
+        return it.flags.includes(flag as DovedeLogFlag);
+      });
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.json({
+        days,
+        since: since.toISOString(),
+        enabled: enabled(),
+        hasKey: understand != null,
+        dailyCap: dailyCap(),
+        callsToday,
+        truncated: rows.length >= DOVEDE_LOG_SCAN,
+        summary: summarizeQueries(rows),
+        matched: items.length,
+        items: items.slice(0, DOVEDE_LOG_ROWS),
+      });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/queries:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати журнал' });
     }
   });
 

@@ -290,3 +290,78 @@ test('маршрути міста з бази: Claude отримує номер 
   ]);
   assert.deepEqual((rows[0].localIntent as TripIntent).routes, ['5']);
 });
+
+function logPrisma(stored: Row[]): { prisma: PrismaClient; findArgs: Row[] } {
+  const findArgs: Row[] = [];
+  const base = fakePrisma(2).prisma as unknown as { dovedeQuery: Row };
+  base.dovedeQuery.findMany = async (args: Row) => {
+    findArgs.push(args);
+    return stored;
+  };
+  return { prisma: base as unknown as PrismaClient, findArgs };
+}
+
+const logRow = (over: Row): Row => ({
+  id: 1,
+  createdAt: new Date('2026-11-13T10:00:00.000Z'),
+  text: 'з Києва на вокзал',
+  localIntent: INTENT,
+  aiIntent: INTENT,
+  agree: true,
+  status: 'ok',
+  aiCalled: true,
+  model: 'claude-opus-5-5',
+  promptVersion: 'dovede-understand-v4',
+  latencyMs: 2000,
+  inputTokens: 50,
+  outputTokens: 80,
+  cacheReadTokens: 1700,
+  cacheWriteTokens: 0,
+  error: null,
+  ...over,
+});
+
+test('журнал: без токена адміна — 401', async () => {
+  const { prisma, findArgs } = logPrisma([]);
+  const res = await request(appWith({ prisma })).get('/admin/dovede/queries');
+  assert.equal(res.status, 401);
+  assert.equal(findArgs.length, 0);
+});
+
+test('журнал: зведення, позначки й невпізнані слова; період рахується від київської півночі', async () => {
+  const unknownIntent: TripIntent = { ...INTENT, to: null, unknown: ['Епіцентр'] };
+  const { prisma, findArgs } = logPrisma([
+    logRow({ id: 4, text: 'до епіцентру з вокзалу', localIntent: unknownIntent, aiIntent: { ...unknownIntent, unknown: ['епіцентр'] }, latencyMs: 4000 }),
+    logRow({ id: 3, text: 'на Епіцентр', localIntent: unknownIntent, aiIntent: null, agree: null, status: 'timeout', latencyMs: 8000, error: 'timeout' }),
+    logRow({ id: 2, agree: false, aiIntent: { ...INTENT, to: { id: 'malyn.tsentr', text: 'центр' } }, latencyMs: 1000 }),
+    logRow({ id: 1 }),
+  ]);
+  const res = await request(appWith({ prisma })).get('/admin/dovede/queries?days=7').set('Authorization', AUTH);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers['cache-control'], 'private, no-store');
+  // 13.11 12:20Z → київська північ 12.11 22:00Z, мінус 6 днів
+  assert.deepEqual((findArgs[0].where as { createdAt: { gte: Date } }).createdAt.gte.toISOString(), '2026-11-06T22:00:00.000Z');
+  assert.equal(res.body.callsToday, 2);
+  assert.equal(res.body.dailyCap, 300);
+  const s = res.body.summary;
+  assert.deepEqual([s.total, s.aiCalls, s.aiOk, s.aiFailed, s.agreed, s.disagreed, s.withUnknown, s.noPlace], [4, 4, 3, 1, 2, 1, 2, 2]);
+  assert.equal(s.medianLatencyMs, 2000);
+  assert.deepEqual(s.topUnknown, [{ word: 'епіцентр', count: 2, example: 'до епіцентру з вокзалу' }]);
+  assert.deepEqual(res.body.items.map((i: { id: number; flags: string[] }) => [i.id, i.flags]), [
+    [4, ['unknown', 'no_place']],
+    [3, ['fail', 'unknown', 'no_place']],
+    [2, ['disagree']],
+    [1, []],
+  ]);
+});
+
+test('журнал: only=problems і only=<позначка> фільтрують таблицю, а не зведення; невідомий days → 7', async () => {
+  const { prisma } = logPrisma([logRow({ id: 2, agree: false }), logRow({ id: 1 })]);
+  const app = appWith({ prisma });
+  const problems = await request(app).get('/admin/dovede/queries?only=problems&days=abc').set('Authorization', AUTH);
+  assert.equal(problems.body.days, 7);
+  assert.equal(problems.body.summary.total, 2);
+  assert.deepEqual(problems.body.items.map((i: { id: number }) => i.id), [2]);
+  const fails = await request(app).get('/admin/dovede/queries?only=fail').set('Authorization', AUTH);
+  assert.equal(fails.body.matched, 0);
+});

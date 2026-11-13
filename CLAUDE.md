@@ -145,7 +145,9 @@ of `dist` in a commit.
   `{ fallback: 'local' }` (503 / 429) and the page falls back to the dictionary parse; a confident dictionary parse
   answers at once and Claude only checks it in the background. `validateIntent` moves place ids outside the gazetteer
   to `unknown`. `src/dovede/gazetteer.ts` is a byte-identical copy of the frontend `nlu/gazetteer.ts` (a frontend
-  test diffs them) — edit both. Calls are logged in `DovedeQuery`. Tests never reach the API: `vitest.setup.ts`
+  test diffs them) — edit both. Calls are logged in `DovedeQuery`; the admin tab `/admin/dovede`
+  (`AdminPage/DovedeLogTab.tsx`, lazy chunk; `GET /admin/dovede/queries`, pure `src/dovede/log.ts`) shows the summary, the
+  words nobody recognised and the latest questions with both parses — read-only. Tests never reach the API: `vitest.setup.ts`
   drops `ANTHROPIC_API_KEY`, `createApp({ dovedeUnderstand })` takes a stub; the real-model run over
   `eval/golden.json` is manual (`DOVEDE_EVAL=1`, `src/dovede/eval.test.ts`). Page UX (`DovedePage/ui/`):
   `QueryField` highlights recognised words in a layer under the transparent textarea and suggests gazetteer places

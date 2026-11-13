@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { invalidateCatalogCache } from '@/api/catalogCache';
@@ -23,7 +23,10 @@ import { PersonArchiveTab } from './PersonArchiveTab';
 import { PERSONS_FILTER_OPTIONS, filterPersons, type PersonsFilterMode } from './personsFilter';
 import './AdminPage.css';
 
-type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'stickers' | 'arrivals' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'notifications';
+// журнал «Доведе» тягне словник місць і вулиці міста — окремим чанком, лише коли вкладку відкрито
+const DovedeLogTab = lazy(() => import('./DovedeLogTab'));
+
+type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'stickers' | 'arrivals' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'dovede' | 'notifications';
 
 const DEFAULT_TAB: Tab = 'bookings';
 
@@ -39,6 +42,7 @@ const TAB_SLUGS: Record<Tab, string> = {
   referrals: 'referrals',
   lunch: 'lunch',
   dzhura: 'dzhura',
+  dovede: 'dovede',
   notifications: 'notifications',
   data: 'data',
   personArchive: 'archive',
@@ -1452,6 +1456,12 @@ export const AdminPage: React.FC = () => {
             onClick={() => setActiveTab('dzhura')}
           >
             Джура
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'dovede' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dovede')}
+          >
+            Доведе
           </button>
           <button
             className={`admin-tab ${activeTab === 'notifications' ? 'active' : ''}`}
@@ -3093,6 +3103,12 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'lunch' && <LunchTab />}
 
         {activeTab === 'dzhura' && <DzhuraTab />}
+
+        {activeTab === 'dovede' && (
+          <Suspense fallback={<p>Завантаження…</p>}>
+            <DovedeLogTab />
+          </Suspense>
+        )}
 
         {activeTab === 'notifications' && <NotificationSettingsTab />}
 
