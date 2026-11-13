@@ -8,9 +8,16 @@ import { LocalTransportSchemePage } from './LocalTransportSchemePage';
 
 // Зараз на схемі немає «непідтверджених» ліній (№10 перемальовано 2026-10); прапорець лишається в генераторі
 // для майбутніх маршрутів, тож перевіряємо його на підміненій легенді: лінію 9 позначено непідтвердженою.
-vi.mock('./scheme/malyn-scheme-routes', async (importOriginal) => {
-  const mod = await importOriginal<typeof import('./scheme/malyn-scheme-routes')>();
-  return { ...mod, SCHEME_ROUTES: mod.SCHEME_ROUTES.map((r) => (r.id === '9' ? { ...r, unconfirmed: true } : r)) };
+// Сторінка бере легенду з реєстру схем (scheme/registry.ts) — підміняємо її там.
+vi.mock('./scheme/registry', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('./scheme/registry')>();
+  return {
+    ...mod,
+    schemeFor: (city: string) => {
+      const scheme = mod.schemeFor(city);
+      return scheme && { ...scheme, routes: scheme.routes.map((r) => (r.id === '9' ? { ...r, unconfirmed: true } : r)) };
+    },
+  };
 });
 
 const dataset = {

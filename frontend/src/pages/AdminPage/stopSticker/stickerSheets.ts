@@ -58,6 +58,8 @@ export type StickerSheetsInput = {
   titleColor?: string;
   /** Домен сайту міста для QR і підписів; без нього — головний */
   domain?: string;
+  /** Назва міста в шапці («КОРОСТЕНЬ»); без неї — «МАЛИН» */
+  cityLabel?: string;
 };
 
 /**
@@ -75,6 +77,7 @@ export function buildStickerSheets(input: StickerSheetsInput): StickerSheet[] {
     footer: stickerFooter(input.fare, input.domain),
     size: input.size,
     titleColor: input.titleColor || undefined,
+    cityLabel: input.cityLabel,
   };
   if (input.layout === 'single') {
     const both = a.length > 0 && b.length > 0;

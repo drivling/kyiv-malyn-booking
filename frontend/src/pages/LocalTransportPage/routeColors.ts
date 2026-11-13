@@ -1,13 +1,22 @@
 import type { CSSProperties } from 'react';
-import { SCHEME_ROUTES, type SchemeRoute } from './scheme/malyn-scheme-routes';
+import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
+import { schemeFor, type CityScheme } from './scheme/registry';
 
 /**
- * Кольори ліній зі схеми маршрутів (/transport/scheme) для плашок номерів у планувальнику,
- * на табло та в каталозі ліній. Джерело — згенерований scheme/malyn-scheme-routes.ts
- * (Docs/malyn-transit-scheme/build_scheme.py, COLORS і FG); маршрути поза схемою кольору не мають,
- * і CSS бере запасний акцент сайту через var(--lt-route-color, …).
+ * Кольори ліній зі схеми маршрутів міста (/transport/scheme) для плашок номерів у планувальнику,
+ * на табло та в каталозі ліній. Джерело — легенда згенерованої схеми (scheme/registry.ts;
+ * Docs/malyn-transit-scheme/build_scheme.py, COLORS і FG), далі meta.routeColors датасету; маршрути без
+ * кольору — запасний акцент сайту через var(--lt-route-color, …).
  */
-const SCHEME_BY_ID: ReadonlyMap<string, RouteColor> = new Map(SCHEME_ROUTES.map((r: SchemeRoute) => [r.id, { color: r.color, fg: r.fg }]));
+const schemeColors = new WeakMap<CityScheme, ReadonlyMap<string, RouteColor>>();
+function schemeColorsOf(scheme: CityScheme): ReadonlyMap<string, RouteColor> {
+  let m = schemeColors.get(scheme);
+  if (!m) {
+    m = new Map(scheme.routes.map((r) => [r.id, { color: r.color, fg: r.fg }]));
+    schemeColors.set(scheme, m);
+  }
+  return m;
+}
 
 type RouteColor = { color: string; fg: string };
 const DEFAULT_CITY = 'Malyn';
@@ -19,8 +28,8 @@ const HEX_RE = /^#[0-9a-f]{6}$/i;
 
 /**
  * Запам'ятати кольори ліній із датасету: meta.routeColors = { "<id маршруту>": { color: "#rrggbb", fg? } }.
- * Викликає apiClient.getTransportDataset() і завантажувач (копія, знімок). Малин бере кольори з легенди схеми,
- * а meta.routeColors — лише для маршрутів, яких на схемі нема.
+ * Викликає apiClient.getTransportDataset() і завантажувач (копія, знімок). Місто зі схемою бере кольори з її
+ * легенди, а meta.routeColors — лише для маршрутів, яких на схемі нема.
  */
 export function configureRouteColors(meta: unknown, city: string = DEFAULT_CITY): void {
   const raw = (meta as { routeColors?: unknown } | null | undefined)?.routeColors;
@@ -42,8 +51,14 @@ export function setRouteColorsCity(city: string): void {
   currentCity = city || DEFAULT_CITY;
 }
 
+/** Схема міста, чий датасет зараз на сторінці (його ставлять завантажувач і apiClient); null — місто без схеми */
+export function currentScheme(): CityScheme | null {
+  return schemeFor(currentCity);
+}
+
 function lookup(routeId: string): RouteColor | undefined {
-  const fromScheme = currentCity === DEFAULT_CITY ? SCHEME_BY_ID.get(routeId) : undefined;
+  const scheme = currentScheme();
+  const fromScheme = scheme ? schemeColorsOf(scheme).get(routeId) : undefined;
   return fromScheme ?? datasetColorsByCity.get(currentCity)?.get(routeId);
 }
 
@@ -68,12 +83,17 @@ export function routeColorStyle(routeId: string): CSSProperties | undefined {
  * (сторінка «Схема», міні-схема): ті самі кольори, що й у плашках, одним інлайн-стилем на кореневому
  * елементі.
  */
-export const SCHEME_COLOR_VARS = Object.fromEntries(
-  SCHEME_ROUTES.flatMap((r) => [
-    [`--lts-r${r.id}`, r.color],
-    [`--lts-r${r.id}-fg`, r.fg],
-  ])
-) as CSSProperties;
+export function schemeColorVars(routes: ReadonlyArray<{ id: string; color: string; fg: string }>): CSSProperties {
+  return Object.fromEntries(
+    routes.flatMap((r) => [
+      [`--lts-r${r.id}`, r.color],
+      [`--lts-r${r.id}-fg`, r.fg],
+    ])
+  ) as CSSProperties;
+}
+
+/** Кольори схеми Малина */
+export const SCHEME_COLOR_VARS = schemeColorVars(SCHEME_ROUTES);
 
 /** Відносна яскравість кольору #rrggbb за WCAG 2.x (0 — чорний, 1 — білий); null — не HEX */
 function relativeLuminance(hex: string): number | null {

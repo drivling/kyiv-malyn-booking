@@ -5,7 +5,7 @@ import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
 
 /**
  * SVG наклейки на зупинку у стилі схеми маршрутів (Docs/malyn-transit-scheme/build_scheme.py,
- * плакат): біле поле, «МАЛИН» 800, плашки номерів у кольорах ліній, лінія маршруту з вузлами
+ * плакат): біле поле, назва міста («МАЛИН») 800, плашки номерів у кольорах ліній, лінія маршруту з вузлами
  * (біле коло з темним кільцем — пересадковий вузол, кільце в кольорі лінії — кінцева), QR у рамці.
  *
  * Координати — міліметри аркуша A5 (148×210); A4 — той самий макет, масштабований на √2
@@ -34,6 +34,8 @@ export type StickerSpec = {
   size: StickerSize;
   /** Колір назви зупинки (колір однієї з ліній); без нього — темний, як решта тексту */
   titleColor?: string;
+  /** Назва міста в шапці великими літерами, як на плакаті схеми; без неї — «МАЛИН» */
+  cityLabel?: string;
 };
 
 const W = 148;
@@ -264,7 +266,7 @@ export function renderStickerSvg(spec: StickerSpec): string {
   o.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
 
   // ---- шапка: як заголовок плаката схеми
-  o.push(txt(M, 16.5, 'МАЛИН', 7.6, { weight: 800, ls: 0.45 }));
+  o.push(txt(M, 16.5, spec.cityLabel || 'МАЛИН', 7.6, { weight: 800, ls: 0.45 }));
   o.push(txt(W - M, 16.5, 'Міські автобусні маршрути', 3.3, { weight: 600, fill: MUTED, anchor: 'end' }));
   o.push(`<line x1="${M}" y1="20.5" x2="${W - M}" y2="20.5" stroke="${FG}" stroke-width="0.5"/>`);
 

@@ -1,6 +1,6 @@
 import { hiddenTransportRouteIds, type TransportDataset } from '@/api/transportDataset';
-import { routeColor } from '@/pages/LocalTransportPage/routeColors';
-import { SCHEME_ROUTES } from '@/pages/LocalTransportPage/scheme/malyn-scheme-routes';
+import { currentScheme, routeColor } from '@/pages/LocalTransportPage/routeColors';
+import type { CityScheme } from '@/pages/LocalTransportPage/scheme/registry';
 import type { SchemeNodeKind } from '@/pages/LocalTransportPage/scheme/malyn-scheme-nodes';
 import { schemeNodeForStop } from '@/pages/LocalTransportPage/schemeStops';
 
@@ -32,12 +32,25 @@ export type StickerLine = {
   bearing: number;
 };
 
-const ROUTE_RANK: ReadonlyMap<string, number> = new Map(SCHEME_ROUTES.map((r, i) => [r.id, i]));
+const ranks = new WeakMap<CityScheme, ReadonlyMap<string, number>>();
+const NO_RANK: ReadonlyMap<string, number> = new Map();
+/** Порядок ліній у легенді схеми міста, чий датасет завантажено (вкладка наклейок — місто перемикача) */
+function routeRank(): ReadonlyMap<string, number> {
+  const scheme = currentScheme();
+  if (!scheme) return NO_RANK;
+  let rank = ranks.get(scheme);
+  if (!rank) {
+    rank = new Map(scheme.routes.map((r, i) => [r.id, i]));
+    ranks.set(scheme, rank);
+  }
+  return rank;
+}
 
 /** Порядок ліній як у легенді схеми, далі — числовий */
 export function compareStickerLines(a: StickerLine, b: StickerLine): number {
-  const ra = ROUTE_RANK.get(a.routeId) ?? 1000 + (parseInt(a.routeId, 10) || 0);
-  const rb = ROUTE_RANK.get(b.routeId) ?? 1000 + (parseInt(b.routeId, 10) || 0);
+  const rank = routeRank();
+  const ra = rank.get(a.routeId) ?? 1000 + (parseInt(a.routeId, 10) || 0);
+  const rb = rank.get(b.routeId) ?? 1000 + (parseInt(b.routeId, 10) || 0);
   if (ra !== rb) return ra - rb;
   if (a.routeId !== b.routeId) return a.routeId.localeCompare(b.routeId);
   return a.dir === b.dir ? 0 : a.dir === 'there' ? -1 : 1;
