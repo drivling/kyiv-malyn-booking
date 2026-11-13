@@ -111,7 +111,8 @@ of `dist` in a commit.
 - `backend/prisma/schema.prisma` — single Postgres schema backing everything: booking/schedule/trip
   models, `Person`/referral models, `ViberListing`/`ViberRideEvent` (rideshare + analytics from the
   Viber parser), local-transport GTFS-like models (`TransportStop/Route/Trip/Segment`), the
-  `Lunch*` models for the internal lunch bot and the `Dzhura*` models (chat capture). Changing a
+  `Lunch*` models for the internal lunch bot, the `Dzhura*` models (chat capture) and `DovedeQuery`
+  («Доведе» understanding log). Changing a
   model requires a Prisma migration (`npm run prisma:migrate`), committing the generated migration
   under `backend/prisma/migrations/`, and usually updating the corresponding route + frontend type.
 - «Джура» (personal secretary, phase 0 — `Docs/dzhura-roadmap.md`): the owner's Telethon userbot
@@ -133,6 +134,20 @@ of `dist` in a commit.
   «are you a bot?» → silence, the owner answers). `DzhuraJob` type `autoreply_preview` runs the same request without
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
+
+- «Доведе» (`/dovede`, admin-only secret page — `Docs/dovede-roadmap.md` is the recovery file; research in
+  `Docs/dovede/research/`): a person asks in plain words and gets a story of cards built in the browser
+  (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
+  and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or
+  price.** `POST /admin/dovede/understand` (`routes/admin-dovede.ts`, `src/dovede/`) turns the text into a
+  `TripIntent` with Claude (`@anthropic-ai/sdk`, structured output, cached system prompt built from the gazetteer;
+  `DOVEDE_ENABLED`, `DOVEDE_MODEL`, `DOVEDE_DAILY_CAP`, key = `ANTHROPIC_API_KEY`). Every way Claude can fail answers
+  `{ fallback: 'local' }` (503 / 429) and the page falls back to the dictionary parse; a confident dictionary parse
+  answers at once and Claude only checks it in the background. `validateIntent` moves place ids outside the gazetteer
+  to `unknown`. `src/dovede/gazetteer.ts` is a byte-identical copy of the frontend `nlu/gazetteer.ts` (a frontend
+  test diffs them) — edit both. Calls are logged in `DovedeQuery`. Tests never reach the API: `vitest.setup.ts`
+  drops `ANTHROPIC_API_KEY`, `createApp({ dovedeUnderstand })` takes a stub; the real-model run over
+  `eval/golden.json` is manual (`DOVEDE_EVAL=1`, `src/dovede/eval.test.ts`).
 
 ### In-process scheduled jobs (no external cron)
 

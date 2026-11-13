@@ -1,6 +1,7 @@
 # «Доведе» — пошук своїми словами. Roadmap
 
-**Status:** фаза 1 готова (сторінка без ШІ, лише адмін) — гілка `dovede/phase-1` поверх `dovede/phase-0`, не запушено
+**Status:** фаза 2 готова (Claude розуміє текст; лише адмін) — гілка `dovede/phase-1`, PR #133. Еталони через
+справжній Claude пройдено: 98.9% слотів, медіана 1.7 с, кеш читається
 **Created:** 2026-11-13
 **Scope:** таємна сторінка `/dovede`, поки її бачить лише адмін. Людина пише звичайною мовою («Як доїхати з
 Києва (Святошин) до Малина на вокзал»), а сайт відповідає короткою історією з карток: міжміська поїздка →
@@ -263,7 +264,37 @@ maps/dir/?api=1&origin=…&destination=…&travelmode=transit`, без ключ�
   - не-адмін → порожньо, чанк не вантажиться.
 - **Готово, коли:** 10 сценаріїв збігаються з `/transport`, головний бандл виріс ≤ ~1 КБ, усі тести зелені.
 
-### Фаза 2 — мозок: Claude розуміє текст
+### Фаза 2 — мозок: Claude розуміє текст ✅
+
+Зроблено (2026-11-13):
+- `backend/src/dovede/`: `gazetteer.ts` (байт-у-байт копія `frontend/.../nlu/gazetteer.ts`, звірка в
+  `nlu/merge.test.ts`), `intent.ts` (JSON-схема + `validateIntent`: чужий id → `null` + `unknown`), `prompt.ts`
+  (`buildSystemPrompt` зі словника за id, версія `dovede-understand-v1`; «зараз» — у `buildUserText`),
+  `understand.ts` (`client.beta.messages.create`, як заплановано нижче; `thinking` не передаємо), `guard.ts`.
+- `POST /admin/dovede/understand` (`routes/admin-dovede.ts`, `requireAdmin`): `{ text ≤ 300, local? }` →
+  `{ intent, agree, model, latencyMs }`; вимкнено / немає ключа / збій Claude → 503, денний ліміт → 429, завжди з
+  `{ fallback: 'local', reason }`. «Зараз» бере сервер (київський час), а не браузер.
+- Журнал `DovedeQuery` (міграція `20261113090000_dovede_query`): текст, обидва розбори, `agree`, статус, модель, що
+  справді відповіла, затримка, токени (зокрема з кешу), помилка. Ліміт рахується з журналу (`aiCalled`).
+- Сторінка: словник упевнений (`confidence: high`) → відповідь одразу, Claude у фоні; зрозумів інакше → тиха
+  пропозиція «Можливо, ви мали на увазі… · Показати». Словник не впевнений → «Розумію питання…», чекаємо Claude до
+  9 с (`apiClient.dovedeUnderstand`), далі `pickIntent`; Claude мовчить → місцевий розбір. Вибір уточнення чи
+  пропозиції Claude вдруге не кличе.
+- Відхилення від плану: окремого `places-curated.ts` немає — спільний файл це сам `gazetteer.ts`; пояснення місць
+  для промпту (`PLACE_NOTES`) живуть у `prompt.ts`. Рядок `/admin/dovede/understand` видно в головному бандлі
+  (метод у `api/client.ts`) — так само прийнятно, як `/dovede`: захищає `requireAdmin`.
+
+Прогін еталонів через справжній Claude (2026-11-13, `claude-opus-5-5`, 47 питань `scope: mvp`, промпт
+`dovede-understand-v1`): слоти 184/186 = 98.9% (поріг 90%), затримка — медіана 1669 мс, найдовша 2564 мс (поріг
+3 с), кеш промпту прочитано у 46 з 46 викликів після першого (вхід 2899 токенів + 169 388 з кешу, вихід 5099).
+Розбіжності: «маршрутка Малин Київ завтра» → `schedule` замість `trip`; «вокзал» → `confidence: medium` замість
+`low`. Повторити: `DOVEDE_EVAL=1 ANTHROPIC_API_KEY=… npx vitest run src/dovede/eval.test.ts` у `backend/`
+(`ANTHROPIC_WORKSPACE_ID` для ключа без воркспейсу; `DOVEDE_EVAL_REPORT=<файл>` — звіт у файл).
+
+Після прогону: `schedule` складальник відповідає так само, як `trip` (`classify`), і розбіжністю з місцевим
+розбором це не вважається (`sameAnswer`) — на сервері `intentsAgree` у журналі лишається строгим.
+
+План фази (як був):
 - `@anthropic-ai/sdk` у `backend/` (CommonJS, Node 20), `package-lock.json`, перезібраний `dist/`.
 - `backend/src/dovede/`: `places-curated.ts`, `intent.ts` (схема + `validateIntent`), `gazetteer.ts`, `prompt.ts`,
   `understand.ts`, `guard.ts`; `routes/admin-dovede.ts` у `create-app.ts`.
@@ -363,3 +394,6 @@ maps/dir/?api=1&origin=…&destination=…&travelmode=transit`, без ключ�
   1 год 40 хв. Правило: пересадку плануємо від найпізнішого прибуття, показуємо звичайне.
 - **2026-11-13** — Фаза 1: сторінка `/dovede` без ШІ за тихим `AdminOnly`, окремий чанк, поза GA / precache /
   sitemap. Нерідне місто адміна (прев'ю Коростеня) не впливає: планувальник завжди Малина.
+- **2026-11-13** — Фаза 2: Claude лише перевіряє впевнений місцевий розбір (відповідь не чекає на ШІ) і вирішує
+  за невпевнений. Будь-яка відмова ШІ — `fallback: 'local'`, людина помилки не бачить. Денний ліміт 300 викликів
+  (`DOVEDE_DAILY_CAP`) рахується з журналу `DovedeQuery`.

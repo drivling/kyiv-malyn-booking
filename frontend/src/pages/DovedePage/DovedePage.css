@@ -637,3 +637,11 @@
     transition: none;
   }
 }
+
+/* Claude зрозумів питання інакше, ніж словник: тиха пропозиція над відповіддю (фаза 2) */
+.dv-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}

@@ -1,0 +1,183 @@
+/**
+ * «Доведе», фаза 2: контракт наміру, стабільність промпту, виклик Claude (із заглушкою SDK — без мережі).
+ */
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import Anthropic from '@anthropic-ai/sdk';
+import { PLACES } from './gazetteer';
+import { INTENT_SCHEMA, IntentShapeError, validateIntent } from './intent';
+import { PROMPT_VERSION, buildSystemPrompt, buildUserText, weekdayUk } from './prompt';
+import { DEFAULT_DOVEDE_MODEL, createUnderstand, dovedeModelName, understandFromEnv, type DovedeMessagesClient } from './understand';
+import { dovedeDailyCap, isDovedeEnabled, kyivDayStart } from './guard';
+
+const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
+
+const GOOD = {
+  intent: 'trip',
+  from: { id: 'kyiv.sviatoshyn', text: 'Києва (Святошин)' },
+  to: { id: 'malyn.vokzal', text: 'вокзал' },
+  when: { day: 'today', time: null, kind: 'depart', part: null },
+  modes: [],
+  unknown: [],
+  confidence: 'high',
+};
+
+test('validateIntent: чистий намір проходить, null-поля часу зникають', () => {
+  const i = validateIntent(GOOD);
+  assert.equal(i.from?.id, 'kyiv.sviatoshyn');
+  assert.equal(i.to?.id, 'malyn.vokzal');
+  assert.deepEqual(i.when, { day: 'today', kind: 'depart' });
+  assert.equal(i.confidence, 'high');
+});
+
+test('validateIntent: id, якого немає в словнику, стає null, а текст іде в unknown', () => {
+  const i = validateIntent({ ...GOOD, from: { id: 'city.Lviv', text: 'Львова' } });
+  assert.equal(i.from, null);
+  assert.deepEqual(i.unknown, ['Львова']);
+  assert.equal(i.confidence, 'medium', 'з невідомим місцем «high» не буває');
+});
+
+test('validateIntent: сміття в полях замінюється безпечними значеннями', () => {
+  const i = validateIntent({
+    intent: 'hack',
+    from: 'Київ',
+    to: { id: 'malyn.vokzal', text: 'x'.repeat(500) },
+    when: { day: 'колись', time: '25:99', kind: 'soon', part: 'night' },
+    modes: ['marshrutka', 'teleport', 'marshrutka'],
+    unknown: [1, 'Ковалівка', 'Ковалівка'],
+    confidence: 'sure',
+  });
+  assert.equal(i.intent, 'trip');
+  assert.equal(i.from, null);
+  assert.equal(i.to?.text.length, 80);
+  assert.deepEqual(i.when, { day: 'today', kind: 'depart' });
+  assert.deepEqual(i.modes, ['marshrutka']);
+  assert.deepEqual(i.unknown, ['Ковалівка']);
+  assert.equal(i.confidence, 'low');
+});
+
+test('validateIntent: не обʼєкт — IntentShapeError', () => {
+  assert.throws(() => validateIntent('trip'), IntentShapeError);
+  assert.throws(() => validateIntent(null), IntentShapeError);
+  assert.throws(() => validateIntent([]), IntentShapeError);
+});
+
+test('системний промпт: байт-у-байт однаковий між викликами й містить кожен id словника', () => {
+  const a = buildSystemPrompt();
+  const b = buildSystemPrompt();
+  assert.equal(createHash('sha256').update(a).digest('hex'), createHash('sha256').update(b).digest('hex'));
+  assert.ok(a.startsWith(`[${PROMPT_VERSION}]`));
+  for (const p of PLACES) assert.ok(a.includes(`- ${p.id} — `), `немає ${p.id}`);
+  const ids = [...a.matchAll(/^- ([\w.-]+) — /gm)].map((m) => m[1]);
+  assert.deepEqual(ids, [...ids].sort(), 'місця відсортовані за id — порядок у словнику на кеш не впливає');
+});
+
+test('системний промпт не знає «зараз»: дата й час — лише в повідомленні користувача', () => {
+  assert.ok(!/20\d\d-\d\d-\d\d/.test(buildSystemPrompt()));
+  const u = buildUserText('з Києва в Малин', NOW);
+  assert.ok(u.includes('2026-11-13, пʼятниця, 14:20'));
+  assert.ok(u.includes('<question>\nз Києва в Малин\n</question>'));
+  assert.equal(weekdayUk('2026-11-15'), 'неділя');
+});
+
+test('схема відповіді: усі поля обовʼязкові, зайвих немає (вимога structured outputs)', () => {
+  assert.equal(INTENT_SCHEMA.additionalProperties, false);
+  assert.deepEqual([...INTENT_SCHEMA.required].sort(), Object.keys(INTENT_SCHEMA.properties).sort());
+  assert.deepEqual([...INTENT_SCHEMA.properties.when.required].sort(), Object.keys(INTENT_SCHEMA.properties.when.properties).sort());
+});
+
+type CreateArgs = { body: Record<string, unknown>; options: Record<string, unknown> | undefined };
+
+function stubClient(reply: unknown | (() => never)): { client: DovedeMessagesClient; calls: CreateArgs[] } {
+  const calls: CreateArgs[] = [];
+  const create = async (body: Record<string, unknown>, options?: Record<string, unknown>) => {
+    calls.push({ body, options });
+    if (typeof reply === 'function') (reply as () => never)();
+    return reply;
+  };
+  return { client: { beta: { messages: { create } } } as unknown as DovedeMessagesClient, calls };
+}
+
+const message = (over: Record<string, unknown>) => ({
+  model: 'claude-opus-5-5',
+  stop_reason: 'end_turn',
+  content: [{ type: 'text', text: JSON.stringify(GOOD) }],
+  usage: { input_tokens: 40, output_tokens: 90, cache_read_input_tokens: 1800, cache_creation_input_tokens: 0 },
+  ...over,
+});
+
+test('understand: запит — structured output, low effort, кешований системний промпт, серверний fallback', async () => {
+  const { client, calls } = stubClient(message({}));
+  const r = await createUnderstand({ client })('з Києва (Святошин) на вокзал', NOW);
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.equal(r.intent.to?.id, 'malyn.vokzal');
+    assert.deepEqual(r.usage, { inputTokens: 40, outputTokens: 90, cacheReadTokens: 1800, cacheWriteTokens: 0 });
+    assert.equal(r.promptVersion, PROMPT_VERSION);
+  }
+  const { body, options } = calls[0];
+  assert.equal(body.model, DEFAULT_DOVEDE_MODEL);
+  assert.deepEqual(body.betas, ['server-side-fallback-2026-07-01']);
+  assert.equal(body.fallbacks, 'default');
+  assert.deepEqual(body.output_config, { effort: 'low', format: { type: 'json_schema', schema: INTENT_SCHEMA } });
+  assert.deepEqual(body.system, [{ type: 'text', text: buildSystemPrompt(), cache_control: { type: 'ephemeral' } }]);
+  assert.equal('thinking' in body, false);
+  assert.deepEqual(body.messages, [{ role: 'user', content: buildUserText('з Києва (Святошин) на вокзал', NOW) }]);
+  assert.deepEqual(options, { timeout: 8000, maxRetries: 1 });
+});
+
+test('understand: відмова, обрізана відповідь і не-JSON — не виняток, а failure', async () => {
+  const run = async (over: Record<string, unknown>) => createUnderstand({ client: stubClient(message(over)).client })('x', NOW);
+  const refusal = await run({ stop_reason: 'refusal', content: [] });
+  assert.deepEqual([refusal.ok, !refusal.ok && refusal.failure], [false, 'refusal']);
+  const cut = await run({ stop_reason: 'max_tokens' });
+  assert.deepEqual([cut.ok, !cut.ok && cut.failure], [false, 'max_tokens']);
+  const junk = await run({ content: [{ type: 'text', text: 'Ось відповідь: …' }] });
+  assert.deepEqual([junk.ok, !junk.ok && junk.failure], [false, 'invalid']);
+  assert.equal(junk.usage?.outputTokens, 90, 'токени рахуємо й для невдалої відповіді');
+});
+
+test('understand: у журнал іде модель, що справді відповіла (після fallback)', async () => {
+  const r = await createUnderstand({ client: stubClient(message({ model: 'claude-opus-5' })).client })('x', NOW);
+  assert.equal(r.model, 'claude-opus-5');
+});
+
+test('understand: помилки SDK розкладено за типами', async () => {
+  const failing = (e: Error) =>
+    createUnderstand({
+      client: stubClient(() => {
+        throw e;
+      }).client,
+    })('x', NOW);
+  const timeout = await failing(new Anthropic.APIConnectionTimeoutError());
+  assert.equal(!timeout.ok && timeout.failure, 'timeout');
+  const other = await failing(new Error('boom'));
+  assert.equal(!other.ok && other.failure, 'api_error');
+});
+
+test('модель з env: лише claude-*, інакше типова', () => {
+  assert.equal(dovedeModelName('claude-haiku-5-5'), 'claude-haiku-5-5');
+  assert.equal(dovedeModelName('gpt-x'), DEFAULT_DOVEDE_MODEL);
+  assert.equal(dovedeModelName(undefined), DEFAULT_DOVEDE_MODEL);
+});
+
+test('без ANTHROPIC_API_KEY клієнта немає', () => {
+  assert.equal(understandFromEnv({}), null);
+  assert.equal(understandFromEnv({ ANTHROPIC_API_KEY: '  ' }), null);
+  assert.equal(typeof understandFromEnv({ ANTHROPIC_API_KEY: 'sk-ant-test' }), 'function');
+});
+
+test('перемикачі: DOVEDE_ENABLED і DOVEDE_DAILY_CAP', () => {
+  assert.equal(isDovedeEnabled({}), true);
+  assert.equal(isDovedeEnabled({ DOVEDE_ENABLED: '0' }), false);
+  assert.equal(isDovedeEnabled({ DOVEDE_ENABLED: 'false' }), false);
+  assert.equal(dovedeDailyCap({}), 300);
+  assert.equal(dovedeDailyCap({ DOVEDE_DAILY_CAP: '25' }), 25);
+  assert.equal(dovedeDailyCap({ DOVEDE_DAILY_CAP: '0' }), 0);
+  assert.equal(dovedeDailyCap({ DOVEDE_DAILY_CAP: 'багато' }), 300);
+});
+
+test('київська доба починається о 00:00 за Києвом (взимку UTC+2)', () => {
+  assert.equal(kyivDayStart(new Date('2026-11-13T12:20:30.000Z')).toISOString(), '2026-11-12T22:00:00.000Z');
+});
