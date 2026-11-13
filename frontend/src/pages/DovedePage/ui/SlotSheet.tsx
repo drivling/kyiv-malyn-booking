@@ -69,8 +69,8 @@ function modeOptions(intent: TripIntent): Option[] {
     key,
     title,
     sub,
-    patch: { modes, routes: [], ...(intent.intent === 'route' ? { intent: 'trip' as const } : {}) },
-    current: cur === modes.join(',') && !(intent.routes ?? []).length,
+    patch: { modes, routes: [], avoidRoutes: [], ...(intent.intent === 'route' ? { intent: 'trip' as const } : {}) },
+    current: cur === modes.join(',') && !(intent.routes ?? []).length && !(intent.avoidRoutes ?? []).length,
   });
   return [
     opt('any', 'Будь-яким транспортом', 'покажу найкраще', []),

@@ -33,6 +33,8 @@ export interface TripIntent {
   modes: TripMode[];
   /** id маршрутів міських автобусів, які назвала людина («№5», «9-ка»); немає — будь-яким */
   routes?: string[];
+  /** id маршрутів, якими людина їхати не хоче («крім сімки», «тільки не №5») */
+  avoidRoutes?: string[];
   /** слова про місця, яких немає в словнику */
   unknown: string[];
   confidence: 'high' | 'medium' | 'low';

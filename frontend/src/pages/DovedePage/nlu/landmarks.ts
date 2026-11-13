@@ -62,13 +62,16 @@ export interface LandmarkMatch {
  * слова, яке вже означає місце кураторського словника («вокзал», «Малин»), не беремо.
  */
 export function matchLandmark(toks: Token[], i: number): LandmarkMatch | null {
-  if (NUMBER_RE.test(toks[i].n)) return null;
+  let best: NameVariant | null = null;
   for (const v of VARIANTS) {
+    if (best && v.words.length < best.words.length) break;
     if (!v.words.every((w, k) => toks[i + k] && wordFits(w, toks[i + k].n, v.words.length > 1))) continue;
     if (v.words.length === 1 && findPlaceByToken(toks[i].n)) continue;
-    return { landmark: v.landmark, end: i + v.words.length - 1 };
+    // серед назв однакової довжини — та, що сказана дослівно («Копійочка», а не «Копійка»)
+    if (v.words.every((w, k) => toks[i + k].n === w)) return { landmark: v.landmark, end: i + v.words.length - 1 };
+    best ??= v;
   }
-  return null;
+  return best ? { landmark: best.landmark, end: i + best.words.length - 1 } : null;
 }
 
 export function landmarkById(id: string): Landmark | undefined {

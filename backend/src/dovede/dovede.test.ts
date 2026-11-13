@@ -275,3 +275,14 @@ test('орієнтири: id зі списку дозволений, вигад�
   assert.ok(p.includes('- lm.atb-market — супермаркет АТБ-Маркет (кажуть: АТБ)'));
   assert.ok(p.includes('## Орієнтири Малина'));
 });
+
+test('«крім сімки»: avoidRoutes лише зі списку маршрутів; заборонений маршрут серед бажаних не лишається', () => {
+  const ids = new Set(['5', '7']);
+  const a = validateIntent({ ...GOOD, routes: ['5', '7'], avoidRoutes: ['7', '99', '7'] }, undefined, ids);
+  assert.deepEqual(a.routes, ['5']);
+  assert.deepEqual(a.avoidRoutes, ['7']);
+  assert.equal(validateIntent({ ...GOOD, routes: [], avoidRoutes: [] }, undefined, ids).avoidRoutes, undefined);
+  // питання про маршрут, де єдиний маршрут — заборонений, стає звичайною поїздкою
+  assert.equal(validateIntent({ ...GOOD, intent: 'route', routes: ['7'], avoidRoutes: ['7'] }, undefined, ids).intent, 'trip');
+  assert.ok(buildSystemPrompt().includes('avoidRoutes'));
+});

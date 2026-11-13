@@ -81,9 +81,9 @@ describe('«Доведе» — відповідь про маршрут', () => 
 
   it('«куди їде №5»: кінцеві й найближчі відправлення з обох кінцевих, минулі рейси не показуємо', () => {
     const out = ask('куди їде автобус №5');
-    expect(out).toMatchObject({ kind: 'route_info', routeId: '5', no: '5', fromName: 'Лікарня', toName: 'Залізничний вокзал', atStopId: null });
+    expect(out).toMatchObject({ kind: 'route_info', atStopId: null, items: [{ routeId: '5', no: '5', fromName: 'Лікарня', toName: 'Залізничний вокзал' }] });
     if (out.kind !== 'route_info') return;
-    expect(out.boards).toEqual([
+    expect(out.items[0].boards).toEqual([
       { fromStopId: 'st_a', towardStopId: 'st_z', next: [14 * 60 + 30, 15 * 60, 19 * 60], first: 6 * 60, last: 19 * 60 },
       { fromStopId: 'st_z', towardStopId: 'st_a', next: [20 * 60], first: 6 * 60 + 30, last: 20 * 60 },
     ]);
@@ -91,17 +91,71 @@ describe('«Доведе» — відповідь про маршрут', () => 
 
   it('напрямок, де сьогодні рейсів уже немає, не показуємо, поки є інші; якщо немає жодного — показуємо всі', () => {
     const evening = composeStories({ intent: parse('куди їде автобус №5'), now: { ...NOW, mins: 19 * 60 + 30 }, date: NOW.date, schedules: [], planner, routes: ROUTES });
-    expect(evening.kind === 'route_info' && evening.boards.map((b) => b.towardStopId)).toEqual(['st_a']);
+    expect(evening.kind === 'route_info' && evening.items[0].boards.map((b) => b.towardStopId)).toEqual(['st_a']);
     const night = composeStories({ intent: parse('куди їде автобус №5'), now: { ...NOW, mins: 23 * 60 }, date: NOW.date, schedules: [], planner, routes: ROUTES });
-    expect(night.kind === 'route_info' && night.boards.map((b) => [b.towardStopId, b.next.length])).toEqual([['st_z', 0], ['st_a', 0]]);
+    expect(night.kind === 'route_info' && night.items[0].boards.map((b) => [b.towardStopId, b.next.length])).toEqual([['st_z', 0], ['st_a', 0]]);
   });
 
   it('маршрут не ходить через названу зупинку — картка без рейсів, а не вигадані', () => {
     const out = ask('коли 5-ка з Царського села');
-    expect(out).toMatchObject({ kind: 'route_info', routeId: '5', atStopId: 'st_0090', atStopLabel: 'Малин · Царське село', boards: [] });
+    expect(out).toMatchObject({ kind: 'route_info', atStopId: 'st_0090', atStopLabel: 'Малин · Царське село', items: [{ routeId: '5', boards: [] }] });
+  });
+
+  it('кілька маршрутів — одна відповідь з розділом на кожен; першим той, що їде раніше', () => {
+    const two: LocalPlanner = {
+      ...planner,
+      routeDepartures: (routeId) =>
+        routeId === '5'
+          ? [{ fromStopId: 'st_a', towardStopId: 'st_z', mins: [15 * 60] }]
+          : routeId === '7'
+            ? [{ fromStopId: 'st_a', towardStopId: 'st_q', mins: [14 * 60 + 25] }]
+            : [],
+    };
+    const i = parse('коли їдуть 5-ка і сімка');
+    expect(i).toMatchObject({ intent: 'route', routes: ['5', '7'] });
+    const out = composeStories({ intent: i, now: NOW, date: NOW.date, schedules: [], planner: two, routes: ROUTES });
+    expect(out.kind === 'route_info' && out.items.map((x) => [x.routeId, x.boards[0].next[0]])).toEqual([
+      ['7', 14 * 60 + 25],
+      ['5', 15 * 60],
+    ]);
   });
 
   it('номер для показу береться зі списку маршрутів: id 11 → «11/1»', () => {
-    expect(ask('маршрут 11/1')).toMatchObject({ kind: 'route_info', routeId: '11', no: '11/1' });
+    expect(ask('маршрут 11/1')).toMatchObject({ kind: 'route_info', items: [{ routeId: '11', no: '11/1' }] });
+  });
+});
+
+describe('«Доведе» — «крім сімки»', () => {
+  it('маршрут після «крім / без / тільки не» — той, якого уникати; заперечення тягнеться через «і»', () => {
+    expect(parse('від лікарні до вокзалу крім сімки')).toMatchObject({ intent: 'trip', avoidRoutes: ['7'], from: { id: 'malyn.likarnia' }, to: { id: 'malyn.vokzal' } });
+    expect(parse('від лікарні до вокзалу крім сімки').routes).toBeUndefined();
+    expect(parse('з лікарні на вокзал тільки не автобусом №5').avoidRoutes).toEqual(['5']);
+    expect(parse('від лікарні до вокзалу без 5-ки і 7-ки').avoidRoutes).toEqual(['5', '7']);
+    expect(parse('кроме девятки, от больницы до вокзала').avoidRoutes).toEqual(['9']);
+    // названий і водночас заборонений — заборона сильніша
+    expect(parse('від лікарні до вокзалу сімкою, крім сімки')).toMatchObject({ avoidRoutes: ['7'] });
+    // «не» далеко від номера — не заперечення
+    expect(parse('не знаю, сімкою від лікарні до вокзалу')).toMatchObject({ routes: ['7'] });
+  });
+
+  it('сам по собі «крім сімки» не робить питання питанням про маршрут', () => {
+    const i = parse('до вокзалу крім сімки');
+    expect(i.intent).toBe('trip');
+    expect(classify(i).kind).toBe('ask_from');
+  });
+
+  const leg = (routeId: string, dep: number) => ({ kind: 'transit', routeId, tripId: `t${routeId}${dep}`, direction: 'there', variantId: null, boardStopId: 'st_a', alightStopId: 'st_0019', depMins: dep, arrMins: dep + 10, stopIds: ['st_a', 'st_0019'], times: [] });
+  const journey = (routeId: string, dep: number) => ({ departMins: dep, arriveMins: dep + 10, transfers: 0, legs: [leg(routeId, dep)] });
+  const plannerWith = (journeys: unknown[]): LocalPlanner =>
+    ({ plan: () => ({ journeys, directWalk: null }), stopName: (id: string) => id, stopCoords: () => null }) as unknown as LocalPlanner;
+
+  it('поїздки без названого автобуса; якщо без нього ніяк — показує з ним і каже про це', () => {
+    const i = parse('від лікарні до вокзалу крім сімки');
+    const mixed = composeStories({ intent: i, now: NOW, date: NOW.date, schedules: [], planner: plannerWith([journey('7', 14 * 60 + 30), journey('5', 14 * 60 + 40), journey('7', 15 * 60)]), routes: ROUTES });
+    expect(mixed.kind === 'stories' && mixed.stories.map((s) => s.leaveMins)).toEqual([14 * 60 + 40]);
+    expect(mixed.kind === 'stories' && mixed.notice).toBeNull();
+    const only7 = composeStories({ intent: i, now: NOW, date: NOW.date, schedules: [], planner: plannerWith([journey('7', 14 * 60 + 30)]), routes: ROUTES });
+    expect(only7.kind === 'stories' && only7.stories.length).toBe(1);
+    expect(only7.kind === 'stories' && only7.notice).toBe('Без автобуса №7 туди не доїхати — показую варіанти з ним.');
   });
 });

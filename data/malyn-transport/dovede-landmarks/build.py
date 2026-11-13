@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Орієнтири Малина для «Доведе» (Docs/dovede-roadmap.md, фаза 4): магазини, аптеки, установи, підприємства —
-місця, які люди називають замість зупинки («до АТБ», «в пенсійний», «на Вайдманн»). З OSM-знімка жовтневого
-аудиту (`../audit-2026-10/osm/addresses.json`, `pois.json`) і ручних рішень `config.json` будує
+місця, які люди називають замість зупинки («до АТБ», «в пенсійний», «до школи 3»). Зі знімка OpenStreetMap
+(`osm/places.json`, оновлюється `fetch_osm.py`) і ручних рішень `config.json` будує
 
   frontend/src/pages/DovedePage/data/malyn-landmarks.json  — назва, як її кажуть, точка
   backend/src/dovede/landmarks.ts                          — id і назви (для промпту Claude)
@@ -17,7 +17,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
-OSM = os.path.join(ROOT, 'data', 'malyn-transport', 'audit-2026-10', 'osm')
+OSM = os.path.join(HERE, 'osm')
 OUT_FRONT = os.path.join(ROOT, 'frontend', 'src', 'pages', 'DovedePage', 'data', 'malyn-landmarks.json')
 OUT_BACK = os.path.join(ROOT, 'backend', 'src', 'dovede', 'landmarks.ts')
 
@@ -42,6 +42,8 @@ KINDS = {
     'amenity=veterinary': 'ветлікарня',
     'healthcare=laboratory': 'лабораторія',
     'amenity=kindergarten': 'дитячий садок',
+    'amenity=school': 'школа',
+    'amenity=music_school': 'школа',
     'amenity=college': 'навчальний заклад',
     'amenity=library': 'бібліотека',
     'amenity=driving_school': 'автошкола',
@@ -77,7 +79,7 @@ KIND_KEYS = ('amenity', 'shop', 'office', 'tourism', 'leisure', 'historic', 'hea
 KIND_IN_NAME = re.compile(
     r'аптек|пошт|лікарн|церкв|костел|храм|бібліотек|ринок|стадіон|парк|готел|hotel|хостел|ресторац|бар\b|bar\b|'
     r'тц\b|центр|музей|суд\b|рада\b|відділ|управлінн|фонд|служб|бюро|архів|реєстр|дпі|завод|фабрик|комбінат|'
-    r'лісництв|лісгосп|друкарн|підприємств|цех|дім молитви|зал царства|коледж|ліцей|днз|заклад|автошкол|'
+    r'лісництв|лісгосп|друкарн|підприємств|цех|дім молитви|зал царства|коледж|ліцей|гімназі|школ|садок|класи|днз|заклад|автошкол|'
     r'будинок|ветеринарн|амбулатор|пункт|кладовищ|відділення|корпус|хлібозавод|рем\b|кар.єр',
     re.I,
 )
@@ -126,6 +128,21 @@ def el_coords(el):
     return [c['lat'], c['lon']] if c else None
 
 
+def numbered(name):
+    """Як кличуть заклад з номером: «Малинський Ліцей №3» — «ліцей 3», «школа 3» (ліцеї — колишні школи з тим
+    самим номером); «ДНЗ №8 Ялинка» — «садок 8», «Ялинка»."""
+    m = re.match(r'^Малинський ліцей №\s?(\d+)', name, re.I)
+    if m:
+        n = m.group(1)
+        return [f'ліцей {n}', f'лицей {n}', f'школа {n}', f'школи {n}', f'школу {n}', f'{n} школа', f'{n} школи', f'{n} школу', f'{n} ліцей']
+    m = re.match(r'^ДНЗ\s+№?\s?(\d+)\s*(.*)$', name, re.I)
+    if m:
+        n, rest = m.group(1), m.group(2).strip()
+        forms = [f'{w} {n}' for w in ('садок', 'садка', 'садочок', 'садочка', 'садик', 'садика', 'дитсадок', 'дитсадка', 'детсад')]
+        return ([rest, f'садок {rest}', f'садка {rest}'] if rest else []) + forms
+    return []
+
+
 def kind_of(tags):
     for k in KIND_KEYS:
         if k in tags and f'{k}={tags[k]}' in KINDS:
@@ -137,9 +154,7 @@ def main():
     cfg = json.load(open(os.path.join(HERE, 'config.json'), encoding='utf-8'))
     exclude = [re.compile(p, re.I) for p in cfg['exclude']]
     centre = cfg['centre']
-    elements = []
-    for name in ('addresses.json', 'pois.json'):
-        elements += json.load(open(os.path.join(OSM, name), encoding='utf-8'))['elements']
+    elements = json.load(open(os.path.join(OSM, 'places.json'), encoding='utf-8'))['elements']
 
     # 1. кандидати: названі місця дозволених родів
     found = []
@@ -151,6 +166,8 @@ def main():
         if not raw or not tag or not pos:
             continue
         name = clean(raw)
+        if tag.startswith('historic=') and name not in cfg['memorials']:
+            continue
         if any(p.search(name) for p in exclude):
             continue
         street = tags.get('addr:street')
@@ -178,6 +195,7 @@ def main():
             short = LEGAL.sub('', short, count=1)
         if short != name and name not in cfg['noShort']:
             out.append(short)
+        out += numbered(name)
         for extra in cfg['aliases'].get(name, []):
             out.append(extra)
         seen, res = set(), []

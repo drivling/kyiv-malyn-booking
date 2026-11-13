@@ -912,6 +912,30 @@ button.dv-slot::after {
   justify-self: start;
 }
 
+/* маршрут у картці; кілька маршрутів («5 і 7 з лікарні») — розділи один під одним */
+.dv-route__item {
+  display: grid;
+  gap: 10px;
+}
+.dv-route--many {
+  gap: 18px;
+}
+.dv-route--many .dv-route__item + .dv-route__item {
+  border-top: 2px solid var(--dv-line);
+  padding-top: 16px;
+}
+.dv-route__lead {
+  margin: 0;
+  font-weight: 700;
+}
+.dv-route--many .dv-route__times {
+  font-size: 18px;
+}
+.dv-route__more {
+  justify-self: start;
+  font-size: 14px;
+}
+
 /* ── «Під кат»: після відповіді рядок «Розумію…» згортається в один рядок-підсумок ── */
 .dv-cut {
   display: grid;

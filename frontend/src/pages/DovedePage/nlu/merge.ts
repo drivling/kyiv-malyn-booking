@@ -12,7 +12,7 @@ export function sameAnswer(a: TripIntent, b: TripIntent): boolean {
   const modes = (m: string[]) => [...m].sort().join(',');
   // «розклад» і «як доїхати» складальник відповідає однаково (classify) — це не розбіжність
   const kind = (i: TripIntent['intent']) => (i === 'schedule' ? 'trip' : i);
-  const routes = (i: TripIntent) => [...(i.routes ?? [])].sort().join(',');
+  const routes = (i: TripIntent) => `${[...(i.routes ?? [])].sort().join(',')}!${[...(i.avoidRoutes ?? [])].sort().join(',')}`;
   return (
     kind(a.intent) === kind(b.intent) &&
     (a.from?.id ?? null) === (b.from?.id ?? null) &&

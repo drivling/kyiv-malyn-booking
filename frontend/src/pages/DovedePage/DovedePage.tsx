@@ -343,7 +343,7 @@ function summaryLabel(intent: TripIntent, date: string, now: KyivNow): string {
   const to = placeRefLabel(intent.to);
   const places = from && to ? `${from} → ${to}` : to ? `до: ${to}` : from ? `з: ${from}` : '';
   const time = intent.when.time ? `${intent.when.kind === 'arrive' ? 'до' : 'о'} ${intent.when.time}` : '';
-  const mode = modeLabel(intent.modes, (intent.routes ?? []).map((id) => routeNo(id)));
+  const mode = modeLabel(intent.modes, (intent.routes ?? []).map((id) => routeNo(id)), (intent.avoidRoutes ?? []).map((id) => routeNo(id)));
   return [places, [dateHeading(date, now), time].filter(Boolean).join(' '), mode.guessed ? '' : mode.text].filter(Boolean).join(' · ');
 }
 

@@ -48,6 +48,7 @@ function grade(c: GoldenCase): [number, number, string[]] {
   }
   if (e.modes !== undefined) check('modes', got.modes, e.modes);
   if (e.routes !== undefined) check('routes', [...(got.routes ?? [])].sort(), [...e.routes].sort());
+  if (e.avoidRoutes !== undefined) check('avoidRoutes', [...(got.avoidRoutes ?? [])].sort(), [...e.avoidRoutes].sort());
   if (e.confidence !== undefined) check('confidence', got.confidence, e.confidence);
   if (e.unknown !== undefined) check('unknown', got.unknown.length > 0, e.unknown.length > 0);
   return [ok, total, why];

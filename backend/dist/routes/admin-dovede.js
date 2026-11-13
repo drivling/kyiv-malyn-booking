@@ -35,7 +35,8 @@ function intentsAgree(a, b) {
         (a.when.part ?? null) === (b.when.part ?? null) &&
         (a.when.time ? a.when.kind === b.when.kind : true) &&
         modes(a.modes) === modes(b.modes) &&
-        modes(a.routes ?? []) === modes(b.routes ?? []));
+        modes(a.routes ?? []) === modes(b.routes ?? []) &&
+        modes(a.avoidRoutes ?? []) === modes(b.avoidRoutes ?? []));
 }
 function createAdminDovedeRouter(deps) {
     const { prisma } = deps;

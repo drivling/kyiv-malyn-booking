@@ -45,6 +45,13 @@ describe('«Доведе» — орієнтири', () => {
     expect(parse('до садка 8 з вокзалу').to?.id).toBe('lm.dnz-8-ialynka');
     expect(parse('до нової пошти 3').to?.id).toBe('lm.nova-poshta-viddilennia-3');
     expect(parse('в налоговую').to?.id).toBe('lm.malynska-dpi');
+    // школи: ліцеї — колишні школи з тим самим номером
+    expect(parse('з вокзалу до школи 2').to?.id).toBe('lm.malynskyi-litsei-2');
+    expect(parse('до ліцею 4 з центру').to?.id).toBe('lm.malynskyi-litsei-4');
+    expect(parse('до 5 школи').to?.id).toBe('lm.malynskyi-litsei-5');
+    expect(parse('до ліцею Сосніної').to?.id).toBe('lm.malynskyi-litsei-1-imeni-niny-sosninoi');
+    expect(parse('до слобідської гімназії').to?.id).toBe('lm.slobidska-himnaziia');
+    expect(parse('в садок 9').to?.id).toBe('lm.dnz-9-zolotyi-kliuchyk');
     expect(parse('з хлібозаводу на вокзал')).toMatchObject({ from: { id: 'lm.vat-malynskyi-khlibozavod' }, to: { id: 'malyn.vokzal' } });
   });
 
@@ -110,7 +117,7 @@ describe('«Доведе» — орієнтири', () => {
       // зупинка чи кураторське місце з такою назвою — теж правильна відповідь
       if (got && !lm) continue;
       // однойменне місце (той самий заклад на іншій вулиці чи під іншою вивіскою) — теж воно
-      expect(lm?.said, `до ${l.name}`).toContain(l.name);
+      expect(lm?.said.map((x) => x.toLowerCase()), `до ${l.name}`).toContain(l.name.toLowerCase());
     }
   });
 

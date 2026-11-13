@@ -89,6 +89,10 @@
     { "id": "r-09", "text": "до скількох ходить трійка", "expect": { "intent": "route", "routes": ["3"] }, "tags": ["routes", "word-number"], "scope": "routes" },
     { "id": "r-10", "text": "чи їде 2 маршрут до паперової фабрики", "expect": { "intent": "route", "routes": ["2"], "to": "malyn.paperova" }, "tags": ["routes", "number-before-word"], "scope": "routes" },
 
+    { "id": "r-10", "text": "від лікарні до вокзалу крім сімки", "expect": { "intent": "trip", "routes": [], "avoidRoutes": ["7"], "from": "malyn.likarnia", "to": "malyn.vokzal" }, "tags": ["routes", "avoid"], "scope": "routes" },
+    { "id": "r-11", "text": "з центру на вокзал только не пятёркой", "expect": { "intent": "trip", "routes": [], "avoidRoutes": ["5"], "from": "malyn.tsentr", "to": "malyn.vokzal" }, "tags": ["routes", "avoid", "russian"], "scope": "routes" },
+    { "id": "r-12", "text": "коли їдуть 5-ка і сімка", "expect": { "intent": "route", "routes": ["5", "7"] }, "tags": ["routes", "several"], "scope": "routes" },
+
     { "id": "a-01", "text": "з Городищанської 20 до вокзалу", "expect": { "intent": "trip", "from": "street.horodyshchanska", "to": "malyn.vokzal" }, "tags": ["streets", "house"], "scope": "streets" },
     { "id": "a-02", "text": "з центру до вулиці Чапаєва", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "street.ukrainskykh-povstantsiv" }, "tags": ["streets", "old-name"], "scope": "streets" },
     { "id": "a-03", "text": "как доехать с Городищанской 54 в больницу", "expect": { "intent": "trip", "from": "street.horodyshchanska", "to": "malyn.likarnia" }, "tags": ["streets", "russian", "house"], "scope": "streets" },
@@ -106,6 +110,9 @@
     { "id": "l-07", "text": "до нової пошти 3 від автостанції", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "lm.nova-poshta-viddilennia-3" }, "tags": ["landmarks", "branch-number"], "scope": "landmarks" },
     { "id": "l-08", "text": "з вокзалу до лікарні", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "malyn.likarnia" }, "tags": ["landmarks", "curated-wins"], "scope": "landmarks" },
     { "id": "l-10", "text": "з вокзалу до друкарні", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "lm.malynska-raionna-drukarnia" }, "tags": ["landmarks", "enterprise"], "scope": "landmarks" },
+    { "id": "l-11", "text": "з вокзалу до школи 2", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "lm.malynskyi-litsei-2" }, "tags": ["landmarks", "school"], "scope": "landmarks" },
+    { "id": "l-12", "text": "как доехать до 5 школы с автостанции", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "lm.malynskyi-litsei-5" }, "tags": ["landmarks", "school", "russian"], "scope": "landmarks" },
+    { "id": "l-13", "text": "від лікарні до ліцею 4 о 8 ранку", "expect": { "intent": "trip", "from": "malyn.likarnia", "to": "lm.malynskyi-litsei-4", "when": { "time": "08:00" } }, "tags": ["landmarks", "school", "time"], "scope": "landmarks" },
     { "id": "l-09", "text": "як доїхати до епіцентру з вокзалу", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": null }, "tags": ["landmarks", "unknown"], "scope": "landmarks" }
   ]
 }
