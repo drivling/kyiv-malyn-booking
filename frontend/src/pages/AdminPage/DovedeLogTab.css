@@ -1,0 +1,158 @@
+.dovede-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dovede-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dovede-log-head h2,
+.dovede-log-head h3 {
+  margin: 0;
+}
+
+.dovede-log h3 {
+  margin: 8px 0 0;
+}
+
+.dovede-log-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dovede-log-chip {
+  padding: 6px 12px;
+  border: 1px solid #dde3e6;
+  border-radius: 999px;
+  background: #fff;
+  color: #054752;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dovede-log-chip.active {
+  border-color: #00aff5;
+  background: rgba(0, 175, 245, 0.12);
+}
+
+.dovede-log-note,
+.dovede-log-empty {
+  margin: 0;
+  color: #708c91;
+  font-size: 0.875rem;
+}
+
+.dovede-log-error {
+  margin: 0;
+  color: #dc2626;
+}
+
+.dovede-log-warn {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.dovede-log-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dovede-log-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 110px;
+  padding: 8px 12px;
+  border: 1px solid #dde3e6;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.dovede-log-tile span {
+  font-size: 0.75rem;
+  color: #708c91;
+}
+
+.dovede-log-tile strong {
+  font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dovede-log-tile small {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #708c91;
+}
+
+.dovede-log-scroll {
+  overflow-x: auto;
+}
+
+.dovede-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.dovede-log-table th,
+.dovede-log-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e8ecee;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.dovede-log-table td.dovede-log-text {
+  min-width: 220px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dovede-log-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.dovede-log-row--flagged td:first-child {
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.dovede-log-who,
+.dovede-log-dim {
+  color: #708c91;
+}
+
+.dovede-log-unknown {
+  color: #b45309;
+}
+
+.dovede-log-flag {
+  display: inline-block;
+  margin: 0 4px 2px 0;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+}
+
+.dovede-log-flag--fail {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dovede-log-flag--other {
+  background: #eef2f3;
+  color: #54707a;
+}

@@ -1170,3 +1170,51 @@ export interface ArrivalReportStats {
   }[];
   recent: ArrivalReportView[];
 }
+
+// --- «Доведе» · журнал питань (GET /admin/dovede/queries) ---
+export type DovedeLogDays = 1 | 7 | 30 | 90;
+/** fail — ШІ не відповів; disagree — браузер і Claude зрозуміли по-різному; unknown — невпізнані слова; no_place — немає «звідки» чи «куди»; other — не про дорогу */
+export type DovedeLogFlag = 'fail' | 'disagree' | 'unknown' | 'no_place' | 'other';
+
+export interface DovedeLogItem {
+  id: number;
+  createdAt: string;
+  text: string;
+  status: string;
+  aiCalled: boolean;
+  agree: boolean | null;
+  latencyMs: number | null;
+  model: string | null;
+  promptVersion: string | null;
+  error: string | null;
+  local: import('@/pages/DovedePage/nlu/types').TripIntent | null;
+  ai: import('@/pages/DovedePage/nlu/types').TripIntent | null;
+  flags: DovedeLogFlag[];
+}
+
+export interface DovedeLog {
+  days: DovedeLogDays;
+  since: string;
+  enabled: boolean;
+  hasKey: boolean;
+  dailyCap: number;
+  callsToday: number;
+  truncated: boolean;
+  summary: {
+    total: number;
+    aiCalls: number;
+    aiOk: number;
+    aiFailed: number;
+    agreed: number;
+    disagreed: number;
+    withUnknown: number;
+    noPlace: number;
+    medianLatencyMs: number | null;
+    tokens: { input: number; output: number; cacheRead: number; cacheWrite: number };
+    byStatus: { status: string; count: number }[];
+    topUnknown: { word: string; count: number; example: string }[];
+  };
+  /** скільки питань за період пройшло фільтр (у `items` — лише останні) */
+  matched: number;
+  items: DovedeLogItem[];
+}

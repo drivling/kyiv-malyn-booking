@@ -1052,6 +1052,11 @@ class ApiClient {
     }
   }
 
+  /** Адмін: журнал питань «Доведе» — зведення за `days` і останні питання (`only` — фільтр таблиці) */
+  async getDovedeLog(days: import('@/types').DovedeLogDays = 7, only = ''): Promise<import('@/types').DovedeLog> {
+    return this.request(`/admin/dovede/queries?days=${days}${only ? `&only=${encodeURIComponent(only)}` : ''}`);
+  }
+
   // --- «Джура» · читання чатів ---
   async getDzhuraStatus(): Promise<import('@/types').DzhuraStatus> {
     return this.request('/admin/dzhura/status');
