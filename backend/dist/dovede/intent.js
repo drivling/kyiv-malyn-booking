@@ -8,7 +8,9 @@ exports.validateIntent = validateIntent;
  * не довіряє відповіді: чужі id місць переносить у `unknown`, зайве відкидає. Чисел розкладу тут немає.
  */
 const gazetteer_1 = require("./gazetteer");
+const landmarks_1 = require("./landmarks");
 const streets_1 = require("./streets");
+const LANDMARK_IDS = new Set(landmarks_1.MALYN_LANDMARKS.map((l) => l.id));
 const STREET_IDS = new Set(streets_1.MALYN_STREETS.map((s) => s.id));
 /** `street.x` або `street.x:20` — номер будинку браузер дописує до id сам (frontend nlu/streets.ts) */
 const STREET_ID_RE = /^(street\.[a-z0-9-]+)(?::[0-9]{1,3}[а-яіїєa-z]?)?$/;
@@ -96,7 +98,7 @@ function validateIntent(raw, stopIds, routeIds) {
         const p = v;
         const id = typeof p.id === 'string' ? p.id.trim() : '';
         const text = clip(p.text);
-        if (!(0, gazetteer_1.placeById)(id) && !stopIds?.has(id) && !isStreetId(id)) {
+        if (!(0, gazetteer_1.placeById)(id) && !stopIds?.has(id) && !isStreetId(id) && !LANDMARK_IDS.has(id)) {
             pushUnknown(text || id.slice(0, MAX_TEXT));
             return null;
         }

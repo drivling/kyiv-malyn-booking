@@ -3,6 +3,7 @@ import golden from '../eval/golden.json';
 import malynRoutes from '../eval/malyn-routes.json';
 import malynStops from '../eval/malyn-stops.json';
 import { buildStopPlaces } from './stopPlaces';
+import { LANDMARKS } from './landmarks';
 import { STREETS } from './streets';
 import { parseLocal } from './parseLocal';
 import { PLACES } from './gazetteer';
@@ -19,7 +20,7 @@ interface GoldenCase {
     to?: string | null;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
@@ -97,11 +98,11 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     expect(ok / total, misses.join(' | ')).toBeGreaterThanOrEqual(0.7);
   });
 
-  it('розуміє ≥ 80% слотів у питаннях про вулиці й адреси (без ШІ)', () => {
+  it('розуміє ≥ 80% слотів у питаннях про вулиці, адреси й орієнтири (без ШІ)', () => {
     let ok = 0;
     let total = 0;
     const misses: string[] = [];
-    for (const c of cases.filter((x) => x.scope === 'streets')) {
+    for (const c of cases.filter((x) => x.scope === 'streets' || x.scope === 'landmarks')) {
       const [o, t, why] = grade(c);
       ok += o;
       total += t;
@@ -111,7 +112,7 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
   });
 
   it('усі id у еталонах є в словнику', () => {
-    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id)]);
+    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id), ...LANDMARKS.map((x) => x.id)]);
     for (const c of cases) {
       for (const id of [c.expect.from, c.expect.to]) {
         if (typeof id === 'string') expect(ids.has(id), `${c.id}: ${id}`).toBe(true);

@@ -7,6 +7,7 @@ import { tokenize, type Token } from './normalize';
 import { resolvePlace } from './places';
 import { findRouteMentions, type RouteLike } from './routes';
 import { matchStopPlace, type StopPlace } from './stopPlaces';
+import { landmarkPlace, matchLandmark } from './landmarks';
 import { matchStreet, streetPlace, streetPlaceId, streetWins } from './streets';
 import type { KyivNow, LocalParse, ParseSpan, PlaceRef, TripIntent, TripMode, TripWhen } from './types';
 
@@ -142,6 +143,19 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
         if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', place, hit); }
         else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', place, hit); }
         i = street.end;
+        continue;
+      }
+      // Орієнтир без зупинки («до АТБ», «в пенсійний фонд») — лише після прийменника: назви крамниць — звичайні слова
+      const lm = prepBefore(toks, i) ? matchLandmark(toks, i) : null;
+      const lmPlace = lm ? landmarkPlace(lm.landmark.id) : undefined;
+      if (lm && lmPlace) {
+        const lmPrep = prepBefore(toks, i)!;
+        const lastTok = toks[lm.end];
+        const whole: Token = { raw: text.slice(t.start, lastTok.end), n, start: t.start, end: lastTok.end };
+        const hit: PlaceHit = { place: lmPlace, token: whole, spanStart: lmPrep.start, role: null };
+        hits.push(hit);
+        assign(FROM_PREPS.has(lmPrep.n) ? 'from' : 'to', lmPlace, hit);
+        i = lm.end;
         continue;
       }
     }

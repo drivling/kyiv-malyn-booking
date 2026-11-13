@@ -16,6 +16,7 @@ import { anchorFor, type AnchorStop, type IntercityMode } from '../data/anchors'
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroHint } from '../data/kyiv';
 import { placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
 import { resolvePlace } from '../nlu/places';
+import { landmarkById } from '../nlu/landmarks';
 import { streetPrecision } from '../nlu/streets';
 import { addDays, partEndMins, partStartMins } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
@@ -138,6 +139,12 @@ function stopSpot(planner: LocalPlanner, stopId: string): Spot {
 
 /** Примітка під відповіддю, коли адреса приблизна: будинку немає в даних, точка — середина вулиці чи сусідній номер */
 function approxNote(place: GazetteerPlace): string | null {
+  const lm = landmarkById(place.id);
+  if (lm) {
+    if (!lm.twins) return null;
+    const where = lm.address ? ` (${lm.address})` : '';
+    return `У місті кілька місць із назвою «${lm.name}» — показую це: ${lm.label}${where}. Якщо потрібне інше, назвіть вулицю чи зупинку поруч.`;
+  }
   switch (streetPrecision(place.id)) {
     case 'near':
       return 'Цей будинок я знайшов за розташуванням біля вулиці — місце може бути трохи неточним.';

@@ -11,9 +11,10 @@ exports.buildUserText = buildUserText;
  */
 const gazetteer_1 = require("./gazetteer");
 const stopPlaces_1 = require("./stopPlaces");
+const landmarks_1 = require("./landmarks");
 const streets_1 = require("./streets");
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-exports.PROMPT_VERSION = 'dovede-understand-v4';
+exports.PROMPT_VERSION = 'dovede-understand-v5';
 /** Що Claude має знати про місце понад назву — чого не видно з синонімів */
 const PLACE_NOTES = {
     'kyiv.akadem': 'метро Академмістечко; звідси їде більшість маршруток на Малин',
@@ -49,6 +50,7 @@ const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
  */
 function buildSystemPrompt(stops = [], routes = []) {
     const streetLines = [...streets_1.MALYN_STREETS].sort(byId).map((s) => `- ${s.id} — ${s.kind} ${s.name}${s.old.length ? ` (кол. ${s.old.join(', ')})` : ''}`);
+    const landmarkLines = [...landmarks_1.MALYN_LANDMARKS].sort(byId).map((l) => `- ${l.id} — ${l.label}${l.said.length ? ` (кажуть: ${l.said.join(', ')})` : ''}`);
     const routeLines = [...routes].sort(byId).map((r) => {
         const ends = [r.fromName, r.toName].filter(Boolean).join(' — ');
         return `- ${r.id} — автобус №${r.no}${ends ? `: ${ends}` : ''}`;
@@ -68,7 +70,7 @@ function buildSystemPrompt(stops = [], routes = []) {
         'тож ти їх не знаєш і не називаєш: ти лише кажеш, що людина спитала.',
         '',
         '## Словник місць',
-        'У полях from і to дозволені лише id з цього розділу та зі списків зупинок і вулиць нижче. Скопіюй id точно.',
+        'У полях from і to дозволені лише id з цього розділу та зі списків зупинок, вулиць і орієнтирів нижче. Скопіюй id точно.',
         ...places,
         ...(stopLines.length
             ? [
@@ -89,6 +91,15 @@ function buildSystemPrompt(stops = [], routes = []) {
         'назвою (інакше — те місце чи зупинку). У дужках — колишні назви: людина може сказати по-старому. Провулок',
         'бери лише тоді, коли сказано «провулок». Вулиці, якої тут немає, — у unknown.',
         ...streetLines,
+        '',
+        '## Орієнтири Малина',
+        'Магазини, аптеки, установи, підприємства, заклади — місця без власної зупинки; програма сама доведе до них',
+        'від найближчої зупинки. Став id орієнтира (lm.…) лише тоді, коли в словнику місць і серед зупинок немає місця',
+        'з такою назвою: «Сонечко», «Сільпо», «лікарня», «Прожектор» — це зупинка чи місце словника, туди їде автобус.',
+        'Назву кажуть коротко, без лапок і «ТОВ», у будь-якому відмінку, російською («в пенсионный», «до атб»). Кілька',
+        'орієнтирів з однаковою назвою (…, …-2, …-3) — візьми перший, без суфікса. Імʼя людини («до Марії») чи звичайне',
+        'слово орієнтиром не вважай. Закладу, якого тут немає, — у unknown.',
+        ...landmarkLines,
         ...(routeLines.length
             ? [
                 '',
