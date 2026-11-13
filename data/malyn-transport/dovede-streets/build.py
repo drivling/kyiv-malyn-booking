@@ -65,6 +65,85 @@ def dist_m(a, b):
     return math.hypot(dx, dy)
 
 
+# Привʼязка будинку без `addr:street` до вулиці за геометрією: найближча вулиця має бути близько й помітно ближче
+# за другу — інакше будинок кутовий або у дворі, і вгадувати вулицю не можна. На будинках із відомою вулицею ці
+# пороги дають ≈ 95% збігів (див. houseStats.check); помилки — багатоквартирні будинки у дворах, адресовані до
+# головної вулиці. Тому такі будинки йдуть в окремий список `near` і у відповіді позначаються як неточні. Навіть
+# помилково привʼязаний будинок стоїть не далі 45 м від названої вулиці — це не гірше за «середину вулиці».
+MAX_DIST_M = 45.0      # далі від осі вулиці — це вже не «будинок на цій вулиці»
+MIN_GAP_M = 30.0       # наскільки друга вулиця має бути далі за першу…
+MIN_RATIO = 2.5        # …і у скільки разів
+SAME_HOUSE_M = 60.0    # два обʼєкти з тим самим номером ближче за це — один будинок (корпус, прибудова)
+
+
+def to_xy(lat, lon, lat0):
+    return (lon * 111320.0 * math.cos(math.radians(lat0)), lat * 110540.0)
+
+
+def seg_dist(p, a, b):
+    """Відстань від точки p до відрізка ab (метри, площина)."""
+    ax, ay = a
+    bx, by = b
+    px, py = p
+    dx, dy = bx - ax, by - ay
+    L = dx * dx + dy * dy
+    t = 0.0 if L == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+class StreetIndex:
+    """Сітка 150 м з відрізками вулиць — щоб не міряти кожен будинок до кожного відрізка."""
+
+    CELL = 150.0
+
+    def __init__(self, ways, lat0):
+        self.lat0 = lat0
+        self.grid = {}
+        for name, pts in ways:
+            xy = [to_xy(la, lo, lat0) for la, lo in pts]
+            for a, b in zip(xy, xy[1:]):
+                x0, x1 = sorted((a[0], b[0]))
+                y0, y1 = sorted((a[1], b[1]))
+                for cx in range(int(x0 // self.CELL) - 1, int(x1 // self.CELL) + 2):
+                    for cy in range(int(y0 // self.CELL) - 1, int(y1 // self.CELL) + 2):
+                        self.grid.setdefault((cx, cy), []).append((name, a, b))
+
+    def nearest(self, lat, lon):
+        """[(відстань, назва вулиці)] за зростанням — по одній найкращій відстані на вулицю."""
+        p = to_xy(lat, lon, self.lat0)
+        best = {}
+        for name, a, b in self.grid.get((int(p[0] // self.CELL), int(p[1] // self.CELL)), []):
+            d = seg_dist(p, a, b)
+            if d < best.get(name, 1e9):
+                best[name] = d
+        return sorted((d, n) for n, d in best.items())
+
+
+def street_by_geometry(index, lat, lon):
+    near = index.nearest(lat, lon)
+    if not near or near[0][0] > MAX_DIST_M:
+        return None
+    if len(near) > 1:
+        d1, d2 = near[0][0], near[1][0]
+        if d2 - d1 < MIN_GAP_M or d2 < d1 * MIN_RATIO:
+            return None
+    return near[0][1]
+
+
+def el_coords(el):
+    lat = el.get('lat') or (el.get('center') or {}).get('lat')
+    lon = el.get('lon') or (el.get('center') or {}).get('lon')
+    return (lat, lon) if lat is not None and lon is not None else None
+
+
+HOUSE_RE = re.compile(r'^\d+[а-яіїєa-z]?(/\d+)?$')
+
+
+def house_number(tags):
+    num = re.sub(r'\s+', '', tags.get('addr:housenumber') or '').lower()
+    return num if HOUSE_RE.match(num) else None
+
+
 def main():
     streets_raw = json.load(open(os.path.join(OSM, 'streets.json'), encoding='utf-8'))['elements']
     addresses = json.load(open(os.path.join(OSM, 'addresses.json'), encoding='utf-8'))['elements']
@@ -84,20 +163,73 @@ def main():
             if old:
                 rec['old'].add(old)
 
+    ways = []
+    for el in streets_raw:
+        name = (el.get('tags') or {}).get('name')
+        geom = el.get('geometry') or []
+        if name and len(geom) >= 2:
+            ways.append((name, [(p['lat'], p['lon']) for p in geom]))
+    lat0 = sum(p[0] for _, pts in ways for p in pts) / sum(len(pts) for _, pts in ways)
+    index = StreetIndex(ways, lat0)
+
+    # 1) будинки, де вулицю вписано в OSM, — як є
     houses = {}
+    tagged = 0
     for el in addresses:
         tags = el.get('tags') or {}
-        street, num = tags.get('addr:street'), tags.get('addr:housenumber')
-        if not street or not num:
+        street, num, xy = tags.get('addr:street'), house_number(tags), el_coords(el)
+        if not street or not num or not xy:
             continue
-        lat = el.get('lat') or (el.get('center') or {}).get('lat')
-        lon = el.get('lon') or (el.get('center') or {}).get('lon')
-        if lat is None or lon is None:
+        if num not in houses.setdefault(street, {}):
+            houses[street][num] = [round(xy[0], 6), round(xy[1], 6)]
+            tagged += 1
+
+    # перевірка способу на будинках із відомою вулицею: скільки з привʼязаних привʼязано правильно
+    check_ok = check_wrong = check_skipped = 0
+    for el in addresses:
+        tags = el.get('tags') or {}
+        street, xy = tags.get('addr:street'), el_coords(el)
+        if not street or not xy or street not in by_name:
             continue
-        num = re.sub(r'\s+', '', num).lower()
-        if not re.match(r'^\d+[а-яіїєa-z]?(/\d+)?$', num):
+        guess = street_by_geometry(index, xy[0], xy[1])
+        if guess is None:
+            check_skipped += 1
+        elif guess == street:
+            check_ok += 1
+        else:
+            check_wrong += 1
+
+    # 2) будинки без вулиці — за геометрією; той самий номер на вулиці двічі в різних місцях — не беремо жодного
+    found = {}
+    no_street = unsure = 0
+    for el in addresses:
+        tags = el.get('tags') or {}
+        num, xy = house_number(tags), el_coords(el)
+        if tags.get('addr:street') or not num or not xy:
             continue
-        houses.setdefault(street, {}).setdefault(num, [round(lat, 6), round(lon, 6)])
+        no_street += 1
+        street = street_by_geometry(index, xy[0], xy[1])
+        if street is None:
+            unsure += 1
+            continue
+        found.setdefault((street, num), []).append(xy)
+    inferred = conflicts = 0
+    near_houses = {}
+    for (street, num), pts in sorted(found.items()):
+        if num in houses.get(street, {}):
+            continue
+        spread = max(dist_m(a, b) for a in pts for b in pts)
+        if spread > SAME_HOUSE_M:
+            conflicts += 1
+            continue
+        lat = sum(p[0] for p in pts) / len(pts)
+        lon = sum(p[1] for p in pts) / len(pts)
+        near_houses.setdefault(street, {})[num] = [round(lat, 6), round(lon, 6)]
+        inferred += 1
+    stats = {
+        'tagged': tagged, 'inferred': inferred, 'noStreet': no_street, 'unsure': unsure, 'conflicts': conflicts,
+        'check': {'ok': check_ok, 'wrong': check_wrong, 'skipped': check_skipped},
+    }
 
     out = []
     seen = set()
@@ -118,6 +250,8 @@ def main():
         mid = min(pts, key=lambda p: dist_m(p, (cx, cy)))
         old = sorted({split_name(o)[1] for o in rec['old']} - {core})
         hs = houses.get(name, {})
+        ns = near_houses.get(name, {})
+        by_num = lambda d: {k: d[k] for k in sorted(d, key=lambda x: (int(re.match(r'\d+', x).group()), x))}
         out.append({
             'id': sid,
             'kind': kind,
@@ -127,13 +261,16 @@ def main():
             'lat': round(mid[0], 6),
             'lng': round(mid[1], 6),
             'lengthM': int(round(rec['length'] / 10.0) * 10),
-            'houses': {k: hs[k] for k in sorted(hs, key=lambda x: (int(re.match(r'\d+', x).group()), x))},
+            'houses': by_num(hs),
+            'near': by_num(ns),
         })
 
     doc = {
-        'about': 'Вулиці Малина для «Доведе»: назва, колишні назви, точка на вулиці, будинки з координатами. '
+        'about': 'Вулиці Малина для «Доведе»: назва, колишні назви, точка на вулиці, будинки з координатами '
+                 '(houses — вулицю вписано в OSM; near — привʼязано до вулиці за геометрією, може бути неточно). '
                  'Згенеровано data/malyn-transport/dovede-streets/build.py з OSM-знімка 2026-10; не редагувати вручну.',
         'license': '© учасники OpenStreetMap, ODbL 1.0 — https://www.openstreetmap.org/copyright',
+        'houseStats': stats,
         'streets': out,
     }
     os.makedirs(os.path.dirname(OUT_FRONT), exist_ok=True)
@@ -163,8 +300,10 @@ def main():
     with open(OUT_BACK, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
 
-    with_houses = sum(1 for s in out if s['houses'])
-    print(f"{len(out)} streets, {with_houses} with houses, {sum(len(s['houses']) for s in out)} houses, "
+    with_houses = sum(1 for s in out if s['houses'] or s['near'])
+    print('houses:', json.dumps(stats, ensure_ascii=False))
+    print(f"{len(out)} streets, {with_houses} with houses, {sum(len(s['houses']) for s in out)} tagged + "
+          f"{sum(len(s['near']) for s in out)} by geometry, "
           f"{sum(1 for s in out if s['old'])} with old names; front {os.path.getsize(OUT_FRONT)} bytes")
 
 

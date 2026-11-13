@@ -165,7 +165,9 @@ of `dist` in a commit.
   `data/malyn-transport/dovede-streets/build.py`, never edited by hand; backend copy of the names in
   `src/dovede/streets.ts`). Such a place carries `latLng`, its id is `street.<slug>` or `street.<slug>:<house>`, and
   the composer hands the planner a point (`Spot`). The house number never goes into the URL, no geocoder is called
-  at answer time, and an address missing from the data is answered as «приблизно».
+  at answer time, and an address missing from the data is answered as «приблизно». Houses come in two lists:
+  `houses` (street tagged in OSM, exact) and `near` (street assigned by geometry — nearest street, ~95 % right, shown
+  as «знайшов за розташуванням»). Google coordinates are never stored for this (its terms forbid building a database).
 
 ### In-process scheduled jobs (no external cron)
 

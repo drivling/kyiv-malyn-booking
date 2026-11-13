@@ -19,7 +19,10 @@ export interface Street {
   lat: number;
   lng: number;
   lengthM: number;
+  /** будинки, для яких вулицю вписано в OSM */
   houses: Record<string, number[]>;
+  /** будинки, привʼязані до вулиці за геометрією (найближча вулиця): справжній будинок з таким номером поруч, але вулиця могла бути іншою */
+  near: Record<string, number[]>;
 }
 
 export const STREETS = (streetsDoc as unknown as { streets: Street[] }).streets;
@@ -97,7 +100,8 @@ export function matchStreet(toks: Token[], i: number): StreetMatch | null {
     end = h;
     // «22а»: літера — окреме слово; беремо, лише якщо такий будинок справді є
     const letter = toks[h + 1];
-    if (letter && letter.n.length === 1 && letter.start === toks[h].end && best.v.street.houses[house + letter.n]) {
+    const lettered = house + (letter?.n ?? '');
+    if (letter && letter.n.length === 1 && letter.start === toks[h].end && (best.v.street.houses[lettered] || best.v.street.near[lettered])) {
       house += letter.n;
       end = h + 1;
     }
@@ -135,7 +139,11 @@ export function streetIdForUrl(id: string): string {
 export interface StreetSpot {
   lat: number;
   lng: number;
-  /** точний будинок з OSM; інакше — найближчий відомий номер або середина вулиці */
+  /**
+   * exact — будинок з вулицею в OSM; near — будинок привʼязано до вулиці за розташуванням (може бути неточно);
+   * neighbour — сусідній відомий номер; street — середина вулиці
+   */
+  how: 'exact' | 'near' | 'neighbour' | 'street';
   exact: boolean;
 }
 
@@ -143,16 +151,22 @@ export interface StreetSpot {
 export function streetSpot(street: Street, house: string | null): StreetSpot {
   if (house) {
     const hit = street.houses[house];
-    if (hit) return { lat: hit[0], lng: hit[1], exact: true };
+    if (hit) return { lat: hit[0], lng: hit[1], how: 'exact', exact: true };
+    const guess = street.near[house];
+    if (guess) return { lat: guess[0], lng: guess[1], how: 'near', exact: false };
     const n = parseInt(house, 10);
-    const known = Object.keys(street.houses);
-    if (known.length) {
-      const near = known.reduce((a, b) => (Math.abs(parseInt(b, 10) - n) < Math.abs(parseInt(a, 10) - n) ? b : a));
-      // сусідній номер — це ще той самий квартал; далекий номер нічого не каже про місце
-      if (Math.abs(parseInt(near, 10) - n) <= 6) return { lat: street.houses[near][0], lng: street.houses[near][1], exact: false };
-    }
+    const all = { ...street.near, ...street.houses };
+    // сусідній номер — це ще той самий квартал; далекий номер нічого не каже про місце.
+    // Спершу шукаємо на тому самому боці вулиці (та сама парність), і лише потім — на протилежному.
+    const closest = (keys: string[]) =>
+      keys.reduce<string | null>((best, k) => (best == null || Math.abs(parseInt(k, 10) - n) < Math.abs(parseInt(best, 10) - n) ? k : best), null);
+    const within = (k: string | null): k is string => k != null && Math.abs(parseInt(k, 10) - n) <= 6;
+    const keys = Object.keys(all);
+    const sameSide = closest(keys.filter((k) => parseInt(k, 10) % 2 === n % 2));
+    const near = within(sameSide) ? sameSide : closest(keys);
+    if (within(near)) return { lat: all[near][0], lng: all[near][1], how: 'neighbour', exact: false };
   }
-  return { lat: street.lat, lng: street.lng, exact: false };
+  return { lat: street.lat, lng: street.lng, how: 'street', exact: false };
 }
 
 /** Місце словника для адреси (`street.x` або `street.x:20`): без зупинок, з точкою */
@@ -169,6 +183,12 @@ export function streetIsApprox(id: string): boolean {
   return p ? !streetSpot(p.street, p.house).exact : false;
 }
 
+/** Як саме знайдено точку адреси — для примітки під відповіддю; null — це не адреса */
+export function streetPrecision(id: string): StreetSpot['how'] | null {
+  const p = parseStreetId(id);
+  return p ? streetSpot(p.street, p.house).how : null;
+}
+
 /** Claude повертає `street.x` без будинку, а номер лишає в словах людини — дістаємо його звідти */
 export function withHouseFromText(id: string, text: string): string {
   const p = parseStreetId(id);
@@ -176,5 +196,5 @@ export function withHouseFromText(id: string, text: string): string {
   const m = /(?:^|[^\d:.])(\d{1,3})\s?([а-яіїє])?(?![\d:.])/iu.exec(text);
   if (!m) return id;
   const withLetter = m[2] ? m[1] + m[2].toLowerCase() : null;
-  return `${p.street.id}:${withLetter && p.street.houses[withLetter] ? withLetter : m[1]}`;
+  return `${p.street.id}:${withLetter && (p.street.houses[withLetter] || p.street.near[withLetter]) ? withLetter : m[1]}`;
 }

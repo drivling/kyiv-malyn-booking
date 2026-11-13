@@ -57,15 +57,29 @@ describe('«Доведе» — вулиці без зупинок і адрес�
     expect(parse('зелена').to).toBeNull();
   });
 
-  it('точка: сам будинок — точно; сусідній номер або середина вулиці — приблизно', () => {
+  it('точка: будинок з вулицею в OSM — точно; привʼязаний за геометрією, сусідній номер чи середина вулиці — приблизно', () => {
     const s = street('street.horodyshchanska');
-    expect(streetSpot(s, '20')).toMatchObject({ exact: true, lat: s.houses['20'][0] });
-    expect(streetSpot(s, '21')).toMatchObject({ exact: false, lat: s.houses['20'][0] }); // сусід 20-го
-    expect(streetSpot(s, '300')).toMatchObject({ exact: false, lat: s.lat });
-    expect(streetSpot(s, null)).toMatchObject({ exact: false, lat: s.lat });
+    expect(streetSpot(s, '20')).toMatchObject({ how: 'exact', exact: true, lat: s.houses['20'][0] });
+    // №21 в OSM без вулиці — привʼязано до Городищанської за розташуванням
+    expect(streetSpot(s, '21')).toMatchObject({ how: 'near', exact: false, lat: s.near['21'][0] });
+    // №28 немає взагалі — найближчий номер того самого (парного) боку: 26 або 30
+    const n28 = streetSpot(s, '28');
+    expect(n28.how).toBe('neighbour');
+    expect([s.near['26'][0], s.near['30'][0]]).toContain(n28.lat);
+    expect(streetSpot(s, '900')).toMatchObject({ how: 'street', exact: false, lat: s.lat });
+    expect(streetSpot(s, null)).toMatchObject({ how: 'street', exact: false, lat: s.lat });
     expect(streetIsApprox('street.horodyshchanska:20')).toBe(false);
+    expect(streetIsApprox('street.horodyshchanska:21')).toBe(true);
     expect(streetIsApprox('street.horodyshchanska')).toBe(true);
     expect(parseStreetId('street.nema-takoi:5')).toBeNull();
+  });
+
+  it('будинків після привʼязки за геометрією — тисячі, і жоден номер не лежить в обох списках', () => {
+    const tagged = STREETS.reduce((n, x) => n + Object.keys(x.houses).length, 0);
+    const near = STREETS.reduce((n, x) => n + Object.keys(x.near).length, 0);
+    expect(tagged).toBeGreaterThan(300);
+    expect(near).toBeGreaterThan(2000);
+    for (const x of STREETS) for (const num of Object.keys(x.near)) expect(x.houses[num], `${x.id}:${num}`).toBeUndefined();
   });
 
   it('в адресі сторінки — вулиця без номера будинку', () => {
@@ -130,5 +144,8 @@ describe('«Доведе» — поїздка від адреси', () => {
 
     const rough = composeStories({ intent: parse('з Городищанської до вокзалу'), now: NOW, date: NOW.date, schedules: [], planner });
     expect(rough.kind === 'stories' && rough.stories[0].endNote).toMatch(/Номер будинку не названо — рахую від середини вулиці/);
+
+    const guessed = composeStories({ intent: parse('з Городищанської 21 до вокзалу'), now: NOW, date: NOW.date, schedules: [], planner });
+    expect(guessed.kind === 'stories' && guessed.stories[0].endNote).toMatch(/знайшов за розташуванням біля вулиці/);
   });
 });

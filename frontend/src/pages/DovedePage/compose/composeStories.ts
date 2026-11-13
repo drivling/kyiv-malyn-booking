@@ -16,7 +16,7 @@ import { anchorFor, type AnchorStop, type IntercityMode } from '../data/anchors'
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroHint } from '../data/kyiv';
 import { placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
 import { resolvePlace } from '../nlu/places';
-import { streetIsApprox } from '../nlu/streets';
+import { streetPrecision } from '../nlu/streets';
 import { addDays, partEndMins, partStartMins } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
 import { intercityTrips, type IntercityTrip } from './intercity';
@@ -138,10 +138,18 @@ function stopSpot(planner: LocalPlanner, stopId: string): Spot {
 
 /** Примітка під відповіддю, коли адреса приблизна: будинку немає в даних, точка — середина вулиці чи сусідній номер */
 function approxNote(place: GazetteerPlace): string | null {
-  if (!place.id.startsWith('street.') || !streetIsApprox(place.id)) return null;
-  return place.id.includes(':')
-    ? 'Точного будинку в моїх даних немає — показую найближче відоме місце на цій вулиці.'
-    : 'Номер будинку не названо — показую до середини вулиці. Назвіть будинок або зупинку поруч, і буде точніше.';
+  switch (streetPrecision(place.id)) {
+    case 'near':
+      return 'Цей будинок я знайшов за розташуванням біля вулиці — місце може бути трохи неточним.';
+    case 'neighbour':
+      return 'Точного будинку в моїх даних немає — показую найближче відоме місце на цій вулиці.';
+    case 'street':
+      return place.id.includes(':')
+        ? 'Цього будинку в моїх даних немає — показую до середини вулиці. Назвіть зупинку поруч, і буде точніше.'
+        : 'Номер будинку не названо — показую до середини вулиці. Назвіть будинок або зупинку поруч, і буде точніше.';
+    default:
+      return null;
+  }
 }
 
 /** Пішки по прямій × 1,5 (як у планувальнику), 72 м/хв */
@@ -541,7 +549,7 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
   const toLabel = placeLabel(shape.dest);
   const plan = planner.plan(a.ep, b.ep);
   const destPoint = b.ep.kind === 'point' ? shape.dest.label : null;
-  const endNote = approxNote(shape.dest) ?? approxNote(shape.origin)?.replace('показую до середини', 'рахую від середини').replace('показую найближче', 'рахую від найближчого') ?? null;
+  const endNote = approxNote(shape.dest) ?? approxNote(shape.origin)?.replace('показую до середини', 'рахую від середини').replace('показую найближче відоме місце', 'рахую від найближчого відомого місця') ?? null;
   // Людина назвала маршрут («пʼятіркою до вокзалу») — спершу поїздки ним; якщо ним не доїхати, чесно кажемо й показуємо інші
   const wanted = input.intent.routes ?? [];
   const usesWanted = (j: Journey) => j.legs.some((l) => l.kind === 'transit' && wanted.includes(l.routeId));
