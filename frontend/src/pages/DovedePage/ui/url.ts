@@ -1,6 +1,9 @@
 /**
- * Адреса відповіді — лише id (Docs/dovede-roadmap.md, принцип 7): текст питання в URL не йде, бо в ньому
- * можуть бути домашні адреси. `?f=&t=&d=&h=&m=` (+ `a=1` — «прибути до», `p=` — частина дня, `r=` — маршрути).
+ * Адреса відповіді (Docs/dovede-roadmap.md, принцип 7). Відповідь будується з id: `?f=&t=&d=&h=&m=` (+ `a=1` —
+ * «прибути до», `p=` — частина дня, `r=` — маршрути, `x=` — маршрути, яких уникати). Слова людини йдуть у `q=` лише
+ * для показу (поле з підсвіткою в того, кому надіслали посилання) і лише тоді, коли в питанні немає вулиці, будинку
+ * чи невпізнаних слів: домашня адреса в посиланні не лишається. Для перезавантаження тієї самої вкладки текст
+ * зберігається в sessionStorage — він нікуди не йде.
  */
 import { resolvePlace } from '../nlu/places';
 import { streetIdForUrl } from '../nlu/streets';
@@ -11,7 +14,9 @@ const MODES: TripMode[] = ['marshrutka', 'elektrichka', 'poputka', 'city_bus'];
 const PARTS = ['morning', 'day', 'evening'] as const;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-export const DOVEDE_URL_KEYS = ['f', 't', 'd', 'h', 'a', 'p', 'm', 'r'] as const;
+export const DOVEDE_URL_KEYS = ['f', 't', 'd', 'h', 'a', 'p', 'm', 'r', 'x', 'q'] as const;
+/** Найдовше питання, яке приймає сторінка й сервер */
+const MAX_QUESTION = 300;
 const ROUTE_ID_RE = /^[\w-]{1,12}$/;
 
 /** Намір → параметри адреси; `date` — день, на який показано відповідь */
@@ -68,4 +73,51 @@ export function paramsToIntent(q: URLSearchParams, now: KyivNow): TripIntent | n
     unknown: [],
     confidence: (from && to) || routes.length ? 'high' : 'medium',
   };
+}
+
+/**
+ * Слова питання, які можна покласти в посилання, або null. Ні — якщо серед місць є вулиця чи будинок або лишились
+ * невпізнані слова (це може бути чиясь адреса).
+ */
+export function questionForUrl(text: string, intent: TripIntent): string | null {
+  const t = text.trim();
+  if (!t || t.length > MAX_QUESTION) return null;
+  if (intent.unknown.length) return null;
+  if ([intent.from, intent.to].some((r) => r?.id.startsWith('street.'))) return null;
+  return t;
+}
+
+/** Слова питання з посилання (`q=`) — лише для показу в полі */
+export function questionFromParams(q: URLSearchParams): string {
+  return (q.get('q') ?? '').trim().slice(0, MAX_QUESTION);
+}
+
+const STORE_KEY = 'dovede:question';
+
+/** Адреса без слів питання — ключ, за яким вкладка впізнає «свою» відповідь після перезавантаження */
+function answerKey(q: URLSearchParams): string {
+  const copy = new URLSearchParams(q);
+  copy.delete('q');
+  copy.sort();
+  return copy.toString();
+}
+
+/** Запамʼятати питання цієї вкладки (sessionStorage): після перезавантаження поле знову покаже ті самі слова */
+export function rememberQuestion(params: URLSearchParams, text: string): void {
+  try {
+    if (text.trim()) sessionStorage.setItem(STORE_KEY, JSON.stringify({ key: answerKey(params), text: text.trim().slice(0, MAX_QUESTION) }));
+    else sessionStorage.removeItem(STORE_KEY);
+  } catch {
+    /* приватний режим — обійдемося без цього */
+  }
+}
+
+/** Питання, збережене цією вкладкою саме для такої адреси; інакше порожньо */
+export function recallQuestion(params: URLSearchParams): string {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null') as { key?: unknown; text?: unknown } | null;
+    return saved && saved.key === answerKey(params) && typeof saved.text === 'string' ? saved.text : '';
+  } catch {
+    return '';
+  }
 }

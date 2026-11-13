@@ -175,7 +175,7 @@ describe('«Доведе» — сторінка', () => {
     expect(ask).toHaveBeenCalledTimes(1);
   });
 
-  it('адреса відповіді містить лише id, а посилання з id відкриває ту саму відповідь', async () => {
+  it('адреса відповіді: id + слова питання для показу; посилання відкриває ту саму відповідь і ту саму фразу', async () => {
     vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
     const user = userEvent.setup();
     const first = renderWithProviders(
@@ -187,13 +187,27 @@ describe('«Доведе» — сторінка', () => {
     );
     await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва (Святошин) до Малина на вокзал{Enter}');
     expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-13&m=elektrichka'));
+    const question = 'електричкою з Києва (Святошин) до Малина на вокзал';
+    const ids = '?f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-13&m=elektrichka';
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent(`${ids}&q=${new URLSearchParams({ q: question }).toString().slice(2)}`));
     first.unmount();
 
-    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede?f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-13&m=elektrichka'] });
+    // інша людина відкрила посилання: та сама відповідь, у полі — ті самі слова; Claude не питаємо
+    sessionStorage.clear();
+    const ask = vi.spyOn(apiClient, 'dovedeUnderstand');
+    ask.mockClear();
+    const shared = renderWithProviders(<DovedePage />, { initialEntries: [`/dovede${ids}&q=${encodeURIComponent(question)}`] });
+    expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
+    expect(screen.getByLabelText('Куди вам потрібно доїхати?')).toHaveValue(question);
+    expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Київ · Святошин');
+    expect(ask).not.toHaveBeenCalled();
+    shared.unmount();
+
+    // давнє посилання лише з id і чужа вкладка — поле порожнє, відповідь та сама
+    sessionStorage.clear();
+    renderWithProviders(<DovedePage />, { initialEntries: [`/dovede${ids}`] });
     expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
     expect(screen.getByLabelText('Куди вам потрібно доїхати?')).toHaveValue('');
-    expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Київ · Святошин');
   });
   it('після «Знайти» підказок немає: інакше вони зникали б у мить кліку по відповіді й зсували сторінку', async () => {
     vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));

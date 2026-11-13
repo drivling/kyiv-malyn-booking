@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TripIntent } from '../nlu/types';
-import { intentToParams, paramsToIntent } from './url';
+import { intentToParams, paramsToIntent, questionForUrl, questionFromParams, recallQuestion, rememberQuestion } from './url';
 
 const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 const base: TripIntent = {
@@ -18,6 +18,25 @@ describe('«Доведе» — адреса відповіді', () => {
     const q = intentToParams(base, '2026-11-14');
     expect(q.toString()).toBe('f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-14&h=09%3A00&a=1&m=elektrichka');
     expect(decodeURIComponent(q.toString())).not.toMatch(/[а-яіїєґ]/i);
+  });
+
+  it('слова питання йдуть у посилання лише без адрес і невпізнаних слів', () => {
+    expect(questionForUrl('  з Києва на вокзал  ', base)).toBe('з Києва на вокзал');
+    expect(questionForUrl('з Городищанської 20 на вокзал', { ...base, from: { id: 'street.horodyshchanska:20', text: 'Городищанської 20' } })).toBeNull();
+    expect(questionForUrl('на Городищанську', { ...base, to: { id: 'street.horodyshchanska', text: 'Городищанську' } })).toBeNull();
+    expect(questionForUrl('до тітки Галі на Лісну 5', { ...base, unknown: ['Галі'] })).toBeNull();
+    expect(questionForUrl('', base)).toBeNull();
+    expect(questionForUrl('а'.repeat(301), base)).toBeNull();
+    expect(questionFromParams(new URLSearchParams('q=%20%D0%B4%D0%BE%20%D0%90%D0%A2%D0%91%20'))).toBe('до АТБ');
+  });
+
+  it('вкладка памʼятає питання для своєї відповіді — і лише для неї', () => {
+    const params = new URLSearchParams('f=malyn.vokzal&t=street.horodyshchanska&d=2026-11-14');
+    rememberQuestion(params, 'з вокзалу на Городищанську 20');
+    expect(recallQuestion(new URLSearchParams('t=street.horodyshchanska&f=malyn.vokzal&d=2026-11-14'))).toBe('з вокзалу на Городищанську 20');
+    expect(recallQuestion(new URLSearchParams('f=malyn.vokzal&t=malyn.tsentr&d=2026-11-14'))).toBe('');
+    rememberQuestion(params, '');
+    expect(recallQuestion(params)).toBe('');
   });
 
   it('туди й назад — той самий намір', () => {
