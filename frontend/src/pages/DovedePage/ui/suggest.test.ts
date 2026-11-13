@@ -24,6 +24,12 @@ describe('«Доведе» — підказки при наборі', () => {
     expect(at('свят')[0].insert).toBe('Святошин');
   });
 
+  it('орієнтири: з чотирьох літер або за цілим коротким словом', () => {
+    expect(at('до атб').map((x) => x.place.id)).toEqual(['lm.atb-market']);
+    expect(at('до атб')[0]).toMatchObject({ label: 'Малин · супермаркет АТБ-Маркет', insert: 'АТБ-Маркет' });
+    expect(at('в пенс').map((x) => x.place.id)).toContain('lm.pensiinyi-fond');
+  });
+
   it('«вокзал» двозначний — пропонує обидва', () => {
     expect(at('до вокз').map((x) => x.place.id).sort()).toEqual(['kyiv.pas', 'malyn.vokzal']);
   });

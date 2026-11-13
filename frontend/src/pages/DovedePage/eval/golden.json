@@ -1,7 +1,7 @@
 {
   "version": 1,
   "defaultNow": "2026-11-13T14:20:00+02:00",
-  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; stops — зупинки з розкладу (eval/malyn-stops.json); routes — маршрути міських автобусів (eval/malyn-routes.json); streets — вулиці й адреси без зупинок (id вулиці без номера будинку: номер браузер дописує сам); later — після MVP.",
+  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; stops — зупинки з розкладу (eval/malyn-stops.json); routes — маршрути міських автобусів (eval/malyn-routes.json); streets — вулиці й адреси без зупинок (id вулиці без номера будинку: номер браузер дописує сам); landmarks — орієнтири без зупинок (магазини, установи, підприємства); later — після MVP.",
   "cases": [
     { "id": "km-01", "text": "Як доїхати з Києва (Святошин) до Малина на вокзал", "expect": { "intent": "trip", "from": "kyiv.sviatoshyn", "to": "malyn.vokzal", "when": { "day": "today" }, "modes": [] }, "tags": ["kyiv-malyn", "place-in-city"], "scope": "mvp" },
     { "id": "km-02", "text": "з Києва в Малин", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": [] }, "tags": ["kyiv-malyn", "city-only"], "scope": "mvp" },
@@ -95,6 +95,17 @@
     { "id": "a-04", "text": "з Грушевського 12 на вокзал", "expect": { "intent": "trip", "from": "street.mykhaila-hrushevskoho", "to": "malyn.vokzal" }, "tags": ["streets", "house-beats-curated"], "scope": "streets" },
     { "id": "a-05", "text": "мені на Коновальця 45 з автостанції", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "street.ievhena-konovaltsia" }, "tags": ["streets", "surname-only", "reversed-order"], "scope": "streets" },
     { "id": "a-06", "text": "від вокзалу на Городищанську завтра о 8", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "street.horodyshchanska", "when": { "day": "tomorrow", "time": "08:00" } }, "tags": ["streets", "declension", "time"], "scope": "streets" },
-    { "id": "a-07", "text": "з вулиці Вигаданої 5 до вокзалу", "expect": { "intent": "trip", "from": null, "to": "malyn.vokzal", "unknown": ["Вигаданої"] }, "tags": ["streets", "unknown"], "scope": "streets" }
+    { "id": "a-07", "text": "з вулиці Вигаданої 5 до вокзалу", "expect": { "intent": "trip", "from": null, "to": "malyn.vokzal", "unknown": ["Вигаданої"] }, "tags": ["streets", "unknown"], "scope": "streets" },
+
+    { "id": "l-01", "text": "з вокзалу до АТБ", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "lm.atb-market" }, "tags": ["landmarks", "short-name"], "scope": "landmarks" },
+    { "id": "l-02", "text": "як доїхати до пенсійного фонду з автостанції", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "lm.pensiinyi-fond" }, "tags": ["landmarks", "reversed-order"], "scope": "landmarks" },
+    { "id": "l-03", "text": "мне в налоговую от вокзала", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "lm.malynska-dpi" }, "tags": ["landmarks", "russian", "alias"], "scope": "landmarks" },
+    { "id": "l-04", "text": "від лікарні до суду завтра о 9", "expect": { "intent": "trip", "from": "malyn.likarnia", "to": "lm.malynskyi-raionnyi-sud", "when": { "day": "tomorrow", "time": "09:00" } }, "tags": ["landmarks", "time"], "scope": "landmarks" },
+    { "id": "l-05", "text": "до садка 8 з центру", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "lm.dnz-8-ialynka" }, "tags": ["landmarks", "number"], "scope": "landmarks" },
+    { "id": "l-06", "text": "з хлібозаводу на вокзал", "expect": { "intent": "trip", "from": "st_0089", "to": "malyn.vokzal" }, "tags": ["landmarks", "stop-wins", "spelling"], "scope": "landmarks" },
+    { "id": "l-07", "text": "до нової пошти 3 від автостанції", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "lm.nova-poshta-viddilennia-3" }, "tags": ["landmarks", "branch-number"], "scope": "landmarks" },
+    { "id": "l-08", "text": "з вокзалу до лікарні", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "malyn.likarnia" }, "tags": ["landmarks", "curated-wins"], "scope": "landmarks" },
+    { "id": "l-10", "text": "з вокзалу до друкарні", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "lm.malynska-raionna-drukarnia" }, "tags": ["landmarks", "enterprise"], "scope": "landmarks" },
+    { "id": "l-09", "text": "як доїхати до епіцентру з вокзалу", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": null }, "tags": ["landmarks", "unknown"], "scope": "landmarks" }
   ]
 }

@@ -83,8 +83,11 @@ test('системний промпт: байт-у-байт однаковий �
   assert.equal(createHash('sha256').update(a).digest('hex'), createHash('sha256').update(b).digest('hex'));
   assert.ok(a.startsWith(`[${PROMPT_VERSION}]`));
   for (const p of PLACES) assert.ok(a.includes(`- ${p.id} — `), `немає ${p.id}`);
-  const ids = [...a.matchAll(/^- ([\w.-]+) — /gm)].map((m) => m[1]);
-  assert.deepEqual(ids, [...ids].sort(), 'місця відсортовані за id — порядок у словнику на кеш не впливає');
+  // у кожному розділі (словник, вулиці, орієнтири) місця йдуть за id — порядок у джерелі на кеш не впливає
+  for (const section of a.split(/^## /m)) {
+    const ids = [...section.matchAll(/^- ([\w.-]+) — /gm)].map((m) => m[1]);
+    assert.deepEqual(ids, [...ids].sort(), `розділ «${section.split('\n')[0]}» не відсортований за id`);
+  }
 });
 
 test('системний промпт не знає «зараз»: дата й час — лише в повідомленні користувача', () => {
@@ -261,4 +264,14 @@ test('вулиці: id вулиці (з будинком чи без) дозво
   const p = buildSystemPrompt();
   assert.ok(p.includes('- street.horodyshchanska — вулиця Городищанська'));
   assert.ok(/- street\.ukrainskykh-povstantsiv — вулиця Українських Повстанців \(кол\. .*Чапаєва/.test(p));
+});
+
+test('орієнтири: id зі списку дозволений, вигаданий — ні; у промпті — підпис і як ще кажуть', () => {
+  assert.equal(validateIntent({ ...GOOD, to: { id: 'lm.atb-market', text: 'атб' } }).to?.id, 'lm.atb-market');
+  const bad = validateIntent({ ...GOOD, to: { id: 'lm.epitsentr', text: 'епіцентр' } });
+  assert.equal(bad.to, null);
+  assert.ok(bad.unknown.includes('епіцентр'));
+  const p = buildSystemPrompt();
+  assert.ok(p.includes('- lm.atb-market — супермаркет АТБ-Маркет (кажуть: АТБ)'));
+  assert.ok(p.includes('## Орієнтири Малина'));
 });
