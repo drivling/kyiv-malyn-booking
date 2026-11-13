@@ -4,6 +4,16 @@
  * не довіряє відповіді: чужі id місць переносить у `unknown`, зайве відкидає. Чисел розкладу тут немає.
  */
 import { placeById } from './gazetteer';
+import { MALYN_STREETS } from './streets';
+
+const STREET_IDS = new Set(MALYN_STREETS.map((s) => s.id));
+/** `street.x` або `street.x:20` — номер будинку браузер дописує до id сам (frontend nlu/streets.ts) */
+const STREET_ID_RE = /^(street\.[a-z0-9-]+)(?::[0-9]{1,3}[а-яіїєa-z]?)?$/;
+
+function isStreetId(id: string): boolean {
+  const m = STREET_ID_RE.exec(id);
+  return m != null && STREET_IDS.has(m[1]);
+}
 
 export type TripMode = 'marshrutka' | 'elektrichka' | 'poputka' | 'city_bus';
 
@@ -116,7 +126,7 @@ export function validateIntent(raw: unknown, stopIds?: ReadonlySet<string>, rout
     const p = v as Record<string, unknown>;
     const id = typeof p.id === 'string' ? p.id.trim() : '';
     const text = clip(p.text);
-    if (!placeById(id) && !stopIds?.has(id)) {
+    if (!placeById(id) && !stopIds?.has(id) && !isStreetId(id)) {
       pushUnknown(text || id.slice(0, MAX_TEXT));
       return null;
     }

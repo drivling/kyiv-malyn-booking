@@ -48,7 +48,8 @@ function stem(word: string): string {
   return word.slice(0, word.length >= 7 ? -2 : -1);
 }
 
-function wordMatches(word: string, token: string): boolean {
+/** Чи слово питання — це слово назви в якомусь відмінку (спільне для зупинок і вулиць) */
+export function wordMatchesName(word: string, token: string): boolean {
   if (NUMBER_RE.test(word) || word.length <= 4) return token === word;
   return token.startsWith(stem(word));
 }
@@ -93,7 +94,7 @@ function matchFrom(entry: StopPlace, toks: Token[], i: number): number | null {
   for (const word of entry.words) {
     while (pos < toks.length && last >= 0 && SKIP.has(toks[pos].n)) pos++;
     const tok = toks[pos];
-    if (tok && wordMatches(word, tok.n)) {
+    if (tok && wordMatchesName(word, tok.n)) {
       last = pos;
       pos++;
       continue;

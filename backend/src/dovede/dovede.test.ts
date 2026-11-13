@@ -252,3 +252,13 @@ test('understand: маршрути йдуть у промпт, їхні id пр�
   assert.deepEqual(r.ok && [r.intent.intent, r.intent.routes], ['route', ['11']]);
   assert.equal((calls[0].body.system as Array<{ text: string }>)[0].text, buildSystemPrompt(STOPS, ROUTES));
 });
+
+test('вулиці: id вулиці (з будинком чи без) дозволений; у промпті — назва й колишні назви', () => {
+  assert.equal(validateIntent({ ...GOOD, from: { id: 'street.horodyshchanska', text: 'Городищанської 20' } }).from?.id, 'street.horodyshchanska');
+  assert.equal(validateIntent({ ...GOOD, from: { id: 'street.horodyshchanska:22а', text: 'x' } }).from?.id, 'street.horodyshchanska:22а');
+  assert.equal(validateIntent({ ...GOOD, from: { id: 'street.nema-takoi', text: 'Вигадана' } }).from, null);
+  assert.equal(validateIntent({ ...GOOD, from: { id: 'street.horodyshchanska:20; drop', text: 'x' } }).from, null);
+  const p = buildSystemPrompt();
+  assert.ok(p.includes('- street.horodyshchanska — вулиця Городищанська'));
+  assert.ok(/- street\.ukrainskykh-povstantsiv — вулиця Українських Повстанців \(кол\. .*Чапаєва/.test(p));
+});

@@ -7,6 +7,7 @@ import { tokenize, type Token } from './normalize';
 import { resolvePlace } from './places';
 import { findRouteMentions, type RouteLike } from './routes';
 import { matchStopPlace, type StopPlace } from './stopPlaces';
+import { matchStreet, streetPlace, streetPlaceId, streetWins } from './streets';
 import type { KyivNow, LocalParse, ParseSpan, PlaceRef, TripIntent, TripMode, TripWhen } from './types';
 
 const FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
@@ -125,6 +126,24 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
       else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', hit.place, hit); }
       i = stop.end;
       continue;
+    }
+
+    // Вулиця чи адреса без зупинки («з Городищанської 20», «до вул. Чапаєва») — лише після прийменника, слова
+    // «вулиця» чи з номером будинку: прикметник посеред речення («нова маршрутка») вулицею не вважаємо
+    if (stops.length) {
+      const street = matchStreet(toks, i);
+      const prep = street ? prepBefore(toks, i) : null;
+      const place = street && (prep || street.explicit || street.house) && streetWins(street, n) ? streetPlace(streetPlaceId(street)) : undefined;
+      if (street && place) {
+        const lastTok = toks[street.end];
+        const whole: Token = { raw: text.slice(t.start, lastTok.end), n, start: t.start, end: lastTok.end };
+        const hit: PlaceHit = { place, token: whole, spanStart: t.start, role: null };
+        hits.push(hit);
+        if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', place, hit); }
+        else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', place, hit); }
+        i = street.end;
+        continue;
+      }
     }
 
     // Час: «18:00», «о 7», «до 9 ранку», «після 18», «о 7 вечора»

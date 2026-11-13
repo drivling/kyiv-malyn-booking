@@ -15,7 +15,7 @@ import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { classify, composeStories, corridorCities, resolveDate } from './compose/composeStories';
 import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
-import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withIntent } from './nlu/merge';
+import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withHouses, withIntent } from './nlu/merge';
 import { addDays, parseLocal } from './nlu/parseLocal';
 import { setStopPlaces } from './nlu/places';
 import { buildStopPlaces } from './nlu/stopPlaces';
@@ -81,7 +81,7 @@ export default function DovedePage() {
     async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
       const shape = classify(intent);
       const cities = corridorCities(shape);
-      const schedulesFor = async (d: string) => (cities ? (await apiClient.searchPoputky({ from: cities.from, to: cities.to, date: d })).schedules : []);
+      const schedulesFor = async (d: string) => (cities ? (await apiClient.searchPoputky({ from: cities.from, to: cities.to, date: d })).schedules ?? [] : []);
       try {
         let date = resolveDate(intent.when.day, now);
         let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes }, shape);
@@ -132,7 +132,8 @@ export default function DovedePage() {
         // Словник упевнений: відповідаємо одразу, Claude перевіряє у фоні (і пише в журнал порівняння)
         void apiClient.dovedeUnderstand(q, parse.intent).then((r) => {
           if (id !== seq.current || !r || !usableAiIntent(r.intent)) return;
-          if (r.intent.confidence !== 'low' && !sameAnswer(parse.intent, r.intent)) setSuggestion(r.intent);
+          const ai = withHouses(r.intent);
+          if (ai.confidence !== 'low' && !sameAnswer(parse.intent, ai)) setSuggestion(ai);
         });
         await answer(id, q, parse, parse.intent, now);
         return;

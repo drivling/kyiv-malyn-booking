@@ -3,6 +3,7 @@ import golden from '../eval/golden.json';
 import malynRoutes from '../eval/malyn-routes.json';
 import malynStops from '../eval/malyn-stops.json';
 import { buildStopPlaces } from './stopPlaces';
+import { STREETS } from './streets';
 import { parseLocal } from './parseLocal';
 import { PLACES } from './gazetteer';
 import type { KyivNow, TripIntent } from './types';
@@ -18,7 +19,7 @@ interface GoldenCase {
     to?: string | null;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'stops' | 'routes' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
@@ -37,8 +38,10 @@ function grade(c: GoldenCase): [number, number, string[]] {
     else why.push(`${name}: ${JSON.stringify(actual)} ≠ ${JSON.stringify(expected)}`);
   };
   if (e.intent !== undefined) check('intent', got.intent, e.intent);
-  if (e.from !== undefined) check('from', got.from?.id ?? null, e.from);
-  if (e.to !== undefined) check('to', got.to?.id ?? null, e.to);
+  // номер будинку в id («street.x:20») — справа браузера; еталон звіряє саму вулицю
+  const bare = (id: string | undefined) => (id?.startsWith('street.') ? id.split(':')[0] : id) ?? null;
+  if (e.from !== undefined) check('from', bare(got.from?.id), e.from);
+  if (e.to !== undefined) check('to', bare(got.to?.id), e.to);
   for (const k of ['day', 'time', 'kind', 'part'] as const) {
     if (e.when?.[k] !== undefined) check(`when.${k}`, got.when[k], e.when[k]);
   }
@@ -94,8 +97,21 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     expect(ok / total, misses.join(' | ')).toBeGreaterThanOrEqual(0.7);
   });
 
+  it('розуміє ≥ 80% слотів у питаннях про вулиці й адреси (без ШІ)', () => {
+    let ok = 0;
+    let total = 0;
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.scope === 'streets')) {
+      const [o, t, why] = grade(c);
+      ok += o;
+      total += t;
+      if (why.length) misses.push(`${c.id} «${c.text}»: ${why.join('; ')}`);
+    }
+    expect(ok / total, misses.join(' | ')).toBeGreaterThanOrEqual(0.8);
+  });
+
   it('усі id у еталонах є в словнику', () => {
-    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id)]);
+    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id)]);
     for (const c of cases) {
       for (const id of [c.expect.from, c.expect.to]) {
         if (typeof id === 'string') expect(ids.has(id), `${c.id}: ${id}`).toBe(true);

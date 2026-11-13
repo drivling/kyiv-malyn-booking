@@ -1,7 +1,7 @@
 {
   "version": 1,
   "defaultNow": "2026-11-13T14:20:00+02:00",
-  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; stops — зупинки з розкладу (eval/malyn-stops.json); routes — маршрути міських автобусів (eval/malyn-routes.json); later — після MVP.",
+  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; stops — зупинки з розкладу (eval/malyn-stops.json); routes — маршрути міських автобусів (eval/malyn-routes.json); streets — вулиці й адреси без зупинок (id вулиці без номера будинку: номер браузер дописує сам); later — після MVP.",
   "cases": [
     { "id": "km-01", "text": "Як доїхати з Києва (Святошин) до Малина на вокзал", "expect": { "intent": "trip", "from": "kyiv.sviatoshyn", "to": "malyn.vokzal", "when": { "day": "today" }, "modes": [] }, "tags": ["kyiv-malyn", "place-in-city"], "scope": "mvp" },
     { "id": "km-02", "text": "з Києва в Малин", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": [] }, "tags": ["kyiv-malyn", "city-only"], "scope": "mvp" },
@@ -87,6 +87,14 @@
     { "id": "r-07", "text": "какой автобус идет от швейной фабрики до вокзала, двенадцатый?", "expect": { "intent": "trip", "routes": ["12"], "from": "st_0095", "to": "malyn.vokzal" }, "tags": ["routes", "russian"], "scope": "routes" },
     { "id": "r-08", "text": "з центру на вокзал о 5", "expect": { "intent": "trip", "routes": [], "from": "malyn.tsentr", "to": "malyn.vokzal" }, "tags": ["routes", "time-not-route"], "scope": "routes" },
     { "id": "r-09", "text": "до скількох ходить трійка", "expect": { "intent": "route", "routes": ["3"] }, "tags": ["routes", "word-number"], "scope": "routes" },
-    { "id": "r-10", "text": "чи їде 2 маршрут до паперової фабрики", "expect": { "intent": "route", "routes": ["2"], "to": "malyn.paperova" }, "tags": ["routes", "number-before-word"], "scope": "routes" }
+    { "id": "r-10", "text": "чи їде 2 маршрут до паперової фабрики", "expect": { "intent": "route", "routes": ["2"], "to": "malyn.paperova" }, "tags": ["routes", "number-before-word"], "scope": "routes" },
+
+    { "id": "a-01", "text": "з Городищанської 20 до вокзалу", "expect": { "intent": "trip", "from": "street.horodyshchanska", "to": "malyn.vokzal" }, "tags": ["streets", "house"], "scope": "streets" },
+    { "id": "a-02", "text": "з центру до вулиці Чапаєва", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "street.ukrainskykh-povstantsiv" }, "tags": ["streets", "old-name"], "scope": "streets" },
+    { "id": "a-03", "text": "как доехать с Городищанской 54 в больницу", "expect": { "intent": "trip", "from": "street.horodyshchanska", "to": "malyn.likarnia" }, "tags": ["streets", "russian", "house"], "scope": "streets" },
+    { "id": "a-04", "text": "з Грушевського 12 на вокзал", "expect": { "intent": "trip", "from": "street.mykhaila-hrushevskoho", "to": "malyn.vokzal" }, "tags": ["streets", "house-beats-curated"], "scope": "streets" },
+    { "id": "a-05", "text": "мені на Коновальця 45 з автостанції", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "street.ievhena-konovaltsia" }, "tags": ["streets", "surname-only", "reversed-order"], "scope": "streets" },
+    { "id": "a-06", "text": "від вокзалу на Городищанську завтра о 8", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "street.horodyshchanska", "when": { "day": "tomorrow", "time": "08:00" } }, "tags": ["streets", "declension", "time"], "scope": "streets" },
+    { "id": "a-07", "text": "з вулиці Вигаданої 5 до вокзалу", "expect": { "intent": "trip", "from": null, "to": "malyn.vokzal", "unknown": ["Вигаданої"] }, "tags": ["streets", "unknown"], "scope": "streets" }
   ]
 }

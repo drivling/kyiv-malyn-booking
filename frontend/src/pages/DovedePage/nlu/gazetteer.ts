@@ -20,6 +20,8 @@ export interface GazetteerPlace {
   isCity?: boolean;
   /** зупинки міського транспорту Малина; перша — головна */
   stopIds?: string[];
+  /** місце без зупинки (вулиця, будинок) — точка [lat, lng]; планувальник сам доведе до зупинок пішки */
+  latLng?: [number, number];
 }
 
 export const CITY_LABEL: Record<PlaceCity, string> = {

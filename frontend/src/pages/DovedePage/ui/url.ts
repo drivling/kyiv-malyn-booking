@@ -3,6 +3,7 @@
  * можуть бути домашні адреси. `?f=&t=&d=&h=&m=` (+ `a=1` — «прибути до», `p=` — частина дня, `r=` — маршрути).
  */
 import { resolvePlace } from '../nlu/places';
+import { streetIdForUrl } from '../nlu/streets';
 import { addDays } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
 
@@ -16,8 +17,9 @@ const ROUTE_ID_RE = /^[\w-]{1,12}$/;
 /** Намір → параметри адреси; `date` — день, на який показано відповідь */
 export function intentToParams(intent: TripIntent, date: string): URLSearchParams {
   const q = new URLSearchParams();
-  if (intent.from) q.set('f', intent.from.id);
-  if (intent.to) q.set('t', intent.to.id);
+  // вулиця — без номера будинку: домашня адреса в посиланні не лишається
+  if (intent.from) q.set('f', streetIdForUrl(intent.from.id));
+  if (intent.to) q.set('t', streetIdForUrl(intent.to.id));
   q.set('d', date);
   if (intent.when.time) {
     q.set('h', intent.when.time);
