@@ -38,6 +38,8 @@
 .dv-page button,
 .dv-page textarea {
   font: inherit;
+}
+.dv-page textarea {
   color: inherit;
 }
 .dv-sr-only {
@@ -118,6 +120,8 @@
   line-height: 1.45;
   padding: 8px 10px;
   min-height: 56px;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 .dv-field textarea::placeholder {
   color: var(--dv-muted);

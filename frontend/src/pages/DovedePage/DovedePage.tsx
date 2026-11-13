@@ -112,6 +112,14 @@ export default function DovedePage() {
     return (id: string) => p?.stopName(id) ?? id;
   }, [plannerFor, view]);
 
+  // Поле росте разом із питанням (до 40% екрана)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [text]);
+
   useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast(null), 2600);
@@ -154,7 +162,7 @@ export default function DovedePage() {
           <textarea
             id="dv-q"
             ref={inputRef}
-            rows={2}
+            rows={1}
             value={text}
             placeholder="Звідки й куди їдете?"
             enterKeyHint="search"
