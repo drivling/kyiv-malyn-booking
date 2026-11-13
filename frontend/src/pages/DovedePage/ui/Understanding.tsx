@@ -1,4 +1,5 @@
 import type { KyivNow, LocalParse } from '../nlu/types';
+import { routeNo } from '@/utils/routeNames';
 import { modeLabel, placeRefLabel, whenLabel } from './labels';
 import type { SlotKind } from './SlotSheet';
 
@@ -14,7 +15,7 @@ export function Understanding({ parse, now, onEdit }: { parse: LocalParse; now: 
   const from = placeRefLabel(intent.from) ?? (unknownRole === 'from' && unknown ? `«${unknown}»?` : null);
   const to = placeRefLabel(intent.to) ?? (unknownRole === 'to' && unknown ? `«${unknown}»?` : null);
   const when = whenLabel(intent.when, now);
-  const mode = modeLabel(intent.modes);
+  const mode = modeLabel(intent.modes, (intent.routes ?? []).map((id) => routeNo(id)));
   const slot = (kind: SlotKind, text: string | null, empty: string, extra = '') => {
     const cls = `dv-slot dv-slot--${kind}${text ? extra : ' is-empty'}`;
     if (!onEdit) return <span className={cls}>{text ?? empty}</span>;

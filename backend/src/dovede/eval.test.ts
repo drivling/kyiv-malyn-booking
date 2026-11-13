@@ -4,10 +4,10 @@
  *
  *   DOVEDE_EVAL=1 ANTHROPIC_API_KEY=… npx vitest run src/dovede/eval.test.ts
  *   DOVEDE_EVAL=1 DOVEDE_EVAL_SCOPE=all DOVEDE_MODEL=claude-haiku-5-5 …   # усі питання, інша модель
- *   DOVEDE_EVAL_STOPS=dataset.json …                                       # із зупинками міста (GET /transport/dataset)
+ *   DOVEDE_EVAL_STOPS=dataset.json …                                       # свіжі зупинки (GET /transport/dataset) замість знімка
  *   DOVEDE_EVAL_REPORT=/tmp/dovede-eval.txt …                              # звіт ще й у файл
  *
- * Критерії фази: ≥ 90% слотів на питаннях `scope: "mvp"`, медіана < 3 с, з другого виклику кеш читається.
+ * Критерії фази: ≥ 90% слотів на питаннях `scope: "mvp"`, `"stops"` і `"routes"`, медіана < 3 с, з другого виклику кеш читається.
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
@@ -24,8 +24,8 @@ const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 interface GoldenCase {
   id: string;
   text: string;
-  expect: { intent?: string; from?: string | null; to?: string | null; when?: Partial<TripIntent['when']>; modes?: string[]; unknown?: string[]; confidence?: string };
-  scope: 'mvp' | 'later';
+  expect: { intent?: string; from?: string | null; to?: string | null; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; unknown?: string[]; confidence?: string };
+  scope: 'mvp' | 'stops' | 'routes' | 'later';
 }
 
 /**
@@ -41,13 +41,16 @@ export function gradeIntent(got: TripIntent, e: GoldenCase['expect']): { ok: num
     if (JSON.stringify(actual) === JSON.stringify(expected)) ok++;
     else why.push(`${name}: ${JSON.stringify(actual)} ≠ ${JSON.stringify(expected)}`);
   };
-  if (e.intent !== undefined) check('intent', got.intent, e.intent);
+  // «розклад» і «як доїхати» складальник відповідає однаково — це не помилка розбору
+  const kind = (i: string) => (i === 'schedule' ? 'trip' : i);
+  if (e.intent !== undefined) check('intent', kind(got.intent), kind(e.intent));
   if (e.from !== undefined) check('from', got.from?.id ?? null, e.from);
   if (e.to !== undefined) check('to', got.to?.id ?? null, e.to);
   for (const k of ['day', 'time', 'kind', 'part'] as const) {
     if (e.when?.[k] !== undefined) check(`when.${k}`, got.when[k], e.when[k]);
   }
   if (e.modes !== undefined) check('modes', [...got.modes].sort(), [...e.modes].sort());
+  if (e.routes !== undefined) check('routes', [...(got.routes ?? [])].sort(), [...e.routes].sort());
   if (e.unknown !== undefined) check('unknown', got.unknown.length > 0, e.unknown.length > 0);
   if (e.confidence !== undefined) check('confidence', got.confidence, e.confidence);
   return { ok, total, why };
@@ -57,13 +60,12 @@ test.skipIf(!ENABLED)(
   'еталони через Claude: ≥ 90% слотів, медіана < 3 с, кеш читається',
   async () => {
     const understand = understandFromEnv();
-    // DOVEDE_EVAL_STOPS=<файл з відповіддю GET /transport/dataset> — прогін із зупинками міста, як на сервері
-    const stops = process.env.DOVEDE_EVAL_STOPS
-      ? (JSON.parse(fs.readFileSync(process.env.DOVEDE_EVAL_STOPS, 'utf8')) as { stops: Array<{ id: string; name: string }> }).stops.map((x) => ({ id: x.id, name: x.name }))
-      : undefined;
-    assert.ok(understand, 'потрібен ANTHROPIC_API_KEY');
+    // Зупинки міста — як на сервері з бази; за замовчуванням знімок поруч з еталонами, DOVEDE_EVAL_STOPS — свій файл
+    const stopsFile = process.env.DOVEDE_EVAL_STOPS ?? path.resolve(path.dirname(GOLDEN), 'malyn-stops.json');
+    const stops = (JSON.parse(fs.readFileSync(stopsFile, 'utf8')) as { stops: Array<{ id: string; name: string }> }).stops.map((x) => ({ id: x.id, name: x.name }));
+    const routes = (JSON.parse(fs.readFileSync(path.resolve(path.dirname(GOLDEN), 'malyn-routes.json'), 'utf8')) as { routes: Array<{ id: string; no: string; fromName: string; toName: string }> }).routes;
     const all = (JSON.parse(fs.readFileSync(GOLDEN, 'utf8')) as { cases: GoldenCase[] }).cases;
-    const cases = process.env.DOVEDE_EVAL_SCOPE === 'all' ? all : all.filter((c) => c.scope === 'mvp');
+    const cases = process.env.DOVEDE_EVAL_SCOPE === 'all' ? all : all.filter((c) => c.scope === 'mvp' || c.scope === 'stops' || c.scope === 'routes');
 
     let ok = 0;
     let total = 0;
@@ -71,7 +73,7 @@ test.skipIf(!ENABLED)(
     const results: UnderstandResult[] = [];
     // послідовно: перший виклик пише кеш промпту, решта мають його читати
     for (const c of cases) {
-      const r = await understand(c.text, NOW, stops);
+      const r = await understand(c.text, NOW, stops, routes);
       results.push(r);
       if (!r.ok) {
         const slots = gradeIntent({ intent: 'other', from: null, to: null, when: { day: '', kind: 'any' }, modes: [], unknown: [], confidence: 'low' }, c.expect).total;

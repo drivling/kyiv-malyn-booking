@@ -8,7 +8,7 @@ exports.validateIntent = validateIntent;
  * не довіряє відповіді: чужі id місць переносить у `unknown`, зайве відкидає. Чисел розкладу тут немає.
  */
 const gazetteer_1 = require("./gazetteer");
-const INTENTS = ['trip', 'schedule', 'price', 'contact', 'other'];
+const INTENTS = ['trip', 'schedule', 'route', 'price', 'contact', 'other'];
 const MODES = ['marshrutka', 'elektrichka', 'poputka', 'city_bus'];
 const KINDS = ['depart', 'arrive', 'any'];
 const PARTS = ['morning', 'day', 'evening'];
@@ -46,10 +46,11 @@ exports.INTENT_SCHEMA = {
             additionalProperties: false,
         },
         modes: { type: 'array', items: { type: 'string', enum: MODES } },
+        routes: { type: 'array', items: { type: 'string', description: 'id маршруту міського автобуса зі списку маршрутів' } },
         unknown: { type: 'array', items: { type: 'string' } },
         confidence: { type: 'string', enum: CONFIDENCE },
     },
-    required: ['intent', 'from', 'to', 'when', 'modes', 'unknown', 'confidence'],
+    required: ['intent', 'from', 'to', 'when', 'modes', 'routes', 'unknown', 'confidence'],
     additionalProperties: false,
 };
 const DAY_RE = /^(today|tomorrow|\d{4}-\d{2}-\d{2})$/;
@@ -68,8 +69,9 @@ exports.IntentShapeError = IntentShapeError;
  * Перевіряє й чистить намір (від Claude або від браузера). Місце з id, якого немає в словнику, стає `null`,
  * а його текст потрапляє в `unknown` — складальник покаже «не знаю, де це», а не вигадану зупинку.
  * `stopIds` — id зупинок із розкладу міста (`buildStopPlaces`), теж дозволені в from / to.
+ * `routeIds` — id маршрутів міста; маршрут поза списком просто відкидається.
  */
-function validateIntent(raw, stopIds) {
+function validateIntent(raw, stopIds, routeIds) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw))
         throw new IntentShapeError('намір — не обʼєкт');
     const o = raw;
@@ -110,9 +112,20 @@ function validateIntent(raw, stopIds) {
                 modes.push(m);
         }
     }
+    const routes = [];
+    if (Array.isArray(o.routes)) {
+        for (const r of o.routes) {
+            if (typeof r === 'string' && routeIds?.has(r) && !routes.includes(r))
+                routes.push(r);
+        }
+    }
+    let intent = oneOf(INTENTS, o.intent, 'trip');
+    // «питання про маршрут» без жодного відомого маршруту — звичайне питання про дорогу
+    if (intent === 'route' && !routes.length)
+        intent = 'trip';
     let confidence = oneOf(CONFIDENCE, o.confidence, 'low');
-    // місце відкинуто або не назване — «high» бути не може
-    if (confidence === 'high' && (unknown.length > 0 || !to))
+    // місце відкинуто або не назване — «high» бути не може (крім питання про сам маршрут: йому місце не потрібне)
+    if (confidence === 'high' && (unknown.length > 0 || (!to && intent !== 'route')))
         confidence = 'medium';
-    return { intent: oneOf(INTENTS, o.intent, 'trip'), from, to, when, modes, unknown, confidence };
+    return { intent, from, to, when, modes, ...(routes.length ? { routes } : {}), unknown, confidence };
 }

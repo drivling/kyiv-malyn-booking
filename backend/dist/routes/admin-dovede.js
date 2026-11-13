@@ -33,7 +33,8 @@ function intentsAgree(a, b) {
         (a.when.time ?? null) === (b.when.time ?? null) &&
         (a.when.part ?? null) === (b.when.part ?? null) &&
         (a.when.time ? a.when.kind === b.when.kind : true) &&
-        modes(a.modes) === modes(b.modes));
+        modes(a.modes) === modes(b.modes) &&
+        modes(a.routes ?? []) === modes(b.routes ?? []));
 }
 function createAdminDovedeRouter(deps) {
     const { prisma } = deps;
@@ -43,26 +44,36 @@ function createAdminDovedeRouter(deps) {
     const clock = deps.now ?? (() => new Date());
     const r = express_1.default.Router();
     /**
-     * Усі зупинки міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
+     * Усі зупинки й маршрути міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
      * Той самий масив повертається до закінчення TTL (і після нього, якщо назви не змінились): промпт стабільний.
      */
-    let stopsCache = null;
-    const cityStops = async (at) => {
-        if (stopsCache && at.getTime() - stopsCache.at < STOPS_TTL_MS)
-            return stopsCache;
+    let cityCache = null;
+    const cityData = async (at) => {
+        if (cityCache && at.getTime() - cityCache.at < STOPS_TTL_MS)
+            return cityCache;
         try {
-            const rows = await prisma.transportStop.findMany({ where: { cityCode: transport_city_1.DEFAULT_TRANSPORT_CITY }, select: { id: true, name: true }, orderBy: { id: 'asc' } });
-            const key = JSON.stringify(rows);
-            if (stopsCache && stopsCache.key === key)
-                stopsCache.at = at.getTime();
-            else
-                stopsCache = { at: at.getTime(), key, stops: rows, ids: new Set((0, stopPlaces_1.buildStopPlaces)(rows).map((e) => e.place.id)) };
-            return stopsCache;
+            const [stopRows, routeRows] = await Promise.all([
+                prisma.transportStop.findMany({ where: { cityCode: transport_city_1.DEFAULT_TRANSPORT_CITY }, select: { id: true, name: true }, orderBy: { id: 'asc' } }),
+                // «ненадійні» маршрути сайт не показує — і Claude про них не знає
+                prisma.transportRoute.findMany({
+                    where: { cityCode: transport_city_1.DEFAULT_TRANSPORT_CITY, unreliable: false },
+                    select: { id: true, shortName: true, fromName: true, toName: true },
+                    orderBy: { id: 'asc' },
+                }),
+            ]);
+            const routes = routeRows.map((r) => ({ id: r.id, no: r.shortName.trim() || r.id, fromName: r.fromName.trim(), toName: r.toName.trim() }));
+            const key = JSON.stringify([stopRows, routes]);
+            if (cityCache && cityCache.key === key)
+                cityCache.at = at.getTime();
+            else {
+                cityCache = { at: at.getTime(), key, stops: stopRows, ids: new Set((0, stopPlaces_1.buildStopPlaces)(stopRows).map((e) => e.place.id)), routes, routeIds: new Set(routes.map((r) => r.id)) };
+            }
+            return cityCache;
         }
         catch (e) {
-            // без зупинок Claude знає лише кураторський словник — гірше, але відповідь буде
-            console.error('❌ Dovede: не вдалося прочитати зупинки міста:', e);
-            return stopsCache ?? { stops: [], ids: new Set() };
+            // без даних міста Claude знає лише кураторський словник — гірше, але відповідь буде
+            console.error('❌ Dovede: не вдалося прочитати зупинки й маршрути міста:', e);
+            return cityCache ?? { stops: [], ids: new Set(), routes: [], routeIds: new Set() };
         }
     };
     /** Журнал не має права зламати відповідь */
@@ -86,11 +97,11 @@ function createAdminDovedeRouter(deps) {
             return;
         }
         const at = clock();
-        const city = await cityStops(at);
+        const city = await cityData(at);
         let local = null;
         if (body.local != null) {
             try {
-                local = (0, intent_1.validateIntent)(body.local, city.ids);
+                local = (0, intent_1.validateIntent)(body.local, city.ids, city.routeIds);
             }
             catch (e) {
                 if (!(e instanceof intent_1.IntentShapeError))
@@ -114,7 +125,7 @@ function createAdminDovedeRouter(deps) {
                 res.status(429).json({ fallback: 'local', reason: 'cap' });
                 return;
             }
-            const result = await understand(text, (0, arrival_reports_1.kyivClock)(at), city.stops);
+            const result = await understand(text, (0, arrival_reports_1.kyivClock)(at), city.stops, city.routes);
             const agree = result.ok && local ? intentsAgree(local, result.intent) : null;
             await log({
                 text,

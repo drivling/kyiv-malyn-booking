@@ -156,7 +156,11 @@ of `dist` in a commit.
   (`nlu/stopPlaces.ts` + `normalize.ts`, byte-identical in `backend/src/dovede/`; ids `st_XXXX`, phrase matching).
   The browser registers them with `setStopPlaces` (look places up with `resolvePlace`, not `placeById`); the
   endpoint reads the city's stops from the DB (5 min cache) into the system prompt, so a stop added in the admin
-  reaches Claude without a deploy.
+  reaches Claude without a deploy. City bus routes work the same way: `nlu/routes.ts` finds «№5», «9-ка», «сімкою»
+  by the displayed number and puts route **ids** into `TripIntent.routes`; a route named without a from–to pair is
+  intent `route` and answers with `ui/RouteCard.tsx` (`DayPlanner.routeDepartures`), and the endpoint lists the
+  city's routes (no `unreliable`) in the prompt. Golden questions have scopes `mvp` / `stops` / `routes` with the
+  snapshots `eval/malyn-stops.json` and `eval/malyn-routes.json`.
 
 ### In-process scheduled jobs (no external cron)
 

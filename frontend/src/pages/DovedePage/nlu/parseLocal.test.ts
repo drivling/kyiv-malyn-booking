@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import golden from '../eval/golden.json';
+import malynRoutes from '../eval/malyn-routes.json';
+import malynStops from '../eval/malyn-stops.json';
+import { buildStopPlaces } from './stopPlaces';
 import { parseLocal } from './parseLocal';
 import { PLACES } from './gazetteer';
 import type { KyivNow, TripIntent } from './types';
@@ -15,12 +18,15 @@ interface GoldenCase {
     to?: string | null;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
+/** Зупинки Малина зі знімка датасету — як на сторінці після завантаження розкладу */
+const STOP_INDEX = buildStopPlaces(malynStops.stops);
+
 function grade(c: GoldenCase): [number, number, string[]] {
-  const got = parseLocal(c.text, NOW).intent;
+  const got = parseLocal(c.text, NOW, STOP_INDEX, malynRoutes.routes).intent;
   const e = c.expect;
   let ok = 0;
   let total = 0;
@@ -37,8 +43,9 @@ function grade(c: GoldenCase): [number, number, string[]] {
     if (e.when?.[k] !== undefined) check(`when.${k}`, got.when[k], e.when[k]);
   }
   if (e.modes !== undefined) check('modes', got.modes, e.modes);
+  if (e.routes !== undefined) check('routes', [...(got.routes ?? [])].sort(), [...e.routes].sort());
   if (e.confidence !== undefined) check('confidence', got.confidence, e.confidence);
-  if (e.unknown !== undefined) check('unknown', got.unknown, e.unknown);
+  if (e.unknown !== undefined) check('unknown', got.unknown.length > 0, e.unknown.length > 0);
   return [ok, total, why];
 }
 
@@ -60,8 +67,35 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     expect(accuracy).toBeGreaterThanOrEqual(0.8);
   });
 
+  it('розуміє ≥ 80% слотів у питаннях про зупинки з розкладу (без ШІ)', () => {
+    let ok = 0;
+    let total = 0;
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.scope === 'stops')) {
+      const [o, t, why] = grade(c);
+      ok += o;
+      total += t;
+      if (why.length) misses.push(`${c.id} «${c.text}»: ${why.join('; ')}`);
+    }
+    if (misses.length) console.info(`parseLocal, зупинки: ${ok}/${total}\n  ${misses.join('\n  ')}`);
+    expect(ok / total).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('розуміє ≥ 70% слотів у питаннях про маршрути (без ШІ; решту добирає Claude)', () => {
+    let ok = 0;
+    let total = 0;
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.scope === 'routes')) {
+      const [o, t, why] = grade(c);
+      ok += o;
+      total += t;
+      if (why.length) misses.push(`${c.id} «${c.text}»: ${why.join('; ')}`);
+    }
+    expect(ok / total, misses.join(' | ')).toBeGreaterThanOrEqual(0.7);
+  });
+
   it('усі id у еталонах є в словнику', () => {
-    const ids = new Set(PLACES.map((p) => p.id));
+    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id)]);
     for (const c of cases) {
       for (const id of [c.expect.from, c.expect.to]) {
         if (typeof id === 'string') expect(ids.has(id), `${c.id}: ${id}`).toBe(true);

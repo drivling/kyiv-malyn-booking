@@ -5,6 +5,7 @@
 import { CITY_LABEL, findPlaceByToken, type GazetteerPlace, placeById } from './gazetteer';
 import { tokenize, type Token } from './normalize';
 import { resolvePlace } from './places';
+import { findRouteMentions, type RouteLike } from './routes';
 import { matchStopPlace, type StopPlace } from './stopPlaces';
 import type { KyivNow, LocalParse, ParseSpan, PlaceRef, TripIntent, TripMode, TripWhen } from './types';
 
@@ -74,8 +75,10 @@ function prepBefore(toks: Token[], i: number): Token | null {
 }
 
 /** `stops` — зупинки з розкладу міста (`buildStopPlaces`): «Поворот на Коновальця», «Чорновола 36»… */
-export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []): LocalParse {
+export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], routes: RouteLike[] = []): LocalParse {
   const toks = tokenize(text);
+  // «автобус №5», «9-ка» — раніше за все інше: цифра маршруту не має стати часом, а «маршрутка 7» — маршруткою на Київ
+  const routeMentions = findRouteMentions(text, routes);
   const spans: ParseSpan[] = [];
   const hits: PlaceHit[] = [];
   const modes: Array<TripMode | 'bus'> = [];
@@ -108,6 +111,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []):
     const prev = toks[i - 1];
     const next = toks[i + 1];
     const n = t.n;
+    if (routeMentions.some((m) => t.start >= m.start && t.end <= m.end)) continue;
 
     // Назва зупинки з розкладу — кілька слів, тому раніше за час («до 14 ОМБ») і за прийменники («поворот на…»)
     const stop = stops.length ? matchStopPlace(stops, toks, i) : null;
@@ -237,6 +241,8 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []):
     if (!st.from) give('from');
   });
   for (const h of hits) if (h.role) spans.push({ start: h.spanStart, end: h.token.end, kind: h.role });
+  for (const m of routeMentions) spans.push({ start: m.start, end: m.end, kind: 'mode' });
+  const routeIds = [...new Set(routeMentions.map((m) => m.routeId))];
   if (unknownRole === 'from' && st.from) unknownRole = null;
   if (unknownRole === 'to' && st.to) unknownRole = null;
 
@@ -264,10 +270,15 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []):
   if (time) when.time = time;
   if (part) when.part = part;
 
+  // Маршрут міського автобуса — це завжди міський транспорт
+  if (routeIds.length && !tripModes.includes('city_bus')) tripModes.push('city_bus');
+
   // Намір
   const words = toks.map((t) => t.n);
   let intent: TripIntent['intent'] = 'trip';
-  if (words.some((w) => PRICE_RE.test(w))) intent = 'price';
+  // назвали маршрут, але не пару «звідки — куди» — питають про сам маршрут: куди їде, коли наступний
+  if (routeIds.length && !(fromP && toP)) intent = 'route';
+  else if (words.some((w) => PRICE_RE.test(w))) intent = 'price';
   else if (words.some((w) => CONTACT_RE.test(w))) intent = 'contact';
   else if (words.some((w) => OTHER_RE.test(w))) intent = 'other';
 
@@ -280,6 +291,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []):
   const hasCityWord = words.some((w) => CITY_WORD_RE.test(w));
   let confidence: TripIntent['confidence'] = fromP && toP && unknown.length === 0 ? 'high' : fromP || toP ? 'medium' : 'low';
   if (!fromP && toP && !toP.isCity && !hasCityWord && tripModes.length === 0) confidence = 'low';
+  if (intent === 'route' && unknown.length === 0) confidence = 'high';
 
   return {
     intent: {
@@ -288,6 +300,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []):
       to: ref(toP, 'to'),
       when,
       modes: tripModes,
+      ...(routeIds.length ? { routes: routeIds } : {}),
       unknown,
       confidence,
     },

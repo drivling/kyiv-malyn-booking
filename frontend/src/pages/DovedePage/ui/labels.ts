@@ -38,7 +38,9 @@ export function whenLabel(when: TripIntent['when'], now: KyivNow): { text: strin
 
 const MODE = { marshrutka: 'маршруткою', elektrichka: 'електричкою', poputka: 'попуткою', city_bus: 'міським автобусом' } as const;
 
-export function modeLabel(modes: TripIntent['modes']): { text: string; guessed: boolean } {
+/** `routeNos` — номери названих маршрутів для показу («5», «11/1») */
+export function modeLabel(modes: TripIntent['modes'], routeNos: string[] = []): { text: string; guessed: boolean } {
+  if (routeNos.length) return { text: `автобусом №${routeNos.join(', №')}`, guessed: false };
   if (!modes.length) return { text: 'будь-яким транспортом', guessed: true };
   return { text: modes.map((m) => MODE[m]).join(' або '), guessed: false };
 }

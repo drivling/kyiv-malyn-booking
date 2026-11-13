@@ -101,4 +101,16 @@ test.describe('«Доведе» (/dovede, лише адмін)', () => {
     expect(calls).toHaveLength(1);
     expect(JSON.parse(calls[0]).text).toBe('хочу потягом зі святошина до залізки');
   });
+  test('питання про маршрут: картка з найближчими відправленнями й посиланням на сторінку маршруту', async ({ page }) => {
+    const calls = await openAsAdmin(page);
+    await page.goto('/dovede');
+    await page.getByLabel('Куди вам потрібно доїхати?').fill('куди їде автобус №2');
+    await page.getByRole('button', { name: 'Знайти' }).click();
+
+    await expect(page.getByText('Міський автобус №2')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Розклад і зупинки маршруту →' })).toHaveAttribute('href', /^\/transport\/route\/2\?d=/);
+    await expect(page).toHaveURL(/[?&]r=2(&|$)/);
+    // номер маршруту словник розуміє сам — Claude лише перевіряє у фоні
+    expect(calls.length).toBeLessThanOrEqual(1);
+  });
 });

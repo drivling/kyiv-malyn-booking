@@ -64,7 +64,14 @@ function whenOptions(intent: TripIntent): Option[] {
 
 function modeOptions(intent: TripIntent): Option[] {
   const cur = intent.modes.join(',');
-  const opt = (key: string, title: string, sub: string, modes: TripIntent['modes']): Option => ({ key, title, sub, patch: { modes }, current: cur === modes.join(',') });
+  // вибір виду транспорту знімає названий маршрут («№5»): інакше відповідь лишалась би тією самою
+  const opt = (key: string, title: string, sub: string, modes: TripIntent['modes']): Option => ({
+    key,
+    title,
+    sub,
+    patch: { modes, routes: [], ...(intent.intent === 'route' ? { intent: 'trip' as const } : {}) },
+    current: cur === modes.join(',') && !(intent.routes ?? []).length,
+  });
   return [
     opt('any', 'Будь-яким транспортом', 'покажу найкраще', []),
     opt('marshrutka', 'Маршруткою', 'Київ ↔ Малин', ['marshrutka']),

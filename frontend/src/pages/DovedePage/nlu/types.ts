@@ -24,12 +24,15 @@ export interface PlaceRef {
 }
 
 export interface TripIntent {
-  intent: 'trip' | 'schedule' | 'price' | 'contact' | 'other';
+  /** route — питання про сам маршрут («куди їде №5», «коли 9-ка з Царського села») */
+  intent: 'trip' | 'schedule' | 'route' | 'price' | 'contact' | 'other';
   from: PlaceRef | null;
   to: PlaceRef | null;
   when: TripWhen;
   /** [] — будь-яким транспортом */
   modes: TripMode[];
+  /** id маршрутів міських автобусів, які назвала людина («№5», «9-ка»); немає — будь-яким */
+  routes?: string[];
   /** слова про місця, яких немає в словнику */
   unknown: string[];
   confidence: 'high' | 'medium' | 'low';

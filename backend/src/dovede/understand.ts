@@ -6,7 +6,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { INTENT_SCHEMA, IntentShapeError, validateIntent, type TripIntent } from './intent';
-import { PROMPT_VERSION, buildSystemPrompt, buildUserText, type KyivNow } from './prompt';
+import { PROMPT_VERSION, buildSystemPrompt, buildUserText, type KyivNow, type RouteLike } from './prompt';
 import { buildStopPlaces, type StopLike } from './stopPlaces';
 
 export const DEFAULT_DOVEDE_MODEL = 'claude-opus-5-5';
@@ -28,7 +28,7 @@ export type UnderstandResult =
   | { ok: false; failure: UnderstandFailure; message: string; model: string; latencyMs: number; usage?: UnderstandUsage; promptVersion: string };
 
 /** `stops` — зупинки міста з бази: Claude бачить їх усі, а `validateIntent` дозволяє їхні id */
-export type UnderstandFn = (text: string, now: KyivNow, stops?: StopLike[]) => Promise<UnderstandResult>;
+export type UnderstandFn = (text: string, now: KyivNow, stops?: StopLike[], routes?: RouteLike[]) => Promise<UnderstandResult>;
 
 /** Лише claude-*: значення з env не має відкривати довільну модель */
 export function dovedeModelName(raw: string | undefined | null): string {
@@ -63,16 +63,22 @@ export function createUnderstand(deps: { client: DovedeMessagesClient; model?: s
   const model = dovedeModelName(deps.model);
   const clock = deps.clock ?? Date.now;
   // Промпт будується один раз на список зупинок: той самий масив — той самий рядок, кеш Claude не збивається
-  let built: { stops: StopLike[] | undefined; system: string; stopIds: Set<string> } | null = null;
-  const promptFor = (stops: StopLike[] | undefined) => {
-    if (!built || built.stops !== stops) {
-      built = { stops, system: buildSystemPrompt(stops ?? []), stopIds: new Set(buildStopPlaces(stops ?? []).map((e) => e.place.id)) };
+  let built: { stops: StopLike[] | undefined; routes: RouteLike[] | undefined; system: string; stopIds: Set<string>; routeIds: Set<string> } | null = null;
+  const promptFor = (stops: StopLike[] | undefined, routes: RouteLike[] | undefined) => {
+    if (!built || built.stops !== stops || built.routes !== routes) {
+      built = {
+        stops,
+        routes,
+        system: buildSystemPrompt(stops ?? [], routes ?? []),
+        stopIds: new Set(buildStopPlaces(stops ?? []).map((e) => e.place.id)),
+        routeIds: new Set((routes ?? []).map((r) => r.id)),
+      };
     }
     return built;
   };
 
-  return async (text, now, stops) => {
-    const { system, stopIds } = promptFor(stops);
+  return async (text, now, stops, routes) => {
+    const { system, stopIds, routeIds } = promptFor(stops, routes);
     const started = clock();
     const base = { model, promptVersion: PROMPT_VERSION };
     const fail = (failure: UnderstandFailure, message: string, usage?: UnderstandUsage): UnderstandResult => ({
@@ -105,7 +111,7 @@ export function createUnderstand(deps: { client: DovedeMessagesClient; model?: s
       const raw = block && block.type === 'text' ? block.text : '';
       let intent: TripIntent;
       try {
-        intent = validateIntent(JSON.parse(raw), stopIds);
+        intent = validateIntent(JSON.parse(raw), stopIds, routeIds);
       } catch (e) {
         const why = e instanceof IntentShapeError ? e.message : 'відповідь — не JSON';
         return { ...fail('invalid', why, usage), ...served };

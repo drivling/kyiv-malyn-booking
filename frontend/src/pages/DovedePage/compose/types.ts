@@ -7,6 +7,18 @@ export interface LocalPlanner {
   plan(from: Endpoint, to: Endpoint): DayPlan;
   stopName(stopId: string): string;
   stopCoords(stopId: string): [number, number] | null;
+  /** Відправлення маршруту за день, згруповані за кінцевою (usePlannerModel.routeDepartures) */
+  routeDepartures?(routeId: string, stopId?: string | null): Array<{ fromStopId: string; towardStopId: string; mins: number[] }>;
+}
+
+/** Один напрямок маршруту в картці «Автобус №5» */
+export interface RouteBoard {
+  fromStopId: string;
+  towardStopId: string;
+  /** найближчі відправлення (хв від півночі), не більше шести */
+  next: number[];
+  first: number;
+  last: number;
 }
 
 export type StoryLeg =
@@ -86,4 +98,6 @@ export type ComposeOutcome =
   | { kind: 'unknown_place'; words: string[] }
   | { kind: 'outside'; city: string | null }
   | { kind: 'poputka_soon' }
+  /** Питання про сам маршрут: кінцеві, найближчі відправлення (з названої зупинки або з кінцевих) */
+  | { kind: 'route_info'; routeId: string; no: string; fromName: string; toName: string; atStopId: string | null; atStopLabel: string | null; boards: RouteBoard[] }
   | { kind: 'not_trip'; intent: 'schedule' | 'price' | 'contact' | 'other' };
