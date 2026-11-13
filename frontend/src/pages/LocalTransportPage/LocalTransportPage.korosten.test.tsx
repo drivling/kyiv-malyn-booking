@@ -1,6 +1,6 @@
 /**
- * Сторінки транспорту іншого міста (Коростень, фаза 10а плану Docs/korosten-transport-2026-11.md): назви міста й домен —
- * з профілю транспорту, без малинської схеми, мініатюр, «вузлів» схеми й порядку ліній зі схеми. Сайт Коростеня тут —
+ * Сторінки транспорту іншого міста (Коростень, фази 10а і 12 плану Docs/korosten-transport-2026-11.md): назви міста й домен —
+ * з профілю транспорту, схема, мініатюри й порядок ліній — зі схеми Коростеня, нічого малинського. Сайт Коростеня тут —
  * ?site=korosten (так само поводиться перегляд адміна на malin.kiev.ua). RouteMap (Leaflet) замокано; датасет — MSW.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,14 +82,16 @@ afterEach(() => {
 });
 
 describe('сторінки транспорту Коростеня', () => {
-  it('хаб: назви Коростеня, свої чіпи, джерело ради, без схеми й без слова «Малин»', async () => {
+  it('хаб: назви Коростеня, свої чіпи, джерело ради, схема Коростеня й без слова «Малин»', async () => {
     renderAt('/transport');
     expect(await screen.findByText('Коростень · місцевий транспорт', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Маршрути Коростеня' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Залізничний вокзал' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Поліське водосховище' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Схема' })).toBeNull();
-    expect(screen.queryByText('Уся схема')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Схема' })).toHaveAttribute('href', expect.stringMatching(/^\/transport\/scheme/));
+    expect(screen.getByText('Уся схема')).toBeInTheDocument();
+    // міні-схема — коростенська (лінія 2-Б є лише там)
+    expect(document.querySelector('.lts-mini [data-route="2b"]')).not.toBeNull();
     expect(screen.getByRole('link', { name: 'Розклад: Коростенська міська рада' })).toHaveAttribute('href', expect.stringContaining('korosten-rada.gov.ua'));
     expect(screen.getByText('Як доїхати міським транспортом у Коростені?')).toBeInTheDocument();
     expect(document.body.textContent).toContain('Міжміські попутки й маршрутки Київ / Житомир / Малин — на /mizhgorodski.');
@@ -106,17 +108,32 @@ describe('сторінки транспорту Коростеня', () => {
     expect(pageText()).not.toMatch(/Малин|malin\.kiev/);
   });
 
-  it('табло: тексти Коростеня, лінії за номером (№1, №2-Б, №8), без мініатюри схеми', async () => {
+  it('табло: тексти Коростеня, лінії в порядку легенди схеми Коростеня (№1, №2-Б, №8), мініатюра схеми Коростеня', async () => {
     renderAt('/transport/stop/st_1001');
     expect(await screen.findByText('Коростень · розклад відправлень', {}, { timeout: 5000 })).toBeInTheDocument();
     const chips = await screen.findByRole('group', { name: 'Маршрути через зупинку' });
     expect(chips.textContent?.replace(/\s+/g, '')).toBe('№1№2-Б№8');
-    expect(document.querySelector('.lt-scheme-mini')).toBeNull();
+    expect(document.querySelector('.lts-mini [data-route="2b"]')).not.toBeNull();
     expect(pageText()).not.toMatch(/Малин|malin\.kiev/);
     await waitFor(() => expect(document.title).toBe('Зупинка «Залізничний вокзал» — розклад маршруток Коростеня | korosten.kiev.ua'));
   });
 
+  it('/transport/scheme: схема Коростеня, свій плакат, SEO з домену Коростеня, без блоку відкритих даних', async () => {
+    renderAt('/transport/scheme');
+    expect(await screen.findByText('Коростень · 9 міських маршрутів · не в масштабі', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByTestId('location').textContent).toBe('/transport/scheme');
+    expect(document.querySelector('.lts-canvas [data-route="2b"]')).not.toBeNull();
+    // чип над схемою і лінія в SVG
+    expect(screen.getAllByRole('button', { name: /^Маршрут №2-Б:/ }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/transport/scheme/korosten-transit-scheme-poster.pdf');
+    expect(document.getElementById('open-data')).toBeNull();
+    expect(pageText()).not.toMatch(/Малин|malin\.kiev/);
+    await waitFor(() => expect(document.title).toBe('Схема маршрутів Коростеня — міські автобуси | korosten.kiev.ua'));
+    expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://korosten.kiev.ua/transport/scheme');
+  });
+
   it('/transport/scheme у міста без схеми веде на планувальник', async () => {
+    window.history.replaceState({}, '', '/?site=zhytomyr');
     renderAt('/transport/scheme');
     await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/transport'));
   });

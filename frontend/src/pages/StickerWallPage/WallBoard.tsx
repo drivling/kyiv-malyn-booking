@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react';
 import type { StickerWallSnapshot } from '@/types';
 import { WallBadges } from './WallBadges';
 import {
-  SCHEME_PALETTE,
   TAB_ROTATE_MS,
   agoLabel,
   growingStops,
@@ -10,6 +9,7 @@ import {
   kyivHour,
   plural,
   recentHours,
+  schemePalette,
   topStops,
   type WallStop,
 } from './stickerWall';
@@ -50,7 +50,7 @@ export function WallBoard({
   const last = [...stops].sort((a, b) => (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))[0] ?? null;
   const list = tab === 'top' ? topStops(stops) : growingStops(stops);
   const listMax = Math.max(1, ...list.map((s) => (tab === 'top' ? s.today : s.last3h)));
-  const accent = topStops(stops, 1)[0]?.color ?? SCHEME_PALETTE[0] ?? '#2a78d6';
+  const accent = topStops(stops, 1)[0]?.color ?? schemePalette()[0] ?? '#2a78d6';
   const best = snapshot?.bestDay ?? null;
 
   return (
@@ -79,7 +79,7 @@ export function WallBoard({
 
       <section className="wall-today" aria-label="Сьогодні">
         <div className="wall-stripe" aria-hidden="true">
-          {SCHEME_PALETTE.map((c) => (
+          {schemePalette().map((c) => (
             <span key={c} style={{ background: c }} />
           ))}
         </div>

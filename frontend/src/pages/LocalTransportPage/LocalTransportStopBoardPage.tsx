@@ -11,8 +11,7 @@ import { routeChainSources } from './routeVariants';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
 import { isVerifiedRoute, verifiedRouteIds } from './routeTiming';
 import { buildRouteLines } from './routeGeometry';
-import { SCHEME_NODES } from './scheme/malyn-scheme-nodes';
-import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
+import { schemeFor } from './scheme/registry';
 import { routeColorStyle } from './routeColors';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
@@ -55,14 +54,10 @@ function schemeMiniNote(node: { name: string; size: number; stops: string[] } | 
 }
 
 /** Порядок ліній як у легенді схеми; маршрути поза схемою — за номером у кінці (місто без схеми — лише за номером) */
-const SCHEME_ORDER = new Map(SCHEME_ROUTES.map((r, i) => [r.id, i]));
-const NO_ORDER = new Map<string, number>();
 function lineComparator(order: Map<string, number>): (a: string, b: string) => number {
   return (a, b) => (order.get(a) ?? 999) - (order.get(b) ?? 999) || a.localeCompare(b, 'uk', { numeric: true });
 }
 
-/** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
-const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
 
 /**
  * Браузерний `<input type="time">`: HH:mm:ss; Safari/локалі — крапка замість двокрапки; Unicode.
@@ -126,7 +121,11 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   const profile = useMemo(() => transportProfile(), []);
   const copyCity = useMemo(() => ({ genitive: profile.nameGenitive, locative: profile.nameLocative, domain: profile.domain }), [profile]);
   const hubFaq = useMemo(() => stopHubFaq(copyCity), [copyCity]);
-  const compareLineIds = useMemo(() => lineComparator(profile.hasScheme ? SCHEME_ORDER : NO_ORDER), [profile]);
+  /** Схема маршрутів міста (null — нема): порядок ліній, вузли, міні-схема під табло */
+  const scheme = useMemo(() => (profile.hasScheme ? schemeFor(profile.cityCode) : null), [profile]);
+  const compareLineIds = useMemo(() => lineComparator(new Map((scheme?.routes ?? []).map((r, i) => [r.id, i]))), [scheme]);
+  /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
+  const nodeStopIds = useMemo(() => (scheme?.nodes ?? []).filter((n) => n.kind !== 'waypoint').map((n) => n.id), [scheme]);
   const viewModel = useMemo(() => {
     if (!dataset) return null;
     const vm = datasetToLocalViewModel(dataset);
@@ -219,19 +218,19 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   /** Обрана зупинка — це зупинка з URL (джерело істини); порожній slug → табло без зупинки. */
   const selectedStop = matchedStopId;
   /** Вузол схеми, якому належить обрана зупинка (вузол = кілька фізичних зупинок), або null */
-  const schemeNode = useMemo(() => schemeNodeForStop(selectedStop), [selectedStop]);
+  const schemeNode = useMemo(() => schemeNodeForStop(selectedStop, scheme), [selectedStop, scheme]);
   /** Лінії схеми через обрану зупинку (через весь вузол, якщо вона його частина) — для міні-схеми під табло */
   const schemeRouteIds = useMemo(() => {
     if (!dataset || !selectedStop) return [];
-    return schemeNode ? routesAtNode(dataset, schemeNode) : routesAtStop(dataset, selectedStop);
-  }, [dataset, selectedStop, schemeNode]);
+    return schemeNode ? routesAtNode(dataset, schemeNode, scheme) : routesAtStop(dataset, selectedStop, scheme);
+  }, [dataset, selectedStop, schemeNode, scheme]);
   /** Назва вузла і назви його зупинок (лише ті, що є в датасеті) — для підпису під міні-схемою */
   const schemeNodeInfo = useMemo(
     () =>
       schemeNode && dataset
-        ? { name: schemeNode.name, size: schemeNode.stopIds.length, stops: stopsOfNode(dataset, schemeNode).map((s) => s.name) }
+        ? { name: schemeNode.name, size: schemeNode.stopIds.length, stops: stopsOfNode(dataset, schemeNode, scheme).map((s) => s.name) }
         : null,
-    [schemeNode, dataset]
+    [schemeNode, dataset, scheme]
   );
   const stopInputResolved = stopInput ? resolveStopIdInList(stopInput, stops, stopsCatalog) : '';
   /** У полі є текст, що не відповідає жодній зупинці (людина ще друкує) */
@@ -568,7 +567,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
                     value={stopInput ?? selectedStop}
                     onChange={handleStopChange}
                     onClear={handleStopClear}
-                    placeholder={profile.hasScheme ? 'Наприклад Малинівка' : stops[0] ? `Наприклад ${displayNameForStopKey(stops[0], stopsCatalog)}` : 'Назва зупинки'}
+                    placeholder={profile.legacyStopNames[0] ? `Наприклад ${profile.legacyStopNames[0]}` : stops[0] ? `Наприклад ${displayNameForStopKey(stops[0], stopsCatalog)}` : 'Назва зупинки'}
                     emptyMessage="Зупинок не знайдено"
                     clearable
                   />
@@ -740,8 +739,9 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             </section>
           )}
 
-          {profile.hasScheme && selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
+          {scheme && selectedStop && (schemeRouteIds.length > 0 || schemeNode) && (
             <LocalTransportSchemeMini
+              scheme={scheme}
               source="board"
               routeIds={schemeRouteIds}
               stopIds={schemeNode ? [schemeNode.id] : []}
@@ -888,7 +888,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             markerStopNames={stops}
             fromStopName={selectedStop || undefined}
             routeLines={overviewLines}
-            nodeStopIds={NODE_STOP_IDS}
+            nodeStopIds={nodeStopIds}
             onStopMarkerClick={openStopBoard}
             coordsData={mapCoordsData}
             resolveStopLabel={(k) => displayNameForStopKey(k, stopsCatalog)}

@@ -1,8 +1,9 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
-import { SCHEME_COLOR_VARS } from './routeColors';
-import { MINI_SVG, cropViewBox, unionOf, type Box } from './schemeMini';
+import { currentScheme, schemeColorVars } from './routeColors';
+import { cropViewBox, miniSvg, unionOf, type Box } from './schemeMini';
+import type { CityScheme } from './scheme/registry';
 import './scheme/scheme-svg.css';
 import './LocalTransportSchemeMini.css';
 
@@ -58,6 +59,8 @@ export type LocalTransportSchemeMiniProps = {
   title?: string;
   /** Сторінка-джерело для події `transport_scheme_open` (без неї подія не шлеться) */
   source?: 'planner' | 'route' | 'board';
+  /** Схема міста (за замовчуванням — міста, чий датасет на сторінці); без схеми нічого не малюється */
+  scheme?: CityScheme | null;
 };
 
 /**
@@ -65,7 +68,17 @@ export type LocalTransportSchemeMiniProps = {
  * ліній/зупинок, цілком — посилання на /transport/scheme. Підсвічування і кадрування ставляться
  * після монтування прямо в DOM, бо SVG вставлено рядком, а не React-деревом.
  */
-export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, note, showAll = false, title = 'На схемі міста', source }: LocalTransportSchemeMiniProps) {
+export function LocalTransportSchemeMini({
+  routeIds,
+  stopIds = [],
+  href,
+  label,
+  note,
+  showAll = false,
+  title = 'На схемі міста',
+  source,
+  scheme = currentScheme(),
+}: LocalTransportSchemeMiniProps) {
   const headingId = useId();
   const canvasRef = useRef<HTMLDivElement>(null);
   const routeKey = routeIds.join(',');
@@ -98,14 +111,15 @@ export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, 
       }
     });
     const svg = root.querySelector('svg');
-    if (svg) {
-      const v = cropViewBox(boxes);
+    if (svg && scheme) {
+      const v = cropViewBox(boxes, scheme.viewBox);
       svg.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
     }
-  }, [routeKey, stopKey, showAll]);
+  }, [routeKey, stopKey, showAll, scheme]);
 
+  if (!scheme) return null;
   return (
-    <section className="lts-mini" aria-labelledby={headingId} style={SCHEME_COLOR_VARS}>
+    <section className="lts-mini" aria-labelledby={headingId} style={schemeColorVars(scheme.routes)}>
       <h2 id={headingId} className="lt-section-title lts-mini-title">
         {title}
       </h2>
@@ -117,7 +131,7 @@ export function LocalTransportSchemeMini({ routeIds, stopIds = [], href, label, 
           if (source) gaTrackEvent('transport_scheme_open', { source });
         }}
       >
-        <div ref={canvasRef} className="lts-mini-svg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: MINI_SVG }} />
+        <div ref={canvasRef} className="lts-mini-svg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: miniSvg(scheme) }} />
         <span className="lts-mini-cta" aria-hidden="true">
           Відкрити схему →
         </span>

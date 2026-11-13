@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { transportProfile } from '@/site/transportCity';
+import { transportProfile, type TransportProfile } from '@/site/transportCity';
 import { usePageSeo } from '@/hooks';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
@@ -9,9 +9,8 @@ import { TransportStatusBar } from './TransportStatusBar';
 import { TransportPrefsPanel } from './TransportPrefsPanel';
 import { routeScheduleStats } from './schemeStats';
 import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './schemeStops';
-import { SCHEME_COLOR_VARS } from './routeColors';
-import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
-import schemeSvg from './scheme/malyn-scheme.svg?raw';
+import { schemeColorVars } from './routeColors';
+import { schemeFor, type CityScheme } from './scheme/registry';
 import './LocalTransportPage.css';
 import './scheme/scheme-svg.css';
 import './LocalTransportSchemePage.css';
@@ -29,11 +28,9 @@ import {
 } from './openData';
 
 const SITE = 'https://malin.kiev.ua';
-/** Статика з frontend/public (генерується build_scheme.py --poster-dir; PDF — Chromium print, див. README) */
-const POSTER_PDF = '/transport/scheme/malyn-transit-scheme-poster.pdf';
-const POSTER_SVG = '/transport/scheme/malyn-transit-scheme-poster.svg';
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
+/** SEO сторінки схеми Малина — рядки незмінні (статичний пререндер); інше місто — з профілю (schemeSeo) */
 const SCHEME_SEO = {
   title: 'Схема маршрутів Малина — міські автобуси №2–12 | malin.kiev.ua',
   canonicalUrl: `${SITE}/transport/scheme`,
@@ -49,6 +46,26 @@ const SCHEME_SEO = {
     about: { '@type': 'Thing', name: 'Міський транспорт Малина' },
   },
 };
+
+function schemeSeo(profile: TransportProfile, scheme: CityScheme) {
+  if (scheme.city === 'Malyn') return SCHEME_SEO;
+  const url = `${profile.siteUrl}/transport/scheme`;
+  const name = `Схема маршрутів ${profile.nameGenitive}`;
+  return {
+    title: `${name} — міські автобуси | ${profile.domain}`,
+    canonicalUrl: url,
+    description: `Схема міських автобусних маршрутів ${profile.nameGenitive} у стилі метро: ${scheme.routes.length} ліній, кінцеві та пересадкові зупинки, рейси іншим шляхом. Натисніть на лінію — побачите маршрут і розклад, на зупинку — табло відправлень.`,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name,
+      url,
+      inLanguage: 'uk',
+      isPartOf: { '@type': 'WebSite', name: profile.domain, url: profile.siteUrl },
+      about: { '@type': 'Thing', name: `Міський транспорт ${profile.nameGenitive}` },
+    },
+  };
+}
 
 /** Група зупинки/вузла на схемі, якій належить зупинка: за data-stops (усі зупинки вузла), інакше за data-stop. */
 function stopGroupFor(root: ParentNode, stopId: string): SVGGraphicsElement | null {
@@ -69,20 +86,22 @@ function closestData(target: EventTarget | null, attr: 'route' | 'stop'): string
 
 /**
  * «Схема» — третій режим розділу транспорту: інтерактивна схема в стилі метро.
- * SVG згенеровано скриптом Docs/malyn-transit-scheme/build_scheme.py (--site-dir):
+ * SVG згенеровано скриптом Docs/malyn-transit-scheme/build_scheme.py (--site-dir; інше місто — з --city):
  * лінії несуть data-route, зупинки — data-stop; сторінка лише делегує кліки та підсвічує.
  * Обраний маршрут живе в URL (?route=3), щоб на нього можна було дати посилання; ?stop=<id>
  * (з табло) ставить маркер «ви тут» і, поки маршрут не обрано, підсвічує лінії через цю зупинку.
  */
 /**
- * Схема намальована лише для Малина; місто без схеми (Коростень до фази 12) веде на планувальник — разом зі схемою
- * ховається й блок відкритих даних, бо фід GTFS / RSS / ICS поки лише малинський.
+ * Схема міста з реєстру (scheme/registry.ts); місто без схеми веде на планувальник. Блок відкритих даних —
+ * лише в міста з відкритими даними (фід GTFS / RSS / ICS поки малинський).
  */
 export function LocalTransportSchemePage() {
-  return transportProfile().hasScheme ? <MalynSchemePage /> : <Navigate to="/transport" replace />;
+  const profile = useMemo(() => transportProfile(), []);
+  const scheme = profile.hasScheme ? schemeFor(profile.cityCode) : null;
+  return scheme ? <CitySchemePage profile={profile} scheme={scheme} /> : <Navigate to="/transport" replace />;
 }
 
-function MalynSchemePage() {
+function CitySchemePage({ profile, scheme }: { profile: TransportProfile; scheme: CityScheme }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchDate = searchParams.get('d') || '';
@@ -93,7 +112,7 @@ function MalynSchemePage() {
   const [zoomIdx, setZoomIdx] = useState(0);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  usePageSeo(SCHEME_SEO);
+  usePageSeo(useMemo(() => schemeSeo(profile, scheme), [profile, scheme]));
 
   const suffix = useMemo(() => {
     const qs = new URLSearchParams();
@@ -130,17 +149,17 @@ function MalynSchemePage() {
 
   const hereStopName = (hereStop && dataset?.stops.find((s) => s.id === hereStop)?.name) || '';
   /** Вузол схеми, якому належить зупинка з ?stop= (вузол = кілька фізичних зупинок) */
-  const hereNode = useMemo(() => schemeNodeForStop(hereStop), [hereStop]);
+  const hereNode = useMemo(() => schemeNodeForStop(hereStop, scheme), [hereStop, scheme]);
   /** Лінії через зупинку (через весь вузол, якщо вона його частина) — підсвічуються, поки не обрано маршрут */
   const hereRoutes = useMemo(() => {
     if (!hereStop || !dataset) return [];
-    return hereNode ? routesAtNode(dataset, hereNode) : routesAtStop(dataset, hereStop);
-  }, [hereStop, hereNode, dataset]);
+    return hereNode ? routesAtNode(dataset, hereNode, scheme) : routesAtStop(dataset, hereStop, scheme);
+  }, [hereStop, hereNode, dataset, scheme]);
   const hereRoutesKey = hereRoutes.join(',');
   /** Зупинки вузла з лініями кожної — для рядка «Зупинки вузла» на картці */
   const hereNodeStops = useMemo(
-    () => (hereNode && dataset ? stopsOfNode(dataset, hereNode) : []),
-    [hereNode, dataset]
+    () => (hereNode && dataset ? stopsOfNode(dataset, hereNode, scheme) : []),
+    [hereNode, dataset, scheme]
   );
 
   // Підсвічування: обрана лінія (або лінії зупинки) лишається, решта тьмяніє. Класи ставляться
@@ -164,19 +183,19 @@ function MalynSchemePage() {
     });
   }, [activeRoute, hereRoutesKey, hereStop]);
 
-  // Перший кадр на телефоні: прокрутити полотно до зупинки з ?stop=, інакше — так, щоб вузол
-  // «Центр» (≈40 % ширини схеми) був посередині, а не лівий край із Лісотехнікумом.
+  // Перший кадр на телефоні: прокрутити полотно до зупинки з ?stop=, інакше — так, щоб центр міста
+  // (у Малина вузол «Центр», ≈40 % ширини схеми) був посередині, а не лівий край.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el || el.scrollWidth <= el.clientWidth) return;
-    let fraction = 0.4;
+    let fraction = scheme.initialScroll;
     const here = hereStop ? stopGroupFor(el, hereStop) : null;
     if (here && typeof here.getBBox === 'function') {
       const b = here.getBBox();
-      if (b.width > 0) fraction = (b.x + b.width / 2) / 1400; // ширина viewBox схеми
+      if (b.width > 0) fraction = (b.x + b.width / 2) / scheme.viewBox.w; // ширина viewBox схеми
     }
     el.scrollLeft = Math.max(0, el.scrollWidth * fraction - el.clientWidth / 2);
-  }, [hereStop]);
+  }, [hereStop, scheme]);
 
   const activate = useCallback(
     (target: EventTarget | null): boolean => {
@@ -205,7 +224,7 @@ function MalynSchemePage() {
     if (activate(e.target)) e.preventDefault();
   };
 
-  const active = SCHEME_ROUTES.find((r) => r.id === activeRoute);
+  const active = scheme.routes.find((r) => r.id === activeRoute);
   const stats = useMemo(
     () => (active && dataset ? routeScheduleStats(dataset.trips, active.id) : null),
     [active, dataset]
@@ -224,6 +243,7 @@ function MalynSchemePage() {
     }
   };
 
+  const colorVars = useMemo(() => schemeColorVars(scheme.routes), [scheme]);
   const dataAsOfText = formatDataAsOf(dataAsOf);
   const onDataDownload = (format: OpenDataFormat) => gaTrackEvent('transport_data_download', { format });
 
@@ -232,12 +252,14 @@ function MalynSchemePage() {
   else if (stats) metaLine = `${stats.tripsPerDirection} рейсів у кожен бік · ${stats.first}–${stats.last}`;
 
   return (
-    <div className="lt-page lt-layout lt-scheme-page" style={SCHEME_COLOR_VARS}>
+    <div className="lt-page lt-layout lt-scheme-page" style={colorVars}>
       <div className="lt-container">
         <div className="lt-panel lts-panel">
           <header className="lt-header lts-header">
             <h1 className="lt-title">Схема маршрутів</h1>
-            <p className="lt-subtitle">Малин · 9 міських маршрутів · не в масштабі</p>
+            <p className="lt-subtitle">
+              {profile.name} · {scheme.routes.length} міських маршрутів · не в масштабі
+            </p>
           </header>
 
           <LocalTransportSubNav searchDate={searchDate} searchTime={searchTime} />
@@ -253,7 +275,7 @@ function MalynSchemePage() {
               >
                 Усі
               </button>
-              {SCHEME_ROUTES.map((r) => (
+              {scheme.routes.map((r) => (
                 <button
                   key={r.id}
                   type="button"
@@ -371,7 +393,7 @@ function MalynSchemePage() {
             <div
               className="lts-canvas-inner"
               style={{ width: `${zoom * 100}%` }}
-              dangerouslySetInnerHTML={{ __html: schemeSvg }}
+              dangerouslySetInnerHTML={{ __html: scheme.svg }}
             />
           </div>
 
@@ -380,48 +402,50 @@ function MalynSchemePage() {
             сірі підписи — орієнтири на розгалуженнях, не всі зупинки.
           </p>
           <p className="lts-poster">
-            Плакат для друку з QR-кодом: <a href={POSTER_PDF}>PDF</a> · <a href={POSTER_SVG}>SVG</a>
+            Плакат для друку з QR-кодом: <a href={scheme.poster.pdf}>PDF</a> · <a href={scheme.poster.svg}>SVG</a>
           </p>
 
           {/* Дані належать людині (Docs/transport-open-data-2026-10.md): стабільні посилання, без стану браузера */}
-          <section id="open-data" className="lts-open-data" aria-labelledby="lts-open-data-title">
-            <h2 id="lts-open-data-title" className="lts-open-data-title">
-              Дані відкриті
-            </h2>
-            <p className="lts-open-data-text">
-              Зупинки, маршрути й розклад можна забрати з собою і відкрити в будь-якому застосунку — у стандартному
-              форматі GTFS або як JSON сайту.
-            </p>
-            <div className="lts-card-actions">
-              <a className="lts-btn lts-btn--primary" href={GTFS_FEED_URL} onClick={() => onDataDownload('gtfs')}>
-                Завантажити розклад (GTFS)
-              </a>
-              <a className="lts-btn" href={DATASET_JSON_URL} download={DATASET_JSON_FILENAME} onClick={() => onDataDownload('json')}>
-                Дані у JSON
-              </a>
-            </div>
-            <p className="lts-open-data-meta">
-              Ліцензія{' '}
-              <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
-                {OPEN_DATA_LICENSE.name}
-              </a>
-              {' — '}вільно для людей, міста й бізнесу з доходом до 100 000 USD на рік, з посиланням на джерело; більшим
-              компаніям, платним сервісам і перепродажу — за договором
-              {dataAsOfText && ` · станом на ${dataAsOfText}`}
-              {' · '}
-              <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
-                як відкрити
-              </a>
-              {' · '}
-              <a href={CHANGES_RSS_URL} type="application/rss+xml">
-                RSS змін розкладу
-              </a>
-              {' · '}
-              <a href={OPENAPI_URL}>API</a>
-            </p>
-            {/* Фаза 4.3: особисті налаштування розділу — файлом, без сервера (transportPrefs.ts) */}
-            <TransportPrefsPanel stopNames={dataset ? dataset.stops.map((st) => st.name) : []} />
-          </section>
+          {profile.hasOpenData && (
+            <section id="open-data" className="lts-open-data" aria-labelledby="lts-open-data-title">
+              <h2 id="lts-open-data-title" className="lts-open-data-title">
+                Дані відкриті
+              </h2>
+              <p className="lts-open-data-text">
+                Зупинки, маршрути й розклад можна забрати з собою і відкрити в будь-якому застосунку — у стандартному
+                форматі GTFS або як JSON сайту.
+              </p>
+              <div className="lts-card-actions">
+                <a className="lts-btn lts-btn--primary" href={GTFS_FEED_URL} onClick={() => onDataDownload('gtfs')}>
+                  Завантажити розклад (GTFS)
+                </a>
+                <a className="lts-btn" href={DATASET_JSON_URL} download={DATASET_JSON_FILENAME} onClick={() => onDataDownload('json')}>
+                  Дані у JSON
+                </a>
+              </div>
+              <p className="lts-open-data-meta">
+                Ліцензія{' '}
+                <a href={OPEN_DATA_LICENSE.url} rel="license noopener" target="_blank">
+                  {OPEN_DATA_LICENSE.name}
+                </a>
+                {' — '}вільно для людей, міста й бізнесу з доходом до 100 000 USD на рік, з посиланням на джерело; більшим
+                компаніям, платним сервісам і перепродажу — за договором
+                {dataAsOfText && ` · станом на ${dataAsOfText}`}
+                {' · '}
+                <a href={OPEN_DATA_DOC_URL} rel="noopener" target="_blank">
+                  як відкрити
+                </a>
+                {' · '}
+                <a href={CHANGES_RSS_URL} type="application/rss+xml">
+                  RSS змін розкладу
+                </a>
+                {' · '}
+                <a href={OPENAPI_URL}>API</a>
+              </p>
+              {/* Фаза 4.3: особисті налаштування розділу — файлом, без сервера (transportPrefs.ts) */}
+              <TransportPrefsPanel stopNames={dataset ? dataset.stops.map((st) => st.name) : []} />
+            </section>
+          )}
         </div>
       </div>
     </div>

@@ -7,8 +7,7 @@ import { buildChainLine, buildRouteLines, routeStopChain } from './routeGeometry
 import { LocalTransportMapOverlay } from './LocalTransportMapOverlay';
 import { PHONE_QUERY, useMediaQuery } from './useMediaQuery';
 import { routesAtStop } from './schemeStops';
-import { SCHEME_NODES, type SchemeNode } from './scheme/malyn-scheme-nodes';
-import { SCHEME_ROUTES } from './scheme/malyn-scheme-routes';
+import { schemeFor, type SchemeNode } from './scheme/registry';
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import type { RouteVariantVm, TransportRecord, RouteStopWithOrder } from './types';
@@ -63,12 +62,7 @@ import { routeNo } from '@/utils/routeNames';
 import { isDefaultTransportCity, transportProfile, type TransportProfile } from '@/site/transportCity';
 
 const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
-/** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
-const NODE_STOP_IDS = SCHEME_NODES.filter((n) => n.kind !== 'waypoint').map((n) => n.id);
-/** Чіпи швидкого старту: вузли й кінцеві схеми (без орієнтирів), у порядку схеми */
-const QUICK_NODES = SCHEME_NODES.filter((n) => n.kind !== 'waypoint');
-/** «через …» з легенди схеми — для каталогу ліній */
-const SCHEME_VIA: Record<string, string> = Object.fromEntries(SCHEME_ROUTES.map((s) => [s.id, s.via]));
+const NO_NODE_IDS: string[] = [];
 
 /** Іконка-приціл для гео-кнопки у полі «Звідки» */
 function GeoIcon() {
@@ -313,6 +307,12 @@ export const LocalTransportPage: React.FC = () => {
   const { dataset, loading, error, reload, source, online, dataAsOf } = useTransportDataset();
   // назви міста, домен, схема, відкриті дані — з профілю міста цієї сторінки (у перегляді адміна — міста перегляду)
   const profile = useMemo(() => transportProfile(), []);
+  /** Схема маршрутів міста (null — нема): вузли на карті, чіпи «Куди їдете?», «через …» у каталозі, міні-схеми */
+  const scheme = useMemo(() => (profile.hasScheme ? schemeFor(profile.cityCode) : null), [profile]);
+  /** Пересадкові та кінцеві вузли схеми — більші маркери з постійним підписом на карті (орієнтири — звичайні зупинки) */
+  const nodeStopIds = useMemo(() => (scheme ? scheme.nodes.filter((n) => n.kind !== 'waypoint').map((n) => n.id) : NO_NODE_IDS), [scheme]);
+  /** «через …» з легенди схеми — для каталогу ліній */
+  const schemeVia = useMemo<Record<string, string>>(() => Object.fromEntries((scheme?.routes ?? []).map((r) => [r.id, r.via])), [scheme]);
   const hubFaq = useMemo(() => transportHubFaq(profile), [profile]);
   const viewModel = useMemo(() => {
     if (!dataset) return null;
@@ -439,7 +439,7 @@ export const LocalTransportPage: React.FC = () => {
     () => (stopsCoords ? buildRouteLines(stopsCoords, stopsByRoute, verifiedRouteIds(Object.keys(stopsByRoute ?? {}))) : []),
     [stopsCoords, stopsByRoute]
   );
-  const linesAtStop = useCallback((stopId: string) => (dataset ? routesAtStop(dataset, stopId) : []), [dataset]);
+  const linesAtStop = useCallback((stopId: string) => (dataset ? routesAtStop(dataset, stopId, scheme) : []), [dataset, scheme]);
   const boardHrefFor = useCallback(
     (stopId: string) =>
       `/transport/stop/${encodeURIComponent(stopId)}?d=${encodeURIComponent(searchDate)}&h=${encodeURIComponent(searchTime)}`,
@@ -1174,10 +1174,10 @@ export const LocalTransportPage: React.FC = () => {
   /** Чіпи швидкого старту: вузол схеми → перша його зупинка, що є в датасеті */
   const quickNodes = useMemo(
     () =>
-      (profile.hasScheme ? QUICK_NODES : (profile.quickNodes as SchemeNode[])).map((node) => ({ node, stopId: node.stopIds.find((id) => stops.includes(id)) })).filter(
-        (q): q is { node: SchemeNode; stopId: string } => Boolean(q.stopId)
-      ),
-    [stops, profile]
+      (profile.quickNodes.length ? (profile.quickNodes as SchemeNode[]) : (scheme?.nodes ?? []).filter((n) => n.kind !== 'waypoint'))
+        .map((node) => ({ node, stopId: node.stopIds.find((id) => stops.includes(id)) }))
+        .filter((q): q is { node: SchemeNode; stopId: string } => Boolean(q.stopId)),
+    [stops, profile, scheme]
   );
   /** Чіп вузла ставить «Куди», а якщо «Куди» вже є — «Звідки» (ті самі сетери, що й поля) */
   const pickQuickNode = (node: SchemeNode, stopId: string) => {
@@ -1572,8 +1572,9 @@ export const LocalTransportPage: React.FC = () => {
                 </>
               );
             })()}
-            {profile.hasScheme && routeColor(detailRoute.id) && (
+            {scheme && routeColor(detailRoute.id) && (
               <LocalTransportSchemeMini
+                scheme={scheme}
                 source="route"
                 routeIds={[detailRoute.id]}
                 href={buildSchemeUrl({
@@ -1703,7 +1704,7 @@ export const LocalTransportPage: React.FC = () => {
                 resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
                 routeLines: detailLine,
                 highlightRouteIds: [detailRoute.id],
-                nodeStopIds: NODE_STOP_IDS,
+                nodeStopIds,
                 routesAtStop: linesAtStop,
                 boardHref: boardHrefFor,
                 onPickFromStop: (stopName: string) => {
@@ -1958,8 +1959,9 @@ export const LocalTransportPage: React.FC = () => {
                     <button type="button" className="lt-empty-map-btn" onClick={() => openMap('planner', false)}>
                       Відкрити карту
                     </button>
-                    {profile.hasScheme && (
+                    {scheme && (
                       <LocalTransportSchemeMini
+                        scheme={scheme}
                         showAll
                         routeIds={[]}
                         href={buildSchemeUrl({ date: searchDate, time: searchTime })}
@@ -2028,7 +2030,7 @@ export const LocalTransportPage: React.FC = () => {
                         </span>
                         <span className="lt-aeo-route-text">
                           {routeLine(r) ? <span className="lt-aeo-route-line">{routeLine(r)}</span> : null}
-                          {profile.hasScheme && SCHEME_VIA[r.id] ? <span className="lt-aeo-route-via">{SCHEME_VIA[r.id]}</span> : null}
+                          {schemeVia[r.id] ? <span className="lt-aeo-route-via">{schemeVia[r.id]}</span> : null}
                         </span>
                       </Link>
                     </li>
@@ -2088,7 +2090,7 @@ export const LocalTransportPage: React.FC = () => {
               resolveStopLabel: (k: string) => displayNameForStopKey(k, stopsCatalog),
               routeLines: overviewLines,
               highlightRouteIds: committedPair ? journeyRouteIds : [],
-              nodeStopIds: NODE_STOP_IDS,
+              nodeStopIds,
               routesAtStop: linesAtStop,
               boardHref: boardHrefFor,
               onPickFromStop: (stopName: string) => {

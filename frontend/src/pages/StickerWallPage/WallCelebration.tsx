@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { WallBadges } from './WallBadges';
-import { SCHEME_PALETTE, plural, textOn, type Celebration } from './stickerWall';
+import { plural, schemePalette, textOn, type Celebration } from './stickerWall';
 
 const PIECES = 30;
 
@@ -22,7 +22,7 @@ function seeded(key: string): () => number {
  */
 export function WallCelebration({ celebration: c }: { celebration: Celebration }) {
   const rnd = seeded(c.key);
-  const palette = [c.color, ...c.lines.map((l) => l.color).filter((x): x is string => !!x), ...SCHEME_PALETTE, '#ffffff'];
+  const palette = [c.color, ...c.lines.map((l) => l.color).filter((x): x is string => !!x), ...schemePalette(), '#ffffff'];
   const pieces = Array.from({ length: PIECES }, (_, i) => {
     const angle = rnd() * Math.PI * 2;
     const dist = 28 + rnd() * 34;

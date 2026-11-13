@@ -22,6 +22,13 @@ const spec = (over: Partial<StickerSpec> = {}): StickerSpec => ({
 const count = (s: string, needle: string) => s.split(needle).length - 1;
 
 describe('renderStickerSvg', () => {
+  it('шапка — назва міста: за замовчуванням МАЛИН, у Коростеня — КОРОСТЕНЬ', () => {
+    expect(renderStickerSvg(spec())).toContain('>МАЛИН<');
+    const svg = renderStickerSvg(spec({ cityLabel: 'КОРОСТЕНЬ' }));
+    expect(svg).toContain('>КОРОСТЕНЬ<');
+    expect(svg).not.toContain('>МАЛИН<');
+  });
+
   it('аркуш A5 у міліметрах: назва, підпис напрямку, плашки ліній, QR і футер', () => {
     const svg = renderStickerSvg(spec());
     expect(svg).toMatch(/^<svg [^>]*viewBox="0 0 148 210" width="148mm" height="210mm"/);

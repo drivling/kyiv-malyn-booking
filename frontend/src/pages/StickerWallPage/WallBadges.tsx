@@ -1,4 +1,4 @@
-import { SCHEME_PALETTE, textOn, type WallLine } from './stickerWall';
+import { schemePalette, textOn, type WallLine } from './stickerWall';
 import { routeNo } from '@/utils/routeNames';
 
 /** Плашки номерів ліній у кольорах схеми (як на наклейці) */
@@ -8,7 +8,7 @@ export function WallBadges({ lines, max = 6 }: { lines: WallLine[]; max?: number
   return (
     <span className="wall-badges" aria-label={`Маршрути ${lines.map((l) => `№${routeNo(l.routeId)}`).join(', ')}`}>
       {shown.map((l) => {
-        const bg = l.color ?? SCHEME_PALETTE[0] ?? '#2a78d6';
+        const bg = l.color ?? schemePalette()[0] ?? '#2a78d6';
         return (
           <span key={l.routeId} className="wall-badge" style={{ background: bg, color: textOn(bg) }} aria-hidden="true">
             {routeNo(l.routeId)}

@@ -2,11 +2,12 @@
  * Чисті хелпери міні-схеми (LocalTransportSchemeMini.tsx): кадрування, посилання на схему,
  * перелік зупинок схеми. Окремий модуль, щоб компонентний файл експортував лише компонент.
  */
-import schemeSvg from './scheme/malyn-scheme.svg?raw';
+import { schemeFor, type CityScheme } from './scheme/registry';
+import { currentScheme } from './routeColors';
 import { schemeNodeForStop } from './schemeStops';
 
-/** viewBox згенерованої схеми (build_scheme.py, variant='site') — межі кадрування */
-const BASE = { x: 0, y: 176, w: 1400, h: 566 };
+/** Схема Малина: її viewBox (build_scheme.py, variant='site') — межі кадрування за замовчуванням */
+const MALYN = schemeFor('Malyn') as CityScheme;
 /** Поле навколо підсвічених ліній/зупинок, у координатах схеми */
 const CROP_PAD = 70;
 /** Найвужчий кадр: коротка лінія не має перетворюватись на крупний план без контексту */
@@ -16,11 +17,22 @@ const CROP_MIN_W = 640;
  * Той самий SVG, що й на /transport/scheme, але без інтерактивних ролей на групах:
  * міні-схема цілком лежить усередині <Link>, а вкладені role=button/link і tabindex там недоречні.
  */
-export const MINI_SVG = schemeSvg.replace(/ (?:role="(?:button|link)"|tabindex="0")/g, '');
+const miniSvgs = new WeakMap<CityScheme, string>();
+export function miniSvg(scheme: CityScheme): string {
+  let s = miniSvgs.get(scheme);
+  if (s === undefined) {
+    s = scheme.svg.replace(/ (?:role="(?:button|link)"|tabindex="0")/g, '');
+    miniSvgs.set(scheme, s);
+  }
+  return s;
+}
 
-/** Чи є зупинка на схемі — головною або однією зі зупинок вузла (malyn-scheme-nodes.ts) */
-export function isSchemeStop(stopId: string): boolean {
-  return schemeNodeForStop(stopId) !== null;
+/** Міні-SVG схеми Малина */
+export const MINI_SVG = miniSvg(MALYN);
+
+/** Чи є зупинка на схемі міста — головною або однією зі зупинок вузла (<місто>-scheme-nodes.ts) */
+export function isSchemeStop(stopId: string, scheme: CityScheme | null = currentScheme()): boolean {
+  return schemeNodeForStop(stopId, scheme) !== null;
 }
 
 /** Посилання на сторінку схеми з контекстом (маршрут/зупинка) і датою-часом пошуку */
@@ -38,7 +50,7 @@ export type Box = { x: number; y: number; w: number; h: number };
 
 /**
  * Кадр для viewBox: обʼєднання bbox підсвічених елементів з полем, пропорції як у всієї схеми
- * (щоб міні-схема завжди була однакової форми), не вужче CROP_MIN_W і в межах BASE.
+ * (щоб міні-схема завжди була однакової форми), не вужче CROP_MIN_W і в межах base (viewBox схеми міста).
  */
 export function unionOf(boxes: Box[]): Box {
   let x0 = Infinity;
@@ -54,27 +66,27 @@ export function unionOf(boxes: Box[]): Box {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-export function cropViewBox(boxes: Box[]): Box {
-  if (!boxes.length) return BASE;
+export function cropViewBox(boxes: Box[], base: Box = MALYN.viewBox): Box {
+  if (!boxes.length) return base;
   const u = unionOf(boxes);
   const x0 = u.x - CROP_PAD;
   const y0 = u.y - CROP_PAD;
   const x1 = u.x + u.w + CROP_PAD;
   const y1 = u.y + u.h + CROP_PAD;
-  const ratio = BASE.h / BASE.w;
+  const ratio = base.h / base.w;
   let w = Math.max(x1 - x0, CROP_MIN_W);
   let h = w * ratio;
   if (y1 - y0 > h) {
     h = y1 - y0;
     w = h / ratio;
   }
-  if (w > BASE.w) {
-    w = BASE.w;
-    h = BASE.h;
+  if (w > base.w) {
+    w = base.w;
+    h = base.h;
   }
   const cx = (x0 + x1) / 2;
   const cy = (y0 + y1) / 2;
-  const x = Math.min(Math.max(cx - w / 2, BASE.x), BASE.x + BASE.w - w);
-  const y = Math.min(Math.max(cy - h / 2, BASE.y), BASE.y + BASE.h - h);
+  const x = Math.min(Math.max(cx - w / 2, base.x), base.x + base.w - w);
+  const y = Math.min(Math.max(cy - h / 2, base.y), base.y + base.h - h);
   return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
 }
