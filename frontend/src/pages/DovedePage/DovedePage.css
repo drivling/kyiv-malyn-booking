@@ -912,6 +912,62 @@ button.dv-slot::after {
   justify-self: start;
 }
 
+/* Довідкові картки: попутки на день, ціни, телефони */
+.dv-info {
+  display: grid;
+  gap: 10px;
+}
+.dv-info .dv-btn {
+  justify-self: start;
+}
+.dv-info__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dv-info__row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px solid var(--dv-line);
+}
+.dv-info__row--price {
+  justify-content: space-between;
+}
+.dv-info__time {
+  flex: 0 0 auto;
+  min-width: 64px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dv-info__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.dv-info__facts {
+  font-weight: 600;
+}
+.dv-info__price {
+  flex: 0 0 auto;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.dv-info__phone {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+}
+.dv-info__empty {
+  margin: 0;
+  font-weight: 600;
+}
+
 /* маршрут у картці; кілька маршрутів («5 і 7 з лікарні») — розділи один під одним */
 .dv-route__item {
   display: grid;
@@ -1123,7 +1179,8 @@ button.dv-slot::after {
 .dv-out--in .dv-choices > .dv-choice:nth-of-type(3),
 .dv-out--in .dv-alts > .dv-alt:nth-of-type(3) { --dv-c: 2; }
 .dv-out--in .dv-choices > .dv-choice:nth-of-type(n + 4) { --dv-c: 3; }
-.dv-out--in > .dv-route {
+.dv-out--in > .dv-route,
+.dv-out--in > .dv-info {
   transform-origin: 50% 0;
   animation: dv-deal 0.78s cubic-bezier(0.25, 0.8, 0.3, 1) both, dv-settle 0.78s ease-out both;
 }
@@ -1150,6 +1207,7 @@ button.dv-slot::after {
   .dv-out--in .dv-choices > .dv-choice,
   .dv-out--in .dv-alts > .dv-alt,
   .dv-out--in > .dv-route,
+  .dv-out--in > .dv-info,
   .dv-out--in .dv-route__dir {
     animation: none;
   }

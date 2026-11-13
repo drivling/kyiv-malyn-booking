@@ -10,11 +10,11 @@
  */
 import { haversineDistance } from '@/pages/LocalTransportPage/geo';
 import type { Journey, Place } from '@/pages/LocalTransportPage/journey';
-import type { Schedule } from '@/types';
+import type { Schedule, ViberListing } from '@/types';
 import { routeNo } from '@/utils/routeNames';
 import { anchorFor, type AnchorStop, type IntercityMode } from '../data/anchors';
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroHint } from '../data/kyiv';
-import { placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
+import { CITY_LABEL, placeById, placeLabel, type GazetteerPlace, type PlaceCity } from '../nlu/gazetteer';
 import { resolvePlace } from '../nlu/places';
 import { landmarkById } from '../nlu/landmarks';
 import { streetPrecision } from '../nlu/streets';
@@ -24,7 +24,7 @@ import { intercityTrips, type IntercityTrip } from './intercity';
 import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
 import type { Endpoint } from '@/pages/LocalTransportPage/journey';
-import type { ComposeOutcome, LocalPlanner, RouteBoard, RouteInfoItem, Story, StoryLeg } from './types';
+import type { ComposeOutcome, LocalPlanner, PriceLine, RouteBoard, RouteInfoItem, Story, StoryLeg } from './types';
 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
 
@@ -36,9 +36,11 @@ export type TripShape =
   | { kind: 'ask_to' }
   | { kind: 'unknown_place'; words: string[] }
   | { kind: 'outside'; city: string | null }
-  | { kind: 'poputka_soon' }
+  | { kind: 'poputky'; fromCity: PlaceCity; toCity: PlaceCity }
+  | { kind: 'price'; city: boolean; corridor: boolean }
+  | { kind: 'contact' }
   | { kind: 'route_info'; routeIds: string[]; stop: GazetteerPlace | null }
-  | { kind: 'not_trip'; intent: 'schedule' | 'price' | 'contact' | 'other' };
+  | { kind: 'not_trip'; intent: 'schedule' | 'other' };
 
 const MALYN = placeById('city.Malyn')!;
 const CENTRE = placeById('malyn.tsentr')!;
@@ -53,10 +55,22 @@ export function classify(intent: TripIntent): TripShape {
     const stop = [from, to].find((p) => p && p.city === 'Malyn' && !p.isCity) ?? null;
     return { kind: 'route_info', routeIds, stop };
   }
+  if (intent.intent === 'contact') return { kind: 'contact' };
+  if (intent.intent === 'price') {
+    // у межах Малина — тариф міського автобуса; між містами — маршрутка й електричка; не сказано — усе
+    const inCity = intent.modes.includes('city_bus') || (from?.city === 'Malyn' && to?.city === 'Malyn');
+    const between = intent.modes.some((m) => m !== 'city_bus') || (from != null && to != null && from.city !== to.city) || [from, to].some((p) => p && p.city !== 'Malyn');
+    return { kind: 'price', city: inCity || !between, corridor: between || !inCity };
+  }
   if (intent.intent !== 'trip' && intent.intent !== 'schedule' && intent.intent !== 'route') return { kind: 'not_trip', intent: intent.intent };
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };
   if (!to) return { kind: 'ask_to' };
-  if (intent.modes.length === 1 && intent.modes[0] === 'poputka') return { kind: 'poputka_soon' };
+  if (intent.modes.length === 1 && intent.modes[0] === 'poputka') {
+    // рідне місто сайту — Малин: «попутка в Київ» = з Малина, «попутка в Малин» = з Києва
+    const toCity = to.city;
+    const fromCity = from?.city ?? (toCity === 'Malyn' ? 'Kyiv' : 'Malyn');
+    return fromCity === toCity ? { kind: 'outside', city: toCity } : { kind: 'poputky', fromCity, toCity };
+  }
   if (to.city === 'Kyiv') {
     // рідне місто сайту — Малин: «мені в Київ» = з Малина
     if (!from || from.city === 'Malyn') return { kind: 'from_malyn', origin: from ?? MALYN, kyivPoint: to.isCity ? null : to.id };
@@ -75,6 +89,9 @@ export function classify(intent: TripIntent): TripShape {
 export function corridorCities(shape: TripShape): { from: string; to: string } | null {
   if (shape.kind === 'to_malyn') return { from: 'Kyiv', to: 'Malyn' };
   if (shape.kind === 'from_malyn') return { from: 'Malyn', to: 'Kyiv' };
+  if (shape.kind === 'poputky') return { from: shape.fromCity, to: shape.toCity };
+  // ціни однакові в обидва боки — досить одного напрямку
+  if (shape.kind === 'price' && shape.corridor) return { from: 'Malyn', to: 'Kyiv' };
   return null;
 }
 
@@ -643,6 +660,65 @@ function routeInfoItem(input: ComposeInput, routeId: string, stopIds: string[]):
   return { routeId, no: route?.no ?? routeId, fromName: route?.fromName ?? '', toName: route?.toName ?? '', boards: shown };
 }
 
+const POPUTKY_SHOWN = 5;
+
+/** Попутки: оголошення водіїв на цей день, за часом; телефонів тут немає — контакт відкривають на дошці сайту */
+function poputkyOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'poputky' }>): ComposeOutcome {
+  const all = (input.listings ?? []).filter((l) => l.isActive !== false);
+  const sorted = all
+    .filter((l) => l.listingType === 'driver')
+    .sort((a, b) => (a.departureTime ?? '99').localeCompare(b.departureTime ?? '99') || a.id - b.id);
+  // «зранку», «після 18» — лише оголошення на цей час; якщо таких немає, показуємо всі за день і кажемо про це
+  const { when } = input.intent;
+  const startOf = (l: ViberListing) => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(l.departureTime ?? '');
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const [th, tm] = (when.time ?? '').split(':').map(Number);
+  const lo = when.time ? (when.kind === 'arrive' ? 0 : th * 60 + tm - 30) : when.part ? partStartMins(when.part) : null;
+  const hi = when.time ? (when.kind === 'arrive' ? th * 60 + tm : 24 * 60) : when.part ? partEndMins(when.part) : null;
+  const inWindow = lo == null || hi == null ? sorted : sorted.filter((l) => {
+    const at = startOf(l);
+    return at == null || (at >= lo && at <= hi);
+  });
+  const drivers = inWindow.length ? inWindow : sorted;
+  const offWindow = lo != null && inWindow.length === 0 && sorted.length > 0;
+  const q = new URLSearchParams({ type: 'carpool', from: shape.fromCity, to: shape.toCity, date: input.date });
+  return {
+    kind: 'poputky',
+    fromCity: shape.fromCity,
+    toCity: shape.toCity,
+    fromLabel: CITY_LABEL[shape.fromCity],
+    toLabel: CITY_LABEL[shape.toCity],
+    rides: drivers.slice(0, POPUTKY_SHOWN).map((l) => ({ id: l.id, time: l.departureTime, seats: l.seats, priceUah: l.priceUah ?? null, notes: l.notes, name: l.senderName })),
+    more: Math.max(0, drivers.length - POPUTKY_SHOWN),
+    passengers: all.filter((l) => l.listingType === 'passenger').length,
+    boardUrl: `/mizhgorodski?${q.toString()}`,
+    ...(offWindow ? { notice: 'На цей час оголошень немає — ось усі за день.' } : {}),
+  };
+}
+
+function priceText(prices: number[]): string | null {
+  if (!prices.length) return null;
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  return min === max ? `${min} грн` : `${min}–${max} грн`;
+}
+
+/** «Скільки коштує»: ціни з розкладу (Schedule.priceUah) і тариф міста з датасету — ШІ цифр не називає */
+function priceOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'price' }>): ComposeOutcome {
+  const lines: PriceLine[] = [];
+  if (shape.corridor) {
+    const of = (type: string) => input.schedules.filter((s) => s.vehicleType === type).map((s) => s.priceUah).filter((p): p is number => typeof p === 'number' && p > 0);
+    const wants = (mode: TripMode) => !input.intent.modes.some((m) => m !== 'city_bus') || input.intent.modes.includes(mode);
+    if (wants('marshrutka')) lines.push({ label: 'Маршрутка Київ ↔ Малин', price: priceText(of('marshrutka')), note: 'за місце, в один бік' });
+    if (wants('elektrichka')) lines.push({ label: 'Електричка Київ ↔ Малин', price: priceText(of('elektrichka')), note: 'квиток в один бік' });
+    if (wants('poputka')) lines.push({ label: 'Попутка', price: 'за домовленістю', note: 'ціну називає водій в оголошенні' });
+  }
+  if (shape.city) lines.push({ label: 'Міський автобус Малина', price: input.cityFare ? `${input.cityFare} грн` : null, note: 'одна поїздка' });
+  return { kind: 'price', lines };
+}
+
 // ─── Вхід ─────────────────────────────────────────────────────────────────────────────────────
 
 export interface ComposeInput {
@@ -655,6 +731,10 @@ export interface ComposeInput {
   planner: LocalPlanner | null;
   /** маршрути міста (номер для показу, кінцеві) — для картки маршруту */
   routes?: RouteLike[];
+  /** оголошення попуток на цю дату з того самого GET /poputky/search */
+  listings?: ViberListing[];
+  /** ціна проїзду в міському автобусі, грн; null — у даних немає */
+  cityFare?: number | null;
 }
 
 export function composeStories(input: ComposeInput, shape: TripShape = classify(input.intent)): ComposeOutcome {
@@ -667,8 +747,12 @@ export function composeStories(input: ComposeInput, shape: TripShape = classify(
       return { kind: 'unknown_place', words: shape.words };
     case 'outside':
       return { kind: 'outside', city: shape.city };
-    case 'poputka_soon':
-      return { kind: 'poputka_soon' };
+    case 'poputky':
+      return poputkyOutcome(input, shape);
+    case 'price':
+      return priceOutcome(input, shape);
+    case 'contact':
+      return { kind: 'contact' };
     case 'not_trip':
       return { kind: 'not_trip', intent: shape.intent };
     case 'route_info':

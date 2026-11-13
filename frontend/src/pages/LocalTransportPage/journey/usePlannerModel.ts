@@ -50,6 +50,8 @@ export interface PlannerModel {
   stops: Array<{ id: string; name: string }>;
   /** Маршрути міста, які показує сайт (без «ненадійних») */
   routes: PlannerRoute[];
+  /** Ціна проїзду в міському автобусі, грн (`meta.fare`); null — у даних немає */
+  fare: number | null;
   /** Планувальник на дату 'YYYY-MM-DD'; null — датасет ще не завантажено */
   plannerFor(isoDate: string): DayPlanner | null;
 }
@@ -117,5 +119,10 @@ export function usePlannerModel(city: string): PlannerModel {
     [dataset],
   );
 
-  return { ready: viewModel != null, loading, error: error ? String(error) : null, stops, routes, plannerFor };
+  const fare = useMemo(() => {
+    const f = dataset?.meta?.fare as { amount?: unknown } | undefined;
+    return typeof f?.amount === 'number' && f.amount > 0 ? f.amount : null;
+  }, [dataset]);
+
+  return { ready: viewModel != null, loading, error: error ? String(error) : null, stops, routes, fare, plannerFor };
 }
