@@ -38,7 +38,8 @@ const MALYN = placeById('city.Malyn')!;
 const CENTRE = placeById('malyn.tsentr')!;
 
 export function classify(intent: TripIntent): TripShape {
-  if (intent.intent !== 'trip') return { kind: 'not_trip', intent: intent.intent };
+  // «коли їде маршрутка Малин — Київ завтра» (schedule) — та сама відповідь, що й «як доїхати»: історії з часом
+  if (intent.intent !== 'trip' && intent.intent !== 'schedule') return { kind: 'not_trip', intent: intent.intent };
   const from = intent.from ? placeById(intent.from.id) ?? null : null;
   const to = intent.to ? placeById(intent.to.id) ?? null : null;
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };

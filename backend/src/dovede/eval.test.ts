@@ -4,6 +4,7 @@
  *
  *   DOVEDE_EVAL=1 ANTHROPIC_API_KEY=… npx vitest run src/dovede/eval.test.ts
  *   DOVEDE_EVAL=1 DOVEDE_EVAL_SCOPE=all DOVEDE_MODEL=claude-haiku-5-5 …   # усі питання, інша модель
+ *   DOVEDE_EVAL_REPORT=/tmp/dovede-eval.txt …                              # звіт ще й у файл
  *
  * Критерії фази: ≥ 90% слотів на питаннях `scope: "mvp"`, медіана < 3 с, з другого виклику кеш читається.
  */
@@ -83,7 +84,7 @@ test.skipIf(!ENABLED)(
     const median = lat[Math.floor(lat.length / 2)];
     const sum = (f: (r: UnderstandResult) => number) => results.reduce((n, r) => n + f(r), 0);
     const cached = results.slice(1).filter((r) => (r.usage?.cacheReadTokens ?? 0) > 0).length;
-    console.info(
+    const report =
       [
         `Доведе eval · модель ${results[0]?.model} · питань ${cases.length}`,
         `слоти: ${ok}/${total} = ${((ok / total) * 100).toFixed(1)}%`,
@@ -91,8 +92,10 @@ test.skipIf(!ENABLED)(
         `токени: вхід ${sum((r) => r.usage?.inputTokens ?? 0)}, з кешу ${sum((r) => r.usage?.cacheReadTokens ?? 0)}, у кеш ${sum((r) => r.usage?.cacheWriteTokens ?? 0)}, вихід ${sum((r) => r.usage?.outputTokens ?? 0)}`,
         `кеш прочитано у ${cached}/${results.length - 1} викликах після першого`,
         ...(misses.length ? ['розбіжності:', ...misses.map((m) => `  ${m}`)] : []),
-      ].join('\n'),
-    );
+      ].join('\n');
+    console.info(report);
+    // vitest ховає console успішного тесту в деяких режимах — звіт можна ще й записати у файл
+    if (process.env.DOVEDE_EVAL_REPORT) fs.writeFileSync(process.env.DOVEDE_EVAL_REPORT, `${report}\n`);
     assert.ok(ok / total >= 0.9, `слотів ${ok}/${total} — менше 90%`);
     assert.ok(median < 3000, `медіана ${median} мс`);
     assert.ok(cached > 0, 'кеш промпту жодного разу не прочитано — промпт коротший за мінімум моделі або змінюється між запитами');

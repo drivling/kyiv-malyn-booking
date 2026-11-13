@@ -9,8 +9,10 @@ import type { LocalParse, TripIntent } from './types';
 /** Чи два розбори ведуть до тієї самої відповіді (те саме правило, що `intentsAgree` на сервері) */
 export function sameAnswer(a: TripIntent, b: TripIntent): boolean {
   const modes = (m: string[]) => [...m].sort().join(',');
+  // «розклад» і «як доїхати» складальник відповідає однаково (classify) — це не розбіжність
+  const kind = (i: TripIntent['intent']) => (i === 'schedule' ? 'trip' : i);
   return (
-    a.intent === b.intent &&
+    kind(a.intent) === kind(b.intent) &&
     (a.from?.id ?? null) === (b.from?.id ?? null) &&
     (a.to?.id ?? null) === (b.to?.id ?? null) &&
     a.when.day === b.when.day &&

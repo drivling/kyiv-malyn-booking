@@ -29,6 +29,8 @@ describe('«Доведе» — злиття місцевого розбору й
     expect(sameAnswer(a, ai({ to: { id: 'malyn.avtostantsiya', text: 'автостанція' } }))).toBe(false);
     expect(sameAnswer(a, ai({ when: { day: 'tomorrow', kind: 'depart' } }))).toBe(false);
     expect(sameAnswer(a, ai({ modes: ['elektrichka'] }))).toBe(false);
+    expect(sameAnswer(a, ai({ intent: 'schedule' }))).toBe(true);
+    expect(sameAnswer(a, ai({ intent: 'price' }))).toBe(false);
   });
 
   it('Claude зрозумів те, чого не зрозумів словник, — беремо Claude', () => {
