@@ -69,6 +69,9 @@ export function buildStopPlaces(stops: StopLike[]): StopPlace[] {
   for (const [base, list] of groups) {
     const words = significantWords(base);
     if (!words.some((w) => !NUMBER_RE.test(w))) continue;
+    // назва — просто синонім місця кураторського словника («Вокзал», «Центр»): воно вже є, двох «вокзалів» не треба
+    const curated = words.map((w) => (NUMBER_RE.test(w) ? null : findPlaceByToken(w)?.id ?? ''));
+    if (curated.every((id) => id) && new Set(curated).size === 1) continue;
     out.push({
       place: { id: list[0].id, city: 'Malyn', label: base, stems: [], stopIds: list.map((s) => s.id) },
       words,

@@ -64,6 +64,12 @@ describe('«Доведе» — зупинки з розкладу як місц�
     expect(parse('з ремонту на вокзал').from).toBeNull();
   });
 
+  it('зупинка, чия назва — синонім кураторського місця, окремим місцем не стає', () => {
+    const index = buildStopPlaces([{ id: 'st_b', name: 'Вокзал' }, { id: 'st_c', name: 'Лікарня (навпроти)' }, { id: 'st_d', name: 'Парк' }]);
+    expect(index.map((e) => e.place.id)).toEqual(['st_d']);
+    expect(parseLocal('з центру на вокзал', NOW, index).intent.to?.id).toBe('malyn.vokzal');
+  });
+
   it('без зупинок розбір такий самий, як раніше', () => {
     expect(parseLocal('з повороту на Коновальця до вокзалу', NOW).intent.from).toBeNull();
   });
