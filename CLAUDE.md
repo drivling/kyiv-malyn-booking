@@ -147,7 +147,11 @@ of `dist` in a commit.
   to `unknown`. `src/dovede/gazetteer.ts` is a byte-identical copy of the frontend `nlu/gazetteer.ts` (a frontend
   test diffs them) — edit both. Calls are logged in `DovedeQuery`. Tests never reach the API: `vitest.setup.ts`
   drops `ANTHROPIC_API_KEY`, `createApp({ dovedeUnderstand })` takes a stub; the real-model run over
-  `eval/golden.json` is manual (`DOVEDE_EVAL=1`, `src/dovede/eval.test.ts`).
+  `eval/golden.json` is manual (`DOVEDE_EVAL=1`, `src/dovede/eval.test.ts`). Page UX (`DovedePage/ui/`):
+  `QueryField` highlights recognised words in a layer under the transparent textarea and suggests gazetteer places
+  for the word at the caret (`suggest.ts` — every inserted form must parse back to its place, a test checks it);
+  `SlotSheet` edits one slot of the «Розумію…» row; the answer's URL carries ids only (`url.ts`, `?f=&t=&d=&h=&a=&p=&m=`
+  — never the question text, it may hold a home address). Slot edits and id links do not call Claude.
 
 ### In-process scheduled jobs (no external cron)
 

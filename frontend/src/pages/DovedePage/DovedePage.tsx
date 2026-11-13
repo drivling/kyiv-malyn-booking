@@ -6,18 +6,23 @@
  * рейсів не називає. Бачить лише адмін (AdminOnly в App.tsx), сторінка не в меню, не в sitemap, noindex.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage/kyivTime';
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { classify, composeStories, corridorCities, resolveDate } from './compose/composeStories';
-import { shareText } from './compose/narrate';
+import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
 import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withIntent } from './nlu/merge';
 import { addDays, parseLocal } from './nlu/parseLocal';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
+import { QueryField, type QueryFieldHandle } from './ui/QueryField';
+import { SlotSheet, type SlotKind } from './ui/SlotSheet';
+import { TimeStrip } from './ui/TimeStrip';
+import { DOVEDE_URL_KEYS, intentToParams, paramsToIntent } from './ui/url';
 import { dateHeading, placeRefLabel, whenLabel } from './ui/labels';
 import { storySummary } from './ui/format';
 import { StoryView } from './ui/StoryView';
@@ -52,7 +57,10 @@ export default function DovedePage() {
   const [suggestion, setSuggestion] = useState<TripIntent | null>(null);
   const pending = useRef<{ q: string; chosen?: TripIntent } | null>(null);
   const seq = useRef(0);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<QueryFieldHandle>(null);
+  const [sheet, setSheet] = useState<SlotKind | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlRead = useRef(false);
 
   /** Намір → розклад → історії */
   const answer = useCallback(
@@ -76,12 +84,14 @@ export default function DovedePage() {
         }
         if (id !== seq.current) return;
         setView({ kind: 'result', parse, intent, outcome, date, now, query: q });
+        // Адреса відповіді — лише id місць, дата, час і транспорт; тексту питання в ній немає
+        setSearchParams(intentToParams(intent, date), { replace: true });
       } catch {
         if (id !== seq.current) return;
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor],
+    [plannerFor, setSearchParams],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -143,13 +153,26 @@ export default function DovedePage() {
     return (id: string) => p?.stopName(id) ?? id;
   }, [plannerFor, view]);
 
-  // Поле росте разом із питанням (до 40% екрана)
+  // Посилання з id (`?f=&t=&d=…`) відкриває ту саму відповідь без тексту питання
   useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight + 2}px`;
-  }, [text]);
+    if (urlRead.current) return;
+    urlRead.current = true;
+    const fromUrl = paramsToIntent(searchParams, kyivNow());
+    if (fromUrl) void run('', fromUrl);
+  }, [searchParams, run]);
+
+  // Розбір під час набору: підсвічування в полі й рядок «Розумію…» ще до кнопки «Знайти»
+  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow()) : null), [text]);
+  const answeredFor = view.kind === 'result' ? view.query : null;
+  const textMatchesAnswer = answeredFor == null || text.trim() === answeredFor || (answeredFor === '' && !text.trim());
+  const shown: { parse: LocalParse; now: KyivNow } | null =
+    view.kind !== 'idle' && textMatchesAnswer ? { parse: view.parse, now: view.now } : live ? { parse: live, now: kyivNow() } : null;
+
+  const pickSlot = (patch: Partial<TripIntent>) => {
+    setSheet(null);
+    if (!shown) return;
+    void run(text.trim(), { ...shown.parse.intent, ...patch });
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -189,28 +212,8 @@ export default function DovedePage() {
         <label htmlFor="dv-q" className="dv-sr-only">
           Куди вам потрібно доїхати?
         </label>
-        <div className="dv-field">
-          <textarea
-            id="dv-q"
-            ref={inputRef}
-            rows={1}
-            value={text}
-            placeholder="Звідки й куди їдете?"
-            enterKeyHint="search"
-            spellCheck={false}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                ask(text);
-              }
-            }}
-          />
-          <button className="dv-go" type="submit">
-            Знайти
-          </button>
-        </div>
-        {view.kind !== 'idle' ? <Understanding parse={view.parse} now={view.now} /> : null}
+        <QueryField ref={inputRef} value={text} spans={live?.spans ?? []} onChange={setText} onSubmit={() => ask(text)} />
+        {shown ? <Understanding parse={shown.parse} now={shown.now} onEdit={setSheet} /> : null}
       </form>
 
       {view.kind === 'idle' ? (
@@ -260,11 +263,22 @@ export default function DovedePage() {
             onReset={() => {
               setText('');
               setView({ kind: 'idle' });
+              setSuggestion(null);
+              setSearchParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  DOVEDE_URL_KEYS.forEach((k) => next.delete(k));
+                  return next;
+                },
+                { replace: true },
+              );
               inputRef.current?.focus();
             }}
           />
         ) : null}
       </section>
+
+      {sheet && shown ? <SlotSheet slot={sheet} intent={shown.parse.intent} onPick={pickSlot} onClose={() => setSheet(null)} /> : null}
 
       {toast ? (
         <div className="dv-toast" role="status">
@@ -414,6 +428,9 @@ function Result({
   }
   const main = stories.find((s) => s.id === chosenId) ?? stories[0];
   const others = stories.filter((s) => s !== main);
+  // одна шкала часу на всі варіанти: видно, хто раніше виїжджає і хто раніше на місці
+  const scaleFrom = Math.min(...stories.map((s) => s.leaveMins));
+  const scaleTo = Math.max(...stories.map((s) => s.arriveMins));
   return (
     <>
       <TripHead story={main} now={now} />
@@ -432,9 +449,14 @@ function Result({
                   <span className="dv-alt__sub">{sum.sub}</span>
                 </span>
                 <span className="dv-choice__time">{sum.time}</span>
+                <TimeStrip story={s} from={scaleFrom} to={scaleTo} />
               </button>
             );
           })}
+          <p className="dv-strip-scale" aria-hidden="true">
+            <span>{clock(scaleFrom)}</span>
+            <span>{clock(scaleTo)}</span>
+          </p>
         </section>
       ) : null}
       <div className="dv-foot">

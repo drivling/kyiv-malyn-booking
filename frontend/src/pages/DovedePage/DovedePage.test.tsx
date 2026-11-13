@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders, screen, waitFor } from '@/test/utils';
+import { useLocation } from 'react-router-dom';
+import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { apiClient } from '@/api/client';
 import type { PoputkySearchResponse, Schedule } from '@/types';
 import DovedePage from './DovedePage';
@@ -24,6 +25,11 @@ const train: Schedule = {
   createdAt: '',
   updatedAt: '',
 };
+
+/** Показує поточну адресу MemoryRouter (window.location у тестах не змінюється) */
+function LocationProbe() {
+  return <output data-testid="search">{useLocation().search}</output>;
+}
 
 const searchResult = (schedules: Schedule[]): PoputkySearchResponse => ({ from: null, to: null, date: '2026-11-13', listings: [], schedules, availability: {} });
 
@@ -134,5 +140,76 @@ describe('«Доведе» — сторінка', () => {
 
     expect(await screen.findByText('Звідки вирушаєте?')).toBeInTheDocument();
     expect(ask).toHaveBeenCalledTimes(1);
+  });
+  it('під час набору: рядок «Розумію…» і підказка місця з потрібним відмінком', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    const field = screen.getByLabelText('Куди вам потрібно доїхати?');
+
+    await user.type(field, 'з Києва до цар');
+    expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Київ');
+    await user.click(screen.getByRole('option', { name: 'Малин · Царське село' }));
+
+    expect(field).toHaveValue('з Києва до Царського села ');
+    expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Малин · Царське село');
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+  });
+
+  it('слот «Розумію…» можна виправити: вибір у панелі дає нову відповідь без Claude', async () => {
+    const search = vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
+    const ask = vi.spyOn(apiClient, 'dovedeUnderstand').mockResolvedValue(null);
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+
+    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'мені на вокзал{Enter}');
+    expect(await screen.findByText('Звідки вирушаєте?')).toBeInTheDocument();
+    expect(ask).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: /Змінити, звідки/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Звідки вирушаєте?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Святошин' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
+    expect(search).toHaveBeenCalledWith({ from: 'Kyiv', to: 'Malyn', date: '2026-11-13' });
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it('адреса відповіді містить лише id, а посилання з id відкриває ту саму відповідь', async () => {
+    vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
+    const user = userEvent.setup();
+    const first = renderWithProviders(
+      <>
+        <DovedePage />
+        <LocationProbe />
+      </>,
+      { initialEntries: ['/dovede'] },
+    );
+    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва (Святошин) до Малина на вокзал{Enter}');
+    expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent('?f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-13&m=elektrichka'));
+    first.unmount();
+
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede?f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-13&m=elektrichka'] });
+    expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
+    expect(screen.getByLabelText('Куди вам потрібно доїхати?')).toHaveValue('');
+    expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Київ · Святошин');
+  });
+  it('після «Знайти» підказок немає: інакше вони зникали б у мить кліку по відповіді й зсували сторінку', async () => {
+    vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    const field = screen.getByLabelText('Куди вам потрібно доїхати?');
+
+    // курсор стоїть після «вокзал» — слова з двома підказками
+    await user.type(field, 'електричкою з Києва до Малина на вокзал');
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+    await user.keyboard('{Enter}');
+    expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+
+    // нова літера повертає підказки
+    await user.type(field, 'у');
+    expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
   });
 });

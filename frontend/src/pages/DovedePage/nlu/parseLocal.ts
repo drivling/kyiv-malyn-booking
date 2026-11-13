@@ -177,6 +177,12 @@ export function parseLocal(text: string, now: KyivNow): LocalParse {
         hit.role = lastRole;
         continue;
       }
+      // «вокзал у Києві» без прийменника перед місцем: «у Києві» уточнює щойно назване, а не задає «куди»
+      const before = hits[hits.length - 2];
+      if (isLocative && before && before.role === null && !before.place.isCity && before.place.city === place.city) {
+        hits.pop();
+        continue;
+      }
       const prep = prepBefore(toks, i);
       if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', place, hit); continue; }
       if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', place, hit); continue; }
@@ -195,11 +201,23 @@ export function parseLocal(text: string, now: KyivNow): LocalParse {
   }
 
   // Місця без прийменника: «Київ Малин» — перше звідки, друге куди; одне — куди
-  const pending = hits.filter((h) => h.role === null);
-  pending.forEach((h, idx) => {
-    if (pending.length >= 2 && idx === 0 && !st.from) { st.from = h.place; h.role = 'from'; return; }
-    if (!st.to) { st.to = h.place; h.role = 'to'; return; }
-    if (!st.from) { st.from = h.place; h.role = 'from'; }
+  // Сусідні «місто + місце в ньому» («вокзал у Києві», «Малин вокзал») — одне місце, конкретніше
+  const pending: PlaceHit[][] = [];
+  for (const h of hits.filter((x) => x.role === null)) {
+    const last = pending[pending.length - 1];
+    const head = last?.find((x) => !x.place.isCity) ?? last?.[0];
+    if (last && head && head.place.city === h.place.city && head.place.isCity !== h.place.isCity) last.push(h);
+    else pending.push([h]);
+  }
+  pending.forEach((group, idx) => {
+    const place = (group.find((x) => !x.place.isCity) ?? group[0]).place;
+    const give = (role: 'from' | 'to') => {
+      st[role] = place;
+      group.forEach((x) => { x.role = role; });
+    };
+    if (pending.length >= 2 && idx === 0 && !st.from) { give('from'); return; }
+    if (!st.to) { give('to'); return; }
+    if (!st.from) give('from');
   });
   for (const h of hits) if (h.role) spans.push({ start: h.spanStart, end: h.token.end, kind: h.role });
   if (unknownRole === 'from' && st.from) unknownRole = null;
