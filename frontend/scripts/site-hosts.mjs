@@ -58,7 +58,8 @@ export const PRIMARY_SITE = SITES.malyn;
 export const PRIMARY_ORIGIN = `https://${PRIMARY_SITE.domain}`;
 
 /** Шляхи, які живуть тільки на головному домені (віджет Telegram Login прив'язаний до одного домену бота) */
-export const PRIMARY_ONLY_PATHS = ['/admin', '/login', '/user'];
+// /dovede — таємна сторінка адміна (Docs/dovede-roadmap.md): токен адміна живе лише в localStorage головного домену
+export const PRIMARY_ONLY_PATHS = ['/admin', '/login', '/user', '/dovede'];
 
 /** Host-заголовок або hostname → нормалізований хост без порту, www і крапки в кінці */
 export function normalizeHost(host) {

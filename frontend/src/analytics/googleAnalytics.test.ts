@@ -33,4 +33,9 @@ describe('gaTrackEvent', () => {
     gaTrackEvent('transport_search', { from: 'st_a' });
     expect(gtag).not.toHaveBeenCalled();
   });
+
+  it('таємна «Доведе» не потрапляє в аналітику (Docs/dovede-roadmap.md)', () => {
+    expect(gaShouldTrackPath('/dovede')).toBe(false);
+    expect(gaShouldTrackPath('/dovedeX')).toBe(true);
+  });
 });

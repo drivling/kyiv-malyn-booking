@@ -41,7 +41,7 @@ describe('resolveSiteKey за Host-заголовком', () => {
 });
 
 describe('шляхи тільки головного домену', () => {
-  test.each(['/admin', '/admin/routes', '/login', '/user'])('%s → редирект', (p) => {
+  test.each(['/admin', '/admin/routes', '/login', '/user', '/dovede'])('%s → редирект', (p) => {
     expect(isPrimaryOnlyPath(p)).toBe(true);
   });
 

@@ -3,13 +3,20 @@
  * вмісту dist/, щоб `src/test/precache.test.ts` міг її закріпити. Зі збірки беремо:
  *   - оболонку `/index.html` (не `/` — він 301, і не пререндерений `/transport` — на `/transport/stop/x`
  *     блимав би планер);
- *   - усе під `assets/` (одна точка входу без code splitting: JS, CSS, картинки Leaflet, усе з `url()`);
+ *   - усе під `assets/` (JS, CSS, картинки Leaflet, усе з `url()`), крім lazy-чанків поза застосунком
+ *     (PRECACHE_EXCLUDED_ASSET_PREFIXES);
  *   - маніфест, іконки і знімок даних `transport/dataset.json`.
  * Свідомо НЕ: пререндерені html (оболонка покриває всі сторінки), постер схеми, robots/sitemap/llms, `routes.json`.
  */
 import { createHash } from 'node:crypto';
 
 export const SHELL_URL = '/index.html';
+
+/**
+ * Lazy-чанки сторінок поза застосунком «Як доїхати» — не precache-имо: їх не відкривають офлайн, і їхні імена
+ * не мають потрапляти в публічний transport-sw.js (таємна «Доведе», Docs/dovede-roadmap.md).
+ */
+export const PRECACHE_EXCLUDED_ASSET_PREFIXES = ['assets/DovedePage-'];
 
 /**
  * @param {object} args
@@ -19,7 +26,8 @@ export const SHELL_URL = '/index.html';
  * @returns {{ urls: string[], buildId: string }}
  */
 export function buildPrecache({ assetFiles, extraFiles, fileHash }) {
-  const urls = [SHELL_URL, ...[...new Set(assetFiles)].sort().map((f) => `/${f}`), ...[...new Set(extraFiles)].sort().map((f) => `/${f}`)];
+  const assets = [...new Set(assetFiles)].filter((f) => !PRECACHE_EXCLUDED_ASSET_PREFIXES.some((p) => f.startsWith(p)));
+  const urls = [SHELL_URL, ...assets.sort().map((f) => `/${f}`), ...[...new Set(extraFiles)].sort().map((f) => `/${f}`)];
   // Id має змінитись, коли змінився список АБО вміст файлу зі сталим URL (оболонка, знімок даних, маніфест):
   // інакше деплой «лише дані» ніколи не дійшов би до встановлених застосунків.
   const hash = createHash('sha256').update(urls.join('\n'));

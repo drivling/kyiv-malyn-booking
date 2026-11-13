@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AdminPage } from '@/pages/AdminPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -12,7 +13,7 @@ import { StickerWallPage } from '@/pages/StickerWallPage';
 import { GoogleAnalyticsTracker } from '@/analytics/GoogleAnalyticsTracker';
 import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
 import { NavBar } from '@/components/NavBar';
-import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
+import { AdminOnly, ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
@@ -22,6 +23,9 @@ import { useOutboxSync } from '@/pwa/outbox';
 import { UpdateBanner } from '@/pwa/UpdateBanner';
 import { useTransportServiceWorker } from '@/pwa/useTransportServiceWorker';
 import './App.css';
+
+// «Доведе» (Docs/dovede-roadmap.md): таємна сторінка лише для адміна — окремий чанк, не в головному бандлі
+const DovedePage = lazy(() => import('@/pages/DovedePage/DovedePage'));
 
 function App() {
   return (
@@ -113,6 +117,16 @@ function AppContent() {
           <Route path="/privacy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/privacy-policy" element={<Navigate to={PRIVACY_POLICY_PAGE_LINK} replace />} />
           <Route path="/user" element={<ProtectedTelegramRoute><UserPage /></ProtectedTelegramRoute>} />
+          <Route
+            path="/dovede"
+            element={
+              <AdminOnly>
+                <Suspense fallback={null}>
+                  <DovedePage />
+                </Suspense>
+              </AdminOnly>
+            }
+          />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/wall" element={<StickerWallPage />} />
           <Route
