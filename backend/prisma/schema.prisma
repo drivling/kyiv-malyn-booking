@@ -1215,3 +1215,33 @@ model DzhuraState {
   meTgUserId      BigInt?
   updatedAt       DateTime  @updatedAt
 }
+
+/// «Доведе» — журнал розуміння питань (Docs/dovede-roadmap.md, фаза 2): що зрозумів браузер, що — Claude,
+/// скільки це коштувало. Лише адмін; строк зберігання текстів визначимо перед публічним запуском (фаза 5).
+model DovedeQuery {
+  id               Int      @id @default(autoincrement())
+  createdAt        DateTime @default(now())
+  /// Текст питання, обрізаний до 300 символів
+  text             String
+  /// Розбір браузера (TripIntent), якщо сторінка його надіслала
+  localIntent      Json?
+  /// Розбір Claude після validateIntent
+  aiIntent         Json?
+  /// Чи збіглися from / to / день / час / транспорт у двох розборах (null — порівнювати нема з чим)
+  agree            Boolean?
+  /// ok | disabled | no_key | cap | refusal | max_tokens | invalid | timeout | rate_limited | auth | api_error
+  status           String
+  /// Чи був виклик Claude (для денного ліміту)
+  aiCalled         Boolean  @default(false)
+  model            String?
+  promptVersion    String?
+  latencyMs        Int?
+  inputTokens      Int?
+  outputTokens     Int?
+  cacheReadTokens  Int?
+  cacheWriteTokens Int?
+  error            String?
+
+  @@index([createdAt])
+  @@index([aiCalled, createdAt])
+}

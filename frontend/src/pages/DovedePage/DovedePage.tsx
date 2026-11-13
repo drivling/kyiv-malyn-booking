@@ -1,7 +1,9 @@
 /**
- * «Доведе» — пошук своїми словами (Docs/dovede-roadmap.md). Фаза 1: розуміння в браузері, без ШІ; історії
- * будуються з розкладу сайту (/poputky/search), якорів і міського планувальника Малина. Бачить лише адмін
- * (AdminOnly в App.tsx), сторінка не в меню, не в sitemap, noindex.
+ * «Доведе» — пошук своїми словами (Docs/dovede-roadmap.md). Розуміння: спершу словник у браузері; якщо він
+ * упевнений — відповідаємо одразу, а Claude (POST /admin/dovede/understand, фаза 2) лише перевіряє й може
+ * тихо запропонувати інше тлумачення; якщо ні — чекаємо Claude, а без нього лишаємось на місцевому розборі.
+ * Історії будуються з розкладу сайту (/poputky/search), якорів і міського планувальника Малина — ШІ часу й
+ * рейсів не називає. Бачить лише адмін (AdminOnly в App.tsx), сторінка не в меню, не в sitemap, noindex.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '@/api/client';
@@ -12,10 +14,11 @@ import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { classify, composeStories, corridorCities, resolveDate } from './compose/composeStories';
 import { shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
+import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withIntent } from './nlu/merge';
 import { addDays, parseLocal } from './nlu/parseLocal';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
-import { dateHeading, placeRefLabel } from './ui/labels';
+import { dateHeading, placeRefLabel, whenLabel } from './ui/labels';
 import { storySummary } from './ui/format';
 import { StoryView } from './ui/StoryView';
 import { Understanding } from './ui/Understanding';
@@ -30,7 +33,7 @@ const EXAMPLES = [
 
 type View =
   | { kind: 'idle' }
-  | { kind: 'loading'; parse: LocalParse; now: KyivNow }
+  | { kind: 'loading'; parse: LocalParse; now: KyivNow; thinking?: boolean }
   | { kind: 'result'; parse: LocalParse; intent: TripIntent; outcome: ComposeOutcome; date: string; now: KyivNow; query: string }
   | { kind: 'error'; parse: LocalParse; now: KyivNow; message: string };
 
@@ -45,23 +48,15 @@ export default function DovedePage() {
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const pending = useRef<{ q: string; override?: Partial<TripIntent> } | null>(null);
+  /** Claude зрозумів питання інакше, ніж словник, за яким уже показано відповідь */
+  const [suggestion, setSuggestion] = useState<TripIntent | null>(null);
+  const pending = useRef<{ q: string; chosen?: TripIntent } | null>(null);
   const seq = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const run = useCallback(
-    async (q: string, override?: Partial<TripIntent>) => {
-      const now = kyivNow();
-      const parse = parseLocal(q, now);
-      const intent: TripIntent = { ...parse.intent, ...override };
-      const id = ++seq.current;
-      setChosenId(null);
-      setView({ kind: 'loading', parse, now });
-      if (!ready) {
-        pending.current = { q, override };
-        return;
-      }
-      pending.current = null;
+  /** Намір → розклад → історії */
+  const answer = useCallback(
+    async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
       const shape = classify(intent);
       const cities = corridorCities(shape);
       const schedulesFor = async (d: string) => (cities ? (await apiClient.searchPoputky({ from: cities.from, to: cities.to, date: d })).schedules : []);
@@ -86,14 +81,50 @@ export default function DovedePage() {
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [ready, plannerFor],
+    [plannerFor],
+  );
+
+  /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
+  const run = useCallback(
+    async (q: string, chosen?: TripIntent) => {
+      const now = kyivNow();
+      const parse = parseLocal(q, now);
+      const id = ++seq.current;
+      setChosenId(null);
+      setSuggestion(null);
+      setView({ kind: 'loading', parse: chosen ? withIntent(parse, chosen) : parse, now });
+      if (!ready) {
+        pending.current = { q, chosen };
+        return;
+      }
+      pending.current = null;
+      if (chosen) {
+        await answer(id, q, withIntent(parse, chosen), chosen, now);
+        return;
+      }
+      if (localIsSure(parse)) {
+        // Словник упевнений: відповідаємо одразу, Claude перевіряє у фоні (і пише в журнал порівняння)
+        void apiClient.dovedeUnderstand(q, parse.intent).then((r) => {
+          if (id !== seq.current || !r || !usableAiIntent(r.intent)) return;
+          if (r.intent.confidence !== 'low' && !sameAnswer(parse.intent, r.intent)) setSuggestion(r.intent);
+        });
+        await answer(id, q, parse, parse.intent, now);
+        return;
+      }
+      setView({ kind: 'loading', parse, now, thinking: true });
+      const r = await apiClient.dovedeUnderstand(q, parse.intent);
+      if (id !== seq.current) return;
+      const intent = pickIntent(parse.intent, r?.intent);
+      await answer(id, q, withIntent(parse, intent), intent, now);
+    },
+    [ready, answer],
   );
 
   // Датасет міста ще вантажився, коли людина спитала, — відповідаємо, щойно він є
   useEffect(() => {
     if (ready && pending.current) {
-      const { q, override } = pending.current;
-      void run(q, override);
+      const { q, chosen } = pending.current;
+      void run(q, chosen);
     }
   }, [ready, run]);
 
@@ -140,7 +171,7 @@ export default function DovedePage() {
 
   return (
     <div className={`dv-page${answered ? ' dv-page--answered' : ''}`}>
-      <p className="dv-banner">Таємна сторінка: бачите лише ви. Відповідь складає розклад сайту; ШІ підключимо у фазі 2.</p>
+      <p className="dv-banner">Таємна сторінка: бачите лише ви. Питання розуміє словник у браузері, складніші — Claude; час і рейси завжди з розкладу сайту.</p>
       <header className="dv-brand">
         <h1 className="dv-brand__name">
           Доведе<span>.</span>
@@ -204,15 +235,23 @@ export default function DovedePage() {
       ) : null}
 
       <section className="dv-out" aria-live="polite">
-        {view.kind === 'loading' ? <Loading parse={view.parse} waitingForCity={!ready} /> : null}
+        {view.kind === 'loading' ? <Loading parse={view.parse} waitingForCity={!ready} thinking={view.thinking === true} /> : null}
         {view.kind === 'error' ? <Panel title="Щось пішло не так">{view.message}</Panel> : null}
+        {view.kind === 'result' && suggestion ? (
+          <p className="dv-notice dv-suggest">
+            <span>Можливо, ви мали на увазі: {intentLabel(suggestion, view.now)}?</span>
+            <button type="button" className="dv-btn dv-btn--ghost" onClick={() => void run(view.query, suggestion)}>
+              Показати
+            </button>
+          </p>
+        ) : null}
         {view.kind === 'result' ? (
           <Result
             view={view}
             chosenId={chosenId}
             onChoose={setChosenId}
             stopName={stopName}
-            onRetry={(override) => void run(view.query, override)}
+            onRetry={(override) => void run(view.query, { ...view.intent, ...override })}
             onExample={(q) => {
               setText(q);
               void run(q);
@@ -236,7 +275,23 @@ export default function DovedePage() {
   );
 }
 
-function Loading({ parse, waitingForCity }: { parse: LocalParse; waitingForCity: boolean }) {
+/** «Київ · Святошин → Малин · вокзал · завтра» — намір одним рядком */
+function intentLabel(intent: TripIntent, now: KyivNow): string {
+  const from = placeRefLabel(intent.from);
+  const to = placeRefLabel(intent.to);
+  const places = from && to ? `${from} → ${to}` : to ? `до: ${to}` : from ? `з: ${from}` : '';
+  return [places, whenLabel(intent.when, now).text].filter(Boolean).join(' · ');
+}
+
+function Loading({ parse, waitingForCity, thinking }: { parse: LocalParse; waitingForCity: boolean; thinking: boolean }) {
+  if (thinking && !waitingForCity) {
+    return (
+      <div className="dv-status">
+        <span className="dv-status__dot" aria-hidden="true" />
+        <span>Розумію питання…</span>
+      </div>
+    );
+  }
   const from = placeRefLabel(parse.intent.from);
   const to = placeRefLabel(parse.intent.to);
   const what = from && to ? `як дістатися: ${from} → ${to}` : to ? `як дістатися до: ${to}` : 'дорогу';

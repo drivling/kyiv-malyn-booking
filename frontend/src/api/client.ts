@@ -1027,6 +1027,31 @@ class ApiClient {
     });
   }
 
+  // --- «Доведе» · розуміння питання через Claude (лише адмін) ---
+  /**
+   * Текст питання → TripIntent від Claude. Будь-яка причина, з якої ШІ не відповів (вимкнено, немає ключа,
+   * ліміт, збій, мережа, довше за `timeoutMs`), — це `null`: сторінка відповідає з місцевого розбору.
+   */
+  async dovedeUnderstand(
+    text: string,
+    local: import('@/pages/DovedePage/nlu/types').TripIntent,
+    timeoutMs = 9000,
+  ): Promise<import('@/pages/DovedePage/nlu/types').DovedeUnderstanding | null> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      return await this.request('/admin/dovede/understand', {
+        method: 'POST',
+        body: JSON.stringify({ text, local }),
+        signal: ctrl.signal,
+      });
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // --- «Джура» · читання чатів ---
   async getDzhuraStatus(): Promise<import('@/types').DzhuraStatus> {
     return this.request('/admin/dzhura/status');

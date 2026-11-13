@@ -23,6 +23,8 @@ import { createAdminViberAnalyticsRouter } from './routes/admin-viber-analytics'
 import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { createAdminDzhuraRouter } from './routes/admin-dzhura';
+import { createAdminDovedeRouter } from './routes/admin-dovede';
+import type { UnderstandFn } from './dovede/understand';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
 import type { SourceWatchDeps } from './transport-source-watch';
@@ -41,6 +43,11 @@ export type CreateAppDeps = {
    * відповідають 503, а не пропускають без перевірки.
    */
   telegramBotToken?: string | null;
+  /**
+   * «Доведе»: розбір питання через Claude (dovede/understand.ts). Не задано — клієнт з `ANTHROPIC_API_KEY`;
+   * null — без ключа (ендпоінт відповідає 503 `fallback: 'local'`); у тестах — заглушка.
+   */
+  dovedeUnderstand?: UnderstandFn | null;
   /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
   sourceWatch?: Partial<SourceWatchDeps>;
 };
@@ -132,6 +139,7 @@ app.use(createAdminViberAnalyticsRouter({ prisma }));
 app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
+app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(
   createTransportRouter({
