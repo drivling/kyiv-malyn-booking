@@ -7,6 +7,7 @@ vi.mock('./useSiteLocalTransport', () => ({ useSiteLocalTransport: () => useSite
 
 import { LocalTransportGate } from './LocalTransportGate';
 import { siteTransportCity, transportPreviewCity } from './transportCity';
+import { ADMIN_TOKEN_STORAGE_KEY } from '@/utils/adminTokenStorage';
 import { useHomeCityHandoff } from './homeCityHandoff';
 
 function renderGate() {
@@ -49,7 +50,7 @@ describe('LocalTransportGate', () => {
   describe('перегляд міста адміном до запуску (?city=)', () => {
     const at = (search: string) => window.history.replaceState({}, '', `/transport${search}`);
     afterEach(() => {
-      localStorage.removeItem('adminToken');
+      localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
       sessionStorage.clear();
       at('');
       vi.restoreAllMocks();
@@ -66,7 +67,7 @@ describe('LocalTransportGate', () => {
 
     test('з адмін-токеном: сторінка зі смугою перегляду, місто липке в межах вкладки, вихід чистить', () => {
       useSiteLocalTransport.mockReturnValue({ enabled: false, loading: false });
-      localStorage.setItem('adminToken', 'token');
+      localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'token');
       at('?city=korosten');
       expect(siteTransportCity()).toBe('Korosten');
       renderGate();
@@ -87,7 +88,7 @@ describe('LocalTransportGate', () => {
     });
 
     test("передача рідного міста (?homeCity=) не з'їдає ?city= перегляду", () => {
-      localStorage.setItem('adminToken', 'token');
+      localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'token');
       at('?city=Korosten');
       function Handoff() {
         useHomeCityHandoff();
@@ -100,7 +101,7 @@ describe('LocalTransportGate', () => {
     });
 
     test('місто сайту чи невідоме місто — не перегляд', () => {
-      localStorage.setItem('adminToken', 'token');
+      localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'token');
       at('?city=Malyn');
       expect(transportPreviewCity()).toBeNull();
       at('?city=Atlantis');

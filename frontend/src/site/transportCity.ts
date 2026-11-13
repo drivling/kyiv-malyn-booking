@@ -4,6 +4,7 @@
  * адреси запитів лишаються такими, як були; інше місто йде з ?city=<TripPoint.code>.
  */
 import { isPrerendering } from '@/utils/prerender';
+import { readAdminToken } from '@/utils/adminTokenStorage';
 import { SITES, getCurrentSite, siteForCityCode } from './siteConfig';
 
 export const DEFAULT_TRANSPORT_CITY = 'Malyn';
@@ -15,8 +16,6 @@ export const DEFAULT_TRANSPORT_CITY = 'Malyn';
  */
 export const TRANSPORT_CITY_PARAM = 'city';
 const PREVIEW_STORAGE_KEY = 'transport-preview-city';
-/** Той самий ключ, під яким apiClient тримає адмін-токен */
-const ADMIN_TOKEN_KEY = 'adminToken';
 
 /** Код міста з активного сайту (без урахування регістру) → TripPoint.code; null — такого міста нема */
 export function canonicalTransportCity(raw: string | null | undefined): string | null {
@@ -34,12 +33,9 @@ export function transportCityOptions(): Array<{ cityCode: string; name: string }
     .map((s) => ({ cityCode: s.cityCode, name: s.cityNameUk }));
 }
 
+/** Той самий токен, що тримає apiClient */
 function hasAdminToken(): boolean {
-  try {
-    return Boolean(localStorage.getItem(ADMIN_TOKEN_KEY));
-  } catch {
-    return false;
-  }
+  return Boolean(readAdminToken());
 }
 
 function storedPreview(): string | null {
