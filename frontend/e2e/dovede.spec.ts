@@ -47,7 +47,7 @@ test.describe('«Доведе» (/dovede, лише адмін)', () => {
     await expect(page.getByLabel('Куди вам потрібно доїхати?')).toHaveCount(0);
   });
 
-  test('питання → підказка місця → історія; в адресі лише id', async ({ page }) => {
+  test('питання → підказка місця → історія; адреса з id і словами питання, перезавантаження лишає фразу', async ({ page }) => {
     await openAsAdmin(page);
     await page.goto('/dovede');
     const field = page.getByLabel('Куди вам потрібно доїхати?');
@@ -61,8 +61,13 @@ test.describe('«Доведе» (/dovede, лише адмін)', () => {
 
     await field.press('Enter');
     await expect(page.getByText('Електричка 6613 · Київ — Малин')).toBeVisible();
-    await expect(page).toHaveURL(/\/dovede\?f=city\.Kyiv&t=malyn\.vokzal&d=2026-11-13&m=elektrichka$/);
-    expect(decodeURIComponent(page.url())).not.toMatch(/[а-яіїєґ]/i);
+    await expect(page).toHaveURL(/\/dovede\?f=city\.Kyiv&t=malyn\.vokzal&d=2026-11-13&m=elektrichka&q=/);
+    expect(new URL(page.url()).searchParams.get('q')).toBe('електричкою з Києва до вокзалу');
+
+    // перезавантаження: та сама відповідь і та сама фраза з підсвіткою
+    await page.reload();
+    await expect(page.getByText('Електричка 6613 · Київ — Малин')).toBeVisible();
+    await expect(page.getByLabel('Куди вам потрібно доїхати?')).toHaveValue('електричкою з Києва до вокзалу');
   });
 
   test('слот «Розумію…» виправляється в панелі, Esc її закриває', async ({ page }) => {

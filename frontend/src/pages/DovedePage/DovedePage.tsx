@@ -25,7 +25,7 @@ import { QueryField, type QueryFieldHandle } from './ui/QueryField';
 import { RouteCard } from './ui/RouteCard';
 import { SlotSheet, type SlotKind } from './ui/SlotSheet';
 import { TimeStrip } from './ui/TimeStrip';
-import { DOVEDE_URL_KEYS, intentToParams, paramsToIntent } from './ui/url';
+import { DOVEDE_URL_KEYS, intentToParams, paramsToIntent, questionForUrl, questionFromParams, recallQuestion, rememberQuestion } from './ui/url';
 import { routeNo } from '@/utils/routeNames';
 import { dateHeading, modeLabel, placeRefLabel, whenLabel } from './ui/labels';
 import { storySummary } from './ui/format';
@@ -100,8 +100,13 @@ export default function DovedePage() {
         setView({ kind: 'result', parse, intent, outcome, date, now, query: q });
         setSlotsOpen(false);
         setAnswerNo((n) => n + 1);
-        // Адреса відповіді — лише id місць, дата, час і транспорт; тексту питання в ній немає
-        setSearchParams(intentToParams(intent, date), { replace: true });
+        // Відповідь будується з id місць, дати, часу й транспорту; слова питання йдуть у посилання цілком —
+        // перезавантаження й чуже відкриття показують ту саму фразу. Вкладка ще й памʼятає їх сама (запас)
+        const params = intentToParams(intent, date);
+        const words = questionForUrl(q);
+        if (words) params.set('q', words);
+        rememberQuestion(params, q);
+        setSearchParams(params, { replace: true });
       } catch {
         if (id !== seq.current) return;
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
@@ -176,8 +181,15 @@ export default function DovedePage() {
     if (urlRead.current || !ready) return;
     urlRead.current = true;
     const fromUrl = paramsToIntent(searchParams, kyivNow());
-    if (fromUrl) void run('', fromUrl);
-  }, [searchParams, run, ready]);
+    if (!fromUrl) return;
+    // слова питання — з посилання або з памʼяті цієї вкладки; відповідь усе одно з id, Claude не питаємо
+    const words = questionFromParams(searchParams) || recallQuestion(searchParams);
+    if (words) setText(words);
+    // номера будинку серед id немає — беремо його зі слів питання
+    const said = words ? parseLocal(words, kyivNow(), stopIndex, routes).intent : null;
+    const house = (ref: TripIntent['from'], mine: TripIntent['from'] | undefined) => (ref && mine && mine.id.startsWith(`${ref.id}:`) ? { ...ref, id: mine.id } : ref);
+    void run(words, { ...fromUrl, from: house(fromUrl.from, said?.from), to: house(fromUrl.to, said?.to) });
+  }, [searchParams, run, ready, stopIndex, routes]);
 
   // Розбір під час набору: підсвічування в полі й рядок «Розумію…» ще до кнопки «Знайти»
   const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex, routes) : null), [text, stopIndex, routes]);
@@ -304,6 +316,7 @@ export default function DovedePage() {
               setText('');
               setView({ kind: 'idle' });
               setSuggestion(null);
+              rememberQuestion(new URLSearchParams(), '');
               setSearchParams(
                 (prev) => {
                   const next = new URLSearchParams(prev);
