@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { dismissCookieNotice, mockBackendApi } from './helpers';
+import { ADMIN_TOKEN_STORAGE_KEY } from '../src/utils/adminTokenStorage';
 
 const TRAIN = {
   id: 2,
@@ -32,7 +33,7 @@ async function openAsAdmin(page: Page, understand: { status: number; body: unkno
     calls.push(route.request().postData() ?? '');
     return route.fulfill({ status: understand.status, contentType: 'application/json', body: JSON.stringify(understand.body) });
   });
-  await page.addInitScript(() => localStorage.setItem('adminToken', 'admin-authenticated'));
+  await page.addInitScript((key) => localStorage.setItem(key, 'admin-authenticated'), ADMIN_TOKEN_STORAGE_KEY);
   // пʼятниця 13.11.2026, 14:20 за Києвом — як у еталонах
   await page.clock.setFixedTime(new Date('2026-11-13T12:20:00Z'));
   return calls;

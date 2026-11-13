@@ -1,43 +1,25 @@
 import type { UserState, TelegramUser } from '@/types';
 
+/** Також читає `utils/adminTokenStorage.ts`: стирає стан адміна, що лишився від старого ключа токена */
 const USER_STATE_KEY = 'user_state';
-const ADMIN_TOKEN_KEY = 'admin_token'; // Backward compatibility
 
 export const userState = {
   // Отримати поточний стан користувача
   get(): UserState {
     try {
       const stored = localStorage.getItem(USER_STATE_KEY);
-      if (stored) {
-        return JSON.parse(stored) as UserState;
-      }
-      
-      // Backward compatibility: перевірка старого токену адміна
-      const oldToken = localStorage.getItem(ADMIN_TOKEN_KEY);
-      if (oldToken) {
-        return { type: 'admin', token: oldToken };
-      }
-      
-      return null;
+      return stored ? (JSON.parse(stored) as UserState) : null;
     } catch {
       return null;
     }
   },
 
-  // Зберегти стан користувача
+  // Зберегти стан користувача (сам адмін-токен для запитів тримає apiClient)
   set(state: UserState): void {
     if (state === null) {
       localStorage.removeItem(USER_STATE_KEY);
-      localStorage.removeItem(ADMIN_TOKEN_KEY);
     } else {
       localStorage.setItem(USER_STATE_KEY, JSON.stringify(state));
-      
-      // Backward compatibility: зберігаємо токен окремо для існуючого коду
-      if (state.type === 'admin') {
-        localStorage.setItem(ADMIN_TOKEN_KEY, state.token);
-      } else {
-        localStorage.removeItem(ADMIN_TOKEN_KEY);
-      }
     }
   },
 
