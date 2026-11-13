@@ -13,7 +13,7 @@ import { StickerWallPage } from '@/pages/StickerWallPage';
 import { GoogleAnalyticsTracker } from '@/analytics/GoogleAnalyticsTracker';
 import { CookieNotice } from '@/components/CookieNotice/CookieNotice';
 import { NavBar } from '@/components/NavBar';
-import { AdminOnly, ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
+import { ProtectedRoute, ProtectedTelegramRoute } from '@/components/ProtectedRoute';
 import { PublicLegalFooter } from '@/components/PublicLegalFooter/PublicLegalFooter';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import { PRIVACY_POLICY_PAGE_LINK } from '@/legal/sitePublic';
@@ -24,7 +24,7 @@ import { UpdateBanner } from '@/pwa/UpdateBanner';
 import { useTransportServiceWorker } from '@/pwa/useTransportServiceWorker';
 import './App.css';
 
-// «Доведе» (Docs/dovede-roadmap.md): таємна сторінка лише для адміна — окремий чанк, не в головному бандлі
+// «Доведе» (Docs/dovede-roadmap.md): прихована сторінка за паролем запрошених — окремий чанк, не в головному бандлі
 const DovedePage = lazy(() => import('@/pages/DovedePage/DovedePage'));
 
 function App() {
@@ -65,8 +65,8 @@ function AppContent() {
   useOutboxSync();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
-  // Віджет на стіну — як окремий застосунок: без меню сайту й адмінки
-  const isWidget = pathname === '/admin/wall';
+  // Віджет на стіну й «Доведе» — як окремі застосунки: без шапки сайту
+  const isWidget = pathname === '/admin/wall' || pathname === '/dovede' || pathname === '/dovede/';
 
   return (
     <div className={`app ${isAdminPath ? 'app--admin' : 'app--bbc'}`}>
@@ -120,11 +120,9 @@ function AppContent() {
           <Route
             path="/dovede"
             element={
-              <AdminOnly>
-                <Suspense fallback={null}>
-                  <DovedePage />
-                </Suspense>
-              </AdminOnly>
+              <Suspense fallback={null}>
+                <DovedePage />
+              </Suspense>
             }
           />
           <Route path="/login" element={<LoginPage />} />

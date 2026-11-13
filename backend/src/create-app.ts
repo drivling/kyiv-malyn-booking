@@ -25,6 +25,7 @@ import { createAdminLunchRouter } from './routes/admin-lunch';
 import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminDovedeRouter } from './routes/admin-dovede';
 import type { UnderstandFn } from './dovede/understand';
+import type { DovedeAccessConfig } from './dovede/access';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
 import type { SourceWatchDeps } from './transport-source-watch';
@@ -48,6 +49,8 @@ export type CreateAppDeps = {
    * null — без ключа (ендпоінт відповідає 503 `fallback: 'local'`); у тестах — заглушка.
    */
   dovedeUnderstand?: UnderstandFn | null;
+  /** «Доведе»: хто відкриває сторінку (dovede/access.ts). Не задано — `DOVEDE_PUBLIC` / `DOVEDE_PASSWORD` */
+  dovedeAccess?: DovedeAccessConfig;
   /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
   sourceWatch?: Partial<SourceWatchDeps>;
 };
@@ -139,7 +142,7 @@ app.use(createAdminViberAnalyticsRouter({ prisma }));
 app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
-app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand }));
+app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(
   createTransportRouter({

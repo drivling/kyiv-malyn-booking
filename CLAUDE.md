@@ -135,11 +135,17 @@ of `dist` in a commit.
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
-- «Доведе» (`/dovede`, admin-only secret page — `Docs/dovede-roadmap.md` is the recovery file; research in
+- «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
   `Docs/dovede/research/`): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or
-  price.** `POST /admin/dovede/understand` (`routes/admin-dovede.ts`, `src/dovede/`) turns the text into a
+  price.** Access is decided by the server (`src/dovede/access.ts`, page side `DovedePage/access.ts`): until
+  `DOVEDE_PUBLIC=ON` the query field asks for the invitees' password `DOVEDE_PASSWORD` (separate from
+  `ADMIN_PASSWORD`, button «Hasło»); `POST /dovede/login` returns `HMAC-SHA256(DOVEDE_PASSWORD, 'dovede-access-v1')`,
+  kept in `localStorage['dovede-token:v1']` and sent as `X-Dovede-Token` (only on Dovede requests — other GETs stay
+  preflight-free); the admin token opens it too; `GET /dovede/access` → `{ open, allowed }`. Changing the password
+  revokes guest tokens; 20 wrong passwords per 15 min → 429. `POST /dovede/understand` (`routes/admin-dovede.ts`,
+  `src/dovede/`) turns the text into a
   `TripIntent` with Claude (`@anthropic-ai/sdk`, structured output, cached system prompt built from the gazetteer;
   `DOVEDE_ENABLED`, `DOVEDE_MODEL`, `DOVEDE_DAILY_CAP`, key = `ANTHROPIC_API_KEY`). Every way Claude can fail answers
   `{ fallback: 'local' }` (503 / 429) and the page falls back to the dictionary parse; a confident dictionary parse

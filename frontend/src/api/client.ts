@@ -64,6 +64,8 @@ export const TRANSPORT_DATASET_TIMEOUT_MS = 15_000;
 class ApiClient {
   private baseUrl: string;
   private authToken: string | null = null;
+  /** «Доведе»: токен пароля запрошених (X-Dovede-Token) — лише в памʼяті, сховище веде сторінка */
+  private dovedeToken: string | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -1027,7 +1029,26 @@ class ApiClient {
     });
   }
 
-  // --- «Доведе» · розуміння питання через Claude (лише адмін) ---
+  // --- «Доведе» · доступ (пароль запрошених, DOVEDE_PUBLIC) і розуміння питання через Claude ---
+  setDovedeToken(token: string | null) {
+    this.dovedeToken = token;
+  }
+
+  /** Заголовок лише на запитах «Доведе»: на решті він робив би кожен GET «непростим» (зайвий preflight) */
+  private dovedeHeaders(): Record<string, string> {
+    return this.dovedeToken ? { 'X-Dovede-Token': this.dovedeToken } : {};
+  }
+
+  /** `open` — сторінка відкрита всім; `allowed` — цьому браузеру (токен пароля чи адміна) */
+  async dovedeAccess(): Promise<{ open: boolean; allowed: boolean }> {
+    return this.request('/dovede/access', { headers: this.dovedeHeaders(), cache: 'no-store' });
+  }
+
+  /** Пароль запрошених → токен; помилка несе `status` (401 невірний, 429 забагато спроб, 503 вхід вимкнено) */
+  async dovedeLogin(password: string): Promise<{ token: string }> {
+    return this.request('/dovede/login', { method: 'POST', body: JSON.stringify({ password }) });
+  }
+
   /**
    * Текст питання → TripIntent від Claude. Будь-яка причина, з якої ШІ не відповів (вимкнено, немає ключа,
    * ліміт, збій, мережа, довше за `timeoutMs`), — це `null`: сторінка відповідає з місцевого розбору.
@@ -1040,8 +1061,9 @@ class ApiClient {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      return await this.request('/admin/dovede/understand', {
+      return await this.request('/dovede/understand', {
         method: 'POST',
+        headers: this.dovedeHeaders(),
         body: JSON.stringify({ text, local }),
         signal: ctrl.signal,
       });

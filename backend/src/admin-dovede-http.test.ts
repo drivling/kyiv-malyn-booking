@@ -1,5 +1,5 @@
 /**
- * HTTP: POST /admin/dovede/understand («Доведе», фаза 2) — доступ лише адміну, перемикачі, денний ліміт,
+ * HTTP: POST /dovede/understand («Доведе», фаза 2) — доступ лише адміну, перемикачі, денний ліміт,
  * журнал DovedeQuery. Claude підмінено заглушкою.
  */
 import { test } from 'vitest';
@@ -96,7 +96,7 @@ test('без токена адміна — 401, Claude не викликаєть
       return okResult();
     },
   });
-  const res = await request(app).post('/admin/dovede/understand').send({ text: 'з Києва в Малин' });
+  const res = await request(app).post('/dovede/understand').send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 401);
   assert.equal(called, 0);
   assert.equal(rows.length, 0);
@@ -105,7 +105,7 @@ test('без токена адміна — 401, Claude не викликаєть
 test('createApp без ключа: 503 з fallback local', async () => {
   const { prisma } = fakePrisma();
   const app = createApp({ prisma, adminPassword: PASSWORD, dovedeUnderstand: null });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 503);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'no_key' });
 });
@@ -120,7 +120,7 @@ test('успіх: намір, згода з місцевим розбором, �
       return okResult();
     },
   });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: '  з Києва на вокзал  ', local: INTENT });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: '  з Києва на вокзал  ', local: INTENT });
   assert.equal(res.status, 200);
   assert.deepEqual(res.body, { intent: INTENT, agree: true, model: 'claude-opus-5-5', latencyMs: 1200 });
   assert.deepEqual(seen, [{ text: 'з Києва на вокзал', now: { date: '2026-11-13', mins: 14 * 60 + 20 } }], '«зараз» — серверний київський час');
@@ -151,7 +151,7 @@ test('успіх: намір, згода з місцевим розбором, �
 test('розбіжність із місцевим розбором: agree = false', async () => {
   const { prisma, rows } = fakePrisma();
   const app = appWith({ prisma, understand: async () => okResult({ ...INTENT, to: { id: 'malyn.avtostantsiya', text: 'автостанція' } }) });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва на вокзал', local: INTENT });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва на вокзал', local: INTENT });
   assert.equal(res.body.agree, false);
   assert.equal(rows[0].agree, false);
 });
@@ -160,7 +160,7 @@ test('місцевий розбір з чужим id не ламає запит:
   const { prisma, rows } = fakePrisma();
   const app = appWith({ prisma });
   const res = await request(app)
-    .post('/admin/dovede/understand')
+    .post('/dovede/understand')
     .set('Authorization', AUTH)
     .send({ text: 'з Львова на вокзал', local: { ...INTENT, from: { id: 'city.Lviv', text: 'Львова' } } });
   assert.equal(res.status, 200);
@@ -180,7 +180,7 @@ test('вимкнено (DOVEDE_ENABLED=0): 503 disabled, Claude не викли�
       return okResult();
     },
   });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 503);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'disabled' });
   assert.equal(called, 0);
@@ -198,7 +198,7 @@ test('денний ліміт вичерпано: 429 cap, Claude не викл�
       return okResult();
     },
   });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 429);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'cap' });
   assert.equal(called, 0);
@@ -211,7 +211,7 @@ test('збій Claude: 503 з причиною, у журналі — викли
     prisma,
     understand: async () => ({ ok: false, failure: 'timeout', message: 'Claude не відповів вчасно', model: 'claude-opus-5-5', latencyMs: 8000, promptVersion: 'dovede-understand-v1' }),
   });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 503);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'timeout' });
   assert.equal(rows[0].status, 'timeout');
@@ -224,7 +224,7 @@ test('виняток усередині (зокрема збій журналу)
   (prisma.dovedeQuery as unknown as { count: () => Promise<number> }).count = async () => {
     throw new Error('db down');
   };
-  const res = await request(appWith({ prisma })).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  const res = await request(appWith({ prisma })).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 503);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'api_error' });
 });
@@ -232,9 +232,9 @@ test('виняток усередині (зокрема збій журналу)
 test('порожнє й задовге питання — 400', async () => {
   const { prisma, rows } = fakePrisma();
   const app = appWith({ prisma });
-  assert.equal((await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: '   ' })).status, 400);
-  assert.equal((await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({})).status, 400);
-  assert.equal((await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'я'.repeat(301) })).status, 400);
+  assert.equal((await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: '   ' })).status, 400);
+  assert.equal((await request(app).post('/dovede/understand').set('Authorization', AUTH).send({})).status, 400);
+  assert.equal((await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'я'.repeat(301) })).status, 400);
   assert.equal(rows.length, 0);
 });
 
@@ -259,7 +259,7 @@ test('зупинки міста з бази: Claude отримує їх усі, 
       return okResult(withStop);
     },
   });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з поворот на коновальця на вокзал', local: withStop });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з поворот на коновальця на вокзал', local: withStop });
   assert.equal(res.status, 200);
   assert.equal(res.body.intent.from.id, 'st_0071');
   assert.equal(res.body.agree, true);
@@ -278,7 +278,7 @@ test('маршрути міста з бази: Claude отримує номер 
       return okResult({ ...about5, routes: ['5'] });
     },
   });
-  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'куди їде автобус №5', local: about5 });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'куди їде автобус №5', local: about5 });
   assert.equal(res.status, 200);
   assert.deepEqual(res.body.intent.routes, ['5']);
   assert.equal(res.body.agree, true, 'чужий маршрут 99 з місцевого розбору відкинуто — розбори збіглися');

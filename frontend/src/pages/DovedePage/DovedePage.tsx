@@ -1,9 +1,10 @@
 /**
  * «Доведе» — пошук своїми словами (Docs/dovede-roadmap.md). Розуміння: спершу словник у браузері; якщо він
- * упевнений — відповідаємо одразу, а Claude (POST /admin/dovede/understand, фаза 2) лише перевіряє й може
+ * упевнений — відповідаємо одразу, а Claude (POST /dovede/understand, фаза 2) лише перевіряє й може
  * тихо запропонувати інше тлумачення; якщо ні — чекаємо Claude, а без нього лишаємось на місцевому розборі.
  * Історії будуються з розкладу сайту (/poputky/search), якорів і міського планувальника Малина — ШІ часу й
- * рейсів не називає. Бачить лише адмін (AdminOnly в App.tsx), сторінка не в меню, не в sitemap, noindex.
+ * рейсів не називає. Доступ (access.ts): поки DOVEDE_PUBLIC не ON — пароль запрошених у рядку питання або
+ * токен адміна. Сторінка без шапки сайту (App.tsx), не в меню, не в sitemap, noindex.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -12,6 +13,7 @@ import { usePageSeo } from '@/hooks';
 import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage/kyivTime';
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
+import { useDovedeAccess } from './access';
 import { classify, composeStories, corridorCities, resolveDate } from './compose/composeStories';
 import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
@@ -52,6 +54,89 @@ function kyivNow(): KyivNow {
 
 export default function DovedePage() {
   usePageSeo({ title: 'Доведе', canonicalUrl: 'https://malin.kiev.ua/dovede', robots: 'noindex, nofollow' });
+  const access = useDovedeAccess();
+  // Розклад міста й пошук вантажаться лише після входу
+  if (access.state === 'open') return <DovedeSearch focusOnMount={access.justLoggedIn} />;
+  return <Lock checking={access.state === 'checking'} error={access.error} busy={access.busy} onLogin={access.login} />;
+}
+
+function Brand() {
+  return (
+    <header className="dv-brand">
+      <h1 className="dv-brand__name">
+        Доведе<span>.</span>
+      </h1>
+      <p className="dv-brand__tag">Спитайте своїми словами — і доведе.</p>
+    </header>
+  );
+}
+
+/** Пароль запрошених — у тому ж рядку, де потім буде питання; кнопка «Hasło» */
+function Lock({ checking, error, busy, onLogin }: { checking: boolean; error: string | null; busy: boolean; onLogin: (password: string) => Promise<void> }) {
+  const [password, setPassword] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!checking) input.current?.focus();
+  }, [checking]);
+  useEffect(() => {
+    // невірний пароль — поле порожнє й знову у фокусі
+    if (error) {
+      setPassword('');
+      input.current?.focus();
+    }
+  }, [error]);
+
+  return (
+    <div className="dv-page">
+      <Brand />
+      {checking ? null : (
+        <form
+          className="dv-ask dv-lock"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!password || busy) {
+              input.current?.focus();
+              return;
+            }
+            void onLogin(password);
+          }}
+        >
+          <label htmlFor="dv-q" className="dv-sr-only">
+            Пароль
+          </label>
+          <div className="dv-ask__field">
+            <div className="dv-field">
+              <div className="dv-input">
+                <input
+                  id="dv-q"
+                  ref={input}
+                  type="password"
+                  value={password}
+                  placeholder="Пароль"
+                  autoComplete="current-password"
+                  enterKeyHint="go"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? 'dv-lock-error' : undefined}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <button className="dv-go" type="submit" disabled={busy}>
+                Hasło
+              </button>
+            </div>
+          </div>
+          {error ? (
+            <p id="dv-lock-error" className="dv-lock__error" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </form>
+      )}
+    </div>
+  );
+}
+
+function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
   const { ready, plannerFor, stops, routes } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
   // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів
   const stopIndex = useMemo(() => {
@@ -59,7 +144,12 @@ export default function DovedePage() {
     setStopPlaces(index);
     return index;
   }, [stops]);
-  const [text, setText] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Слова питання з посилання (чи з памʼяті вкладки) — у полі з першого кадру; відповідь будує ефект нижче.
+  // Пошук монтується вже після перевірки доступу: слова, поставлені лише в ефекті, приходили б пізніше за відповідь
+  const [text, setText] = useState(() =>
+    paramsToIntent(searchParams, kyivNow()) ? questionFromParams(searchParams) || recallQuestion(searchParams) : '',
+  );
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -73,8 +163,12 @@ export default function DovedePage() {
   const [slotsOpen, setSlotsOpen] = useState(false);
   // Номер відповіді: нова відповідь — блоки зʼявляються наново, один за одним
   const [answerNo, setAnswerNo] = useState(0);
-  const [searchParams, setSearchParams] = useSearchParams();
   const urlRead = useRef(false);
+
+  // після пароля фокус лишається в тому ж рядку — тепер це рядок питання
+  useEffect(() => {
+    if (focusOnMount) inputRef.current?.focus();
+  }, [focusOnMount]);
 
   /** Намір → розклад → історії */
   const answer = useCallback(
@@ -226,13 +320,7 @@ export default function DovedePage() {
 
   return (
     <div className={`dv-page${answered ? ' dv-page--answered' : ''}`}>
-      <p className="dv-banner">Таємна сторінка: бачите лише ви. Питання розуміє словник у браузері, складніші — Claude; час і рейси завжди з розкладу сайту.</p>
-      <header className="dv-brand">
-        <h1 className="dv-brand__name">
-          Доведе<span>.</span>
-        </h1>
-        <p className="dv-brand__tag">Спитайте своїми словами — і доведе.</p>
-      </header>
+      <Brand />
 
       <form
         className="dv-ask"

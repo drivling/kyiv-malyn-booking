@@ -5,6 +5,7 @@ import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { apiClient } from '@/api/client';
 import type { PoputkySearchResponse, Schedule } from '@/types';
 import DovedePage from './DovedePage';
+import { DOVEDE_TOKEN_KEY } from './access';
 import type { DovedeUnderstanding, TripIntent } from './nlu/types';
 
 const train: Schedule = {
@@ -47,6 +48,8 @@ describe('«Доведе» — сторінка', () => {
     vi.setSystemTime(new Date('2026-11-13T12:20:00Z'));
     // Claude за замовчуванням недоступний — сторінка має працювати на місцевому розборі
     vi.spyOn(apiClient, 'dovedeUnderstand').mockResolvedValue(null);
+    // доступ уже є (пароль запрошених чи адмін) — тут перевіряємо сам пошук
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: true });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -65,7 +68,7 @@ describe('«Доведе» — сторінка', () => {
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
 
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва (Святошин) до Малина на вокзал{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва (Святошин) до Малина на вокзал{Enter}');
 
     expect(await screen.findByText(/Електричка 6613 о ≈15:16 з платформи «Святошин»/)).toBeInTheDocument();
     expect(search).toHaveBeenCalledWith({ from: 'Kyiv', to: 'Malyn', date: '2026-11-13' });
@@ -78,7 +81,7 @@ describe('«Доведе» — сторінка', () => {
     const search = vi.spyOn(apiClient, 'searchPoputky');
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'з Ковалівки до Малина{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'з Ковалівки до Малина{Enter}');
     expect(await screen.findByText('Не знаю, де це: «Ковалівки»')).toBeInTheDocument();
     await waitFor(() => expect(search).not.toHaveBeenCalled());
   });
@@ -91,7 +94,7 @@ describe('«Доведе» — сторінка', () => {
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
 
     const q = 'хочу потягом зі святошина до залізки';
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), `${q}{Enter}`);
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), `${q}{Enter}`);
 
     expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
     expect(ask).toHaveBeenCalledTimes(1);
@@ -109,7 +112,7 @@ describe('«Доведе» — сторінка', () => {
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
 
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва до Малина на вокзал{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва до Малина на вокзал{Enter}');
 
     expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
     expect(await screen.findByText(/Можливо, ви мали на увазі: Київ → Малин · автостанція/)).toBeInTheDocument();
@@ -124,7 +127,7 @@ describe('«Доведе» — сторінка', () => {
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
 
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва до Малина на вокзал{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва до Малина на вокзал{Enter}');
 
     expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
     await waitFor(() => expect(ask).toHaveBeenCalled());
@@ -136,7 +139,7 @@ describe('«Доведе» — сторінка', () => {
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
 
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'мені на вокзал{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'мені на вокзал{Enter}');
 
     expect(await screen.findByText('Звідки вирушаєте?')).toBeInTheDocument();
     expect(ask).toHaveBeenCalledTimes(1);
@@ -144,7 +147,7 @@ describe('«Доведе» — сторінка', () => {
   it('під час набору: рядок «Розумію…» і підказка місця з потрібним відмінком', async () => {
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
-    const field = screen.getByLabelText('Куди вам потрібно доїхати?');
+    const field = await screen.findByLabelText('Куди вам потрібно доїхати?');
 
     await user.type(field, 'з Києва до цар');
     expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Київ');
@@ -161,7 +164,7 @@ describe('«Доведе» — сторінка', () => {
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
 
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'мені на вокзал{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'мені на вокзал{Enter}');
     expect(await screen.findByText('Звідки вирушаєте?')).toBeInTheDocument();
     expect(ask).toHaveBeenCalledTimes(1);
 
@@ -185,7 +188,7 @@ describe('«Доведе» — сторінка', () => {
       </>,
       { initialEntries: ['/dovede'] },
     );
-    await user.type(screen.getByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва (Святошин) до Малина на вокзал{Enter}');
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'електричкою з Києва (Святошин) до Малина на вокзал{Enter}');
     expect(await screen.findByText('Електричка 6613 · Київ — Малин')).toBeInTheDocument();
     const question = 'електричкою з Києва (Святошин) до Малина на вокзал';
     const ids = '?f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-13&m=elektrichka';
@@ -213,7 +216,7 @@ describe('«Доведе» — сторінка', () => {
     vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
-    const field = screen.getByLabelText('Куди вам потрібно доїхати?');
+    const field = await screen.findByLabelText('Куди вам потрібно доїхати?');
 
     // курсор стоїть після «вокзал» — слова з двома підказками
     await user.type(field, 'електричкою з Києва до Малина на вокзал');
@@ -230,7 +233,7 @@ describe('«Доведе» — сторінка', () => {
     vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
     const user = userEvent.setup();
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
-    const field = screen.getByLabelText('Куди вам потрібно доїхати?');
+    const field = await screen.findByLabelText('Куди вам потрібно доїхати?');
 
     await user.type(field, 'електричкою з Києва до Малина на вокзал');
     // під час набору підсумку немає — слоти відкриті
@@ -247,5 +250,82 @@ describe('«Доведе» — сторінка', () => {
     expect(screen.queryByRole('button', { name: /змінити|згорнути/ })).not.toBeInTheDocument();
     await user.keyboard('{Enter}');
     expect(await screen.findByRole('button', { name: /завтра, субота.*змінити/ })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('«Доведе» — доступ за паролем запрошених', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const lockedField = () => screen.findByLabelText('Пароль');
+
+  it('без доступу рядок питання просить пароль, кнопка «Hasło»; пошуку й дисклеймера немає', async () => {
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: false });
+    const search = vi.spyOn(apiClient, 'searchPoputky');
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+
+    const field = await lockedField();
+    expect(field).toHaveAttribute('type', 'password');
+    expect(field).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Hasło' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Доведе.' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Куди вам потрібно доїхати?')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Таємна сторінка|бачите лише ви/)).not.toBeInTheDocument();
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('невірний пароль — повідомлення, поле порожнє; вірний — токен у браузері й пошук', async () => {
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: false });
+    const login = vi
+      .spyOn(apiClient, 'dovedeLogin')
+      .mockRejectedValueOnce(Object.assign(new Error('Невірний пароль'), { status: 401 }))
+      .mockResolvedValueOnce({ token: 'guest-token' });
+    const setToken = vi.spyOn(apiClient, 'setDovedeToken');
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+
+    await user.type(await lockedField(), 'не той{Enter}');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Невірний пароль');
+    expect(screen.getByLabelText('Пароль')).toHaveValue('');
+    expect(login).toHaveBeenLastCalledWith('не той');
+
+    await user.type(screen.getByLabelText('Пароль'), 'вірний');
+    await user.click(screen.getByRole('button', { name: 'Hasło' }));
+    expect(await screen.findByLabelText('Куди вам потрібно доїхати?')).toHaveFocus();
+    expect(login).toHaveBeenLastCalledWith('вірний');
+    expect(localStorage.getItem(DOVEDE_TOKEN_KEY)).toBe('guest-token');
+    expect(setToken).toHaveBeenLastCalledWith('guest-token');
+  });
+
+  it('токен із браузера сервер прийняв — пароль не питає', async () => {
+    localStorage.setItem(DOVEDE_TOKEN_KEY, 'guest-token');
+    const setToken = vi.spyOn(apiClient, 'setDovedeToken');
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: true });
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    expect(await screen.findByLabelText('Куди вам потрібно доїхати?')).toBeInTheDocument();
+    expect(setToken).toHaveBeenCalledWith('guest-token');
+    expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument();
+  });
+
+  it('пароль змінили — старий токен стирається, поле знову просить пароль', async () => {
+    localStorage.setItem(DOVEDE_TOKEN_KEY, 'old-token');
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: false });
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    expect(await lockedField()).toBeInTheDocument();
+    expect(localStorage.getItem(DOVEDE_TOKEN_KEY)).toBeNull();
+  });
+
+  it('DOVEDE_PUBLIC=ON — сторінка відкрита без пароля', async () => {
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: true, allowed: true });
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    expect(await screen.findByLabelText('Куди вам потрібно доїхати?')).toBeInTheDocument();
+  });
+
+  it('сервер не відповідає — поле пароля з поясненням', async () => {
+    vi.spyOn(apiClient, 'dovedeAccess').mockRejectedValue(new TypeError('Failed to fetch'));
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    expect(await lockedField()).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Сервер не відповідає');
   });
 });

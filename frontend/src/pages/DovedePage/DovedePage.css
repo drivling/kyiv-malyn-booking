@@ -36,10 +36,12 @@
   color: var(--dv-ink);
 }
 .dv-page button,
-.dv-page textarea {
+.dv-page textarea,
+.dv-page input {
   font: inherit;
 }
-.dv-page textarea {
+.dv-page textarea,
+.dv-page input {
   color: inherit;
 }
 .dv-sr-only {
@@ -49,15 +51,6 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-.dv-banner {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: var(--dv-muted);
-  border: 1px dashed var(--dv-line);
-  border-radius: 10px;
-  padding: 6px 10px;
 }
 
 .dv-brand {
@@ -117,6 +110,7 @@
   display: grid;
 }
 .dv-input textarea,
+.dv-input input,
 .dv-mirror {
   grid-area: 1 / 1;
   margin: 0;
@@ -139,6 +133,18 @@
   background: transparent;
   overflow-y: auto;
   width: 100%;
+}
+/* Пароль запрошених у тому ж рядку (access.ts): один рядок, без шару підсвічування */
+.dv-input input {
+  outline: none;
+  background: transparent;
+  width: 100%;
+  white-space: nowrap;
+}
+.dv-lock__error {
+  margin: 10px 4px 0;
+  color: var(--dv-bad);
+  font-weight: 600;
 }
 .dv-mirror {
   color: transparent;
@@ -199,7 +205,8 @@
     display: none;
   }
 }
-.dv-field textarea::placeholder {
+.dv-field textarea::placeholder,
+.dv-field input::placeholder {
   color: var(--dv-muted);
 }
 .dv-go {
@@ -212,6 +219,10 @@
   padding: 0 18px;
   font-weight: 600;
   cursor: pointer;
+}
+.dv-go:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 .dv-page :focus-visible {
   outline: 3px solid var(--dv-accent);
@@ -881,7 +892,8 @@ button.dv-slot::after {
 }
 
 /* Поле має власне кільце фокуса (.dv-field:focus-within) — друге, навколо самого textarea, зайве */
-.dv-page .dv-input textarea:focus-visible {
+.dv-page .dv-input textarea:focus-visible,
+.dv-page .dv-input input:focus-visible {
   outline: none;
 }
 

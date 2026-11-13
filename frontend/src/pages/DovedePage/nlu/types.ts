@@ -66,7 +66,7 @@ export interface KyivNow {
   mins: number;
 }
 
-/** Відповідь POST /admin/dovede/understand (фаза 2) */
+/** Відповідь POST /dovede/understand (фаза 2) */
 export interface DovedeUnderstanding {
   intent: TripIntent;
   /** чи збігся розбір Claude з місцевим (null — сервер не мав з чим порівняти) */
