@@ -152,6 +152,11 @@ of `dist` in a commit.
   for the word at the caret (`suggest.ts` — every inserted form must parse back to its place, a test checks it);
   `SlotSheet` edits one slot of the «Розумію…» row; the answer's URL carries ids only (`url.ts`, `?f=&t=&d=&h=&a=&p=&m=`
   — never the question text, it may hold a home address). Slot edits and id links do not call Claude.
+  Every city stop is a place: the curated gazetteer covers districts and synonyms, the rest come from the dataset
+  (`nlu/stopPlaces.ts` + `normalize.ts`, byte-identical in `backend/src/dovede/`; ids `st_XXXX`, phrase matching).
+  The browser registers them with `setStopPlaces` (look places up with `resolvePlace`, not `placeById`); the
+  endpoint reads the city's stops from the DB (5 min cache) into the system prompt, so a stop added in the admin
+  reaches Claude without a deploy.
 
 ### In-process scheduled jobs (no external cron)
 

@@ -10,8 +10,9 @@ exports.buildUserText = buildUserText;
  * «Сьогодні / зараз» ідуть у повідомлення користувача (`buildUserText`).
  */
 const gazetteer_1 = require("./gazetteer");
+const stopPlaces_1 = require("./stopPlaces");
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-exports.PROMPT_VERSION = 'dovede-understand-v1';
+exports.PROMPT_VERSION = 'dovede-understand-v2';
 /** Що Claude має знати про місце понад назву — чого не видно з синонімів */
 const PLACE_NOTES = {
     'kyiv.akadem': 'метро Академмістечко; звідси їде більшість маршруток на Малин',
@@ -31,13 +32,27 @@ const PLACE_NOTES = {
     'malyn.paperova': 'паперова фабрика',
     'malyn.hrushevskoho': 'вулиця Грушевського',
 };
-function placeLine(p) {
+function placeLine(p, stopNames) {
     const note = PLACE_NOTES[p.id];
     const kind = p.isCity ? 'місто' : gazetteer_1.CITY_LABEL[p.city];
-    return `- ${p.id} — ${kind}: ${p.label}${note ? ` (${note})` : ''}`;
+    // назви зупинок цього місця з розкладу — щоб «Вайдманн» чи «Промінь» вели сюди
+    const names = [...new Set((p.stopIds ?? []).map((id) => stopNames.get(id)).filter((n) => !!n))];
+    const stops = names.length ? `; зупинки: ${names.join(', ')}` : '';
+    return `- ${p.id} — ${kind}: ${p.label}${note ? ` (${note})` : ''}${stops}`;
 }
-function buildSystemPrompt() {
-    const places = [...gazetteer_1.PLACES].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map(placeLine);
+const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+/**
+ * `stops` — усі зупинки міського транспорту з бази (id, назва). Кожна стає місцем, яке Claude може назвати:
+ * або через місце кураторського словника, до якого вона належить, або власним id `st_XXXX`. Промпт змінюється
+ * лише тоді, коли в адмінці міняють зупинки, тож між запитами лишається байт-у-байт однаковим.
+ */
+function buildSystemPrompt(stops = []) {
+    const stopNames = new Map(stops.map((s) => [s.id, s.name.trim()]));
+    const places = [...gazetteer_1.PLACES].sort(byId).map((p) => placeLine(p, stopNames));
+    const stopLines = (0, stopPlaces_1.buildStopPlaces)(stops)
+        .map((e) => e.place)
+        .sort(byId)
+        .map((p) => `- ${p.id} — ${p.label}`);
     return [
         `[${exports.PROMPT_VERSION}]`,
         'Ти — розбирач питань для «Доведе», довідки про транспорт між Києвом і Малином (Житомирська область) та',
@@ -47,8 +62,19 @@ function buildSystemPrompt() {
         'тож ти їх не знаєш і не називаєш: ти лише кажеш, що людина спитала.',
         '',
         '## Словник місць',
-        'У полях from і to дозволені лише ці id. Скопіюй id точно.',
+        'У полях from і to дозволені лише id з цього розділу й зі списку зупинок нижче. Скопіюй id точно.',
         ...places,
+        ...(stopLines.length
+            ? [
+                '',
+                '## Зупинки міського транспорту Малина',
+                'Решта зупинок міста. Якщо людина назвала зупинку, вулицю з номером, магазин чи підприємство з цього',
+                'списку — постав її id (st_…). Назву можуть написати неповно, з помилкою, російською, у будь-якому',
+                'відмінку, без лапок і скорочень («сільпо», «на швейку», «коновальца»). Якщо підходять кілька зупинок',
+                'однієї вулиці, а номер не названо, — візьми першу з них і постав confidence medium.',
+                ...stopLines,
+            ]
+            : []),
         '',
         '## Як заповнювати',
         '- intent: trip — як доїхати; schedule — питають розклад («коли їде», «о котрій електричка»); price —',
@@ -60,7 +86,7 @@ function buildSystemPrompt() {
         '  Малина, але «до Києва на вокзал» чи «з вокзалу в Києві» — kyiv.pas.',
         '- Якщо людина не сказала, звідки їде, from = null. Не вгадуй: програма підставить рідне місто сама. Те',
         '  саме для to.',
-        '- Місце, якого немає в словнику (інше місто, село, незнайома вулиця чи магазин): у from/to постав null,',
+        '- Місце, якого немає ні в словнику, ні серед зупинок (інше місто, село, незнайома вулиця): у from/to постав null,',
         '  а слова людини про нього додай у unknown. Не підміняй його найближчим схожим id — програма чесно',
         '  скаже, що цього місця ще не знає. Слова не про місця в unknown не клади.',
         '- when.day: today, tomorrow або дата YYYY-MM-DD. День тижня й «післязавтра» переведи в дату від',

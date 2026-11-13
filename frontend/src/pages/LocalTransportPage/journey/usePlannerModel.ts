@@ -26,6 +26,8 @@ export interface PlannerModel {
   ready: boolean;
   loading: boolean;
   error: string | null;
+  /** Зупинки датасету міста (id і назва, разом із технічними точками) — для словників поза /transport */
+  stops: Array<{ id: string; name: string }>;
   /** Планувальник на дату 'YYYY-MM-DD'; null — датасет ще не завантажено */
   plannerFor(isoDate: string): DayPlanner | null;
 }
@@ -68,5 +70,7 @@ export function usePlannerModel(city: string): PlannerModel {
     };
   }, [viewModel]);
 
-  return { ready: viewModel != null, loading, error: error ? String(error) : null, plannerFor };
+  const stops = useMemo(() => (dataset?.stops ?? []).map((s) => ({ id: s.id, name: s.name })), [dataset]);
+
+  return { ready: viewModel != null, loading, error: error ? String(error) : null, stops, plannerFor };
 }

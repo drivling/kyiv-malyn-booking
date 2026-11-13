@@ -11,8 +11,12 @@ import { kyivClock } from '../arrival-reports';
 import { aiCallsToday, dovedeDailyCap, isDovedeEnabled } from '../dovede/guard';
 import { IntentShapeError, validateIntent, type TripIntent } from '../dovede/intent';
 import { understandFromEnv, type UnderstandFn } from '../dovede/understand';
+import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
+import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
 
 export const DOVEDE_MAX_TEXT = 300;
+/** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
+const STOPS_TTL_MS = 5 * 60_000;
 
 /** Чи два розбори ведуть до тієї самої відповіді: місця, день, час, транспорт */
 export function intentsAgree(a: TripIntent, b: TripIntent): boolean {
@@ -44,6 +48,26 @@ export function createAdminDovedeRouter(deps: {
   const clock = deps.now ?? (() => new Date());
   const r = express.Router();
 
+  /**
+   * Усі зупинки міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
+   * Той самий масив повертається до закінчення TTL (і після нього, якщо назви не змінились): промпт стабільний.
+   */
+  let stopsCache: { at: number; key: string; stops: StopLike[]; ids: Set<string> } | null = null;
+  const cityStops = async (at: Date): Promise<{ stops: StopLike[]; ids: Set<string> }> => {
+    if (stopsCache && at.getTime() - stopsCache.at < STOPS_TTL_MS) return stopsCache;
+    try {
+      const rows = await prisma.transportStop.findMany({ where: { cityCode: DEFAULT_TRANSPORT_CITY }, select: { id: true, name: true }, orderBy: { id: 'asc' } });
+      const key = JSON.stringify(rows);
+      if (stopsCache && stopsCache.key === key) stopsCache.at = at.getTime();
+      else stopsCache = { at: at.getTime(), key, stops: rows, ids: new Set(buildStopPlaces(rows).map((e) => e.place.id)) };
+      return stopsCache;
+    } catch (e) {
+      // без зупинок Claude знає лише кураторський словник — гірше, але відповідь буде
+      console.error('❌ Dovede: не вдалося прочитати зупинки міста:', e);
+      return stopsCache ?? { stops: [], ids: new Set<string>() };
+    }
+  };
+
   /** Журнал не має права зламати відповідь */
   const log = async (data: Prisma.DovedeQueryCreateInput): Promise<void> => {
     try {
@@ -64,16 +88,17 @@ export function createAdminDovedeRouter(deps: {
       res.status(400).json({ error: `Питання задовге (до ${DOVEDE_MAX_TEXT} символів)` });
       return;
     }
+    const at = clock();
+    const city = await cityStops(at);
     let local: TripIntent | null = null;
     if (body.local != null) {
       try {
-        local = validateIntent(body.local);
+        local = validateIntent(body.local, city.ids);
       } catch (e) {
         if (!(e instanceof IntentShapeError)) throw e;
       }
     }
     const localIntent = local ? (local as unknown as Prisma.InputJsonValue) : undefined;
-    const at = clock();
 
     try {
       if (!enabled()) {
@@ -92,7 +117,7 @@ export function createAdminDovedeRouter(deps: {
         return;
       }
 
-      const result = await understand(text, kyivClock(at));
+      const result = await understand(text, kyivClock(at), city.stops);
       const agree = result.ok && local ? intentsAgree(local, result.intent) : null;
       await log({
         text,

@@ -18,7 +18,11 @@ const arrival_reports_1 = require("../arrival-reports");
 const guard_1 = require("../dovede/guard");
 const intent_1 = require("../dovede/intent");
 const understand_1 = require("../dovede/understand");
+const stopPlaces_1 = require("../dovede/stopPlaces");
+const transport_city_1 = require("../transport-city");
 exports.DOVEDE_MAX_TEXT = 300;
+/** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
+const STOPS_TTL_MS = 5 * 60000;
 /** Чи два розбори ведуть до тієї самої відповіді: місця, день, час, транспорт */
 function intentsAgree(a, b) {
     const modes = (m) => [...m].sort().join(',');
@@ -38,6 +42,29 @@ function createAdminDovedeRouter(deps) {
     const dailyCap = deps.dailyCap ?? (() => (0, guard_1.dovedeDailyCap)());
     const clock = deps.now ?? (() => new Date());
     const r = express_1.default.Router();
+    /**
+     * Усі зупинки міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
+     * Той самий масив повертається до закінчення TTL (і після нього, якщо назви не змінились): промпт стабільний.
+     */
+    let stopsCache = null;
+    const cityStops = async (at) => {
+        if (stopsCache && at.getTime() - stopsCache.at < STOPS_TTL_MS)
+            return stopsCache;
+        try {
+            const rows = await prisma.transportStop.findMany({ where: { cityCode: transport_city_1.DEFAULT_TRANSPORT_CITY }, select: { id: true, name: true }, orderBy: { id: 'asc' } });
+            const key = JSON.stringify(rows);
+            if (stopsCache && stopsCache.key === key)
+                stopsCache.at = at.getTime();
+            else
+                stopsCache = { at: at.getTime(), key, stops: rows, ids: new Set((0, stopPlaces_1.buildStopPlaces)(rows).map((e) => e.place.id)) };
+            return stopsCache;
+        }
+        catch (e) {
+            // без зупинок Claude знає лише кураторський словник — гірше, але відповідь буде
+            console.error('❌ Dovede: не вдалося прочитати зупинки міста:', e);
+            return stopsCache ?? { stops: [], ids: new Set() };
+        }
+    };
     /** Журнал не має права зламати відповідь */
     const log = async (data) => {
         try {
@@ -58,10 +85,12 @@ function createAdminDovedeRouter(deps) {
             res.status(400).json({ error: `Питання задовге (до ${exports.DOVEDE_MAX_TEXT} символів)` });
             return;
         }
+        const at = clock();
+        const city = await cityStops(at);
         let local = null;
         if (body.local != null) {
             try {
-                local = (0, intent_1.validateIntent)(body.local);
+                local = (0, intent_1.validateIntent)(body.local, city.ids);
             }
             catch (e) {
                 if (!(e instanceof intent_1.IntentShapeError))
@@ -69,7 +98,6 @@ function createAdminDovedeRouter(deps) {
             }
         }
         const localIntent = local ? local : undefined;
-        const at = clock();
         try {
             if (!enabled()) {
                 await log({ text, localIntent, status: 'disabled' });
@@ -86,7 +114,7 @@ function createAdminDovedeRouter(deps) {
                 res.status(429).json({ fallback: 'local', reason: 'cap' });
                 return;
             }
-            const result = await understand(text, (0, arrival_reports_1.kyivClock)(at));
+            const result = await understand(text, (0, arrival_reports_1.kyivClock)(at), city.stops);
             const agree = result.ok && local ? intentsAgree(local, result.intent) : null;
             await log({
                 text,

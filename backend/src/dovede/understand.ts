@@ -7,6 +7,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { INTENT_SCHEMA, IntentShapeError, validateIntent, type TripIntent } from './intent';
 import { PROMPT_VERSION, buildSystemPrompt, buildUserText, type KyivNow } from './prompt';
+import { buildStopPlaces, type StopLike } from './stopPlaces';
 
 export const DEFAULT_DOVEDE_MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
@@ -26,7 +27,8 @@ export type UnderstandResult =
   | { ok: true; intent: TripIntent; model: string; latencyMs: number; usage: UnderstandUsage; promptVersion: string }
   | { ok: false; failure: UnderstandFailure; message: string; model: string; latencyMs: number; usage?: UnderstandUsage; promptVersion: string };
 
-export type UnderstandFn = (text: string, now: KyivNow) => Promise<UnderstandResult>;
+/** `stops` — зупинки міста з бази: Claude бачить їх усі, а `validateIntent` дозволяє їхні id */
+export type UnderstandFn = (text: string, now: KyivNow, stops?: StopLike[]) => Promise<UnderstandResult>;
 
 /** Лише claude-*: значення з env не має відкривати довільну модель */
 export function dovedeModelName(raw: string | undefined | null): string {
@@ -60,9 +62,17 @@ function usageOf(u: { input_tokens: number; output_tokens: number; cache_read_in
 export function createUnderstand(deps: { client: DovedeMessagesClient; model?: string | null; clock?: () => number }): UnderstandFn {
   const model = dovedeModelName(deps.model);
   const clock = deps.clock ?? Date.now;
-  const system = buildSystemPrompt();
+  // Промпт будується один раз на список зупинок: той самий масив — той самий рядок, кеш Claude не збивається
+  let built: { stops: StopLike[] | undefined; system: string; stopIds: Set<string> } | null = null;
+  const promptFor = (stops: StopLike[] | undefined) => {
+    if (!built || built.stops !== stops) {
+      built = { stops, system: buildSystemPrompt(stops ?? []), stopIds: new Set(buildStopPlaces(stops ?? []).map((e) => e.place.id)) };
+    }
+    return built;
+  };
 
-  return async (text, now) => {
+  return async (text, now, stops) => {
+    const { system, stopIds } = promptFor(stops);
     const started = clock();
     const base = { model, promptVersion: PROMPT_VERSION };
     const fail = (failure: UnderstandFailure, message: string, usage?: UnderstandUsage): UnderstandResult => ({
@@ -95,7 +105,7 @@ export function createUnderstand(deps: { client: DovedeMessagesClient; model?: s
       const raw = block && block.type === 'text' ? block.text : '';
       let intent: TripIntent;
       try {
-        intent = validateIntent(JSON.parse(raw));
+        intent = validateIntent(JSON.parse(raw), stopIds);
       } catch (e) {
         const why = e instanceof IntentShapeError ? e.message : 'відповідь — не JSON';
         return { ...fail('invalid', why, usage), ...served };

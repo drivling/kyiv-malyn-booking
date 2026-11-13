@@ -5,6 +5,7 @@
  */
 import { PLACES, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
 import { normalizeWord } from '../nlu/normalize';
+import { getStopPlaces } from '../nlu/places';
 
 /** [родовий («з / до чого»), знахідний («в / на що»)]; немає — вставляється назва як є */
 const FORMS: Record<string, [string, string]> = {
@@ -91,6 +92,12 @@ export function suggestPlaces(text: string, caret: number): PlaceSuggestion[] {
     if (!hit) continue;
     const insert = placeForm(place, kase);
     out.push({ place, label: placeLabel(place), insert, start: w.start, end: w.end });
+  }
+  // зупинки з розкладу — після кураторських місць; назва вставляється як є
+  for (const { place, words } of getStopPlaces()) {
+    if (out.length >= MAX_SUGGESTIONS) break;
+    if (!words.some((x) => x.length > 1 && x.startsWith(typed)) && !normalizeWord(place.label).startsWith(typed)) continue;
+    out.push({ place, label: placeLabel(place), insert: place.label, start: w.start, end: w.end });
   }
   // єдиний кандидат, який людина вже дописала сама, — підказувати нічого
   if (out.length === 1 && normalizeWord(out[0].insert) === whole) return [];

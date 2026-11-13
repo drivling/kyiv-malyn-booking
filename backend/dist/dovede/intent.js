@@ -67,8 +67,9 @@ exports.IntentShapeError = IntentShapeError;
 /**
  * Перевіряє й чистить намір (від Claude або від браузера). Місце з id, якого немає в словнику, стає `null`,
  * а його текст потрапляє в `unknown` — складальник покаже «не знаю, де це», а не вигадану зупинку.
+ * `stopIds` — id зупинок із розкладу міста (`buildStopPlaces`), теж дозволені в from / to.
  */
-function validateIntent(raw) {
+function validateIntent(raw, stopIds) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw))
         throw new IntentShapeError('намір — не обʼєкт');
     const o = raw;
@@ -85,7 +86,7 @@ function validateIntent(raw) {
         const p = v;
         const id = typeof p.id === 'string' ? p.id.trim() : '';
         const text = clip(p.text);
-        if (!(0, gazetteer_1.placeById)(id)) {
+        if (!(0, gazetteer_1.placeById)(id) && !stopIds?.has(id)) {
             pushUnknown(text || id.slice(0, MAX_TEXT));
             return null;
         }

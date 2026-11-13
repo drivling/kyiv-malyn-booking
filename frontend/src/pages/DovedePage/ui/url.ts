@@ -2,7 +2,7 @@
  * Адреса відповіді — лише id (Docs/dovede-roadmap.md, принцип 7): текст питання в URL не йде, бо в ньому
  * можуть бути домашні адреси. `?f=&t=&d=&h=&m=` (+ `a=1` — «прибути до», `p=` — частина дня).
  */
-import { placeById } from '../nlu/gazetteer';
+import { resolvePlace } from '../nlu/places';
 import { addDays } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
 
@@ -29,7 +29,7 @@ export function intentToParams(intent: TripIntent, date: string): URLSearchParam
 /** Параметри адреси → намір; null — у адресі немає жодного відомого місця */
 export function paramsToIntent(q: URLSearchParams, now: KyivNow): TripIntent | null {
   const place = (key: 'f' | 't') => {
-    const p = placeById(q.get(key) ?? '');
+    const p = resolvePlace(q.get(key) ?? '');
     return p ? { id: p.id, text: p.label } : null;
   };
   const from = place('f');

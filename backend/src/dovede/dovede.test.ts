@@ -13,6 +13,14 @@ import { dovedeDailyCap, isDovedeEnabled, kyivDayStart } from './guard';
 
 const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 
+const STOPS = [
+  { id: 'st_0071', name: 'Поворот на Коновальця' },
+  { id: 'st_0064', name: 'Паперова фабрика Вайдманн' },
+  { id: 'st_0101', name: 'Швейна фабрика' },
+  { id: 'st_0102', name: 'Швейна фабрика (навпроти)' },
+  { id: 'st_0160', name: '№5 т.3' },
+];
+
 const GOOD = {
   intent: 'trip',
   from: { id: 'kyiv.sviatoshyn', text: 'Києва (Святошин)' },
@@ -180,4 +188,36 @@ test('перемикачі: DOVEDE_ENABLED і DOVEDE_DAILY_CAP', () => {
 
 test('київська доба починається о 00:00 за Києвом (взимку UTC+2)', () => {
   assert.equal(kyivDayStart(new Date('2026-11-13T12:20:30.000Z')).toISOString(), '2026-11-12T22:00:00.000Z');
+});
+
+test('промпт із зупинками міста: кожна пасажирська зупинка названа — своїм id або в місці словника', () => {
+  const p = buildSystemPrompt(STOPS);
+  assert.ok(p.includes('- st_0071 — Поворот на Коновальця'));
+  assert.ok(p.includes('- st_0101 — Швейна фабрика'), 'обидва боки дороги — одне місце');
+  assert.ok(!p.includes('st_0102'));
+  assert.ok(/- malyn\.paperova — .*зупинки: Паперова фабрика Вайдманн/.test(p), 'зупинка кураторського місця — у його рядку');
+  assert.ok(!p.includes('№5 т.3'), 'технічні точки геометрії Claude не потрібні');
+  assert.equal(p, buildSystemPrompt([...STOPS].reverse()), 'порядок рядків у базі на промпт не впливає');
+  assert.ok(!buildSystemPrompt().includes('## Зупинки міського транспорту'));
+});
+
+test('validateIntent: id зупинки з розкладу дозволений лише з переданим списком', () => {
+  const raw = { ...GOOD, from: { id: 'st_0071', text: 'поворот на коновальця' } };
+  assert.equal(validateIntent(raw, new Set(['st_0071'])).from?.id, 'st_0071');
+  assert.equal(validateIntent(raw).from, null);
+  assert.equal(validateIntent({ ...GOOD, from: { id: 'st_9999', text: 'десь' } }, new Set(['st_0071'])).from, null);
+});
+
+test('understand: зупинки міста йдуть у системний промпт, а їхні id проходять перевірку', async () => {
+  const reply = { ...GOOD, from: { id: 'st_0071', text: 'поворот на коновальця' }, to: { id: 'malyn.paperova', text: 'паперова фабрика' } };
+  const { client, calls } = stubClient(message({ content: [{ type: 'text', text: JSON.stringify(reply) }] }));
+  const understand = createUnderstand({ client });
+  const r = await understand('з поворот на коновальця до паперова фабрика', NOW, STOPS);
+  assert.equal(r.ok && r.intent.from?.id, 'st_0071');
+  const system = (calls[0].body.system as Array<{ text: string }>)[0].text;
+  assert.equal(system, buildSystemPrompt(STOPS));
+  await understand('ще раз', NOW, STOPS);
+  assert.equal((calls[1].body.system as Array<{ text: string }>)[0].text, system, 'той самий список — той самий промпт (кеш)');
+  const without = await understand('без зупинок', NOW);
+  assert.equal(without.ok && without.intent.from, null, 'без списку id зупинки відкидається');
 });

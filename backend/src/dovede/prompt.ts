@@ -4,9 +4,10 @@
  * «Сьогодні / зараз» ідуть у повідомлення користувача (`buildUserText`).
  */
 import { CITY_LABEL, PLACES, type GazetteerPlace } from './gazetteer';
+import { buildStopPlaces, type StopLike } from './stopPlaces';
 
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-export const PROMPT_VERSION = 'dovede-understand-v1';
+export const PROMPT_VERSION = 'dovede-understand-v2';
 
 /** Що Claude має знати про місце понад назву — чого не видно з синонімів */
 const PLACE_NOTES: Record<string, string> = {
@@ -28,14 +29,29 @@ const PLACE_NOTES: Record<string, string> = {
   'malyn.hrushevskoho': 'вулиця Грушевського',
 };
 
-function placeLine(p: GazetteerPlace): string {
+function placeLine(p: GazetteerPlace, stopNames: Map<string, string>): string {
   const note = PLACE_NOTES[p.id];
   const kind = p.isCity ? 'місто' : CITY_LABEL[p.city];
-  return `- ${p.id} — ${kind}: ${p.label}${note ? ` (${note})` : ''}`;
+  // назви зупинок цього місця з розкладу — щоб «Вайдманн» чи «Промінь» вели сюди
+  const names = [...new Set((p.stopIds ?? []).map((id) => stopNames.get(id)).filter((n): n is string => !!n))];
+  const stops = names.length ? `; зупинки: ${names.join(', ')}` : '';
+  return `- ${p.id} — ${kind}: ${p.label}${note ? ` (${note})` : ''}${stops}`;
 }
 
-export function buildSystemPrompt(): string {
-  const places = [...PLACES].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map(placeLine);
+const byId = <T extends { id: string }>(a: T, b: T) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * `stops` — усі зупинки міського транспорту з бази (id, назва). Кожна стає місцем, яке Claude може назвати:
+ * або через місце кураторського словника, до якого вона належить, або власним id `st_XXXX`. Промпт змінюється
+ * лише тоді, коли в адмінці міняють зупинки, тож між запитами лишається байт-у-байт однаковим.
+ */
+export function buildSystemPrompt(stops: StopLike[] = []): string {
+  const stopNames = new Map(stops.map((s) => [s.id, s.name.trim()]));
+  const places = [...PLACES].sort(byId).map((p) => placeLine(p, stopNames));
+  const stopLines = buildStopPlaces(stops)
+    .map((e) => e.place)
+    .sort(byId)
+    .map((p) => `- ${p.id} — ${p.label}`);
   return [
     `[${PROMPT_VERSION}]`,
     'Ти — розбирач питань для «Доведе», довідки про транспорт між Києвом і Малином (Житомирська область) та',
@@ -45,8 +61,19 @@ export function buildSystemPrompt(): string {
     'тож ти їх не знаєш і не називаєш: ти лише кажеш, що людина спитала.',
     '',
     '## Словник місць',
-    'У полях from і to дозволені лише ці id. Скопіюй id точно.',
+    'У полях from і to дозволені лише id з цього розділу й зі списку зупинок нижче. Скопіюй id точно.',
     ...places,
+    ...(stopLines.length
+      ? [
+          '',
+          '## Зупинки міського транспорту Малина',
+          'Решта зупинок міста. Якщо людина назвала зупинку, вулицю з номером, магазин чи підприємство з цього',
+          'списку — постав її id (st_…). Назву можуть написати неповно, з помилкою, російською, у будь-якому',
+          'відмінку, без лапок і скорочень («сільпо», «на швейку», «коновальца»). Якщо підходять кілька зупинок',
+          'однієї вулиці, а номер не названо, — візьми першу з них і постав confidence medium.',
+          ...stopLines,
+        ]
+      : []),
     '',
     '## Як заповнювати',
     '- intent: trip — як доїхати; schedule — питають розклад («коли їде», «о котрій електричка»); price —',
@@ -58,7 +85,7 @@ export function buildSystemPrompt(): string {
     '  Малина, але «до Києва на вокзал» чи «з вокзалу в Києві» — kyiv.pas.',
     '- Якщо людина не сказала, звідки їде, from = null. Не вгадуй: програма підставить рідне місто сама. Те',
     '  саме для to.',
-    '- Місце, якого немає в словнику (інше місто, село, незнайома вулиця чи магазин): у from/to постав null,',
+    '- Місце, якого немає ні в словнику, ні серед зупинок (інше місто, село, незнайома вулиця): у from/to постав null,',
     '  а слова людини про нього додай у unknown. Не підміняй його найближчим схожим id — програма чесно',
     '  скаже, що цього місця ще не знає. Слова не про місця в unknown не клади.',
     '- when.day: today, tomorrow або дата YYYY-MM-DD. День тижня й «післязавтра» переведи в дату від',

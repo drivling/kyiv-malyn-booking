@@ -52,6 +52,10 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
         return callsToday;
       },
     },
+    transportStop: {
+      findMany: async ({ where }: { where: { cityCode: string } }) =>
+        where.cityCode === 'Malyn' ? [{ id: 'st_0071', name: 'Поворот на Коновальця' }, { id: 'st_0160', name: '№5 т.3' }] : [],
+    },
   } as unknown as PrismaClient;
   return { prisma, rows, countWhere };
 }
@@ -233,4 +237,23 @@ test('intentsAgree: текст місця й упевненість не важ�
   assert.equal(intentsAgree(a, { ...a, modes: ['elektrichka'] }), false);
   assert.equal(intentsAgree(a, { ...a, when: { day: 'today', kind: 'any' } }), true, 'без часу kind нічого не змінює');
   assert.equal(intentsAgree({ ...a, when: { day: 'today', time: '09:00', kind: 'arrive' } }, { ...a, when: { day: 'today', time: '09:00', kind: 'depart' } }), false);
+});
+
+test('зупинки міста з бази: Claude отримує їх усі, id зупинки дозволений у відповіді й у місцевому розборі', async () => {
+  const { prisma, rows } = fakePrisma();
+  const seen: unknown[] = [];
+  const withStop: TripIntent = { ...INTENT, from: { id: 'st_0071', text: 'поворот на коновальця' } };
+  const app = appWith({
+    prisma,
+    understand: async (_text, _now, stops) => {
+      seen.push(stops);
+      return okResult(withStop);
+    },
+  });
+  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'з поворот на коновальця на вокзал', local: withStop });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.intent.from.id, 'st_0071');
+  assert.equal(res.body.agree, true);
+  assert.deepEqual(seen, [[{ id: 'st_0071', name: 'Поворот на Коновальця' }, { id: 'st_0160', name: '№5 т.3' }]]);
+  assert.equal((rows[0].localIntent as TripIntent).from?.id, 'st_0071');
 });

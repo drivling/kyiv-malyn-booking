@@ -17,6 +17,8 @@ import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
 import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withIntent } from './nlu/merge';
 import { addDays, parseLocal } from './nlu/parseLocal';
+import { setStopPlaces } from './nlu/places';
+import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
 import { QueryField, type QueryFieldHandle } from './ui/QueryField';
@@ -48,7 +50,13 @@ function kyivNow(): KyivNow {
 
 export default function DovedePage() {
   usePageSeo({ title: 'Доведе', canonicalUrl: 'https://malin.kiev.ua/dovede', robots: 'noindex, nofollow' });
-  const { ready, plannerFor } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
+  const { ready, plannerFor, stops } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
+  // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів
+  const stopIndex = useMemo(() => {
+    const index = buildStopPlaces(stops);
+    setStopPlaces(index);
+    return index;
+  }, [stops]);
   const [text, setText] = useState('');
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [chosenId, setChosenId] = useState<string | null>(null);
@@ -98,7 +106,7 @@ export default function DovedePage() {
   const run = useCallback(
     async (q: string, chosen?: TripIntent) => {
       const now = kyivNow();
-      const parse = parseLocal(q, now);
+      const parse = parseLocal(q, now, stopIndex);
       const id = ++seq.current;
       setChosenId(null);
       setSuggestion(null);
@@ -127,7 +135,7 @@ export default function DovedePage() {
       const intent = pickIntent(parse.intent, r?.intent);
       await answer(id, q, withIntent(parse, intent), intent, now);
     },
-    [ready, answer],
+    [ready, answer, stopIndex],
   );
 
   // Датасет міста ще вантажився, коли людина спитала, — відповідаємо, щойно він є
@@ -155,14 +163,15 @@ export default function DovedePage() {
 
   // Посилання з id (`?f=&t=&d=…`) відкриває ту саму відповідь без тексту питання
   useEffect(() => {
-    if (urlRead.current) return;
+    // зупинки з розкладу (`t=st_0071`) стають відомими лише з датасетом міста
+    if (urlRead.current || !ready) return;
     urlRead.current = true;
     const fromUrl = paramsToIntent(searchParams, kyivNow());
     if (fromUrl) void run('', fromUrl);
-  }, [searchParams, run]);
+  }, [searchParams, run, ready]);
 
   // Розбір під час набору: підсвічування в полі й рядок «Розумію…» ще до кнопки «Знайти»
-  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow()) : null), [text]);
+  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex) : null), [text, stopIndex]);
   const answeredFor = view.kind === 'result' ? view.query : null;
   const textMatchesAnswer = answeredFor == null || text.trim() === answeredFor || (answeredFor === '' && !text.trim());
   const shown: { parse: LocalParse; now: KyivNow } | null =

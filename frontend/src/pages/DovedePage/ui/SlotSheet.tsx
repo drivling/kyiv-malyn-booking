@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CITY_LABEL, PLACES, type PlaceCity } from '../nlu/gazetteer';
+import { getStopPlaces } from '../nlu/places';
 import type { TripIntent } from '../nlu/types';
 
 export type SlotKind = 'from' | 'to' | 'when' | 'mode';
@@ -33,7 +34,13 @@ function placeOptions(slot: 'from' | 'to', intent: TripIntent): Array<{ group: s
   // малі міста коридору — одним списком
   const main = groups.filter((g) => g.group === 'Малин' || g.group === 'Київ');
   const rest = groups.filter((g) => !main.includes(g)).flatMap((g) => g.options.map((o) => ({ ...o, title: o.title.replace(' — місто загалом', '') })));
-  return rest.length ? [...main, { group: 'Інші міста', options: rest }] : main;
+  // решта зупинок міста — з розкладу
+  const stops = getStopPlaces()
+    .map((e) => e.place)
+    .sort((a, b) => a.label.localeCompare(b.label, 'uk'))
+    .map((p) => ({ key: p.id, title: p.label, patch: { [slot]: { id: p.id, text: p.label }, unknown: [], intent: 'trip' } as Partial<TripIntent>, current: p.id === currentId }));
+  const all = [...main, ...(stops.length ? [{ group: 'Зупинки Малина', options: stops }] : [])];
+  return rest.length ? [...all, { group: 'Інші міста', options: rest }] : all;
 }
 
 function whenOptions(intent: TripIntent): Option[] {

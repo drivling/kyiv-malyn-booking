@@ -4,6 +4,8 @@
  */
 import { CITY_LABEL, findPlaceByToken, type GazetteerPlace, placeById } from './gazetteer';
 import { tokenize, type Token } from './normalize';
+import { resolvePlace } from './places';
+import { matchStopPlace, type StopPlace } from './stopPlaces';
 import type { KyivNow, LocalParse, ParseSpan, PlaceRef, TripIntent, TripMode, TripWhen } from './types';
 
 const FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
@@ -71,7 +73,8 @@ function prepBefore(toks: Token[], i: number): Token | null {
   return null;
 }
 
-export function parseLocal(text: string, now: KyivNow): LocalParse {
+/** `stops` — зупинки з розкладу міста (`buildStopPlaces`): «Поворот на Коновальця», «Чорновола 36»… */
+export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = []): LocalParse {
   const toks = tokenize(text);
   const spans: ParseSpan[] = [];
   const hits: PlaceHit[] = [];
@@ -105,6 +108,20 @@ export function parseLocal(text: string, now: KyivNow): LocalParse {
     const prev = toks[i - 1];
     const next = toks[i + 1];
     const n = t.n;
+
+    // Назва зупинки з розкладу — кілька слів, тому раніше за час («до 14 ОМБ») і за прийменники («поворот на…»)
+    const stop = stops.length ? matchStopPlace(stops, toks, i) : null;
+    if (stop) {
+      const lastTok = toks[stop.end];
+      const whole: Token = { raw: text.slice(t.start, lastTok.end), n, start: t.start, end: lastTok.end };
+      const hit: PlaceHit = { place: stop.entry.place, token: whole, spanStart: t.start, role: null };
+      hits.push(hit);
+      const prep = prepBefore(toks, i);
+      if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', hit.place, hit); }
+      else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', hit.place, hit); }
+      i = stop.end;
+      continue;
+    }
 
     // Час: «18:00», «о 7», «до 9 ранку», «після 18», «о 7 вечора»
     const hourByPrep = /^\d{1,2}$/.test(n) && prev && HOUR_PREPS.has(prev.n);
@@ -291,7 +308,7 @@ export function partEndMins(part: TripWhen['part']): number | null {
 
 /** «Київ · Святошин» для id зі словника */
 export function placeIdLabel(id: string): string {
-  const p = placeById(id);
+  const p = resolvePlace(id);
   if (!p) return id;
   return p.isCity ? p.label : `${CITY_LABEL[p.city]} · ${p.label}`;
 }
