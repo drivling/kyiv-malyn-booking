@@ -33,6 +33,12 @@ describe('precache (Docs/transport-pwa-2026-10.md, фаза 4)', () => {
     expect(moreAssets).not.toBe(a);
   });
 
+  it('lazy-чанк таємної «Доведе» не precache-иться і не світиться в transport-sw.js', () => {
+    const { urls } = buildPrecache({ ...args(), assetFiles: [...args().assetFiles, 'assets/DovedePage-X1.js', 'assets/DovedePage-X2.css'] });
+    expect(urls.some((u: string) => u.includes('DovedePage'))).toBe(false);
+    expect(buildPrecache({ ...args(), assetFiles: [...args().assetFiles, 'assets/DovedePage-X1.js'] }).buildId).toBe(buildPrecache(args()).buildId);
+  });
+
   it('оболонка не може посилатись на asset поза precache', () => {
     const html = '<script type="module" crossorigin src="/assets/index-A.js"></script><link rel="stylesheet" crossorigin href="/assets/index-B.css"><link rel="icon" href="/icons/transport.svg">';
     expect(shellAssetRefs(html)).toEqual(['/assets/index-A.js', '/assets/index-B.css']);

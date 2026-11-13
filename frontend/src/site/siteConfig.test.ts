@@ -108,7 +108,7 @@ describe('getCurrentSite', () => {
 });
 
 describe('primary-only шляхи', () => {
-  test.each(['/admin', '/admin/routes', '/login', '/user'])('%s тільки на головному', (p) => {
+  test.each(['/admin', '/admin/routes', '/login', '/user', '/dovede'])('%s тільки на головному', (p) => {
     expect(isPrimaryOnlyPath(p)).toBe(true);
   });
 

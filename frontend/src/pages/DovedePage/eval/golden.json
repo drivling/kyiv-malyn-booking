@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "defaultNow": "2026-11-13T14:20:00+02:00",
+  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; later — після MVP.",
+  "cases": [
+    { "id": "km-01", "text": "Як доїхати з Києва (Святошин) до Малина на вокзал", "expect": { "intent": "trip", "from": "kyiv.sviatoshyn", "to": "malyn.vokzal", "when": { "day": "today" }, "modes": [] }, "tags": ["kyiv-malyn", "place-in-city"], "scope": "mvp" },
+    { "id": "km-02", "text": "з Києва в Малин", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": [] }, "tags": ["kyiv-malyn", "city-only"], "scope": "mvp" },
+    { "id": "km-03", "text": "Київ Малин сьогодні ввечері", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today", "part": "evening" } }, "tags": ["kyiv-malyn", "no-prepositions", "time"], "scope": "mvp" },
+    { "id": "km-04", "text": "мені треба з Академмістечка до автостанції в Малині", "expect": { "intent": "trip", "from": "kyiv.akadem", "to": "malyn.avtostantsiya" }, "tags": ["kyiv-malyn", "place-in-city", "declension"], "scope": "mvp" },
+    { "id": "km-05", "text": "як дістатися з Києва до лікарні в Малині", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.likarnia" }, "tags": ["kyiv-malyn", "place-in-city"], "scope": "mvp" },
+    { "id": "km-06", "text": "з вокзалу в Києві до Малина", "expect": { "intent": "trip", "from": "kyiv.pas", "to": "city.Malyn" }, "tags": ["kyiv-malyn", "vokzal-ambiguity"], "scope": "mvp" },
+    { "id": "km-07", "text": "з Борщагівки до Малина", "expect": { "intent": "trip", "from": "kyiv.borshch", "to": "city.Malyn" }, "tags": ["kyiv-malyn", "place-in-city"], "scope": "mvp" },
+    { "id": "km-08", "text": "їду з Києва в Царське село", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.tsarske" }, "tags": ["kyiv-malyn", "district", "implicit-city"], "scope": "mvp" },
+    { "id": "km-09", "text": "з Києва до Малина, на Малинівку", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.malynivka" }, "tags": ["kyiv-malyn", "district"], "scope": "mvp" },
+    { "id": "km-10", "text": "Як мені потрапити в центр Малина з Києва після роботи", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.tsentr", "when": { "day": "today", "part": "evening" } }, "tags": ["kyiv-malyn", "reversed-order", "time"], "scope": "mvp" },
+
+    { "id": "mk-01", "text": "з Царського села до Києва завтра зранку", "expect": { "intent": "trip", "from": "malyn.tsarske", "to": "city.Kyiv", "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["malyn-kyiv", "district", "time"], "scope": "mvp" },
+    { "id": "mk-02", "text": "Малин Київ", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv" }, "tags": ["malyn-kyiv", "no-prepositions"], "scope": "mvp" },
+    { "id": "mk-03", "text": "з автостанції до Академмістечка", "expect": { "intent": "trip", "from": "malyn.avtostantsiya", "to": "kyiv.akadem" }, "tags": ["malyn-kyiv", "implicit-city"], "scope": "mvp" },
+    { "id": "mk-04", "text": "як доїхати з Малинівки до Києва на вокзал", "expect": { "intent": "trip", "from": "malyn.malynivka", "to": "kyiv.pas" }, "tags": ["malyn-kyiv", "vokzal-ambiguity"], "scope": "mvp" },
+    { "id": "mk-05", "text": "з лікарні в Київ", "expect": { "intent": "trip", "from": "malyn.likarnia", "to": "city.Kyiv" }, "tags": ["malyn-kyiv", "implicit-city"], "scope": "mvp" },
+    { "id": "mk-06", "text": "мені в Київ на Святошин", "expect": { "intent": "trip", "from": null, "to": "kyiv.sviatoshyn" }, "tags": ["malyn-kyiv", "implicit-from"], "scope": "mvp" },
+    { "id": "mk-07", "text": "з Юрівки в Київ зранку", "expect": { "intent": "trip", "from": "malyn.yurivka", "to": "city.Kyiv", "when": { "part": "morning" } }, "tags": ["malyn-kyiv", "district", "time"], "scope": "mvp" },
+    { "id": "mk-08", "text": "з паперової фабрики до Києва", "expect": { "intent": "trip", "from": "malyn.paperova", "to": "city.Kyiv" }, "tags": ["malyn-kyiv", "landmark", "declension"], "scope": "mvp" },
+    { "id": "mk-09", "text": "з Малина до Києва в неділю", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "2026-11-15" } }, "tags": ["malyn-kyiv", "weekday"], "scope": "mvp" },
+    { "id": "mk-10", "text": "з центру Малина до метро Житомирська", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "kyiv.zhytomyrska" }, "tags": ["malyn-kyiv", "metro"], "scope": "mvp" },
+    { "id": "mk-11", "text": "з Грушевського до Києва вранці", "expect": { "intent": "trip", "from": "malyn.hrushevskoho", "to": "city.Kyiv", "when": { "part": "morning" } }, "tags": ["malyn-kyiv", "street", "time"], "scope": "mvp" },
+    { "id": "mk-12", "text": "з ПТУ до Києва", "expect": { "intent": "trip", "from": "malyn.ptl", "to": "city.Kyiv" }, "tags": ["malyn-kyiv", "landmark", "abbreviation"], "scope": "mvp" },
+
+    { "id": "t-01", "text": "з Києва до Малина о 18:00", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today", "time": "18:00", "kind": "depart" } }, "tags": ["time", "exact-time"], "scope": "mvp" },
+    { "id": "t-02", "text": "щоб бути в Малині до 9 ранку з Києва", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "tomorrow", "time": "09:00", "kind": "arrive" } }, "tags": ["time", "arrive-by", "do-ambiguity", "rollover"], "scope": "mvp" },
+    { "id": "t-03", "text": "з Малина до Києва після обіду", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "today", "part": "day" } }, "tags": ["time", "part-of-day"], "scope": "mvp" },
+    { "id": "t-04", "text": "з Києва в Малин післязавтра вранці", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "2026-11-15", "part": "morning" } }, "tags": ["time", "relative-day"], "scope": "mvp" },
+    { "id": "t-05", "text": "Малин–Київ 20.11 о 7", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "2026-11-20", "time": "07:00", "kind": "depart" } }, "tags": ["time", "exact-date", "no-prepositions"], "scope": "mvp" },
+    { "id": "t-06", "text": "з Києва до Малина найближчим рейсом", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today", "kind": "depart" } }, "tags": ["time", "next"], "scope": "mvp" },
+    { "id": "t-07", "text": "мені треба бути в Києві о 12", "expect": { "intent": "trip", "from": null, "to": "city.Kyiv", "when": { "day": "tomorrow", "time": "12:00", "kind": "arrive" } }, "tags": ["time", "arrive-by", "rollover", "implicit-from"], "scope": "mvp" },
+    { "id": "t-08", "text": "з Малина в Київ у понеділок на першу маршрутку", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "2026-11-16" }, "modes": ["marshrutka"] }, "tags": ["time", "weekday", "first-trip", "mode"], "scope": "mvp" },
+
+    { "id": "m-01", "text": "електричкою з Києва до Малина", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": ["elektrichka"] }, "tags": ["mode"], "scope": "mvp" },
+    { "id": "m-02", "text": "маршрутка Малин Київ завтра", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "tomorrow" }, "modes": ["marshrutka"] }, "tags": ["mode", "no-prepositions"], "scope": "mvp" },
+    { "id": "m-03", "text": "чи є попутка з Києва в Малин сьогодні", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today" }, "modes": ["poputka"] }, "tags": ["mode", "poputka"], "scope": "later" },
+    { "id": "m-04", "text": "автобусом з Царського села на вокзал", "expect": { "intent": "trip", "from": "malyn.tsarske", "to": "malyn.vokzal", "modes": ["city_bus"] }, "tags": ["mode", "intra-city", "avtobus-ambiguity"], "scope": "mvp" },
+    { "id": "m-05", "text": "потягом у Київ", "expect": { "intent": "trip", "from": null, "to": "city.Kyiv", "modes": ["elektrichka"] }, "tags": ["mode", "implicit-from"], "scope": "mvp" },
+    { "id": "m-06", "text": "попутка з центру Малина до Києва ввечері", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "city.Kyiv", "when": { "part": "evening" }, "modes": ["poputka"]}, "tags": ["mode", "poputka"], "scope": "later" },
+
+    { "id": "l-01", "text": "как доехать из Киева в Малин на вокзал", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.vokzal" }, "tags": ["russian"], "scope": "mvp" },
+    { "id": "l-02", "text": "с Малина в Киев завтра утром", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["russian", "time"], "scope": "mvp" },
+    { "id": "l-03", "text": "з києва до малина електрічкою", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": ["elektrichka"] }, "tags": ["surzhyk", "lowercase", "mode"], "scope": "mvp" },
+    { "id": "l-04", "text": "kyiv malyn", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn" }, "tags": ["translit", "no-prepositions"], "scope": "mvp" },
+    { "id": "l-05", "text": "з Кива в Малин", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn" }, "tags": ["typo"], "scope": "mvp" },
+    { "id": "l-06", "text": "с Академгородка до Малина маршруткой", "expect": { "intent": "trip", "from": "kyiv.akadem", "to": "city.Malyn", "modes": ["marshrutka"] }, "tags": ["russian", "old-name", "mode"], "scope": "mvp" },
+
+    { "id": "i-01", "text": "до Малина", "expect": { "intent": "trip", "from": null, "to": "city.Malyn" }, "tags": ["incomplete"], "scope": "mvp" },
+    { "id": "i-02", "text": "вокзал", "expect": { "intent": "trip", "from": null, "to": "malyn.vokzal", "confidence": "low" }, "tags": ["incomplete", "vokzal-ambiguity"], "scope": "mvp" },
+    { "id": "i-03", "text": "завтра зранку", "expect": { "intent": "trip", "from": null, "to": null, "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["incomplete", "time-only"], "scope": "mvp" },
+    { "id": "i-04", "text": "як доїхати", "expect": { "intent": "trip", "from": null, "to": null, "confidence": "low" }, "tags": ["incomplete", "empty"], "scope": "mvp" },
+
+    { "id": "o-01", "text": "з Малина до Львова", "expect": { "intent": "trip", "from": "city.Malyn", "to": null, "unknown": ["Львова"] }, "tags": ["out-of-area"], "scope": "mvp" },
+    { "id": "o-02", "text": "з Житомира в Малин завтра", "expect": { "intent": "trip", "from": "city.Zhytomyr", "to": "city.Malyn", "when": { "day": "tomorrow" } }, "tags": ["zhytomyr"], "scope": "later" },
+    { "id": "o-03", "text": "з Коростеня до Малина електричкою", "expect": { "intent": "trip", "from": "city.Korosten", "to": "city.Malyn", "modes": ["elektrichka"] }, "tags": ["korosten", "mode"], "scope": "later" },
+    { "id": "o-04", "text": "з Києва в Коростень", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Korosten" }, "tags": ["korosten", "no-data"], "scope": "later" },
+    { "id": "o-05", "text": "з Ковалівки до Малина", "expect": { "intent": "trip", "from": null, "to": "city.Malyn", "unknown": ["Ковалівки"] }, "tags": ["unknown-place"], "scope": "mvp" },
+
+    { "id": "n-01", "text": "скільки коштує маршрутка до Києва", "expect": { "intent": "price", "to": "city.Kyiv", "modes": ["marshrutka"] }, "tags": ["not-trip", "price"], "scope": "later" },
+    { "id": "n-02", "text": "телефон зубастика", "expect": { "intent": "contact", "modes": ["marshrutka"] }, "tags": ["not-trip", "contact", "brand"], "scope": "later" },
+    { "id": "n-03", "text": "яка погода в Малині", "expect": { "intent": "other" }, "tags": ["not-trip"], "scope": "mvp" }
+  ]
+}

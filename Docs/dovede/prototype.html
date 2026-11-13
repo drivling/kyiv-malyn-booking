@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- ARTIFACT-BEGIN -->
+<title>Прототип «Доведе»</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one calm column like a departure board; the answer is a vertical route rail in the colours of the Malyn scheme. */
+:root {
+  --bg: #f1f4f5; --surface: #ffffff; --surface-2: #f6f9fa; --ink: #054752; --muted: #4f6f75; --line: #dde3e6;
+  --accent: #00aff5; --accent-ink: #0079ad; --accent-soft: rgba(0, 175, 245, .12);
+  --from: #0fa573; --from-ink: #08704e; --from-soft: rgba(15, 165, 115, .17);
+  --to: #00aff5; --to-ink: #0079ad; --to-soft: rgba(0, 175, 245, .18);
+  --when: #b77d00; --when-soft: rgba(245, 190, 0, .26);
+  --mode: #6347d1; --mode-soft: rgba(99, 71, 209, .14);
+  --bad-soft: rgba(220, 38, 38, .12); --bad-ink: #b42318;
+  --marsh: #0b5c69; --train: #4757c9; --walk: #93a9ad;
+  --note-bg: #fff7dc; --note-ink: #6b4b00;
+  --shadow: 0 2px 12px rgba(5, 71, 82, .08);
+  --font: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --r: 16px; --r-sm: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c181b; --surface: #132428; --surface-2: #172c31; --ink: #e2f0f2; --muted: #9fb8bc; --line: #24393d;
+    --accent: #3cc6ff; --accent-ink: #79d6ff; --accent-soft: rgba(60, 198, 255, .16);
+    --from: #2fc893; --from-ink: #74e2bb; --from-soft: rgba(47, 200, 147, .22);
+    --to: #3cc6ff; --to-ink: #79d6ff; --to-soft: rgba(60, 198, 255, .22);
+    --when: #f0c24a; --when-soft: rgba(240, 194, 74, .22);
+    --mode: #a593ff; --mode-soft: rgba(165, 147, 255, .2);
+    --bad-soft: rgba(248, 113, 113, .16); --bad-ink: #fca5a5;
+    --marsh: #6cc7d4; --train: #9aa6ff; --walk: #5f7c81;
+    --note-bg: #33290d; --note-ink: #f1d78f;
+    --shadow: 0 2px 14px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c181b; --surface: #132428; --surface-2: #172c31; --ink: #e2f0f2; --muted: #9fb8bc; --line: #24393d;
+  --accent: #3cc6ff; --accent-ink: #79d6ff; --accent-soft: rgba(60, 198, 255, .16);
+  --from: #2fc893; --from-ink: #74e2bb; --from-soft: rgba(47, 200, 147, .22);
+  --to: #3cc6ff; --to-ink: #79d6ff; --to-soft: rgba(60, 198, 255, .22);
+  --when: #f0c24a; --when-soft: rgba(240, 194, 74, .22);
+  --mode: #a593ff; --mode-soft: rgba(165, 147, 255, .2);
+  --bad-soft: rgba(248, 113, 113, .16); --bad-ink: #fca5a5;
+  --marsh: #6cc7d4; --train: #9aa6ff; --walk: #5f7c81;
+  --note-bg: #33290d; --note-ink: #f1d78f;
+  --shadow: 0 2px 14px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 17px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-variant-numeric: tabular-nums; }
+
+.proto { padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px dashed var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.proto b { color: var(--ink); font-weight: 600; }
+.proto label { display: flex; gap: 8px; align-items: center; }
+.proto select { min-height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 62vw; }
+
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 0 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+.brand { text-align: center; margin: 15vh 0 22px; transition: margin .35s ease; }
+.brand__name { margin: 0; font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -.02em; }
+.brand__name span { color: var(--accent); }
+.brand__tag { margin: 8px 0 0; color: var(--muted); font-size: 17px; text-wrap: balance; }
+body.answered .brand { margin: 18px 0 12px; text-align: left; display: flex; align-items: baseline; gap: 12px; }
+body.answered .brand__name { font-size: 24px; }
+body.answered .brand__tag { margin: 0; font-size: 14px; }
+
+/* Search field with a mirror layer that tints recognised words */
+.field { display: flex; align-items: flex-end; gap: 8px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 6px 6px 6px 4px; box-shadow: var(--shadow); }
+.field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft), var(--shadow); }
+.field__text { position: relative; flex: 1; min-width: 0; }
+.field__mirror, .field textarea { font-family: var(--font); font-size: 19px; line-height: 1.45; padding: 10px 12px; margin: 0; border: 0; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; letter-spacing: 0; }
+.field__mirror { position: absolute; inset: 0; color: transparent; pointer-events: none; }
+.field textarea { position: relative; display: block; width: 100%; height: 50px; resize: none; overflow: hidden; background: transparent; color: var(--ink); caret-color: var(--accent-ink); outline: none; min-height: 50px; }
+.field textarea::placeholder { color: var(--muted); opacity: .85; }
+.hl { color: transparent; padding: 0; border-radius: 6px; }
+.hl--from { background: var(--from-soft); }
+.hl--to { background: var(--to-soft); }
+.hl--when { background: var(--when-soft); }
+.hl--mode { background: var(--mode-soft); }
+.hl--unknown { background: transparent; text-decoration: underline wavy var(--bad-ink); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.go { flex: none; min-width: 52px; height: 50px; border: 0; border-radius: 14px; background: var(--ink); color: var(--surface); display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 16px; font-weight: 600; }
+.go svg { width: 20px; height: 20px; }
+@media (max-width: 420px) { .go__label { display: none; } .go { padding: 0 14px; } }
+
+.suggest { list-style: none; margin: 8px 0 0; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: var(--shadow); }
+.suggest li { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 10px; border-radius: 10px; cursor: pointer; }
+.suggest li[aria-selected="true"], .suggest li:hover { background: var(--surface-2); }
+.suggest__icon { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--accent-soft); color: var(--accent-ink); }
+.suggest__label { font-weight: 600; }
+.suggest__hint { color: var(--muted); font-size: 14px; }
+
+/* «Розумію:» — every slot can be corrected */
+.slots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; font-size: 15px; color: var(--muted); }
+.slot { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; border-radius: 999px; border: 1.5px solid transparent; font-weight: 600; color: var(--ink); background: var(--surface); }
+.slot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .9; }
+.slot--from { background: var(--from-soft); color: var(--from-ink); }
+.slot--to { background: var(--to-soft); color: var(--to-ink); }
+.slot--when { background: var(--when-soft); color: var(--note-ink); }
+.slot--mode { background: var(--mode-soft); color: var(--mode); }
+.slot.is-guess { background: transparent; border-style: dashed; border-color: currentColor; font-weight: 500; }
+.slot.is-empty { background: transparent; border-style: dashed; border-color: var(--line); color: var(--muted); font-weight: 500; }
+.slot.is-unknown { background: var(--bad-soft); color: var(--bad-ink); }
+
+.home { margin-top: 26px; display: grid; gap: 22px; }
+.home h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); text-align: left; }
+.chip:hover { border-color: var(--accent); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.tile { min-height: 64px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); padding: 10px 12px; text-align: left; display: grid; gap: 2px; }
+.tile b { font-weight: 600; }
+.tile small { color: var(--muted); font-size: 13px; }
+
+/* Answer */
+.out { margin-top: 18px; display: grid; gap: 14px; }
+.status { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.status__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; transform: scale(.7); } }
+.skel { border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); padding: 18px; display: grid; gap: 10px; }
+.skel i { display: block; height: 14px; border-radius: 7px; background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.lead { font-size: 21px; line-height: 1.4; font-weight: 600; margin: 0; text-wrap: pretty; }
+.understood { margin: -4px 0 0; color: var(--muted); font-size: 15px; }
+.understood button { border: 0; background: none; color: var(--accent-ink); font-weight: 600; padding: 6px 2px; text-decoration: underline; text-underline-offset: 3px; }
+.trip-head { font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.trip-head b { color: var(--ink); font-weight: 600; }
+
+.ask-q { font-size: 21px; font-weight: 600; margin: 0; }
+.choices { display: grid; gap: 10px; }
+.choice { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; border-radius: var(--r); border: 1.5px solid var(--line); background: var(--surface); box-shadow: var(--shadow); min-height: 72px; }
+.choice:hover { border-color: var(--accent); }
+.choice__n { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
+.choice__title { font-weight: 700; font-size: 18px; }
+.choice__sub { color: var(--muted); font-size: 15px; }
+.choice__time { font-weight: 700; font-size: 18px; text-align: right; white-space: nowrap; }
+.choice__time small { display: block; font-weight: 500; font-size: 13px; color: var(--muted); }
+.hint-keys { font-size: 13px; color: var(--muted); }
+.hint-keys kbd { font-family: var(--font); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 0 6px; background: var(--surface); }
+
+/* Story rail */
+.story { display: grid; }
+.leg { display: grid; grid-template-columns: 4.4rem 26px minmax(0, 1fr); column-gap: 10px; }
+.leg__time { font-weight: 700; font-size: 18px; text-align: right; padding-top: 12px; white-space: nowrap; }
+.leg__time small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+.leg__rail { position: relative; }
+.leg__rail::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 5px; transform: translateX(-50%); background: var(--c, var(--line)); border-radius: 3px; }
+.leg__rail::after { content: ""; position: absolute; left: 50%; top: 16px; width: 16px; height: 16px; transform: translateX(-50%); border-radius: 50%; background: var(--surface); border: 4px solid var(--c, var(--line)); }
+.leg--dots .leg__rail::before { width: 4px; background: repeating-linear-gradient(to bottom, var(--c, var(--walk)) 0 5px, transparent 5px 11px); }
+.leg--dots .leg__rail::after { width: 10px; height: 10px; border-width: 3px; top: 18px; }
+.leg--end .leg__rail::before { bottom: auto; height: 22px; }
+.leg--end .leg__rail::after { background: var(--c, var(--ink)); }
+.leg__body { padding: 6px 0 14px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow); display: grid; gap: 8px; }
+.card__top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.card__title { font-weight: 700; font-size: 18px; }
+.tag { font-size: 13px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+.tag--usual { background: var(--note-bg); border-color: transparent; color: var(--note-ink); }
+.card__place { font-size: 17px; }
+.card__place b { font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 15px; }
+.note { background: var(--note-bg); color: var(--note-ink); border-radius: 10px; padding: 8px 12px; font-size: 15px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { min-height: 44px; padding: 8px 16px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 600; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+.btn--primary { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.btn--ghost { border-color: transparent; background: transparent; color: var(--accent-ink); padding-inline: 6px; }
+.more { font-size: 14px; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 32px; padding: 0 8px; border-radius: 8px; font-weight: 700; font-size: 17px; background: var(--rc); color: var(--rfg); }
+.bus-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; text-decoration: none; color: inherit; }
+.bus-link::after { content: "›"; font-size: 26px; line-height: 1; color: var(--muted); }
+.stops { font-size: 17px; }
+.stops b { font-weight: 600; }
+.line-note { font-size: 16px; padding-top: 10px; }
+.line-note--warn { color: var(--bad-ink); font-weight: 600; }
+.end-place { font-weight: 700; font-size: 18px; padding-top: 12px; }
+.end-place small { display: block; font-weight: 500; color: var(--muted); font-size: 14px; }
+.kyiv { margin-top: 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); padding: 10px 12px; display: grid; gap: 8px; font-size: 15px; }
+.kyiv__head { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.kyiv__row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; }
+.kyiv__row small { color: var(--muted); }
+.metro { background: #d32f2f; color: #ffffff; font-weight: 700; border-radius: 6px; padding: 1px 7px; font-size: 13px; }
+.kyiv .btn--ghost { justify-self: start; min-height: 40px; padding-inline: 0; }
+
+.alts { display: grid; gap: 8px; }
+.alts h3 { margin: 6px 0 2px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.alt { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); text-align: left; width: 100%; }
+.alt__row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.alt__title { font-weight: 600; }
+.alt__sub { color: var(--muted); font-size: 14px; }
+.tbar { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.tbar i { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.tbar i.walk { background: repeating-linear-gradient(90deg, var(--walk) 0 4px, transparent 4px 7px); }
+.tbar-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+
+.foot-actions { display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 10px; box-shadow: var(--shadow); }
+.panel h3 { margin: 0; font-size: 20px; }
+.panel p { margin: 0; }
+.panel ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.proto-note { font-size: 13px; color: var(--muted); }
+.copybox { white-space: pre-wrap; font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0; }
+
+.sheet-bg { position: fixed; inset: 0; background: rgba(5, 25, 30, .4); z-index: 20; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--surface); border-radius: 20px 20px 0 0; box-shadow: 0 -8px 30px rgba(0, 0, 0, .2); padding-top: 10px; padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 640px; margin: 0 auto; }
+.sheet__grip { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 10px; }
+.sheet h2 { margin: 0 0 10px; font-size: 18px; }
+.sheet__opts { display: grid; gap: 6px; }
+.sheet__opt { min-height: 52px; text-align: left; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.sheet__opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.sheet__opt small { color: var(--muted); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 12px)); z-index: 30; background: var(--ink); color: var(--surface); padding: 12px 18px; border-radius: 12px; max-width: min(92vw, 520px); font-size: 15px; box-shadow: var(--shadow); }
+
+.page-foot { margin-top: 40px; font-size: 13px; color: var(--muted); text-align: center; }
+
+@media (max-width: 420px) {
+  .brand__name { font-size: 38px; }
+  .leg { grid-template-columns: 3.7rem 22px minmax(0, 1fr); column-gap: 8px; }
+  .leg__time { font-size: 16px; }
+  .lead { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="proto">
+  <span><b>Прототип «Доведе»</b> · фаза 0 · дані умовні, «зараз» — пʼятниця, 14:20</span>
+  <label for="stateSel">Стан
+    <select id="stateSel">
+      <option value="empty">1 · Порожній</option>
+      <option value="typing">2 · Набір тексту</option>
+      <option value="loading">3 · Очікування</option>
+      <option value="clarify">4 · Уточнення 1 / 2</option>
+      <option value="storyBus">5 · Історія: маршрутка + №7</option>
+      <option value="storyTrain">5б · Історія: електричка</option>
+      <option value="storyB">6 · Царське село → Київ</option>
+      <option value="errUnknown">7а · Незнайоме місце</option>
+      <option value="errNoTrips">7б · Рейсів уже немає</option>
+      <option value="errLate">7в · Автобуси вже не ходять</option>
+      <option value="askFrom">8 · Не сказано, звідки</option>
+    </select>
+  </label>
+</div>
+
+<main class="wrap">
+  <header class="brand">
+    <h1 class="brand__name">Доведе<span>.</span></h1>
+    <p class="brand__tag">Спитайте своїми словами — і доведе.</p>
+  </header>
+
+  <form id="ask" autocomplete="off">
+    <label for="q" class="sr-only">Куди вам потрібно доїхати?</label>
+    <div class="field">
+      <div class="field__text">
+        <div class="field__mirror" id="mirror" aria-hidden="true"></div>
+        <textarea id="q" rows="1" spellcheck="false" enterkeyhint="search" placeholder="Звідки й куди їдете?" aria-describedby="slots" aria-autocomplete="list" aria-controls="suggest"></textarea>
+      </div>
+      <button class="go" type="submit" aria-label="Знайти дорогу">
+        <span class="go__label">Знайти</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+    <ul class="suggest" id="suggest" role="listbox" aria-label="Підказки" hidden></ul>
+    <div class="slots" id="slots" hidden></div>
+  </form>
+
+  <section class="home" id="home">
+    <div>
+      <h2>Спитайте, наприклад</h2>
+      <div class="chips">
+        <button type="button" class="chip" data-example="Як доїхати з Києва (Святошин) до Малина на вокзал">З Києва (Святошин) до Малина на вокзал</button>
+        <button type="button" class="chip" data-example="з Царського села до Києва завтра зранку">З Царського села до Києва завтра зранку</button>
+        <button type="button" class="chip" data-example="електричкою з Києва до Малина">Електричкою з Києва до Малина</button>
+        <button type="button" class="chip" data-example="з Ковалівки до Малина">З Ковалівки до Малина</button>
+      </div>
+    </div>
+    <div>
+      <h2>Або торкніться місць</h2>
+      <div class="tiles">
+        <button type="button" class="tile" data-tile-from="з Києва" data-tile-to="до Києва"><b>Київ</b><small>маршрутки й електрички</small></button>
+        <button type="button" class="tile" data-tile-from="з Малина" data-tile-to="до Малина"><b>Малин</b><small>місто</small></button>
+        <button type="button" class="tile" data-tile-from="з вокзалу" data-tile-to="на вокзал"><b>Вокзал</b><small>Малин</small></button>
+        <button type="button" class="tile" data-tile-from="з автостанції" data-tile-to="до автостанції"><b>Автостанція</b><small>Малин</small></button>
+        <button type="button" class="tile" data-tile-from="з Царського села" data-tile-to="до Царського села"><b>Царське село</b><small>Малин · №9</small></button>
+      </div>
+    </div>
+    <div>
+      <h2>Нещодавні</h2>
+      <div class="chips">
+        <button type="button" class="chip" data-example="з Києва до Малина о 22:00">з Києва до Малина о 22:00</button>
+        <button type="button" class="chip" data-example="до Малина">до Малина</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="out" id="out" aria-live="polite"></section>
+
+  <p class="page-foot">Прототип фази 0 · Docs/dovede-roadmap.md · часи й рейси умовні, на основі розкладу сайту</p>
+</main>
+
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="sheet__grip"></div>
+  <h2 id="sheetTitle">Змінити</h2>
+  <div class="sheet__opts" id="sheetOpts"></div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const q = $('#q'), mirror = $('#mirror'), slotsEl = $('#slots'), sugEl = $('#suggest');
+  const out = $('#out'), home = $('#home'), stateSel = $('#stateSel');
+  const sheet = $('#sheet'), sheetBg = $('#sheetBg'), sheetOpts = $('#sheetOpts'), sheetTitle = $('#sheetTitle');
+  const toastEl = $('#toast');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const norm = (s) => s.toLowerCase().replace(/[’ʼ`]/g, "'").replace(/ё/g, 'е');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const toMin = (t) => { const [h, m] = t.replace('≈', '').split(':').map(Number); return h * 60 + m; };
+
+  // ---------- Словник (міні-версія майбутнього nlu/) ----------
+  const FROM = new Set(['з', 'із', 'зі', 'від', 'с', 'из', 'от', 'со']);
+  const TO = new Set(['до', 'в', 'у', 'на', 'к', 'во']);
+  const CITY = { Kyiv: 'Київ', Malyn: 'Малин', Zhytomyr: 'Житомир', Korosten: 'Коростень' };
+  const PLACES = [
+    { id: 'kyiv.zhytomyrska', city: 'Kyiv', label: 'м. Житомирська', stems: ['житомирськ', 'житомирск'] },
+    { id: 'kyiv.sviatoshyn', city: 'Kyiv', label: 'Святошин', stems: ['святош', 'sviatosh'] },
+    { id: 'kyiv.akadem', city: 'Kyiv', label: 'Академмістечко', stems: ['академ'] },
+    { id: 'kyiv.borshch', city: 'Kyiv', label: 'Борщагівка', stems: ['борщаг'] },
+    { id: 'malyn.malynivka', city: 'Malyn', label: 'Малинівка', stems: ['малинівк', 'малиновк'] },
+    { id: 'malyn.avtostantsiya', city: 'Malyn', label: 'автостанція', stems: ['автостанц', 'автовокзал'] },
+    { id: 'malyn.vokzal', city: 'Malyn', label: 'вокзал', stems: ['вокзал'] },
+    { id: 'malyn.tsentr', city: 'Malyn', label: 'центр', stems: ['центр', 'промін'] },
+    { id: 'malyn.ptl', city: 'Malyn', label: 'ПТЛ', stems: ['птл', 'пту'] },
+    { id: 'malyn.likarnia', city: 'Malyn', label: 'лікарня', stems: ['лікарн', 'больниц', 'полікл', 'поликл'] },
+    { id: 'malyn.tsarske', city: 'Malyn', label: 'Царське село', stems: ['царськ', 'царск'] },
+    { id: 'malyn.yurivka', city: 'Malyn', label: 'Юрівка', stems: ['юрівк', 'юровк'] },
+    { id: 'malyn.paperova', city: 'Malyn', label: 'Паперова фабрика', stems: ['паперов', 'бумажн'] },
+    { id: 'malyn.hrushevskoho', city: 'Malyn', label: 'Грушевського', stems: ['грушевськ', 'грушевск'] },
+    { id: 'city.Zhytomyr', city: 'Zhytomyr', label: 'Житомир', stems: ['житомир', 'zhytomyr'], isCity: true },
+    { id: 'city.Korosten', city: 'Korosten', label: 'Коростень', stems: ['коростен', 'korosten'], isCity: true },
+    { id: 'city.Malyn', city: 'Malyn', label: 'Малин', stems: ['малин', 'malyn'], isCity: true, loc: ['малині', 'малине'] },
+    { id: 'city.Kyiv', city: 'Kyiv', label: 'Київ', stems: ['київ', 'києв', 'киев', 'kyiv', 'kiev', 'кив'], isCity: true, loc: ['києві', 'киеве'] },
+  ];
+  const KYIV_PAS = { id: 'kyiv.pas', city: 'Kyiv', label: 'вокзал' };
+  const BY_ID = Object.fromEntries(PLACES.concat([KYIV_PAS]).map((p) => [p.id, p]));
+  const MODES = [
+    { id: 'elektrichka', stems: ['електрич', 'електріч', 'электрич', 'потяг', 'поїзд', 'поезд'] },
+    { id: 'marshrutka', stems: ['маршрутк', 'маршрутой', 'зубаст'] },
+    { id: 'poputka', stems: ['попутк', 'попутн'] },
+    { id: 'bus', stems: ['автобус'] },
+  ];
+  const MODE_LABEL = { elektrichka: 'електричкою', marshrutka: 'маршруткою', poputka: 'попуткою', city_bus: 'міським автобусом' };
+  const WEEKDAYS = [['неділ', 0], ['воскрес', 0], ['понеділ', 1], ['понедел', 1], ['вівтор', 2], ['вторн', 2], ['серед', 3], ['сред', 3], ['четвер', 4], ["п'ятниц", 5], ['пятниц', 5], ['субот', 6]];
+  const DOW_ACC = ['неділю', 'понеділок', 'вівторок', 'середу', 'четвер', 'пʼятницю', 'суботу'];
+  const NOW_DOW = 5; // пʼятниця 13.11.2026, 14:20
+
+  function placeLabel(p) { return p.isCity ? p.label : `${CITY[p.city]} · ${p.label}`; }
+  function findPlace(n) { return PLACES.find((p) => p.stems.some((s) => n.startsWith(s))); }
+
+  function parse(text) {
+    const r = { from: null, to: null, day: null, time: null, part: null, mode: null, kind: 'depart', unknown: [], unknownRole: null, spans: [] };
+    const toks = [...text.matchAll(/[\p{L}'’ʼ]+|\d{1,2}[:.]\d{2}|\d{1,2}/gu)].map((m) => ({ raw: m[0], n: norm(m[0]), s: m.index, e: m.index + m[0].length }));
+    const wantsArrive = toks.some((t) => /^(бути|встигн|быть|успет)/.test(t.n));
+    const matches = []; const pending = []; let lastSlot = null;
+
+    const assign = (role, p, m) => {
+      const cur = r[role];
+      if (p.id === 'malyn.vokzal' && cur && cur.city === 'Kyiv') p = KYIV_PAS;
+      if (cur && cur.city === p.city && !cur.isCity && p.isCity) { /* конкретніше вже є */ }
+      else r[role] = p;
+      lastSlot = role; m.role = role;
+    };
+
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i], prev = toks[i - 1], n = t.n;
+      if (/^\d{1,2}:\d{2}$/.test(n) || (/^\d{1,2}$/.test(n) && prev && ['о', 'об', 'в', 'на', 'до', 'к'].includes(prev.n))) {
+        const [h, m] = n.split(':'); if (+h > 23) continue;
+        r.time = `${pad(+h)}:${pad(m ? +m : 0)}`;
+        r.spans.push({ s: prev && ['о', 'об', 'до'].includes(prev.n) ? prev.s : t.s, e: t.e, cls: 'when' });
+        continue;
+      }
+      if (/^\d{1,2}\.\d{2}$/.test(n)) {
+        const [d, mo] = n.split('.').map(Number);
+        if (mo >= 1 && mo <= 12) { r.day = { label: `${d}.${pad(mo)}` }; r.spans.push({ s: t.s, e: t.e, cls: 'when' }); }
+        continue;
+      }
+      if (/^(післязавтр|послезавтр)/.test(n)) { r.day = { offset: 2 }; r.spans.push({ s: t.s, e: t.e, cls: 'when' }); continue; }
+      if (/^завтра/.test(n)) { r.day = { offset: 1 }; r.spans.push({ s: t.s, e: t.e, cls: 'when' }); continue; }
+      if (/^(сьогодн|сегодн|зараз|найближч|ближайш)/.test(n)) { r.day = { offset: 0 }; r.spans.push({ s: t.s, e: t.e, cls: 'when' }); continue; }
+      const wd = WEEKDAYS.find(([s]) => n.startsWith(s));
+      if (wd) { r.day = { offset: (wd[1] - NOW_DOW + 7) % 7 }; r.spans.push({ s: prev && TO.has(prev.n) ? prev.s : t.s, e: t.e, cls: 'when' }); continue; }
+      if (/^(зранку|вранці|утром|утра|ранку|зрання)$/.test(n)) { r.part = 'morning'; r.spans.push({ s: t.s, e: t.e, cls: 'when' }); continue; }
+      if (/^(ввечері|вечером|вечора|ввечер)$/.test(n) || (n.startsWith('робот') && prev && /^(після|после)$/.test(prev.n))) { r.part = 'evening'; r.spans.push({ s: n.startsWith('робот') ? prev.s : t.s, e: t.e, cls: 'when' }); continue; }
+      if (/^(вдень|днем)$/.test(n) || (n.startsWith('обід') && prev && /^(після|после)$/.test(prev.n))) { r.part = 'day'; r.spans.push({ s: n.startsWith('обід') ? prev.s : t.s, e: t.e, cls: 'when' }); continue; }
+      const mode = MODES.find((m) => m.stems.some((s) => n.startsWith(s)));
+      if (mode) { r.mode = mode.id; r.spans.push({ s: t.s, e: t.e, cls: 'mode' }); continue; }
+
+      let p = findPlace(n);
+      if (p) {
+        if (p.id === 'malyn.vokzal' && toks.slice(i + 1, i + 3).some((x) => /^(києві|киеве|київськ|киевск|києва)/.test(x.n))) p = KYIV_PAS;
+        const m = { s: t.s, e: t.e, place: p, role: null };
+        matches.push(m);
+        const isLoc = p.loc && p.loc.some((l) => n.startsWith(l));
+        if (isLoc && lastSlot && r[lastSlot] && r[lastSlot].city === p.city) { m.role = lastSlot; continue; }
+        if (prev && FROM.has(prev.n)) { m.s = prev.s; assign('from', p, m); continue; }
+        if (prev && TO.has(prev.n)) { m.s = prev.s; assign('to', p, m); continue; }
+        if (lastSlot && r[lastSlot] && r[lastSlot].city === p.city) { assign(lastSlot, p, m); continue; }
+        pending.push(m);
+        continue;
+      }
+      if (prev && (FROM.has(prev.n) || TO.has(prev.n)) && /^\p{Lu}/u.test(t.raw)) {
+        r.unknown.push(t.raw); r.unknownRole = FROM.has(prev.n) ? 'from' : 'to';
+        r.spans.push({ s: t.s, e: t.e, cls: 'unknown' });
+      }
+    }
+    pending.forEach((m, idx) => {
+      if (pending.length >= 2 && idx === 0 && !r.from) { r.from = m.place; m.role = 'from'; return; }
+      if (!r.to) { r.to = m.place; m.role = 'to'; } else if (!r.from) { r.from = m.place; m.role = 'from'; }
+    });
+    matches.forEach((m) => { if (m.role) r.spans.push({ s: m.s, e: m.e, cls: m.role }); });
+    if (r.mode === 'bus') r.mode = r.from && r.to && r.from.city === 'Malyn' && r.to.city === 'Malyn' ? 'city_bus' : 'marshrutka';
+    if (wantsArrive && r.time) r.kind = 'arrive';
+    if (r.unknownRole && r[r.unknownRole]) r.unknownRole = null;
+    return r;
+  }
+
+  function dayLabel(d) {
+    if (!d) return null;
+    if (d.label) return d.label;
+    if (d.offset === 0) return 'сьогодні';
+    if (d.offset === 1) return 'завтра';
+    if (d.offset === 2) return 'післязавтра';
+    return `у ${DOW_ACC[(NOW_DOW + d.offset) % 7]}`;
+  }
+  function whenLabel(p) {
+    const parts = [dayLabel(p.day), { morning: 'зранку', day: 'вдень', evening: 'ввечері' }[p.part], p.time ? (p.kind === 'arrive' ? `до ${p.time}` : `о ${p.time}`) : null].filter(Boolean);
+    return parts.length ? parts.join(' ') : null;
+  }
+
+  // ---------- Поле: підсвічування, рядок «Розумію», підказки ----------
+  let overrides = {};
+  function current() {
+    const p = parse(q.value);
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (k === 'when') { p.day = v.day; p.part = v.part; p.time = null; }
+      else if (k === 'mode') p.mode = v;
+      else p[k] = v;
+    });
+    return p;
+  }
+
+  function renderMirror(p) {
+    const text = q.value; const spans = p.spans.slice().sort((a, b) => a.s - b.s);
+    let html = '', pos = 0;
+    spans.forEach((sp) => { if (sp.s < pos) return; html += esc(text.slice(pos, sp.s)) + `<mark class="hl hl--${sp.cls}">${esc(text.slice(sp.s, sp.e))}</mark>`; pos = sp.e; });
+    mirror.innerHTML = html + esc(text.slice(pos)) + '​';
+  }
+  function autosize() {
+    q.style.height = '';
+    if (q.value && q.clientWidth > 40) q.style.height = Math.max(50, q.scrollHeight) + 'px';
+  }
+  window.addEventListener('resize', autosize);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(autosize);
+
+  function slotBtn(slot, label, cls, title) {
+    return `<button type="button" class="slot slot--${slot} ${cls}" data-sheet="${slot}" title="${esc(title)}">${esc(label)}</button>`;
+  }
+  function renderSlots(p) {
+    const any = q.value.trim() || Object.keys(overrides).length;
+    slotsEl.hidden = !any;
+    if (!any) return;
+    const fromUnknown = p.unknownRole === 'from' ? p.unknown[0] : null;
+    const toUnknown = p.unknownRole === 'to' ? p.unknown[0] : null;
+    const from = p.from ? slotBtn('from', placeLabel(p.from), '', 'Змінити, звідки') : fromUnknown ? slotBtn('from', `«${fromUnknown}»?`, 'is-unknown', 'Невідоме місце') : slotBtn('from', 'звідки?', 'is-empty', 'Обрати, звідки');
+    const to = p.to ? slotBtn('to', placeLabel(p.to), '', 'Змінити, куди') : toUnknown ? slotBtn('to', `«${toUnknown}»?`, 'is-unknown', 'Невідоме місце') : slotBtn('to', 'куди?', 'is-empty', 'Обрати, куди');
+    const w = whenLabel(p);
+    const when = slotBtn('when', w || 'сьогодні, найближчі', w ? '' : 'is-guess', 'Змінити час');
+    const mode = slotBtn('mode', p.mode ? MODE_LABEL[p.mode] : 'будь-яким транспортом', p.mode ? '' : 'is-guess', 'Змінити вид транспорту');
+    slotsEl.innerHTML = `<span>Розумію:</span><span>з</span>${from}<span>до</span>${to}<span>·</span>${when}<span>·</span>${mode}`;
+  }
+
+  const SUGG = [
+    { keys: ['свят'], icon: 'К', label: 'Святошин', hint: 'Київ · метро і платформа електрички', insert: 'Святошин' },
+    { keys: ['акад'], icon: 'К', label: 'Академмістечко', hint: 'Київ · метро, звідси маршрутки на Малин', insert: 'Академмістечка' },
+    { keys: ['вок'], icon: 'М', label: 'Залізничний вокзал', hint: 'Малин · електрички, автобуси №3, 5, 7, 8, 10', insert: 'вокзал' },
+    { keys: ['вок'], icon: 'К', label: 'Київ-Пасажирський', hint: 'Київ · вокзал, електрички на Малин', insert: 'вокзалу в Києві' },
+    { keys: ['цар'], icon: 'М', label: 'Царське село', hint: 'Малин · мікрорайон, автобус №9', insert: 'Царського села' },
+    { keys: ['авто'], icon: 'М', label: 'Автостанція', hint: 'Малин · маршрутки на Київ', insert: 'автостанції' },
+    { keys: ['мал'], icon: '◎', label: 'Малин', hint: 'місто', insert: 'Малина' },
+    { keys: ['мал'], icon: 'М', label: 'Малинівка', hint: 'Малин · мікрорайон', insert: 'Малинівки' },
+    { keys: ['ки', 'кі', 'киє', 'київ'], icon: '◎', label: 'Київ', hint: 'місто', insert: 'Києва' },
+    { keys: ['елек', 'елект'], icon: '⇢', label: 'електричкою', hint: 'вид транспорту', insert: 'електричкою' },
+    { keys: ['марш'], icon: '⇢', label: 'маршруткою', hint: 'вид транспорту', insert: 'маршруткою' },
+    { keys: ['зав'], icon: '◷', label: 'завтра', hint: 'коли', insert: 'завтра' },
+    { keys: ['зра', 'вра'], icon: '◷', label: 'зранку', hint: '05:00–11:00', insert: 'зранку' },
+  ];
+  let sugItems = [], sugActive = -1;
+  function lastToken() {
+    const v = q.value; if (q.selectionEnd !== v.length || /\s$/.test(v)) return null;
+    const m = v.match(/[\p{L}'’ʼ]+$/u); return m ? { s: v.length - m[0].length, n: norm(m[0]) } : null;
+  }
+  function renderSuggest() {
+    const lt = lastToken();
+    sugItems = [];
+    if (lt && lt.n.length >= 2) {
+      sugItems = SUGG.filter((x) => x.keys.some((k) => k.startsWith(lt.n) || lt.n.startsWith(k)) && !norm(x.insert).startsWith(lt.n + ' ') && norm(x.insert) !== lt.n && !lt.n.startsWith(norm(x.insert).split(' ')[0])).slice(0, 4);
+    }
+    sugActive = -1;
+    sugEl.hidden = !sugItems.length;
+    q.setAttribute('aria-expanded', String(!!sugItems.length));
+    sugEl.innerHTML = sugItems.map((x, i) => `<li role="option" id="sug${i}" data-sug="${i}" aria-selected="false"><span class="suggest__icon" aria-hidden="true">${esc(x.icon)}</span><span><span class="suggest__label">${esc(x.label)}</span><br><span class="suggest__hint">${esc(x.hint)}</span></span></li>`).join('');
+  }
+  function pickSuggest(i) {
+    const lt = lastToken(); const x = sugItems[i]; if (!lt || !x) return;
+    q.value = q.value.slice(0, lt.s) + x.insert + ' ';
+    q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+    update();
+  }
+  function hideSuggest() { sugItems = []; sugEl.hidden = true; q.setAttribute('aria-expanded', 'false'); }
+
+  function update() {
+    const p = current();
+    renderMirror(p); renderSlots(p); autosize(); renderSuggest();
+    return p;
+  }
+
+  // ---------- Історії (умовні дані з розкладу сайту) ----------
+  const RC = { '7': ['#F08A1C', '#000000'], '8': ['#7E3FC2', '#ffffff'], '9': ['#E3368C', '#000000'], '10': ['#C99700', '#000000'] };
+  const STORIES = {
+    storyBus: {
+      head: ['Київ, Святошин → Малин, вокзал', 'сьогодні, пʼятниця'],
+      lead: 'Маршрутка о 15:00 від метро «Святошин», біля ПТЛ у Малині приблизно о 16:22. Там пересядьте на автобус №7 о 16:41: на вокзалі будете о 16:46.',
+      understood: 'сьогодні, найближчий рейс, маршруткою',
+      legs: [
+        { type: 'intercity', c: 'var(--marsh)', time: '15:00', title: 'Маршрутка Київ — Малин', tag: 'через Бучу', place: 'Сідайте біля метро <b>«Святошин»</b>', meta: ['→ Малин, ПТЛ ≈ 16:22', 'у дорозі ≈ 1 год 30 хв, у пʼятницю ввечері до 1 год 40 хв', '310 ₴'], note: 'Зараз місця бронюють лише телефоном.', actions: [{ label: 'Подзвонити', primary: true, toast: 'У прототипі дзвінка немає. Тут буде номер диспетчера з розкладу.' }], more: 'Інші рейси: 16:00 і 17:00 від метро «Академмістечко»' },
+        { type: 'transfer', time: '≈16:22', text: 'Вийдіть біля ПТЛ, одразу на вʼїзді в Малин, і перейдіть до зупинки «ПТЛ» у бік вокзалу. Автобус обрано з запасом на пʼятничний затор у Києві.' },
+        { type: 'bus', route: '7', time: '16:41', from: 'ПТЛ', to: 'Залізничний вокзал', meta: '5 зупинок · 5 хв', backup: 'Якщо приїдете раніше, встигнете на №8 о 16:24 (на вокзалі о 16:26).' },
+      ],
+      end: { time: '16:46', place: 'Залізничний вокзал, Малин', sub: 'ви на місці' },
+      alts: [{ go: 'storyTrain', title: 'Електричка 6613, без пересадок', sub: 'зі Святошина о 15:17 · 60 ₴', right: '17:11', axis: ['14:30', '18:00'], segs: [['15:17', '17:11', 'var(--train)']] }],
+      share: ['Київ (Святошин) → Малин, вокзал · пʼятниця', '15:00 — маршрутка від метро «Святошин» (через Бучу), 310 ₴', '≈16:22 — вийти біля ПТЛ', '16:41 — автобус №7 від «ПТЛ» до «Залізничний вокзал»', '16:46 — вокзал'],
+    },
+    storyTrain: {
+      head: ['Київ, Святошин → Малин, вокзал', 'сьогодні, пʼятниця'],
+      lead: 'Електричка 6613 привезе прямо на вокзал Малина, без пересадок: зі Святошина о 15:17, у Малині о 17:11.',
+      understood: 'сьогодні, найближчий рейс, електричкою',
+      legs: [
+        { type: 'intercity', c: 'var(--train)', time: '15:17', title: 'Електричка 6613 · Київ — Малин', tag: 'розклад УЗ', place: 'Сідайте на платформі <b>«Святошин»</b>', meta: ['з Київ-Пасажирського о 14:51', 'у Малині о 17:11', '60 ₴'], actions: [{ label: 'Квиток ↗', primary: true, toast: 'Тут відкриється купівля квитка в застосунку перевізника.' }], more: 'Наступна: 859 о 17:53 зі Святошина (крім суботи), у Малині о 19:28' },
+      ],
+      end: { time: '17:11', place: 'Залізничний вокзал, Малин', sub: 'електричка приходить саме сюди' },
+      alts: [{ go: 'storyBus', title: 'Маршрутка 15:00 + автобус №7', sub: 'від метро «Святошин» · пересадка біля ПТЛ · 310 ₴', right: '16:46', axis: ['14:30', '18:00'], segs: [['15:00', '16:22', 'var(--marsh)'], ['16:41', '16:46', '#F08A1C']] }],
+      share: ['Київ (Святошин) → Малин, вокзал · пʼятниця', '15:17 — електричка 6613 з платформи «Святошин» (з Київ-Пас. о 14:51), 60 ₴', '17:11 — Малин, вокзал'],
+    },
+    storyB: {
+      head: ['Малин, Царське село → Київ', 'завтра, субота'],
+      lead: 'Завтра зранку автобус №9 довезе вас до центру, до «Промінь», а там сідайте на маршрутку приблизно о 07:35. Біля метро «Академмістечко» будете приблизно о 09:00.',
+      understood: '«зранку» — це 05:00–11:00',
+      legs: [
+        { type: 'bus', route: '9', time: '07:09', from: 'Царське село', to: 'м-н «Промінь»', meta: '4 зупинки · 7 хв' },
+        { type: 'transfer', time: '07:16', text: 'Зачекайте на зупинці біля «Промінь». До маршрутки ≈ 19 хв: запас більший за потрібні 10 хв.' },
+        { type: 'intercity', c: 'var(--marsh)', time: '≈07:35', title: 'Маршрутка Малин — Київ', tag: 'через Ірпінь', usual: true, place: 'Сідайте в центрі, біля <b>«Промінь»</b>', meta: ['з автостанції о 07:30', '→ Київ, м. Академмістечко ≈ 09:00', '310 ₴'], note: 'Зазвичай проходить центр за 5 хв після автостанції. Будьте на зупинці щонайменше за 10 хв.', actions: [{ label: 'Подзвонити', primary: true, toast: 'У прототипі дзвінка немає. Тут буде номер диспетчера з розкладу.' }] },
+      ],
+      end: { time: '≈09:00', place: 'Київ, метро «Академмістечко»', sub: 'маршрутка зупиняється біля входу в метро', kyiv: { rows: [['М1', '«Академмістечко» — кінцева червоної лінії', 'до «Святошина» — 2 станції']], origin: 'метро Академмістечко, Київ' } },
+      alts: [
+        { title: 'Маршрутка 10:30 через Бучу', sub: '№9 о 09:24 до «Промінь» · у Києві біля м. «Святошин» · 310 ₴', right: '≈12:00', axis: ['06:30', '13:00'], segs: [['09:24', '09:31', '#E3368C'], ['10:35', '12:00', 'var(--marsh)']] },
+        { title: 'Електричка 6614 о 09:48 з вокзалу', sub: '№9 і №8 до вокзалу · Святошин 11:50 · 60 ₴', right: '12:17', axis: ['06:30', '13:00'], segs: [['08:34', '08:41', '#E3368C'], ['08:46', '08:56', '#7E3FC2'], ['09:48', '12:17', 'var(--train)']] },
+      ],
+      share: ['Малин, Царське село → Київ · субота', '07:09 — автобус №9 від «Царське село» до «м-н Промінь»', '≈07:35 — маршрутка на Київ біля «Промінь» (через Ірпінь), 310 ₴; бути за 10 хв', '≈09:00 — Київ, метро «Академмістечко» (М1)'],
+    },
+    errLate: {
+      head: ['Київ → Малин, Царське село', 'сьогодні ввечері'],
+      lead: 'Електричка 6621 приїде на вокзал Малина о 20:48, а останній автобус №9 до Царського села був о 18:04.',
+      understood: 'сьогодні ввечері, електричкою',
+      legs: [
+        { type: 'intercity', c: 'var(--train)', time: '18:59', title: 'Електричка 6621 · Київ — Малин', tag: 'розклад УЗ', place: 'Сідайте на платформі <b>«Святошин»</b>', meta: ['у Малині о 20:48', '60 ₴'], actions: [{ label: 'Квиток ↗', primary: true, toast: 'Тут відкриється купівля квитка в застосунку перевізника.' }] },
+        { type: 'walk', warn: true, time: '20:48', text: 'Міські автобуси вже не ходять. Від вокзалу до Царського села ≈ 3 км пішки, ≈ 45 хв.' },
+      ],
+      end: { time: '≈21:35', place: 'Царське село, Малин', sub: 'пішки від вокзалу' },
+      tip: { text: 'Щоб доїхати міським автобусом, будьте в Малині до 17:30, наприклад електричкою 6613: зі Святошина о 15:17, у Малині о 17:11.', go: 'storyTrain' },
+      share: ['Київ (Святошин) → Малин, Царське село · пʼятниця', '18:59 — електричка 6621 з платформи «Святошин», 60 ₴', '20:48 — Малин, вокзал; далі ≈ 3 км пішки'],
+    },
+  };
+
+  function kyivHtml(k) {
+    const maps = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(k.origin)}&travelmode=transit`;
+    const rows = k.rows.map(([line, text, sub]) => `<div class="kyiv__row"><span class="metro">${esc(line)}</span><span>${esc(text)}<br><small>${esc(sub)}</small></span></div>`).join('');
+    return `<div class="kyiv"><div class="kyiv__head">Далі по Києву</div>${rows}<a class="btn btn--ghost" href="${esc(maps)}" target="_blank" rel="noopener">Маршрут по Києву в Google Maps ↗</a></div>`;
+  }
+
+  function legHtml(l) {
+    if (l.type === 'intercity') {
+      const actions = (l.actions || []).map((a) => `<button type="button" class="btn ${a.primary ? 'btn--primary' : ''}" data-toast="${esc(a.toast)}">${esc(a.label)}</button>`).join('');
+      return `<div class="leg" style="--c:${l.c}"><div class="leg__time num">${esc(l.time)}</div><div class="leg__rail"></div><div class="leg__body"><div class="card">
+        <div class="card__top"><span class="card__title">${esc(l.title)}</span>${l.tag ? `<span class="tag">${esc(l.tag)}</span>` : ''}${l.usual ? '<span class="tag tag--usual">зазвичай</span>' : ''}</div>
+        <div class="card__place">${l.place}</div>
+        <div class="meta num">${l.meta.map((m) => `<span>${esc(m)}</span>`).join('')}</div>
+        ${l.note ? `<div class="note">${esc(l.note)}</div>` : ''}
+        <div class="actions">${actions}</div>
+        ${l.more ? `<div class="more">${esc(l.more)}</div>` : ''}
+      </div></div></div>`;
+    }
+    if (l.type === 'bus') {
+      const [bg, fg] = RC[l.route];
+      return `<div class="leg" style="--c:${bg}"><div class="leg__time num">${esc(l.time)}</div><div class="leg__rail"></div><div class="leg__body"><div class="card">
+        <a class="bus-link" href="#" data-toast="Тут відкриється /transport/route/${esc(l.route)} з цими зупинками й часом." aria-label="Автобус №${esc(l.route)}: розклад і зупинки">
+          <span class="card__top"><span class="badge" style="--rc:${bg};--rfg:${fg}">№${esc(l.route)}</span><span class="card__title">Міський автобус о <span class="num">${esc(l.time)}</span></span></span>
+        </a>
+        <div class="stops"><b>${esc(l.from)}</b> → <b>${esc(l.to)}</b></div>
+        <div class="meta num"><span>${esc(l.meta)}</span></div>
+        ${l.backup ? `<div class="more">${esc(l.backup)}</div>` : ''}
+      </div></div></div>`;
+    }
+    const dots = l.type === 'walk' ? 'var(--walk)' : 'var(--line)';
+    return `<div class="leg leg--dots" style="--c:${dots}"><div class="leg__time num"><small>${esc(l.time)}</small></div><div class="leg__rail"></div><div class="leg__body"><div class="line-note ${l.warn ? 'line-note--warn' : ''}">${esc(l.text)}</div></div></div>`;
+  }
+
+  function tbar(a) {
+    const [a0, a1] = a.axis.map(toMin); const span = a1 - a0;
+    const segs = a.segs.map(([s, e, c]) => `<i style="left:${((toMin(s) - a0) / span) * 100}%;width:${Math.max(2, ((toMin(e) - toMin(s)) / span) * 100)}%;background:${c}"></i>`).join('');
+    return `<div class="tbar" aria-hidden="true">${segs}</div><div class="tbar-axis num" aria-hidden="true"><span>${a.axis[0]}</span><span>${a.axis[1]}</span></div>`;
+  }
+
+  function storyHtml(key, mismatch) {
+    const s = STORIES[key];
+    const legs = s.legs.map(legHtml).join('');
+    const end = `<div class="leg leg--end" style="--c:var(--ink)"><div class="leg__time num">${esc(s.end.time)}</div><div class="leg__rail"></div><div class="leg__body"><div class="end-place">${esc(s.end.place)}<small>${esc(s.end.sub)}</small></div>${s.end.kyiv ? kyivHtml(s.end.kyiv) : ''}</div></div>`;
+    const alts = s.alts ? `<div class="alts"><h3>Інші варіанти</h3>${s.alts.map((a) => `<button type="button" class="alt" ${a.go ? `data-go="${a.go}"` : `data-toast="У прототипі ця історія не розписана."`}><span class="alt__row"><span><span class="alt__title">${esc(a.title)}</span><br><span class="alt__sub">${esc(a.sub)}</span></span><span class="choice__time num">${esc(a.right)}</span></span>${tbar(a)}</button>`).join('')}</div>` : '';
+    const tip = s.tip ? `<div class="panel"><p>${esc(s.tip.text)}</p><div class="actions"><button type="button" class="btn" data-go="${s.tip.go}">Показати цей варіант</button></div></div>` : '';
+    return `<div class="trip-head"><b>${esc(s.head[0])}</b><span>${esc(s.head[1])}</span></div>
+      <p class="lead">${esc(s.lead)}</p>
+      <p class="understood">Розумію: ${esc(s.understood)} · <button type="button" data-sheet="when">Інший час</button> <button type="button" data-sheet="mode">Інший транспорт</button></p>
+      <div class="story">${legs}${end}</div>
+      ${tip}${alts}
+      <div class="foot-actions"><button type="button" class="btn" data-share="${key}">Поділитися текстом</button><button type="button" class="btn btn--ghost" data-reset>Нове питання</button></div>
+      ${mismatch ? '<p class="proto-note">Прототип: історію показано для прикладу «Святошин → вокзал».</p>' : ''}`;
+  }
+
+  function choicesHtml(question, items, hint) {
+    const keys = items.map((_, i) => `<kbd>${i + 1}</kbd>`).join(items.length > 2 ? ', ' : ' або ');
+    return `<p class="ask-q">${esc(question)}</p>
+      <div class="choices">${items.map((c, i) => `<button type="button" class="choice" data-choice="${i}"><span class="choice__n num">${i + 1}</span><span><span class="choice__title">${esc(c.title)}</span><br><span class="choice__sub">${esc(c.sub)}</span></span><span class="choice__time num">${esc(c.time || '')}${c.timeSub ? `<small>${esc(c.timeSub)}</small>` : ''}</span></button>`).join('')}</div>
+      <p class="hint-keys">Натисніть ${keys} або просто допишіть ${esc(hint)}.</p>`;
+  }
+
+  const CLARIFY = [
+    { title: 'Маршрутка', sub: 'від метро «Святошин» · пересадка біля ПТЛ на №7 · 310 ₴', time: '15:00', timeSub: 'вокзал 16:46', go: 'storyBus' },
+    { title: 'Електричка', sub: 'з платформи «Святошин» · без пересадок · 60 ₴', time: '15:17', timeSub: 'вокзал 17:11', go: 'storyTrain' },
+  ];
+  const ASK_FROM = [
+    { title: 'З Києва', sub: 'маршрутка ≈ 1 год 30 хв, електричка ≈ 2 год', time: '', go: 'fromKyiv' },
+    { title: 'З Житомира', sub: '16 маршруток на день', time: '', go: 'outside' },
+    { title: 'З Коростеня', sub: '6 електричок на день', time: '', go: 'outside' },
+  ];
+  let choiceSet = null;
+
+  function setAnswered(on) { document.body.classList.toggle('answered', on); home.hidden = on; }
+
+  function showLoading(p, keep) {
+    setAnswered(true); choiceSet = null;
+    const f = p.from ? placeLabel(p.from) : null, t = p.to ? placeLabel(p.to) : null;
+    const what = f && t ? `як дістатися: ${f} → ${t}` : t ? `як дістатися до: ${t}` : 'дорогу';
+    out.innerHTML = `<div class="status"><span class="status__dot" aria-hidden="true"></span><span>Шукаю ${esc(what)}${keep ? '' : '…'}</span></div><div class="skel"><i style="width:45%"></i><i style="width:80%"></i><i style="width:60%"></i></div><div class="skel"><i style="width:35%"></i><i style="width:70%"></i></div>`;
+  }
+
+  function pick(p) {
+    if (p.unknown.length && !(p.from && p.to)) return 'errUnknown';
+    const fc = p.from && p.from.city, tc = p.to && p.to.city;
+    if (!p.from && !p.to) return p.day || p.part || p.time ? 'needPlaces' : 'other';
+    if (fc === 'Kyiv' && tc === 'Malyn') {
+      if (p.time && p.time >= '21:30') return 'errNoTrips';
+      if (['malyn.tsarske', 'malyn.yurivka', 'malyn.malynivka'].includes(p.to.id) && (p.part === 'evening' || (p.time && p.time >= '18:00'))) return 'errLate';
+      if (p.mode === 'elektrichka') return 'storyTrain';
+      if (p.mode === 'marshrutka') return 'storyBus';
+      return 'clarify';
+    }
+    if ((fc === 'Malyn' || !p.from) && tc === 'Kyiv') return 'storyB';
+    if (!p.from && tc === 'Malyn') return 'askFrom';
+    if (fc === 'Malyn' && tc === 'Malyn') return 'cityOnly';
+    return 'outside';
+  }
+
+  function show(key, p) {
+    setAnswered(true); choiceSet = null;
+    if (stateSel.value !== key && [...stateSel.options].some((o) => o.value === key)) stateSel.value = key;
+    if (STORIES[key]) {
+      const sample = (key === 'storyB') ? (p && p.from && p.from.id !== 'malyn.tsarske') : (p && ((p.from && !['kyiv.sviatoshyn', 'city.Kyiv'].includes(p.from.id)) || (p.to && !['malyn.vokzal', 'city.Malyn', 'malyn.tsarske'].includes(p.to.id))));
+      out.innerHTML = storyHtml(key, sample);
+    } else if (key === 'clarify') {
+      choiceSet = CLARIFY;
+      out.innerHTML = `<div class="trip-head"><b>Київ, Святошин → Малин, вокзал</b><span>сьогодні, найближчі</span></div>` + choicesHtml('Як вам зручніше?', CLARIFY, '«маршруткою» чи «електричкою»');
+    } else if (key === 'askFrom') {
+      choiceSet = ASK_FROM;
+      out.innerHTML = `<div class="trip-head"><b>? → Малин</b><span>сьогодні, найближчі</span></div>` + choicesHtml('Звідки вирушаєте?', ASK_FROM, 'місто');
+    } else if (key === 'errUnknown') {
+      const w = (p && p.unknown[0]) || 'Ковалівки';
+      out.innerHTML = `<div class="panel"><h3>Не знаю, де це: «${esc(w)}»</h3><p>Я знаю Київ, Житомир, Коростень, Малин і місця в Малині. Можливо, ви мали на увазі:</p>
+        <div class="chips"><button type="button" class="chip" data-example="з Малинівки до Малина">Малинівка, Малин</button><button type="button" class="chip" data-example="з Юрівки до Києва">Юрівка, Малин</button></div>
+        <p class="proto-note">Або напишіть найближчу зупинку чи вулицю. Невідомі слова потраплять у журнал, щоб «Доведе» їх вивчив.</p></div>`;
+    } else if (key === 'errNoTrips') {
+      out.innerHTML = `<div class="trip-head"><b>Київ → Малин</b><span>сьогодні о 22:00</span></div><div class="panel"><h3>Сьогодні до Малина вже нічого не їде</h3>
+        <p>Остання маршрутка — о 21:00 (лише в пʼятницю), остання електричка — 6621 о 18:59 зі Святошина. Найперші завтра, у суботу:</p>
+        <ul class="num"><li><b>05:35</b> — електричка 6601 з Київ-Пасажирського (Святошин 06:00, у Малині 08:01) · 60 ₴</li><li><b>08:00</b> — маршрутка від метро «Святошин» · 310 ₴</li></ul>
+        <div class="actions"><button type="button" class="btn btn--primary" data-toast="Тут буде історія на завтра, 05:35.">Показати на завтра</button><button type="button" class="btn" data-toast="Попутки зʼявляться у фазі 6.">Попутки на вечір</button></div></div>`;
+    } else if (key === 'outside') {
+      out.innerHTML = `<div class="panel"><h3>Цю дорогу я ще вчу</h3><p>У першій версії «Доведе» знає дорогу Київ — Малин і міські автобуси Малина. Житомир, Коростень і попутки додамо наступними.</p><div class="actions"><button type="button" class="btn" data-reset>Спитати інакше</button></div></div>`;
+    } else if (key === 'cityOnly') {
+      out.innerHTML = `<div class="panel"><h3>Поїздка містом</h3><p>Тут буде картка міського автобуса з планувальника <b>/transport</b>: номер, час, зупинки й пішки. У прототипі розписано лише міжміські історії.</p></div>`;
+    } else if (key === 'needPlaces') {
+      out.innerHTML = `<div class="panel"><h3>Куди їдемо?</h3><p>Час я зрозумів, тепер напишіть звідки й куди, наприклад «з Малина до Києва».</p></div>`;
+    } else if (key === 'other') {
+      out.innerHTML = `<div class="panel"><h3>Я підказую дорогу</h3><p>Напишіть, звідки, куди й коли, наприклад: «з Малина до Києва завтра зранку».</p></div>`;
+    }
+    out.querySelector('button, a') && reduceMotion === false && out.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  let timer = 0;
+  function submit() {
+    const p = current();
+    if (!q.value.trim() && !Object.keys(overrides).length) { q.focus(); return; }
+    hideSuggest();
+    showLoading(p);
+    clearTimeout(timer);
+    timer = setTimeout(() => show(pick(p), p), reduceMotion ? 250 : 1100);
+  }
+
+  function reset() {
+    clearTimeout(timer); overrides = {}; q.value = ''; update(); out.innerHTML = ''; setAnswered(false); stateSel.value = 'empty'; q.focus();
+  }
+
+  // ---------- Нижня панель для слотів ----------
+  const SHEETS = {
+    from: { title: 'Звідки', opts: [['kyiv.sviatoshyn', 'Київ · Святошин', 'метро і платформа'], ['kyiv.akadem', 'Київ · Академмістечко', 'метро, маршрутки'], ['kyiv.pas', 'Київ · вокзал', 'електрички'], ['malyn.tsarske', 'Малин · Царське село', 'автобус №9'], ['malyn.avtostantsiya', 'Малин · автостанція', '']] },
+    to: { title: 'Куди', opts: [['malyn.vokzal', 'Малин · вокзал', 'електрички, №7, №8'], ['malyn.avtostantsiya', 'Малин · автостанція', 'маршрутки'], ['malyn.tsentr', 'Малин · центр', 'зупинка «Промінь»'], ['kyiv.akadem', 'Київ · Академмістечко', ''], ['city.Kyiv', 'Київ', 'місто']] },
+    when: { title: 'Коли', opts: [['now', 'Зараз, найближчі', 'сьогодні після 14:20'], ['evening', 'Сьогодні ввечері', '17:00–23:00'], ['tmorning', 'Завтра зранку', '05:00–11:00'], ['tday', 'Завтра вдень', '11:00–17:00']] },
+    mode: { title: 'Чим їхати', opts: [['', 'Будь-яким транспортом', 'покажу найкраще'], ['marshrutka', 'Маршруткою', ''], ['elektrichka', 'Електричкою', ''], ['poputka', 'Попуткою', 'скоро']] },
+  };
+  const WHEN_VAL = { now: { day: { offset: 0 }, part: null }, evening: { day: { offset: 0 }, part: 'evening' }, tmorning: { day: { offset: 1 }, part: 'morning' }, tday: { day: { offset: 1 }, part: 'day' } };
+  let sheetSlot = null, lastFocus = null;
+  function openSheet(slot) {
+    sheetSlot = slot; lastFocus = document.activeElement;
+    const cfg = SHEETS[slot]; const p = current();
+    sheetTitle.textContent = cfg.title;
+    sheetOpts.innerHTML = cfg.opts.map(([v, label, hint]) => {
+      const on = slot === 'mode' ? (p.mode || '') === v : slot === 'from' || slot === 'to' ? p[slot] && p[slot].id === v : false;
+      return `<button type="button" class="sheet__opt" data-opt="${esc(v)}" aria-pressed="${on}"><span>${esc(label)}</span><small>${esc(hint)}</small></button>`;
+    }).join('');
+    sheet.hidden = false; sheetBg.hidden = false;
+    sheetOpts.querySelector('button').focus();
+  }
+  function closeSheet() { sheet.hidden = true; sheetBg.hidden = true; if (lastFocus) lastFocus.focus(); }
+  function chooseOpt(v) {
+    if (sheetSlot === 'mode') { if (v === 'poputka') { toast('Попутки зʼявляться у фазі 6.'); return; } overrides.mode = v || null; }
+    else if (sheetSlot === 'when') overrides.when = WHEN_VAL[v];
+    else overrides[sheetSlot] = BY_ID[v];
+    closeSheet();
+    const p = update();
+    if (document.body.classList.contains('answered')) show(pick(p), p);
+  }
+
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => { toastEl.hidden = true; }, 2600);
+  }
+
+  async function share(key) {
+    const text = STORIES[key].share.join('\n');
+    try { await navigator.clipboard.writeText(text); toast('Скопійовано. Можна вставити у Viber чи SMS.'); }
+    catch (e) {
+      const pre = document.createElement('pre'); pre.className = 'copybox'; pre.textContent = text; pre.tabIndex = 0;
+      out.appendChild(pre);
+      const range = document.createRange(); range.selectNodeContents(pre); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      toast('Текст виділено нижче: скопіюйте його вручну.');
+    }
+  }
+
+  // ---------- Події ----------
+  q.addEventListener('input', () => { overrides = {}; update(); });
+  q.addEventListener('keydown', (e) => {
+    if (!sugEl.hidden && sugItems.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      sugActive = (sugActive + (e.key === 'ArrowDown' ? 1 : -1) + sugItems.length) % sugItems.length;
+      [...sugEl.children].forEach((li, i) => li.setAttribute('aria-selected', String(i === sugActive)));
+      q.setAttribute('aria-activedescendant', `sug${sugActive}`);
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!sugEl.hidden && sugActive >= 0) pickSuggest(sugActive); else submit();
+    }
+    if (e.key === 'Escape') hideSuggest();
+  });
+  q.addEventListener('blur', () => setTimeout(hideSuggest, 150));
+  sugEl.addEventListener('mousedown', (e) => { const li = e.target.closest('[data-sug]'); if (li) { e.preventDefault(); pickSuggest(+li.dataset.sug); } });
+  $('#ask').addEventListener('submit', (e) => { e.preventDefault(); submit(); });
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-example],[data-tile-from],[data-sheet],[data-choice],[data-go],[data-toast],[data-share],[data-reset],[data-opt]');
+    if (!t) return;
+    if (t.dataset.example) { overrides = {}; q.value = t.dataset.example; update(); submit(); return; }
+    if (t.dataset.tileFrom) {
+      const p = parse(q.value); const add = p.from || p.to ? t.dataset.tileTo : t.dataset.tileFrom;
+      q.value = (q.value.trim() ? q.value.trim() + ' ' : '') + add + ' '; q.focus(); update(); return;
+    }
+    if (t.dataset.sheet) { openSheet(t.dataset.sheet); return; }
+    if (t.dataset.opt !== undefined) { chooseOpt(t.dataset.opt); return; }
+    if (t.dataset.choice) { choose(+t.dataset.choice); return; }
+    if (t.dataset.go) { show(t.dataset.go, current()); return; }
+    if (t.dataset.share) { share(t.dataset.share); return; }
+    if (t.dataset.reset !== undefined) { reset(); return; }
+    if (t.dataset.toast) { e.preventDefault(); toast(t.dataset.toast); }
+  });
+  sheetBg.addEventListener('click', closeSheet);
+
+  function choose(i) {
+    if (!choiceSet || !choiceSet[i]) return;
+    const c = choiceSet[i];
+    if (c.go === 'fromKyiv') { overrides.from = BY_ID['city.Kyiv']; const p = update(); show(pick(p), p); return; }
+    show(c.go, current());
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !sheet.hidden) { closeSheet(); return; }
+    if (document.activeElement === q || !sheet.hidden) return;
+    if (choiceSet && /^[1-9]$/.test(e.key)) { const i = +e.key - 1; if (choiceSet[i]) { e.preventDefault(); choose(i); } }
+    if (e.key === '/' ) { e.preventDefault(); q.focus(); }
+  });
+
+  // ---------- Перемикач станів прототипу ----------
+  const STATE_TEXT = {
+    empty: '', typing: 'Як доїхати з Києва (Свят', loading: 'Як доїхати з Києва (Святошин) до Малина на вокзал',
+    clarify: 'Як доїхати з Києва (Святошин) до Малина на вокзал', storyBus: 'з Києва (Святошин) до Малина на вокзал маршруткою',
+    storyTrain: 'електричкою з Києва (Святошин) до Малина на вокзал', storyB: 'з Царського села до Києва завтра зранку',
+    errUnknown: 'з Ковалівки до Малина', errNoTrips: 'з Києва до Малина о 22:00', errLate: 'електричкою з Києва в Царське село ввечері', askFrom: 'до Малина',
+  };
+  stateSel.addEventListener('change', () => {
+    const k = stateSel.value; clearTimeout(timer); overrides = {};
+    q.value = STATE_TEXT[k] || '';
+    const p = update();
+    if (k === 'empty') { out.innerHTML = ''; setAnswered(false); return; }
+    if (k === 'typing') { out.innerHTML = ''; setAnswered(false); q.focus(); q.setSelectionRange(q.value.length, q.value.length); renderSuggest(); return; }
+    if (k === 'loading') { showLoading(p, true); return; }
+    show(k, p);
+  });
+
+  update();
+})();
+</script>
+<!-- ARTIFACT-END -->
+</body>
+</html>

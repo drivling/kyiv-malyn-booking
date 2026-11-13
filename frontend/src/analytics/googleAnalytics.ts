@@ -12,9 +12,10 @@ export function gaMeasurementId(): string | undefined {
   return GA_MEASUREMENT_ID;
 }
 
-/** Не збираємо перегляди адмінки в тій самій вітрині звітів */
+/** Не збираємо перегляди адмінки (і таємної «Доведе» — там текст питання, Docs/dovede-roadmap.md) */
 export function gaShouldTrackPath(pathname: string): boolean {
   if (pathname.startsWith('/admin')) return false;
+  if (pathname === '/dovede' || pathname.startsWith('/dovede/')) return false;
   return true;
 }
 
