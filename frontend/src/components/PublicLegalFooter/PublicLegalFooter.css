@@ -43,3 +43,81 @@
     padding: var(--pb-space) var(--pb-space-lg);
   }
 }
+
+/* «Під катом» (collapsible): рядок розробника з кнопкою «Більше», решта розгортається під ним */
+.public-legal-footer--fold {
+  padding-block: var(--pb-space);
+}
+
+.public-legal-footer-dev {
+  margin-bottom: 0;
+}
+
+.public-legal-footer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--pb-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.public-legal-footer-toggle::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.public-legal-footer-toggle[aria-expanded='true']::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.public-legal-footer-toggle:hover {
+  color: var(--pb-primary-hover);
+  text-decoration: underline;
+}
+
+.public-legal-footer-toggle:focus-visible {
+  outline: 2px solid var(--pb-primary);
+  outline-offset: 2px;
+}
+
+.public-legal-footer-more {
+  margin-top: var(--pb-space-sm);
+  animation: public-legal-footer-in 0.18s ease-out;
+}
+
+.public-legal-footer-more[hidden] {
+  display: none;
+}
+
+@keyframes public-legal-footer-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-legal-footer-more {
+    animation: none;
+  }
+  .public-legal-footer-toggle::after {
+    transition: none;
+  }
+}

@@ -65,8 +65,9 @@ function AppContent() {
   useOutboxSync();
   const showPublicLegalFooter = showGlobalPublicLegalFooter(pathname);
   const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/');
+  const isDovede = pathname === '/dovede' || pathname === '/dovede/';
   // Віджет на стіну й «Доведе» — як окремі застосунки: без шапки сайту
-  const isWidget = pathname === '/admin/wall' || pathname === '/dovede' || pathname === '/dovede/';
+  const isWidget = pathname === '/admin/wall' || isDovede;
 
   return (
     <div className={`app ${isAdminPath ? 'app--admin' : 'app--bbc'}`}>
@@ -137,7 +138,8 @@ function AppContent() {
           />
         </Routes>
       </main>
-      {showPublicLegalFooter ? <PublicLegalFooter /> : null}
+      {/* на «Доведе» підвал «під катом»: видно лише рядок розробника */}
+      {showPublicLegalFooter ? <PublicLegalFooter collapsible={isDovede} /> : null}
       {!pathname.startsWith('/admin') ? <CookieNotice /> : null}
       <UpdateBanner />
     </div>
