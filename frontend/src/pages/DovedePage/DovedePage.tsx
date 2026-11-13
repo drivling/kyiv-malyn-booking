@@ -100,10 +100,10 @@ export default function DovedePage() {
         setView({ kind: 'result', parse, intent, outcome, date, now, query: q });
         setSlotsOpen(false);
         setAnswerNo((n) => n + 1);
-        // Відповідь будується з id місць, дати, часу й транспорту. Слова питання йдуть у посилання лише для показу
-        // і лише без адрес (questionForUrl); ця вкладка памʼятає їх сама — на випадок перезавантаження
+        // Відповідь будується з id місць, дати, часу й транспорту; слова питання йдуть у посилання цілком —
+        // перезавантаження й чуже відкриття показують ту саму фразу. Вкладка ще й памʼятає їх сама (запас)
         const params = intentToParams(intent, date);
-        const words = questionForUrl(q, intent);
+        const words = questionForUrl(q);
         if (words) params.set('q', words);
         rememberQuestion(params, q);
         setSearchParams(params, { replace: true });
@@ -185,7 +185,7 @@ export default function DovedePage() {
     // слова питання — з посилання або з памʼяті цієї вкладки; відповідь усе одно з id, Claude не питаємо
     const words = questionFromParams(searchParams) || recallQuestion(searchParams);
     if (words) setText(words);
-    // номера будинку в адресі сторінки немає (принцип 7) — у своїй вкладці беремо його зі збережених слів
+    // номера будинку серед id немає — беремо його зі слів питання
     const said = words ? parseLocal(words, kyivNow(), stopIndex, routes).intent : null;
     const house = (ref: TripIntent['from'], mine: TripIntent['from'] | undefined) => (ref && mine && mine.id.startsWith(`${ref.id}:`) ? { ...ref, id: mine.id } : ref);
     void run(words, { ...fromUrl, from: house(fromUrl.from, said?.from), to: house(fromUrl.to, said?.to) });

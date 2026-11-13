@@ -153,10 +153,9 @@ of `dist` in a commit.
   `QueryField` highlights recognised words in a layer under the transparent textarea and suggests gazetteer places
   for the word at the caret (`suggest.ts` — every inserted form must parse back to its place, a test checks it);
   `SlotSheet` edits one slot of the «Розумію…» row; the answer is built from ids in the URL (`url.ts`, `?f=&t=&d=&h=&a=&p=&m=&r=&x=`);
-  the question's words ride along in `q=` for display only (the shared link shows the same highlighted phrase) and only
-  when the question has no street, house or unknown word (`questionForUrl`) — a home address never gets into a link.
-  The tab keeps its own question in sessionStorage (`rememberQuestion` / `recallQuestion`), so a reload restores the
-  phrase and the house number. Slot edits and id links do not call Claude.
+  the question's words always ride along in `q=` in full (owner's decision: a reload or a shared link shows the same
+  highlighted phrase and the same answer; the house number is read back from those words). Opening a link never calls
+  Claude. The tab also keeps its question in sessionStorage (`rememberQuestion` / `recallQuestion`) as a fallback. Slot edits and id links do not call Claude.
   Every city stop is a place: the curated gazetteer covers districts and synonyms, the rest come from the dataset
   (`nlu/stopPlaces.ts` + `normalize.ts`, byte-identical in `backend/src/dovede/`; ids `st_XXXX`, phrase matching).
   The browser registers them with `setStopPlaces` (look places up with `resolvePlace`, not `placeById`); the

@@ -14,19 +14,17 @@ const base: TripIntent = {
 };
 
 describe('«Доведе» — адреса відповіді', () => {
-  it('в адресі лише id, дата, час і транспорт — жодного слова з питання', () => {
+  it('id, дата, час і транспорт — без слів питання (вони окремо, у q=)', () => {
     const q = intentToParams(base, '2026-11-14');
     expect(q.toString()).toBe('f=kyiv.sviatoshyn&t=malyn.vokzal&d=2026-11-14&h=09%3A00&a=1&m=elektrichka');
     expect(decodeURIComponent(q.toString())).not.toMatch(/[а-яіїєґ]/i);
   });
 
-  it('слова питання йдуть у посилання лише без адрес і невпізнаних слів', () => {
-    expect(questionForUrl('  з Києва на вокзал  ', base)).toBe('з Києва на вокзал');
-    expect(questionForUrl('з Городищанської 20 на вокзал', { ...base, from: { id: 'street.horodyshchanska:20', text: 'Городищанської 20' } })).toBeNull();
-    expect(questionForUrl('на Городищанську', { ...base, to: { id: 'street.horodyshchanska', text: 'Городищанську' } })).toBeNull();
-    expect(questionForUrl('до тітки Галі на Лісну 5', { ...base, unknown: ['Галі'] })).toBeNull();
-    expect(questionForUrl('', base)).toBeNull();
-    expect(questionForUrl('а'.repeat(301), base)).toBeNull();
+  it('слова питання йдуть у посилання цілком, разом з адресою', () => {
+    expect(questionForUrl('  з Києва на вокзал  ')).toBe('з Києва на вокзал');
+    expect(questionForUrl('з Городищанської 20 на вокзал')).toBe('з Городищанської 20 на вокзал');
+    expect(questionForUrl('')).toBeNull();
+    expect(questionForUrl('а'.repeat(301))).toBeNull();
     expect(questionFromParams(new URLSearchParams('q=%20%D0%B4%D0%BE%20%D0%90%D0%A2%D0%91%20'))).toBe('до АТБ');
   });
 

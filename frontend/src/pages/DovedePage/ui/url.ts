@@ -1,9 +1,8 @@
 /**
  * Адреса відповіді (Docs/dovede-roadmap.md, принцип 7). Відповідь будується з id: `?f=&t=&d=&h=&m=` (+ `a=1` —
- * «прибути до», `p=` — частина дня, `r=` — маршрути, `x=` — маршрути, яких уникати). Слова людини йдуть у `q=` лише
- * для показу (поле з підсвіткою в того, кому надіслали посилання) і лише тоді, коли в питанні немає вулиці, будинку
- * чи невпізнаних слів: домашня адреса в посиланні не лишається. Для перезавантаження тієї самої вкладки текст
- * зберігається в sessionStorage — він нікуди не йде.
+ * «прибути до», `p=` — частина дня, `r=` — маршрути, `x=` — маршрути, яких уникати). Слова людини завжди йдуть у
+ * `q=` цілком: посилання відкриває ту саму фразу з підсвіткою й ту саму відповідь (номер будинку береться з цих
+ * слів). Рішення власника 2026-11-13: людина сама вирішує, кому надсилати посилання зі своєю адресою.
  */
 import { resolvePlace } from '../nlu/places';
 import { streetIdForUrl } from '../nlu/streets';
@@ -75,16 +74,10 @@ export function paramsToIntent(q: URLSearchParams, now: KyivNow): TripIntent | n
   };
 }
 
-/**
- * Слова питання, які можна покласти в посилання, або null. Ні — якщо серед місць є вулиця чи будинок або лишились
- * невпізнані слова (це може бути чиясь адреса).
- */
-export function questionForUrl(text: string, intent: TripIntent): string | null {
+/** Слова питання для посилання — цілком; null — питання порожнє або задовге */
+export function questionForUrl(text: string): string | null {
   const t = text.trim();
-  if (!t || t.length > MAX_QUESTION) return null;
-  if (intent.unknown.length) return null;
-  if ([intent.from, intent.to].some((r) => r?.id.startsWith('street.'))) return null;
-  return t;
+  return t && t.length <= MAX_QUESTION ? t : null;
 }
 
 /** Слова питання з посилання (`q=`) — лише для показу в полі */
