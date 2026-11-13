@@ -24,7 +24,7 @@ import { intercityTrips, type IntercityTrip } from './intercity';
 import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
 import type { Endpoint } from '@/pages/LocalTransportPage/journey';
-import type { ComposeOutcome, LocalPlanner, RouteBoard, Story, StoryLeg } from './types';
+import type { ComposeOutcome, LocalPlanner, RouteBoard, RouteInfoItem, Story, StoryLeg } from './types';
 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ export type TripShape =
   | { kind: 'unknown_place'; words: string[] }
   | { kind: 'outside'; city: string | null }
   | { kind: 'poputka_soon' }
-  | { kind: 'route_info'; routeId: string; stop: GazetteerPlace | null }
+  | { kind: 'route_info'; routeIds: string[]; stop: GazetteerPlace | null }
   | { kind: 'not_trip'; intent: 'schedule' | 'price' | 'contact' | 'other' };
 
 const MALYN = placeById('city.Malyn')!;
@@ -48,10 +48,10 @@ export function classify(intent: TripIntent): TripShape {
   const from = intent.from ? resolvePlace(intent.from.id) ?? null : null;
   const to = intent.to ? resolvePlace(intent.to.id) ?? null : null;
   // «куди їде №5», «коли 9-ка з Царського села» — картка маршруту; з парою «звідки — куди» це звичайна поїздка
-  const routeId = intent.routes?.[0];
-  if (routeId && (intent.intent === 'route' || !(from && to))) {
+  const routeIds = intent.routes ?? [];
+  if (routeIds.length && (intent.intent === 'route' || !(from && to))) {
     const stop = [from, to].find((p) => p && p.city === 'Malyn' && !p.isCity) ?? null;
-    return { kind: 'route_info', routeId, stop };
+    return { kind: 'route_info', routeIds, stop };
   }
   if (intent.intent !== 'trip' && intent.intent !== 'schedule' && intent.intent !== 'route') return { kind: 'not_trip', intent: intent.intent };
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };
@@ -560,7 +560,11 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
   // Людина назвала маршрут («пʼятіркою до вокзалу») — спершу поїздки ним; якщо ним не доїхати, чесно кажемо й показуємо інші
   const wanted = input.intent.routes ?? [];
   const usesWanted = (j: Journey) => j.legs.some((l) => l.kind === 'transit' && wanted.includes(l.routeId));
-  const byRoute = wanted.length ? plan.journeys.filter(usesWanted) : plan.journeys;
+  // «крім сімки» — поїздки без цього автобуса; якщо без нього ніяк, чесно кажемо й показуємо з ним
+  const avoided = input.intent.avoidRoutes ?? [];
+  const usesAvoided = (j: Journey) => j.legs.some((l) => l.kind === 'transit' && avoided.includes(l.routeId));
+  const allowed = avoided.length ? plan.journeys.filter((j) => !usesAvoided(j)) : plan.journeys;
+  const byRoute = wanted.length ? allowed.filter(usesWanted) : allowed;
   const inWindow = (pool: Journey[]): Journey[] =>
     win.kind === 'arrive' && win.deadline != null
       ? pool.filter((j) => j.arriveMins <= win.deadline! && j.departMins >= win.start).slice(-2).reverse()
@@ -568,7 +572,9 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
   let picks = inWindow(byRoute);
   // названим маршрутом не доїхати взагалі або вже не сьогодні — показуємо інші, а не «нічого не їде»
   const routeMissed = wanted.length > 0 && picks.length === 0;
-  if (routeMissed) picks = inWindow(plan.journeys);
+  if (routeMissed) picks = inWindow(allowed);
+  const avoidMissed = avoided.length > 0 && picks.length === 0;
+  if (avoidMissed) picks = inWindow(plan.journeys);
   const stories = picks.map((j, i) =>
     makeStory(`city-${i}-${j.departMins}`, 'city_bus', input.date, fromLabel, toLabel, journeyLegs(j, planner, destPoint), {
       leave: j.departMins,
@@ -595,20 +601,37 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
   }
   if (!stories.length) return { kind: 'empty', reason: 'no_trips' };
   const no = (id: string) => input.routes?.find((r) => r.id === id)?.no ?? id;
-  const notice = routeMissed
-    ? `Автобусом №${wanted.map(no).join(', №')} ${byRoute.length ? 'у цей час уже не доїхати' : 'туди не доїхати'} — ось інші варіанти.`
-    : null;
+  const notice = avoidMissed
+    ? `Без автобуса №${avoided.map(no).join(', №')} ${allowed.length ? 'у цей час уже не доїхати' : 'туди не доїхати'} — показую варіанти з ним.`
+    : routeMissed
+      ? `Автобусом №${wanted.map(no).join(', №')} ${byRoute.length ? 'у цей час уже не доїхати' : 'туди не доїхати'} — ось інші варіанти.`
+      : null;
   return { kind: 'stories', stories, askMode: false, notice };
 }
 
 /** Картка маршруту: кінцеві й найближчі відправлення — з названої зупинки або з обох кінцевих */
 function routeInfoOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'route_info' }>): ComposeOutcome {
-  const { planner, now, date } = input;
-  const route = input.routes?.find((r) => r.id === shape.routeId);
+  const { planner } = input;
   if (!planner?.routeDepartures) return { kind: 'empty', reason: 'no_trips' };
-  // місце може мати кілька зупинок (обидва боки дороги) — беремо ті, через які маршрут справді ходить
   const stopIds = shape.stop?.stopIds ?? [];
-  const groups = stopIds.length ? stopIds.flatMap((id) => planner.routeDepartures!(shape.routeId, id)) : planner.routeDepartures(shape.routeId, null);
+  // кілька маршрутів («коли їдуть 5 і 7 з лікарні») — одна картка; першим той, що їде раніше
+  const items = shape.routeIds.map((id) => routeInfoItem(input, id, stopIds));
+  if (items.length > 1) items.sort((a, b) => (a.boards[0]?.next[0] ?? Infinity) - (b.boards[0]?.next[0] ?? Infinity));
+  return {
+    kind: 'route_info',
+    // зупинку назвали, але маршрут через неї не ходить — картка скаже про це
+    atStopId: shape.stop ? stopIds[0] ?? null : null,
+    atStopLabel: shape.stop ? placeLabel(shape.stop) : null,
+    items,
+  };
+}
+
+function routeInfoItem(input: ComposeInput, routeId: string, stopIds: string[]): RouteInfoItem {
+  const { now, date } = input;
+  const planner = input.planner!;
+  const route = input.routes?.find((r) => r.id === routeId);
+  // місце може мати кілька зупинок (обидва боки дороги) — беремо ті, через які маршрут справді ходить
+  const groups = stopIds.length ? stopIds.flatMap((id) => planner.routeDepartures!(routeId, id)) : planner.routeDepartures!(routeId, null);
   const from = date === now.date ? now.mins : 0;
   const boards: RouteBoard[] = groups
     .filter((g) => g.mins.length)
@@ -617,17 +640,7 @@ function routeInfoOutcome(input: ComposeInput, shape: Extract<TripShape, { kind:
   // поодинокі рейси іншим шляхом, які сьогодні вже пройшли, лише засмічують картку, якщо є що показати
   const upcoming = boards.filter((b) => b.next.length);
   const shown = (upcoming.length ? upcoming : boards).slice(0, 4);
-  return {
-    kind: 'route_info',
-    routeId: shape.routeId,
-    no: route?.no ?? shape.routeId,
-    fromName: route?.fromName ?? '',
-    toName: route?.toName ?? '',
-    // зупинку назвали, але маршрут через неї не ходить — картка скаже про це
-    atStopId: shape.stop ? stopIds[0] ?? null : null,
-    atStopLabel: shape.stop ? placeLabel(shape.stop) : null,
-    boards: shown,
-  };
+  return { routeId, no: route?.no ?? routeId, fromName: route?.fromName ?? '', toName: route?.toName ?? '', boards: shown };
 }
 
 // ─── Вхід ─────────────────────────────────────────────────────────────────────────────────────

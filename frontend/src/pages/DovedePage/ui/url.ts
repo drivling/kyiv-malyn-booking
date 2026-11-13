@@ -27,6 +27,7 @@ export function intentToParams(intent: TripIntent, date: string): URLSearchParam
   } else if (intent.when.part) q.set('p', intent.when.part);
   if (intent.modes.length) q.set('m', intent.modes.join(','));
   if (intent.routes?.length) q.set('r', intent.routes.join(','));
+  if (intent.avoidRoutes?.length) q.set('x', intent.avoidRoutes.join(','));
   return q;
 }
 
@@ -40,6 +41,7 @@ export function paramsToIntent(q: URLSearchParams, now: KyivNow): TripIntent | n
   const to = place('t');
   // id маршруту з адреси звіряє складальник (невідомий — картка без рейсів); тут лише форма
   const routes = (q.get('r') ?? '').split(',').filter((r) => ROUTE_ID_RE.test(r));
+  const avoid = (q.get('x') ?? '').split(',').filter((r) => ROUTE_ID_RE.test(r) && !routes.includes(r));
   if (!from && !to && !routes.length) return null;
 
   const d = q.get('d') ?? '';
@@ -62,6 +64,7 @@ export function paramsToIntent(q: URLSearchParams, now: KyivNow): TripIntent | n
     when,
     modes: [...new Set(modes)],
     ...(routes.length ? { routes: [...new Set(routes)] } : {}),
+    ...(avoid.length ? { avoidRoutes: [...new Set(avoid)] } : {}),
     unknown: [],
     confidence: (from && to) || routes.length ? 'high' : 'medium',
   };

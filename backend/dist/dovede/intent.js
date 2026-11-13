@@ -57,10 +57,11 @@ exports.INTENT_SCHEMA = {
         },
         modes: { type: 'array', items: { type: 'string', enum: MODES } },
         routes: { type: 'array', items: { type: 'string', description: 'id маршруту міського автобуса зі списку маршрутів' } },
+        avoidRoutes: { type: 'array', items: { type: 'string', description: 'id маршруту, яким людина їхати не хоче («крім сімки»)' } },
         unknown: { type: 'array', items: { type: 'string' } },
         confidence: { type: 'string', enum: CONFIDENCE },
     },
-    required: ['intent', 'from', 'to', 'when', 'modes', 'routes', 'unknown', 'confidence'],
+    required: ['intent', 'from', 'to', 'when', 'modes', 'routes', 'avoidRoutes', 'unknown', 'confidence'],
     additionalProperties: false,
 };
 const DAY_RE = /^(today|tomorrow|\d{4}-\d{2}-\d{2})$/;
@@ -129,6 +130,19 @@ function validateIntent(raw, stopIds, routeIds) {
                 routes.push(r);
         }
     }
+    // заборона сильніша: маршрут, якого просили уникати, серед бажаних не лишається
+    const avoidRoutes = [];
+    if (Array.isArray(o.avoidRoutes)) {
+        for (const r of o.avoidRoutes) {
+            if (typeof r === 'string' && routeIds?.has(r) && !avoidRoutes.includes(r))
+                avoidRoutes.push(r);
+        }
+    }
+    for (const r of avoidRoutes) {
+        const at = routes.indexOf(r);
+        if (at >= 0)
+            routes.splice(at, 1);
+    }
     let intent = oneOf(INTENTS, o.intent, 'trip');
     // «питання про маршрут» без жодного відомого маршруту — звичайне питання про дорогу
     if (intent === 'route' && !routes.length)
@@ -137,5 +151,5 @@ function validateIntent(raw, stopIds, routeIds) {
     // місце відкинуто або не назване — «high» бути не може (крім питання про сам маршрут: йому місце не потрібне)
     if (confidence === 'high' && (unknown.length > 0 || (!to && intent !== 'route')))
         confidence = 'medium';
-    return { intent, from, to, when, modes, ...(routes.length ? { routes } : {}), unknown, confidence };
+    return { intent, from, to, when, modes, ...(routes.length ? { routes } : {}), ...(avoidRoutes.length ? { avoidRoutes } : {}), unknown, confidence };
 }

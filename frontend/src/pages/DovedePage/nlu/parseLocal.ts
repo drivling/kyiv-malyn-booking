@@ -134,7 +134,11 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (stops.length) {
       const street = matchStreet(toks, i);
       const prep = street ? prepBefore(toks, i) : null;
-      const place = street && (prep || street.explicit || street.house) && streetWins(street, n) ? streetPlace(streetPlaceId(street)) : undefined;
+      // орієнтир — лише після прийменника: назви крамниць — звичайні слова
+      const lm = prepBefore(toks, i) ? matchLandmark(toks, i) : null;
+      // довша назва закладу сильніша за вулицю з того самого слова: «до Слобідської гімназії»
+      const lmLonger = lm != null && street != null && lm.end > street.end;
+      const place = street && !lmLonger && (prep || street.explicit || street.house) && streetWins(street, n) ? streetPlace(streetPlaceId(street)) : undefined;
       if (street && place) {
         const lastTok = toks[street.end];
         const whole: Token = { raw: text.slice(t.start, lastTok.end), n, start: t.start, end: lastTok.end };
@@ -145,8 +149,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
         i = street.end;
         continue;
       }
-      // Орієнтир без зупинки («до АТБ», «в пенсійний фонд») — лише після прийменника: назви крамниць — звичайні слова
-      const lm = prepBefore(toks, i) ? matchLandmark(toks, i) : null;
+      // Орієнтир без зупинки («до АТБ», «в пенсійний фонд»)
       const lmPlace = lm ? landmarkPlace(lm.landmark.id) : undefined;
       if (lm && lmPlace) {
         const lmPrep = prepBefore(toks, i)!;
@@ -275,7 +278,8 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
   });
   for (const h of hits) if (h.role) spans.push({ start: h.spanStart, end: h.token.end, kind: h.role });
   for (const m of routeMentions) spans.push({ start: m.start, end: m.end, kind: 'mode' });
-  const routeIds = [...new Set(routeMentions.map((m) => m.routeId))];
+  const avoidIds = [...new Set(routeMentions.filter((m) => m.avoid).map((m) => m.routeId))];
+  const routeIds = [...new Set(routeMentions.filter((m) => !m.avoid).map((m) => m.routeId))].filter((id) => !avoidIds.includes(id));
   if (unknownRole === 'from' && st.from) unknownRole = null;
   if (unknownRole === 'to' && st.to) unknownRole = null;
 
@@ -304,7 +308,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
   if (part) when.part = part;
 
   // Маршрут міського автобуса — це завжди міський транспорт
-  if (routeIds.length && !tripModes.includes('city_bus')) tripModes.push('city_bus');
+  if ((routeIds.length || avoidIds.length) && !tripModes.includes('city_bus')) tripModes.push('city_bus');
 
   // Намір
   const words = toks.map((t) => t.n);
@@ -334,6 +338,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
       when,
       modes: tripModes,
       ...(routeIds.length ? { routes: routeIds } : {}),
+      ...(avoidIds.length ? { avoidRoutes: avoidIds } : {}),
       unknown,
       confidence,
     },

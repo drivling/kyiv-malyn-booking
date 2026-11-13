@@ -24,7 +24,7 @@ const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 interface GoldenCase {
   id: string;
   text: string;
-  expect: { intent?: string; from?: string | null; to?: string | null; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; unknown?: string[]; confidence?: string };
+  expect: { intent?: string; from?: string | null; to?: string | null; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; avoidRoutes?: string[]; unknown?: string[]; confidence?: string };
   scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'later';
 }
 
@@ -51,6 +51,7 @@ export function gradeIntent(got: TripIntent, e: GoldenCase['expect']): { ok: num
   }
   if (e.modes !== undefined) check('modes', [...got.modes].sort(), [...e.modes].sort());
   if (e.routes !== undefined) check('routes', [...(got.routes ?? [])].sort(), [...e.routes].sort());
+  if (e.avoidRoutes !== undefined) check('avoidRoutes', [...(got.avoidRoutes ?? [])].sort(), [...e.avoidRoutes].sort());
   if (e.unknown !== undefined) check('unknown', got.unknown.length > 0, e.unknown.length > 0);
   if (e.confidence !== undefined) check('confidence', got.confidence, e.confidence);
   return { ok, total, why };

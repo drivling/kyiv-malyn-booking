@@ -136,6 +136,7 @@ describe('intentLine', () => {
     expect(intentLine(INTENT, label)).toBe('city.Kyiv → malyn.vokzal · завтра 08:00 · маршрутка');
     expect(intentLine({ ...INTENT, from: null, when: { day: 'today', kind: 'any' }, modes: [] }, label)).toBe('? → malyn.vokzal');
     expect(intentLine({ ...INTENT, intent: 'route', from: null, to: null, when: { day: 'today', kind: 'any' }, modes: [], routes: ['5'] }, label)).toBe('маршрут · №5');
+    expect(intentLine({ ...INTENT, when: { day: 'today', kind: 'any' }, modes: [], avoidRoutes: ['7'] }, label)).toBe('city.Kyiv → malyn.vokzal · крім №7');
     expect(intentLine({ ...INTENT, when: { day: 'today', time: '17:00', kind: 'arrive' }, modes: [] }, label)).toBe('city.Kyiv → malyn.vokzal · сьогодні бути о 17:00');
   });
 });

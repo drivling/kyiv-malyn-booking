@@ -15,6 +15,8 @@ export interface RouteLike {
 
 export interface RouteMention {
   routeId: string;
+  /** перед номером стояло «крім», «без», «тільки не» — цим маршрутом їхати не хочуть */
+  avoid: boolean;
   start: number;
   end: number;
 }
@@ -38,6 +40,9 @@ const WORD_STEMS: Array<[string[], string]> = [
 ];
 const WORD_RE = /[\p{L}][\p{L}']*/gu;
 
+/** «крім сімки», «окрім №5», «кроме девятки», «без 7-ки», «тільки не автобусом №3» — слова перед згадкою */
+const AVOID_BEFORE_RE = /(?:^|[^\p{L}])(?:крім|окрім|кроме|опріч|без|не)(?:\s+(?:на|автобус\p{L}*|маршрут\p{L}*))?\s*$/u;
+
 function routeByNumber(routes: RouteLike[], shown: string): RouteLike | undefined {
   const n = shown.toLowerCase();
   return routes.find((r) => r.no.toLowerCase() === n) ?? routes.find((r) => r.id.toLowerCase() === n);
@@ -51,7 +56,7 @@ export function findRouteMentions(text: string, routes: RouteLike[]): RouteMenti
   const found: RouteMention[] = [];
   const add = (shown: string, start: number, end: number) => {
     const route = routeByNumber(routes, shown);
-    if (route && !found.some((m) => start < m.end && end > m.start)) found.push({ routeId: route.id, start, end });
+    if (route && !found.some((m) => start < m.end && end > m.start)) found.push({ routeId: route.id, avoid: false, start, end });
   };
   for (const m of t.matchAll(MARKED_RE)) add(m[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
   for (const m of t.matchAll(BEFORE_RE)) add(m[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
@@ -60,5 +65,11 @@ export function findRouteMentions(text: string, routes: RouteLike[]): RouteMenti
     const hit = WORD_STEMS.find(([stems]) => stems.some((s) => m[0].startsWith(s)));
     if (hit) add(hit[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
   }
-  return found.sort((a, b) => a.start - b.start);
+  found.sort((a, b) => a.start - b.start);
+  // «крім 5 і 7»: заперечення стосується й наступного номера через «і», «та», кому
+  found.forEach((m, i) => {
+    const prev = found[i - 1];
+    m.avoid = AVOID_BEFORE_RE.test(t.slice(0, m.start)) || (prev?.avoid === true && /^\s*(?:,|і|й|та|и|або|чи)?\s*$/u.test(t.slice(prev.end, m.start)));
+  });
+  return found;
 }

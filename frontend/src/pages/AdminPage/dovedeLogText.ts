@@ -34,6 +34,7 @@ export function intentLine(intent: TripIntent, placeLabel: (ref: PlaceRef | null
   // «сьогодні» без часу — це просто «не сказано»
   if (when.length > 1 || intent.when.day !== 'today') parts.push(when.join(' '));
   if (intent.routes?.length) parts.push(intent.routes.map((id) => `№${routeNo(id)}`).join(', '));
+  if (intent.avoidRoutes?.length) parts.push(`крім ${intent.avoidRoutes.map((id) => `№${routeNo(id)}`).join(', ')}`);
   if (intent.modes.length) parts.push(intent.modes.map((m) => MODE_LABEL[m] ?? m).join(', '));
   return parts.join(' · ') || '—';
 }

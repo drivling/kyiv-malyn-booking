@@ -90,6 +90,15 @@ export interface Story {
   lead: string;
 }
 
+/** Один маршрут у картці маршрутів: номер, кінцеві, найближчі відправлення */
+export interface RouteInfoItem {
+  routeId: string;
+  no: string;
+  fromName: string;
+  toName: string;
+  boards: RouteBoard[];
+}
+
 export type ComposeOutcome =
   | { kind: 'stories'; stories: Story[]; askMode: boolean; notice: string | null }
   | { kind: 'empty'; reason: 'no_trips' | 'too_late' }
@@ -99,5 +108,5 @@ export type ComposeOutcome =
   | { kind: 'outside'; city: string | null }
   | { kind: 'poputka_soon' }
   /** Питання про сам маршрут: кінцеві, найближчі відправлення (з названої зупинки або з кінцевих) */
-  | { kind: 'route_info'; routeId: string; no: string; fromName: string; toName: string; atStopId: string | null; atStopLabel: string | null; boards: RouteBoard[] }
+  | { kind: 'route_info'; atStopId: string | null; atStopLabel: string | null; items: RouteInfoItem[] }
   | { kind: 'not_trip'; intent: 'schedule' | 'price' | 'contact' | 'other' };
